@@ -118,6 +118,32 @@
   </div>
 </div>
 
+{# Modal détail événement #}
+<div class="modal fade" id="modalEvenement" tabindex="-1" aria-labelledby="modal-titre" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-titre"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-4">Type</dt>
+          <dd class="col-8" id="modal-type">—</dd>
+          <dt class="col-4">Statut</dt>
+          <dd class="col-8" id="modal-statut">—</dd>
+          <dt class="col-4">Assigné</dt>
+          <dd class="col-8" id="modal-assignees">—</dd>
+        </dl>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+        <a id="modal-lien" href="#" class="btn btn-primary btn-sm">Voir le détail</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
@@ -147,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const type    = params.get('type')    || '';
   const status  = params.get('status')  || '';
 
-  const fcView = view === 'week' ? 'dayGridWeek' : (view === 'day' ? 'timeGridDay' : 'dayGridMonth');
+  const fcView = view === 'week' ? 'timeGridWeek' : (view === 'day' ? 'timeGridDay' : 'dayGridMonth');
   const eventsUrl = `/calendar/events/?view=${view}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
 
   const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
@@ -166,15 +192,20 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }],
     eventClick: function (info) {
-      if (info.event.url) {
-        window.location.href = info.event.url;
-        info.jsEvent.preventDefault();
-      }
+      info.jsEvent.preventDefault();
+      const props = info.event.extendedProps;
+      document.getElementById('modal-titre').textContent    = info.event.title;
+      document.getElementById('modal-type').textContent     = props.typeLabel || '—';
+      document.getElementById('modal-statut').textContent   = props.statusLabel || props.status || '—';
+      document.getElementById('modal-assignees').textContent = props.assignees || '—';
+      const lien = document.getElementById('modal-lien');
+      lien.href = props.detail_url || info.event.url || '#';
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEvenement')).show();
     },
     eventDidMount: function (info) {
       const props = info.event.extendedProps;
-      if (props && props.status) {
-        info.el.setAttribute('title', props.status);
+      if (props && props.statusLabel) {
+        info.el.setAttribute('title', props.statusLabel);
       }
     },
     eventDrop: function (info) {

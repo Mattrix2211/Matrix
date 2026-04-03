@@ -211,14 +211,27 @@ def calendar_events(request):
         occ_qs = occ_qs.none()
     for occ in occ_qs:
         couleur = _couleur_evenement("maintenance", occ.status)
+        assignees = ", ".join(a.get_full_name() or a.username for a in occ.assignees.all()) or "—"
+        statuts_fr = {
+            "PLANNED": "Planifiée", "ASSIGNED": "Assignée", "IN_PROGRESS": "En cours",
+            "WAITING_VALIDATION": "En attente validation", "DONE": "Terminée",
+            "OVERDUE": "En retard", "CANCELLED": "Annulée",
+        }
         events.append({
             "id": f"occ-{occ.id}",
             "title": f"🔧 {occ.asset}",
             "start": occ.scheduled_for.isoformat(),
-            "end": occ.scheduled_for.isoformat(),
+            "allDay": True,
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
             "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-            "extendedProps": {"type": "maintenance", "status": occ.status},
+            "extendedProps": {
+                "type": "maintenance",
+                "typeLabel": "Maintenance préventive",
+                "status": occ.status,
+                "statusLabel": statuts_fr.get(occ.status, occ.status),
+                "assignees": assignees,
+                "detail_url": f"/maintenance/occurrences/{occ.id}/execute/",
+            },
             **couleur,
         })
     # Tickets correctifs planifiés
@@ -233,6 +246,11 @@ def calendar_events(request):
         ticket_qs = ticket_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "ticket":
         ticket_qs = ticket_qs.none()
+    statuts_ticket_fr = {
+        "REPORTED": "Signalé", "DIAGNOSED": "Diagnostiqué", "WAITING_PARTS": "Attente pièces",
+        "IN_REPAIR": "En réparation", "TESTING": "En test",
+        "RETURNED_TO_SERVICE": "Remis en service", "CLOSED": "Clôturé",
+    }
     for t in ticket_qs:
         if t.planned_for and (start <= t.planned_for <= end):
             couleur = _couleur_evenement("ticket")
@@ -240,10 +258,17 @@ def calendar_events(request):
                 "id": f"tic-{t.pk}",
                 "title": f"🛠 {t.asset}",
                 "start": t.planned_for.isoformat(),
-                "end": t.planned_for.isoformat(),
+                "allDay": True,
                 "url": f"/logistics/tickets/{t.pk}/",
                 "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-                "extendedProps": {"type": "ticket", "status": t.status},
+                "extendedProps": {
+                    "type": "ticket",
+                    "typeLabel": "Ticket correctif",
+                    "status": t.status,
+                    "statusLabel": statuts_ticket_fr.get(t.status, t.status),
+                    "assignees": "—",
+                    "detail_url": f"/logistics/tickets/{t.pk}/",
+                },
                 **couleur,
             })
     # Sessions de formation
@@ -256,17 +281,29 @@ def calendar_events(request):
         ses_qs = ses_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "training":
         ses_qs = ses_qs.none()
+    statuts_session_fr = {
+        "SCHEDULED": "Planifiée", "COMPLETED": "Terminée", "CANCELLED": "Annulée",
+    }
     for s in ses_qs:
         course_title = getattr(s.course, "title", None) or getattr(s.course, "name", str(s.course))
         couleur = _couleur_evenement("training")
+        instructeur = "—"
+        if s.instructor:
+            instructeur = s.instructor.get_full_name() or s.instructor.username
         events.append({
             "id": f"trn-{s.id}",
             "title": f"📚 {course_title}",
             "start": s.scheduled_at.isoformat(),
-            "end": s.scheduled_at.isoformat(),
             "url": "/training/",
             "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-            "extendedProps": {"type": "training", "status": s.status},
+            "extendedProps": {
+                "type": "training",
+                "typeLabel": "Formation",
+                "status": s.status,
+                "statusLabel": statuts_session_fr.get(s.status, s.status),
+                "assignees": f"Formateur : {instructeur}",
+                "detail_url": "/training/",
+            },
             **couleur,
         })
     return JsonResponse(events, safe=False)
