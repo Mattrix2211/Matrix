@@ -164,11 +164,28 @@ def _parse_common_period(request):
     return start, end
 
 
+_COULEUR_STATUT_MAINTENANCE = {
+    "OVERDUE":            {"backgroundColor": "#dc3545", "borderColor": "#b02a37", "textColor": "#fff"},
+    "DONE":               {"backgroundColor": "#6c757d", "borderColor": "#565e64", "textColor": "#fff"},
+    "CANCELLED":          {"backgroundColor": "#adb5bd", "borderColor": "#9aa0a6", "textColor": "#333"},
+    "WAITING_VALIDATION": {"backgroundColor": "#0dcaf0", "borderColor": "#0aa8cc", "textColor": "#000"},
+}
+_COULEUR_PAR_TYPE = {
+    "maintenance": {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
+    "ticket":      {"backgroundColor": "#fd7e14", "borderColor": "#d96307", "textColor": "#fff"},
+    "training":    {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
+}
+
+def _couleur_evenement(ev_type, status=None):
+    if ev_type == "maintenance" and status in _COULEUR_STATUT_MAINTENANCE:
+        return _COULEUR_STATUT_MAINTENANCE[status]
+    return _COULEUR_PAR_TYPE.get(ev_type, {"backgroundColor": "#6c757d", "borderColor": "#565e64", "textColor": "#fff"})
+
+
 def calendar_events(request):
     if not request.user.is_authenticated:
         return HttpResponseForbidden()
     start, end = _parse_common_period(request)
-    # reuse filters parsing from view
     filters = {
         "ship": request.GET.get("ship") or None,
         "service": request.GET.get("service") or None,
@@ -178,7 +195,7 @@ def calendar_events(request):
         "status": request.GET.get("status") or None,
     }
     events = []
-    # Occurrences
+    # Occurrences de maintenance préventive
     occ_qs = MaintenanceOccurrence.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").filter(scheduled_for__range=(start, end))
     if filters.get("ship"):
         occ_qs = occ_qs.filter(asset__ship_id=filters["ship"])
@@ -193,16 +210,18 @@ def calendar_events(request):
     if filters.get("type") and filters["type"] != "maintenance":
         occ_qs = occ_qs.none()
     for occ in occ_qs:
+        couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
             "id": f"occ-{occ.id}",
-            "type": "maintenance",
-            "title": f"Préventif - {occ.asset}",
+            "title": f"🔧 {occ.asset}",
             "start": occ.scheduled_for.isoformat(),
             "end": occ.scheduled_for.isoformat(),
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
             "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
+            "extendedProps": {"type": "maintenance", "status": occ.status},
+            **couleur,
         })
-    # Tickets (planned_for-based)
+    # Tickets correctifs planifiés
     ticket_qs = CorrectiveTicket.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").exclude(status__in=["CLOSED", "CANCELLED"])
     if filters.get("ship"):
         ticket_qs = ticket_qs.filter(asset__ship_id=filters["ship"])
@@ -216,35 +235,39 @@ def calendar_events(request):
         ticket_qs = ticket_qs.none()
     for t in ticket_qs:
         if t.planned_for and (start <= t.planned_for <= end):
+            couleur = _couleur_evenement("ticket")
             events.append({
                 "id": f"tic-{t.pk}",
-                "type": "ticket",
-                "title": f"Ticket - {t.asset}",
+                "title": f"🛠 {t.asset}",
                 "start": t.planned_for.isoformat(),
                 "end": t.planned_for.isoformat(),
                 "url": f"/logistics/tickets/{t.pk}/",
                 "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
+                "extendedProps": {"type": "ticket", "status": t.status},
+                **couleur,
             })
-    # Training sessions
+    # Sessions de formation
     ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
     if filters.get("sector"):
         ses_qs = ses_qs.filter(course__sector_id=filters["sector"])
     if filters.get("user"):
-        ses_qs = ses_qs.filter(attendees__id=filters["user"])  # sessions auxquelles l'utilisateur participe
+        ses_qs = ses_qs.filter(attendees__id=filters["user"])
     if filters.get("status"):
         ses_qs = ses_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "training":
         ses_qs = ses_qs.none()
     for s in ses_qs:
         course_title = getattr(s.course, "title", None) or getattr(s.course, "name", str(s.course))
+        couleur = _couleur_evenement("training")
         events.append({
             "id": f"trn-{s.id}",
-            "type": "training",
-            "title": f"Formation - {course_title}",
+            "title": f"📚 {course_title}",
             "start": s.scheduled_at.isoformat(),
             "end": s.scheduled_at.isoformat(),
             "url": "/training/",
             "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
+            "extendedProps": {"type": "training", "status": s.status},
+            **couleur,
         })
     return JsonResponse(events, safe=False)
 
