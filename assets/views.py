@@ -4,8 +4,8 @@ from .serializers import (
     LocationSerializer, AssetTypeSerializer, ChecklistTemplateSerializer, ChecklistItemTemplateSerializer,
     AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer
 )
-from bordops.core.mixins import ScopedQuerySetMixin
-from bordops.core.permissions import RolePermission
+from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass

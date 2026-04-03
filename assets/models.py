@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.db.models import JSONField
-from bordops.core.models import TimeStampedModel, OwnedModel
+from matrix.core.models import TimeStampedModel, OwnedModel
 from org.models import Ship, Service, Sector, Section
 
 User = get_user_model()

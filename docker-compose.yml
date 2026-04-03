@@ -3,9 +3,9 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-bordops}
-      POSTGRES_USER: ${POSTGRES_USER:-bordops}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bordops}
+      POSTGRES_DB: ${POSTGRES_DB:-matrix}
+      POSTGRES_USER: ${POSTGRES_USER:-matrix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matrix}
     ports:
       - "5432:5432"
     volumes:

@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
-from bordops.core.models import TimeStampedModel, OwnedModel
+from matrix.core.models import TimeStampedModel, OwnedModel
 
 User = get_user_model()
 

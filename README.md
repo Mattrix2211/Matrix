@@ -26,9 +26,9 @@ Accès: http://127.0.0.1:8000/ (admin: /admin/)
 docker compose up -d
 # Configurer env pour Postgres
 set DB_HOST=localhost
-set DB_NAME=bordops
-set DB_USER=bordops
-set DB_PASSWORD=bordops
+set DB_NAME=matrix
+set DB_USER=matrix
+set DB_PASSWORD=matrix
 set DB_PORT=5432
 # Appliquer migrations
 python manage.py migrate
@@ -38,9 +38,9 @@ python manage.py migrate
 Deux processus sont requis pour les tâches asynchrones et planifiées:
 ```bash
 # Worker
-celery -A bordops worker -l info
+celery -A matrix worker -l info
 # Beat (planification)
-celery -A bordops beat -l info
+celery -A matrix beat -l info
 ```
 
 ## Tests

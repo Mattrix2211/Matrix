@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db.models import JSONField
-from bordops.core.models import TimeStampedModel, OwnedModel
+from matrix.core.models import TimeStampedModel, OwnedModel
 from assets.models import Asset, ChecklistTemplate
 from assets.models import AssetType
 from django.db.models.signals import post_save

@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from bordops.core.models import TimeStampedModel, OwnedModel
+from matrix.core.models import TimeStampedModel, OwnedModel
 from org.models import Sector, Ship, Service, Section
 
 User = get_user_model()

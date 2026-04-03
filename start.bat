@@ -28,8 +28,8 @@ echo.
 
 REM Demarrage de Celery en arriere-plan (si Redis est disponible)
 echo [3/4] Demarrage des services...
-start /B celery -A bordops worker -l info --pool=solo >celery.log 2>&1
-start /B celery -A bordops beat -l info >celery-beat.log 2>&1
+start /B celery -A matrix worker -l info --pool=solo >celery.log 2>&1
+start /B celery -A matrix beat -l info >celery-beat.log 2>&1
 echo Services Celery demarres
 echo.
 

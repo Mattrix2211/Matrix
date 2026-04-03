@@ -2,7 +2,7 @@ import os, sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bordops.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'matrix.settings')
 import django
 django.setup()
 from django.contrib.auth import get_user_model

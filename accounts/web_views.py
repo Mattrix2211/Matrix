@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib import messages
 from .forms import UserProfileForm
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog
-from bordops.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import user_role_level, RoleLevel
 
 
 class UserDirectoryView(LoginRequiredMixin, ListView):

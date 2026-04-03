@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
 from .models import Ship, Service, Sector, Section, SectorConfig
 from .serializers import ShipSerializer, ServiceSerializer, SectorSerializer, SectionSerializer, SectorConfigSerializer
-from bordops.core.permissions import RolePermission
+from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass

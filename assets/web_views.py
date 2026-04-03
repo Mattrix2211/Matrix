@@ -17,7 +17,7 @@ from .models import InstallationMaintenance, InstallationMaintenanceAttachment
 from datetime import datetime, time
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
-from bordops.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import user_role_level, RoleLevel
 from accounts.models import AuditLog
 from org.models import Ship, Service, Sector, Section
 import json

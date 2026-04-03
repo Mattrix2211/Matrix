@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument
-from bordops.core.admin import AdminScopedMixin
+from matrix.core.admin import AdminScopedMixin
 
 @admin.register(Location)
 class LocationAdmin(AdminScopedMixin, admin.ModelAdmin):

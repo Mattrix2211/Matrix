@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
-from bordops.core.admin import AdminScopedMixin
+from matrix.core.admin import AdminScopedMixin
 
 @admin.register(CorrectiveTicket)
 class CorrectiveTicketAdmin(AdminScopedMixin, admin.ModelAdmin):
