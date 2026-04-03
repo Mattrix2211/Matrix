@@ -8,7 +8,7 @@ def user_ical_feed(request):
     if not request.user.is_authenticated:
         return HttpResponse(status=401)
     cal = Calendar()
-    cal.add('prodid', '-//BordOps//calendar//FR')
+    cal.add('prodid', '-//Matrix//calendar//FR')
     cal.add('version', '2.0')
     # Maintenance occurrences assigned to user
     for occ in MaintenanceOccurrence.objects.filter(assignees=request.user).select_related('asset', 'plan'):

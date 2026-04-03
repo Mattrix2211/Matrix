@@ -33,6 +33,6 @@ urlpatterns = [
     path("", login_required(TemplateView.as_view(template_name="dashboard/index.html")), name="home"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-admin.site.site_header = "BordOps Administration"
-admin.site.site_title = "BordOps Admin"
+admin.site.site_header = "Matrix Administration"
+admin.site.site_title = "Matrix Admin"
 admin.site.index_title = "Gestion à bord"
