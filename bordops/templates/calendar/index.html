@@ -120,7 +120,21 @@
 
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/fr.global.min.js"></script>
+<script>
+// Locale française embarquée directement — pas de dépendance CDN
+FullCalendar.globalLocales.push({
+  code: 'fr',
+  week: { dow: 1, doy: 4 },
+  buttonText: {
+    prev: 'Précédent', next: 'Suivant', today: "Aujourd'hui",
+    year: 'Année', month: 'Mois', week: 'Semaine', day: 'Jour', list: 'Planning',
+  },
+  weekText: 'Sem.',
+  allDayText: 'Toute la journée',
+  moreLinkText: function(n) { return '+' + n + ' en plus'; },
+  noEventsText: 'Aucun événement à afficher',
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const params  = new URLSearchParams(window.location.search);
