@@ -47,12 +47,12 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "bordops.urls"
+ROOT_URLCONF = "matrix.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "bordops" / "templates"],
+        "DIRS": [BASE_DIR / "matrix" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -60,23 +60,23 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "bordops.context_processors.installations_notifications",
+                "matrix.context_processors.installations_notifications",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = "bordops.wsgi.application"
-ASGI_APPLICATION = "bordops.asgi.application"
+WSGI_APPLICATION = "matrix.wsgi.application"
+ASGI_APPLICATION = "matrix.asgi.application"
 
 # Database: default to SQLite; use Postgres if env set
 if os.getenv("DB_HOST"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME", "bordops"),
-            "USER": os.getenv("DB_USER", "bordops"),
-            "PASSWORD": os.getenv("DB_PASSWORD", "bordops"),
+            "NAME": os.getenv("DB_NAME", "matrix"),
+            "USER": os.getenv("DB_USER", "matrix"),
+            "PASSWORD": os.getenv("DB_PASSWORD", "matrix"),
             "HOST": os.getenv("DB_HOST", "localhost"),
             "PORT": os.getenv("DB_PORT", "5432"),
         }
@@ -102,7 +102,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "bordops" / "static"]
+STATICFILES_DIRS = [BASE_DIR / "matrix" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"

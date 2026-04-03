@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from org.models import Ship, Service, Sector, Section
-from bordops.core.models import TimeStampedModel
+from matrix.core.models import TimeStampedModel
 
 User = get_user_model()
 

@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions
 from .models import TrainingCourse, TrainingRequirement, TrainingSession, TrainingRecord
 from .serializers import TrainingCourseSerializer, TrainingRequirementSerializer, TrainingSessionSerializer, TrainingRecordSerializer
-from bordops.core.permissions import RolePermission
+from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass

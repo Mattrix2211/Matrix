@@ -1,10 +1,10 @@
 from rest_framework import viewsets, permissions, decorators, response
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
-from bordops.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin
 from django.contrib.contenttypes.models import ContentType
 from threads.models import Thread, Message
-from bordops.core.permissions import RolePermission
+from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass

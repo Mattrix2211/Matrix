@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.utils import timezone
 from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog
-from bordops.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import user_role_level, RoleLevel
 
 
 class TicketDetailView(LoginRequiredMixin, View):

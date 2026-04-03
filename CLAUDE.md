@@ -1,113 +1,202 @@
-# CLAUDE.md
+# CLAUDE.md — Projet Matrix
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Ce fichier est la référence absolue pour Claude Code. Lis-le intégralement à chaque session.
 
-## Project Overview
+## Identité du projet
 
-**Matrix** (nom du projet, le package Django s'appelle `bordops`) — application de gestion opérationnelle pour la Marine Nationale. Django 5 + Celery + Redis + SQLite (dev) / PostgreSQL (prod), frontend Django Templates + Bootstrap 5 + HTMX.
+**Matrix** — application de gestion opérationnelle pour la **Marine Nationale française**.
+Le package Django s'appelle `matrix`, le projet s'appelle **Matrix**.
 
-**Principes fondamentaux :**
-- Interface 100 % en français — tous les labels, messages, boutons, et noms de champs doivent être en français
-- Plus rapide et plus simple qu'un tableau Excel : privilégier les workflows courts, les formulaires pré-remplis, les actions en un clic
-- Chaque marin dispose d'un espace personnel affichant ses tâches du jour, ses prochaines maintenances assignées et ses formations à venir
+## Stack technique
 
-**Deux types d'équipements :**
-- **Installations** : équipements fixes du navire (propulseurs, pompes, systèmes électriques…), propres à chaque bâtiment, gérés dans l'app `assets` via le modèle `Installation`
-- **Matériel mobile** : équipements transverses (extincteurs, EPI, multimètres, élingues…), suivis par catégorie avec une fiche individuelle par article (numéro de série, date de contrôle, péremption)
+- Python 3.12+, Django 5, Django REST Framework
+- Frontend : Django Templates + Bootstrap 5 + HTMX
+- Base de données : SQLite (dev), PostgreSQL (prod)
+- Tâches asynchrones : Celery + Redis
+- Graphiques : Chart.js + FullCalendar
 
-## Commands
+## Principes fondamentaux — NON NÉGOCIABLES
 
-### Setup
+1. **100 % français** — tout ce que voit l'utilisateur : labels, boutons, messages, statuts, placeholders, tooltips, titres, commentaires dans le code
+2. **Plus rapide qu'Excel** — si une action prend plus de clics que dans un tableau Excel, c'est un échec. Formulaires pré-remplis, actions en un clic, zéro jargon informatique
+3. **Espace personnel par marin** — chaque marin voit SES tâches, SES formations, SES maintenances assignées
+4. **Fonctionne hors-ligne** — le navire n'a pas toujours internet, aucune dépendance CDN critique
+
+## Deux types d'équipements
+
+- **Installations** : équipements fixes du navire (propulseurs, pompes, circuits électriques). Propres à chaque bâtiment. Modèle `Installation` dans l'app `assets`. Mesures techniques associées : heures de marche, vibrations (A/B/C), isolement (Ohms)
+- **Matériel mobile** : équipements transverses (extincteurs, EPI, multimètres, élingues). Modèle `Asset` dans l'app `assets`. Suivi par catégorie avec fiche individuelle (numéro de série, date de contrôle, péremption)
+
+## Architecture Django — 10 modules
+
+| App | Rôle |
+|-----|------|
+| `accounts` | Utilisateurs, profils, rôles (Commandant → Équipier), grades, spécialités |
+| `org` | Hiérarchie : Navire → Service → Secteur → Section |
+| `assets` | Installations fixes + Matériel mobile, checklists, documents, mesures techniques |
+| `maintenance` | Plans préventifs, occurrences, exécutions, checklists guidées |
+| `logistics` | Tickets correctifs, demandes de pièces, retours d'expérience (REX) |
+| `training` | Formations, sessions, qualifications, expiration, portabilité entre bâtiments |
+| `threads` | Discussions génériques (attachées à n'importe quel objet) |
+| `notifications` | Alertes in-app (maintenance en retard, formation expirée) |
+| `dashboard` | Tableau de bord, graphiques Chart.js |
+| `calendar_app` | Calendrier central (colonne vertébrale), vue globale + personnelle, alertes |
+
+## Structure des URLs
+
+- `/api/*` — API REST (DRF)
+- `/` — Interface web (templates Django)
+- Chaque app a `views.py` (API) et `web_views.py` (templates)
+
+## Hiérarchie des rôles
+
+`MASTER_ADMIN → ADMIN_NAVIRE → COMMANDANT → ETAT_MAJOR → CHEF_SERVICE → CHEF_SECTEUR → CHEF_SECTION → EQUIPIER`
+
+Chaque rôle ne voit que ce qui le concerne. Les chefs gèrent leur périmètre. Les équipiers exécutent.
+
+## Workflows clés
+
+### Maintenance préventive (Celery)
+- `generate_occurrences` quotidien : crée les occurrences 90 jours à l'avance
+- `compute_overdue` horaire : marque les retards
+- Cycle : `PLANNED → ASSIGNED → IN_PROGRESS → WAITING_VALIDATION → DONE`
+
+### Inspection QR → ticket correctif
+1. Scan QR → occurrence du jour
+2. Checklist remplie → `MaintenanceExecution`
+3. Si `NON_CONFORME` → création auto d'un `CorrectiveTicket`
+
+### Ticket correctif
+`REPORTED → DIAGNOSED → WAITING_PARTS → IN_REPAIR → TESTING → RETURNED_TO_SERVICE → CLOSED`
+
+## Commandes de développement
+
 ```bash
-python -m venv .venv && .venv\Scripts\activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py seed_demo   # optional demo data
-```
+# Lancer le serveur
+venv\Scripts\activate
+python manage.py runserver
 
-### Development
-```bash
-python manage.py runserver                        # web server → http://127.0.0.1:8000
-celery -A bordops worker -l info --pool=solo      # async worker (Windows)
-celery -A bordops beat -l info                    # task scheduler
-```
+# Celery (Windows)
+celery -A matrix worker -l info --pool=solo
+celery -A matrix beat -l info
 
-### Database
-```bash
+# Migrations
 python manage.py makemigrations
 python manage.py migrate
-python manage.py showmigrations
+
+# Tests
+python manage.py test
+python manage.py test <app>
 ```
 
-### Tests
-```bash
-python manage.py test                  # all tests
-python manage.py test maintenance      # single app
-coverage run --source='.' manage.py test && coverage report
+---
+
+# SYSTÈME MULTI-AGENTS AUTONOME
+
+## Philosophie
+
+Tu es un **Engineering Manager** qui dirige une équipe de 4 agents spécialisés. Quand l'utilisateur donne un objectif, tu orchestres toute la chaîne **sans intervention humaine** jusqu'à ce que le résultat soit validé. L'utilisateur ne doit PAS relancer les agents un par un.
+
+## Notion — Projet Matrix (source de vérité)
+
+Toute l'activité est tracée dans la base **"Tâches en cours"** du workspace Notion **"Projet Matrix"**.
+
+**Colonnes :**
+- Tâche (titre)
+- Phase (Phase 1 à 6)
+- Statut : `À faire` → `En cours` → `En vérification` → `En test` → `Terminé`
+- Priorité : Haute / Moyenne / Basse
+- Commentaires : chaque agent DOIT écrire ce qu'il a fait
+
+**Data source ID** : `92a61c09-e409-42a7-aefd-b65855b33b64`
+
+## Les 4 agents
+
+### 1. PO (Product Owner) — le stratège
+**Quand :** l'utilisateur donne un objectif flou ou large
+**Actions :**
+- Analyse l'objectif
+- Découpe en tâches concrètes et réalisables
+- Crée chaque tâche dans Notion (statut "À faire", phase, priorité)
+- Lance automatiquement le Dev sur la première tâche prioritaire
+**Commentaire Notion :** `[PO] Tâche créée : <raison>, priorité <X> car <justification>`
+
+### 2. Dev (Développeur) — le codeur
+**Quand :** une tâche est en "À faire" ou renvoyée par le Tech Lead/QA
+**Actions :**
+1. Met la tâche en **"En cours"** dans Notion + commentaire
+2. Lit le CLAUDE.md et le code existant
+3. Code la solution (français, simple, pas de sur-ingénierie)
+4. `git add .` + `git commit -m "<description>"`
+5. Met la tâche en **"En vérification"** dans Notion + commentaire
+6. **Passe automatiquement la main au Tech Lead**
+**Commentaire Notion :** `[Dev] Fichiers modifiés : <liste>. Changements : <résumé>`
+
+### 3. Tech Lead — le vérificateur
+**Quand :** une tâche passe en "En vérification"
+**Vérifie :**
+- Le code respecte CLAUDE.md (français, simplicité, conventions)
+- Pas de bugs évidents, pas de code mort
+- Le code est maintenable et lisible
+- Les imports sont propres, pas de dépendances inutiles
+
+**Si problème :**
+1. Liste les problèmes dans le commentaire Notion
+2. Remet la tâche en **"En cours"**
+3. **Relance automatiquement le Dev** avec la liste des corrections
+`[Tech Lead] ❌ REFUSÉ — Problèmes : <liste>. Corrections demandées : <détail>`
+
+**Si OK :**
+1. Met la tâche en **"En test"**
+2. **Passe automatiquement la main au QA**
+`[Tech Lead] ✅ Code validé — <résumé de ce qui a été vérifié>`
+
+### 4. QA (Testeur) — le gardien de la qualité
+**Quand :** une tâche passe en "En test"
+**Vérifie :**
+- `python manage.py test` passe
+- L'interface est en français (aucun texte anglais visible)
+- C'est plus simple qu'Excel (critère fondamental)
+- Le flux fonctionne de bout en bout
+- Les cas limites ne cassent rien
+
+**Si bug :**
+1. Crée un commentaire détaillé dans Notion (bug, écran, comportement attendu vs observé)
+2. Remet la tâche en **"En cours"**
+3. **Relance le Dev → puis Tech Lead → puis QA** (boucle complète)
+`[QA] ❌ REFUSÉ — Bugs trouvés : <liste détaillée>`
+
+**Si OK :**
+1. Met la tâche en **"Terminé"**
+2. `git add . && git commit -m "<tâche> — validé QA" && git push`
+3. Annonce : **"✅ Tâche livrée."**
+4. **Si d'autres tâches sont en "À faire" dans la même phase, lance le Dev sur la suivante**
+`[QA] ✅ Validé — Tests OK, interface FR, flux fonctionnel`
+
+## Boucle de correction (automatique)
+
+```
+Dev → Tech Lead → ❌ → Dev → Tech Lead → QA → ❌ → Dev → Tech Lead → QA → ✅ Terminé
 ```
 
-### Static files
-```bash
-python manage.py collectstatic --noinput
-```
+Maximum 3 boucles de correction par tâche. Au-delà, arrêter et demander à l'utilisateur.
 
-### Docker (PostgreSQL + Redis)
-```bash
-docker compose up -d
-# then set DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT env vars before runserver
-```
+## Règles d'orchestration
 
-## Architecture
+1. **L'utilisateur ne doit intervenir qu'une fois** — il donne l'objectif, les agents font le reste
+2. **Chaque transition de statut = un commentaire Notion** — l'utilisateur doit pouvoir suivre dans Notion sans regarder le terminal
+3. **Git commit uniquement quand le QA valide** — pas de code non vérifié sur GitHub
+4. **Enchaîner les tâches** — quand une tâche est terminée, le QA lance le Dev sur la suivante automatiquement
+5. **Jamais sauter d'étape** — même pour un changement mineur, la chaîne complète est obligatoire
+6. **En cas de doute, demander à l'utilisateur** — ne pas deviner les choix métier (Marine Nationale)
 
-### Django apps (10 modules)
+## Phases du projet
 
-| App | Responsibility |
-|-----|---------------|
-| `accounts` | Users, roles, UserProfile (ship/service/sector/section scope) |
-| `org` | Organizational hierarchy: Ship → Service → Sector → Section |
-| `assets` | Asset & Installation inventory, checklists, QR code inspection |
-| `maintenance` | Preventive maintenance plans, occurrence scheduling, execution |
-| `logistics` | Corrective tickets, parts requests, repair workflow |
-| `training` | Training courses, sessions, qualification records & expiry |
-| `threads` | Generic discussions (ContentType FK, attaches to any model) |
-| `notifications` | In-app alerts for overdue maintenance & expiring training |
-| `dashboard` | JSON API endpoints for Chart.js charts |
-| `calendar_app` | Calendar views & iCal (.ics) export |
-
-### URL structure
-- `/api/*` — DRF REST API (one router per app)
-- `/` — Template-driven web UI
-- `/maintenance/`, `/logistics/`, `/assets/`, `/calendar/`, `/users/` — web sub-routes
-
-### Key workflows
-
-**Preventive maintenance (Celery-driven)**
-- `generate_occurrences` runs daily, creates `MaintenanceOccurrence` rows 90 days ahead per `MaintenancePlan`
-- `compute_overdue` runs hourly, marks past-due occurrences as OVERDUE
-- Status: `PLANNED → ASSIGNED → IN_PROGRESS → WAITING_VALIDATION → DONE`
-
-**QR code inspection → corrective ticket**
-1. QR scan → `StartVisualCheckView` creates/finds today's occurrence
-2. User fills checklist → `MaintenanceExecution` saved
-3. If result is `NON_CONFORME` → post_save signal auto-creates `CorrectiveTicket`
-
-**Corrective ticket**
-- Status machine: `REPORTED → DIAGNOSED → WAITING_PARTS → IN_REPAIR → TESTING → RETURNED_TO_SERVICE → CLOSED`
-- `PartRequest` + `PartLineItem` tracks parts ordering per ticket
-- Full audit trail in `TicketStatusLog`
-
-### Core patterns
-
-- **Base models** (`core/models.py`): `TimeStampedModel` (auto timestamps), `OwnedModel` (created_by/updated_by)
-- **UUID PKs** on `Asset`, `Installation`, `CorrectiveTicket`
-- **Role hierarchy**: `MASTER_ADMIN → ADMIN_NAVIRE → COMMANDANT → ETAT_MAJOR → CHEF_SERVICE → CHEF_SECTEUR → CHEF_SECTION → EQUIPIER`
-- **Data scoping**: `UserProfile` is scoped to one org level; `core/scopes.py` + `core/permissions.py` enforce access
-- **JSON fields** for flexible config: `SectorConfig.dashboard_widgets`, `ChecklistTemplate` items, `MaintenanceExecution.results`
-- **Generic FK** (ContentType) in `threads.Thread` and `notifications.Notification` for polymorphic relations
-- Each app has both `views.py` (DRF API) and `web_views.py` (Django template views)
-
-### Configuration
-- `bordops/settings.py` — main settings; DB switches to PostgreSQL when `DB_HOST` env var is set
-- `.env.example` — reference for all env vars (`DJANGO_SECRET_KEY`, `DB_*`, `CELERY_BROKER_URL`, `EMAIL_*`)
-- `bordops/celery.py` — Celery app; beat schedule defined in `settings.py` (`CELERY_BEAT_SCHEDULE`)
+| Phase | Objectif |
+|-------|----------|
+| Phase 1 — Fondation | Comprendre le code, nettoyer, franciser |
+| Phase 2 — Calendrier central | Vue globale maintenance + formations + alertes |
+| Phase 3 — Maintenance préventive | Fiches guidées, checklists opérateur |
+| Phase 4 — Maintenance corrective | Retours d'expérience, base de pannes |
+| Phase 5 — Formations | Suivi qualifications, portabilité entre bâtiments |
+| Phase 6 — Matériel mobile | Extincteurs, EPI, suivi par catégorie + fiches individuelles |

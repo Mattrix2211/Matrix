@@ -2,9 +2,9 @@ from rest_framework import viewsets, permissions, decorators, response, status
 from django.utils import timezone
 from .models import MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, OccurrenceStatusLog
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
-from bordops.core.mixins import ScopedQuerySetMixin
-from bordops.core.permissions import RolePermission
-from bordops.core.roles import RoleLevel
+from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.permissions import RolePermission
+from matrix.core.roles import RoleLevel
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass

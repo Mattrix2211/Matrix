@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
-from bordops.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import user_role_level, RoleLevel
 
 class CalendarView(LoginRequiredMixin, TemplateView):
     template_name = "calendar/index.html"

@@ -1,8 +1,8 @@
 from rest_framework import viewsets, permissions
 from .models import Thread, Message, Attachment
 from .serializers import ThreadSerializer, MessageSerializer, AttachmentSerializer
-from bordops.core.permissions import IsAuthorOrReadOnly, RolePermission
-from bordops.core.roles import RoleLevel
+from matrix.core.permissions import IsAuthorOrReadOnly, RolePermission
+from matrix.core.roles import RoleLevel
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass

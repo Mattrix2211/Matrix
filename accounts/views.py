@@ -8,8 +8,8 @@ from .serializers import (
     SpecialityChoiceSerializer,
     RoleAvailabilitySerializer,
 )
-from bordops.core.permissions import RolePermission, ManageUsersPermission
-from bordops.core.roles import RoleLevel
+from matrix.core.permissions import RolePermission, ManageUsersPermission
+from matrix.core.roles import RoleLevel
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass

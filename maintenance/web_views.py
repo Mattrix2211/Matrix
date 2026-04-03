@@ -9,7 +9,7 @@ from django.utils import timezone
 from .models import MaintenanceOccurrence, MaintenanceExecution
 from assets.models import ChecklistItemTemplate
 from threads.models import Thread, Message, Attachment
-from bordops.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import user_role_level, RoleLevel
 
 
 class OccurrenceExecuteView(LoginRequiredMixin, View):
