@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Paramètres</h1>
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="/parametre/?tab=utilisateurs">Utilisateurs</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Navires</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" href="/parametre/?tab=notifications">Notification</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'journal' %}active{% endif %}" href="/parametre/?tab=journal">Journal</a></li>
+</ul>
+
+{% if active_tab == 'generale' %}
+<div class="card">
+  <div class="card-header">Paramètres généraux
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Paramètres généraux" data-bs-content="Paramétrez les options globales de Matrix. Ces réglages s’appliquent à tous les navires et utilisateurs.">
+      <span class="bi bi-info-circle"></span>
+    </button>
+  </div>
+  <div class="card-body">
+    <p class="text-muted mb-0">Ajustez ici les paramètres généraux de Matrix. (À compléter)</p>
+  </div>
+</div>
+{% elif active_tab == 'utilisateurs' %}
+<div class="row g-3">
+  <div class="col-12">
+    <p class="text-muted">Grades et Spécialités sont communs à tous les navires. La hiérarchie (Services/Secteurs/Sections) se configure dans l’onglet Hiérarchie.</p>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Grades
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Grades" data-bs-content="Liste des grades disponibles pour tous les navires. Supprimez un grade lorsqu’il n’est plus utilisé.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_grade" />
+          <input class="form-control" name="name" placeholder="Nouveau grade" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th></th></tr></thead>
+          <tbody>
+          {% for g in grades %}
+            <tr>
+              <td>{{ g.name }}</td>
+              <td>
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_grade" />
+                  <input type="hidden" name="pk" value="{{ g.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="text-muted">Aucun grade</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Spécialités
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Spécialités" data-bs-content="Catalogue des spécialités transversales. Les suppressions impactent la sélection de profil lors de la création/édition d’utilisateur.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_specialite" />
+          <input class="form-control" name="name" placeholder="Nouvelle spécialité" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th></th></tr></thead>
+          <tbody>
+          {% for s in specialites %}
+            <tr>
+              <td>{{ s.name }}</td>
+              <td>
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_specialite" />
+                  <input type="hidden" name="pk" value="{{ s.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="text-muted">Aucune spécialité</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Fonctions de service
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Fonctions de service" data-bs-content="Liste des fonctions (ex: Responsable Sécurité, Opérateur, Électricien de quart) sélectionnables pour les utilisateurs. Modifiez-les ici.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_fonction" />
+          <input class="form-control" name="name" placeholder="Nouvelle fonction" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th></th></tr></thead>
+          <tbody>
+          {% for f in fonctions %}
+            <tr>
+              <td>{{ f.name }}</td>
+              <td>
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_fonction" />
+                  <input type="hidden" name="pk" value="{{ f.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="text-muted">Aucune fonction</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {# Gestion des navires déplacée dans l'onglet dédié #}
+
+  {# Blocs Services/Secteurs/Sections retirés de l'onglet Utilisateurs; voir onglet Hiérarchie #}
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Rôles (assignables)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Rôles assignables" data-bs-content="Activez ou désactivez l’attribution des rôles aux utilisateurs. MASTER_ADMIN est réservé aux superutilisateurs et toujours disponible.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Détermine quels rôles peuvent être attribués aux utilisateurs lors de l’édition de leur profil. Le rôle "MASTER_ADMIN" est réservé et toujours disponible pour les superutilisateurs.</p>
+        <table class="table table-sm"><thead><tr><th>Code</th><th>Actif</th><th></th></tr></thead><tbody>
+        {% for r in roles_with_state %}
+          <tr>
+            <td>{{ r.label }} <small class="text-muted">({{ r.code }})</small></td>
+            <td>{{ r.active|yesno:"Oui,Non" }}</td>
+            <td>
+              <form method="post" style="display:inline">{% csrf_token %}
+                <input type="hidden" name="action" value="toggle_role" />
+                <input type="hidden" name="next_tab" value="utilisateurs" />
+                <input type="hidden" name="code" value="{{ r.code }}" />
+                <button class="btn btn-outline-secondary btn-sm" type="submit">Basculer</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'installations' %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Bigrames (installations)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Bigrames" data-bs-content="Liste des bigrames utilisables dans les installations. Activez/désactivez ou supprimez des entrées.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_bigrame" />
+          <input type="hidden" name="next_tab" value="installations" />
+          <input class="form-control" name="name" placeholder="Nouveau bigrame" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th>Actif</th><th></th></tr></thead>
+          <tbody>
+          {% for b in bigrames %}
+            <tr>
+              <td>{{ b.name }}</td>
+              <td>{{ b.active|yesno:"Oui,Non" }}</td>
+              <td class="text-end">
+                <form method="post" style="display:inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_bigrame" />
+                  <input type="hidden" name="next_tab" value="installations" />
+                  <input type="hidden" name="pk" value="{{ b.id }}" />
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">Basculer</button>
+                </form>
+                <form method="post" style="display:inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="delete_bigrame" />
+                  <input type="hidden" name="next_tab" value="installations" />
+                  <input type="hidden" name="pk" value="{{ b.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucun bigrame</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Paramètres vibratoires (global)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Vibration" data-bs-content="Définissez l’échéance (jours) avant la prochaine mesure selon le dernier état A/B/C. Ces paramètres s’appliquent à toutes les installations.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_all_vibration_params" />
+          <input type="hidden" name="next_tab" value="installations" />
+          <div class="col-md-4">
+            <label class="form-label">Échéance si dernier état = A (jours)</label>
+            <input type="number" min="1" name="vib_days_a" class="form-control" value="{{ global_vib_days_a }}" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Échéance si dernier état = B (jours)</label>
+            <input type="number" min="1" name="vib_days_b" class="form-control" value="{{ global_vib_days_b }}" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Échéance si dernier état = C (jours)</label>
+            <input type="number" min="1" name="vib_days_c" class="form-control" value="{{ global_vib_days_c }}" required />
+          </div>
+          <div class="col-12">
+            <small class="text-muted">L’état vibratoire (A, B ou C) du dernier relevé détermine automatiquement la prochaine échéance.</small>
+          </div>
+          <div class="col-12 mt-2">
+            <button class="btn btn-primary" type="submit">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'notifications' %}
+<div class="card">
+  <div class="card-header">Notification quotidienne
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Notification quotidienne" data-bs-content="Choisissez l’heure à laquelle vous recevez les alertes d’échéance chaque jour (vibration/isolement/…)">
+      <span class="bi bi-info-circle"></span>
+    </button>
+  </div>
+  <div class="card-body">
+    <form method="post" class="row g-3 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_notification_time" />
+      <input type="hidden" name="next_tab" value="notifications" />
+      <div class="col-auto">
+        <label class="form-label">Heure souhaitée</label>
+        <input type="time" name="notification_time" class="form-control" value="{{ user_notification_time }}" required />
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary" type="submit">Enregistrer</button>
+      </div>
+    </form>
+    <small class="text-muted d-block mt-2">Ce réglage est personnel (lié à votre compte).</small>
+  </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'journal' %}
+<div class="card">
+  <div class="card-header">Journal des actions
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Traçabilité" data-bs-content="Liste des actions effectuées sur l’application: créations, éditions, suppressions, exports, etc.">
+      <span class="bi bi-info-circle"></span>
+    </button>
+  </div>
+  <div class="card-body">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Utilisateur</th>
+          <th>Action</th>
+          <th>Cible</th>
+          <th>Détails</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+            <td>{{ log.actor|default:"—" }}</td>
+            <td>{{ log.action }}</td>
+            <td>{% if log.target_user %}{{ log.target_user.username }}{% else %}—{% endif %}</td>
+            <td><small class="text-muted">{{ log.details }}</small></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-muted">Aucune entrée de journal</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer">
+    <form method="get" class="d-inline">
+      <input type="hidden" name="tab" value="journal" />
+      <button class="btn btn-outline-secondary btn-sm" type="submit">Rafraîchir</button>
+    </form>
+  </div>
+ </div>
+{% endif %}
+{% if active_tab == 'navires' %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Navires
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Navires" data-bs-content="Vous pouvez modifier, supprimer ou dupliquer un navire. La duplication copie la hiérarchie (services/secteurs/sections) sous un nouveau nom et code.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-2 mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_ship" />
+          <input type="hidden" name="next_tab" value="navires" />
+          <div class="col-md-8"><input class="form-control" name="name" placeholder="Nom du navire" /></div>
+          <div class="col-md-4"><input class="form-control" name="code" placeholder="Code unique" /></div>
+          <div class="col-12"><button class="btn btn-primary" type="submit">Ajouter</button></div>
+        </form>
+        <table class="table table-sm"><thead><tr><th>Nom</th><th>Code</th><th></th></tr></thead><tbody>
+        {% for sh in ships %}
+          <tr>
+            <td>{{ sh.name }}</td>
+            <td>{{ sh.code }}</td>
+            <td>
+              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}">Modifier</button>
+              <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>
+              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer le navire {{ sh.name }}">Supprimer</button>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-muted">Aucun navire</td></tr>
+        {% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'hierarchie' %}
+<div class="row g-3">
+  <div class="col-12">
+    <form method="get" class="row g-2 align-items-center">
+      <input type="hidden" name="tab" value="hierarchie" />
+      <div class="col-auto"><label class="col-form-label">Navire:</label>
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Sélection du navire" data-bs-content="Choisissez un navire pour éditer son arborescence de Services, Secteurs et Sections.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="col-auto">
+        <select name="ship" class="form-select" onchange="this.form.submit()">
+          {% for sh in ships %}
+            <option value="{{ sh.id }}" {% if selected_ship and selected_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Arborescence du navire {% if selected_ship %}<strong>{{ selected_ship.name }}</strong>{% endif %}
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Arborescence" data-bs-content="Ajoutez ou supprimez des Services, puis leurs Secteurs et Sections pour structurer l’organisation du navire.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        {% if selected_ship %}
+        <ul class="list-unstyled">
+          <li>
+            <div class="mb-2">
+              <form method="post" class="row g-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_service" />
+                <input type="hidden" name="next_tab" value="hierarchie" />
+                <input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" />
+                <div class="col-md-8"><input class="form-control" name="name" placeholder="Ajouter un service" /></div>
+                <div class="col-md-4"><button class="btn btn-primary w-100" type="submit">Ajouter</button></div>
+              </form>
+            </div>
+            <ul>
+              {% for sv in services %}
+                <li class="mb-3">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <strong>{{ sv.name }}</strong>
+                    <div>
+                      <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_service" data-pk="{{ sv.id }}" data-label="Supprimer le service {{ sv.name }}">Supprimer</button>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <form method="post" class="row g-2">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="add_sector" />
+                      <input type="hidden" name="next_tab" value="hierarchie" />
+                      <input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" />
+                      <input type="hidden" name="service_id" value="{{ sv.id }}" />
+                      <div class="col-md-8"><input class="form-control" name="name" placeholder="Ajouter un secteur" /></div>
+                      <div class="col-md-4"><button class="btn btn-primary w-100" type="submit">Ajouter</button></div>
+                    </form>
+                  </div>
+                  <ul class="mt-2">
+                    {% for sc in sectors %}
+                      {% if sc.service_id == sv.id %}
+                      <li class="mb-2">
+                        <div class="d-flex align-items-center justify-content-between">
+                          {{ sc.name }}
+                          <div>
+                            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_sector" data-pk="{{ sc.id }}" data-label="Supprimer le secteur {{ sc.name }}">Supprimer</button>
+                          </div>
+                        </div>
+                        <div class="mt-2">
+                          <form method="post" class="row g-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="add_section" />
+                            <input type="hidden" name="next_tab" value="hierarchie" />
+                            <input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" />
+                            <input type="hidden" name="sector_id" value="{{ sc.id }}" />
+                            <div class="col-md-8"><input class="form-control" name="name" placeholder="Ajouter une section" /></div>
+                            <div class="col-md-4"><button class="btn btn-primary w-100" type="submit">Ajouter</button></div>
+                          </form>
+                        </div>
+                        <ul class="mt-2">
+                          {% for se in sections %}
+                            {% if se.sector_id == sc.id %}
+                            <li class="d-flex align-items-center justify-content-between">
+                              {{ se.name }}
+                              <div>
+                                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_section" data-pk="{{ se.id }}" data-label="Supprimer la section {{ se.name }}">Supprimer</button>
+                              </div>
+                            </li>
+                            {% endif %}
+                          {% endfor %}
+                        </ul>
+                      </li>
+                      {% endif %}
+                    {% endfor %}
+                  </ul>
+                </li>
+              {% empty %}
+                <li class="text-muted">Aucun service pour ce navire</li>
+              {% endfor %}
+            </ul>
+          </li>
+        </ul>
+        {% else %}
+          <p class="text-muted">Veuillez sélectionner un navire pour éditer l'arborescence.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# Modal de confirmation générique #}
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmLabel">Êtes-vous sûr de vouloir supprimer ?</p>
+      </div>
+      <div class="modal-footer">
+        <form method="post" id="confirmForm">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="confirmAction" />
+          <input type="hidden" name="pk" id="confirmPk" />
+          <input type="hidden" name="next_tab" value="{{ active_tab }}" />
+          {% if selected_ship %}<input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" />{% endif %}
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Modal édition navire #}
+<div class="modal fade" id="editShipModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Modifier le navire</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="editShipForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_ship" />
+          <input type="hidden" name="next_tab" value="navires" />
+          <input type="hidden" name="pk" id="editShipPk" />
+          <div class="mb-3">
+            <label class="form-label">Nom</label>
+            <input class="form-control" name="name" id="editShipName" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Code</label>
+            <input class="form-control" name="code" id="editShipCode" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modal duplication navire #}
+<div class="modal fade" id="duplicateShipModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Dupliquer le navire</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="duplicateShipForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="duplicate_ship" />
+          <input type="hidden" name="next_tab" value="navires" />
+          <input type="hidden" name="source_pk" id="duplicateShipSourcePk" />
+          <div class="mb-3">
+            <label class="form-label">Nouveau nom</label>
+            <input class="form-control" name="name" id="duplicateShipName" placeholder="Nom du nouveau navire" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nouveau code</label>
+            <input class="form-control" name="code" id="duplicateShipCode" placeholder="Code unique" />
+          </div>
+          <p class="text-muted">La duplication copie les Services, Secteurs et Sections du navire source vers le nouveau navire.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Dupliquer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var confirmModal = document.getElementById('confirmModal');
+    confirmModal.addEventListener('show.bs.modal', function (event) {
+      var button = event.relatedTarget;
+      var action = button.getAttribute('data-action');
+      var pk = button.getAttribute('data-pk');
+      var label = button.getAttribute('data-label');
+      document.getElementById('confirmAction').value = action;
+      document.getElementById('confirmPk').value = pk;
+      document.getElementById('confirmLabel').textContent = label || 'Êtes-vous sûr ?';
+    });
+
+    var editModal = document.getElementById('editShipModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+      var button = event.relatedTarget;
+      var pk = button.getAttribute('data-pk');
+      var name = button.getAttribute('data-name');
+      var code = button.getAttribute('data-code');
+      document.getElementById('editShipPk').value = pk;
+      document.getElementById('editShipName').value = name || '';
+      document.getElementById('editShipCode').value = code || '';
+    });
+
+    var duplicateModal = document.getElementById('duplicateShipModal');
+    duplicateModal.addEventListener('show.bs.modal', function (event) {
+      var button = event.relatedTarget;
+      var srcPk = button.getAttribute('data-source-pk');
+      var name = button.getAttribute('data-name');
+      document.getElementById('duplicateShipSourcePk').value = srcPk;
+      document.getElementById('duplicateShipName').value = (name ? ('Copie de ' + name) : '');
+      document.getElementById('duplicateShipCode').value = '';
+    });
+
+    // Activer les popovers Bootstrap
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+    popoverTriggerList.forEach(function (popoverTriggerEl) {
+      new bootstrap.Popover(popoverTriggerEl)
+    })
+  });
+</script>
+{% endblock %}

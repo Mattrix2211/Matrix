@@ -1,0 +1,43 @@
+{% for pr in part_requests %}
+  <div class="mb-3 border rounded p-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <div><strong>Demande #{{ pr.id }}</strong> <span class="text-muted">(besoin: {{ pr.needed_by_date|default:'n/a' }})</span></div>
+      <span class="badge bg-secondary">{{ pr.status }}</span>
+    </div>
+    <div class="mt-2">
+      <form hx-post="/logistics/part-request/{{ pr.id }}/line/create/" hx-target="#part-requests" hx-swap="outerHTML" class="row g-2">
+        <div class="col-3"><input class="form-control form-control-sm" name="reference" placeholder="Référence"></div>
+        <div class="col-6"><input class="form-control form-control-sm" name="description" placeholder="Description"></div>
+        <div class="col-2"><input class="form-control form-control-sm" name="qty" type="number" min="1" value="1"></div>
+        <div class="col-1"><button class="btn btn-sm btn-outline-primary" type="submit">Ajouter</button></div>
+      </form>
+    </div>
+    <table class="table table-sm mt-2 mb-0">
+      <thead><tr><th>Réf</th><th>Description</th><th>Qté</th><th>Statut</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for li in pr.lines.all %}
+          <tr>
+            <td>{{ li.reference }}</td>
+            <td>{{ li.description }}</td>
+            <td>{{ li.qty }}</td>
+            <td><span class="badge bg-light text-dark">{{ li.status }}</span></td>
+            <td>
+              <form hx-post="/logistics/part-line/{{ li.id }}/status/" hx-target="#part-requests" hx-swap="outerHTML" class="d-flex gap-2">
+                <select class="form-select form-select-sm" name="status">
+                  {% for s in 'TO_ORDER,ORDERED,SHIPPED,RECEIVED,CONSUMED,RETURNED'.split(',') %}
+                    <option value="{{ s }}" {% if s == li.status %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Maj</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-muted">Aucune ligne</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% empty %}
+  <div class="text-muted">Aucune demande de pièces.</div>
+{% endfor %}

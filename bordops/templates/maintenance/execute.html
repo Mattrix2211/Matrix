@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h4">Exécuter l'occurrence #{{ occ.id }}</h1>
+<div class="mb-2 text-muted">Actif: {{ occ.asset }} | Plan: {{ occ.plan }}</div>
+
+<form method="post" enctype="multipart/form-data" hx-post="" hx-target="#exec-result" hx-swap="innerHTML">
+  {% csrf_token %}
+  {% if items and items|length %}
+    <div class="card mb-3"><div class="card-header">Checklist</div><div class="card-body">
+      {% for it in items %}
+        <div class="mb-3">
+          <label class="form-label">{{ it.label }} {% if it.unit %}<span class="text-muted">({{ it.unit }})</span>{% endif %}</label>
+          {% if it.field_type == 'checkbox' %}
+            <input class="form-check-input ms-1" type="checkbox" name="item_{{ it.id }}">
+          {% elif it.field_type == 'number' %}
+            <input class="form-control" type="number" step="any" name="item_{{ it.id }}">
+          {% elif it.field_type == 'date' %}
+            <input class="form-control" type="date" name="item_{{ it.id }}">
+          {% else %}
+            <input class="form-control" type="text" name="item_{{ it.id }}">
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div></div>
+  {% else %}
+    <div class="alert alert-info">Aucun item de checklist pour ce plan.</div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">Conformité</label>
+      <select class="form-select" name="conformity">
+        <option value="">—</option>
+        <option value="CONFORME">Conforme</option>
+        <option value="A_SURVEILLER">À surveiller</option>
+        <option value="NON_CONFORME">Non conforme</option>
+      </select>
+    </div>
+    <div class="col-md-8">
+      <label class="form-label">Notes</label>
+      <textarea class="form-control" name="notes" rows="3"></textarea>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <label class="form-label">Photos (si anomalie)</label>
+    <input class="form-control" type="file" name="photos" multiple>
+  </div>
+
+  <div class="mt-3">
+    <button type="submit" class="btn btn-success">Valider l'exécution</button>
+    <a class="btn btn-outline-secondary" href="/">Annuler</a>
+  </div>
+  <div id="exec-result" class="mt-3"></div>
+</form>
+{% endblock %}

@@ -1,0 +1,990 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Annuaire des utilisateurs</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex align-items-center gap-2">
+    <form method="get" class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0">Navire:</label>
+      <select name="ship" class="form-select" onchange="this.form.submit()" style="min-width: 220px;">
+        <option value="">Tous les navires</option>
+        {% for sh in ships %}
+          <option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal" title="Nouvel utilisateur">
+      ➕
+    </button>
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Utilisateurs" data-bs-content="Créez des utilisateurs et assignez leur rôle et rattachements. Les règles d'autorisation hiérarchiques s'appliqueront côté API.">
+      <span class="bi bi-info-circle"></span>
+    </button>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <input type="text" id="userTableSearch" class="form-control" placeholder="Rechercher..." style="max-width: 260px;" />
+    <a class="btn btn-outline-success" href="{{ export_url }}" title="Exporter en Excel">Exporter</a>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
+      <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkRoleModal">Modifier rôle…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier navire…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkFonctionModal">Modifier fonction…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkServiceModal">Modifier service…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectorModal">Modifier secteur…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectionModal">Modifier section…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkGradeModal">Modifier grade…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSpecialiteModal">Modifier spécialité…</button></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button class="dropdown-item text-warning" type="button" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_reset_passwords">Réinitialiser mots de passe…</button></li>
+        <li><button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_delete_users">Supprimer…</button></li>
+      </ul>
+    </div>
+  </div>
+</div>
+<style>
+  #userTable .select-col { display: table-cell; }
+</style>
+
+<table class="table table-sm align-middle" id="userTable">
+  <thead>
+    <tr>
+      <th class="select-col" style="width:32px"><input type="checkbox" id="selectAll" /></th>
+      <th>Utilisateur</th>
+      <th>Rôle</th>
+      <th>Grade</th>
+      <th>Spécialité</th>
+      <th>Matricule</th>
+      <th>Navire</th>
+      <th>Fonction</th>
+      <th>Service</th>
+      <th>Secteur</th>
+      <th>Section</th>
+      <th>Date de naissance</th>
+      <th>Âge</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+      <tr>
+        <td class="select-col"><input type="checkbox" value="{{ u.id }}" class="row-select" /></td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.profile.role|default:"—" }}</td>
+        <td>{{ u.profile.grade|default:"—" }}</td>
+        <td>{{ u.profile.specialite|default:"—" }}</td>
+        <td>{{ u.profile.matricule|default:"—" }}</td>
+        <td>{{ u.profile.ship|default:"—" }}</td>
+        <td>{{ u.profile.fonction_service|default:"—" }}</td>
+        <td>{{ u.profile.service.name|default:"—" }}</td>
+        <td>{{ u.profile.sector.name|default:"—" }}</td>
+        <td>{{ u.profile.section.name|default:"—" }}</td>
+        <td>{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td>{{ u.profile.age|default:"—" }}</td>
+        <td>
+            <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editUserModal" title="Modifier"
+                  data-pk="{{ u.id }}" data-username="{{ u.username }}" data-email="{{ u.email }}"
+                  data-first-name="{{ u.first_name }}" data-last-name="{{ u.last_name }}"
+              data-role="{{ u.profile.role }}" data-ship-id="{% if u.profile.ship %}{{ u.profile.ship.id }}{% endif %}"
+                  data-service-id="{% if u.profile.service %}{{ u.profile.service.id }}{% endif %}"
+                  data-sector-id="{% if u.profile.sector %}{{ u.profile.sector.id }}{% endif %}"
+              data-section-id="{% if u.profile.section %}{{ u.profile.section.id }}{% endif %}"
+              data-fonction-service="{{ u.profile.fonction_service }}"
+              data-grade="{{ u.profile.grade }}"
+              data-specialite="{{ u.profile.specialite }}"
+              data-matricule="{{ u.profile.matricule }}"
+              data-date-naissance="{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:'Y-m-d' }}{% endif %}">
+            ✏️
+          </button>
+          <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" title="Supprimer"
+                  data-action="delete_user" data-pk="{{ u.id }}" data-label="Supprimer l'utilisateur {{ u.username }}">
+            🗑️
+          </button>
+          <button class="btn btn-outline-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" title="Définir le mot de passe"
+                  data-pk="{{ u.id }}" data-username="{{ u.username }}" data-email="{{ u.email }}">
+            🔑
+          </button>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="14" class="text-muted">Aucun utilisateur</td></tr>
+    {% endfor %}
+  </tbody>
+  </table>
+
+{# Modal création utilisateur #}
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nouvel utilisateur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_user" />
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Rôle</label>
+              <select class="form-select" name="role" id="createRole" required>
+                {% for r in roles %}<option value="{{ r.code }}">{{ r.label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Prénom</label>
+              <input class="form-control" name="first_name" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Nom</label>
+              <input class="form-control" name="last_name" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Matricule</label>
+              <input class="form-control" name="matricule" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Date de naissance</label>
+              <input type="date" class="form-control" name="date_naissance" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Grade</label>
+              <select class="form-select" name="grade" id="createGrade">
+                <option value="">—</option>
+                {% for g in grades %}<option value="{{ g.name }}">{{ g.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Spécialité</label>
+              <select class="form-select" name="specialite" id="createSpecialite">
+                <option value="">—</option>
+                {% for s in specialites %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Navire</label>
+              <select class="form-select" name="ship_id" id="createShip">
+                <option value="">—</option>
+                {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fonction de service</label>
+              <select class="form-select" name="fonction_service" id="createFonction">
+                <option value="">—</option>
+                {% for f in fonctions %}<option value="{{ f.name }}">{{ f.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4" id="createServiceWrap">
+              <label class="form-label">Service</label>
+              <select class="form-select" name="service_id" id="createService">
+                <option value="">—</option>
+                {% for sv in services %}
+                  <option value="{{ sv.id }}" data-ship-id="{{ sv.ship.id }}">{{ sv.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4" id="createSectorWrap">
+              <label class="form-label">Secteur</label>
+              <select class="form-select" name="sector_id" id="createSector">
+                <option value="">—</option>
+                {% for sc in sectors %}
+                  <option value="{{ sc.id }}" data-ship-id="{{ sc.service.ship.id }}" data-service-id="{{ sc.service.id }}">{{ sc.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4" id="createSectionWrap">
+              <label class="form-label">Section</label>
+              <select class="form-select" name="section_id" id="createSection">
+                <option value="">—</option>
+                {% for se in sections %}
+                  <option value="{{ se.id }}" data-ship-id="{{ se.sector.service.ship.id }}" data-service-id="{{ se.sector.service.id }}" data-sector-id="{{ se.sector.id }}">{{ se.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <p class="text-muted mt-2">L’identifiant est généré automatiquement au format <strong>prenom.nom</strong> (suffixe ajouté en cas de doublon). Le mot de passe se crée via la clé 🔑 dans l’annuaire.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modal édition utilisateur #}
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Modifier l'utilisateur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="editUserForm">
+        <div class="modal-body">
+            {# Corps de la modale d'édition #}
+
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_user" />
+          <input type="hidden" name="pk" id="editUserPk" />
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Identifiant</label>
+              <input class="form-control" name="username" id="editUsername" />
+            </div>
+            
+            <div class="col-md-4">
+              <label class="form-label">Rôle</label>
+              <select class="form-select" name="role" id="editRole">
+                {% for r in roles %}<option value="{{ r.code }}">{{ r.label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Prénom</label>
+              <input class="form-control" name="first_name" id="editFirstName" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Nom</label>
+              <input class="form-control" name="last_name" id="editLastName" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Matricule</label>
+              <input class="form-control" name="matricule" id="editMatricule" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Date de naissance</label>
+              <input type="date" class="form-control" name="date_naissance" id="editDateNaissance" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Grade</label>
+              <select class="form-select" name="grade" id="editGrade">
+                <option value="">—</option>
+                {% for g in grades %}<option value="{{ g.name }}">{{ g.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Spécialité</label>
+              <select class="form-select" name="specialite" id="editSpecialite">
+                <option value="">—</option>
+                {% for s in specialites %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Navire</label>
+              <select class="form-select" name="ship_id" id="editShip">
+                <option value="">—</option>
+                {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fonction de service</label>
+              <select class="form-select" name="fonction_service" id="editFonction">
+                <option value="">—</option>
+                {% for f in fonctions %}<option value="{{ f.name }}">{{ f.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Service</label>
+              <select class="form-select" name="service_id" id="editService">
+                <option value="">—</option>
+                {% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Secteur</label>
+              <select class="form-select" name="sector_id" id="editSector">
+                <option value="">—</option>
+                {% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Section</label>
+              <select class="form-select" name="section_id" id="editSection">
+                <option value="">—</option>
+                {% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modal définir/réinitialiser mot de passe (séparée) #}
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Définir le mot de passe</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="resetPasswordForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="set_password" />
+          <input type="hidden" name="pk" id="resetUserPk" />
+          <div class="mb-3">
+            <label class="form-label">Utilisateur</label>
+            <input class="form-control" id="resetUsername" disabled />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nouveau mot de passe</label>
+            <div class="input-group">
+              <input class="form-control" name="password" id="resetPassword" placeholder="Saisir ou générer automatiquement" />
+              <button type="button" class="btn btn-outline-secondary" id="generatePasswordBtn" title="Générer">🎲</button>
+            </div>
+            <small class="text-muted">Doit contenir des majuscules, minuscules, chiffres et symboles.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modal de confirmation générique #}
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmLabel">Êtes-vous sûr de vouloir supprimer ?</p>
+      </div>
+      <div class="modal-footer">
+        <form method="post" id="confirmForm">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="confirmAction" />
+          <input type="hidden" name="pk" id="confirmPk" />
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{# Modal confirmation générique déjà incluse dans d'autres templates; si absente, on peut l'ajouter ici. #}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Préselection du navire courant et filtrage des listes hiérarchiques
+    function getSelectedShipFilter() {
+      var shipFilter = document.querySelector("form[action=''] select[name='ship'], form select[name='ship']");
+      if (shipFilter) { return shipFilter.value || ''; }
+      // Fallback: lire depuis l’URL
+      var params = new URLSearchParams(window.location.search);
+      return params.get('ship') || '';
+    }
+    function repopulateSelect(selectEl, allOptions, predicate) {
+      if (!selectEl) return;
+      var current = selectEl.value;
+      // Clear and add placeholder
+      while (selectEl.options.length) selectEl.remove(0);
+      var placeholder = document.createElement('option'); placeholder.value=''; placeholder.textContent='—';
+      selectEl.appendChild(placeholder);
+      var found = false;
+      allOptions.forEach(function(opt){
+        if (!predicate || predicate(opt)) {
+          var o = document.createElement('option');
+          o.value = opt.value; o.textContent = opt.text;
+          // Copy data attributes
+          for (var k in opt.dataset) { if (opt.dataset.hasOwnProperty(k)) { o.setAttribute('data-'+k.replace(/[A-Z]/g, m=>'-'+m.toLowerCase()), opt.dataset[k]); } }
+          if (current && opt.value === current) { o.selected = true; found = true; }
+          selectEl.appendChild(o);
+        }
+      });
+      if (current && !found) { selectEl.selectedIndex = 0; }
+    }
+    var createShip = document.getElementById('createShip');
+    var createService = document.getElementById('createService');
+    var createSector = document.getElementById('createSector');
+    var createSection = document.getElementById('createSection');
+    // Snapshot initial options
+    var serviceOptions = createService ? Array.prototype.slice.call(createService.options).filter(function(o){ return o.value; }) : [];
+    var sectorOptions = createSector ? Array.prototype.slice.call(createSector.options).filter(function(o){ return o.value; }) : [];
+    var sectionOptions = createSection ? Array.prototype.slice.call(createSection.options).filter(function(o){ return o.value; }) : [];
+    function updateServiceOptions(shipId) {
+      repopulateSelect(createService, serviceOptions, function(opt){ return (!shipId) || (opt.getAttribute('data-ship-id') === shipId); });
+    }
+    function updateSectorOptions(shipId, serviceId) {
+      repopulateSelect(createSector, sectorOptions, function(opt){
+        var okShip = (!shipId) || (opt.getAttribute('data-ship-id') === shipId);
+        var okService = (!serviceId) || (opt.getAttribute('data-service-id') === serviceId);
+        return okShip && okService;
+      });
+    }
+    function updateSectionOptions(shipId, serviceId, sectorId) {
+      repopulateSelect(createSection, sectionOptions, function(opt){
+        var okShip = (!shipId) || (opt.getAttribute('data-ship-id') === shipId);
+        var okService = (!serviceId) || (opt.getAttribute('data-service-id') === serviceId);
+        var okSector = (!sectorId) || (opt.getAttribute('data-sector-id') === sectorId);
+        return okShip && okService && okSector;
+      });
+    }
+    function wireCreateHierarchyFiltering() {
+      if (!createShip) return;
+      // Préselection avec le filtre de page
+      var preShip = getSelectedShipFilter();
+      if (preShip) { createShip.value = preShip; }
+      var shipId = createShip.value || '';
+      updateServiceOptions(shipId);
+      var serviceId = createService ? createService.value || '' : '';
+      updateSectorOptions(shipId, serviceId);
+      var sectorId = createSector ? createSector.value || '' : '';
+      updateSectionOptions(shipId, serviceId, sectorId);
+      // Change handlers
+      if (createShip) {
+        createShip.addEventListener('change', function(){
+          var sId = createShip.value || '';
+          updateServiceOptions(sId);
+          // reset dependants
+          updateSectorOptions(sId, '');
+          updateSectionOptions(sId, '', '');
+        });
+      }
+      if (createService) {
+        createService.addEventListener('change', function(){
+          var sId = createShip ? (createShip.value || '') : '';
+          var svId = createService.value || '';
+          updateSectorOptions(sId, svId);
+          updateSectionOptions(sId, svId, '');
+        });
+      }
+      if (createSector) {
+        createSector.addEventListener('change', function(){
+          var sId = createShip ? (createShip.value || '') : '';
+          var svId = createService ? (createService.value || '') : '';
+          var scId = createSector.value || '';
+          updateSectionOptions(sId, svId, scId);
+        });
+      }
+    }
+    function setWrapVisible(id, show) {
+      var wrap = document.getElementById(id);
+      if (!wrap) return;
+      wrap.classList.toggle('d-none', !show);
+      var sel = wrap.querySelector('select');
+      if (sel) {
+        sel.disabled = !show;
+        if (!show) sel.selectedIndex = 0;
+      }
+    }
+    function updateCreateRoleFields() {
+      var roleSel = document.getElementById('createRole');
+      if (!roleSel) return;
+      var role = roleSel.value;
+      if (role === 'ETAT_MAJOR' || role === 'COMMANDANT') {
+        setWrapVisible('createServiceWrap', false);
+        setWrapVisible('createSectorWrap', false);
+        setWrapVisible('createSectionWrap', false);
+      } else if (role === 'CHEF_SERVICE') {
+        setWrapVisible('createServiceWrap', true);
+        setWrapVisible('createSectorWrap', false);
+        setWrapVisible('createSectionWrap', false);
+      } else if (role === 'CHEF_SECTEUR') {
+        setWrapVisible('createServiceWrap', true);
+        setWrapVisible('createSectorWrap', true);
+        setWrapVisible('createSectionWrap', false);
+      } else {
+        setWrapVisible('createServiceWrap', true);
+        setWrapVisible('createSectorWrap', true);
+        setWrapVisible('createSectionWrap', true);
+      }
+    }
+    var createRole = document.getElementById('createRole');
+    if (createRole) {
+      createRole.addEventListener('change', updateCreateRoleFields);
+    }
+    // Init when modal opens
+    var createModal = document.getElementById('createUserModal');
+    if (createModal) {
+      createModal.addEventListener('shown.bs.modal', function(){
+        updateCreateRoleFields();
+        wireCreateHierarchyFiltering();
+      });
+    }
+    // Also run on page load (in case the modal is already open)
+    updateCreateRoleFields();
+    // Prepare filtering snapshot (if modal opened without event)
+    wireCreateHierarchyFiltering();
+    var editModal = document.getElementById('editUserModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+      var button = event.relatedTarget;
+      document.getElementById('editUserPk').value = button.getAttribute('data-pk');
+      document.getElementById('editUsername').value = button.getAttribute('data-username') || '';
+      document.getElementById('editFirstName').value = button.getAttribute('data-first-name') || '';
+      document.getElementById('editLastName').value = button.getAttribute('data-last-name') || '';
+      var role = button.getAttribute('data-role') || '';
+      var shipId = button.getAttribute('data-ship-id') || '';
+      var serviceId = button.getAttribute('data-service-id') || '';
+      var sectorId = button.getAttribute('data-sector-id') || '';
+      var sectionId = button.getAttribute('data-section-id') || '';
+      var fonctionService = button.getAttribute('data-fonction-service') || '';
+      var grade = button.getAttribute('data-grade') || '';
+      var specialite = button.getAttribute('data-specialite') || '';
+      var matricule = button.getAttribute('data-matricule') || '';
+      var dateNaissance = button.getAttribute('data-date-naissance') || '';
+      var setSelectValue = function(id, val) { var el = document.getElementById(id); if (!el) return; for (var i=0;i<el.options.length;i++){ if(el.options[i].value==val){ el.selectedIndex=i; break; } } };
+      setSelectValue('editRole', role);
+      setSelectValue('editShip', shipId);
+      setSelectValue('editService', serviceId);
+      setSelectValue('editSector', sectorId);
+      setSelectValue('editSection', sectionId);
+      setSelectValue('editFonction', fonctionService);
+      setSelectValue('editGrade', grade);
+      setSelectValue('editSpecialite', specialite);
+      var editMat = document.getElementById('editMatricule'); if (editMat) editMat.value = matricule;
+      var editDn = document.getElementById('editDateNaissance'); if (editDn) editDn.value = dateNaissance;
+    });
+
+    // Reset password modal wiring
+    var resetModal = document.getElementById('resetPasswordModal');
+    if (resetModal) {
+      resetModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        document.getElementById('resetUserPk').value = button.getAttribute('data-pk');
+        document.getElementById('resetUsername').value = button.getAttribute('data-username') || '';
+        document.getElementById('resetPassword').value = '';
+      });
+    }
+    var genBtn = document.getElementById('generatePasswordBtn');
+    if (genBtn) {
+      genBtn.addEventListener('click', function(){
+        function generate(length){
+          var lowers = 'abcdefghijklmnopqrstuvwxyz';
+          var uppers = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+          var digits = '0123456789';
+          var symbols = '!@$%*#?';
+          var all = lowers + uppers + digits + symbols;
+          var arr = new Uint32Array(length);
+          window.crypto.getRandomValues(arr);
+          var pw = '';
+          for (var i=0;i<length;i++){ pw += all[arr[i] % all.length]; }
+          function has(s, chars){ for (var i=0;i<s.length;i++){ if (chars.indexOf(s[i])>=0) return true; } return false; }
+          if (has(pw, lowers) && has(pw, uppers) && has(pw, digits) && has(pw, symbols)) return pw;
+          return generate(length);
+        }
+        document.getElementById('resetPassword').value = generate(14);
+      });
+    }
+
+    // Confirm modal wiring (delete)
+    var confirmModal = document.getElementById('confirmModal');
+    if (confirmModal) {
+      confirmModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        var action = button.getAttribute('data-action');
+        var pk = button.getAttribute('data-pk');
+        var label = button.getAttribute('data-label');
+        document.getElementById('confirmAction').value = action;
+        document.getElementById('confirmPk').value = pk;
+        document.getElementById('confirmLabel').textContent = label || 'Êtes-vous sûr ?';
+      });
+    }
+
+    // Table search filter
+    var searchInput = document.getElementById('userTableSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', function(){
+        var q = searchInput.value.toLowerCase();
+        var rows = document.querySelectorAll('table tbody tr');
+        rows.forEach(function(row){
+          var text = row.innerText.toLowerCase();
+          row.style.display = q ? (text.indexOf(q) !== -1 ? '' : 'none') : '';
+        });
+      });
+    }
+
+    // Sélection globale
+    var selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+      selectAll.addEventListener('change', function(){
+        var rows = document.querySelectorAll('.row-select');
+        rows.forEach(function(ch){ ch.checked = selectAll.checked; });
+      });
+    }
+
+    // Activer les popovers info
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+    popoverTriggerList.forEach(function (popoverTriggerEl) { new bootstrap.Popover(popoverTriggerEl) })
+
+  });
+</script>
+
+{# Modale: Modifier rôle #}
+<div class="modal fade" id="bulkRoleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le rôle (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkRoleForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_role" />
+          <div class="mb-3">
+            <label class="form-label">Rôle</label>
+            <select class="form-select" name="role" required>
+              {% for r in roles %}<option value="{{ r.code }}">{{ r.label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier navire #}
+<div class="modal fade" id="bulkShipModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le navire (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkShipForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_ship" />
+          <div class="mb-3">
+            <label class="form-label">Navire</label>
+            <select class="form-select" name="ship_id">
+              <option value="">—</option>
+              {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier fonction #}
+<div class="modal fade" id="bulkFonctionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la fonction (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkFonctionForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_fonction" />
+          <div class="mb-3">
+            <label class="form-label">Fonction</label>
+            <select class="form-select" name="fonction_service">
+              <option value="">—</option>
+              {% for f in fonctions %}<option value="{{ f.name }}">{{ f.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier service #}
+<div class="modal fade" id="bulkServiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le service (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkServiceForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_service" />
+          <div class="mb-3">
+            <label class="form-label">Service</label>
+            <select class="form-select" name="service_id">
+              <option value="">—</option>
+              {% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier secteur #}
+<div class="modal fade" id="bulkSectorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le secteur (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkSectorForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_sector" />
+          <div class="mb-3">
+            <label class="form-label">Secteur</label>
+            <select class="form-select" name="sector_id">
+              <option value="">—</option>
+              {% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier section #}
+<div class="modal fade" id="bulkSectionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la section (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkSectionForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_section" />
+          <div class="mb-3">
+            <label class="form-label">Section</label>
+            <select class="form-select" name="section_id">
+              <option value="">—</option>
+              {% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier grade #}
+<div class="modal fade" id="bulkGradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le grade (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkGradeForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_grade" />
+          <div class="mb-3">
+            <label class="form-label">Grade</label>
+            <select class="form-select" name="grade">
+              <option value="">—</option>
+              {% for g in grades %}<option value="{{ g.name }}">{{ g.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier spécialité #}
+<div class="modal fade" id="bulkSpecialiteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la spécialité (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkSpecialiteForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_specialite" />
+          <div class="mb-3">
+            <label class="form-label">Spécialité</label>
+            <select class="form-select" name="specialite">
+              <option value="">—</option>
+              {% for s in specialites %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+{# Modale: Confirmation groupée #}
+<div class="modal fade" id="bulkConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Confirmer l'action groupée</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkConfirmForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="bulkConfirmAction" />
+          <p id="bulkConfirmLabel">Êtes-vous sûr de vouloir appliquer cette action à la sélection ?</p>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier service #}
+<div class="modal fade" id="bulkServiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le service (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkServiceForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_service" />
+          <div class="mb-3">
+            <label class="form-label">Service</label>
+            <select class="form-select" name="service_id">
+              <option value="">—</option>
+              {% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier secteur #}
+<div class="modal fade" id="bulkSectorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le secteur (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkSectorForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_sector" />
+          <div class="mb-3">
+            <label class="form-label">Secteur</label>
+            <select class="form-select" name="sector_id">
+              <option value="">—</option>
+              {% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier section #}
+<div class="modal fade" id="bulkSectionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la section (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkSectionForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_section" />
+          <div class="mb-3">
+            <label class="form-label">Section</label>
+            <select class="form-select" name="section_id">
+              <option value="">—</option>
+              {% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier grade #}
+<div class="modal fade" id="bulkGradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le grade (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkGradeForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_grade" />
+          <div class="mb-3">
+            <label class="form-label">Grade</label>
+            <select class="form-select" name="grade">
+              <option value="">—</option>
+              {% for g in grades %}<option value="{{ g.name }}">{{ g.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale: Modifier spécialité #}
+<div class="modal fade" id="bulkSpecialiteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la spécialité (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="bulkSpecialiteForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_update_specialite" />
+          <div class="mb-3">
+            <label class="form-label">Spécialité</label>
+            <select class="form-select" name="specialite">
+              <option value="">—</option>
+              {% for s in specialites %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+<script>
+  (function(){
+    var bulkBtn = document.getElementById('bulkActionsBtn');
+    var selectAll = document.getElementById('selectAll');
+    function countSelected(){
+      var rows = document.querySelectorAll('.row-select:checked');
+      var n = rows.length;
+      bulkBtn.disabled = n === 0;
+      bulkBtn.textContent = n > 0 ? ('Actions groupées (' + n + ')') : 'Actions groupées';
+    }
+    document.querySelectorAll('.row-select').forEach(function(ch){ ch.addEventListener('change', countSelected); });
+    if (selectAll) {
+      selectAll.addEventListener('change', function(){
+        var rows = document.querySelectorAll('.row-select'); rows.forEach(function(ch){ ch.checked = selectAll.checked; });
+        countSelected();
+      });
+    }
+    // Initial state
+    countSelected();
+    // Populate selected_ids into forms when opening modals
+    function populate(form){
+      // Remove previous hidden inputs
+      Array.from(form.querySelectorAll('input[name="selected_ids"]')).forEach(function(el){ el.parentNode.removeChild(el); });
+      document.querySelectorAll('.row-select:checked').forEach(function(ch){
+        var inp = document.createElement('input'); inp.type='hidden'; inp.name='selected_ids'; inp.value=ch.value; form.appendChild(inp);
+      });
+    }
+    var bulkRoleModal = document.getElementById('bulkRoleModal');
+    if (bulkRoleModal) bulkRoleModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkRoleForm')); });
+    var bulkShipModal = document.getElementById('bulkShipModal');
+    if (bulkShipModal) bulkShipModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkShipForm')); });
+    var bulkFonctionModal = document.getElementById('bulkFonctionModal');
+    if (bulkFonctionModal) bulkFonctionModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkFonctionForm')); });
+    var bulkServiceModal = document.getElementById('bulkServiceModal');
+    if (bulkServiceModal) bulkServiceModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkServiceForm')); });
+    var bulkSectorModal = document.getElementById('bulkSectorModal');
+    if (bulkSectorModal) bulkSectorModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkSectorForm')); });
+    var bulkSectionModal = document.getElementById('bulkSectionModal');
+    if (bulkSectionModal) bulkSectionModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkSectionForm')); });
+    var bulkGradeModal = document.getElementById('bulkGradeModal');
+    if (bulkGradeModal) bulkGradeModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkGradeForm')); });
+    var bulkSpecialiteModal = document.getElementById('bulkSpecialiteModal');
+    if (bulkSpecialiteModal) bulkSpecialiteModal.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkSpecialiteForm')); });
+    var bulkConfirmModal = document.getElementById('bulkConfirmModal');
+    if (bulkConfirmModal) bulkConfirmModal.addEventListener('show.bs.modal', function(event){
+      var btn = event.relatedTarget; var action = btn.getAttribute('data-action');
+      document.getElementById('bulkConfirmAction').value = action;
+      populate(document.getElementById('bulkConfirmForm'));
+      var label = action === 'bulk_delete_users' ? 'Supprimer les utilisateurs sélectionnés ?' : 'Réinitialiser les mots de passe des utilisateurs sélectionnés ?';
+      document.getElementById('bulkConfirmLabel').textContent = label;
+    });
+  })();
+</script>
+{% endblock %}

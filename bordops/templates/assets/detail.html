@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h1 class="h4 mb-0">Actif: {{ object }}</h1>
+  <img class="ms-3" alt="QR" src="/api/assets/assets/{{ object.id }}/qr_png/" height="96" />
+  <a class="btn btn-outline-secondary btn-sm ms-2" href="/api/assets/assets/{{ object.id }}/" target="_blank">API</a>
+  <a class="btn btn-outline-secondary btn-sm ms-2" href="/api/assets/assets/{{ object.id }}/qr/" target="_blank">QR JSON</a>
+  </div>
+
+<div class="mb-3">
+  <div><strong>Type:</strong> {{ object.asset_type.name }} ({{ object.asset_type.category }})</div>
+  <div><strong>Emplacement:</strong> {{ object.location }}</div>
+  <div><span class="badge bg-info">{{ object.status }}</span> <span class="badge bg-secondary">Criticité {{ object.criticality }}</span></div>
+  <div class="text-muted">ID interne: {{ object.internal_id }} | Série: {{ object.serial_number }}</div>
+</div>
+
+<div id="actions">
+  <button class="btn btn-primary" hx-post="/assets/{{ object.id }}/start-visual/" hx-target="#result" hx-swap="innerHTML">Démarrer contrôle visuel</button>
+  <a class="btn btn-outline-primary" href="/logistics/tickets/{{ object.tickets.first.id }}/" {% if object.tickets.count == 0 %}style="display:none"{% endif %}>Voir ticket récent</a>
+  <div id="result" class="mt-2"></div>
+  <p class="text-muted mt-2">Une occurrence de maintenance planifiée aujourd'hui sera créée/assignée.</p>
+  <p class="mt-3"><a href="/admin/assets/asset/{{ object.id }}/change/" class="btn btn-outline-dark btn-sm">Ouvrir dans l'admin</a></p>
+</div>
+
+<hr class="my-4" />
+<div>
+  <h2 class="h6">Documents</h2>
+  <div class="d-flex flex-wrap gap-2">
+    {% for doc in object.documents.all %}
+      {% with fn=doc.file.name|lower size=doc.file.size|filesizeformat label=doc.name|default:doc.file.name %}
+        <a href="{{ doc.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" title="{{ label }} • {{ size }}">
+          {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+          {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+          {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+          {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+          {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+          {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+          {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+          {{ label }}
+        </a>
+      {% endwith %}
+    {% empty %}
+      <span class="text-muted">Aucun document</span>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

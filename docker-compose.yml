@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bordops}
+      POSTGRES_USER: ${POSTGRES_USER:-bordops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bordops}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+volumes:
+  db_data:
+  redis_data:

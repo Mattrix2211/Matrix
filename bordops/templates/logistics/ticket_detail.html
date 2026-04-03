@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h4">Ticket correctif #{{ ticket.id }}</h1>
+<div class="mb-2 text-muted">Actif: <a href="/assets/{{ ticket.asset.id }}/">{{ ticket.asset }}</a></div>
+
+<div id="ticket-status" hx-target="this" hx-swap="outerHTML">
+  {% include 'logistics/_status.html' %}
+</div>
+
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Demande de pièces</span>
+    <form hx-post="/logistics/tickets/{{ ticket.id }}/part-request/create/" hx-target="#part-requests" hx-swap="outerHTML">
+      <div class="input-group input-group-sm" style="width: 280px;">
+        <input class="form-control" type="date" name="needed_by_date">
+        <button class="btn btn-outline-primary" type="submit">Créer</button>
+      </div>
+    </form>
+  </div>
+  <div id="part-requests" class="card-body">
+    {% include 'logistics/_part_requests.html' %}
+  </div>
+</div>
+{% endblock %}

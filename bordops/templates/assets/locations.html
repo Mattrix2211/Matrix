@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Emplacements</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex align-items-center gap-2">
+    <form method="get" class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0">Navire:</label>
+      <select name="ship" class="form-select" onchange="this.form.submit()" style="min-width: 200px;">
+        <option value="">Tous</option>
+        {% for sh in ships %}<option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}
+      </select>
+    </form>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLocationModal" title="Nouvel emplacement">➕</button>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <input type="text" id="locationSearch" class="form-control" placeholder="Rechercher..." style="max-width: 260px;" />
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
+      <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier navire…</button></li>
+        <li><hr class="dropdown-divider" /></li>
+        <li><button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_delete_locations">Supprimer…</button></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<table class="table table-sm align-middle" id="locationTable">
+  <thead>
+    <tr>
+      <th style="width:32px"><input type="checkbox" id="selectAll" /></th>
+      <th>Nom</th>
+      <th>Navire</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in locations %}
+      <tr>
+        <td><input type="checkbox" value="{{ l.id }}" class="row-select" /></td>
+        <td>{{ l.name }}</td>
+        <td>{{ l.ship.name }}</td>
+        <td>
+          <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editLocationModal" data-pk="{{ l.id }}" data-name="{{ l.name }}" data-ship-id="{{ l.ship.id }}">✏️</button>
+          <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_location" data-pk="{{ l.id }}" data-label="Supprimer l’emplacement {{ l.name }}">🗑️</button>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="text-muted">Aucun emplacement</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# Modale création #}
+<div class="modal fade" id="createLocationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouvel emplacement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_location" />
+          <div class="mb-3"><label class="form-label">Nom</label><input class="form-control" name="name" required /></div>
+          <div class="mb-3"><label class="form-label">Navire</label><select class="form-select" name="ship_id" required>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
+          
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modale édition #}
+<div class="modal fade" id="editLocationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l’emplacement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="editLocationForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_location" />
+          <input type="hidden" name="pk" id="editLocationPk" />
+          <div class="mb-3"><label class="form-label">Nom</label><input class="form-control" name="name" id="editLocationName" required /></div>
+          <div class="mb-3"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="editLocationShip" required>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
+          
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modales groupées #}
+<div class="modal fade" id="bulkShipModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le navire (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkShipForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_location_ship" /><label class="form-label">Navire</label><select class="form-select" name="ship_id"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
+
+{# Modale confirmation #}
+<div class="modal fade" id="bulkConfirmModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Confirmer l'action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkConfirmForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" id="bulkConfirmAction" /><p id="bulkConfirmLabel">Confirmer la suppression des emplacements sélectionnés ?</p></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger">Appliquer</button></div></form></div></div></div>
+
+<script>
+  (function(){
+    var bulkBtn = document.getElementById('bulkActionsBtn');
+    var selectAll = document.getElementById('selectAll');
+    function countSelected(){
+      var rows = document.querySelectorAll('.row-select:checked');
+      var n = rows.length; bulkBtn.disabled = n === 0; bulkBtn.textContent = n>0 ? ('Actions groupées ('+n+')') : 'Actions groupées';
+    }
+    document.querySelectorAll('.row-select').forEach(function(ch){ ch.addEventListener('change', countSelected); });
+    if (selectAll) { selectAll.addEventListener('change', function(){ var rows = document.querySelectorAll('.row-select'); rows.forEach(function(ch){ ch.checked = selectAll.checked; }); countSelected(); }); }
+    countSelected();
+    // Search
+    var searchInput = document.getElementById('locationSearch');
+    if (searchInput) { searchInput.addEventListener('input', function(){ var q = searchInput.value.toLowerCase(); var rows = document.querySelectorAll('#locationTable tbody tr'); rows.forEach(function(row){ var text = row.innerText.toLowerCase(); row.style.display = q ? (text.indexOf(q) !== -1 ? '' : 'none') : ''; }); }); }
+    // Populate selected_ids
+    function populate(form){ Array.from(form.querySelectorAll('input[name="selected_ids"]')).forEach(function(el){ el.parentNode.removeChild(el); }); document.querySelectorAll('.row-select:checked').forEach(function(ch){ var inp = document.createElement('input'); inp.type='hidden'; inp.name='selected_ids'; inp.value=ch.value; form.appendChild(inp); }); }
+    var bs = { ship: document.getElementById('bulkShipModal'), confirm: document.getElementById('bulkConfirmModal') };
+    if (bs.ship) bs.ship.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkShipForm')); });
+    if (bs.confirm) bs.confirm.addEventListener('show.bs.modal', function(event){ var btn = event.relatedTarget; document.getElementById('bulkConfirmAction').value = btn.getAttribute('data-action'); populate(document.getElementById('bulkConfirmForm')); var label = 'Confirmer la suppression des emplacements sélectionnés ?'; document.getElementById('bulkConfirmLabel').textContent = label; });
+    // Edit modal populate
+    var editModal = document.getElementById('editLocationModal');
+    if (editModal) { editModal.addEventListener('show.bs.modal', function(event){ var b = event.relatedTarget; document.getElementById('editLocationPk').value = b.getAttribute('data-pk'); document.getElementById('editLocationName').value = b.getAttribute('data-name')||''; var shipId = b.getAttribute('data-ship-id')||''; var el=document.getElementById('editLocationShip'); for(var i=0;i<el.options.length;i++){ if(el.options[i].value==shipId){ el.selectedIndex=i; break; } } }); }
+  })();
+</script>
+{% endblock %}

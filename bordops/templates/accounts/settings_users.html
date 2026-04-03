@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Paramètres • Utilisateurs</h1>
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Grades</div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_grade" />
+          <input class="form-control" name="name" placeholder="Nouveau grade" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th>Actif</th><th></th></tr></thead>
+          <tbody>
+          {% for g in grades %}
+            <tr>
+              <td>{{ g.name }}</td>
+              <td>{{ g.active|yesno:"Oui,Non" }}</td>
+              <td>
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_grade" />
+                  <input type="hidden" name="pk" value="{{ g.id }}" />
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">Basculer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucun grade</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Spécialités</div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_specialite" />
+          <input class="form-control" name="name" placeholder="Nouvelle spécialité" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th>Actif</th><th></th></tr></thead>
+          <tbody>
+          {% for s in specialites %}
+            <tr>
+              <td>{{ s.name }}</td>
+              <td>{{ s.active|yesno:"Oui,Non" }}</td>
+              <td>
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_specialite" />
+                  <input type="hidden" name="pk" value="{{ s.id }}" />
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">Basculer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucune spécialité</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

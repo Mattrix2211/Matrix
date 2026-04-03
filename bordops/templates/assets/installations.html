@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block content %}
+<h1 class="h3 mb-3">Installations</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex align-items-center gap-2">
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filtersBtn" data-bs-toggle="dropdown" aria-expanded="false">Filtres</button>
+      <div class="dropdown-menu p-3" aria-labelledby="filtersBtn" style="min-width: 480px;">
+        <form method="get" id="filtersForm" class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Navire</label>
+            <select name="ship" id="filterShip" class="form-select">
+              <option value="">Tous</option>
+              {% for sh in ships %}
+                <option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Service</label>
+            <select name="service" id="filterService" class="form-select">
+              <option value="">Tous</option>
+              {% for sv in services %}
+                <option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if request.GET.service == sv.id|stringformat:'s' %}selected{% endif %}>{{ sv.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Secteur</label>
+            <select name="sector" id="filterSector" class="form-select">
+              <option value="">Tous</option>
+              {% for sc in sectors %}
+                <option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if request.GET.sector == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Section</label>
+            <select name="section" id="filterSection" class="form-select">
+              <option value="">Toutes</option>
+              {% for se in sections %}
+                <option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if request.GET.section == se.id|stringformat:'s' %}selected{% endif %}>{{ se.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12"><hr class="my-2" /></div>
+          <div class="col-12">
+            <div class="fw-semibold mb-1">Affichage des infos sur les cartes</div>
+            <!-- Valeurs par défaut à 0, les cases cochées enverront 1 -->
+            <input type="hidden" name="show_vib" value="0" />
+            <input type="hidden" name="show_hours" value="0" />
+            <input type="hidden" name="show_iso" value="0" />
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="show_vib" id="showVib" value="1" {% if request.GET.show_vib == '1' %}checked{% endif %}>
+              <label class="form-check-label" for="showVib">Vibration</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="show_hours" id="showHours" value="1" {% if request.GET.show_hours == '1' %}checked{% endif %}>
+              <label class="form-check-label" for="showHours">Heures</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="show_iso" id="showIso" value="1" {% if request.GET.show_iso == '1' %}checked{% endif %}>
+              <label class="form-check-label" for="showIso">Isolement</label>
+            </div>
+          </div>
+          <div class="col-12 d-flex justify-content-end"><button class="btn btn-primary" type="submit">Appliquer</button></div>
+        </form>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createInstallationModal" title="Nouvelle installation"><i class="bi bi-plus-lg"></i> Ajouter</button>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <input type="text" id="installSearch" class="form-control" placeholder="Rechercher..." style="max-width: 260px;" />
+  </div>
+</div>
+
+<div class="row g-3" id="installGrid">
+  {% for it in installations %}
+    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+      <div class="card h-100 shadow-sm" style="cursor:pointer;" onclick="window.location.href='/installations/{{ it.id }}/'">
+        {% if it.photo %}<img src="{{ it.photo.url }}" class="card-img-top" alt="{{ it.designation }}" style="object-fit:cover;height:160px;cursor:pointer;" onclick="window.location.href='/installations/{{ it.id }}/'" />{% else %}
+        <div class="bg-light d-flex align-items-center justify-content-center" style="height:160px;cursor:pointer;" onclick="window.location.href='/installations/{{ it.id }}/'">
+          <i class="bi bi-building fs-1 text-secondary"></i>
+        </div>{% endif %}
+        <div class="card-body">
+          <h6 class="card-title mb-1 fw-bold text-truncate" title="{{ it.designation }}">{{ it.designation }}</h6>
+          <div class="small text-muted">Gisement: {{ it.gisement|default:"" }}</div>
+          <div class="small text-muted">Local: {{ it.local|default:"" }}</div>
+          <hr class="my-2" />
+          {% if request.GET.show_vib == '1' %}
+            <div class="small text-muted">
+              Vibration:
+              {% if it.vibration_last_state_card %}
+                {% if it.vibration_last_state_card == 'A' %}<span class="badge text-bg-success">A</span>
+                {% elif it.vibration_last_state_card == 'B' %}<span class="badge text-bg-warning">B</span>
+                {% elif it.vibration_last_state_card == 'C' %}<span class="badge text-bg-danger">C</span>
+                {% else %}<span class="badge text-bg-secondary">{{ it.vibration_last_state_card }}</span>{% endif %}
+              {% else %}—{% endif %}<br>
+              {% if it.vibration_next_date_card %}Prochaine: {{ it.vibration_next_date_card|date:"d/m/Y" }}{% if it.vibration_next_days_card is not None %} (dans {{ it.vibration_next_days_card }} j){% endif %}{% endif %}
+            </div>
+            <div class="mb-2"></div>
+          {% endif %}
+          {% if request.GET.show_hours == '1' %}
+            <div class="small text-muted">
+              Heures: Total {{ it.hours_total_card|floatformat:"1" }} h<br>
+              depuis visite {{ it.hours_last_visit_card|floatformat:"1" }} h
+            </div>
+            <div class="mb-2"></div>
+          {% endif %}
+          {% if request.GET.show_iso == '1' %}
+            <div class="small text-muted">
+              Isolement: {% if it.isolation_last_ohms_card %}{{ it.isolation_last_ohms_card|floatformat:"2" }} Ω{% else %}—{% endif %}<br>
+              {% if it.isolation_next_date_card %}Prochaine: {{ it.isolation_next_date_card|date:"d/m/Y" }}{% if it.isolation_next_days_card is not None %} (dans {{ it.isolation_next_days_card }} j){% endif %}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+        
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12 text-muted">Aucune installation</div>
+  {% endfor %}
+</div>
+
+{# Modale création #}
+<div class="modal fade" id="createInstallationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouvelle installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_installation" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" required /></div>
+            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" /></div>
+            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" /></div>
+            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" /></div>
+            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" /></div>
+            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="createShip" required><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService" required><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector" required><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Bigrame</label><select class="form-select" name="bigrame_id" id="createBigrame"><option value="">—</option>{% for bg in bigrames %}<option value="{{ bg.id }}">{{ bg.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <label class="form-label">Champs personnalisés (Infos)</label>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddCustomCreate"><span class="bi bi-plus-lg"></span> Ajouter un champ</button>
+              </div>
+              <div id="customFieldsCreate" class="mt-2"></div>
+              <input type="hidden" name="extra_fields" id="extraFieldsCreate" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Périodicité isolement</label>
+              <select class="form-select" name="iso_periodicity">
+                <option value="M">Mensuel</option>
+                <option value="T">Trimestriel</option>
+                <option value="A">Annuel</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modale édition #}
+<div class="modal fade" id="editInstallationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l’installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" id="editInstallationForm" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_installation" />
+          <input type="hidden" name="pk" id="editInstallationPk" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="editDesignation" required /></div>
+            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" id="editReference" /></div>
+            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" id="editMarque" /></div>
+            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" id="editGisement" /></div>
+            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" id="editLocal" /></div>
+            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="editShip" required><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="editService" required><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector" required><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Bigrame</label><select class="form-select" name="bigrame_id" id="editBigrame"><option value="">—</option>{% for bg in bigrames %}<option value="{{ bg.id }}">{{ bg.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <label class="form-label">Champs personnalisés (Infos)</label>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddCustomEditList"><span class="bi bi-plus-lg"></span> Ajouter un champ</button>
+              </div>
+              <div id="customFieldsEditList" class="mt-2"></div>
+              <input type="hidden" name="extra_fields" id="extraFieldsEditList" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Périodicité isolement</label>
+              <select class="form-select" name="iso_periodicity" id="editIsoPeriodicity">
+                <option value="M">Mensuel</option>
+                <option value="T">Trimestriel</option>
+                <option value="A">Annuel</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  (function(){
+    // Recherche sur cartes
+    var searchInput = document.getElementById('installSearch');
+    if (searchInput) { searchInput.addEventListener('input', function(){ var q = searchInput.value.toLowerCase(); var cards = document.querySelectorAll('#installGrid .card'); cards.forEach(function(card){ var text = card.innerText.toLowerCase(); card.parentElement.style.display = q ? (text.indexOf(q) !== -1 ? '' : 'none') : ''; }); }); }
+    // Edit modal populate
+    function setupCascades(root){
+      var shipSel = root.querySelector('select[name="ship_id"]');
+      var serviceSel = root.querySelector('select[name="service_id"]');
+      var sectorSel = root.querySelector('select[name="sector_id"]');
+      var sectionSel = root.querySelector('select[name="section_id"]');
+      if (!shipSel || !serviceSel || !sectorSel || !sectionSel) return;
+      function filterOptions(select, dataAttr, match){
+        var val = match || '';
+        Array.from(select.options).forEach(function(opt){
+          if (!opt.value) { opt.hidden = false; return; }
+          var dv = opt.getAttribute(dataAttr);
+          opt.hidden = !val || (dv !== val);
+        });
+        // Reset selection if current is hidden
+        if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; }
+      }
+      shipSel.addEventListener('change', function(){
+        filterOptions(serviceSel, 'data-ship', shipSel.value);
+        filterOptions(sectorSel, 'data-service', '');
+        filterOptions(sectionSel, 'data-sector', '');
+      });
+      serviceSel.addEventListener('change', function(){
+        filterOptions(sectorSel, 'data-service', serviceSel.value);
+        filterOptions(sectionSel, 'data-sector', '');
+      });
+      sectorSel.addEventListener('change', function(){
+        filterOptions(sectionSel, 'data-sector', sectorSel.value);
+      });
+      // Initial filter (in case ship already selected)
+      filterOptions(serviceSel, 'data-ship', shipSel.value);
+      filterOptions(sectorSel, 'data-service', serviceSel.value);
+      filterOptions(sectionSel, 'data-sector', sectorSel.value);
+    }
+
+    var createModal = document.getElementById('createInstallationModal');
+    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCascades(createModal); }); }
+    // Champs personnalisés (créer)
+    function addFieldRow(container, label, value){
+      var row = document.createElement('div'); row.className = 'input-group mb-2';
+      row.innerHTML = '<input class="form-control" placeholder="Libellé" value="'+(label||'')+'">'
+        + '<input class="form-control" placeholder="Valeur" value="'+(value||'')+'">'
+        + '<button class="btn btn-outline-danger" type="button"><span class="bi bi-trash"></span></button>';
+      row.querySelector('button').addEventListener('click', function(){ row.remove(); });
+      container.appendChild(row);
+    }
+    var btnAddCustomCreate = document.getElementById('btnAddCustomCreate');
+    if (btnAddCustomCreate){ btnAddCustomCreate.addEventListener('click', function(){ addFieldRow(document.getElementById('customFieldsCreate')); }); }
+    var formCreate = document.querySelector('#createInstallationModal form');
+    if (formCreate){ formCreate.addEventListener('submit', function(){ var container = document.getElementById('customFieldsCreate'); var items = []; var groups = container ? container.querySelectorAll('.input-group') : []; var order = 0; groups.forEach(function(g){ var inputs = g.querySelectorAll('input'); var lbl = (inputs[0].value||'').trim(); var val = (inputs[1].value||'').trim(); if(lbl){ items.push({ label: lbl, value: val, order: order++ }); } }); var hidden = document.getElementById('extraFieldsCreate'); if (hidden) hidden.value = JSON.stringify(items); }); }
+    var editModal = document.getElementById('editInstallationModal');
+    if (editModal) { editModal.addEventListener('show.bs.modal', function(event){ var b = event.relatedTarget; document.getElementById('editInstallationPk').value = b.getAttribute('data-pk'); function setSel(id,val){ var el=document.getElementById(id); if(!el) return; for(var i=0;i<el.options.length;i++){ if(el.options[i].value==val){ el.selectedIndex=i; break; } } }
+      document.getElementById('editDesignation').value = b.getAttribute('data-designation')||'';
+      document.getElementById('editReference').value = b.getAttribute('data-reference')||'';
+      document.getElementById('editMarque').value = b.getAttribute('data-marque')||'';
+      document.getElementById('editGisement').value = b.getAttribute('data-gisement')||'';
+      var editLocal = document.getElementById('editLocal'); if (editLocal) editLocal.value = b.getAttribute('data-local')||'';
+      setSel('editBigrame', b.getAttribute('data-bigrame-id')||'');
+      setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||''); setSel('editBigrame', b.getAttribute('data-bigrame-id')||'');
+      var isoSel = document.getElementById('editIsoPeriodicity'); if (isoSel) { var v = b.getAttribute('data-iso-periodicity')||'M'; for (var i=0;i<isoSel.options.length;i++){ if(isoSel.options[i].value==v){ isoSel.selectedIndex=i; break; } } }
+      // Pré-remplit champs personnalisés si des data-* sont fournies (non disponible ici, on laisse vide par défaut)
+      var containerEdit = document.getElementById('customFieldsEditList');
+      if (containerEdit){ containerEdit.innerHTML = ''; }
+    }); setupCascades(editModal); }
+    var btnAddCustomEditList = document.getElementById('btnAddCustomEditList');
+    if (btnAddCustomEditList){ btnAddCustomEditList.addEventListener('click', function(){ addFieldRow(document.getElementById('customFieldsEditList')); }); }
+    var formEditList = document.querySelector('#editInstallationModal form');
+    if (formEditList){ formEditList.addEventListener('submit', function(){ var container = document.getElementById('customFieldsEditList'); var items = []; var groups = container ? container.querySelectorAll('.input-group') : []; var order = 0; groups.forEach(function(g){ var inputs = g.querySelectorAll('input'); var lbl = (inputs[0].value||'').trim(); var val = (inputs[1].value||'').trim(); if(lbl){ items.push({ label: lbl, value: val, order: order++ }); } }); var hidden = document.getElementById('extraFieldsEditList'); if (hidden) hidden.value = JSON.stringify(items); }); }
+
+    // Filtres interactifs (empêche combinaisons incohérentes)
+    (function(){
+      var shipSel = document.getElementById('filterShip');
+      var serviceSel = document.getElementById('filterService');
+      var sectorSel = document.getElementById('filterSector');
+      var sectionSel = document.getElementById('filterSection');
+      if (!shipSel || !serviceSel || !sectorSel || !sectionSel) return;
+      function filterOptions(select, dataAttr, match){
+        var val = match || '';
+        Array.from(select.options).forEach(function(opt){
+          if (!opt.value) { opt.hidden = false; return; }
+          var dv = opt.getAttribute(dataAttr);
+          opt.hidden = !val || (dv !== val);
+        });
+        // Si l'option choisie devient masquée -> réinitialiser
+        if (select.selectedOptions.length && select.selectedOptions[0].hidden) select.selectedIndex = 0;
+      }
+      function onShip(){
+        filterOptions(serviceSel, 'data-ship', shipSel.value);
+        filterOptions(sectorSel, 'data-service', '');
+        filterOptions(sectionSel, 'data-sector', '');
+      }
+      function onService(){
+        filterOptions(sectorSel, 'data-service', serviceSel.value);
+        filterOptions(sectionSel, 'data-sector', '');
+      }
+      function onSector(){
+        filterOptions(sectionSel, 'data-sector', sectorSel.value);
+      }
+      shipSel.addEventListener('change', onShip);
+      serviceSel.addEventListener('change', onService);
+      sectorSel.addEventListener('change', onSector);
+      // Initialisation selon valeurs GET
+      onShip(); onService(); onSector();
+    })();
+  })();
+</script>
+{% endblock %}

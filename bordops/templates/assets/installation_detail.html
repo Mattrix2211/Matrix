@@ -1,0 +1,1561 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Installation</h1>
+  <div class="d-flex gap-2 align-items-center">
+    <a class="btn btn-secondary" href="/installations/">Retour</a>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editInstallationModal">Modifier les infos</button></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteInstallationModal">Supprimer</button></li>
+      </ul>
+    </div>
+  </div>
+  </div>
+
+<div class="card shadow-sm">
+  {% if object.photo %}
+    <img src="{{ object.photo.url }}" class="card-img-top" alt="{{ object.designation }}" style="object-fit:cover;height:240px;" />
+  {% endif %}
+  <div class="card-body">
+    <ul class="nav nav-tabs" id="instTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-infos" data-bs-toggle="tab" data-bs-target="#pane-infos" type="button" role="tab">Infos</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-histo" data-bs-toggle="tab" data-bs-target="#pane-histo" type="button" role="tab">Historique</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-entretien" data-bs-toggle="tab" data-bs-target="#pane-entretien" type="button" role="tab">Entretien</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-vibration" data-bs-toggle="tab" data-bs-target="#pane-vibration" type="button" role="tab">Vibration</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-hours" data-bs-toggle="tab" data-bs-target="#pane-hours" type="button" role="tab">Heure de marche</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-isolement" data-bs-toggle="tab" data-bs-target="#pane-isolement" type="button" role="tab">Isolement</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-parts" data-bs-toggle="tab" data-bs-target="#pane-parts" type="button" role="tab">Pièces</button>
+      </li>
+    </ul>
+    
+    <!-- Contenu des onglets -->
+    <div class="tab-content mt-3">
+      <!-- Onglet Infos -->
+      <div class="tab-pane fade show active" id="pane-infos" role="tabpanel" aria-labelledby="tab-infos">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <h6 class="mb-3">Informations</h6>
+              <dl class="row mb-0">
+                <dt class="col-5">Désignation</dt><dd class="col-7">{{ object.designation }}</dd>
+                <dt class="col-5">Référence</dt><dd class="col-7">{{ object.reference|default:"—" }}</dd>
+                <dt class="col-5">Marque</dt><dd class="col-7">{{ object.marque|default:"—" }}</dd>
+                <dt class="col-5">Navire</dt><dd class="col-7">{% if object.ship %}{{ object.ship.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Service</dt><dd class="col-7">{% if object.service %}{{ object.service.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Secteur</dt><dd class="col-7">{% if object.sector %}{{ object.sector.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Section</dt><dd class="col-7">{% if object.section %}{{ object.section.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Local</dt><dd class="col-7">{{ object.local|default:"—" }}</dd>
+                <dt class="col-5">Gisement</dt><dd class="col-7">{{ object.gisement|default:"—" }}</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Champs personnalisés</h6>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInstallationModal"><span class="bi bi-gear"></span> Modifier</button>
+              </div>
+              <div class="mt-3">
+                {% if extra_fields %}
+                  <dl class="row mb-0">
+                    {% for ef in extra_fields %}
+                      <dt class="col-5">{{ ef.label }}</dt><dd class="col-7">{{ ef.value }}</dd>
+                    {% endfor %}
+                  </dl>
+                {% else %}
+                  <div class="text-muted">Aucun champ personnalisé</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Onglet Entretien -->
+      <div class="tab-pane fade" id="pane-entretien" role="tabpanel" aria-labelledby="tab-entretien">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Entretien</h6>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMaintenanceModal">Ajouter</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="maintenanceTable">
+            <thead><tr><th style="width:160px;">Périodicité</th><th style="width:220px;">Titre</th><th>Description</th></tr></thead>
+            <tbody>
+              {% for m in maintenances %}
+                <tr class="mnt-row" style="cursor:pointer;"
+                    data-id="{{ m.id }}"
+                    data-periodicity="{{ m.periodicity }}"
+                    data-title="{{ m.title|default:'' }}"
+                    data-description="{{ m.description|default:'' }}"
+                    data-duration="{{ m.duration_hours|default:0 }} h {{ m.duration_minutes|default:0 }} min"
+                    data-people="{{ m.people_count|default:'—' }}"
+                    data-competence="{% if m.competence == 'BORD' %}Bord{% elif m.competence == 'SLM' %}SLM{% elif m.competence == 'INDUSTRIEL' %}Industriel{% else %}—{% endif %}">
+                  <td>{{ m.periodicity }}</td>
+                  <td>{{ m.title }}</td>
+                  <td>{{ m.description|default:"" }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-muted">Aucun entretien défini</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    
+      
+      <div class="tab-pane fade" id="pane-vibration" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="mb-0">Vibration
+              {% if vibration_last_state %}
+                {% if vibration_last_state == 'A' %}
+                  <span class="badge text-bg-success ms-2">Dernier état: A</span>
+                {% elif vibration_last_state == 'B' %}
+                  <span class="badge text-bg-warning ms-2">Dernier état: B</span>
+                {% elif vibration_last_state == 'C' %}
+                  <span class="badge text-bg-danger ms-2">Dernier état: C</span>
+                {% else %}
+                  <span class="badge text-bg-secondary ms-2">Dernier état: {{ vibration_last_state }}</span>
+                {% endif %}
+              {% endif %}
+            </h6>
+            <small class="text-muted">
+              {% if vibration_next_date %}
+                Prochaine mesure: <strong>{{ vibration_next_date|date:"d/m/Y" }}</strong>
+                {% if vibration_next_days is not None %} (dans {{ vibration_next_days }} j){% endif %}
+                {% if vibration_next_days is not None %}
+                  {% if vibration_next_days <= 0 %}
+                    <span class="badge text-bg-danger ms-1">Échéance</span>
+                  {% elif vibration_next_days <= 7 %}
+                    <span class="badge text-bg-warning ms-1">Bientôt</span>
+                  {% endif %}
+                {% endif %}
+              {% else %}
+                Aucune mesure précédente
+              {% endif %}
+            </small>
+          </div>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addVibrationModal">Ajouter</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th style="width:200px;">Date</th><th style="width:160px;">État</th><th>Note</th><th class="text-end" style="width:220px;">Utilisateur</th></tr></thead>
+            <tbody>
+              {% for v in vibration_logs %}
+                <tr class="vib-row" style="cursor:pointer;"
+                  data-id="{{ v.id }}"
+                  data-date="{{ v.date|date:'d/m/Y' }}"
+                  data-state="{{ v.state }}"
+                  data-note="{{ v.note|default:'' }}"
+                  data-user="{% if v.created_by %}{{ v.created_by.get_full_name|default:v.created_by.username }}{% else %}—{% endif %}">
+                <td>{{ v.date|date:"d/m/Y" }}</td>
+                <td>
+                  {% if v.state == 'A' %}<span class="badge text-bg-success">A</span>
+                  {% elif v.state == 'B' %}<span class="badge text-bg-warning">B</span>
+                  {% elif v.state == 'C' %}<span class="badge text-bg-danger">C</span>
+                  {% else %}<span class="badge text-bg-secondary">{{ v.state }}</span>{% endif %}
+                </td>
+                <td>{{ v.note|default:"" }}</td>
+                <td class="text-end">{% if v.created_by %}{{ v.created_by.get_full_name|default:v.created_by.username }}{% else %}—{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted">Aucune mesure</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="pane-isolement" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="mb-0">Isolement</h6>
+            <small class="text-muted">
+              {% if isolation_last %}
+                Dernière mesure: <strong>{{ isolation_last.ohms }} Ω</strong> le <strong>{{ isolation_last.date|date:"d/m/Y" }}</strong>.
+                <br />
+              {% else %}
+                Aucune mesure précédente.
+              {% endif %}
+              {% if isolation_next_date %}
+                Prochaine échéance: <strong>{{ isolation_next_date|date:"d/m/Y" }}</strong>
+                {% if isolation_next_days is not None %} (dans {{ isolation_next_days }} j){% endif %}.
+                {% if isolation_next_days is not None %}
+                  {% if isolation_next_days <= 0 %}
+                    <span class="badge text-bg-danger ms-1">Échéance</span>
+                  {% elif isolation_next_days <= 7 %}
+                    <span class="badge text-bg-warning ms-1">Bientôt</span>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            </small>
+          </div>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addIsolationModal">Ajouter</button>
+        </div>
+        <table class="table table-sm align-middle" id="isoTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Mesure (Ω)</th>
+              <th>Note</th>
+              <th class="text-end">Utilisateur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in isolation_logs %}
+            <tr class="iso-row" data-id="{{ r.id }}" data-date="{{ r.date|date:'d/m/Y' }}" data-ohms="{{ r.ohms }}" data-user="{{ r.created_by|default:'—' }}" data-note="{{ r.note|default:'' }}">
+              <td>{{ r.date|date:"d/m/Y" }}</td>
+              <td>{{ r.ohms }}</td>
+              <td>{{ r.note|default:"" }}</td>
+              <td class="text-end">{{ r.created_by|default:"—" }}</td>
+            </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted">Aucune mesure d'isolement</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <!-- Modal ajout isolement -->
+        <div class="modal fade" id="addIsolationModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header"><h5 class="modal-title">Nouvelle mesure d'isolement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+              <form method="post">
+                <div class="modal-body">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_isolation" />
+                  <input type="hidden" name="tab" value="isolement" />
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Date</label><input class="form-control" name="date" placeholder="JJ/MM/AAAA" /></div>
+                    <div class="col-md-6"><label class="form-label">Mesure (Ω)</label><input class="form-control" name="ohms" placeholder="ex: 1200" /></div>
+                    <div class="col-12"><label class="form-label">Note</label><textarea class="form-control" name="note" rows="2" placeholder="Remarque facultative"></textarea></div>
+                  </div>
+                  <p class="text-muted mt-2 mb-0">L'utilisateur enregistré est celui connecté.</p>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal détails isolement -->
+        <div class="modal fade" id="viewIsolationModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Détail du relevé</h5>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li><button class="dropdown-item" id="isoEditBtn">Modifier</button></li>
+                      <li><button class="dropdown-item text-danger" id="isoMenuDelete">Supprimer</button></li>
+                    </ul>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+              </div>
+              <div class="modal-body">
+                <dl class="row mb-0">
+                  <dt class="col-5">Date</dt><dd class="col-7" id="isoViewDate">—</dd>
+                  <dt class="col-5">Mesure (Ω)</dt><dd class="col-7" id="isoViewOhms">—</dd>
+                  <dt class="col-5">Utilisateur</dt><dd class="col-7" id="isoViewUser">—</dd>
+                  <dt class="col-5">Note</dt><dd class="col-7" id="isoViewNote">—</dd>
+                </dl>
+                <form method="post" id="isoDeleteForm" style="display:none">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_isolation" />
+                  <input type="hidden" name="tab" value="isolement" />
+                  <input type="hidden" name="reading_id" id="isoDeleteId" />
+                </form>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal édition isolement -->
+        <div class="modal fade" id="editIsolationModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header"><h5 class="modal-title">Modifier la mesure</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+              <form method="post">
+                <div class="modal-body">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="edit_isolation" />
+                  <input type="hidden" name="tab" value="isolement" />
+                  <input type="hidden" name="reading_id" id="isoEditId" />
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Date</label><input class="form-control" name="date" id="isoEditDate" /></div>
+                    <div class="col-md-6"><label class="form-label">Mesure (Ω)</label><input class="form-control" name="ohms" id="isoEditOhms" /></div>
+                    <div class="col-12"><label class="form-label">Note</label><textarea class="form-control" name="note" id="isoEditNote" rows="2"></textarea></div>
+                  </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            var rows = document.querySelectorAll('#isoTable .iso-row');
+            rows.forEach(function(row){
+              row.addEventListener('click', function(){
+                var id = row.getAttribute('data-id');
+                var date = row.getAttribute('data-date');
+                var ohms = row.getAttribute('data-ohms');
+                var user = row.getAttribute('data-user');
+                var note = row.getAttribute('data-note');
+                document.getElementById('isoViewDate').textContent = date || '—';
+                document.getElementById('isoViewOhms').textContent = ohms || '—';
+                document.getElementById('isoViewUser').textContent = user || '—';
+                document.getElementById('isoViewNote').textContent = note || '—';
+                document.getElementById('isoDeleteId').value = id;
+                document.getElementById('isoEditId').value = id;
+                document.getElementById('isoEditDate').value = date || '';
+                document.getElementById('isoEditOhms').value = ohms || '';
+                document.getElementById('isoEditNote').value = note || '';
+                var viewEl = document.getElementById('viewIsolationModal');
+                var viewModal = new bootstrap.Modal(viewEl);
+                viewModal.show();
+                var editIsoBtn = document.getElementById('isoEditBtn');
+                if (editIsoBtn) {
+                  editIsoBtn.onclick = function(){
+                    var vm = bootstrap.Modal.getInstance(viewEl);
+                    if (vm) vm.hide();
+                    var em = new bootstrap.Modal(document.getElementById('editIsolationModal'));
+                    em.show();
+                  };
+                }
+                var delIsoBtn = document.getElementById('isoMenuDelete');
+                if (delIsoBtn) { delIsoBtn.onclick = function(){ document.getElementById('isoDeleteForm').submit(); }; }
+              });
+            });
+            // Vibration rows -> view modal with actions
+            document.querySelectorAll('#pane-vibration .vib-row').forEach(function(row){
+              row.addEventListener('click', function(){
+                var id = row.getAttribute('data-id');
+                var date = row.getAttribute('data-date');
+                var state = row.getAttribute('data-state');
+                var note = row.getAttribute('data-note');
+                var user = row.getAttribute('data-user');
+                document.getElementById('vibViewDate').textContent = date || '—';
+                var stateEl = document.getElementById('vibViewState');
+                var html = '';
+                if (state === 'A') html = '<span class="badge text-bg-success">A</span>';
+                else if (state === 'B') html = '<span class="badge text-bg-warning">B</span>';
+                else if (state === 'C') html = '<span class="badge text-bg-danger">C</span>';
+                else html = '<span class="badge text-bg-secondary">'+(state||'—')+'</span>';
+                stateEl.innerHTML = html;
+                document.getElementById('vibViewUser').textContent = user || '—';
+                document.getElementById('vibViewNote').textContent = note || '—';
+                document.getElementById('vibDeleteId').value = id;
+                var editBtn = document.getElementById('vibEditBtn');
+                editBtn.onclick = function(){
+                  var vm = bootstrap.Modal.getInstance(document.getElementById('viewVibrationModal'));
+                  if (vm) vm.hide();
+                  var em = new bootstrap.Modal(document.getElementById('editVibrationModal-'+id));
+                  em.show();
+                };
+                var viewEl = document.getElementById('viewVibrationModal');
+                var viewModal = new bootstrap.Modal(viewEl);
+                viewModal.show();
+                var delBtn = document.getElementById('vibMenuDelete');
+                if (delBtn) { delBtn.onclick = function(){ document.getElementById('vibDeleteForm').submit(); }; }
+              });
+            });
+            // Hours rows -> view modal with actions
+            document.querySelectorAll('#pane-hours .hours-row').forEach(function(row){
+              row.addEventListener('click', function(){
+                var id = row.getAttribute('data-id');
+                document.getElementById('hoursViewDate').textContent = row.getAttribute('data-date') || '—';
+                document.getElementById('hoursViewHours').textContent = (row.getAttribute('data-hours')||'—') + ' h';
+                document.getElementById('hoursViewVisit').textContent = row.getAttribute('data-visit') || '—';
+                document.getElementById('hoursViewUser').textContent = row.getAttribute('data-user') || '—';
+                document.getElementById('hoursDeleteId').value = id;
+                var editBtn = document.getElementById('hoursEditBtn');
+                editBtn.onclick = function(){
+                  var vm = bootstrap.Modal.getInstance(document.getElementById('viewHourModal'));
+                  if (vm) vm.hide();
+                  var em = new bootstrap.Modal(document.getElementById('editHourReadingModal-'+id));
+                  em.show();
+                };
+                var viewEl = document.getElementById('viewHourModal');
+                var viewModal = new bootstrap.Modal(viewEl);
+                viewModal.show();
+                var delBtn = document.getElementById('hoursMenuDelete');
+                if (delBtn) { delBtn.onclick = function(){ document.getElementById('hoursDeleteForm').submit(); }; }
+              });
+            });
+          });
+        </script>
+      </div>
+      <div class="tab-pane fade" id="pane-histo" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Historique</h6>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">Ajouter</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th style="width:200px;">Date</th><th>Événement</th><th style="width:180px;">Par</th><th style="width:220px;">PJ</th></tr></thead>
+            <tbody>
+              {% for ev in events %}
+              <tr data-bs-toggle="modal" data-bs-target="#eventDetailModal-{{ ev.id }}" style="cursor:pointer;">
+                <td>{{ ev.date|date:"d/m/Y" }}</td>
+                <td>{{ ev.label }}</td>
+                <td>{% if ev.created_by %}{{ ev.created_by.get_full_name|default:ev.created_by.username }}{% else %}—{% endif %}</td>
+                <td>
+                  <div class="d-flex flex-wrap gap-1">
+                    {% for att in ev.attachments.all %}
+                      {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+                        <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                          {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                          {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                          {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                          {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                          {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                          {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                          {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                          {{ label }}
+                        </a>
+                      {% endwith %}
+                    {% empty %}
+                      <span class="text-muted">—</span>
+                    {% endfor %}
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3" class="text-muted">Aucun événement</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="pane-hours" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0">Heure de marche</h6>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addHourReadingModal">Ajouter</button>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted">Total</div>
+              <div class="fs-5">{{ hours_total }} h</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted">À la dernière visite</div>
+              <div class="fs-5">{{ hours_last_visit }} h</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted">Ce mois</div>
+              <div class="fs-5">{{ hours_month }} h</div>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Heures par mois</span>
+                <small class="text-muted">12 derniers mois</small>
+              </div>
+              <canvas id="hoursPerMonthChart" style="max-height:260px;"></canvas>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th style="width:200px;">Date</th><th style="width:180px;">Heures</th><th class="text-end">Utilisateur</th></tr></thead>
+            <tbody>
+              {% for r in hour_logs %}
+                <tr class="hours-row" style="cursor:pointer;"
+                  data-id="{{ r.id }}"
+                  data-date="{{ r.date|date:'d/m/Y' }}"
+                  data-hours="{{ r.hours }}"
+                  data-visit="{% if r.is_visit %}Oui{% else %}Non{% endif %}"
+                  data-user="{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}">
+                <td>{{ r.date|date:"j F Y" }}{% if r.is_visit %} <span class="badge text-bg-info ms-1">Visite</span>{% endif %}</td>
+                <td>{{ r.hours }} h</td>
+                <td class="text-end">{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3" class="text-muted">Aucun relevé</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="pane-parts" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Pièces</h6>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPartModal">Ajouter</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Désignation</th><th>NNO</th><th>Référence</th><th>Marque</th></tr></thead>
+            <tbody>
+              {% for p in parts %}
+              <tr data-bs-toggle="modal" data-bs-target="#partDetailModal-{{ p.id }}" style="cursor:pointer;"><td>{{ p.name }}</td><td>{{ p.nno|default:"" }}</td><td>{{ p.reference|default:"" }}</td><td>{{ p.marque|default:"" }}</td></tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted">Aucune pièce</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Modale édition #}
+{# Entretien: Modales et conteneurs hors des onglets #}
+{% for m in maintenances %}
+<div class="modal fade" id="editMaintenanceModal-{{ m.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l'entretien</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_maintenance" />
+          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Périodicité</label>
+              <select class="form-select" name="periodicity">
+                <option {% if m.periodicity == 'Hebdomadaire' %}selected{% endif %}>Hebdomadaire</option>
+                <option {% if m.periodicity == 'Mensuel' %}selected{% endif %}>Mensuel</option>
+                <option {% if m.periodicity == 'Bimestruel' %}selected{% endif %}>Bimestruel</option>
+                <option {% if m.periodicity == 'Trimestriel' %}selected{% endif %}>Trimestriel</option>
+                <option {% if m.periodicity == 'Quadrimestriel' %}selected{% endif %}>Quadrimestriel</option>
+                <option {% if m.periodicity == 'Semestriel' %}selected{% endif %}>Semestriel</option>
+                <option {% if m.periodicity == 'Annuel' %}selected{% endif %}>Annuel</option>
+                <option {% if m.periodicity == 'Bisannuel' %}selected{% endif %}>Bisannuel</option>
+                <option {% if m.periodicity == 'Triennal' %}selected{% endif %}>Triennal</option>
+                <option {% if m.periodicity == 'Quinquennal' %}selected{% endif %}>Quinquennal</option>
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label">Titre</label><input class="form-control" name="title" value="{{ m.title }}" /></div>
+            <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2">{{ m.description }}</textarea></div>
+            <div class="col-md-6"><label class="form-label">Durée prévue</label>
+              <div class="input-group">
+                <input class="form-control" type="number" min="0" name="planned_duration_hours" value="{{ m.duration_hours }}" />
+                <span class="input-group-text">h</span>
+                <input class="form-control" type="number" min="0" max="59" name="planned_duration_minutes" value="{{ m.duration_minutes }}" />
+                <span class="input-group-text">min</span>
+              </div>
+            </div>
+            <div class="col-md-6"><label class="form-label">Nombre de personnes</label><input class="form-control" type="number" min="1" name="people_count" value="{{ m.people_count }}" /></div>
+            <div class="col-md-6"><label class="form-label">Compétence</label>
+              <select class="form-select" name="competence">
+                <option value="BORD" {% if m.competence == 'BORD' %}selected{% endif %}>Bord</option>
+                <option value="SLM" {% if m.competence == 'SLM' %}selected{% endif %}>SLM</option>
+                <option value="INDUSTRIEL" {% if m.competence == 'INDUSTRIEL' %}selected{% endif %}>Industriel</option>
+              </select>
+            </div>
+            <div class="col-12"><label class="form-label">Ajouter des pièces jointes</label><input class="form-control" type="file" name="attachments" multiple /></div>
+            <div class="col-12">
+              <label class="form-label">Pièces jointes existantes</label>
+              <div class="d-flex flex-wrap gap-1">
+                {% for att in m.attachments.all %}
+                  {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+                    <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                      {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                      {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                      {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                      {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                      {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                      {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                      {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                      {{ label }}
+                    </a>
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_maintenance_attachment" />
+                      <input type="hidden" name="tab" value="entretien" />
+                      <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
+                      <input type="hidden" name="attachment_id" value="{{ att.id }}" />
+                      <button class="btn btn-link btn-sm text-danger" title="Supprimer" style="text-decoration:none"><span class="bi bi-x-circle"></span></button>
+                    </form>
+                  {% endwith %}
+                {% empty %}
+                  <span class="text-muted">Aucune pièce jointe</span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% for m in maintenances %}
+<div id="mnt-att-{{ m.id }}" style="display:none">
+  <div class="d-flex flex-wrap gap-1">
+    {% for att in m.attachments.all %}
+      {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+        <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+          {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+          {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+          {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+          {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+          {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+          {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+          {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+          {{ label }}
+        </a>
+      {% endwith %}
+    {% empty %}
+      <span class="text-muted">—</span>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+<div class="modal fade" id="addMaintenanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouvel entretien</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_maintenance" />
+          <input type="hidden" name="tab" value="entretien" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Périodicité</label>
+              <select class="form-select" name="periodicity">
+                <option>Hebdomadaire</option>
+                <option>Mensuel</option>
+                <option>Bimestruel</option>
+                <option>Trimestriel</option>
+                <option>Quadrimestriel</option>
+                <option>Semestriel</option>
+                <option>Annuel</option>
+                <option>Bisannuel</option>
+                <option>Triennal</option>
+                <option>Quinquennal</option>
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label">Titre</label><input class="form-control" name="title" placeholder="ex: Graissage" /></div>
+            <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2" placeholder="Détails de l'opération"></textarea></div>
+            <div class="col-md-6"><label class="form-label">Durée prévue</label>
+              <div class="input-group">
+                <input class="form-control" type="number" min="0" name="planned_duration_hours" value="0" />
+                <span class="input-group-text">h</span>
+                <input class="form-control" type="number" min="0" max="59" name="planned_duration_minutes" value="0" />
+                <span class="input-group-text">min</span>
+              </div>
+            </div>
+            <div class="col-md-6"><label class="form-label">Nombre de personnes</label><input class="form-control" type="number" min="1" name="people_count" value="1" /></div>
+            <div class="col-md-6"><label class="form-label">Compétence</label>
+              <select class="form-select" name="competence">
+                <option value="BORD">Bord</option>
+                <option value="SLM">SLM</option>
+                <option value="INDUSTRIEL">Industriel</option>
+              </select>
+            </div>
+            <div class="col-12"><label class="form-label">Pièces jointes</label><input class="form-control" type="file" name="attachments" multiple /></div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="viewMaintenanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail entretien</h5>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" id="mntEditBtn">Modifier</button></li>
+              <li><button class="dropdown-item text-danger" id="mntMenuDelete">Supprimer</button></li>
+            </ul>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-5">Périodicité</dt><dd class="col-7" id="mntViewPeriodicity">—</dd>
+          <dt class="col-5">Titre</dt><dd class="col-7" id="mntViewTitle">—</dd>
+          <dt class="col-5">Description</dt><dd class="col-7" id="mntViewDescription">—</dd>
+          <dt class="col-5">Durée prévue</dt><dd class="col-7" id="mntViewDuration">—</dd>
+          <dt class="col-5">Effectif</dt><dd class="col-7" id="mntViewPeople">—</dd>
+          <dt class="col-5">Compétence</dt><dd class="col-7" id="mntViewCompetence">—</dd>
+        </dl>
+        <form method="post" id="mntDeleteForm" style="display:none">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_maintenance" />
+          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="maintenance_id" id="mntDeleteId" />
+        </form>
+        <hr />
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>Pièces jointes</strong>
+        </div>
+        <div id="mntAttList" class="d-flex flex-wrap gap-1"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('#maintenanceTable .mnt-row').forEach(function(row){
+      row.addEventListener('click', function(){
+        var id = row.getAttribute('data-id');
+        var periodicity = row.getAttribute('data-periodicity');
+        var title = row.getAttribute('data-title');
+        var description = row.getAttribute('data-description');
+        var duration = row.getAttribute('data-duration');
+        var people = row.getAttribute('data-people');
+        var competence = row.getAttribute('data-competence');
+        document.getElementById('mntViewPeriodicity').textContent = periodicity || '—';
+        document.getElementById('mntViewTitle').textContent = title || '—';
+        document.getElementById('mntViewDescription').textContent = description || '—';
+        document.getElementById('mntViewDuration').textContent = duration || '—';
+        document.getElementById('mntViewPeople').textContent = people || '—';
+        document.getElementById('mntViewCompetence').textContent = competence || '—';
+        document.getElementById('mntDeleteId').value = id;
+        var viewEl = document.getElementById('viewMaintenanceModal');
+        var viewModal = new bootstrap.Modal(viewEl);
+        viewModal.show();
+        var editBtn = document.getElementById('mntEditBtn');
+        editBtn.onclick = function(){
+          var vm = bootstrap.Modal.getInstance(viewEl);
+          if (vm) vm.hide();
+          var em = new bootstrap.Modal(document.getElementById('editMaintenanceModal-'+id));
+          em.show();
+        };
+        var delBtn = document.getElementById('mntMenuDelete');
+        if (delBtn) { delBtn.onclick = function(){ document.getElementById('mntDeleteForm').submit(); } }
+        var attSource = document.getElementById('mnt-att-'+id);
+        if (attSource) {
+          document.getElementById('mntAttList').innerHTML = attSource.innerHTML;
+        }
+      });
+    });
+  });
+</script>
+<div class="modal fade" id="editInstallationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l’installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_installation" />
+          <input type="hidden" name="pk" value="{{ object.id }}" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" value="{{ object.designation }}" required /></div>
+            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" value="{{ object.reference }}" /></div>
+            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" value="{{ object.marque }}" /></div>
+            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" value="{{ object.gisement }}" /></div>
+            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" value="{{ object.local }}" /></div>
+            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" required><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if object.ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" required><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if object.service.id == sv.id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" required><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if object.sector.id == sc.id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if object.section and object.section.id == se.id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Bigrame</label><select class="form-select" name="bigrame_id"><option value="">—</option>{% for bg in bigrames %}<option value="{{ bg.id }}" {% if object.bigrame and object.bigrame.id == bg.id %}selected{% endif %}>{{ bg.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <label class="form-label">Champs personnalisés (Infos)</label>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddCustomEdit"><span class="bi bi-plus-lg"></span> Ajouter un champ</button>
+              </div>
+              <div id="customFieldsEdit" class="mt-2"></div>
+              <input type="hidden" name="extra_fields" id="extraFieldsEdit" />
+            </div>
+            <div class="col-md-12"><hr /></div>
+            <div class="col-md-6">
+              <label class="form-label">Périodicité isolement</label>
+              <select class="form-select" name="iso_periodicity">
+                <option value="M" {% if object.iso_periodicity == 'M' %}selected{% endif %}>Mensuel</option>
+                <option value="T" {% if object.iso_periodicity == 'T' %}selected{% endif %}>Trimestriel</option>
+                <option value="A" {% if object.iso_periodicity == 'A' %}selected{% endif %}>Annuel</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale suppression #}
+<div class="modal fade" id="deleteInstallationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Supprimer l’installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_installation" />
+          <input type="hidden" name="pk" value="{{ object.id }}" />
+          <p>Confirmer la suppression de {{ object.designation }} ?</p>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger">Supprimer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modales événements: détail + édition, par événement #}
+{% for ev in events %}
+<div class="modal fade" id="eventDetailModal-{{ ev.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Détail événement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><strong>Date:</strong> {{ ev.date|date:"d/m/Y" }}</div>
+        <div class="mb-2"><strong>Événement:</strong> {{ ev.label }}</div>
+        <div class="mb-2"><strong>Par:</strong> {% if ev.created_by %}{{ ev.created_by.get_full_name|default:ev.created_by.username }}{% else %}—{% endif %}</div>
+        <div class="mb-2"><strong>Notes:</strong><br/>{{ ev.notes|linebreaksbr }}</div>
+        <div class="mb-2"><strong>Pièces jointes:</strong>
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            {% for att in ev.attachments.all %}
+              {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+                <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                  {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                  {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                  {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                  {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                  {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                  {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                  {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                  {{ label }}
+                </a>
+              {% endwith %}
+            {% empty %}
+              <span class="text-muted">—</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-target="#eventEditModal-{{ ev.id }}" data-bs-toggle="modal">Modifier</button>
+        <form method="post" class="ms-auto">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_event" />
+          <input type="hidden" name="event_id" value="{{ ev.id }}" />
+          <button type="submit" class="btn btn-outline-danger">Supprimer</button>
+        </form>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="eventEditModal-{{ ev.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l’événement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_event" />
+          <input type="hidden" name="event_id" value="{{ ev.id }}" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" value="{{ ev.date|date:'d/m/Y' }}" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Événement</label><input class="form-control" name="label" value="{{ ev.label }}" required /></div>
+          <div class="mb-3"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="4">{{ ev.notes }}</textarea></div>
+          <div class="mb-3"><label class="form-label">Pièces jointes existantes</label>
+            {% for att in ev.attachments.all %}
+            <div class="d-flex align-items-center justify-content-between border rounded p-2 mb-2">
+              {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+              <a href="{{ att.file.url }}" target="_blank" class="text-decoration-none {% if '.pdf' in fn %}text-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-primary{% elif '.doc' in fn or '.docx' in fn %}text-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-success{% elif '.ppt' in fn or '.pptx' in fn %}text-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-secondary{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                {{ label }}
+              </a>
+              {% endwith %}
+              <button type="button" class="btn btn-sm btn-outline-danger btn-delete-attachment" data-event-id="{{ ev.id }}" data-attachment-id="{{ att.id }}" data-filename="{{ att.filename }}" title="Supprimer">
+                <span class="bi bi-trash"></span>
+              </button>
+            </div>
+            {% empty %}
+            <div class="text-muted">Aucune pièce jointe</div>
+            {% endfor %}
+          </div>
+          <div class="mb-3"><label class="form-label">Pièces jointes</label>
+            <div class="attachments-preview d-flex flex-wrap gap-2" id="attachments-preview-edit-{{ ev.id }}"></div>
+            <div class="attachments-hidden d-none" id="attachments-hidden-edit-{{ ev.id }}"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-add-attachment" data-hidden="#attachments-hidden-edit-{{ ev.id }}" data-preview="#attachments-preview-edit-{{ ev.id }}">Ajouter une PJ</button>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{# Modale consultation heure de marche #}
+<div class="modal fade" id="viewHourModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail du relevé</h5>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" id="hoursEditBtn">Modifier</button></li>
+              <li><button class="dropdown-item text-danger" id="hoursMenuDelete">Supprimer</button></li>
+            </ul>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-5">Date</dt><dd class="col-7" id="hoursViewDate">—</dd>
+          <dt class="col-5">Heures</dt><dd class="col-7" id="hoursViewHours">—</dd>
+          <dt class="col-5">Visite</dt><dd class="col-7" id="hoursViewVisit">—</dd>
+          <dt class="col-5">Utilisateur</dt><dd class="col-7" id="hoursViewUser">—</dd>
+        </dl>
+        <form method="post" id="hoursDeleteForm" class="d-none">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_hour_reading" />
+          <input type="hidden" name="tab" value="hours" />
+          <input type="hidden" name="reading_id" id="hoursDeleteId" />
+        </form>
+      </div>
+      
+    </div>
+  </div>
+</div>
+{# Modales édition vibration, par mesure #}
+{% for v in vibration_logs %}
+<div class="modal fade" id="editVibrationModal-{{ v.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la mesure</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="tab" value="vibration" />
+          <input type="hidden" name="reading_id" value="{{ v.id }}" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" value="{{ v.date|date:'d/m/Y' }}" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3">
+            <label class="form-label">État vibratoire</label>
+            <select class="form-select" name="state" required>
+              <option value="A" {% if v.state == 'A' %}selected{% endif %}>A (vert)</option>
+              <option value="B" {% if v.state == 'B' %}selected{% endif %}>B (orange)</option>
+              <option value="C" {% if v.state == 'C' %}selected{% endif %}>C (rouge)</option>
+            </select>
+          </div>
+          <div class="mb-3"><label class="form-label">Note</label><textarea class="form-control" name="note" rows="3">{{ v.note }}</textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="submit" name="action" value="edit_vibration" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  </div>
+{% endfor %}
+{# Modale ajout mesure vibration #}
+<div class="modal fade" id="addVibrationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Ajouter une mesure de vibration</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_vibration" />
+          <input type="hidden" name="tab" value="vibration" />
+          <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">État vibratoire</label>
+            <select class="form-select" name="state" required>
+              <option value="A">A (vert)</option>
+              <option value="B">B (orange)</option>
+              <option value="C">C (rouge)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Note</label>
+            <textarea class="form-control" name="note" rows="3" placeholder="Observation (optionnel)"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale ajout événement #}
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouvel événement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_event" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Événement</label><input class="form-control" name="label" required /></div>
+          <div class="mb-3"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="4"></textarea></div>
+          <div class="mb-3"><label class="form-label">Pièces jointes</label>
+            <div class="attachments-preview d-flex flex-wrap gap-2" id="attachments-preview-add"></div>
+            <div class="attachments-hidden d-none" id="attachments-hidden-add"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-add-attachment" data-hidden="#attachments-hidden-add" data-preview="#attachments-preview-add">Ajouter une PJ</button>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modale consultation vibration #}
+<div class="modal fade" id="viewVibrationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail du relevé</h5>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" id="vibEditBtn">Modifier</button></li>
+              <li><button class="dropdown-item text-danger" id="vibMenuDelete">Supprimer</button></li>
+            </ul>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-5">Date</dt><dd class="col-7" id="vibViewDate">—</dd>
+          <dt class="col-5">État</dt><dd class="col-7" id="vibViewState">—</dd>
+          <dt class="col-5">Utilisateur</dt><dd class="col-7" id="vibViewUser">—</dd>
+          <dt class="col-5">Note</dt><dd class="col-7" id="vibViewNote">—</dd>
+        </dl>
+        <form method="post" id="vibDeleteForm" class="d-none">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_vibration" />
+          <input type="hidden" name="tab" value="vibration" />
+          <input type="hidden" name="reading_id" id="vibDeleteId" />
+        </form>
+      </div>
+      
+    </div>
+  </div>
+</div>
+{# Modales pièces: détail + édition, par pièce #}
+{% for p in parts %}
+<div class="modal fade" id="partDetailModal-{{ p.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Détail pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><strong>Désignation:</strong> {{ p.name }}</div>
+        <div class="mb-2"><strong>NNO:</strong> {{ p.nno|default:"" }}</div>
+        <div class="mb-2"><strong>Référence:</strong> {{ p.reference|default:"" }}</div>
+        <div class="mb-2"><strong>Marque:</strong> {{ p.marque|default:"" }}</div>
+        {% if p.photo %}
+        <div class="mt-2"><img src="{{ p.photo.url }}" alt="photo" style="max-width: 100%; height: auto;" /></div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-target="#partEditModal-{{ p.id }}" data-bs-toggle="modal">Modifier</button>
+        <form method="post" class="ms-auto">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_part" />
+          <input type="hidden" name="part_id" value="{{ p.id }}" />
+          <button type="submit" class="btn btn-outline-danger">Supprimer</button>
+        </form>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="partEditModal-{{ p.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_part" />
+          <input type="hidden" name="part_id" value="{{ p.id }}" />
+          <div class="mb-3"><label class="form-label">Désignation</label><input class="form-control" name="designation" value="{{ p.name }}" required /></div>
+          <div class="mb-3"><label class="form-label">NNO</label><input class="form-control" name="nno" value="{{ p.nno }}" /></div>
+          <div class="mb-3"><label class="form-label">Référence</label><input class="form-control" name="reference" value="{{ p.reference }}" /></div>
+          <div class="mb-3"><label class="form-label">Marque</label><input class="form-control" name="marque" value="{{ p.marque }}" /></div>
+          <div class="mb-3"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{# Modale ajout pièce #}
+<div class="modal fade" id="addPartModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Ajouter une pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_part" />
+          <div class="mb-3"><label class="form-label">Désignation</label><input class="form-control" name="designation" required /></div>
+          <div class="mb-3"><label class="form-label">NNO</label><input class="form-control" name="nno" /></div>
+          <div class="mb-3"><label class="form-label">Référence</label><input class="form-control" name="reference" /></div>
+          <div class="mb-3"><label class="form-label">Marque</label><input class="form-control" name="marque" /></div>
+          <div class="mb-3"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function setupCascades(root){
+    var shipSel = root.querySelector('select[name="ship_id"]');
+    var serviceSel = root.querySelector('select[name="service_id"]');
+    var sectorSel = root.querySelector('select[name="sector_id"]');
+    var sectionSel = root.querySelector('select[name="section_id"]');
+    if (!shipSel || !serviceSel || !sectorSel || !sectionSel) return;
+    function filterOptions(select, dataAttr, match){
+      var val = match || '';
+      Array.from(select.options).forEach(function(opt){
+        if (!opt.value) { opt.hidden = false; return; }
+        var dv = opt.getAttribute(dataAttr);
+        opt.hidden = !val || (dv !== val);
+      });
+      if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; }
+    }
+    shipSel.addEventListener('change', function(){
+      filterOptions(serviceSel, 'data-ship', shipSel.value);
+      filterOptions(sectorSel, 'data-service', '');
+      filterOptions(sectionSel, 'data-sector', '');
+    });
+    serviceSel.addEventListener('change', function(){
+      filterOptions(sectorSel, 'data-service', serviceSel.value);
+      filterOptions(sectionSel, 'data-sector', '');
+    });
+    sectorSel.addEventListener('change', function(){
+      filterOptions(sectionSel, 'data-sector', sectorSel.value);
+    });
+    filterOptions(serviceSel, 'data-ship', shipSel.value);
+    filterOptions(sectorSel, 'data-service', serviceSel.value);
+    filterOptions(sectionSel, 'data-sector', sectorSel.value);
+  }
+  var editModal = document.getElementById('editInstallationModal');
+  if (editModal) { editModal.addEventListener('shown.bs.modal', function(){ setupCascades(editModal); }); }
+
+  // Suppression PJ: modale globale
+  var confirmModalEl = document.getElementById('confirmDeleteAttachment');
+  var confirmModal; if (confirmModalEl && window.bootstrap) { confirmModal = new bootstrap.Modal(confirmModalEl); }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.btn-delete-attachment');
+    if (!btn) return;
+    var eventId = btn.getAttribute('data-event-id');
+    var attId = btn.getAttribute('data-attachment-id');
+    var filename = btn.getAttribute('data-filename');
+    // Ferme la modale d’édition ouverte si présente
+    var evEditEl = document.getElementById('eventEditModal-' + eventId);
+    if (evEditEl && window.bootstrap) {
+      var em = bootstrap.Modal.getInstance(evEditEl) || new bootstrap.Modal(evEditEl);
+      em.hide();
+    }
+    // Renseigne les champs et le texte
+    var form = confirmModalEl ? confirmModalEl.querySelector('form') : null;
+    if (form) {
+      form.querySelector('input[name="event_id"]').value = eventId;
+      form.querySelector('input[name="attachment_id"]').value = attId;
+      var msg = confirmModalEl.querySelector('.confirm-filename');
+      if (msg) { msg.textContent = filename; }
+    }
+    if (confirmModal) { confirmModal.show(); }
+  });
+
+  // Initialiser les tooltips Bootstrap
+  function initTooltips(root){
+    if (!window.bootstrap) return;
+    var els = (root || document).querySelectorAll('[data-bs-toggle="tooltip"]');
+    els.forEach(function(el){
+      bootstrap.Tooltip.getInstance(el) || new bootstrap.Tooltip(el);
+    });
+  }
+  initTooltips(document);
+  document.addEventListener('shown.bs.modal', function(e){ initTooltips(e.target); });
+
+  // Masque auto pour la date JJ/MM/AAAA
+  function applyDateMask(root){
+    var inputs = (root || document).querySelectorAll('input[name="date"]');
+    inputs.forEach(function(inp){
+      function format(val){
+        var digits = (val || '').replace(/[^0-9]/g, '').slice(0, 8);
+        var out = '';
+        if (digits.length <= 2) { out = digits; }
+        else if (digits.length <= 4) { out = digits.slice(0,2) + '/' + digits.slice(2); }
+        else { out = digits.slice(0,2) + '/' + digits.slice(2,4) + '/' + digits.slice(4); }
+        return out;
+      }
+      inp.addEventListener('input', function(e){
+        var pos = inp.selectionStart || inp.value.length;
+        var before = inp.value;
+        var after = format(before);
+        inp.value = after;
+      });
+      inp.addEventListener('blur', function(){ inp.value = format(inp.value); });
+      // initial
+      inp.value = format(inp.value);
+    });
+  }
+  applyDateMask(document);
+
+  // Champs personnalisés: gestion dans le modal d'édition
+  function addFieldRow(container, label, value){
+    var row = document.createElement('div'); row.className = 'input-group mb-2';
+    row.innerHTML = '<input class="form-control" placeholder="Libellé" value="'+(label||'')+'">'
+      + '<input class="form-control" placeholder="Valeur" value="'+(value||'')+'">'
+      + '<button class="btn btn-outline-danger" type="button"><span class="bi bi-trash"></span></button>';
+    row.querySelector('button').addEventListener('click', function(){ row.remove(); });
+    container.appendChild(row);
+  }
+  document.addEventListener('shown.bs.modal', function(e){
+    if (e.target && e.target.id === 'editInstallationModal'){
+      var container = document.getElementById('customFieldsEdit');
+      if (container){
+        container.innerHTML = '';
+        var data = [
+          {% for ef in extra_fields %}{ label: '{{ ef.label|escapejs }}', value: '{{ ef.value|escapejs }}' },{% endfor %}
+        ];
+        data.forEach(function(ex){ addFieldRow(container, ex.label, ex.value); });
+      }
+    }
+  });
+  var btnAddCustomEdit = document.getElementById('btnAddCustomEdit');
+  if (btnAddCustomEdit){ btnAddCustomEdit.addEventListener('click', function(){ addFieldRow(document.getElementById('customFieldsEdit')); }); }
+  var formEdit = document.querySelector('#editInstallationModal form');
+  if (formEdit){ formEdit.addEventListener('submit', function(){ var container = document.getElementById('customFieldsEdit'); var items = []; var groups = container ? container.querySelectorAll('.input-group') : []; var order = 0; groups.forEach(function(g){ var inputs = g.querySelectorAll('input'); var lbl = (inputs[0].value||'').trim(); var val = (inputs[1].value||'').trim(); if(lbl){ items.push({ label: lbl, value: val, order: order++ }); } }); var hidden = document.getElementById('extraFieldsEdit'); if (hidden) hidden.value = JSON.stringify(items); }); }
+  document.addEventListener('shown.bs.modal', function(e){ applyDateMask(e.target); });
+
+  // Ajouter PJ via bouton: inputs cachés + preview au-dessus
+  function fileIcon(name){
+    var n = (name||'').toLowerCase();
+    if (n.endsWith('.pdf')) return 'bi bi-file-earmark-pdf';
+    if (n.match(/\.(jpg|jpeg|png|gif|webp)$/)) return 'bi bi-image';
+    if (n.match(/\.(doc|docx)$/)) return 'bi bi-file-earmark-word';
+    if (n.match(/\.(xls|xlsx)$/)) return 'bi bi-file-earmark-excel';
+    if (n.match(/\.(ppt|pptx)$/)) return 'bi bi-file-earmark-powerpoint';
+    if (n.match(/\.(zip|rar|7z)$/)) return 'bi bi-file-earmark-zip';
+    return 'bi bi-paperclip';
+  }
+  function setupAttachmentPicker(root){
+    (root || document).querySelectorAll('.btn-add-attachment').forEach(function(btn){
+      if (btn.dataset.wired === '1') return;
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', function(){
+        var hiddenSel = btn.getAttribute('data-hidden');
+        var previewSel = btn.getAttribute('data-preview');
+        var hidden = document.querySelector(hiddenSel);
+        var preview = document.querySelector(previewSel);
+        if (!hidden || !preview) return;
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.name = 'attachments';
+        input.className = 'd-none';
+        input.multiple = false; // une PJ à la fois via le bouton
+        var uid = 'att-' + Date.now() + Math.random().toString(36).slice(2);
+        input.dataset.uid = uid;
+        hidden.appendChild(input);
+        input.addEventListener('change', function(){
+          if (!input.files || input.files.length === 0) { hidden.removeChild(input); return; }
+          var f = input.files[0];
+          var badge = document.createElement('span');
+          badge.className = 'badge rounded-pill text-bg-light d-inline-flex align-items-center gap-1';
+          badge.title = f.name + ' • ' + Math.round(f.size/1024) + ' Ko';
+          badge.dataset.uid = uid;
+          var icon = document.createElement('span'); icon.className = fileIcon(f.name) + '';
+          var text = document.createElement('span'); text.textContent = ' ' + f.name;
+          var del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-sm btn-outline-danger p-0 px-1'; del.title = 'Retirer';
+          del.innerHTML = '<span class="bi bi-trash"></span>';
+          del.addEventListener('click', function(){
+            var inp = hidden.querySelector('input[data-uid="' + uid + '"]');
+            if (inp) inp.remove();
+            badge.remove();
+          });
+          badge.appendChild(icon);
+          badge.appendChild(text);
+          badge.appendChild(del);
+          preview.appendChild(badge);
+          initTooltips(preview);
+        });
+        input.click();
+      });
+    });
+  }
+  setupAttachmentPicker(document);
+  document.addEventListener('shown.bs.modal', function(e){ setupAttachmentPicker(e.target); });
+
+  // Nettoyage des formulaires et PJ à la fermeture des modales
+  document.addEventListener('hidden.bs.modal', function(e){
+    var modal = e.target;
+    modal.querySelectorAll('.attachments-preview').forEach(function(el){ el.innerHTML = ''; });
+    modal.querySelectorAll('.attachments-hidden').forEach(function(el){ el.innerHTML = ''; });
+    modal.querySelectorAll('form').forEach(function(f){ try { f.reset(); } catch(_){} });
+  });
+
+  // Conserver l'onglet actif après POST: injecte input hidden 'tab' au submit
+  function currentTabKey(){
+    var active = document.querySelector('#instTabs .nav-link.active');
+    if (!active) return '';
+    var id = active.id || '';
+    return id.replace('tab-',''); // infos | histo | parts | hours
+  }
+  document.addEventListener('submit', function(e){
+    var f = e.target.closest('form');
+    if (!f) return;
+    try {
+      var input = f.querySelector('input[name="tab"]');
+      if (!input){ input = document.createElement('input'); input.type = 'hidden'; input.name = 'tab'; f.appendChild(input); }
+      input.value = currentTabKey();
+    } catch(_){}
+  });
+
+  // Activer l'onglet demandé via ?tab=...
+  function activateTabFromQuery(){
+    if (!window.bootstrap) return;
+    var params = new URLSearchParams(window.location.search||'');
+    var tab = params.get('tab');
+    if (!tab) return;
+    var btn = document.getElementById('tab-' + tab);
+    if (btn){ var t = bootstrap.Tab.getOrCreateInstance(btn); t.show(); }
+  }
+  activateTabFromQuery();
+})();
+</script>
+<script>
+(function(){
+  function renderHoursChart(){
+    var el = document.getElementById('hoursPerMonthChart');
+    if (!el || !window.Chart) return;
+    // si l'onglet est caché, attendre son affichage
+    if (el.offsetParent === null) return;
+    var labels = {{ hours_month_labels_json|safe }};
+    var values = {{ hours_month_values_json|safe }};
+    var visitLabel = "{{ hours_visit_label }}";
+    // Plugin pour dessiner une ligne verticale au mois de la dernière visite
+    var visitLinePlugin = {
+      id: 'visitLine',
+      afterDatasetsDraw(chart, args, opts){
+        var label = (opts && opts.label) || '';
+        if (!label) return;
+        var idx = chart.data.labels.indexOf(label);
+        if (idx === -1) return;
+        var xScale = chart.scales.x; if (!xScale) return;
+        var x = xScale.getPixelForValue(idx);
+        var ca = chart.chartArea; var ctx = chart.ctx; if (!ca) return;
+        ctx.save();
+        ctx.strokeStyle = (opts && opts.color) || '#0dcaf0';
+        ctx.setLineDash([4,3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, ca.top);
+        ctx.lineTo(x, ca.bottom);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+    var ctx = el.getContext('2d');
+    // Détruire l’ancien graphique si recréé
+    if (el._chart) { el._chart.destroy(); }
+    el._chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Heures/mois',
+          data: values,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.12)',
+          tension: 0,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx){
+                var v = ctx.parsed.y || 0; return (Math.round(v*100)/100) + ' h';
+              }
+            }
+          },
+          visitLine: { label: visitLabel, color: '#0dcaf0' }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.08)' },
+            ticks: {
+              callback: function(value){ return value + ' h'; }
+            }
+          }
+        }
+      },
+      plugins: [visitLinePlugin]
+    });
+  }
+  // Planificateur de rendu fiable (gère transitions/ordre des scripts)
+  function scheduleHoursRender(retries){
+    var attempts = typeof retries === 'number' ? retries : 10;
+    var el = document.getElementById('hoursPerMonthChart');
+    if (!el || !window.Chart) {
+      if (attempts > 0) return setTimeout(function(){ scheduleHoursRender(attempts-1); }, 100);
+      return;
+    }
+    if (el.offsetParent === null) {
+      if (attempts > 0) return setTimeout(function(){ scheduleHoursRender(attempts-1); }, 150);
+      return;
+    }
+    renderHoursChart();
+  }
+  // Rendre si l'onglet est déjà actif à l'arrivée sur la page
+  try {
+    var hoursTabBtn = document.querySelector('#tab-hours');
+    if (hoursTabBtn && hoursTabBtn.classList.contains('active')) {
+      scheduleHoursRender();
+    }
+  } catch(_){}
+  // Et re-rendre lors de l'affichage de l'onglet
+  document.addEventListener('shown.bs.tab', function(e){
+    if (e.target && e.target.id === 'tab-hours') scheduleHoursRender();
+  });
+  // File d’attente supplémentaire: après DOM prêt, après onload, et à la visibilité
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ scheduleHoursRender(); });
+  } else {
+    scheduleHoursRender();
+  }
+  window.addEventListener('load', function(){ scheduleHoursRender(); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) scheduleHoursRender(); });
+})();
+</script>
+{# Modale ajout heure de marche #}
+<div class="modal fade" id="addHourReadingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Ajouter un relevé d’heures</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_hour_reading" />
+          <input type="hidden" name="tab" value="hours" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Heures (cumulées)</label><input type="text" class="form-control" name="hours" inputmode="decimal" placeholder="ex: 1234,50" required /></div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" value="1" id="isVisitAdd" name="is_visit">
+            <label class="form-check-label" for="isVisitAdd">Marquer comme visite</label>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modales édition heure de marche, par relevé #}
+{% for r in hour_logs %}
+<div class="modal fade" id="editHourReadingModal-{{ r.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le relevé</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          
+          <input type="hidden" name="tab" value="hours" />
+          <input type="hidden" name="reading_id" value="{{ r.id }}" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" value="{{ r.date|date:'d/m/Y' }}" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Heures (cumulées)</label><input type="text" class="form-control" name="hours" value="{{ r.hours }}" inputmode="decimal" required /></div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" value="1" id="isVisitEdit-{{ r.id }}" name="is_visit" {% if r.is_visit %}checked{% endif %}>
+            <label class="form-check-label" for="isVisitEdit-{{ r.id }}">Marquer comme visite</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="submit" name="action" value="edit_hour_reading" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  </div>
+{% endfor %}
+<!-- Modale globale de confirmation suppression PJ -->
+<div class="modal fade" id="confirmDeleteAttachment" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Supprimer la pièce jointe</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_event_attachment" />
+          <input type="hidden" name="event_id" value="" />
+          <input type="hidden" name="attachment_id" value="" />
+          <p>Confirmer la suppression de « <span class="confirm-filename"></span> » ?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

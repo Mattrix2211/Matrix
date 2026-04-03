@@ -1,0 +1,6 @@
+<div class="alert alert-success">
+  Exécution enregistrée. Statut occurrence: <strong>{{ occ.status }}</strong>
+  {% if exec.conformity == 'NON_CONFORME' %}
+    <div>Un ticket correctif sera (ou a été) ouvert automatiquement.</div>
+  {% endif %}
+</div>

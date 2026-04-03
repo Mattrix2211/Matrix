@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Tableau de bord</h1>
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Préventif: planifié vs réalisé</div>
+      <div class="card-body">
+        <canvas id="chartPreventive"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Tickets correctifs (ouverts)</div>
+      <div class="card-body">
+        <canvas id="chartCorrective"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(async function(){
+  const ctx1 = document.getElementById('chartPreventive');
+  const res1 = await fetch('/api/dashboard/preventive_week/');
+  const data1 = await res1.json();
+  new Chart(ctx1, {type:'bar', data: data1});
+
+  const ctx2 = document.getElementById('chartCorrective');
+  const res2 = await fetch('/api/dashboard/corrective_open/');
+  const data2 = await res2.json();
+  new Chart(ctx2, {type:'doughnut', data: data2});
+})();
+</script>
+{% endblock %}

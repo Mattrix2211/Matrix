@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container py-3">
+	<h3>Calendrier</h3>
+	<form method="get" class="row g-2 align-items-end mb-3">
+		<div class="col-auto">
+			<label class="form-label">Vue</label>
+			<select name="view" class="form-select">
+				<option value="month" {% if view == 'month' %}selected{% endif %}>Mois</option>
+				<option value="week" {% if view == 'week' %}selected{% endif %}>Semaine</option>
+				<option value="day" {% if view == 'day' %}selected{% endif %}>Jour</option>
+			</select>
+		</div>
+		<div class="col-auto">
+			<label class="form-label">Date</label>
+			<input type="date" name="date" value="{{ date|date:'Y-m-d' }}" class="form-control" />
+		</div>
+		<div class="col-auto">
+			<label class="form-label">Navire</label>
+			<select name="ship" class="form-select">
+				<option value="">Tous</option>
+				{% for s in ships %}
+					<option value="{{ s.id }}" {% if active_filters.ship|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="col-auto">
+			<label class="form-label">Service</label>
+			<select name="service" class="form-select">
+				<option value="">Tous</option>
+				{% for s in services %}
+					<option value="{{ s.id }}" {% if active_filters.service|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.ship.name }} / {{ s.name }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="col-auto">
+			<label class="form-label">Secteur</label>
+			<select name="sector" class="form-select">
+				<option value="">Tous</option>
+				{% for s in sectors %}
+					<option value="{{ s.id }}" {% if active_filters.sector|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.service.name }} / {{ s.name }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="col-auto">
+			<label class="form-label">Utilisateur</label>
+			<select name="user" class="form-select">
+				<option value="">Tous</option>
+				{% for u in users %}
+					<option value="{{ u.id }}" {% if active_filters.user|default:''|stringformat:'s' == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="col-auto">
+			<button class="btn btn-primary" type="submit">Filtrer</button>
+		</div>
+		<div class="col-auto">
+			<label class="form-label">Type</label>
+			<select name="type" class="form-select">
+				<option value="">Tous</option>
+				<option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>Maintenance</option>
+				<option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>Ticket</option>
+				<option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>Formation</option>
+			</select>
+		</div>
+		<div class="col-auto">
+			<label class="form-label">Statut</label>
+			<select name="status" class="form-select">
+				<option value="">Tous</option>
+				<optgroup label="Maintenance">
+					<option value="PLANNED" {% if active_filters.status == 'PLANNED' %}selected{% endif %}>Planifiée</option>
+					<option value="ASSIGNED" {% if active_filters.status == 'ASSIGNED' %}selected{% endif %}>Assignée</option>
+					<option value="IN_PROGRESS" {% if active_filters.status == 'IN_PROGRESS' %}selected{% endif %}>En cours</option>
+					<option value="WAITING_VALIDATION" {% if active_filters.status == 'WAITING_VALIDATION' %}selected{% endif %}>En validation</option>
+					<option value="DONE" {% if active_filters.status == 'DONE' %}selected{% endif %}>Terminée</option>
+					<option value="OVERDUE" {% if active_filters.status == 'OVERDUE' %}selected{% endif %}>En retard</option>
+					<option value="CANCELLED" {% if active_filters.status == 'CANCELLED' %}selected{% endif %}>Annulée</option>
+				</optgroup>
+				<optgroup label="Tickets">
+					<option value="REPORTED" {% if active_filters.status == 'REPORTED' %}selected{% endif %}>Signalé</option>
+					<option value="DIAGNOSED" {% if active_filters.status == 'DIAGNOSED' %}selected{% endif %}>Diagnostiqué</option>
+					<option value="WAITING_PARTS" {% if active_filters.status == 'WAITING_PARTS' %}selected{% endif %}>Attente pièces</option>
+					<option value="PLANNED" {% if active_filters.status == 'PLANNED' %}selected{% endif %}>Planifié</option>
+					<option value="IN_REPAIR" {% if active_filters.status == 'IN_REPAIR' %}selected{% endif %}>En réparation</option>
+					<option value="TESTING" {% if active_filters.status == 'TESTING' %}selected{% endif %}>En test</option>
+					<option value="RETURNED_TO_SERVICE" {% if active_filters.status == 'RETURNED_TO_SERVICE' %}selected{% endif %}>Remis en service</option>
+					<option value="BLOCKED" {% if active_filters.status == 'BLOCKED' %}selected{% endif %}>Bloqué</option>
+				</optgroup>
+			</select>
+		</div>
+	</form>
+
+	<div class="card">
+		<div class="card-body">
+			<div class="d-flex justify-content-between align-items-center mb-2">
+				<div>
+					<strong>Période:</strong> {{ start|date:'Y-m-d' }} → {{ end|date:'Y-m-d' }}
+				</div>
+				<div>
+					<span class="badge bg-info">Maintenance</span>
+					<span class="badge bg-warning text-dark">Ticket</span>
+					<span class="badge bg-success">Formation</span>
+				</div>
+			</div>
+			<div class="d-flex justify-content-end mb-2 gap-2">
+				<button id="btnPrev" class="btn btn-outline-secondary btn-sm">◀ Précédent</button>
+				<button id="btnToday" class="btn btn-outline-secondary btn-sm">Aujourd'hui</button>
+				<button id="btnNext" class="btn btn-outline-secondary btn-sm">Suivant ▶</button>
+			</div>
+			<div id="calendar"></div>
+		</div>
+	</div>
+</div>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		const calendarEl = document.getElementById('calendar');
+		const params = new URLSearchParams(window.location.search);
+		const view = params.get('view') || 'month';
+		const date = params.get('date') || '{{ date|date:"Y-m-d" }}';
+		const ship = params.get('ship') || '';
+		const service = params.get('service') || '';
+		const sector = params.get('sector') || '';
+		const user = params.get('user') || '';
+		const type = params.get('type') || '';
+		const status = params.get('status') || '';
+		const eventsUrl = `/calendar/events/?view=${view}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
+
+		const calendar = new FullCalendar.Calendar(calendarEl, {
+			initialView: view === 'week' ? 'dayGridWeek' : (view === 'day' ? 'timeGridDay' : 'dayGridMonth'),
+			initialDate: date,
+			editable: true,
+			eventSources: [
+				{
+					url: eventsUrl,
+					method: 'GET',
+					failure: () => alert('Impossible de charger les événements'),
+				}
+			],
+			eventClick: function(info) {
+				if (info.event.url) {
+					window.location.href = info.event.url;
+					info.jsEvent.preventDefault();
+				}
+			},
+			eventDrop: function(info) {
+				const id = info.event.id;
+				const type = id.startsWith('occ-') ? 'maintenance' : (id.startsWith('tic-') ? 'ticket' : (id.startsWith('trn-') ? 'training' : ''));
+				const cleanId = id.replace('occ-', '').replace('tic-', '').replace('trn-', '');
+				if (!type) { info.revert(); return; }
+				const formData = new FormData();
+				formData.append('type', type);
+				formData.append('id', cleanId);
+				formData.append('date', info.event.startStr);
+				fetch('/calendar/events/move/', {
+					method: 'POST',
+					headers: { 'X-CSRFToken': getCookie('csrftoken') },
+					body: formData
+				}).then(r => {
+					if (!r.ok) info.revert();
+				}).catch(() => info.revert());
+			}
+		});
+		calendar.render();
+
+		// Navigation boutons
+		document.getElementById('btnToday').addEventListener('click', () => {
+			calendar.today();
+		});
+		document.getElementById('btnPrev').addEventListener('click', () => {
+			calendar.prev();
+		});
+		document.getElementById('btnNext').addEventListener('click', () => {
+			calendar.next();
+		});
+
+		function getCookie(name) {
+			const value = `; ${document.cookie}`;
+			const parts = value.split(`; ${name}=`);
+			if (parts.length === 2) return parts.pop().split(';').shift();
+		}
+	});
+</script>
+{% endblock %}

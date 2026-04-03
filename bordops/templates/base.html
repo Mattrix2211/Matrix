@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Matrix</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <link rel="stylesheet" href="/static/css/bordops.css">
+  </head>
+  <body class="bg-light text-dark">
+    {# Conteneur global de toasts #}
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="toast align-items-center text-bg-{% if message.tags %}{{ message.tags }}{% else %}primary{% endif %} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3500">
+            <div class="d-flex">
+              <div class="toast-body">{{ message }}</div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">Matrix</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="/" title="Tableau de bord" aria-label="Tableau de bord">
+                <span class="bi bi-speedometer2 nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Tableau de bord</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/assets/" title="Matériels" aria-label="Matériels">
+                <span class="bi bi-box-seam nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Matériels</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/installations/" title="Installations" aria-label="Installations">
+                <span class="bi bi-fan nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Installations</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/locations/" title="Emplacements" aria-label="Emplacements">
+                <span class="bi bi-geo-alt nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Emplacements</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/api/maintenance/" title="Maintenance" aria-label="Maintenance">
+                <span class="bi bi-tools nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Maintenance</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/api/logistics/" title="Logistique" aria-label="Logistique">
+                <span class="bi bi-truck nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Logistique</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/api/training/" title="Formations" aria-label="Formations">
+                <span class="bi bi-mortarboard nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Formations</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/calendar/" title="Calendrier" aria-label="Calendrier">
+                <span class="bi bi-calendar3 nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Calendrier</span>
+              </a>
+            </li>
+            {% if user.is_superuser %}
+            <li class="nav-item">
+              <a class="nav-link" href="/parametre/" title="Paramètres" aria-label="Paramètres">
+                <span class="bi bi-gear nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Paramètres</span>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            {% if user.is_authenticated %}
+              <li class="nav-item dropdown me-2">
+                <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                  <span class="bi bi-bell"></span>
+                  {% if notifications_unread_count %}
+                  <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ notifications_unread_count }}</span>
+                  {% endif %}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" style="min-width: 360px; max-height: 60vh; overflow:auto;">
+                  <li class="dropdown-header d-flex justify-content-between align-items-center">
+                    <span><span class="bi bi-bell me-1"></span>Notifications</span>
+                    <button class="btn btn-sm btn-outline-secondary" id="notif-mark-all" title="Marquer tout comme lu"><span class="bi bi-check2-all"></span></button>
+                  </li>
+                  {% if notifications %}
+                    {% for n in notifications %}
+                      <li>
+                        <div class="dropdown-item d-flex align-items-start gap-2 {% if n.persisted and not n.is_read %}bg-light{% endif %}">
+                          <span class="bi {% if n.level == 'danger' %}bi-exclamation-octagon text-danger{% elif n.level == 'warning' %}bi-exclamation-triangle text-warning{% else %}bi-info-circle text-muted{% endif %}"></span>
+                          <div class="flex-grow-1">
+                            <a class="text-decoration-none" href="{{ n.url }}">
+                              <div class="fw-semibold">{{ n.title }}</div>
+                              <div class="small text-muted">{{ n.subtitle }}</div>
+                            </a>
+                          </div>
+                          {% if n.persisted %}
+                            {% if not n.is_read %}
+                              <button class="btn btn-sm btn-outline-success" data-notif-id="{{ n.id }}" data-action="read" title="Marquer comme lu"><span class="bi bi-check2"></span></button>
+                            {% else %}
+                              <button class="btn btn-sm btn-outline-secondary" data-notif-id="{{ n.id }}" data-action="unread" title="Marquer comme non lu"><span class="bi bi-arrow-counterclockwise"></span></button>
+                            {% endif %}
+                          {% endif %}
+                        </div>
+                      </li>
+                    {% endfor %}
+                  {% else %}
+                    <li><div class="dropdown-item text-muted">Aucune notification</div></li>
+                  {% endif %}
+                </ul>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="/users/" title="Utilisateurs" aria-label="Utilisateurs">
+                  <span class="bi bi-people nav-icon" aria-hidden="true"></span>
+                  <span class="visually-hidden">Utilisateurs</span>
+                </a>
+              </li>
+              <li class="nav-item"><span class="navbar-text me-2">{{ user.username }}</span></li>
+              <li class="nav-item">
+                <a class="nav-link" href="/logout/" title="Se déconnecter" aria-label="Se déconnecter">
+                  <span class="bi bi-box-arrow-right nav-icon" aria-hidden="true"></span>
+                  <span class="visually-hidden">Se déconnecter</span>
+                </a>
+              </li>
+            {% else %}
+              <li class="nav-item">
+                <a class="nav-link" href="/login/" title="Se connecter" aria-label="Se connecter">
+                  <span class="bi bi-box-arrow-in-right nav-icon" aria-hidden="true"></span>
+                  <span class="visually-hidden">Se connecter</span>
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <main class="container py-4">
+      {% block content %}{% endblock %}
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/bordops.js"></script>
+    <script>
+      // Afficher automatiquement les toasts globaux si présents
+      (function(){
+        var toastElList = [].slice.call(document.querySelectorAll('.toast'));
+        toastElList.forEach(function (toastEl) { try { new bootstrap.Toast(toastEl).show(); } catch(e){} });
+      })();
+
+      // Notifications: marquer comme lu (une ou toutes)
+      (function(){
+        function getCookie(name){
+          var value = '; ' + document.cookie;
+          var parts = value.split('; ' + name + '=');
+          if (parts.length === 2) return parts.pop().split(';').shift();
+          return '';
+        }
+        var csrf = getCookie('csrftoken') || getCookie('CSRF-TOKEN');
+        document.addEventListener('click', function(e){
+          var btnAll = e.target.closest('#notif-mark-all');
+          if (btnAll){
+            fetch('/api/notifications/notifications/mark_all_read/', {
+              method: 'POST', headers: { 'X-CSRFToken': csrf }
+            }).then(function(){ location.reload(); }).catch(function(){});
+            e.preventDefault(); return;
+          }
+          var btnOne = e.target.closest('[data-notif-id]');
+          if (btnOne){
+            var id = btnOne.getAttribute('data-notif-id');
+            var action = btnOne.getAttribute('data-action') || 'read';
+            var payload = { is_read: action === 'read' };
+            fetch('/api/notifications/notifications/' + id + '/', {
+              method: 'PATCH', headers: {
+                'Content-Type': 'application/json', 'X-CSRFToken': csrf
+              }, body: JSON.stringify(payload)
+            }).then(function(){ location.reload(); }).catch(function(){});
+            e.preventDefault(); return;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
