@@ -52,7 +52,7 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
         constraints = [
             models.CheckConstraint(
                 name="occurrence_liee_a_asset_xor_installation",
-                check=(
+                condition=(
                     (Q(plan__isnull=False) & Q(asset__isnull=False) & Q(installation_maintenance__isnull=True))
                     | (Q(plan__isnull=True) & Q(asset__isnull=True) & Q(installation_maintenance__isnull=False))
                 ),
@@ -87,6 +87,12 @@ def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", c
     if instance.conformity == "NON_CONFORME":
         occ = instance.occurrence
         asset = occ.asset
+        # CorrectiveTicket ne concerne aujourd'hui que le matériel mobile (FK asset
+        # non-nullable) : aucun équivalent n'existe côté installation fixe. Une
+        # occurrence d'installation (occ.asset is None) ne doit donc pas déclencher
+        # de ticket correctif tant que ce concept n'existe pas pour les installations.
+        if asset is None:
+            return
         ticket, created_ticket = CorrectiveTicket.objects.get_or_create(
             asset=asset,
             description=f"Anomalie détectée sur maintenance {occ.id}",
