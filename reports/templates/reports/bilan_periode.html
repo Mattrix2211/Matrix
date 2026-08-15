@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Bilan de période{% if perimetre %} — {{ perimetre }}{% endif %}</title>
+<style>
+    @page { size: A4; margin: 2cm; }
+    body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; color: #212529; }
+    h1 { font-size: 20px; margin-bottom: 0; }
+    h2 { font-size: 15px; margin-top: 24px; border-bottom: 2px solid #0d6efd; padding-bottom: 4px; }
+    .entete { margin-bottom: 16px; color: #495057; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: left; vertical-align: top; }
+    th { background-color: #f1f3f5; }
+    .en-retard { background-color: #f8d7da; color: #842029; font-weight: bold; }
+    .vide { color: #868e96; font-style: italic; }
+    .statut-a-jour { color: #2f9e44; font-weight: bold; }
+    .statut-en-retard { color: #c92a2a; font-weight: bold; }
+    .chiffres-cles { display: table; width: 100%; margin-top: 8px; border-collapse: collapse; }
+    .chiffres-cles .bloc { display: table-cell; border: 1px solid #dee2e6; padding: 10px; text-align: center; width: 25%; }
+    .chiffres-cles .valeur { font-size: 22px; font-weight: bold; color: #0d6efd; }
+    .chiffres-cles .libelle { color: #495057; }
+</style>
+</head>
+<body>
+    <h1>Bilan de période{% if perimetre %} — {{ perimetre }}{% endif %}</h1>
+    <p class="entete">
+        Période du {{ date_debut|date:"d/m/Y" }} au {{ date_fin|date:"d/m/Y" }} —
+        généré le {{ genere_le|date:"d/m/Y à H:i" }} par {{ genere_par.get_full_name|default:genere_par.username }}
+    </p>
+
+    <h2>Taux de conformité maintenance</h2>
+    <div class="chiffres-cles">
+        <div class="bloc">
+            <div class="valeur">{{ nb_maintenances_realisees_a_temps }}/{{ nb_maintenances_planifiees }}</div>
+            <div class="libelle">Maintenances réalisées à temps</div>
+        </div>
+        <div class="bloc">
+            <div class="valeur">{% if taux_conformite is not None %}{{ taux_conformite|floatformat:0 }} %{% else %}—{% endif %}</div>
+            <div class="libelle">Taux de conformité</div>
+        </div>
+    </div>
+    {% if maintenances_periode %}
+    <table>
+        <thead>
+            <tr>
+                <th>Installation</th>
+                <th>Maintenance</th>
+                <th>Date prévue</th>
+                <th>Statut</th>
+                <th>Réalisée à temps</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in maintenances_periode %}
+            <tr class="{% if not ligne.realisee_a_temps %}en-retard{% endif %}">
+                <td>{{ ligne.installation.designation }}</td>
+                <td>{{ ligne.titre }}</td>
+                <td>{{ ligne.date_prevue|date:"d/m/Y" }}</td>
+                <td>{{ ligne.statut }}</td>
+                <td>{% if ligne.realisee_a_temps %}Oui{% else %}Non{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune maintenance planifiée sur cette période.</p>
+    {% endif %}
+
+    <h2>Tickets correctifs</h2>
+    <div class="chiffres-cles">
+        <div class="bloc">
+            <div class="valeur">{{ tickets_ouverts_periode|length }}</div>
+            <div class="libelle">Ouverts sur la période</div>
+        </div>
+        <div class="bloc">
+            <div class="valeur">{{ tickets_fermes_periode|length }}</div>
+            <div class="libelle">Fermés sur la période</div>
+        </div>
+        <div class="bloc">
+            <div class="valeur">{% if delai_moyen_resolution is not None %}{{ delai_moyen_resolution|floatformat:1 }} j{% else %}—{% endif %}</div>
+            <div class="libelle">Délai moyen de résolution</div>
+        </div>
+        <div class="bloc">
+            <div class="valeur">{{ tickets_encore_ouverts_fin_periode|length }}</div>
+            <div class="libelle">Encore ouverts en fin de période</div>
+        </div>
+    </div>
+    {% if tickets_encore_ouverts_fin_periode %}
+    <table>
+        <thead>
+            <tr>
+                <th>Matériel</th>
+                <th>Description</th>
+                <th>Statut</th>
+                <th>Signalé le</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets_encore_ouverts_fin_periode %}
+            <tr>
+                <td>{{ ticket.asset }}</td>
+                <td>{{ ticket.description }}</td>
+                <td>{{ ticket.get_status_display }}</td>
+                <td>{{ ticket.reported_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucun ticket encore ouvert en fin de période.</p>
+    {% endif %}
+
+    <h2>Relevés effectués sur la période</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Type de relevé</th>
+                <th>Nombre</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>Heures de marche</td><td>{{ releves_heures|length }}</td></tr>
+            <tr><td>Vibrations</td><td>{{ releves_vibration|length }}</td></tr>
+            <tr><td>Isolement</td><td>{{ releves_isolement|length }}</td></tr>
+        </tbody>
+    </table>
+
+    {% if releves_heures %}
+    <h2>Détail des relevés d'heures de marche</h2>
+    <table>
+        <thead>
+            <tr><th>Installation</th><th>Date</th><th>Heures</th><th>Visite</th></tr>
+        </thead>
+        <tbody>
+            {% for releve in releves_heures %}
+            <tr>
+                <td>{{ releve.installation.designation }}</td>
+                <td>{{ releve.date|date:"d/m/Y" }}</td>
+                <td>{{ releve.hours }} h</td>
+                <td>{% if releve.is_visit %}Oui{% else %}Non{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if releves_vibration %}
+    <h2>Détail des relevés de vibration</h2>
+    <table>
+        <thead>
+            <tr><th>Installation</th><th>Date</th><th>État</th></tr>
+        </thead>
+        <tbody>
+            {% for releve in releves_vibration %}
+            <tr>
+                <td>{{ releve.installation.designation }}</td>
+                <td>{{ releve.date|date:"d/m/Y" }}</td>
+                <td>{{ releve.state }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if releves_isolement %}
+    <h2>Détail des relevés d'isolement</h2>
+    <table>
+        <thead>
+            <tr><th>Installation</th><th>Date</th><th>Isolement</th></tr>
+        </thead>
+        <tbody>
+            {% for releve in releves_isolement %}
+            <tr>
+                <td>{{ releve.installation.designation }}</td>
+                <td>{{ releve.date|date:"d/m/Y" }}</td>
+                <td>{{ releve.ohms }} Ω</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <h2>Pièces consommées</h2>
+    {% if pieces_consommees %}
+    <table>
+        <thead>
+            <tr>
+                <th>Référence</th>
+                <th>Description</th>
+                <th>Quantité</th>
+                <th>Matériel concerné</th>
+                <th>Reçue le</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for piece in pieces_consommees %}
+            <tr>
+                <td>{{ piece.reference }}</td>
+                <td>{{ piece.description }}</td>
+                <td>{{ piece.qty }}</td>
+                <td>{{ piece.part_request.ticket.asset }}</td>
+                <td>{{ piece.received_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune pièce consommée sur cette période.</p>
+    {% endif %}
+
+    <h2>Qualifications obtenues sur la période</h2>
+    {% if qualifications_obtenues %}
+    <table>
+        <thead>
+            <tr>
+                <th>Marin</th>
+                <th>Formation</th>
+                <th>Obtenue le</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for qualification in qualifications_obtenues %}
+            <tr>
+                <td>{{ qualification.user.get_full_name|default:qualification.user.username }}</td>
+                <td>{{ qualification.course.title }}</td>
+                <td>{{ qualification.completed_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune qualification obtenue sur cette période.</p>
+    {% endif %}
+
+    <h2>Qualifications expirées sur la période</h2>
+    {% if qualifications_expirees %}
+    <table>
+        <thead>
+            <tr>
+                <th>Marin</th>
+                <th>Formation</th>
+                <th>Expirée le</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for qualification in qualifications_expirees %}
+            <tr>
+                <td>{{ qualification.user.get_full_name|default:qualification.user.username }}</td>
+                <td>{{ qualification.course.title }}</td>
+                <td>{{ qualification.expires_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune qualification expirée sur cette période.</p>
+    {% endif %}
+</body>
+</html>

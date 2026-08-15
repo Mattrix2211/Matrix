@@ -1,7 +1,8 @@
-"""Tests du service de bilan PDF — Mode Instantané uniquement (T8).
+"""Tests du service de bilan PDF — Mode Instantané (T8).
 
-Le Mode Période (dates) est hors périmètre, tout comme la section stock de
-pièces (dépend du modèle StockPiece, pas encore livré).
+Le Mode Période (dates) est testé séparément dans test_services_periode.py (T9).
+La section stock de pièces reste hors périmètre (dépend du modèle StockPiece,
+pas encore livré).
 """
 from datetime import timedelta
 

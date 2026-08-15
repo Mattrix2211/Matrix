@@ -1,8 +1,9 @@
 """Service de génération des bilans PDF (rapport de synthèse pour la hiérarchie).
 
-Mode Instantané uniquement pour l'instant (photo de l'état du périmètre au moment
-de la génération, sans dates). Le Mode Période (bilan d'activité sur une fenêtre de
-dates) fait l'objet d'une tâche séparée.
+Deux modes :
+- Mode Instantané : photo de l'état du périmètre au moment de la génération, sans dates.
+- Mode Période : bilan de l'activité réalisée sur une fenêtre [date_debut, date_fin],
+  avec des taux de conformité que le mode instantané ne peut pas montrer.
 
 Réutilise scope_filters_for_user (aucun nouveau système de permission ni de scope).
 """
@@ -18,8 +19,8 @@ from assets.models import (
     InstallationIsolationReading,
     InstallationVibrationReading,
 )
-from logistics.models import CorrectiveTicket
-from maintenance.models import MaintenanceOccurrence
+from logistics.models import CorrectiveTicket, PartLineItem
+from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
 from training.models import TrainingRecord
@@ -182,4 +183,200 @@ def generer_bilan_instantane_pdf(scope_type: str, scope_id, utilisateur) -> byte
     dépendance CDN, compatible fonctionnement hors-ligne)."""
     contexte = construire_contexte_instantane(scope_type, scope_id, utilisateur)
     html = render_to_string("reports/bilan_instantane.html", contexte)
+    return weasyprint.HTML(string=html).write_pdf()
+
+
+def construire_contexte_periode(
+    scope_type: str, scope_id, utilisateur, date_debut, date_fin
+) -> dict:
+    """Construit le contexte du bilan PDF Mode Période pour le périmètre
+    scope_type/scope_id, sur la fenêtre [date_debut, date_fin] (bornes incluses).
+
+    Même règle de périmètre que le Mode Instantané (PerimetreNonAutorise si le
+    périmètre demandé ne correspond pas exactement à celui de l'utilisateur).
+
+    Une maintenance est considérée "réalisée à temps" si son occurrence est passée
+    au statut Terminée et que la date de fin d'exécution associée (MaintenanceExecution.
+    completed_at) est antérieure ou égale à la date prévue (scheduled_for). Les
+    occurrences Annulées sont exclues du décompte (elles ne représentent plus un
+    engagement de maintenance à honorer).
+    """
+    if date_debut > date_fin:
+        raise ValueError("La date de début doit être antérieure ou égale à la date de fin.")
+
+    filtre_scope = scope_filters_for_user(utilisateur)
+    if not filtre_scope or filtre_scope.get(f"{scope_type}_id") != scope_id:
+        raise PerimetreNonAutorise(
+            "Le périmètre demandé ne correspond pas au périmètre de l'utilisateur."
+        )
+
+    installations = list(
+        Installation.objects.filter(**filtre_scope).select_related(
+            "ship", "service", "sector", "section"
+        )
+    )
+    installation_ids = [inst.id for inst in installations]
+
+    # Taux de conformité maintenance : occurrences d'installation prévues dans la
+    # fenêtre, hors annulées, comparées à leur exécution réelle.
+    occurrences_periode = (
+        MaintenanceOccurrence.objects.filter(
+            installation_maintenance__installation_id__in=installation_ids,
+            scheduled_for__range=(date_debut, date_fin),
+        )
+        .exclude(status="CANCELLED")
+        .select_related("installation_maintenance", "installation_maintenance__installation")
+        .order_by("scheduled_for")
+    )
+    dates_achevement = dict(
+        MaintenanceExecution.objects.filter(occurrence__in=occurrences_periode).values_list(
+            "occurrence_id", "completed_at"
+        )
+    )
+    maintenances_periode = []
+    nb_realisees_a_temps = 0
+    for occ in occurrences_periode:
+        date_achevement = dates_achevement.get(occ.id)
+        realisee_a_temps = (
+            occ.status == "DONE"
+            and date_achevement is not None
+            and date_achevement.date() <= occ.scheduled_for
+        )
+        if realisee_a_temps:
+            nb_realisees_a_temps += 1
+        maintenances_periode.append(
+            {
+                "installation": occ.installation_maintenance.installation,
+                "titre": occ.installation_maintenance.title,
+                "date_prevue": occ.scheduled_for,
+                "statut": occ.get_status_display(),
+                "realisee_a_temps": realisee_a_temps,
+            }
+        )
+    nb_maintenances_planifiees = len(maintenances_periode)
+    taux_conformite = (
+        (nb_realisees_a_temps / nb_maintenances_planifiees) * 100
+        if nb_maintenances_planifiees
+        else None
+    )
+
+    # Tickets correctifs sur le matériel mobile du périmètre.
+    filtre_tickets = {f"asset__{cle}": valeur for cle, valeur in filtre_scope.items()}
+    tickets_ouverts_periode = list(
+        CorrectiveTicket.objects.filter(
+            reported_at__date__range=(date_debut, date_fin), **filtre_tickets
+        )
+        .select_related("asset", "asset__asset_type")
+        .order_by("reported_at")
+    )
+    tickets_fermes_periode = list(
+        CorrectiveTicket.objects.filter(
+            status="CLOSED", updated_at__date__range=(date_debut, date_fin), **filtre_tickets
+        )
+        .select_related("asset", "asset__asset_type")
+        .order_by("updated_at")
+    )
+    for ticket in tickets_fermes_periode:
+        ticket.delai_resolution_jours = (ticket.updated_at - ticket.reported_at).days
+    delai_moyen_resolution = (
+        sum(t.delai_resolution_jours for t in tickets_fermes_periode)
+        / len(tickets_fermes_periode)
+        if tickets_fermes_periode
+        else None
+    )
+    # Snapshot au dernier statut connu : tickets signalés avant/pendant la fenêtre
+    # et toujours non clos à ce jour.
+    tickets_encore_ouverts_fin_periode = list(
+        CorrectiveTicket.objects.filter(reported_at__date__lte=date_fin, **filtre_tickets)
+        .exclude(status__in=STATUTS_TICKET_FERMES)
+        .select_related("asset", "asset__asset_type")
+        .order_by("reported_at")
+    )
+
+    # Relevés techniques effectués sur la fenêtre (preuve du suivi, pas juste le
+    # dernier chiffre).
+    releves_heures = list(
+        InstallationHourReading.objects.filter(
+            installation_id__in=installation_ids, date__range=(date_debut, date_fin)
+        )
+        .select_related("installation")
+        .order_by("installation__designation", "date")
+    )
+    releves_vibration = list(
+        InstallationVibrationReading.objects.filter(
+            installation_id__in=installation_ids, date__range=(date_debut, date_fin)
+        )
+        .select_related("installation")
+        .order_by("installation__designation", "date")
+    )
+    releves_isolement = list(
+        InstallationIsolationReading.objects.filter(
+            installation_id__in=installation_ids, date__range=(date_debut, date_fin)
+        )
+        .select_related("installation")
+        .order_by("installation__designation", "date")
+    )
+
+    # Pièces consommées : PartLineItem passées en statut CONSUMED sur la fenêtre.
+    filtre_pieces = {
+        f"part_request__ticket__asset__{cle}": valeur for cle, valeur in filtre_scope.items()
+    }
+    pieces_consommees = list(
+        PartLineItem.objects.filter(
+            status="CONSUMED", received_at__range=(date_debut, date_fin), **filtre_pieces
+        )
+        .select_related("part_request", "part_request__ticket", "part_request__ticket__asset")
+        .order_by("-received_at")
+    )
+
+    # Qualifications obtenues/expirées sur la fenêtre, scopées par le profil du marin.
+    filtre_qualifications = {
+        f"user__profile__{cle}": valeur for cle, valeur in filtre_scope.items()
+    }
+    qualifications_obtenues = list(
+        TrainingRecord.objects.filter(
+            completed_at__range=(date_debut, date_fin), **filtre_qualifications
+        )
+        .select_related("user", "user__profile", "course")
+        .order_by("completed_at")
+    )
+    qualifications_expirees = list(
+        TrainingRecord.objects.filter(
+            expires_at__range=(date_debut, date_fin), **filtre_qualifications
+        )
+        .select_related("user", "user__profile", "course")
+        .order_by("expires_at")
+    )
+
+    return {
+        "mode": "PERIODE",
+        "perimetre": _resoudre_perimetre(scope_type, scope_id),
+        "genere_par": utilisateur,
+        "genere_le": timezone.now(),
+        "date_debut": date_debut,
+        "date_fin": date_fin,
+        "maintenances_periode": maintenances_periode,
+        "nb_maintenances_planifiees": nb_maintenances_planifiees,
+        "nb_maintenances_realisees_a_temps": nb_realisees_a_temps,
+        "taux_conformite": taux_conformite,
+        "tickets_ouverts_periode": tickets_ouverts_periode,
+        "tickets_fermes_periode": tickets_fermes_periode,
+        "delai_moyen_resolution": delai_moyen_resolution,
+        "tickets_encore_ouverts_fin_periode": tickets_encore_ouverts_fin_periode,
+        "releves_heures": releves_heures,
+        "releves_vibration": releves_vibration,
+        "releves_isolement": releves_isolement,
+        "pieces_consommees": pieces_consommees,
+        "qualifications_obtenues": qualifications_obtenues,
+        "qualifications_expirees": qualifications_expirees,
+    }
+
+
+def generer_bilan_periode_pdf(
+    scope_type: str, scope_id, utilisateur, date_debut, date_fin
+) -> bytes:
+    """Génère le bilan PDF Mode Période pour le périmètre et la fenêtre demandés
+    et renvoie le contenu binaire du PDF (WeasyPrint, génération 100% côté serveur)."""
+    contexte = construire_contexte_periode(scope_type, scope_id, utilisateur, date_debut, date_fin)
+    html = render_to_string("reports/bilan_periode.html", contexte)
     return weasyprint.HTML(string=html).write_pdf()
