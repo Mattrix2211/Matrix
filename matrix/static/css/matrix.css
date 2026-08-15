@@ -95,8 +95,12 @@ code, pre, kbd, .font-mono {
 }
 
 /* Accent unique : une seule action principale par vue (règle absolue §11.1) */
+/* Texte --ink (et non blanc) sur fond --signal plein : le blanc sur #00B4D8
+   ne donne qu'un contraste ≈2,46:1 (< seuil WCAG AA 4,5:1) alors que
+   --ink sur --signal atteint ≈7,19:1, largement conforme, sans renoncer à
+   --signal comme accent unique du produit (voir design/DESIGN_SYSTEM.md §2). */
 .btn-primary {
-  --bs-btn-color: #fff;
+  --bs-btn-color: var(--ink);
   --bs-btn-bg: var(--signal);
   --bs-btn-border-color: var(--signal);
   --bs-btn-hover-bg: var(--horizon);
@@ -105,14 +109,17 @@ code, pre, kbd, .font-mono {
   --bs-btn-active-border-color: var(--horizon);
   --bs-btn-disabled-bg: var(--signal);
   --bs-btn-disabled-border-color: var(--signal);
+  --bs-btn-disabled-color: var(--ink);
 }
 .btn-outline-primary {
   --bs-btn-color: var(--signal);
   --bs-btn-border-color: var(--signal);
   --bs-btn-hover-bg: var(--signal);
   --bs-btn-hover-border-color: var(--signal);
+  --bs-btn-hover-color: var(--ink);
   --bs-btn-active-bg: var(--signal);
   --bs-btn-active-border-color: var(--signal);
+  --bs-btn-active-color: var(--ink);
 }
 .text-primary { color: var(--signal) !important; }
 .bg-primary { background-color: var(--signal) !important; }
@@ -125,10 +132,13 @@ code, pre, kbd, .font-mono {
 .page-link.active, .active > .page-link {
   background-color: var(--signal);
   border-color: var(--signal);
+  color: var(--ink);
 }
 .page-link { color: var(--signal); }
 .progress-bar { background-color: var(--signal); }
 .spinner-border.text-primary { color: var(--signal) !important; }
+/* Badges de type de fichier (text-bg-primary) : même correctif de contraste */
+.text-bg-primary { color: var(--ink) !important; }
 
 /* Statuts — vert unique --green-tech pour Matrix (validations, systèmes) */
 .badge.bg-success, .text-bg-success {
