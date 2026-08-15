@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
-from .models import MaintenanceOccurrence, MaintenanceExecution
+from .models import MaintenanceOccurrence, MaintenanceExecution, mettre_a_jour_echeance_installation
 from assets.models import ChecklistItemTemplate
 from threads.models import Thread, Message, Attachment
 from matrix.core.roles import user_role_level, RoleLevel
@@ -17,7 +17,10 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
 
     def get(self, request, pk):
         try:
-            occ = MaintenanceOccurrence.objects.select_related('plan', 'asset', 'plan__checklist_template').get(pk=pk)
+            occ = MaintenanceOccurrence.objects.select_related(
+                'plan', 'asset', 'plan__checklist_template',
+                'installation_maintenance', 'installation_maintenance__installation',
+            ).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
@@ -29,7 +32,10 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         try:
-            occ = MaintenanceOccurrence.objects.select_related('plan', 'asset', 'plan__checklist_template').get(pk=pk)
+            occ = MaintenanceOccurrence.objects.select_related(
+                'plan', 'asset', 'plan__checklist_template',
+                'installation_maintenance', 'installation_maintenance__installation',
+            ).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
@@ -64,6 +70,11 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         # Mettre à jour le statut de l'occurrence (le signal gère le ticket si NON_CONFORME)
         occ.status = 'DONE' if conformity != 'NON_CONFORME' else 'WAITING_VALIDATION'
         occ.save(update_fields=['status'])
+        if occ.status == 'DONE':
+            # Occurrence liée à une installation fixe : remise à zéro de l'échéance
+            # (branche compteur uniquement ici, la branche calendaire est relue
+            # directement depuis cette exécution par la génération d'occurrences).
+            mettre_a_jour_echeance_installation(occ)
 
         # Gérer les pièces jointes: créer ou récupérer le thread de l'occurrence
         ct = ContentType.objects.get_for_model(MaintenanceOccurrence)

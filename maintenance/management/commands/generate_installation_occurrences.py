@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from assets.models import InstallationMaintenance, InstallationEvent, InstallationHourReading, ModeDeclenchement
-from maintenance.models import MaintenanceOccurrence
+from maintenance.models import MaintenanceOccurrence, MaintenanceExecution
 
 # Statuts considérés comme "terminés" : une occurrence dans un de ces statuts
 # ne bloque pas la création d'une nouvelle occurrence pour la même maintenance.
@@ -29,9 +29,13 @@ def prochaine_echeance(maintenance: InstallationMaintenance, today: date, until:
     """Calcule la prochaine date d'échéance d'une maintenance d'installation, tous
     modes confondus. Retourne None si aucune échéance n'est à générer dans la fenêtre.
 
-    Reprend exactement la logique de détection déjà écrite dans
-    generate_installation_maintenance_notifications (branche calendaire basée sur le
-    dernier InstallationEvent, branche compteur basée sur InstallationHourReading).
+    Reprend la logique de détection initialement écrite dans
+    generate_installation_maintenance_notifications (branche compteur basée sur
+    InstallationHourReading), avec une évolution pour la branche calendaire : la
+    dernière réalisation est désormais lue en priorité sur la MaintenanceExecution
+    structurée de la dernière occurrence terminée (formulaire de fin de maintenance),
+    et seulement à défaut sur l'ancienne heuristique texte InstallationEvent.label —
+    conservée en repli pour les maintenances déjà suivies sans exécution structurée.
     """
     mode = maintenance.mode_declenchement
     inst = maintenance.installation
@@ -39,12 +43,22 @@ def prochaine_echeance(maintenance: InstallationMaintenance, today: date, until:
 
     # Branche calendaire : date prévisible à l'avance, dans la fenêtre de génération.
     if mode in (ModeDeclenchement.CALENDRIER, ModeDeclenchement.LES_DEUX) and maintenance.intervalle and maintenance.unite_intervalle:
-        last_event = (
-            InstallationEvent.objects.filter(installation=inst, label__iexact=maintenance.title)
-            .order_by("-date")
+        last_execution = (
+            MaintenanceExecution.objects.filter(
+                occurrence__installation_maintenance=maintenance, completed_at__isnull=False
+            )
+            .order_by("-completed_at")
             .first()
         )
-        base_date = timezone.localtime(last_event.date).date() if last_event else timezone.localtime(maintenance.created_at).date()
+        if last_execution:
+            base_date = timezone.localtime(last_execution.completed_at).date()
+        else:
+            last_event = (
+                InstallationEvent.objects.filter(installation=inst, label__iexact=maintenance.title)
+                .order_by("-date")
+                .first()
+            )
+            base_date = timezone.localtime(last_event.date).date() if last_event else timezone.localtime(maintenance.created_at).date()
         next_date = add_interval(base_date, maintenance.unite_intervalle, maintenance.intervalle)
         if next_date <= until:
             echeances.append(next_date)

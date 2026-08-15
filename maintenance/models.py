@@ -5,6 +5,7 @@ from django.db.models import JSONField, Q
 from matrix.core.models import TimeStampedModel, OwnedModel
 from assets.models import Asset, ChecklistTemplate, InstallationMaintenance
 from assets.models import AssetType
+from assets.models import InstallationHourReading, ModeDeclenchement
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from logistics.models import CorrectiveTicket, TicketStatusLog
@@ -80,6 +81,33 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     measurements = JSONField(default=dict, blank=True)
     conformity = models.CharField(max_length=24, choices=CONFORMITY, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+
+
+def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
+    """Remet à jour l'échéance de la maintenance d'installation liée, une fois
+    l'exécution validée (occurrence passée en statut DONE).
+
+    - Branche compteur (COMPTEUR / LES_DEUX) : la référence 'derniere_echeance_heures'
+      est alignée sur le dernier relevé d'heures de marche connu, ce qui repousse le
+      prochain déclenchement du seuil configuré.
+    - Branche calendaire (CALENDRIER / LES_DEUX) : aucune mise à jour de modèle n'est
+      nécessaire ici — generate_installation_occurrences relit directement la date de
+      cette MaintenanceExecution comme référence pour calculer la prochaine échéance.
+    """
+    maintenance = occ.installation_maintenance
+    if maintenance is None:
+        return
+    if maintenance.mode_declenchement in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX):
+        dernier_releve = (
+            InstallationHourReading.objects.filter(installation=maintenance.installation)
+            .order_by("-date")
+            .first()
+        )
+        if dernier_releve is not None:
+            maintenance.derniere_echeance_heures = dernier_releve.hours
+            InstallationMaintenance.objects.filter(pk=maintenance.pk).update(
+                derniere_echeance_heures=dernier_releve.hours
+            )
 
 
 @receiver(post_save, sender=MaintenanceExecution)
