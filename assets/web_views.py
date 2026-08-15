@@ -13,7 +13,7 @@ from django.db.models.functions import TruncMonth
 from django.db import models
 from .models import Asset, AssetType, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument
 from .models import InstallationBigrameChoice, InstallationEvent, InstallationEventAttachment, InstallationPart, InstallationHourReading, InstallationVibrationReading, InstallationIsolationReading
-from .models import InstallationMaintenance, InstallationMaintenanceAttachment
+from .models import InstallationMaintenance, InstallationMaintenanceAttachment, ModeDeclenchement
 from datetime import datetime, time
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
@@ -1081,8 +1081,45 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
             m.people_count = max(1, people)
             comp = (request.POST.get('competence') or m.competence or '').strip().upper()
             m.competence = comp if comp in ('BORD','SLM','INDUSTRIEL') else m.competence
+            # Mode de suivi de l'échéance (calendaire / compteur / le premier des deux) et
+            # champs associés. On mémorise l'ancien mode avant modification pour tracer
+            # le changement dans l'historique de l'installation (InstallationEvent).
+            ancien_mode = m.mode_declenchement
+            ancien_mode_display = m.get_mode_declenchement_display()
+            nouveau_mode = (request.POST.get('mode_declenchement') or '').strip().upper()
+            if nouveau_mode in ModeDeclenchement.values:
+                m.mode_declenchement = nouveau_mode
+            intervalle_raw = (request.POST.get('intervalle') or '').strip()
+            if intervalle_raw:
+                try:
+                    m.intervalle = max(1, int(intervalle_raw))
+                except ValueError:
+                    pass
+            unite = (request.POST.get('unite_intervalle') or '').strip().upper()
+            if unite in dict(InstallationMaintenance.UNITE_INTERVALLE_CHOICES):
+                m.unite_intervalle = unite
+            seuil_raw = (request.POST.get('seuil_heures') or '').strip()
+            if seuil_raw:
+                try:
+                    m.seuil_heures = max(0, int(seuil_raw))
+                except ValueError:
+                    pass
             m.updated_by = request.user
             m.save()
+            # Traçabilité du changement de mode de suivi : historisé via InstallationEvent
+            # (système d'historique déjà existant, pas de nouveau mécanisme d'audit).
+            if m.mode_declenchement != ancien_mode:
+                utilisateur = request.user.get_full_name() or request.user.username
+                InstallationEvent.objects.create(
+                    installation=inst,
+                    label="Changement mode de suivi maintenance",
+                    notes=(
+                        f"{m.title} : {ancien_mode_display} → {m.get_mode_declenchement_display()} "
+                        f"(par {utilisateur})"
+                    ),
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
             # Ajout de nouvelles pièces jointes lors de la modification
             for f in request.FILES.getlist('attachments'):
                 InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)

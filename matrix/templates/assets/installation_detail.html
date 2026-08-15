@@ -575,6 +575,25 @@
                 <option value="INDUSTRIEL" {% if m.competence == 'INDUSTRIEL' %}selected{% endif %}>Industriel</option>
               </select>
             </div>
+            <div class="col-md-4"><label class="form-label">Mode de suivi de l'échéance</label>
+              <select class="form-select" name="mode_declenchement">
+                <option value="CALENDRIER" {% if m.mode_declenchement == 'CALENDRIER' %}selected{% endif %}>Calendaire</option>
+                <option value="COMPTEUR" {% if m.mode_declenchement == 'COMPTEUR' %}selected{% endif %}>Compteur (heures de marche)</option>
+                <option value="LES_DEUX" {% if m.mode_declenchement == 'LES_DEUX' %}selected{% endif %}>Le premier des deux</option>
+              </select>
+            </div>
+            <div class="col-md-4"><label class="form-label">Intervalle calendaire</label>
+              <div class="input-group">
+                <input class="form-control" type="number" min="1" name="intervalle" value="{{ m.intervalle|default:'' }}" />
+                <select class="form-select" name="unite_intervalle" style="max-width:110px;">
+                  <option value="J" {% if m.unite_intervalle == 'J' %}selected{% endif %}>Jour(s)</option>
+                  <option value="S" {% if m.unite_intervalle == 'S' %}selected{% endif %}>Semaine(s)</option>
+                  <option value="M" {% if m.unite_intervalle == 'M' %}selected{% endif %}>Mois</option>
+                  <option value="A" {% if m.unite_intervalle == 'A' %}selected{% endif %}>Année(s)</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4"><label class="form-label">Seuil compteur (heures)</label><input class="form-control" type="number" min="0" name="seuil_heures" value="{{ m.seuil_heures|default:'' }}" /></div>
             <div class="col-12"><label class="form-label">Ajouter des pièces jointes</label><input class="form-control" type="file" name="attachments" multiple /></div>
             <div class="col-12">
               <label class="form-label">Pièces jointes existantes</label>
