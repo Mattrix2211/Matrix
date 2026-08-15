@@ -153,6 +153,27 @@ code, pre, kbd, .font-mono {
 .text-success { color: var(--green-tech) !important; }
 .badge.bg-warning, .text-bg-warning { background-color: var(--amber) !important; }
 .badge.bg-danger, .text-bg-danger { background-color: var(--red) !important; }
+/* Bouton de validation (ex. "Valider l'exécution") : même vert que les badges de
+   statut --green-tech, jamais le vert Bootstrap brut. Texte --ink (et non blanc) :
+   blanc sur --green-tech ne donne que ≈2,62:1 (< seuil WCAG AA 4,5:1) alors que
+   --ink sur --green-tech atteint ≈6,75:1, conforme. Pas de couleur de survol
+   distincte dédiée au vert dans la palette (contrairement à --horizon pour
+   --signal) : le survol reste donc sur --green-tech plutôt que d'inventer une
+   teinte hors palette. */
+.btn-success {
+  --bs-btn-color: var(--ink);
+  --bs-btn-bg: var(--green-tech);
+  --bs-btn-border-color: var(--green-tech);
+  --bs-btn-hover-bg: var(--green-tech);
+  --bs-btn-hover-border-color: var(--green-tech);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-active-bg: var(--green-tech);
+  --bs-btn-active-border-color: var(--green-tech);
+  --bs-btn-active-color: var(--ink);
+  --bs-btn-disabled-bg: var(--green-tech);
+  --bs-btn-disabled-border-color: var(--green-tech);
+  --bs-btn-disabled-color: var(--ink);
+}
 
 /* Cards — accent bar (§7) */
 .card {
