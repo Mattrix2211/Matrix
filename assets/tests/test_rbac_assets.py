@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 from org.models import Ship, Service, Sector
-from assets.models import AssetType
+from assets.models import AssetType, Installation, InstallationMaintenance
 
 
 class AssetRBACTests(TestCase):
@@ -51,3 +51,35 @@ class AssetRBACTests(TestCase):
             format="json",
         )
         self.assertIn(r2.status_code, (201, 200))
+
+
+class InstallationMaintenanceRBACTests(TestCase):
+    def test_equipier_cannot_write_maintenance_but_chef_service_can(self):
+        ship = Ship.objects.create(name="S1")
+        service = Service.objects.create(name="Srv", ship=ship)
+        sector = Sector.objects.create(name="Sec", service=service)
+        installation = Installation.objects.create(designation="Pompe A", ship=ship, service=service, sector=sector)
+
+        equipier = User.objects.create_user(username="e2", password="pass")
+        chef_service = User.objects.create_user(username="cs1", password="pass")
+
+        # Un profil est déjà auto-créé par le signal post_save sur User (rôle EQUIPIER
+        # par défaut) : on met à jour le rôle plutôt que de recréer un profil.
+        from accounts.models import UserProfile
+        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER"})
+        UserProfile.objects.update_or_create(user=chef_service, defaults={"role": "CHEF_SERVICE"})
+
+        url = f"/installations/{installation.id}/"
+
+        # Un équipier ne peut pas créer une tâche d'entretien
+        self.client.login(username="e2", password="pass")
+        r1 = self.client.post(url, {"action": "add_maintenance", "title": "Graissage", "tab": "entretien"})
+        self.assertEqual(r1.status_code, 403)
+        self.assertEqual(InstallationMaintenance.objects.filter(installation=installation).count(), 0)
+
+        # Un chef de service peut créer une tâche d'entretien
+        self.client.logout()
+        self.client.login(username="cs1", password="pass")
+        r2 = self.client.post(url, {"action": "add_maintenance", "title": "Graissage", "tab": "entretien"})
+        self.assertEqual(r2.status_code, 302)
+        self.assertEqual(InstallationMaintenance.objects.filter(installation=installation).count(), 1)

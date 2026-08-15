@@ -673,6 +673,16 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
     model = Installation
     template_name = 'assets/installation_detail.html'
 
+    # Actions liées aux tâches d'entretien (InstallationMaintenance) : réservées
+    # aux CHEF_SERVICE et au-dessus, cf. RolePermission déjà utilisé côté API DRF.
+    MAINTENANCE_WRITE_ACTIONS = {
+        'add_maintenance',
+        'edit_maintenance',
+        'delete_maintenance',
+        'add_maintenance_attachment',
+        'delete_maintenance_attachment',
+    }
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['ships'] = Ship.objects.order_by('name')
@@ -831,6 +841,8 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
+        if action in self.MAINTENANCE_WRITE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SERVICE:
+            raise PermissionDenied
         inst = self.get_object()
         tab = (request.POST.get('tab') or '').strip()
         tab = tab if tab in ('infos','histo','parts','hours','vibration','isolement','entretien') else ''
