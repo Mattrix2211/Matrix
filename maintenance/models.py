@@ -1,9 +1,9 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from django.db.models import JSONField
+from django.db.models import JSONField, Q
 from matrix.core.models import TimeStampedModel, OwnedModel
-from assets.models import Asset, ChecklistTemplate
+from assets.models import Asset, ChecklistTemplate, InstallationMaintenance
 from assets.models import AssetType
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -36,12 +36,28 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
         ("OVERDUE", "En retard"),
         ("CANCELLED", "Annulée"),
     )
-    plan = models.ForeignKey(MaintenancePlan, on_delete=models.CASCADE, related_name="occurrences")
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="occurrences")
+    # Occurrence liée à du matériel mobile : plan + asset renseignés ensemble.
+    plan = models.ForeignKey(MaintenancePlan, null=True, blank=True, on_delete=models.CASCADE, related_name="occurrences")
+    asset = models.ForeignKey(Asset, null=True, blank=True, on_delete=models.CASCADE, related_name="occurrences")
+    # Occurrence liée à une installation fixe : installation_maintenance seul renseigné.
+    installation_maintenance = models.ForeignKey(
+        InstallationMaintenance, null=True, blank=True, on_delete=models.CASCADE, related_name="occurrences"
+    )
     scheduled_for = models.DateField()
     status = models.CharField(max_length=24, choices=STATUS, default="PLANNED")
     priority = models.PositiveSmallIntegerField(default=3)
     assignees = models.ManyToManyField(User, blank=True, related_name="assigned_occurrences")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name="occurrence_liee_a_asset_xor_installation",
+                check=(
+                    (Q(plan__isnull=False) & Q(asset__isnull=False) & Q(installation_maintenance__isnull=True))
+                    | (Q(plan__isnull=True) & Q(asset__isnull=True) & Q(installation_maintenance__isnull=False))
+                ),
+            ),
+        ]
 
 class OccurrenceStatusLog(TimeStampedModel):
     occurrence = models.ForeignKey(MaintenanceOccurrence, on_delete=models.CASCADE, related_name="status_logs")
