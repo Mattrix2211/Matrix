@@ -22,6 +22,21 @@ Le package Django s'appelle `matrix`, le projet s'appelle **Matrix**.
 3. **Espace personnel par marin** — chaque marin voit SES tâches, SES formations, SES maintenances assignées
 4. **Fonctionne hors-ligne** — le navire n'a pas toujours internet, aucune dépendance CDN critique
 
+## Direction artistique
+
+La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vérité : `design/DESIGN_SYSTEM.md`). Lis ce fichier en entier avant toute décision visuelle ou tout template.
+
+**Config Matrix / Naval** (voir tableau "Contextes par projet" du design system) :
+- **Mode Light** — pas de dark mode ici (le light est réservé aux contextes naval/pro)
+- Typo : `Space Grotesk` (titres de section, cards, nav) + `Inter` (corps de texte) + `JetBrains Mono` (données techniques, dates, codes, labels) — **jamais `Syncopate`** (réservé hero/sport)
+- **Pas d'Ember** (`--ember` réservé au sport)
+- Vert unique : `--green-tech` (statuts systèmes/validations navales) — jamais `--green-sport`
+- Accent unique : `--signal` (#00B4D8), une seule action principale par vue
+- Logo : `design/assets/IMG_5292.PNG` (requin marteau), pictogramme ancre en overlay bas-droite pour Matrix
+- Espacement base 4px strict, radius/shadows/composants (cards, badges, progress bars) : voir `design/DESIGN_SYSTEM.md` §4 à §8
+
+**Conflit avec le principe hors-ligne (à respecter) :** le design system référence les polices via Google Fonts CDN — **auto-héberger** `Space Grotesk`, `Inter` et `JetBrains Mono` dans `static/fonts/` plutôt que d'utiliser le lien CDN, conformément au principe fondamental n°4 (aucune dépendance CDN critique).
+
 ## Deux types d'équipements
 
 - **Installations** : équipements fixes du navire (propulseurs, pompes, circuits électriques). Propres à chaque bâtiment. Modèle `Installation` dans l'app `assets`. Mesures techniques associées : heures de marche, vibrations (A/B/C), isolement (Ohms)
