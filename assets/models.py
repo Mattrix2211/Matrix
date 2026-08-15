@@ -253,12 +253,24 @@ class InstallationExtraField(TimeStampedModel, OwnedModel):
     def __str__(self):
         return f"{self.installation} - {self.label}"
 
+class ModeDeclenchement(models.TextChoices):
+    """Mode de déclenchement d'une échéance de maintenance préventive."""
+    CALENDRIER = "CALENDRIER", "Calendaire"
+    COMPTEUR = "COMPTEUR", "Compteur (heures de marche)"
+    LES_DEUX = "LES_DEUX", "Le premier des deux"
+
 # Entretien préventif d'une installation
 class InstallationMaintenance(TimeStampedModel, OwnedModel):
     COMPETENCE_CHOICES = (
         ("BORD", "Bord"),
         ("SLM", "SLM"),
         ("INDUSTRIEL", "Industriel"),
+    )
+    UNITE_INTERVALLE_CHOICES = (
+        ("J", "Jour(s)"),
+        ("S", "Semaine(s)"),
+        ("M", "Mois"),
+        ("A", "Année(s)"),
     )
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="maintenances")
     periodicity = models.CharField(max_length=64)
@@ -267,6 +279,22 @@ class InstallationMaintenance(TimeStampedModel, OwnedModel):
     planned_duration_min = models.PositiveIntegerField(default=0)
     people_count = models.PositiveSmallIntegerField(default=1)
     competence = models.CharField(max_length=16, choices=COMPETENCE_CHOICES, default="BORD")
+
+    # Mode de suivi de l'échéance : calendaire, compteur, ou le premier des deux
+    mode_declenchement = models.CharField(
+        max_length=16,
+        choices=ModeDeclenchement.choices,
+        default=ModeDeclenchement.CALENDRIER,
+    )
+
+    # Branche calendaire structurée — en plus du champ 'periodicity' texte libre
+    # existant (conservé pour affichage/rétrocompatibilité, ex: "3 mois")
+    intervalle = models.PositiveIntegerField(null=True, blank=True)
+    unite_intervalle = models.CharField(max_length=1, choices=UNITE_INTERVALLE_CHOICES, null=True, blank=True)
+
+    # Branche compteur — s'appuie sur InstallationHourReading déjà existant
+    seuil_heures = models.PositiveIntegerField(null=True, blank=True)
+    derniere_echeance_heures = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     class Meta:
         ordering = ["periodicity", "title"]
