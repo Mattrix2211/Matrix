@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "notifications.apps.NotificationsConfig",
     "dashboard.apps.DashboardConfig",
     "calendar_app.apps.CalendarAppConfig",
+    "reports.apps.ReportsConfig",
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"

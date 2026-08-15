@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Bilan instantané{% if perimetre %} — {{ perimetre }}{% endif %}</title>
+<style>
+    @page { size: A4; margin: 2cm; }
+    body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; color: #212529; }
+    h1 { font-size: 20px; margin-bottom: 0; }
+    h2 { font-size: 15px; margin-top: 24px; border-bottom: 2px solid #0d6efd; padding-bottom: 4px; }
+    .entete { margin-bottom: 16px; color: #495057; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: left; vertical-align: top; }
+    th { background-color: #f1f3f5; }
+    .en-retard { background-color: #f8d7da; color: #842029; font-weight: bold; }
+    .vide { color: #868e96; font-style: italic; }
+    .statut-a-jour { color: #2f9e44; font-weight: bold; }
+    .statut-en-retard { color: #c92a2a; font-weight: bold; }
+</style>
+</head>
+<body>
+    <h1>Bilan instantané{% if perimetre %} — {{ perimetre }}{% endif %}</h1>
+    <p class="entete">
+        Généré le {{ genere_le|date:"d/m/Y à H:i" }} par {{ genere_par.get_full_name|default:genere_par.username }}
+    </p>
+
+    <h2>État des installations</h2>
+    {% if installations %}
+    <table>
+        <thead>
+            <tr>
+                <th>Installation</th>
+                <th>Statut</th>
+                <th>Dernière visite</th>
+                <th>Dernier relevé heures</th>
+                <th>Dernier relevé vibration</th>
+                <th>Dernier relevé isolement</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in installations %}
+            <tr>
+                <td>{{ ligne.installation.designation }}</td>
+                <td class="{% if ligne.statut == 'En retard' %}statut-en-retard{% else %}statut-a-jour{% endif %}">{{ ligne.statut }}</td>
+                <td>{% if ligne.derniere_visite %}{{ ligne.derniere_visite.date|date:"d/m/Y" }}{% else %}<span class="vide">Aucune</span>{% endif %}</td>
+                <td>{% if ligne.dernier_releve_heures %}{{ ligne.dernier_releve_heures.hours }} h ({{ ligne.dernier_releve_heures.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
+                <td>{% if ligne.dernier_releve_vibration %}{{ ligne.dernier_releve_vibration.state }} ({{ ligne.dernier_releve_vibration.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
+                <td>{% if ligne.dernier_releve_isolement %}{{ ligne.dernier_releve_isolement.ohms }} Ω ({{ ligne.dernier_releve_isolement.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune installation dans ce périmètre.</p>
+    {% endif %}
+
+    <h2>Échéances de maintenance à venir</h2>
+    {% if echeances %}
+    <table>
+        <thead>
+            <tr>
+                <th>Installation</th>
+                <th>Maintenance</th>
+                <th>Date prévue</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for echeance in echeances %}
+            <tr class="{% if echeance.en_retard %}en-retard{% endif %}">
+                <td>{{ echeance.installation.designation }}</td>
+                <td>{{ echeance.titre }}</td>
+                <td>{{ echeance.date_prevue|date:"d/m/Y" }}</td>
+                <td>{% if echeance.en_retard %}En retard{% else %}{{ echeance.statut }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune échéance de maintenance à venir.</p>
+    {% endif %}
+
+    <h2>Tickets correctifs ouverts</h2>
+    {% if tickets_ouverts %}
+    <table>
+        <thead>
+            <tr>
+                <th>Matériel</th>
+                <th>Description</th>
+                <th>Statut</th>
+                <th>Signalé le</th>
+                <th>Ancienneté</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets_ouverts %}
+            <tr>
+                <td>{{ ticket.asset }}</td>
+                <td>{{ ticket.description }}</td>
+                <td>{{ ticket.get_status_display }}</td>
+                <td>{{ ticket.reported_at|date:"d/m/Y" }}</td>
+                <td>{{ ticket.anciennete_jours }} jour{{ ticket.anciennete_jours|pluralize }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucun ticket correctif ouvert.</p>
+    {% endif %}
+
+    <h2>Qualifications proches d'expiration</h2>
+    {% if qualifications_proches_expiration %}
+    <table>
+        <thead>
+            <tr>
+                <th>Marin</th>
+                <th>Formation</th>
+                <th>Expire le</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for qualification in qualifications_proches_expiration %}
+            <tr>
+                <td>{{ qualification.user.get_full_name|default:qualification.user.username }}</td>
+                <td>{{ qualification.course.title }}</td>
+                <td>{{ qualification.expires_at|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune qualification proche d'expiration.</p>
+    {% endif %}
+</body>
+</html>
