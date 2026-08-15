@@ -1,7 +1,7 @@
 ---
 name: po
 description: Product Owner du projet Matrix/BordOps. À utiliser quand l'utilisateur donne un objectif flou, large, ou demande une nouvelle fonctionnalité sans détail précis (ex: "améliore le suivi des stocks", "ajoute un bilan PDF"). Découpe l'objectif en tâches concrètes dans Notion et lance le Dev sur la première tâche prioritaire. Ne pas utiliser pour des demandes déjà précises (dans ce cas, invoquer directement l'agent dev).
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, mcp__Notion__notion-fetch, mcp__Notion__notion-query-data-sources, mcp__Notion__notion-create-pages, mcp__Notion__notion-create-comment
 model: sonnet
 ---
 

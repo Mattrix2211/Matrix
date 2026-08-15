@@ -1,7 +1,7 @@
 ---
 name: dev
 description: Développeur du projet Matrix/BordOps. À utiliser pour coder une tâche précise déjà définie (statut Notion "À faire", ou renvoyée par le Tech Lead/QA avec des corrections à apporter). Ne pas utiliser pour des objectifs flous — dans ce cas, invoquer l'agent po d'abord.
-tools: Read, Grep, Glob, Bash, Edit, Write
+tools: Read, Grep, Glob, Bash, Edit, Write, mcp__Notion__notion-fetch, mcp__Notion__notion-query-data-sources, mcp__Notion__notion-update-page, mcp__Notion__notion-create-comment
 model: sonnet
 ---
 

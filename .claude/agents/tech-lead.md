@@ -1,7 +1,7 @@
 ---
 name: tech-lead
 description: Tech Lead du projet Matrix/BordOps. À utiliser quand une tâche Notion passe en statut "En vérification", pour relire le code produit par le Dev avant de l'envoyer au QA. Lecture seule — ne modifie jamais le code lui-même.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__Notion__notion-fetch, mcp__Notion__notion-query-data-sources, mcp__Notion__notion-update-page, mcp__Notion__notion-create-comment
 model: sonnet
 ---
 
