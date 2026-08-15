@@ -15,6 +15,11 @@
   --wake:        #48CAE4;  /* hover de --signal */
   --mist:        #8FAFC7;
   --fog:         #6B8BA4;
+  /* Variante assombrie de --signal réservée aux éléments non textuels (bordures,
+     remplissage de barre de progression) : --signal pur n'atteint que ≈2,46:1 sur
+     fond clair, sous le seuil WCAG 1.4.11 (3:1 pour les composants UI). Corrige le
+     point signalé par le QA (T18) sans changer l'accent --signal lui-même. */
+  --signal-ui:   #0091AD;
 
   /* Statuts — un seul vert pour Matrix (naval), jamais --green-sport */
   --green-tech:  #16B84E;
@@ -113,7 +118,7 @@ code, pre, kbd, .font-mono {
 }
 .btn-outline-primary {
   --bs-btn-color: var(--signal);
-  --bs-btn-border-color: var(--signal);
+  --bs-btn-border-color: var(--signal-ui);
   --bs-btn-hover-bg: var(--signal);
   --bs-btn-hover-border-color: var(--signal);
   --bs-btn-hover-color: var(--ink);
@@ -135,7 +140,8 @@ code, pre, kbd, .font-mono {
   color: var(--ink);
 }
 .page-link { color: var(--signal); }
-.progress-bar { background-color: var(--signal); }
+/* --signal-ui : remplissage assombri, conforme WCAG 1.4.11 (≥3:1) sur fond clair */
+.progress-bar { background-color: var(--signal-ui); }
 .spinner-border.text-primary { color: var(--signal) !important; }
 /* Badges de type de fichier (text-bg-primary) : même correctif de contraste */
 .text-bg-primary { color: var(--ink) !important; }
@@ -166,6 +172,13 @@ code, pre, kbd, .font-mono {
 .card:hover {
   border-color: var(--horizon);
   box-shadow: var(--shadow-glow);
+}
+/* Titre de section dans une card (ex. en-tête de checklist) — Space Grotesk (§3) */
+.card-header {
+  font-family: var(--f-display);
+  font-weight: 600;
+  background-color: var(--surface);
+  border-bottom-color: var(--border);
 }
 
 /* Nav applicative */

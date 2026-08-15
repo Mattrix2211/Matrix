@@ -17,9 +17,9 @@
           {% if it.field_type == 'checkbox' %}
             <input class="form-check-input ms-1" type="checkbox" name="item_{{ it.id }}">
           {% elif it.field_type == 'number' %}
-            <input class="form-control" type="number" step="any" name="item_{{ it.id }}">
+            <input class="form-control font-mono" type="number" step="any" name="item_{{ it.id }}">
           {% elif it.field_type == 'date' %}
-            <input class="form-control" type="date" name="item_{{ it.id }}">
+            <input class="form-control font-mono" type="date" name="item_{{ it.id }}">
           {% else %}
             <input class="form-control" type="text" name="item_{{ it.id }}">
           {% endif %}
