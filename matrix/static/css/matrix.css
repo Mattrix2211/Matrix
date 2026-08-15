@@ -1,5 +1,184 @@
-body { --accent: #0d6efd; }
+/*
+ * Matrix — feuille de style applicative.
+ * Variables et composants du MK Design System (voir design/DESIGN_SYSTEM.md),
+ * adaptés au mode Light exclusif de Matrix (contexte naval/pro, cf. §10).
+ * Cette feuille se superpose à Bootstrap 5, elle ne le remplace pas.
+ */
+
+:root {
+  /* Palette MK Design System (§2) — mode Light uniquement pour Matrix */
+  --navy:        #0B1929;
+  --ocean:       #0F2942;
+  --slate:       #1A3A52;
+  --horizon:     #1E4060;  /* hover — distinct de --signal */
+  --signal:      #00B4D8;  /* accent primaire unique */
+  --wake:        #48CAE4;  /* hover de --signal */
+  --mist:        #8FAFC7;
+  --fog:         #6B8BA4;
+
+  /* Statuts — un seul vert pour Matrix (naval), jamais --green-sport */
+  --green-tech:  #16B84E;
+
+  /* Alertes */
+  --amber:       #F4A261;
+  --red:         #E63946;
+
+  /* Fondations Light (§2, bloc [data-theme="light"] appliqué en :root unique) */
+  --chalk:       #F0F4F8;  /* Background */
+  --paper:       #FFFFFF;  /* Surface / cards */
+  --ink:         #0B1929;  /* Texte principal */
+
+  --bg:      var(--chalk);
+  --surface: var(--paper);
+  --border:  #DDE5ED;
+  --text:      var(--ink);
+  --text-sec:  #4A6580;
+  --text-ter:  #8FAFC7;
+
+  /* Typographie (§3) — Space Grotesk (titres/nav/cards), Inter (corps),
+     JetBrains Mono (données techniques). Jamais Syncopate (réservé hero/sport). */
+  --f-display: 'Space Grotesk', sans-serif;
+  --f-body:    'Inter', sans-serif;
+  --f-mono:    'JetBrains Mono', monospace;
+
+  /* Espacement — base 4px stricte (§4) */
+  --s1: 4px;  --s2: 8px;   --s3: 12px;  --s4: 16px;  --s5: 20px;
+  --s6: 24px; --s8: 32px;  --s10: 40px; --s12: 48px; --s16: 64px;
+
+  /* Border-radius (§5) */
+  --r-sm: 4px;   /* badge, input, chip */
+  --r-md: 8px;   /* bouton, petite card */
+  --r-lg: 12px;  /* card principale */
+  --r-xl: 20px;  /* panel, modal */
+
+  /* Shadows (§6) */
+  --shadow-sm:   0 1px 3px rgba(11, 25, 41, .08);
+  --shadow-md:   0 4px 16px rgba(11, 25, 41, .12);
+  --shadow-glow: 0 0 24px rgba(0, 180, 216, .18);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Superposition Bootstrap : accent unique --signal, typographie du DS.   */
+/* On ne recompile pas Bootstrap : on surcharge ses variables CSS puis on */
+/* réaligne les composants qui figent la couleur au moment de sa build.   */
+/* ---------------------------------------------------------------------- */
+
+:root {
+  --bs-font-sans-serif: var(--f-body);
+  --bs-body-font-family: var(--f-body);
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--text);
+  --bs-primary: var(--signal);
+  --bs-primary-rgb: 0, 180, 216;
+  --bs-link-color: var(--signal);
+  --bs-link-color-rgb: 0, 180, 216;
+  --bs-link-hover-color: var(--horizon);
+  --bs-border-radius: var(--r-md);
+  --bs-border-radius-sm: var(--r-sm);
+  --bs-border-radius-lg: var(--r-lg);
+  --bs-border-radius-xl: var(--r-xl);
+}
+
+body {
+  font-family: var(--f-body);
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+h1, h2, h3, h4, h5, h6,
+.navbar-brand, .card-title, .nav-link {
+  font-family: var(--f-display);
+}
+
+code, pre, kbd, .font-mono {
+  font-family: var(--f-mono);
+}
+
+/* Accent unique : une seule action principale par vue (règle absolue §11.1) */
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--signal);
+  --bs-btn-border-color: var(--signal);
+  --bs-btn-hover-bg: var(--horizon);
+  --bs-btn-hover-border-color: var(--horizon);
+  --bs-btn-active-bg: var(--horizon);
+  --bs-btn-active-border-color: var(--horizon);
+  --bs-btn-disabled-bg: var(--signal);
+  --bs-btn-disabled-border-color: var(--signal);
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--signal);
+  --bs-btn-border-color: var(--signal);
+  --bs-btn-hover-bg: var(--signal);
+  --bs-btn-hover-border-color: var(--signal);
+  --bs-btn-active-bg: var(--signal);
+  --bs-btn-active-border-color: var(--signal);
+}
+.text-primary { color: var(--signal) !important; }
+.bg-primary { background-color: var(--signal) !important; }
+.border-primary { border-color: var(--signal) !important; }
+.form-check-input:checked {
+  background-color: var(--signal);
+  border-color: var(--signal);
+}
+.nav-pills .nav-link.active,
+.page-link.active, .active > .page-link {
+  background-color: var(--signal);
+  border-color: var(--signal);
+}
+.page-link { color: var(--signal); }
+.progress-bar { background-color: var(--signal); }
+.spinner-border.text-primary { color: var(--signal) !important; }
+
+/* Statuts — vert unique --green-tech pour Matrix (validations, systèmes) */
+.badge.bg-success, .text-bg-success {
+  background-color: var(--green-tech) !important;
+}
+.text-success { color: var(--green-tech) !important; }
+.badge.bg-warning, .text-bg-warning { background-color: var(--amber) !important; }
+.badge.bg-danger, .text-bg-danger { background-color: var(--red) !important; }
+
+/* Cards — accent bar (§7) */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color .2s, box-shadow .2s;
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--signal), transparent);
+}
+.card:hover {
+  border-color: var(--horizon);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Nav applicative */
 .navbar-brand { font-weight: 600; }
 .badge-status { font-size: .85rem; }
 /* Icônes de la navbar un peu plus grandes */
 .nav-icon { font-size: 1.35rem; line-height: 1; display: inline-block; }
+
+/* Logo Matrix : PNG requin + pictogramme ancre en overlay bas-droite (§9) */
+.matrix-logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.matrix-logo__img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.matrix-logo__badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+}
