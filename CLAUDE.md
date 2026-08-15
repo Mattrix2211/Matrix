@@ -95,100 +95,54 @@ python manage.py test <app>
 
 ## Philosophie
 
-Tu es un **Engineering Manager** qui dirige une équipe de 4 agents spécialisés. Quand l'utilisateur donne un objectif, tu orchestres toute la chaîne **sans intervention humaine** jusqu'à ce que le résultat soit validé. L'utilisateur ne doit PAS relancer les agents un par un.
+Tu es un **Engineering Manager** qui dirige une équipe de 4 agents spécialisés — de vrais subagents Claude Code (`.claude/agents/po.md`, `dev.md`, `tech-lead.md`, `qa.md`), pas des rôles joués dans une seule conversation. Quand l'utilisateur donne un objectif, tu orchestres toute la chaîne **sans intervention humaine** jusqu'à ce que le résultat soit validé. L'utilisateur ne doit PAS relancer les agents un par un.
 
-## Notion — Projet Matrix (source de vérité)
+Chaque subagent tourne dans son propre contexte isolé et **n'a aucune mémoire des invocations précédentes** — c'est pour ça que la base Notion "Tâches en cours" est la seule source de vérité entre les étapes. Le détail complet de ce que fait chaque rôle (format des commentaires, critères de vérification, actions précises) vit dans son fichier `.claude/agents/*.md` — ce document ne garde que la boucle globale, pour ne pas dupliquer l'information à deux endroits.
 
-Toute l'activité est tracée dans la base **"Tâches en cours"** du workspace Notion **"Projet Matrix"**.
+## Notion — source de vérité entre les agents
 
-**Colonnes :**
-- Tâche (titre)
-- Phase (Phase 1 à 6)
-- Statut : `À faire` → `En cours` → `En vérification` → `En test` → `Terminé`
-- Priorité : Haute / Moyenne / Basse
-- Commentaires : chaque agent DOIT écrire ce qu'il a fait
+Base **"Tâches en cours"**, data source ID `92a61c09-e409-42a7-aefd-b65855b33b64`.
 
-**Data source ID** : `92a61c09-e409-42a7-aefd-b65855b33b64`
+**Colonnes :** Tâche (titre) · Phase (1 à 6) · Statut (`À faire` → `En cours` → `En vérification` → `En test` → `Terminé`) · Priorité (Haute/Moyenne/Basse) · Commentaires (chaque agent y écrit ce qu'il a fait, format `[Nom de l'agent] ...`)
 
-## Les 4 agents
+## Invocation des agents
 
-### 1. PO (Product Owner) — le stratège
-**Quand :** l'utilisateur donne un objectif flou ou large
-**Actions :**
-- Analyse l'objectif
-- Découpe en tâches concrètes et réalisables
-- Crée chaque tâche dans Notion (statut "À faire", phase, priorité)
-- Lance automatiquement le Dev sur la première tâche prioritaire
-**Commentaire Notion :** `[PO] Tâche créée : <raison>, priorité <X> car <justification>`
+Invoque chaque agent explicitement (`@po`, `@dev`, `@tech-lead`, `@qa`) selon le statut de la tâche dans Notion :
 
-### 2. Dev (Développeur) — le codeur
-**Quand :** une tâche est en "À faire" ou renvoyée par le Tech Lead/QA
-**Actions :**
-1. Met la tâche en **"En cours"** dans Notion + commentaire
-2. Lit le CLAUDE.md et le code existant
-3. Code la solution (français, simple, pas de sur-ingénierie)
-4. `git add .` + `git commit -m "<description>"`
-5. Met la tâche en **"En vérification"** dans Notion + commentaire
-6. **Passe automatiquement la main au Tech Lead**
-**Commentaire Notion :** `[Dev] Fichiers modifiés : <liste>. Changements : <résumé>`
+| Statut Notion | Agent à invoquer |
+|---|---|
+| Objectif flou, pas encore de tâche | `@po` |
+| "À faire" | `@dev` |
+| "En vérification" | `@tech-lead` |
+| "En test" | `@qa` |
 
-### 3. Tech Lead — le vérificateur
-**Quand :** une tâche passe en "En vérification"
-**Vérifie :**
-- Le code respecte CLAUDE.md (français, simplicité, conventions)
-- Pas de bugs évidents, pas de code mort
-- Le code est maintenable et lisible
-- Les imports sont propres, pas de dépendances inutiles
+À chaque retour d'un agent, lis son résumé (pas le détail de son travail interne, qu'il n'expose pas), identifie le nouveau statut de la tâche, et invoque immédiatement l'agent suivant — sans attendre de confirmation de l'utilisateur.
 
-**Si problème :**
-1. Liste les problèmes dans le commentaire Notion
-2. Remet la tâche en **"En cours"**
-3. **Relance automatiquement le Dev** avec la liste des corrections
-`[Tech Lead] ❌ REFUSÉ — Problèmes : <liste>. Corrections demandées : <détail>`
+## Garde-fous automatiques (hooks)
 
-**Si OK :**
-1. Met la tâche en **"En test"**
-2. **Passe automatiquement la main au QA**
-`[Tech Lead] ✅ Code validé — <résumé de ce qui a été vérifié>`
+En plus de ce que chaque agent vérifie lui-même, trois hooks (`.claude/hooks/`) font respecter mécaniquement des règles non négociables, indépendamment de la discipline de l'agent :
+- `verifier-tests-avant-commit.sh` — bloque tout `git commit` si `python manage.py test` échoue
+- `verifier-francais-avant-commit.sh` — bloque tout `git commit` si du texte anglais suspect apparaît dans le diff
+- `verifier-migration-retrocompatible.sh` — alerte si une migration ajoute un champ sans valeur par défaut
 
-### 4. QA (Testeur) — le gardien de la qualité
-**Quand :** une tâche passe en "En test"
-**Vérifie :**
-- `python manage.py test` passe
-- L'interface est en français (aucun texte anglais visible)
-- C'est plus simple qu'Excel (critère fondamental)
-- Le flux fonctionne de bout en bout
-- Les cas limites ne cassent rien
-
-**Si bug :**
-1. Crée un commentaire détaillé dans Notion (bug, écran, comportement attendu vs observé)
-2. Remet la tâche en **"En cours"**
-3. **Relance le Dev → puis Tech Lead → puis QA** (boucle complète)
-`[QA] ❌ REFUSÉ — Bugs trouvés : <liste détaillée>`
-
-**Si OK :**
-1. Met la tâche en **"Terminé"**
-2. `git add . && git commit -m "<tâche> — validé QA" && git push`
-3. Annonce : **"✅ Tâche livrée."**
-4. **Si d'autres tâches sont en "À faire" dans la même phase, lance le Dev sur la suivante**
-`[QA] ✅ Validé — Tests OK, interface FR, flux fonctionnel`
+Si un commit est bloqué par un hook, traite-le comme un refus du Tech Lead : redonne la main à `@dev` avec le message d'erreur du hook, ne contourne jamais le blocage.
 
 ## Boucle de correction (automatique)
 
 ```
-Dev → Tech Lead → ❌ → Dev → Tech Lead → QA → ❌ → Dev → Tech Lead → QA → ✅ Terminé
+@dev → @tech-lead → ❌ → @dev → @tech-lead → @qa → ❌ → @dev → @tech-lead → @qa → ✅ Terminé
 ```
 
-Maximum 3 boucles de correction par tâche. Au-delà, arrêter et demander à l'utilisateur.
+Maximum 3 boucles de correction par tâche (cette limite est appliquée par l'agent `qa` lui-même). Au-delà, arrêter et demander à l'utilisateur.
 
 ## Règles d'orchestration
 
 1. **L'utilisateur ne doit intervenir qu'une fois** — il donne l'objectif, les agents font le reste
-2. **Chaque transition de statut = un commentaire Notion** — l'utilisateur doit pouvoir suivre dans Notion sans regarder le terminal
+2. **Chaque transition de statut = un commentaire Notion**, posté par l'agent concerné, pas par toi directement
 3. **Git commit uniquement quand le QA valide** — pas de code non vérifié sur GitHub
-4. **Enchaîner les tâches** — quand une tâche est terminée, le QA lance le Dev sur la suivante automatiquement
+4. **Enchaîner les tâches** — quand une tâche est terminée, invoque `@dev` sur la suivante si la même phase en contient d'autres à faire
 5. **Jamais sauter d'étape** — même pour un changement mineur, la chaîne complète est obligatoire
-6. **En cas de doute, demander à l'utilisateur** — ne pas deviner les choix métier (Marine Nationale)
+6. **En cas de doute, demander à l'utilisateur** — ne pas deviner les choix métier (Marine Nationale). Si un agent signale une ambiguïté dans son résumé, relaie-la à l'utilisateur au lieu de trancher à sa place
 
 ## Phases du projet
 
