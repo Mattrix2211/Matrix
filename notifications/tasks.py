@@ -37,10 +37,26 @@ def notify_low_stock():
     secteur correspond, et chef de section dont la section correspond si la pièce en
     a une (section optionnelle, comme sur Installation/Asset).
 
-    Déduplication : une seule notification par pièce et par destinataire tant qu'elle
-    n'a pas été purgée — pas de rappel quotidien pour une même pièce déjà sous le seuil.
+    Déduplication : une seule notification active par pièce et par destinataire tant
+    qu'elle n'a pas été résolue - pas de rappel quotidien pour une même pièce déjà sous
+    le seuil.
+
+    Cycle de vie de l'alerte : dès qu'une pièce repasse au-dessus (ou à l'égal) de son
+    seuil minimal, la notification active liée à cette pièce est résolue (même pattern
+    que l'action "marquer comme lue" côté utilisateur : aucune autre partie du code ne
+    supprime réellement une Notification en base). Une fois résolue, une nouvelle
+    rupture recrée bien une alerte, puisque la déduplication ne porte que sur les
+    notifications encore actives.
     """
     piece_ct = ContentType.objects.get_for_model(StockPiece)
+
+    # Pièces redevenues conformes : on résout leurs notifications actives pour
+    # permettre une nouvelle alerte en cas de re-rupture future.
+    for piece in StockPiece.objects.filter(quantite__gte=F("quantite_minimale")):
+        Notification.objects.filter(
+            content_type=piece_ct, object_id=str(piece.pk), is_read=False
+        ).update(is_read=True)
+
     for piece in StockPiece.objects.filter(quantite__lt=F("quantite_minimale")).select_related(
         "service", "sector", "section"
     ):
@@ -56,6 +72,7 @@ def notify_low_stock():
                 user=profile.user,
                 content_type=piece_ct,
                 object_id=str(piece.pk),
+                is_read=False,
                 defaults={"verb": verb},
             )
     return {"status": "ok"}

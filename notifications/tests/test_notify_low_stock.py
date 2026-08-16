@@ -83,6 +83,50 @@ class NotifyLowStockTests(TestCase):
             Notification.objects.filter(user=self.chef_service, verb__icontains="REF-003").count(), 1
         )
 
+    def test_notification_resolue_puis_recreee_apres_reapprovisionnement(self):
+        # Scénario refusé par le Tech Lead : sous le seuil -> notification active créée
+        # -> réapprovisionnement -> la notification doit être résolue (is_read=True,
+        # même pattern que "marquer comme lue") -> re-rupture -> une nouvelle
+        # notification active doit être créée.
+        piece = StockPiece.objects.create(
+            reference="REF-005",
+            designation="Vanne",
+            quantite=1,
+            quantite_minimale=5,
+            ship=self.ship,
+            service=self.service,
+            sector=self.sector,
+            section=self.section,
+        )
+
+        notify_low_stock()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.chef_service, verb__icontains="REF-005", is_read=False
+            ).exists(),
+            "Notification active attendue lors de la rupture initiale",
+        )
+
+        # Réapprovisionnement : la quantité repasse au-dessus du seuil.
+        StockPiece.objects.filter(pk=piece.pk).update(quantite=20)
+        notify_low_stock()
+        self.assertFalse(
+            Notification.objects.filter(
+                user=self.chef_service, verb__icontains="REF-005", is_read=False
+            ).exists(),
+            "La notification doit être résolue (is_read=True) quand la pièce repasse au-dessus du seuil",
+        )
+
+        # Re-rupture : le stock redescend sous le seuil.
+        StockPiece.objects.filter(pk=piece.pk).update(quantite=0)
+        notify_low_stock()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.chef_service, verb__icontains="REF-005", is_read=False
+            ).exists(),
+            "Une nouvelle notification active doit être créée après une nouvelle rupture",
+        )
+
     def test_chef_section_non_notifie_si_piece_sans_section(self):
         # Une pièce sans section rattachée ne doit pas notifier un chef de section,
         # même s'il gère la section "Atelier" par ailleurs.
