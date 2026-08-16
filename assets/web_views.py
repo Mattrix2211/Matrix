@@ -18,6 +18,7 @@ from datetime import datetime, time
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.mixins import ScopedQuerySetMixin
 from accounts.models import AuditLog
 from org.models import Ship, Service, Sector, Section
 import json
@@ -85,6 +86,43 @@ def _resoudre_parent_valide(request, objet, model):
     return None
 
 
+def _org_dans_perimetre(user, model, cible_id):
+    """Vérifie qu'un navire/service/secteur/section posté dans une action groupée
+    (bulk_update_ship/service/sector/section) appartient bien au périmètre de
+    l'appelant, en réutilisant le même système de périmètre que scope_filters_for_user
+    (matrix/core/scopes.py, déjà utilisé par ScopedQuerySetMixin côté API) plutôt que
+    d'en recréer un nouveau. Un utilisateur sans périmètre restreint (aucun ship/
+    service/sector/section assigné à son profil, ex: vue globale) peut choisir
+    n'importe quelle cible existante ; un utilisateur cantonné à un niveau ne peut
+    choisir que ce niveau lui-même ou un de ses descendants dans la hiérarchie
+    Navire > Service > Secteur > Section. Ne fait pas confiance aux menus déroulants
+    du formulaire, qui peuvent être contournés par un POST direct (même principe que
+    _resoudre_parent_valide pour le champ parent_id)."""
+    if not cible_id:
+        return True
+    profil = getattr(user, 'profile', None)
+    niveau, valeur = profil.scope if profil else (None, None)
+    if niveau is None:
+        return model.objects.filter(pk=cible_id).exists()
+    chemins = {
+        Ship: {'ship': 'id'},
+        Service: {'ship': 'ship_id', 'service': 'id'},
+        Sector: {'ship': 'service__ship_id', 'service': 'service_id', 'sector': 'id'},
+        Section: {
+            'ship': 'sector__service__ship_id',
+            'service': 'sector__service_id',
+            'sector': 'sector_id',
+            'section': 'id',
+        },
+    }
+    champ = chemins.get(model, {}).get(niveau)
+    if champ is None:
+        # Le périmètre de l'appelant est plus restrictif que le niveau de la cible visée
+        # (ex: un chef de secteur ne peut pas choisir un navire ou un service) : refusé.
+        return False
+    return model.objects.filter(pk=cible_id, **{champ: valeur}).exists()
+
+
 def _afficher_erreur_validation(request, erreur):
     """Affiche en français le message d'une ValidationError levée par full_clean()
     (notamment la protection anti-cycle sur le rattachement parent), plutôt que de
@@ -120,13 +158,37 @@ class StartVisualCheckView(LoginRequiredMixin, View):
         return redirect(f"/maintenance/occurrences/{occ.id}/execute/")
 
 
-class AssetListView(LoginRequiredMixin, ListView):
+class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     model = Asset
     template_name = 'assets/list.html'
     context_object_name = 'assets'
 
+    # Contrôle de rôle par action (T-SEC) : CHEF_SECTION pour la création/édition
+    # simple, CHEF_SERVICE pour les suppressions et les actions groupées — même seuil
+    # que MAINTENANCE_WRITE_ACTIONS (InstallationDetailView) et
+    # _peut_gerer_rattachement_parent, pour rester cohérent avec le reste du fichier.
+    NIVEAU_REQUIS_PAR_ACTION = {
+        'create_folder': RoleLevel.CHEF_SECTION,
+        'rename_folder': RoleLevel.CHEF_SECTION,
+        'delete_folder': RoleLevel.CHEF_SERVICE,
+        'move_asset_to_folder': RoleLevel.CHEF_SECTION,
+        'create_asset': RoleLevel.CHEF_SECTION,
+        'edit_asset': RoleLevel.CHEF_SECTION,
+        'delete_asset': RoleLevel.CHEF_SERVICE,
+        'delete_asset_document': RoleLevel.CHEF_SERVICE,
+        'bulk_update_status': RoleLevel.CHEF_SERVICE,
+        'bulk_update_location': RoleLevel.CHEF_SERVICE,
+        'bulk_update_ship': RoleLevel.CHEF_SERVICE,
+        'bulk_update_service': RoleLevel.CHEF_SERVICE,
+        'bulk_update_sector': RoleLevel.CHEF_SERVICE,
+        'bulk_update_section': RoleLevel.CHEF_SERVICE,
+        'bulk_delete_assets': RoleLevel.CHEF_SERVICE,
+    }
+
     def get_queryset(self):
-        qs = Asset.objects.select_related('asset_type', 'ship', 'service', 'sector', 'section', 'location', 'folder').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'asset_type__name')
+        # Périmètre appliqué par ScopedQuerySetMixin (même système que l'API) avant les
+        # filtres de recherche/tri propres à cette vue.
+        qs = super().get_queryset().select_related('asset_type', 'ship', 'service', 'sector', 'section', 'location', 'folder').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'asset_type__name')
         ship_id = self.request.GET.get('ship')
         service_id = self.request.GET.get('service')
         sector_id = self.request.GET.get('sector')
@@ -223,6 +285,9 @@ class AssetListView(LoginRequiredMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
+        niveau_requis = self.NIVEAU_REQUIS_PAR_ACTION.get(action)
+        if niveau_requis is not None and user_role_level(request.user) < niveau_requis:
+            raise PermissionDenied
         # Bulk actions
         if action in (
             'bulk_update_status', 'bulk_update_location', 'bulk_update_ship',
@@ -249,6 +314,9 @@ class AssetListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Emplacement mis à jour pour {count} matériel(s).')
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
+                if not _org_dans_perimetre(request.user, Ship, ship_id):
+                    messages.error(request, "Navire hors de votre périmètre.")
+                    return redirect('asset-list')
                 ship = Ship.objects.filter(pk=ship_id).first()
                 for a in assets:
                     a.ship = ship
@@ -257,6 +325,9 @@ class AssetListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Navire mis à jour pour {count} matériel(s).')
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
+                if not _org_dans_perimetre(request.user, Service, service_id):
+                    messages.error(request, "Service hors de votre périmètre.")
+                    return redirect('asset-list')
                 sv = Service.objects.filter(pk=service_id).first()
                 for a in assets:
                     a.service = sv
@@ -265,6 +336,9 @@ class AssetListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Service mis à jour pour {count} matériel(s).')
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
+                if not _org_dans_perimetre(request.user, Sector, sector_id):
+                    messages.error(request, "Secteur hors de votre périmètre.")
+                    return redirect('asset-list')
                 sc = Sector.objects.filter(pk=sector_id).first()
                 for a in assets:
                     a.sector = sc
@@ -273,6 +347,9 @@ class AssetListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Secteur mis à jour pour {count} matériel(s).')
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
+                if not _org_dans_perimetre(request.user, Section, section_id):
+                    messages.error(request, "Section hors de votre périmètre.")
+                    return redirect('asset-list')
                 se = Section.objects.filter(pk=section_id).first()
                 for a in assets:
                     a.section = se
@@ -482,13 +559,30 @@ class AssetListView(LoginRequiredMixin, ListView):
         return redirect('asset-list')
 
 
-class InstallationListView(LoginRequiredMixin, ListView):
+class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     model = Installation
     template_name = 'assets/installations.html'
     context_object_name = 'installations'
 
+    # Contrôle de rôle par action (T-SEC) : CHEF_SECTION pour la création/édition
+    # simple, CHEF_SERVICE pour les suppressions et les actions groupées — même seuil
+    # que MAINTENANCE_WRITE_ACTIONS (InstallationDetailView) et AssetListView.
+    NIVEAU_REQUIS_PAR_ACTION = {
+        'create_installation': RoleLevel.CHEF_SECTION,
+        'edit_installation': RoleLevel.CHEF_SECTION,
+        'delete_installation': RoleLevel.CHEF_SERVICE,
+        'bulk_update_location': RoleLevel.CHEF_SERVICE,
+        'bulk_update_ship': RoleLevel.CHEF_SERVICE,
+        'bulk_update_service': RoleLevel.CHEF_SERVICE,
+        'bulk_update_sector': RoleLevel.CHEF_SERVICE,
+        'bulk_update_section': RoleLevel.CHEF_SERVICE,
+        'bulk_delete_installations': RoleLevel.CHEF_SERVICE,
+    }
+
     def get_queryset(self):
-        qs = Installation.objects.select_related('ship', 'service', 'sector', 'section', 'location').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'designation')
+        # Périmètre appliqué par ScopedQuerySetMixin (même système que l'API) avant les
+        # filtres de recherche/tri propres à cette vue.
+        qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section', 'location').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'designation')
         ship_id = self.request.GET.get('ship')
         service_id = self.request.GET.get('service')
         sector_id = self.request.GET.get('sector')
@@ -603,6 +697,9 @@ class InstallationListView(LoginRequiredMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
+        niveau_requis = self.NIVEAU_REQUIS_PAR_ACTION.get(action)
+        if niveau_requis is not None and user_role_level(request.user) < niveau_requis:
+            raise PermissionDenied
         if action in (
             'bulk_update_location', 'bulk_update_ship', 'bulk_update_service',
             'bulk_update_sector', 'bulk_update_section', 'bulk_delete_installations'
@@ -620,6 +717,9 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Emplacement mis à jour pour {count} installation(s).')
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
+                if not _org_dans_perimetre(request.user, Ship, ship_id):
+                    messages.error(request, "Navire hors de votre périmètre.")
+                    return redirect('installation-list')
                 ship = Ship.objects.filter(pk=ship_id).first()
                 for it in items:
                     it.ship = ship
@@ -628,6 +728,9 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Navire mis à jour pour {count} installation(s).')
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
+                if not _org_dans_perimetre(request.user, Service, service_id):
+                    messages.error(request, "Service hors de votre périmètre.")
+                    return redirect('installation-list')
                 sv = Service.objects.filter(pk=service_id).first()
                 for it in items:
                     it.service = sv
@@ -636,6 +739,9 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Service mis à jour pour {count} installation(s).')
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
+                if not _org_dans_perimetre(request.user, Sector, sector_id):
+                    messages.error(request, "Secteur hors de votre périmètre.")
+                    return redirect('installation-list')
                 sc = Sector.objects.filter(pk=sector_id).first()
                 for it in items:
                     it.sector = sc
@@ -644,6 +750,9 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 messages.success(request, f'Secteur mis à jour pour {count} installation(s).')
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
+                if not _org_dans_perimetre(request.user, Section, section_id):
+                    messages.error(request, "Section hors de votre périmètre.")
+                    return redirect('installation-list')
                 se = Section.objects.filter(pk=section_id).first()
                 for it in items:
                     it.section = se
@@ -790,6 +899,14 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
         'add_maintenance_attachment',
         'delete_maintenance_attachment',
     }
+
+    # Actions de gestion de la fiche installation elle-même (hors tâches d'entretien) :
+    # même seuil que sur la liste (AssetListView/InstallationListView) — CHEF_SECTION
+    # pour l'édition simple, CHEF_SERVICE pour la suppression. Corrige le contournement
+    # possible via la fiche détail, ces deux actions n'étant pas dans
+    # MAINTENANCE_WRITE_ACTIONS (T-SEC).
+    INSTALLATION_WRITE_ACTIONS = {'edit_installation'}
+    INSTALLATION_DELETE_ACTIONS = {'delete_installation'}
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -963,6 +1080,10 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
         if action in self.MAINTENANCE_WRITE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SERVICE:
+            raise PermissionDenied
+        if action in self.INSTALLATION_WRITE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
+        if action in self.INSTALLATION_DELETE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SERVICE:
             raise PermissionDenied
         inst = self.get_object()
         tab = (request.POST.get('tab') or '').strip()
@@ -1518,6 +1639,14 @@ class LocationListView(LoginRequiredMixin, ListView):
     template_name = 'assets/locations.html'
     context_object_name = 'locations'
 
+    # Contrôle de rôle par action (T-SEC) : mêmes seuils que les autres listes de ce
+    # fichier — CHEF_SECTION pour la création/édition, CHEF_SERVICE pour la suppression.
+    NIVEAU_REQUIS_PAR_ACTION = {
+        'create_location': RoleLevel.CHEF_SECTION,
+        'edit_location': RoleLevel.CHEF_SECTION,
+        'delete_location': RoleLevel.CHEF_SERVICE,
+    }
+
     def get_queryset(self):
         qs = Location.objects.select_related('ship', 'parent').order_by('ship__name', 'name')
         ship_id = self.request.GET.get('ship')
@@ -1536,6 +1665,9 @@ class LocationListView(LoginRequiredMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
+        niveau_requis = self.NIVEAU_REQUIS_PAR_ACTION.get(action)
+        if niveau_requis is not None and user_role_level(request.user) < niveau_requis:
+            raise PermissionDenied
         if action == 'create_location':
             name = request.POST.get('name', '').strip()
             ship_id = request.POST.get('ship_id')

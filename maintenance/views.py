@@ -8,7 +8,7 @@ from .models import (
     mettre_a_jour_echeance_installation,
 )
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from matrix.core.roles import RoleLevel
 
@@ -20,11 +20,36 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     serializer_class = MaintenancePlanSerializer
     permission_classes = [RolePermission]
 
+    def get_scoped_filters(self):
+        # Un plan porte soit sur un actif précis (asset, qui porte lui-même
+        # les 4 champs de périmètre), soit sur un type d'actif (asset_type,
+        # rattaché uniquement à un secteur — un type n'est jamais propre à
+        # une section précise).
+        return build_scope_q(
+            self.request.user,
+            "asset__",
+            {
+                "ship_id": "asset_type__sector__service__ship_id",
+                "service_id": "asset_type__sector__service_id",
+                "sector_id": "asset_type__sector_id",
+            },
+        )
+
 class MaintenanceOccurrenceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = MaintenanceOccurrence.objects.select_related("plan", "asset", "installation_maintenance").all()
     serializer_class = MaintenanceOccurrenceSerializer
     permission_classes = [RolePermission]
     min_role_level_write = RoleLevel.EQUIPIER
+
+    def get_scoped_filters(self):
+        # Une occurrence porte soit sur du matériel mobile (asset), soit sur
+        # une installation fixe (installation_maintenance) — jamais les deux
+        # à la fois (contrainte occurrence_liee_a_asset_xor_installation).
+        return build_scope_q(
+            self.request.user,
+            "asset__",
+            "installation_maintenance__installation__",
+        )
 
     @decorators.action(detail=True, methods=["post"])
     def start(self, request, pk=None):
@@ -58,3 +83,13 @@ class MaintenanceExecutionViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     serializer_class = MaintenanceExecutionSerializer
     permission_classes = [RolePermission]
     min_role_level_write = RoleLevel.EQUIPIER
+
+    def get_scoped_filters(self):
+        # Une exécution ne porte pas elle-même le périmètre : on le
+        # retrouve via son occurrence, elle-même rattachée à un matériel
+        # mobile ou à une installation fixe (cf. MaintenanceOccurrenceViewSet).
+        return build_scope_q(
+            self.request.user,
+            "occurrence__asset__",
+            "occurrence__installation_maintenance__installation__",
+        )

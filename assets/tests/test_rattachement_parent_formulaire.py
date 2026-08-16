@@ -17,8 +17,10 @@ class InstallationRattachementParentFormulaireTests(TestCase):
         self.autre_secteur = Sector.objects.create(name="AutreSec", service=self.service)
 
         self.chef = User.objects.create_user(username="chef_i", password="pass")
+        self.chef_section = User.objects.create_user(username="chef_section_i", password="pass")
         self.equipier = User.objects.create_user(username="equipier_i", password="pass")
         UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.chef_section, defaults={"role": "CHEF_SECTION"})
         UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
 
         self.groupe = Installation.objects.create(
@@ -94,10 +96,11 @@ class InstallationRattachementParentFormulaireTests(TestCase):
         self.groupe.refresh_from_db()
         self.assertIsNone(self.groupe.parent)
 
-    def test_equipier_peut_modifier_les_autres_champs_sans_le_parent(self):
-        # Un équipier ne peut pas gérer le rattachement, mais l'édition normale
-        # (sans le champ parent_id, absent de son formulaire) reste possible.
-        self.client.login(username="equipier_i", password="pass")
+    def test_chef_section_peut_modifier_les_autres_champs_sans_le_parent(self):
+        # Un chef de section ne peut pas gérer le rattachement (réservé CHEF_SERVICE),
+        # mais l'édition normale (sans le champ parent_id, absent de son formulaire)
+        # reste possible dès CHEF_SECTION (T-SEC).
+        self.client.login(username="chef_section_i", password="pass")
         r = self.client.post(f"/installations/{self.groupe.id}/", {
             "action": "edit_installation",
             "pk": str(self.groupe.id),
@@ -109,6 +112,33 @@ class InstallationRattachementParentFormulaireTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.groupe.refresh_from_db()
         self.assertEqual(self.groupe.designation, "Groupe propulsion renommé")
+
+    def test_equipier_ne_peut_pas_modifier_une_installation(self):
+        # T-SEC : l'édition d'une fiche installation (même sans le champ parent_id)
+        # est réservée à CHEF_SECTION et au-dessus, y compris via la fiche détail.
+        self.client.login(username="equipier_i", password="pass")
+        r = self.client.post(f"/installations/{self.groupe.id}/", {
+            "action": "edit_installation",
+            "pk": str(self.groupe.id),
+            "designation": "Groupe propulsion renommé",
+            "ship_id": self.ship.id,
+            "service_id": self.service.id,
+            "sector_id": self.sector.id,
+        })
+        self.assertEqual(r.status_code, 403)
+        self.groupe.refresh_from_db()
+        self.assertEqual(self.groupe.designation, "Groupe propulsion")
+
+    def test_equipier_ne_peut_pas_supprimer_une_installation_depuis_la_fiche(self):
+        # T-SEC : la suppression via la fiche détail (InstallationDetailView.post)
+        # passait au travers de MAINTENANCE_WRITE_ACTIONS ; doit être bloquée.
+        self.client.login(username="equipier_i", password="pass")
+        r = self.client.post(f"/installations/{self.groupe.id}/", {
+            "action": "delete_installation",
+            "pk": str(self.groupe.id),
+        })
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(Installation.objects.filter(pk=self.groupe.id).exists())
 
     def test_filtre_perimetre_options_proposees_a_la_modification(self):
         self.client.login(username="chef_i", password="pass")
