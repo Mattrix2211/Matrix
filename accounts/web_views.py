@@ -3,9 +3,29 @@ from django.views.generic import ListView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from .forms import UserProfileForm
-from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog
+from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.permissions import ManageUsersPermission
+
+
+def _role_attribution_autorisee(acting_user, role_cible):
+    """Vérifie que l'utilisateur courant peut attribuer le rôle demandé à un tiers.
+
+    Réutilise la matrice ManageUsersPermission.MANAGE_MAP déjà définie côté API DRF
+    (matrix/core/permissions.py) pour que le web et l'API appliquent exactement la
+    même règle. Empêche par exemple un COMMANDANT de s'auto-attribuer (ou d'attribuer
+    à un tiers) le rôle ADMIN_NAVIRE ou MASTER_ADMIN.
+    """
+    if getattr(acting_user, "is_superuser", False):
+        return True
+    profile = getattr(acting_user, "profile", None)
+    acting_role = profile.role if profile else None
+    if acting_role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
+        return True
+    allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
+    return role_cible in allowed
 
 
 class UserDirectoryView(LoginRequiredMixin, ListView):
@@ -28,7 +48,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         return qs
 
     def get_context_data(self, **kwargs):
-        from accounts.models import Roles, RoleAvailability
+        from accounts.models import RoleAvailability
         from org.models import Ship, Service, Sector, Section
         ctx = super().get_context_data(**kwargs)
         # Roles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
@@ -100,6 +120,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         from django.shortcuts import redirect
         from org.models import Ship, Service, Sector, Section
         from django.utils.text import slugify
+        # Seuil minimum pour toute action d'écriture sur l'annuaire des comptes : la
+        # gestion des comptes utilisateurs (création, rôle, mot de passe, suppression,
+        # rattachement) relève du périmètre COMMANDANT et au-dessus. Corrige la faille
+        # permettant à n'importe quel utilisateur connecté (y compris un EQUIPIER) de
+        # s'auto-promouvoir ou d'agir sur les comptes d'autrui via un POST direct.
+        if user_role_level(request.user) < RoleLevel.COMMANDANT:
+            raise PermissionDenied
         action = request.POST.get("action")
         # Actions groupées
         if action in ("bulk_update_role", "bulk_update_ship", "bulk_update_fonction", "bulk_update_service", "bulk_update_sector", "bulk_update_section", "bulk_update_grade", "bulk_update_specialite", "bulk_delete_users", "bulk_reset_passwords"):
@@ -109,6 +136,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             count = users.count()
             if action == "bulk_update_role":
                 role = request.POST.get("role")
+                if not _role_attribution_autorisee(request.user, role):
+                    messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.role = role
@@ -225,6 +255,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             service_id = request.POST.get("service_id")
             sector_id = request.POST.get("sector_id")
             section_id = request.POST.get("section_id")
+            if role and not _role_attribution_autorisee(request.user, role):
+                messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
+                return redirect("user-directory")
             if role:
                 User = get_user_model()
                 # Identifiant = prenom.nom (slugifié), avec suffixe numérique si collision
@@ -286,6 +319,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             User.objects.filter(pk=pk).delete()
         elif action == "edit_user":
             pk = request.POST.get("pk")
+            role = request.POST.get("role")
+            if role and not _role_attribution_autorisee(request.user, role):
+                messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
+                return redirect("user-directory")
             User = get_user_model()
             try:
                 user = User.objects.get(pk=pk)
@@ -295,7 +332,6 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 user.last_name = request.POST.get("last_name", user.last_name).strip()
                 user.save()
                 profile, _ = UserProfile.objects.get_or_create(user=user)
-                role = request.POST.get("role")
                 if role:
                     profile.role = role
                 fonction_service = request.POST.get("fonction_service", "")
