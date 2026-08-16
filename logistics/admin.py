@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
+from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem, StockPiece
 from matrix.core.admin import AdminScopedMixin
 
 @admin.register(CorrectiveTicket)
@@ -20,3 +20,9 @@ class PartLineItemInline(admin.TabularInline):
 class PartRequestAdmin(admin.ModelAdmin):
     list_display = ("ticket", "requested_by", "needed_by_date", "status")
     inlines = [PartLineItemInline]
+
+@admin.register(StockPiece)
+class StockPieceAdmin(AdminScopedMixin, admin.ModelAdmin):
+    list_display = ("reference", "designation", "quantite", "quantite_minimale", "emplacement", "ship", "service", "sector", "section")
+    list_filter = ("ship", "service", "sector")
+    search_fields = ("reference", "designation", "emplacement")
