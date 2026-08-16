@@ -175,6 +175,14 @@ code, pre, kbd, .font-mono {
   --bs-btn-disabled-color: var(--ink);
 }
 
+/* Badge sémantique "état conforme" (ex. pièce de stock au-dessus de son seuil
+   minimal, T14) — même vert --green-tech que .badge.bg-success/.text-bg-success,
+   nom de classe dédié plutôt que la classe Bootstrap brute portant le nom anglais. */
+.badge-conforme {
+  background-color: var(--green-tech);
+  color: var(--ink);
+}
+
 /* Cards — accent bar (§7) */
 .card {
   background: var(--surface);

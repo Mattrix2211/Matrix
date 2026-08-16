@@ -29,6 +29,14 @@ class StockPieceListViewTests(TestCase):
             reference="REF-002", designation="Roulement", quantite=10, quantite_minimale=2,
             ship=self.navire, service=self.service, sector=self.autre_secteur,
         )
+        self.piece_conforme = StockPiece.objects.create(
+            reference="REF-006", designation="Écrou", quantite=20, quantite_minimale=5,
+            ship=self.navire, service=self.service, sector=self.secteur,
+        )
+        self.piece_critique = StockPiece.objects.create(
+            reference="REF-007", designation="Fusible", quantite=0, quantite_minimale=3,
+            ship=self.navire, service=self.service, sector=self.secteur,
+        )
 
         self.equipier = User.objects.create_user(username="equipier", password="pass")
         UserProfile.objects.filter(user=self.equipier).update(role="EQUIPIER", sector=self.secteur)
@@ -97,6 +105,17 @@ class StockPieceListViewTests(TestCase):
         }, follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(StockPiece.objects.filter(reference="REF-004").exists())
+
+    def test_badges_visuels_selon_le_niveau_de_stock(self):
+        # Pièce sous le seuil mais non nulle -> badge "bas" (--amber) ; pièce à zéro
+        # -> badge "critique" (--red) ; pièce au-dessus du seuil -> badge "conforme"
+        # (--green-tech, classe dédiée .badge-conforme du design system, T14).
+        self.client.login(username="equipier", password="pass")
+        response = self.client.get(self.url)
+        contenu = response.content.decode()
+        self.assertIn('badge text-bg-warning">Stock bas', contenu)
+        self.assertIn('badge text-bg-danger">Stock critique', contenu)
+        self.assertIn('badge badge-conforme">Conforme', contenu)
 
     def test_section_dun_autre_secteur_est_ignoree(self):
         # La section appartient à self.secteur ; on tente de créer avec autre_secteur,
