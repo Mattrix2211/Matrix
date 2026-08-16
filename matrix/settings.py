@@ -151,6 +151,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notifications.tasks.notify_overdue_occurrences",
         "schedule": 60 * 60,
     },
+    "notify_low_stock_daily": {
+        "task": "notifications.tasks.notify_low_stock",
+        "schedule": 60 * 60 * 24,
+    },
 }
 
 # Email
