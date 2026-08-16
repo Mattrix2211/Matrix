@@ -51,6 +51,40 @@ def _sous_ensembles_ids(equipement):
     return ids
 
 
+def _parent_candidats(model, sector_id, exclure_pks=()):
+    """Équipements (Installation ou Asset) du même secteur pouvant être choisis comme
+    parent : périmètre de référence utilisé à la fois pour construire les options du
+    formulaire (GET) et pour revalider côté serveur le parent_id reçu en POST — empêche
+    un rattachement hors périmètre même si le champ est posté directement, en dehors du
+    menu déroulant (faille corrigée après refus du Tech Lead sur la T3)."""
+    return model.objects.filter(sector_id=sector_id).exclude(pk__in=exclure_pks)
+
+
+def _resoudre_parent_valide(request, objet, model):
+    """Lit parent_id dans les données POST, vérifie le rôle requis (CHEF_SERVICE et
+    au-dessus), puis revalide côté serveur que le parent appartient bien au même
+    secteur que l'objet, avec la même logique de filtrage que celle utilisée pour
+    construire les options du menu déroulant (_parent_candidats). N'exclut ici que
+    l'objet lui-même (pas ses sous-ensembles) : la protection anti-cycle reste du
+    ressort de full_clean() juste après, avec son propre message d'erreur français.
+    Assigne objet.parent si tout est valide et renvoie None ; renvoie un message
+    d'erreur français sans rien assigner si le parent_id posté est hors périmètre (ne
+    fait pas confiance au menu HTML/JS, qui peut être contourné par un POST direct)."""
+    parent_id = request.POST.get('parent_id')
+    if parent_id is None:
+        return None
+    if not _peut_gerer_rattachement_parent(request.user):
+        raise PermissionDenied
+    if not parent_id:
+        objet.parent = None
+        return None
+    parent = _parent_candidats(model, objet.sector_id, {objet.pk}).filter(pk=parent_id).first()
+    if parent is None:
+        return "Rattachement invalide : l'équipement sélectionné ne fait pas partie du même secteur."
+    objet.parent = parent
+    return None
+
+
 def _afficher_erreur_validation(request, erreur):
     """Affiche en français le message d'une ValidationError levée par full_clean()
     (notamment la protection anti-cycle sur le rattachement parent), plutôt que de
@@ -357,11 +391,10 @@ class AssetListView(LoginRequiredMixin, ListView):
                     asset.section = Section.objects.filter(pk=section_id).first()
                 if location_id:
                     asset.location = Location.objects.filter(pk=location_id).first()
-                parent_id = request.POST.get('parent_id')
-                if parent_id is not None:
-                    if not _peut_gerer_rattachement_parent(request.user):
-                        raise PermissionDenied
-                    asset.parent = Asset.objects.filter(pk=parent_id).exclude(pk=asset.pk).first() if parent_id else None
+                erreur_parent = _resoudre_parent_valide(request, asset, Asset)
+                if erreur_parent:
+                    messages.error(request, erreur_parent)
+                    return redirect('asset-list')
                 try:
                     asset.full_clean()
                 except ValidationError as exc:
@@ -413,11 +446,10 @@ class AssetListView(LoginRequiredMixin, ListView):
                 asset.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
                 asset.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
                 asset.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
-                parent_id = request.POST.get('parent_id')
-                if parent_id is not None:
-                    if not _peut_gerer_rattachement_parent(request.user):
-                        raise PermissionDenied
-                    asset.parent = Asset.objects.filter(pk=parent_id).exclude(pk=asset.pk).first() if parent_id else None
+                erreur_parent = _resoudre_parent_valide(request, asset, Asset)
+                if erreur_parent:
+                    messages.error(request, erreur_parent)
+                    return redirect('asset-list')
                 try:
                     asset.full_clean()
                 except ValidationError as exc:
@@ -662,11 +694,10 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first()
             if iso_period in ('M','T','A'):
                 it.iso_periodicity = iso_period
-            parent_id = request.POST.get('parent_id')
-            if parent_id is not None:
-                if not _peut_gerer_rattachement_parent(request.user):
-                    raise PermissionDenied
-                it.parent = Installation.objects.filter(pk=parent_id).exclude(pk=it.pk).first() if parent_id else None
+            erreur_parent = _resoudre_parent_valide(request, it, Installation)
+            if erreur_parent:
+                messages.error(request, erreur_parent)
+                return redirect('installation-list')
             try:
                 it.full_clean()
             except ValidationError as exc:
@@ -775,9 +806,7 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
         if ctx['peut_gerer_parent']:
             exclus = _sous_ensembles_ids(self.object) | {self.object.pk}
             ctx['installations_pour_parent'] = (
-                Installation.objects
-                .filter(sector_id=self.object.sector_id)
-                .exclude(pk__in=exclus)
+                _parent_candidats(Installation, self.object.sector_id, exclus)
                 .order_by('designation')
             )
         else:
@@ -961,11 +990,10 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
                 iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
                 if iso_period in ('M','T','A'):
                     it.iso_periodicity = iso_period
-                parent_id = request.POST.get('parent_id')
-                if parent_id is not None:
-                    if not _peut_gerer_rattachement_parent(request.user):
-                        raise PermissionDenied
-                    it.parent = Installation.objects.filter(pk=parent_id).exclude(pk=it.pk).first() if parent_id else None
+                erreur_parent = _resoudre_parent_valide(request, it, Installation)
+                if erreur_parent:
+                    messages.error(request, erreur_parent)
+                    return redirect(f"/installations/{pk}/{qs}")
                 try:
                     it.full_clean()
                 except ValidationError as exc:

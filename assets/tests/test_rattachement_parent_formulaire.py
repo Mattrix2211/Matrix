@@ -124,6 +124,44 @@ class InstallationRattachementParentFormulaireTests(TestCase):
         r = self.client.get("/installations/")
         self.assertFalse(r.context["peut_gerer_parent"])
 
+    def test_refus_si_parent_hors_secteur_a_la_creation(self):
+        # Un CHEF_SERVICE légitime tente de POSTer directement un parent_id d'un autre
+        # secteur, en contournant le menu déroulant filtré côté client : le serveur doit
+        # revalider le périmètre et refuser, sans créer l'installation.
+        self.client.login(username="chef_i", password="pass")
+        r = self.client.post("/installations/", {
+            "action": "create_installation",
+            "designation": "Pompe intruse",
+            "ship_id": self.ship.id,
+            "service_id": self.service.id,
+            "sector_id": self.sector.id,
+            "parent_id": str(self.hors_secteur.id),
+        }, follow=True)
+        self.assertFalse(Installation.objects.filter(designation="Pompe intruse").exists())
+        messages_affiches = [str(m) for m in r.context["messages"]]
+        self.assertTrue(any("secteur" in m for m in messages_affiches))
+
+    def test_refus_si_parent_hors_secteur_a_la_modification(self):
+        # Idem à la modification : le POST direct d'un parent_id hors secteur ne doit
+        # pas être accepté, même si le menu déroulant ne le proposait pas.
+        turbo = Installation.objects.create(
+            designation="Turbo", ship=self.ship, service=self.service, sector=self.sector,
+        )
+        self.client.login(username="chef_i", password="pass")
+        r = self.client.post(f"/installations/{turbo.id}/", {
+            "action": "edit_installation",
+            "pk": str(turbo.id),
+            "designation": turbo.designation,
+            "ship_id": self.ship.id,
+            "service_id": self.service.id,
+            "sector_id": self.sector.id,
+            "parent_id": str(self.hors_secteur.id),
+        }, follow=True)
+        turbo.refresh_from_db()
+        self.assertIsNone(turbo.parent)
+        messages_affiches = [str(m) for m in r.context["messages"]]
+        self.assertTrue(any("secteur" in m for m in messages_affiches))
+
 
 class AssetRattachementParentFormulaireTests(TestCase):
     """T3 : formulaire de rattachement parent (création + modification) sur
@@ -133,7 +171,9 @@ class AssetRattachementParentFormulaireTests(TestCase):
         self.ship = Ship.objects.create(name="S1")
         self.service = Service.objects.create(name="Srv", ship=self.ship)
         self.sector = Sector.objects.create(name="Sec", service=self.service)
+        self.autre_secteur = Sector.objects.create(name="AutreSec", service=self.service)
         self.asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
+        self.asset_type_autre_secteur = AssetType.objects.create(name="Extincteur", category="Sécurité", sector=self.autre_secteur)
 
         self.chef = User.objects.create_user(username="chef_a", password="pass")
         self.equipier = User.objects.create_user(username="equipier_a", password="pass")
@@ -143,6 +183,10 @@ class AssetRattachementParentFormulaireTests(TestCase):
         self.caisse = Asset.objects.create(
             asset_type=self.asset_type, designation="Caisse à outils",
             ship=self.ship, service=self.service, sector=self.sector,
+        )
+        self.hors_secteur = Asset.objects.create(
+            asset_type=self.asset_type_autre_secteur, designation="Hors secteur",
+            ship=self.ship, service=self.service, sector=self.autre_secteur,
         )
 
     def test_creation_avec_parent_par_chef_service(self):
@@ -230,3 +274,43 @@ class AssetRattachementParentFormulaireTests(TestCase):
         self.client.login(username="chef_a", password="pass")
         r = self.client.get("/assets/")
         self.assertContains(r, f'data-sector="{self.sector.id}"')
+
+    def test_refus_si_parent_hors_secteur_a_la_creation(self):
+        # Un CHEF_SERVICE légitime tente de POSTer directement un parent_id d'un autre
+        # secteur, en contournant le menu déroulant filtré côté client (data-sector) :
+        # le serveur doit revalider le périmètre et refuser, sans créer le matériel.
+        self.client.login(username="chef_a", password="pass")
+        r = self.client.post("/assets/", {
+            "action": "create_asset",
+            "asset_type_id": self.asset_type.id,
+            "designation": "Multimètre intrus",
+            "ship_id": self.ship.id,
+            "service_id": self.service.id,
+            "sector_id": self.sector.id,
+            "parent_id": str(self.hors_secteur.id),
+        }, follow=True)
+        self.assertFalse(Asset.objects.filter(designation="Multimètre intrus").exists())
+        messages_affiches = [str(m) for m in r.context["messages"]]
+        self.assertTrue(any("secteur" in m for m in messages_affiches))
+
+    def test_refus_si_parent_hors_secteur_a_la_modification(self):
+        # Idem à la modification : le POST direct d'un parent_id hors secteur ne doit
+        # pas être accepté, même si le menu déroulant ne le proposait pas.
+        outil = Asset.objects.create(
+            asset_type=self.asset_type, designation="Multimètre n°5",
+            ship=self.ship, service=self.service, sector=self.sector,
+        )
+        self.client.login(username="chef_a", password="pass")
+        r = self.client.post("/assets/", {
+            "action": "edit_asset",
+            "pk": str(outil.id),
+            "designation": outil.designation,
+            "ship_id": self.ship.id,
+            "service_id": self.service.id,
+            "sector_id": self.sector.id,
+            "parent_id": str(self.hors_secteur.id),
+        }, follow=True)
+        outil.refresh_from_db()
+        self.assertIsNone(outil.parent)
+        messages_affiches = [str(m) for m in r.context["messages"]]
+        self.assertTrue(any("secteur" in m for m in messages_affiches))
