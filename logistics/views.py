@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, decorators, response
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from django.contrib.contenttypes.models import ContentType
 from threads.models import Thread, Message
 from matrix.core.permissions import RolePermission
@@ -13,6 +13,11 @@ class CorrectiveTicketViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = CorrectiveTicket.objects.select_related("asset").all()
     serializer_class = CorrectiveTicketSerializer
     permission_classes = [RolePermission]
+
+    def get_scoped_filters(self):
+        # Un ticket correctif porte sur un matériel mobile (asset), qui
+        # porte lui-même les 4 champs de périmètre.
+        return build_scope_q(self.request.user, "asset__")
 
     @decorators.action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
@@ -34,7 +39,17 @@ class PartRequestViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     serializer_class = PartRequestSerializer
     permission_classes = [RolePermission]
 
+    def get_scoped_filters(self):
+        # Une demande de pièces porte sur un ticket, lui-même rattaché à un
+        # matériel mobile (asset).
+        return build_scope_q(self.request.user, "ticket__asset__")
+
 class PartLineItemViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = PartLineItem.objects.select_related("part_request").all()
     serializer_class = PartLineItemSerializer
     permission_classes = [RolePermission]
+
+    def get_scoped_filters(self):
+        # Une ligne de pièce porte sur une demande, elle-même rattachée à
+        # un ticket, lui-même rattaché à un matériel mobile (asset).
+        return build_scope_q(self.request.user, "part_request__ticket__asset__")
