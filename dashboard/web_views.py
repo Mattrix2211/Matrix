@@ -1,0 +1,73 @@
+"""Vue web de la page d'accueil — tableau de bord + espace personnel du marin.
+
+Principe fondamental n°3 (CLAUDE.md) : chaque marin voit SES tâches, SES
+formations, SES maintenances assignées, dès la connexion, sans avoir à
+chercher. Cette vue construit le contexte de l'accueil pour ça, en plus
+des graphiques Chart.js déjà en place (T5) et du bouton "Générer le bilan"
+(T10), qui restent inchangés.
+"""
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils import timezone
+from django.views.generic import TemplateView
+
+from maintenance.models import MaintenanceOccurrence
+from training.models import TrainingSession
+
+# Occurrences considérées comme terminées : on ne les affiche pas dans "Mes
+# maintenances", seules celles qui restent à faire intéressent le marin.
+_STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
+
+# Classe de badge Bootstrap par statut d'occurrence — surchargée par
+# matrix.css pour respecter la palette du design system (--red, --amber...).
+_BADGE_STATUT_MAINTENANCE = {
+    "OVERDUE": "bg-danger",
+    "WAITING_VALIDATION": "bg-warning",
+}
+
+
+def _titre_occurrence(occurrence):
+    """Libellé lisible d'une occurrence de maintenance, qu'elle concerne du
+    matériel mobile (plan + asset) ou une installation fixe
+    (installation_maintenance) — même logique que calendar_app.views."""
+    if occurrence.installation_maintenance_id:
+        return (
+            f"{occurrence.installation_maintenance.installation} - "
+            f"{occurrence.installation_maintenance.title}"
+        )
+    return str(occurrence.asset)
+
+
+class TableauDeBordView(LoginRequiredMixin, TemplateView):
+    """Page d'accueil : graphiques du service + espace personnel du marin connecté."""
+
+    template_name = "dashboard/index.html"
+
+    def get_context_data(self, **kwargs):
+        contexte = super().get_context_data(**kwargs)
+
+        mes_maintenances = list(
+            MaintenanceOccurrence.objects.select_related(
+                "asset",
+                "installation_maintenance",
+                "installation_maintenance__installation",
+            )
+            .filter(assignees=self.request.user)
+            .exclude(status__in=_STATUTS_MAINTENANCE_TERMINES)
+            .order_by("scheduled_for")
+        )
+        for occurrence in mes_maintenances:
+            occurrence.titre_affiche = _titre_occurrence(occurrence)
+            occurrence.badge_classe = _BADGE_STATUT_MAINTENANCE.get(
+                occurrence.status, "bg-secondary"
+            )
+
+        mes_formations = list(
+            TrainingSession.objects.select_related("course")
+            .filter(attendees=self.request.user, status="PLANNED")
+            .order_by("scheduled_at")
+        )
+
+        contexte["mes_maintenances"] = mes_maintenances
+        contexte["mes_formations"] = mes_formations
+        contexte["aujourdhui"] = timezone.localdate()
+        return contexte

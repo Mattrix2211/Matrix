@@ -1,12 +1,11 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import TemplateView
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import views as auth_views
 from .views import logout_then_login, SettingsView
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import global_search
+from dashboard.web_views import TableauDeBordView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -31,7 +30,7 @@ urlpatterns = [
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),
     path("search/", global_search, name="global-search"),
-    path("", login_required(TemplateView.as_view(template_name="dashboard/index.html")), name="home"),
+    path("", TableauDeBordView.as_view(), name="home"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.site_header = "Matrix Administration"

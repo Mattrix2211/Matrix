@@ -2,6 +2,59 @@
 {% load reports_extras %}
 {% block content %}
 <h1 class="h3 mb-3">Tableau de bord</h1>
+
+<h2 class="h5 mb-3">Mon espace personnel</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Mes maintenances assignées</div>
+      <div class="card-body">
+        {% if mes_maintenances %}
+        <ul class="list-group list-group-flush">
+          {% for occurrence in mes_maintenances %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <a href="{% url 'occurrence-execute' occurrence.pk %}" class="fw-semibold text-decoration-none">
+                {{ occurrence.titre_affiche }}
+              </a>
+              <div class="small text-muted font-mono">Prévue le {{ occurrence.scheduled_for|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge {{ occurrence.badge_classe }} align-self-center">{{ occurrence.get_status_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune maintenance ne vous est actuellement assignée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Mes formations</div>
+      <div class="card-body">
+        {% if mes_formations %}
+        <ul class="list-group list-group-flush">
+          {% for session in mes_formations %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <a href="{% url 'calendar-index' %}?view=day&date={{ session.scheduled_at|date:'Y-m-d' }}" class="fw-semibold text-decoration-none">
+                {{ session.course.title }}
+              </a>
+              <div class="small text-muted font-mono">Le {{ session.scheduled_at|date:"d/m/Y à H:i" }}</div>
+            </div>
+            <span class="badge bg-secondary align-self-center">{{ session.get_status_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune formation ne vous est actuellement programmée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card">
