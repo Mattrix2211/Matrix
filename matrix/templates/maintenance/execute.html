@@ -1,7 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1 class="h4">Exécuter l'occurrence #{{ occ.id }}</h1>
-<div class="mb-2 text-muted">Actif: {{ occ.asset }} | Plan: {{ occ.plan }}</div>
+{% if occ.installation_maintenance %}
+  <div class="mb-2 text-muted">Installation: {{ occ.installation_maintenance.installation }} | Entretien: {{ occ.installation_maintenance.title }}</div>
+{% else %}
+  <div class="mb-2 text-muted">Actif: {{ occ.asset }} | Plan: {{ occ.plan }}</div>
+{% endif %}
 
 <form method="post" enctype="multipart/form-data" hx-post="" hx-target="#exec-result" hx-swap="innerHTML">
   {% csrf_token %}
@@ -13,9 +17,9 @@
           {% if it.field_type == 'checkbox' %}
             <input class="form-check-input ms-1" type="checkbox" name="item_{{ it.id }}">
           {% elif it.field_type == 'number' %}
-            <input class="form-control" type="number" step="any" name="item_{{ it.id }}">
+            <input class="form-control font-mono" type="number" step="any" name="item_{{ it.id }}">
           {% elif it.field_type == 'date' %}
-            <input class="form-control" type="date" name="item_{{ it.id }}">
+            <input class="form-control font-mono" type="date" name="item_{{ it.id }}">
           {% else %}
             <input class="form-control" type="text" name="item_{{ it.id }}">
           {% endif %}
@@ -23,7 +27,7 @@
       {% endfor %}
     </div></div>
   {% else %}
-    <div class="alert alert-info">Aucun item de checklist pour ce plan.</div>
+    <div class="alert alert-info">Aucun item de checklist pour cette maintenance.</div>
   {% endif %}
 
   <div class="row g-3">

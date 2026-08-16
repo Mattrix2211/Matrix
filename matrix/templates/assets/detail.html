@@ -12,6 +12,8 @@
   <div><strong>Emplacement:</strong> {{ object.location }}</div>
   <div><span class="badge bg-info">{{ object.status }}</span> <span class="badge bg-secondary">Criticité {{ object.criticality }}</span></div>
   <div class="text-muted">ID interne: {{ object.internal_id }} | Série: {{ object.serial_number }}</div>
+  <div><strong>Rattaché à:</strong> {% if object.parent %}<a href="/assets/{{ object.parent.id }}/">{{ object.parent }}</a>{% else %}—{% endif %}</div>
+  <div><strong>Sous-ensembles:</strong> {% for c in object.sous_ensembles.all %}<a href="/assets/{{ c.id }}/">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</div>
 </div>
 
 <div id="actions">

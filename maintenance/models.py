@@ -1,10 +1,11 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from django.db.models import JSONField
+from django.db.models import JSONField, Q
 from matrix.core.models import TimeStampedModel, OwnedModel
-from assets.models import Asset, ChecklistTemplate
+from assets.models import Asset, ChecklistTemplate, InstallationMaintenance
 from assets.models import AssetType
+from assets.models import InstallationHourReading, ModeDeclenchement
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from logistics.models import CorrectiveTicket, TicketStatusLog
@@ -36,12 +37,28 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
         ("OVERDUE", "En retard"),
         ("CANCELLED", "Annulée"),
     )
-    plan = models.ForeignKey(MaintenancePlan, on_delete=models.CASCADE, related_name="occurrences")
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="occurrences")
+    # Occurrence liée à du matériel mobile : plan + asset renseignés ensemble.
+    plan = models.ForeignKey(MaintenancePlan, null=True, blank=True, on_delete=models.CASCADE, related_name="occurrences")
+    asset = models.ForeignKey(Asset, null=True, blank=True, on_delete=models.CASCADE, related_name="occurrences")
+    # Occurrence liée à une installation fixe : installation_maintenance seul renseigné.
+    installation_maintenance = models.ForeignKey(
+        InstallationMaintenance, null=True, blank=True, on_delete=models.CASCADE, related_name="occurrences"
+    )
     scheduled_for = models.DateField()
     status = models.CharField(max_length=24, choices=STATUS, default="PLANNED")
     priority = models.PositiveSmallIntegerField(default=3)
     assignees = models.ManyToManyField(User, blank=True, related_name="assigned_occurrences")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name="occurrence_liee_a_asset_xor_installation",
+                condition=(
+                    (Q(plan__isnull=False) & Q(asset__isnull=False) & Q(installation_maintenance__isnull=True))
+                    | (Q(plan__isnull=True) & Q(asset__isnull=True) & Q(installation_maintenance__isnull=False))
+                ),
+            ),
+        ]
 
 class OccurrenceStatusLog(TimeStampedModel):
     occurrence = models.ForeignKey(MaintenanceOccurrence, on_delete=models.CASCADE, related_name="status_logs")
@@ -66,11 +83,44 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     notes = models.TextField(blank=True, default="")
 
 
+def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
+    """Remet à jour l'échéance de la maintenance d'installation liée, une fois
+    l'exécution validée (occurrence passée en statut DONE).
+
+    - Branche compteur (COMPTEUR / LES_DEUX) : la référence 'derniere_echeance_heures'
+      est alignée sur le dernier relevé d'heures de marche connu, ce qui repousse le
+      prochain déclenchement du seuil configuré.
+    - Branche calendaire (CALENDRIER / LES_DEUX) : aucune mise à jour de modèle n'est
+      nécessaire ici — generate_installation_occurrences relit directement la date de
+      cette MaintenanceExecution comme référence pour calculer la prochaine échéance.
+    """
+    maintenance = occ.installation_maintenance
+    if maintenance is None:
+        return
+    if maintenance.mode_declenchement in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX):
+        dernier_releve = (
+            InstallationHourReading.objects.filter(installation=maintenance.installation)
+            .order_by("-date")
+            .first()
+        )
+        if dernier_releve is not None:
+            maintenance.derniere_echeance_heures = dernier_releve.hours
+            InstallationMaintenance.objects.filter(pk=maintenance.pk).update(
+                derniere_echeance_heures=dernier_releve.hours
+            )
+
+
 @receiver(post_save, sender=MaintenanceExecution)
 def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", created, **kwargs):
     if instance.conformity == "NON_CONFORME":
         occ = instance.occurrence
         asset = occ.asset
+        # CorrectiveTicket ne concerne aujourd'hui que le matériel mobile (FK asset
+        # non-nullable) : aucun équivalent n'existe côté installation fixe. Une
+        # occurrence d'installation (occ.asset is None) ne doit donc pas déclencher
+        # de ticket correctif tant que ce concept n'existe pas pour les installations.
+        if asset is None:
+            return
         ticket, created_ticket = CorrectiveTicket.objects.get_or_create(
             asset=asset,
             description=f"Anomalie détectée sur maintenance {occ.id}",

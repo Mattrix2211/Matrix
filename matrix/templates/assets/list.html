@@ -103,7 +103,7 @@
                           <button class="btn btn-outline-secondary btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#editAssetModal"
                             data-pk="{{ a.id }}" data-type-id="{{ a.asset_type.id }}" data-designation="{{ a.designation }}" data-nno="{{ a.nno }}" data-reference="{{ a.reference }}" data-marque="{{ a.marque }}" data-gisement="{{ a.gisement }}" data-local="{{ a.local }}"
                       data-internal-id="{{ a.internal_id }}" data-serial-number="{{ a.serial_number }}"
-                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}">✏️</button>
+                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}">✏️</button>
               <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="delete_asset" data-pk="{{ a.id }}" data-label="Supprimer le matériel {{ a.designation|default:a.serial_number }}">🗑️</button>
             </div>
           </div>
@@ -146,6 +146,17 @@
             <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}</select></div>
             <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+            {% if peut_gerer_parent %}
+            <div class="col-md-6">
+              <label class="form-label">Rattaché à (facultatif)</label>
+              <select class="form-select" name="parent_id" id="createParentAsset">
+                <option value="">— Aucun —</option>
+                {% for p in assets_pour_parent %}
+                  <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation|default:p.asset_type.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
@@ -181,6 +192,17 @@
             <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div>
             <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+            {% if peut_gerer_parent %}
+            <div class="col-md-6">
+              <label class="form-label">Rattaché à (facultatif)</label>
+              <select class="form-select" name="parent_id" id="editParentAsset">
+                <option value="">— Aucun —</option>
+                {% for p in assets_pour_parent %}
+                  <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation|default:p.asset_type.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
             <div class="col-12"><label class="form-label">Ajouter des documents</label><input type="file" class="form-control" name="documents" multiple /></div>
             <div class="col-12">
               <label class="form-label">Documents existants</label>
@@ -246,7 +268,19 @@
       document.getElementById('editMarque').value = b.getAttribute('data-marque')||'';
       document.getElementById('editGisement').value = b.getAttribute('data-gisement')||'';
       var locVal = b.getAttribute('data-local')||''; var editLocal = document.getElementById('editLocal'); if (editLocal) editLocal.value = locVal;
-      document.getElementById('editInternalId').value = b.getAttribute('data-internal-id')||''; document.getElementById('editSerialNumber').value = b.getAttribute('data-serial-number')||''; setSel('editStatus', b.getAttribute('data-status')||''); document.getElementById('editCriticality').value = b.getAttribute('data-criticality')||''; setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||''); }); }
+      document.getElementById('editInternalId').value = b.getAttribute('data-internal-id')||''; document.getElementById('editSerialNumber').value = b.getAttribute('data-serial-number')||''; setSel('editStatus', b.getAttribute('data-status')||''); document.getElementById('editCriticality').value = b.getAttribute('data-criticality')||''; setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||'');
+      // Rattachement parent (T3) : ne propose que les matériels du même secteur, en excluant le matériel lui-même.
+      var parentSel = document.getElementById('editParentAsset');
+      if (parentSel) {
+        var sectorId = b.getAttribute('data-sector-id')||'';
+        Array.from(parentSel.options).forEach(function(opt){
+          if (!opt.value) { opt.hidden = false; return; }
+          opt.hidden = (opt.getAttribute('data-sector') !== sectorId) || (opt.value === pk);
+        });
+        if (parentSel.selectedOptions.length && parentSel.selectedOptions[0].hidden) { parentSel.selectedIndex = 0; }
+        setSel('editParentAsset', b.getAttribute('data-parent-id')||'');
+      }
+    }); }
     // Injecter la liste des documents existants dans la modale d'édition
     if (editModal) { editModal.addEventListener('show.bs.modal', function(event){ var b = event.relatedTarget; var pk = b.getAttribute('data-pk'); var placeholder = document.getElementById('editAssetDocsList'); var hidden = document.getElementById('asset-docs-'+pk); if (placeholder) { placeholder.innerHTML = hidden ? hidden.innerHTML : '<span class="text-muted">Aucun document</span>'; } }); }
     // Cascades (créer matériel): ship -> service -> sector -> section
@@ -255,10 +289,11 @@
       var serviceSel = document.getElementById('createService');
       var sectorSel = document.getElementById('createSector');
       var sectionSel = document.getElementById('createSection');
+      var parentSel = document.getElementById('createParentAsset');
       function filterOptions(select, dataAttr, match){ if(!select) return; var val = match || ''; Array.from(select.options).forEach(function(opt){ if(!opt.value){ opt.hidden=false; return; } var dv = opt.getAttribute(dataAttr); opt.hidden = !val || (dv !== val); }); if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; } }
-      function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); }
-      function onService(){ filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : ''); filterOptions(sectionSel, 'data-sector', ''); }
-      function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); }
+      function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
+      function onService(){ filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
+      function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); }
       if (shipSel) shipSel.addEventListener('change', onShip);
       if (serviceSel) serviceSel.addEventListener('change', onService);
       if (sectorSel) sectorSel.addEventListener('change', onSector);

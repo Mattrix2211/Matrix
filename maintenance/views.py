@@ -1,6 +1,12 @@
 from rest_framework import viewsets, permissions, decorators, response, status
 from django.utils import timezone
-from .models import MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, OccurrenceStatusLog
+from .models import (
+    MaintenancePlan,
+    MaintenanceOccurrence,
+    MaintenanceExecution,
+    OccurrenceStatusLog,
+    mettre_a_jour_echeance_installation,
+)
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
 from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.permissions import RolePermission
@@ -15,7 +21,7 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     permission_classes = [RolePermission]
 
 class MaintenanceOccurrenceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
-    queryset = MaintenanceOccurrence.objects.select_related("plan", "asset").all()
+    queryset = MaintenanceOccurrence.objects.select_related("plan", "asset", "installation_maintenance").all()
     serializer_class = MaintenanceOccurrenceSerializer
     permission_classes = [RolePermission]
     min_role_level_write = RoleLevel.EQUIPIER
@@ -43,6 +49,8 @@ class MaintenanceOccurrenceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         exec.save()
         occ.status = "DONE" if exec.conformity != "NON_CONFORME" else "WAITING_VALIDATION"
         occ.save(update_fields=["status"])
+        if occ.status == "DONE":
+            mettre_a_jour_echeance_installation(occ)
         return response.Response(MaintenanceExecutionSerializer(exec).data)
 
 class MaintenanceExecutionViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):

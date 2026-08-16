@@ -29,6 +29,7 @@ urlpatterns = [
     path("maintenance/", include("maintenance.web_urls")),
     path("logistics/", include("logistics.web_urls")),
     path("", include("assets.web_urls")),
+    path("", include("reports.web_urls")),
     path("search/", global_search, name="global-search"),
     path("", login_required(TemplateView.as_view(template_name="dashboard/index.html")), name="home"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "notifications.apps.NotificationsConfig",
     "dashboard.apps.DashboardConfig",
     "calendar_app.apps.CalendarAppConfig",
+    "reports.apps.ReportsConfig",
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -149,6 +150,10 @@ CELERY_BEAT_SCHEDULE = {
     "notify_overdue_occurrences_hourly": {
         "task": "notifications.tasks.notify_overdue_occurrences",
         "schedule": 60 * 60,
+    },
+    "notify_low_stock_daily": {
+        "task": "notifications.tasks.notify_low_stock",
+        "schedule": 60 * 60 * 24,
     },
 }
 

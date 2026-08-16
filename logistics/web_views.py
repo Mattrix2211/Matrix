@@ -1,11 +1,16 @@
 from django.views import View
+from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.utils import timezone
-from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog
+from django.db.models import Q
+from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.mixins import ScopedQuerySetMixin
+from org.models import Sector, Section
 
 
 class TicketDetailView(LoginRequiredMixin, View):
@@ -93,3 +98,84 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
             part_requests = line.part_request.ticket.part_requests.prefetch_related('lines').all()
             return render(request, 'logistics/_part_requests.html', {"ticket": line.part_request.ticket, "part_requests": part_requests})
         return redirect('ticket-detail', pk=line.part_request.ticket.pk)
+
+
+class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
+    """Liste et gestion du stock de pièces (T14), scopée sur le périmètre de l'utilisateur.
+
+    Lecture ouverte à tout utilisateur connecté, restreinte à son périmètre via
+    scope_filters_for_user (T12) — pas de nouveau système de scope. Création et
+    modification réservées à CHEF_SECTION et au-dessus, même seuil que les autres
+    actions d'écriture de ce module (transitions de ticket, demandes de pièces).
+    """
+    model = StockPiece
+    template_name = 'logistics/stock_list.html'
+    context_object_name = 'pieces'
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section')
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(
+                Q(reference__icontains=q) | Q(designation__icontains=q) | Q(emplacement__icontains=q)
+            )
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['peut_gerer'] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
+        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('service__ship__name', 'service__name', 'name')
+        ctx['sections'] = Section.objects.select_related('sector').order_by('sector__name', 'name')
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
+        action = request.POST.get('action')
+        if action not in ('create_piece', 'edit_piece'):
+            return HttpResponseBadRequest('Action inconnue')
+
+        reference = request.POST.get('reference', '').strip()
+        designation = request.POST.get('designation', '').strip()
+        if not reference or not designation:
+            messages.error(request, "La référence et la désignation sont obligatoires.")
+            return redirect('stock-piece-list')
+
+        sector = Sector.objects.select_related('service', 'service__ship').filter(pk=request.POST.get('sector_id')).first()
+        if not sector:
+            messages.error(request, "Le secteur est obligatoire.")
+            return redirect('stock-piece-list')
+        # La section doit appartenir au secteur choisi, sinon on l'ignore plutôt que
+        # de créer une hiérarchie incohérente (Section -> Sector -> Service -> Ship).
+        section = Section.objects.filter(pk=request.POST.get('section_id'), sector=sector).first()
+
+        try:
+            quantite = int(request.POST.get('quantite') or 0)
+            quantite_minimale = int(request.POST.get('quantite_minimale') or 0)
+        except ValueError:
+            messages.error(request, "Les quantités doivent être des nombres entiers.")
+            return redirect('stock-piece-list')
+
+        champs = {
+            "reference": reference,
+            "designation": designation,
+            "quantite": max(quantite, 0),
+            "quantite_minimale": max(quantite_minimale, 0),
+            "emplacement": request.POST.get('emplacement', '').strip(),
+            "ship": sector.service.ship,
+            "service": sector.service,
+            "sector": sector,
+            "section": section,
+        }
+
+        if action == 'create_piece':
+            StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+            messages.info(request, "Pièce ajoutée au stock.")
+        else:
+            pk = request.POST.get('pk')
+            if not StockPiece.objects.filter(pk=pk).exists():
+                messages.error(request, "Pièce introuvable.")
+                return redirect('stock-piece-list')
+            StockPiece.objects.filter(pk=pk).update(updated_by=request.user, **champs)
+            messages.info(request, "Pièce mise à jour.")
+        return redirect('stock-piece-list')

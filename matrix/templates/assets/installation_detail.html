@@ -16,7 +16,7 @@
   </div>
   </div>
 
-<div class="card shadow-sm">
+<div class="card">
   {% if object.photo %}
     <img src="{{ object.photo.url }}" class="card-img-top" alt="{{ object.designation }}" style="object-fit:cover;height:240px;" />
   {% endif %}
@@ -55,7 +55,7 @@
               <h6 class="mb-3">Informations</h6>
               <dl class="row mb-0">
                 <dt class="col-5">Désignation</dt><dd class="col-7">{{ object.designation }}</dd>
-                <dt class="col-5">Référence</dt><dd class="col-7">{{ object.reference|default:"—" }}</dd>
+                <dt class="col-5">Référence</dt><dd class="col-7 font-mono">{{ object.reference|default:"—" }}</dd>
                 <dt class="col-5">Marque</dt><dd class="col-7">{{ object.marque|default:"—" }}</dd>
                 <dt class="col-5">Navire</dt><dd class="col-7">{% if object.ship %}{{ object.ship.name }}{% else %}—{% endif %}</dd>
                 <dt class="col-5">Service</dt><dd class="col-7">{% if object.service %}{{ object.service.name }}{% else %}—{% endif %}</dd>
@@ -63,6 +63,8 @@
                 <dt class="col-5">Section</dt><dd class="col-7">{% if object.section %}{{ object.section.name }}{% else %}—{% endif %}</dd>
                 <dt class="col-5">Local</dt><dd class="col-7">{{ object.local|default:"—" }}</dd>
                 <dt class="col-5">Gisement</dt><dd class="col-7">{{ object.gisement|default:"—" }}</dd>
+                <dt class="col-5">Rattaché à</dt><dd class="col-7">{% if object.parent %}<a href="/installations/{{ object.parent.id }}/">{{ object.parent.designation }}</a>{% else %}—{% endif %}</dd>
+                <dt class="col-5">Sous-ensembles</dt><dd class="col-7">{% for c in object.sous_ensembles.all %}<a href="/installations/{{ c.id }}/">{{ c.designation }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
               </dl>
             </div>
           </div>
@@ -138,7 +140,7 @@
             </h6>
             <small class="text-muted">
               {% if vibration_next_date %}
-                Prochaine mesure: <strong>{{ vibration_next_date|date:"d/m/Y" }}</strong>
+                Prochaine mesure: <strong class="font-mono">{{ vibration_next_date|date:"d/m/Y" }}</strong>
                 {% if vibration_next_days is not None %} (dans {{ vibration_next_days }} j){% endif %}
                 {% if vibration_next_days is not None %}
                   {% if vibration_next_days <= 0 %}
@@ -165,7 +167,7 @@
                   data-state="{{ v.state }}"
                   data-note="{{ v.note|default:'' }}"
                   data-user="{% if v.created_by %}{{ v.created_by.get_full_name|default:v.created_by.username }}{% else %}—{% endif %}">
-                <td>{{ v.date|date:"d/m/Y" }}</td>
+                <td class="font-mono">{{ v.date|date:"d/m/Y" }}</td>
                 <td>
                   {% if v.state == 'A' %}<span class="badge text-bg-success">A</span>
                   {% elif v.state == 'B' %}<span class="badge text-bg-warning">B</span>
@@ -188,13 +190,13 @@
             <h6 class="mb-0">Isolement</h6>
             <small class="text-muted">
               {% if isolation_last %}
-                Dernière mesure: <strong>{{ isolation_last.ohms }} Ω</strong> le <strong>{{ isolation_last.date|date:"d/m/Y" }}</strong>.
+                Dernière mesure: <strong class="font-mono">{{ isolation_last.ohms }} Ω</strong> le <strong class="font-mono">{{ isolation_last.date|date:"d/m/Y" }}</strong>.
                 <br />
               {% else %}
                 Aucune mesure précédente.
               {% endif %}
               {% if isolation_next_date %}
-                Prochaine échéance: <strong>{{ isolation_next_date|date:"d/m/Y" }}</strong>
+                Prochaine échéance: <strong class="font-mono">{{ isolation_next_date|date:"d/m/Y" }}</strong>
                 {% if isolation_next_days is not None %} (dans {{ isolation_next_days }} j){% endif %}.
                 {% if isolation_next_days is not None %}
                   {% if isolation_next_days <= 0 %}
@@ -220,8 +222,8 @@
           <tbody>
             {% for r in isolation_logs %}
             <tr class="iso-row" data-id="{{ r.id }}" data-date="{{ r.date|date:'d/m/Y' }}" data-ohms="{{ r.ohms }}" data-user="{{ r.created_by|default:'—' }}" data-note="{{ r.note|default:'' }}">
-              <td>{{ r.date|date:"d/m/Y" }}</td>
-              <td>{{ r.ohms }}</td>
+              <td class="font-mono">{{ r.date|date:"d/m/Y" }}</td>
+              <td class="font-mono">{{ r.ohms }}</td>
               <td>{{ r.note|default:"" }}</td>
               <td class="text-end">{{ r.created_by|default:"—" }}</td>
             </tr>
@@ -273,8 +275,8 @@
               </div>
               <div class="modal-body">
                 <dl class="row mb-0">
-                  <dt class="col-5">Date</dt><dd class="col-7" id="isoViewDate">—</dd>
-                  <dt class="col-5">Mesure (Ω)</dt><dd class="col-7" id="isoViewOhms">—</dd>
+                  <dt class="col-5">Date</dt><dd class="col-7 font-mono" id="isoViewDate">—</dd>
+                  <dt class="col-5">Mesure (Ω)</dt><dd class="col-7 font-mono" id="isoViewOhms">—</dd>
                   <dt class="col-5">Utilisateur</dt><dd class="col-7" id="isoViewUser">—</dd>
                   <dt class="col-5">Note</dt><dd class="col-7" id="isoViewNote">—</dd>
                 </dl>
@@ -417,7 +419,7 @@
             <tbody>
               {% for ev in events %}
               <tr data-bs-toggle="modal" data-bs-target="#eventDetailModal-{{ ev.id }}" style="cursor:pointer;">
-                <td>{{ ev.date|date:"d/m/Y" }}</td>
+                <td class="font-mono">{{ ev.date|date:"d/m/Y" }}</td>
                 <td>{{ ev.label }}</td>
                 <td>{% if ev.created_by %}{{ ev.created_by.get_full_name|default:ev.created_by.username }}{% else %}—{% endif %}</td>
                 <td>
@@ -457,19 +459,19 @@
           <div class="col-md-4">
             <div class="border rounded p-3 h-100">
               <div class="text-muted">Total</div>
-              <div class="fs-5">{{ hours_total }} h</div>
+              <div class="fs-5 font-mono">{{ hours_total }} h</div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="border rounded p-3 h-100">
               <div class="text-muted">À la dernière visite</div>
-              <div class="fs-5">{{ hours_last_visit }} h</div>
+              <div class="fs-5 font-mono">{{ hours_last_visit }} h</div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="border rounded p-3 h-100">
               <div class="text-muted">Ce mois</div>
-              <div class="fs-5">{{ hours_month }} h</div>
+              <div class="fs-5 font-mono">{{ hours_month }} h</div>
             </div>
           </div>
         </div>
@@ -496,8 +498,8 @@
                   data-hours="{{ r.hours }}"
                   data-visit="{% if r.is_visit %}Oui{% else %}Non{% endif %}"
                   data-user="{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}">
-                <td>{{ r.date|date:"j F Y" }}{% if r.is_visit %} <span class="badge text-bg-info ms-1">Visite</span>{% endif %}</td>
-                <td>{{ r.hours }} h</td>
+                <td class="font-mono">{{ r.date|date:"j F Y" }}{% if r.is_visit %} <span class="badge text-bg-info ms-1">Visite</span>{% endif %}</td>
+                <td class="font-mono">{{ r.hours }} h</td>
                 <td class="text-end">{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}</td>
               </tr>
               {% empty %}
@@ -517,7 +519,7 @@
             <thead><tr><th>Désignation</th><th>NNO</th><th>Référence</th><th>Marque</th></tr></thead>
             <tbody>
               {% for p in parts %}
-              <tr data-bs-toggle="modal" data-bs-target="#partDetailModal-{{ p.id }}" style="cursor:pointer;"><td>{{ p.name }}</td><td>{{ p.nno|default:"" }}</td><td>{{ p.reference|default:"" }}</td><td>{{ p.marque|default:"" }}</td></tr>
+              <tr data-bs-toggle="modal" data-bs-target="#partDetailModal-{{ p.id }}" style="cursor:pointer;"><td>{{ p.name }}</td><td class="font-mono">{{ p.nno|default:"" }}</td><td class="font-mono">{{ p.reference|default:"" }}</td><td>{{ p.marque|default:"" }}</td></tr>
               {% empty %}
               <tr><td colspan="4" class="text-muted">Aucune pièce</td></tr>
               {% endfor %}
@@ -575,6 +577,25 @@
                 <option value="INDUSTRIEL" {% if m.competence == 'INDUSTRIEL' %}selected{% endif %}>Industriel</option>
               </select>
             </div>
+            <div class="col-md-4"><label class="form-label">Mode de suivi de l'échéance</label>
+              <select class="form-select" name="mode_declenchement">
+                <option value="CALENDRIER" {% if m.mode_declenchement == 'CALENDRIER' %}selected{% endif %}>Calendaire</option>
+                <option value="COMPTEUR" {% if m.mode_declenchement == 'COMPTEUR' %}selected{% endif %}>Compteur (heures de marche)</option>
+                <option value="LES_DEUX" {% if m.mode_declenchement == 'LES_DEUX' %}selected{% endif %}>Le premier des deux</option>
+              </select>
+            </div>
+            <div class="col-md-4"><label class="form-label">Intervalle calendaire</label>
+              <div class="input-group">
+                <input class="form-control" type="number" min="1" name="intervalle" value="{{ m.intervalle|default:'' }}" />
+                <select class="form-select" name="unite_intervalle" style="max-width:110px;">
+                  <option value="J" {% if m.unite_intervalle == 'J' %}selected{% endif %}>Jour(s)</option>
+                  <option value="S" {% if m.unite_intervalle == 'S' %}selected{% endif %}>Semaine(s)</option>
+                  <option value="M" {% if m.unite_intervalle == 'M' %}selected{% endif %}>Mois</option>
+                  <option value="A" {% if m.unite_intervalle == 'A' %}selected{% endif %}>Année(s)</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4"><label class="form-label">Seuil compteur (heures)</label><input class="form-control" type="number" min="0" name="seuil_heures" value="{{ m.seuil_heures|default:'' }}" /></div>
             <div class="col-12"><label class="form-label">Ajouter des pièces jointes</label><input class="form-control" type="file" name="attachments" multiple /></div>
             <div class="col-12">
               <label class="form-label">Pièces jointes existantes</label>
@@ -804,6 +825,17 @@
                 <option value="A" {% if object.iso_periodicity == 'A' %}selected{% endif %}>Annuel</option>
               </select>
             </div>
+            {% if peut_gerer_parent %}
+            <div class="col-md-6">
+              <label class="form-label">Rattaché à (facultatif)</label>
+              <select class="form-select" name="parent_id">
+                <option value="">— Aucun —</option>
+                {% for p in installations_pour_parent %}
+                  <option value="{{ p.id }}" {% if object.parent_id == p.id %}selected{% endif %}>{{ p.designation }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
@@ -942,8 +974,8 @@
       </div>
       <div class="modal-body">
         <dl class="row mb-0">
-          <dt class="col-5">Date</dt><dd class="col-7" id="hoursViewDate">—</dd>
-          <dt class="col-5">Heures</dt><dd class="col-7" id="hoursViewHours">—</dd>
+          <dt class="col-5">Date</dt><dd class="col-7 font-mono" id="hoursViewDate">—</dd>
+          <dt class="col-5">Heures</dt><dd class="col-7 font-mono" id="hoursViewHours">—</dd>
           <dt class="col-5">Visite</dt><dd class="col-7" id="hoursViewVisit">—</dd>
           <dt class="col-5">Utilisateur</dt><dd class="col-7" id="hoursViewUser">—</dd>
         </dl>
@@ -1065,7 +1097,7 @@
       </div>
       <div class="modal-body">
         <dl class="row mb-0">
-          <dt class="col-5">Date</dt><dd class="col-7" id="vibViewDate">—</dd>
+          <dt class="col-5">Date</dt><dd class="col-7 font-mono" id="vibViewDate">—</dd>
           <dt class="col-5">État</dt><dd class="col-7" id="vibViewState">—</dd>
           <dt class="col-5">Utilisateur</dt><dd class="col-7" id="vibViewUser">—</dd>
           <dt class="col-5">Note</dt><dd class="col-7" id="vibViewNote">—</dd>
@@ -1089,8 +1121,8 @@
       <div class="modal-header"><h5 class="modal-title">Détail pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
       <div class="modal-body">
         <div class="mb-2"><strong>Désignation:</strong> {{ p.name }}</div>
-        <div class="mb-2"><strong>NNO:</strong> {{ p.nno|default:"" }}</div>
-        <div class="mb-2"><strong>Référence:</strong> {{ p.reference|default:"" }}</div>
+        <div class="mb-2"><strong>NNO:</strong> <span class="font-mono">{{ p.nno|default:"" }}</span></div>
+        <div class="mb-2"><strong>Référence:</strong> <span class="font-mono">{{ p.reference|default:"" }}</span></div>
         <div class="mb-2"><strong>Marque:</strong> {{ p.marque|default:"" }}</div>
         {% if p.photo %}
         <div class="mt-2"><img src="{{ p.photo.url }}" alt="photo" style="max-width: 100%; height: auto;" /></div>

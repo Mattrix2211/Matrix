@@ -160,6 +160,17 @@
                 <option value="A">Annuel</option>
               </select>
             </div>
+            {% if peut_gerer_parent %}
+            <div class="col-md-6">
+              <label class="form-label">Rattaché à (facultatif)</label>
+              <select class="form-select" name="parent_id" id="createParentInstallation">
+                <option value="">— Aucun —</option>
+                {% for p in installations_pour_parent %}
+                  <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
@@ -226,8 +237,10 @@
       var serviceSel = root.querySelector('select[name="service_id"]');
       var sectorSel = root.querySelector('select[name="sector_id"]');
       var sectionSel = root.querySelector('select[name="section_id"]');
+      var parentSel = root.querySelector('select[name="parent_id"]');
       if (!shipSel || !serviceSel || !sectorSel || !sectionSel) return;
       function filterOptions(select, dataAttr, match){
+        if (!select) return;
         var val = match || '';
         Array.from(select.options).forEach(function(opt){
           if (!opt.value) { opt.hidden = false; return; }
@@ -241,18 +254,23 @@
         filterOptions(serviceSel, 'data-ship', shipSel.value);
         filterOptions(sectorSel, 'data-service', '');
         filterOptions(sectionSel, 'data-sector', '');
+        filterOptions(parentSel, 'data-sector', '');
       });
       serviceSel.addEventListener('change', function(){
         filterOptions(sectorSel, 'data-service', serviceSel.value);
         filterOptions(sectionSel, 'data-sector', '');
+        filterOptions(parentSel, 'data-sector', '');
       });
       sectorSel.addEventListener('change', function(){
         filterOptions(sectionSel, 'data-sector', sectorSel.value);
+        // Rattachement parent (T3) : seuls les équipements du même secteur sont proposés.
+        filterOptions(parentSel, 'data-sector', sectorSel.value);
       });
       // Initial filter (in case ship already selected)
       filterOptions(serviceSel, 'data-ship', shipSel.value);
       filterOptions(sectorSel, 'data-service', serviceSel.value);
       filterOptions(sectionSel, 'data-sector', sectorSel.value);
+      filterOptions(parentSel, 'data-sector', sectorSel.value);
     }
 
     var createModal = document.getElementById('createInstallationModal');
