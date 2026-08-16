@@ -21,9 +21,11 @@ class LogisticsRBACTests(TestCase):
         equipier = User.objects.create_user(username="equ", password="pass")
         chef = User.objects.create_user(username="chef", password="pass")
 
+        # Un profil est déjà auto-créé par le signal post_save sur User (rôle EQUIPIER
+        # par défaut) : on met à jour le rôle plutôt que de recréer un profil.
         from accounts.models import UserProfile
-        UserProfile.objects.create(user=equipier, role="EQUIPIER")
-        UserProfile.objects.create(user=chef, role="CHEF_SECTION")
+        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER"})
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION"})
 
         client = APIClient()
         # Equipier cannot transition
