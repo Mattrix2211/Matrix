@@ -208,6 +208,32 @@
     <p class="vide">Aucun ticket correctif ouvert.</p>
     {% endif %}
 
+    <h2>Stock de pièces sous le seuil d'alerte</h2>
+    {% if stock_alerte %}
+    <table>
+        <thead>
+            <tr>
+                <th>Référence</th>
+                <th>Désignation</th>
+                <th>Quantité / Seuil</th>
+                <th>Emplacement</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for piece in stock_alerte %}
+            <tr class="en-retard">
+                <td class="mono">{{ piece.reference }}</td>
+                <td>{{ piece.designation }}</td>
+                <td class="mono">{{ piece.quantite }} / {{ piece.quantite_minimale }}</td>
+                <td>{% if piece.emplacement %}{{ piece.emplacement }}{% else %}<span class="vide">Non renseigné</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="vide">Aucune pièce sous le seuil d'alerte.</p>
+    {% endif %}
+
     <h2>Qualifications proches d'expiration</h2>
     {% if qualifications_proches_expiration %}
     <table>

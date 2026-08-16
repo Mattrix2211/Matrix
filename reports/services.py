@@ -11,6 +11,7 @@ from datetime import timedelta
 
 import weasyprint
 from django.conf import settings
+from django.db.models import F
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -20,7 +21,7 @@ from assets.models import (
     InstallationIsolationReading,
     InstallationVibrationReading,
 )
-from logistics.models import CorrectiveTicket, PartLineItem
+from logistics.models import CorrectiveTicket, PartLineItem, StockPiece
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
@@ -171,6 +172,14 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
         .order_by("expires_at")
     )
 
+    # Pièces en stock passées sous leur seuil d'alerte (quantite_minimale), pour
+    # anticiper une rupture avant qu'elle ne bloque une intervention.
+    stock_alerte = list(
+        StockPiece.objects.filter(quantite__lt=F("quantite_minimale"), **filtre_scope)
+        .select_related("ship", "service", "sector", "section")
+        .order_by("reference")
+    )
+
     return {
         "mode": "INSTANTANE",
         "perimetre": _resoudre_perimetre(scope_type, scope_id),
@@ -180,6 +189,7 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
         "echeances": echeances,
         "tickets_ouverts": tickets_ouverts,
         "qualifications_proches_expiration": qualifications_proches_expiration,
+        "stock_alerte": stock_alerte,
     }
 
 

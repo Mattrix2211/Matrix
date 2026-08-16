@@ -1,8 +1,6 @@
-"""Tests du service de bilan PDF — Mode Instantané (T8).
+"""Tests du service de bilan PDF — Mode Instantané (T8 + section stock T11).
 
 Le Mode Période (dates) est testé séparément dans test_services_periode.py (T9).
-La section stock de pièces reste hors périmètre (dépend du modèle StockPiece,
-pas encore livré).
 """
 from datetime import timedelta
 
@@ -21,7 +19,7 @@ from assets.models import (
     Asset,
     AssetType,
 )
-from logistics.models import CorrectiveTicket
+from logistics.models import CorrectiveTicket, StockPiece
 from maintenance.models import MaintenanceOccurrence
 from org.models import Sector, Service, Ship
 from reports.services import (
@@ -203,6 +201,25 @@ class BilanInstantaneTests(TestCase):
 
         self.assertEqual(len(contexte["qualifications_proches_expiration"]), 1)
         self.assertEqual(contexte["qualifications_proches_expiration"][0].user, equipier)
+
+    def test_stock_sous_seuil_scope_et_stock_suffisant_exclu(self):
+        piece_sous_seuil = StockPiece.objects.create(
+            reference="REF-001", designation="Joint torique", quantite=1, quantite_minimale=5,
+            ship=self.navire, service=self.service, sector=self.secteur,
+        )
+        StockPiece.objects.create(
+            reference="REF-002", designation="Roulement", quantite=10, quantite_minimale=5,
+            ship=self.navire, service=self.service, sector=self.secteur,
+        )
+        StockPiece.objects.create(
+            reference="REF-003", designation="Joint hors périmètre", quantite=0, quantite_minimale=5,
+            ship=self.navire, service=self.service, sector=self.autre_secteur,
+        )
+
+        contexte = construire_contexte_instantane("sector", self.secteur.id, self.chef)
+
+        self.assertEqual(len(contexte["stock_alerte"]), 1)
+        self.assertEqual(contexte["stock_alerte"][0].id, piece_sous_seuil.id)
 
     def test_generation_pdf_instantane(self):
         pdf = generer_bilan_instantane_pdf("sector", self.secteur.id, self.chef)
