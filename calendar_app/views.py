@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
+from django.db.models import Q
 from datetime import timedelta, datetime
 from org.models import Ship, Service, Sector
 from django.contrib.auth import get_user_model
@@ -10,6 +11,15 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
+
+
+def _titre_occurrence(occ):
+    """Libellé lisible d'une occurrence de maintenance, qu'elle concerne du
+    matériel mobile (plan + asset) ou une installation fixe (installation_maintenance)."""
+    if occ.installation_maintenance_id:
+        return f"{occ.installation_maintenance.installation} - {occ.installation_maintenance.title}"
+    return str(occ.asset)
+
 
 class CalendarView(LoginRequiredMixin, TemplateView):
     template_name = "calendar/index.html"
@@ -70,13 +80,19 @@ class CalendarView(LoginRequiredMixin, TemplateView):
 
     def _collect_events(self, request, start, end, filters):
         events = []
-        # Maintenance occurrences (préventif)
-        occ_qs = MaintenanceOccurrence.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").filter(scheduled_for__range=(start, end))
+        # Maintenance occurrences (préventif) : matériel mobile (asset) ou installation fixe.
+        occ_qs = MaintenanceOccurrence.objects.select_related(
+            "asset", "asset__ship", "asset__service", "asset__sector",
+            "installation_maintenance", "installation_maintenance__installation",
+            "installation_maintenance__installation__ship",
+            "installation_maintenance__installation__service",
+            "installation_maintenance__installation__sector",
+        ).filter(scheduled_for__range=(start, end))
         occ_qs = self._apply_scope_filters_occ(occ_qs, filters)
         for occ in occ_qs:
             events.append({
                 "type": "maintenance",
-                "title": f"Préventif - {occ.asset}",
+                "title": f"Préventif - {_titre_occurrence(occ)}",
                 "start": occ.scheduled_for.isoformat(),
                 "end": occ.scheduled_for.isoformat(),
                 "url": f"/maintenance/occurrences/{occ.id}/execute/",
@@ -119,12 +135,23 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         return events
 
     def _apply_scope_filters_occ(self, qs, filters):
+        # Le périmètre (navire/service/secteur) est porté soit par l'actif mobile
+        # (asset), soit par l'installation fixe liée (installation_maintenance).
         if filters.get("ship"):
-            qs = qs.filter(asset__ship_id=filters["ship"])
+            qs = qs.filter(
+                Q(asset__ship_id=filters["ship"])
+                | Q(installation_maintenance__installation__ship_id=filters["ship"])
+            )
         if filters.get("service"):
-            qs = qs.filter(asset__service_id=filters["service"])
+            qs = qs.filter(
+                Q(asset__service_id=filters["service"])
+                | Q(installation_maintenance__installation__service_id=filters["service"])
+            )
         if filters.get("sector"):
-            qs = qs.filter(asset__sector_id=filters["sector"])
+            qs = qs.filter(
+                Q(asset__sector_id=filters["sector"])
+                | Q(installation_maintenance__installation__sector_id=filters["sector"])
+            )
         if filters.get("user"):
             qs = qs.filter(assignees__id=filters["user"])
         return qs
@@ -195,14 +222,29 @@ def calendar_events(request):
         "status": request.GET.get("status") or None,
     }
     events = []
-    # Occurrences de maintenance préventive
-    occ_qs = MaintenanceOccurrence.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").filter(scheduled_for__range=(start, end))
+    # Occurrences de maintenance préventive : matériel mobile (asset) ou installation fixe.
+    occ_qs = MaintenanceOccurrence.objects.select_related(
+        "asset", "asset__ship", "asset__service", "asset__sector",
+        "installation_maintenance", "installation_maintenance__installation",
+        "installation_maintenance__installation__ship",
+        "installation_maintenance__installation__service",
+        "installation_maintenance__installation__sector",
+    ).filter(scheduled_for__range=(start, end))
     if filters.get("ship"):
-        occ_qs = occ_qs.filter(asset__ship_id=filters["ship"])
+        occ_qs = occ_qs.filter(
+            Q(asset__ship_id=filters["ship"])
+            | Q(installation_maintenance__installation__ship_id=filters["ship"])
+        )
     if filters.get("service"):
-        occ_qs = occ_qs.filter(asset__service_id=filters["service"])
+        occ_qs = occ_qs.filter(
+            Q(asset__service_id=filters["service"])
+            | Q(installation_maintenance__installation__service_id=filters["service"])
+        )
     if filters.get("sector"):
-        occ_qs = occ_qs.filter(asset__sector_id=filters["sector"])
+        occ_qs = occ_qs.filter(
+            Q(asset__sector_id=filters["sector"])
+            | Q(installation_maintenance__installation__sector_id=filters["sector"])
+        )
     if filters.get("user"):
         occ_qs = occ_qs.filter(assignees__id=filters["user"])
     if filters.get("status"):
@@ -213,7 +255,7 @@ def calendar_events(request):
         couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
             "id": f"occ-{occ.id}",
-            "title": f"🔧 {occ.asset}",
+            "title": f"🔧 {_titre_occurrence(occ)}",
             "start": occ.scheduled_for.isoformat(),
             "end": occ.scheduled_for.isoformat(),
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
