@@ -131,6 +131,8 @@ REST_FRAMEWORK = {
 }
 
 # Celery / Redis
+from celery.schedules import crontab
+
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 CELERY_BEAT_SCHEDULE = {
@@ -154,6 +156,23 @@ CELERY_BEAT_SCHEDULE = {
     "notify_low_stock_daily": {
         "task": "notifications.tasks.notify_low_stock",
         "schedule": 60 * 60 * 24,
+    },
+    # Installations fixes (propulseurs, pompes, circuits électriques) : mêmes besoins
+    # que le matériel mobile ci-dessus, mais jamais planifiés jusqu'ici.
+    "generate_installation_occurrences_daily": {
+        "task": "maintenance.tasks.generate_installation_occurrences",
+        "schedule": 60 * 60 * 24,
+        "args": (90,),
+    },
+    "generate_installation_notifications_daily": {
+        "task": "notifications.tasks.generate_installation_notifications",
+        # Horaire fixe (08:00) : c'est l'heure de notification par défaut des marins
+        # (UserProfile.notification_time), conformément à la docstring de la commande.
+        "schedule": crontab(hour=8, minute=0),
+    },
+    "generate_installation_maintenance_notifications_daily": {
+        "task": "notifications.tasks.generate_installation_maintenance_notifications",
+        "schedule": crontab(hour=8, minute=0),
     },
 }
 

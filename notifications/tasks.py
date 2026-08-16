@@ -1,4 +1,5 @@
 from celery import shared_task
+from django.core.management import call_command
 from django.db.models import F, Q
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
@@ -75,4 +76,25 @@ def notify_low_stock():
                 is_read=False,
                 defaults={"verb": verb},
             )
+    return {"status": "ok"}
+
+@shared_task
+def generate_installation_notifications(days: int = 7):
+    """Alerte les marins des échéances de vibration/isolement des installations fixes.
+
+    Enveloppe la commande de gestion du même nom (qui porte la logique métier et ses
+    tests) afin de la rendre planifiable quotidiennement via Celery Beat.
+    """
+    call_command("generate_installation_notifications", days=days)
+    return {"status": "ok"}
+
+@shared_task
+def generate_installation_maintenance_notifications(days: int = 7):
+    """Alerte les marins des échéances d'entretien (calendaire/compteur) des
+    maintenances d'installations fixes.
+
+    Enveloppe la commande de gestion du même nom (qui porte la logique métier et ses
+    tests) afin de la rendre planifiable quotidiennement via Celery Beat.
+    """
+    call_command("generate_installation_maintenance_notifications", days=days)
     return {"status": "ok"}

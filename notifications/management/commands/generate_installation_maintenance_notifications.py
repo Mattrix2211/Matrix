@@ -36,7 +36,9 @@ class Command(BaseCommand):
         now = timezone.now()
         start_of_day = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
 
-        users = list(User.objects.filter(is_active=True))
+        # select_related("profile") évite une requête par utilisateur pour lire sa
+        # préférence d'heure de notification.
+        users = list(User.objects.filter(is_active=True).select_related("profile"))
         if not users:
             self.stdout.write("Aucun utilisateur actif. Abort.")
             return
@@ -54,6 +56,15 @@ class Command(BaseCommand):
         # Heure courante (HH:MM) pour comparer aux préférences utilisateur
         now_local = timezone.localtime(now).time().replace(second=0, microsecond=0)
 
+        # Notifications déjà envoyées aujourd'hui, chargées en une seule requête et
+        # utilisées ensuite en mémoire : évite un .exists() par combinaison
+        # maintenance x utilisateur (N x M requêtes), inoffensif tant que la commande
+        # n'est jamais planifiée, problématique une fois exécutée chaque jour.
+        deja_notifies = set(
+            Notification.objects.filter(content_type=maint_ct, created_at__gte=start_of_day)
+            .values_list("user_id", "object_id", "verb")
+        )
+
         def notify(maintenance, verb):
             nonlocal created
             for u in users:
@@ -62,9 +73,11 @@ class Command(BaseCommand):
                 target_time = pref or timezone.datetime.strptime('08:00', '%H:%M').time()
                 if (now_local.hour, now_local.minute) != (target_time.hour, target_time.minute):
                     continue
-                if Notification.objects.filter(user=u, content_type=maint_ct, object_id=str(maintenance.id), verb=verb, created_at__gte=start_of_day).exists():
+                cle = (u.id, str(maintenance.id), verb)
+                if cle in deja_notifies:
                     continue
                 Notification.objects.create(user=u, verb=verb, content_type=maint_ct, object_id=str(maintenance.id))
+                deja_notifies.add(cle)
                 created += 1
 
         for maintenance in InstallationMaintenance.objects.select_related("installation").all():
