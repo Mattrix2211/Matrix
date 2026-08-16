@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
 from assets.models import Asset, AssetType, Installation
 
@@ -14,6 +15,10 @@ class InstallationHierarchieParentTests(TestCase):
         self.service = Service.objects.create(name="Srv", ship=self.ship)
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.user = User.objects.create_user(username="u1", password="pass")
+        # Suppression réservée à CHEF_SERVICE et au-dessus (T-SEC) : le profil auto-créé
+        # par défaut (EQUIPIER) est relevé pour tester le comportement SET_NULL, qui
+        # n'est pas propre au rôle testé ici.
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE"})
 
     def test_creation_avec_parent(self):
         groupe = Installation.objects.create(
@@ -71,6 +76,10 @@ class AssetHierarchieParentTests(TestCase):
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
         self.user = User.objects.create_user(username="u2", password="pass")
+        # Suppression réservée à CHEF_SERVICE et au-dessus (T-SEC) : le profil auto-créé
+        # par défaut (EQUIPIER) est relevé pour tester le comportement SET_NULL, qui
+        # n'est pas propre au rôle testé ici.
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE"})
 
     def test_creation_avec_parent(self):
         caisse = Asset.objects.create(
