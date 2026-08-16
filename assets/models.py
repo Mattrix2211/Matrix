@@ -3,11 +3,27 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel, OwnedModel
 from org.models import Ship, Service, Sector, Section
 
 User = get_user_model()
+
+def _verifier_absence_de_cycle(equipement):
+    """Empêche un rattachement parent qui créerait une boucle dans la hiérarchie
+    (un équipement ne peut pas être son propre ancêtre), pour Installation et Asset."""
+    if equipement.parent_id is None:
+        return
+    ancetres_vus = {equipement.pk}
+    noeud = equipement.parent
+    while noeud is not None:
+        if noeud.pk in ancetres_vus:
+            raise ValidationError({
+                "parent": "Rattachement invalide : cela créerait une boucle dans la hiérarchie des équipements.",
+            })
+        ancetres_vus.add(noeud.pk)
+        noeud = noeud.parent
 
 class InstallationBigrameChoice(models.Model):
     name = models.CharField(max_length=64, unique=True)
@@ -94,6 +110,12 @@ class Asset(TimeStampedModel, OwnedModel):
     status = models.CharField(max_length=32, choices=STATUS, default="OK")
     criticality = models.PositiveSmallIntegerField(default=1)
     folder = models.ForeignKey('AssetFolder', null=True, blank=True, on_delete=models.SET_NULL, related_name='assets')
+    # Rattachement hiérarchique optionnel (ex: un multimètre rattaché à une caisse à outils)
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="sous_ensembles")
+
+    def clean(self):
+        super().clean()
+        _verifier_absence_de_cycle(self)
 
     def __str__(self):
         return f"{self.asset_type.name} #{self.internal_id or self.serial_number or self.id}"
@@ -128,9 +150,15 @@ class Installation(TimeStampedModel, OwnedModel):
         ("A", "Annuel"),
     )
     iso_periodicity = models.CharField(max_length=1, choices=ISO_PERIODICITY_CHOICES, default="M")
+    # Rattachement hiérarchique optionnel (ex: turbo -> moteur bâbord -> groupe propulsion)
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="sous_ensembles")
 
     class Meta:
         ordering = ["ship__name", "service__name", "sector__name", "section__name", "designation"]
+
+    def clean(self):
+        super().clean()
+        _verifier_absence_de_cycle(self)
 
     def __str__(self):
         return f"{self.designation} ({self.ship} / {self.service} / {self.sector})"
