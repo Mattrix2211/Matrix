@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Stock de pièces</h1>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <form method="get" class="d-flex align-items-center gap-2">
+    <input type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Rechercher une référence, une désignation, un emplacement..." style="max-width: 320px;">
+    <button class="btn btn-outline-secondary" type="button" onclick="this.form.requestSubmit()">Rechercher</button>
+  </form>
+  {% if peut_gerer %}
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerPieceModal">
+    <i class="bi bi-plus-lg"></i> Ajouter une pièce
+  </button>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Référence</th>
+          <th>Désignation</th>
+          <th>Emplacement</th>
+          <th>Périmètre</th>
+          <th class="text-end">Quantité</th>
+          <th class="text-end">Seuil minimal</th>
+          <th>État</th>
+          {% if peut_gerer %}<th></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pieces %}
+        <tr>
+          <td class="font-mono">{{ p.reference }}</td>
+          <td>{{ p.designation }}</td>
+          <td>{{ p.emplacement|default:"—" }}</td>
+          <td class="small text-muted">{{ p.ship.name }} / {{ p.service.name }} / {{ p.sector.name }}{% if p.section %} / {{ p.section.name }}{% endif %}</td>
+          <td class="text-end font-mono">{{ p.quantite }}</td>
+          <td class="text-end font-mono">{{ p.quantite_minimale }}</td>
+          <td>
+            {% if p.quantite == 0 %}
+              <span class="badge text-bg-danger">Stock critique</span>
+            {% elif p.quantite < p.quantite_minimale %}
+              <span class="badge text-bg-warning">Stock bas</span>
+            {% else %}
+              <span class="text-muted">Conforme</span>
+            {% endif %}
+          </td>
+          {% if peut_gerer %}
+          <td>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modifierPieceModal"
+              data-pk="{{ p.id }}" data-reference="{{ p.reference }}" data-designation="{{ p.designation }}"
+              data-emplacement="{{ p.emplacement }}" data-quantite="{{ p.quantite }}" data-quantite-minimale="{{ p.quantite_minimale }}"
+              data-sector-id="{{ p.sector.id }}" data-section-id="{% if p.section %}{{ p.section.id }}{% endif %}">
+              <i class="bi bi-pencil"></i> Modifier
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Aucune pièce en stock sur votre périmètre</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if peut_gerer %}
+{# Modale création #}
+<div class="modal fade" id="creerPieceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouvelle pièce en stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <form method="post" id="creerPieceForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_piece">
+          <div class="row g-3">
+            <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" required></div>
+            <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" required></div>
+            <div class="col-6"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" value="0" required></div>
+            <div class="col-6"><label class="form-label">Seuil minimal (alerte)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" value="0" required></div>
+            <div class="col-12"><label class="form-label">Emplacement</label><input class="form-control" name="emplacement" placeholder="Ex : Magasin bâbord"></div>
+            <div class="col-6">
+              <label class="form-label">Secteur</label>
+              <select class="form-select" name="sector_id" id="creerSector" required>
+                <option value="">—</option>
+                {% for s in sectors %}<option value="{{ s.id }}">{{ s.service.ship.name }} / {{ s.service.name }} / {{ s.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Section (optionnel)</label>
+              <select class="form-select" name="section_id" id="creerSection">
+                <option value="">—</option>
+                {% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="document.getElementById('creerPieceForm').requestSubmit()">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modale modification #}
+<div class="modal fade" id="modifierPieceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <form method="post" id="modifierPieceForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_piece">
+          <input type="hidden" name="pk" id="modifierPk">
+          <div class="row g-3">
+            <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="modifierReference" required></div>
+            <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="modifierDesignation" required></div>
+            <div class="col-6"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" id="modifierQuantite" required></div>
+            <div class="col-6"><label class="form-label">Seuil minimal (alerte)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" id="modifierQuantiteMinimale" required></div>
+            <div class="col-12"><label class="form-label">Emplacement</label><input class="form-control" name="emplacement" id="modifierEmplacement"></div>
+            <div class="col-6">
+              <label class="form-label">Secteur</label>
+              <select class="form-select" name="sector_id" id="modifierSector" required>
+                <option value="">—</option>
+                {% for s in sectors %}<option value="{{ s.id }}">{{ s.service.ship.name }} / {{ s.service.name }} / {{ s.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Section (optionnel)</label>
+              <select class="form-select" name="section_id" id="modifierSection">
+                <option value="">—</option>
+                {% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="document.getElementById('modifierPieceForm').requestSubmit()">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    // Filtre la liste des sections en fonction du secteur choisi (évite de proposer
+    // des sections d'un autre secteur, sans dupliquer un système de cascade complet).
+    function filtrerSections(sectorSelect, sectionSelect){
+      if (!sectorSelect || !sectionSelect) return;
+      var sectorVal = sectorSelect.value;
+      Array.from(sectionSelect.options).forEach(function(opt){
+        if (!opt.value) { opt.hidden = false; return; }
+        opt.hidden = !!sectorVal && opt.getAttribute('data-sector') !== sectorVal;
+      });
+      if (sectionSelect.selectedOptions.length && sectionSelect.selectedOptions[0].hidden) {
+        sectionSelect.selectedIndex = 0;
+      }
+    }
+    var creerSector = document.getElementById('creerSector');
+    var creerSection = document.getElementById('creerSection');
+    if (creerSector) { creerSector.addEventListener('change', function(){ filtrerSections(creerSector, creerSection); }); }
+
+    var modifierSector = document.getElementById('modifierSector');
+    var modifierSection = document.getElementById('modifierSection');
+    if (modifierSector) { modifierSector.addEventListener('change', function(){ filtrerSections(modifierSector, modifierSection); }); }
+
+    var modifierModal = document.getElementById('modifierPieceModal');
+    if (modifierModal) {
+      modifierModal.addEventListener('show.bs.modal', function(event){
+        var b = event.relatedTarget;
+        document.getElementById('modifierPk').value = b.getAttribute('data-pk') || '';
+        document.getElementById('modifierReference').value = b.getAttribute('data-reference') || '';
+        document.getElementById('modifierDesignation').value = b.getAttribute('data-designation') || '';
+        document.getElementById('modifierEmplacement').value = b.getAttribute('data-emplacement') || '';
+        document.getElementById('modifierQuantite').value = b.getAttribute('data-quantite') || 0;
+        document.getElementById('modifierQuantiteMinimale').value = b.getAttribute('data-quantite-minimale') || 0;
+        modifierSector.value = b.getAttribute('data-sector-id') || '';
+        filtrerSections(modifierSector, modifierSection);
+        modifierSection.value = b.getAttribute('data-section-id') || '';
+      });
+    }
+  })();
+</script>
+{% endif %}
+{% endblock %}
