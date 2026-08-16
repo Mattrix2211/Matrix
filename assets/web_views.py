@@ -1,6 +1,6 @@
 from django.views.generic import DetailView, View, ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import TemplateView
@@ -27,6 +27,39 @@ try:
     from openpyxl import Workbook
 except Exception:
     Workbook = None
+
+
+def _peut_gerer_rattachement_parent(user):
+    """Seuls les CHEF_SERVICE et rôles supérieurs peuvent créer ou modifier le
+    rattachement parent/enfant d'une installation ou d'un matériel (même seuil
+    que les tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS ci-dessous)."""
+    return user_role_level(user) >= RoleLevel.CHEF_SERVICE
+
+
+def _sous_ensembles_ids(equipement):
+    """Renvoie l'ensemble des identifiants de tous les sous-ensembles (directs et
+    indirects) d'un équipement, afin de les exclure de la liste des parents proposés
+    dans le formulaire (évite de présenter un choix qui créerait à coup sûr une boucle)."""
+    ids = set()
+    a_visiter = list(equipement.sous_ensembles.all())
+    while a_visiter:
+        enfant = a_visiter.pop()
+        if enfant.pk in ids:
+            continue
+        ids.add(enfant.pk)
+        a_visiter.extend(enfant.sous_ensembles.all())
+    return ids
+
+
+def _afficher_erreur_validation(request, erreur):
+    """Affiche en français le message d'une ValidationError levée par full_clean()
+    (notamment la protection anti-cycle sur le rattachement parent), plutôt que de
+    laisser remonter une erreur serveur non traitée."""
+    if hasattr(erreur, "message_dict") and "parent" in erreur.message_dict:
+        messages.error(request, erreur.message_dict["parent"][0])
+    else:
+        messages.error(request, "Rattachement invalide : " + " ".join(erreur.messages))
+
 
 class AssetDetailView(LoginRequiredMixin, DetailView):
     model = Asset
@@ -104,6 +137,13 @@ class AssetListView(LoginRequiredMixin, ListView):
         ctx['types'] = AssetType.objects.order_by('name')
         ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
         ctx['export_url'] = self.request.build_absolute_uri('?' + (self.request.META.get('QUERY_STRING') or '') + ('&' if self.request.META.get('QUERY_STRING') else '') + 'export=xlsx')
+        # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, filtré
+        # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
+        ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
+        ctx['assets_pour_parent'] = (
+            Asset.objects.select_related('sector', 'asset_type').order_by('designation')
+            if ctx['peut_gerer_parent'] else Asset.objects.none()
+        )
         # Navigation par dossiers
         current_folder_id = self.request.GET.get('folder')
         current_folder = AssetFolder.objects.filter(pk=current_folder_id).select_related('parent').first() if current_folder_id else None
@@ -317,6 +357,16 @@ class AssetListView(LoginRequiredMixin, ListView):
                     asset.section = Section.objects.filter(pk=section_id).first()
                 if location_id:
                     asset.location = Location.objects.filter(pk=location_id).first()
+                parent_id = request.POST.get('parent_id')
+                if parent_id is not None:
+                    if not _peut_gerer_rattachement_parent(request.user):
+                        raise PermissionDenied
+                    asset.parent = Asset.objects.filter(pk=parent_id).exclude(pk=asset.pk).first() if parent_id else None
+                try:
+                    asset.full_clean()
+                except ValidationError as exc:
+                    _afficher_erreur_validation(request, exc)
+                    return redirect('asset-list')
                 asset.save()
                 # Associer au dossier courant si présent
                 if folder_id:
@@ -363,6 +413,16 @@ class AssetListView(LoginRequiredMixin, ListView):
                 asset.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
                 asset.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
                 asset.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
+                parent_id = request.POST.get('parent_id')
+                if parent_id is not None:
+                    if not _peut_gerer_rattachement_parent(request.user):
+                        raise PermissionDenied
+                    asset.parent = Asset.objects.filter(pk=parent_id).exclude(pk=asset.pk).first() if parent_id else None
+                try:
+                    asset.full_clean()
+                except ValidationError as exc:
+                    _afficher_erreur_validation(request, exc)
+                    return redirect('asset-list')
                 asset.save()
                 # Ajout de nouveaux documents pendant la modification
                 try:
@@ -422,6 +482,13 @@ class InstallationListView(LoginRequiredMixin, ListView):
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
+        # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, filtré
+        # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
+        ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
+        ctx['installations_pour_parent'] = (
+            Installation.objects.select_related('sector').order_by('designation')
+            if ctx['peut_gerer_parent'] else Installation.objects.none()
+        )
         # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement)
         try:
             installations = list(ctx.get('installations', []))
@@ -595,6 +662,16 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first()
             if iso_period in ('M','T','A'):
                 it.iso_periodicity = iso_period
+            parent_id = request.POST.get('parent_id')
+            if parent_id is not None:
+                if not _peut_gerer_rattachement_parent(request.user):
+                    raise PermissionDenied
+                it.parent = Installation.objects.filter(pk=parent_id).exclude(pk=it.pk).first() if parent_id else None
+            try:
+                it.full_clean()
+            except ValidationError as exc:
+                _afficher_erreur_validation(request, exc)
+                return redirect('installation-list')
             it.save()
             # Champs personnalisés (JSON array [{label, value, order}])
             try:
@@ -690,6 +767,21 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
+        # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, options
+        # limitées au même secteur que l'installation courante (même périmètre),
+        # en excluant l'installation elle-même et ses sous-ensembles (évite un choix
+        # qui créerait forcément une boucle).
+        ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
+        if ctx['peut_gerer_parent']:
+            exclus = _sous_ensembles_ids(self.object) | {self.object.pk}
+            ctx['installations_pour_parent'] = (
+                Installation.objects
+                .filter(sector_id=self.object.sector_id)
+                .exclude(pk__in=exclus)
+                .order_by('designation')
+            )
+        else:
+            ctx['installations_pour_parent'] = Installation.objects.none()
         ctx['events'] = (
             InstallationEvent.objects
             .filter(installation=self.object)
@@ -869,6 +961,16 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
                 iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
                 if iso_period in ('M','T','A'):
                     it.iso_periodicity = iso_period
+                parent_id = request.POST.get('parent_id')
+                if parent_id is not None:
+                    if not _peut_gerer_rattachement_parent(request.user):
+                        raise PermissionDenied
+                    it.parent = Installation.objects.filter(pk=parent_id).exclude(pk=it.pk).first() if parent_id else None
+                try:
+                    it.full_clean()
+                except ValidationError as exc:
+                    _afficher_erreur_validation(request, exc)
+                    return redirect(f"/installations/{pk}/{qs}")
                 it.save()
                 # Met à jour les champs personnalisés si fournis
                 try:

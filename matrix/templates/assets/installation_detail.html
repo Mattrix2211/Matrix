@@ -63,6 +63,8 @@
                 <dt class="col-5">Section</dt><dd class="col-7">{% if object.section %}{{ object.section.name }}{% else %}—{% endif %}</dd>
                 <dt class="col-5">Local</dt><dd class="col-7">{{ object.local|default:"—" }}</dd>
                 <dt class="col-5">Gisement</dt><dd class="col-7">{{ object.gisement|default:"—" }}</dd>
+                <dt class="col-5">Rattaché à</dt><dd class="col-7">{% if object.parent %}<a href="/installations/{{ object.parent.id }}/">{{ object.parent.designation }}</a>{% else %}—{% endif %}</dd>
+                <dt class="col-5">Sous-ensembles</dt><dd class="col-7">{% for c in object.sous_ensembles.all %}<a href="/installations/{{ c.id }}/">{{ c.designation }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
               </dl>
             </div>
           </div>
@@ -823,6 +825,17 @@
                 <option value="A" {% if object.iso_periodicity == 'A' %}selected{% endif %}>Annuel</option>
               </select>
             </div>
+            {% if peut_gerer_parent %}
+            <div class="col-md-6">
+              <label class="form-label">Rattaché à (facultatif)</label>
+              <select class="form-select" name="parent_id">
+                <option value="">— Aucun —</option>
+                {% for p in installations_pour_parent %}
+                  <option value="{{ p.id }}" {% if object.parent_id == p.id %}selected{% endif %}>{{ p.designation }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
