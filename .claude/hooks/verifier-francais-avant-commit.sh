@@ -10,7 +10,7 @@ command=$(echo "$input" | jq -r '.tool_input.command // empty')
 if [[ "$command" == *"git commit"* ]]; then
     cd "$CLAUDE_PROJECT_DIR" || exit 1
 
-    mots_suspects="Submit|Cancel|Loading|Save|Delete|Error:|Warning:|Success|Please|Click here"
+    mots_suspects="\bSubmit\b|\bCancel\b|\bLoading\b|\bSave\b|\bDelete\b|\bError:|\bWarning:|\bSuccess\b|\bPlease\b|\bClick here\b"
     lignes_ajoutees=$(git diff --cached -- '*.html' '*.py' | grep -E '^\+' | grep -vE '^\+\+\+')
     trouve=$(echo "$lignes_ajoutees" | grep -E -i "$mots_suspects")
 
