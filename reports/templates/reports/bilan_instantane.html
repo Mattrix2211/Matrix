@@ -4,25 +4,125 @@
 <meta charset="utf-8">
 <title>Bilan instantané{% if perimetre %} — {{ perimetre }}{% endif %}</title>
 <style>
+    /* Polices auto-hébergées MK Design System — chargées en local (file://) via le
+       base_url fourni par reports/services.py, aucune dépendance CDN (hors-ligne). */
+    @font-face {
+        font-family: "Space Grotesk";
+        font-style: normal;
+        font-weight: 500;
+        src: url("fonts/space-grotesk/space-grotesk-latin-500-normal.woff2") format("woff2");
+    }
+    @font-face {
+        font-family: "Space Grotesk";
+        font-style: normal;
+        font-weight: 700;
+        src: url("fonts/space-grotesk/space-grotesk-latin-700-normal.woff2") format("woff2");
+    }
+    @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 400;
+        src: url("fonts/inter/inter-latin-400-normal.woff2") format("woff2");
+    }
+    @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 500;
+        src: url("fonts/inter/inter-latin-500-normal.woff2") format("woff2");
+    }
+    @font-face {
+        font-family: "JetBrains Mono";
+        font-style: normal;
+        font-weight: 400;
+        src: url("fonts/jetbrains-mono/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+    }
+    @font-face {
+        font-family: "JetBrains Mono";
+        font-style: normal;
+        font-weight: 500;
+        src: url("fonts/jetbrains-mono/jetbrains-mono-latin-500-normal.woff2") format("woff2");
+    }
+
+    /* Palette MK Design System (design/DESIGN_SYSTEM.md §2) — mode Light naval,
+       valeurs dupliquées de matrix.css car ce document PDF est en CSS inline. */
+    :root {
+        --signal: #00B4D8;
+        --green-tech: #16B84E;
+        --amber: #F4A261;
+        --red: #E63946;
+        --chalk: #F0F4F8;
+        --paper: #FFFFFF;
+        --ink: #0B1929;
+        --border: #DDE5ED;
+        --text-sec: #4A6580;
+    }
+
     @page { size: A4; margin: 2cm; }
-    body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11px; color: #212529; }
-    h1 { font-size: 20px; margin-bottom: 0; }
-    h2 { font-size: 15px; margin-top: 24px; border-bottom: 2px solid #0d6efd; padding-bottom: 4px; }
-    .entete { margin-bottom: 16px; color: #495057; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    th, td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: left; vertical-align: top; }
-    th { background-color: #f1f3f5; }
-    .en-retard { background-color: #f8d7da; color: #842029; font-weight: bold; }
-    .vide { color: #868e96; font-style: italic; }
-    .statut-a-jour { color: #2f9e44; font-weight: bold; }
-    .statut-en-retard { color: #c92a2a; font-weight: bold; }
+    body {
+        font-family: "Inter", "DejaVu Sans", Arial, sans-serif;
+        font-size: 11px;
+        color: var(--ink);
+        background-color: var(--chalk);
+    }
+
+    .entete-doc {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 2px solid var(--signal);
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+    }
+    .entete-doc img { width: 40px; height: 40px; object-fit: contain; }
+
+    h1 {
+        font-family: "Space Grotesk", "DejaVu Sans", sans-serif;
+        font-weight: 700;
+        font-size: 20px;
+        margin: 0;
+        color: var(--ink);
+    }
+    h2 {
+        font-family: "Space Grotesk", "DejaVu Sans", sans-serif;
+        font-weight: 500;
+        font-size: 15px;
+        margin-top: 24px;
+        border-bottom: 2px solid var(--signal);
+        padding-bottom: 4px;
+        color: var(--ink);
+    }
+    .entete {
+        margin: 4px 0 0;
+        color: var(--text-sec);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; background-color: var(--paper); }
+    th, td { border: 1px solid var(--border); padding: 4px 6px; text-align: left; vertical-align: top; }
+    th {
+        background-color: var(--chalk);
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 500;
+    }
+    .mono { font-family: "JetBrains Mono", monospace; }
+
+    .en-retard { background-color: rgba(230, 57, 70, .08); color: var(--red); font-weight: bold; }
+    .vide { color: var(--text-sec); font-style: italic; }
+    .statut-a-jour { color: var(--green-tech); font-weight: bold; }
+    .statut-en-retard { color: var(--red); font-weight: bold; }
 </style>
 </head>
 <body>
-    <h1>Bilan instantané{% if perimetre %} — {{ perimetre }}{% endif %}</h1>
-    <p class="entete">
-        Généré le {{ genere_le|date:"d/m/Y à H:i" }} par {{ genere_par.get_full_name|default:genere_par.username }}
-    </p>
+    <div class="entete-doc">
+        <img src="img/IMG_5292.PNG" alt="Matrix">
+        <div>
+            <h1>Bilan instantané{% if perimetre %} — {{ perimetre }}{% endif %}</h1>
+            <p class="entete">
+                Généré le {{ genere_le|date:"d/m/Y à H:i" }} par {{ genere_par.get_full_name|default:genere_par.username }}
+            </p>
+        </div>
+    </div>
 
     <h2>État des installations</h2>
     {% if installations %}
@@ -42,10 +142,10 @@
             <tr>
                 <td>{{ ligne.installation.designation }}</td>
                 <td class="{% if ligne.statut == 'En retard' %}statut-en-retard{% else %}statut-a-jour{% endif %}">{{ ligne.statut }}</td>
-                <td>{% if ligne.derniere_visite %}{{ ligne.derniere_visite.date|date:"d/m/Y" }}{% else %}<span class="vide">Aucune</span>{% endif %}</td>
-                <td>{% if ligne.dernier_releve_heures %}{{ ligne.dernier_releve_heures.hours }} h ({{ ligne.dernier_releve_heures.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
-                <td>{% if ligne.dernier_releve_vibration %}{{ ligne.dernier_releve_vibration.state }} ({{ ligne.dernier_releve_vibration.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
-                <td>{% if ligne.dernier_releve_isolement %}{{ ligne.dernier_releve_isolement.ohms }} Ω ({{ ligne.dernier_releve_isolement.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
+                <td class="mono">{% if ligne.derniere_visite %}{{ ligne.derniere_visite.date|date:"d/m/Y" }}{% else %}<span class="vide">Aucune</span>{% endif %}</td>
+                <td class="mono">{% if ligne.dernier_releve_heures %}{{ ligne.dernier_releve_heures.hours }} h ({{ ligne.dernier_releve_heures.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
+                <td class="mono">{% if ligne.dernier_releve_vibration %}{{ ligne.dernier_releve_vibration.state }} ({{ ligne.dernier_releve_vibration.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
+                <td class="mono">{% if ligne.dernier_releve_isolement %}{{ ligne.dernier_releve_isolement.ohms }} Ω ({{ ligne.dernier_releve_isolement.date|date:"d/m/Y" }}){% else %}<span class="vide">Aucun</span>{% endif %}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -70,7 +170,7 @@
             <tr class="{% if echeance.en_retard %}en-retard{% endif %}">
                 <td>{{ echeance.installation.designation }}</td>
                 <td>{{ echeance.titre }}</td>
-                <td>{{ echeance.date_prevue|date:"d/m/Y" }}</td>
+                <td class="mono">{{ echeance.date_prevue|date:"d/m/Y" }}</td>
                 <td>{% if echeance.en_retard %}En retard{% else %}{{ echeance.statut }}{% endif %}</td>
             </tr>
             {% endfor %}
@@ -98,8 +198,8 @@
                 <td>{{ ticket.asset }}</td>
                 <td>{{ ticket.description }}</td>
                 <td>{{ ticket.get_status_display }}</td>
-                <td>{{ ticket.reported_at|date:"d/m/Y" }}</td>
-                <td>{{ ticket.anciennete_jours }} jour{{ ticket.anciennete_jours|pluralize }}</td>
+                <td class="mono">{{ ticket.reported_at|date:"d/m/Y" }}</td>
+                <td class="mono">{{ ticket.anciennete_jours }} jour{{ ticket.anciennete_jours|pluralize }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -123,7 +223,7 @@
             <tr>
                 <td>{{ qualification.user.get_full_name|default:qualification.user.username }}</td>
                 <td>{{ qualification.course.title }}</td>
-                <td>{{ qualification.expires_at|date:"d/m/Y" }}</td>
+                <td class="mono">{{ qualification.expires_at|date:"d/m/Y" }}</td>
             </tr>
             {% endfor %}
         </tbody>

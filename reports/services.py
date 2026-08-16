@@ -10,6 +10,7 @@ Réutilise scope_filters_for_user (aucun nouveau système de permission ni de sc
 from datetime import timedelta
 
 import weasyprint
+from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -34,6 +35,11 @@ STATUTS_OCCURRENCE_TERMINEES = ("DONE", "CANCELLED")
 JOURS_ALERTE_QUALIFICATION = 90
 
 MODELES_PERIMETRE = {"ship": Ship, "service": Service, "sector": Sector, "section": Section}
+
+# Base locale (file://) pour que WeasyPrint résolve les polices auto-hébergées et le
+# logo référencés en chemin relatif dans le CSS inline des templates de bilan (T20) —
+# aucune requête réseau, conforme au fonctionnement hors-ligne du bord.
+_BASE_URL_STATIQUE = f"file://{settings.STATICFILES_DIRS[0]}/"
 
 
 class PerimetreNonAutorise(PermissionError):
@@ -183,7 +189,7 @@ def generer_bilan_instantane_pdf(scope_type: str, scope_id, utilisateur) -> byte
     dépendance CDN, compatible fonctionnement hors-ligne)."""
     contexte = construire_contexte_instantane(scope_type, scope_id, utilisateur)
     html = render_to_string("reports/bilan_instantane.html", contexte)
-    return weasyprint.HTML(string=html).write_pdf()
+    return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
 
 
 def construire_contexte_periode(
@@ -379,4 +385,4 @@ def generer_bilan_periode_pdf(
     et renvoie le contenu binaire du PDF (WeasyPrint, génération 100% côté serveur)."""
     contexte = construire_contexte_periode(scope_type, scope_id, utilisateur, date_debut, date_fin)
     html = render_to_string("reports/bilan_periode.html", contexte)
-    return weasyprint.HTML(string=html).write_pdf()
+    return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
