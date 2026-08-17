@@ -99,3 +99,72 @@ class CalendarEventMovePerimetreTests(TestCase):
         self.assertEqual(resp.status_code, 403)
         self.session_autre_navire.refresh_from_db()
         self.assertEqual(self.session_autre_navire.scheduled_at, date_initiale)
+
+
+from assets.models import Installation
+from maintenance.models import MaintenanceOccurrence, MaintenancePlan
+
+
+class CalendarEventMoveOccurrencePerimetreTests(TestCase):
+    """[QA] Verifie si la branche 'maintenance' (occurrences) de
+    calendar_event_move revalide elle aussi le perimetre de l'objet deplace,
+    comme les branches 'ticket' et 'training' corrigees par le Dev. Un
+    CHEF_SECTION+ qui n'est pas assigne a l'occurrence ne devrait pouvoir
+    deplacer que les occurrences de son propre perimetre."""
+
+    def setUp(self):
+        self.navire = Ship.objects.create(name="Navire A", code="NAV-A2")
+        self.service = Service.objects.create(ship=self.navire, name="Service A2")
+        self.secteur = Sector.objects.create(service=self.service, name="Secteur A2")
+
+        self.autre_navire = Ship.objects.create(name="Navire B", code="NAV-B2")
+        self.autre_service = Service.objects.create(ship=self.autre_navire, name="Service B2")
+        self.autre_secteur = Sector.objects.create(service=self.autre_service, name="Secteur B2")
+
+        self.installation = Installation.objects.create(
+            designation="Pompe A", ship=self.navire, service=self.service, sector=self.secteur,
+        )
+        self.autre_installation = Installation.objects.create(
+            designation="Pompe B", ship=self.autre_navire, service=self.autre_service, sector=self.autre_secteur,
+        )
+
+        asset_type = AssetType.objects.create(name="Extincteur", category="Incendie", sector=self.secteur)
+        self.asset = Asset.objects.create(
+            asset_type=asset_type, ship=self.navire, service=self.service, sector=self.secteur,
+        )
+        self.plan = MaintenancePlan.objects.create(scope="ASSET", asset=self.asset, name="Plan A", every_n_days=30)
+
+        autre_asset_type = AssetType.objects.create(name="Extincteur", category="Incendie", sector=self.autre_secteur)
+        self.autre_asset = Asset.objects.create(
+            asset_type=autre_asset_type, ship=self.autre_navire, service=self.autre_service, sector=self.autre_secteur,
+        )
+        self.autre_plan = MaintenancePlan.objects.create(
+            scope="ASSET", asset=self.autre_asset, name="Plan B", every_n_days=30
+        )
+
+        self.occ = MaintenanceOccurrence.objects.create(
+            plan=self.plan, asset=self.asset, scheduled_for=timezone.localdate(), status="PLANNED",
+        )
+        self.occ_autre_navire = MaintenanceOccurrence.objects.create(
+            plan=self.autre_plan, asset=self.autre_asset, scheduled_for=timezone.localdate(), status="PLANNED",
+        )
+
+        self.chef = User.objects.create_user(username="chef_occ", password="pass")
+        UserProfile.objects.filter(user=self.chef).update(role="CHEF_SECTION", sector=self.secteur)
+
+        self.url = reverse("calendar-event-move")
+        self.nouvelle_date = (timezone.localdate() + timedelta(days=3)).isoformat()
+
+    def test_chef_section_non_assigne_ne_peut_pas_deplacer_une_occurrence_hors_perimetre(self):
+        """Un CHEF_SECTION du secteur A, non assigne a l'occurrence, ne doit
+        pas pouvoir replanifier une occurrence de maintenance rattachee a un
+        autre navire en devinant son identifiant (meme faille IDOR que pour
+        les tickets/sessions, non corrigee sur cette branche)."""
+        self.client.login(username="chef_occ", password="pass")
+        date_initiale = self.occ_autre_navire.scheduled_for
+        resp = self.client.post(
+            self.url, {"type": "maintenance", "id": str(self.occ_autre_navire.pk), "date": self.nouvelle_date}
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.occ_autre_navire.refresh_from_db()
+        self.assertEqual(self.occ_autre_navire.scheduled_for, date_initiale)

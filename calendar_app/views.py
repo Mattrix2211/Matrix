@@ -12,6 +12,7 @@ from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.scopes import scope_filters_for_user
+from matrix.core.mixins import build_scope_q
 
 
 def _perimetre_ticket(qs, user):
@@ -382,8 +383,17 @@ def calendar_event_move(request):
             occ = MaintenanceOccurrence.objects.get(pk=ev_id)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest("Occurrence not found")
-        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
-            return HttpResponseForbidden()
+        est_assigne = request.user in occ.assignees.all()
+        if not est_assigne:
+            # Un utilisateur non assigné doit être CHEF_SECTION+ ET l'occurrence
+            # doit appartenir à son périmètre (via le matériel mobile ou
+            # l'installation fixe rattachée) — un assigné garde toujours la main
+            # sur sa propre occurrence, quel que soit son rôle ou son périmètre.
+            if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+                return HttpResponseForbidden()
+            perimetre = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
+            if not MaintenanceOccurrence.objects.filter(perimetre, pk=ev_id).exists():
+                return HttpResponseForbidden()
         occ.scheduled_for = new_date
         occ.save(update_fields=["scheduled_for"])
         return JsonResponse({"ok": True})
