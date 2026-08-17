@@ -4,7 +4,7 @@ from .serializers import (
     LocationSerializer, AssetTypeSerializer, ChecklistTemplateSerializer, ChecklistItemTemplateSerializer,
     AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer
 )
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -15,6 +15,23 @@ class LocationViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     serializer_class = LocationSerializer
     permission_classes = [RolePermission]
 
+    def get_scoped_filters(self):
+        # Un lieu (compartiment du navire) n'est rattaché qu'au navire
+        # (champ "ship"), jamais à un service/secteur/section précis.
+        # Quel que soit le niveau du périmètre de l'utilisateur, on
+        # retrouve le navire concerné en remontant la hiérarchie inverse
+        # Navire -> Service -> Secteur -> Section (related_names
+        # "services"/"sectors"/"sections" définis dans org/models.py).
+        return build_scope_q(
+            self.request.user,
+            {
+                "ship_id": "ship_id",
+                "service_id": "ship__services__id",
+                "sector_id": "ship__services__sectors__id",
+                "section_id": "ship__services__sectors__sections__id",
+            },
+        )
+
 class AssetTypeViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetType.objects.select_related("sector", "sector__service", "sector__service__ship").all()
     serializer_class = AssetTypeSerializer
@@ -22,10 +39,39 @@ class AssetTypeViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "category"]
 
+    def get_scoped_filters(self):
+        # Un type d'actif est toujours rattaché à un secteur précis (champ
+        # obligatoire) : ce n'est pas un référentiel global partagé par
+        # toute la flotte. Même traduction de périmètre que
+        # MaintenancePlanViewSet (maintenance/views.py) pour son
+        # asset_type. Un secteur n'étant jamais découpé par section, un
+        # utilisateur au périmètre "section" ne voit aucun type d'actif.
+        return build_scope_q(
+            self.request.user,
+            {
+                "ship_id": "sector__service__ship_id",
+                "service_id": "sector__service_id",
+                "sector_id": "sector_id",
+            },
+        )
+
 class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = ChecklistTemplate.objects.select_related("sector", "asset_type").prefetch_related("items").all()
     serializer_class = ChecklistTemplateSerializer
     permission_classes = [RolePermission]
+
+    def get_scoped_filters(self):
+        # Un modèle de checklist est toujours rattaché à un secteur précis
+        # (champ obligatoire), au même titre qu'un type d'actif : même
+        # traduction de périmètre que AssetTypeViewSet ci-dessus.
+        return build_scope_q(
+            self.request.user,
+            {
+                "ship_id": "sector__service__ship_id",
+                "service_id": "sector__service_id",
+                "sector_id": "sector_id",
+            },
+        )
 
 class ChecklistItemTemplateViewSet(viewsets.ModelViewSet):
     queryset = ChecklistItemTemplate.objects.select_related("template").all()
