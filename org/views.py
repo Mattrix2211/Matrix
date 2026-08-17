@@ -7,9 +7,24 @@ from matrix.core.permissions import RolePermission
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-def _is_admin_navire(user):
+
+def _is_master_admin(user):
+    """Vrai si l'utilisateur a un accès multi-navires (flotte entière) : superutilisateur
+    ou rôle MASTER_ADMIN (administrateur général, seul niveau au-dessus de ADMIN_NAVIRE
+    dans la hiérarchie). Tous les autres rôles (ADMIN_NAVIRE compris) sont rattachés à
+    un navire précis et ne doivent gérer que celui-ci.
+    """
+    if getattr(user, "is_superuser", False):
+        return True
     profile = getattr(user, "profile", None)
-    return bool(profile and profile.role == "ADMIN_NAVIRE")
+    return bool(profile and profile.role == "MASTER_ADMIN")
+
+
+def _user_ship_id(user):
+    """Renvoie l'id du navire de l'utilisateur, ou None si aucun navire rattaché."""
+    profile = getattr(user, "profile", None)
+    ship = getattr(profile, "ship", None)
+    return ship.id if ship else None
 
 
 class ShipViewSet(viewsets.ModelViewSet):
@@ -20,25 +35,25 @@ class ShipViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
-        if _is_admin_navire(user):
-            ship = getattr(user.profile, "ship", None)
-            if ship is None:
-                return Ship.objects.none()
-            return qs.filter(id=ship.id)
-        return qs
+        if _is_master_admin(user):
+            return qs
+        ship_id = _user_ship_id(user)
+        if ship_id is None:
+            return Ship.objects.none()
+        return qs.filter(id=ship_id)
 
     def perform_create(self, serializer):
-        # ADMIN_NAVIRE ne peut pas créer de nouveaux navires
-        if _is_admin_navire(self.request.user):
+        # Seul un administrateur général peut créer un nouveau navire dans la flotte.
+        if not _is_master_admin(self.request.user):
             raise PermissionDenied("Vous ne pouvez pas créer de navire.")
         serializer.save()
 
     def perform_update(self, serializer):
-        # ADMIN_NAVIRE ne peut modifier que son propre navire
-        if _is_admin_navire(self.request.user):
+        # Un utilisateur non administrateur général ne peut modifier que son propre navire.
+        if not _is_master_admin(self.request.user):
             instance = self.get_object()
-            user_ship = getattr(self.request.user.profile, "ship", None)
-            if not user_ship or instance.id != user_ship.id:
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or instance.id != user_ship_id:
                 raise PermissionDenied("Vous ne pouvez modifier que votre navire.")
         serializer.save()
 
@@ -50,26 +65,26 @@ class ServiceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
-        if _is_admin_navire(user):
-            ship = getattr(user.profile, "ship", None)
-            if ship is None:
-                return Service.objects.none()
-            return qs.filter(ship_id=ship.id)
-        return qs
+        if _is_master_admin(user):
+            return qs
+        ship_id = _user_ship_id(user)
+        if ship_id is None:
+            return Service.objects.none()
+        return qs.filter(ship_id=ship_id)
 
     def perform_create(self, serializer):
-        if _is_admin_navire(self.request.user):
+        if not _is_master_admin(self.request.user):
             ship = serializer.validated_data.get("ship")
-            user_ship = getattr(self.request.user.profile, "ship", None)
-            if not user_ship or not ship or ship.id != user_ship.id:
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not ship or ship.id != user_ship_id:
                 raise PermissionDenied("Service hors du navire autorisé.")
         serializer.save()
 
     def perform_update(self, serializer):
-        if _is_admin_navire(self.request.user):
+        if not _is_master_admin(self.request.user):
             ship = serializer.validated_data.get("ship") or getattr(self.get_object(), "ship", None)
-            user_ship = getattr(self.request.user.profile, "ship", None)
-            if not user_ship or not ship or ship.id != user_ship.id:
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not ship or ship.id != user_ship_id:
                 raise PermissionDenied("Service hors du navire autorisé.")
         serializer.save()
 
@@ -81,26 +96,26 @@ class SectorViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
-        if _is_admin_navire(user):
-            ship = getattr(user.profile, "ship", None)
-            if ship is None:
-                return Sector.objects.none()
-            return qs.filter(service__ship_id=ship.id)
-        return qs
+        if _is_master_admin(user):
+            return qs
+        ship_id = _user_ship_id(user)
+        if ship_id is None:
+            return Sector.objects.none()
+        return qs.filter(service__ship_id=ship_id)
 
     def perform_create(self, serializer):
-        if _is_admin_navire(self.request.user):
+        if not _is_master_admin(self.request.user):
             service = serializer.validated_data.get("service")
-            user_ship = getattr(self.request.user.profile, "ship", None)
-            if not user_ship or not service or service.ship_id != user_ship.id:
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not service or service.ship_id != user_ship_id:
                 raise PermissionDenied("Secteur hors du navire autorisé.")
         serializer.save()
 
     def perform_update(self, serializer):
-        if _is_admin_navire(self.request.user):
+        if not _is_master_admin(self.request.user):
             service = serializer.validated_data.get("service") or getattr(self.get_object(), "service", None)
-            user_ship = getattr(self.request.user.profile, "ship", None)
-            if not user_ship or not service or service.ship_id != user_ship.id:
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not service or service.ship_id != user_ship_id:
                 raise PermissionDenied("Secteur hors du navire autorisé.")
         serializer.save()
 
@@ -112,26 +127,26 @@ class SectionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
-        if _is_admin_navire(user):
-            ship = getattr(user.profile, "ship", None)
-            if ship is None:
-                return Section.objects.none()
-            return qs.filter(sector__service__ship_id=ship.id)
-        return qs
+        if _is_master_admin(user):
+            return qs
+        ship_id = _user_ship_id(user)
+        if ship_id is None:
+            return Section.objects.none()
+        return qs.filter(sector__service__ship_id=ship_id)
 
     def perform_create(self, serializer):
-        if _is_admin_navire(self.request.user):
+        if not _is_master_admin(self.request.user):
             sector = serializer.validated_data.get("sector")
-            user_ship = getattr(self.request.user.profile, "ship", None)
-            if not user_ship or not sector or sector.service.ship_id != user_ship.id:
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
                 raise PermissionDenied("Section hors du navire autorisé.")
         serializer.save()
 
     def perform_update(self, serializer):
-        if _is_admin_navire(self.request.user):
+        if not _is_master_admin(self.request.user):
             sector = serializer.validated_data.get("sector") or getattr(self.get_object(), "sector", None)
-            user_ship = getattr(self.request.user.profile, "ship", None)
-            if not user_ship or not sector or sector.service.ship_id != user_ship.id:
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
                 raise PermissionDenied("Section hors du navire autorisé.")
         serializer.save()
 
