@@ -1,6 +1,7 @@
 from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
+from django.contrib.auth.decorators import login_required
 from assets.models import Asset
 from logistics.models import CorrectiveTicket
 from django.contrib.auth.models import User
@@ -10,14 +11,31 @@ from accounts.models import GradeChoice, SpecialityChoice, ServiceFunctionChoice
 from assets.models import InstallationBigrameChoice, Installation
 from org.models import Ship, Service, Sector, Section
 from django.contrib import messages
+from matrix.core.scopes import scope_filters_for_user
 
+
+@login_required
 def global_search(request):
+    # Recherche globale réservée aux utilisateurs connectés, restreinte à leur
+    # périmètre (navire/service/secteur/section) via scope_filters_for_user —
+    # pas de nouveau système de scope. Le matériel porte directement les champs
+    # de périmètre ; les tickets et les personnes n'en ont pas, on traduit donc
+    # le périmètre via la relation vers le matériel (asset) ou le profil (profile).
     q = request.GET.get('q', '').strip()
+    perimetre = scope_filters_for_user(request.user)
+    perimetre_tickets = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
+    perimetre_users = {f"profile__{cle}": valeur for cle, valeur in perimetre.items()}
     assets = tickets = users = []
     if q:
-        assets = Asset.objects.filter(Q(internal_id__icontains=q) | Q(serial_number__icontains=q))[:20]
-        tickets = CorrectiveTicket.objects.filter(Q(description__icontains=q) | Q(id__icontains=q))[:20]
-        users = User.objects.filter(Q(username__icontains=q) | Q(email__icontains=q))[:20]
+        assets = Asset.objects.filter(**perimetre).filter(
+            Q(internal_id__icontains=q) | Q(serial_number__icontains=q)
+        )[:20]
+        tickets = CorrectiveTicket.objects.filter(**perimetre_tickets).filter(
+            Q(description__icontains=q) | Q(id__icontains=q)
+        )[:20]
+        users = User.objects.filter(**perimetre_users).filter(
+            Q(username__icontains=q) | Q(email__icontains=q)
+        )[:20]
     return render(request, 'search.html', {"q": q, "assets": assets, "tickets": tickets, "users": users})
 
 
