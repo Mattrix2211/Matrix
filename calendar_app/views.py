@@ -10,6 +10,42 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.scopes import scope_filters_for_user
+
+
+def _perimetre_ticket(qs, user):
+    """Restreint un queryset de tickets correctifs au périmètre (navire/
+    service/secteur/section) de l'utilisateur, via le matériel mobile (asset)
+    qui porte les 4 champs de périmètre. Réutilise scope_filters_for_user
+    (aucun nouveau système de périmètre)."""
+    filtres = scope_filters_for_user(user)
+    if not filtres:
+        return qs
+    (cle, valeur), = filtres.items()
+    return qs.filter(**{f"asset__{cle}": valeur})
+
+
+def _perimetre_session(qs, user):
+    """Restreint un queryset de sessions de formation au périmètre de
+    l'utilisateur, via la formation (course) qui n'est rattachée qu'à un
+    secteur (une formation n'est jamais propre à une section précise).
+    Si le périmètre de l'utilisateur est plus fin qu'un secteur (section),
+    aucune correspondance n'est possible : on ne renvoie rien plutôt que de
+    risquer une fuite hors périmètre."""
+    filtres = scope_filters_for_user(user)
+    if not filtres:
+        return qs
+    (cle, valeur), = filtres.items()
+    chemins = {
+        "sector_id": "course__sector_id",
+        "service_id": "course__sector__service_id",
+        "ship_id": "course__sector__service__ship_id",
+    }
+    chemin = chemins.get(cle)
+    if not chemin:
+        return qs.none()
+    return qs.filter(**{chemin: valeur})
+
 
 class CalendarView(LoginRequiredMixin, TemplateView):
     template_name = "calendar/index.html"
@@ -289,11 +325,13 @@ def calendar_event_move(request):
     if ev_type == "ticket" and ev_id:
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             return HttpResponseForbidden()
-        pk = ev_id
         try:
-            t = CorrectiveTicket.objects.get(pk=pk)
+            # Le queryset est restreint au périmètre de l'appelant avant la
+            # récupération : un ticket hors périmètre n'existe pas pour lui,
+            # même s'il en devine l'identifiant.
+            t = _perimetre_ticket(CorrectiveTicket.objects.all(), request.user).get(pk=ev_id)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseBadRequest("Ticket not found")
+            return HttpResponseForbidden()
         t.planned_for = new_date
         t.save(update_fields=["planned_for"])
         return JsonResponse({"ok": True})
@@ -308,13 +346,16 @@ def calendar_event_move(request):
         occ.save(update_fields=["scheduled_for"])
         return JsonResponse({"ok": True})
     if ev_type == "training" and ev_id:
-        # CHEF_SECTION+ peut déplacer les sessions de formation
+        # CHEF_SECTION+ peut déplacer les sessions de formation de son périmètre
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             return HttpResponseForbidden()
         try:
-            s = TrainingSession.objects.get(pk=ev_id)
+            # Le queryset est restreint au périmètre de l'appelant avant la
+            # récupération : une session hors périmètre n'existe pas pour lui,
+            # même s'il en devine l'identifiant.
+            s = _perimetre_session(TrainingSession.objects.all(), request.user).get(pk=ev_id)
         except TrainingSession.DoesNotExist:
-            return HttpResponseBadRequest("Session not found")
+            return HttpResponseForbidden()
         # Utiliser l'heure fournie si présente, sinon 09:00 locale
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         s.scheduled_at = aware_dt
