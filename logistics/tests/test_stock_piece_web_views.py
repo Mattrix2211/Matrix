@@ -20,6 +20,12 @@ class StockPieceListViewTests(TestCase):
         self.secteur = Sector.objects.create(service=self.service, name="Secteur T14")
         self.autre_secteur = Sector.objects.create(service=self.service, name="Autre secteur")
         self.section = Section.objects.create(sector=self.secteur, name="Section T14")
+        self.section_autre_secteur = Section.objects.create(sector=self.autre_secteur, name="Section autre secteur")
+
+        # Second navire, hors périmètre du chef de section T14 (T-SEC).
+        self.autre_navire = Ship.objects.create(name="Navire B", code="NB")
+        self.autre_service = Service.objects.create(ship=self.autre_navire, name="Service B")
+        self.secteur_autre_navire = Sector.objects.create(service=self.autre_service, name="Secteur B")
 
         self.piece_dans_perimetre = StockPiece.objects.create(
             reference="REF-001", designation="Joint torique", quantite=1, quantite_minimale=5,
@@ -118,14 +124,67 @@ class StockPieceListViewTests(TestCase):
         self.assertIn('badge badge-conforme">Conforme', contenu)
 
     def test_section_dun_autre_secteur_est_ignoree(self):
-        # La section appartient à self.secteur ; on tente de créer avec autre_secteur,
-        # la section incohérente doit être ignorée plutôt que de créer une hiérarchie fausse.
+        # Le secteur posté (self.secteur) est bien dans le périmètre du chef ; la
+        # section postée appartient à un autre secteur (self.autre_secteur) : elle
+        # doit être ignorée plutôt que de créer une hiérarchie incohérente, sans que
+        # cela empêche la création de la pièce dans le secteur valide.
         self.client.login(username="chef", password="pass")
         self.client.post(self.url, {
             "action": "create_piece", "reference": "REF-005", "designation": "Test hiérarchie",
             "quantite": "1", "quantite_minimale": "1",
-            "sector_id": self.autre_secteur.id, "section_id": self.section.id,
+            "sector_id": self.secteur.id, "section_id": self.section_autre_secteur.id,
         })
         piece = StockPiece.objects.get(reference="REF-005")
         self.assertIsNone(piece.section)
-        self.assertEqual(piece.sector, self.autre_secteur)
+        self.assertEqual(piece.sector, self.secteur)
+
+    def test_chef_ne_peut_pas_creer_une_piece_dans_un_secteur_hors_perimetre(self):
+        # Faille corrigée (T-SEC) : un chef de section cantonné à self.secteur ne
+        # doit pas pouvoir créer une pièce dans autre_secteur en postant directement
+        # son identifiant, même s'il n'apparaît pas dans le menu déroulant du formulaire.
+        self.client.login(username="chef", password="pass")
+        response = self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-008", "designation": "Hors périmètre",
+            "quantite": "1", "quantite_minimale": "1", "sector_id": self.autre_secteur.id,
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(StockPiece.objects.filter(reference="REF-008").exists())
+
+    def test_chef_ne_peut_pas_creer_une_piece_dans_un_secteur_dun_autre_navire(self):
+        self.client.login(username="chef", password="pass")
+        response = self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-009", "designation": "Autre navire",
+            "quantite": "1", "quantite_minimale": "1", "sector_id": self.secteur_autre_navire.id,
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(StockPiece.objects.filter(reference="REF-009").exists())
+
+    def test_chef_ne_peut_pas_modifier_une_piece_hors_perimetre(self):
+        # Faille corrigée (T-SEC) : edit_piece rechargeait la pièce ciblée uniquement
+        # par pk, sans repasser par le queryset scopé — un chef de section pouvait donc
+        # modifier ou transférer une pièce d'un autre secteur/bâtiment vers le sien.
+        self.client.login(username="chef", password="pass")
+        response = self.client.post(self.url, {
+            "action": "edit_piece", "pk": self.piece_hors_perimetre.pk,
+            "reference": "REF-002", "designation": "Roulement modifié", "quantite": "99",
+            "quantite_minimale": "2", "sector_id": self.secteur.id,
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.piece_hors_perimetre.refresh_from_db()
+        # La pièce n'a pas bougé : ni la quantité, ni le secteur (elle n'a pas été
+        # transférée vers le périmètre de l'attaquant).
+        self.assertEqual(self.piece_hors_perimetre.quantite, 10)
+        self.assertEqual(self.piece_hors_perimetre.sector, self.autre_secteur)
+
+    def test_chef_ne_peut_pas_transferer_une_piece_vers_un_secteur_hors_perimetre(self):
+        # Même si la pièce ciblée est dans son périmètre, le chef ne doit pas pouvoir
+        # la transférer vers un secteur hors périmètre en postant directement son id.
+        self.client.login(username="chef", password="pass")
+        response = self.client.post(self.url, {
+            "action": "edit_piece", "pk": self.piece_dans_perimetre.pk,
+            "reference": "REF-001", "designation": "Joint torique", "quantite": "1",
+            "quantite_minimale": "5", "sector_id": self.autre_secteur.id,
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.piece_dans_perimetre.refresh_from_db()
+        self.assertEqual(self.piece_dans_perimetre.sector, self.secteur)
