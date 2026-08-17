@@ -10,7 +10,32 @@ from django.db.models import Q
 from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.scopes import scope_filters_for_user
 from org.models import Sector, Section
+
+
+def _secteur_dans_perimetre(user, sector_id):
+    """Vérifie qu'un secteur posté dans le formulaire de gestion du stock (T14)
+    appartient bien au périmètre de l'appelant, en réutilisant scope_filters_for_user
+    (le même système que ScopedQuerySetMixin) plutôt que d'en recréer un nouveau —
+    même principe que _org_dans_perimetre dans assets/web_views.py. Un utilisateur
+    sans périmètre restreint (ex. administrateur général) peut choisir n'importe
+    quel secteur existant ; un utilisateur cantonné à un niveau (navire/service/
+    secteur/section) ne peut choisir qu'un secteur qui en descend — pour un chef de
+    section, uniquement le secteur contenant sa propre section. Ne fait pas
+    confiance au menu déroulant du formulaire, contournable par un POST direct."""
+    filters = scope_filters_for_user(user)
+    if not filters:
+        return Sector.objects.filter(pk=sector_id).exists()
+    (key, value), = filters.items()
+    if key == "sector_id":
+        return str(value) == str(sector_id)
+    chemins = {
+        "ship_id": "service__ship_id",
+        "service_id": "service_id",
+        "section_id": "sections__id",
+    }
+    return Sector.objects.filter(pk=sector_id, **{chemins[key]: value}).exists()
 
 
 class TicketDetailView(LoginRequiredMixin, View):
@@ -145,6 +170,13 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         if not sector:
             messages.error(request, "Le secteur est obligatoire.")
             return redirect('stock-piece-list')
+        # Le secteur posté doit appartenir au périmètre de l'appelant, sans quoi un
+        # chef de section pourrait créer ou transférer une pièce vers un secteur (voire
+        # un bâtiment) hors de son périmètre en postant directement un sector_id, en
+        # dehors du menu déroulant du formulaire.
+        if not _secteur_dans_perimetre(request.user, sector.pk):
+            messages.error(request, "Ce secteur ne fait pas partie de votre périmètre.")
+            return redirect('stock-piece-list')
         # La section doit appartenir au secteur choisi, sinon on l'ignore plutôt que
         # de créer une hiérarchie incohérente (Section -> Sector -> Service -> Ship).
         section = Section.objects.filter(pk=request.POST.get('section_id'), sector=sector).first()
@@ -173,7 +205,11 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             messages.info(request, "Pièce ajoutée au stock.")
         else:
             pk = request.POST.get('pk')
-            if not StockPiece.objects.filter(pk=pk).exists():
+            # Recharge la pièce ciblée via le queryset déjà scopé (get_queryset(), même
+            # filtre que la liste) plutôt qu'un simple StockPiece.objects.filter(pk=pk) :
+            # une pièce hors périmètre doit être traitée comme introuvable, pour empêcher
+            # un chef de section de modifier une pièce d'un autre bâtiment via un POST direct.
+            if not self.get_queryset().filter(pk=pk).exists():
                 messages.error(request, "Pièce introuvable.")
                 return redirect('stock-piece-list')
             StockPiece.objects.filter(pk=pk).update(updated_by=request.user, **champs)
