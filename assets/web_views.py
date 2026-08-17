@@ -295,7 +295,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             'bulk_delete_assets'
         ):
             ids = request.POST.getlist('selected_ids')
-            assets = Asset.objects.filter(id__in=ids)
+            # Périmètre : seuls les matériels du périmètre de l'appelant sont chargés
+            # (self.get_queryset(), scopé via ScopedQuerySetMixin) — un identifiant posté
+            # hors périmètre est simplement ignoré, comme s'il n'existait pas.
+            assets = self.get_queryset().filter(id__in=ids)
             count = assets.count()
             if action == 'bulk_update_status':
                 status = request.POST.get('status')
@@ -403,7 +406,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             asset_id = request.POST.get('asset_id')
             folder_id = request.POST.get('folder_id')
             try:
-                a = Asset.objects.get(pk=asset_id)
+                a = self.get_queryset().get(pk=asset_id)
                 a.folder = AssetFolder.objects.filter(pk=folder_id).first() if folder_id else None
                 a.save(update_fields=['folder'])
                 return JsonResponse({'ok': True})
@@ -429,6 +432,21 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             section_id = request.POST.get('section_id')
             location_id = request.POST.get('location_id')
             folder_id = request.POST.get('folder_id') or self.request.GET.get('folder')
+            # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
+            # au périmètre de l'appelant, même principe que _resoudre_parent_valide pour
+            # le champ parent_id — ne fait pas confiance aux menus déroulants du formulaire.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Navire hors de votre périmètre.")
+                return redirect('asset-list')
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect('asset-list')
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect('asset-list')
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect('asset-list')
             # Fallback côté serveur pour type si non fourni: premier type du secteur
             if not type_id and sector_id:
                 try:
@@ -497,8 +515,29 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 messages.error(request, 'Type de matériel introuvable.')
         elif action == 'edit_asset':
             pk = request.POST.get('pk')
+            ship_id = request.POST.get('ship_id')
+            service_id = request.POST.get('service_id')
+            sector_id = request.POST.get('sector_id')
+            section_id = request.POST.get('section_id')
+            # Périmètre (T-SEC) : même contrôle qu'à la création, contre un POST direct
+            # qui déplacerait le matériel hors du périmètre de l'appelant.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Navire hors de votre périmètre.")
+                return redirect('asset-list')
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect('asset-list')
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect('asset-list')
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect('asset-list')
             try:
-                asset = Asset.objects.get(pk=pk)
+                # Périmètre : le matériel visé doit appartenir au périmètre de l'appelant
+                # (self.get_queryset(), scopé) — un identifiant hors périmètre est traité
+                # comme introuvable plutôt que d'être chargé via le manager brut.
+                asset = self.get_queryset().get(pk=pk)
                 asset.internal_id = request.POST.get('internal_id', asset.internal_id).strip()
                 asset.serial_number = request.POST.get('serial_number', asset.serial_number).strip()
                 asset.designation = request.POST.get('designation', asset.designation).strip()
@@ -518,10 +557,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 photo = request.FILES.get('photo')
                 if photo:
                     asset.photo = photo
-                asset.ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first() if request.POST.get('ship_id') else None
-                asset.service = Service.objects.filter(pk=request.POST.get('service_id')).first() if request.POST.get('service_id') else None
-                asset.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
-                asset.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
+                asset.ship = Ship.objects.filter(pk=ship_id).first() if ship_id else None
+                asset.service = Service.objects.filter(pk=service_id).first() if service_id else None
+                asset.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
+                asset.section = Section.objects.filter(pk=section_id).first() if section_id else None
                 asset.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
@@ -542,16 +581,20 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 AuditLog.objects.create(actor=request.user, action='edit_asset', details=f'id={asset.id}')
                 messages.success(request, 'Matériel mis à jour.')
             except Asset.DoesNotExist:
-                pass
+                messages.error(request, 'Matériel introuvable.')
         elif action == 'delete_asset':
             pk = request.POST.get('pk')
-            Asset.objects.filter(pk=pk).delete()
-            messages.success(request, 'Matériel supprimé.')
+            # Périmètre : un matériel hors périmètre est traité comme introuvable.
+            supprimes = self.get_queryset().filter(pk=pk).delete()[0]
+            if supprimes:
+                messages.success(request, 'Matériel supprimé.')
+            else:
+                messages.error(request, 'Matériel introuvable.')
         elif action == 'delete_asset_document':
             pk = request.POST.get('pk')
             doc_id = request.POST.get('document_id')
             try:
-                asset = Asset.objects.get(pk=pk)
+                asset = self.get_queryset().get(pk=pk)
                 AssetDocument.objects.filter(pk=doc_id, asset=asset).delete()
                 messages.success(request, 'Document supprimé.')
             except Asset.DoesNotExist:
@@ -705,7 +748,10 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             'bulk_update_sector', 'bulk_update_section', 'bulk_delete_installations'
         ):
             ids = request.POST.getlist('selected_ids')
-            items = Installation.objects.filter(id__in=ids)
+            # Périmètre : seules les installations du périmètre de l'appelant sont
+            # chargées (self.get_queryset(), scopé via ScopedQuerySetMixin) — un
+            # identifiant posté hors périmètre est simplement ignoré.
+            items = self.get_queryset().filter(id__in=ids)
             count = items.count()
             if action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
@@ -779,6 +825,20 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             section_id = request.POST.get('section_id')
             location_id = request.POST.get('location_id')
             iso_period = (request.POST.get('iso_periodicity') or 'M').strip().upper()
+            # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
+            # au périmètre de l'appelant — ne fait pas confiance au menu déroulant.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Navire hors de votre périmètre.")
+                return redirect('installation-list')
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect('installation-list')
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect('installation-list')
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect('installation-list')
             it = Installation(
                 designation=designation,
                 reference=reference,
@@ -835,8 +895,28 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             messages.success(request, 'Installation créée.')
         elif action == 'edit_installation':
             pk = request.POST.get('pk')
+            ship_id = request.POST.get('ship_id')
+            service_id = request.POST.get('service_id')
+            sector_id = request.POST.get('sector_id')
+            section_id = request.POST.get('section_id')
+            # Périmètre (T-SEC) : même contrôle qu'à la création.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Navire hors de votre périmètre.")
+                return redirect('installation-list')
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect('installation-list')
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect('installation-list')
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect('installation-list')
             try:
-                it = Installation.objects.get(pk=pk)
+                # Périmètre : l'installation visée doit appartenir au périmètre de
+                # l'appelant (self.get_queryset(), scopé) — un identifiant hors périmètre
+                # est traité comme introuvable plutôt que d'être chargé via le manager brut.
+                it = self.get_queryset().get(pk=pk)
                 it.designation = request.POST.get('designation', it.designation).strip()
                 it.reference = request.POST.get('reference', it.reference).strip()
                 it.marque = request.POST.get('marque', it.marque).strip()
@@ -846,10 +926,10 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 photo = request.FILES.get('photo')
                 if photo:
                     it.photo = photo
-                it.ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first() if request.POST.get('ship_id') else None
-                it.service = Service.objects.filter(pk=request.POST.get('service_id')).first() if request.POST.get('service_id') else None
-                it.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
-                it.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
+                it.ship = Ship.objects.filter(pk=ship_id).first() if ship_id else None
+                it.service = Service.objects.filter(pk=service_id).first() if service_id else None
+                it.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
+                it.section = Section.objects.filter(pk=section_id).first() if section_id else None
                 it.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
                 it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
                 iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
@@ -878,15 +958,19 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 AuditLog.objects.create(actor=request.user, action='edit_installation', details=f'id={it.id}')
                 messages.success(request, 'Installation mise à jour.')
             except Installation.DoesNotExist:
-                pass
+                messages.error(request, 'Installation introuvable.')
         elif action == 'delete_installation':
             pk = request.POST.get('pk')
-            Installation.objects.filter(pk=pk).delete()
-            messages.success(request, 'Installation supprimée.')
+            # Périmètre : une installation hors périmètre est traitée comme introuvable.
+            supprimees = self.get_queryset().filter(pk=pk).delete()[0]
+            if supprimees:
+                messages.success(request, 'Installation supprimée.')
+            else:
+                messages.error(request, 'Installation introuvable.')
         return redirect('installation-list')
 
 
-class InstallationDetailView(LoginRequiredMixin, DetailView):
+class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
     model = Installation
     template_name = 'assets/installation_detail.html'
 
@@ -1091,8 +1175,29 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
         qs = f"?tab={tab}" if tab else ''
         if action == 'edit_installation':
             pk = request.POST.get('pk')
+            ship_id = request.POST.get('ship_id')
+            service_id = request.POST.get('service_id')
+            sector_id = request.POST.get('sector_id')
+            section_id = request.POST.get('section_id')
+            # Périmètre (T-SEC) : même contrôle que sur la liste (InstallationListView),
+            # pour empêcher un contournement via la fiche détail.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Navire hors de votre périmètre.")
+                return redirect(f"/installations/{pk}/{qs}")
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect(f"/installations/{pk}/{qs}")
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect(f"/installations/{pk}/{qs}")
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect(f"/installations/{pk}/{qs}")
             try:
-                it = Installation.objects.get(pk=pk)
+                # Périmètre : l'installation visée doit appartenir au périmètre de
+                # l'appelant (self.get_queryset(), scopé) — un identifiant hors périmètre
+                # est traité comme introuvable plutôt que d'être chargé via le manager brut.
+                it = self.get_queryset().get(pk=pk)
                 it.designation = request.POST.get('designation', it.designation).strip()
                 it.reference = request.POST.get('reference', it.reference).strip()
                 it.marque = request.POST.get('marque', it.marque).strip()
@@ -1102,10 +1207,10 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
                 photo = request.FILES.get('photo')
                 if photo:
                     it.photo = photo
-                it.ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first() if request.POST.get('ship_id') else None
-                it.service = Service.objects.filter(pk=request.POST.get('service_id')).first() if request.POST.get('service_id') else None
-                it.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
-                it.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
+                it.ship = Ship.objects.filter(pk=ship_id).first() if ship_id else None
+                it.service = Service.objects.filter(pk=service_id).first() if service_id else None
+                it.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
+                it.section = Section.objects.filter(pk=section_id).first() if section_id else None
                 it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
                 # Périodicité isolement
                 iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
@@ -1147,8 +1252,12 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
             return redirect(f"/installations/{pk}/{qs}")
         elif action == 'delete_installation':
             pk = request.POST.get('pk')
-            Installation.objects.filter(pk=pk).delete()
-            messages.success(request, 'Installation supprimée.')
+            # Périmètre : une installation hors périmètre est traitée comme introuvable.
+            supprimees = self.get_queryset().filter(pk=pk).delete()[0]
+            if supprimees:
+                messages.success(request, 'Installation supprimée.')
+            else:
+                messages.error(request, 'Installation introuvable.')
             return redirect('installation-list')
         elif action == 'add_event':
             label = request.POST.get('label', '').strip()
