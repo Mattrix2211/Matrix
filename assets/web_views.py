@@ -18,7 +18,7 @@ from datetime import datetime, time
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from accounts.models import AuditLog
 from org.models import Ship, Service, Sector, Section
 import json
@@ -1743,10 +1743,24 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         return HttpResponseBadRequest('Action non prise en charge')
 
 
-class LocationListView(LoginRequiredMixin, ListView):
+class LocationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     model = Location
     template_name = 'assets/locations.html'
     context_object_name = 'locations'
+
+    def get_scoped_filters(self):
+        # Un lieu (compartiment du navire) n'est rattaché qu'au navire, jamais
+        # à un service/secteur/section précis — même traduction que
+        # LocationViewSet côté API (assets/views.py) pour rester cohérent.
+        return build_scope_q(
+            self.request.user,
+            {
+                "ship_id": "ship_id",
+                "service_id": "ship__services__id",
+                "sector_id": "ship__services__sectors__id",
+                "section_id": "ship__services__sectors__sections__id",
+            },
+        )
 
     # Contrôle de rôle par action (T-SEC) : mêmes seuils que les autres listes de ce
     # fichier — CHEF_SECTION pour la création/édition, CHEF_SERVICE pour la suppression.
@@ -1757,7 +1771,9 @@ class LocationListView(LoginRequiredMixin, ListView):
     }
 
     def get_queryset(self):
-        qs = Location.objects.select_related('ship', 'parent').order_by('ship__name', 'name')
+        # super().get_queryset() applique le périmètre (ScopedQuerySetMixin,
+        # via get_scoped_filters() ci-dessus) avant les filtres GET optionnels.
+        qs = super().get_queryset().select_related('ship', 'parent').order_by('ship__name', 'name')
         ship_id = self.request.GET.get('ship')
         if ship_id:
             qs = qs.filter(ship_id=ship_id)
@@ -1781,33 +1797,49 @@ class LocationListView(LoginRequiredMixin, ListView):
             name = request.POST.get('name', '').strip()
             ship_id = request.POST.get('ship_id')
             parent_id = request.POST.get('parent_id')
+            # Périmètre (T-SEC) : le navire posté doit appartenir au périmètre de
+            # l'appelant, même principe que pour Asset/Installation.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Navire hors de votre périmètre.")
+                return redirect('location-list')
             if name and ship_id:
                 loc = Location.objects.create(name=name, ship=Ship.objects.get(pk=ship_id))
                 if parent_id:
-                    loc.parent = Location.objects.filter(pk=parent_id).first()
+                    loc.parent = self.get_queryset().filter(pk=parent_id).first()
                     loc.save()
                 AuditLog.objects.create(actor=request.user, action='create_location', details=f'name={name}')
                 messages.success(request, 'Emplacement créé.')
         elif action == 'edit_location':
             pk = request.POST.get('pk')
+            ship_id = request.POST.get('ship_id')
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Navire hors de votre périmètre.")
+                return redirect('location-list')
             try:
-                loc = Location.objects.get(pk=pk)
+                # Périmètre : l'emplacement visé doit appartenir au périmètre de
+                # l'appelant (self.get_queryset(), scopé) — un identifiant hors
+                # périmètre est traité comme introuvable.
+                loc = self.get_queryset().get(pk=pk)
                 loc.name = request.POST.get('name', loc.name).strip()
-                ship_id = request.POST.get('ship_id')
                 if ship_id:
                     try:
                         loc.ship = Ship.objects.get(pk=ship_id)
                     except Ship.DoesNotExist:
                         pass
                 parent_id = request.POST.get('parent_id')
-                loc.parent = Location.objects.filter(pk=parent_id).first() if parent_id else None
+                loc.parent = self.get_queryset().filter(pk=parent_id).first() if parent_id else None
                 loc.save()
                 AuditLog.objects.create(actor=request.user, action='edit_location', details=f'id={loc.id}')
                 messages.success(request, 'Emplacement mis à jour.')
             except Location.DoesNotExist:
-                pass
+                messages.error(request, 'Emplacement introuvable.')
         elif action == 'delete_location':
-            pk = request.POST.get('pk'); Location.objects.filter(pk=pk).delete(); messages.success(request, 'Emplacement supprimé.')
+            pk = request.POST.get('pk')
+            supprimes = self.get_queryset().filter(pk=pk).delete()[0]
+            if supprimes:
+                messages.success(request, 'Emplacement supprimé.')
+            else:
+                messages.error(request, 'Emplacement introuvable.')
         return redirect('location-list')
 
 # (Standalone InstallationSettingsView removed; settings are now managed in global Settings > Installations)
