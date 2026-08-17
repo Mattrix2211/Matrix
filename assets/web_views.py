@@ -87,27 +87,51 @@ def _resoudre_parent_valide(request, objet, model):
 
 
 def _org_dans_perimetre(user, model, cible_id):
-    """Vérifie qu'un navire/service/secteur/section posté dans une action groupée
-    (bulk_update_ship/service/sector/section) appartient bien au périmètre de
-    l'appelant, en réutilisant le même système de périmètre que scope_filters_for_user
-    (matrix/core/scopes.py, déjà utilisé par ScopedQuerySetMixin côté API) plutôt que
-    d'en recréer un nouveau. Un utilisateur sans périmètre restreint (aucun ship/
-    service/sector/section assigné à son profil, ex: vue globale) peut choisir
-    n'importe quelle cible existante ; un utilisateur cantonné à un niveau ne peut
-    choisir que ce niveau lui-même ou un de ses descendants dans la hiérarchie
-    Navire > Service > Secteur > Section. Ne fait pas confiance aux menus déroulants
-    du formulaire, qui peuvent être contournés par un POST direct (même principe que
-    _resoudre_parent_valide pour le champ parent_id)."""
+    """Vérifie qu'un navire/service/secteur/section posté (à la création, à
+    l'édition, ou dans une action groupée bulk_update_ship/service/sector/
+    section) appartient bien au périmètre de l'appelant, en réutilisant le
+    même système de périmètre que scope_filters_for_user (matrix/core/
+    scopes.py, déjà utilisé par ScopedQuerySetMixin côté API) plutôt que
+    d'en recréer un nouveau. Un utilisateur sans périmètre restreint (aucun
+    ship/service/sector/section assigné à son profil, ex: vue globale) peut
+    choisir n'importe quelle cible existante. Un utilisateur cantonné à un
+    niveau peut choisir : ce niveau lui-même, un de ses ancêtres qui
+    contient effectivement son propre périmètre (ex: un chef de service
+    postant le navire auquel appartient déjà son service — cas normal d'un
+    formulaire qui poste toute la chaîne ship/service/sector/section), ou
+    un de ses descendants (ex: un utilisateur scopé navire choisissant un
+    service de ce navire). Ne fait pas confiance aux menus déroulants du
+    formulaire, qui peuvent être contournés par un POST direct (même
+    principe que _resoudre_parent_valide pour le champ parent_id)."""
     if not cible_id:
         return True
     profil = getattr(user, 'profile', None)
     niveau, valeur = profil.scope if profil else (None, None)
     if niveau is None:
         return model.objects.filter(pk=cible_id).exists()
+    # Pour chaque modèle cible, chemin permettant de vérifier que la cible
+    # contient (ou est) le périmètre de l'appelant, quel que soit le niveau
+    # relatif : ancêtre (ex: Ship pour un appelant scopé "service"), lui-même,
+    # ou descendant (ex: Sector pour un appelant scopé "ship").
     chemins = {
-        Ship: {'ship': 'id'},
-        Service: {'ship': 'ship_id', 'service': 'id'},
-        Sector: {'ship': 'service__ship_id', 'service': 'service_id', 'sector': 'id'},
+        Ship: {
+            'ship': 'id',
+            'service': 'services__id',
+            'sector': 'services__sectors__id',
+            'section': 'services__sectors__sections__id',
+        },
+        Service: {
+            'ship': 'ship_id',
+            'service': 'id',
+            'sector': 'sectors__id',
+            'section': 'sectors__sections__id',
+        },
+        Sector: {
+            'ship': 'service__ship_id',
+            'service': 'service_id',
+            'sector': 'id',
+            'section': 'sections__id',
+        },
         Section: {
             'ship': 'sector__service__ship_id',
             'service': 'sector__service_id',
@@ -117,8 +141,6 @@ def _org_dans_perimetre(user, model, cible_id):
     }
     champ = chemins.get(model, {}).get(niveau)
     if champ is None:
-        # Le périmètre de l'appelant est plus restrictif que le niveau de la cible visée
-        # (ex: un chef de secteur ne peut pas choisir un navire ou un service) : refusé.
         return False
     return model.objects.filter(pk=cible_id, **{champ: valeur}).exists()
 

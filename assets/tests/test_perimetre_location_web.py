@@ -41,6 +41,19 @@ class PerimetreLocationWebTests(TestCase):
         self.assertIn(self.emplacement, list(r.context["locations"]))
         self.assertNotIn(self.emplacement_hors_perimetre, list(r.context["locations"]))
 
+    def test_chef_peut_creer_un_emplacement_en_postant_son_propre_navire(self):
+        """Cas nominal : le chef est scopé au secteur (plus fin que ship) mais
+        le formulaire poste toujours le ship_id — doit être reconnu comme
+        l'ancêtre de son propre périmètre, pas rejeté."""
+        self.client.login(username="chef_loc", password="pass")
+        r = self.client.post("/locations/", {
+            "action": "create_location",
+            "name": "Nouveau local",
+            "ship_id": str(self.ship.id),
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Location.objects.filter(name="Nouveau local").exists())
+
     def test_chef_ne_peut_pas_creer_un_emplacement_hors_de_son_navire(self):
         self.client.login(username="chef_loc", password="pass")
         r = self.client.post("/locations/", {

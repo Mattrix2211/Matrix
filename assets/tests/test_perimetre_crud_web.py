@@ -49,6 +49,55 @@ class PerimetreCrudAssetWebTests(TestCase):
             designation="Pompe hors périmètre", ship=self.autre_ship, service=self.autre_service, sector=self.autre_sector,
         )
 
+    def test_chef_service_peut_editer_un_asset_en_postant_son_propre_navire(self):
+        """Cas nominal : le formulaire poste toute la chaîne ship/service/
+        sector, y compris le navire (ancêtre du niveau 'service' de l'appelant)
+        — _org_dans_perimetre doit reconnaître que ce navire est bien celui
+        auquel appartient déjà le service de l'appelant, pas le rejeter."""
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post("/assets/", {
+            "action": "edit_asset",
+            "pk": str(self.materiel.id),
+            "internal_id": self.materiel.internal_id,
+            "serial_number": self.materiel.serial_number,
+            "designation": "Extincteur révisé",
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+        })
+        self.assertEqual(r.status_code, 302)
+        self.materiel.refresh_from_db()
+        self.assertEqual(self.materiel.designation, "Extincteur révisé")
+
+    def test_chef_service_peut_creer_un_asset_dans_son_propre_perimetre(self):
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post("/assets/", {
+            "action": "create_asset",
+            "internal_id": "A-2",
+            "serial_number": "SN-A2",
+            "designation": "Nouvel extincteur",
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+            "asset_type_id": str(self.asset_type.id),
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Asset.objects.filter(internal_id="A-2").exists())
+
+    def test_chef_service_peut_editer_une_installation_en_postant_son_propre_navire(self):
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post("/installations/", {
+            "action": "edit_installation",
+            "pk": str(self.installation.id),
+            "designation": "Groupe électrogène révisé",
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+        })
+        self.assertEqual(r.status_code, 302)
+        self.installation.refresh_from_db()
+        self.assertEqual(self.installation.designation, "Groupe électrogène révisé")
+
     def test_equipier_rejete_sur_bulk_delete_assets(self):
         self.client.login(username="equipier_perim", password="pass")
         r = self.client.post("/assets/", {
