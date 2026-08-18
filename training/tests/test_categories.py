@@ -61,10 +61,20 @@ class AutocompletionCategorieTests(TestCase):
         TrainingCourse.objects.create(sector=self.sector, title="Extinction niveau 2", category="Incendie")
         TrainingCourse.objects.create(sector=self.sector, title="Évacuation", category="Sécurité générale")
         TrainingCourse.objects.create(sector=self.sector, title="Non catégorisée")
-        TrainingCourse.objects.create(sector=self.autre_sector, title="Ailleurs", category="Levage")
+        # Catégorie volontairement différente des exemples du placeholder du
+        # formulaire ("Sécurité/Incendie, Habilitation électrique, Levage...")
+        # pour que assertNotContains ne déclenche pas un faux positif sur du
+        # texte statique du template.
+        TrainingCourse.objects.create(sector=self.autre_sector, title="Ailleurs", category="Manutention portuaire")
 
         self.chef = User.objects.create_user(username="chef_cat", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION"})
+        # Profil avec un périmètre réellement restreint (secteur assigné) : sans
+        # cela, scope_filters_for_user() renvoie {} (comportement volontaire
+        # pour un profil sans périmètre défini = accès total), et les tests de
+        # cette classe ne détectent aucune fuite entre secteurs.
+        UserProfile.objects.update_or_create(
+            user=self.chef, defaults={"role": "CHEF_SECTION", "sector": self.sector},
+        )
 
     def test_categories_proposees_sont_celles_du_secteur_sans_doublon(self):
         self.client.login(username="chef_cat", password="pass")
@@ -76,7 +86,23 @@ class AutocompletionCategorieTests(TestCase):
         self.client.login(username="chef_cat", password="pass")
         r = self.client.get("/formations/")
         categories = r.context["categories_par_secteur"].get(self.sector.id, [])
-        self.assertNotIn("Levage", categories)
+        self.assertNotIn("Manutention portuaire", categories)
+        # Le périmètre du chef est restreint à self.sector : le dict ne doit
+        # même pas contenir d'entrée pour l'autre secteur, et sa catégorie ne
+        # doit apparaître nulle part dans le HTML brut de la page (pas
+        # seulement absente de l'autocomplétion visible).
+        self.assertNotIn(self.autre_sector.id, r.context["categories_par_secteur"])
+        self.assertNotContains(r, "Manutention portuaire")
+
+    def test_titre_formation_dun_autre_secteur_absent_du_html(self):
+        # Les cases à cocher de prérequis (candidats_par_secteur) sont
+        # regroupées par secteur dans des blocs cachés par défaut côté client :
+        # un secteur hors périmètre ne doit pas non plus y apparaître, sous
+        # peine de fuite du titre de formation dans le HTML brut de la page.
+        self.client.login(username="chef_cat", password="pass")
+        r = self.client.get("/formations/")
+        self.assertNotIn(self.autre_sector.id, r.context["candidats_par_secteur"])
+        self.assertNotContains(r, "Ailleurs")
 
     def test_datalist_presente_dans_le_html(self):
         self.client.login(username="chef_cat", password="pass")

@@ -82,12 +82,19 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["secteurs"] = _secteurs_visibles(self.request.user)
         ctx["peut_gerer_prerequis"] = _peut_gerer_prerequis(self.request.user)
+        # Périmètre de l'utilisateur, appliqué manuellement ici : ces deux blocs
+        # portent volontairement sur TOUS les secteurs visibles (pas seulement
+        # celui sélectionné dans le filtre GET "sector" de la liste), mais ne
+        # doivent jamais porter sur l'ensemble des formations de la flotte —
+        # sous peine de fuite de catégories et de titres de formation hors
+        # périmètre dans le HTML (datalist + cases à cocher des prérequis).
+        formations_visibles = TrainingCourse.objects.filter(self.get_scoped_filters())
         # Candidats prérequis pour chaque formation : uniquement les formations du
         # même secteur (l'arbre de compétences, comme les formations elles-mêmes,
         # est organisé par secteur — cf. CompetencyTreeView) — regroupés par
         # secteur pour un filtrage immédiat côté template sans requête supplémentaire.
         candidats_par_secteur = defaultdict(list)
-        for c in TrainingCourse.objects.select_related("sector").order_by("title"):
+        for c in formations_visibles.select_related("sector").order_by("title"):
             candidats_par_secteur[c.sector_id].append(c)
         ctx["candidats_par_secteur"] = dict(candidats_par_secteur)
         # Catégories déjà utilisées, par secteur : sert à l'autocomplétion du
@@ -95,7 +102,7 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # de frappe (ex. "Incendie" vs "incendie") sans imposer de liste fermée.
         categories_par_secteur = defaultdict(set)
         for sector_id, categorie in (
-            TrainingCourse.objects.exclude(category="").values_list("sector_id", "category")
+            formations_visibles.exclude(category="").values_list("sector_id", "category")
         ):
             categories_par_secteur[sector_id].add(categorie)
         ctx["categories_par_secteur"] = {
