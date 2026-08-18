@@ -1,7 +1,7 @@
 from datetime import timedelta, date
 from django.utils import timezone
 from django.urls import reverse
-from assets.models import Installation
+from assets.models import Installation, InstallationIsolationReading, InstallationVibrationReading
 from notifications.models import Notification
 
 
@@ -21,6 +21,21 @@ def _human_delta(days: int) -> str:
     if days > 0:
         return f"dans {days} j"
     return f"depuis {-days} j"
+
+
+def _dernier_par_installation(queryset, champ_installation="installation_id"):
+    """Retourne {installation_id: dernier enregistrement} à partir d'un queryset
+    déjà trié du plus récent au plus ancien (ordering par défaut des modèles de
+    relevés d'installation) — une seule requête groupée quel que soit le nombre
+    d'installations, au lieu d'une requête par installation (même pattern que
+    reports/services.py::_dernier_par_installation et
+    assets/web_views.py::InstallationListView.get_context_data)."""
+    resultat = {}
+    for obj in queryset:
+        cle = getattr(obj, champ_installation)
+        if cle not in resultat:
+            resultat[cle] = obj
+    return resultat
 
 
 def installations_notifications(request):
@@ -59,9 +74,21 @@ def installations_notifications(request):
                 if not n.is_read:
                     unread_count += 1
 
-        for inst in Installation.objects.all().prefetch_related("vibration_readings", "isolation_readings"):
+        # Requêtes groupées (installation_id__in=...) plutôt qu'un .first() par
+        # installation : ce context processor s'exécute sur CHAQUE page du site,
+        # le nombre de requêtes ne doit donc pas dépendre du nombre d'installations.
+        installations = list(Installation.objects.all())
+        installation_ids = [inst.id for inst in installations]
+        derniers_vibrations = _dernier_par_installation(
+            InstallationVibrationReading.objects.filter(installation_id__in=installation_ids)
+        )
+        derniers_isolements = _dernier_par_installation(
+            InstallationIsolationReading.objects.filter(installation_id__in=installation_ids)
+        )
+
+        for inst in installations:
             # Vibration
-            vib = inst.vibration_readings.order_by("-date").first()
+            vib = derniers_vibrations.get(inst.id)
             if vib:
                 days_map = {
                     "A": getattr(inst, "vib_days_a", 180),
@@ -81,7 +108,7 @@ def installations_notifications(request):
                         "days": days,
                     })
             # Isolement
-            iso = inst.isolation_readings.order_by("-date").first()
+            iso = derniers_isolements.get(inst.id)
             if iso:
                 per = getattr(inst, "iso_periodicity", "M")
                 months = 1 if per == "M" else 3 if per == "T" else 12
