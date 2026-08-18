@@ -41,12 +41,21 @@
             <span class="small text-muted">Aucun</span>
           {% endfor %}
         </div>
+        <div class="mb-2">
+          <span class="fw-semibold small">Référents :</span>
+          {% for r in f.referents.all %}
+            <span class="badge text-bg-info">{{ r.get_full_name|default:r.username }}</span>
+          {% empty %}
+            <span class="small text-muted">Aucun désigné</span>
+          {% endfor %}
+        </div>
         {% if peut_gerer_prerequis %}
           <button type="button" class="btn btn-outline-primary btn-sm"
                   data-bs-toggle="modal" data-bs-target="#prerequisitesModal"
                   data-pk="{{ f.id }}" data-title="{{ f.title }}" data-sector="{{ f.sector_id }}"
                   data-category="{{ f.category }}"
-                  data-selected="{% for p in f.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                  data-selected="{% for p in f.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                  data-referents-selected="{% for r in f.referents.all %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
             <i class="bi bi-pencil"></i> Modifier
           </button>
         {% endif %}
@@ -93,6 +102,20 @@
               {% endfor %}
             </div>
           {% endfor %}
+          <hr>
+          <p class="small text-muted">Référents habilités à valider cette formation (personnes désignées pour leur compétence sur le sujet, quel que soit leur secteur).</p>
+          {% for sector_id, utilisateurs in utilisateurs_par_secteur.items %}
+            <div class="referent-group" data-sector="{{ sector_id }}" style="display:none;">
+              {% for u in utilisateurs %}
+                <div class="form-check">
+                  <input class="form-check-input referent-checkbox" type="checkbox" name="referents" value="{{ u.id }}" id="referent-{{ sector_id }}-{{ u.id }}">
+                  <label class="form-check-label" for="referent-{{ sector_id }}-{{ u.id }}">{{ u.get_full_name|default:u.username }}</label>
+                </div>
+              {% empty %}
+                <span class="small text-muted">Aucun utilisateur dans ce secteur.</span>
+              {% endfor %}
+            </div>
+          {% endfor %}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -111,6 +134,7 @@
     var pk = b.getAttribute('data-pk');
     var sector = b.getAttribute('data-sector');
     var selected = (b.getAttribute('data-selected') || '').split(',').filter(Boolean);
+    var referentsSelectionnes = (b.getAttribute('data-referents-selected') || '').split(',').filter(Boolean);
     document.getElementById('prereqPk').value = pk;
     document.getElementById('prereqTitle').textContent = b.getAttribute('data-title');
     // Catégorie pré-remplie avec la valeur actuelle, autocomplétion limitée
@@ -127,6 +151,14 @@
       var isSelf = cb.getAttribute('data-course') === pk;
       cb.closest('.form-check').style.display = isSelf ? 'none' : '';
       cb.checked = selected.indexOf(cb.value) !== -1;
+    });
+    // N'affiche que les référents candidats du même secteur que la formation
+    // éditée, avec les référents déjà désignés pré-cochés.
+    document.querySelectorAll('.referent-group').forEach(function(group){
+      group.style.display = (group.getAttribute('data-sector') === sector) ? 'block' : 'none';
+    });
+    document.querySelectorAll('.referent-checkbox').forEach(function(cb){
+      cb.checked = referentsSelectionnes.indexOf(cb.value) !== -1;
     });
   });
 })();

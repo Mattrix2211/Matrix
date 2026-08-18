@@ -1,8 +1,10 @@
 from collections import defaultdict
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.views.generic import ListView, View
 
@@ -12,6 +14,8 @@ from org.models import Sector
 
 from .models import TrainingCourse
 from .services import calculer_carte_competences, regrouper_par_categorie
+
+User = get_user_model()
 
 # Seuil de rôle requis pour configurer les prérequis d'une formation, cohérent
 # avec RolePermission.min_level_write (matrix/core/permissions.py) déjà appliqué
@@ -35,6 +39,20 @@ def _secteurs_visibles(user):
             "sector_id": "id",
         })
     ).select_related("service", "service__ship").order_by("service__ship__name", "service__name", "name")
+
+
+def _utilisateurs_du_secteur_q(sector):
+    """Filtre les utilisateurs dont le profil couvre le secteur donné, quel que
+    soit le niveau de périmètre auquel leur profil est réellement scopé
+    (navire, service, secteur, ou section rattachée à ce secteur) — même
+    principe que _ship_du_profil_q (logistics/web_views.py), décliné au
+    niveau secteur pour proposer les candidats référents d'une formation."""
+    return (
+        Q(profile__ship_id=sector.service.ship_id)
+        | Q(profile__service_id=sector.service_id)
+        | Q(profile__sector_id=sector.id)
+        | Q(profile__section__sector_id=sector.id)
+    )
 
 
 def _afficher_erreur_prerequis(request, erreur):
@@ -70,7 +88,7 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         qs = (
             super().get_queryset()
             .select_related("sector", "sector__service", "sector__service__ship")
-            .prefetch_related("prerequisites")
+            .prefetch_related("prerequisites", "referents")
             .order_by("sector__name", "title")
         )
         sector_id = self.request.GET.get("sector")
@@ -108,6 +126,24 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx["categories_par_secteur"] = {
             sector_id: sorted(categories) for sector_id, categories in categories_par_secteur.items()
         }
+        # Candidats référents pour chaque formation : les utilisateurs visibles
+        # dans le secteur de la formation (même logique que
+        # logistics/web_views.py::_ship_du_profil_q, déclinée au secteur) —
+        # un référent est désigné pour sa compétence, pas pour son rang, mais
+        # reste choisi parmi les personnes rattachées au secteur concerné pour
+        # garder une liste de candidats gérable dans la modale.
+        secteurs_des_formations = {c.sector for c in formations_visibles.select_related(
+            "sector", "sector__service"
+        )}
+        utilisateurs_par_secteur = {}
+        for secteur in secteurs_des_formations:
+            utilisateurs_par_secteur[secteur.id] = list(
+                User.objects.filter(_utilisateurs_du_secteur_q(secteur))
+                .select_related("profile")
+                .order_by("username")
+                .distinct()
+            )
+        ctx["utilisateurs_par_secteur"] = utilisateurs_par_secteur
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -141,6 +177,18 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             if "category" in request.POST:
                 course.category = request.POST.get("category", "").strip()
                 course.save(update_fields=["category"])
+            # Référents modifiables dans la même modale (un seul clic pour tout
+            # mettre à jour) — champ absent du POST : on ne touche pas aux
+            # référents existants (compatibilité avec un appel qui ne gérerait
+            # que les prérequis/la catégorie). Ne fait pas confiance au
+            # formulaire : seuls les utilisateurs visibles dans le secteur de
+            # la formation peuvent être désignés (revalidation côté serveur).
+            if "referents" in request.POST:
+                referent_ids = request.POST.getlist("referents")
+                referents_valides = User.objects.filter(
+                    _utilisateurs_du_secteur_q(course.sector), pk__in=referent_ids
+                )
+                course.referents.set(referents_valides)
             messages.success(request, "Prérequis mis à jour.")
         return redirect("formation-list")
 

@@ -5,6 +5,7 @@ from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
+from matrix.core.roles import RoleLevel, user_role_level
 from org.models import Sector, Ship, Service, Section
 
 User = get_user_model()
@@ -26,9 +27,41 @@ class TrainingCourse(TimeStampedModel):
     prerequisites = models.ManyToManyField(
         "self", symmetrical=False, blank=True, related_name="unlocks"
     )
+    # Référents : personnes précisément désignées comme habilitées à valider
+    # CETTE formation (créer/modifier un TrainingRecord, gérer les présences
+    # d'une session), choisies pour leur compétence sur le sujet plutôt que
+    # pour leur rang ou leur secteur — un marin habilité peut ainsi être
+    # référent d'une formation d'un secteur ou d'un navire différent du sien,
+    # et inversement ne pas être référent d'une formation de son propre
+    # secteur s'il n'a pas la compétence requise. Voir peut_valider_formation()
+    # ci-dessous pour le contrôle d'accès associé.
+    referents = models.ManyToManyField(
+        User, blank=True, related_name="formations_referentes"
+    )
 
     def __str__(self):
         return self.title
+
+
+# Rôle à partir duquel un utilisateur peut valider n'importe quelle formation,
+# même s'il n'est pas désigné référent : supervision globale (COMMANDANT et
+# au-dessus), même logique que is_master_admin (matrix/core/scopes.py) pour
+# les rôles élevés qui court-circuitent un contrôle plus fin ailleurs dans le
+# projet. En dessous de ce seuil — y compris un chef de rang supérieur mais
+# non désigné référent — seul le statut de référent compte : il est attribué
+# pour la compétence sur la formation, pas pour la position hiérarchique.
+NIVEAU_SUPERVISION_GLOBALE_FORMATION = RoleLevel.COMMANDANT
+
+
+def peut_valider_formation(user, course):
+    """Vrai si `user` peut créer/modifier/supprimer un enregistrement de
+    validation (TrainingRecord) pour `course`, ou gérer les présences d'une
+    session de cette formation (TrainingSession.attendees) : soit parce qu'il
+    est désigné référent de cette formation précise, soit parce qu'il occupe
+    un rôle de supervision globale (COMMANDANT et au-dessus)."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        return True
+    return course.referents.filter(pk=user.pk).exists()
 
 
 def _verifier_absence_de_cycle_prerequis(course, nouveaux_ids):
