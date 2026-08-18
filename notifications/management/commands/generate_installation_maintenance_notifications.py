@@ -1,27 +1,12 @@
-from calendar import monthrange
-from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from assets.models import InstallationMaintenance, InstallationEvent, InstallationHourReading, ModeDeclenchement
 from notifications.models import Notification
+from notifications.utils import add_interval, human_delta
 
 User = get_user_model()
-
-
-def add_interval(base_date: date, unite: str, intervalle: int) -> date:
-    """Calcule la prochaine échéance calendaire à partir d’une date de base."""
-    if unite == "J":
-        return base_date + timedelta(days=intervalle)
-    if unite == "S":
-        return base_date + timedelta(weeks=intervalle)
-    # Mois ou années : arithmétique calendaire (même logique que la branche isolement existante)
-    months = intervalle if unite == "M" else intervalle * 12
-    y = base_date.year + (base_date.month - 1 + months) // 12
-    m = (base_date.month - 1 + months) % 12 + 1
-    d = min(base_date.day, monthrange(y, m)[1])
-    return date(y, m, d)
 
 
 class Command(BaseCommand):
@@ -45,13 +30,6 @@ class Command(BaseCommand):
 
         maint_ct = ContentType.objects.get_for_model(InstallationMaintenance)
         created = 0
-
-        def human_delta(days: int) -> str:
-            if days == 0:
-                return "aujourd’hui"
-            if days > 0:
-                return f"dans {days} j"
-            return f"depuis {-days} j"
 
         # Heure courante (HH:MM) pour comparer aux préférences utilisateur
         now_local = timezone.localtime(now).time().replace(second=0, microsecond=0)

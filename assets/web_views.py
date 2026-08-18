@@ -170,6 +170,44 @@ def _afficher_erreur_validation(request, erreur):
         messages.error(request, "Rattachement invalide : " + " ".join(erreur.messages))
 
 
+def _appliquer_bulk_update(request, queryset, champ, valeur, *, action_audit, detail_audit, message_succes,
+                            redirect_url_name, org_model=None, org_id=None, libelle_org=None):
+    """Applique une valeur à un champ, en masse, sur les objets du queryset fourni
+    (déjà filtré par périmètre via ScopedQuerySetMixin ET par les identifiants
+    sélectionnés — voir l'appelant). Si org_model est fourni (champs navire/
+    service/secteur/section), valide au préalable que org_id appartient au
+    périmètre de l'appelant (même contrôle T-SEC que _org_dans_perimetre pour la
+    création/édition) et redirige avec un message d'erreur sans rien modifier si
+    ce n'est pas le cas. Crée une entrée d'audit par objet modifié, puis un
+    message de succès récapitulatif. Factorise le bloc bulk_update_* commun à
+    AssetListView.post (matériel mobile) et InstallationListView.post
+    (installation fixe) — ~55 lignes quasi identiques avant factorisation."""
+    if org_model is not None and not _org_dans_perimetre(request.user, org_model, org_id):
+        messages.error(request, f"{libelle_org} hors de votre périmètre.")
+        return redirect(redirect_url_name)
+    objets = list(queryset)
+    for objet in objets:
+        setattr(objet, champ, valeur)
+        objet.save(update_fields=[champ])
+        AuditLog.objects.create(actor=request.user, action=action_audit, details=detail_audit)
+    messages.success(request, message_succes.format(count=len(objets)))
+    return redirect(redirect_url_name)
+
+
+def _appliquer_bulk_suppression(request, queryset, *, action_audit, message_succes, redirect_url_name):
+    """Supprime en masse les objets du queryset fourni (déjà filtré par périmètre
+    et par les identifiants sélectionnés — voir l'appelant), avec une entrée
+    d'audit par objet supprimé puis un message de succès récapitulatif.
+    Factorise le bloc bulk_delete_* commun à AssetListView.post et
+    InstallationListView.post."""
+    count = queryset.count()
+    for objet in queryset:
+        AuditLog.objects.create(actor=request.user, action=action_audit, details=f'id={objet.id}')
+    queryset.delete()
+    messages.success(request, message_succes.format(count=count))
+    return redirect(redirect_url_name)
+
+
 class AssetDetailView(LoginRequiredMixin, DetailView):
     model = Asset
     template_name = 'assets/detail.html'
@@ -339,72 +377,66 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # (self.get_queryset(), scopé via ScopedQuerySetMixin) — un identifiant posté
             # hors périmètre est simplement ignoré, comme s'il n'existait pas.
             assets = self.get_queryset().filter(id__in=ids)
-            count = assets.count()
             if action == 'bulk_update_status':
                 status = request.POST.get('status')
-                for a in assets:
-                    a.status = status
-                    a.save(update_fields=['status'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_status', details=f'status={status}')
-                messages.success(request, f'Statut mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'status', status,
+                    action_audit='bulk_update_asset_status', detail_audit=f'status={status}',
+                    message_succes='Statut mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                )
             elif action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
                 loc = Location.objects.filter(pk=loc_id).first()
-                for a in assets:
-                    a.location = loc
-                    a.save(update_fields=['location'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_location', details=f'location_id={loc_id}')
-                messages.success(request, f'Emplacement mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'location', loc,
+                    action_audit='bulk_update_asset_location', detail_audit=f'location_id={loc_id}',
+                    message_succes='Emplacement mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                )
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
-                if not _org_dans_perimetre(request.user, Ship, ship_id):
-                    messages.error(request, "Navire hors de votre périmètre.")
-                    return redirect('asset-list')
-                ship = Ship.objects.filter(pk=ship_id).first()
-                for a in assets:
-                    a.ship = ship
-                    a.save(update_fields=['ship'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_ship', details=f'ship_id={ship_id}')
-                messages.success(request, f'Navire mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'ship', Ship.objects.filter(pk=ship_id).first(),
+                    action_audit='bulk_update_asset_ship', detail_audit=f'ship_id={ship_id}',
+                    message_succes='Navire mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Ship, org_id=ship_id, libelle_org='Navire',
+                )
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
-                if not _org_dans_perimetre(request.user, Service, service_id):
-                    messages.error(request, "Service hors de votre périmètre.")
-                    return redirect('asset-list')
-                sv = Service.objects.filter(pk=service_id).first()
-                for a in assets:
-                    a.service = sv
-                    a.save(update_fields=['service'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_service', details=f'service_id={service_id}')
-                messages.success(request, f'Service mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'service', Service.objects.filter(pk=service_id).first(),
+                    action_audit='bulk_update_asset_service', detail_audit=f'service_id={service_id}',
+                    message_succes='Service mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Service, org_id=service_id, libelle_org='Service',
+                )
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
-                if not _org_dans_perimetre(request.user, Sector, sector_id):
-                    messages.error(request, "Secteur hors de votre périmètre.")
-                    return redirect('asset-list')
-                sc = Sector.objects.filter(pk=sector_id).first()
-                for a in assets:
-                    a.sector = sc
-                    a.save(update_fields=['sector'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_sector', details=f'sector_id={sector_id}')
-                messages.success(request, f'Secteur mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'sector', Sector.objects.filter(pk=sector_id).first(),
+                    action_audit='bulk_update_asset_sector', detail_audit=f'sector_id={sector_id}',
+                    message_succes='Secteur mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Sector, org_id=sector_id, libelle_org='Secteur',
+                )
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
-                if not _org_dans_perimetre(request.user, Section, section_id):
-                    messages.error(request, "Section hors de votre périmètre.")
-                    return redirect('asset-list')
-                se = Section.objects.filter(pk=section_id).first()
-                for a in assets:
-                    a.section = se
-                    a.save(update_fields=['section'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_section', details=f'section_id={section_id}')
-                messages.success(request, f'Section mise à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'section', Section.objects.filter(pk=section_id).first(),
+                    action_audit='bulk_update_asset_section', detail_audit=f'section_id={section_id}',
+                    message_succes='Section mise à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Section, org_id=section_id, libelle_org='Section',
+                )
             elif action == 'bulk_delete_assets':
-                for a in assets:
-                    AuditLog.objects.create(actor=request.user, action='bulk_delete_asset', details=f'id={a.id}')
-                assets.delete()
-                messages.success(request, f'{count} matériel(s) supprimé(s).')
-            return redirect('asset-list')
+                return _appliquer_bulk_suppression(
+                    request, assets,
+                    action_audit='bulk_delete_asset',
+                    message_succes='{count} matériel(s) supprimé(s).',
+                    redirect_url_name='asset-list',
+                )
 
         # Folder operations
         if action == 'create_folder':
@@ -798,65 +830,58 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # chargées (self.get_queryset(), scopé via ScopedQuerySetMixin) — un
             # identifiant posté hors périmètre est simplement ignoré.
             items = self.get_queryset().filter(id__in=ids)
-            count = items.count()
             if action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
                 loc = Location.objects.filter(pk=loc_id).first()
-                for it in items:
-                    it.location = loc
-                    it.save(update_fields=['location'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_location', details=f'location_id={loc_id}')
-                messages.success(request, f'Emplacement mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'location', loc,
+                    action_audit='bulk_update_installation_location', detail_audit=f'location_id={loc_id}',
+                    message_succes='Emplacement mis à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                )
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
-                if not _org_dans_perimetre(request.user, Ship, ship_id):
-                    messages.error(request, "Navire hors de votre périmètre.")
-                    return redirect('installation-list')
-                ship = Ship.objects.filter(pk=ship_id).first()
-                for it in items:
-                    it.ship = ship
-                    it.save(update_fields=['ship'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_ship', details=f'ship_id={ship_id}')
-                messages.success(request, f'Navire mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'ship', Ship.objects.filter(pk=ship_id).first(),
+                    action_audit='bulk_update_installation_ship', detail_audit=f'ship_id={ship_id}',
+                    message_succes='Navire mis à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Ship, org_id=ship_id, libelle_org='Navire',
+                )
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
-                if not _org_dans_perimetre(request.user, Service, service_id):
-                    messages.error(request, "Service hors de votre périmètre.")
-                    return redirect('installation-list')
-                sv = Service.objects.filter(pk=service_id).first()
-                for it in items:
-                    it.service = sv
-                    it.save(update_fields=['service'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_service', details=f'service_id={service_id}')
-                messages.success(request, f'Service mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'service', Service.objects.filter(pk=service_id).first(),
+                    action_audit='bulk_update_installation_service', detail_audit=f'service_id={service_id}',
+                    message_succes='Service mis à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Service, org_id=service_id, libelle_org='Service',
+                )
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
-                if not _org_dans_perimetre(request.user, Sector, sector_id):
-                    messages.error(request, "Secteur hors de votre périmètre.")
-                    return redirect('installation-list')
-                sc = Sector.objects.filter(pk=sector_id).first()
-                for it in items:
-                    it.sector = sc
-                    it.save(update_fields=['sector'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_sector', details=f'sector_id={sector_id}')
-                messages.success(request, f'Secteur mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'sector', Sector.objects.filter(pk=sector_id).first(),
+                    action_audit='bulk_update_installation_sector', detail_audit=f'sector_id={sector_id}',
+                    message_succes='Secteur mis à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Sector, org_id=sector_id, libelle_org='Secteur',
+                )
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
-                if not _org_dans_perimetre(request.user, Section, section_id):
-                    messages.error(request, "Section hors de votre périmètre.")
-                    return redirect('installation-list')
-                se = Section.objects.filter(pk=section_id).first()
-                for it in items:
-                    it.section = se
-                    it.save(update_fields=['section'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_section', details=f'section_id={section_id}')
-                messages.success(request, f'Section mise à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'section', Section.objects.filter(pk=section_id).first(),
+                    action_audit='bulk_update_installation_section', detail_audit=f'section_id={section_id}',
+                    message_succes='Section mise à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Section, org_id=section_id, libelle_org='Section',
+                )
             elif action == 'bulk_delete_installations':
-                for it in items:
-                    AuditLog.objects.create(actor=request.user, action='bulk_delete_installation', details=f'id={it.id}')
-                items.delete()
-                messages.success(request, f'{count} installation(s) supprimée(s).')
-            return redirect('installation-list')
+                return _appliquer_bulk_suppression(
+                    request, items,
+                    action_audit='bulk_delete_installation',
+                    message_succes='{count} installation(s) supprimée(s).',
+                    redirect_url_name='installation-list',
+                )
 
         if action == 'create_installation':
             designation = request.POST.get('designation', '').strip()

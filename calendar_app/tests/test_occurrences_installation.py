@@ -12,7 +12,6 @@ from icalendar import Calendar
 from assets.models import Asset, AssetType, Installation, InstallationMaintenance, ModeDeclenchement
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from org.models import Ship, Service, Sector
-from calendar_app.views import _titre_occurrence
 
 
 class OccurrencesInstallationCalendrierTests(TestCase):
@@ -48,7 +47,7 @@ class OccurrencesInstallationCalendrierTests(TestCase):
 
     def test_titre_occurrence_installation(self):
         """Le libellé d'une occurrence d'installation n'est jamais 'None'."""
-        titre = _titre_occurrence(self.occ)
+        titre = self.occ.titre_affiche
         self.assertEqual(titre, f"{self.installation} - Graissage")
         self.assertNotIn("None", titre)
 

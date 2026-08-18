@@ -60,6 +60,16 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
             ),
         ]
 
+    @property
+    def titre_affiche(self):
+        """Libellé lisible de l'occurrence, qu'elle concerne du matériel
+        mobile (plan + asset) ou une installation fixe (installation_maintenance).
+        Point unique pour ce libellé, utilisé par calendar_app, dashboard et
+        l'export iCal — à ne pas dupliquer ailleurs."""
+        if self.installation_maintenance_id:
+            return f"{self.installation_maintenance.installation} - {self.installation_maintenance.title}"
+        return str(self.asset)
+
 class OccurrenceStatusLog(TimeStampedModel):
     occurrence = models.ForeignKey(MaintenanceOccurrence, on_delete=models.CASCADE, related_name="status_logs")
     old_status = models.CharField(max_length=24)

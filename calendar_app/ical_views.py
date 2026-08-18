@@ -3,7 +3,6 @@ from django.utils import timezone
 from icalendar import Calendar, Event
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
-from calendar_app.views import _titre_occurrence
 
 def user_ical_feed(request):
     if not request.user.is_authenticated:
@@ -18,7 +17,7 @@ def user_ical_feed(request):
     )
     for occ in occ_qs:
         ev = Event()
-        ev.add('summary', f"Maintenance: {_titre_occurrence(occ)}")
+        ev.add('summary', f"Maintenance: {occ.titre_affiche}")
         ev.add('dtstart', timezone.datetime.combine(occ.scheduled_for, timezone.datetime.min.time(), tzinfo=timezone.get_current_timezone()))
         ev.add('dtend', timezone.datetime.combine(occ.scheduled_for, timezone.datetime.min.time(), tzinfo=timezone.get_current_timezone()))
         description = f"Plan: {occ.plan}" if occ.plan_id else f"Entretien installation: {occ.installation_maintenance.title}"

@@ -25,18 +25,6 @@ _BADGE_STATUT_MAINTENANCE = {
 }
 
 
-def _titre_occurrence(occurrence):
-    """Libellé lisible d'une occurrence de maintenance, qu'elle concerne du
-    matériel mobile (plan + asset) ou une installation fixe
-    (installation_maintenance) — même logique que calendar_app.views."""
-    if occurrence.installation_maintenance_id:
-        return (
-            f"{occurrence.installation_maintenance.installation} - "
-            f"{occurrence.installation_maintenance.title}"
-        )
-    return str(occurrence.asset)
-
-
 class TableauDeBordView(LoginRequiredMixin, TemplateView):
     """Page d'accueil : graphiques du service + espace personnel du marin connecté."""
 
@@ -56,7 +44,6 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
             .order_by("scheduled_for")
         )
         for occurrence in mes_maintenances:
-            occurrence.titre_affiche = _titre_occurrence(occurrence)
             occurrence.badge_classe = _BADGE_STATUT_MAINTENANCE.get(
                 occurrence.status, "bg-secondary"
             )

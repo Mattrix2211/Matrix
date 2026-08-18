@@ -49,13 +49,46 @@ def _perimetre_session(qs, user):
     return qs.filter(**{chemin: valeur})
 
 
+def _appliquer_filtres_occurrences(qs, filters):
+    """Applique les filtres navire/service/secteur/assigné choisis dans les
+    menus déroulants du calendrier à un queryset d'occurrences de
+    maintenance. Le périmètre (navire/service/secteur) est porté soit par
+    l'actif mobile (asset), soit par l'installation fixe liée
+    (installation_maintenance) — d'où le OU entre les deux chemins.
+    Fonction commune à CalendarView (vue HTML) et calendar_events (API JSON
+    consommée par FullCalendar), pour ne pas dupliquer cette logique."""
+    if filters.get("ship"):
+        qs = qs.filter(
+            Q(asset__ship_id=filters["ship"])
+            | Q(installation_maintenance__installation__ship_id=filters["ship"])
+        )
+    if filters.get("service"):
+        qs = qs.filter(
+            Q(asset__service_id=filters["service"])
+            | Q(installation_maintenance__installation__service_id=filters["service"])
+        )
+    if filters.get("sector"):
+        qs = qs.filter(
+            Q(asset__sector_id=filters["sector"])
+            | Q(installation_maintenance__installation__sector_id=filters["sector"])
+        )
+    if filters.get("user"):
+        qs = qs.filter(assignees__id=filters["user"])
+    return qs
 
-def _titre_occurrence(occ):
-    """Libellé lisible d'une occurrence de maintenance, qu'elle concerne du
-    matériel mobile (plan + asset) ou une installation fixe (installation_maintenance)."""
-    if occ.installation_maintenance_id:
-        return f"{occ.installation_maintenance.installation} - {occ.installation_maintenance.title}"
-    return str(occ.asset)
+
+def _appliquer_filtres_tickets(qs, filters):
+    """Applique les filtres navire/service/secteur choisis dans les menus
+    déroulants du calendrier à un queryset de tickets correctifs. Fonction
+    commune à CalendarView et calendar_events, pour ne pas dupliquer cette
+    logique."""
+    if filters.get("ship"):
+        qs = qs.filter(asset__ship_id=filters["ship"])
+    if filters.get("service"):
+        qs = qs.filter(asset__service_id=filters["service"])
+    if filters.get("sector"):
+        qs = qs.filter(asset__sector_id=filters["sector"])
+    return qs
 
 
 class CalendarView(LoginRequiredMixin, TemplateView):
@@ -125,11 +158,11 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "installation_maintenance__installation__service",
             "installation_maintenance__installation__sector",
         ).filter(scheduled_for__range=(start, end))
-        occ_qs = self._apply_scope_filters_occ(occ_qs, filters)
+        occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
         for occ in occ_qs:
             events.append({
                 "type": "maintenance",
-                "title": f"Préventif - {_titre_occurrence(occ)}",
+                "title": f"Préventif - {occ.titre_affiche}",
                 "start": occ.scheduled_for.isoformat(),
                 "end": occ.scheduled_for.isoformat(),
                 "url": f"/maintenance/occurrences/{occ.id}/execute/",
@@ -138,7 +171,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
 
         # Tickets (logistique) planifiés: on affiche tous, ou ceux avec statut PLANNED/IN_REPAIR/TESTING si on avait des dates; ici, on ne dispose pas d’échéance => montrer ouverts
         ticket_qs = CorrectiveTicket.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").exclude(status__in=["CLOSED", "CANCELLED"])  # proxy
-        ticket_qs = self._apply_scope_filters_ticket(ticket_qs, filters)
+        ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
         for t in ticket_qs:
             events.append({
                 "type": "ticket",
@@ -170,37 +203,6 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                 "status": s.status,
             })
         return events
-
-    def _apply_scope_filters_occ(self, qs, filters):
-        # Le périmètre (navire/service/secteur) est porté soit par l'actif mobile
-        # (asset), soit par l'installation fixe liée (installation_maintenance).
-        if filters.get("ship"):
-            qs = qs.filter(
-                Q(asset__ship_id=filters["ship"])
-                | Q(installation_maintenance__installation__ship_id=filters["ship"])
-            )
-        if filters.get("service"):
-            qs = qs.filter(
-                Q(asset__service_id=filters["service"])
-                | Q(installation_maintenance__installation__service_id=filters["service"])
-            )
-        if filters.get("sector"):
-            qs = qs.filter(
-                Q(asset__sector_id=filters["sector"])
-                | Q(installation_maintenance__installation__sector_id=filters["sector"])
-            )
-        if filters.get("user"):
-            qs = qs.filter(assignees__id=filters["user"])
-        return qs
-
-    def _apply_scope_filters_ticket(self, qs, filters):
-        if filters.get("ship"):
-            qs = qs.filter(asset__ship_id=filters["ship"])
-        if filters.get("service"):
-            qs = qs.filter(asset__service_id=filters["service"])
-        if filters.get("sector"):
-            qs = qs.filter(asset__sector_id=filters["sector"])
-        return qs
 
 
 def _parse_common_period(request):
@@ -267,23 +269,7 @@ def calendar_events(request):
         "installation_maintenance__installation__service",
         "installation_maintenance__installation__sector",
     ).filter(scheduled_for__range=(start, end))
-    if filters.get("ship"):
-        occ_qs = occ_qs.filter(
-            Q(asset__ship_id=filters["ship"])
-            | Q(installation_maintenance__installation__ship_id=filters["ship"])
-        )
-    if filters.get("service"):
-        occ_qs = occ_qs.filter(
-            Q(asset__service_id=filters["service"])
-            | Q(installation_maintenance__installation__service_id=filters["service"])
-        )
-    if filters.get("sector"):
-        occ_qs = occ_qs.filter(
-            Q(asset__sector_id=filters["sector"])
-            | Q(installation_maintenance__installation__sector_id=filters["sector"])
-        )
-    if filters.get("user"):
-        occ_qs = occ_qs.filter(assignees__id=filters["user"])
+    occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
     if filters.get("status"):
         occ_qs = occ_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "maintenance":
@@ -292,7 +278,7 @@ def calendar_events(request):
         couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
             "id": f"occ-{occ.id}",
-            "title": f"🔧 {_titre_occurrence(occ)}",
+            "title": f"🔧 {occ.titre_affiche}",
             "start": occ.scheduled_for.isoformat(),
             "end": occ.scheduled_for.isoformat(),
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
@@ -302,12 +288,7 @@ def calendar_events(request):
         })
     # Tickets correctifs planifiés
     ticket_qs = CorrectiveTicket.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").exclude(status__in=["CLOSED", "CANCELLED"])
-    if filters.get("ship"):
-        ticket_qs = ticket_qs.filter(asset__ship_id=filters["ship"])
-    if filters.get("service"):
-        ticket_qs = ticket_qs.filter(asset__service_id=filters["service"])
-    if filters.get("sector"):
-        ticket_qs = ticket_qs.filter(asset__sector_id=filters["sector"])
+    ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
     if filters.get("status"):
         ticket_qs = ticket_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "ticket":

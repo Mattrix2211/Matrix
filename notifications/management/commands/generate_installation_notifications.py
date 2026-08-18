@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from assets.models import Installation
 from notifications.models import Notification
+from notifications.utils import human_delta
 
 User = get_user_model()
 
@@ -29,13 +30,6 @@ class Command(BaseCommand):
 
         inst_ct = ContentType.objects.get_for_model(Installation)
         created = 0
-
-        def human_delta(days: int) -> str:
-            if days == 0:
-                return "aujourd’hui"
-            if days > 0:
-                return f"dans {days} j"
-            return f"depuis {-days} j"
 
         # Heure courante (HH:MM) pour comparer aux préférences utilisateur
         now_local = timezone.localtime(now).time().replace(second=0, microsecond=0)
