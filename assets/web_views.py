@@ -11,6 +11,7 @@ from django.db.utils import OperationalError
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from django.db import models
+from collections import defaultdict
 from .models import Asset, AssetType, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument
 from .models import InstallationBigrameChoice, InstallationEvent, InstallationEventAttachment, InstallationPart, InstallationHourReading, InstallationVibrationReading, InstallationIsolationReading
 from .models import InstallationMaintenance, InstallationMaintenanceAttachment, ModeDeclenchement
@@ -34,6 +35,20 @@ def _peut_gerer_rattachement_parent(user):
     rattachement parent/enfant d'une installation ou d'un matériel (même seuil
     que les tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS ci-dessous)."""
     return user_role_level(user) >= RoleLevel.CHEF_SERVICE
+
+
+def _dernier_par_installation(queryset, champ_installation='installation_id'):
+    """Retourne {installation_id: dernier enregistrement} à partir d'un queryset
+    déjà trié du plus récent au plus ancien (ordering par défaut des modèles de
+    relevés d'installation) — une seule requête groupée quel que soit le nombre
+    d'installations, au lieu d'une requête par installation affichée (même pattern
+    que reports/services.py::_dernier_par_installation)."""
+    resultat = {}
+    for obj in queryset:
+        cle = getattr(obj, champ_installation)
+        if cle not in resultat:
+            resultat[cle] = obj
+    return resultat
 
 
 def _sous_ensembles_ids(equipement):
@@ -126,7 +141,10 @@ class AssetListView(LoginRequiredMixin, ListView):
     context_object_name = 'assets'
 
     def get_queryset(self):
-        qs = Asset.objects.select_related('asset_type', 'ship', 'service', 'sector', 'section', 'location', 'folder').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'asset_type__name')
+        # prefetch_related('documents') : la liste affiche les pièces jointes de chaque
+        # matériel (matrix/templates/assets/list.html) — sans cela, une requête
+        # AssetDocument est exécutée par matériel affiché (N+1).
+        qs = Asset.objects.select_related('asset_type', 'ship', 'service', 'sector', 'section', 'location', 'folder').prefetch_related('documents').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'asset_type__name')
         ship_id = self.request.GET.get('ship')
         service_id = self.request.GET.get('service')
         sector_id = self.request.GET.get('sector')
@@ -521,22 +539,35 @@ class InstallationListView(LoginRequiredMixin, ListView):
             Installation.objects.select_related('sector').order_by('designation')
             if ctx['peut_gerer_parent'] else Installation.objects.none()
         )
-        # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement)
+        # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement).
+        # Requêtes groupées (installation_id__in=...) plutôt qu'une requête par
+        # installation affichée : le nombre de requêtes ne dépend plus de N.
         try:
             installations = list(ctx.get('installations', []))
         except Exception:
             installations = []
+        installation_ids = [it.id for it in installations]
+        try:
+            derniers_vibrations = _dernier_par_installation(
+                InstallationVibrationReading.objects.filter(installation_id__in=installation_ids)
+            )
+        except OperationalError:
+            derniers_vibrations = {}
+        try:
+            derniers_isolements = _dernier_par_installation(
+                InstallationIsolationReading.objects.filter(installation_id__in=installation_ids)
+            )
+        except OperationalError:
+            derniers_isolements = {}
+        try:
+            releves_heures_par_installation = defaultdict(list)
+            for releve in InstallationHourReading.objects.filter(installation_id__in=installation_ids):
+                releves_heures_par_installation[releve.installation_id].append(releve)
+        except OperationalError:
+            releves_heures_par_installation = {}
         for it in installations:
             # Vibrations: dernier état et prochaine échéance
-            try:
-                last_vib = (
-                    InstallationVibrationReading.objects
-                    .filter(installation=it)
-                    .order_by('-date')
-                    .first()
-                )
-            except OperationalError:
-                last_vib = None
+            last_vib = derniers_vibrations.get(it.id)
             if last_vib:
                 it.vibration_last_state_card = last_vib.state
                 a, b, c = getattr(it, 'vib_days_a', 180), getattr(it, 'vib_days_b', 90), getattr(it, 'vib_days_c', 30)
@@ -553,29 +584,14 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 it.vibration_next_date_card = None
                 it.vibration_next_days_card = None
             # Heures de marche: total et depuis dernière visite
-            try:
-                hour_logs = list(
-                    InstallationHourReading.objects
-                    .filter(installation=it)
-                    .order_by('-date')
-                )
-            except OperationalError:
-                hour_logs = []
+            hour_logs = releves_heures_par_installation.get(it.id, [])
             total = sum(float(r.hours or 0) for r in hour_logs) if hour_logs else 0.0
             last_visit = next((r for r in hour_logs if getattr(r, 'is_visit', False)), None)
             since_last = sum(float(r.hours or 0) for r in hour_logs if last_visit and r.date > last_visit.date) if hour_logs and last_visit else total
             it.hours_total_card = total
             it.hours_last_visit_card = since_last
             # Isolement: dernière mesure
-            try:
-                last_iso = (
-                    InstallationIsolationReading.objects
-                    .filter(installation=it)
-                    .order_by('-date')
-                    .first()
-                )
-            except OperationalError:
-                last_iso = None
+            last_iso = derniers_isolements.get(it.id)
             if last_iso:
                 it.isolation_last_ohms_card = last_iso.ohms
                 it.isolation_last_date_card = last_iso.date
