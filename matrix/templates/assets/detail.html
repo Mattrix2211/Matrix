@@ -46,4 +46,38 @@
     {% endfor %}
   </div>
 </div>
+
+<hr class="my-4" />
+<div>
+  <h2 class="h6">Pannes déjà rencontrées sur ce type d'équipement</h2>
+  <p class="text-muted small">Tickets fermés pour « {{ object.asset_type.name }} », tous navires confondus.</p>
+  {% if pannes_deja_rencontrees %}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Navire</th>
+            <th>Signalé le</th>
+            <th>Diagnostic final</th>
+            <th>Solution appliquée</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for panne in pannes_deja_rencontrees %}
+          <tr onclick="window.location='/logistics/tickets/{{ panne.id }}/'" style="cursor: pointer;">
+            <td>{{ panne.asset.ship }}</td>
+            <td class="font-mono">{{ panne.reported_at|date:"d/m/Y" }}</td>
+            <td>{{ panne.diagnostic_final|truncatechars:120 }}</td>
+            <td>{{ panne.solution|truncatechars:120 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted">Aucune panne déjà rencontrée et documentée pour ce type d'équipement.</p>
+  {% endif %}
+</div>
 {% endblock %}

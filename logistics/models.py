@@ -35,6 +35,15 @@ class CorrectiveTicket(TimeStampedModel, OwnedModel):
     # tableau de bord personnel (principe fondamental n°3 de CLAUDE.md), à
     # l'identique de mes_maintenances/mes_formations.
     assignees = models.ManyToManyField(User, blank=True, related_name="assigned_tickets")
+    # Retour d'expérience (REX) : capturé directement sur le ticket plutôt que dans
+    # un modèle séparé, la donnée brute existant déjà ici (description, historique
+    # de statuts, actif concerné). blank=True au niveau modèle pour rester
+    # rétrocompatible avec les tickets déjà existants (migration sans valeur par
+    # défaut cassante) ; le caractère obligatoire au passage en statut CLOSED est
+    # appliqué côté vue (TicketTransitionView), pas ici, pour ne pas bloquer les
+    # autres transitions du cycle de vie.
+    diagnostic_final = models.TextField(blank=True, default="", verbose_name="Diagnostic final")
+    solution = models.TextField(blank=True, default="", verbose_name="Solution appliquée")
 
 class TicketStatusLog(TimeStampedModel):
     ticket = models.ForeignKey(CorrectiveTicket, on_delete=models.CASCADE, related_name="status_logs")

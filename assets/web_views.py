@@ -18,6 +18,7 @@ from .models import InstallationMaintenance, InstallationMaintenanceAttachment, 
 from datetime import datetime, time
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
+from logistics.models import CorrectiveTicket
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from accounts.models import AuditLog
@@ -211,6 +212,31 @@ def _appliquer_bulk_suppression(request, queryset, *, action_audit, message_succ
 class AssetDetailView(LoginRequiredMixin, DetailView):
     model = Asset
     template_name = 'assets/detail.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # Recherche « pannes déjà rencontrées » (REX) : volontairement tous navires
+        # confondus, sans filtre de périmètre (scope_filters_for_user), contrairement
+        # à toutes les autres requêtes de l'application. Choix assumé, cohérent avec
+        # la portabilité déjà pratiquée pour les formations entre bâtiments : un
+        # même type d'équipement peut tomber en panne de la même façon sur un autre
+        # navire, et cet historique de diagnostic/solution est utile à tout le
+        # monde, même hors du périmètre habituel de l'utilisateur.
+        # On compare par (nom, catégorie) et non par asset_type_id : AssetType est
+        # rattaché à un Sector (unique_together sector+name), donc chaque navire a
+        # sa propre ligne AssetType même pour un équipement identique — comparer
+        # les clés étrangères ne trouverait jamais de correspondance entre navires.
+        ctx['pannes_deja_rencontrees'] = (
+            CorrectiveTicket.objects.filter(
+                status='CLOSED',
+                asset__asset_type__name=self.object.asset_type.name,
+                asset__asset_type__category=self.object.asset_type.category,
+            )
+            .exclude(diagnostic_final='', solution='')
+            .select_related('asset', 'asset__ship')
+            .order_by('-reported_at')[:20]
+        )
+        return ctx
 
 class StartVisualCheckView(LoginRequiredMixin, View):
     def post(self, request, pk):

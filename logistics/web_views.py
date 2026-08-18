@@ -140,6 +140,17 @@ class TicketAssignView(LoginRequiredMixin, View):
 
 
 class TicketTransitionView(LoginRequiredMixin, View):
+    """Change le statut d'un ticket correctif.
+
+    Le retour d'expérience (diagnostic final + solution appliquée) est saisi dans
+    le même formulaire que le changement de statut — un seul clic, pas un
+    formulaire séparé — et enregistré à chaque soumission. Il devient obligatoire
+    pour passer au statut CLOSED : validation appliquée ici (pas seulement une
+    contrainte de formulaire HTML), pour garantir qu'un ticket fermé porte
+    toujours un REX exploitable, retrouvable ensuite via la recherche « pannes
+    déjà rencontrées » sur la fiche d'un actif.
+    """
+
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
@@ -150,13 +161,29 @@ class TicketTransitionView(LoginRequiredMixin, View):
         new_status = request.POST.get('status')
         if not new_status:
             return HttpResponseBadRequest('Statut requis')
-        old = ticket.status
-        ticket.status = new_status
-        ticket.save(update_fields=['status'])
-        TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user if request.user.is_authenticated else None)
+
+        diagnostic_final = request.POST.get('diagnostic_final', '').strip()
+        solution = request.POST.get('solution', '').strip()
+        ticket.diagnostic_final = diagnostic_final
+        ticket.solution = solution
+
+        erreur_fermeture = None
+        if new_status == 'CLOSED' and not (diagnostic_final and solution):
+            erreur_fermeture = "Impossible de fermer le ticket : le diagnostic final et la solution appliquée sont obligatoires (retour d'expérience)."
+        else:
+            old = ticket.status
+            ticket.status = new_status
+
+        ticket.save(update_fields=['status', 'diagnostic_final', 'solution'])
+
+        if erreur_fermeture:
+            messages.error(request, erreur_fermeture)
+        else:
+            TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user if request.user.is_authenticated else None)
+
         if request.headers.get('HX-Request'):
             part_requests = ticket.part_requests.prefetch_related('lines').all()
-            return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests})
+            return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
         return redirect('ticket-detail', pk=ticket.pk)
 
 

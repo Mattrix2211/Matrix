@@ -1,23 +1,39 @@
 <div class="card">
   <div class="card-header">Statut</div>
-  <div class="card-body d-flex align-items-center">
-    <span class="badge bg-info me-3">{{ ticket.get_status_display }}</span>
-    <form hx-post="/logistics/tickets/{{ ticket.id }}/transition/" hx-target="#ticket-status" hx-swap="outerHTML" class="d-flex gap-2">
-      {# Options codées en dur dans l'ordre du cycle de vie (CLAUDE.md) : la syntaxe
-      Django ne permet pas d'appeler .split() sur une chaîne dans un template. #}
-      <select class="form-select form-select-sm" name="status" style="width: 220px;">
-        <option value="REPORTED" {% if ticket.status == "REPORTED" %}selected{% endif %}>Signalé</option>
-        <option value="DIAGNOSED" {% if ticket.status == "DIAGNOSED" %}selected{% endif %}>Diagnostiqué</option>
-        <option value="WAITING_PARTS" {% if ticket.status == "WAITING_PARTS" %}selected{% endif %}>En attente pièces</option>
-        <option value="PLANNED" {% if ticket.status == "PLANNED" %}selected{% endif %}>Planifié</option>
-        <option value="IN_REPAIR" {% if ticket.status == "IN_REPAIR" %}selected{% endif %}>En réparation</option>
-        <option value="TESTING" {% if ticket.status == "TESTING" %}selected{% endif %}>En test</option>
-        <option value="RETURNED_TO_SERVICE" {% if ticket.status == "RETURNED_TO_SERVICE" %}selected{% endif %}>Remis en service</option>
-        <option value="CLOSED" {% if ticket.status == "CLOSED" %}selected{% endif %}>Fermé</option>
-        <option value="BLOCKED" {% if ticket.status == "BLOCKED" %}selected{% endif %}>Bloqué</option>
-        <option value="CANCELLED" {% if ticket.status == "CANCELLED" %}selected{% endif %}>Annulé</option>
-      </select>
-      <button class="btn btn-sm btn-primary" type="submit">Changer</button>
+  <div class="card-body">
+    {% if erreur_fermeture %}
+    <div class="alert alert-danger py-2 mb-3">{{ erreur_fermeture }}</div>
+    {% endif %}
+    <div class="d-flex align-items-center mb-3">
+      <span class="badge bg-info me-3">{{ ticket.get_status_display }}</span>
+    </div>
+    <form hx-post="/logistics/tickets/{{ ticket.id }}/transition/" hx-target="#ticket-status" hx-swap="outerHTML">
+      <div class="mb-3">
+        <label class="form-label small mb-1">Diagnostic final (retour d'expérience)</label>
+        <textarea class="form-control form-control-sm" name="diagnostic_final" rows="2" placeholder="Cause de la panne...">{{ ticket.diagnostic_final }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small mb-1">Solution appliquée (retour d'expérience)</label>
+        <textarea class="form-control form-control-sm" name="solution" rows="2" placeholder="Réparation effectuée...">{{ ticket.solution }}</textarea>
+      </div>
+      <div class="form-text mb-2">Le diagnostic final et la solution appliquée sont obligatoires pour passer au statut « Fermé ».</div>
+      <div class="d-flex gap-2">
+        {# Options codées en dur dans l'ordre du cycle de vie (CLAUDE.md) : la syntaxe
+        Django ne permet pas d'appeler .split() sur une chaîne dans un template. #}
+        <select class="form-select form-select-sm" name="status" style="width: 220px;">
+          <option value="REPORTED" {% if ticket.status == "REPORTED" %}selected{% endif %}>Signalé</option>
+          <option value="DIAGNOSED" {% if ticket.status == "DIAGNOSED" %}selected{% endif %}>Diagnostiqué</option>
+          <option value="WAITING_PARTS" {% if ticket.status == "WAITING_PARTS" %}selected{% endif %}>En attente pièces</option>
+          <option value="PLANNED" {% if ticket.status == "PLANNED" %}selected{% endif %}>Planifié</option>
+          <option value="IN_REPAIR" {% if ticket.status == "IN_REPAIR" %}selected{% endif %}>En réparation</option>
+          <option value="TESTING" {% if ticket.status == "TESTING" %}selected{% endif %}>En test</option>
+          <option value="RETURNED_TO_SERVICE" {% if ticket.status == "RETURNED_TO_SERVICE" %}selected{% endif %}>Remis en service</option>
+          <option value="CLOSED" {% if ticket.status == "CLOSED" %}selected{% endif %}>Fermé</option>
+          <option value="BLOCKED" {% if ticket.status == "BLOCKED" %}selected{% endif %}>Bloqué</option>
+          <option value="CANCELLED" {% if ticket.status == "CANCELLED" %}selected{% endif %}>Annulé</option>
+        </select>
+        <button class="btn btn-sm btn-primary" type="submit">Changer</button>
+      </div>
     </form>
   </div>
 </div>
