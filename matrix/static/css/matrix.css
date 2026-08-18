@@ -234,3 +234,77 @@ code, pre, kbd, .font-mono {
   width: 16px;
   height: 16px;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Arbre de compétences (training/web_views.py::CompetencyTreeView) —     */
+/* niveaux en colonnes (CSS flex, pas de grille de graphe externe),       */
+/* connecteurs en SVG pur généré par matrix/static/js/arbre_competences.js */
+/* (aucune bibliothèque de graphe, conforme au principe hors-ligne).      */
+/* ---------------------------------------------------------------------- */
+.arbre-competences-conteneur {
+  position: relative;
+  overflow-x: auto;
+  padding-bottom: var(--s4);
+}
+.arbre-connecteurs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.arbre-connecteur {
+  fill: none;
+  stroke-width: 2px;
+}
+/* Un prérequis déjà validé : trait --green-tech (chemin débloqué). */
+.arbre-connecteur--valide { stroke: var(--green-tech); }
+/* Un prérequis pas encore validé : trait grisé (chemin encore fermé). */
+.arbre-connecteur--verrouille { stroke: var(--text-ter); opacity: .5; }
+
+.arbre-competences {
+  display: flex;
+  gap: var(--s8);
+  position: relative;
+}
+.arbre-niveau {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 260px;
+}
+.arbre-niveau-titre {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-sec);
+}
+
+/* États d'une formation pour le marin connecté — vert unique --green-tech pour
+   « validé » (jamais --green-sport, réservé au cyclisme), --signal pour
+   « disponible » (prérequis remplis), et --text-ter (teinte tertiaire déjà
+   définie plus haut) pour « verrouillé », plutôt que d'introduire une nouvelle
+   variable --ink-faint hors de la palette existante. */
+.formation-card--valide { border-color: var(--green-tech); }
+.formation-card--valide::before { background: linear-gradient(90deg, var(--green-tech), transparent); }
+.formation-card--disponible { border-color: var(--signal-ui); }
+.formation-card--disponible::before { background: linear-gradient(90deg, var(--signal), transparent); }
+.formation-card--verrouille { border-color: var(--border); background: var(--chalk); opacity: .85; }
+.formation-card--verrouille::before { background: var(--text-ter); opacity: .3; }
+
+.badge-etat--valide { background: var(--green-tech); color: var(--ink); }
+.badge-etat--disponible { background: var(--signal); color: var(--ink); }
+.badge-etat--verrouille { background: var(--border); color: var(--text-sec); }
+
+.legende-puce {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: var(--s1);
+  vertical-align: middle;
+}
+.legende-puce--valide { background: var(--green-tech); }
+.legende-puce--disponible { background: var(--signal); }
+.legende-puce--verrouille { background: var(--text-ter); }

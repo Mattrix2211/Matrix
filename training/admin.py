@@ -5,6 +5,7 @@ from .models import TrainingCourse, TrainingRequirement, TrainingSession, Traini
 class TrainingCourseAdmin(admin.ModelAdmin):
     list_display = ("title", "sector", "validity_days")
     list_filter = ("sector",)
+    filter_horizontal = ("prerequisites",)
 
 @admin.register(TrainingRequirement)
 class TrainingRequirementAdmin(admin.ModelAdmin):

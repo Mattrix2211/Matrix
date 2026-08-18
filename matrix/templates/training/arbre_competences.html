@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Arbre de compétences</h1>
+  <a class="btn btn-outline-secondary" href="{% url 'formation-list' %}">
+    <i class="bi bi-list"></i> Gérer les formations
+  </a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="secteur" class="form-select" onchange="this.form.submit()">
+      {% for s in secteurs %}
+        <option value="{{ s.id }}" {% if secteur.id == s.id %}selected{% endif %}>{{ s.service.ship.name }} / {{ s.service.name }} / {{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<div class="mb-4 d-flex gap-4 small">
+  <span><span class="legende-puce legende-puce--valide"></span>Validé</span>
+  <span><span class="legende-puce legende-puce--disponible"></span>Disponible</span>
+  <span><span class="legende-puce legende-puce--verrouille"></span>Verrouillé</span>
+</div>
+
+{% if not secteur %}
+  <p class="text-muted">Aucun secteur disponible dans votre périmètre.</p>
+{% elif not niveaux %}
+  <p class="text-muted">Aucune formation dans ce secteur pour le moment.</p>
+{% else %}
+<div class="arbre-competences-conteneur" id="arbreCompetences">
+  <svg class="arbre-connecteurs" id="arbreConnecteurs" aria-hidden="true"></svg>
+  <div class="arbre-competences">
+    {% for niveau, items in niveaux %}
+      <div class="arbre-niveau">
+        <div class="arbre-niveau-titre">Niveau {{ niveau }}</div>
+        {% for item in items %}
+          <div class="card formation-card formation-card--{{ item.etat|lower }}"
+               id="formation-{{ item.course.id }}"
+               data-course-id="{{ item.course.id }}"
+               data-prerequisites="{% for p in item.course.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+               title="{{ item.course.title }}">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <h6 class="card-title mb-1">{{ item.course.title }}</h6>
+                <span class="badge badge-etat badge-etat--{{ item.etat|lower }}">
+                  {% if item.etat == 'VALIDE' %}
+                    <i class="bi bi-check-circle"></i> Validé
+                  {% elif item.etat == 'DISPONIBLE' %}
+                    <i class="bi bi-unlock"></i> Disponible
+                  {% else %}
+                    <i class="bi bi-lock"></i> Verrouillé
+                  {% endif %}
+                </span>
+              </div>
+              {% if item.prerequis_manquants %}
+                <div class="small text-muted mt-1">
+                  Manque : {% for p in item.prerequis_manquants %}{{ p.title }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+<script src="{% static 'js/arbre_competences.js' %}"></script>
+{% endif %}
+{% endblock %}
