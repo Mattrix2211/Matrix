@@ -1,8 +1,8 @@
 {% for pr in part_requests %}
   <div class="mb-3 border rounded p-2">
     <div class="d-flex justify-content-between align-items-center">
-      <div><strong>Demande #{{ pr.id }}</strong> <span class="text-muted">(besoin: {{ pr.needed_by_date|default:'n/a' }})</span></div>
-      <span class="badge bg-secondary">{{ pr.status }}</span>
+      <div><strong>Demande #{{ pr.id }}</strong> <span class="text-muted">(besoin le : {{ pr.needed_by_date|default:'non précisé' }})</span></div>
+      <span class="badge bg-secondary">{{ pr.get_status_display }}</span>
     </div>
     <div class="mt-2">
       <form hx-post="/logistics/part-request/{{ pr.id }}/line/create/" hx-target="#part-requests" hx-swap="outerHTML" class="row g-2">
@@ -20,13 +20,18 @@
             <td>{{ li.reference }}</td>
             <td>{{ li.description }}</td>
             <td>{{ li.qty }}</td>
-            <td><span class="badge bg-light text-dark">{{ li.status }}</span></td>
+            <td><span class="badge bg-light text-dark">{{ li.get_status_display }}</span></td>
             <td>
+              {# Options codées en dur : la syntaxe Django ne permet pas d'appeler
+              .split() sur une chaîne dans un template. #}
               <form hx-post="/logistics/part-line/{{ li.id }}/status/" hx-target="#part-requests" hx-swap="outerHTML" class="d-flex gap-2">
                 <select class="form-select form-select-sm" name="status">
-                  {% for s in 'TO_ORDER,ORDERED,SHIPPED,RECEIVED,CONSUMED,RETURNED'.split(',') %}
-                    <option value="{{ s }}" {% if s == li.status %}selected{% endif %}>{{ s }}</option>
-                  {% endfor %}
+                  <option value="TO_ORDER" {% if li.status == "TO_ORDER" %}selected{% endif %}>À commander</option>
+                  <option value="ORDERED" {% if li.status == "ORDERED" %}selected{% endif %}>Commandée</option>
+                  <option value="SHIPPED" {% if li.status == "SHIPPED" %}selected{% endif %}>Expédiée</option>
+                  <option value="RECEIVED" {% if li.status == "RECEIVED" %}selected{% endif %}>Reçue</option>
+                  <option value="CONSUMED" {% if li.status == "CONSUMED" %}selected{% endif %}>Consommée</option>
+                  <option value="RETURNED" {% if li.status == "RETURNED" %}selected{% endif %}>Retournée</option>
                 </select>
                 <button class="btn btn-sm btn-outline-secondary" type="submit">Mettre à jour</button>
               </form>

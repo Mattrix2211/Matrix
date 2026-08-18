@@ -10,12 +10,17 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.views.generic import TemplateView
 
+from logistics.models import CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
 
 # Occurrences considérées comme terminées : on ne les affiche pas dans "Mes
 # maintenances", seules celles qui restent à faire intéressent le marin.
 _STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
+
+# Tickets correctifs considérés comme clos : on ne les affiche pas dans "Mes
+# tickets", même logique que _STATUTS_MAINTENANCE_TERMINES ci-dessus.
+_STATUTS_TICKET_TERMINES = ["CLOSED", "CANCELLED"]
 
 # Classe de badge Bootstrap par statut d'occurrence — surchargée par
 # matrix.css pour respecter la palette du design system (--red, --amber...).
@@ -54,7 +59,15 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
             .order_by("scheduled_at")
         )
 
+        mes_tickets = list(
+            CorrectiveTicket.objects.select_related("asset")
+            .filter(assignees=self.request.user)
+            .exclude(status__in=_STATUTS_TICKET_TERMINES)
+            .order_by("-severity", "reported_at")
+        )
+
         contexte["mes_maintenances"] = mes_maintenances
         contexte["mes_formations"] = mes_formations
+        contexte["mes_tickets"] = mes_tickets
         contexte["aujourdhui"] = timezone.localdate()
         return contexte

@@ -5,7 +5,7 @@
 
 <h2 class="h5 mb-3">Mon espace personnel</h2>
 <div class="row g-3 mb-4">
-  <div class="col-md-6">
+  <div class="col-md-4">
     <div class="card h-100">
       <div class="card-header">Mes maintenances assignées</div>
       <div class="card-body">
@@ -29,7 +29,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-6">
+  <div class="col-md-4">
     <div class="card h-100">
       <div class="card-header">Mes formations</div>
       <div class="card-body">
@@ -49,6 +49,30 @@
         </ul>
         {% else %}
         <p class="text-muted mb-0">Aucune formation ne vous est actuellement programmée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Mes tickets correctifs</div>
+      <div class="card-body">
+        {% if mes_tickets %}
+        <ul class="list-group list-group-flush">
+          {% for ticket in mes_tickets %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <a href="{% url 'ticket-detail' ticket.pk %}" class="fw-semibold text-decoration-none">
+                {{ ticket.asset }}
+              </a>
+              <div class="small text-muted font-mono">Signalé le {{ ticket.reported_at|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge bg-secondary align-self-center">{{ ticket.get_status_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucun ticket correctif ne vous est actuellement assigné.</p>
         {% endif %}
       </div>
     </div>

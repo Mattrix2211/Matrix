@@ -29,6 +29,12 @@ class CorrectiveTicket(TimeStampedModel, OwnedModel):
     description = models.TextField()
     severity = models.PositiveSmallIntegerField(default=3)
     status = models.CharField(max_length=24, choices=STATUS, default="REPORTED")
+    # M2M plutôt qu'un FK unique : un ticket correctif peut mobiliser plusieurs
+    # marins (ex. électricien + mécanicien), même logique que
+    # MaintenanceOccurrence.assignees. Permet de construire "mes tickets" sur le
+    # tableau de bord personnel (principe fondamental n°3 de CLAUDE.md), à
+    # l'identique de mes_maintenances/mes_formations.
+    assignees = models.ManyToManyField(User, blank=True, related_name="assigned_tickets")
 
 class TicketStatusLog(TimeStampedModel):
     ticket = models.ForeignKey(CorrectiveTicket, on_delete=models.CASCADE, related_name="status_logs")

@@ -1,5 +1,6 @@
 from django.views import View
 from django.views.generic import ListView
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -9,9 +10,11 @@ from django.utils import timezone
 from django.db.models import Q
 from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Sector, Section
+
+User = get_user_model()
 
 
 def _secteur_dans_perimetre(user, sector_id):
@@ -38,6 +41,43 @@ def _secteur_dans_perimetre(user, sector_id):
     return Sector.objects.filter(pk=sector_id, **{chemins[key]: value}).exists()
 
 
+class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
+    """Liste des tickets correctifs, scopée par périmètre ET par assignation.
+
+    Par défaut, chaque marin ne voit que « ses » tickets (ceux qui lui sont
+    assignés) — même principe que "Mes maintenances" sur le tableau de bord
+    (principe fondamental n°3 de CLAUDE.md). Un chef de section et au-dessus
+    peut basculer vers "Tout le périmètre" pour voir l'ensemble des tickets
+    de son périmètre, pas seulement les siens.
+    """
+    model = CorrectiveTicket
+    template_name = 'logistics/ticket_list.html'
+    context_object_name = 'tickets'
+
+    def get_scoped_filters(self):
+        # Un ticket correctif porte sur un matériel mobile (asset), qui porte
+        # lui-même les 4 champs de périmètre — même logique que
+        # CorrectiveTicketViewSet côté API (logistics/views.py).
+        return build_scope_q(self.request.user, "asset__")
+
+    def _vue_perimetre_autorisee(self):
+        return user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('asset').order_by('-reported_at')
+        self.vue = self.request.GET.get('vue', 'mes')
+        if self.vue != 'perimetre' or not self._vue_perimetre_autorisee():
+            self.vue = 'mes'
+            qs = qs.filter(assignees=self.request.user)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['vue'] = self.vue
+        ctx['peut_voir_perimetre'] = self._vue_perimetre_autorisee()
+        return ctx
+
+
 class TicketDetailView(LoginRequiredMixin, View):
     template_name = 'logistics/ticket_detail.html'
 
@@ -47,7 +87,40 @@ class TicketDetailView(LoginRequiredMixin, View):
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         part_requests = ticket.part_requests.prefetch_related('lines').all()
-        return render(request, self.template_name, {"ticket": ticket, "part_requests": part_requests})
+        contexte = {
+            "ticket": ticket,
+            "part_requests": part_requests,
+            "peut_assigner": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
+        }
+        if contexte["peut_assigner"]:
+            # Utilisateurs assignables : l'équipage du navire portant l'actif en
+            # panne — un chef choisit ensuite librement parmi eux, sans qu'on
+            # recrée un système de scope différent de scope_filters_for_user.
+            contexte["utilisateurs_assignables"] = User.objects.filter(
+                profile__ship=ticket.asset.ship
+            ).select_related("profile").order_by("username")
+        return render(request, self.template_name, contexte)
+
+
+class TicketAssignView(LoginRequiredMixin, View):
+    """Assigne un ou plusieurs marins à un ticket correctif — réservé à
+    CHEF_SECTION et au-dessus, même seuil que les autres actions d'écriture
+    de ce module (transitions, demandes de pièces)."""
+
+    def post(self, request, pk):
+        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
+        try:
+            ticket = CorrectiveTicket.objects.select_related('asset').get(pk=pk)
+        except CorrectiveTicket.DoesNotExist:
+            return HttpResponseBadRequest('Ticket introuvable')
+        ids = request.POST.getlist('assignees')
+        # On ne retient que des utilisateurs de l'équipage du navire de l'actif
+        # concerné, même filtre que le formulaire (contournement d'un POST direct).
+        utilisateurs = User.objects.filter(pk__in=ids, profile__ship=ticket.asset.ship)
+        ticket.assignees.set(utilisateurs)
+        messages.info(request, "Assignation du ticket mise à jour.")
+        return redirect('ticket-detail', pk=ticket.pk)
 
 
 class TicketTransitionView(LoginRequiredMixin, View):

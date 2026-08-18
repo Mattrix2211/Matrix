@@ -1,12 +1,21 @@
 <div class="card">
   <div class="card-header">Statut</div>
   <div class="card-body d-flex align-items-center">
-    <span class="badge bg-info me-3">{{ ticket.status }}</span>
+    <span class="badge bg-info me-3">{{ ticket.get_status_display }}</span>
     <form hx-post="/logistics/tickets/{{ ticket.id }}/transition/" hx-target="#ticket-status" hx-swap="outerHTML" class="d-flex gap-2">
+      {# Options codées en dur dans l'ordre du cycle de vie (CLAUDE.md) : la syntaxe
+      Django ne permet pas d'appeler .split() sur une chaîne dans un template. #}
       <select class="form-select form-select-sm" name="status" style="width: 220px;">
-        {% for s in 'REPORTED,DIAGNOSED,WAITING_PARTS,PLANNED,IN_REPAIR,TESTING,RETURNED_TO_SERVICE,CLOSED,BLOCKED,CANCELLED'.split(',') %}
-          <option value="{{ s }}" {% if s == ticket.status %}selected{% endif %}>{{ s }}</option>
-        {% endfor %}
+        <option value="REPORTED" {% if ticket.status == "REPORTED" %}selected{% endif %}>Signalé</option>
+        <option value="DIAGNOSED" {% if ticket.status == "DIAGNOSED" %}selected{% endif %}>Diagnostiqué</option>
+        <option value="WAITING_PARTS" {% if ticket.status == "WAITING_PARTS" %}selected{% endif %}>En attente pièces</option>
+        <option value="PLANNED" {% if ticket.status == "PLANNED" %}selected{% endif %}>Planifié</option>
+        <option value="IN_REPAIR" {% if ticket.status == "IN_REPAIR" %}selected{% endif %}>En réparation</option>
+        <option value="TESTING" {% if ticket.status == "TESTING" %}selected{% endif %}>En test</option>
+        <option value="RETURNED_TO_SERVICE" {% if ticket.status == "RETURNED_TO_SERVICE" %}selected{% endif %}>Remis en service</option>
+        <option value="CLOSED" {% if ticket.status == "CLOSED" %}selected{% endif %}>Fermé</option>
+        <option value="BLOCKED" {% if ticket.status == "BLOCKED" %}selected{% endif %}>Bloqué</option>
+        <option value="CANCELLED" {% if ticket.status == "CANCELLED" %}selected{% endif %}>Annulé</option>
       </select>
       <button class="btn btn-sm btn-primary" type="submit">Changer</button>
     </form>
