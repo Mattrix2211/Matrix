@@ -96,7 +96,7 @@
               <h6 class="card-title mb-1 text-truncate" title="{{ a.designation|default:'Matériel' }}">{{ a.designation|default:"(sans désignation)" }}</h6>
               <div class="small text-muted">{{ a.ship.name }} • {{ a.service.name }}</div>
               
-              <div class="small text-muted">{{ a.marque|default:"" }} {{ a.reference|default:"" }}</div>
+              <div class="small text-muted">{{ a.marque|default:"" }} <span class="font-mono">{{ a.reference|default:"" }}</span></div>
             </div>
             <div class="card-footer d-flex gap-2">
               <input type="checkbox" value="{{ a.id }}" class="form-check-input me-2 row-select" />
@@ -133,10 +133,10 @@
               <input type="hidden" name="asset_type_id" id="createAssetTypeValue" />
               <select id="createAssetTypeHidden" class="form-select d-none">{% for t in types %}<option value="{{ t.id }}" data-sector="{{ t.sector.id }}">{{ t.name }}</option>{% endfor %}</select>
             {% endif %}
-            <div class="col-md-3"><label class="form-label">N°</label><input class="form-control" name="serial_number" /></div>
-            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" /></div>
+            <div class="col-md-3"><label class="form-label">N°</label><input class="form-control font-mono" name="serial_number" /></div>
+            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" /></div>
             <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" /></div>
-            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control" name="nno" /></div>
+            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control font-mono" name="nno" /></div>
             <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" /></div>
             <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" /></div>
             <input type="hidden" name="status" value="OK" />
@@ -178,13 +178,13 @@
           <div class="row g-3">
             <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="editDesignation" required /></div>
             <div class="col-md-6"><label class="form-label">Type</label><select class="form-select" name="asset_type_id" id="editAssetType">{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control" name="nno" id="editNno" /></div>
-            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" id="editReference" /></div>
+            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control font-mono" name="nno" id="editNno" /></div>
+            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="editReference" /></div>
             <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" id="editMarque" /></div>
             <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" id="editGisement" /></div>
             <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" id="editLocal" /></div>
-            <div class="col-md-3"><label class="form-label">Identifiant interne</label><input class="form-control" name="internal_id" id="editInternalId" /></div>
-            <div class="col-md-3"><label class="form-label">N° série</label><input class="form-control" name="serial_number" id="editSerialNumber" /></div>
+            <div class="col-md-3"><label class="form-label">Identifiant interne</label><input class="form-control font-mono" name="internal_id" id="editInternalId" /></div>
+            <div class="col-md-3"><label class="form-label">N° série</label><input class="form-control font-mono" name="serial_number" id="editSerialNumber" /></div>
             <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status" id="editStatus"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div>
             <div class="col-md-3"><label class="form-label">Criticité</label><input type="number" min="1" max="5" class="form-control" name="criticality" id="editCriticality" /></div>
             <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="editShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>

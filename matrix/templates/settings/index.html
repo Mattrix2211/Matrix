@@ -154,7 +154,7 @@
         <table class="table table-sm"><thead><tr><th>Code</th><th>Actif</th><th></th></tr></thead><tbody>
         {% for r in roles_with_state %}
           <tr>
-            <td>{{ r.label }} <small class="text-muted">({{ r.code }})</small></td>
+            <td>{{ r.label }} <small class="text-muted font-mono">({{ r.code }})</small></td>
             <td>{{ r.active|yesno:"Oui,Non" }}</td>
             <td>
               <form method="post" style="display:inline">{% csrf_token %}
@@ -195,7 +195,7 @@
           <tbody>
           {% for b in bigrames %}
             <tr>
-              <td>{{ b.name }}</td>
+              <td class="font-mono">{{ b.name }}</td>
               <td>{{ b.active|yesno:"Oui,Non" }}</td>
               <td class="text-end">
                 <form method="post" style="display:inline">{% csrf_token %}
@@ -303,11 +303,11 @@
       <tbody>
         {% for log in logs %}
           <tr>
-            <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
-            <td>{{ log.actor|default:"—" }}</td>
-            <td>{{ log.action }}</td>
-            <td>{% if log.target_user %}{{ log.target_user.username }}{% else %}—{% endif %}</td>
-            <td><small class="text-muted">{{ log.details }}</small></td>
+            <td class="font-mono">{{ log.created_at|date:"d/m/Y H:i" }}</td>
+            <td class="font-mono">{{ log.actor|default:"—" }}</td>
+            <td class="font-mono">{{ log.action }}</td>
+            <td class="font-mono">{% if log.target_user %}{{ log.target_user.username }}{% else %}—{% endif %}</td>
+            <td><small class="text-muted font-mono">{{ log.details }}</small></td>
           </tr>
         {% empty %}
           <tr><td colspan="5" class="text-muted">Aucune entrée de journal</td></tr>
@@ -345,7 +345,7 @@
         {% for sh in ships %}
           <tr>
             <td>{{ sh.name }}</td>
-            <td>{{ sh.code }}</td>
+            <td class="font-mono">{{ sh.code }}</td>
             <td>
               <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}">Modifier</button>
               <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>

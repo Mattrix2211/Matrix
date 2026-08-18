@@ -67,17 +67,17 @@
     {% for u in users %}
       <tr>
         <td class="select-col"><input type="checkbox" value="{{ u.id }}" class="row-select" /></td>
-        <td>{{ u.username }}</td>
+        <td class="font-mono">{{ u.username }}</td>
         <td>{{ u.profile.role|default:"—" }}</td>
         <td>{{ u.profile.grade|default:"—" }}</td>
         <td>{{ u.profile.specialite|default:"—" }}</td>
-        <td>{{ u.profile.matricule|default:"—" }}</td>
+        <td class="font-mono">{{ u.profile.matricule|default:"—" }}</td>
         <td>{{ u.profile.ship|default:"—" }}</td>
         <td>{{ u.profile.fonction_service|default:"—" }}</td>
         <td>{{ u.profile.service.name|default:"—" }}</td>
         <td>{{ u.profile.sector.name|default:"—" }}</td>
         <td>{{ u.profile.section.name|default:"—" }}</td>
-        <td>{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td class="font-mono">{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:"d/m/Y" }}{% else %}—{% endif %}</td>
         <td>{{ u.profile.age|default:"—" }}</td>
         <td>
             <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editUserModal" title="Modifier"
