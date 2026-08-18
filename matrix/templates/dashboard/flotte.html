@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">Vue flotte</h1>
+<p class="text-muted mb-4">
+  {% if flotte_entiere %}
+    Vue agrégée de la flotte entière (tous navires confondus).
+  {% else %}
+    Vue agrégée de votre navire.
+  {% endif %}
+</p>
+
+{% if aucun_navire %}
+<div class="alert alert-warning" role="alert">
+  Aucun navire n'est associé à votre profil : impossible d'afficher la vue flotte.
+  Contactez un administrateur pour renseigner votre périmètre.
+</div>
+{% else %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Maintenances en retard</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold {% if maintenances_en_retard %}text-danger{% endif %} font-mono">{{ maintenances_en_retard }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Tickets correctifs ouverts</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold font-mono">{{ total_tickets_ouverts }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Pièces de stock sous seuil</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold {% if pieces_sous_seuil %}text-warning{% endif %} font-mono">{{ pieces_sous_seuil|length }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Tickets correctifs ouverts par statut</div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush">
+          {% for item in tickets_par_statut %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ item.libelle }}</span>
+            <span class="badge bg-secondary font-mono">{{ item.total }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Pièces de stock sous le seuil</div>
+      <div class="card-body">
+        {% if pieces_sous_seuil %}
+        <ul class="list-group list-group-flush">
+          {% for piece in pieces_sous_seuil %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <a href="{% url 'stock-piece-list' %}" class="fw-semibold text-decoration-none">{{ piece.reference }} — {{ piece.designation }}</a>
+              <div class="small text-muted font-mono">{{ piece.service }} / {{ piece.sector }}{% if piece.section %} / {{ piece.section }}{% endif %}</div>
+            </div>
+            <span class="badge bg-warning align-self-center font-mono">{{ piece.quantite }}/{{ piece.quantite_minimale }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune pièce de stock sous le seuil minimal.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

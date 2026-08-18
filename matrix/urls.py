@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/threads/", include("threads.urls")),
     path("api/notifications/", include("notifications.urls")),
     path("api/dashboard/", include("dashboard.urls")),
+    path("dashboard/", include("dashboard.web_urls")),
     path("calendar/", include("calendar_app.urls")),
     path("users/", include("accounts.web_urls")),
     path("parametre/", SettingsView.as_view(), name="settings"),

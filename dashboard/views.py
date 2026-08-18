@@ -3,7 +3,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence
-from logistics.models import CorrectiveTicket
+from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS
 
 class PreventiveWeekChartView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -39,7 +39,7 @@ class CorrectiveOpenChartView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        open_statuses = ["REPORTED", "DIAGNOSED", "WAITING_PARTS", "PLANNED", "IN_REPAIR", "TESTING"]
+        open_statuses = STATUTS_TICKET_OUVERTS
 
         # Une seule requête agrégée par statut, plutôt qu'une requête .count() par statut.
         rows = (

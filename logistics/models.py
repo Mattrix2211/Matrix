@@ -8,6 +8,13 @@ from org.models import Ship, Service, Sector, Section
 
 User = get_user_model()
 
+# Statuts CorrectiveTicket considérés "ouverts" (dossier encore actif) — référence
+# unique pour les tableaux de bord (graphique service + Vue flotte), afin de ne pas
+# dupliquer cette règle métier à plusieurs endroits.
+STATUTS_TICKET_OUVERTS = [
+    "REPORTED", "DIAGNOSED", "WAITING_PARTS", "PLANNED", "IN_REPAIR", "TESTING",
+]
+
 class CorrectiveTicket(TimeStampedModel, OwnedModel):
     STATUS = (
         ("REPORTED", "Signalé"),
