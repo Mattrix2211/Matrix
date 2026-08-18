@@ -691,6 +691,14 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
+        # Pré-remplissage du formulaire de création : Navire/Service/Secteur du
+        # périmètre de l'utilisateur connecté, pour éviter de ressaisir à la main
+        # ce que son profil connaît déjà (principe « plus rapide qu'Excel »).
+        # Reste modifiable si l'utilisateur doit créer ailleurs dans son périmètre.
+        profil = getattr(self.request.user, 'profile', None)
+        ctx['profil_ship_id'] = getattr(profil, 'ship_id', None)
+        ctx['profil_service_id'] = getattr(profil, 'service_id', None)
+        ctx['profil_sector_id'] = getattr(profil, 'sector_id', None)
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, filtré
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
