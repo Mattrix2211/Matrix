@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import TemplateView
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse, Http404
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db.utils import OperationalError
@@ -21,8 +21,15 @@ from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.scopes import scope_filters_for_user
 from accounts.models import AuditLog
 from org.models import Ship, Service, Sector, Section
+
+# Statuts d'occurrence considérés comme terminés pour le scan QR : une occurrence
+# déjà DONE ou CANCELLED ne doit plus être proposée au marin qui scanne
+# l'équipement (même logique que dashboard/web_views.py, symbole privé non
+# réimporté ici puisqu'il appartient à un autre module).
+_STATUTS_OCCURRENCE_TERMINES = ("DONE", "CANCELLED")
 import json
 import io
 import calendar
@@ -257,6 +264,48 @@ class StartVisualCheckView(LoginRequiredMixin, View):
         if request.headers.get('HX-Request'):
             return JsonResponse({"occurrence_id": occ.id, "status": occ.status, "execute_url": f"/maintenance/occurrences/{occ.id}/execute/"})
         return redirect(f"/maintenance/occurrences/{occ.id}/execute/")
+
+
+class ScanQRView(LoginRequiredMixin, View):
+    """Point d'entrée du QR code apposé sur un équipement (matériel mobile ou
+    installation fixe) — workflow « Scan QR → occurrence du jour → checklist »
+    (CLAUDE.md). Résout l'équipement scanné (même identifiant pour Asset et
+    Installation, on essaie l'un puis l'autre), puis :
+    - s'il existe une occurrence de maintenance planifiée aujourd'hui et
+      assignée au marin connecté sur cet équipement, ouvre directement la
+      checklist guidée d'exécution (aucune recherche à faire au poste) ;
+    - sinon, affiche la fiche de l'équipement, d'où une anomalie peut être
+      signalée en un clic.
+    """
+
+    def get(self, request, pk):
+        # Périmètre : réutilise scope_filters_for_user (même système que
+        # ScopedQuerySetMixin côté API) — un équipement hors périmètre est
+        # traité comme introuvable, pas de nouveau contrôle d'accès.
+        filtres = scope_filters_for_user(request.user)
+        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        asset = assets.filter(pk=pk).first()
+        if asset is not None:
+            return self._rediriger(request, asset=asset)
+        installations = Installation.objects.filter(**filtres) if filtres else Installation.objects.all()
+        installation = installations.filter(pk=pk).first()
+        if installation is not None:
+            return self._rediriger(request, installation=installation)
+        raise Http404("Équipement introuvable ou hors de votre périmètre.")
+
+    def _rediriger(self, request, asset=None, installation=None):
+        occurrences_du_jour = MaintenanceOccurrence.objects.filter(
+            scheduled_for=timezone.localdate(), assignees=request.user
+        ).exclude(status__in=_STATUTS_OCCURRENCE_TERMINES)
+        if asset is not None:
+            occurrence = occurrences_du_jour.filter(asset=asset).first()
+        else:
+            occurrence = occurrences_du_jour.filter(installation_maintenance__installation=installation).first()
+        if occurrence is not None:
+            return redirect('occurrence-execute', pk=occurrence.pk)
+        if asset is not None:
+            return redirect('asset-detail', pk=asset.pk)
+        return redirect('installation-detail', pk=installation.pk)
 
 
 class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):

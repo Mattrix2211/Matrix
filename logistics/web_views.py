@@ -13,6 +13,7 @@ from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Sector, Section
+from assets.models import Asset
 
 User = get_user_model()
 
@@ -116,6 +117,49 @@ class TicketDetailView(LoginRequiredMixin, View):
                 _ship_du_profil_q(ticket.asset.ship_id)
             ).select_related("profile").order_by("username").distinct()
         return render(request, self.template_name, contexte)
+
+
+class TicketCreateView(LoginRequiredMixin, View):
+    """Signalement rapide d'une anomalie sur du matériel mobile : crée un ticket
+    correctif à partir de la fiche de l'équipement, en un seul clic (description
+    + gravité), sans passer par un formulaire séparé. Accessible à tout marin
+    connecté (pas de restriction de rôle) : un équipier doit pouvoir signaler
+    une panne constatée sur le terrain sans dépendre d'un chef.
+    """
+
+    def post(self, request, asset_pk):
+        # Périmètre : un marin ne peut signaler une anomalie que sur un matériel
+        # de son propre périmètre — même filtre que ScopedQuerySetMixin/AssetViewSet.
+        filtres = scope_filters_for_user(request.user)
+        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        try:
+            asset = assets.get(pk=asset_pk)
+        except Asset.DoesNotExist:
+            return HttpResponseBadRequest('Matériel introuvable ou hors de votre périmètre.')
+
+        description = request.POST.get('description', '').strip()
+        if not description:
+            messages.error(request, "Merci de décrire l'anomalie constatée.")
+            return redirect('asset-detail', pk=asset.pk)
+
+        try:
+            gravite = int(request.POST.get('severity') or 3)
+        except ValueError:
+            gravite = 3
+
+        ticket = CorrectiveTicket.objects.create(
+            asset=asset,
+            description=description,
+            severity=gravite,
+            created_by=request.user,
+            updated_by=request.user,
+        )
+        ticket.assignees.add(request.user)
+        TicketStatusLog.objects.create(
+            ticket=ticket, old_status='REPORTED', new_status='REPORTED', user=request.user
+        )
+        messages.success(request, "Anomalie signalée : le ticket correctif a été créé.")
+        return redirect('ticket-detail', pk=ticket.pk)
 
 
 class TicketAssignView(LoginRequiredMixin, View):

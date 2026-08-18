@@ -1,14 +1,29 @@
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, filters, decorators, response
-from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument
+from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, Installation
 from .serializers import (
     LocationSerializer, AssetTypeSerializer, ChecklistTemplateSerializer, ChecklistItemTemplateSerializer,
     AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer
 )
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
+from matrix.core.scopes import scope_filters_for_user
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
+
+
+def _construire_qr_png(url):
+    """Génère l'image PNG d'un QR code pointant vers l'URL donnée. Factorise le
+    code commun entre matériel mobile (Asset) et installation fixe (Installation)."""
+    import qrcode
+    import io
+    img = qrcode.make(url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 class LocationViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Location.objects.select_related("ship", "parent").all()
@@ -87,27 +102,17 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=["get"], url_path="qr")
     def qr_code(self, request, pk=None):
-        import qrcode
-        import io
+        # Le QR pointe vers la vue web /scan/<uuid>/ (checklist du jour ou fiche
+        # équipement), pas vers l'API JSON brute — inutilisable au poste de travail.
         asset = self.get_object()
-        url = request.build_absolute_uri(f"/api/assets/assets/{asset.pk}/")
-        img = qrcode.make(url)
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        # For simplicity, return URL; UI can render <img src="/.../qr/"> later if we expose binary endpoint
+        url = request.build_absolute_uri(f"/scan/{asset.pk}/")
         return response.Response({"url": url})
 
     @decorators.action(detail=True, methods=["get"], url_path="qr_png")
     def qr_png(self, request, pk=None):
-        import qrcode
-        import io
-        from django.http import HttpResponse
         asset = self.get_object()
-        url = request.build_absolute_uri(f"/api/assets/assets/{asset.pk}/")
-        img = qrcode.make(url)
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        return HttpResponse(buf.getvalue(), content_type="image/png")
+        url = request.build_absolute_uri(f"/scan/{asset.pk}/")
+        return HttpResponse(_construire_qr_png(url), content_type="image/png")
 
 class AssetDocumentViewSet(viewsets.ModelViewSet):
     queryset = AssetDocument.objects.select_related("asset").all()
@@ -118,3 +123,30 @@ class AssetChecklistOverrideViewSet(viewsets.ModelViewSet):
     queryset = AssetChecklistOverride.objects.select_related("asset", "template").all()
     serializer_class = AssetChecklistOverrideSerializer
     permission_classes = [RolePermission]
+
+
+def _installation_scopee_ou_404(request, pk):
+    """Récupère une installation par pk en appliquant le périmètre de
+    l'utilisateur (scope_filters_for_user, même système que ScopedQuerySetMixin
+    côté DRF) — une installation hors périmètre est traitée comme introuvable."""
+    filtres = scope_filters_for_user(request.user)
+    queryset = Installation.objects.filter(**filtres) if filtres else Installation.objects.all()
+    return get_object_or_404(queryset, pk=pk)
+
+
+@login_required
+def installation_qr_code(request, pk):
+    """Équivalent de AssetViewSet.qr_code pour une installation fixe : renvoie
+    l'URL du QR (vue web /scan/<uuid>/), en JSON."""
+    installation = _installation_scopee_ou_404(request, pk)
+    url = request.build_absolute_uri(f"/scan/{installation.pk}/")
+    return JsonResponse({"url": url})
+
+
+@login_required
+def installation_qr_png(request, pk):
+    """Équivalent de AssetViewSet.qr_png pour une installation fixe : renvoie
+    l'image PNG du QR à imprimer/apposer sur l'installation."""
+    installation = _installation_scopee_ou_404(request, pk)
+    url = request.build_absolute_uri(f"/scan/{installation.pk}/")
+    return HttpResponse(_construire_qr_png(url), content_type="image/png")
