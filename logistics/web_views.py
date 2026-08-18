@@ -78,6 +78,20 @@ class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         return ctx
 
 
+def _ship_du_profil_q(ship_id):
+    """Filtre les utilisateurs dont le profil appartient au navire donné, quel
+    que soit le niveau de périmètre auquel leur profil est réellement scopé
+    (ship directement, ou service/sector/section dont on remonte jusqu'au
+    navire) — un profil scopé au secteur n'a jamais profile.ship renseigné
+    directement, contrairement à profile.service/sector/section."""
+    return (
+        Q(profile__ship_id=ship_id)
+        | Q(profile__service__ship_id=ship_id)
+        | Q(profile__sector__service__ship_id=ship_id)
+        | Q(profile__section__sector__service__ship_id=ship_id)
+    )
+
+
 class TicketDetailView(LoginRequiredMixin, View):
     template_name = 'logistics/ticket_detail.html'
 
@@ -94,11 +108,13 @@ class TicketDetailView(LoginRequiredMixin, View):
         }
         if contexte["peut_assigner"]:
             # Utilisateurs assignables : l'équipage du navire portant l'actif en
-            # panne — un chef choisit ensuite librement parmi eux, sans qu'on
-            # recrée un système de scope différent de scope_filters_for_user.
+            # panne — un chef choisit ensuite librement parmi eux. Le navire de
+            # l'utilisateur peut être porté directement par son profil (profile.ship)
+            # ou déduit de son périmètre plus fin (service/secteur/section), un
+            # profil scopé au secteur n'ayant jamais ship renseigné directement.
             contexte["utilisateurs_assignables"] = User.objects.filter(
-                profile__ship=ticket.asset.ship
-            ).select_related("profile").order_by("username")
+                _ship_du_profil_q(ticket.asset.ship_id)
+            ).select_related("profile").order_by("username").distinct()
         return render(request, self.template_name, contexte)
 
 
@@ -117,7 +133,7 @@ class TicketAssignView(LoginRequiredMixin, View):
         ids = request.POST.getlist('assignees')
         # On ne retient que des utilisateurs de l'équipage du navire de l'actif
         # concerné, même filtre que le formulaire (contournement d'un POST direct).
-        utilisateurs = User.objects.filter(pk__in=ids, profile__ship=ticket.asset.ship)
+        utilisateurs = User.objects.filter(_ship_du_profil_q(ticket.asset.ship_id), pk__in=ids)
         ticket.assignees.set(utilisateurs)
         messages.info(request, "Assignation du ticket mise à jour.")
         return redirect('ticket-detail', pk=ticket.pk)

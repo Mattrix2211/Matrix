@@ -196,6 +196,21 @@ class TicketAssignViewTests(TestCase):
         self.assertContains(response, "Assigner")
         self.assertContains(response, self.marin.username)
 
+    def test_marin_scope_secteur_apparait_dans_les_assignables(self):
+        """Régression QA : un profil scopé au secteur (donc sans ship
+        renseigné directement) doit quand même apparaître comme assignable,
+        pas seulement les profils qui ont ship en direct."""
+        self.client.login(username="chef_ass", password="pass")
+        response = self.client.get(reverse("ticket-detail", args=[self.ticket.id]))
+        self.assertContains(response, self.equipier.username)
+
+    def test_chef_peut_assigner_un_marin_scope_secteur(self):
+        self.client.login(username="chef_ass", password="pass")
+        response = self.client.post(self.url, {"assignees": [str(self.equipier.id)]}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.ticket.refresh_from_db()
+        self.assertEqual(list(self.ticket.assignees.all()), [self.equipier])
+
     def test_page_detail_naffiche_pas_le_formulaire_pour_un_equipier(self):
         self.client.login(username="equipier_ass", password="pass")
         response = self.client.get(reverse("ticket-detail", args=[self.ticket.id]))
