@@ -23,7 +23,10 @@ def notify_expiring_training(days_list=(30, 60, 90)):
 
 @shared_task
 def notify_overdue_occurrences():
-    for occ in MaintenanceOccurrence.objects.filter(status='OVERDUE').select_related('plan'):
+    occurrences = MaintenanceOccurrence.objects.filter(status='OVERDUE').select_related(
+        'plan'
+    ).prefetch_related('assignees')
+    for occ in occurrences:
         for u in occ.assignees.all():
             Notification.objects.get_or_create(user=u, verb=f"Occurrence en retard: {occ.id}")
     return {"status": "ok"}
