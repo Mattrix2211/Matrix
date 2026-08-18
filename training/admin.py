@@ -3,8 +3,8 @@ from .models import TrainingCourse, TrainingRequirement, TrainingSession, Traini
 
 @admin.register(TrainingCourse)
 class TrainingCourseAdmin(admin.ModelAdmin):
-    list_display = ("title", "sector", "validity_days")
-    list_filter = ("sector",)
+    list_display = ("title", "category", "sector", "validity_days")
+    list_filter = ("sector", "category")
     filter_horizontal = ("prerequisites",)
 
 @admin.register(TrainingRequirement)

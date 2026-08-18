@@ -13,6 +13,9 @@ ETAT_VALIDE = "VALIDE"
 ETAT_DISPONIBLE = "DISPONIBLE"
 ETAT_VERROUILLE = "VERROUILLE"
 
+# Libellé affiché pour les formations sans catégorie (domaine métier) renseignée.
+CATEGORIE_NON_RENSEIGNEE = "Non catégorisées"
+
 
 def calculer_niveaux(courses):
     """Calcule la profondeur topologique de chaque formation (0 = sans
@@ -96,3 +99,28 @@ def regrouper_par_niveau(carte):
     for item in carte:
         par_niveau[item["niveau"]].append(item)
     return sorted(par_niveau.items())
+
+
+def regrouper_par_categorie(carte):
+    """Regroupe le résultat de calculer_carte_competences() par catégorie de
+    formation (domaine métier, TrainingCourse.category), chaque catégorie
+    étant à son tour subdivisée par niveau via regrouper_par_niveau() — c'est
+    cette fonction qui pilote l'affichage de l'arbre de compétences par
+    catégorie. Le calcul du graphe lui-même (niveaux, anti-cycle) reste
+    toujours fait sur l'ensemble des formations passées à
+    calculer_carte_competences ; seul cet affichage est réparti par catégorie
+    (un prérequis d'une autre catégorie garde donc son niveau réel).
+
+    Renvoie une liste triée par ordre alphabétique de tuples
+    (nom_categorie, niveaux) ; les formations sans catégorie renseignée sont
+    réunies dans un groupe CATEGORIE_NON_RENSEIGNEE toujours affiché en
+    dernier plutôt que d'être cachées ou de faire planter l'affichage."""
+    par_categorie = defaultdict(list)
+    for item in carte:
+        categorie = (item["course"].category or "").strip()
+        par_categorie[categorie].append(item)
+    noms_categories = sorted(c for c in par_categorie if c)
+    groupes = [(nom, regrouper_par_niveau(par_categorie[nom])) for nom in noms_categories]
+    if "" in par_categorie:
+        groupes.append((CATEGORIE_NON_RENSEIGNEE, regrouper_par_niveau(par_categorie[""])))
+    return groupes

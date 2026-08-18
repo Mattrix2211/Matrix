@@ -25,6 +25,13 @@
       <div class="card-body">
         <h6 class="card-title fw-bold">{{ f.title }}</h6>
         <div class="small text-muted mb-2">{{ f.sector.name }} — validité {{ f.validity_days }} jour(s)</div>
+        <div class="mb-2">
+          {% if f.category %}
+            <span class="badge text-bg-light border">{{ f.category }}</span>
+          {% else %}
+            <span class="badge text-bg-light border text-muted">Non catégorisée</span>
+          {% endif %}
+        </div>
         {% if f.description %}<p class="small mb-2">{{ f.description }}</p>{% endif %}
         <div class="mb-2">
           <span class="fw-semibold small">Prérequis :</span>
@@ -38,8 +45,9 @@
           <button type="button" class="btn btn-outline-primary btn-sm"
                   data-bs-toggle="modal" data-bs-target="#prerequisitesModal"
                   data-pk="{{ f.id }}" data-title="{{ f.title }}" data-sector="{{ f.sector_id }}"
+                  data-category="{{ f.category }}"
                   data-selected="{% for p in f.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
-            <i class="bi bi-pencil"></i> Modifier les prérequis
+            <i class="bi bi-pencil"></i> Modifier
           </button>
         {% endif %}
       </div>
@@ -59,10 +67,21 @@
       <input type="hidden" name="pk" id="prereqPk">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Prérequis de <span id="prereqTitle"></span></h5>
+          <h5 class="modal-title">Modifier <span id="prereqTitle"></span></h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
         </div>
         <div class="modal-body">
+          <div class="mb-3">
+            <label for="prereqCategory" class="form-label">Catégorie (domaine métier)</label>
+            <input type="text" class="form-control" name="category" id="prereqCategory"
+                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
+            <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
+          </div>
+          {% for sector_id, categories in categories_par_secteur.items %}
+            <datalist id="categoriesSecteur-{{ sector_id }}">
+              {% for cat in categories %}<option value="{{ cat }}"></option>{% endfor %}
+            </datalist>
+          {% endfor %}
           <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (même secteur uniquement).</p>
           {% for sector_id, candidats in candidats_par_secteur.items %}
             <div class="prereq-group" data-sector="{{ sector_id }}" style="display:none;">
@@ -94,6 +113,11 @@
     var selected = (b.getAttribute('data-selected') || '').split(',').filter(Boolean);
     document.getElementById('prereqPk').value = pk;
     document.getElementById('prereqTitle').textContent = b.getAttribute('data-title');
+    // Catégorie pré-remplie avec la valeur actuelle, autocomplétion limitée
+    // aux catégories déjà utilisées dans le secteur de cette formation.
+    var champCategorie = document.getElementById('prereqCategory');
+    champCategorie.value = b.getAttribute('data-category') || '';
+    champCategorie.setAttribute('list', 'categoriesSecteur-' + sector);
     // N'affiche que les formations du même secteur que celle éditée, et exclut
     // la formation elle-même (impossible de se choisir comme son propre prérequis).
     document.querySelectorAll('.prereq-group').forEach(function(group){

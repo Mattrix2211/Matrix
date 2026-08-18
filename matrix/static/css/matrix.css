@@ -241,6 +241,22 @@ code, pre, kbd, .font-mono {
 /* connecteurs en SVG pur généré par matrix/static/js/arbre_competences.js */
 /* (aucune bibliothèque de graphe, conforme au principe hors-ligne).      */
 /* ---------------------------------------------------------------------- */
+/* Une section par catégorie (domaine métier) dans l'arbre de compétences —
+   le calcul du graphe reste global au secteur, seul cet affichage regroupe
+   par catégorie (cf. training/services.py::regrouper_par_categorie). */
+.arbre-categorie {
+  margin-bottom: var(--s8);
+}
+.arbre-categorie-titre {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--ink);
+  padding-bottom: var(--s2);
+  margin-bottom: var(--s4);
+  border-bottom: 2px solid var(--border);
+}
+
 .arbre-competences-conteneur {
   position: relative;
   overflow-x: auto;

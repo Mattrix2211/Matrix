@@ -11,7 +11,7 @@ from matrix.core.roles import RoleLevel, user_role_level
 from org.models import Sector
 
 from .models import TrainingCourse
-from .services import calculer_carte_competences, regrouper_par_niveau
+from .services import calculer_carte_competences, regrouper_par_categorie
 
 # Seuil de rôle requis pour configurer les prérequis d'une formation, cohérent
 # avec RolePermission.min_level_write (matrix/core/permissions.py) déjà appliqué
@@ -90,6 +90,17 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         for c in TrainingCourse.objects.select_related("sector").order_by("title"):
             candidats_par_secteur[c.sector_id].append(c)
         ctx["candidats_par_secteur"] = dict(candidats_par_secteur)
+        # Catégories déjà utilisées, par secteur : sert à l'autocomplétion du
+        # champ catégorie (datalist HTML natif) pour limiter les doublons/fautes
+        # de frappe (ex. "Incendie" vs "incendie") sans imposer de liste fermée.
+        categories_par_secteur = defaultdict(set)
+        for sector_id, categorie in (
+            TrainingCourse.objects.exclude(category="").values_list("sector_id", "category")
+        ):
+            categories_par_secteur[sector_id].add(categorie)
+        ctx["categories_par_secteur"] = {
+            sector_id: sorted(categories) for sector_id, categories in categories_par_secteur.items()
+        }
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -116,6 +127,13 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             except ValidationError as exc:
                 _afficher_erreur_prerequis(request, exc)
                 return redirect("formation-list")
+            # Catégorie modifiable dans la même modale que les prérequis (un seul
+            # clic pour tout mettre à jour) — champ absent du POST : on ne touche
+            # pas à la catégorie existante (compatibilité avec un appel qui ne
+            # gérerait que les prérequis).
+            if "category" in request.POST:
+                course.category = request.POST.get("category", "").strip()
+                course.save(update_fields=["category"])
             messages.success(request, "Prérequis mis à jour.")
         return redirect("formation-list")
 
@@ -123,7 +141,10 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 class CompetencyTreeView(LoginRequiredMixin, View):
     """Arbre de compétences : formations d'un secteur disposées par niveau de
     profondeur (chaîne de prérequis), avec l'état de chacune pour le marin
-    connecté (validé / disponible / verrouillé)."""
+    connecté (validé / disponible / verrouillé). Le calcul du graphe (niveaux,
+    anti-cycle) porte sur l'ensemble des formations du secteur — les
+    prérequis peuvent traverser les catégories — mais l'affichage regroupe
+    les formations par catégorie (domaine métier) via regrouper_par_categorie."""
 
     template_name = "training/arbre_competences.html"
 
@@ -131,7 +152,7 @@ class CompetencyTreeView(LoginRequiredMixin, View):
         secteurs = _secteurs_visibles(request.user)
         sector_id = request.GET.get("secteur")
         secteur = secteurs.filter(pk=sector_id).first() if sector_id else secteurs.first()
-        niveaux = []
+        categories = []
         if secteur is not None:
             formations = list(
                 TrainingCourse.objects.filter(sector=secteur)
@@ -139,9 +160,9 @@ class CompetencyTreeView(LoginRequiredMixin, View):
                 .order_by("title")
             )
             carte = calculer_carte_competences(formations, request.user)
-            niveaux = regrouper_par_niveau(carte)
+            categories = regrouper_par_categorie(carte)
         return render(request, self.template_name, {
             "secteurs": secteurs,
             "secteur": secteur,
-            "niveaux": niveaux,
+            "categories": categories,
         })

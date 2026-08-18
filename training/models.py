@@ -12,6 +12,13 @@ User = get_user_model()
 class TrainingCourse(TimeStampedModel):
     sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="training_courses")
     title = models.CharField(max_length=255)
+    # Domaine métier de la formation (ex. "Sécurité/Incendie", "Habilitation
+    # électrique", "Levage"...) : texte libre saisi par le chef, pas de liste
+    # figée — même pattern que AssetType.category (assets/models.py), pour ne
+    # pas décider à la place de la Marine la liste exhaustive des domaines
+    # métier. Champ facultatif et rétrocompatible : les formations existantes
+    # ont une catégorie vide, à compléter ensuite par les chefs.
+    category = models.CharField(max_length=255, blank=True, default="")
     description = models.TextField(blank=True, default="")
     validity_days = models.PositiveIntegerField(default=365)
     # Arbre de compétences : formations à valider avant de pouvoir suivre celle-ci.

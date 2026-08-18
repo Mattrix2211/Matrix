@@ -3,12 +3,17 @@
  * à ses prérequis directs, en lisant leur position réelle dans le DOM.
  * Aucune bibliothèque de graphe externe (principe hors-ligne du projet) : juste
  * du JavaScript auto-hébergé, recalculé au chargement et au redimensionnement.
+ *
+ * L'affichage étant réparti par catégorie (une section .arbre-competences-
+ * conteneur par catégorie), chaque section a ses propres connecteurs : un
+ * prérequis d'une autre catégorie n'a pas de carte dans cette section et son
+ * trait n'est donc simplement pas tracé (un badge dans la carte renvoie déjà
+ * vers sa catégorie).
  */
 (function () {
-  function dessinerConnecteurs() {
-    var conteneur = document.getElementById('arbreCompetences');
-    var svg = document.getElementById('arbreConnecteurs');
-    if (!conteneur || !svg) return;
+  function dessinerConnecteurs(conteneur) {
+    var svg = conteneur.querySelector('.arbre-connecteurs');
+    if (!svg) return;
 
     var rectConteneur = conteneur.getBoundingClientRect();
     var largeur = conteneur.scrollWidth;
@@ -53,6 +58,10 @@
     });
   }
 
-  window.addEventListener('load', dessinerConnecteurs);
-  window.addEventListener('resize', dessinerConnecteurs);
+  function dessinerTousLesConnecteurs() {
+    document.querySelectorAll('.arbre-competences-conteneur').forEach(dessinerConnecteurs);
+  }
+
+  window.addEventListener('load', dessinerTousLesConnecteurs);
+  window.addEventListener('resize', dessinerTousLesConnecteurs);
 })();
