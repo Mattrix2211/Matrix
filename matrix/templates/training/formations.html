@@ -2,9 +2,16 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Formations</h1>
-  <a class="btn btn-primary" href="{% url 'formation-arbre-competences' %}">
-    <i class="bi bi-diagram-3"></i> Arbre de compétences
-  </a>
+  <div class="d-flex gap-2">
+    {% if peut_creer_formation %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createCourseModal">
+        <i class="bi bi-plus-lg"></i> Nouvelle formation
+      </button>
+    {% endif %}
+    <a class="btn btn-primary" href="{% url 'formation-arbre-competences' %}">
+      <i class="bi bi-diagram-3"></i> Arbre de compétences
+    </a>
+  </div>
 </div>
 
 <form method="get" class="row g-2 mb-3">
@@ -160,6 +167,88 @@
     document.querySelectorAll('.referent-checkbox').forEach(function(cb){
       cb.checked = referentsSelectionnes.indexOf(cb.value) !== -1;
     });
+  });
+})();
+</script>
+{% endif %}
+
+{% if peut_creer_formation %}
+<div class="modal fade" id="createCourseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'formation-list' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_course">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Nouvelle formation</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="createTitle" class="form-label">Titre</label>
+            <input type="text" class="form-control" name="title" id="createTitle" required>
+          </div>
+          <div class="mb-3">
+            <label for="createSector" class="form-label">Secteur</label>
+            <select class="form-select" name="sector" id="createSector" required>
+              <option value="" selected disabled>Choisir un secteur...</option>
+              {% for s in secteurs %}
+                <option value="{{ s.id }}">{{ s.service.ship.name }} / {{ s.service.name }} / {{ s.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="createDescription" class="form-label">Description</label>
+            <textarea class="form-control" name="description" id="createDescription" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="createValidityDays" class="form-label">Durée de validité (jours)</label>
+            <input type="number" class="form-control" name="validity_days" id="createValidityDays" min="1" value="365">
+          </div>
+          <div class="mb-3">
+            <label for="createCategory" class="form-label">Catégorie (domaine métier)</label>
+            <input type="text" class="form-control" name="category" id="createCategory"
+                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage..." list="">
+            <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
+          </div>
+          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (même secteur, choisissez d'abord le secteur ci-dessus).</p>
+          {% for sector_id, candidats in candidats_par_secteur.items %}
+            <div class="create-prereq-group" data-sector="{{ sector_id }}" style="display:none;">
+              {% for c in candidats %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="prerequisites" value="{{ c.id }}" id="create-prereq-{{ c.id }}">
+                  <label class="form-check-label" for="create-prereq-{{ c.id }}">{{ c.title }}</label>
+                </div>
+              {% endfor %}
+            </div>
+          {% empty %}
+            <span class="small text-muted">Aucune formation existante pouvant servir de prérequis.</span>
+          {% endfor %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var select = document.getElementById('createSector');
+  if (!select) return;
+  select.addEventListener('change', function(){
+    var sector = select.value;
+    // N'affiche que les formations existantes du secteur choisi comme
+    // candidates au rattachement en prérequis (une formation d'un autre
+    // secteur ne peut jamais être un prérequis, même règle qu'à l'édition).
+    document.querySelectorAll('.create-prereq-group').forEach(function(group){
+      group.style.display = (group.getAttribute('data-sector') === sector) ? 'block' : 'none';
+    });
+    // Autocomplétion de la catégorie limitée à celles déjà utilisées dans le
+    // secteur choisi (datalist déjà rendue par la modale de modification).
+    var champCategorie = document.getElementById('createCategory');
+    champCategorie.setAttribute('list', 'categoriesSecteur-' + sector);
   });
 })();
 </script>

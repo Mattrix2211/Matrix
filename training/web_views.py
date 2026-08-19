@@ -22,9 +22,20 @@ User = get_user_model()
 # côté API sur TrainingCourseViewSet.
 NIVEAU_REQUIS_GESTION_PREREQUIS = RoleLevel.CHEF_SECTION
 
+# Seuil de rôle requis pour créer une toute nouvelle formation : volontairement
+# plus strict que NIVEAU_REQUIS_GESTION_PREREQUIS (qui ne fait qu'éditer une
+# formation existante). Demande explicite du Product Owner : la création reste
+# réservée à un administrateur pour l'instant, les centres de formation
+# externes prendront le relais dans une phase future non spécifiée.
+NIVEAU_REQUIS_CREATION_FORMATION = RoleLevel.ADMIN_NAVIRE
+
 
 def _peut_gerer_prerequis(user):
     return user_role_level(user) >= NIVEAU_REQUIS_GESTION_PREREQUIS
+
+
+def _peut_creer_formation(user):
+    return user_role_level(user) >= NIVEAU_REQUIS_CREATION_FORMATION
 
 
 def _secteurs_visibles(user):
@@ -100,6 +111,7 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["secteurs"] = _secteurs_visibles(self.request.user)
         ctx["peut_gerer_prerequis"] = _peut_gerer_prerequis(self.request.user)
+        ctx["peut_creer_formation"] = _peut_creer_formation(self.request.user)
         # Périmètre de l'utilisateur, appliqué manuellement ici : ces deux blocs
         # portent volontairement sur TOUS les secteurs visibles (pas seulement
         # celui sélectionné dans le filtre GET "sector" de la liste), mais ne
@@ -148,6 +160,45 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get("action")
+        if action == "create_course":
+            if not _peut_creer_formation(request.user):
+                raise PermissionDenied
+            titre = request.POST.get("title", "").strip()
+            # Le secteur doit faire partie du périmètre visible de l'appelant —
+            # ne fait pas confiance à la valeur postée (même principe que le
+            # filtrage des prérequis/référents ci-dessous), sous peine de
+            # permettre à un administrateur navire de créer une formation sur
+            # un secteur d'un autre navire auquel il n'a pas accès.
+            secteur = _secteurs_visibles(request.user).filter(pk=request.POST.get("sector")).first()
+            if not titre or secteur is None:
+                messages.error(request, "Le titre et le secteur (dans votre périmètre) sont obligatoires.")
+                return redirect("formation-list")
+            validity_days_brut = request.POST.get("validity_days", "").strip()
+            validity_days = TrainingCourse._meta.get_field("validity_days").get_default()
+            if validity_days_brut:
+                try:
+                    validity_days = int(validity_days_brut)
+                    if validity_days <= 0:
+                        raise ValueError
+                except ValueError:
+                    messages.error(request, "La durée de validité doit être un nombre de jours positif.")
+                    return redirect("formation-list")
+            course = TrainingCourse.objects.create(
+                sector=secteur,
+                title=titre,
+                description=request.POST.get("description", "").strip(),
+                category=request.POST.get("category", "").strip(),
+                validity_days=validity_days,
+            )
+            # Prérequis facultatifs dès la création, limités aux formations déjà
+            # existantes du même secteur (revalidation côté serveur, même
+            # principe que pour l'édition ci-dessous).
+            ids = request.POST.getlist("prerequisites")
+            if ids:
+                candidats = TrainingCourse.objects.filter(sector=secteur).exclude(pk=course.pk)
+                course.prerequisites.set(candidats.filter(pk__in=ids))
+            messages.success(request, "Formation créée.")
+            return redirect("formation-list")
         if action == "update_prerequisites":
             if not _peut_gerer_prerequis(request.user):
                 raise PermissionDenied
