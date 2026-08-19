@@ -51,25 +51,45 @@ class TrainingRecordPermission(RolePermission):
 
 class TrainingSessionPermission(RolePermission):
     """La planification d'une session (date, intervenant, lieu, statut) reste
-    soumise au seuil générique CHEF_SECTION (RolePermission), mais la gestion
-    des présences (attendees) — qui revient à certifier la participation à une
-    formation — est réservée aux référents de cette formation (ou à un rôle
-    de supervision globale), même règle que TrainingRecordPermission."""
+    soumise au seuil générique CHEF_SECTION (RolePermission). La gestion des
+    présences (attendees) — qui revient à certifier la participation à une
+    formation — est en revanche tranchée UNIQUEMENT par peut_valider_formation
+    (référents de cette formation, ou rôle de supervision globale), SANS
+    jamais passer par le seuil générique CHEF_SECTION : un référent est
+    désigné pour sa compétence sur la formation, pas pour son rang, et peut
+    donc être EQUIPIER. Si la requête modifie aussi d'autres champs de
+    planification en même temps que les présences, ces autres champs restent
+    soumis au seuil générique."""
+
+    @staticmethod
+    def _modifie_d_autres_champs_que_attendees(request):
+        return any(champ != "attendees" for champ in request.data)
 
     def has_permission(self, request, view):
-        if not super().has_permission(request, view):
+        if request.method in SAFE_METHODS:
+            return super().has_permission(request, view)
+        if request.method != "POST":
+            # PUT/PATCH/DELETE : le contrôle porte sur l'objet existant,
+            # tranché par has_object_permission ci-dessous.
+            return True
+        if "attendees" not in request.data:
+            return super().has_permission(request, view)
+        course = TrainingCourse.objects.filter(pk=request.data.get("course")).first()
+        if course is not None and not peut_valider_formation(request.user, course):
             return False
-        if request.method == "POST" and "attendees" in request.data:
-            course = TrainingCourse.objects.filter(pk=request.data.get("course")).first()
-            if course is not None and not peut_valider_formation(request.user, course):
-                return False
+        if self._modifie_d_autres_champs_que_attendees(request):
+            return super().has_permission(request, view)
         return True
 
     def has_object_permission(self, request, view, obj):
-        if not super().has_object_permission(request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        if "attendees" not in request.data:
+            return super().has_object_permission(request, view, obj)
+        if not peut_valider_formation(request.user, obj.course):
             return False
-        if request.method not in SAFE_METHODS and "attendees" in request.data:
-            return peut_valider_formation(request.user, obj.course)
+        if self._modifie_d_autres_champs_que_attendees(request):
+            return super().has_object_permission(request, view, obj)
         return True
 
 

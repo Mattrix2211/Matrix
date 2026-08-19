@@ -150,8 +150,12 @@ class APIRecordScopingTests(TestCase):
 
 class APISessionAttendeesScopingTests(TestCase):
     """Gestion des présences (attendees) d'une session : réservée aux
-    référents de la formation concernée, le reste de la planification
-    (date, lieu...) restant soumis au seuil générique CHEF_SECTION."""
+    référents de la formation concernée — quel que soit leur rang, un
+    référent est désigné pour sa compétence, pas pour sa position
+    hiérarchique, et peut donc être EQUIPIER (même profil que dans
+    APIRecordScopingTests). Le reste de la planification (date, lieu...)
+    reste soumis au seuil générique CHEF_SECTION, y compris pour le
+    référent lui-même s'il n'a pas ce rang."""
 
     def setUp(self):
         ship = Ship.objects.create(name="Navire Session", code="SES")
@@ -165,7 +169,7 @@ class APISessionAttendeesScopingTests(TestCase):
         )
 
         self.referent = User.objects.create_user(username="ses_referent", password="pass")
-        UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "CHEF_SECTION"})
+        UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "EQUIPIER"})
         self.course.referents.add(self.referent)
 
         self.chef_non_referent = User.objects.create_user(username="ses_chef_non_ref", password="pass")
@@ -177,7 +181,19 @@ class APISessionAttendeesScopingTests(TestCase):
         self.marin = User.objects.create_user(username="ses_marin", password="pass")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
 
-    def test_referent_peut_ajouter_un_participant(self):
+        # Le signal de création automatique du profil (accounts/models.py)
+        # met en cache un profil EQUIPIER par défaut sur l'instance User créée
+        # dans ce même process ; on recharge chaque utilisateur depuis la base
+        # pour repartir d'un profil non caché, comme le ferait une requête
+        # HTTP réelle (nouvelle instance à chaque requête).
+        self.referent = User.objects.get(pk=self.referent.pk)
+        self.chef_non_referent = User.objects.get(pk=self.chef_non_referent.pk)
+        self.commandant = User.objects.get(pk=self.commandant.pk)
+
+    def test_referent_equipier_peut_ajouter_un_participant(self):
+        # Cas central du correctif : un référent désigné pour sa compétence,
+        # même de rang EQUIPIER (donc sous le seuil générique CHEF_SECTION),
+        # doit pouvoir gérer les présences de sa propre formation.
         self.client.login(username="ses_referent", password="pass")
         r = self.client.patch(
             f"/api/training/sessions/{self.session.id}/",
@@ -205,6 +221,18 @@ class APISessionAttendeesScopingTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(r.status_code, 200, r.content)
+
+    def test_referent_equipier_ne_peut_pas_modifier_le_planning(self):
+        # Le statut de référent ne donne aucun droit sur la planification
+        # générale (date, lieu...) : c'est le seuil générique CHEF_SECTION
+        # qui tranche ce champ, indépendamment de la gestion des présences.
+        self.client.login(username="ses_referent", password="pass")
+        r = self.client.patch(
+            f"/api/training/sessions/{self.session.id}/",
+            data=json.dumps({"location": "Salle machines"}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 403)
 
     def test_supervision_globale_peut_gerer_les_presences(self):
         self.client.login(username="ses_commandant", password="pass")
