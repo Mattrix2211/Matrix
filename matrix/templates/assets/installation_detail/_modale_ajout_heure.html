@@ -1,0 +1,22 @@
+{# Modale ajout heure de marche #}
+<div class="modal fade" id="addHourReadingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Ajouter un relevé d’heures</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_hour_reading" />
+          <input type="hidden" name="tab" value="hours" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Heures (cumulées)</label><input type="text" class="form-control" name="hours" inputmode="decimal" placeholder="ex: 1234,50" required /></div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" value="1" id="isVisitAdd" name="is_visit">
+            <label class="form-check-label" for="isVisitAdd">Marquer comme visite</label>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>

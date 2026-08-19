@@ -1,0 +1,74 @@
+<div class="modal fade" id="editInstallationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l’installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_installation" />
+          <input type="hidden" name="pk" value="{{ object.id }}" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" value="{{ object.designation }}" required /></div>
+            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" value="{{ object.reference }}" /></div>
+            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" value="{{ object.marque }}" /></div>
+            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" value="{{ object.gisement }}" /></div>
+            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" value="{{ object.local }}" /></div>
+            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" required><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if object.ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" required><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if object.service.id == sv.id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" required><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if object.sector.id == sc.id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if object.section and object.section.id == se.id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Bigrame</label><select class="form-select" name="bigrame_id"><option value="">—</option>{% for bg in bigrames %}<option value="{{ bg.id }}" {% if object.bigrame and object.bigrame.id == bg.id %}selected{% endif %}>{{ bg.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <label class="form-label">Champs personnalisés (Infos)</label>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddCustomEdit"><span class="bi bi-plus-lg"></span> Ajouter un champ</button>
+              </div>
+              <div id="customFieldsEdit" class="mt-2"></div>
+              <input type="hidden" name="extra_fields" id="extraFieldsEdit" />
+            </div>
+            <div class="col-md-12"><hr /></div>
+            <div class="col-md-6">
+              <label class="form-label">Périodicité isolement</label>
+              <select class="form-select" name="iso_periodicity">
+                <option value="M" {% if object.iso_periodicity == 'M' %}selected{% endif %}>Mensuel</option>
+                <option value="T" {% if object.iso_periodicity == 'T' %}selected{% endif %}>Trimestriel</option>
+                <option value="A" {% if object.iso_periodicity == 'A' %}selected{% endif %}>Annuel</option>
+              </select>
+            </div>
+            {% if peut_gerer_parent %}
+            <div class="col-md-6">
+              <label class="form-label">Rattaché à (facultatif)</label>
+              <select class="form-select" name="parent_id">
+                <option value="">— Aucun —</option>
+                {% for p in installations_pour_parent %}
+                  <option value="{{ p.id }}" {% if object.parent_id == p.id %}selected{% endif %}>{{ p.designation }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>
+
+{# Modale suppression #}
+<div class="modal fade" id="deleteInstallationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Supprimer l’installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_installation" />
+          <input type="hidden" name="pk" value="{{ object.id }}" />
+          <p>Confirmer la suppression de {{ object.designation }} ?</p>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger">Supprimer</button></div>
+      </form>
+    </div>
+  </div>
+</div>

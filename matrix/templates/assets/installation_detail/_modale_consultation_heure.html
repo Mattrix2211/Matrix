@@ -1,0 +1,35 @@
+{# Modale consultation heure de marche #}
+<div class="modal fade" id="viewHourModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail du relevé</h5>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" id="hoursEditBtn">Modifier</button></li>
+              <li><button class="dropdown-item text-danger" id="hoursMenuDelete">Supprimer</button></li>
+            </ul>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-5">Date</dt><dd class="col-7 font-mono" id="hoursViewDate">—</dd>
+          <dt class="col-5">Heures</dt><dd class="col-7 font-mono" id="hoursViewHours">—</dd>
+          <dt class="col-5">Visite</dt><dd class="col-7" id="hoursViewVisit">—</dd>
+          <dt class="col-5">Utilisateur</dt><dd class="col-7" id="hoursViewUser">—</dd>
+        </dl>
+        <form method="post" id="hoursDeleteForm" class="d-none">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_hour_reading" />
+          <input type="hidden" name="tab" value="hours" />
+          <input type="hidden" name="reading_id" id="hoursDeleteId" />
+        </form>
+      </div>
+      
+    </div>
+  </div>
+</div>

@@ -1,0 +1,220 @@
+<script>
+(function(){
+  function setupCascades(root){
+    var shipSel = root.querySelector('select[name="ship_id"]');
+    var serviceSel = root.querySelector('select[name="service_id"]');
+    var sectorSel = root.querySelector('select[name="sector_id"]');
+    var sectionSel = root.querySelector('select[name="section_id"]');
+    if (!shipSel || !serviceSel || !sectorSel || !sectionSel) return;
+    function filterOptions(select, dataAttr, match){
+      var val = match || '';
+      Array.from(select.options).forEach(function(opt){
+        if (!opt.value) { opt.hidden = false; return; }
+        var dv = opt.getAttribute(dataAttr);
+        opt.hidden = !val || (dv !== val);
+      });
+      if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; }
+    }
+    shipSel.addEventListener('change', function(){
+      filterOptions(serviceSel, 'data-ship', shipSel.value);
+      filterOptions(sectorSel, 'data-service', '');
+      filterOptions(sectionSel, 'data-sector', '');
+    });
+    serviceSel.addEventListener('change', function(){
+      filterOptions(sectorSel, 'data-service', serviceSel.value);
+      filterOptions(sectionSel, 'data-sector', '');
+    });
+    sectorSel.addEventListener('change', function(){
+      filterOptions(sectionSel, 'data-sector', sectorSel.value);
+    });
+    filterOptions(serviceSel, 'data-ship', shipSel.value);
+    filterOptions(sectorSel, 'data-service', serviceSel.value);
+    filterOptions(sectionSel, 'data-sector', sectorSel.value);
+  }
+  var editModal = document.getElementById('editInstallationModal');
+  if (editModal) { editModal.addEventListener('shown.bs.modal', function(){ setupCascades(editModal); }); }
+
+  // Suppression PJ: modale globale
+  var confirmModalEl = document.getElementById('confirmDeleteAttachment');
+  var confirmModal; if (confirmModalEl && window.bootstrap) { confirmModal = new bootstrap.Modal(confirmModalEl); }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.btn-delete-attachment');
+    if (!btn) return;
+    var eventId = btn.getAttribute('data-event-id');
+    var attId = btn.getAttribute('data-attachment-id');
+    var filename = btn.getAttribute('data-filename');
+    // Ferme la modale d’édition ouverte si présente
+    var evEditEl = document.getElementById('eventEditModal-' + eventId);
+    if (evEditEl && window.bootstrap) {
+      var em = bootstrap.Modal.getInstance(evEditEl) || new bootstrap.Modal(evEditEl);
+      em.hide();
+    }
+    // Renseigne les champs et le texte
+    var form = confirmModalEl ? confirmModalEl.querySelector('form') : null;
+    if (form) {
+      form.querySelector('input[name="event_id"]').value = eventId;
+      form.querySelector('input[name="attachment_id"]').value = attId;
+      var msg = confirmModalEl.querySelector('.confirm-filename');
+      if (msg) { msg.textContent = filename; }
+    }
+    if (confirmModal) { confirmModal.show(); }
+  });
+
+  // Initialiser les tooltips Bootstrap
+  function initTooltips(root){
+    if (!window.bootstrap) return;
+    var els = (root || document).querySelectorAll('[data-bs-toggle="tooltip"]');
+    els.forEach(function(el){
+      bootstrap.Tooltip.getInstance(el) || new bootstrap.Tooltip(el);
+    });
+  }
+  initTooltips(document);
+  document.addEventListener('shown.bs.modal', function(e){ initTooltips(e.target); });
+
+  // Masque auto pour la date JJ/MM/AAAA
+  function applyDateMask(root){
+    var inputs = (root || document).querySelectorAll('input[name="date"]');
+    inputs.forEach(function(inp){
+      function format(val){
+        var digits = (val || '').replace(/[^0-9]/g, '').slice(0, 8);
+        var out = '';
+        if (digits.length <= 2) { out = digits; }
+        else if (digits.length <= 4) { out = digits.slice(0,2) + '/' + digits.slice(2); }
+        else { out = digits.slice(0,2) + '/' + digits.slice(2,4) + '/' + digits.slice(4); }
+        return out;
+      }
+      inp.addEventListener('input', function(e){
+        var pos = inp.selectionStart || inp.value.length;
+        var before = inp.value;
+        var after = format(before);
+        inp.value = after;
+      });
+      inp.addEventListener('blur', function(){ inp.value = format(inp.value); });
+      // initial
+      inp.value = format(inp.value);
+    });
+  }
+  applyDateMask(document);
+
+  // Champs personnalisés: gestion dans le modal d'édition
+  function addFieldRow(container, label, value){
+    var row = document.createElement('div'); row.className = 'input-group mb-2';
+    row.innerHTML = '<input class="form-control" placeholder="Libellé" value="'+(label||'')+'">'
+      + '<input class="form-control" placeholder="Valeur" value="'+(value||'')+'">'
+      + '<button class="btn btn-outline-danger" type="button"><span class="bi bi-trash"></span></button>';
+    row.querySelector('button').addEventListener('click', function(){ row.remove(); });
+    container.appendChild(row);
+  }
+  document.addEventListener('shown.bs.modal', function(e){
+    if (e.target && e.target.id === 'editInstallationModal'){
+      var container = document.getElementById('customFieldsEdit');
+      if (container){
+        container.innerHTML = '';
+        var data = [
+          {% for ef in extra_fields %}{ label: '{{ ef.label|escapejs }}', value: '{{ ef.value|escapejs }}' },{% endfor %}
+        ];
+        data.forEach(function(ex){ addFieldRow(container, ex.label, ex.value); });
+      }
+    }
+  });
+  var btnAddCustomEdit = document.getElementById('btnAddCustomEdit');
+  if (btnAddCustomEdit){ btnAddCustomEdit.addEventListener('click', function(){ addFieldRow(document.getElementById('customFieldsEdit')); }); }
+  var formEdit = document.querySelector('#editInstallationModal form');
+  if (formEdit){ formEdit.addEventListener('submit', function(){ var container = document.getElementById('customFieldsEdit'); var items = []; var groups = container ? container.querySelectorAll('.input-group') : []; var order = 0; groups.forEach(function(g){ var inputs = g.querySelectorAll('input'); var lbl = (inputs[0].value||'').trim(); var val = (inputs[1].value||'').trim(); if(lbl){ items.push({ label: lbl, value: val, order: order++ }); } }); var hidden = document.getElementById('extraFieldsEdit'); if (hidden) hidden.value = JSON.stringify(items); }); }
+  document.addEventListener('shown.bs.modal', function(e){ applyDateMask(e.target); });
+
+  // Ajouter PJ via bouton: inputs cachés + preview au-dessus
+  function fileIcon(name){
+    var n = (name||'').toLowerCase();
+    if (n.endsWith('.pdf')) return 'bi bi-file-earmark-pdf';
+    if (n.match(/\.(jpg|jpeg|png|gif|webp)$/)) return 'bi bi-image';
+    if (n.match(/\.(doc|docx)$/)) return 'bi bi-file-earmark-word';
+    if (n.match(/\.(xls|xlsx)$/)) return 'bi bi-file-earmark-excel';
+    if (n.match(/\.(ppt|pptx)$/)) return 'bi bi-file-earmark-powerpoint';
+    if (n.match(/\.(zip|rar|7z)$/)) return 'bi bi-file-earmark-zip';
+    return 'bi bi-paperclip';
+  }
+  function setupAttachmentPicker(root){
+    (root || document).querySelectorAll('.btn-add-attachment').forEach(function(btn){
+      if (btn.dataset.wired === '1') return;
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', function(){
+        var hiddenSel = btn.getAttribute('data-hidden');
+        var previewSel = btn.getAttribute('data-preview');
+        var hidden = document.querySelector(hiddenSel);
+        var preview = document.querySelector(previewSel);
+        if (!hidden || !preview) return;
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.name = 'attachments';
+        input.className = 'd-none';
+        input.multiple = false; // une PJ à la fois via le bouton
+        var uid = 'att-' + Date.now() + Math.random().toString(36).slice(2);
+        input.dataset.uid = uid;
+        hidden.appendChild(input);
+        input.addEventListener('change', function(){
+          if (!input.files || input.files.length === 0) { hidden.removeChild(input); return; }
+          var f = input.files[0];
+          var badge = document.createElement('span');
+          badge.className = 'badge rounded-pill text-bg-light d-inline-flex align-items-center gap-1';
+          badge.title = f.name + ' • ' + Math.round(f.size/1024) + ' Ko';
+          badge.dataset.uid = uid;
+          var icon = document.createElement('span'); icon.className = fileIcon(f.name) + '';
+          var text = document.createElement('span'); text.textContent = ' ' + f.name;
+          var del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-sm btn-outline-danger p-0 px-1'; del.title = 'Retirer';
+          del.innerHTML = '<span class="bi bi-trash"></span>';
+          del.addEventListener('click', function(){
+            var inp = hidden.querySelector('input[data-uid="' + uid + '"]');
+            if (inp) inp.remove();
+            badge.remove();
+          });
+          badge.appendChild(icon);
+          badge.appendChild(text);
+          badge.appendChild(del);
+          preview.appendChild(badge);
+          initTooltips(preview);
+        });
+        input.click();
+      });
+    });
+  }
+  setupAttachmentPicker(document);
+  document.addEventListener('shown.bs.modal', function(e){ setupAttachmentPicker(e.target); });
+
+  // Nettoyage des formulaires et PJ à la fermeture des modales
+  document.addEventListener('hidden.bs.modal', function(e){
+    var modal = e.target;
+    modal.querySelectorAll('.attachments-preview').forEach(function(el){ el.innerHTML = ''; });
+    modal.querySelectorAll('.attachments-hidden').forEach(function(el){ el.innerHTML = ''; });
+    modal.querySelectorAll('form').forEach(function(f){ try { f.reset(); } catch(_){} });
+  });
+
+  // Conserver l'onglet actif après POST: injecte input hidden 'tab' au submit
+  function currentTabKey(){
+    var active = document.querySelector('#instTabs .nav-link.active');
+    if (!active) return '';
+    var id = active.id || '';
+    return id.replace('tab-',''); // infos | histo | parts | hours
+  }
+  document.addEventListener('submit', function(e){
+    var f = e.target.closest('form');
+    if (!f) return;
+    try {
+      var input = f.querySelector('input[name="tab"]');
+      if (!input){ input = document.createElement('input'); input.type = 'hidden'; input.name = 'tab'; f.appendChild(input); }
+      input.value = currentTabKey();
+    } catch(_){}
+  });
+
+  // Activer l'onglet demandé via ?tab=...
+  function activateTabFromQuery(){
+    if (!window.bootstrap) return;
+    var params = new URLSearchParams(window.location.search||'');
+    var tab = params.get('tab');
+    if (!tab) return;
+    var btn = document.getElementById('tab-' + tab);
+    if (btn){ var t = bootstrap.Tab.getOrCreateInstance(btn); t.show(); }
+  }
+  activateTabFromQuery();
+})();
+</script>

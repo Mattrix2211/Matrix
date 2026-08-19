@@ -1,0 +1,28 @@
+{# Modales édition heure de marche, par relevé #}
+{% for r in hour_logs %}
+<div class="modal fade" id="editHourReadingModal-{{ r.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le relevé</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          
+          <input type="hidden" name="tab" value="hours" />
+          <input type="hidden" name="reading_id" value="{{ r.id }}" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" value="{{ r.date|date:'d/m/Y' }}" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Heures (cumulées)</label><input type="text" class="form-control" name="hours" value="{{ r.hours }}" inputmode="decimal" required /></div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" value="1" id="isVisitEdit-{{ r.id }}" name="is_visit" {% if r.is_visit %}checked{% endif %}>
+            <label class="form-check-label" for="isVisitEdit-{{ r.id }}">Marquer comme visite</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="submit" name="action" value="edit_hour_reading" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  </div>
+{% endfor %}

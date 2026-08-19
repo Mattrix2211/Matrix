@@ -1,0 +1,42 @@
+      <div class="tab-pane fade" id="pane-histo" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Historique</h6>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">Ajouter</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th style="width:200px;">Date</th><th>Événement</th><th style="width:180px;">Par</th><th style="width:220px;">PJ</th></tr></thead>
+            <tbody>
+              {% for ev in events %}
+              <tr data-bs-toggle="modal" data-bs-target="#eventDetailModal-{{ ev.id }}" style="cursor:pointer;">
+                <td class="font-mono">{{ ev.date|date:"d/m/Y" }}</td>
+                <td>{{ ev.label }}</td>
+                <td>{% if ev.created_by %}{{ ev.created_by.get_full_name|default:ev.created_by.username }}{% else %}—{% endif %}</td>
+                <td>
+                  <div class="d-flex flex-wrap gap-1">
+                    {% for att in ev.attachments.all %}
+                      {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+                        <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                          {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                          {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                          {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                          {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                          {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                          {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                          {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                          {{ label }}
+                        </a>
+                      {% endwith %}
+                    {% empty %}
+                      <span class="text-muted">—</span>
+                    {% endfor %}
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3" class="text-muted">Aucun événement</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>

@@ -1,0 +1,59 @@
+      <div class="tab-pane fade" id="pane-hours" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0">Heure de marche</h6>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addHourReadingModal">Ajouter</button>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted">Total</div>
+              <div class="fs-5 font-mono">{{ hours_total }} h</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted">À la dernière visite</div>
+              <div class="fs-5 font-mono">{{ hours_last_visit }} h</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted">Ce mois</div>
+              <div class="fs-5 font-mono">{{ hours_month }} h</div>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Heures par mois</span>
+                <small class="text-muted">12 derniers mois</small>
+              </div>
+              <canvas id="hoursPerMonthChart" style="max-height:260px;"></canvas>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th style="width:200px;">Date</th><th style="width:180px;">Heures</th><th class="text-end">Utilisateur</th></tr></thead>
+            <tbody>
+              {% for r in hour_logs %}
+                <tr class="hours-row" style="cursor:pointer;"
+                  data-id="{{ r.id }}"
+                  data-date="{{ r.date|date:'d/m/Y' }}"
+                  data-hours="{{ r.hours }}"
+                  data-visit="{% if r.is_visit %}Oui{% else %}Non{% endif %}"
+                  data-user="{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}">
+                <td class="font-mono">{{ r.date|date:"j F Y" }}{% if r.is_visit %} <span class="badge text-bg-info ms-1">Visite</span>{% endif %}</td>
+                <td class="font-mono">{{ r.hours }} h</td>
+                <td class="text-end">{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3" class="text-muted">Aucun relevé</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>

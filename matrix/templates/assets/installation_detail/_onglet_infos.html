@@ -1,0 +1,41 @@
+      <div class="tab-pane fade show active" id="pane-infos" role="tabpanel" aria-labelledby="tab-infos">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <h6 class="mb-3">Informations</h6>
+              <dl class="row mb-0">
+                <dt class="col-5">Désignation</dt><dd class="col-7">{{ object.designation }}</dd>
+                <dt class="col-5">Référence</dt><dd class="col-7 font-mono">{{ object.reference|default:"—" }}</dd>
+                <dt class="col-5">Marque</dt><dd class="col-7">{{ object.marque|default:"—" }}</dd>
+                <dt class="col-5">Navire</dt><dd class="col-7">{% if object.ship %}{{ object.ship.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Service</dt><dd class="col-7">{% if object.service %}{{ object.service.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Secteur</dt><dd class="col-7">{% if object.sector %}{{ object.sector.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Section</dt><dd class="col-7">{% if object.section %}{{ object.section.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Local</dt><dd class="col-7">{{ object.local|default:"—" }}</dd>
+                <dt class="col-5">Gisement</dt><dd class="col-7">{{ object.gisement|default:"—" }}</dd>
+                <dt class="col-5">Rattaché à</dt><dd class="col-7">{% if object.parent %}<a href="/installations/{{ object.parent.id }}/">{{ object.parent.designation }}</a>{% else %}—{% endif %}</dd>
+                <dt class="col-5">Sous-ensembles</dt><dd class="col-7">{% for c in object.sous_ensembles.all %}<a href="/installations/{{ c.id }}/">{{ c.designation }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Champs personnalisés</h6>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInstallationModal"><span class="bi bi-gear"></span> Modifier</button>
+              </div>
+              <div class="mt-3">
+                {% if extra_fields %}
+                  <dl class="row mb-0">
+                    {% for ef in extra_fields %}
+                      <dt class="col-5">{{ ef.label }}</dt><dd class="col-7">{{ ef.value }}</dd>
+                    {% endfor %}
+                  </dl>
+                {% else %}
+                  <div class="text-muted">Aucun champ personnalisé</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>

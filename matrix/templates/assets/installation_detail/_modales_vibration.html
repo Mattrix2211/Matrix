@@ -1,0 +1,63 @@
+{# Modales édition vibration, par mesure #}
+{% for v in vibration_logs %}
+<div class="modal fade" id="editVibrationModal-{{ v.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la mesure</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="tab" value="vibration" />
+          <input type="hidden" name="reading_id" value="{{ v.id }}" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" value="{{ v.date|date:'d/m/Y' }}" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3">
+            <label class="form-label">État vibratoire</label>
+            <select class="form-select" name="state" required>
+              <option value="A" {% if v.state == 'A' %}selected{% endif %}>A (vert)</option>
+              <option value="B" {% if v.state == 'B' %}selected{% endif %}>B (orange)</option>
+              <option value="C" {% if v.state == 'C' %}selected{% endif %}>C (rouge)</option>
+            </select>
+          </div>
+          <div class="mb-3"><label class="form-label">Note</label><textarea class="form-control" name="note" rows="3">{{ v.note }}</textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="submit" name="action" value="edit_vibration" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  </div>
+{% endfor %}
+{# Modale ajout mesure vibration #}
+<div class="modal fade" id="addVibrationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Ajouter une mesure de vibration</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_vibration" />
+          <input type="hidden" name="tab" value="vibration" />
+          <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">État vibratoire</label>
+            <select class="form-select" name="state" required>
+              <option value="A">A (vert)</option>
+              <option value="B">B (orange)</option>
+              <option value="C">C (rouge)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Note</label>
+            <textarea class="form-control" name="note" rows="3" placeholder="Observation (optionnel)"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+  </div>

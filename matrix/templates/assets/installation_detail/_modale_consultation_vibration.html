@@ -1,0 +1,35 @@
+{# Modale consultation vibration #}
+<div class="modal fade" id="viewVibrationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail du relevé</h5>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" id="vibEditBtn">Modifier</button></li>
+              <li><button class="dropdown-item text-danger" id="vibMenuDelete">Supprimer</button></li>
+            </ul>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-5">Date</dt><dd class="col-7 font-mono" id="vibViewDate">—</dd>
+          <dt class="col-5">État</dt><dd class="col-7" id="vibViewState">—</dd>
+          <dt class="col-5">Utilisateur</dt><dd class="col-7" id="vibViewUser">—</dd>
+          <dt class="col-5">Note</dt><dd class="col-7" id="vibViewNote">—</dd>
+        </dl>
+        <form method="post" id="vibDeleteForm" class="d-none">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_vibration" />
+          <input type="hidden" name="tab" value="vibration" />
+          <input type="hidden" name="reading_id" id="vibDeleteId" />
+        </form>
+      </div>
+      
+    </div>
+  </div>
+</div>

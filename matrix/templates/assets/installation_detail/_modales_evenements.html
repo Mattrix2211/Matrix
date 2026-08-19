@@ -1,0 +1,93 @@
+{# Modales événements: détail + édition, par événement #}
+{% for ev in events %}
+<div class="modal fade" id="eventDetailModal-{{ ev.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Détail événement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><strong>Date:</strong> {{ ev.date|date:"d/m/Y" }}</div>
+        <div class="mb-2"><strong>Événement:</strong> {{ ev.label }}</div>
+        <div class="mb-2"><strong>Par:</strong> {% if ev.created_by %}{{ ev.created_by.get_full_name|default:ev.created_by.username }}{% else %}—{% endif %}</div>
+        <div class="mb-2"><strong>Notes:</strong><br/>{{ ev.notes|linebreaksbr }}</div>
+        <div class="mb-2"><strong>Pièces jointes:</strong>
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            {% for att in ev.attachments.all %}
+              {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+                <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                  {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                  {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                  {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                  {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                  {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                  {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                  {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                  {{ label }}
+                </a>
+              {% endwith %}
+            {% empty %}
+              <span class="text-muted">—</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-target="#eventEditModal-{{ ev.id }}" data-bs-toggle="modal">Modifier</button>
+        <form method="post" class="ms-auto">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_event" />
+          <input type="hidden" name="event_id" value="{{ ev.id }}" />
+          <button type="submit" class="btn btn-outline-danger">Supprimer</button>
+        </form>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="eventEditModal-{{ ev.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l’événement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_event" />
+          <input type="hidden" name="event_id" value="{{ ev.id }}" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" value="{{ ev.date|date:'d/m/Y' }}" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Événement</label><input class="form-control" name="label" value="{{ ev.label }}" required /></div>
+          <div class="mb-3"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="4">{{ ev.notes }}</textarea></div>
+          <div class="mb-3"><label class="form-label">Pièces jointes existantes</label>
+            {% for att in ev.attachments.all %}
+            <div class="d-flex align-items-center justify-content-between border rounded p-2 mb-2">
+              {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+              <a href="{{ att.file.url }}" target="_blank" class="text-decoration-none {% if '.pdf' in fn %}text-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-primary{% elif '.doc' in fn or '.docx' in fn %}text-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-success{% elif '.ppt' in fn or '.pptx' in fn %}text-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-secondary{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                {{ label }}
+              </a>
+              {% endwith %}
+              <button type="button" class="btn btn-sm btn-outline-danger btn-delete-attachment" data-event-id="{{ ev.id }}" data-attachment-id="{{ att.id }}" data-filename="{{ att.filename }}" title="Supprimer">
+                <span class="bi bi-trash"></span>
+              </button>
+            </div>
+            {% empty %}
+            <div class="text-muted">Aucune pièce jointe</div>
+            {% endfor %}
+          </div>
+          <div class="mb-3"><label class="form-label">Pièces jointes</label>
+            <div class="attachments-preview d-flex flex-wrap gap-2" id="attachments-preview-edit-{{ ev.id }}"></div>
+            <div class="attachments-hidden d-none" id="attachments-hidden-edit-{{ ev.id }}"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-add-attachment" data-hidden="#attachments-hidden-edit-{{ ev.id }}" data-preview="#attachments-preview-edit-{{ ev.id }}">Ajouter une PJ</button>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}

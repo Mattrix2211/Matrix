@@ -1,0 +1,256 @@
+{# Modale édition #}
+{# Entretien: Modales et conteneurs hors des onglets #}
+{% for m in maintenances %}
+<div class="modal fade" id="editMaintenanceModal-{{ m.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier l'entretien</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_maintenance" />
+          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Périodicité</label>
+              <select class="form-select" name="periodicity">
+                <option {% if m.periodicity == 'Hebdomadaire' %}selected{% endif %}>Hebdomadaire</option>
+                <option {% if m.periodicity == 'Mensuel' %}selected{% endif %}>Mensuel</option>
+                <option {% if m.periodicity == 'Bimestruel' %}selected{% endif %}>Bimestruel</option>
+                <option {% if m.periodicity == 'Trimestriel' %}selected{% endif %}>Trimestriel</option>
+                <option {% if m.periodicity == 'Quadrimestriel' %}selected{% endif %}>Quadrimestriel</option>
+                <option {% if m.periodicity == 'Semestriel' %}selected{% endif %}>Semestriel</option>
+                <option {% if m.periodicity == 'Annuel' %}selected{% endif %}>Annuel</option>
+                <option {% if m.periodicity == 'Bisannuel' %}selected{% endif %}>Bisannuel</option>
+                <option {% if m.periodicity == 'Triennal' %}selected{% endif %}>Triennal</option>
+                <option {% if m.periodicity == 'Quinquennal' %}selected{% endif %}>Quinquennal</option>
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label">Titre</label><input class="form-control" name="title" value="{{ m.title }}" /></div>
+            <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2">{{ m.description }}</textarea></div>
+            <div class="col-md-6"><label class="form-label">Durée prévue</label>
+              <div class="input-group">
+                <input class="form-control" type="number" min="0" name="planned_duration_hours" value="{{ m.duration_hours }}" />
+                <span class="input-group-text">h</span>
+                <input class="form-control" type="number" min="0" max="59" name="planned_duration_minutes" value="{{ m.duration_minutes }}" />
+                <span class="input-group-text">min</span>
+              </div>
+            </div>
+            <div class="col-md-6"><label class="form-label">Nombre de personnes</label><input class="form-control" type="number" min="1" name="people_count" value="{{ m.people_count }}" /></div>
+            <div class="col-md-6"><label class="form-label">Compétence</label>
+              <select class="form-select" name="competence">
+                <option value="BORD" {% if m.competence == 'BORD' %}selected{% endif %}>Bord</option>
+                <option value="SLM" {% if m.competence == 'SLM' %}selected{% endif %}>SLM</option>
+                <option value="INDUSTRIEL" {% if m.competence == 'INDUSTRIEL' %}selected{% endif %}>Industriel</option>
+              </select>
+            </div>
+            <div class="col-md-4"><label class="form-label">Mode de suivi de l'échéance</label>
+              <select class="form-select" name="mode_declenchement">
+                <option value="CALENDRIER" {% if m.mode_declenchement == 'CALENDRIER' %}selected{% endif %}>Calendaire</option>
+                <option value="COMPTEUR" {% if m.mode_declenchement == 'COMPTEUR' %}selected{% endif %}>Compteur (heures de marche)</option>
+                <option value="LES_DEUX" {% if m.mode_declenchement == 'LES_DEUX' %}selected{% endif %}>Le premier des deux</option>
+              </select>
+            </div>
+            <div class="col-md-4"><label class="form-label">Intervalle calendaire</label>
+              <div class="input-group">
+                <input class="form-control" type="number" min="1" name="intervalle" value="{{ m.intervalle|default:'' }}" />
+                <select class="form-select" name="unite_intervalle" style="max-width:110px;">
+                  <option value="J" {% if m.unite_intervalle == 'J' %}selected{% endif %}>Jour(s)</option>
+                  <option value="S" {% if m.unite_intervalle == 'S' %}selected{% endif %}>Semaine(s)</option>
+                  <option value="M" {% if m.unite_intervalle == 'M' %}selected{% endif %}>Mois</option>
+                  <option value="A" {% if m.unite_intervalle == 'A' %}selected{% endif %}>Année(s)</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4"><label class="form-label">Seuil compteur (heures)</label><input class="form-control" type="number" min="0" name="seuil_heures" value="{{ m.seuil_heures|default:'' }}" /></div>
+            <div class="col-12"><label class="form-label">Ajouter des pièces jointes</label><input class="form-control" type="file" name="attachments" multiple /></div>
+            <div class="col-12">
+              <label class="form-label">Pièces jointes existantes</label>
+              <div class="d-flex flex-wrap gap-1">
+                {% for att in m.attachments.all %}
+                  {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+                    <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+                      {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+                      {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+                      {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+                      {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+                      {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+                      {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+                      {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+                      {{ label }}
+                    </a>
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_maintenance_attachment" />
+                      <input type="hidden" name="tab" value="entretien" />
+                      <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
+                      <input type="hidden" name="attachment_id" value="{{ att.id }}" />
+                      <button class="btn btn-link btn-sm text-danger" title="Supprimer" style="text-decoration:none"><span class="bi bi-x-circle"></span></button>
+                    </form>
+                  {% endwith %}
+                {% empty %}
+                  <span class="text-muted">Aucune pièce jointe</span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% for m in maintenances %}
+<div id="mnt-att-{{ m.id }}" style="display:none">
+  <div class="d-flex flex-wrap gap-1">
+    {% for att in m.attachments.all %}
+      {% with fn=att.file.name|lower size=att.file.size|filesizeformat label=att.filename %}
+        <a href="{{ att.file.url }}" target="_blank" class="badge rounded-pill text-decoration-none {% if '.pdf' in fn %}text-bg-danger{% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}text-bg-primary{% elif '.doc' in fn or '.docx' in fn %}text-bg-primary{% elif '.xls' in fn or '.xlsx' in fn %}text-bg-success{% elif '.ppt' in fn or '.pptx' in fn %}text-bg-warning{% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}text-bg-secondary{% else %}text-bg-light{% endif %}" data-bs-toggle="tooltip" title="{{ label }} • {{ size }}">
+          {% if '.pdf' in fn %}<span class="bi bi-file-earmark-pdf me-1"></span>
+          {% elif '.jpg' in fn or '.jpeg' in fn or '.png' in fn or '.gif' in fn or '.webp' in fn %}<span class="bi bi-image me-1"></span>
+          {% elif '.doc' in fn or '.docx' in fn %}<span class="bi bi-file-earmark-word me-1"></span>
+          {% elif '.xls' in fn or '.xlsx' in fn %}<span class="bi bi-file-earmark-excel me-1"></span>
+          {% elif '.ppt' in fn or '.pptx' in fn %}<span class="bi bi-file-earmark-powerpoint me-1"></span>
+          {% elif '.zip' in fn or '.rar' in fn or '.7z' in fn %}<span class="bi bi-file-earmark-zip me-1"></span>
+          {% else %}<span class="bi bi-paperclip me-1"></span>{% endif %}
+          {{ label }}
+        </a>
+      {% endwith %}
+    {% empty %}
+      <span class="text-muted">—</span>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+<div class="modal fade" id="addMaintenanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouvel entretien</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_maintenance" />
+          <input type="hidden" name="tab" value="entretien" />
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Périodicité</label>
+              <select class="form-select" name="periodicity">
+                <option>Hebdomadaire</option>
+                <option>Mensuel</option>
+                <option>Bimestruel</option>
+                <option>Trimestriel</option>
+                <option>Quadrimestriel</option>
+                <option>Semestriel</option>
+                <option>Annuel</option>
+                <option>Bisannuel</option>
+                <option>Triennal</option>
+                <option>Quinquennal</option>
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label">Titre</label><input class="form-control" name="title" placeholder="ex: Graissage" /></div>
+            <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2" placeholder="Détails de l'opération"></textarea></div>
+            <div class="col-md-6"><label class="form-label">Durée prévue</label>
+              <div class="input-group">
+                <input class="form-control" type="number" min="0" name="planned_duration_hours" value="0" />
+                <span class="input-group-text">h</span>
+                <input class="form-control" type="number" min="0" max="59" name="planned_duration_minutes" value="0" />
+                <span class="input-group-text">min</span>
+              </div>
+            </div>
+            <div class="col-md-6"><label class="form-label">Nombre de personnes</label><input class="form-control" type="number" min="1" name="people_count" value="1" /></div>
+            <div class="col-md-6"><label class="form-label">Compétence</label>
+              <select class="form-select" name="competence">
+                <option value="BORD">Bord</option>
+                <option value="SLM">SLM</option>
+                <option value="INDUSTRIEL">Industriel</option>
+              </select>
+            </div>
+            <div class="col-12"><label class="form-label">Pièces jointes</label><input class="form-control" type="file" name="attachments" multiple /></div>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="viewMaintenanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail entretien</h5>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><button class="dropdown-item" id="mntEditBtn">Modifier</button></li>
+              <li><button class="dropdown-item text-danger" id="mntMenuDelete">Supprimer</button></li>
+            </ul>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-5">Périodicité</dt><dd class="col-7" id="mntViewPeriodicity">—</dd>
+          <dt class="col-5">Titre</dt><dd class="col-7" id="mntViewTitle">—</dd>
+          <dt class="col-5">Description</dt><dd class="col-7" id="mntViewDescription">—</dd>
+          <dt class="col-5">Durée prévue</dt><dd class="col-7" id="mntViewDuration">—</dd>
+          <dt class="col-5">Effectif</dt><dd class="col-7" id="mntViewPeople">—</dd>
+          <dt class="col-5">Compétence</dt><dd class="col-7" id="mntViewCompetence">—</dd>
+        </dl>
+        <form method="post" id="mntDeleteForm" style="display:none">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_maintenance" />
+          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="maintenance_id" id="mntDeleteId" />
+        </form>
+        <hr />
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>Pièces jointes</strong>
+        </div>
+        <div id="mntAttList" class="d-flex flex-wrap gap-1"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('#maintenanceTable .mnt-row').forEach(function(row){
+      row.addEventListener('click', function(){
+        var id = row.getAttribute('data-id');
+        var periodicity = row.getAttribute('data-periodicity');
+        var title = row.getAttribute('data-title');
+        var description = row.getAttribute('data-description');
+        var duration = row.getAttribute('data-duration');
+        var people = row.getAttribute('data-people');
+        var competence = row.getAttribute('data-competence');
+        document.getElementById('mntViewPeriodicity').textContent = periodicity || '—';
+        document.getElementById('mntViewTitle').textContent = title || '—';
+        document.getElementById('mntViewDescription').textContent = description || '—';
+        document.getElementById('mntViewDuration').textContent = duration || '—';
+        document.getElementById('mntViewPeople').textContent = people || '—';
+        document.getElementById('mntViewCompetence').textContent = competence || '—';
+        document.getElementById('mntDeleteId').value = id;
+        var viewEl = document.getElementById('viewMaintenanceModal');
+        var viewModal = new bootstrap.Modal(viewEl);
+        viewModal.show();
+        var editBtn = document.getElementById('mntEditBtn');
+        editBtn.onclick = function(){
+          var vm = bootstrap.Modal.getInstance(viewEl);
+          if (vm) vm.hide();
+          var em = new bootstrap.Modal(document.getElementById('editMaintenanceModal-'+id));
+          em.show();
+        };
+        var delBtn = document.getElementById('mntMenuDelete');
+        if (delBtn) { delBtn.onclick = function(){ document.getElementById('mntDeleteForm').submit(); } }
+        var attSource = document.getElementById('mnt-att-'+id);
+        if (attSource) {
+          document.getElementById('mntAttList').innerHTML = attSource.innerHTML;
+        }
+      });
+    });
+  });
+</script>

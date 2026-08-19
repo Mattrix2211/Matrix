@@ -1,0 +1,224 @@
+      <div class="tab-pane fade" id="pane-isolement" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="mb-0">Isolement</h6>
+            <small class="text-muted">
+              {% if isolation_last %}
+                Dernière mesure: <strong class="font-mono">{{ isolation_last.ohms }} Ω</strong> le <strong class="font-mono">{{ isolation_last.date|date:"d/m/Y" }}</strong>.
+                <br />
+              {% else %}
+                Aucune mesure précédente.
+              {% endif %}
+              {% if isolation_next_date %}
+                Prochaine échéance: <strong class="font-mono">{{ isolation_next_date|date:"d/m/Y" }}</strong>
+                {% if isolation_next_days is not None %} (dans {{ isolation_next_days }} j){% endif %}.
+                {% if isolation_next_days is not None %}
+                  {% if isolation_next_days <= 0 %}
+                    <span class="badge text-bg-danger ms-1">Échéance</span>
+                  {% elif isolation_next_days <= 7 %}
+                    <span class="badge text-bg-warning ms-1">Bientôt</span>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            </small>
+          </div>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addIsolationModal">Ajouter</button>
+        </div>
+        <table class="table table-sm align-middle" id="isoTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Mesure (Ω)</th>
+              <th>Note</th>
+              <th class="text-end">Utilisateur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in isolation_logs %}
+            <tr class="iso-row" data-id="{{ r.id }}" data-date="{{ r.date|date:'d/m/Y' }}" data-ohms="{{ r.ohms }}" data-user="{{ r.created_by|default:'—' }}" data-note="{{ r.note|default:'' }}">
+              <td class="font-mono">{{ r.date|date:"d/m/Y" }}</td>
+              <td class="font-mono">{{ r.ohms }}</td>
+              <td>{{ r.note|default:"" }}</td>
+              <td class="text-end">{{ r.created_by|default:"—" }}</td>
+            </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted">Aucune mesure d'isolement</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <!-- Modal ajout isolement -->
+        <div class="modal fade" id="addIsolationModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header"><h5 class="modal-title">Nouvelle mesure d'isolement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+              <form method="post">
+                <div class="modal-body">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_isolation" />
+                  <input type="hidden" name="tab" value="isolement" />
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Date</label><input class="form-control" name="date" placeholder="JJ/MM/AAAA" /></div>
+                    <div class="col-md-6"><label class="form-label">Mesure (Ω)</label><input class="form-control" name="ohms" placeholder="ex: 1200" /></div>
+                    <div class="col-12"><label class="form-label">Note</label><textarea class="form-control" name="note" rows="2" placeholder="Remarque facultative"></textarea></div>
+                  </div>
+                  <p class="text-muted mt-2 mb-0">L'utilisateur enregistré est celui connecté.</p>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal détails isolement -->
+        <div class="modal fade" id="viewIsolationModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Détail du relevé</h5>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li><button class="dropdown-item" id="isoEditBtn">Modifier</button></li>
+                      <li><button class="dropdown-item text-danger" id="isoMenuDelete">Supprimer</button></li>
+                    </ul>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+              </div>
+              <div class="modal-body">
+                <dl class="row mb-0">
+                  <dt class="col-5">Date</dt><dd class="col-7 font-mono" id="isoViewDate">—</dd>
+                  <dt class="col-5">Mesure (Ω)</dt><dd class="col-7 font-mono" id="isoViewOhms">—</dd>
+                  <dt class="col-5">Utilisateur</dt><dd class="col-7" id="isoViewUser">—</dd>
+                  <dt class="col-5">Note</dt><dd class="col-7" id="isoViewNote">—</dd>
+                </dl>
+                <form method="post" id="isoDeleteForm" style="display:none">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_isolation" />
+                  <input type="hidden" name="tab" value="isolement" />
+                  <input type="hidden" name="reading_id" id="isoDeleteId" />
+                </form>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal édition isolement -->
+        <div class="modal fade" id="editIsolationModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header"><h5 class="modal-title">Modifier la mesure</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+              <form method="post">
+                <div class="modal-body">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="edit_isolation" />
+                  <input type="hidden" name="tab" value="isolement" />
+                  <input type="hidden" name="reading_id" id="isoEditId" />
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Date</label><input class="form-control" name="date" id="isoEditDate" /></div>
+                    <div class="col-md-6"><label class="form-label">Mesure (Ω)</label><input class="form-control" name="ohms" id="isoEditOhms" /></div>
+                    <div class="col-12"><label class="form-label">Note</label><textarea class="form-control" name="note" id="isoEditNote" rows="2"></textarea></div>
+                  </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            var rows = document.querySelectorAll('#isoTable .iso-row');
+            rows.forEach(function(row){
+              row.addEventListener('click', function(){
+                var id = row.getAttribute('data-id');
+                var date = row.getAttribute('data-date');
+                var ohms = row.getAttribute('data-ohms');
+                var user = row.getAttribute('data-user');
+                var note = row.getAttribute('data-note');
+                document.getElementById('isoViewDate').textContent = date || '—';
+                document.getElementById('isoViewOhms').textContent = ohms || '—';
+                document.getElementById('isoViewUser').textContent = user || '—';
+                document.getElementById('isoViewNote').textContent = note || '—';
+                document.getElementById('isoDeleteId').value = id;
+                document.getElementById('isoEditId').value = id;
+                document.getElementById('isoEditDate').value = date || '';
+                document.getElementById('isoEditOhms').value = ohms || '';
+                document.getElementById('isoEditNote').value = note || '';
+                var viewEl = document.getElementById('viewIsolationModal');
+                var viewModal = new bootstrap.Modal(viewEl);
+                viewModal.show();
+                var editIsoBtn = document.getElementById('isoEditBtn');
+                if (editIsoBtn) {
+                  editIsoBtn.onclick = function(){
+                    var vm = bootstrap.Modal.getInstance(viewEl);
+                    if (vm) vm.hide();
+                    var em = new bootstrap.Modal(document.getElementById('editIsolationModal'));
+                    em.show();
+                  };
+                }
+                var delIsoBtn = document.getElementById('isoMenuDelete');
+                if (delIsoBtn) { delIsoBtn.onclick = function(){ document.getElementById('isoDeleteForm').submit(); }; }
+              });
+            });
+            // Vibration rows -> view modal with actions
+            document.querySelectorAll('#pane-vibration .vib-row').forEach(function(row){
+              row.addEventListener('click', function(){
+                var id = row.getAttribute('data-id');
+                var date = row.getAttribute('data-date');
+                var state = row.getAttribute('data-state');
+                var note = row.getAttribute('data-note');
+                var user = row.getAttribute('data-user');
+                document.getElementById('vibViewDate').textContent = date || '—';
+                var stateEl = document.getElementById('vibViewState');
+                var html = '';
+                if (state === 'A') html = '<span class="badge text-bg-success">A</span>';
+                else if (state === 'B') html = '<span class="badge text-bg-warning">B</span>';
+                else if (state === 'C') html = '<span class="badge text-bg-danger">C</span>';
+                else html = '<span class="badge text-bg-secondary">'+(state||'—')+'</span>';
+                stateEl.innerHTML = html;
+                document.getElementById('vibViewUser').textContent = user || '—';
+                document.getElementById('vibViewNote').textContent = note || '—';
+                document.getElementById('vibDeleteId').value = id;
+                var editBtn = document.getElementById('vibEditBtn');
+                editBtn.onclick = function(){
+                  var vm = bootstrap.Modal.getInstance(document.getElementById('viewVibrationModal'));
+                  if (vm) vm.hide();
+                  var em = new bootstrap.Modal(document.getElementById('editVibrationModal-'+id));
+                  em.show();
+                };
+                var viewEl = document.getElementById('viewVibrationModal');
+                var viewModal = new bootstrap.Modal(viewEl);
+                viewModal.show();
+                var delBtn = document.getElementById('vibMenuDelete');
+                if (delBtn) { delBtn.onclick = function(){ document.getElementById('vibDeleteForm').submit(); }; }
+              });
+            });
+            // Hours rows -> view modal with actions
+            document.querySelectorAll('#pane-hours .hours-row').forEach(function(row){
+              row.addEventListener('click', function(){
+                var id = row.getAttribute('data-id');
+                document.getElementById('hoursViewDate').textContent = row.getAttribute('data-date') || '—';
+                document.getElementById('hoursViewHours').textContent = (row.getAttribute('data-hours')||'—') + ' h';
+                document.getElementById('hoursViewVisit').textContent = row.getAttribute('data-visit') || '—';
+                document.getElementById('hoursViewUser').textContent = row.getAttribute('data-user') || '—';
+                document.getElementById('hoursDeleteId').value = id;
+                var editBtn = document.getElementById('hoursEditBtn');
+                editBtn.onclick = function(){
+                  var vm = bootstrap.Modal.getInstance(document.getElementById('viewHourModal'));
+                  if (vm) vm.hide();
+                  var em = new bootstrap.Modal(document.getElementById('editHourReadingModal-'+id));
+                  em.show();
+                };
+                var viewEl = document.getElementById('viewHourModal');
+                var viewModal = new bootstrap.Modal(viewEl);
+                viewModal.show();
+                var delBtn = document.getElementById('hoursMenuDelete');
+                if (delBtn) { delBtn.onclick = function(){ document.getElementById('hoursDeleteForm').submit(); }; }
+              });
+            });
+          });
+        </script>
+      </div>
