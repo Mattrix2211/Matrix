@@ -179,59 +179,12 @@
   </div>
 </div>
 
-{# Modale édition #}
-<div class="modal fade" id="editInstallationModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Modifier l’installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-      <form method="post" id="editInstallationForm" enctype="multipart/form-data">
-        <div class="modal-body">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="edit_installation" />
-          <input type="hidden" name="pk" id="editInstallationPk" />
-          <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="editDesignation" required /></div>
-            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" id="editReference" /></div>
-            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" id="editMarque" /></div>
-            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" id="editGisement" /></div>
-            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" id="editLocal" /></div>
-            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="editShip" required><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="editService" required><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector" required><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Bigrame</label><select class="form-select" name="bigrame_id" id="editBigrame"><option value="">—</option>{% for bg in bigrames %}<option value="{{ bg.id }}">{{ bg.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
-            <div class="col-12">
-              <div class="d-flex justify-content-between align-items-center mt-2">
-                <label class="form-label">Champs personnalisés (Infos)</label>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddCustomEditList"><span class="bi bi-plus-lg"></span> Ajouter un champ</button>
-              </div>
-              <div id="customFieldsEditList" class="mt-2"></div>
-              <input type="hidden" name="extra_fields" id="extraFieldsEditList" />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Périodicité isolement</label>
-              <select class="form-select" name="iso_periodicity" id="editIsoPeriodicity">
-                <option value="M">Mensuel</option>
-                <option value="T">Trimestriel</option>
-                <option value="A">Annuel</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
-      </form>
-    </div>
-  </div>
-</div>
-
-
 <script>
   (function(){
     // Recherche sur cartes
     var searchInput = document.getElementById('installSearch');
     if (searchInput) { searchInput.addEventListener('input', function(){ var q = searchInput.value.toLowerCase(); var cards = document.querySelectorAll('#installGrid .card'); cards.forEach(function(card){ var text = card.innerText.toLowerCase(); card.parentElement.style.display = q ? (text.indexOf(q) !== -1 ? '' : 'none') : ''; }); }); }
-    // Edit modal populate
+    // Cascades Navire/Service/Secteur/Section (utilisées par la modale de création)
     function setupCascades(root){
       var shipSel = root.querySelector('select[name="ship_id"]');
       var serviceSel = root.querySelector('select[name="service_id"]');
@@ -288,25 +241,6 @@
     if (btnAddCustomCreate){ btnAddCustomCreate.addEventListener('click', function(){ addFieldRow(document.getElementById('customFieldsCreate')); }); }
     var formCreate = document.querySelector('#createInstallationModal form');
     if (formCreate){ formCreate.addEventListener('submit', function(){ var container = document.getElementById('customFieldsCreate'); var items = []; var groups = container ? container.querySelectorAll('.input-group') : []; var order = 0; groups.forEach(function(g){ var inputs = g.querySelectorAll('input'); var lbl = (inputs[0].value||'').trim(); var val = (inputs[1].value||'').trim(); if(lbl){ items.push({ label: lbl, value: val, order: order++ }); } }); var hidden = document.getElementById('extraFieldsCreate'); if (hidden) hidden.value = JSON.stringify(items); }); }
-    var editModal = document.getElementById('editInstallationModal');
-    if (editModal) { editModal.addEventListener('show.bs.modal', function(event){ var b = event.relatedTarget; document.getElementById('editInstallationPk').value = b.getAttribute('data-pk'); function setSel(id,val){ var el=document.getElementById(id); if(!el) return; for(var i=0;i<el.options.length;i++){ if(el.options[i].value==val){ el.selectedIndex=i; break; } } }
-      document.getElementById('editDesignation').value = b.getAttribute('data-designation')||'';
-      document.getElementById('editReference').value = b.getAttribute('data-reference')||'';
-      document.getElementById('editMarque').value = b.getAttribute('data-marque')||'';
-      document.getElementById('editGisement').value = b.getAttribute('data-gisement')||'';
-      var editLocal = document.getElementById('editLocal'); if (editLocal) editLocal.value = b.getAttribute('data-local')||'';
-      setSel('editBigrame', b.getAttribute('data-bigrame-id')||'');
-      setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||''); setSel('editBigrame', b.getAttribute('data-bigrame-id')||'');
-      var isoSel = document.getElementById('editIsoPeriodicity'); if (isoSel) { var v = b.getAttribute('data-iso-periodicity')||'M'; for (var i=0;i<isoSel.options.length;i++){ if(isoSel.options[i].value==v){ isoSel.selectedIndex=i; break; } } }
-      // Pré-remplit champs personnalisés si des data-* sont fournies (non disponible ici, on laisse vide par défaut)
-      var containerEdit = document.getElementById('customFieldsEditList');
-      if (containerEdit){ containerEdit.innerHTML = ''; }
-    }); setupCascades(editModal); }
-    var btnAddCustomEditList = document.getElementById('btnAddCustomEditList');
-    if (btnAddCustomEditList){ btnAddCustomEditList.addEventListener('click', function(){ addFieldRow(document.getElementById('customFieldsEditList')); }); }
-    var formEditList = document.querySelector('#editInstallationModal form');
-    if (formEditList){ formEditList.addEventListener('submit', function(){ var container = document.getElementById('customFieldsEditList'); var items = []; var groups = container ? container.querySelectorAll('.input-group') : []; var order = 0; groups.forEach(function(g){ var inputs = g.querySelectorAll('input'); var lbl = (inputs[0].value||'').trim(); var val = (inputs[1].value||'').trim(); if(lbl){ items.push({ label: lbl, value: val, order: order++ }); } }); var hidden = document.getElementById('extraFieldsEditList'); if (hidden) hidden.value = JSON.stringify(items); }); }
-
     // Filtres interactifs (empêche combinaisons incohérentes)
     (function(){
       var shipSel = document.getElementById('filterShip');
