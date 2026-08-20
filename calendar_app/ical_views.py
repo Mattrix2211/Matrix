@@ -23,7 +23,7 @@ def user_ical_feed(request):
         description = f"Plan: {occ.plan}" if occ.plan_id else f"Entretien installation: {occ.installation_maintenance.title}"
         ev.add('description', description)
         cal.add_component(ev)
-    # Training sessions for user
+    # Sessions de formation de l'utilisateur
     for s in TrainingSession.objects.filter(attendees=request.user).select_related('course'):
         ev = Event()
         ev.add('summary', f"Formation: {s.course.title}")

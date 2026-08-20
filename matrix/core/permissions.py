@@ -5,7 +5,7 @@ from accounts.models import Roles
 
 
 class RolePermission(BasePermission):
-    # Minimal, pragmatic defaults per action; fine-tune per ViewSet if needed
+    # Valeurs par défaut minimales et pragmatiques par action ; à affiner par ViewSet si besoin
     min_level_write = RoleLevel.CHEF_SECTION
 
     def has_permission(self, request, view):
@@ -22,7 +22,7 @@ class RolePermission(BasePermission):
         if request.user.is_superuser:
             return True
         lvl = user_role_level(request.user)
-        # Allow assignees to update their own maintenance occurrences/executions
+        # Autorise les assignés à modifier leurs propres occurrences/exécutions de maintenance
         model_name = obj.__class__.__name__
         if model_name == 'MaintenanceOccurrence':
             return lvl >= RoleLevel.CHEF_SECTION or request.user in obj.assignees.all()
@@ -30,26 +30,27 @@ class RolePermission(BasePermission):
 
 
 class IsAuthorOrReadOnly(BasePermission):
-    """Allow read to authenticated users; write only to the object's author."""
+    """Lecture autorisée pour les utilisateurs authentifiés ; écriture réservée à l'auteur de l'objet."""
 
     def has_permission(self, request, view):
-        # Must be authenticated for any access
+        # Authentification obligatoire pour tout accès
         return request.user and request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
             return True
-        # Author required for unsafe methods
+        # Seul l'auteur peut effectuer une opération d'écriture
         author = getattr(obj, 'author', None)
         return author == request.user
 
 
 class ManageUsersPermission(BasePermission):
-    """Allow read to authenticated; write only if current user's role can manage target role.
+    """Lecture autorisée pour les utilisateurs authentifiés ; écriture réservée si le rôle de
+    l'utilisateur courant peut gérer le rôle cible.
 
-    Rules:
-    - MASTER_ADMIN: manage all
-    - ADMIN_NAVIRE: manage all (scoping par navire à implémenter au besoin)
+    Règles :
+    - MASTER_ADMIN : gère tout
+    - ADMIN_NAVIRE : gère tout (scoping par navire à implémenter au besoin)
     - COMMANDANT: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - ETAT_MAJOR: peut gérer CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - CHEF_SERVICE: peut gérer CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
@@ -66,10 +67,10 @@ class ManageUsersPermission(BasePermission):
     }
 
     def has_permission(self, request, view):
-        # Read allowed for authenticated users
+        # Lecture autorisée pour les utilisateurs authentifiés
         if request.method in SAFE_METHODS:
             return request.user and request.user.is_authenticated
-        # Superuser override
+        # Passage forcé pour le super-utilisateur
         if getattr(request.user, 'is_superuser', False):
             return True
         # ADMIN_NAVIRE peut gérer (scoping navire à appliquer côté viewset/form)
@@ -78,7 +79,7 @@ class ManageUsersPermission(BasePermission):
             return False
         if profile.role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
             return True
-        # For create/update, check requested role in payload, else deny
+        # Pour une création/modification, vérifie le rôle demandé dans le payload, sinon refuse
         target_role = request.data.get('role')
         if not target_role:
             return False
@@ -86,7 +87,7 @@ class ManageUsersPermission(BasePermission):
         return target_role in allowed
 
     def has_object_permission(self, request, view, obj):
-        # Safe methods already allowed in has_permission
+        # Méthodes sûres déjà autorisées dans has_permission
         if request.method in SAFE_METHODS:
             return True
         if getattr(request.user, 'is_superuser', False):
@@ -96,7 +97,7 @@ class ManageUsersPermission(BasePermission):
             return False
         if profile.role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
             return True
-        # Check target user's current role
+        # Vérifie le rôle actuel de l'utilisateur cible
         obj_role = getattr(obj, 'role', None)
         allowed = self.MANAGE_MAP.get(profile.role, set())
         return obj_role in allowed

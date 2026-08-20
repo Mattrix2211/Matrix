@@ -350,7 +350,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                         pass
                 else:
                     profile.date_naissance = None
-                # Update relations
+                # Mise à jour des relations
                 ship_id = request.POST.get("ship_id")
                 service_id = request.POST.get("service_id")
                 sector_id = request.POST.get("sector_id")

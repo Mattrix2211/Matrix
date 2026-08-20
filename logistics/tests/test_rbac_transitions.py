@@ -14,10 +14,10 @@ class LogisticsRBACTests(TestCase):
         at = AssetType.objects.create(name="TypeA", category="Cat", sector=sector)
         asset = Asset.objects.create(asset_type=at, ship=ship, service=service, sector=sector)
 
-        # Create ticket
+        # Création du ticket
         ticket = CorrectiveTicket.objects.create(asset=asset, description="Pb")
 
-        # Users
+        # Utilisateurs
         equipier = User.objects.create_user(username="equ", password="pass")
         chef = User.objects.create_user(username="chef", password="pass")
 
@@ -28,13 +28,13 @@ class LogisticsRBACTests(TestCase):
         UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION"})
 
         client = APIClient()
-        # Equipier cannot transition
+        # L'équipier ne peut pas faire transiter le ticket
         client.login(username="equ", password="pass")
         url = f"/api/logistics/tickets/{ticket.pk}/transition/"
         resp = client.post(url, {"status": "DIAGNOSED"}, format="json")
         self.assertIn(resp.status_code, (403, 404))
 
-        # Chef can transition
+        # Le chef peut faire transiter le ticket
         client.logout()
         client.login(username="chef", password="pass")
         resp3 = client.post(url, {"status": "DIAGNOSED"}, format="json")

@@ -11,7 +11,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [DefaultPermission]
 
     def get_queryset(self):
-        # Limit notifications to the current user for privacy
+        # Limite les notifications à l'utilisateur courant, pour la confidentialité
         qs = super().get_queryset()
         if self.request and self.request.user and self.request.user.is_authenticated:
             return qs.filter(user=self.request.user)

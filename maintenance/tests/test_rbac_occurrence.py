@@ -9,7 +9,7 @@ from maintenance.models import MaintenancePlan, MaintenanceOccurrence
 
 class MaintenanceRBACTests(TestCase):
     def test_assignee_can_start_occurrence(self):
-        # Setup minimal org + asset + plan + occurrence
+        # Mise en place minimale : org + matériel + plan + occurrence
         ship = Ship.objects.create(name="S1")
         service = Service.objects.create(name="Srv", ship=ship)
         sector = Sector.objects.create(name="Sec", service=service)
@@ -30,13 +30,13 @@ class MaintenanceRBACTests(TestCase):
         other = User.objects.create_user(username="other", password="pass")
 
         client = APIClient()
-        # other cannot start
+        # un utilisateur non assigné ne peut pas démarrer l'occurrence
         client.login(username="other", password="pass")
         url = f"/api/maintenance/occurrences/{occ.id}/start/"
         r1 = client.post(url, {})
         self.assertIn(r1.status_code, (403, 401))
 
-        # assignee can start
+        # l'assigné peut démarrer l'occurrence
         client.logout()
         client.login(username="tech", password="pass")
         r2 = client.post(url, {})
