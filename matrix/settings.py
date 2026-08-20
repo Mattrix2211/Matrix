@@ -174,6 +174,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notifications.tasks.generate_installation_maintenance_notifications",
         "schedule": crontab(hour=8, minute=0),
     },
+    # Dérive sur les relevés techniques (isolement, heures de marche) : décalée
+    # de 30 minutes par rapport aux échéances ci-dessus pour ne pas tout lancer
+    # à la même minute, un calcul de tendance n'ayant pas besoin d'être aussi
+    # instantané qu'une échéance déjà atteinte.
+    "detect_installation_drift_daily": {
+        "task": "notifications.tasks.detect_installation_drift",
+        "schedule": crontab(hour=8, minute=30),
+    },
 }
 
 # Email

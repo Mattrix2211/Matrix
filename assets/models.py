@@ -150,6 +150,12 @@ class Installation(TimeStampedModel, OwnedModel):
         ("A", "Annuel"),
     )
     iso_periodicity = models.CharField(max_length=1, choices=ISO_PERIODICITY_CHOICES, default="M")
+    # Seuil minimal d'isolement (Ohms) en dessous duquel l'installation est en
+    # danger électrique. Optionnel : si non renseigné, aucune dérive n'est
+    # calculée sur l'isolement (voir assets/trend.py et notifications/tasks.py::
+    # detect_installation_drift), la valeur exacte dépendant du matériel et
+    # devant être fixée par le bord.
+    isolation_seuil_ohms = models.PositiveIntegerField(null=True, blank=True)
     # Rattachement hiérarchique optionnel (ex: turbo -> moteur bâbord -> groupe propulsion)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="sous_ensembles")
 
