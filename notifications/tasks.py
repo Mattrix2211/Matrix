@@ -4,7 +4,7 @@ from django.db.models import F, Q
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from datetime import timedelta
-from .models import Notification
+from .models import Notification, NotificationLevel
 from training.models import TrainingRecord
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import StockPiece
@@ -20,7 +20,8 @@ def notify_expiring_training(days_list=(30, 60, 90)):
         for rec in TrainingRecord.objects.filter(expires_at=target).select_related('user', 'course'):
             Notification.objects.get_or_create(
                 user=rec.user,
-                verb=f"Formation '{rec.course.title}' expire dans {days} jours"
+                verb=f"Formation '{rec.course.title}' expire dans {days} jours",
+                defaults={"level": NotificationLevel.WARNING},
             )
     return {"status": "ok"}
 
@@ -31,7 +32,11 @@ def notify_overdue_occurrences():
     ).prefetch_related('assignees')
     for occ in occurrences:
         for u in occ.assignees.all():
-            Notification.objects.get_or_create(user=u, verb=f"Occurrence en retard: {occ.id}")
+            Notification.objects.get_or_create(
+                user=u,
+                verb=f"Occurrence en retard: {occ.id}",
+                defaults={"level": NotificationLevel.DANGER},
+            )
     return {"status": "ok"}
 
 @shared_task
@@ -79,7 +84,7 @@ def notify_low_stock():
                 content_type=piece_ct,
                 object_id=str(piece.pk),
                 is_read=False,
-                defaults={"verb": verb},
+                defaults={"verb": verb, "level": NotificationLevel.DANGER},
             )
     return {"status": "ok"}
 
@@ -133,7 +138,9 @@ def _signaler_ou_resoudre_derive(content_type, object_id, destinataires, verb, e
             content_type=content_type,
             object_id=object_id,
             is_read=False,
-            defaults={"verb": verb},
+            # Dérive détectée AVANT le franchissement réel du seuil : c'est un
+            # signal préventif (WARNING), pas encore une alerte critique (DANGER).
+            defaults={"verb": verb, "level": NotificationLevel.WARNING},
         )
 
 

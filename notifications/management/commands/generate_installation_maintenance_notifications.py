@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from assets.models import InstallationMaintenance, InstallationEvent, InstallationHourReading, ModeDeclenchement
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
 from notifications.utils import add_interval, human_delta
 
 User = get_user_model()
@@ -43,7 +43,7 @@ class Command(BaseCommand):
             .values_list("user_id", "object_id", "verb")
         )
 
-        def notify(maintenance, verb):
+        def notify(maintenance, verb, level):
             nonlocal created
             for u in users:
                 pref = getattr(getattr(u, 'profile', None), 'notification_time', None)
@@ -54,7 +54,9 @@ class Command(BaseCommand):
                 cle = (u.id, str(maintenance.id), verb)
                 if cle in deja_notifies:
                     continue
-                Notification.objects.create(user=u, verb=verb, content_type=maint_ct, object_id=str(maintenance.id))
+                Notification.objects.create(
+                    user=u, verb=verb, level=level, content_type=maint_ct, object_id=str(maintenance.id)
+                )
                 deja_notifies.add(cle)
                 created += 1
 
@@ -76,8 +78,10 @@ class Command(BaseCommand):
                 next_date = add_interval(base_date, maintenance.unite_intervalle, maintenance.intervalle)
                 days = (next_date - today).days
                 if days <= window:
+                    # Échéance calendaire déjà dépassée = critique, à venir = simple attention.
+                    level = NotificationLevel.DANGER if days <= 0 else NotificationLevel.WARNING
                     verb = f"Entretien — {inst.designation} : {maintenance.title} (échéance calendaire le {next_date.strftime('%d/%m/%Y')}, {human_delta(days)})"
-                    notify(maintenance, verb)
+                    notify(maintenance, verb, level)
 
             # Branche compteur
             if mode in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX) and maintenance.seuil_heures:
@@ -86,7 +90,8 @@ class Command(BaseCommand):
                     baseline = maintenance.derniere_echeance_heures or 0
                     seuil = baseline + maintenance.seuil_heures
                     if last_reading.hours >= seuil:
+                        # Seuil compteur déjà atteint/dépassé : toujours critique.
                         verb = f"Entretien — {inst.designation} : {maintenance.title} (échéance compteur atteinte : {last_reading.hours} h / seuil {seuil} h)"
-                        notify(maintenance, verb)
+                        notify(maintenance, verb, NotificationLevel.DANGER)
 
         self.stdout.write(f"Notifications créées: {created}")

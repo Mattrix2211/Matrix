@@ -64,7 +64,7 @@ def installations_notifications(request):
                     "id": n.id,
                     "persisted": True,
                     "is_read": n.is_read,
-                    "level": "info",
+                    "level": n.level,
                     "title": n.verb.split(":")[0] if ":" in n.verb else n.verb,
                     "subtitle": ": ".join(n.verb.split(":")[1:]).strip() if ":" in n.verb else "",
                     "url": url or "#",

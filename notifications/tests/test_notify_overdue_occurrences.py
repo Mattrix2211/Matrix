@@ -5,7 +5,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from assets.models import Asset, AssetType
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
 from notifications.tasks import notify_overdue_occurrences
 from org.models import Sector, Service, Ship
 
@@ -53,6 +53,10 @@ class NotifyOverdueOccurrencesTests(TestCase):
                     f"Notification attendue pour {user.username} sur l'occurrence {occ.id}",
                 )
         self.assertEqual(Notification.objects.count(), len(occurrences) * len(self.users))
+        # Un retard opérationnel est critique : niveau DANGER (déclenche un push).
+        self.assertFalse(
+            Notification.objects.exclude(level=NotificationLevel.DANGER).exists()
+        )
 
     def test_nombre_de_requetes_ne_multiplie_pas_par_le_nombre_doccurrences(self):
         # Avant correction : occ.assignees.all() déclenchait une requête M2M par

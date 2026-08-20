@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from assets.models import Installation
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
 from notifications.utils import human_delta
 
 User = get_user_model()
@@ -43,7 +43,7 @@ class Command(BaseCommand):
             .values_list("user_id", "object_id", "verb")
         )
 
-        def notifier(inst, verb):
+        def notifier(inst, verb, level):
             nonlocal created
             for u in users:
                 pref = getattr(getattr(u, 'profile', None), 'notification_time', None)
@@ -54,7 +54,9 @@ class Command(BaseCommand):
                 cle = (u.id, str(inst.id), verb)
                 if cle in deja_notifies:
                     continue
-                Notification.objects.create(user=u, verb=verb, content_type=inst_ct, object_id=str(inst.id))
+                Notification.objects.create(
+                    user=u, verb=verb, level=level, content_type=inst_ct, object_id=str(inst.id)
+                )
                 deja_notifies.add(cle)
                 created += 1
 
@@ -67,8 +69,10 @@ class Command(BaseCommand):
                 next_date = vib.date + timedelta(days=delta)
                 days = (next_date - today).days
                 if days <= window:
+                    # Échéance déjà dépassée = critique (DANGER), à venir = simple attention (WARNING).
+                    level = NotificationLevel.DANGER if days <= 0 else NotificationLevel.WARNING
                     verb = f"Vibration — {inst.designation}: échéance le {next_date.strftime('%d/%m/%Y')} ({human_delta(days)})"
-                    notifier(inst, verb)
+                    notifier(inst, verb, level)
             # Isolement
             iso = inst.isolation_readings.order_by("-date").first()
             if iso:
@@ -81,7 +85,8 @@ class Command(BaseCommand):
                 next_date = timezone.localdate(timezone.datetime(y, m, d))
                 days = (next_date - today).days
                 if days <= window:
+                    level = NotificationLevel.DANGER if days <= 0 else NotificationLevel.WARNING
                     verb = f"Isolement — {inst.designation}: échéance le {next_date.strftime('%d/%m/%Y')} ({human_delta(days)})"
-                    notifier(inst, verb)
+                    notifier(inst, verb, level)
 
         self.stdout.write(self.style.SUCCESS(f"Notifications créées: {created}"))

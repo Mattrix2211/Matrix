@@ -133,6 +133,13 @@
                     <span><span class="bi bi-bell me-1"></span>Notifications</span>
                     <button class="btn btn-sm btn-outline-secondary" id="notif-mark-all" title="Marquer tout comme lu"><span class="bi bi-check2-all"></span></button>
                   </li>
+                  <li class="dropdown-item-text d-flex align-items-center justify-content-between border-bottom pb-2 mb-1">
+                    <label class="form-check-label small mb-0" for="push-toggle">Alertes critiques sur cet appareil</label>
+                    <div class="form-check form-switch mb-0">
+                      <input class="form-check-input" type="checkbox" role="switch" id="push-toggle" onclick="event.stopPropagation()">
+                    </div>
+                  </li>
+                  <li id="push-indisponible" class="dropdown-item-text small text-muted d-none">Non disponible sur cet appareil/navigateur.</li>
                   {% if notifications %}
                     {% for n in notifications %}
                       <li>
@@ -189,6 +196,7 @@
     </main>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/matrix.js' %}"></script>
+    {% if user.is_authenticated %}<script src="{% static 'js/push.js' %}"></script>{% endif %}
     <script>
       // Afficher automatiquement les toasts globaux si présents
       (function(){

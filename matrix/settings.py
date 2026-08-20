@@ -200,6 +200,16 @@ EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "0") == "0"  # privilégier TLS
 # Storages (local dev by default)
 DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
 
+# Notifications Web Push (alertes critiques hors navigateur ouvert) : paire de
+# clés VAPID générée UNE FOIS via `python manage.py generate_vapid_keys`, puis
+# stockée en variables d'environnement — jamais régénérée à la volée (sinon
+# tous les abonnements existants deviennent invalides). Si absentes, l'envoi
+# Web Push est simplement désactivé (cf. notifications/push.py) : les
+# notifications in-app continuent de fonctionner normalement.
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
+VAPID_ADMIN_EMAIL = os.getenv("VAPID_ADMIN_EMAIL", "no-reply@localhost")
+
 # Security (sane defaults for dev; harden in prod)
 CSRF_TRUSTED_ORIGINS = [
     origin for origin in [

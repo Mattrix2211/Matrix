@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from accounts.models import Roles, UserProfile
 from logistics.models import StockPiece
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
 from notifications.tasks import notify_low_stock
 from org.models import Sector, Section, Service, Ship
 
@@ -48,6 +48,12 @@ class NotifyLowStockTests(TestCase):
                 Notification.objects.filter(user=user, verb__icontains=piece.reference).exists(),
                 f"Notification attendue pour {user.username}",
             )
+        # Une rupture de stock est critique : niveau DANGER (déclenche un push).
+        self.assertFalse(
+            Notification.objects.filter(verb__icontains=piece.reference)
+            .exclude(level=NotificationLevel.DANGER)
+            .exists()
+        )
 
     def test_aucune_notification_si_quantite_suffisante(self):
         StockPiece.objects.create(

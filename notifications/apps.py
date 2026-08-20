@@ -6,3 +6,6 @@ class NotificationsConfig(AppConfig):
     name = "notifications"
     verbose_name = "Notifications"
     path = os.path.dirname(os.path.abspath(__file__))
+
+    def ready(self):
+        from . import signals  # noqa: F401 - connecte le signal d'envoi Web Push

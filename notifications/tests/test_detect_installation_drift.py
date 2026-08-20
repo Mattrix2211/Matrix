@@ -12,7 +12,7 @@ from assets.models import (
     InstallationMaintenance,
     ModeDeclenchement,
 )
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
 from notifications.tasks import detect_installation_drift
 from org.models import Sector, Section, Service, Ship
 
@@ -76,6 +76,9 @@ class DetectInstallationDriftTests(TestCase):
         self.assertIsNotNone(notif)
         self.assertIn("Groupe électrogène", notif.verb)
         self.assertIn("seuil estimé atteint dans", notif.verb)
+        # Dérive détectée AVANT le franchissement réel : simple attention (WARNING),
+        # pas encore une alerte critique (pas de push pour ce niveau).
+        self.assertEqual(notif.level, NotificationLevel.WARNING)
 
     def test_aucune_notification_si_isolement_stable(self):
         depart = date(2026, 1, 1)

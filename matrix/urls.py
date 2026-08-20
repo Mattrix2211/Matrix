@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
+from django.views.static import serve as serve_static
 from .views import logout_then_login, SettingsView
 from django.conf import settings
 from django.conf.urls.static import static
@@ -9,6 +10,15 @@ from dashboard.web_views import TableauDeBordView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Le Service Worker doit être servi à la racine (scope "/") pour couvrir
+    # tout le site, pas seulement /static/js/ (limite du scope Web Push par
+    # défaut : la portée est celle du chemin de service du fichier).
+    path(
+        "service-worker.js",
+        serve_static,
+        {"document_root": settings.BASE_DIR / "matrix" / "static" / "js", "path": "service-worker.js"},
+        name="service-worker",
+    ),
     path("accounts/", include("django.contrib.auth.urls")),
     # Raccourcis conviviaux
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
