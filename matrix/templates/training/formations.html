@@ -56,6 +56,44 @@
             <span class="small text-muted">Aucun désigné</span>
           {% endfor %}
         </div>
+        {% if f.sessions_a_venir %}
+        <div class="mb-2">
+          <span class="fw-semibold small">Sessions à venir :</span>
+          <ul class="list-group list-group-flush mt-1">
+            {% for s in f.sessions_a_venir %}
+              <li class="list-group-item px-0 py-2">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <div class="small font-mono">{{ s.scheduled_at|date:"d/m/Y à H:i" }}{% if s.location %} — {{ s.location }}{% endif %}</div>
+                    {% if s.capacite_max %}
+                      {% with restantes=s.places_restantes %}
+                        {% if restantes > 0 %}
+                          <div class="small text-muted">{{ restantes }} place(s) restante(s) sur {{ s.capacite_max }}</div>
+                        {% else %}
+                          <div class="small text-danger">Session complète ({{ s.capacite_max }} place(s))</div>
+                        {% endif %}
+                      {% endwith %}
+                    {% endif %}
+                  </div>
+                  <form method="post" action="{% url 'formation-list' %}" class="flex-shrink-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="session_id" value="{{ s.id }}">
+                    {% if s.deja_reserve %}
+                      <input type="hidden" name="action" value="annuler_reservation">
+                      <button type="submit" class="btn btn-outline-danger btn-sm">Annuler ma réservation</button>
+                    {% else %}
+                      <input type="hidden" name="action" value="reserver_session">
+                      <button type="submit" class="btn btn-outline-primary btn-sm" {% if s.capacite_max and s.places_restantes == 0 %}disabled{% endif %}>
+                        Réserver ma place
+                      </button>
+                    {% endif %}
+                  </form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
         {% if peut_gerer_prerequis %}
           <button type="button" class="btn btn-outline-primary btn-sm"
                   data-bs-toggle="modal" data-bs-target="#prerequisitesModal"

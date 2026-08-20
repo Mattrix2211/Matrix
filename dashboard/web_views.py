@@ -57,9 +57,14 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
                 occurrence.status, "bg-secondary"
             )
 
+        # Formations où le marin est inscrit par un référent (attendees) OU où
+        # il a réservé sa place lui-même en libre-service (reservations, cf.
+        # T-FORM réservation) — les deux mécanismes doivent apparaître dans
+        # son espace personnel, d'où le OU plutôt qu'un simple filtre.
         mes_formations = list(
             TrainingSession.objects.select_related("course")
-            .filter(attendees=self.request.user, status="PLANNED")
+            .filter(Q(attendees=self.request.user) | Q(reservations=self.request.user), status="PLANNED")
+            .distinct()
             .order_by("scheduled_at")
         )
 

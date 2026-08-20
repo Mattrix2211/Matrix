@@ -182,12 +182,15 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                 "status": t.status,
             })
 
-        # Sessions de formation
+        # Sessions de formation : assignées par un référent (attendees) OU
+        # réservées en libre-service par le marin (reservations, cf. T-FORM
+        # réservation) — un marin doit voir les deux sur son calendrier
+        # personnel, d'où le OU plutôt qu'un simple filtre sur attendees.
         ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
         if filters.get("sector"):
             ses_qs = ses_qs.filter(course__sector_id=filters["sector"])
         if filters.get("user"):
-            ses_qs = ses_qs.filter(attendees__id=filters["user"])
+            ses_qs = ses_qs.filter(Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"])).distinct()
         if filters.get("status"):
             ses_qs = ses_qs.filter(status=filters["status"])
         if filters.get("type") and filters["type"] != "training":
@@ -306,12 +309,14 @@ def calendar_events(request):
                 "extendedProps": {"type": "ticket", "status": t.status},
                 **couleur,
             })
-    # Sessions de formation
+    # Sessions de formation : assignées par un référent (attendees) OU
+    # réservées en libre-service par le marin (reservations, cf. T-FORM
+    # réservation) — mêmes conventions que _collect_events ci-dessus.
     ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
     if filters.get("sector"):
         ses_qs = ses_qs.filter(course__sector_id=filters["sector"])
     if filters.get("user"):
-        ses_qs = ses_qs.filter(attendees__id=filters["user"])
+        ses_qs = ses_qs.filter(Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"])).distinct()
     if filters.get("status"):
         ses_qs = ses_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "training":

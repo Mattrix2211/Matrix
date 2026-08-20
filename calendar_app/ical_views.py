@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 from icalendar import Calendar, Event
@@ -23,8 +24,13 @@ def user_ical_feed(request):
         description = f"Plan: {occ.plan}" if occ.plan_id else f"Entretien installation: {occ.installation_maintenance.title}"
         ev.add('description', description)
         cal.add_component(ev)
-    # Sessions de formation de l'utilisateur
-    for s in TrainingSession.objects.filter(attendees=request.user).select_related('course'):
+    # Sessions de formation de l'utilisateur : assignées par un référent
+    # (attendees) OU réservées en libre-service (reservations, cf. T-FORM
+    # réservation) — même mécanisme de calendrier personnel que ci-dessus.
+    ses_qs = TrainingSession.objects.filter(
+        Q(attendees=request.user) | Q(reservations=request.user)
+    ).select_related('course').distinct()
+    for s in ses_qs:
         ev = Event()
         ev.add('summary', f"Formation: {s.course.title}")
         ev.add('dtstart', s.scheduled_at)
