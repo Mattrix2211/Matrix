@@ -991,6 +991,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 marque=marque,
                 gisement=gisement,
                 local=local,
+                critique=request.POST.get('critique') == 'on',
             )
             photo = request.FILES.get('photo')
             if photo:
@@ -1068,6 +1069,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 it.marque = request.POST.get('marque', it.marque).strip()
                 it.gisement = request.POST.get('gisement', it.gisement).strip()
                 it.local = request.POST.get('local', it.local).strip()
+                it.critique = request.POST.get('critique') == 'on'
                 bigrame_id = request.POST.get('bigrame_id')
                 photo = request.FILES.get('photo')
                 if photo:

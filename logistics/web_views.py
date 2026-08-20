@@ -206,19 +206,38 @@ class TicketTransitionView(LoginRequiredMixin, View):
         if not new_status:
             return HttpResponseBadRequest('Statut requis')
 
+        # Remise en service : geste engageant qui exige une ré-authentification légère
+        # (mot de passe courant de l'appelant, comme un "sudo" léger) avant toute
+        # écriture. Vérifié en tout premier, pour ne strictement rien modifier au
+        # ticket si le mot de passe saisi est incorrect.
+        if new_status == 'RETURNED_TO_SERVICE' and not request.user.check_password(request.POST.get('mot_de_passe', '')):
+            erreur_fermeture = "Mot de passe incorrect : la remise en service n'a pas été validée."
+            messages.error(request, erreur_fermeture)
+            if request.headers.get('HX-Request'):
+                part_requests = ticket.part_requests.prefetch_related('lines').all()
+                return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+            return redirect('ticket-detail', pk=ticket.pk)
+
         diagnostic_final = request.POST.get('diagnostic_final', '').strip()
         solution = request.POST.get('solution', '').strip()
         ticket.diagnostic_final = diagnostic_final
         ticket.solution = solution
 
         erreur_fermeture = None
+        champs = ['status', 'diagnostic_final', 'solution']
         if new_status == 'CLOSED' and not (diagnostic_final and solution):
             erreur_fermeture = "Impossible de fermer le ticket : le diagnostic final et la solution appliquée sont obligatoires (retour d'expérience)."
         else:
             old = ticket.status
             ticket.status = new_status
+            if new_status == 'RETURNED_TO_SERVICE':
+                # Mot de passe déjà vérifié plus haut : on enregistre la signature de
+                # validation en même temps que la transition.
+                ticket.valide_par = request.user
+                ticket.date_validation = timezone.now()
+                champs += ['valide_par', 'date_validation']
 
-        ticket.save(update_fields=['status', 'diagnostic_final', 'solution'])
+        ticket.save(update_fields=champs)
 
         if erreur_fermeture:
             messages.error(request, erreur_fermeture)

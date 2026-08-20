@@ -4,7 +4,7 @@ from matrix.core.admin import AdminScopedMixin
 
 @admin.register(CorrectiveTicket)
 class CorrectiveTicketAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("id", "asset", "status", "severity", "reported_at")
+    list_display = ("id", "asset", "status", "severity", "reported_at", "valide_par", "date_validation")
     list_filter = ("status", "severity")
     search_fields = ("id", "description")
 

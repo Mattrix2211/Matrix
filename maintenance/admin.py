@@ -13,7 +13,7 @@ class MaintenanceOccurrenceAdmin(admin.ModelAdmin):
 
 @admin.register(MaintenanceExecution)
 class MaintenanceExecutionAdmin(admin.ModelAdmin):
-    list_display = ("occurrence", "started_at", "completed_at", "conformity")
+    list_display = ("occurrence", "started_at", "completed_at", "conformity", "valide_par", "date_validation")
     list_filter = ("conformity",)
 
 @admin.register(OccurrenceStatusLog)

@@ -3,4 +3,7 @@
   {% if exec.conformity == 'NON_CONFORME' %}
     <div>Un ticket correctif sera (ou a été) ouvert automatiquement.</div>
   {% endif %}
+  {% if exec.valide_par %}
+    <div class="mt-2 small text-muted">Validé par {{ exec.valide_par.get_full_name|default:exec.valide_par.username }} le {{ exec.date_validation|date:"d/m/Y H:i" }}.</div>
+  {% endif %}
 </div>

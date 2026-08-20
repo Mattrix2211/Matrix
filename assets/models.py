@@ -152,6 +152,12 @@ class Installation(TimeStampedModel, OwnedModel):
     iso_periodicity = models.CharField(max_length=1, choices=ISO_PERIODICITY_CHOICES, default="M")
     # Rattachement hiérarchique optionnel (ex: turbo -> moteur bâbord -> groupe propulsion)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="sous_ensembles")
+    # Aucun champ de criticité n'existait sur Installation avant cette tâche. Ce
+    # booléen simple permet de désigner les installations dont le passage en
+    # "Terminée" d'une maintenance (MaintenanceExecution) exige une validation
+    # par mot de passe (cf. OccurrenceExecuteView) — hypothèse la plus simple,
+    # à valider/affiner par le Tech Lead si un critère plus fin est attendu.
+    critique = models.BooleanField(default=False, verbose_name="Installation critique")
 
     class Meta:
         ordering = ["ship__name", "service__name", "sector__name", "section__name", "designation"]

@@ -91,6 +91,16 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     measurements = JSONField(default=dict, blank=True)
     conformity = models.CharField(max_length=24, choices=CONFORMITY, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    # Signature de validation (T-FEAT signature) : le passage en "Terminée" (DONE) sur
+    # une installation critique exige une ré-authentification légère (mot de passe
+    # courant, cf. OccurrenceExecuteView) avant d'être appliqué. AuditLog trace déjà
+    # "qui a fait quoi", mais ces deux champs distinguent explicitement une validation
+    # engageante d'une simple exécution.
+    valide_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="executions_validees", verbose_name="Validé par",
+    )
+    date_validation = models.DateTimeField(null=True, blank=True, verbose_name="Date de validation")
 
 
 def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:

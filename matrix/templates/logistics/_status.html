@@ -7,6 +7,11 @@
     <div class="d-flex align-items-center mb-3">
       <span class="badge bg-info me-3">{{ ticket.get_status_display }}</span>
     </div>
+    {% if ticket.valide_par %}
+    <div class="alert alert-success py-2 mb-3 small">
+      Remise en service validée par {{ ticket.valide_par.get_full_name|default:ticket.valide_par.username }} le {{ ticket.date_validation|date:"d/m/Y H:i" }}.
+    </div>
+    {% endif %}
     <form hx-post="/logistics/tickets/{{ ticket.id }}/transition/" hx-target="#ticket-status" hx-swap="outerHTML">
       <div class="mb-3">
         <label class="form-label small mb-1">Diagnostic final (retour d'expérience)</label>
@@ -15,6 +20,10 @@
       <div class="mb-3">
         <label class="form-label small mb-1">Solution appliquée (retour d'expérience)</label>
         <textarea class="form-control form-control-sm" name="solution" rows="2" placeholder="Réparation effectuée...">{{ ticket.solution }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small mb-1">Mot de passe (requis uniquement pour passer au statut « Remis en service »)</label>
+        <input class="form-control form-control-sm" type="password" name="mot_de_passe" autocomplete="current-password" placeholder="Votre mot de passe">
       </div>
       <div class="form-text mb-2">Le diagnostic final et la solution appliquée sont obligatoires pour passer au statut « Fermé ».</div>
       <div class="d-flex gap-2">

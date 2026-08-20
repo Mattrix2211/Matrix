@@ -7,6 +7,10 @@
   <div class="mb-2 text-muted">Actif: {{ occ.asset }} | Plan: {{ occ.plan }}</div>
 {% endif %}
 
+{% if erreur %}
+  <div class="alert alert-danger">{{ erreur }}</div>
+{% endif %}
+
 <form method="post" enctype="multipart/form-data" hx-post="" hx-target="#exec-result" hx-swap="innerHTML">
   {% csrf_token %}
   {% if items and items|length %}
@@ -50,6 +54,16 @@
     <label class="form-label">Photos (si anomalie)</label>
     <input class="form-control" type="file" name="photos" multiple>
   </div>
+
+  {% if occ.installation_maintenance.installation.critique %}
+  <div class="alert alert-warning mt-3 mb-0">
+    <strong>Installation critique.</strong> Le passage au statut « Terminée » exige de resaisir votre mot de passe.
+  </div>
+  <div class="mt-3">
+    <label class="form-label">Mot de passe (validation installation critique)</label>
+    <input class="form-control" type="password" name="mot_de_passe" autocomplete="current-password">
+  </div>
+  {% endif %}
 
   <div class="mt-3">
     <button type="submit" class="btn btn-success">Valider l'exécution</button>
