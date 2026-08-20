@@ -123,8 +123,13 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             .prefetch_related("prerequisites", "referents")
             .order_by("sector__name", "title")
         )
-        sector_id = self.request.GET.get("sector")
-        if sector_id:
+        # Valeur issue du <select> HTML du filtre : peut arriver non numérique
+        # sur un GET/POST forgé (ex. "action=update_prerequisites" appelle
+        # cette méthode via self.get_queryset() plus bas) — même principe que
+        # _entier_ou_none appliqué au reste du fichier, on ignore le filtre
+        # plutôt que de planter sur un ValueError non attrapé.
+        sector_id = _entier_ou_none(self.request.GET.get("sector"))
+        if sector_id is not None:
             qs = qs.filter(sector_id=sector_id)
         return qs
 
@@ -281,8 +286,17 @@ class CompetencyTreeView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         secteurs = _secteurs_visibles(request.user)
-        sector_id = request.GET.get("secteur")
-        secteur = secteurs.filter(pk=sector_id).first() if sector_id else secteurs.first()
+        secteur_brut = request.GET.get("secteur")
+        if secteur_brut:
+            # Même principe que le filtre "sector" de TrainingCourseListView :
+            # une valeur non numérique (POST/GET forgé) est traitée comme un
+            # secteur introuvable (secteur = None ci-dessous), exactement
+            # comme un identifiant numérique valide mais absent en base,
+            # plutôt que de planter sur un ValueError non attrapé.
+            sector_id = _entier_ou_none(secteur_brut)
+            secteur = secteurs.filter(pk=sector_id).first() if sector_id is not None else None
+        else:
+            secteur = secteurs.first()
         categories = []
         if secteur is not None:
             formations = list(
