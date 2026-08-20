@@ -7,11 +7,22 @@
     <input type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Rechercher une référence, une désignation, un emplacement..." style="max-width: 320px;">
     <button class="btn btn-outline-secondary" type="button" onclick="this.form.requestSubmit()">Rechercher</button>
   </form>
-  {% if peut_gerer %}
-  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerPieceModal">
-    <i class="bi bi-plus-lg"></i> Ajouter une pièce
-  </button>
-  {% endif %}
+  <div class="d-flex align-items-center gap-2">
+    <div class="dropdown">
+      <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Exporter la liste (respecte les filtres actifs et votre périmètre)">
+        <i class="bi bi-download"></i> Exporter
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="exportBtn">
+        {% if xlsx_disponible %}<li><a class="dropdown-item" href="{{ export_url_xlsx }}">Excel (.xlsx)</a></li>{% endif %}
+        <li><a class="dropdown-item" href="{{ export_url_csv }}">CSV</a></li>
+      </ul>
+    </div>
+    {% if peut_gerer %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerPieceModal">
+      <i class="bi bi-plus-lg"></i> Ajouter une pièce
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card">

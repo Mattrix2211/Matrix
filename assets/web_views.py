@@ -22,6 +22,15 @@ from logistics.models import CorrectiveTicket
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
+from matrix.core.export import (
+    CSV_CONTENT_TYPE,
+    XLSX_CONTENT_TYPE,
+    construire_url_export,
+    rendre_csv,
+    rendre_xlsx,
+    reponse_fichier,
+    xlsx_disponible,
+)
 from accounts.models import AuditLog
 from org.models import Ship, Service, Sector, Section
 
@@ -31,12 +40,60 @@ from org.models import Ship, Service, Sector, Section
 # réimporté ici puisqu'il appartient à un autre module).
 _STATUTS_OCCURRENCE_TERMINES = ("DONE", "CANCELLED")
 import json
-import io
 import calendar
-try:
-    from openpyxl import Workbook
-except Exception:
-    Workbook = None
+
+
+_ENTETES_EXPORT_ASSETS = [
+    'Désignation', 'Type', 'Identifiant interne', 'N° série', 'Statut', 'Criticité',
+    'Navire', 'Service', 'Secteur', 'Section', 'Emplacement',
+]
+
+
+def _lignes_export_assets(qs):
+    """Construit les lignes de l'export tableur des matériels, à partir d'un
+    queryset déjà filtré par périmètre (voir AssetListView.get)."""
+    return [
+        [
+            a.designation,
+            a.asset_type.name,
+            a.internal_id,
+            a.serial_number,
+            a.get_status_display(),
+            a.criticality,
+            a.ship.name if a.ship else '',
+            a.service.name if a.service else '',
+            a.sector.name if a.sector else '',
+            a.section.name if a.section else '',
+            a.location.name if a.location else '',
+        ]
+        for a in qs
+    ]
+
+
+_ENTETES_EXPORT_INSTALLATIONS = [
+    'Désignation', 'Référence', 'Marque', 'Gisement', 'Local',
+    'Navire', 'Service', 'Secteur', 'Section', 'Emplacement',
+]
+
+
+def _lignes_export_installations(qs):
+    """Construit les lignes de l'export tableur des installations, à partir d'un
+    queryset déjà filtré par périmètre (voir InstallationListView.get)."""
+    return [
+        [
+            i.designation,
+            i.reference,
+            i.marque,
+            i.gisement,
+            i.local,
+            i.ship.name if i.ship else '',
+            i.service.name if i.service else '',
+            i.sector.name if i.sector else '',
+            i.section.name if i.section else '',
+            i.location.name if i.location else '',
+        ]
+        for i in qs
+    ]
 
 
 def _peut_gerer_rattachement_parent(user):
@@ -385,7 +442,9 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['types'] = AssetType.objects.order_by('name')
         ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
-        ctx['export_url'] = self.request.build_absolute_uri('?' + (self.request.META.get('QUERY_STRING') or '') + ('&' if self.request.META.get('QUERY_STRING') else '') + 'export=xlsx')
+        ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
+        ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
+        ctx['xlsx_disponible'] = xlsx_disponible()
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, filtré
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
@@ -412,28 +471,35 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         return ctx
 
     def get(self, request, *args, **kwargs):
-        if request.GET.get('export') == 'xlsx' and Workbook is not None:
-            qs = self.get_queryset()
-            wb = Workbook(); ws = wb.active; ws.title = 'Matériels'
-            ws.append(['Type', 'Identifiant interne', 'N° série', 'Statut', 'Criticité', 'Navire', 'Service', 'Secteur', 'Section', 'Emplacement'])
-            for a in qs:
-                ws.append([
-                    a.asset_type.name,
-                    a.internal_id,
-                    a.serial_number,
-                    a.status,
-                    a.criticality,
-                    a.ship.name if a.ship else '',
-                    a.service.name if a.service else '',
-                    a.sector.name if a.sector else '',
-                    a.section.name if a.section else '',
-                    a.location.name if a.location else '',
-                ])
-            buf = io.BytesIO(); wb.save(buf); buf.seek(0)
-            resp = HttpResponse(buf.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            resp['Content-Disposition'] = 'attachment; filename=materiels.xlsx'
-            AuditLog.objects.create(actor=request.user, action='export_assets_xlsx', target_user=None, details=f'rows={qs.count()}')
-            return resp
+        format_export = request.GET.get('export')
+        if format_export in ('csv', 'xlsx'):
+            # Périmètre : l'export ne doit JAMAIS dépasser le périmètre de
+            # l'utilisateur, même si l'affichage de cette liste n'est pas
+            # lui-même restreint par périmètre (elle propose des filtres
+            # navire/service/secteur/section manuels, cf. get_queryset ci-dessus,
+            # destinés à un usage de gestion transverse) — sécurité appliquée
+            # explicitement ici, indépendamment de get_queryset().
+            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            lignes = _lignes_export_assets(qs)
+            if format_export == 'xlsx':
+                contenu = rendre_xlsx(_ENTETES_EXPORT_ASSETS, lignes, titre_feuille='Matériels')
+                if contenu is None:
+                    messages.error(
+                        request,
+                        "L'export Excel n'est pas disponible sur ce serveur. Utilisez le CSV.",
+                    )
+                    parametres = request.GET.copy()
+                    parametres.pop('export', None)
+                    return redirect(f"{request.path}?{parametres.urlencode()}")
+                content_type = XLSX_CONTENT_TYPE
+            else:
+                contenu = rendre_csv(_ENTETES_EXPORT_ASSETS, lignes)
+                content_type = CSV_CONTENT_TYPE
+            AuditLog.objects.create(
+                actor=request.user, action=f'export_assets_{format_export}',
+                target_user=None, details=f'rows={len(lignes)}',
+            )
+            return reponse_fichier(contenu, f'materiels.{format_export}', content_type)
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -806,6 +872,9 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['profil_ship_id'] = getattr(profil, 'ship_id', None)
         ctx['profil_service_id'] = getattr(profil, 'service_id', None)
         ctx['profil_sector_id'] = getattr(profil, 'sector_id', None)
+        ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
+        ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
+        ctx['xlsx_disponible'] = xlsx_disponible()
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, filtré
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
@@ -890,6 +959,37 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 it.isolation_next_date_card = None
                 it.isolation_next_days_card = None
         return ctx
+
+    def get(self, request, *args, **kwargs):
+        format_export = request.GET.get('export')
+        if format_export in ('csv', 'xlsx'):
+            # Périmètre : même garde-fou que AssetListView.get — l'export ne doit
+            # JAMAIS dépasser le périmètre de l'utilisateur, même si l'affichage
+            # de cette liste n'est pas lui-même restreint par périmètre.
+            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            lignes = _lignes_export_installations(qs)
+            if format_export == 'xlsx':
+                contenu = rendre_xlsx(
+                    _ENTETES_EXPORT_INSTALLATIONS, lignes, titre_feuille='Installations'
+                )
+                if contenu is None:
+                    messages.error(
+                        request,
+                        "L'export Excel n'est pas disponible sur ce serveur. Utilisez le CSV.",
+                    )
+                    parametres = request.GET.copy()
+                    parametres.pop('export', None)
+                    return redirect(f"{request.path}?{parametres.urlencode()}")
+                content_type = XLSX_CONTENT_TYPE
+            else:
+                contenu = rendre_csv(_ENTETES_EXPORT_INSTALLATIONS, lignes)
+                content_type = CSV_CONTENT_TYPE
+            AuditLog.objects.create(
+                actor=request.user, action=f'export_installations_{format_export}',
+                target_user=None, details=f'rows={len(lignes)}',
+            )
+            return reponse_fichier(contenu, f'installations.{format_export}', content_type)
+        return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')

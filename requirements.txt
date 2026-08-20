@@ -14,3 +14,4 @@ crispy-bootstrap5>=2023.10
 django-crispy-forms>=2.1
 requests>=2.31
 weasyprint>=62
+openpyxl>=3.1

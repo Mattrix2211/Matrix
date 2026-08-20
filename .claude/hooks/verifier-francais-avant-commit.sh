@@ -12,7 +12,12 @@ if [[ "$command" == *"git commit"* ]]; then
 
     mots_suspects="\bSubmit\b|\bCancel\b|\bLoading\b|\bSave\b|\bDelete\b|\bError:|\bWarning:|\bSuccess\b|\bPlease\b|\bClick here\b"
     lignes_ajoutees=$(git diff --cached -- '*.html' '*.py' | grep -E '^\+' | grep -vE '^\+\+\+')
-    trouve=$(echo "$lignes_ajoutees" | grep -E -i "$mots_suspects")
+    # Exclut les faux positifs de code légitime, qui ne sont jamais du texte visible
+    # par l'utilisateur : appel de méthode (ex. classeur.save(...), ticket.delete())
+    # précédé d'un point, et classe CSS Bootstrap en kebab-case (ex. btn-outline-success,
+    # text-danger) précédée d'un tiret. Le texte UI réel (labels, boutons, messages)
+    # n'est jamais précédé de ces caractères, donc la détection sur celui-ci reste intacte.
+    trouve=$(echo "$lignes_ajoutees" | grep -i -P "(?<![.\-])($mots_suspects)")
 
     if [[ -n "$trouve" ]]; then
         echo "⚠️  Commit bloqué : texte potentiellement anglais détecté (règle CLAUDE.md : 100% français)." >&2

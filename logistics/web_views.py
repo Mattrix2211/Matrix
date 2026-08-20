@@ -12,6 +12,16 @@ from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
+from matrix.core.export import (
+    CSV_CONTENT_TYPE,
+    XLSX_CONTENT_TYPE,
+    construire_url_export,
+    rendre_csv,
+    rendre_xlsx,
+    reponse_fichier,
+    xlsx_disponible,
+)
+from accounts.models import AuditLog
 from org.models import Sector, Section
 from assets.models import Asset
 
@@ -91,6 +101,30 @@ def _ship_du_profil_q(ship_id):
         | Q(profile__sector__service__ship_id=ship_id)
         | Q(profile__section__sector__service__ship_id=ship_id)
     )
+
+_ENTETES_EXPORT_STOCK = [
+    'Référence', 'Désignation', 'Quantité', 'Quantité minimale', 'Emplacement',
+    'Navire', 'Service', 'Secteur', 'Section',
+]
+
+
+def _lignes_export_stock(qs):
+    """Construit les lignes de l'export tableur du stock de pièces, à partir
+    d'un queryset déjà filtré par périmètre (ScopedQuerySetMixin)."""
+    return [
+        [
+            p.reference,
+            p.designation,
+            p.quantite,
+            p.quantite_minimale,
+            p.emplacement,
+            p.ship.name if p.ship else '',
+            p.service.name if p.service else '',
+            p.sector.name if p.sector else '',
+            p.section.name if p.section else '',
+        ]
+        for p in qs
+    ]
 
 
 class TicketDetailView(LoginRequiredMixin, View):
@@ -330,7 +364,38 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['peut_gerer'] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('service__ship__name', 'service__name', 'name')
         ctx['sections'] = Section.objects.select_related('sector').order_by('sector__name', 'name')
+        ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
+        ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
+        ctx['xlsx_disponible'] = xlsx_disponible()
         return ctx
+
+    def get(self, request, *args, **kwargs):
+        format_export = request.GET.get('export')
+        if format_export in ('csv', 'xlsx'):
+            # get_queryset() est déjà filtré par périmètre (ScopedQuerySetMixin) :
+            # l'export ne peut donc jamais dépasser le périmètre de l'utilisateur.
+            qs = self.get_queryset()
+            lignes = _lignes_export_stock(qs)
+            if format_export == 'xlsx':
+                contenu = rendre_xlsx(_ENTETES_EXPORT_STOCK, lignes, titre_feuille='Stock')
+                if contenu is None:
+                    messages.error(
+                        request,
+                        "L'export Excel n'est pas disponible sur ce serveur. Utilisez le CSV.",
+                    )
+                    parametres = request.GET.copy()
+                    parametres.pop('export', None)
+                    return redirect(f"{request.path}?{parametres.urlencode()}")
+                content_type = XLSX_CONTENT_TYPE
+            else:
+                contenu = rendre_csv(_ENTETES_EXPORT_STOCK, lignes)
+                content_type = CSV_CONTENT_TYPE
+            AuditLog.objects.create(
+                actor=request.user, action=f'export_stock_{format_export}',
+                target_user=None, details=f'rows={len(lignes)}',
+            )
+            return reponse_fichier(contenu, f'stock.{format_export}', content_type)
+        return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:

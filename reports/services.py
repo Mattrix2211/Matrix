@@ -7,7 +7,7 @@ Deux modes :
 
 Réutilise scope_filters_for_user (aucun nouveau système de permission ni de scope).
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import weasyprint
 from django.conf import settings
@@ -23,6 +23,7 @@ from assets.models import (
 )
 from logistics.models import CorrectiveTicket, PartLineItem, StockPiece
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
+from matrix.core.export import rendre_csv_sections, rendre_xlsx_sections
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
 from training.models import TrainingRecord
@@ -59,6 +60,29 @@ def _dernier_par_installation(queryset, champ_installation="installation_id"):
         if cle not in resultat:
             resultat[cle] = obj
     return resultat
+
+
+def _fmt_date(valeur):
+    """Formate une date ou un datetime en JJ/MM/AAAA (JJ/MM/AAAA HH:MM pour un
+    datetime), chaîne vide si aucune valeur — même mise en forme pour les
+    exports CSV et XLSX des bilans."""
+    if valeur is None:
+        return ""
+    if isinstance(valeur, datetime):
+        return timezone.localtime(valeur).strftime("%d/%m/%Y %H:%M")
+    return valeur.strftime("%d/%m/%Y")
+
+
+def _nom_utilisateur(utilisateur):
+    """Nom affiché d'un marin dans les exports (nom complet, ou identifiant à
+    défaut)."""
+    return utilisateur.get_full_name() or utilisateur.username
+
+
+def _nom_materiel(asset):
+    """Désignation affichée d'un matériel mobile dans les exports (désignation,
+    ou représentation par défaut du modèle si non renseignée)."""
+    return asset.designation or str(asset)
 
 
 def _resoudre_perimetre(scope_type, scope_id):
@@ -200,6 +224,115 @@ def generer_bilan_instantane_pdf(scope_type: str, scope_id, utilisateur) -> byte
     contexte = construire_contexte_instantane(scope_type, scope_id, utilisateur)
     html = render_to_string("reports/bilan_instantane.html", contexte)
     return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
+
+
+def _sections_bilan_instantane(contexte: dict) -> list:
+    """Découpe le contexte du bilan Mode Instantané en sections (titre, en-têtes,
+    lignes) pour un rendu tableur — même données que le PDF (aucune requête
+    supplémentaire), juste un rendu différent."""
+    lignes_installations = []
+    for ligne in contexte["installations"]:
+        dv, dh, dvib, diso = (
+            ligne["derniere_visite"],
+            ligne["dernier_releve_heures"],
+            ligne["dernier_releve_vibration"],
+            ligne["dernier_releve_isolement"],
+        )
+        lignes_installations.append(
+            [
+                ligne["installation"].designation,
+                ligne["statut"],
+                _fmt_date(dv.date) if dv else "",
+                dh.hours if dh else "",
+                _fmt_date(dh.date) if dh else "",
+                dvib.state if dvib else "",
+                _fmt_date(dvib.date) if dvib else "",
+                diso.ohms if diso else "",
+                _fmt_date(diso.date) if diso else "",
+            ]
+        )
+
+    lignes_echeances = [
+        [
+            ech["installation"].designation,
+            ech["titre"],
+            _fmt_date(ech["date_prevue"]),
+            ech["statut"],
+            "Oui" if ech["en_retard"] else "Non",
+        ]
+        for ech in contexte["echeances"]
+    ]
+
+    lignes_tickets = [
+        [
+            _nom_materiel(ticket.asset),
+            ticket.asset.asset_type.name,
+            ticket.get_status_display(),
+            _fmt_date(ticket.reported_at),
+            ticket.anciennete_jours,
+        ]
+        for ticket in contexte["tickets_ouverts"]
+    ]
+
+    lignes_qualifications = [
+        [
+            _nom_utilisateur(qualif.user),
+            qualif.course.title,
+            _fmt_date(qualif.expires_at),
+        ]
+        for qualif in contexte["qualifications_proches_expiration"]
+    ]
+
+    lignes_stock = [
+        [piece.reference, piece.designation, piece.quantite, piece.quantite_minimale, piece.emplacement]
+        for piece in contexte["stock_alerte"]
+    ]
+
+    return [
+        (
+            "Installations",
+            [
+                "Désignation", "Statut", "Dernière visite",
+                "Heures - dernier relevé", "Heures - date",
+                "Vibration - dernier état", "Vibration - date",
+                "Isolement - dernière valeur (Ω)", "Isolement - date",
+            ],
+            lignes_installations,
+        ),
+        (
+            "Échéances de maintenance",
+            ["Installation", "Titre", "Date prévue", "Statut", "En retard"],
+            lignes_echeances,
+        ),
+        (
+            "Tickets correctifs ouverts",
+            ["Matériel", "Type de matériel", "Statut", "Signalé le", "Ancienneté (jours)"],
+            lignes_tickets,
+        ),
+        (
+            "Qualifications proches d'expiration",
+            ["Marin", "Formation", "Date d'expiration"],
+            lignes_qualifications,
+        ),
+        (
+            "Stock sous le seuil d'alerte",
+            ["Référence", "Désignation", "Quantité", "Quantité minimale", "Emplacement"],
+            lignes_stock,
+        ),
+    ]
+
+
+def generer_bilan_instantane_csv(scope_type: str, scope_id, utilisateur) -> bytes:
+    """Génère le bilan Mode Instantané au format CSV (même contexte que le PDF)."""
+    contexte = construire_contexte_instantane(scope_type, scope_id, utilisateur)
+    return rendre_csv_sections(_sections_bilan_instantane(contexte))
+
+
+def generer_bilan_instantane_xlsx(scope_type: str, scope_id, utilisateur):
+    """Génère le bilan Mode Instantané au format XLSX (même contexte que le PDF).
+    Renvoie None si openpyxl n'est pas installé."""
+    contexte = construire_contexte_instantane(scope_type, scope_id, utilisateur)
+    return rendre_xlsx_sections(_sections_bilan_instantane(contexte))
 
 
 def construire_contexte_periode(
@@ -396,3 +529,126 @@ def generer_bilan_periode_pdf(
     contexte = construire_contexte_periode(scope_type, scope_id, utilisateur, date_debut, date_fin)
     html = render_to_string("reports/bilan_periode.html", contexte)
     return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
+
+
+def _sections_bilan_periode(contexte: dict) -> list:
+    """Découpe le contexte du bilan Mode Période en sections (titre, en-têtes,
+    lignes) pour un rendu tableur — même données que le PDF (aucune requête
+    supplémentaire), juste un rendu différent."""
+    lignes_maintenances = [
+        [
+            m["installation"].designation,
+            m["titre"],
+            _fmt_date(m["date_prevue"]),
+            m["statut"],
+            "Oui" if m["realisee_a_temps"] else "Non",
+        ]
+        for m in contexte["maintenances_periode"]
+    ]
+
+    lignes_tickets_ouverts = [
+        [_nom_materiel(t.asset), t.asset.asset_type.name, t.get_status_display(), _fmt_date(t.reported_at)]
+        for t in contexte["tickets_ouverts_periode"]
+    ]
+
+    lignes_tickets_fermes = [
+        [
+            _nom_materiel(t.asset),
+            t.asset.asset_type.name,
+            _fmt_date(t.reported_at),
+            _fmt_date(t.updated_at),
+            t.delai_resolution_jours,
+        ]
+        for t in contexte["tickets_fermes_periode"]
+    ]
+
+    lignes_tickets_encore_ouverts = [
+        [_nom_materiel(t.asset), t.asset.asset_type.name, t.get_status_display(), _fmt_date(t.reported_at)]
+        for t in contexte["tickets_encore_ouverts_fin_periode"]
+    ]
+
+    lignes_releves_heures = [
+        [r.installation.designation, _fmt_date(r.date), r.hours] for r in contexte["releves_heures"]
+    ]
+    lignes_releves_vibration = [
+        [r.installation.designation, _fmt_date(r.date), r.state] for r in contexte["releves_vibration"]
+    ]
+    lignes_releves_isolement = [
+        [r.installation.designation, _fmt_date(r.date), r.ohms] for r in contexte["releves_isolement"]
+    ]
+
+    lignes_pieces = [
+        [
+            p.reference,
+            p.description,
+            p.qty,
+            _nom_materiel(p.part_request.ticket.asset),
+            _fmt_date(p.received_at),
+        ]
+        for p in contexte["pieces_consommees"]
+    ]
+
+    lignes_qualifications_obtenues = [
+        [_nom_utilisateur(q.user), q.course.title, _fmt_date(q.completed_at)]
+        for q in contexte["qualifications_obtenues"]
+    ]
+    lignes_qualifications_expirees = [
+        [_nom_utilisateur(q.user), q.course.title, _fmt_date(q.expires_at)]
+        for q in contexte["qualifications_expirees"]
+    ]
+
+    return [
+        (
+            "Maintenances de la période",
+            ["Installation", "Titre", "Date prévue", "Statut", "Réalisée à temps"],
+            lignes_maintenances,
+        ),
+        (
+            "Tickets ouverts sur la période",
+            ["Matériel", "Type de matériel", "Statut", "Signalé le"],
+            lignes_tickets_ouverts,
+        ),
+        (
+            "Tickets fermés sur la période",
+            ["Matériel", "Type de matériel", "Signalé le", "Fermé le", "Délai de résolution (jours)"],
+            lignes_tickets_fermes,
+        ),
+        (
+            "Tickets encore ouverts en fin de période",
+            ["Matériel", "Type de matériel", "Statut", "Signalé le"],
+            lignes_tickets_encore_ouverts,
+        ),
+        ("Relevés heures de marche", ["Installation", "Date", "Heures"], lignes_releves_heures),
+        ("Relevés vibration", ["Installation", "Date", "État"], lignes_releves_vibration),
+        ("Relevés isolement", ["Installation", "Date", "Isolement (Ω)"], lignes_releves_isolement),
+        (
+            "Pièces consommées",
+            ["Référence", "Description", "Quantité", "Ticket (matériel)", "Reçue le"],
+            lignes_pieces,
+        ),
+        (
+            "Qualifications obtenues",
+            ["Marin", "Formation", "Date d'obtention"],
+            lignes_qualifications_obtenues,
+        ),
+        (
+            "Qualifications expirées",
+            ["Marin", "Formation", "Date d'expiration"],
+            lignes_qualifications_expirees,
+        ),
+    ]
+
+
+def generer_bilan_periode_csv(
+    scope_type: str, scope_id, utilisateur, date_debut, date_fin
+) -> bytes:
+    """Génère le bilan Mode Période au format CSV (même contexte que le PDF)."""
+    contexte = construire_contexte_periode(scope_type, scope_id, utilisateur, date_debut, date_fin)
+    return rendre_csv_sections(_sections_bilan_periode(contexte))
+
+
+def generer_bilan_periode_xlsx(scope_type: str, scope_id, utilisateur, date_debut, date_fin):
+    """Génère le bilan Mode Période au format XLSX (même contexte que le PDF).
+    Renvoie None si openpyxl n'est pas installé."""
+    contexte = construire_contexte_periode(scope_type, scope_id, utilisateur, date_debut, date_fin)
+    return rendre_xlsx_sections(_sections_bilan_periode(contexte))

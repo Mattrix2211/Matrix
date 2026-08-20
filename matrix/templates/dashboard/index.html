@@ -99,15 +99,22 @@
   {% if user|peut_generer_bilan %}
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header">Bilan PDF du périmètre</div>
+      <div class="card-header">Bilan du périmètre</div>
       <div class="card-body">
         <p class="text-muted small mb-3">
           Document de synthèse pour votre hiérarchie : état actuel de votre périmètre,
-          ou activité réalisée sur une période choisie.
+          ou activité réalisée sur une période choisie. Disponible en PDF ou en tableur
+          (Excel/CSV) pour retravailler les chiffres.
         </p>
         <div class="d-flex flex-wrap gap-2">
           <a href="{% url 'rapport-bilan' %}" class="btn btn-primary">
-            <span class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></span>Générer le bilan
+            <span class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></span>Générer le bilan (PDF)
+          </a>
+          <a href="{% url 'rapport-bilan' %}?format=xlsx" class="btn btn-outline-success" title="Exporter en Excel">
+            <span class="bi bi-file-earmark-excel me-1" aria-hidden="true"></span>Excel
+          </a>
+          <a href="{% url 'rapport-bilan' %}?format=csv" class="btn btn-outline-success" title="Exporter en CSV">
+            <span class="bi bi-filetype-csv me-1" aria-hidden="true"></span>CSV
           </a>
           <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#periode-bilan" aria-expanded="false" aria-controls="periode-bilan">
             <span class="bi bi-calendar-range me-1" aria-hidden="true"></span>Choisir une période
@@ -128,6 +135,14 @@
               <div class="col-auto">
                 <label for="bilan-date-fin" class="form-label small mb-0">Au</label>
                 <input type="date" class="form-control form-control-sm" id="bilan-date-fin" name="date_fin" required>
+              </div>
+              <div class="col-auto">
+                <label for="bilan-format" class="form-label small mb-0">Format</label>
+                <select class="form-select form-select-sm" id="bilan-format" name="format">
+                  <option value="pdf">PDF</option>
+                  <option value="xlsx">Excel</option>
+                  <option value="csv">CSV</option>
+                </select>
               </div>
               <div class="col-auto">
                 {# Type par défaut d'un <button> dans un <form> : valide le formulaire au clic #}
