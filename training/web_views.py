@@ -4,15 +4,18 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.generic import ListView, View
 
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.roles import RoleLevel, user_role_level
+from notifications.models import Notification
 from org.models import Sector
 
-from .models import TrainingCourse
+from .models import TrainingCourse, TrainingSession
 from .services import calculer_carte_competences, regrouper_par_categorie
 
 User = get_user_model()
@@ -182,6 +185,28 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 .distinct()
             )
         ctx["utilisateurs_par_secteur"] = utilisateurs_par_secteur
+        # Sessions à venir (planifiées, pas encore passées) de chaque formation
+        # affichée, avec la place restante et l'état de réservation du marin
+        # connecté — réservation self-service (T-FORM), page la plus naturelle
+        # pour ça puisque c'est déjà ici que le marin consulte ses formations.
+        formations = list(ctx["formations"])
+        sessions_qs = (
+            TrainingSession.objects.filter(
+                course_id__in=[f.id for f in formations],
+                status="PLANNED",
+                scheduled_at__gte=timezone.now(),
+            )
+            .select_related("instructor")
+            .prefetch_related("reservations")
+            .order_by("scheduled_at")
+        )
+        sessions_par_formation = defaultdict(list)
+        for s in sessions_qs:
+            s.deja_reserve = self.request.user in s.reservations.all()
+            sessions_par_formation[s.course_id].append(s)
+        for f in formations:
+            f.sessions_a_venir = sessions_par_formation.get(f.id, [])
+        ctx["formations"] = formations
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -271,6 +296,78 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 )
                 course.referents.set(referents_valides)
             messages.success(request, "Prérequis mis à jour.")
+            return redirect("formation-list")
+        if action == "reserver_session":
+            return self._reserver_session(request)
+        if action == "annuler_reservation":
+            return self._annuler_reservation(request)
+        return redirect("formation-list")
+
+    def _reserver_session(self, request):
+        """Réservation self-service d'une place sur une session PLANNED, par le
+        marin connecté pour lui-même uniquement — distincte de la validation de
+        présence par un référent (attendees, non touché ici). Les règles
+        métier (session toujours planifiée, capacité, prérequis) sont
+        appliquées par le signal m2m TrainingSession.reservations
+        (training/models.py::_controler_reservation), seule source de vérité."""
+        session_id = _entier_ou_none(request.POST.get("session_id"))
+        # Périmètre : seule une session d'une formation visible par l'appelant
+        # peut être réservée — ne fait pas confiance à l'identifiant posté.
+        session = (
+            TrainingSession.objects.select_related("course")
+            .filter(pk=session_id, course_id__in=self.get_queryset().values_list("id", flat=True))
+            .first()
+            if session_id is not None else None
+        )
+        if session is None:
+            messages.error(request, "Session introuvable ou hors de votre périmètre.")
+            return redirect("formation-list")
+        if request.user in session.reservations.all():
+            messages.info(request, "Vous avez déjà réservé une place pour cette session.")
+            return redirect("formation-list")
+        try:
+            # Savepoint explicite : si le signal m2m (capacité, prérequis,
+            # statut) refuse la réservation, seule cette opération est annulée,
+            # pas le reste de la transaction de la requête.
+            with transaction.atomic():
+                session.reservations.add(request.user)
+        except ValidationError as exc:
+            _afficher_erreur_prerequis(request, exc)
+            return redirect("formation-list")
+        Notification.objects.create(
+            user=request.user,
+            verb=(
+                f"Réservation confirmée: {session.course.title} — session du "
+                f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}"
+            ),
+        )
+        messages.success(
+            request,
+            "Place réservée. La session apparaît maintenant dans votre calendrier personnel.",
+        )
+        return redirect("formation-list")
+
+    def _annuler_reservation(self, request):
+        """Annulation de SA PROPRE réservation par le marin connecté, tant que
+        la session n'a pas encore eu lieu (contrôle fait par le signal m2m
+        TrainingSession.reservations, cf. training/models.py::_controler_reservation)."""
+        session_id = _entier_ou_none(request.POST.get("session_id"))
+        session = TrainingSession.objects.select_related("course").filter(pk=session_id).first() \
+            if session_id is not None else None
+        if session is None:
+            messages.error(request, "Session introuvable.")
+            return redirect("formation-list")
+        if request.user not in session.reservations.all():
+            messages.info(request, "Vous n'avez pas de réservation sur cette session.")
+            return redirect("formation-list")
+        try:
+            # Savepoint explicite, même principe que _reserver_session ci-dessus.
+            with transaction.atomic():
+                session.reservations.remove(request.user)
+        except ValidationError as exc:
+            _afficher_erreur_prerequis(request, exc)
+            return redirect("formation-list")
+        messages.success(request, "Réservation annulée.")
         return redirect("formation-list")
 
 

@@ -139,8 +139,67 @@ class TrainingSession(TimeStampedModel):
     scheduled_at = models.DateTimeField()
     instructor = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="instructed_sessions")
     attendees = models.ManyToManyField(User, blank=True, related_name="training_sessions")
+    # Capacité maximale de places réservables en libre-service : illimitée si
+    # laissée vide (aucun contrôle de capacité dans ce cas).
+    capacite_max = models.PositiveIntegerField(null=True, blank=True)
+    # Réservations self-service : intention d'un marin d'assister à cette
+    # session, distincte de `attendees` (présence/réussite réellement
+    # constatée, gérée uniquement par les référents — cf. peut_valider_formation
+    # ci-dessus, à ne pas toucher). Un marin ne réserve/annule que SA PROPRE
+    # réservation (contrôle fait dans training/web_views.py) ; les règles
+    # métier (capacité, session toujours planifiée, prérequis, session pas
+    # encore passée) sont appliquées ci-dessous par _controler_reservation,
+    # seul point de passage garanti quel que soit l'appelant.
+    reservations = models.ManyToManyField(User, blank=True, related_name="training_reservations")
     location = models.CharField(max_length=255, blank=True, default="")
     status = models.CharField(max_length=16, choices=STATUS, default="PLANNED")
+
+    def places_restantes(self):
+        """Nombre de places encore réservables, ou None si la capacité est
+        illimitée (capacite_max non renseignée). Utilise `len(...all())` plutôt
+        que `.count()` pour réutiliser le cache d'un éventuel
+        prefetch_related('reservations') fait par l'appelant (liste des
+        sessions d'une formation), sans requête supplémentaire par session."""
+        if self.capacite_max is None:
+            return None
+        return max(0, self.capacite_max - len(self.reservations.all()))
+
+
+@receiver(m2m_changed, sender=TrainingSession.reservations.through)
+def _controler_reservation(sender, instance, action, pk_set, **kwargs):
+    """Contrôle les réservations self-service (TrainingSession.reservations,
+    distinctes de attendees ci-dessous) : à l'ajout (pre_add), vérifie que la
+    session est toujours planifiée, que la capacité maximale n'est pas
+    dépassée, et que les prérequis de la formation sont validés — même
+    principe défensif que _bloquer_inscription_sans_prerequis (attendees),
+    seul point de passage garanti quel que soit l'appelant (vue web, API,
+    admin, shell). À la suppression (pre_remove), interdit d'annuler une
+    réservation sur une session déjà passée."""
+    if action == "pre_add" and pk_set:
+        if instance.status != "PLANNED":
+            raise ValidationError(
+                "Impossible de réserver une place : cette session n'est plus planifiée."
+            )
+        if instance.capacite_max is not None:
+            deja_reserves = instance.reservations.count()
+            if deja_reserves + len(pk_set) > instance.capacite_max:
+                raise ValidationError(
+                    "Impossible de réserver une place : cette session est complète."
+                )
+        reference_date = instance.scheduled_at.date() if instance.scheduled_at else timezone.localdate()
+        for user in User.objects.filter(pk__in=pk_set):
+            manquants = _prerequis_manquants(user, instance.course, reference_date)
+            if manquants:
+                noms = ", ".join(p.title for p in manquants)
+                raise ValidationError(
+                    f"Impossible de réserver une place pour {user.get_full_name() or user.get_username()} : "
+                    f"formation(s) prérequise(s) non validée(s) — {noms}."
+                )
+    elif action == "pre_remove" and pk_set:
+        if instance.scheduled_at and instance.scheduled_at <= timezone.now():
+            raise ValidationError(
+                "Impossible d'annuler cette réservation : la session a déjà eu lieu."
+            )
 
 
 @receiver(m2m_changed, sender=TrainingSession.attendees.through)
