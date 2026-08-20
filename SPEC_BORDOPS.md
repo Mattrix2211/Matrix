@@ -22,7 +22,6 @@ Le projet Matrix/BordOps **est déjà largement développé**, pas un projet à 
 | Fonctionnement hors-ligne (LAN uniquement) | Déjà un principe non-négociable inscrit dans `CLAUDE.md` (§ Principes fondamentaux, point 4) | `CLAUDE.md` |
 | Workflow correctif | `CorrectiveTicket` (10 états : REPORTED→DIAGNOSED→WAITING_PARTS→...→CLOSED) | `logistics/models.py` |
 | Checklists avec surcharge par équipement | `ChecklistTemplate`/`ChecklistItemTemplate` + `AssetChecklistOverride` | `assets/models.py` |
-| Champs personnalisés | `DynamicFieldDefinition` par secteur | `org/models.py` |
 
 **Rappel important pour Claude Code :** ne jamais inventer un nouveau système de permissions, de scope, ou de notification en parallèle de ceux listés ci-dessus — toujours étendre l'existant.
 

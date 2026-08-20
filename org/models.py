@@ -59,24 +59,3 @@ class SectorConfig(TimeStampedModel):
 
     def __str__(self):
         return f"Config {self.sector}"
-
-
-class DynamicFieldDefinition(TimeStampedModel):
-    TYPE_CHOICES = (
-        ("text", "Texte"),
-        ("number", "Nombre"),
-        ("date", "Date"),
-        ("choice", "Choix"),
-        ("checkbox", "Case à cocher"),
-    )
-    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="dynamic_fields")
-    name = models.CharField(max_length=100)
-    label = models.CharField(max_length=255)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    required = models.BooleanField(default=False)
-    unit = models.CharField(max_length=20, blank=True, default="")
-    choices = JSONField(default=list, blank=True)
-    applies_to = models.CharField(max_length=50, blank=True, default="", help_text="asset_type|checklist_template")
-
-    def __str__(self):
-        return f"{self.name} ({self.sector})"

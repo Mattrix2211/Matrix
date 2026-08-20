@@ -1,8 +1,5 @@
 from django.contrib import admin
 from .models import Ship, Service, Sector, Section, SectorConfig
-from django.contrib import admin
-from django.db import models
-from django.apps import apps
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
@@ -28,10 +25,3 @@ class SectionAdmin(admin.ModelAdmin):
 @admin.register(SectorConfig)
 class SectorConfigAdmin(admin.ModelAdmin):
     list_display = ("sector", "created_at")
-
-DynamicFieldDefinition = apps.get_model('org', 'DynamicFieldDefinition')
-
-@admin.register(DynamicFieldDefinition)
-class DynamicFieldDefinitionAdmin(admin.ModelAdmin):
-    list_display = ("name", "label", "type", "sector", "applies_to", "required")
-    list_filter = ("sector", "type", "required")
