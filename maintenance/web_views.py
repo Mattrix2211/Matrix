@@ -41,11 +41,27 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
             raise PermissionDenied
 
-        # Collecter les résultats des items
-        results = {}
         items = []
         if occ.plan and occ.plan.checklist_template:
             items = list(occ.plan.checklist_template.items.order_by('order').all())
+
+        conformity = request.POST.get('conformity', '')
+
+        # Passage en "Terminée" (DONE) d'une installation critique : geste engageant
+        # qui exige une ré-authentification légère (mot de passe courant, comme un
+        # "sudo" léger). Vérifié avant tout enregistrement, pour ne rien modifier si
+        # le mot de passe saisi est incorrect. Une occurrence NON_CONFORME repasse en
+        # WAITING_VALIDATION (pas DONE) et n'est donc pas concernée.
+        installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
+        exige_validation = bool(installation and installation.critique) and conformity != 'NON_CONFORME'
+        if exige_validation and not request.user.check_password(request.POST.get('mot_de_passe', '')):
+            erreur = "Mot de passe incorrect : l'exécution n'a pas été validée."
+            if request.headers.get('HX-Request'):
+                return render(request, 'maintenance/_execute_erreur.html', {"occ": occ, "erreur": erreur})
+            return render(request, self.template_name, {"occ": occ, "items": items, "erreur": erreur})
+
+        # Collecter les résultats des items
+        results = {}
         for item in items:
             key = f"item_{item.id}"
             val = request.POST.get(key)
@@ -54,7 +70,6 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             else:
                 results[item.label] = val
 
-        conformity = request.POST.get('conformity', '')
         notes = request.POST.get('notes', '')
 
         exec_obj, _ = MaintenanceExecution.objects.get_or_create(occurrence=occ)
@@ -65,6 +80,9 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         exec_obj.notes = notes
         exec_obj.executed_by = request.user
         exec_obj.completed_at = timezone.now()
+        if exige_validation:
+            exec_obj.valide_par = request.user
+            exec_obj.date_validation = timezone.now()
         exec_obj.save()
 
         # Mettre à jour le statut de l'occurrence (le signal gère le ticket si NON_CONFORME)
