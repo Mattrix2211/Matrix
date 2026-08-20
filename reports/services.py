@@ -9,11 +9,22 @@ Réutilise scope_filters_for_user (aucun nouveau système de permission ni de sc
 """
 from datetime import datetime, timedelta
 
-import weasyprint
 from django.conf import settings
 from django.db.models import F
 from django.template.loader import render_to_string
 from django.utils import timezone
+
+# WeasyPrint est une dépendance optionnelle : le paquet Python peut être installé
+# (requirements.txt) sans que les bibliothèques natives GTK le soient (cas par
+# défaut sous Windows), ce qui lève une OSError (et non une ImportError) à
+# l'import. Cette OSError ne doit jamais faire planter le démarrage de Django
+# (migrate/runserver) : seul l'export PDF doit être indisponible, avec repli
+# possible vers le CSV (voir pdf_disponible() ci-dessous, même modèle que
+# xlsx_disponible() dans matrix/core/export.py).
+try:
+    import weasyprint
+except (ImportError, OSError):  # pragma: no cover - dépend des libs GTK de la machine
+    weasyprint = None
 
 from assets.models import (
     Installation,
@@ -48,6 +59,12 @@ class PerimetreNonAutorise(PermissionError):
     """Levée quand le périmètre demandé pour le bilan ne correspond pas au
     périmètre propre de l'utilisateur connecté (pas de drill-down hiérarchique :
     un utilisateur ne peut générer le bilan que de son propre périmètre)."""
+
+
+def pdf_disponible() -> bool:
+    """Indique si le rendu PDF est disponible (WeasyPrint installé, bibliothèques
+    natives GTK présentes sur la machine)."""
+    return weasyprint is not None
 
 
 def _dernier_par_installation(queryset, champ_installation="installation_id"):
@@ -217,10 +234,15 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     }
 
 
-def generer_bilan_instantane_pdf(scope_type: str, scope_id, utilisateur) -> bytes:
+def generer_bilan_instantane_pdf(scope_type: str, scope_id, utilisateur) -> bytes | None:
     """Génère le bilan PDF Mode Instantané pour le périmètre demandé et renvoie
     le contenu binaire du PDF (WeasyPrint, génération 100% côté serveur — aucune
-    dépendance CDN, compatible fonctionnement hors-ligne)."""
+    dépendance CDN, compatible fonctionnement hors-ligne).
+
+    Renvoie None si WeasyPrint n'est pas disponible (bibliothèques natives GTK
+    absentes) : l'appelant doit alors se rabattre sur le CSV."""
+    if not pdf_disponible():
+        return None
     contexte = construire_contexte_instantane(scope_type, scope_id, utilisateur)
     html = render_to_string("reports/bilan_instantane.html", contexte)
     return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
@@ -523,9 +545,14 @@ def construire_contexte_periode(
 
 def generer_bilan_periode_pdf(
     scope_type: str, scope_id, utilisateur, date_debut, date_fin
-) -> bytes:
+) -> bytes | None:
     """Génère le bilan PDF Mode Période pour le périmètre et la fenêtre demandés
-    et renvoie le contenu binaire du PDF (WeasyPrint, génération 100% côté serveur)."""
+    et renvoie le contenu binaire du PDF (WeasyPrint, génération 100% côté serveur).
+
+    Renvoie None si WeasyPrint n'est pas disponible (bibliothèques natives GTK
+    absentes) : l'appelant doit alors se rabattre sur le CSV."""
+    if not pdf_disponible():
+        return None
     contexte = construire_contexte_periode(scope_type, scope_id, utilisateur, date_debut, date_fin)
     html = render_to_string("reports/bilan_periode.html", contexte)
     return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()

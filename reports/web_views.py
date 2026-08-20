@@ -43,6 +43,12 @@ _GENERATEURS_PERIODE = {
     "xlsx": ("generer_bilan_periode_xlsx", "xlsx", XLSX_CONTENT_TYPE),
 }
 
+# Libellé affiché dans le message d'erreur quand le format demandé n'est pas
+# disponible sur ce serveur (dépendance optionnelle manquante : WeasyPrint/GTK
+# pour le PDF, openpyxl pour l'Excel — le CSV, lui, n'a aucune dépendance
+# native et est donc toujours disponible).
+_LIBELLES_FORMAT = {"pdf": "PDF", "xlsx": "Excel"}
+
 
 class GenererBilanView(LoginRequiredMixin, View):
     """Génère et renvoie en téléchargement le bilan du périmètre propre de
@@ -108,9 +114,14 @@ class GenererBilanView(LoginRequiredMixin, View):
             return redirect("home")
 
         if contenu is None:
-            # XLSX demandé mais openpyxl non installé : le CSV reste disponible.
+            # Format demandé indisponible (PDF sans WeasyPrint/GTK, ou Excel sans
+            # openpyxl) : le CSV reste toujours disponible en repli, aucune
+            # dépendance native.
+            libelle_format = _LIBELLES_FORMAT.get(extension, extension.upper())
             messages.error(
-                request, "L'export Excel n'est pas disponible sur ce serveur. Utilisez le CSV."
+                request,
+                f"L'export {libelle_format} n'est pas disponible sur ce serveur. "
+                "Utilisez le format CSV, toujours disponible.",
             )
             return redirect("home")
 
