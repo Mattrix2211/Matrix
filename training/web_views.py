@@ -66,6 +66,27 @@ def _utilisateurs_du_secteur_q(sector):
     )
 
 
+def _entier_ou_none(valeur):
+    """Convertit une valeur postée en entier, ou renvoie None si elle est vide
+    ou non numérique — évite un ValueError non attrapé (donc une erreur 500)
+    quand un POST forgé envoie une valeur non numérique dans un champ
+    normalement issu d'un <select> HTML (ex. secteur, identifiant de
+    formation)."""
+    try:
+        return int(valeur)
+    except (TypeError, ValueError):
+        return None
+
+
+def _identifiants_valides(valeurs):
+    """Filtre une liste d'identifiants postés (ex. request.POST.getlist) pour ne
+    garder que ceux convertibles en entier — même principe que
+    _entier_ou_none, appliqué à une liste utilisée ensuite dans un filtre
+    pk__in, qui lève le même ValueError non attrapé si une valeur n'est pas
+    numérique."""
+    return [v for v in valeurs if _entier_ou_none(v) is not None]
+
+
 def _afficher_erreur_prerequis(request, erreur):
     """Affiche en français le message d'une ValidationError levée lors de la
     mise à jour des prérequis (protection anti-cycle ou formations manquantes),
@@ -169,7 +190,11 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # filtrage des prérequis/référents ci-dessous), sous peine de
             # permettre à un administrateur navire de créer une formation sur
             # un secteur d'un autre navire auquel il n'a pas accès.
-            secteur = _secteurs_visibles(request.user).filter(pk=request.POST.get("sector")).first()
+            sector_id = _entier_ou_none(request.POST.get("sector"))
+            secteur = (
+                _secteurs_visibles(request.user).filter(pk=sector_id).first()
+                if sector_id is not None else None
+            )
             if not titre or secteur is None:
                 messages.error(request, "Le titre et le secteur (dans votre périmètre) sont obligatoires.")
                 return redirect("formation-list")
@@ -193,7 +218,7 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Prérequis facultatifs dès la création, limités aux formations déjà
             # existantes du même secteur (revalidation côté serveur, même
             # principe que pour l'édition ci-dessous).
-            ids = request.POST.getlist("prerequisites")
+            ids = _identifiants_valides(request.POST.getlist("prerequisites"))
             if ids:
                 candidats = TrainingCourse.objects.filter(sector=secteur).exclude(pk=course.pk)
                 course.prerequisites.set(candidats.filter(pk__in=ids))
@@ -202,14 +227,14 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         if action == "update_prerequisites":
             if not _peut_gerer_prerequis(request.user):
                 raise PermissionDenied
-            pk = request.POST.get("pk")
+            pk = _entier_ou_none(request.POST.get("pk"))
             # Périmètre : seule une formation du périmètre de l'appelant peut être
             # modifiée (self.get_queryset(), scopé via ScopedQuerySetMixin).
-            course = self.get_queryset().filter(pk=pk).first()
+            course = self.get_queryset().filter(pk=pk).first() if pk is not None else None
             if course is None:
                 messages.error(request, "Formation introuvable.")
                 return redirect("formation-list")
-            ids = request.POST.getlist("prerequisites")
+            ids = _identifiants_valides(request.POST.getlist("prerequisites"))
             # Seules les formations du même secteur peuvent être choisies comme
             # prérequis — ne fait pas confiance au formulaire, revalidation
             # côté serveur (même principe que _parent_candidats dans
@@ -235,7 +260,7 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # formulaire : seuls les utilisateurs visibles dans le secteur de
             # la formation peuvent être désignés (revalidation côté serveur).
             if "referents" in request.POST:
-                referent_ids = request.POST.getlist("referents")
+                referent_ids = _identifiants_valides(request.POST.getlist("referents"))
                 referents_valides = User.objects.filter(
                     _utilisateurs_du_secteur_q(course.sector), pk__in=referent_ids
                 )
