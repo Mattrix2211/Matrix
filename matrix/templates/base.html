@@ -166,12 +166,14 @@
                   {% endif %}
                 </ul>
               </li>
+              {% if user.is_superuser or user.profile.role == 'ADMIN_NAVIRE' or user.profile.role == 'COMMANDANT' %}
               <li class="nav-item">
                 <a class="nav-link" href="/users/" title="Utilisateurs" aria-label="Utilisateurs">
                   <span class="bi bi-people nav-icon" aria-hidden="true"></span>
                   <span class="visually-hidden">Utilisateurs</span>
                 </a>
               </li>
+              {% endif %}
               <li class="nav-item"><span class="navbar-text me-2">{{ user.username }}</span></li>
               <li class="nav-item">
                 <a class="nav-link" href="/logout/" title="Se déconnecter" aria-label="Se déconnecter">
