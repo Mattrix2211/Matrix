@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import UserProfile
-from org.models import Sector, Service, Ship
+from org.models import Section, Sector, Service, Ship
 from training.models import TrainingCourse, TrainingRecord
 
 
@@ -84,3 +84,67 @@ class FormationsWebViewsTests(TestCase):
         response = self.client.get(self.liste_url)
         courses = list(response.context["courses"])
         self.assertEqual(courses[0].nb_a_jour, 1)
+
+
+class FormationsPerimetreSectionTests(TestCase):
+    """TrainingCourse n'a qu'un champ ``sector`` (pas de champ ``section``) :
+    un chef scope au niveau section (profile.section renseigné,
+    profile.sector non renseigné, cas normal de ce rôle) ne doit voir et ne
+    doit pouvoir valider que les formations de son propre secteur, pas
+    celles des autres secteurs du navire."""
+
+    def setUp(self):
+        self.navire = Ship.objects.create(name="Navire T", code="T")
+        self.service = Service.objects.create(ship=self.navire, name="Service T")
+
+        self.secteur_a = Sector.objects.create(service=self.service, name="Secteur A")
+        self.section_a = Section.objects.create(sector=self.secteur_a, name="Section A1")
+        self.formation_a = TrainingCourse.objects.create(
+            sector=self.secteur_a, title="Formation secteur A", validity_days=365,
+        )
+
+        self.secteur_b = Sector.objects.create(service=self.service, name="Secteur B")
+        self.formation_b = TrainingCourse.objects.create(
+            sector=self.secteur_b, title="Formation secteur B", validity_days=365,
+        )
+
+        # Chef de section scope à la section A1 (donc au secteur A), pas de
+        # profile.sector renseigné : configuration normale pour ce rôle.
+        self.chef_section = User.objects.create_user(username="chef_section", password="pass")
+        UserProfile.objects.filter(user=self.chef_section).update(
+            role="CHEF_SECTION", section=self.section_a,
+        )
+
+        self.marin_a = User.objects.create_user(username="marin_a", password="pass")
+        UserProfile.objects.filter(user=self.marin_a).update(role="EQUIPIER", section=self.section_a)
+
+        self.liste_url = reverse("formations")
+        self.valider_url = reverse("formation-valider")
+
+    def test_la_liste_ne_montre_que_les_formations_du_secteur_de_la_section(self):
+        self.client.login(username="chef_section", password="pass")
+        response = self.client.get(self.liste_url)
+        courses = list(response.context["courses"])
+        self.assertEqual(courses, [self.formation_a])
+
+    def test_impossible_de_valider_une_formation_dun_autre_secteur(self):
+        self.client.login(username="chef_section", password="pass")
+        response = self.client.post(self.valider_url, {
+            "marin_id": self.marin_a.id,
+            "course_id": self.formation_b.id,
+            "completed_at": "2026-01-10",
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(TrainingRecord.objects.exists())
+
+    def test_validation_dune_formation_du_bon_secteur_fonctionne(self):
+        self.client.login(username="chef_section", password="pass")
+        response = self.client.post(self.valider_url, {
+            "marin_id": self.marin_a.id,
+            "course_id": self.formation_a.id,
+            "completed_at": "2026-01-10",
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            TrainingRecord.objects.filter(user=self.marin_a, course=self.formation_a).exists()
+        )

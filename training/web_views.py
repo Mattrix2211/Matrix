@@ -12,6 +12,7 @@ from django.views.generic import ListView
 from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import scope_filters_for_user
+from org.models import Section
 
 from .models import TrainingCourse, TrainingRecord
 
@@ -25,6 +26,28 @@ User = get_user_model()
 NIVEAU_MIN_VALIDATION = RoleLevel.CHEF_SECTION
 
 
+def filtres_perimetre_formation(user):
+    """Calcule les filtres de périmètre applicables à TrainingCourse.
+
+    TrainingCourse n'a qu'un champ ``sector`` (pas de champ ``section``
+    comme les modèles qui portent nativement les 4 niveaux de périmètre,
+    ex. StockPiece). Un chef de section est normalement scope au niveau
+    section (profile.section renseigné, profile.sector non renseigné) : le
+    filtre générique section_id serait donc silencieusement ignoré par
+    ScopedQuerySetMixin, exposant toutes les formations de tous les
+    secteurs. On remonte ici explicitement au secteur parent de la section
+    pour appliquer le filtre au bon niveau."""
+    filters = scope_filters_for_user(user)
+    section_id = filters.pop("section_id", None)
+    if section_id is not None:
+        section = Section.objects.filter(pk=section_id).select_related("sector").first()
+        # Section introuvable (cas dégénéré) : on ne montre aucune formation
+        # plutôt que de tout exposer par erreur (sector_id=None ne
+        # correspond à aucune formation, le champ étant obligatoire).
+        filters["sector_id"] = section.sector_id if section else None
+    return filters
+
+
 class FormationsListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     """Page centrale des formations : suivi des validations par formation et
     formulaire permettant à un chef de valider qu'un marin a suivi/réussi
@@ -33,6 +56,12 @@ class FormationsListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     model = TrainingCourse
     template_name = "training/formations.html"
     context_object_name = "courses"
+
+    def get_scoped_filters(self):
+        # Surcharge du mixin générique : TrainingCourse n'a qu'un champ
+        # ``sector``, un utilisateur scope au niveau section doit donc être
+        # ramené au secteur parent (voir filtres_perimetre_formation).
+        return filtres_perimetre_formation(self.request.user)
 
     def get_queryset(self):
         return (
@@ -96,6 +125,15 @@ class ValiderFormationView(LoginRequiredMixin, View):
         except TrainingCourse.DoesNotExist:
             messages.error(request, "Formation introuvable.")
             return redirect("formations")
+
+        # Revalidation côté serveur : la formation ciblée doit être dans le
+        # périmètre effectif de l'utilisateur, pas seulement proposée par le
+        # GET qui alimente le select (empêche un chef de section de valider
+        # une formation d'un secteur hors de son périmètre en forgeant la
+        # requête POST).
+        filtres = filtres_perimetre_formation(request.user)
+        if filtres and not TrainingCourse.objects.filter(pk=course.pk, **filtres).exists():
+            raise PermissionDenied
 
         try:
             completed_at = date.fromisoformat(completed_at_str)
