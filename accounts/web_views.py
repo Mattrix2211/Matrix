@@ -12,13 +12,22 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
     template_name = "accounts/directory.html"
     context_object_name = "users"
 
+    def dispatch(self, request, *args, **kwargs):
+        # L'annuaire utilisateurs (consultation ET actions de gestion) est réservé
+        # aux administrateurs (COMMANDANT et au-dessus) : gérer les identifiants,
+        # rôles et mots de passe des marins n'est pas du ressort d'un chef de
+        # secteur/service. Aucun seuil n'était en place auparavant (bug sécurité).
+        # Le test d'authentification (redirection vers /login/) reste géré par
+        # LoginRequiredMixin ci-dessous ; on ne bloque en 403 qu'un utilisateur
+        # déjà connecté mais dont le rôle est insuffisant.
+        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden()
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         User = get_user_model()
         qs = User.objects.select_related("profile", "profile__ship").order_by("profile__ship__name", "username")
-        lvl = user_role_level(self.request.user)
-        if lvl < RoleLevel.CHEF_SECTION:
-            # Les équipiers ne voient que leur propre fiche
-            return qs.filter(id=self.request.user.id)
         ship_id = self.request.GET.get("ship")
         if ship_id:
             return qs.filter(profile__ship_id=ship_id)

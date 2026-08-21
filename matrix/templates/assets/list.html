@@ -141,10 +141,10 @@
             <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" /></div>
             <input type="hidden" name="status" value="OK" />
             <input type="hidden" name="criticality" value="1" />
-            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="createShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="createShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if sh.id == user_ship_id %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if sv.id == user_service_id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if sc.id == user_sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if se.id == user_section_id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
             <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
             {% if peut_gerer_parent %}
             <div class="col-md-6">
@@ -297,7 +297,13 @@
       if (shipSel) shipSel.addEventListener('change', onShip);
       if (serviceSel) serviceSel.addEventListener('change', onService);
       if (sectorSel) sectorSel.addEventListener('change', onSector);
-      onShip(); onService(); onSector();
+      // Filtrage initial non destructif : conserve le périmètre pré-rempli depuis le
+      // profil du chef connecté au lieu de le réinitialiser en cascade (onShip/onService
+      // effacent les niveaux inférieurs, ce qui annulait le pré-remplissage automatique).
+      filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : '');
+      filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : '');
+      filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : '');
+      filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : '');
     }
     function updateAssetTypeFromSector(){ var hiddenSel = document.getElementById('createAssetTypeHidden'); var out = document.getElementById('createAssetTypeValue'); var sectorSel = document.getElementById('createSector'); if(!hiddenSel || !out || !sectorSel) return; var sec = sectorSel.value || ''; var chosen = ''; for (var i=0;i<hiddenSel.options.length;i++){ var opt = hiddenSel.options[i]; if (opt.getAttribute('data-sector') === sec){ chosen = opt.value; break; } } out.value = chosen; }
     var createModal = document.getElementById('createAssetModal');
