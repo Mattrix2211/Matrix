@@ -5,6 +5,8 @@ est accessible depuis l'interface web, réservée aux chefs (CHEF_SECTION et
 au-dessus, même seuil que la création via l'API), et calcule bien la date
 d'expiration via TrainingRecord.compute_expiry.
 """
+from datetime import date
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
@@ -85,6 +87,47 @@ class FormationsWebViewsTests(TestCase):
         courses = list(response.context["courses"])
         self.assertEqual(courses[0].nb_a_jour, 1)
 
+    def test_aujourdhui_est_un_objet_date_dans_le_contexte(self):
+        """Non-régression : ctx["aujourdhui"] doit rester un objet date (pas
+        une chaîne) pour que la comparaison r.expires_at >= aujourdhui du
+        template fonctionne (comparer une date à une chaîne échoue
+        silencieusement dans un tag {% if %} Django, sans lever d'erreur)."""
+        self.client.login(username="chef", password="pass")
+        response = self.client.get(self.liste_url)
+        self.assertIsInstance(response.context["aujourdhui"], date)
+        self.assertEqual(response.context["aujourdhui"], timezone.localdate())
+
+    def test_badge_a_jour_affiche_pour_une_formation_dont_lexpiration_est_future(self):
+        """Non-régression du bug d'affichage : une formation validée avec une
+        date d'expiration future doit afficher le badge « À jour » et non
+        « Expirée » dans le tableau des dernières validations."""
+        TrainingRecord.objects.create(
+            user=self.equipier, course=self.course,
+            completed_at=timezone.localdate(),
+            expires_at=timezone.localdate() + timezone.timedelta(days=365),
+            validated_by=self.chef,
+        )
+        self.client.login(username="chef", password="pass")
+        response = self.client.get(self.liste_url)
+        contenu = response.content.decode()
+        self.assertIn("À jour", contenu)
+        self.assertNotIn("Expirée", contenu)
+
+    def test_badge_expiree_affiche_pour_une_formation_dont_lexpiration_est_passee(self):
+        """Contre-épreuve du test précédent : une formation déjà expirée doit
+        bien afficher le badge « Expirée »."""
+        TrainingRecord.objects.create(
+            user=self.equipier, course=self.course,
+            completed_at=timezone.localdate() - timezone.timedelta(days=400),
+            expires_at=timezone.localdate() - timezone.timedelta(days=35),
+            validated_by=self.chef,
+        )
+        self.client.login(username="chef", password="pass")
+        response = self.client.get(self.liste_url)
+        contenu = response.content.decode()
+        self.assertIn("Expirée", contenu)
+        self.assertNotIn("À jour", contenu)
+
 
 class FormationsPerimetreSectionTests(TestCase):
     """TrainingCourse n'a qu'un champ ``sector`` (pas de champ ``section``) :
@@ -118,6 +161,14 @@ class FormationsPerimetreSectionTests(TestCase):
         self.marin_a = User.objects.create_user(username="marin_a", password="pass")
         UserProfile.objects.filter(user=self.marin_a).update(role="EQUIPIER", section=self.section_a)
 
+        # Autre section du MÊME secteur A : la formation_a reste dans le
+        # périmètre "formation" du chef de section (qui se résout au niveau
+        # secteur, cf. filtres_perimetre_formation), mais marin_b n'est pas
+        # dans le périmètre "marin" du chef (limité à sa propre section A1).
+        self.section_a2 = Section.objects.create(sector=self.secteur_a, name="Section A2")
+        self.marin_b = User.objects.create_user(username="marin_b", password="pass")
+        UserProfile.objects.filter(user=self.marin_b).update(role="EQUIPIER", section=self.section_a2)
+
         self.liste_url = reverse("formations")
         self.valider_url = reverse("formation-valider")
 
@@ -148,6 +199,22 @@ class FormationsPerimetreSectionTests(TestCase):
         self.assertTrue(
             TrainingRecord.objects.filter(user=self.marin_a, course=self.formation_a).exists()
         )
+
+    def test_impossible_de_valider_pour_un_marin_hors_perimetre_meme_si_la_formation_est_dans_le_perimetre(self):
+        """Non-régression : la formation ciblée (formation_a, secteur A) est
+        bien dans le périmètre "formation" du chef de section, mais le
+        marin ciblé (marin_b, section A2) n'est pas dans son périmètre
+        "marin" (limité à sa propre section A1) — le POST doit être rejeté
+        même en forgeant un marin_id en dehors de ceux proposés par le
+        select du GET."""
+        self.client.login(username="chef_section", password="pass")
+        response = self.client.post(self.valider_url, {
+            "marin_id": self.marin_b.id,
+            "course_id": self.formation_a.id,
+            "completed_at": "2026-01-10",
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(TrainingRecord.objects.exists())
 
 
 class FormationsPerimetreServiceEtNavireTests(TestCase):

@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views import View
@@ -69,6 +70,53 @@ def filtres_perimetre_formation(user):
     return filters
 
 
+def filtres_perimetre_marin(user):
+    """Calcule le filtre de périmètre applicable à User (via son profil).
+
+    Contrairement à TrainingCourse (toujours rattaché à un secteur), un
+    marin peut être rattaché à n'importe quel niveau de la hiérarchie
+    Navire > Service > Secteur > Section (UserProfile.scope renvoie le
+    niveau le plus fin renseigné). Un simple préfixage "profile__" du
+    résultat de scope_filters_for_user ne suffit donc pas : un chef de
+    service scopé au niveau service_id ne verrait alors que les marins dont
+    le profil a directement service_id renseigné, pas ceux rattachés à un
+    secteur ou une section de ce service (cas le plus courant). Il faut
+    donc, selon le niveau du validateur, couvrir tous les marins rattachés
+    n'importe où EN DESSOUS de ce niveau dans la hiérarchie, via un Q
+    combinant chaque chemin possible.
+
+    Renvoie un objet Q, ou None si le périmètre est vide (supervision
+    globale, COMMANDANT et au-dessus, qui voient tous les marins)."""
+    filters = scope_filters_for_user(user)
+
+    section_id = filters.get("section_id")
+    if section_id is not None:
+        return Q(profile__section_id=section_id)
+
+    sector_id = filters.get("sector_id")
+    if sector_id is not None:
+        return Q(profile__sector_id=sector_id) | Q(profile__section__sector_id=sector_id)
+
+    service_id = filters.get("service_id")
+    if service_id is not None:
+        return (
+            Q(profile__service_id=service_id)
+            | Q(profile__sector__service_id=service_id)
+            | Q(profile__section__sector__service_id=service_id)
+        )
+
+    ship_id = filters.get("ship_id")
+    if ship_id is not None:
+        return (
+            Q(profile__ship_id=ship_id)
+            | Q(profile__service__ship_id=ship_id)
+            | Q(profile__sector__service__ship_id=ship_id)
+            | Q(profile__section__sector__service__ship_id=ship_id)
+        )
+
+    return None
+
+
 class FormationsListView(LoginRequiredMixin, ListView):
     """Page centrale des formations : suivi des validations par formation et
     formulaire permettant à un chef de valider qu'un marin a suivi/réussi
@@ -109,12 +157,15 @@ class FormationsListView(LoginRequiredMixin, ListView):
             # supervision globale (COMMANDANT et au-dessus) pour qui le scope
             # est vide et qui voient donc tous les marins.
             marins = User.objects.filter(is_active=True).select_related("profile").order_by("last_name", "first_name", "username")
-            filters = scope_filters_for_user(self.request.user)
-            profile_filters = {f"profile__{champ}": valeur for champ, valeur in filters.items()}
-            if profile_filters:
-                marins = marins.filter(**profile_filters)
+            q_perimetre_marin = filtres_perimetre_marin(self.request.user)
+            if q_perimetre_marin is not None:
+                marins = marins.filter(q_perimetre_marin)
             ctx["marins"] = marins
-        ctx["aujourdhui"] = aujourdhui.isoformat()
+        # Objet date (pas de chaîne) : comparé tel quel à r.expires_at dans le
+        # template pour le badge À jour/Expirée. Le rendu template d'un objet
+        # date appelle str(), qui produit déjà le format ISO AAAA-MM-JJ
+        # attendu par l'attribut value de l'input type="date" du formulaire.
+        ctx["aujourdhui"] = aujourdhui
         return ctx
 
 
@@ -154,6 +205,15 @@ class ValiderFormationView(LoginRequiredMixin, View):
         # requête POST).
         filtres = filtres_perimetre_formation(request.user)
         if filtres and not TrainingCourse.objects.filter(pk=course.pk, **filtres).exists():
+            raise PermissionDenied
+
+        # Même revalidation côté serveur, appliquée cette fois au marin ciblé
+        # (et non plus seulement à la formation) : empêche un chef de valider
+        # une formation de son périmètre pour un marin qui n'en fait pas
+        # partie, en forgeant la requête POST avec un autre marin_id que ceux
+        # proposés par le select du GET.
+        q_perimetre_marin = filtres_perimetre_marin(request.user)
+        if q_perimetre_marin is not None and not User.objects.filter(q_perimetre_marin, pk=marin.pk).exists():
             raise PermissionDenied
 
         try:
