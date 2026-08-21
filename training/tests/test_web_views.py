@@ -148,3 +148,112 @@ class FormationsPerimetreSectionTests(TestCase):
         self.assertTrue(
             TrainingRecord.objects.filter(user=self.marin_a, course=self.formation_a).exists()
         )
+
+
+class FormationsPerimetreServiceEtNavireTests(TestCase):
+    """Non-régression : filtres_perimetre_formation() doit résoudre TOUS les
+    niveaux de périmètre vers des filtres compatibles avec le champ
+    ``sector`` de TrainingCourse, pas seulement le niveau section.
+
+    Avant correction, un utilisateur scope au niveau service ou navire
+    provoquait un plantage serveur (code 500, champ ``service`` ou ``ship``
+    inexistant sur TrainingCourse) lors de la validation, et une fuite de
+    périmètre côté liste (le filtre __in généré n'était pas appliqué par
+    ScopedQuerySetMixin, exposant tout le navire)."""
+
+    def setUp(self):
+        self.navire = Ship.objects.create(name="Navire T", code="T")
+
+        self.service_1 = Service.objects.create(ship=self.navire, name="Service 1")
+        self.secteur_a = Sector.objects.create(service=self.service_1, name="Secteur A")
+        self.secteur_b = Sector.objects.create(service=self.service_1, name="Secteur B")
+
+        self.service_2 = Service.objects.create(ship=self.navire, name="Service 2")
+        self.secteur_c = Sector.objects.create(service=self.service_2, name="Secteur C")
+
+        self.formation_a = TrainingCourse.objects.create(
+            sector=self.secteur_a, title="Formation secteur A", validity_days=365,
+        )
+        self.formation_b = TrainingCourse.objects.create(
+            sector=self.secteur_b, title="Formation secteur B", validity_days=365,
+        )
+        self.formation_c = TrainingCourse.objects.create(
+            sector=self.secteur_c, title="Formation secteur C", validity_days=365,
+        )
+
+        self.chef_secteur = User.objects.create_user(username="chef_secteur", password="pass")
+        UserProfile.objects.filter(user=self.chef_secteur).update(role="CHEF_SECTEUR", sector=self.secteur_a)
+
+        self.chef_service = User.objects.create_user(username="chef_service", password="pass")
+        UserProfile.objects.filter(user=self.chef_service).update(role="CHEF_SERVICE", service=self.service_1)
+
+        self.etat_major = User.objects.create_user(username="etat_major", password="pass")
+        UserProfile.objects.filter(user=self.etat_major).update(role="ETAT_MAJOR", ship=self.navire)
+
+        self.marin = User.objects.create_user(username="marin", password="pass")
+        UserProfile.objects.filter(user=self.marin).update(role="EQUIPIER", sector=self.secteur_a)
+
+        self.liste_url = reverse("formations")
+        self.valider_url = reverse("formation-valider")
+
+    def test_chef_secteur_ne_voit_que_les_formations_de_son_secteur(self):
+        self.client.login(username="chef_secteur", password="pass")
+        response = self.client.get(self.liste_url)
+        courses = list(response.context["courses"])
+        self.assertEqual(courses, [self.formation_a])
+
+    def test_chef_secteur_ne_peut_pas_valider_une_formation_dun_autre_secteur(self):
+        self.client.login(username="chef_secteur", password="pass")
+        response = self.client.post(self.valider_url, {
+            "marin_id": self.marin.id,
+            "course_id": self.formation_b.id,
+            "completed_at": "2026-01-10",
+        })
+        self.assertEqual(response.status_code, 403)
+
+    def test_chef_service_voit_les_formations_des_deux_secteurs_de_son_service(self):
+        self.client.login(username="chef_service", password="pass")
+        response = self.client.get(self.liste_url)
+        courses = list(response.context["courses"])
+        self.assertCountEqual(courses, [self.formation_a, self.formation_b])
+        self.assertNotIn(self.formation_c, courses)
+
+    def test_chef_service_peut_valider_une_formation_dun_secteur_de_son_service(self):
+        self.client.login(username="chef_service", password="pass")
+        response = self.client.post(self.valider_url, {
+            "marin_id": self.marin.id,
+            "course_id": self.formation_b.id,
+            "completed_at": "2026-01-10",
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            TrainingRecord.objects.filter(user=self.marin, course=self.formation_b).exists()
+        )
+
+    def test_chef_service_ne_peut_pas_valider_une_formation_dun_autre_service(self):
+        self.client.login(username="chef_service", password="pass")
+        response = self.client.post(self.valider_url, {
+            "marin_id": self.marin.id,
+            "course_id": self.formation_c.id,
+            "completed_at": "2026-01-10",
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(TrainingRecord.objects.exists())
+
+    def test_etat_major_voit_toutes_les_formations_du_navire(self):
+        self.client.login(username="etat_major", password="pass")
+        response = self.client.get(self.liste_url)
+        courses = list(response.context["courses"])
+        self.assertCountEqual(courses, [self.formation_a, self.formation_b, self.formation_c])
+
+    def test_etat_major_peut_valider_nimporte_quelle_formation_du_navire_sans_erreur(self):
+        self.client.login(username="etat_major", password="pass")
+        response = self.client.post(self.valider_url, {
+            "marin_id": self.marin.id,
+            "course_id": self.formation_c.id,
+            "completed_at": "2026-01-10",
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            TrainingRecord.objects.filter(user=self.marin, course=self.formation_c).exists()
+        )

@@ -9,10 +9,9 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView
 
-from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import scope_filters_for_user
-from org.models import Section
+from org.models import Section, Sector
 
 from .models import TrainingCourse, TrainingRecord
 
@@ -29,26 +28,48 @@ NIVEAU_MIN_VALIDATION = RoleLevel.CHEF_SECTION
 def filtres_perimetre_formation(user):
     """Calcule les filtres de périmètre applicables à TrainingCourse.
 
-    TrainingCourse n'a qu'un champ ``sector`` (pas de champ ``section``
-    comme les modèles qui portent nativement les 4 niveaux de périmètre,
-    ex. StockPiece). Un chef de section est normalement scope au niveau
-    section (profile.section renseigné, profile.sector non renseigné) : le
-    filtre générique section_id serait donc silencieusement ignoré par
-    ScopedQuerySetMixin, exposant toutes les formations de tous les
-    secteurs. On remonte ici explicitement au secteur parent de la section
-    pour appliquer le filtre au bon niveau."""
+    TrainingCourse n'a qu'un champ ``sector`` (pas de champ ``section``,
+    ``service`` ni ``ship`` comme les modèles qui portent nativement les 4
+    niveaux de périmètre, ex. StockPiece). ``scope_filters_for_user``
+    renvoie un seul niveau parmi section_id/sector_id/service_id/ship_id
+    selon le périmètre du profil de l'utilisateur : on le résout ici
+    explicitement vers le(s) secteur(s) correspondant, dans un sens ou dans
+    l'autre selon la hiérarchie Navire > Service > Secteur > Section :
+    - section  : on remonte au secteur parent (filtre exact)
+    - secteur  : déjà le bon niveau, inchangé
+    - service  : on descend à tous les secteurs de ce service (filtre __in)
+    - navire   : on descend à tous les secteurs de ce navire (filtre __in)
+
+    Le dict retourné n'utilise que des clés directement compatibles avec
+    TrainingCourse.objects.filter(**filtres) (``sector_id`` ou
+    ``sector_id__in``), utilisable tel quel aussi bien pour la liste que
+    pour la revalidation côté serveur du formulaire de validation."""
     filters = scope_filters_for_user(user)
+
     section_id = filters.pop("section_id", None)
     if section_id is not None:
         section = Section.objects.filter(pk=section_id).select_related("sector").first()
         # Section introuvable (cas dégénéré) : on ne montre aucune formation
         # plutôt que de tout exposer par erreur (sector_id=None ne
         # correspond à aucune formation, le champ étant obligatoire).
-        filters["sector_id"] = section.sector_id if section else None
+        return {"sector_id": section.sector_id if section else None}
+
+    service_id = filters.pop("service_id", None)
+    if service_id is not None:
+        secteurs = Sector.objects.filter(service_id=service_id).values_list("pk", flat=True)
+        return {"sector_id__in": list(secteurs)}
+
+    ship_id = filters.pop("ship_id", None)
+    if ship_id is not None:
+        secteurs = Sector.objects.filter(service__ship_id=ship_id).values_list("pk", flat=True)
+        return {"sector_id__in": list(secteurs)}
+
+    # Cas restant : sector_id (déjà le bon champ, inchangé) ou dict vide
+    # (supervision globale, COMMANDANT et au-dessus).
     return filters
 
 
-class FormationsListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
+class FormationsListView(LoginRequiredMixin, ListView):
     """Page centrale des formations : suivi des validations par formation et
     formulaire permettant à un chef de valider qu'un marin a suivi/réussi
     une formation."""
@@ -57,15 +78,15 @@ class FormationsListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     template_name = "training/formations.html"
     context_object_name = "courses"
 
-    def get_scoped_filters(self):
-        # Surcharge du mixin générique : TrainingCourse n'a qu'un champ
-        # ``sector``, un utilisateur scope au niveau section doit donc être
-        # ramené au secteur parent (voir filtres_perimetre_formation).
-        return filtres_perimetre_formation(self.request.user)
-
     def get_queryset(self):
+        # Filtrage appliqué directement (pas via ScopedQuerySetMixin) : les
+        # filtres de filtres_perimetre_formation peuvent utiliser un lookup
+        # __in (périmètre service/navire résolu vers plusieurs secteurs), que
+        # le garde-fou générique du mixin (hasattr sur le nom de champ nu)
+        # ignorerait silencieusement, exposant tout le navire par erreur.
+        filtres = filtres_perimetre_formation(self.request.user)
         return (
-            super().get_queryset()
+            TrainingCourse.objects.filter(**filtres)
             .select_related("sector")
             .prefetch_related("records", "records__user")
             .order_by("sector__name", "title")
