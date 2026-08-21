@@ -21,6 +21,7 @@ Le package Django s'appelle `matrix`, le projet s'appelle **Matrix**.
 2. **Plus rapide qu'Excel** — si une action prend plus de clics que dans un tableau Excel, c'est un échec. Formulaires pré-remplis, actions en un clic, zéro jargon informatique
 3. **Espace personnel par marin** — chaque marin voit SES tâches, SES formations, SES maintenances assignées
 4. **Fonctionne hors-ligne** — le navire n'a pas toujours internet, aucune dépendance CDN critique
+5. **Priorité au visuel** — dès qu'un schéma, un graphique, une jauge, une timeline ou toute autre visualisation peut remplacer ou compléter du texte/tableau brut, elle doit être utilisée (tendances de mesures techniques, bilans, tableaux de bord, arbres de compétences...). Cohérent avec le principe n°2 : un graphique se lit plus vite qu'une colonne de chiffres. S'applique aussi bien aux nouvelles fonctionnalités qu'à l'audit régulier des écrans existants pour repérer ce qui pourrait encore être rendu plus visuel
 
 ## Direction artistique
 
