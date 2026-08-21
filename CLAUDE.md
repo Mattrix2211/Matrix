@@ -39,23 +39,25 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 
 ## Deux types d'équipements
 
-- **Installations** : équipements fixes du navire (propulseurs, pompes, circuits électriques). Propres à chaque bâtiment. Modèle `Installation` dans l'app `assets`. Mesures techniques associées : heures de marche, vibrations (A/B/C), isolement (Ohms)
+- **Installations** : équipements fixes du navire (propulseurs, pompes, circuits électriques). Propres à chaque bâtiment. Modèle `Installation` dans l'app `assets`. Mesures techniques associées : heures de marche, vibrations (A/B/C), isolement (Ohms) — avec détection de dérive (régression linéaire simple) avant franchissement de seuil, et champ `critique` déclenchant une signature de validation (mot de passe) sur les transitions sensibles
 - **Matériel mobile** : équipements transverses (extincteurs, EPI, multimètres, élingues). Modèle `Asset` dans l'app `assets`. Suivi par catégorie avec fiche individuelle (numéro de série, date de contrôle, péremption)
+- Les deux modèles supportent une hiérarchie parent/enfant (rattachement, protection anti-cycle)
 
-## Architecture Django — 10 modules
+## Architecture Django — 11 modules
 
 | App | Rôle |
 |-----|------|
 | `accounts` | Utilisateurs, profils, rôles (Commandant → Équipier), grades, spécialités |
 | `org` | Hiérarchie : Navire → Service → Secteur → Section |
-| `assets` | Installations fixes + Matériel mobile, checklists, documents, mesures techniques |
-| `maintenance` | Plans préventifs, occurrences, exécutions, checklists guidées |
-| `logistics` | Tickets correctifs, demandes de pièces, retours d'expérience (REX) |
-| `training` | Formations, sessions, qualifications, expiration, portabilité entre bâtiments |
+| `assets` | Installations fixes + Matériel mobile, checklists, documents, mesures techniques, détection de dérive |
+| `maintenance` | Plans préventifs, occurrences, exécutions, checklists guidées, signature de validation sur transitions critiques |
+| `logistics` | Tickets correctifs, demandes de pièces, stock, retours d'expérience (REX) |
+| `training` | Formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation (indépendant du rang), réservation self-service de sessions |
 | `threads` | Discussions génériques (attachées à n'importe quel objet) |
-| `notifications` | Alertes in-app (maintenance en retard, formation expirée) |
-| `dashboard` | Tableau de bord, graphiques Chart.js |
-| `calendar_app` | Calendrier central (colonne vertébrale), vue globale + personnelle, alertes |
+| `notifications` | Alertes in-app (niveaux info/warning/danger), Web Push pour le niveau danger (clé VAPID auto-hébergée) |
+| `dashboard` | Tableau de bord personnel, vue flotte (CHEF_SERVICE+), graphiques Chart.js |
+| `calendar_app` | Calendrier central (colonne vertébrale), vue globale + personnelle, export iCal |
+| `reports` | Bilans instantané/période, export PDF (si WeasyPrint/GTK disponible) / CSV / Excel |
 
 ## Structure des URLs
 
@@ -82,7 +84,13 @@ Chaque rôle ne voit que ce qui le concerne. Les chefs gèrent leur périmètre.
 3. Si `NON_CONFORME` → création auto d'un `CorrectiveTicket`
 
 ### Ticket correctif
-`REPORTED → DIAGNOSED → WAITING_PARTS → IN_REPAIR → TESTING → RETURNED_TO_SERVICE → CLOSED`
+`REPORTED → DIAGNOSED → WAITING_PARTS → IN_REPAIR → TESTING → RETURNED_TO_SERVICE → CLOSED` (mot de passe requis sur `RETURNED_TO_SERVICE` si l'installation est `critique` ; REX obligatoire à `CLOSED`)
+
+### Formations
+1. Prérequis entre formations (protection anti-cycle, réutilisée du parent/enfant `assets`)
+2. Validation d'une formation réservée aux référents habilités pour CETTE formation précise (indépendant du rang hiérarchique) — ou aux rôles de supervision globale (COMMANDANT+)
+3. Arbre de compétences visuel par secteur/catégorie (niveaux, code couleur validé/disponible/verrouillé), 100% CSS/HTML/SVG sans dépendance externe
+4. Réservation self-service d'une place sur une session (distincte de la validation), avec notification et intégration au calendrier personnel
 
 ## Commandes de développement
 
