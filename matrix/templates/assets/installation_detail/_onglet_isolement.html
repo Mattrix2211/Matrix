@@ -20,10 +20,28 @@
                   {% endif %}
                 {% endif %}
               {% endif %}
+              {% if isolation_jours_avant_seuil is not None %}
+                <br /><span class="badge text-bg-warning">
+                  <i class="bi bi-graph-down-arrow"></i> Dérive détectée : seuil estimé atteint dans {{ isolation_jours_avant_seuil }} j
+                </span>
+              {% endif %}
             </small>
           </div>
           <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addIsolationModal">Ajouter</button>
         </div>
+        {% if isolation_logs %}
+        <div class="mb-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Isolement (Ω) — tendance</span>
+                {% if isolation_seuil_ohms %}<small class="text-muted">Seuil d'alerte : <span class="font-mono">{{ isolation_seuil_ohms }} Ω</span></small>{% endif %}
+              </div>
+              <canvas id="isolationChart" style="max-height:260px;"></canvas>
+            </div>
+          </div>
+        </div>
+        {% endif %}
         <table class="table table-sm align-middle" id="isoTable">
           <thead>
             <tr>

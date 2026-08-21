@@ -32,6 +32,24 @@
           </div>
           <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addVibrationModal">Ajouter</button>
         </div>
+        {% if vibration_timeline %}
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-semibold">Évolution de l'état</span>
+              <small class="text-muted">{{ vibration_timeline|length }} derniers relevés</small>
+            </div>
+            <div class="frise-timeline">
+              {% for v in vibration_timeline %}
+              <div class="frise-point" title="{{ v.date|date:'d/m/Y' }} — État {{ v.state }}{% if v.note %} : {{ v.note }}{% endif %}">
+                <span class="frise-puce frise-puce--{{ v.state|lower }}"></span>
+                <span class="frise-date">{{ v.date|date:"d/m" }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
         <div class="table-responsive">
           <table class="table table-sm align-middle">
             <thead><tr><th style="width:200px;">Date</th><th style="width:160px;">État</th><th>Note</th><th class="text-end" style="width:220px;">Utilisateur</th></tr></thead>

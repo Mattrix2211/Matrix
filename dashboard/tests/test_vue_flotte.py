@@ -1,6 +1,8 @@
 """Tests de la Vue flotte (dashboard/web_views.py::VueFlotteView) : vue agrégée
 du navire réservée à CHEF_SERVICE et aux rôles supérieurs (cf. tâche
 [FEAT] Vue flotte pour les rôles CHEF_SERVICE et plus)."""
+import json
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
@@ -194,6 +196,56 @@ class VueFlotteAgregationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["aucun_navire"])
         self.assertContains(response, "Aucun navire n'est associé à votre profil")
+        # Les jauges (principe n°5 CLAUDE.md) doivent rester à 0, pas planter,
+        # même sans aucune donnée à agréger.
+        self.assertEqual(response.context["maintenances_en_retard_pct"], 0)
+        self.assertEqual(response.context["pieces_sous_seuil_pct"], 0)
+
+    def test_jauge_maintenances_en_retard_est_un_pourcentage_des_actives(self):
+        # 1 en retard sur 2 actives (OVERDUE + PLANNED ; DONE exclu du
+        # dénominateur, même logique que _STATUTS_MAINTENANCE_TERMINES) = 50 %.
+        MaintenanceOccurrence.objects.create(
+            plan=self.plan_a, asset=self.asset_a, scheduled_for="2020-01-01", status="OVERDUE"
+        )
+        MaintenanceOccurrence.objects.create(
+            plan=self.plan_a, asset=self.asset_a, scheduled_for="2099-01-01", status="PLANNED"
+        )
+        MaintenanceOccurrence.objects.create(
+            plan=self.plan_a, asset=self.asset_a, scheduled_for="2020-01-01", status="DONE"
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.context["maintenances_en_retard"], 1)
+        self.assertEqual(response.context["maintenances_en_retard_pct"], 50)
+
+    def test_jauge_pieces_sous_seuil_est_un_pourcentage_du_perimetre(self):
+        StockPiece.objects.create(
+            reference="REF-A1", designation="Joint A", quantite=1, quantite_minimale=5,
+            ship=self.navire_a, service=self.service_a, sector=self.secteur_a,
+        )
+        StockPiece.objects.create(
+            reference="REF-A2", designation="Filtre A", quantite=10, quantite_minimale=5,
+            ship=self.navire_a, service=self.service_a, sector=self.secteur_a,
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.context["pieces_sous_seuil_pct"], 50)
+
+    def test_donnees_json_du_graphique_tickets_par_statut(self):
+        # Alimente le doughnut Chart.js réutilisé de dashboard/index.html : les
+        # deux listes JSON doivent correspondre exactement à tickets_par_statut.
+        CorrectiveTicket.objects.create(asset=self.asset_a, description="Panne 1", status="REPORTED")
+        CorrectiveTicket.objects.create(asset=self.asset_a, description="Panne 2", status="IN_REPAIR")
+
+        response = self.client.get(self.url)
+
+        labels = json.loads(response.context["tickets_chart_labels_json"])
+        values = json.loads(response.context["tickets_chart_values_json"])
+        self.assertEqual(len(labels), len(values))
+        self.assertEqual(sum(values), response.context["total_tickets_ouverts"])
+        self.assertEqual(sum(values), 2)
 
 
 class VueFlotteMasterAdminTests(TestCase):

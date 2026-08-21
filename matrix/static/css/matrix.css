@@ -324,3 +324,49 @@ code, pre, kbd, .font-mono {
 .legende-puce--valide { background: var(--green-tech); }
 .legende-puce--disponible { background: var(--signal); }
 .legende-puce--verrouille { background: var(--text-ter); }
+
+/* Frise de relevés — timeline horizontale 100% SVG/CSS (même famille que
+   l'arbre de compétences), utilisée pour l'évolution qualitative A/B/C des
+   relevés de vibration (principe n°5 CLAUDE.md). */
+.frise-timeline {
+  display: flex;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding: var(--s3) var(--s1);
+}
+.frise-point {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+}
+.frise-point:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.frise-puce {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--paper);
+  box-shadow: 0 0 0 1px var(--border);
+  z-index: 1;
+}
+.frise-puce--a { background: var(--green-tech); }
+.frise-puce--b { background: var(--amber); }
+.frise-puce--c { background: var(--red); }
+.frise-date {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  margin-top: var(--s1);
+  color: var(--text-sec);
+  white-space: nowrap;
+}

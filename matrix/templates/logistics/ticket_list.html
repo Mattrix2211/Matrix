@@ -28,7 +28,12 @@
           <td>{{ ticket.asset }}</td>
           <td>{{ ticket.description|truncatechars:80 }}</td>
           <td class="font-mono">{{ ticket.reported_at|date:"d/m/Y" }}</td>
-          <td class="font-mono">{{ ticket.severity }}</td>
+          <td style="min-width:100px;">
+            <span class="font-mono">{{ ticket.severity }}</span>
+            <div class="progress mt-1" style="height:6px;" title="Sévérité {{ ticket.severity }}/5">
+              <div class="progress-bar" role="progressbar" style="width: {{ ticket.severite_pct }}%; background: {% if ticket.severity >= 4 %}var(--red){% elif ticket.severity == 3 %}var(--amber){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ ticket.severity }}" aria-valuemin="0" aria-valuemax="5"></div>
+            </div>
+          </td>
           <td><span class="badge bg-secondary">{{ ticket.get_status_display }}</span></td>
         </tr>
         {% empty %}

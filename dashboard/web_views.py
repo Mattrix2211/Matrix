@@ -6,6 +6,8 @@ chercher. Cette vue construit le contexte de l'accueil pour ça, en plus
 des graphiques Chart.js déjà en place (T5) et du bouton "Générer le bilan"
 (T10), qui restent inchangés.
 """
+import json
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Q
@@ -119,9 +121,13 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
             contexte["aucun_navire"] = True
             contexte["flotte_entiere"] = False
             contexte["maintenances_en_retard"] = 0
+            contexte["maintenances_en_retard_pct"] = 0
             contexte["tickets_par_statut"] = []
             contexte["total_tickets_ouverts"] = 0
+            contexte["tickets_chart_labels_json"] = json.dumps([])
+            contexte["tickets_chart_values_json"] = json.dumps([])
             contexte["pieces_sous_seuil"] = []
+            contexte["pieces_sous_seuil_pct"] = 0
             return contexte
 
         # Une occurrence porte soit sur du matériel mobile (asset), soit sur une
@@ -140,6 +146,16 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
         contexte["maintenances_en_retard"] = MaintenanceOccurrence.objects.filter(
             filtre_occurrence, status="OVERDUE"
         ).count()
+        # Jauge (principe n°5 CLAUDE.md) : proportion de retard parmi les
+        # maintenances encore actives (mêmes statuts exclus que TableauDeBordView),
+        # plus parlante pour un chef qu'un chiffre brut sans dénominateur.
+        total_maintenances_actives = MaintenanceOccurrence.objects.filter(
+            filtre_occurrence
+        ).exclude(status__in=_STATUTS_MAINTENANCE_TERMINES).count()
+        contexte["maintenances_en_retard_pct"] = (
+            round(contexte["maintenances_en_retard"] / total_maintenances_actives * 100)
+            if total_maintenances_actives else 0
+        )
 
         # Une seule requête agrégée par statut, même pattern que
         # dashboard/views.py::CorrectiveOpenChartView.
@@ -161,10 +177,28 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
 
         contexte["tickets_par_statut"] = tickets_par_statut
         contexte["total_tickets_ouverts"] = sum(t["total"] for t in tickets_par_statut)
+        # Données du doughnut Chart.js (principe n°5 CLAUDE.md) : même composant que
+        # dashboard/index.html (chartCorrective), mais alimenté directement par le
+        # contexte déjà scopé au navire plutôt qu'un appel à l'API globale
+        # /api/dashboard/corrective_open/ (non scopée navire, incohérente ici).
+        contexte["tickets_chart_labels_json"] = json.dumps(
+            [t["libelle"] for t in tickets_par_statut]
+        )
+        contexte["tickets_chart_values_json"] = json.dumps(
+            [t["total"] for t in tickets_par_statut]
+        )
+
         contexte["pieces_sous_seuil"] = list(
             StockPiece.objects.filter(filtre_stock, quantite__lt=F("quantite_minimale"))
             .select_related("service", "sector", "section")
             .order_by("reference")
+        )
+        # Jauge : proportion des pièces de stock sous seuil parmi l'ensemble du
+        # périmètre, même logique que la jauge des maintenances en retard ci-dessus.
+        total_pieces = StockPiece.objects.filter(filtre_stock).count()
+        contexte["pieces_sous_seuil_pct"] = (
+            round(len(contexte["pieces_sous_seuil"]) / total_pieces * 100)
+            if total_pieces else 0
         )
         contexte["aucun_navire"] = False
         contexte["flotte_entiere"] = flotte_entiere

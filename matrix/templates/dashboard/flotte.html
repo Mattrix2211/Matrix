@@ -22,6 +22,10 @@
       <div class="card-header">Maintenances en retard</div>
       <div class="card-body">
         <span class="display-6 fw-bold {% if maintenances_en_retard %}text-danger{% endif %} font-mono">{{ maintenances_en_retard }}</span>
+        <div class="progress mt-2" style="height:8px;" title="{{ maintenances_en_retard_pct }} % des maintenances actives sont en retard">
+          <div class="progress-bar" role="progressbar" style="width: {{ maintenances_en_retard_pct }}%; background: {% if maintenances_en_retard %}var(--red){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ maintenances_en_retard_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <small class="text-muted font-mono">{{ maintenances_en_retard_pct }} % des maintenances actives</small>
       </div>
     </div>
   </div>
@@ -38,17 +42,24 @@
       <div class="card-header">Pièces de stock sous seuil</div>
       <div class="card-body">
         <span class="display-6 fw-bold {% if pieces_sous_seuil %}text-warning{% endif %} font-mono">{{ pieces_sous_seuil|length }}</span>
+        <div class="progress mt-2" style="height:8px;" title="{{ pieces_sous_seuil_pct }} % des pièces de stock du périmètre sont sous seuil">
+          <div class="progress-bar" role="progressbar" style="width: {{ pieces_sous_seuil_pct }}%; background: {% if pieces_sous_seuil %}var(--amber){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ pieces_sous_seuil_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <small class="text-muted font-mono">{{ pieces_sous_seuil_pct }} % des pièces du périmètre</small>
       </div>
     </div>
   </div>
 </div>
 
-<div class="row g-3">
+<div class="row g-3 mb-4">
   <div class="col-md-6">
     <div class="card h-100">
       <div class="card-header">Tickets correctifs ouverts par statut</div>
       <div class="card-body">
-        <ul class="list-group list-group-flush">
+        {% if tickets_par_statut and total_tickets_ouverts %}
+        <canvas id="chartTicketsFlotte" style="max-height:220px;"></canvas>
+        {% endif %}
+        <ul class="list-group list-group-flush mt-2">
           {% for item in tickets_par_statut %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <span>{{ item.libelle }}</span>
@@ -83,5 +94,29 @@
   </div>
 </div>
 
+{% if tickets_par_statut and total_tickets_ouverts %}
+<script>
+(function(){
+  // Même composant Chart.js que le tableau de bord personnel
+  // (dashboard/index.html, chartCorrective) : cohérence visuelle entre les deux
+  // écrans (principe n°5 CLAUDE.md), alimenté ici directement par le contexte
+  // déjà scopé au navire plutôt que par l'API globale.
+  var ctx = document.getElementById('chartTicketsFlotte');
+  if (!ctx || !window.Chart) return;
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: {{ tickets_chart_labels_json|safe }},
+      datasets: [{
+        label: 'Tickets ouverts',
+        data: {{ tickets_chart_values_json|safe }},
+        backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+})();
+</script>
+{% endif %}
 {% endif %}
 {% endblock %}

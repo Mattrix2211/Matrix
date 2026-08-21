@@ -19,6 +19,7 @@ from datetime import datetime
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket
+from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
@@ -1324,6 +1325,13 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         ctx['vibration_next_date'] = next_date
         ctx['vibration_next_days'] = next_days
         ctx['vibration_last_state'] = last_state
+        # Frise visuelle de l'évolution des états A/B/C (principe n°5 CLAUDE.md :
+        # le tableau brut existant ne donne aucune vue d'ensemble de la tendance).
+        # 100% SVG/CSS, même famille que l'arbre de compétences (training) : pas
+        # de nouvelle dépendance JS. Limité aux 20 relevés les plus récents, dans
+        # l'ordre chronologique (du plus ancien au plus récent, lecture naturelle),
+        # pour rester lisible sans défiler indéfiniment.
+        ctx['vibration_timeline'] = list(reversed(vib_logs[:20]))
         # Isolement: relevés (Ohm)
         try:
             iso_logs = list(
@@ -1356,6 +1364,27 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         ctx['isolation_last'] = isolation_last
         ctx['isolation_next_date'] = isolation_next_date
         ctx['isolation_next_days'] = isolation_next_days
+        # Courbe de tendance (principe n°5 CLAUDE.md) : même pattern Chart.js que
+        # hoursPerMonthChart, avec une ligne horizontale au seuil d'alerte. Ordre
+        # chronologique (du plus ancien au plus récent) pour une lecture naturelle
+        # de gauche à droite.
+        iso_logs_asc = list(reversed(iso_logs))
+        ctx['isolation_chart_labels_json'] = json.dumps(
+            [r.date.strftime('%d/%m/%Y') for r in iso_logs_asc]
+        )
+        ctx['isolation_chart_values_json'] = json.dumps(
+            [float(r.ohms) for r in iso_logs_asc]
+        )
+        ctx['isolation_seuil_ohms'] = self.object.isolation_seuil_ohms
+        # Estimation de dérive : réutilise la régression linéaire déjà utilisée par
+        # notifications/tasks.py::detect_installation_drift, affichée ici en clair
+        # plutôt que laissée uniquement dans les alertes.
+        ctx['isolation_jours_avant_seuil'] = None
+        if self.object.isolation_seuil_ohms:
+            releves = [(r.date, float(r.ohms)) for r in iso_logs]
+            ctx['isolation_jours_avant_seuil'] = jours_avant_franchissement_seuil(
+                releves, float(self.object.isolation_seuil_ohms), sens="BAISSE"
+            )
         # Heure de marche: relevés et indicateurs (tolère absence de table/colonne avant migration)
         try:
             logs = list(

@@ -86,6 +86,11 @@ class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx['vue'] = self.vue
         ctx['peut_voir_perimetre'] = self._vue_perimetre_autorisee()
+        # Jauge de sévérité (principe n°5 CLAUDE.md) : le chiffre brut 1-5 ne se
+        # lit pas aussi vite qu'une barre colorée. Capée à 5 pour l'affichage
+        # même si une valeur plus haute était postée directement.
+        for ticket in list(ctx.get('tickets', [])):
+            ticket.severite_pct = min(ticket.severity, 5) / 5 * 100
         return ctx
 
 
@@ -367,6 +372,13 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
         ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
         ctx['xlsx_disponible'] = xlsx_disponible()
+        # Jauge de niveau (principe n°5 CLAUDE.md) : proportion de la quantité
+        # actuelle par rapport au seuil minimal, pour visualiser le niveau de
+        # stock en un coup d'œil plutôt qu'une colonne de deux chiffres à
+        # comparer mentalement. Sans seuil renseigné (0), la pièce n'a pas
+        # d'exigence minimale : jauge pleine par convention.
+        for p in list(ctx.get('pieces', [])):
+            p.jauge_pct = min(round(p.quantite / p.quantite_minimale * 100), 100) if p.quantite_minimale else 100
         return ctx
 
     def get(self, request, *args, **kwargs):
