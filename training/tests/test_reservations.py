@@ -307,3 +307,33 @@ class NonRegressionAttendeesTests(TestCase):
         from training.models import peut_valider_formation
         self.session.reservations.add(self.marin)
         self.assertFalse(peut_valider_formation(self.marin, self.course))
+
+
+class AffichageSectionSessionsAVenirTests(TestCase):
+    """Non-régression : la section « Sessions à venir » de la fiche formation
+    doit toujours apparaître (avec un message clair si aucune session n'est
+    planifiée), jamais disparaître totalement de la page — cf. retour PO sur
+    la fiche « Réservation d'une session de formation »."""
+
+    def setUp(self):
+        ship = Ship.objects.create(name="Navire Affichage", code="AFFI")
+        service = Service.objects.create(ship=ship, name="Sécurité")
+        self.sector = Sector.objects.create(service=service, name="Incendie")
+        self.marin = User.objects.create_user(username="marin_affi", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
+
+    def test_message_clair_si_aucune_session_planifiee(self):
+        TrainingCourse.objects.create(sector=self.sector, title="Formation sans session")
+        self.client.login(username="marin_affi", password="pass")
+        r = self.client.get("/formations/")
+        self.assertContains(r, "Sessions à venir")
+        self.assertContains(r, "Aucune session prévue pour l'instant.")
+
+    def test_section_affiche_la_session_planifiee(self):
+        course = TrainingCourse.objects.create(sector=self.sector, title="Formation avec session")
+        TrainingSession.objects.create(course=course, scheduled_at=timezone.now() + timedelta(days=7))
+        self.client.login(username="marin_affi", password="pass")
+        r = self.client.get("/formations/")
+        self.assertContains(r, "Sessions à venir")
+        self.assertContains(r, "Réserver ma place")
+        self.assertNotContains(r, "Aucune session prévue pour l'instant.")

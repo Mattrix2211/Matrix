@@ -63,9 +63,9 @@
             <span class="small text-muted">Aucun désigné</span>
           {% endfor %}
         </div>
-        {% if f.sessions_a_venir %}
         <div class="mb-2">
           <span class="fw-semibold small">Sessions à venir :</span>
+          {% if f.sessions_a_venir %}
           <ul class="list-group list-group-flush mt-1">
             {% for s in f.sessions_a_venir %}
               <li class="list-group-item px-0 py-2">
@@ -99,8 +99,10 @@
               </li>
             {% endfor %}
           </ul>
+          {% else %}
+          <div class="small text-muted mt-1">Aucune session prévue pour l'instant.</div>
+          {% endif %}
         </div>
-        {% endif %}
         {% if f.dernieres_validations %}
         <div class="mb-2">
           <button type="button" class="btn btn-link btn-sm px-0" data-bs-toggle="collapse" data-bs-target="#validations-{{ f.id }}">
