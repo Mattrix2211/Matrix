@@ -4,6 +4,11 @@
  * Aucune bibliothèque de graphe externe (principe hors-ligne du projet) : juste
  * du JavaScript auto-hébergé, recalculé au chargement et au redimensionnement.
  *
+ * Les niveaux sont empilés du haut vers le bas (niveau 0 en haut) : les
+ * connecteurs partent donc du bas de la carte prérequise (niveau du dessus)
+ * vers le haut de la carte débloquée (niveau du dessous), pour donner la
+ * lecture d'un arbre qui descend, comme dans un jeu vidéo.
+ *
  * L'affichage étant réparti par catégorie (une section .arbre-competences-
  * conteneur par catégorie), chaque section a ses propres connecteurs : un
  * prérequis d'une autre catégorie n'a pas de carte dans cette section et son
@@ -34,20 +39,22 @@
       if (!prerequis.length) return;
 
       var rectCible = cible.getBoundingClientRect();
-      var xCible = rectCible.left - rectConteneur.left + conteneur.scrollLeft;
-      var yCible = rectCible.top - rectConteneur.top + conteneur.scrollTop + rectCible.height / 2;
+      // Point d'arrivée : haut-centre de la carte débloquée.
+      var xCible = rectCible.left - rectConteneur.left + conteneur.scrollLeft + rectCible.width / 2;
+      var yCible = rectCible.top - rectConteneur.top + conteneur.scrollTop;
 
       prerequis.forEach(function (id) {
         var source = cartesParId[id];
         if (!source) return;
         var rectSource = source.getBoundingClientRect();
-        var xSource = rectSource.right - rectConteneur.left + conteneur.scrollLeft;
-        var ySource = rectSource.top - rectConteneur.top + conteneur.scrollTop + rectSource.height / 2;
-        var xMilieu = (xSource + xCible) / 2;
+        // Point de départ : bas-centre de la carte prérequise (niveau du dessus).
+        var xSource = rectSource.left - rectConteneur.left + conteneur.scrollLeft + rectSource.width / 2;
+        var ySource = rectSource.bottom - rectConteneur.top + conteneur.scrollTop;
+        var yMilieu = (ySource + yCible) / 2;
 
         var chemin = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         var d = 'M ' + xSource + ' ' + ySource +
-          ' C ' + xMilieu + ' ' + ySource + ', ' + xMilieu + ' ' + yCible + ', ' + xCible + ' ' + yCible;
+          ' C ' + xSource + ' ' + yMilieu + ', ' + xCible + ' ' + yMilieu + ', ' + xCible + ' ' + yCible;
         chemin.setAttribute('d', d);
         // Un prérequis déjà validé colore le trait en vert (chemin débloqué),
         // sinon en gris (chemin encore fermé) — même code couleur que les cartes.

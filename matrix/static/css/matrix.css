@@ -237,7 +237,9 @@ code, pre, kbd, .font-mono {
 
 /* ---------------------------------------------------------------------- */
 /* Arbre de compétences (training/web_views.py::CompetencyTreeView) —     */
-/* niveaux en colonnes (CSS flex, pas de grille de graphe externe),       */
+/* niveaux empilés du haut vers le bas (l'arbre « descend », comme un      */
+/* arbre de compétences de jeu vidéo), chaque niveau affichant ses         */
+/* formations côte à côte (CSS flex, pas de grille de graphe externe) ;    */
 /* connecteurs en SVG pur généré par matrix/static/js/arbre_competences.js */
 /* (aucune bibliothèque de graphe, conforme au principe hors-ligne).      */
 /* ---------------------------------------------------------------------- */
@@ -277,16 +279,21 @@ code, pre, kbd, .font-mono {
 /* Un prérequis pas encore validé : trait grisé (chemin encore fermé). */
 .arbre-connecteur--verrouille { stroke: var(--text-ter); opacity: .5; }
 
+/* Empilement vertical des niveaux (niveau 0 en haut, puis chaque niveau
+   suivant en dessous) : c'est cet empilement, combiné aux connecteurs
+   verticaux dessinés par arbre_competences.js, qui donne la lecture
+   « arbre qui descend » attendue plutôt qu'un simple alignement en colonnes
+   ressemblant à un tableau. */
 .arbre-competences {
   display: flex;
-  gap: var(--s8);
+  flex-direction: column;
+  gap: var(--s6);
   position: relative;
 }
 .arbre-niveau {
   display: flex;
   flex-direction: column;
-  gap: var(--s4);
-  min-width: 260px;
+  gap: var(--s3);
 }
 .arbre-niveau-titre {
   font-family: var(--f-display);
@@ -296,12 +303,40 @@ code, pre, kbd, .font-mono {
   letter-spacing: .04em;
   color: var(--text-sec);
 }
+/* Les formations d'un même niveau sont côte à côte : un niveau qui ne
+   contient qu'une seule formation ne doit jamais ressembler à une ligne de
+   liste isolée, il doit rester une « rangée » de l'arbre au même titre que
+   les niveaux à plusieurs formations. */
+.arbre-niveau-cartes {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--s4);
+}
 
+/* Largeur fixe (plutôt qu'un simple min-width hérité du conteneur) pour que
+   les cartes d'un même niveau restent alignées entre elles quel que soit le
+   nombre de formations du niveau — sans cela, une seule carte prendrait
+   toute la largeur du conteneur et ressemblerait à une ligne de tableau. */
+.formation-card {
+  position: relative;
+  width: 260px;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
 /* États d'une formation pour le marin connecté — vert unique --green-tech pour
    « validé » (jamais --green-sport, réservé au cyclisme), --signal pour
    « disponible » (prérequis remplis), et --text-ter (teinte tertiaire déjà
    définie plus haut) pour « verrouillé », plutôt que d'introduire une nouvelle
    variable --ink-faint hors de la palette existante. */
+.formation-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
 .formation-card--valide { border-color: var(--green-tech); }
 .formation-card--valide::before { background: linear-gradient(90deg, var(--green-tech), transparent); }
 .formation-card--disponible { border-color: var(--signal-ui); }

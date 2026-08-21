@@ -57,14 +57,25 @@ def _secteurs_visibles(user):
     """Secteurs visibles par l'utilisateur, en réutilisant scope_filters_for_user
     (via build_scope_q, même système que ScopedQuerySetMixin côté API) plutôt
     qu'un nouveau mécanisme de périmètre — même traduction de chemins que
-    AssetTypeViewSet (assets/views.py) pour un modèle rattaché à un secteur."""
+    AssetTypeViewSet (assets/views.py) pour un modèle rattaché à un secteur.
+
+    Le chemin "section_id" traduit le périmètre le plus fin (celui d'un
+    équipier, rattaché à une section) vers le secteur qui la contient, via la
+    relation inverse Section.sector (related_name="sections") — sans ce
+    chemin, un utilisateur dont le profil est rattaché à une section (le cas
+    le plus courant pour un équipier) n'avait accès à AUCUN secteur, alors que
+    scope_filters_for_user() renvoyait bien {"section_id": ...} : build_scope_q
+    ne trouvait aucune clé correspondante dans ce dict et retombait sur
+    Q(pk__in=[]) (aucun secteur), d'où l'arbre de compétences totalement
+    inaccessible aux équipiers."""
     return Sector.objects.filter(
         build_scope_q(user, {
             "ship_id": "service__ship_id",
             "service_id": "service_id",
             "sector_id": "id",
+            "section_id": "sections__id",
         })
-    ).select_related("service", "service__ship").order_by("service__ship__name", "service__name", "name")
+    ).select_related("service", "service__ship").order_by("service__ship__name", "service__name", "name").distinct()
 
 
 def _utilisateurs_du_secteur_q(sector):
@@ -543,18 +554,41 @@ class ValiderFormationView(LoginRequiredMixin, View):
         return redirect("formation-list")
 
 
+def _secteurs_arbre_competences(user):
+    """Secteurs dont l'arbre de compétences est accessible à l'utilisateur :
+    son propre périmètre (_secteurs_visibles, qui couvre déjà son propre
+    secteur/service/navire — y compris via une section) UNION les secteurs où
+    il est désigné référent d'au moins une formation (TrainingCourse.referents,
+    système déjà livré — cf. training/models.py::peut_valider_formation), même
+    si ce secteur est hors de son périmètre hiérarchique : un référent doit
+    pouvoir suivre la progression des marins qu'il forme, quel que soit son
+    propre rattachement."""
+    ids_perimetre = _secteurs_visibles(user).values_list("id", flat=True)
+    return (
+        Sector.objects.filter(Q(pk__in=ids_perimetre) | Q(training_courses__referents=user))
+        .select_related("service", "service__ship")
+        .order_by("service__ship__name", "service__name", "name")
+        .distinct()
+    )
+
+
 class CompetencyTreeView(LoginRequiredMixin, View):
     """Arbre de compétences : formations d'un secteur disposées par niveau de
     profondeur (chaîne de prérequis), avec l'état de chacune pour le marin
     connecté (validé / disponible / verrouillé). Le calcul du graphe (niveaux,
     anti-cycle) porte sur l'ensemble des formations du secteur — les
     prérequis peuvent traverser les catégories — mais l'affichage regroupe
-    les formations par catégorie (domaine métier) via regrouper_par_categorie."""
+    les formations par catégorie (domaine métier) via regrouper_par_categorie.
+
+    Secteurs proposés : le périmètre propre de l'utilisateur, plus les
+    secteurs où il est référent d'une formation (cf. _secteurs_arbre_competences)
+    — chaque marin voit ainsi toujours SON arbre, et un référent voit en plus
+    les arbres des secteurs qu'il forme."""
 
     template_name = "training/arbre_competences.html"
 
     def get(self, request, *args, **kwargs):
-        secteurs = _secteurs_visibles(request.user)
+        secteurs = _secteurs_arbre_competences(request.user)
         secteur_brut = request.GET.get("secteur")
         if secteur_brut:
             # Même principe que le filtre "sector" de TrainingCourseListView :
