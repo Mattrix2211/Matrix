@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -12,10 +13,11 @@ from django.views.generic import ListView, View
 
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.scopes import scope_filters_for_user
 from notifications.models import Notification
 from org.models import Sector
 
-from .models import TrainingCourse, TrainingSession
+from .models import TrainingCourse, TrainingRecord, TrainingSession
 from .services import calculer_carte_competences, regrouper_par_categorie
 
 User = get_user_model()
@@ -32,6 +34,12 @@ NIVEAU_REQUIS_GESTION_PREREQUIS = RoleLevel.CHEF_SECTION
 # externes prendront le relais dans une phase future non spécifiée.
 NIVEAU_REQUIS_CREATION_FORMATION = RoleLevel.ADMIN_NAVIRE
 
+# Seuil de rôle requis pour valider qu'un marin a suivi/réussi une formation
+# (création d'un TrainingRecord) : même seuil que NIVEAU_REQUIS_GESTION_PREREQUIS.
+# Le modèle ne définit pas (encore) de référents dédiés par validation, donc
+# pas de nouveau système de contrôle d'accès ici.
+NIVEAU_REQUIS_VALIDATION = RoleLevel.CHEF_SECTION
+
 
 def _peut_gerer_prerequis(user):
     return user_role_level(user) >= NIVEAU_REQUIS_GESTION_PREREQUIS
@@ -39,6 +47,10 @@ def _peut_gerer_prerequis(user):
 
 def _peut_creer_formation(user):
     return user_role_level(user) >= NIVEAU_REQUIS_CREATION_FORMATION
+
+
+def _peut_valider_formation(user):
+    return user_role_level(user) >= NIVEAU_REQUIS_VALIDATION
 
 
 def _secteurs_visibles(user):
@@ -67,6 +79,66 @@ def _utilisateurs_du_secteur_q(sector):
         | Q(profile__sector_id=sector.id)
         | Q(profile__section__sector_id=sector.id)
     )
+
+
+def _formations_visibles(user):
+    """Formations visibles par l'utilisateur, même traduction de périmètre que
+    TrainingCourseListView.get_scoped_filters — réutilisée aussi par
+    ValiderFormationView pour revalider côté serveur que la formation ciblée
+    est bien dans le périmètre de l'appelant."""
+    return TrainingCourse.objects.filter(build_scope_q(user, {
+        "ship_id": "sector__service__ship_id",
+        "service_id": "sector__service_id",
+        "sector_id": "sector_id",
+        "section_id": "sector__sections__id",
+    }))
+
+
+def filtres_perimetre_marin(user):
+    """Calcule le filtre de périmètre applicable à User (via son profil).
+
+    Contrairement à TrainingCourse (toujours rattaché à un secteur), un
+    marin peut être rattaché à n'importe quel niveau de la hiérarchie
+    Navire > Service > Secteur > Section (UserProfile.scope renvoie le
+    niveau le plus fin renseigné). Un simple préfixage "profile__" du
+    résultat de scope_filters_for_user ne suffit donc pas : un chef de
+    service scopé au niveau service_id ne verrait alors que les marins dont
+    le profil a directement service_id renseigné, pas ceux rattachés à un
+    secteur ou une section de ce service (cas le plus courant). Il faut
+    donc, selon le niveau du validateur, couvrir tous les marins rattachés
+    n'importe où EN DESSOUS de ce niveau dans la hiérarchie, via un Q
+    combinant chaque chemin possible.
+
+    Renvoie un objet Q, ou None si le périmètre est vide (supervision
+    globale, COMMANDANT et au-dessus, qui voient tous les marins)."""
+    filters = scope_filters_for_user(user)
+
+    section_id = filters.get("section_id")
+    if section_id is not None:
+        return Q(profile__section_id=section_id)
+
+    sector_id = filters.get("sector_id")
+    if sector_id is not None:
+        return Q(profile__sector_id=sector_id) | Q(profile__section__sector_id=sector_id)
+
+    service_id = filters.get("service_id")
+    if service_id is not None:
+        return (
+            Q(profile__service_id=service_id)
+            | Q(profile__sector__service_id=service_id)
+            | Q(profile__section__sector__service_id=service_id)
+        )
+
+    ship_id = filters.get("ship_id")
+    if ship_id is not None:
+        return (
+            Q(profile__ship_id=ship_id)
+            | Q(profile__service__ship_id=ship_id)
+            | Q(profile__sector__service__ship_id=ship_id)
+            | Q(profile__section__sector__service__ship_id=ship_id)
+        )
+
+    return None
 
 
 def _entier_ou_none(valeur):
@@ -117,13 +189,14 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             "ship_id": "sector__service__ship_id",
             "service_id": "sector__service_id",
             "sector_id": "sector_id",
+            "section_id": "sector__sections__id",
         })
 
     def get_queryset(self):
         qs = (
             super().get_queryset()
             .select_related("sector", "sector__service", "sector__service__ship")
-            .prefetch_related("prerequisites", "referents")
+            .prefetch_related("prerequisites", "referents", "records", "records__user")
             .order_by("sector__name", "title")
         )
         # Valeur issue du <select> HTML du filtre : peut arriver non numérique
@@ -147,7 +220,7 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # doivent jamais porter sur l'ensemble des formations de la flotte —
         # sous peine de fuite de catégories et de titres de formation hors
         # périmètre dans le HTML (datalist + cases à cocher des prérequis).
-        formations_visibles = TrainingCourse.objects.filter(self.get_scoped_filters())
+        formations_visibles = _formations_visibles(self.request.user)
         # Candidats prérequis pour chaque formation : uniquement les formations du
         # même secteur (l'arbre de compétences, comme les formations elles-mêmes,
         # est organisé par secteur — cf. CompetencyTreeView) — regroupés par
@@ -204,9 +277,37 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         for s in sessions_qs:
             s.deja_reserve = self.request.user in s.reservations.all()
             sessions_par_formation[s.course_id].append(s)
+        # Suivi des validations (T-FORM) : compteurs à jour/expirées et
+        # dernières validations par formation, affichés directement sur
+        # chaque carte sans navigation supplémentaire.
+        aujourdhui = timezone.localdate()
         for f in formations:
             f.sessions_a_venir = sessions_par_formation.get(f.id, [])
+            records = list(f.records.all())
+            f.nb_a_jour = sum(1 for r in records if r.expires_at >= aujourdhui)
+            f.nb_expires = sum(1 for r in records if r.expires_at < aujourdhui)
+            f.dernieres_validations = sorted(records, key=lambda r: r.completed_at, reverse=True)[:5]
         ctx["formations"] = formations
+
+        peut_valider = _peut_valider_formation(self.request.user)
+        ctx["peut_valider"] = peut_valider
+        if peut_valider:
+            # Marins visibles limités au périmètre du validateur (même logique
+            # de scope que le reste de l'application), sauf pour les rôles à
+            # supervision globale (COMMANDANT et au-dessus) pour qui le
+            # périmètre est vide et qui voient donc tous les marins.
+            marins = User.objects.filter(is_active=True).select_related("profile").order_by(
+                "last_name", "first_name", "username"
+            )
+            q_perimetre_marin = filtres_perimetre_marin(self.request.user)
+            if q_perimetre_marin is not None:
+                marins = marins.filter(q_perimetre_marin)
+            ctx["marins"] = marins
+        # Objet date (pas de chaîne) : comparé tel quel à r.expires_at dans le
+        # template pour le badge À jour/Expirée. Le rendu template d'un objet
+        # date appelle str(), qui produit déjà le format ISO AAAA-MM-JJ attendu
+        # par l'attribut value de l'input type="date" du formulaire.
+        ctx["aujourdhui"] = aujourdhui
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -368,6 +469,77 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             _afficher_erreur_prerequis(request, exc)
             return redirect("formation-list")
         messages.success(request, "Réservation annulée.")
+        return redirect("formation-list")
+
+
+class ValiderFormationView(LoginRequiredMixin, View):
+    """Crée un TrainingRecord : un chef valide qu'un marin a suivi/réussi une
+    formation. L'expiration est calculée automatiquement via
+    TrainingRecord.compute_expiry, comme pour toute création côté API."""
+
+    def post(self, request):
+        if not _peut_valider_formation(request.user):
+            raise PermissionDenied
+
+        marin_id = request.POST.get("marin_id")
+        course_id = request.POST.get("course_id")
+        completed_at_str = request.POST.get("completed_at")
+
+        if not (marin_id and course_id and completed_at_str):
+            messages.error(request, "Le marin, la formation et la date de complétion sont obligatoires.")
+            return redirect("formation-list")
+
+        try:
+            marin = User.objects.get(pk=marin_id, is_active=True)
+        except User.DoesNotExist:
+            messages.error(request, "Marin introuvable.")
+            return redirect("formation-list")
+
+        try:
+            course = TrainingCourse.objects.get(pk=course_id)
+        except TrainingCourse.DoesNotExist:
+            messages.error(request, "Formation introuvable.")
+            return redirect("formation-list")
+
+        # Revalidation côté serveur : la formation ciblée doit être dans le
+        # périmètre effectif de l'utilisateur, pas seulement proposée par le
+        # GET qui alimente le select (empêche un chef de valider une formation
+        # d'un secteur hors de son périmètre en forgeant la requête POST).
+        if not _formations_visibles(request.user).filter(pk=course.pk).exists():
+            raise PermissionDenied
+
+        # Même revalidation côté serveur, appliquée cette fois au marin ciblé
+        # (et non plus seulement à la formation) : empêche un chef de valider
+        # une formation de son périmètre pour un marin qui n'en fait pas
+        # partie, en forgeant la requête POST avec un autre marin_id que ceux
+        # proposés par le select du GET.
+        q_perimetre_marin = filtres_perimetre_marin(request.user)
+        if q_perimetre_marin is not None and not User.objects.filter(q_perimetre_marin, pk=marin.pk).exists():
+            raise PermissionDenied
+
+        try:
+            completed_at = date.fromisoformat(completed_at_str)
+        except ValueError:
+            messages.error(request, "Date de complétion invalide.")
+            return redirect("formation-list")
+
+        expires_at = TrainingRecord.compute_expiry(completed_at, course.validity_days)
+        TrainingRecord.objects.create(
+            user=marin,
+            course=course,
+            completed_at=completed_at,
+            expires_at=expires_at,
+            validated_by=request.user,
+            created_by=request.user,
+        )
+        # Niveau 25 = validation réussie (constante de niveau la plus élevée du
+        # module de messages Django, juste au-dessus du niveau d'information).
+        messages.add_message(
+            request,
+            25,
+            f"Formation « {course.title} » validée pour {marin.get_full_name() or marin.username} "
+            f"(expire le {expires_at.strftime('%d/%m/%Y')}).",
+        )
         return redirect("formation-list")
 
 

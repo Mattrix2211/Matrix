@@ -3,6 +3,11 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Formations</h1>
   <div class="d-flex gap-2">
+    {% if peut_valider %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#validerFormationModal">
+        <i class="bi bi-check2-circle"></i> Valider une formation
+      </button>
+    {% endif %}
     {% if peut_creer_formation %}
       <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createCourseModal">
         <i class="bi bi-plus-lg"></i> Nouvelle formation
@@ -38,6 +43,8 @@
           {% else %}
             <span class="badge text-bg-light border text-muted">Non catégorisée</span>
           {% endif %}
+          <span class="badge badge-conforme">{{ f.nb_a_jour }} à jour</span>
+          {% if f.nb_expires %}<span class="badge text-bg-danger">{{ f.nb_expires }} à renouveler</span>{% endif %}
         </div>
         {% if f.description %}<p class="small mb-2">{{ f.description }}</p>{% endif %}
         <div class="mb-2">
@@ -92,6 +99,41 @@
               </li>
             {% endfor %}
           </ul>
+        </div>
+        {% endif %}
+        {% if f.dernieres_validations %}
+        <div class="mb-2">
+          <button type="button" class="btn btn-link btn-sm px-0" data-bs-toggle="collapse" data-bs-target="#validations-{{ f.id }}">
+            Dernières validations <i class="bi bi-chevron-down"></i>
+          </button>
+          <div class="collapse" id="validations-{{ f.id }}">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Marin</th>
+                  <th>Validée le</th>
+                  <th>Expire le</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in f.dernieres_validations %}
+                <tr>
+                  <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+                  <td class="font-mono">{{ r.completed_at|date:"d/m/Y" }}</td>
+                  <td class="font-mono">{{ r.expires_at|date:"d/m/Y" }}</td>
+                  <td>
+                    {% if r.expires_at >= aujourdhui %}
+                      <span class="badge badge-conforme">À jour</span>
+                    {% else %}
+                      <span class="badge text-bg-danger">Expirée</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
         {% endif %}
         {% if peut_gerer_prerequis %}
@@ -290,5 +332,53 @@
   });
 })();
 </script>
+{% endif %}
+
+{% if peut_valider %}
+{# Modale de validation d'une formation pour un marin #}
+<div class="modal fade" id="validerFormationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Valider une formation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="post" action="{% url 'formation-valider' %}">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Marin</label>
+            <select class="form-select" name="marin_id" required>
+              <option value="">—</option>
+              {% for m in marins %}
+              <option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}{% if m.profile.role %} — {{ m.profile.get_role_display }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Formation</label>
+            <select class="form-select" name="course_id" required>
+              <option value="">—</option>
+              {% for c in formations %}
+              <option value="{{ c.id }}">{{ c.title }} ({{ c.sector }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Date de complétion</label>
+            <input type="date" class="form-control font-mono" name="completed_at" value="{{ aujourdhui }}" required>
+            <div class="form-text">La date d'expiration est calculée automatiquement selon la durée de validité de la formation.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          {# Bouton de validation du formulaire : dans un <form>, un <button> sans #}
+          {# attribut "type" déclenche l'envoi par défaut (comportement HTML natif). #}
+          <button class="btn btn-primary">Valider</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
