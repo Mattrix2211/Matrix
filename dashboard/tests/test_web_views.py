@@ -11,7 +11,7 @@ from django.utils import timezone
 from assets.models import Asset, AssetType, Installation, InstallationMaintenance
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from org.models import Sector, Service, Ship
-from training.models import TrainingCourse, TrainingSession
+from training.models import TrainingCourse, TrainingRecord, TrainingSession
 
 
 class EspacePersonnelTests(TestCase):
@@ -161,3 +161,99 @@ class EspacePersonnelTests(TestCase):
 
         self.assertContains(response, "Aucune maintenance ne vous est actuellement assignée.")
         self.assertContains(response, "Aucune formation ne vous est actuellement programmée.")
+        self.assertContains(response, "Aucune formation validée n'est actuellement enregistrée à votre nom.")
+
+    def test_contexte_contient_les_qualifications_du_marin_connecte(self):
+        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        record = TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=100),
+            expires_at=timezone.localdate() + timedelta(days=200),
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertEqual(list(response.context["mes_qualifications"]), [record])
+
+    def test_qualification_d_un_autre_marin_est_absente_du_contexte(self):
+        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        TrainingRecord.objects.create(
+            user=self.autre_marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=100),
+            expires_at=timezone.localdate() + timedelta(days=200),
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertEqual(list(response.context["mes_qualifications"]), [])
+
+    def test_qualifications_triees_par_date_dexpiration_croissante(self):
+        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        record_lointain = TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=10),
+            expires_at=timezone.localdate() + timedelta(days=300),
+        )
+        record_proche = TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=300),
+            expires_at=timezone.localdate() + timedelta(days=10),
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertEqual(
+            list(response.context["mes_qualifications"]), [record_proche, record_lointain]
+        )
+
+    def test_badge_expiree_pour_une_qualification_dont_lexpiration_est_passee(self):
+        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=400),
+            expires_at=timezone.localdate() - timedelta(days=35),
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+        contenu = response.content.decode()
+
+        self.assertIn("Expirée", contenu)
+        self.assertIn("text-bg-danger", contenu)
+
+    def test_badge_bientot_expiree_pour_une_qualification_dans_le_seuil_dalerte(self):
+        """Le seuil est aligné sur la plus lointaine échéance de
+        notify_expiring_training (90 jours par défaut) : une qualification qui
+        expire dans 30 jours doit donc afficher « Bientôt expirée », pas « À
+        jour »."""
+        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=335),
+            expires_at=timezone.localdate() + timedelta(days=30),
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+        contenu = response.content.decode()
+
+        self.assertIn("Bientôt expirée", contenu)
+        self.assertIn("text-bg-warning", contenu)
+
+    def test_badge_a_jour_pour_une_qualification_dont_lexpiration_est_lointaine(self):
+        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate(),
+            expires_at=timezone.localdate() + timedelta(days=365),
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+        contenu = response.content.decode()
+
+        self.assertIn("À jour", contenu)
+        self.assertIn("badge-conforme", contenu)

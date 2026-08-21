@@ -5,7 +5,7 @@
 
 <h2 class="h5 mb-3">Mon espace personnel</h2>
 <div class="row g-3 mb-4">
-  <div class="col-md-4">
+  <div class="col-md-6 col-lg-3">
     <div class="card h-100">
       <div class="card-header">Mes maintenances assignées</div>
       <div class="card-body">
@@ -29,7 +29,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-6 col-lg-3">
     <div class="card h-100">
       <div class="card-header">Mes formations</div>
       <div class="card-body">
@@ -53,7 +53,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-6 col-lg-3">
     <div class="card h-100">
       <div class="card-header">Mes tickets correctifs</div>
       <div class="card-body">
@@ -73,6 +73,28 @@
         </ul>
         {% else %}
         <p class="text-muted mb-0">Aucun ticket correctif ne vous est actuellement assigné.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header">Mes qualifications</div>
+      <div class="card-body">
+        {% if mes_qualifications %}
+        <ul class="list-group list-group-flush">
+          {% for qualification in mes_qualifications %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <span class="fw-semibold">{{ qualification.course.title }}</span>
+              <div class="small text-muted font-mono">Expire le {{ qualification.expires_at|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge {{ qualification.badge_classe }} align-self-center">{{ qualification.badge_libelle }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune formation validée n'est actuellement enregistrée à votre nom.</p>
         {% endif %}
       </div>
     </div>

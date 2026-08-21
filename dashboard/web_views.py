@@ -18,7 +18,8 @@ from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiec
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, ship_id_for_user
-from training.models import TrainingSession
+from notifications.tasks import JOURS_ALERTE_EXPIRATION_FORMATION
+from training.models import TrainingRecord, TrainingSession
 
 # Occurrences considérées comme terminées : on ne les affiche pas dans "Mes
 # maintenances", seules celles qui restent à faire intéressent le marin.
@@ -34,6 +35,25 @@ _BADGE_STATUT_MAINTENANCE = {
     "OVERDUE": "bg-danger",
     "WAITING_VALIDATION": "bg-warning",
 }
+
+# Seuil (en jours) sous lequel une qualification déjà validée est considérée
+# "bientôt expirée" plutôt que "à jour" dans la carte "Mes qualifications" :
+# aligné sur la plus lointaine échéance de notify_expiring_training
+# (notifications/tasks.py), pour que le badge de la carte corresponde à
+# l'alerte que le marin a déjà pu recevoir.
+_SEUIL_QUALIFICATION_BIENTOT_EXPIREE_JOURS = max(JOURS_ALERTE_EXPIRATION_FORMATION)
+
+
+def _badge_qualification(record, aujourdhui):
+    """Classe de badge + libellé pour une qualification (TrainingRecord),
+    même palette que logistics/stock_list.html (badge-conforme/text-bg-warning/
+    text-bg-danger) : expirée si la date d'expiration est passée, bientôt
+    expirée si elle tombe dans le seuil d'alerte ci-dessus, à jour sinon."""
+    if record.expires_at < aujourdhui:
+        return "text-bg-danger", "Expirée"
+    if record.expires_at <= aujourdhui + timezone.timedelta(days=_SEUIL_QUALIFICATION_BIENTOT_EXPIREE_JOURS):
+        return "text-bg-warning", "Bientôt expirée"
+    return "badge-conforme", "À jour"
 
 
 class TableauDeBordView(LoginRequiredMixin, TemplateView):
@@ -77,10 +97,28 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
             .order_by("-severity", "reported_at")
         )
 
+        aujourdhui = timezone.localdate()
+
+        # Formations déjà validées par le marin (TrainingRecord), avec leur
+        # date d'expiration — jusqu'ici cette information n'apparaissait que
+        # sous forme de notification ponctuelle (notify_expiring_training,
+        # notifications/tasks.py) qui disparaît une fois passée, sans vue
+        # d'ensemble permanente dans l'espace personnel du marin.
+        mes_qualifications = list(
+            TrainingRecord.objects.select_related("course")
+            .filter(user=self.request.user)
+            .order_by("expires_at")
+        )
+        for qualification in mes_qualifications:
+            qualification.badge_classe, qualification.badge_libelle = _badge_qualification(
+                qualification, aujourdhui
+            )
+
         contexte["mes_maintenances"] = mes_maintenances
         contexte["mes_formations"] = mes_formations
         contexte["mes_tickets"] = mes_tickets
-        contexte["aujourdhui"] = timezone.localdate()
+        contexte["mes_qualifications"] = mes_qualifications
+        contexte["aujourdhui"] = aujourdhui
         return contexte
 
 

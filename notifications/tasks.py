@@ -12,8 +12,15 @@ from accounts.models import UserProfile, Roles
 from assets.models import Installation, InstallationMaintenance, ModeDeclenchement
 from assets.trend import jours_avant_franchissement_seuil
 
+# Échéances (en jours avant expiration) auxquelles une formation déclenche une
+# alerte : réutilisé par dashboard/web_views.py pour aligner le seuil "bientôt
+# expirée" de la carte "Mes qualifications" sur celui de ces notifications,
+# plutôt que de dupliquer ces valeurs à un autre endroit du code.
+JOURS_ALERTE_EXPIRATION_FORMATION = (30, 60, 90)
+
+
 @shared_task
-def notify_expiring_training(days_list=(30, 60, 90)):
+def notify_expiring_training(days_list=JOURS_ALERTE_EXPIRATION_FORMATION):
     today = timezone.localdate()
     for days in days_list:
         target = today + timedelta(days=days)
