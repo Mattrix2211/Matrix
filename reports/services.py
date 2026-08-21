@@ -9,7 +9,6 @@ Réutilise scope_filters_for_user (aucun nouveau système de permission ni de sc
 """
 from datetime import timedelta
 
-import weasyprint
 from django.conf import settings
 from django.db.models import F
 from django.template.loader import render_to_string
@@ -26,6 +25,20 @@ from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
 from training.models import TrainingRecord
+
+# WeasyPrint dépend de bibliothèques natives GTK absentes par défaut sur beaucoup de
+# postes (notamment Windows, même après `pip install`). L'import doit rester optionnel
+# et ne JAMAIS faire planter le chargement de l'application : il est déclenché dès le
+# démarrage via matrix/urls.py -> reports/web_urls.py -> reports/web_views.py -> ici.
+# Une absence de GTK lève une OSError (pas une ImportError) qu'il faut donc rattraper
+# explicitement en plus de l'ImportError classique (paquet non installé).
+try:
+    import weasyprint
+
+    WEASYPRINT_DISPONIBLE = True
+except (ImportError, OSError):
+    weasyprint = None
+    WEASYPRINT_DISPONIBLE = False
 
 # Statuts considérés comme clos : à exclure des listes "en cours"/"ouverts".
 STATUTS_TICKET_FERMES = ("CLOSED", "CANCELLED")
@@ -47,6 +60,13 @@ class PerimetreNonAutorise(PermissionError):
     """Levée quand le périmètre demandé pour le bilan ne correspond pas au
     périmètre propre de l'utilisateur connecté (pas de drill-down hiérarchique :
     un utilisateur ne peut générer le bilan que de son propre périmètre)."""
+
+
+class BilanPdfIndisponible(RuntimeError):
+    """Levée quand la génération de bilan PDF est demandée alors que WeasyPrint
+    n'est pas disponible sur ce poste (bibliothèques natives GTK manquantes,
+    cas fréquent sous Windows). Le message est destiné à être affiché tel quel
+    à l'utilisateur."""
 
 
 def _dernier_par_installation(queryset, champ_installation="installation_id"):
@@ -197,6 +217,12 @@ def generer_bilan_instantane_pdf(scope_type: str, scope_id, utilisateur) -> byte
     """Génère le bilan PDF Mode Instantané pour le périmètre demandé et renvoie
     le contenu binaire du PDF (WeasyPrint, génération 100% côté serveur — aucune
     dépendance CDN, compatible fonctionnement hors-ligne)."""
+    if not WEASYPRINT_DISPONIBLE:
+        raise BilanPdfIndisponible(
+            "La génération de bilan PDF n'est pas disponible sur ce poste "
+            "(bibliothèques GTK manquantes). Installez le GTK3 Runtime ou "
+            "contactez l'administrateur système."
+        )
     contexte = construire_contexte_instantane(scope_type, scope_id, utilisateur)
     html = render_to_string("reports/bilan_instantane.html", contexte)
     return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
@@ -393,6 +419,12 @@ def generer_bilan_periode_pdf(
 ) -> bytes:
     """Génère le bilan PDF Mode Période pour le périmètre et la fenêtre demandés
     et renvoie le contenu binaire du PDF (WeasyPrint, génération 100% côté serveur)."""
+    if not WEASYPRINT_DISPONIBLE:
+        raise BilanPdfIndisponible(
+            "La génération de bilan PDF n'est pas disponible sur ce poste "
+            "(bibliothèques GTK manquantes). Installez le GTK3 Runtime ou "
+            "contactez l'administrateur système."
+        )
     contexte = construire_contexte_periode(scope_type, scope_id, utilisateur, date_debut, date_fin)
     html = render_to_string("reports/bilan_periode.html", contexte)
     return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()

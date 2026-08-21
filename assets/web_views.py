@@ -36,6 +36,17 @@ def _peut_gerer_rattachement_parent(user):
     return user_role_level(user) >= RoleLevel.CHEF_SERVICE
 
 
+def _peut_gerer_materiel(user):
+    """Seuils d'écriture pour la création/modification/suppression de dossiers,
+    matériels et installations : CHEF_SECTION et au-dessus, comme pour l'API DRF
+    (RolePermission.min_level_write) — un ÉQUIPIER ne doit pas pouvoir créer un
+    dossier, un matériel ou une installation. Attention à ne pas confondre avec
+    _peut_gerer_rattachement_parent (CHEF_SERVICE), seuil plus élevé réservé au
+    seul rattachement parent/enfant : l'appliquer ici bloquerait à tort un
+    CHEF_SECTEUR alors qu'il doit pouvoir créer un dossier ou un matériel."""
+    return user_role_level(user) >= RoleLevel.CHEF_SECTION
+
+
 def _sous_ensembles_ids(equipement):
     """Renvoie l'ensemble des identifiants de tous les sous-ensembles (directs et
     indirects) d'un équipement, afin de les exclure de la liste des parents proposés
@@ -95,6 +106,37 @@ def _afficher_erreur_validation(request, erreur):
         messages.error(request, "Rattachement invalide : " + " ".join(erreur.messages))
 
 
+def _perimetre_utilisateur(user):
+    """Navire/service/secteur/section affectés à l'utilisateur connecté (profil),
+    utilisés pour pré-remplir automatiquement les formulaires de création de
+    matériel et d'installation avec le périmètre du chef connecté, plutôt que de
+    lui faire ressaisir à la main une hiérarchie déjà connue (principe « plus
+    rapide qu'Excel »). Réutilise le profil existant (accounts.UserProfile),
+    sans nouveau système de scope."""
+    profile = getattr(user, 'profile', None)
+    if not profile:
+        return {'user_ship_id': None, 'user_service_id': None, 'user_sector_id': None, 'user_section_id': None}
+    return {
+        'user_ship_id': profile.ship_id,
+        'user_service_id': profile.service_id,
+        'user_sector_id': profile.sector_id,
+        'user_section_id': profile.section_id,
+    }
+
+
+def _redirect_liste_materiel(request):
+    """Redirige vers la liste des matériels en conservant le dossier actuellement
+    parcouru (paramètre ?folder=), qui figure déjà dans l'URL courante puisque les
+    formulaires de la page n'ont pas d'attribut action. Sans cela, toute création,
+    modification ou suppression ramenait systématiquement l'utilisateur à la racine
+    et donnait l'impression qu'un matériel ajouté dans un sous-dossier n'y apparaissait
+    jamais (bug d'affichage corrigé ici)."""
+    folder_id = request.GET.get('folder') or request.POST.get('folder_id')
+    if folder_id:
+        return redirect(f"/assets/?folder={folder_id}")
+    return redirect('asset-list')
+
+
 class AssetDetailView(LoginRequiredMixin, DetailView):
     model = Asset
     template_name = 'assets/detail.html'
@@ -149,6 +191,13 @@ class AssetListView(LoginRequiredMixin, ListView):
             qs = qs.filter(asset_type_id=asset_type_id)
         if folder_id:
             qs = qs.filter(folder_id=folder_id)
+        elif not q:
+            # Vue racine (aucun dossier sélectionné, pas de recherche globale) :
+            # n'affiche que les matériels non classés dans un dossier, symétrique au
+            # filtrage déjà appliqué aux dossiers eux-mêmes (parent__isnull=True) plus
+            # bas. Sans ce filtre, un matériel rangé dans un sous-dossier se retrouvait
+            # mélangé à la racine et ne semblait jamais "rangé" dans son dossier.
+            qs = qs.filter(folder__isnull=True)
         if q:
             qs = qs.filter(
                 models.Q(serial_number__icontains=q) |
@@ -178,6 +227,9 @@ class AssetListView(LoginRequiredMixin, ListView):
             Asset.objects.select_related('sector', 'asset_type').order_by('designation')
             if ctx['peut_gerer_parent'] else Asset.objects.none()
         )
+        # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
+        # de création à partir du profil du chef connecté.
+        ctx.update(_perimetre_utilisateur(self.request.user))
         # Navigation par dossiers
         current_folder_id = self.request.GET.get('folder')
         current_folder = AssetFolder.objects.filter(pk=current_folder_id).select_related('parent').first() if current_folder_id else None
@@ -284,10 +336,17 @@ class AssetListView(LoginRequiredMixin, ListView):
                     AuditLog.objects.create(actor=request.user, action='bulk_delete_asset', details=f'id={a.id}')
                 assets.delete()
                 messages.success(request, f'{count} matériel(s) supprimé(s).')
-            return redirect('asset-list')
+            return _redirect_liste_materiel(request)
 
         # Folder operations
         if action == 'create_folder':
+            # Création d'un dossier : réservée aux CHEF_SECTION et au-dessus, même
+            # seuil que la création de matériel ci-dessous. Un ÉQUIPIER ne doit pas
+            # pouvoir ajouter un dossier (bug sécurité corrigé ici) ; attention à ne
+            # pas reprendre le seuil CHEF_SERVICE du rattachement parent, plus élevé,
+            # qui bloquerait à tort un CHEF_SECTEUR.
+            if not _peut_gerer_materiel(request.user):
+                raise PermissionDenied
             name = request.POST.get('name', '').strip()
             parent_id = request.POST.get('parent_id')
             parent = AssetFolder.objects.filter(pk=parent_id).first() if parent_id else None
@@ -302,7 +361,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                     fld.save(update_fields=['parent'])
                 messages.success(request, 'Dossier créé.')
                 AuditLog.objects.create(actor=request.user, action='create_asset_folder', details=f'name={name}')
-            return redirect('asset-list')
+            return _redirect_liste_materiel(request)
         if action == 'rename_folder':
             pk = request.POST.get('pk')
             name = request.POST.get('name', '').strip()
@@ -315,13 +374,13 @@ class AssetListView(LoginRequiredMixin, ListView):
                     messages.success(request, 'Dossier renommé.')
             except AssetFolder.DoesNotExist:
                 messages.error(request, 'Dossier introuvable.')
-            return redirect('asset-list')
+            return _redirect_liste_materiel(request)
         if action == 'delete_folder':
             pk = request.POST.get('pk')
             AssetFolder.objects.filter(pk=pk).delete()
             AuditLog.objects.create(actor=request.user, action='delete_asset_folder', details=f'id={pk}')
             messages.success(request, 'Dossier supprimé.')
-            return redirect('asset-list')
+            return _redirect_liste_materiel(request)
         if action == 'move_asset_to_folder':
             asset_id = request.POST.get('asset_id')
             folder_id = request.POST.get('folder_id')
@@ -335,6 +394,13 @@ class AssetListView(LoginRequiredMixin, ListView):
 
         # Single create/edit/delete
         if action == 'create_asset':
+            # Création d'un matériel : réservée aux CHEF_SECTION et au-dessus (même
+            # seuil que l'API DRF, cf. RolePermission.min_level_write) — un ÉQUIPIER
+            # ne doit pas pouvoir ajouter de matériel (bug sécurité corrigé ici).
+            # L'édition et la suppression restent volontairement ouvertes à tous les
+            # utilisateurs connectés (comportement existant, cf. tests T2/T3).
+            if not _peut_gerer_materiel(request.user):
+                raise PermissionDenied
             type_id = request.POST.get('asset_type_id')
             internal_id = request.POST.get('internal_id', '').strip()
             serial = request.POST.get('serial_number', '').strip()
@@ -363,7 +429,7 @@ class AssetListView(LoginRequiredMixin, ListView):
             try:
                 if not type_id:
                     messages.error(request, "Aucun type disponible pour le secteur sélectionné.")
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 at = AssetType.objects.get(pk=type_id)
                 asset = Asset(
                     asset_type=at,
@@ -394,12 +460,12 @@ class AssetListView(LoginRequiredMixin, ListView):
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
                     messages.error(request, erreur_parent)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 try:
                     asset.full_clean()
                 except ValidationError as exc:
                     _afficher_erreur_validation(request, exc)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 asset.save()
                 # Associer au dossier courant si présent
                 if folder_id:
@@ -449,12 +515,12 @@ class AssetListView(LoginRequiredMixin, ListView):
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
                     messages.error(request, erreur_parent)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 try:
                     asset.full_clean()
                 except ValidationError as exc:
                     _afficher_erreur_validation(request, exc)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 asset.save()
                 # Ajout de nouveaux documents pendant la modification
                 try:
@@ -479,7 +545,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                 messages.success(request, 'Document supprimé.')
             except Asset.DoesNotExist:
                 messages.error(request, 'Matériel introuvable.')
-        return redirect('asset-list')
+        return _redirect_liste_materiel(request)
 
 
 class InstallationListView(LoginRequiredMixin, ListView):
@@ -521,6 +587,9 @@ class InstallationListView(LoginRequiredMixin, ListView):
             Installation.objects.select_related('sector').order_by('designation')
             if ctx['peut_gerer_parent'] else Installation.objects.none()
         )
+        # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
+        # de création à partir du profil du chef connecté.
+        ctx.update(_perimetre_utilisateur(self.request.user))
         # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement)
         try:
             installations = list(ctx.get('installations', []))
@@ -658,6 +727,13 @@ class InstallationListView(LoginRequiredMixin, ListView):
             return redirect('installation-list')
 
         if action == 'create_installation':
+            # Création d'une installation : réservée aux CHEF_SECTION et au-dessus,
+            # même seuil que la création de matériel — un ÉQUIPIER ne doit pas
+            # pouvoir en ajouter une (bug sécurité corrigé ici). L'édition et la
+            # suppression restent volontairement ouvertes à tous les utilisateurs
+            # connectés (comportement existant, cf. tests T2/T3).
+            if not _peut_gerer_materiel(request.user):
+                raise PermissionDenied
             designation = request.POST.get('designation', '').strip()
             reference = request.POST.get('reference', '').strip()
             marque = request.POST.get('marque', '').strip()

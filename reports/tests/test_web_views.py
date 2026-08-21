@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from accounts.models import UserProfile
 from org.models import Sector, Service, Ship
-from reports.services import PerimetreNonAutorise
+from reports.services import BilanPdfIndisponible, PerimetreNonAutorise
 
 
 class GenererBilanViewTests(TestCase):
@@ -101,3 +101,18 @@ class GenererBilanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         messages = [str(m) for m in response.context["messages"]]
         self.assertTrue(any("autorisé" in m for m in messages))
+
+    def test_pdf_indisponible_ne_leve_pas_une_erreur_500(self):
+        """WeasyPrint peut être indisponible (GTK manquant, cas Windows) : la vue
+        doit l'intercepter proprement (message + redirection), jamais une 500."""
+        self.client.login(username="chef", password="pass")
+        with patch(
+            "reports.web_views.generer_bilan_instantane_pdf",
+            side_effect=BilanPdfIndisponible(
+                "La génération de bilan PDF n'est pas disponible sur ce poste."
+            ),
+        ):
+            response = self.client.get(self.url, follow=True)
+        self.assertEqual(response.status_code, 200)
+        messages = [str(m) for m in response.context["messages"]]
+        self.assertTrue(any("PDF" in m for m in messages))

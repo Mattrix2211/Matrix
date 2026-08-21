@@ -18,6 +18,7 @@ from django.views import View
 from matrix.core.roles import RoleLevel, user_role_level
 
 from .services import (
+    BilanPdfIndisponible,
     PerimetreNonAutorise,
     generer_bilan_instantane_pdf,
     generer_bilan_periode_pdf,
@@ -72,6 +73,9 @@ class GenererBilanView(LoginRequiredMixin, View):
             messages.error(
                 request, "Vous n'êtes pas autorisé à générer le bilan de ce périmètre."
             )
+            return redirect("home")
+        except BilanPdfIndisponible as exc:
+            messages.error(request, str(exc))
             return redirect("home")
         except ValueError as exc:
             # Ex : date de début postérieure à la date de fin (voir services.py).
