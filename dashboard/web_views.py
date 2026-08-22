@@ -104,10 +104,21 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
         # sous forme de notification ponctuelle (notify_expiring_training,
         # notifications/tasks.py) qui disparaît une fois passée, sans vue
         # d'ensemble permanente dans l'espace personnel du marin.
-        mes_qualifications = list(
+        #
+        # Une seule ligne par formation : en cas de renouvellement, seul le
+        # dernier enregistrement (le plus récent completed_at, created_at en
+        # cas d'égalité) doit apparaître — l'ancien enregistrement expiré n'a
+        # pas d'intérêt une fois remplacé (arbitrage PO sur la page Notion de
+        # la tâche).
+        derniere_qualification_par_formation = {}
+        for qualification in (
             TrainingRecord.objects.select_related("course")
             .filter(user=self.request.user)
-            .order_by("expires_at")
+            .order_by("-completed_at", "-created_at")
+        ):
+            derniere_qualification_par_formation.setdefault(qualification.course_id, qualification)
+        mes_qualifications = sorted(
+            derniere_qualification_par_formation.values(), key=lambda q: q.expires_at
         )
         for qualification in mes_qualifications:
             qualification.badge_classe, qualification.badge_libelle = _badge_qualification(

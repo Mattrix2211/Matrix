@@ -190,14 +190,15 @@ class EspacePersonnelTests(TestCase):
         self.assertEqual(list(response.context["mes_qualifications"]), [])
 
     def test_qualifications_triees_par_date_dexpiration_croissante(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours_lointain = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours_proche = TrainingCourse.objects.create(sector=self.secteur, title="Premiers secours")
         record_lointain = TrainingRecord.objects.create(
-            user=self.marin, course=cours,
+            user=self.marin, course=cours_lointain,
             completed_at=timezone.localdate() - timedelta(days=10),
             expires_at=timezone.localdate() + timedelta(days=300),
         )
         record_proche = TrainingRecord.objects.create(
-            user=self.marin, course=cours,
+            user=self.marin, course=cours_proche,
             completed_at=timezone.localdate() - timedelta(days=300),
             expires_at=timezone.localdate() + timedelta(days=10),
         )
@@ -208,6 +209,27 @@ class EspacePersonnelTests(TestCase):
         self.assertEqual(
             list(response.context["mes_qualifications"]), [record_proche, record_lointain]
         )
+
+    def test_seule_la_qualification_la_plus_recente_est_affichee_pour_une_meme_formation(self):
+        """Si le marin a renouvelé une formation, l'ancien enregistrement expiré
+        ne doit plus apparaître : une seule ligne par formation, la plus
+        récente (arbitrage PO sur la page Notion de la tâche)."""
+        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=400),
+            expires_at=timezone.localdate() - timedelta(days=35),
+        )
+        record_recent = TrainingRecord.objects.create(
+            user=self.marin, course=cours,
+            completed_at=timezone.localdate() - timedelta(days=10),
+            expires_at=timezone.localdate() + timedelta(days=355),
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertEqual(list(response.context["mes_qualifications"]), [record_recent])
 
     def test_badge_expiree_pour_une_qualification_dont_lexpiration_est_passee(self):
         cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
