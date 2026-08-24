@@ -111,7 +111,7 @@
                           <button class="btn btn-outline-secondary btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#editAssetModal"
                             data-pk="{{ a.id }}" data-type-id="{{ a.asset_type.id }}" data-designation="{{ a.designation }}" data-nno="{{ a.nno }}" data-reference="{{ a.reference }}" data-marque="{{ a.marque }}" data-gisement="{{ a.gisement }}" data-local="{{ a.local }}"
                       data-internal-id="{{ a.internal_id }}" data-serial-number="{{ a.serial_number }}"
-                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}">✏️</button>
+                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}" data-location-id="{% if a.location_id %}{{ a.location_id }}{% endif %}">✏️</button>
               <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="delete_asset" data-pk="{{ a.id }}" data-label="Supprimer le matériel {{ a.designation|default:a.serial_number }}">🗑️</button>
             </div>
           </div>
@@ -153,6 +153,15 @@
             <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if sv.id == user_service_id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if sc.id == user_sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if se.id == user_section_id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6">
+              <label class="form-label">Emplacement</label>
+              <select class="form-select" name="location_id" id="createLocation">
+                <option value="">—</option>
+                {% for loc in locations %}<option value="{{ loc.id }}" data-ship="{{ loc.ship.id }}">{{ loc.name }}</option>{% endfor %}
+                <option value="__new__">+ Ajouter un nouvel emplacement…</option>
+              </select>
+              <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="createLocationNew" placeholder="Nom du nouvel emplacement" />
+            </div>
             <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
             {% if peut_gerer_parent %}
             <div class="col-md-6">
@@ -199,6 +208,15 @@
             <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="editService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6">
+              <label class="form-label">Emplacement</label>
+              <select class="form-select" name="location_id" id="editLocation">
+                <option value="">—</option>
+                {% for loc in locations %}<option value="{{ loc.id }}">{{ loc.name }} — {{ loc.ship.name }}</option>{% endfor %}
+                <option value="__new__">+ Ajouter un nouvel emplacement…</option>
+              </select>
+              <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="editLocationNew" placeholder="Nom du nouvel emplacement" />
+            </div>
             <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
             {% if peut_gerer_parent %}
             <div class="col-md-6">
@@ -277,6 +295,8 @@
       document.getElementById('editGisement').value = b.getAttribute('data-gisement')||'';
       var locVal = b.getAttribute('data-local')||''; var editLocal = document.getElementById('editLocal'); if (editLocal) editLocal.value = locVal;
       document.getElementById('editInternalId').value = b.getAttribute('data-internal-id')||''; document.getElementById('editSerialNumber').value = b.getAttribute('data-serial-number')||''; setSel('editStatus', b.getAttribute('data-status')||''); document.getElementById('editCriticality').value = b.getAttribute('data-criticality')||''; setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||'');
+      setSel('editLocation', b.getAttribute('data-location-id')||'');
+      var editLocationNew = document.getElementById('editLocationNew'); if (editLocationNew) { editLocationNew.classList.add('d-none'); editLocationNew.value = ''; }
       // Rattachement parent (T3) : ne propose que les matériels du même secteur, en excluant le matériel lui-même.
       var parentSel = document.getElementById('editParentAsset');
       if (parentSel) {
@@ -298,8 +318,9 @@
       var sectorSel = document.getElementById('createSector');
       var sectionSel = document.getElementById('createSection');
       var parentSel = document.getElementById('createParentAsset');
-      function filterOptions(select, dataAttr, match){ if(!select) return; var val = match || ''; Array.from(select.options).forEach(function(opt){ if(!opt.value){ opt.hidden=false; return; } var dv = opt.getAttribute(dataAttr); opt.hidden = !val || (dv !== val); }); if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; } }
-      function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
+      var locationSel = document.getElementById('createLocation');
+      function filterOptions(select, dataAttr, match){ if(!select) return; var val = match || ''; Array.from(select.options).forEach(function(opt){ if(!opt.value || opt.value === '__new__'){ opt.hidden=false; return; } var dv = opt.getAttribute(dataAttr); opt.hidden = !val || (dv !== val); }); if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; } }
+      function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); filterOptions(locationSel, 'data-ship', shipSel ? shipSel.value : ''); }
       function onService(){ filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
       function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); }
       if (shipSel) shipSel.addEventListener('change', onShip);
@@ -312,10 +333,24 @@
       filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : '');
       filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : '');
       filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : '');
+      filterOptions(locationSel, 'data-ship', shipSel ? shipSel.value : '');
     }
+    // Bascule du champ "Nouvel emplacement" : affiché uniquement quand l'option
+    // "+ Ajouter un nouvel emplacement…" est sélectionnée dans le menu déroulant.
+    function configurerBasculeEmplacement(idSelect, idChamp){
+      var sel = document.getElementById(idSelect); var champ = document.getElementById(idChamp);
+      if (!sel || !champ) return;
+      sel.addEventListener('change', function(){
+        var estNouveau = sel.value === '__new__';
+        champ.classList.toggle('d-none', !estNouveau);
+        if (!estNouveau) champ.value = '';
+      });
+    }
+    configurerBasculeEmplacement('createLocation', 'createLocationNew');
+    configurerBasculeEmplacement('editLocation', 'editLocationNew');
     function updateAssetTypeFromSector(){ var hiddenSel = document.getElementById('createAssetTypeHidden'); var out = document.getElementById('createAssetTypeValue'); var sectorSel = document.getElementById('createSector'); if(!hiddenSel || !out || !sectorSel) return; var sec = sectorSel.value || ''; var chosen = ''; for (var i=0;i<hiddenSel.options.length;i++){ var opt = hiddenSel.options[i]; if (opt.getAttribute('data-sector') === sec){ chosen = opt.value; break; } } out.value = chosen; }
     var createModal = document.getElementById('createAssetModal');
-    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCreateCascades(); updateAssetTypeFromSector(); var cf = document.getElementById('createFolderId'); if (cf) { var currentParam = new URLSearchParams(window.location.search).get('folder'); cf.value = currentParam || ''; } }); }
+    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCreateCascades(); updateAssetTypeFromSector(); var cf = document.getElementById('createFolderId'); if (cf) { var currentParam = new URLSearchParams(window.location.search).get('folder'); cf.value = currentParam || ''; } var clNew = document.getElementById('createLocationNew'); if (clNew) { clNew.classList.add('d-none'); clNew.value = ''; } }); }
     // Garantir que le type est calculé avant l'envoi
     var createForm = document.querySelector('#createAssetModal form');
     if (createForm) { createForm.addEventListener('submit', function(){ updateAssetTypeFromSector(); }); }

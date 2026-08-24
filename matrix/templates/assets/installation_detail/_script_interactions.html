@@ -34,6 +34,18 @@
   var editModal = document.getElementById('editInstallationModal');
   if (editModal) { editModal.addEventListener('shown.bs.modal', function(){ setupCascades(editModal); }); }
 
+  // Bascule du champ "Nouvel emplacement" : affiché uniquement quand l'option
+  // "+ Ajouter un nouvel emplacement…" est sélectionnée dans le menu déroulant.
+  var editLocationSel = document.getElementById('editLocation');
+  var editLocationNew = document.getElementById('editLocationNew');
+  if (editLocationSel && editLocationNew) {
+    editLocationSel.addEventListener('change', function(){
+      var estNouveau = editLocationSel.value === '__new__';
+      editLocationNew.classList.toggle('d-none', !estNouveau);
+      if (!estNouveau) editLocationNew.value = '';
+    });
+  }
+
   // Suppression PJ: modale globale
   var confirmModalEl = document.getElementById('confirmDeleteAttachment');
   var confirmModal; if (confirmModalEl && window.bootstrap) { confirmModal = new bootstrap.Modal(confirmModalEl); }
@@ -187,6 +199,8 @@
     modal.querySelectorAll('.attachments-preview').forEach(function(el){ el.innerHTML = ''; });
     modal.querySelectorAll('.attachments-hidden').forEach(function(el){ el.innerHTML = ''; });
     modal.querySelectorAll('form').forEach(function(f){ try { f.reset(); } catch(_){} });
+    var elNew = document.getElementById('editLocationNew');
+    if (elNew) { elNew.classList.add('d-none'); elNew.value = ''; }
   });
 
   // Conserver l'onglet actif après POST: injecte input hidden 'tab' au submit

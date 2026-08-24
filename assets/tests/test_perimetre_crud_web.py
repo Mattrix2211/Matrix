@@ -3,7 +3,7 @@ from django.test import TestCase
 
 from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
-from assets.models import Asset, AssetType, Installation
+from assets.models import Asset, AssetType, Installation, Location
 
 
 class PerimetreCrudAssetWebTests(TestCase):
@@ -183,3 +183,119 @@ class PerimetreCrudAssetWebTests(TestCase):
             "pk": str(self.installation_hors_perimetre.id),
         })
         self.assertTrue(Installation.objects.filter(pk=self.installation_hors_perimetre.id).exists())
+
+    # --- Emplacement (Location) sélectionnable et créable à la volée depuis les
+    # formulaires matériel/installation, remplaçant l'ancienne page dédiée /locations/.
+
+    def test_chef_service_peut_creer_un_asset_avec_un_emplacement_existant(self):
+        emplacement = Location.objects.create(name="Local A", ship=self.ship)
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post("/assets/", {
+            "action": "create_asset",
+            "internal_id": "A-3",
+            "serial_number": "SN-A3",
+            "designation": "Extincteur avec emplacement",
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+            "asset_type_id": str(self.asset_type.id),
+            "location_id": str(emplacement.id),
+        })
+        self.assertEqual(r.status_code, 302)
+        asset = Asset.objects.get(internal_id="A-3")
+        self.assertEqual(asset.location_id, emplacement.id)
+
+    def test_chef_service_peut_creer_un_nouvel_emplacement_a_la_volee_pour_un_asset(self):
+        """Option "+ Ajouter un nouvel emplacement…" du formulaire matériel :
+        location_id="__new__" + new_location_name crée l'emplacement rattaché
+        au navire déjà validé, sans passer par une page dédiée."""
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post("/assets/", {
+            "action": "create_asset",
+            "internal_id": "A-4",
+            "serial_number": "SN-A4",
+            "designation": "Extincteur avec nouvel emplacement",
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+            "asset_type_id": str(self.asset_type.id),
+            "location_id": "__new__",
+            "new_location_name": "Coursive bâbord",
+        })
+        self.assertEqual(r.status_code, 302)
+        asset = Asset.objects.get(internal_id="A-4")
+        self.assertIsNotNone(asset.location)
+        self.assertEqual(asset.location.name, "Coursive bâbord")
+        self.assertEqual(asset.location.ship_id, self.ship.id)
+
+    def test_creer_un_nouvel_emplacement_a_la_volee_ne_duplique_pas_un_emplacement_existant(self):
+        Location.objects.create(name="Coursive tribord", ship=self.ship)
+        self.client.login(username="chef_perim", password="pass")
+        self.client.post("/assets/", {
+            "action": "create_asset",
+            "internal_id": "A-5",
+            "serial_number": "SN-A5",
+            "designation": "Extincteur",
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+            "asset_type_id": str(self.asset_type.id),
+            "location_id": "__new__",
+            "new_location_name": "Coursive tribord",
+        })
+        self.assertEqual(Location.objects.filter(ship=self.ship, name="Coursive tribord").count(), 1)
+
+    def test_chef_service_peut_creer_une_installation_avec_un_nouvel_emplacement_a_la_volee(self):
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post("/installations/", {
+            "action": "create_installation",
+            "designation": "Pompe avec nouvel emplacement",
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+            "location_id": "__new__",
+            "new_location_name": "Local machine avant",
+        })
+        self.assertEqual(r.status_code, 302)
+        installation = Installation.objects.get(designation="Pompe avec nouvel emplacement")
+        self.assertIsNotNone(installation.location)
+        self.assertEqual(installation.location.name, "Local machine avant")
+        self.assertEqual(installation.location.ship_id, self.ship.id)
+
+    def test_chef_service_peut_editer_une_installation_avec_un_nouvel_emplacement_a_la_volee_depuis_la_fiche(self):
+        """Chemin réellement utilisé par l'écran (modale d'édition de la fiche
+        installation, cf. _modales_fiche_installation.html), géré par
+        _action_edit_installation dans installation_actions.py — distinct du
+        handler de la liste testé ci-dessus."""
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post(f"/installations/{self.installation.id}/", {
+            "action": "edit_installation",
+            "pk": str(self.installation.id),
+            "designation": self.installation.designation,
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+            "location_id": "__new__",
+            "new_location_name": "Local machine bâbord",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.installation.refresh_from_db()
+        self.assertIsNotNone(self.installation.location)
+        self.assertEqual(self.installation.location.name, "Local machine bâbord")
+
+    def test_chef_service_peut_editer_une_installation_avec_un_nouvel_emplacement_a_la_volee(self):
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.post("/installations/", {
+            "action": "edit_installation",
+            "pk": str(self.installation.id),
+            "designation": self.installation.designation,
+            "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id),
+            "location_id": "__new__",
+            "new_location_name": "Local machine arrière",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.installation.refresh_from_db()
+        self.assertIsNotNone(self.installation.location)
+        self.assertEqual(self.installation.location.name, "Local machine arrière")

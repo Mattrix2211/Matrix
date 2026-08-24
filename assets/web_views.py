@@ -21,7 +21,7 @@ from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.scopes import scope_filters_for_user
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
@@ -175,6 +175,29 @@ def _resoudre_parent_valide(request, objet, model):
     if parent is None:
         return "Rattachement invalide : l'équipement sélectionné ne fait pas partie du même secteur."
     objet.parent = parent
+    return None
+
+
+def _resoudre_emplacement(request, ship):
+    """Lit location_id (et new_location_name le cas échéant) dans les données POST et
+    renvoie l'emplacement (Location) à assigner à un matériel/installation, ou None.
+
+    Permet la création d'un nouvel emplacement à la volée depuis le formulaire de
+    matériel/installation (option "+ Ajouter un nouvel emplacement…", location_id
+    vaut alors "__new__") sans passer par un écran de gestion séparé. Le nouvel
+    emplacement est toujours rattaché au navire déjà validé (ship, résolu et
+    contrôlé en périmètre par l'appelant) — jamais à un navire posté séparément,
+    pour ne pas pouvoir contourner le contrôle de périmètre déjà effectué sur ship_id.
+    get_or_create évite les doublons si le même nom est saisi deux fois pour ce navire."""
+    location_id = request.POST.get('location_id')
+    if location_id == '__new__':
+        nom = request.POST.get('new_location_name', '').strip()
+        if not nom or ship is None:
+            return None
+        emplacement, _cree = Location.objects.get_or_create(ship=ship, name=nom, parent=None)
+        return emplacement
+    if location_id:
+        return Location.objects.filter(pk=location_id).first()
     return None
 
 
@@ -710,7 +733,6 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             service_id = request.POST.get('service_id')
             sector_id = request.POST.get('sector_id')
             section_id = request.POST.get('section_id')
-            location_id = request.POST.get('location_id')
             folder_id = request.POST.get('folder_id') or self.request.GET.get('folder')
             # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
             # au périmètre de l'appelant, même principe que _resoudre_parent_valide pour
@@ -764,8 +786,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                     asset.sector = Sector.objects.filter(pk=sector_id).first()
                 if section_id:
                     asset.section = Section.objects.filter(pk=section_id).first()
-                if location_id:
-                    asset.location = Location.objects.filter(pk=location_id).first()
+                asset.location = _resoudre_emplacement(request, asset.ship)
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
                     messages.error(request, erreur_parent)
@@ -841,7 +862,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 asset.service = Service.objects.filter(pk=service_id).first() if service_id else None
                 asset.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
                 asset.section = Section.objects.filter(pk=section_id).first() if section_id else None
-                asset.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
+                asset.location = _resoudre_emplacement(request, asset.ship)
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
                     messages.error(request, erreur_parent)
@@ -1142,7 +1163,6 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             service_id = request.POST.get('service_id')
             sector_id = request.POST.get('sector_id')
             section_id = request.POST.get('section_id')
-            location_id = request.POST.get('location_id')
             iso_period = (request.POST.get('iso_periodicity') or 'M').strip().upper()
             # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
             # au périmètre de l'appelant — ne fait pas confiance au menu déroulant.
@@ -1177,8 +1197,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 it.sector = Sector.objects.filter(pk=sector_id).first()
             if section_id:
                 it.section = Section.objects.filter(pk=section_id).first()
-            if location_id:
-                it.location = Location.objects.filter(pk=location_id).first()
+            it.location = _resoudre_emplacement(request, it.ship)
             if bigrame_id:
                 it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first()
             if iso_period in ('M','T','A'):
@@ -1251,7 +1270,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 it.service = Service.objects.filter(pk=service_id).first() if service_id else None
                 it.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
                 it.section = Section.objects.filter(pk=section_id).first() if section_id else None
-                it.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
+                it.location = _resoudre_emplacement(request, it.ship)
                 it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
                 iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
                 if iso_period in ('M','T','A'):
@@ -1327,6 +1346,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
+        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, options
         # limitées au même secteur que l'installation courante (même périmètre),
         # en excluant l'installation elle-même et ses sous-ensembles (évite un choix
@@ -1535,103 +1555,8 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         return handler(self, request, inst, qs)
 
 
-class LocationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
-    model = Location
-    template_name = 'assets/locations.html'
-    context_object_name = 'locations'
-
-    def get_scoped_filters(self):
-        # Un lieu (compartiment du navire) n'est rattaché qu'au navire, jamais
-        # à un service/secteur/section précis — même traduction que
-        # LocationViewSet côté API (assets/views.py) pour rester cohérent.
-        return build_scope_q(
-            self.request.user,
-            {
-                "ship_id": "ship_id",
-                "service_id": "ship__services__id",
-                "sector_id": "ship__services__sectors__id",
-                "section_id": "ship__services__sectors__sections__id",
-            },
-        )
-
-    # Contrôle de rôle par action (T-SEC) : mêmes seuils que les autres listes de ce
-    # fichier — CHEF_SECTION pour la création/édition, CHEF_SERVICE pour la suppression.
-    NIVEAU_REQUIS_PAR_ACTION = {
-        'create_location': RoleLevel.CHEF_SECTION,
-        'edit_location': RoleLevel.CHEF_SECTION,
-        'delete_location': RoleLevel.CHEF_SERVICE,
-    }
-
-    def get_queryset(self):
-        # super().get_queryset() applique le périmètre (ScopedQuerySetMixin,
-        # via get_scoped_filters() ci-dessus) avant les filtres GET optionnels.
-        qs = super().get_queryset().select_related('ship', 'parent').order_by('ship__name', 'name')
-        ship_id = self.request.GET.get('ship')
-        if ship_id:
-            qs = qs.filter(ship_id=ship_id)
-        q = self.request.GET.get('q', '').strip()
-        if q:
-            qs = qs.filter(name__icontains=q)
-        return qs
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['parents'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
-        return ctx
-
-    def post(self, request, *args, **kwargs):
-        action = request.POST.get('action')
-        niveau_requis = self.NIVEAU_REQUIS_PAR_ACTION.get(action)
-        if niveau_requis is not None and user_role_level(request.user) < niveau_requis:
-            raise PermissionDenied
-        if action == 'create_location':
-            name = request.POST.get('name', '').strip()
-            ship_id = request.POST.get('ship_id')
-            parent_id = request.POST.get('parent_id')
-            # Périmètre (T-SEC) : le navire posté doit appartenir au périmètre de
-            # l'appelant, même principe que pour Asset/Installation.
-            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Navire hors de votre périmètre.")
-                return redirect('location-list')
-            if name and ship_id:
-                loc = Location.objects.create(name=name, ship=Ship.objects.get(pk=ship_id))
-                if parent_id:
-                    loc.parent = self.get_queryset().filter(pk=parent_id).first()
-                    loc.save()
-                AuditLog.objects.create(actor=request.user, action='create_location', details=f'name={name}')
-                messages.success(request, 'Emplacement créé.')
-        elif action == 'edit_location':
-            pk = request.POST.get('pk')
-            ship_id = request.POST.get('ship_id')
-            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Navire hors de votre périmètre.")
-                return redirect('location-list')
-            try:
-                # Périmètre : l'emplacement visé doit appartenir au périmètre de
-                # l'appelant (self.get_queryset(), scopé) — un identifiant hors
-                # périmètre est traité comme introuvable.
-                loc = self.get_queryset().get(pk=pk)
-                loc.name = request.POST.get('name', loc.name).strip()
-                if ship_id:
-                    try:
-                        loc.ship = Ship.objects.get(pk=ship_id)
-                    except Ship.DoesNotExist:
-                        pass
-                parent_id = request.POST.get('parent_id')
-                loc.parent = self.get_queryset().filter(pk=parent_id).first() if parent_id else None
-                loc.save()
-                AuditLog.objects.create(actor=request.user, action='edit_location', details=f'id={loc.id}')
-                messages.success(request, 'Emplacement mis à jour.')
-            except Location.DoesNotExist:
-                messages.error(request, 'Emplacement introuvable.')
-        elif action == 'delete_location':
-            pk = request.POST.get('pk')
-            supprimes = self.get_queryset().filter(pk=pk).delete()[0]
-            if supprimes:
-                messages.success(request, 'Emplacement supprimé.')
-            else:
-                messages.error(request, 'Emplacement introuvable.')
-        return redirect('location-list')
-
 # (Standalone InstallationSettingsView removed; settings are now managed in global Settings > Installations)
+# (LocationListView et la page /locations/ ont été retirées : la gestion des
+# emplacements se fait désormais directement depuis les formulaires matériel et
+# installation, avec création à la volée via _resoudre_emplacement ci-dessus —
+# plus besoin d'un écran de gestion séparé.)

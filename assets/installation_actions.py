@@ -50,7 +50,7 @@ from .models import (
     InstallationVibrationReading,
     ModeDeclenchement,
 )
-from .web_views import _afficher_erreur_validation, _org_dans_perimetre, _resoudre_parent_valide
+from .web_views import _afficher_erreur_validation, _org_dans_perimetre, _resoudre_emplacement, _resoudre_parent_valide
 
 
 def _parse_date_jjmmaaaa(date_str):
@@ -118,6 +118,7 @@ def _action_edit_installation(view, request, inst, qs):
         it.service = Service.objects.filter(pk=service_id).first() if service_id else None
         it.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
         it.section = Section.objects.filter(pk=section_id).first() if section_id else None
+        it.location = _resoudre_emplacement(request, it.ship)
         it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
         # Périodicité isolement
         iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()

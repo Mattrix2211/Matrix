@@ -152,6 +152,15 @@
             <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector" required><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if sc.id == user_sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if se.id == user_section_id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Bigrame</label><select class="form-select" name="bigrame_id" id="createBigrame"><option value="">—</option>{% for bg in bigrames %}<option value="{{ bg.id }}">{{ bg.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6">
+              <label class="form-label">Emplacement</label>
+              <select class="form-select" name="location_id" id="createLocation">
+                <option value="">—</option>
+                {% for loc in locations %}<option value="{{ loc.id }}" data-ship="{{ loc.ship.id }}">{{ loc.name }}</option>{% endfor %}
+                <option value="__new__">+ Ajouter un nouvel emplacement…</option>
+              </select>
+              <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="createLocationNew" placeholder="Nom du nouvel emplacement" />
+            </div>
             <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
             <div class="col-12">
               <div class="d-flex justify-content-between align-items-center mt-2">
@@ -204,12 +213,13 @@
       var sectorSel = root.querySelector('select[name="sector_id"]');
       var sectionSel = root.querySelector('select[name="section_id"]');
       var parentSel = root.querySelector('select[name="parent_id"]');
+      var locationSel = root.querySelector('select[name="location_id"]');
       if (!shipSel || !serviceSel || !sectorSel || !sectionSel) return;
       function filterOptions(select, dataAttr, match){
         if (!select) return;
         var val = match || '';
         Array.from(select.options).forEach(function(opt){
-          if (!opt.value) { opt.hidden = false; return; }
+          if (!opt.value || opt.value === '__new__') { opt.hidden = false; return; }
           var dv = opt.getAttribute(dataAttr);
           opt.hidden = !val || (dv !== val);
         });
@@ -221,6 +231,7 @@
         filterOptions(sectorSel, 'data-service', '');
         filterOptions(sectionSel, 'data-sector', '');
         filterOptions(parentSel, 'data-sector', '');
+        filterOptions(locationSel, 'data-ship', shipSel.value);
       });
       serviceSel.addEventListener('change', function(){
         filterOptions(sectorSel, 'data-service', serviceSel.value);
@@ -237,7 +248,20 @@
       filterOptions(sectorSel, 'data-service', serviceSel.value);
       filterOptions(sectionSel, 'data-sector', sectorSel.value);
       filterOptions(parentSel, 'data-sector', sectorSel.value);
+      filterOptions(locationSel, 'data-ship', shipSel.value);
     }
+    // Bascule du champ "Nouvel emplacement" : affiché uniquement quand l'option
+    // "+ Ajouter un nouvel emplacement…" est sélectionnée dans le menu déroulant.
+    function configurerBasculeEmplacement(idSelect, idChamp){
+      var sel = document.getElementById(idSelect); var champ = document.getElementById(idChamp);
+      if (!sel || !champ) return;
+      sel.addEventListener('change', function(){
+        var estNouveau = sel.value === '__new__';
+        champ.classList.toggle('d-none', !estNouveau);
+        if (!estNouveau) champ.value = '';
+      });
+    }
+    configurerBasculeEmplacement('createLocation', 'createLocationNew');
 
     var createModal = document.getElementById('createInstallationModal');
     if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCascades(createModal); }); }
