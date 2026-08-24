@@ -38,11 +38,37 @@ set DB_PORT=5432
 python manage.py migrate
 ```
 
-## Celery (optionnel — tâches planifiées : échéances de maintenance, alertes, détection de dérive)
+## Celery (requis pour les alertes automatiques : échéances de maintenance, stock bas, retards, détection de dérive)
+Les alertes automatiques ne sont **pas** envoyées par le serveur Django lui-même : elles sont
+produites par des tâches planifiées (Celery Beat) exécutées en tâche de fond par un worker
+Celery. **Sans worker + Beat qui tournent, aucune notification automatique n'apparaît**, même
+si la donnée qui la déclenche (ex : relevé technique en dérive) est bien visible sur la fiche
+correspondante. Ce n'est pas un bug : c'est le fonctionnement normal si ces deux processus ne
+sont pas lancés.
+
+Redis (le broker utilisé par Celery) doit également tourner (`docker compose up -d`, voir
+ci-dessus).
+
+Deux processus **séparés**, à laisser ouverts en plus du serveur Django (`python manage.py
+runserver`) :
 ```bash
-celery -A matrix worker -l info --pool=solo   # Windows
-celery -A matrix beat -l info
+celery -A matrix worker -l info --pool=solo   # Windows (obligatoire en dev pour recevoir les alertes)
+celery -A matrix beat -l info                  # planifie l'exécution périodique des tâches ci-dessus
 ```
+
+En pratique, pour tester une alerte sans attendre la prochaine échéance planifiée (Celery Beat
+exécute ces tâches à un rythme quotidien ou horaire selon le cas), on peut aussi déclencher la
+tâche manuellement en shell Django (`python manage.py shell`) :
+```python
+from notifications.tasks import detect_installation_drift
+detect_installation_drift()   # crée immédiatement les Notification concernées, sans attendre Beat
+```
+
+`start.bat` lance déjà worker + Beat automatiquement en arrière-plan (voir `celery.log` /
+`celery-beat.log` à la racine en cas de doute), mais uniquement si Redis est démarré au préalable
+(`docker compose up -d`) : sans Redis disponible, Celery démarre mais ne peut pas se connecter,
+et échoue silencieusement en arrière-plan (aucune alerte ne remonte, sans message d'erreur visible
+côté application).
 
 ## Notifications Web Push (optionnel)
 ```bash
