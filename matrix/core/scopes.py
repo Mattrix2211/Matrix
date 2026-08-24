@@ -43,3 +43,23 @@ def ship_id_for_user(user) -> Optional[int]:
     profile = getattr(user, "profile", None)
     ship = getattr(profile, "ship", None)
     return ship.id if ship else None
+
+
+def sector_id_for_user(user) -> Optional[int]:
+    """Renvoie l'id du secteur rattaché au profil de l'utilisateur, ou None si
+    aucun secteur n'est renseigné. Même logique que ship_id_for_user() ci-dessus,
+    déclinée au niveau secteur — utile pour les vues agrégées bornées au
+    secteur d'un CHEF_SECTEUR (ex. Vue flotte)."""
+    profile = getattr(user, "profile", None)
+    sector = getattr(profile, "sector", None)
+    return sector.id if sector else None
+
+
+def section_id_for_user(user) -> Optional[int]:
+    """Renvoie l'id de la section rattachée au profil de l'utilisateur, ou None
+    si aucune section n'est renseignée. Même logique que ship_id_for_user()
+    ci-dessus, déclinée au niveau section — utile pour les vues agrégées
+    bornées à la section d'un CHEF_SECTION (ex. Vue flotte)."""
+    profile = getattr(user, "profile", None)
+    section = getattr(profile, "section", None)
+    return section.id if section else None

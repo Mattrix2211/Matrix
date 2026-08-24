@@ -20,7 +20,13 @@ from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase
 
 from accounts.models import UserProfile, Roles
-from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.scopes import (
+    is_master_admin,
+    scope_filters_for_user,
+    sector_id_for_user,
+    section_id_for_user,
+    ship_id_for_user,
+)
 from org.models import Ship, Service, Sector, Section
 
 
@@ -108,6 +114,54 @@ class ShipIdForUserTests(TestCase):
         UserProfile.objects.update_or_create(user=user, defaults={"role": Roles.EQUIPIER, "ship": ship})
         user.refresh_from_db()
         self.assertEqual(ship_id_for_user(user), ship.id)
+
+
+class SectorIdForUserTests(TestCase):
+    """sector_id_for_user() : même logique que ShipIdForUserTests, déclinée au
+    niveau secteur (utile à la Vue flotte scopée pour un CHEF_SECTEUR)."""
+
+    def test_profil_avec_secteur_renvoie_lid_du_secteur(self):
+        ship = Ship.objects.create(name="Navire Secteur", code="NSEC")
+        service = Service.objects.create(ship=ship, name="Service Secteur")
+        sector = Sector.objects.create(service=service, name="Secteur Y")
+        user = User.objects.create_user(username="usec", password="pass")
+        UserProfile.objects.update_or_create(
+            user=user, defaults={"role": Roles.CHEF_SECTEUR, "ship": ship, "service": service, "sector": sector},
+        )
+        user.refresh_from_db()
+        self.assertEqual(sector_id_for_user(user), sector.id)
+
+    def test_profil_sans_secteur_renvoie_none(self):
+        user = User.objects.create_user(username="sans_secteur", password="pass")
+        UserProfile.objects.update_or_create(user=user, defaults={"role": Roles.CHEF_SECTEUR})
+        user.refresh_from_db()
+        self.assertIsNone(sector_id_for_user(user))
+
+
+class SectionIdForUserTests(TestCase):
+    """section_id_for_user() : même logique que ShipIdForUserTests, déclinée au
+    niveau section (utile à la Vue flotte scopée pour un CHEF_SECTION)."""
+
+    def test_profil_avec_section_renvoie_lid_de_la_section(self):
+        ship = Ship.objects.create(name="Navire Section", code="NSCT")
+        service = Service.objects.create(ship=ship, name="Service Section")
+        sector = Sector.objects.create(service=service, name="Secteur Section")
+        section = Section.objects.create(sector=sector, name="Section Y")
+        user = User.objects.create_user(username="usect", password="pass")
+        UserProfile.objects.update_or_create(
+            user=user, defaults={
+                "role": Roles.CHEF_SECTION, "ship": ship, "service": service,
+                "sector": sector, "section": section,
+            },
+        )
+        user.refresh_from_db()
+        self.assertEqual(section_id_for_user(user), section.id)
+
+    def test_profil_sans_section_renvoie_none(self):
+        user = User.objects.create_user(username="sans_section", password="pass")
+        UserProfile.objects.update_or_create(user=user, defaults={"role": Roles.CHEF_SECTION})
+        user.refresh_from_db()
+        self.assertIsNone(section_id_for_user(user))
 
     def test_profil_sans_navire_renvoie_none(self):
         user = User.objects.create_user(username="sans_navire", password="pass")

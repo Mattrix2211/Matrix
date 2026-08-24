@@ -64,7 +64,7 @@ python manage.py test
 - `training` — formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation, réservation self-service de sessions
 - `threads` — discussions génériques attachées à n'importe quel objet
 - `notifications` — alertes in-app (info/warning/danger) + Web Push pour le niveau danger
-- `dashboard` — tableau de bord personnel + vue flotte (rôles CHEF_SERVICE et au-dessus)
+- `dashboard` — tableau de bord personnel + vue flotte scopée au périmètre du chef connecté (rôles CHEF_SECTION et au-dessus : section, secteur, navire ou flotte entière selon le rôle)
 - `calendar_app` — calendrier central, vue globale + personnelle, export iCal
 - `reports` — bilans instantané/période, export PDF/CSV/Excel
 

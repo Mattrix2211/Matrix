@@ -1,6 +1,8 @@
 """Tests de la Vue flotte (dashboard/web_views.py::VueFlotteView) : vue agrégée
-du navire réservée à CHEF_SERVICE et aux rôles supérieurs (cf. tâche
-[FEAT] Vue flotte pour les rôles CHEF_SERVICE et plus)."""
+réservée à CHEF_SECTION et aux rôles supérieurs, scopée au périmètre effectif
+du chef connecté — navire pour CHEF_SERVICE+, secteur pour CHEF_SECTEUR,
+section pour CHEF_SECTION (cf. tâche [FEAT] Vue d'équipe pour CHEF_SECTEUR et
+CHEF_SECTION)."""
 import json
 
 from django.contrib.auth.models import User
@@ -11,11 +13,11 @@ from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Installation, InstallationMaintenance
 from logistics.models import CorrectiveTicket, StockPiece
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
-from org.models import Sector, Service, Ship
+from org.models import Section, Sector, Service, Ship
 
 
 class VueFlotteAccesTests(TestCase):
-    """Contrôle d'accès : la Vue flotte n'est visible qu'à partir de CHEF_SERVICE."""
+    """Contrôle d'accès : la Vue flotte n'est visible qu'à partir de CHEF_SECTION."""
 
     def setUp(self):
         self.navire = Ship.objects.create(name="Navire test", code="NT-VF")
@@ -38,17 +40,24 @@ class VueFlotteAccesTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 403)
 
-    def test_chef_section_na_pas_acces(self):
-        self._creer_utilisateur("chef_section", "CHEF_SECTION", ship=self.navire)
+    def test_chef_section_a_acces(self):
+        secteur = Sector.objects.create(service=self.service, name="Secteur test")
+        section = Section.objects.create(sector=secteur, name="Section test")
+        self._creer_utilisateur(
+            "chef_section", "CHEF_SECTION", ship=self.navire, service=self.service, sector=secteur, section=section,
+        )
         self.client.login(username="chef_section", password="pass")
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
 
-    def test_chef_secteur_na_pas_acces(self):
-        self._creer_utilisateur("chef_secteur", "CHEF_SECTEUR", ship=self.navire)
+    def test_chef_secteur_a_acces(self):
+        secteur = Sector.objects.create(service=self.service, name="Secteur test 2")
+        self._creer_utilisateur(
+            "chef_secteur", "CHEF_SECTEUR", ship=self.navire, service=self.service, sector=secteur,
+        )
         self.client.login(username="chef_secteur", password="pass")
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
 
     def test_chef_service_a_acces(self):
         self._creer_utilisateur("chef_service", "CHEF_SERVICE", ship=self.navire)
@@ -77,6 +86,16 @@ class VueFlotteAccesTests(TestCase):
     def test_lien_de_navigation_present_pour_un_chef_de_service(self):
         self._creer_utilisateur("chef_service2", "CHEF_SERVICE", ship=self.navire)
         self.client.login(username="chef_service2", password="pass")
+        response = self.client.get(reverse("home"))
+        self.assertContains(response, self.url)
+
+    def test_lien_de_navigation_present_pour_un_chef_de_section(self):
+        secteur = Sector.objects.create(service=self.service, name="Secteur nav")
+        section = Section.objects.create(sector=secteur, name="Section nav")
+        self._creer_utilisateur(
+            "chef_section3", "CHEF_SECTION", ship=self.navire, service=self.service, sector=secteur, section=section,
+        )
+        self.client.login(username="chef_section3", password="pass")
         response = self.client.get(reverse("home"))
         self.assertContains(response, self.url)
 
@@ -194,7 +213,7 @@ class VueFlotteAgregationTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["aucun_navire"])
+        self.assertTrue(response.context["aucun_perimetre"])
         self.assertContains(response, "Aucun navire n'est associé à votre profil")
         # Les jauges (principe n°5 CLAUDE.md) doivent rester à 0, pas planter,
         # même sans aucune donnée à agréger.
@@ -246,6 +265,108 @@ class VueFlotteAgregationTests(TestCase):
         self.assertEqual(len(labels), len(values))
         self.assertEqual(sum(values), response.context["total_tickets_ouverts"])
         self.assertEqual(sum(values), 2)
+
+
+class VueFlotteScopeSecteurEtSectionTests(TestCase):
+    """Un CHEF_SECTEUR ou un CHEF_SECTION voit l'agrégat de son secteur/section
+    uniquement — même navire, mais secteurs/sections différents ne doivent
+    jamais se mélanger (cf. tâche [FEAT] Vue d'équipe pour CHEF_SECTEUR et
+    CHEF_SECTION)."""
+
+    def setUp(self):
+        self.navire = Ship.objects.create(name="Navire commun", code="NC-SEC")
+        self.service = Service.objects.create(ship=self.navire, name="Service commun")
+
+        # Secteur 1 / Section 1 : celui des chefs connectés dans les tests.
+        self.secteur_1 = Sector.objects.create(service=self.service, name="Secteur 1")
+        self.section_1 = Section.objects.create(sector=self.secteur_1, name="Section 1")
+        self.asset_type_1 = AssetType.objects.create(name="Type1", category="Cat", sector=self.secteur_1)
+        self.asset_1 = Asset.objects.create(
+            asset_type=self.asset_type_1, ship=self.navire, service=self.service,
+            sector=self.secteur_1, section=self.section_1,
+        )
+
+        # Secteur 2 / Section 2 : ne doit jamais apparaître pour les chefs du secteur/section 1.
+        self.secteur_2 = Sector.objects.create(service=self.service, name="Secteur 2")
+        self.section_2 = Section.objects.create(sector=self.secteur_2, name="Section 2")
+        self.asset_type_2 = AssetType.objects.create(name="Type2", category="Cat", sector=self.secteur_2)
+        self.asset_2 = Asset.objects.create(
+            asset_type=self.asset_type_2, ship=self.navire, service=self.service,
+            sector=self.secteur_2, section=self.section_2,
+        )
+
+        self.chef_secteur = User.objects.create_user(username="chef_secteur_scope", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.chef_secteur,
+            defaults={"role": "CHEF_SECTEUR", "ship": self.navire, "service": self.service, "sector": self.secteur_1},
+        )
+
+        self.chef_section = User.objects.create_user(username="chef_section_scope", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.chef_section,
+            defaults={
+                "role": "CHEF_SECTION", "ship": self.navire, "service": self.service,
+                "sector": self.secteur_1, "section": self.section_1,
+            },
+        )
+
+        self.url = reverse("vue-flotte")
+
+    def test_chef_secteur_ne_voit_que_les_tickets_de_son_secteur(self):
+        CorrectiveTicket.objects.create(asset=self.asset_1, description="Panne secteur 1", status="REPORTED")
+        # Même navire, autre secteur : ne doit pas apparaître.
+        CorrectiveTicket.objects.create(asset=self.asset_2, description="Panne secteur 2", status="REPORTED")
+
+        self.client.login(username="chef_secteur_scope", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_tickets_ouverts"], 1)
+        self.assertEqual(response.context["niveau_perimetre"], "secteur")
+        self.assertFalse(response.context["flotte_entiere"])
+        self.assertContains(response, "Vue de mon secteur")
+
+    def test_chef_section_ne_voit_que_les_tickets_de_sa_section(self):
+        # Même secteur (secteur_1), mais une autre section : ne doit pas apparaître
+        # pour le chef de section 1.
+        self.asset_type_1b = AssetType.objects.create(name="Type1b", category="Cat", sector=self.secteur_1)
+        section_1b = Section.objects.create(sector=self.secteur_1, name="Section 1b")
+        asset_1b = Asset.objects.create(
+            asset_type=self.asset_type_1b, ship=self.navire, service=self.service,
+            sector=self.secteur_1, section=section_1b,
+        )
+        CorrectiveTicket.objects.create(asset=self.asset_1, description="Panne section 1", status="REPORTED")
+        CorrectiveTicket.objects.create(asset=asset_1b, description="Panne section 1b", status="REPORTED")
+
+        self.client.login(username="chef_section_scope", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_tickets_ouverts"], 1)
+        self.assertEqual(response.context["niveau_perimetre"], "section")
+        self.assertContains(response, "Vue de ma section")
+
+    def test_chef_secteur_sans_secteur_affiche_un_message_clair(self):
+        chef_sans_secteur = User.objects.create_user(username="chef_sans_secteur", password="pass")
+        UserProfile.objects.update_or_create(user=chef_sans_secteur, defaults={"role": "CHEF_SECTEUR"})
+        self.client.login(username="chef_sans_secteur", password="pass")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["aucun_perimetre"])
+        self.assertContains(response, "Aucun secteur n'est associé à votre profil")
+
+    def test_chef_section_sans_section_affiche_un_message_clair(self):
+        chef_sans_section = User.objects.create_user(username="chef_sans_section", password="pass")
+        UserProfile.objects.update_or_create(user=chef_sans_section, defaults={"role": "CHEF_SECTION"})
+        self.client.login(username="chef_sans_section", password="pass")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["aucun_perimetre"])
+        self.assertContains(response, "Aucune section n'est associée à votre profil")
 
 
 class VueFlotteMasterAdminTests(TestCase):

@@ -1,17 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
-<h1 class="h3 mb-1">Vue flotte</h1>
-<p class="text-muted mb-4">
-  {% if flotte_entiere %}
-    Vue agrégée de la flotte entière (tous navires confondus).
-  {% else %}
-    Vue agrégée de votre navire.
-  {% endif %}
-</p>
+<h1 class="h3 mb-1">{{ titre_perimetre }}</h1>
+<p class="text-muted mb-4">{{ sous_titre_perimetre }}</p>
 
-{% if aucun_navire %}
+{% if aucun_perimetre %}
 <div class="alert alert-warning" role="alert">
-  Aucun navire n'est associé à votre profil : impossible d'afficher la vue flotte.
+  {{ message_aucun_perimetre|safe }}
   Contactez un administrateur pour renseigner votre périmètre.
 </div>
 {% else %}
