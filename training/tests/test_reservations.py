@@ -60,9 +60,17 @@ class ReservationSessionTests(TestCase):
 
     def test_reservation_apparait_dans_le_calendrier_personnel(self):
         self.session.reservations.add(self.marin)
+        # Sans le paramètre "date", la vue calendrier centre la fenêtre "month" sur
+        # aujourd'hui : la session (créée à J+10) peut tomber le mois suivant selon
+        # le jour d'exécution du test (ex: fin de mois). On précise explicitement la
+        # date de la session pour que le test reste stable toute l'année.
         request = type("Req", (), {
             "user": self.marin,
-            "GET": {"user": str(self.marin.id), "view": "month"},
+            "GET": {
+                "user": str(self.marin.id),
+                "view": "month",
+                "date": self.session.scheduled_at.date().isoformat(),
+            },
         })()
         response = calendar_events(request)
         import json

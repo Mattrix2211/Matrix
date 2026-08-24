@@ -4,7 +4,7 @@
 # uniquement de la discipline de l'agent.
 
 input=$(cat)
-command=$(echo "$input" | jq -r '.tool_input.command // empty')
+command=$(echo "$input" | python -c "import json,sys; print(json.load(sys.stdin).get('tool_input', {}).get('command', ''))" 2>/dev/null)
 
 if [[ "$command" == *"git commit"* ]]; then
     cd "$CLAUDE_PROJECT_DIR" || exit 1

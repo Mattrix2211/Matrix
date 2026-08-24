@@ -2,6 +2,7 @@
 
 Le Mode Période (dates) est testé séparément dans test_services_periode.py (T9).
 """
+import unittest
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -26,6 +27,7 @@ from reports.services import (
     PerimetreNonAutorise,
     construire_contexte_instantane,
     generer_bilan_instantane_pdf,
+    pdf_disponible,
 )
 from training.models import TrainingCourse, TrainingRecord
 
@@ -221,6 +223,7 @@ class BilanInstantaneTests(TestCase):
         self.assertEqual(len(contexte["stock_alerte"]), 1)
         self.assertEqual(contexte["stock_alerte"][0].id, piece_sous_seuil.id)
 
+    @unittest.skipUnless(pdf_disponible(), "WeasyPrint indisponible sur cette machine")
     def test_generation_pdf_instantane(self):
         pdf = generer_bilan_instantane_pdf("sector", self.secteur.id, self.chef)
         self.assertTrue(pdf.startswith(b"%PDF"))

@@ -22,6 +22,7 @@ import importlib.util
 import subprocess
 import sys
 import textwrap
+import unittest
 from unittest.mock import patch
 
 from django.conf import settings
@@ -193,9 +194,14 @@ class MessageErreurParFormatTests(TestCase):
         self.assertTrue(any("Excel" in m and "CSV" in m for m in contenus_messages))
 
 
+@unittest.skipUnless(
+    services_module.pdf_disponible(), "WeasyPrint indisponible sur cette machine"
+)
 class GenerationPdfNominaleInchangeeTests(TestCase):
-    """En environnement nominal (WeasyPrint fonctionnel, cas de cet
-    environnement), le correctif ne change rien au comportement existant."""
+    """En environnement nominal (WeasyPrint fonctionnel), le correctif ne change
+    rien au comportement existant. Sur une machine sans bibliothèques natives
+    GTK (ex: Windows sans GTK installé), cette classe est proprement ignorée
+    (skip) plutôt que de faire échouer la suite de tests."""
 
     def test_pdf_disponible_est_vrai(self):
         self.assertTrue(services_module.pdf_disponible())

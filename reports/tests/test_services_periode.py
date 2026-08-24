@@ -3,6 +3,7 @@
 Suit le même schéma de scoping/périmètre que le Mode Instantané (test_services.py, T8) :
 un chef de secteur ne peut générer le bilan que de son propre secteur.
 """
+import unittest
 from datetime import datetime, timedelta
 
 from django.contrib.auth.models import User
@@ -27,6 +28,7 @@ from reports.services import (
     PerimetreNonAutorise,
     construire_contexte_periode,
     generer_bilan_periode_pdf,
+    pdf_disponible,
 )
 from training.models import TrainingCourse, TrainingRecord
 
@@ -309,6 +311,7 @@ class BilanPeriodeTests(TestCase):
         self.assertEqual(len(contexte["qualifications_expirees"]), 1)
         self.assertEqual(contexte["qualifications_expirees"][0].id, qualification_expiree.id)
 
+    @unittest.skipUnless(pdf_disponible(), "WeasyPrint indisponible sur cette machine")
     def test_generation_pdf_periode(self):
         pdf = generer_bilan_periode_pdf(
             "sector", self.secteur.id, self.chef, self.date_debut, self.date_fin
