@@ -13,11 +13,18 @@ from django.views.generic import ListView, View
 
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification
-from org.models import Sector
+from org.models import Sector, Ship
 
-from .models import TrainingCourse, TrainingRecord, TrainingSession
+from .models import (
+    NIVEAU_SUPERVISION_GLOBALE_FORMATION,
+    ReferentFormationNavire,
+    TrainingCourse,
+    TrainingRecord,
+    TrainingSession,
+    peut_valider_formation,
+)
 from .services import calculer_carte_competences, regrouper_par_categorie
 
 User = get_user_model()
@@ -34,10 +41,15 @@ NIVEAU_REQUIS_GESTION_PREREQUIS = RoleLevel.CHEF_SECTION
 # externes prendront le relais dans une phase future non spécifiée.
 NIVEAU_REQUIS_CREATION_FORMATION = RoleLevel.ADMIN_NAVIRE
 
-# Seuil de rôle requis pour valider qu'un marin a suivi/réussi une formation
-# (création d'un TrainingRecord) : même seuil que NIVEAU_REQUIS_GESTION_PREREQUIS.
-# Le modèle ne définit pas (encore) de référents dédiés par validation, donc
-# pas de nouveau système de contrôle d'accès ici.
+# Seuil de rôle générique à partir duquel un marin peut valider n'importe
+# quelle formation de son périmètre organisationnel, MÊME sans être désigné
+# référent — même seuil que NIVEAU_REQUIS_GESTION_PREREQUIS. Ce seuil
+# générique s'ajoute (sans le remplacer) au vrai contrôle d'accès défini par
+# training.models.peut_valider_formation (référent de la formation précise,
+# référent formation du navire, ou COMMANDANT+, déjà utilisé côté API par
+# TrainingRecordPermission) : un marin de rang inférieur à ce seuil peut donc
+# tout de même valider une formation précise dès lors qu'il en est désigné
+# référent — cf. _est_referent_formation et ValiderFormationView ci-dessous.
 NIVEAU_REQUIS_VALIDATION = RoleLevel.CHEF_SECTION
 
 
@@ -51,6 +63,33 @@ def _peut_creer_formation(user):
 
 def _peut_valider_formation(user):
     return user_role_level(user) >= NIVEAU_REQUIS_VALIDATION
+
+
+def _est_referent_formation(user):
+    """Vrai si l'utilisateur est désigné référent d'au moins une formation
+    précise (TrainingCourse.referents) ou référent formation d'un navire
+    (ReferentFormationNavire) — cf. training.models.peut_valider_formation.
+    Complète _peut_valider_formation ci-dessus (seuil générique CHEF_SECTION)
+    pour un marin de rang inférieur (ex. EQUIPIER) désigné référent : sans ce
+    contrôle, le bouton « Valider une formation » resterait invisible pour
+    lui alors qu'il a bien l'autorité sur sa formation."""
+    return (
+        TrainingCourse.objects.filter(referents=user).exists()
+        or ReferentFormationNavire.objects.filter(user=user).exists()
+    )
+
+
+# Seuil de rôle requis pour désigner/retirer le référent formation d'un
+# navire (ReferentFormationNavire, training/models.py) : même niveau que la
+# supervision globale d'une formation — il faut déjà disposer soi-même de
+# l'autorité de validation sur tout le navire (COMMANDANT et au-dessus) pour
+# pouvoir la déléguer à un référent unique, choisi pour sa compétence plutôt
+# que pour son rang.
+NIVEAU_REQUIS_GESTION_REFERENT_NAVIRE = NIVEAU_SUPERVISION_GLOBALE_FORMATION
+
+
+def _peut_gerer_referent_navire(user):
+    return user_role_level(user) >= NIVEAU_REQUIS_GESTION_REFERENT_NAVIRE
 
 
 def _secteurs_visibles(user):
@@ -89,6 +128,22 @@ def _utilisateurs_du_secteur_q(sector):
         | Q(profile__service_id=sector.service_id)
         | Q(profile__sector_id=sector.id)
         | Q(profile__section__sector_id=sector.id)
+    )
+
+
+def _utilisateurs_du_navire_q(ship):
+    """Filtre les utilisateurs dont le profil couvre le navire donné, quel que
+    soit le niveau de périmètre auquel leur profil est réellement rattaché
+    (navire, service, secteur, ou section d'un secteur de ce navire) — même
+    principe que _utilisateurs_du_secteur_q ci-dessus, décliné au niveau
+    navire pour proposer les candidats au rôle de référent formation du
+    navire (ReferentFormationNavire, autorité sur toutes les formations du
+    navire quel que soit le secteur)."""
+    return (
+        Q(profile__ship_id=ship.id)
+        | Q(profile__service__ship_id=ship.id)
+        | Q(profile__sector__service__ship_id=ship.id)
+        | Q(profile__section__sector__service__ship_id=ship.id)
     )
 
 
@@ -150,6 +205,50 @@ def filtres_perimetre_marin(user):
         )
 
     return None
+
+
+def _formations_validables(user, formations_visibles):
+    """Formations proposables dans la modale de validation (et revalidées
+    côté serveur par ValiderFormationView) : le périmètre organisationnel
+    habituel de la page (`formations_visibles`, même liste que les cartes
+    affichées) COMPLÉTÉ des formations dont l'utilisateur est spécifiquement
+    référent, ainsi que de toutes celles du navire dont il est référent
+    formation — un référent (TrainingCourse.referents / ReferentFormationNavire)
+    peut être rattaché à un secteur différent de celui de la formation dont il
+    a la charge (cf. training/models.py), donc potentiellement absentes du
+    périmètre organisationnel de la page."""
+    return (
+        TrainingCourse.objects.filter(
+            Q(pk__in=formations_visibles.values_list("pk", flat=True))
+            | Q(referents=user)
+            | Q(sector__service__ship__referent_formation__user=user)
+        )
+        .select_related("sector", "sector__service")
+        .distinct()
+        .order_by("sector__name", "title")
+    )
+
+
+def _marins_validables(user):
+    """Marins proposables dans la modale de validation : le périmètre
+    organisationnel habituel (filtres_perimetre_marin) COMPLÉTÉ, pour un
+    référent, des marins des secteurs des formations dont il est référent et
+    de ceux du navire dont il est référent formation — même principe que
+    _formations_validables ci-dessus, appliqué aux marins plutôt qu'aux
+    formations, pour qu'un référent rattaché à un autre secteur/navire que
+    celui de sa formation puisse malgré tout désigner un marin de ce
+    secteur/navire dans le select."""
+    marins = User.objects.filter(is_active=True).select_related("profile")
+    q = filtres_perimetre_marin(user)
+    if q is None:
+        # Périmètre déjà illimité (supervision globale, COMMANDANT et
+        # au-dessus) : tous les marins sont déjà proposés, inutile d'élargir.
+        return marins.order_by("last_name", "first_name", "username")
+    for secteur in Sector.objects.filter(training_courses__referents=user).distinct():
+        q |= _utilisateurs_du_secteur_q(secteur)
+    for navire in Ship.objects.filter(referent_formation__user=user):
+        q |= _utilisateurs_du_navire_q(navire)
+    return marins.filter(q).distinct().order_by("last_name", "first_name", "username")
 
 
 def _entier_ou_none(valeur):
@@ -225,6 +324,27 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx["secteurs"] = _secteurs_visibles(self.request.user)
         ctx["peut_gerer_prerequis"] = _peut_gerer_prerequis(self.request.user)
         ctx["peut_creer_formation"] = _peut_creer_formation(self.request.user)
+        # Référent formation du navire (ReferentFormationNavire) : géré ici
+        # pour le NAVIRE DE L'APPELANT uniquement (pas la flotte entière),
+        # cohérent avec le principe "espace personnel par marin" — un
+        # COMMANDANT+ ne gère que son propre bord. Un MASTER_ADMIN sans
+        # navire rattaché à son profil ne voit pas ce bloc (aucun navire de
+        # référence pour lui), hypothèse à confirmer avec le Product Owner.
+        ctx["peut_gerer_referent_navire"] = _peut_gerer_referent_navire(self.request.user)
+        if ctx["peut_gerer_referent_navire"]:
+            ship_id = ship_id_for_user(self.request.user)
+            navire_courant = Ship.objects.filter(pk=ship_id).first() if ship_id else None
+            ctx["navire_courant"] = navire_courant
+            if navire_courant is not None:
+                ctx["referent_formation_navire"] = ReferentFormationNavire.objects.filter(
+                    ship=navire_courant
+                ).select_related("user").first()
+                ctx["candidats_referent_navire"] = (
+                    User.objects.filter(_utilisateurs_du_navire_q(navire_courant), is_active=True)
+                    .select_related("profile")
+                    .order_by("last_name", "first_name", "username")
+                    .distinct()
+                )
         # Périmètre de l'utilisateur, appliqué manuellement ici : ces deux blocs
         # portent volontairement sur TOUS les secteurs visibles (pas seulement
         # celui sélectionné dans le filtre GET "sector" de la liste), mais ne
@@ -300,20 +420,23 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             f.dernieres_validations = sorted(records, key=lambda r: r.completed_at, reverse=True)[:5]
         ctx["formations"] = formations
 
-        peut_valider = _peut_valider_formation(self.request.user)
+        # Peut valider une formation : seuil générique CHEF_SECTION+ (comme
+        # avant) COMPLÉTÉ par le statut de référent (formation précise ou
+        # navire entier) — sans quoi un référent de rang inférieur (ex.
+        # EQUIPIER) ne verrait jamais le bouton alors qu'il a bien
+        # l'autorité de valider SA formation (training.models.
+        # peut_valider_formation, déjà utilisée côté API).
+        peut_valider = _peut_valider_formation(self.request.user) or _est_referent_formation(self.request.user)
         ctx["peut_valider"] = peut_valider
         if peut_valider:
-            # Marins visibles limités au périmètre du validateur (même logique
-            # de scope que le reste de l'application), sauf pour les rôles à
-            # supervision globale (COMMANDANT et au-dessus) pour qui le
-            # périmètre est vide et qui voient donc tous les marins.
-            marins = User.objects.filter(is_active=True).select_related("profile").order_by(
-                "last_name", "first_name", "username"
-            )
-            q_perimetre_marin = filtres_perimetre_marin(self.request.user)
-            if q_perimetre_marin is not None:
-                marins = marins.filter(q_perimetre_marin)
-            ctx["marins"] = marins
+            # Marins et formations proposables dans la modale de validation :
+            # le périmètre organisationnel habituel, complété pour un
+            # référent des marins/formations hors de ce périmètre mais bien
+            # dans son autorité de validation — sans quoi le select resterait
+            # vide ou incomplet pour un référent rattaché à un autre secteur
+            # que celui de la formation dont il a la charge.
+            ctx["marins"] = _marins_validables(self.request.user)
+            ctx["formations_validables"] = _formations_validables(self.request.user, formations_visibles)
         # Objet date (pas de chaîne) : comparé tel quel à r.expires_at dans le
         # template pour le badge À jour/Expirée. Le rendu template d'un objet
         # date appelle str(), qui produit déjà le format ISO AAAA-MM-JJ attendu
@@ -413,6 +536,57 @@ class TrainingCourseListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             return self._reserver_session(request)
         if action == "annuler_reservation":
             return self._annuler_reservation(request)
+        if action == "set_referent_navire":
+            return self._set_referent_navire(request)
+        if action == "retirer_referent_navire":
+            return self._retirer_referent_navire(request)
+        return redirect("formation-list")
+
+    def _set_referent_navire(self, request):
+        """Désigne (ou remplace) le référent formation du navire de l'appelant —
+        un seul référent par navire (ReferentFormationNavire), qui obtient
+        alors l'autorité de validation sur TOUTES les formations du navire
+        (cf. training/models.py::peut_valider_formation), en plus des
+        référents propres à chaque formation."""
+        if not _peut_gerer_referent_navire(request.user):
+            raise PermissionDenied
+        ship_id = ship_id_for_user(request.user)
+        navire = Ship.objects.filter(pk=ship_id).first() if ship_id else None
+        if navire is None:
+            messages.error(request, "Aucun navire rattaché à votre profil.")
+            return redirect("formation-list")
+        # Ne fait pas confiance au formulaire : seuls les utilisateurs
+        # visibles sur ce navire peuvent être désignés (revalidation côté
+        # serveur, même principe que pour les référents par formation).
+        candidat_id = _entier_ou_none(request.POST.get("referent_navire_id"))
+        candidat = (
+            User.objects.filter(_utilisateurs_du_navire_q(navire), pk=candidat_id).first()
+            if candidat_id is not None else None
+        )
+        if candidat is None:
+            messages.error(request, "Marin introuvable dans votre navire.")
+            return redirect("formation-list")
+        ReferentFormationNavire.objects.update_or_create(ship=navire, defaults={"user": candidat})
+        if candidat != request.user:
+            Notification.objects.create(
+                user=candidat,
+                verb=f"Vous avez été désigné référent formation du navire {navire.name}.",
+            )
+        messages.success(
+            request,
+            f"{candidat.get_full_name() or candidat.username} est désormais référent formation du navire {navire.name}.",
+        )
+        return redirect("formation-list")
+
+    def _retirer_referent_navire(self, request):
+        """Retire le référent formation actuellement désigné pour le navire de
+        l'appelant (aucun effet si personne n'était désigné)."""
+        if not _peut_gerer_referent_navire(request.user):
+            raise PermissionDenied
+        ship_id = ship_id_for_user(request.user)
+        if ship_id:
+            ReferentFormationNavire.objects.filter(ship_id=ship_id).delete()
+        messages.success(request, "Référent formation du navire retiré.")
         return redirect("formation-list")
 
     def _reserver_session(self, request):
@@ -489,9 +663,6 @@ class ValiderFormationView(LoginRequiredMixin, View):
     TrainingRecord.compute_expiry, comme pour toute création côté API."""
 
     def post(self, request):
-        if not _peut_valider_formation(request.user):
-            raise PermissionDenied
-
         marin_id = request.POST.get("marin_id")
         course_id = request.POST.get("course_id")
         completed_at_str = request.POST.get("completed_at")
@@ -507,26 +678,42 @@ class ValiderFormationView(LoginRequiredMixin, View):
             return redirect("formation-list")
 
         try:
-            course = TrainingCourse.objects.get(pk=course_id)
+            course = TrainingCourse.objects.select_related("sector", "sector__service").get(pk=course_id)
         except TrainingCourse.DoesNotExist:
             messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
 
-        # Revalidation côté serveur : la formation ciblée doit être dans le
-        # périmètre effectif de l'utilisateur, pas seulement proposée par le
-        # GET qui alimente le select (empêche un chef de valider une formation
-        # d'un secteur hors de son périmètre en forgeant la requête POST).
-        if not _formations_visibles(request.user).filter(pk=course.pk).exists():
-            raise PermissionDenied
+        # Autorisation réelle de validation, branchée sur le vrai contrôle
+        # d'accès du modèle (training.models.peut_valider_formation, déjà
+        # utilisé côté API par TrainingRecordPermission) : référent de cette
+        # formation précise, référent formation du navire, ou COMMANDANT+.
+        # COMPLÉTÉE (sans être remplacée) par le seuil générique CHEF_SECTION+
+        # historique du web — dans ce cas uniquement, la formation doit rester
+        # dans le périmètre organisationnel effectif de l'appelant, comme
+        # avant, pour ne pas laisser un chef valider une formation d'un
+        # secteur hors de son périmètre en forgeant la requête POST.
+        autorise_par_referent = peut_valider_formation(request.user, course)
+        if not autorise_par_referent:
+            if not _peut_valider_formation(request.user):
+                raise PermissionDenied
+            if not _formations_visibles(request.user).filter(pk=course.pk).exists():
+                raise PermissionDenied
 
         # Même revalidation côté serveur, appliquée cette fois au marin ciblé
-        # (et non plus seulement à la formation) : empêche un chef de valider
-        # une formation de son périmètre pour un marin qui n'en fait pas
-        # partie, en forgeant la requête POST avec un autre marin_id que ceux
-        # proposés par le select du GET.
-        q_perimetre_marin = filtres_perimetre_marin(request.user)
-        if q_perimetre_marin is not None and not User.objects.filter(q_perimetre_marin, pk=marin.pk).exists():
-            raise PermissionDenied
+        # (et non plus seulement à la formation) : empêche de valider une
+        # formation pour un marin hors périmètre, en forgeant la requête POST
+        # avec un autre marin_id que ceux proposés par le select du GET. Pour
+        # un référent (formation précise ou navire), le périmètre est élargi
+        # en conséquence (_marins_validables) ; pour le seuil générique
+        # CHEF_SECTION+, le périmètre organisationnel habituel reste seul
+        # applicable, comme avant.
+        if autorise_par_referent:
+            if not _marins_validables(request.user).filter(pk=marin.pk).exists():
+                raise PermissionDenied
+        else:
+            q_perimetre_marin = filtres_perimetre_marin(request.user)
+            if q_perimetre_marin is not None and not User.objects.filter(q_perimetre_marin, pk=marin.pk).exists():
+                raise PermissionDenied
 
         try:
             completed_at = date.fromisoformat(completed_at_str)
@@ -562,10 +749,18 @@ def _secteurs_arbre_competences(user):
     système déjà livré — cf. training/models.py::peut_valider_formation), même
     si ce secteur est hors de son périmètre hiérarchique : un référent doit
     pouvoir suivre la progression des marins qu'il forme, quel que soit son
-    propre rattachement."""
+    propre rattachement — UNION, enfin, tous les secteurs du ou des navires
+    dont il est référent formation désigné (ReferentFormationNavire), même
+    logique appliquée à l'échelle du navire entier plutôt qu'à une formation
+    précise."""
     ids_perimetre = _secteurs_visibles(user).values_list("id", flat=True)
+    ids_navires_referes = ReferentFormationNavire.objects.filter(user=user).values_list("ship_id", flat=True)
     return (
-        Sector.objects.filter(Q(pk__in=ids_perimetre) | Q(training_courses__referents=user))
+        Sector.objects.filter(
+            Q(pk__in=ids_perimetre)
+            | Q(training_courses__referents=user)
+            | Q(service__ship_id__in=ids_navires_referes)
+        )
         .select_related("service", "service__ship")
         .order_by("service__ship__name", "service__name", "name")
         .distinct()

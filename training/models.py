@@ -43,13 +43,36 @@ class TrainingCourse(TimeStampedModel):
         return self.title
 
 
+class ReferentFormationNavire(TimeStampedModel):
+    """Référent formation désigné pour l'ENSEMBLE d'un navire — à ne pas
+    confondre avec TrainingCourse.referents ci-dessus (référent d'UNE
+    formation précise, choisi pour sa compétence sur ce sujet précis). Ce
+    rôle donne autorité de validation sur TOUTES les formations du navire,
+    quel que soit le secteur, pour un marin chargé de piloter le volet
+    formation de tout le bord (ex. "cellule formation") sans lui donner pour
+    autant le rang de COMMANDANT. Un seul référent par navire (OneToOneField
+    sur Ship) ; désigné/retiré uniquement par un rôle de supervision globale
+    (cf. peut_valider_formation ci-dessous et
+    training/web_views.py::_peut_gerer_referent_navire)."""
+
+    ship = models.OneToOneField(Ship, on_delete=models.CASCADE, related_name="referent_formation")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="navires_dont_il_est_referent_formation"
+    )
+
+    def __str__(self):
+        return f"{self.user} — référent formation ({self.ship})"
+
+
 # Rôle à partir duquel un utilisateur peut valider n'importe quelle formation,
 # même s'il n'est pas désigné référent : supervision globale (COMMANDANT et
 # au-dessus), même logique que is_master_admin (matrix/core/scopes.py) pour
 # les rôles élevés qui court-circuitent un contrôle plus fin ailleurs dans le
 # projet. En dessous de ce seuil — y compris un chef de rang supérieur mais
-# non désigné référent — seul le statut de référent compte : il est attribué
-# pour la compétence sur la formation, pas pour la position hiérarchique.
+# non désigné référent ni référent formation du navire — seul le statut de
+# référent compte : il est attribué pour la compétence sur la formation (ou,
+# pour ReferentFormationNavire, pour la mission confiée sur tout le navire),
+# pas pour la position hiérarchique.
 NIVEAU_SUPERVISION_GLOBALE_FORMATION = RoleLevel.COMMANDANT
 
 
@@ -57,11 +80,18 @@ def peut_valider_formation(user, course):
     """Vrai si `user` peut créer/modifier/supprimer un enregistrement de
     validation (TrainingRecord) pour `course`, ou gérer les présences d'une
     session de cette formation (TrainingSession.attendees) : soit parce qu'il
-    est désigné référent de cette formation précise, soit parce qu'il occupe
-    un rôle de supervision globale (COMMANDANT et au-dessus)."""
+    est désigné référent de cette formation précise (TrainingCourse.referents),
+    soit parce qu'il est désigné référent formation de l'ensemble du navire
+    auquel appartient `course` (ReferentFormationNavire, autorité valable sur
+    toutes les formations du navire quel que soit le secteur), soit parce
+    qu'il occupe un rôle de supervision globale (COMMANDANT et au-dessus)."""
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
         return True
-    return course.referents.filter(pk=user.pk).exists()
+    if course.referents.filter(pk=user.pk).exists():
+        return True
+    return ReferentFormationNavire.objects.filter(
+        ship_id=course.sector.service.ship_id, user=user
+    ).exists()
 
 
 def _verifier_absence_de_cycle_prerequis(course, nouveaux_ids):

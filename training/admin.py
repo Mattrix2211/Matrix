@@ -1,11 +1,21 @@
 from django.contrib import admin
-from .models import TrainingCourse, TrainingRequirement, TrainingSession, TrainingRecord
+from .models import (
+    TrainingCourse,
+    TrainingRequirement,
+    TrainingSession,
+    TrainingRecord,
+    ReferentFormationNavire,
+)
 
 @admin.register(TrainingCourse)
 class TrainingCourseAdmin(admin.ModelAdmin):
     list_display = ("title", "category", "sector", "validity_days")
     list_filter = ("sector", "category")
     filter_horizontal = ("prerequisites", "referents")
+
+@admin.register(ReferentFormationNavire)
+class ReferentFormationNavireAdmin(admin.ModelAdmin):
+    list_display = ("ship", "user")
 
 @admin.register(TrainingRequirement)
 class TrainingRequirementAdmin(admin.ModelAdmin):

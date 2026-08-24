@@ -308,3 +308,55 @@ class VueGestionReferentsTests(TestCase):
         r = self.client.get("/formations/")
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "marin_secteur")
+
+
+class ValidationWebReferentFormationTests(TestCase):
+    """Un référent d'UNE formation précise (TrainingCourse.referents), même de
+    rang EQUIPIER et rattaché à un secteur différent de celui de la formation,
+    doit pouvoir la valider via l'interface web (ValiderFormationView) —
+    régression corrigée : le contrôle web restait strictement CHEF_SECTION+,
+    sans jamais tenir compte du statut de référent (déjà pris en compte côté
+    API par TrainingRecordPermission)."""
+
+    def setUp(self):
+        ship = Ship.objects.create(name="Navire Val Réf", code="VREF")
+        service = Service.objects.create(ship=ship, name="Technique")
+        self.sector = Sector.objects.create(service=service, name="Électricité")
+        self.autre_sector = Sector.objects.create(service=service, name="Pont")
+        self.course = TrainingCourse.objects.create(
+            sector=self.sector, title="Habilitation électrique", validity_days=365,
+        )
+
+        # Le référent est rattaché à un AUTRE secteur que celui de sa
+        # formation : cas explicitement prévu par le modèle (un référent est
+        # choisi pour sa compétence, pas pour son secteur de rattachement).
+        self.referent = User.objects.create_user(username="ref_valide_web", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.referent, defaults={"role": "EQUIPIER", "sector": self.autre_sector},
+        )
+        self.course.referents.add(self.referent)
+
+        self.marin = User.objects.create_user(username="marin_ref_valide", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.marin, defaults={"role": "EQUIPIER", "sector": self.sector},
+        )
+
+        # Rechargé depuis la base pour repartir d'un profil non caché par le
+        # signal de création automatique (accounts/models.py).
+        self.referent = User.objects.get(pk=self.referent.pk)
+
+    def test_referent_equipier_voit_le_bouton_valider(self):
+        self.client.login(username="ref_valide_web", password="pass")
+        r = self.client.get("/formations/")
+        self.assertTrue(r.context["peut_valider"])
+
+    def test_referent_equipier_peut_valider_sa_formation_hors_de_son_secteur(self):
+        self.client.login(username="ref_valide_web", password="pass")
+        r = self.client.post("/formations/valider/", {
+            "marin_id": self.marin.id,
+            "course_id": self.course.id,
+            "completed_at": "2026-01-15",
+        })
+        self.assertEqual(r.status_code, 302)
+        record = TrainingRecord.objects.get(user=self.marin, course=self.course)
+        self.assertEqual(record.validated_by, self.referent)
