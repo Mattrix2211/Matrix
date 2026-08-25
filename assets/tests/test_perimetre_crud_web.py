@@ -283,6 +283,20 @@ class PerimetreCrudAssetWebTests(TestCase):
         self.assertIsNotNone(self.installation.location)
         self.assertEqual(self.installation.location.name, "Local machine bâbord")
 
+    def test_consultation_fiche_materiel_hors_perimetre_est_introuvable(self):
+        """Régression : la fiche détail d'un matériel (AssetDetailView) n'était
+        pas filtrée par périmètre (contrairement à InstallationDetailView), ce
+        qui permettait de consulter un matériel hors de son périmètre en
+        connaissant son UUID, même sans lien y menant depuis la liste."""
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.get(f"/assets/{self.materiel_hors_perimetre.id}/")
+        self.assertEqual(r.status_code, 404)
+
+    def test_consultation_fiche_materiel_dans_le_perimetre_reste_accessible(self):
+        self.client.login(username="chef_perim", password="pass")
+        r = self.client.get(f"/assets/{self.materiel.id}/")
+        self.assertEqual(r.status_code, 200)
+
     def test_chef_service_peut_editer_une_installation_avec_un_nouvel_emplacement_a_la_volee(self):
         self.client.login(username="chef_perim", password="pass")
         r = self.client.post("/installations/", {

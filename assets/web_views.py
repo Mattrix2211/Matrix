@@ -339,7 +339,13 @@ def _redirect_liste_materiel(request):
     return redirect('asset-list')
 
 
-class AssetDetailView(LoginRequiredMixin, DetailView):
+class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
+    # Périmètre : même principe que InstallationDetailView (déjà scopée) — sans
+    # ScopedQuerySetMixin, un utilisateur connaissant l'UUID d'un matériel hors de
+    # son périmètre (ex. deviné, retrouvé dans un lien) pouvait consulter sa fiche
+    # complète malgré l'absence de tout lien y menant depuis la liste (déjà
+    # filtrée, elle). Un matériel hors périmètre est désormais traité comme
+    # introuvable (404), pas de nouveau contrôle d'accès (T-SEC).
     model = Asset
     template_name = 'assets/detail.html'
 

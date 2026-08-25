@@ -24,6 +24,21 @@ class CorrectiveTicketViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         ticket = self.get_object()
         new_status = request.data.get("status")
         if new_status:
+            # Retour d'expérience (REX) obligatoire pour fermer un ticket : même
+            # règle que TicketTransitionView (interface web), reprise ici pour que
+            # l'API n'offre pas un moyen de contourner cette exigence métier
+            # (CLAUDE.md : « REX obligatoire à CLOSED »). Sans ce contrôle, un
+            # ticket pouvait être fermé sans diagnostic ni solution via l'API.
+            if new_status == "CLOSED" and not (ticket.diagnostic_final and ticket.solution):
+                return response.Response(
+                    {
+                        "detail": (
+                            "Impossible de fermer le ticket : le diagnostic final et "
+                            "la solution appliquée sont obligatoires (retour d'expérience)."
+                        )
+                    },
+                    status=400,
+                )
             old = ticket.status
             ticket.status = new_status
             ticket.save(update_fields=["status"])
