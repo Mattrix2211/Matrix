@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="h3 mb-3">Paramètres</h1>
+<h1 class="h3 mb-3">{% if user.is_superuser %}Paramètres{% else %}Mes notifications{% endif %}</h1>
 <ul class="nav nav-tabs mb-3">
+  {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="/parametre/?tab=utilisateurs">Utilisateurs</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Navires</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
+  {% endif %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" href="/parametre/?tab=notifications">Notification</a></li>
+  {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'journal' %}active{% endif %}" href="/parametre/?tab=journal">Journal</a></li>
+  {% endif %}
 </ul>
 
 {% if active_tab == 'generale' %}
@@ -260,7 +264,7 @@
 {% if active_tab == 'notifications' %}
 <div class="card">
   <div class="card-header">Notification quotidienne
-    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Notification quotidienne" data-bs-content="Choisissez l’heure à laquelle vous recevez les alertes d’échéance chaque jour (vibration/isolement/…)">
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Notification quotidienne" data-bs-content="Choisissez l’heure du matin (alertes d’échéance, résumé « Ma journée ») et l’heure du soir (résumé « Ma journée de demain »)">
       <span class="bi bi-info-circle"></span>
     </button>
   </div>
@@ -270,14 +274,18 @@
       <input type="hidden" name="action" value="update_notification_time" />
       <input type="hidden" name="next_tab" value="notifications" />
       <div class="col-auto">
-        <label class="form-label">Heure souhaitée</label>
+        <label class="form-label">Heure du matin (« Ma journée »)</label>
         <input type="time" name="notification_time" class="form-control" value="{{ user_notification_time }}" required />
+      </div>
+      <div class="col-auto">
+        <label class="form-label">Heure du soir (« Ma journée de demain »)</label>
+        <input type="time" name="notification_time_soir" class="form-control" value="{{ user_notification_time_soir }}" required />
       </div>
       <div class="col-auto">
         <button class="btn btn-primary" type="submit">Enregistrer</button>
       </div>
     </form>
-    <small class="text-muted d-block mt-2">Ce réglage est personnel (lié à votre compte).</small>
+    <small class="text-muted d-block mt-2">Ce réglage est personnel (lié à votre compte). Chaque matin, un résumé de votre journée (maintenances, formations, événements personnels) ; chaque soir, un aperçu de votre lendemain.</small>
   </div>
 </div>
 {% endif %}

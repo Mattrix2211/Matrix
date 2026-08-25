@@ -60,6 +60,10 @@ def installations_notifications(request):
                         # autres types éventuels ignorés
                     except Exception:
                         pass
+                if url is None and n.verb.startswith("Ma journée"):
+                    # Digest calendrier quotidien (notifications.tasks._digest_journee) :
+                    # pas d'objet unique à cibler, on renvoie vers le calendrier pour le détail.
+                    url = reverse("calendar-index")
                 item = {
                     "id": n.id,
                     "persisted": True,

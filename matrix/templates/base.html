@@ -104,9 +104,9 @@
               </a>
             </li>
             {% endif %}
-            {% if user.is_superuser %}
+            {% if user.is_authenticated %}
             <li class="nav-item">
-              <a class="nav-link" href="/parametre/" title="Paramètres" aria-label="Paramètres">
+              <a class="nav-link" href="{% if user.is_superuser %}/parametre/{% else %}/parametre/?tab=notifications{% endif %}" title="Paramètres" aria-label="Paramètres">
                 <span class="bi bi-gear nav-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Paramètres</span>
               </a>

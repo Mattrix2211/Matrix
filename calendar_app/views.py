@@ -89,6 +89,29 @@ def _evenements_personnels(user, start, end):
     return PersonalEvent.objects.filter(owner=user, starts_at__date__range=(start, end))
 
 
+def evenements_utilisateur_jour(user, day):
+    """Événements de calendrier concernant précisément `user` pour le jour
+    `day` : maintenances assignées, formations (assignées par un référent ou
+    réservées en libre-service), événements personnels libres. Même logique
+    de filtrage que le filtre "user" de calendar_events/_collect_events
+    (assignees, attendees | reservations, owner) — réutilisée ici par le
+    digest quotidien « Ma journée »/« Ma journée de demain »
+    (notifications.tasks) pour ne pas dupliquer l'agrégation."""
+    maintenances = list(
+        MaintenanceOccurrence.objects.filter(scheduled_for=day, assignees=user)
+        .select_related("asset", "installation_maintenance__installation")
+        .distinct()
+    )
+    formations = list(
+        TrainingSession.objects.filter(scheduled_at__date=day)
+        .filter(Q(attendees=user) | Q(reservations=user))
+        .select_related("course")
+        .distinct()
+    )
+    personnels = list(_evenements_personnels(user, day, day))
+    return {"maintenances": maintenances, "formations": formations, "personnels": personnels}
+
+
 def _appliquer_filtres_tickets(qs, filters):
     """Applique les filtres navire/service/secteur choisis dans les menus
     déroulants du calendrier à un queryset de tickets correctifs. Fonction

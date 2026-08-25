@@ -3,7 +3,7 @@ from django.core.management import call_command
 from django.db.models import F, Q
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, time as dt_time
 from .models import Notification, NotificationLevel
 from training.models import TrainingRecord
 from maintenance.models import MaintenanceOccurrence
@@ -11,6 +11,7 @@ from logistics.models import StockPiece
 from accounts.models import UserProfile, Roles
 from assets.models import Installation, InstallationMaintenance, ModeDeclenchement
 from assets.trend import jours_avant_franchissement_seuil
+from calendar_app.views import evenements_utilisateur_jour
 
 # Échéances (en jours avant expiration) auxquelles une formation déclenche une
 # alerte : réutilisé par dashboard/web_views.py pour aligner le seuil "bientôt
@@ -210,3 +211,79 @@ def detect_installation_drift():
             )
 
     return {"status": "ok"}
+
+
+def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
+    """Construit et envoie le digest quotidien « Ma journée »/« Ma journée de
+    demain » : parcourt les marins actifs, compare l'heure courante à leur
+    préférence (`champ_heure` sur UserProfile — même pattern que les commandes
+    generate_installation_notifications/generate_installation_maintenance_notifications,
+    qui comparent déjà UserProfile.notification_time à l'heure courante),
+    récupère les événements du jour visé via calendar_app.evenements_utilisateur_jour
+    (même agrégation que le calendrier personnel, pas de système parallèle) et
+    crée une notification résumée. Aucune notification si la journée est vide
+    (pas de rappel pour rien), et pas de doublon en cas d'exécution répétée le
+    même jour (get_or_create sur le résumé, qui inclut la date)."""
+    today = timezone.localdate()
+    target_date = today + timedelta(days=offset_jours)
+    now_local = timezone.localtime(timezone.now()).time().replace(second=0, microsecond=0)
+    created = 0
+
+    for profile in UserProfile.objects.select_related("user").filter(user__is_active=True):
+        pref = getattr(profile, champ_heure, None) or heure_defaut
+        if (now_local.hour, now_local.minute) != (pref.hour, pref.minute):
+            continue
+
+        evenements = evenements_utilisateur_jour(profile.user, target_date)
+        nb_maintenances = len(evenements["maintenances"])
+        nb_formations = len(evenements["formations"])
+        nb_personnels = len(evenements["personnels"])
+        if not (nb_maintenances or nb_formations or nb_personnels):
+            continue
+
+        parts = []
+        if nb_maintenances:
+            parts.append(f"{nb_maintenances} maintenance(s)")
+        if nb_formations:
+            parts.append(f"{nb_formations} formation(s)")
+        if nb_personnels:
+            parts.append(f"{nb_personnels} événement(s) personnel(s)")
+        verb = f"{prefixe}: {', '.join(parts)} le {target_date.strftime('%d/%m/%Y')}"
+
+        _, cree = Notification.objects.get_or_create(
+            user=profile.user, verb=verb, defaults={"level": NotificationLevel.INFO}
+        )
+        if cree:
+            created += 1
+
+    return {"status": "ok", "created": created}
+
+
+@shared_task
+def notify_ma_journee():
+    """« Ma journée » : chaque matin, résume au marin ce qui figure à son
+    calendrier personnel aujourd'hui (maintenances assignées, formations,
+    événements personnels libres), à l'heure choisie dans ses réglages
+    (UserProfile.notification_time, par défaut 08:00 — même champ que les
+    alertes d'échéance d'installations, qui servent déjà ce même besoin de
+    point du matin)."""
+    return _digest_journee(
+        offset_jours=0,
+        champ_heure="notification_time",
+        prefixe="Ma journée",
+        heure_defaut=dt_time(8, 0),
+    )
+
+
+@shared_task
+def notify_ma_journee_demain():
+    """« Ma journée de demain » : en fin de journée, anticipe ce qui figure au
+    calendrier personnel du marin le lendemain, avant qu'il ne quitte son
+    poste. Même principe que notify_ma_journee, décalé d'un jour et sur
+    l'heure du soir (UserProfile.notification_time_soir, par défaut 18:00)."""
+    return _digest_journee(
+        offset_jours=1,
+        champ_heure="notification_time_soir",
+        prefixe="Ma journée de demain",
+        heure_defaut=dt_time(18, 0),
+    )

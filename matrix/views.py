@@ -50,12 +50,37 @@ class SettingsView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
+            # Seule la section "Notification quotidienne" (réglage personnel de
+            # chaque marin) est accessible aux non-superusers. Le reste des
+            # Réglages (rôles, navires, hiérarchie, journal...) reste réservé
+            # aux comptes techniques superuser Django.
             from django.http import HttpResponseForbidden
-            return HttpResponseForbidden()
+            tab_ok = request.method == 'GET' and request.GET.get('tab', 'generale') == 'notifications'
+            action_ok = request.method == 'POST' and request.POST.get('action') == 'update_notification_time'
+            if not (tab_ok or action_ok):
+                return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
         tab = request.GET.get('tab', 'generale')
+
+        # Valeur d'heure de notification de l'utilisateur courant (format HH:MM)
+        def fmt_time(t):
+            try:
+                return t.strftime('%H:%M')
+            except Exception:
+                return '08:00'
+
+        if not request.user.is_superuser:
+            # Vue restreinte : uniquement le réglage personnel des horaires de
+            # notification quotidienne, sans les données réservées aux superusers.
+            context = {
+                'active_tab': 'notifications',
+                'user_notification_time': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time', None)),
+                'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
+            }
+            return render(request, self.template_name, context)
+
         # Prépare l'état des rôles (actif/inactif) côté serveur pour simplifier le template
         all_roles = [c for c in Roles.choices if c[0] != 'MASTER_ADMIN']
         role_options = list(RoleAvailability.objects.order_by('code'))
@@ -93,13 +118,6 @@ class SettingsView(LoginRequiredMixin, View):
         global_vib_days_b = getattr(first_it, 'vib_days_b', 90) if first_it else 90
         global_vib_days_c = getattr(first_it, 'vib_days_c', 30) if first_it else 30
 
-        # Valeur d'heure de notification de l'utilisateur courant (format HH:MM)
-        def fmt_time(t):
-            try:
-                return t.strftime('%H:%M')
-            except Exception:
-                return '08:00'
-
         context = {
             'active_tab': tab,
             'grades': GradeChoice.objects.order_by('name'),
@@ -119,6 +137,7 @@ class SettingsView(LoginRequiredMixin, View):
             'all_roles': all_roles,
             'roles_with_state': roles_with_state,
             'user_notification_time': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time', None)),
+            'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
         }
         if tab == 'journal':
             context['logs'] = AuditLog.objects.select_related('actor','target_user').order_by('-created_at')[:200]
@@ -302,16 +321,19 @@ class SettingsView(LoginRequiredMixin, View):
                 next_tab = 'installations'
         elif action == 'update_notification_time':
             val = (request.POST.get('notification_time') or '').strip()
+            val_soir = (request.POST.get('notification_time_soir') or '').strip()
             from datetime import datetime
             try:
                 t = datetime.strptime(val, '%H:%M').time()
+                t_soir = datetime.strptime(val_soir, '%H:%M').time()
                 profile = getattr(request.user, 'profile', None)
                 if profile is None:
                     from accounts.models import UserProfile, Roles
                     profile = UserProfile.objects.create(user=request.user, role=Roles.EQUIPIER)
                 profile.notification_time = t
-                profile.save(update_fields=['notification_time'])
-                messages.success(request, "Heure de notification mise à jour.")
+                profile.notification_time_soir = t_soir
+                profile.save(update_fields=['notification_time', 'notification_time_soir'])
+                messages.success(request, "Heures de notification mises à jour.")
                 next_tab = 'notifications'
             except Exception:
                 messages.error(request, "Heure invalide (format HH:MM).")

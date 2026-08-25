@@ -182,6 +182,21 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notifications.tasks.detect_installation_drift",
         "schedule": crontab(hour=8, minute=30),
     },
+    # Digest calendrier quotidien « Ma journée »/« Ma journée de demain » : la
+    # tâche elle-même compare l'heure courante à la préférence de chaque marin
+    # (UserProfile.notification_time / notification_time_soir), donc un
+    # déclenchement toutes les minutes suffit à respecter des préférences
+    # différentes d'un marin à l'autre (même principe que les alertes
+    # d'échéance d'installations ci-dessus, dont le déclenchement fixe à 08:00
+    # ne couvre que la préférence par défaut).
+    "notify_ma_journee_minute": {
+        "task": "notifications.tasks.notify_ma_journee",
+        "schedule": crontab(minute="*"),
+    },
+    "notify_ma_journee_demain_minute": {
+        "task": "notifications.tasks.notify_ma_journee_demain",
+        "schedule": crontab(minute="*"),
+    },
 }
 
 # Email

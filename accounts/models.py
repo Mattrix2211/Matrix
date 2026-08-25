@@ -26,7 +26,12 @@ class UserProfile(TimeStampedModel):
     fonction_service = models.CharField(max_length=128, blank=True, default="")
     matricule = models.CharField(max_length=64, blank=True, default="")
     date_naissance = models.DateField(null=True, blank=True)
+    # Heure du matin : alertes d'échéance (installations) et digest « Ma journée ».
     notification_time = models.TimeField(default=time(8,0))
+    # Heure du soir : digest « Ma journée de demain » (anticiper le lendemain
+    # avant de quitter son poste) — distincte de notification_time car elle
+    # sert un besoin différent (fin de journée, pas le matin).
+    notification_time_soir = models.TimeField(default=time(18,0))
 
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
