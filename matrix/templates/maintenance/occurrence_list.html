@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Gestion de la maintenance</h1>
+{% include 'maintenance/_gestion_tabs.html' %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div class="btn-group flex-wrap" role="group" aria-label="Filtre par statut">
+    <a href="?" class="btn btn-sm {% if not statut_actif %}btn-primary{% else %}btn-outline-primary{% endif %}">Tous les statuts</a>
+    {% for code, libelle in statuts %}
+    <a href="?statut={{ code }}{% if retard_actif %}&retard=1{% endif %}" class="btn btn-sm {% if statut_actif == code %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ libelle }}</a>
+    {% endfor %}
+  </div>
+  <a href="?{% if statut_actif %}statut={{ statut_actif }}&{% endif %}{% if retard_actif %}{% else %}retard=1{% endif %}" class="btn btn-sm {% if retard_actif %}btn-danger{% else %}btn-outline-danger{% endif %}">
+    <i class="bi bi-exclamation-triangle"></i> {% if retard_actif %}En retard uniquement{% else %}Filtrer les retards{% endif %}
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Équipement</th>
+          <th>Échéance</th>
+          <th>Statut</th>
+          <th>Assignés</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for occ in occurrences %}
+        <tr>
+          <td>{{ occ.titre_affiche }}</td>
+          <td class="font-mono">
+            {{ occ.scheduled_for|date:"d/m/Y" }}
+            {% if occ.en_retard %}<span class="badge text-bg-danger ms-1" title="Échéance dépassée">En retard</span>{% endif %}
+          </td>
+          <td><span class="badge {{ occ.badge_classe }}">{{ occ.get_status_display }}</span></td>
+          <td class="small text-muted">
+            {% for m in occ.assignees.all %}{{ m.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+          </td>
+          <td class="text-end">
+            <form method="post" action="{% url 'occurrence-self-assign' occ.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm {% if occ.suis_assigne %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
+                {% if occ.suis_assigne %}Me désister{% else %}M'assigner{% endif %}
+              </button>
+            </form>
+            <a href="{% url 'occurrence-execute' occ.pk %}" class="btn btn-sm btn-outline-success">Exécuter</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-4">Aucune occurrence de maintenance ne correspond à ces filtres.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

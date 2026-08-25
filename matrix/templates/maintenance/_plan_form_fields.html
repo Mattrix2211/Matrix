@@ -1,0 +1,54 @@
+{# Champs communs aux modales de création/modification d'un plan de maintenance.
+   `prefix` (creer/modifier) rend les identifiants uniques entre les deux modales. #}
+<div class="row g-3">
+  <div class="col-12">
+    <label class="form-label">Nom du plan</label>
+    <input class="form-control" name="name" id="{{ prefix }}Name" required>
+  </div>
+  <div class="col-12">
+    <label class="form-label d-block">Rattaché à</label>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="scope" value="ASSET" id="{{ prefix }}ScopeAsset" checked>
+      <label class="form-check-label" for="{{ prefix }}ScopeAsset">Un matériel précis</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="scope" value="ASSET_TYPE" id="{{ prefix }}ScopeType">
+      <label class="form-check-label" for="{{ prefix }}ScopeType">Un type de matériel</label>
+    </div>
+  </div>
+  <div class="col-12" id="{{ prefix }}BlocAsset">
+    <label class="form-label">Matériel</label>
+    <select class="form-select" name="asset_id" id="{{ prefix }}Asset">
+      <option value="">—</option>
+      {% for a in assets_disponibles %}<option value="{{ a.id }}">{{ a }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-12" id="{{ prefix }}BlocType" hidden>
+    <label class="form-label">Type de matériel</label>
+    <select class="form-select" name="asset_type_id" id="{{ prefix }}AssetType">
+      <option value="">—</option>
+      {% for t in asset_types_disponibles %}<option value="{{ t.id }}">{{ t }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Périodicité (en jours)</label>
+    <input type="number" min="1" class="form-control font-mono" name="every_n_days" id="{{ prefix }}EveryNDays" value="90" required>
+  </div>
+  <div class="col-6">
+    <label class="form-label">Durée estimée (en minutes)</label>
+    <input type="number" min="0" class="form-control font-mono" name="expected_duration_min" id="{{ prefix }}ExpectedDurationMin" value="30" required>
+  </div>
+  <div class="col-12">
+    <label class="form-label">Checklist associée (optionnel)</label>
+    <select class="form-select" name="checklist_template_id" id="{{ prefix }}Checklist">
+      <option value="">Aucune</option>
+      {% for c in checklists_disponibles %}<option value="{{ c.id }}">{{ c }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-12">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="requires_validation" id="{{ prefix }}RequiresValidation">
+      <label class="form-check-label" for="{{ prefix }}RequiresValidation">Exige une validation avant clôture</label>
+    </div>
+  </div>
+</div>
