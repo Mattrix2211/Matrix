@@ -1,7 +1,9 @@
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.utils import timezone
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.db.models import Q
 from datetime import timedelta, datetime
@@ -10,6 +12,7 @@ from django.contrib.auth import get_user_model
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
+from .models import PersonalEvent
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.scopes import scope_filters_for_user
 from matrix.core.mixins import build_scope_q
@@ -77,6 +80,15 @@ def _appliquer_filtres_occurrences(qs, filters):
     return qs
 
 
+def _evenements_personnels(user, start, end):
+    """Événements personnels libres (rappels, notes) créés par l'utilisateur,
+    dans la période affichée. Toujours restreints à leur propriétaire, quels
+    que soient les filtres navire/service/secteur/utilisateur appliqués : un
+    événement personnel n'a aucune portée organisationnelle, il n'est visible
+    que par son créateur."""
+    return PersonalEvent.objects.filter(owner=user, starts_at__date__range=(start, end))
+
+
 def _appliquer_filtres_tickets(qs, filters):
     """Applique les filtres navire/service/secteur choisis dans les menus
     déroulants du calendrier à un queryset de tickets correctifs. Fonction
@@ -135,6 +147,9 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "sectors": Sector.objects.select_related("service", "service__ship").all(),
             "users": User.objects.order_by("username").all(),
             "active_filters": filters,
+            "mes_evenements_personnels": PersonalEvent.objects.filter(
+                owner=request.user, starts_at__gte=timezone.now()
+            ).order_by("starts_at")[:20],
         }
         return render(request, self.template_name, ctx)
 
@@ -205,6 +220,18 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                 "url": "/training/",  # placeholder detail si disponible
                 "status": s.status,
             })
+
+        # Événements personnels libres : uniquement ceux du marin connecté.
+        if not filters.get("type") or filters["type"] == "personal":
+            for pe in _evenements_personnels(request.user, start, end):
+                events.append({
+                    "type": "personal",
+                    "title": f"Personnel - {pe.title}",
+                    "start": pe.starts_at.isoformat(),
+                    "end": pe.starts_at.isoformat(),
+                    "url": "",
+                    "status": None,
+                })
         return events
 
 
@@ -243,6 +270,7 @@ _COULEUR_PAR_TYPE = {
     "maintenance": {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
     "ticket":      {"backgroundColor": "#fd7e14", "borderColor": "#d96307", "textColor": "#fff"},
     "training":    {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
+    "personal":    {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
 }
 
 def _couleur_evenement(ev_type, status=None):
@@ -334,6 +362,21 @@ def calendar_events(request):
             "extendedProps": {"type": "training", "status": s.status},
             **couleur,
         })
+    # Événements personnels libres : uniquement ceux du marin connecté,
+    # affichés à côté des événements auto-générés sur son calendrier.
+    if not filters.get("type") or filters["type"] == "personal":
+        for pe in _evenements_personnels(request.user, start, end):
+            couleur = _couleur_evenement("personal")
+            events.append({
+                "id": f"per-{pe.id}",
+                "title": f"📌 {pe.title}",
+                "start": pe.starts_at.isoformat(),
+                "end": pe.starts_at.isoformat(),
+                "url": "",
+                "editable": True,
+                "extendedProps": {"type": "personal", "status": None, "note": pe.note},
+                **couleur,
+            })
     return JsonResponse(events, safe=False)
 
 
@@ -399,4 +442,70 @@ def calendar_event_move(request):
         s.scheduled_at = aware_dt
         s.save(update_fields=["scheduled_at"])
         return JsonResponse({"ok": True})
+    if ev_type == "personal" and ev_id:
+        try:
+            # Un événement personnel n'appartient qu'à son créateur : aucune
+            # dérogation de rôle possible, contrairement aux autres types.
+            pe = PersonalEvent.objects.get(pk=ev_id, owner=request.user)
+        except PersonalEvent.DoesNotExist:
+            return HttpResponseForbidden()
+        aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
+        pe.starts_at = aware_dt
+        pe.save(update_fields=["starts_at"])
+        return JsonResponse({"ok": True})
     return HttpResponseBadRequest("Unsupported event type")
+
+
+def _parse_personal_event_datetime(date_str):
+    """Convertit la valeur du champ datetime-local du formulaire en date/heure
+    « aware », en tenant compte du fuseau horaire local du bord."""
+    naive_dt = datetime.fromisoformat(date_str)
+    if timezone.is_aware(naive_dt):
+        return naive_dt
+    return timezone.make_aware(naive_dt)
+
+
+@login_required
+def personal_event_save(request):
+    """Crée ou modifie un événement personnel libre du marin connecté.
+    Un identifiant présent dans le formulaire déclenche une modification
+    (limitée aux événements dont il est propriétaire), son absence une
+    création — un seul formulaire suffit pour les deux usages."""
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST required")
+    titre = (request.POST.get("title") or "").strip()
+    date_str = request.POST.get("starts_at") or ""
+    note = (request.POST.get("note") or "").strip()
+    event_id = request.POST.get("id") or None
+
+    if not titre or not date_str:
+        messages.error(request, "Le titre et la date sont obligatoires.")
+        return redirect("calendar-index")
+    try:
+        starts_at = _parse_personal_event_datetime(date_str)
+    except ValueError:
+        messages.error(request, "Date invalide.")
+        return redirect("calendar-index")
+
+    if event_id:
+        evenement = get_object_or_404(PersonalEvent, pk=event_id, owner=request.user)
+        evenement.title = titre
+        evenement.starts_at = starts_at
+        evenement.note = note
+        evenement.save(update_fields=["title", "starts_at", "note"])
+        messages.success(request, "Événement personnel modifié.")
+    else:
+        PersonalEvent.objects.create(owner=request.user, title=titre, starts_at=starts_at, note=note)
+        messages.success(request, "Événement personnel ajouté à votre calendrier.")
+    return redirect("calendar-index")
+
+
+@login_required
+def personal_event_delete(request, pk):
+    """Supprime un événement personnel — réservé à son propriétaire."""
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST required")
+    evenement = get_object_or_404(PersonalEvent, pk=pk, owner=request.user)
+    evenement.delete()
+    messages.success(request, "Événement personnel supprimé.")
+    return redirect("calendar-index")

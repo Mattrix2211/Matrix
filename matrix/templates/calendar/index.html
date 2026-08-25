@@ -68,6 +68,7 @@
         <option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>🔧 Maintenance</option>
         <option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>🛠 Ticket</option>
         <option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>📚 Formation</option>
+        <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>📌 Personnel</option>
       </select>
     </div>
     <div class="col-auto">
@@ -106,14 +107,81 @@
     <span><span class="badge" style="background:#6c757d">✓ Terminée</span></span>
     <span><span class="badge" style="background:#fd7e14">🛠 Ticket</span></span>
     <span><span class="badge" style="background:#198754">📚 Formation</span></span>
+    <span><span class="badge" style="background:#6f42c1">📌 Personnel</span></span>
   </div>
 
   {# Alerte chargement #}
   <div id="cal-erreur" class="alert alert-danger d-none">Impossible de charger les événements.</div>
 
-  <div class="card shadow-sm">
-    <div class="card-body p-2">
-      <div id="calendar"></div>
+  <div class="row g-3">
+    <div class="col-lg-9">
+      <div class="card shadow-sm">
+        <div class="card-body p-2">
+          <div id="calendar"></div>
+        </div>
+      </div>
+    </div>
+
+    {# Ajout libre d'un événement personnel (rappel, note) — visible uniquement
+       par son créateur, à côté des événements auto-générés (maintenance,
+       formation). #}
+    <div class="col-lg-3">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header py-2">
+          <strong>Ajouter un événement personnel</strong>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{% url 'calendar-personal-save' %}" id="form-evenement-personnel">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="pe-id" value="">
+            <div class="mb-2">
+              <label class="form-label mb-1" for="pe-title">Titre</label>
+              <input type="text" class="form-control form-control-sm" id="pe-title" name="title" maxlength="200" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label mb-1" for="pe-starts-at">Date et heure</label>
+              <input type="datetime-local" class="form-control form-control-sm" id="pe-starts-at" name="starts_at" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label mb-1" for="pe-note">Note (facultatif)</label>
+              <textarea class="form-control form-control-sm" id="pe-note" name="note" rows="2"></textarea>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary btn-sm flex-fill">Ajouter</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="pe-annuler">Annuler</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header py-2">
+          <strong>Mes événements personnels</strong>
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for pe in mes_evenements_personnels %}
+            <li class="list-group-item d-flex justify-content-between align-items-start gap-2 small">
+              <div>
+                <div class="fw-semibold">{{ pe.title }}</div>
+                <div class="text-muted">{{ pe.starts_at|date:"d/m/Y H:i" }}</div>
+              </div>
+              <div class="d-flex gap-1">
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 btn-modifier-evenement"
+                        data-id="{{ pe.id }}" data-title="{{ pe.title }}"
+                        data-starts-at="{{ pe.starts_at|date:'Y-m-d\TH:i' }}" data-note="{{ pe.note }}">
+                  Modifier
+                </button>
+                <form method="post" action="{% url 'calendar-personal-delete' pe.id %}" onsubmit="return confirm('Supprimer cet événement personnel ?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">Suppr.</button>
+                </form>
+              </div>
+            </li>
+          {% empty %}
+            <li class="list-group-item small text-muted">Aucun événement personnel à venir.</li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
   </div>
 </div>
@@ -180,8 +248,8 @@ document.addEventListener('DOMContentLoaded', function () {
     },
     eventDrop: function (info) {
       const id = info.event.id;
-      const evType = id.startsWith('occ-') ? 'maintenance' : (id.startsWith('tic-') ? 'ticket' : (id.startsWith('trn-') ? 'training' : ''));
-      const cleanId = id.replace(/^(occ-|tic-|trn-)/, '');
+      const evType = id.startsWith('occ-') ? 'maintenance' : (id.startsWith('tic-') ? 'ticket' : (id.startsWith('trn-') ? 'training' : (id.startsWith('per-') ? 'personal' : '')));
+      const cleanId = id.replace(/^(occ-|tic-|trn-|per-)/, '');
       if (!evType) { info.revert(); return; }
       const formData = new FormData();
       formData.append('type', evType);
@@ -205,6 +273,35 @@ document.addEventListener('DOMContentLoaded', function () {
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
   }
+
+  // Passage du formulaire d'ajout en mode modification pour un événement
+  // personnel existant : un seul formulaire sert aux deux usages.
+  const formPersonnel = document.getElementById('form-evenement-personnel');
+  const champId = document.getElementById('pe-id');
+  const champTitre = document.getElementById('pe-title');
+  const champDate = document.getElementById('pe-starts-at');
+  const champNote = document.getElementById('pe-note');
+  const btnAnnuler = document.getElementById('pe-annuler');
+  const btnValider = formPersonnel.querySelector('button[type="submit"]');
+
+  document.querySelectorAll('.btn-modifier-evenement').forEach(function (bouton) {
+    bouton.addEventListener('click', function () {
+      champId.value = bouton.dataset.id;
+      champTitre.value = bouton.dataset.title;
+      champDate.value = bouton.dataset.startsAt;
+      champNote.value = bouton.dataset.note || '';
+      btnValider.textContent = 'Modifier';
+      btnAnnuler.classList.remove('d-none');
+      champTitre.focus();
+    });
+  });
+
+  btnAnnuler.addEventListener('click', function () {
+    formPersonnel.reset();
+    champId.value = '';
+    btnValider.textContent = 'Ajouter';
+    btnAnnuler.classList.add('d-none');
+  });
 });
 </script>
 {% endblock %}

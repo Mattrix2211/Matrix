@@ -4,6 +4,7 @@ from django.utils import timezone
 from icalendar import Calendar, Event
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
+from .models import PersonalEvent
 
 def user_ical_feed(request):
     if not request.user.is_authenticated:
@@ -35,5 +36,14 @@ def user_ical_feed(request):
         ev.add('summary', f"Formation: {s.course.title}")
         ev.add('dtstart', s.scheduled_at)
         ev.add('dtend', s.scheduled_at)
+        cal.add_component(ev)
+    # Événements personnels libres du marin (rappels, notes).
+    for pe in PersonalEvent.objects.filter(owner=request.user):
+        ev = Event()
+        ev.add('summary', f"Personnel: {pe.title}")
+        ev.add('dtstart', pe.starts_at)
+        ev.add('dtend', pe.starts_at)
+        if pe.note:
+            ev.add('description', pe.note)
         cal.add_component(ev)
     return HttpResponse(cal.to_ical(), content_type='text/calendar')
