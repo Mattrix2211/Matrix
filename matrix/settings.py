@@ -166,18 +166,26 @@ CELERY_BEAT_SCHEDULE = {
     },
     "generate_installation_notifications_daily": {
         "task": "notifications.tasks.generate_installation_notifications",
-        # Horaire fixe (08:00) : c'est l'heure de notification par défaut des marins
-        # (UserProfile.notification_time), conformément à la docstring de la commande.
-        "schedule": crontab(hour=8, minute=0),
+        # Déclenchement toutes les minutes : la tâche elle-même compare l'heure
+        # courante à la préférence de chaque marin (UserProfile.notification_time)
+        # pour décider s'il faut le notifier. Un horaire fixe (crontab(hour=8,
+        # minute=0)) ne déclenchait la tâche qu'une fois par jour et ne couvrait
+        # donc que les marins ayant gardé la préférence par défaut (08:00) : tout
+        # marin ayant personnalisé son horaire n'était jamais notifié. Même
+        # principe que notify_ma_journee_minute ci-dessous.
+        "schedule": crontab(minute="*"),
     },
     "generate_installation_maintenance_notifications_daily": {
         "task": "notifications.tasks.generate_installation_maintenance_notifications",
-        "schedule": crontab(hour=8, minute=0),
+        # Voir le commentaire de generate_installation_notifications_daily ci-dessus :
+        # même bug, même correctif.
+        "schedule": crontab(minute="*"),
     },
-    # Dérive sur les relevés techniques (isolement, heures de marche) : décalée
-    # de 30 minutes par rapport aux échéances ci-dessus pour ne pas tout lancer
-    # à la même minute, un calcul de tendance n'ayant pas besoin d'être aussi
-    # instantané qu'une échéance déjà atteinte.
+    # Dérive sur les relevés techniques (isolement, heures de marche) : contrairement
+    # aux échéances ci-dessus, ce calcul ne dépend pas de la préférence d'heure
+    # de chaque marin (pas de notifier() par utilisateur), un horaire fixe une
+    # fois par jour suffit donc - un calcul de tendance n'a pas besoin d'être
+    # aussi instantané qu'une échéance déjà atteinte.
     "detect_installation_drift_daily": {
         "task": "notifications.tasks.detect_installation_drift",
         "schedule": crontab(hour=8, minute=30),
@@ -187,8 +195,7 @@ CELERY_BEAT_SCHEDULE = {
     # (UserProfile.notification_time / notification_time_soir), donc un
     # déclenchement toutes les minutes suffit à respecter des préférences
     # différentes d'un marin à l'autre (même principe que les alertes
-    # d'échéance d'installations ci-dessus, dont le déclenchement fixe à 08:00
-    # ne couvre que la préférence par défaut).
+    # d'échéance d'installations ci-dessus).
     "notify_ma_journee_minute": {
         "task": "notifications.tasks.notify_ma_journee",
         "schedule": crontab(minute="*"),

@@ -1,5 +1,7 @@
-from datetime import timedelta
+from datetime import time, timedelta
+from unittest.mock import patch
 
+from celery.schedules import crontab
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -44,6 +46,41 @@ class CeleryBeatInstallationNotificationsTests(TestCase):
         entry = settings.CELERY_BEAT_SCHEDULE.get("generate_installation_maintenance_notifications_daily")
         self.assertIsNotNone(entry, "Aucune entrée Celery Beat pour generate_installation_maintenance_notifications")
         self.assertEqual(entry["task"], "notifications.tasks.generate_installation_maintenance_notifications")
+
+    def test_planification_toutes_les_minutes_pour_respecter_lheure_choisie_par_chaque_marin(self):
+        """Les deux tâches comparent en interne l'heure courante à la préférence
+        de CHAQUE marin (UserProfile.notification_time). Un horaire fixe unique
+        (ex: crontab(hour=8, minute=0)) ne déclenche la tâche qu'une fois par
+        jour et ne notifie donc que les marins ayant gardé la préférence par
+        défaut (08:00) : tout marin ayant personnalisé son horaire n'était
+        jamais notifié. La planification doit donc être toutes les minutes,
+        comme pour notify_ma_journee_minute."""
+        entry_echeances = settings.CELERY_BEAT_SCHEDULE.get("generate_installation_notifications_daily")
+        entry_entretien = settings.CELERY_BEAT_SCHEDULE.get("generate_installation_maintenance_notifications_daily")
+        self.assertEqual(entry_echeances["schedule"], crontab(minute="*"))
+        self.assertEqual(entry_entretien["schedule"], crontab(minute="*"))
+
+    def test_marin_avec_horaire_personnalise_different_de_08h00_est_bien_notifie(self):
+        """Reproduit le scénario du bug: avant le correctif, seule l'exécution
+        fixe à 08:00 déclenchait la tâche, donc un marin ayant personnalisé son
+        horaire (ici volontairement différent de 08:00) n'était jamais notifié.
+        On simule l'heure d'exécution de la tâche (03:17) plutôt que l'heure
+        réelle de la machine de test, pour ne pas dépendre du moment où les
+        tests tournent."""
+        UserProfile.objects.filter(user=self.user).update(notification_time=time(3, 17))
+        InstallationVibrationReading.objects.create(
+            installation=self.installation,
+            date=timezone.localdate() - timedelta(days=25),
+            state="C",
+        )
+        heure_execution = timezone.localtime().replace(hour=3, minute=17, second=0, microsecond=0)
+
+        with patch("django.utils.timezone.localtime", return_value=heure_execution):
+            generate_installation_notifications()
+
+        self.assertTrue(
+            Notification.objects.filter(user=self.user, verb__icontains="Vibration").exists()
+        )
 
     def test_tache_maintenance_notifications_genere_bien_une_alerte(self):
         maintenance = InstallationMaintenance.objects.create(
