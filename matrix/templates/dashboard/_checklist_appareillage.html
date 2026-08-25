@@ -1,0 +1,85 @@
+{# Checklist d'une session d'appareillage — partagée entre la page principale
+   (PretAppareillageView), le retour HTMX du cochage d'un item
+   (ItemAppareillageCocherView) et le détail en lecture seule d'une session
+   passée (SessionAppareillageDetailView). Le contexte attendu :
+   session, items_par_categorie, peut_signer. #}
+<div id="session-appareillage">
+  <div class="alert {% if not session.est_ouverte %}alert-success{% elif session.tout_verifie %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center gap-2" role="alert">
+    {% if not session.est_ouverte %}
+      <span class="bi bi-shield-check fs-4" aria-hidden="true"></span>
+      <div><strong>Session clôturée.</strong> Signée par {{ session.valide_par }} le {{ session.date_validation|date:"d/m/Y H:i" }}.</div>
+    {% elif session.tout_verifie %}
+      <span class="bi bi-check2-circle fs-4" aria-hidden="true"></span>
+      <div><strong>Tous les points ont été vérifiés.</strong> La session peut être signée.</div>
+    {% else %}
+      <span class="bi bi-exclamation-triangle fs-4" aria-hidden="true"></span>
+      <div><strong>Session ouverte le {{ session.ouverte_le|date:"d/m/Y H:i" }}.</strong> Cochez chaque point au fur et à mesure des vérifications.</div>
+    {% endif %}
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="fw-semibold font-mono">{{ session.nombre_items_verifies }}/{{ session.nombre_items }} vérifiés</span>
+        <span class="font-mono">{{ session.progression_pct }} %</span>
+      </div>
+      <div class="progress" style="height:10px;">
+        <div class="progress-bar" role="progressbar" style="width: {{ session.progression_pct }}%; background: {% if session.tout_verifie %}var(--green-tech){% else %}var(--signal){% endif %};" aria-valuenow="{{ session.progression_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+    </div>
+  </div>
+
+  {% for groupe in items_par_categorie %}
+  <div class="card mb-3">
+    <div class="card-header">{{ groupe.libelle }}</div>
+    <ul class="list-group list-group-flush">
+      {% for item in groupe.items %}
+      <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+        {% if session.est_ouverte %}
+        <form hx-post="{% url 'item-appareillage-cocher' item.id %}" hx-target="#session-appareillage" hx-swap="outerHTML" class="d-flex align-items-center gap-2 flex-grow-1">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm {% if item.est_verifie %}btn-success{% else %}btn-outline-secondary{% endif %}" aria-pressed="{% if item.est_verifie %}true{% else %}false{% endif %}" aria-label="{% if item.est_verifie %}Décocher{% else %}Cocher{% endif %} : {{ item.libelle }}">
+            <span class="bi {% if item.est_verifie %}bi-check-square{% else %}bi-square{% endif %}" aria-hidden="true"></span>
+          </button>
+          <span>{{ item.libelle }}</span>
+        </form>
+        {% else %}
+        <div class="d-flex align-items-center gap-2 flex-grow-1">
+          <span class="bi {% if item.est_verifie %}bi-check-square text-success{% else %}bi-square text-muted{% endif %}" aria-hidden="true"></span>
+          <span>{{ item.libelle }}</span>
+        </div>
+        {% endif %}
+        {% if item.est_verifie %}
+        <span class="small text-muted font-mono">{{ item.verifie_par }} — {{ item.verifie_le|date:"d/m H:i" }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% empty %}
+  <div class="alert alert-success" role="alert">
+    <span class="bi bi-check2-circle" aria-hidden="true"></span> Aucun point de vigilance détecté à l'ouverture de cette session.
+  </div>
+  {% endfor %}
+
+  {% if session.est_ouverte and peut_signer %}
+  <div class="card">
+    <div class="card-header"><span class="bi bi-pen" aria-hidden="true"></span> Signer et clôturer la session</div>
+    <div class="card-body">
+      <p class="text-muted">La signature clôture définitivement la session : plus aucune modification ne sera possible ensuite.</p>
+      <form method="post" action="{% url 'session-appareillage-signer' session.id %}" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-6">
+          <label class="form-label" for="mot-de-passe-signature">Mot de passe</label>
+          <input class="form-control" type="password" name="mot_de_passe" id="mot-de-passe-signature" autocomplete="current-password" required>
+        </div>
+        <div class="col-md-6">
+          <button type="submit" class="btn btn-primary">
+            <span class="bi bi-pen" aria-hidden="true"></span> Signer et clôturer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>

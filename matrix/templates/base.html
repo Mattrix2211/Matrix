@@ -111,6 +111,14 @@
               </a>
             </li>
             {% endif %}
+            {% if user|peut_voir_pret_appareillage %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'pret-appareillage' %}" title="Prêt à appareillage" aria-label="Prêt à appareillage">
+                <span class="bi bi-compass nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Prêt à appareillage</span>
+              </a>
+            </li>
+            {% endif %}
             {% if user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link" href="{% if user.is_superuser %}/parametre/{% else %}/parametre/?tab=notifications{% endif %}" title="Paramètres" aria-label="Paramètres">

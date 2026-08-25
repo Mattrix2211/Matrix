@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1"><span class="bi bi-clock-history" aria-hidden="true"></span> Historique des sessions d'appareillage</h1>
+<p class="text-muted mb-4">Sessions de préparation à un appareillage déjà signées et clôturées.</p>
+
+<p>
+  <a href="{% url 'pret-appareillage' %}" class="btn btn-outline-secondary btn-sm">
+    <span class="bi bi-arrow-left" aria-hidden="true"></span> Retour
+  </a>
+</p>
+
+{% if aucun_navire %}
+<div class="alert alert-warning" role="alert">
+  Aucun navire n'est associé à votre profil : impossible d'afficher l'historique des sessions d'appareillage.
+</div>
+{% elif sessions %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Navire</th>
+        <th>Ouverte le</th>
+        <th>Clôturée le</th>
+        <th>Signée par</th>
+        <th>Points vérifiés</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for session in sessions %}
+      <tr>
+        <td>{{ session.ship }}</td>
+        <td class="font-mono">{{ session.ouverte_le|date:"d/m/Y H:i" }}</td>
+        <td class="font-mono">{{ session.cloturee_le|date:"d/m/Y H:i" }}</td>
+        <td>{{ session.valide_par }}</td>
+        <td class="font-mono">{{ session.nombre_items_verifies }}/{{ session.nombre_items }}</td>
+        <td>
+          <a href="{% url 'session-appareillage-detail' session.id %}" class="btn btn-sm btn-outline-secondary">
+            Voir
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">Aucune session d'appareillage clôturée pour le moment.</p>
+{% endif %}
+{% endblock %}
