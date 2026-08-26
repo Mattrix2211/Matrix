@@ -9,11 +9,13 @@
  * vers le haut de la carte débloquée (niveau du dessous), pour donner la
  * lecture d'un arbre qui descend, comme dans un jeu vidéo.
  *
- * L'affichage étant réparti par catégorie (une section .arbre-competences-
- * conteneur par catégorie), chaque section a ses propres connecteurs : un
- * prérequis d'une autre catégorie n'a pas de carte dans cette section et son
- * trait n'est donc simplement pas tracé (un badge dans la carte renvoie déjà
- * vers sa catégorie).
+ * L'affichage étant réparti par catégorie puis par composante connexe (une
+ * section .arbre-competences-conteneur par composante, cf.
+ * training/services.py::regrouper_par_composantes_connexes), chaque section
+ * a ses propres connecteurs : un prérequis d'une autre catégorie ou d'une
+ * autre composante n'a pas de carte dans cette section et son trait n'est
+ * donc simplement pas tracé (un badge dans la carte renvoie déjà vers sa
+ * catégorie).
  */
 (function () {
   function dessinerConnecteurs(conteneur) {

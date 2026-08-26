@@ -22,59 +22,76 @@
   {# Le graphe (niveaux, anti-cycle) est calculé sur tout le catalogue ; seul #}
   {# cet affichage est réparti par catégorie (domaine métier). Un prérequis  #}
   {# d'une autre catégorie est signalé par un badge plutôt que d'être caché. #}
-  {% for nom_categorie, niveaux in categories %}
+  {# Les catégories sont des branches indépendantes : elles sont disposées   #}
+  {# côte à côte (arbre-categories, colonnes parallèles + défilement         #}
+  {# horizontal) plutôt que de s'empiler verticalement les unes sous les     #}
+  {# autres. Au sein d'une même catégorie, les formations sans aucun lien de #}
+  {# prérequis entre elles (composantes connexes distinctes, cf.            #}
+  {# training/services.py::regrouper_par_composantes_connexes) sont, pour la #}
+  {# même raison, disposées en sous-colonnes (arbre-composantes) plutôt que  #}
+  {# de s'empiler l'une sous l'autre ; seules les formations reliées par un  #}
+  {# prérequis (niveaux successifs d'une même chaîne) restent empilées.      #}
+  <div class="arbre-categories">
+  {% for nom_categorie, composantes in categories %}
   <section class="arbre-categorie" id="cat-{{ nom_categorie|slugify }}">
     <h2 class="arbre-categorie-titre">{{ nom_categorie }}</h2>
-    <div class="arbre-competences-conteneur">
-      <svg class="arbre-connecteurs" aria-hidden="true"></svg>
-      <div class="arbre-competences">
-        {% for niveau, items in niveaux %}
-          <div class="arbre-niveau">
-            <div class="arbre-niveau-titre">Niveau {{ niveau }}</div>
-            <div class="arbre-niveau-cartes">
-              {% for item in items %}
-                <div class="card formation-card formation-card--{{ item.etat|lower }}"
-                     id="formation-{{ item.course.id }}"
-                     data-course-id="{{ item.course.id }}"
-                     data-prerequisites="{% for p in item.course.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                     title="{{ item.course.title }}">
-                  <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start gap-2">
-                      <h6 class="card-title mb-1">{{ item.course.title }}</h6>
-                      <span class="badge badge-etat badge-etat--{{ item.etat|lower }}">
-                        {% if item.etat == 'VALIDE' %}
-                          <i class="bi bi-check-circle"></i> Validé
-                        {% elif item.etat == 'DISPONIBLE' %}
-                          <i class="bi bi-unlock"></i> Disponible
-                        {% else %}
-                          <i class="bi bi-lock"></i> Verrouillé
+    <div class="arbre-composantes">
+      {% for niveaux in composantes %}
+      <div class="arbre-composante">
+        <div class="arbre-competences-conteneur">
+          <svg class="arbre-connecteurs" aria-hidden="true"></svg>
+          <div class="arbre-competences">
+            {% for niveau, items in niveaux %}
+              <div class="arbre-niveau">
+                <div class="arbre-niveau-titre">Niveau {{ niveau }}</div>
+                <div class="arbre-niveau-cartes">
+                  {% for item in items %}
+                    <div class="card formation-card formation-card--{{ item.etat|lower }}"
+                         id="formation-{{ item.course.id }}"
+                         data-course-id="{{ item.course.id }}"
+                         data-prerequisites="{% for p in item.course.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                         title="{{ item.course.title }}">
+                      <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                          <h6 class="card-title mb-1">{{ item.course.title }}</h6>
+                          <span class="badge badge-etat badge-etat--{{ item.etat|lower }}">
+                            {% if item.etat == 'VALIDE' %}
+                              <i class="bi bi-check-circle"></i> Validé
+                            {% elif item.etat == 'DISPONIBLE' %}
+                              <i class="bi bi-unlock"></i> Disponible
+                            {% else %}
+                              <i class="bi bi-lock"></i> Verrouillé
+                            {% endif %}
+                          </span>
+                        </div>
+                        {% if item.prerequis_manquants %}
+                          <div class="small text-muted mt-1">
+                            Manque :
+                            {% for p in item.prerequis_manquants %}
+                              {{ p.title }}{% if p|autre_categorie:item.course %}
+                                <a href="#cat-{{ p.category|categorie_affichee|slugify }}"
+                                   class="badge text-bg-light border"
+                                   title="Ce prérequis appartient à une autre catégorie">
+                                  <i class="bi bi-box-arrow-up-right"></i> {{ p.category|categorie_affichee }}
+                                </a>
+                              {% endif %}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                          </div>
                         {% endif %}
-                      </span>
-                    </div>
-                    {% if item.prerequis_manquants %}
-                      <div class="small text-muted mt-1">
-                        Manque :
-                        {% for p in item.prerequis_manquants %}
-                          {{ p.title }}{% if p|autre_categorie:item.course %}
-                            <a href="#cat-{{ p.category|categorie_affichee|slugify }}"
-                               class="badge text-bg-light border"
-                               title="Ce prérequis appartient à une autre catégorie">
-                              <i class="bi bi-box-arrow-up-right"></i> {{ p.category|categorie_affichee }}
-                            </a>
-                          {% endif %}{% if not forloop.last %}, {% endif %}
-                        {% endfor %}
                       </div>
-                    {% endif %}
-                  </div>
+                    </div>
+                  {% endfor %}
                 </div>
-              {% endfor %}
-            </div>
+              </div>
+            {% endfor %}
           </div>
-        {% endfor %}
+        </div>
       </div>
+      {% endfor %}
     </div>
   </section>
   {% endfor %}
+  </div>
 <script src="{% static 'js/arbre_competences.js' %}"></script>
 {% endif %}
 {% endblock %}

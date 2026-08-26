@@ -101,26 +101,86 @@ def regrouper_par_niveau(carte):
     return sorted(par_niveau.items())
 
 
+def regrouper_par_composantes_connexes(items):
+    """Calcule les composantes connexes du graphe non orienté formé par les
+    liens de prérequis ENTRE LES FORMATIONS DE `items` (typiquement toutes
+    les formations d'une même catégorie) : deux formations reliées directement
+    ou indirectement par un prérequis appartiennent à la même composante ;
+    deux formations sans aucun lien commun (même transitif) sont deux branches
+    indépendantes et forment donc deux composantes distinctes — c'est ce qui
+    permet à l'arbre de compétences de les afficher en sous-colonnes côte à
+    côte plutôt que de les empiler verticalement l'une sous l'autre (un
+    prérequis vers une formation absente de `items`, ex. une autre catégorie,
+    n'est pas pris en compte ici : il n'a pas d'incidence sur la disposition
+    au sein de CE groupe).
+
+    Renvoie une liste de listes d'items, dans un ordre stable (celui de
+    `items`, lui-même hérité de l'ordre alphabétique des titres posé par
+    calculer_carte_competences)."""
+    par_id = {item["course"].id: item for item in items}
+    voisins = defaultdict(set)
+    for item in items:
+        course_id = item["course"].id
+        for prerequis in item["course"].prerequisites.all():
+            if prerequis.id in par_id:
+                voisins[course_id].add(prerequis.id)
+                voisins[prerequis.id].add(course_id)
+
+    visites = set()
+    composantes = []
+    for item in items:
+        course_id = item["course"].id
+        if course_id in visites:
+            continue
+        # Parcours en profondeur (pile explicite) du graphe non orienté pour
+        # récupérer tous les identifiants reliés, directement ou non, à cette
+        # formation de départ.
+        a_visiter = [course_id]
+        ids_composante = set()
+        while a_visiter:
+            courant = a_visiter.pop()
+            if courant in ids_composante:
+                continue
+            ids_composante.add(courant)
+            a_visiter.extend(voisins[courant] - ids_composante)
+        visites |= ids_composante
+        # L'ordre d'origine de `items` (titre alphabétique) est préservé au
+        # sein de la composante plutôt que de suivre l'ordre du parcours.
+        composantes.append([it for it in items if it["course"].id in ids_composante])
+    return composantes
+
+
 def regrouper_par_categorie(carte):
     """Regroupe le résultat de calculer_carte_competences() par catégorie de
-    formation (domaine métier, TrainingCourse.category), chaque catégorie
-    étant à son tour subdivisée par niveau via regrouper_par_niveau() — c'est
-    cette fonction qui pilote l'affichage de l'arbre de compétences par
-    catégorie. Le calcul du graphe lui-même (niveaux, anti-cycle) reste
-    toujours fait sur l'ensemble des formations passées à
-    calculer_carte_competences ; seul cet affichage est réparti par catégorie
-    (un prérequis d'une autre catégorie garde donc son niveau réel).
+    formation (domaine métier, TrainingCourse.category) ; au sein de chaque
+    catégorie, les formations sont d'abord réparties en composantes connexes
+    (regrouper_par_composantes_connexes, ci-dessus) — les branches de
+    prérequis totalement indépendantes les unes des autres au sein d'une même
+    catégorie — puis chaque composante est à son tour subdivisée par niveau
+    via regrouper_par_niveau(). C'est cette fonction qui pilote l'affichage
+    de l'arbre de compétences : catégories côte à côte, composantes côte à
+    côte au sein d'une catégorie, niveaux empilés au sein d'une composante.
+    Le calcul du graphe lui-même (niveaux, anti-cycle) reste toujours fait
+    sur l'ensemble des formations passées à calculer_carte_competences ;
+    seul cet affichage est réparti par catégorie puis par composante (un
+    prérequis d'une autre catégorie garde donc son niveau réel).
 
     Renvoie une liste triée par ordre alphabétique de tuples
-    (nom_categorie, niveaux) ; les formations sans catégorie renseignée sont
+    (nom_categorie, composantes), où `composantes` est une liste de listes de
+    niveaux (une entrée par composante connexe, elle-même au format renvoyé
+    par regrouper_par_niveau) ; les formations sans catégorie renseignée sont
     réunies dans un groupe CATEGORIE_NON_RENSEIGNEE toujours affiché en
     dernier plutôt que d'être cachées ou de faire planter l'affichage."""
     par_categorie = defaultdict(list)
     for item in carte:
         categorie = (item["course"].category or "").strip()
         par_categorie[categorie].append(item)
+
+    def composantes_par_niveau(items):
+        return [regrouper_par_niveau(composante) for composante in regrouper_par_composantes_connexes(items)]
+
     noms_categories = sorted(c for c in par_categorie if c)
-    groupes = [(nom, regrouper_par_niveau(par_categorie[nom])) for nom in noms_categories]
+    groupes = [(nom, composantes_par_niveau(par_categorie[nom])) for nom in noms_categories]
     if "" in par_categorie:
-        groupes.append((CATEGORIE_NON_RENSEIGNEE, regrouper_par_niveau(par_categorie[""])))
+        groupes.append((CATEGORIE_NON_RENSEIGNEE, composantes_par_niveau(par_categorie[""])))
     return groupes
