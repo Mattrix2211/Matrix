@@ -1,7 +1,8 @@
 """Tests de l'interface web de validation des formations (ValiderFormationView) :
 création d'un TrainingRecord pour un marin par un chef, revalidation du
-périmètre côté serveur (formation ET marin ciblés), et affichage correct des
-badges À jour/Expirée sur la page /formations/."""
+périmètre côté serveur (le marin ciblé — le catalogue de formations, devenu
+global, n'a plus de périmètre propre), et affichage correct des badges
+À jour/Expirée sur la page /formations/."""
 from datetime import date, timedelta
 
 from django.contrib.auth.models import User
@@ -17,9 +18,7 @@ class ValidationFormationTests(TestCase):
         self.ship = Ship.objects.create(name="Navire Validation", code="VAL")
         self.service = Service.objects.create(ship=self.ship, name="Sécurité")
         self.sector = Sector.objects.create(service=self.service, name="Incendie")
-        self.course = TrainingCourse.objects.create(
-            sector=self.sector, title="Équipier de sécurité incendie", validity_days=365,
-        )
+        self.course = TrainingCourse.objects.create(title="Équipier de sécurité incendie", validity_days=365)
 
         self.chef = User.objects.create_user(username="chef_validation", password="pass")
         UserProfile.objects.update_or_create(
@@ -63,25 +62,11 @@ class ValidationFormationTests(TestCase):
         self.assertFalse(r.context["peut_valider"])
         self.assertNotContains(r, "validerFormationModal")
 
-    def test_formation_hors_perimetre_refusee(self):
-        autre_navire = Ship.objects.create(name="Autre navire", code="AUT")
-        autre_service = Service.objects.create(ship=autre_navire, name="Technique")
-        autre_secteur = Sector.objects.create(service=autre_service, name="Électricité")
-        autre_formation = TrainingCourse.objects.create(sector=autre_secteur, title="Hors périmètre")
-
-        self.client.login(username="chef_validation", password="pass")
-        r = self.client.post("/formations/valider/", {
-            "marin_id": self.marin.id,
-            "course_id": autre_formation.id,
-            "completed_at": "2026-01-15",
-        })
-        self.assertEqual(r.status_code, 403)
-        self.assertFalse(TrainingRecord.objects.filter(course=autre_formation).exists())
-
-    def test_marin_hors_perimetre_refuse_meme_si_formation_dans_le_perimetre(self):
+    def test_marin_hors_perimetre_refuse_meme_si_formation_dans_le_catalogue(self):
         # Le marin ciblé est rattaché à une AUTRE section du même secteur que
-        # le chef : la formation est bien dans le périmètre du chef, mais le
-        # marin n'y est pas — le POST doit être rejeté malgré tout.
+        # le chef : le catalogue de formations est global (accessible à
+        # tous), mais le marin n'est pas dans le périmètre du chef — le POST
+        # doit être rejeté malgré tout.
         autre_section = Section.objects.create(sector=self.sector, name="Autre section")
         marin_hors_perimetre = User.objects.create_user(username="marin_autre_section", password="pass")
         UserProfile.objects.update_or_create(
@@ -109,7 +94,7 @@ class ValidationFormationTests(TestCase):
             completed_at=aujourdhui, expires_at=aujourdhui + timedelta(days=30),
             validated_by=self.chef, created_by=self.chef,
         )
-        formation_expiree = TrainingCourse.objects.create(sector=self.sector, title="Formation expirée")
+        formation_expiree = TrainingCourse.objects.create(title="Formation expirée")
         marin_expire = User.objects.create_user(username="marin_expire", password="pass")
         UserProfile.objects.update_or_create(
             user=marin_expire, defaults={"role": "EQUIPIER", "sector": self.sector},
@@ -130,27 +115,26 @@ class ValidationFormationTests(TestCase):
         self.assertContains(r, "Expirée")
 
 
-class PerimetreListeFormationsChefDeSectionTests(TestCase):
-    """Un CHEF_SECTION dont le profil est rattaché à une SECTION (pas
-    directement au secteur) doit voir les formations du secteur parent —
-    régression : TrainingCourse n'a pas de champ "section", donc le mapping
-    de périmètre doit résoudre section_id vers le secteur parent plutôt que
-    de silencieusement ne matcher aucune formation."""
+class CatalogueGlobalListeFormationsTests(TestCase):
+    """Le catalogue de formations est désormais global (tâche Notion
+    « Formation unique et portable entre navires ») : n'importe quel marin
+    connecté, quel que soit son rattachement organisationnel, voit
+    l'ensemble des formations existantes sur /formations/."""
 
     def setUp(self):
-        self.ship = Ship.objects.create(name="Navire Section", code="SEC")
+        self.ship = Ship.objects.create(name="Navire Catalogue", code="CAT")
         self.service = Service.objects.create(ship=self.ship, name="Sécurité")
         self.sector = Sector.objects.create(service=self.service, name="Incendie")
         self.section = Section.objects.create(sector=self.sector, name="Section A")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Formation du secteur")
+        TrainingCourse.objects.create(title="Formation du catalogue")
 
         self.chef_section = User.objects.create_user(username="chef_scope_section", password="pass")
         UserProfile.objects.update_or_create(
             user=self.chef_section, defaults={"role": "CHEF_SECTION", "section": self.section},
         )
 
-    def test_chef_de_section_voit_les_formations_du_secteur_parent(self):
+    def test_marin_scope_section_voit_le_catalogue_complet(self):
         self.client.login(username="chef_scope_section", password="pass")
         r = self.client.get("/formations/")
         titres = [f.title for f in r.context["formations"]]
-        self.assertIn("Formation du secteur", titres)
+        self.assertIn("Formation du catalogue", titres)

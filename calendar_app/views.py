@@ -31,25 +31,18 @@ def _perimetre_ticket(qs, user):
 
 
 def _perimetre_session(qs, user):
-    """Restreint un queryset de sessions de formation au périmètre de
-    l'utilisateur, via la formation (course) qui n'est rattachée qu'à un
-    secteur (une formation n'est jamais propre à une section précise).
-    Si le périmètre de l'utilisateur est plus fin qu'un secteur (section),
-    aucune correspondance n'est possible : on ne renvoie rien plutôt que de
-    risquer une fuite hors périmètre."""
-    filtres = scope_filters_for_user(user)
-    if not filtres:
-        return qs
-    (cle, valeur), = filtres.items()
-    chemins = {
-        "sector_id": "course__sector_id",
-        "service_id": "course__sector__service_id",
-        "ship_id": "course__sector__service__ship_id",
-    }
-    chemin = chemins.get(cle)
-    if not chemin:
-        return qs.none()
-    return qs.filter(**{chemin: valeur})
+    """Restreint un queryset de sessions de formation à l'AFFECTATION
+    PERSONNELLE de l'utilisateur — présent (attendees), inscrit en
+    libre-service (reservations), ou intervenant (instructor). La formation
+    (TrainingCourse) est désormais une fiche globale partagée par tous les
+    navires (portabilité des qualifications, cf. tâche Notion « Formation
+    unique et portable entre navires ») : un filtrage par périmètre
+    navire/service/secteur n'a donc plus de sens ici, une session ne se
+    rattachant plus organisationnellement à personne en particulier — seule
+    l'affectation individuelle du marin compte. Les autres types
+    d'événements du calendrier central (maintenance, tickets...) restent
+    filtrés par périmètre organisationnel, non touchés ici."""
+    return qs.filter(Q(attendees=user) | Q(reservations=user) | Q(instructor=user)).distinct()
 
 
 def _appliquer_filtres_occurrences(qs, filters):
@@ -224,9 +217,10 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         # réservées en libre-service par le marin (reservations, cf. T-FORM
         # réservation) — un marin doit voir les deux sur son calendrier
         # personnel, d'où le OU plutôt qu'un simple filtre sur attendees.
+        # Formation désormais globale (plus de secteur, cf. _perimetre_session
+        # ci-dessus) : le filtre "sector" du calendrier ne s'applique plus aux
+        # sessions de formation, uniquement aux autres types d'événements.
         ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
-        if filters.get("sector"):
-            ses_qs = ses_qs.filter(course__sector_id=filters["sector"])
         if filters.get("user"):
             ses_qs = ses_qs.filter(Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"])).distinct()
         if filters.get("status"):
@@ -363,9 +357,10 @@ def calendar_events(request):
     # Sessions de formation : assignées par un référent (attendees) OU
     # réservées en libre-service par le marin (reservations, cf. T-FORM
     # réservation) — mêmes conventions que _collect_events ci-dessus.
+    # Formation désormais globale (plus de secteur, cf. _perimetre_session
+    # ci-dessus) : le filtre "sector" du calendrier ne s'applique plus aux
+    # sessions de formation, uniquement aux autres types d'événements.
     ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
-    if filters.get("sector"):
-        ses_qs = ses_qs.filter(course__sector_id=filters["sector"])
     if filters.get("user"):
         ses_qs = ses_qs.filter(Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"])).distinct()
     if filters.get("status"):
@@ -450,7 +445,12 @@ def calendar_event_move(request):
         occ.save(update_fields=["scheduled_for"])
         return JsonResponse({"ok": True})
     if ev_type == "training" and ev_id:
-        # CHEF_SECTION+ peut déplacer les sessions de formation de son périmètre
+        # CHEF_SECTION+ peut déplacer une session de formation, à condition
+        # d'y être personnellement affecté (présent, inscrit en libre-service,
+        # ou intervenant) — le filtrage n'est plus par périmètre
+        # organisationnel mais par affectation personnelle (_perimetre_session
+        # ci-dessus, cf. tâche Notion « Formation unique et portable entre
+        # navires »).
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             return HttpResponseForbidden()
         try:

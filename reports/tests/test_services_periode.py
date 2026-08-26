@@ -284,7 +284,7 @@ class BilanPeriodeTests(TestCase):
             sector=self.autre_secteur
         )
 
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         qualification_obtenue = TrainingRecord.objects.create(
             user=equipier, course=cours,
             completed_at=self.date_debut + timedelta(days=3),

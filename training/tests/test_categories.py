@@ -1,6 +1,8 @@
 """Tests des catégories de formation (domaine métier) : champ `category` sur
 TrainingCourse, autocomplétion dans le formulaire de gestion des formations,
-et regroupement par catégorie dans l'arbre de compétences."""
+et regroupement par catégorie dans l'arbre de compétences. Catalogue devenu
+global (tâche Notion « Formation unique et portable entre navires ») : les
+catégories proposées le sont pour l'ENSEMBLE du catalogue, plus par secteur."""
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -8,7 +10,6 @@ from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import UserProfile
-from org.models import Ship, Service, Sector
 from training.models import TrainingCourse, TrainingRecord
 from training.services import (
     CATEGORIE_NON_RENSEIGNEE,
@@ -25,19 +26,14 @@ class ChampCategorieTests(TestCase):
     """Le champ `category` doit être du texte libre, facultatif et rétrocompatible
     (même pattern que AssetType.category, cf. assets/models.py)."""
 
-    def setUp(self):
-        ship = Ship.objects.create(name="Navire Cat", code="CAT")
-        service = Service.objects.create(ship=ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-
     def test_champ_facultatif_valeur_par_defaut_vide(self):
-        formation = TrainingCourse.objects.create(sector=self.sector, title="Sans catégorie")
+        formation = TrainingCourse.objects.create(title="Sans catégorie")
         formation.refresh_from_db()
         self.assertEqual(formation.category, "")
 
     def test_champ_accepte_du_texte_libre(self):
         formation = TrainingCourse.objects.create(
-            sector=self.sector, title="Habilitation électrique niveau 1", category="Habilitation électrique",
+            title="Habilitation électrique niveau 1", category="Habilitation électrique",
         )
         formation.refresh_from_db()
         self.assertEqual(formation.category, "Habilitation électrique")
@@ -50,65 +46,33 @@ class ChampCategorieTests(TestCase):
 
 class AutocompletionCategorieTests(TestCase):
     """Le formulaire de gestion des formations doit proposer, via un datalist,
-    les catégories déjà utilisées dans le secteur — sans fuite d'un autre secteur."""
+    toutes les catégories déjà utilisées dans le catalogue (global)."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Auto", code="AUT")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.autre_sector = Sector.objects.create(service=service, name="Autre secteur")
-        TrainingCourse.objects.create(sector=self.sector, title="Extinction niveau 1", category="Incendie")
-        TrainingCourse.objects.create(sector=self.sector, title="Extinction niveau 2", category="Incendie")
-        TrainingCourse.objects.create(sector=self.sector, title="Évacuation", category="Sécurité générale")
-        TrainingCourse.objects.create(sector=self.sector, title="Non catégorisée")
-        # Catégorie volontairement différente des exemples du placeholder du
-        # formulaire ("Sécurité/Incendie, Habilitation électrique, Levage...")
-        # pour que assertNotContains ne déclenche pas un faux positif sur du
-        # texte statique du template.
-        TrainingCourse.objects.create(sector=self.autre_sector, title="Ailleurs", category="Manutention portuaire")
+        TrainingCourse.objects.create(title="Extinction niveau 1", category="Incendie")
+        TrainingCourse.objects.create(title="Extinction niveau 2", category="Incendie")
+        TrainingCourse.objects.create(title="Évacuation", category="Sécurité générale")
+        TrainingCourse.objects.create(title="Non catégorisée")
 
         self.chef = User.objects.create_user(username="chef_cat", password="pass")
-        # Profil avec un périmètre réellement restreint (secteur assigné) : sans
-        # cela, scope_filters_for_user() renvoie {} (comportement volontaire
-        # pour un profil sans périmètre défini = accès total), et les tests de
-        # cette classe ne détectent aucune fuite entre secteurs.
-        UserProfile.objects.update_or_create(
-            user=self.chef, defaults={"role": "CHEF_SECTION", "sector": self.sector},
-        )
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION"})
 
-    def test_categories_proposees_sont_celles_du_secteur_sans_doublon(self):
+    def test_categories_proposees_sans_doublon(self):
         self.client.login(username="chef_cat", password="pass")
         r = self.client.get("/formations/")
-        categories = r.context["categories_par_secteur"].get(self.sector.id, [])
-        self.assertEqual(categories, ["Incendie", "Sécurité générale"])
-
-    def test_categorie_dun_autre_secteur_non_proposee(self):
-        self.client.login(username="chef_cat", password="pass")
-        r = self.client.get("/formations/")
-        categories = r.context["categories_par_secteur"].get(self.sector.id, [])
-        self.assertNotIn("Manutention portuaire", categories)
-        # Le périmètre du chef est restreint à self.sector : le dict ne doit
-        # même pas contenir d'entrée pour l'autre secteur, et sa catégorie ne
-        # doit apparaître nulle part dans le HTML brut de la page (pas
-        # seulement absente de l'autocomplétion visible).
-        self.assertNotIn(self.autre_sector.id, r.context["categories_par_secteur"])
-        self.assertNotContains(r, "Manutention portuaire")
-
-    def test_titre_formation_dun_autre_secteur_absent_du_html(self):
-        # Les cases à cocher de prérequis (candidats_par_secteur) sont
-        # regroupées par secteur dans des blocs cachés par défaut côté client :
-        # un secteur hors périmètre ne doit pas non plus y apparaître, sous
-        # peine de fuite du titre de formation dans le HTML brut de la page.
-        self.client.login(username="chef_cat", password="pass")
-        r = self.client.get("/formations/")
-        self.assertNotIn(self.autre_sector.id, r.context["candidats_par_secteur"])
-        self.assertNotContains(r, "Ailleurs")
+        self.assertEqual(r.context["categories_existantes"], ["Incendie", "Sécurité générale"])
 
     def test_datalist_presente_dans_le_html(self):
         self.client.login(username="chef_cat", password="pass")
         r = self.client.get("/formations/")
-        self.assertContains(r, f"categoriesSecteur-{self.sector.id}")
+        self.assertContains(r, "categoriesToutes")
         self.assertContains(r, "Incendie")
+
+    def test_filtre_par_categorie(self):
+        self.client.login(username="chef_cat", password="pass")
+        r = self.client.get("/formations/", {"category": "Incendie"})
+        titres = [f.title for f in r.context["formations"]]
+        self.assertCountEqual(titres, ["Extinction niveau 1", "Extinction niveau 2"])
 
     def test_chef_peut_modifier_la_categorie_dune_formation(self):
         formation = TrainingCourse.objects.get(title="Non catégorisée")
@@ -138,29 +102,18 @@ class AutocompletionCategorieTests(TestCase):
 
 class RegroupementParCategorieTests(TestCase):
     """training.services.regrouper_par_categorie : le graphe est calculé sur
-    tout le secteur, seul l'affichage doit être réparti par catégorie."""
+    tout le catalogue, seul l'affichage doit être réparti par catégorie."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Regroupe", code="REG")
-        service = Service.objects.create(ship=ship, name="Machines")
-        self.sector = Sector.objects.create(service=service, name="Propulsion")
-        self.incendie_1 = TrainingCourse.objects.create(
-            sector=self.sector, title="Extinction niveau 1", category="Incendie",
-        )
-        self.incendie_2 = TrainingCourse.objects.create(
-            sector=self.sector, title="Extinction niveau 2", category="Incendie",
-        )
+        self.incendie_1 = TrainingCourse.objects.create(title="Extinction niveau 1", category="Incendie")
+        self.incendie_2 = TrainingCourse.objects.create(title="Extinction niveau 2", category="Incendie")
         self.incendie_2.prerequisites.set([self.incendie_1])
-        self.secours = TrainingCourse.objects.create(
-            sector=self.sector, title="Secourisme de base", category="Secourisme",
-        )
-        self.sans_categorie = TrainingCourse.objects.create(sector=self.sector, title="Sans domaine")
+        self.secours = TrainingCourse.objects.create(title="Secourisme de base", category="Secourisme")
+        self.sans_categorie = TrainingCourse.objects.create(title="Sans domaine")
         self.marin = User.objects.create_user(username="marin_regroupe", password="pass")
 
     def _carte(self):
-        formations = list(
-            TrainingCourse.objects.filter(sector=self.sector).prefetch_related("prerequisites")
-        )
+        formations = list(TrainingCourse.objects.all().prefetch_related("prerequisites"))
         return calculer_carte_competences(formations, self.marin)
 
     def test_groupes_tries_par_ordre_alphabetique(self):
@@ -175,8 +128,8 @@ class RegroupementParCategorieTests(TestCase):
         self.assertEqual(ids, [self.sans_categorie.id])
 
     def test_niveau_conserve_a_travers_les_groupes(self):
-        # Le niveau de "Extinction niveau 2" (calculé sur tout le secteur) doit
-        # rester 1 même une fois isolé dans son groupe de catégorie.
+        # Le niveau de "Extinction niveau 2" doit rester 1 même une fois
+        # isolé dans son groupe de catégorie.
         groupes = regrouper_par_categorie(self._carte())
         groupe_incendie = dict(groupes)["Incendie"]
         niveaux_par_id = {
@@ -201,25 +154,18 @@ class ArbreCompetencesParCategorieVueTests(TestCase):
     de repère quand un prérequis appartient à une autre catégorie."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Arbre", code="ARB")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Prévention")
-        self.base_secourisme = TrainingCourse.objects.create(
-            sector=self.sector, title="Secourisme niveau 1", category="Secourisme",
-        )
-        self.avance_incendie = TrainingCourse.objects.create(
-            sector=self.sector, title="Chef d'équipe incendie", category="Incendie",
-        )
+        self.base_secourisme = TrainingCourse.objects.create(title="Secourisme niveau 1", category="Secourisme")
+        self.avance_incendie = TrainingCourse.objects.create(title="Chef d'équipe incendie", category="Incendie")
         # Prérequis traversant les catégories : Secourisme -> Incendie.
         self.avance_incendie.prerequisites.set([self.base_secourisme])
-        self.non_categorisee = TrainingCourse.objects.create(sector=self.sector, title="Stage divers")
+        self.non_categorisee = TrainingCourse.objects.create(title="Stage divers")
 
         self.chef = User.objects.create_user(username="chef_arbre", password="pass")
         UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION"})
 
     def test_sections_par_categorie_affichees(self):
         self.client.login(username="chef_arbre", password="pass")
-        r = self.client.get(f"/formations/arbre-competences/?secteur={self.sector.id}")
+        r = self.client.get("/formations/arbre-competences/")
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Secourisme")
         self.assertContains(r, "Incendie")
@@ -227,7 +173,7 @@ class ArbreCompetencesParCategorieVueTests(TestCase):
 
     def test_formation_non_categorisee_toujours_visible(self):
         self.client.login(username="chef_arbre", password="pass")
-        r = self.client.get(f"/formations/arbre-competences/?secteur={self.sector.id}")
+        r = self.client.get("/formations/arbre-competences/")
         self.assertContains(r, "Stage divers")
 
     def test_badge_vers_categorie_du_prerequis_different(self):
@@ -235,18 +181,16 @@ class ArbreCompetencesParCategorieVueTests(TestCase):
         # manquant une formation de la catégorie Secourisme : un repère visuel
         # doit pointer vers cette catégorie.
         self.client.login(username="chef_arbre", password="pass")
-        r = self.client.get(f"/formations/arbre-competences/?secteur={self.sector.id}")
+        r = self.client.get("/formations/arbre-competences/")
         self.assertContains(r, 'href="#cat-secourisme"')
 
     def test_prerequis_valide_de_meme_categorie_sans_badge_croise(self):
         # Deux formations de la même catégorie : pas de badge de renvoi
         # nécessaire (le prérequis est déjà visible dans la même section).
-        autre = TrainingCourse.objects.create(
-            sector=self.sector, title="Secourisme niveau 2", category="Secourisme",
-        )
+        autre = TrainingCourse.objects.create(title="Secourisme niveau 2", category="Secourisme")
         autre.prerequisites.set([self.base_secourisme])
         self.client.login(username="chef_arbre", password="pass")
-        r = self.client.get(f"/formations/arbre-competences/?secteur={self.sector.id}")
+        r = self.client.get("/formations/arbre-competences/")
         # Le badge ne doit apparaître que pour le prérequis inter-catégories,
         # pas pour "Secourisme niveau 2" -> "Secourisme niveau 1" (même catégorie).
         self.assertContains(r, 'href="#cat-secourisme"', count=1)
@@ -257,6 +201,6 @@ class ArbreCompetencesParCategorieVueTests(TestCase):
             completed_at=timezone.localdate(), expires_at=_demain(365),
         )
         self.client.login(username="chef_arbre", password="pass")
-        r = self.client.get(f"/formations/arbre-competences/?secteur={self.sector.id}")
+        r = self.client.get("/formations/arbre-competences/")
         noms = [nom for nom, _ in r.context["categories"]]
         self.assertEqual(noms, ["Incendie", "Secourisme", CATEGORIE_NON_RENSEIGNEE])

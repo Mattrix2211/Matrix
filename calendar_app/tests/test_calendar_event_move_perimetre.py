@@ -43,18 +43,22 @@ class CalendarEventMovePerimetreTests(TestCase):
             asset=self.autre_asset, description="Panne moteur", planned_for=timezone.localdate(),
         )
 
-        self.formation = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
-        self.autre_formation = TrainingCourse.objects.create(sector=self.autre_secteur, title="Sécurité incendie")
+        # Formation désormais globale (tâche Notion « Formation unique et
+        # portable entre navires ») : la session est visible/déplaçable selon
+        # l'AFFECTATION PERSONNELLE du marin (attendees/reservations/instructor),
+        # plus par périmètre navire/secteur (cf. calendar_app/views.py::_perimetre_session).
+        self.formation = TrainingCourse.objects.create(title="Sécurité incendie")
 
         self.session = TrainingSession.objects.create(
             course=self.formation, scheduled_at=timezone.now(),
         )
-        self.session_autre_navire = TrainingSession.objects.create(
-            course=self.autre_formation, scheduled_at=timezone.now(),
+        self.session_sans_affectation = TrainingSession.objects.create(
+            course=self.formation, scheduled_at=timezone.now(),
         )
 
         self.chef = User.objects.create_user(username="chef", password="pass")
         UserProfile.objects.filter(user=self.chef).update(role="CHEF_SECTION", sector=self.secteur)
+        self.session.attendees.add(self.chef)
 
         self.url = reverse("calendar-event-move")
         self.nouvelle_date = (timezone.localdate() + timedelta(days=3)).isoformat()
@@ -78,7 +82,9 @@ class CalendarEventMovePerimetreTests(TestCase):
         self.ticket_autre_navire.refresh_from_db()
         self.assertEqual(self.ticket_autre_navire.planned_for, date_initiale)
 
-    def test_chef_section_peut_deplacer_une_session_de_son_perimetre(self):
+    def test_chef_section_peut_deplacer_une_session_a_laquelle_il_est_affecte(self):
+        """Formation globale (T-FORM portabilité) : ce n'est plus le périmètre
+        navire/secteur qui compte mais l'affectation personnelle (attendees)."""
         self.client.login(username="chef", password="pass")
         resp = self.client.post(
             self.url, {"type": "training", "id": str(self.session.pk), "date": self.nouvelle_date + "T09:00"}
@@ -87,18 +93,20 @@ class CalendarEventMovePerimetreTests(TestCase):
         self.session.refresh_from_db()
         self.assertEqual(timezone.localdate(self.session.scheduled_at).isoformat(), self.nouvelle_date)
 
-    def test_chef_section_ne_peut_pas_deplacer_une_session_hors_perimetre(self):
-        """Un CHEF_SECTION ne doit pas pouvoir replanifier la session d'un autre
-        navire en devinant son identifiant (faille IDOR)."""
+    def test_chef_section_ne_peut_pas_deplacer_une_session_sans_y_etre_affecte(self):
+        """Un CHEF_SECTION ne doit pas pouvoir replanifier une session à laquelle
+        il n'est ni présent (attendees/reservations), ni intervenant (instructor),
+        en devinant son identifiant (faille IDOR) — même formation globale que
+        self.session, seule l'affectation personnelle change."""
         self.client.login(username="chef", password="pass")
-        date_initiale = self.session_autre_navire.scheduled_at
+        date_initiale = self.session_sans_affectation.scheduled_at
         resp = self.client.post(
             self.url,
-            {"type": "training", "id": str(self.session_autre_navire.pk), "date": self.nouvelle_date + "T09:00"},
+            {"type": "training", "id": str(self.session_sans_affectation.pk), "date": self.nouvelle_date + "T09:00"},
         )
         self.assertEqual(resp.status_code, 403)
-        self.session_autre_navire.refresh_from_db()
-        self.assertEqual(self.session_autre_navire.scheduled_at, date_initiale)
+        self.session_sans_affectation.refresh_from_db()
+        self.assertEqual(self.session_sans_affectation.scheduled_at, date_initiale)
 
 
 from assets.models import Installation

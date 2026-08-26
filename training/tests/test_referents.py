@@ -1,10 +1,12 @@
-"""Tests du scoping formation par référents (T-SEC) : seuls les référents
-désignés d'une formation précise (TrainingCourse.referents) — ou un rôle de
-supervision globale (COMMANDANT et au-dessus) — peuvent créer/modifier un
-TrainingRecord ou gérer les présences (attendees) d'une TrainingSession, via
-l'API DRF comme via le web. La lecture (statut de qualification, arbre de
-compétences) reste ouverte à tout utilisateur connecté, sans restriction liée
-aux référents."""
+"""Tests du scoping formation par référents (T-SEC), désormais PAR NAVIRE
+(ReferentFormation(course, ship, user), cf. tâche Notion « Formation unique
+et portable entre navires ») — seuls les référents désignés d'une formation
+précise POUR LE NAVIRE DU MARIN CONCERNÉ (ou un rôle de supervision globale,
+COMMANDANT et au-dessus) peuvent créer/modifier un TrainingRecord ou gérer
+les présences (attendees) d'une TrainingSession, via l'API DRF comme via le
+web. Le navire de référence est TOUJOURS celui du marin concerné par
+l'action, jamais celui de l'appelant. La lecture (statut de qualification,
+arbre de compétences) reste ouverte à tout utilisateur connecté."""
 import json
 from datetime import timedelta
 
@@ -13,8 +15,14 @@ from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import UserProfile
-from org.models import Ship, Service, Sector
-from training.models import TrainingCourse, TrainingRecord, TrainingSession, peut_valider_formation
+from org.models import Ship
+from training.models import (
+    ReferentFormation,
+    TrainingCourse,
+    TrainingRecord,
+    TrainingSession,
+    peut_valider_formation,
+)
 
 
 def _demain(jours):
@@ -25,14 +33,12 @@ class PeutValiderFormationTests(TestCase):
     """Tests unitaires de la fonction de contrôle d'accès elle-même."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Réf", code="REF")
-        service = Service.objects.create(ship=ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Habilitation électrique")
+        self.ship = Ship.objects.create(name="Navire Réf", code="REF")
+        self.course = TrainingCourse.objects.create(title="Habilitation électrique")
 
         self.referent = User.objects.create_user(username="referent", password="pass")
         UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "EQUIPIER"})
-        self.course.referents.add(self.referent)
+        ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.referent)
 
         self.chef_non_referent = User.objects.create_user(username="chef_non_ref", password="pass")
         UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SECTEUR"})
@@ -49,42 +55,41 @@ class PeutValiderFormationTests(TestCase):
         self.chef_non_referent = User.objects.get(pk=self.chef_non_referent.pk)
         self.commandant = User.objects.get(pk=self.commandant.pk)
 
-    def test_referent_peut_valider(self):
-        self.assertTrue(peut_valider_formation(self.referent, self.course))
+    def test_referent_peut_valider_pour_son_navire(self):
+        self.assertTrue(peut_valider_formation(self.referent, self.course, self.ship))
+
+    def test_referent_ne_peut_pas_valider_pour_un_autre_navire(self):
+        autre_navire = Ship.objects.create(name="Autre navire réf", code="AREF")
+        self.assertFalse(peut_valider_formation(self.referent, self.course, autre_navire))
 
     def test_chef_non_referent_ne_peut_pas_valider_meme_de_rang_superieur(self):
-        self.assertFalse(peut_valider_formation(self.chef_non_referent, self.course))
+        self.assertFalse(peut_valider_formation(self.chef_non_referent, self.course, self.ship))
 
     def test_role_supervision_globale_passe_outre(self):
-        self.assertTrue(peut_valider_formation(self.commandant, self.course))
+        self.assertTrue(peut_valider_formation(self.commandant, self.course, self.ship))
 
 
 class APIRecordScopingTests(TestCase):
     """L'API DRF (TrainingRecordViewSet) applique la même règle que le web :
-    pas de contournement possible via l'API."""
+    pas de contournement possible via l'API. Le référent est désigné POUR LE
+    NAVIRE DU MARIN CIBLÉ (self.marin.ship)."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire API", code="API")
-        service = Service.objects.create(ship=ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-        self.course = TrainingCourse.objects.create(
-            sector=self.sector, title="Habilitation électrique", validity_days=365
-        )
+        self.ship = Ship.objects.create(name="Navire API", code="API")
+        self.course = TrainingCourse.objects.create(title="Habilitation électrique", validity_days=365)
+
+        self.marin = User.objects.create_user(username="api_marin", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
 
         self.referent = User.objects.create_user(username="api_referent", password="pass")
         UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "EQUIPIER"})
-        self.course.referents.add(self.referent)
+        ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.referent)
 
         self.chef_non_referent = User.objects.create_user(username="api_chef_non_ref", password="pass")
-        UserProfile.objects.update_or_create(
-            user=self.chef_non_referent, defaults={"role": "CHEF_SECTEUR", "sector": self.sector}
-        )
+        UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SECTEUR"})
 
         self.commandant = User.objects.create_user(username="api_commandant", password="pass")
         UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
-
-        self.marin = User.objects.create_user(username="api_marin", password="pass")
-        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
 
     def _payload(self):
         return {
@@ -100,8 +105,6 @@ class APIRecordScopingTests(TestCase):
         self.assertEqual(r.status_code, 201, r.content)
 
     def test_chef_non_referent_ne_peut_pas_creer_un_enregistrement(self):
-        # Même de rang supérieur et dans le bon secteur : sans être référent,
-        # la tentative est rejetée proprement.
         self.client.login(username="api_chef_non_ref", password="pass")
         r = self.client.post("/api/training/records/", data=self._payload(), content_type="application/json")
         self.assertEqual(r.status_code, 403)
@@ -111,6 +114,17 @@ class APIRecordScopingTests(TestCase):
         self.client.login(username="api_commandant", password="pass")
         r = self.client.post("/api/training/records/", data=self._payload(), content_type="application/json")
         self.assertEqual(r.status_code, 201, r.content)
+
+    def test_referent_dun_autre_navire_ne_peut_pas_creer_un_enregistrement(self):
+        # Référent désigné pour un AUTRE navire que celui du marin ciblé :
+        # aucune autorité sur ce marin.
+        autre_navire = Ship.objects.create(name="Autre navire API", code="AAPI")
+        referent_autre_navire = User.objects.create_user(username="api_referent_autre", password="pass")
+        UserProfile.objects.update_or_create(user=referent_autre_navire, defaults={"role": "EQUIPIER"})
+        ReferentFormation.objects.create(course=self.course, ship=autre_navire, user=referent_autre_navire)
+        self.client.login(username="api_referent_autre", password="pass")
+        r = self.client.post("/api/training/records/", data=self._payload(), content_type="application/json")
+        self.assertEqual(r.status_code, 403)
 
     def test_lecture_ouverte_a_tous_meme_sans_etre_referent(self):
         TrainingRecord.objects.create(
@@ -150,36 +164,31 @@ class APIRecordScopingTests(TestCase):
 
 class APISessionAttendeesScopingTests(TestCase):
     """Gestion des présences (attendees) d'une session : réservée aux
-    référents de la formation concernée — quel que soit leur rang, un
-    référent est désigné pour sa compétence, pas pour sa position
-    hiérarchique, et peut donc être EQUIPIER (même profil que dans
-    APIRecordScopingTests). Le reste de la planification (date, lieu...)
-    reste soumis au seuil générique CHEF_SECTION, y compris pour le
-    référent lui-même s'il n'a pas ce rang."""
+    référents de la formation concernée POUR LE NAVIRE DE CHAQUE MARIN
+    AJOUTÉ — quel que soit leur rang, un référent est désigné pour sa
+    compétence, pas pour sa position hiérarchique, et peut donc être
+    EQUIPIER. Le reste de la planification (date, lieu...) reste soumis au
+    seuil générique CHEF_SECTION."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Session", code="SES")
-        service = Service.objects.create(ship=ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-        self.course = TrainingCourse.objects.create(
-            sector=self.sector, title="Habilitation électrique", validity_days=365
-        )
+        self.ship = Ship.objects.create(name="Navire Session", code="SES")
+        self.course = TrainingCourse.objects.create(title="Habilitation électrique", validity_days=365)
         self.session = TrainingSession.objects.create(
             course=self.course, scheduled_at=timezone.now() + timedelta(days=5)
         )
 
+        self.marin = User.objects.create_user(username="ses_marin", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
+
         self.referent = User.objects.create_user(username="ses_referent", password="pass")
         UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "EQUIPIER"})
-        self.course.referents.add(self.referent)
+        ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.referent)
 
         self.chef_non_referent = User.objects.create_user(username="ses_chef_non_ref", password="pass")
         UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SERVICE"})
 
         self.commandant = User.objects.create_user(username="ses_commandant", password="pass")
         UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
-
-        self.marin = User.objects.create_user(username="ses_marin", password="pass")
-        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
 
         # Le signal de création automatique du profil (accounts/models.py)
         # met en cache un profil EQUIPIER par défaut sur l'instance User créée
@@ -193,7 +202,8 @@ class APISessionAttendeesScopingTests(TestCase):
     def test_referent_equipier_peut_ajouter_un_participant(self):
         # Cas central du correctif : un référent désigné pour sa compétence,
         # même de rang EQUIPIER (donc sous le seuil générique CHEF_SECTION),
-        # doit pouvoir gérer les présences de sa propre formation.
+        # doit pouvoir gérer les présences de sa propre formation, pour un
+        # marin de SON navire.
         self.client.login(username="ses_referent", password="pass")
         r = self.client.patch(
             f"/api/training/sessions/{self.session.id}/",
@@ -202,6 +212,21 @@ class APISessionAttendeesScopingTests(TestCase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertIn(self.marin, self.session.attendees.all())
+
+    def test_referent_ne_peut_pas_ajouter_un_marin_dun_autre_navire(self):
+        autre_navire = Ship.objects.create(name="Autre navire session", code="ASES")
+        marin_autre_navire = User.objects.create_user(username="ses_marin_autre", password="pass")
+        UserProfile.objects.update_or_create(
+            user=marin_autre_navire, defaults={"role": "EQUIPIER", "ship": autre_navire}
+        )
+        self.client.login(username="ses_referent", password="pass")
+        r = self.client.patch(
+            f"/api/training/sessions/{self.session.id}/",
+            data=json.dumps({"attendees": [marin_autre_navire.id]}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(self.session.attendees.count(), 0)
 
     def test_chef_non_referent_ne_peut_pas_gerer_les_presences(self):
         self.client.login(username="ses_chef_non_ref", password="pass")
@@ -244,102 +269,174 @@ class APISessionAttendeesScopingTests(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
 
 
+class APIReferentFormationScopingTests(TestCase):
+    """Scoping par navire de l'écriture sur /api/training/referents/
+    (ReferentFormationViewSet) : un chef ne peut désigner un référent QUE
+    pour son propre navire (navire_de(request.user)), jamais pour un autre
+    navire fourni dans le payload — faille de sécurité corrigée (le
+    `ship` posté n'était auparavant pas confronté au navire de l'appelant).
+    Seul un rôle de supervision globale (COMMANDANT et au-dessus) peut agir
+    sur n'importe quel navire, même logique que
+    training/web_views.py::update_prerequisites."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Chef A", code="CHA")
+        self.autre_ship = Ship.objects.create(name="Navire Chef B", code="CHB")
+        self.course = TrainingCourse.objects.create(title="Amarrage niveau 1")
+
+        self.chef = User.objects.create_user(username="chef_api_ref", password="pass")
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION", "ship": self.ship})
+
+        self.marin = User.objects.create_user(username="marin_api_ref", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
+
+        self.commandant = User.objects.create_user(username="commandant_api_ref", password="pass")
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+
+    def test_chef_peut_designer_un_referent_sur_son_propre_navire(self):
+        self.client.login(username="chef_api_ref", password="pass")
+        r = self.client.post(
+            "/api/training/referents/",
+            data={"course": self.course.id, "ship": self.ship.id, "user": self.marin.id},
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(
+            ReferentFormation.objects.filter(course=self.course, ship=self.ship, user=self.marin).exists()
+        )
+
+    def test_chef_ne_peut_pas_designer_un_referent_sur_un_autre_navire(self):
+        # Cas central de la faille : le chef tente d'imposer le navire de SON
+        # choix (autre_ship) dans le payload, plutôt que celui de son propre
+        # rattachement (self.ship).
+        self.client.login(username="chef_api_ref", password="pass")
+        r = self.client.post(
+            "/api/training/referents/",
+            data={"course": self.course.id, "ship": self.autre_ship.id, "user": self.marin.id},
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 403, r.content)
+        self.assertFalse(ReferentFormation.objects.filter(ship=self.autre_ship).exists())
+
+    def test_chef_ne_peut_pas_modifier_un_referent_dun_autre_navire(self):
+        referent_existant = ReferentFormation.objects.create(
+            course=self.course, ship=self.autre_ship, user=self.marin
+        )
+        self.client.login(username="chef_api_ref", password="pass")
+        r = self.client.patch(
+            f"/api/training/referents/{referent_existant.id}/",
+            data=json.dumps({"user": self.chef.id}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 403, r.content)
+
+    def test_chef_ne_peut_pas_supprimer_un_referent_dun_autre_navire(self):
+        referent_existant = ReferentFormation.objects.create(
+            course=self.course, ship=self.autre_ship, user=self.marin
+        )
+        self.client.login(username="chef_api_ref", password="pass")
+        r = self.client.delete(f"/api/training/referents/{referent_existant.id}/")
+        self.assertEqual(r.status_code, 403, r.content)
+        self.assertTrue(ReferentFormation.objects.filter(pk=referent_existant.id).exists())
+
+    def test_supervision_globale_peut_designer_un_referent_sur_nimporte_quel_navire(self):
+        self.client.login(username="commandant_api_ref", password="pass")
+        r = self.client.post(
+            "/api/training/referents/",
+            data={"course": self.course.id, "ship": self.autre_ship.id, "user": self.marin.id},
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(
+            ReferentFormation.objects.filter(course=self.course, ship=self.autre_ship, user=self.marin).exists()
+        )
+
+
 class VueGestionReferentsTests(TestCase):
     """Désignation des référents depuis la modale web de formations.html,
     réservée au même seuil que la gestion des prérequis (CHEF_SECTION),
-    candidats limités aux utilisateurs visibles dans le secteur de la
-    formation."""
+    TOUJOURS scopée au navire de L'APPELANT (ReferentFormation) : un chef ne
+    désigne des référents que pour son propre navire, jamais pour un autre
+    navire proposant la même formation globale."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Web Réf", code="WREF")
-        service = Service.objects.create(ship=ship, name="Pont")
-        self.sector = Sector.objects.create(service=service, name="Manœuvre")
-        self.autre_sector = Sector.objects.create(service=service, name="Autre secteur")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Amarrage niveau 1")
+        self.ship = Ship.objects.create(name="Navire Web Réf", code="WREF")
+        self.autre_ship = Ship.objects.create(name="Autre navire web réf", code="AWREF")
+        self.course = TrainingCourse.objects.create(title="Amarrage niveau 1")
 
         self.chef = User.objects.create_user(username="chef_ref_web", password="pass")
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION", "ship": self.ship})
+
+        self.marin_navire = User.objects.create_user(username="marin_navire_ref", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin_navire, defaults={"role": "EQUIPIER", "ship": self.ship})
+
+        self.marin_autre_navire = User.objects.create_user(username="marin_autre_navire_ref", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.chef, defaults={"role": "CHEF_SECTION", "sector": self.sector}
+            user=self.marin_autre_navire, defaults={"role": "EQUIPIER", "ship": self.autre_ship}
         )
 
-        self.marin_secteur = User.objects.create_user(username="marin_secteur", password="pass")
-        UserProfile.objects.update_or_create(
-            user=self.marin_secteur, defaults={"role": "EQUIPIER", "sector": self.sector}
-        )
-
-        self.marin_hors_secteur = User.objects.create_user(username="marin_hors_secteur", password="pass")
-        UserProfile.objects.update_or_create(
-            user=self.marin_hors_secteur, defaults={"role": "EQUIPIER", "sector": self.autre_sector}
-        )
-
-    def test_chef_peut_designer_un_referent_du_secteur(self):
+    def test_chef_peut_designer_un_referent_de_son_navire(self):
         self.client.login(username="chef_ref_web", password="pass")
         r = self.client.post("/formations/", {
             "action": "update_prerequisites",
             "pk": self.course.id,
-            "referents": [self.marin_secteur.id],
+            "referents": [self.marin_navire.id],
         })
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(list(self.course.referents.all()), [self.marin_secteur])
+        referent = ReferentFormation.objects.get(course=self.course, ship=self.ship)
+        self.assertEqual(referent.user, self.marin_navire)
 
-    def test_referent_hors_secteur_est_ignore(self):
+    def test_referent_dun_autre_navire_est_ignore(self):
         self.client.login(username="chef_ref_web", password="pass")
         r = self.client.post("/formations/", {
             "action": "update_prerequisites",
             "pk": self.course.id,
-            "referents": [self.marin_hors_secteur.id],
+            "referents": [self.marin_autre_navire.id],
         })
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(self.course.referents.count(), 0)
+        self.assertFalse(ReferentFormation.objects.filter(course=self.course).exists())
 
     def test_equipier_ne_peut_pas_designer_de_referent(self):
-        self.client.login(username="marin_secteur", password="pass")
+        self.client.login(username="marin_navire_ref", password="pass")
         r = self.client.post("/formations/", {
             "action": "update_prerequisites",
             "pk": self.course.id,
-            "referents": [self.marin_secteur.id],
+            "referents": [self.marin_navire.id],
         })
         self.assertEqual(r.status_code, 403)
-        self.assertEqual(self.course.referents.count(), 0)
+        self.assertFalse(ReferentFormation.objects.filter(course=self.course).exists())
 
-    def test_liste_formations_affiche_les_referents(self):
-        self.course.referents.add(self.marin_secteur)
+    def test_liste_formations_affiche_les_referents_de_mon_navire(self):
+        ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.marin_navire)
         self.client.login(username="chef_ref_web", password="pass")
         r = self.client.get("/formations/")
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "marin_secteur")
+        self.assertContains(r, "marin_navire_ref")
+
+    def test_referent_dun_autre_navire_non_affiche(self):
+        # Un référent désigné pour un AUTRE navire n'apparaît pas sur la
+        # fiche formation consultée depuis ce navire-ci.
+        ReferentFormation.objects.create(course=self.course, ship=self.autre_ship, user=self.marin_autre_navire)
+        self.client.login(username="chef_ref_web", password="pass")
+        r = self.client.get("/formations/")
+        self.assertNotContains(r, "marin_autre_navire_ref")
 
 
 class ValidationWebReferentFormationTests(TestCase):
-    """Un référent d'UNE formation précise (TrainingCourse.referents), même de
-    rang EQUIPIER et rattaché à un secteur différent de celui de la formation,
-    doit pouvoir la valider via l'interface web (ValiderFormationView) —
-    régression corrigée : le contrôle web restait strictement CHEF_SECTION+,
-    sans jamais tenir compte du statut de référent (déjà pris en compte côté
-    API par TrainingRecordPermission)."""
+    """Un référent d'UNE formation précise (ReferentFormation), même de rang
+    EQUIPIER, doit pouvoir la valider via l'interface web (ValiderFormationView)
+    pour un marin de SON navire."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Val Réf", code="VREF")
-        service = Service.objects.create(ship=ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-        self.autre_sector = Sector.objects.create(service=service, name="Pont")
-        self.course = TrainingCourse.objects.create(
-            sector=self.sector, title="Habilitation électrique", validity_days=365,
-        )
-
-        # Le référent est rattaché à un AUTRE secteur que celui de sa
-        # formation : cas explicitement prévu par le modèle (un référent est
-        # choisi pour sa compétence, pas pour son secteur de rattachement).
-        self.referent = User.objects.create_user(username="ref_valide_web", password="pass")
-        UserProfile.objects.update_or_create(
-            user=self.referent, defaults={"role": "EQUIPIER", "sector": self.autre_sector},
-        )
-        self.course.referents.add(self.referent)
+        self.ship = Ship.objects.create(name="Navire Val Réf", code="VREF")
+        self.course = TrainingCourse.objects.create(title="Habilitation électrique", validity_days=365)
 
         self.marin = User.objects.create_user(username="marin_ref_valide", password="pass")
-        UserProfile.objects.update_or_create(
-            user=self.marin, defaults={"role": "EQUIPIER", "sector": self.sector},
-        )
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
+
+        self.referent = User.objects.create_user(username="ref_valide_web", password="pass")
+        UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "EQUIPIER"})
+        ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.referent)
 
         # Rechargé depuis la base pour repartir d'un profil non caché par le
         # signal de création automatique (accounts/models.py).
@@ -350,7 +447,7 @@ class ValidationWebReferentFormationTests(TestCase):
         r = self.client.get("/formations/")
         self.assertTrue(r.context["peut_valider"])
 
-    def test_referent_equipier_peut_valider_sa_formation_hors_de_son_secteur(self):
+    def test_referent_equipier_peut_valider_sa_formation_pour_le_navire_concerne(self):
         self.client.login(username="ref_valide_web", password="pass")
         r = self.client.post("/formations/valider/", {
             "marin_id": self.marin.id,

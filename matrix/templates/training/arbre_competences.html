@@ -8,15 +8,7 @@
   </a>
 </div>
 
-<form method="get" class="row g-2 mb-3">
-  <div class="col-auto">
-    <select name="secteur" class="form-select" onchange="this.form.submit()">
-      {% for s in secteurs %}
-        <option value="{{ s.id }}" {% if secteur.id == s.id %}selected{% endif %}>{{ s.service.ship.name }} / {{ s.service.name }} / {{ s.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-</form>
+<p class="small text-muted">Catalogue commun à tous les navires : le même arbre est visible par tous les marins, quel que soit leur bord.</p>
 
 <div class="mb-4 d-flex gap-4 small">
   <span><span class="legende-puce legende-puce--valide"></span>Validé</span>
@@ -24,12 +16,10 @@
   <span><span class="legende-puce legende-puce--verrouille"></span>Verrouillé</span>
 </div>
 
-{% if not secteur %}
-  <p class="text-muted">Aucun secteur disponible dans votre périmètre.</p>
-{% elif not categories %}
-  <p class="text-muted">Aucune formation dans ce secteur pour le moment.</p>
+{% if not categories %}
+  <p class="text-muted">Aucune formation dans le catalogue pour le moment.</p>
 {% else %}
-  {# Le graphe (niveaux, anti-cycle) est calculé sur tout le secteur ; seul   #}
+  {# Le graphe (niveaux, anti-cycle) est calculé sur tout le catalogue ; seul #}
   {# cet affichage est réparti par catégorie (domaine métier). Un prérequis  #}
   {# d'une autre catégorie est signalé par un badge plutôt que d'être caché. #}
   {% for nom_categorie, niveaux in categories %}

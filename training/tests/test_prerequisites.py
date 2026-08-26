@@ -1,6 +1,8 @@
 """Tests de l'arbre de compétences : prérequis entre formations (protection
 anti-cycle, blocage des validations/inscriptions sans prérequis, calcul des
-niveaux de profondeur, état affiché par marin)."""
+niveaux de profondeur, état affiché par marin). Formation désormais globale
+(cf. tâche Notion « Formation unique et portable entre navires ») : plus de
+`sector` sur TrainingCourse."""
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -10,7 +12,6 @@ from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import UserProfile
-from org.models import Ship, Service, Sector
 from training.models import TrainingCourse, TrainingRecord, TrainingSession
 from training.services import calculer_carte_competences, calculer_niveaux
 
@@ -21,12 +22,9 @@ def _demain(jours):
 
 class ProtectionAntiCycleTests(TestCase):
     def setUp(self):
-        ship = Ship.objects.create(name="Navire A", code="A")
-        service = Service.objects.create(ship=ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-        self.f1 = TrainingCourse.objects.create(sector=self.sector, title="Habilitation électrique niveau 1")
-        self.f2 = TrainingCourse.objects.create(sector=self.sector, title="Habilitation électrique niveau 2")
-        self.f3 = TrainingCourse.objects.create(sector=self.sector, title="Habilitation électrique niveau 3")
+        self.f1 = TrainingCourse.objects.create(title="Habilitation électrique niveau 1")
+        self.f2 = TrainingCourse.objects.create(title="Habilitation électrique niveau 2")
+        self.f3 = TrainingCourse.objects.create(title="Habilitation électrique niveau 3")
 
     def test_chaine_de_prerequis_normale_acceptee(self):
         self.f2.prerequisites.set([self.f1])
@@ -56,11 +54,8 @@ class ProtectionAntiCycleTests(TestCase):
 
 class BlocageEnregistrementSansPrerequisTests(TestCase):
     def setUp(self):
-        ship = Ship.objects.create(name="Navire B", code="B")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.base = TrainingCourse.objects.create(sector=self.sector, title="Sécurité de base", validity_days=365)
-        self.avance = TrainingCourse.objects.create(sector=self.sector, title="Sécurité avancée", validity_days=365)
+        self.base = TrainingCourse.objects.create(title="Sécurité de base", validity_days=365)
+        self.avance = TrainingCourse.objects.create(title="Sécurité avancée", validity_days=365)
         self.avance.prerequisites.set([self.base])
         self.marin = User.objects.create_user(username="marin1", password="pass")
 
@@ -133,13 +128,10 @@ class BlocageEnregistrementSansPrerequisTests(TestCase):
 
 class CalculDesNiveauxTests(TestCase):
     def setUp(self):
-        ship = Ship.objects.create(name="Navire C", code="C")
-        service = Service.objects.create(ship=ship, name="Machines")
-        self.sector = Sector.objects.create(service=service, name="Propulsion")
-        self.a = TrainingCourse.objects.create(sector=self.sector, title="A")
-        self.b = TrainingCourse.objects.create(sector=self.sector, title="B")
-        self.c = TrainingCourse.objects.create(sector=self.sector, title="C")
-        self.d = TrainingCourse.objects.create(sector=self.sector, title="D")
+        self.a = TrainingCourse.objects.create(title="A")
+        self.b = TrainingCourse.objects.create(title="B")
+        self.c = TrainingCourse.objects.create(title="C")
+        self.d = TrainingCourse.objects.create(title="D")
         self.b.prerequisites.set([self.a])
         self.c.prerequisites.set([self.b])
         # D dépend de A et de B : son niveau doit suivre la branche la plus longue (B).
@@ -162,12 +154,9 @@ class CalculDesNiveauxTests(TestCase):
 
 class EtatsCarteCompetencesTests(TestCase):
     def setUp(self):
-        ship = Ship.objects.create(name="Navire D", code="D")
-        service = Service.objects.create(ship=ship, name="Détection")
-        self.sector = Sector.objects.create(service=service, name="Radar")
-        self.f1 = TrainingCourse.objects.create(sector=self.sector, title="Radar niveau 1")
-        self.f2 = TrainingCourse.objects.create(sector=self.sector, title="Radar niveau 2")
-        self.f3 = TrainingCourse.objects.create(sector=self.sector, title="Radar niveau 3")
+        self.f1 = TrainingCourse.objects.create(title="Radar niveau 1")
+        self.f2 = TrainingCourse.objects.create(title="Radar niveau 2")
+        self.f3 = TrainingCourse.objects.create(title="Radar niveau 3")
         self.f2.prerequisites.set([self.f1])
         self.f3.prerequisites.set([self.f2])
         self.marin = User.objects.create_user(username="marin2", password="pass")
@@ -206,14 +195,15 @@ class EtatsCarteCompetencesTests(TestCase):
 
 
 class VueGestionPrerequisTests(TestCase):
+    """Catalogue global (T-FORM portabilité) : n'importe quelle formation
+    existante peut désormais être choisie comme prérequis, quel que soit le
+    navire de son auteur (il n'y a plus de notion de secteur/navire propre à
+    une formation)."""
+
     def setUp(self):
-        ship = Ship.objects.create(name="Navire E", code="E")
-        service = Service.objects.create(ship=ship, name="Pont")
-        self.sector = Sector.objects.create(service=service, name="Manœuvre")
-        self.autre_sector = Sector.objects.create(service=service, name="Autre secteur")
-        self.f1 = TrainingCourse.objects.create(sector=self.sector, title="Amarrage niveau 1")
-        self.f2 = TrainingCourse.objects.create(sector=self.sector, title="Amarrage niveau 2")
-        self.hors_secteur = TrainingCourse.objects.create(sector=self.autre_sector, title="Hors secteur")
+        self.f1 = TrainingCourse.objects.create(title="Amarrage niveau 1")
+        self.f2 = TrainingCourse.objects.create(title="Amarrage niveau 2")
+        self.autre_formation = TrainingCourse.objects.create(title="Formation d'un autre domaine")
 
         self.chef = User.objects.create_user(username="chef_form", password="pass")
         UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION"})
@@ -240,15 +230,17 @@ class VueGestionPrerequisTests(TestCase):
         self.assertEqual(r.status_code, 403)
         self.assertEqual(self.f2.prerequisites.count(), 0)
 
-    def test_prerequis_hors_secteur_est_ignore(self):
+    def test_prerequis_de_nimporte_quelle_formation_du_catalogue_accepte(self):
+        # Catalogue global : "autre_formation" n'appartient à aucun périmètre
+        # particulier, elle reste un candidat prérequis valide.
         self.client.login(username="chef_form", password="pass")
         r = self.client.post("/formations/", {
             "action": "update_prerequisites",
             "pk": self.f2.id,
-            "prerequisites": [self.hors_secteur.id],
+            "prerequisites": [self.autre_formation.id],
         })
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(self.f2.prerequisites.count(), 0)
+        self.assertEqual(list(self.f2.prerequisites.all()), [self.autre_formation])
 
     def test_page_arbre_de_competences_accessible(self):
         TrainingRecord.objects.create(
@@ -256,7 +248,7 @@ class VueGestionPrerequisTests(TestCase):
             completed_at=timezone.localdate(), expires_at=_demain(365),
         )
         self.client.login(username="chef_form", password="pass")
-        r = self.client.get(f"/formations/arbre-competences/?secteur={self.sector.id}")
+        r = self.client.get("/formations/arbre-competences/")
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Amarrage niveau 1")
         self.assertContains(r, "Validé")

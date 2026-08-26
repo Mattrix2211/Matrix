@@ -2,7 +2,10 @@
 un marin réserve/annule SA PROPRE place sur une TrainingSession PLANNED, tant
 que la capacité n'est pas atteinte et que ses prérequis sont validés. Distinct
 de la validation de présence par un référent (TrainingSession.attendees, non
-touché par cette fonctionnalité — cf. training/models.py::peut_valider_formation)."""
+touché par cette fonctionnalité — cf. training/models.py::peut_valider_formation).
+Catalogue de formations devenu global (tâche Notion « Formation unique et
+portable entre navires ») : toute session planifiée est réservable par tout
+marin connecté, quel que soit le navire qui l'organise."""
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -14,7 +17,7 @@ from django.utils import timezone
 from accounts.models import UserProfile
 from calendar_app.views import calendar_events
 from notifications.models import Notification
-from org.models import Sector, Service, Ship
+from org.models import Ship
 from training.models import TrainingCourse, TrainingRecord, TrainingSession
 
 
@@ -28,10 +31,7 @@ class ReservationSessionTests(TestCase):
     assignées)."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Résa", code="RESA")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Sécurité incendie niveau 1")
+        self.course = TrainingCourse.objects.create(title="Sécurité incendie niveau 1")
         self.session = TrainingSession.objects.create(
             course=self.course, scheduled_at=timezone.now() + timedelta(days=10),
         )
@@ -91,10 +91,7 @@ class CapaciteReservationTests(TestCase):
     atteinte — pas de liste d'attente pour cette version."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Capa", code="CAPA")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Extinction niveau 1")
+        self.course = TrainingCourse.objects.create(title="Extinction niveau 1")
         self.session = TrainingSession.objects.create(
             course=self.course, scheduled_at=timezone.now() + timedelta(days=5), capacite_max=1,
         )
@@ -127,11 +124,8 @@ class PrerequisReservationTests(TestCase):
     référent (attendees) — réutilise _prerequis_manquants, ne réinvente rien."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Prér", code="PRER")
-        service = Service.objects.create(ship=ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-        self.base = TrainingCourse.objects.create(sector=self.sector, title="Habilitation électrique niveau 1")
-        self.avance = TrainingCourse.objects.create(sector=self.sector, title="Habilitation électrique niveau 2")
+        self.base = TrainingCourse.objects.create(title="Habilitation électrique niveau 1")
+        self.avance = TrainingCourse.objects.create(title="Habilitation électrique niveau 2")
         self.avance.prerequisites.set([self.base])
         self.session = TrainingSession.objects.create(
             course=self.avance, scheduled_at=timezone.now() + timedelta(days=15),
@@ -178,10 +172,7 @@ class AnnulationReservationTests(TestCase):
     """Annulation possible tant que la session n'a pas encore eu lieu."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Annul", code="ANNUL")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Sécurité de base")
+        self.course = TrainingCourse.objects.create(title="Sécurité de base")
         self.session_future = TrainingSession.objects.create(
             course=self.course, scheduled_at=timezone.now() + timedelta(days=10),
         )
@@ -218,10 +209,7 @@ class SecuriteReservationPourSoiMemeTests(TestCase):
     identifiant posté."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Sécu", code="SECU")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Sécurité")
+        self.course = TrainingCourse.objects.create(title="Sécurité")
         self.session = TrainingSession.objects.create(
             course=self.course, scheduled_at=timezone.now() + timedelta(days=10),
         )
@@ -251,36 +239,32 @@ class SecuriteReservationPourSoiMemeTests(TestCase):
         self.assertIn(self.marin2, self.session.reservations.all())
 
 
-class PerimetreReservationTests(TestCase):
-    """La réservation respecte le même périmètre que la liste des formations
-    (ScopedQuerySetMixin) : une session hors périmètre n'est pas réservable."""
+class ReservationInterNavireTests(TestCase):
+    """Catalogue global (T-FORM portabilité) : un marin peut réserver une
+    session organisée par un AUTRE navire (ex. session mutualisée, école à
+    terre), sans restriction de périmètre — seule la capacité et les
+    prérequis de la formation s'appliquent."""
 
     def setUp(self):
-        self.navire_a = Ship.objects.create(name="Navire Périmètre Résa A", code="PRA")
-        service_a = Service.objects.create(ship=self.navire_a, name="Technique")
-        self.secteur_a = Sector.objects.create(service=service_a, name="Électricité")
-
-        self.navire_b = Ship.objects.create(name="Navire Périmètre Résa B", code="PRB")
-        service_b = Service.objects.create(ship=self.navire_b, name="Technique")
-        self.secteur_b = Sector.objects.create(service=service_b, name="Électricité")
-        self.course_b = TrainingCourse.objects.create(sector=self.secteur_b, title="Formation navire B")
+        self.navire_a = Ship.objects.create(name="Navire Résa Inter A", code="RIA")
+        self.navire_b = Ship.objects.create(name="Navire Résa Inter B", code="RIB")
+        self.course_b = TrainingCourse.objects.create(title="Formation navire B")
         self.session_b = TrainingSession.objects.create(
             course=self.course_b, scheduled_at=timezone.now() + timedelta(days=10),
         )
-
-        self.marin_a = User.objects.create_user(username="marin_perim_a", password="pass")
+        self.marin_a = User.objects.create_user(username="marin_inter_a", password="pass")
         UserProfile.objects.update_or_create(
             user=self.marin_a, defaults={"role": "EQUIPIER", "ship": self.navire_a},
         )
 
-    def test_reservation_refusee_hors_perimetre(self):
-        self.client.login(username="marin_perim_a", password="pass")
+    def test_reservation_acceptee_quel_que_soit_le_navire_organisateur(self):
+        self.client.login(username="marin_inter_a", password="pass")
         r = self.client.post("/formations/", {
             "action": "reserver_session",
             "session_id": self.session_b.id,
         })
         self.assertEqual(r.status_code, 302)
-        self.assertNotIn(self.marin_a, self.session_b.reservations.all())
+        self.assertIn(self.marin_a, self.session_b.reservations.all())
 
 
 class NonRegressionAttendeesTests(TestCase):
@@ -289,10 +273,7 @@ class NonRegressionAttendeesTests(TestCase):
     (attendees) — les deux listes restent strictement indépendantes."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire NonReg", code="NREG")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Sécurité de base")
+        self.course = TrainingCourse.objects.create(title="Sécurité de base")
         self.session = TrainingSession.objects.create(
             course=self.course, scheduled_at=timezone.now() + timedelta(days=10),
         )
@@ -314,7 +295,8 @@ class NonRegressionAttendeesTests(TestCase):
         # présences (attendees), même sur sa propre session réservée.
         from training.models import peut_valider_formation
         self.session.reservations.add(self.marin)
-        self.assertFalse(peut_valider_formation(self.marin, self.course))
+        ship = Ship.objects.create(name="Navire NonReg", code="NREG")
+        self.assertFalse(peut_valider_formation(self.marin, self.course, ship))
 
 
 class AffichageSectionSessionsAVenirTests(TestCase):
@@ -324,21 +306,18 @@ class AffichageSectionSessionsAVenirTests(TestCase):
     la fiche « Réservation d'une session de formation »."""
 
     def setUp(self):
-        ship = Ship.objects.create(name="Navire Affichage", code="AFFI")
-        service = Service.objects.create(ship=ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
         self.marin = User.objects.create_user(username="marin_affi", password="pass")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
 
     def test_message_clair_si_aucune_session_planifiee(self):
-        TrainingCourse.objects.create(sector=self.sector, title="Formation sans session")
+        TrainingCourse.objects.create(title="Formation sans session")
         self.client.login(username="marin_affi", password="pass")
         r = self.client.get("/formations/")
         self.assertContains(r, "Sessions à venir")
         self.assertContains(r, "Aucune session prévue pour l'instant.")
 
     def test_section_affiche_la_session_planifiee(self):
-        course = TrainingCourse.objects.create(sector=self.sector, title="Formation avec session")
+        course = TrainingCourse.objects.create(title="Formation avec session")
         TrainingSession.objects.create(course=course, scheduled_at=timezone.now() + timedelta(days=7))
         self.client.login(username="marin_affi", password="pass")
         r = self.client.get("/formations/")

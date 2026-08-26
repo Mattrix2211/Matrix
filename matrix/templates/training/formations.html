@@ -18,13 +18,14 @@
     </a>
   </div>
 </div>
+<p class="small text-muted">Catalogue commun à tous les navires : une formation validée reste acquise même après une mutation.</p>
 
 <form method="get" class="row g-2 mb-3">
   <div class="col-auto">
-    <select name="sector" class="form-select" onchange="this.form.submit()">
-      <option value="">Tous les secteurs</option>
-      {% for s in secteurs %}
-        <option value="{{ s.id }}" {% if request.GET.sector == s.id|stringformat:'s' %}selected{% endif %}>{{ s.service.ship.name }} / {{ s.service.name }} / {{ s.name }}</option>
+    <select name="category" class="form-select" onchange="this.form.submit()">
+      <option value="">Toutes les catégories</option>
+      {% for cat in categories_existantes %}
+        <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat }}</option>
       {% endfor %}
     </select>
   </div>
@@ -40,7 +41,7 @@
       {% else %}
         <span class="small text-muted">Aucun désigné</span>
       {% endif %}
-      <div class="form-text mb-0">Autorité de validation sur toutes les formations du navire, quel que soit le secteur — distinct des référents propres à chaque formation.</div>
+      <div class="form-text mb-0">Autorité de validation sur toutes les formations du navire — distinct des référents propres à chaque formation.</div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-2">
@@ -72,7 +73,7 @@
     <div class="card h-100">
       <div class="card-body">
         <h6 class="card-title fw-bold">{{ f.title }}</h6>
-        <div class="small text-muted mb-2">{{ f.sector.name }} — validité {{ f.validity_days }} jour(s)</div>
+        <div class="small text-muted mb-2">Validité {{ f.validity_days }} jour(s)</div>
         <div class="mb-2">
           {% if f.category %}
             <span class="badge text-bg-light border">{{ f.category }}</span>
@@ -92,8 +93,8 @@
           {% endfor %}
         </div>
         <div class="mb-2">
-          <span class="fw-semibold small">Référents :</span>
-          {% for r in f.referents.all %}
+          <span class="fw-semibold small">Référents (votre navire) :</span>
+          {% for r in f.mes_referents %}
             <span class="badge text-bg-info">{{ r.get_full_name|default:r.username }}</span>
           {% empty %}
             <span class="small text-muted">Aucun désigné</span>
@@ -177,10 +178,10 @@
         {% if peut_gerer_prerequis %}
           <button type="button" class="btn btn-outline-primary btn-sm"
                   data-bs-toggle="modal" data-bs-target="#prerequisitesModal"
-                  data-pk="{{ f.id }}" data-title="{{ f.title }}" data-sector="{{ f.sector_id }}"
+                  data-pk="{{ f.id }}" data-title="{{ f.title }}"
                   data-category="{{ f.category }}"
                   data-selected="{% for p in f.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                  data-referents-selected="{% for r in f.referents.all %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                  data-referents-selected="{% for r in f.mes_referents %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
             <i class="bi bi-pencil"></i> Modifier
           </button>
         {% endif %}
@@ -189,7 +190,7 @@
   {% endfor %}
 </div>
 {% else %}
-  <p class="text-muted">Aucune formation dans votre périmètre.</p>
+  <p class="text-muted">Aucune formation dans le catalogue pour l'instant.</p>
 {% endif %}
 
 {% if peut_gerer_prerequis %}
@@ -207,40 +208,38 @@
         <div class="modal-body">
           <div class="mb-3">
             <label for="prereqCategory" class="form-label">Catégorie (domaine métier)</label>
-            <input type="text" class="form-control" name="category" id="prereqCategory"
+            <input type="text" class="form-control" name="category" id="prereqCategory" list="categoriesToutes"
                    placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
             <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
           </div>
-          {% for sector_id, categories in categories_par_secteur.items %}
-            <datalist id="categoriesSecteur-{{ sector_id }}">
-              {% for cat in categories %}<option value="{{ cat }}"></option>{% endfor %}
-            </datalist>
-          {% endfor %}
-          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (même secteur uniquement).</p>
-          {% for sector_id, candidats in candidats_par_secteur.items %}
-            <div class="prereq-group" data-sector="{{ sector_id }}" style="display:none;">
-              {% for c in candidats %}
-                <div class="form-check">
-                  <input class="form-check-input prereq-checkbox" type="checkbox" name="prerequisites" value="{{ c.id }}" id="prereq-{{ c.id }}" data-course="{{ c.id }}">
-                  <label class="form-check-label" for="prereq-{{ c.id }}">{{ c.title }}</label>
-                </div>
-              {% endfor %}
-            </div>
-          {% endfor %}
+          <datalist id="categoriesToutes">
+            {% for cat in categories_existantes %}<option value="{{ cat }}"></option>{% endfor %}
+          </datalist>
+          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à tous les navires).</p>
+          <div class="prereq-group">
+            {% for c in candidats_prerequis %}
+              <div class="form-check prereq-item" data-course="{{ c.id }}">
+                <input class="form-check-input prereq-checkbox" type="checkbox" name="prerequisites" value="{{ c.id }}" id="prereq-{{ c.id }}">
+                <label class="form-check-label" for="prereq-{{ c.id }}">{{ c.title }}</label>
+              </div>
+            {% endfor %}
+          </div>
           <hr>
-          <p class="small text-muted">Référents habilités à valider cette formation (personnes désignées pour leur compétence sur le sujet, quel que soit leur secteur).</p>
-          {% for sector_id, utilisateurs in utilisateurs_par_secteur.items %}
-            <div class="referent-group" data-sector="{{ sector_id }}" style="display:none;">
-              {% for u in utilisateurs %}
-                <div class="form-check">
-                  <input class="form-check-input referent-checkbox" type="checkbox" name="referents" value="{{ u.id }}" id="referent-{{ sector_id }}-{{ u.id }}">
-                  <label class="form-check-label" for="referent-{{ sector_id }}-{{ u.id }}">{{ u.get_full_name|default:u.username }}</label>
-                </div>
-              {% empty %}
-                <span class="small text-muted">Aucun utilisateur dans ce secteur.</span>
-              {% endfor %}
-            </div>
-          {% endfor %}
+          <p class="small text-muted">
+            Référents habilités à valider cette formation, POUR VOTRE NAVIRE
+            {% if navire_courant %}({{ navire_courant.name }}){% endif %} — un autre navire peut désigner
+            d'autres référents pour la même formation.
+          </p>
+          <div class="referent-group">
+            {% for u in candidats_referents %}
+              <div class="form-check">
+                <input class="form-check-input referent-checkbox" type="checkbox" name="referents" value="{{ u.id }}" id="referent-{{ u.id }}">
+                <label class="form-check-label" for="referent-{{ u.id }}">{{ u.get_full_name|default:u.username }}</label>
+              </div>
+            {% empty %}
+              <span class="small text-muted">Aucun utilisateur trouvé sur votre navire.</span>
+            {% endfor %}
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -257,30 +256,19 @@
   modal.addEventListener('show.bs.modal', function(event){
     var b = event.relatedTarget;
     var pk = b.getAttribute('data-pk');
-    var sector = b.getAttribute('data-sector');
     var selected = (b.getAttribute('data-selected') || '').split(',').filter(Boolean);
     var referentsSelectionnes = (b.getAttribute('data-referents-selected') || '').split(',').filter(Boolean);
     document.getElementById('prereqPk').value = pk;
     document.getElementById('prereqTitle').textContent = b.getAttribute('data-title');
-    // Catégorie pré-remplie avec la valeur actuelle, autocomplétion limitée
-    // aux catégories déjà utilisées dans le secteur de cette formation.
-    var champCategorie = document.getElementById('prereqCategory');
-    champCategorie.value = b.getAttribute('data-category') || '';
-    champCategorie.setAttribute('list', 'categoriesSecteur-' + sector);
-    // N'affiche que les formations du même secteur que celle éditée, et exclut
-    // la formation elle-même (impossible de se choisir comme son propre prérequis).
-    document.querySelectorAll('.prereq-group').forEach(function(group){
-      group.style.display = (group.getAttribute('data-sector') === sector) ? 'block' : 'none';
+    document.getElementById('prereqCategory').value = b.getAttribute('data-category') || '';
+    // Catalogue global : on exclut uniquement la formation éditée elle-même
+    // (impossible de se choisir comme son propre prérequis), toutes les
+    // autres restent proposées.
+    document.querySelectorAll('.prereq-item').forEach(function(item){
+      item.style.display = (item.getAttribute('data-course') === pk) ? 'none' : '';
     });
     document.querySelectorAll('.prereq-checkbox').forEach(function(cb){
-      var isSelf = cb.getAttribute('data-course') === pk;
-      cb.closest('.form-check').style.display = isSelf ? 'none' : '';
       cb.checked = selected.indexOf(cb.value) !== -1;
-    });
-    // N'affiche que les référents candidats du même secteur que la formation
-    // éditée, avec les référents déjà désignés pré-cochés.
-    document.querySelectorAll('.referent-group').forEach(function(group){
-      group.style.display = (group.getAttribute('data-sector') === sector) ? 'block' : 'none';
     });
     document.querySelectorAll('.referent-checkbox').forEach(function(cb){
       cb.checked = referentsSelectionnes.indexOf(cb.value) !== -1;
@@ -307,15 +295,6 @@
             <input type="text" class="form-control" name="title" id="createTitle" required>
           </div>
           <div class="mb-3">
-            <label for="createSector" class="form-label">Secteur</label>
-            <select class="form-select" name="sector" id="createSector" required>
-              <option value="" selected disabled>Choisir un secteur...</option>
-              {% for s in secteurs %}
-                <option value="{{ s.id }}">{{ s.service.ship.name }} / {{ s.service.name }} / {{ s.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
             <label for="createDescription" class="form-label">Description</label>
             <textarea class="form-control" name="description" id="createDescription" rows="2"></textarea>
           </div>
@@ -325,19 +304,15 @@
           </div>
           <div class="mb-3">
             <label for="createCategory" class="form-label">Catégorie (domaine métier)</label>
-            <input type="text" class="form-control" name="category" id="createCategory"
-                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage..." list="">
+            <input type="text" class="form-control" name="category" id="createCategory" list="categoriesToutes"
+                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
             <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
           </div>
-          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (même secteur, choisissez d'abord le secteur ci-dessus).</p>
-          {% for sector_id, candidats in candidats_par_secteur.items %}
-            <div class="create-prereq-group" data-sector="{{ sector_id }}" style="display:none;">
-              {% for c in candidats %}
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="prerequisites" value="{{ c.id }}" id="create-prereq-{{ c.id }}">
-                  <label class="form-check-label" for="create-prereq-{{ c.id }}">{{ c.title }}</label>
-                </div>
-              {% endfor %}
+          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à tous les navires).</p>
+          {% for c in candidats_prerequis %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="prerequisites" value="{{ c.id }}" id="create-prereq-{{ c.id }}">
+              <label class="form-check-label" for="create-prereq-{{ c.id }}">{{ c.title }}</label>
             </div>
           {% empty %}
             <span class="small text-muted">Aucune formation existante pouvant servir de prérequis.</span>
@@ -351,25 +326,6 @@
     </form>
   </div>
 </div>
-<script>
-(function(){
-  var select = document.getElementById('createSector');
-  if (!select) return;
-  select.addEventListener('change', function(){
-    var sector = select.value;
-    // N'affiche que les formations existantes du secteur choisi comme
-    // candidates au rattachement en prérequis (une formation d'un autre
-    // secteur ne peut jamais être un prérequis, même règle qu'à l'édition).
-    document.querySelectorAll('.create-prereq-group').forEach(function(group){
-      group.style.display = (group.getAttribute('data-sector') === sector) ? 'block' : 'none';
-    });
-    // Autocomplétion de la catégorie limitée à celles déjà utilisées dans le
-    // secteur choisi (datalist déjà rendue par la modale de modification).
-    var champCategorie = document.getElementById('createCategory');
-    champCategorie.setAttribute('list', 'categoriesSecteur-' + sector);
-  });
-})();
-</script>
 {% endif %}
 
 {% if peut_valider %}
@@ -398,7 +354,7 @@
             <select class="form-select" name="course_id" required>
               <option value="">—</option>
               {% for c in formations_validables %}
-              <option value="{{ c.id }}">{{ c.title }} ({{ c.sector }})</option>
+              <option value="{{ c.id }}">{{ c.title }}</option>
               {% endfor %}
             </select>
           </div>

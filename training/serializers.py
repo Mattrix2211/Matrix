@@ -1,10 +1,15 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from .models import TrainingCourse, TrainingRequirement, TrainingSession, TrainingRecord
+from .models import ReferentFormation, TrainingCourse, TrainingRequirement, TrainingSession, TrainingRecord
 
 class TrainingCourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingCourse
+        fields = "__all__"
+
+class ReferentFormationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReferentFormation
         fields = "__all__"
 
 class TrainingRequirementSerializer(serializers.ModelSerializer):

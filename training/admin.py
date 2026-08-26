@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import (
+    ReferentFormation,
     TrainingCourse,
     TrainingRequirement,
     TrainingSession,
@@ -9,9 +10,16 @@ from .models import (
 
 @admin.register(TrainingCourse)
 class TrainingCourseAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "sector", "validity_days")
-    list_filter = ("sector", "category")
-    filter_horizontal = ("prerequisites", "referents")
+    # Formation désormais globale (plus de "sector") : filtre/tri par
+    # catégorie (domaine métier), seul regroupement encore pertinent.
+    list_display = ("title", "category", "validity_days")
+    list_filter = ("category",)
+    filter_horizontal = ("prerequisites",)
+
+@admin.register(ReferentFormation)
+class ReferentFormationAdmin(admin.ModelAdmin):
+    list_display = ("course", "ship", "user")
+    list_filter = ("ship",)
 
 @admin.register(ReferentFormationNavire)
 class ReferentFormationNavireAdmin(admin.ModelAdmin):

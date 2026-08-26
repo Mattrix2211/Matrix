@@ -1,14 +1,14 @@
 """Tests du référent formation DU NAVIRE (ReferentFormationNavire) — à ne pas
-confondre avec les référents PAR FORMATION déjà couverts par
-test_referents.py. Un référent formation du navire obtient l'autorité de
-validation sur TOUTES les formations du navire, quel que soit le secteur, dès
+confondre avec les référents PAR FORMATION désormais rattachés à un navire
+(ReferentFormation, cf. test_referents.py). Un référent formation du navire
+obtient l'autorité de validation sur TOUTES les formations du navire, dès
 lors qu'il est désigné par un rôle de supervision globale (COMMANDANT et
 au-dessus)."""
 from django.contrib.auth.models import User
 from django.test import TestCase
 
 from accounts.models import UserProfile
-from org.models import Ship, Service, Sector
+from org.models import Ship
 from training.models import ReferentFormationNavire, TrainingCourse, TrainingRecord, peut_valider_formation
 
 
@@ -17,11 +17,11 @@ class ReferentFormationNavireModelTests(TestCase):
 
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire Réf Nav", code="RNAV")
-        service = Service.objects.create(ship=self.ship, name="Technique")
-        self.sector = Sector.objects.create(service=service, name="Électricité")
-        self.autre_sector = Sector.objects.create(service=service, name="Mécanique")
-        self.course = TrainingCourse.objects.create(sector=self.sector, title="Habilitation électrique")
-        self.autre_course = TrainingCourse.objects.create(sector=self.autre_sector, title="Maintenance moteur")
+        # Catalogue global : les deux formations n'appartiennent à aucun
+        # navire en particulier, seule l'autorité du référent (par navire)
+        # détermine qui peut les valider.
+        self.course = TrainingCourse.objects.create(title="Habilitation électrique")
+        self.autre_course = TrainingCourse.objects.create(title="Maintenance moteur")
 
         self.referent_navire = User.objects.create_user(username="referent_navire", password="pass")
         UserProfile.objects.update_or_create(user=self.referent_navire, defaults={"role": "EQUIPIER"})
@@ -36,17 +36,23 @@ class ReferentFormationNavireModelTests(TestCase):
         self.marin_lambda = User.objects.get(pk=self.marin_lambda.pk)
 
     def test_referent_navire_peut_valider_nimporte_quelle_formation_du_navire(self):
-        self.assertTrue(peut_valider_formation(self.referent_navire, self.course))
-        self.assertTrue(peut_valider_formation(self.referent_navire, self.autre_course))
+        self.assertTrue(peut_valider_formation(self.referent_navire, self.course, self.ship))
+        self.assertTrue(peut_valider_formation(self.referent_navire, self.autre_course, self.ship))
 
     def test_marin_lambda_ne_peut_pas_valider(self):
-        self.assertFalse(peut_valider_formation(self.marin_lambda, self.course))
+        self.assertFalse(peut_valider_formation(self.marin_lambda, self.course, self.ship))
 
     def test_referent_navire_dun_autre_navire_ne_peut_pas_valider(self):
         autre_ship = Ship.objects.create(name="Autre navire", code="AUTR")
         ReferentFormationNavire.objects.create(ship=autre_ship, user=self.marin_lambda)
         self.marin_lambda = User.objects.get(pk=self.marin_lambda.pk)
-        self.assertFalse(peut_valider_formation(self.marin_lambda, self.course))
+        # Le référent d'un AUTRE navire n'a pas autorité sur self.ship.
+        self.assertFalse(peut_valider_formation(self.marin_lambda, self.course, self.ship))
+
+    def test_ship_none_refuse_sauf_supervision_globale(self):
+        # Si le navire du marin concerné n'est pas résolvable, seule la
+        # supervision globale (COMMANDANT+) donne autorité.
+        self.assertFalse(peut_valider_formation(self.referent_navire, self.course, None))
 
     def test_un_seul_referent_par_navire(self):
         # OneToOneField sur ship : désigner un nouveau référent doit remplacer
@@ -64,8 +70,6 @@ class VueGestionReferentNavireTests(TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire Web Réf Nav", code="WRNAV")
         self.autre_ship = Ship.objects.create(name="Autre navire web", code="AWNAV")
-        service = Service.objects.create(ship=self.ship, name="Pont")
-        Sector.objects.create(service=service, name="Manœuvre")
 
         self.commandant = User.objects.create_user(username="cdt_ref_nav", password="pass")
         UserProfile.objects.update_or_create(
@@ -145,18 +149,11 @@ class VueGestionReferentNavireTests(TestCase):
 class ValidationWebReferentNavireTests(TestCase):
     """Un référent formation du navire (ReferentFormationNavire), même de rang
     EQUIPIER, doit pouvoir valider une formation via l'interface web
-    (ValiderFormationView) — régression corrigée : le contrôle web restait
-    strictement CHEF_SECTION+ et ignorait totalement le statut de référent
-    navire, rendant la désignation inerte côté produit (le bouton restait
-    invisible et un POST forcé était rejeté avec un 403)."""
+    (ValiderFormationView), pour un marin de SON navire."""
 
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire Val Réf Nav", code="VRNAV")
-        service = Service.objects.create(ship=self.ship, name="Sécurité")
-        self.sector = Sector.objects.create(service=service, name="Incendie")
-        self.course = TrainingCourse.objects.create(
-            sector=self.sector, title="Équipier de sécurité incendie", validity_days=365,
-        )
+        self.course = TrainingCourse.objects.create(title="Équipier de sécurité incendie", validity_days=365)
 
         self.referent_navire = User.objects.create_user(username="ref_nav_valide", password="pass")
         UserProfile.objects.update_or_create(
@@ -166,7 +163,7 @@ class ValidationWebReferentNavireTests(TestCase):
 
         self.marin = User.objects.create_user(username="marin_ref_nav_valide", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.marin, defaults={"role": "EQUIPIER", "sector": self.sector},
+            user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship},
         )
 
         # Rechargé depuis la base pour repartir d'un profil non caché par le
@@ -189,3 +186,20 @@ class ValidationWebReferentNavireTests(TestCase):
         self.assertEqual(r.status_code, 302)
         record = TrainingRecord.objects.get(user=self.marin, course=self.course)
         self.assertEqual(record.validated_by, self.referent_navire)
+
+    def test_referent_navire_ne_peut_pas_valider_pour_un_marin_dun_autre_navire(self):
+        # L'autorité du référent navire est bornée à SON navire (le navire du
+        # marin CIBLÉ compte, pas celui de l'appelant).
+        autre_ship = Ship.objects.create(name="Autre navire val", code="AVAL")
+        marin_autre_navire = User.objects.create_user(username="marin_autre_navire_val", password="pass")
+        UserProfile.objects.update_or_create(
+            user=marin_autre_navire, defaults={"role": "EQUIPIER", "ship": autre_ship},
+        )
+        self.client.login(username="ref_nav_valide", password="pass")
+        r = self.client.post("/formations/valider/", {
+            "marin_id": marin_autre_navire.id,
+            "course_id": self.course.id,
+            "completed_at": "2026-01-15",
+        })
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(TrainingRecord.objects.filter(user=marin_autre_navire, course=self.course).exists())

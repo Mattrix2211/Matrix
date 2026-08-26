@@ -11,7 +11,15 @@ from org.models import Sector, Ship, Service, Section
 User = get_user_model()
 
 class TrainingCourse(TimeStampedModel):
-    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="training_courses")
+    """Formation : fiche UNIQUE et globale, partagée par tous les navires — décision
+    produit confirmée (tâche Notion « Formation unique et portable entre navires »)
+    pour que la qualification d'un marin le suive lors d'une mutation, sans qu'il
+    ait à repartir de zéro sur un autre bâtiment. Le rattachement à un navire
+    précis n'existe donc plus ici (l'ancien champ `sector` est retiré) : voir
+    TrainingRequirement (quel navire EXIGE cette formation, système déjà existant,
+    réutilisé tel quel) et ReferentFormation ci-dessous (qui est habilité à la
+    VALIDER, par navire — un référent pour un navire donné ne l'est pas forcément
+    pour un autre navire proposant la même formation)."""
     title = models.CharField(max_length=255)
     # Domaine métier de la formation (ex. "Sécurité/Incendie", "Habilitation
     # électrique", "Levage"...) : texte libre saisi par le chef, pas de liste
@@ -27,20 +35,33 @@ class TrainingCourse(TimeStampedModel):
     prerequisites = models.ManyToManyField(
         "self", symmetrical=False, blank=True, related_name="unlocks"
     )
-    # Référents : personnes précisément désignées comme habilitées à valider
-    # CETTE formation (créer/modifier un TrainingRecord, gérer les présences
-    # d'une session), choisies pour leur compétence sur le sujet plutôt que
-    # pour leur rang ou leur secteur — un marin habilité peut ainsi être
-    # référent d'une formation d'un secteur ou d'un navire différent du sien,
-    # et inversement ne pas être référent d'une formation de son propre
-    # secteur s'il n'a pas la compétence requise. Voir peut_valider_formation()
-    # ci-dessous pour le contrôle d'accès associé.
-    referents = models.ManyToManyField(
-        User, blank=True, related_name="formations_referentes"
-    )
 
     def __str__(self):
         return self.title
+
+
+class ReferentFormation(TimeStampedModel):
+    """Référent précisément désigné comme habilité à valider CETTE formation
+    (créer/modifier un TrainingRecord, gérer les présences d'une session),
+    POUR UN NAVIRE DONNÉ — la formation étant désormais une fiche globale
+    partagée par tous les navires (TrainingCourse ci-dessus), un même marin
+    peut être référent de "Habilitation électrique" pour son propre navire
+    sans l'être pour un autre navire qui propose la même formation.
+    Remplace l'ancien TrainingCourse.referents (M2M sans notion de navire,
+    incompatible avec un catalogue partagé : un référent l'aurait été de
+    fait pour TOUS les navires en même temps). Voir peut_valider_formation()
+    ci-dessous : le navire de référence utilisé est TOUJOURS celui du marin
+    concerné par l'action (jamais celui de l'appelant)."""
+
+    course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="referents")
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="referents_formation")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="formations_referentes")
+
+    class Meta:
+        unique_together = ("course", "ship", "user")
+
+    def __str__(self):
+        return f"{self.user} — référent ({self.course}, {self.ship})"
 
 
 class ReferentFormationNavire(TimeStampedModel):
@@ -76,22 +97,53 @@ class ReferentFormationNavire(TimeStampedModel):
 NIVEAU_SUPERVISION_GLOBALE_FORMATION = RoleLevel.COMMANDANT
 
 
-def peut_valider_formation(user, course):
+def navire_de(user):
+    """Résout le navire réel d'un utilisateur, quel que soit le niveau auquel
+    son profil est rattaché (navire/service/secteur/section) — contrairement
+    à ship_id_for_user (matrix/core/scopes.py) qui ne renvoie que profile.ship
+    quand il est renseigné DIRECTEMENT, sans remonter la hiérarchie. Un marin
+    rattaché à une section (le cas le plus courant pour un équipier) doit
+    quand même avoir un navire de référence pour peut_valider_formation()
+    ci-dessous : une formation étant désormais globale, c'est le SEUL moyen
+    de déterminer quels référents ont autorité sur lui."""
+    profile = getattr(user, "profile", None)
+    if not profile:
+        return None
+    if profile.ship_id:
+        return profile.ship
+    if profile.service_id:
+        return profile.service.ship
+    if profile.sector_id:
+        return profile.sector.service.ship
+    if profile.section_id:
+        return profile.section.sector.service.ship
+    return None
+
+
+def peut_valider_formation(user, course, ship):
     """Vrai si `user` peut créer/modifier/supprimer un enregistrement de
     validation (TrainingRecord) pour `course`, ou gérer les présences d'une
     session de cette formation (TrainingSession.attendees) : soit parce qu'il
-    est désigné référent de cette formation précise (TrainingCourse.referents),
-    soit parce qu'il est désigné référent formation de l'ensemble du navire
-    auquel appartient `course` (ReferentFormationNavire, autorité valable sur
-    toutes les formations du navire quel que soit le secteur), soit parce
-    qu'il occupe un rôle de supervision globale (COMMANDANT et au-dessus)."""
+    est désigné référent de cette formation précise POUR CE NAVIRE
+    (ReferentFormation), soit parce qu'il est désigné référent formation de
+    l'ensemble de ce navire (ReferentFormationNavire, autorité valable sur
+    toutes les formations du navire), soit parce qu'il occupe un rôle de
+    supervision globale (COMMANDANT et au-dessus).
+
+    `ship` est TOUJOURS le navire du marin concerné par l'action (celui dont
+    on crée/modifie le TrainingRecord, ou qu'on ajoute/retire des présents
+    d'une session) — jamais celui de l'appelant : un référent est désigné
+    pour valider les marins d'un navire précis, pas pour son propre
+    rattachement. `ship` peut être None si ce marin n'a aucun navire
+    résolvable (cf. navire_de ci-dessus) : dans ce cas, seule la supervision
+    globale donne l'autorité de validation."""
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
         return True
-    if course.referents.filter(pk=user.pk).exists():
+    if ship is None:
+        return False
+    if ReferentFormation.objects.filter(course=course, ship=ship, user=user).exists():
         return True
-    return ReferentFormationNavire.objects.filter(
-        ship_id=course.sector.service.ship_id, user=user
-    ).exists()
+    return ReferentFormationNavire.objects.filter(ship=ship, user=user).exists()
 
 
 def _verifier_absence_de_cycle_prerequis(course, nouveaux_ids):

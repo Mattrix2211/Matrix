@@ -120,7 +120,7 @@ class EspacePersonnelTests(TestCase):
         )
 
     def test_contexte_contient_les_formations_du_marin_connecte(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         session = TrainingSession.objects.create(
             course=cours, scheduled_at=timezone.now() + timedelta(days=10), status="PLANNED",
         )
@@ -132,7 +132,7 @@ class EspacePersonnelTests(TestCase):
         self.assertEqual(list(response.context["mes_formations"]), [session])
 
     def test_formation_d_un_autre_marin_est_absente_du_contexte(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         session = TrainingSession.objects.create(
             course=cours, scheduled_at=timezone.now() + timedelta(days=10), status="PLANNED",
         )
@@ -144,7 +144,7 @@ class EspacePersonnelTests(TestCase):
         self.assertEqual(list(response.context["mes_formations"]), [])
 
     def test_formation_effectuee_est_exclue(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         session = TrainingSession.objects.create(
             course=cours, scheduled_at=timezone.now() - timedelta(days=10), status="DONE",
         )
@@ -164,7 +164,7 @@ class EspacePersonnelTests(TestCase):
         self.assertContains(response, "Aucune formation validée n'est actuellement enregistrée à votre nom.")
 
     def test_contexte_contient_les_qualifications_du_marin_connecte(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         record = TrainingRecord.objects.create(
             user=self.marin, course=cours,
             completed_at=timezone.localdate() - timedelta(days=100),
@@ -177,7 +177,7 @@ class EspacePersonnelTests(TestCase):
         self.assertEqual(list(response.context["mes_qualifications"]), [record])
 
     def test_qualification_d_un_autre_marin_est_absente_du_contexte(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         TrainingRecord.objects.create(
             user=self.autre_marin, course=cours,
             completed_at=timezone.localdate() - timedelta(days=100),
@@ -190,8 +190,8 @@ class EspacePersonnelTests(TestCase):
         self.assertEqual(list(response.context["mes_qualifications"]), [])
 
     def test_qualifications_triees_par_date_dexpiration_croissante(self):
-        cours_lointain = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
-        cours_proche = TrainingCourse.objects.create(sector=self.secteur, title="Premiers secours")
+        cours_lointain = TrainingCourse.objects.create(title="Sécurité incendie")
+        cours_proche = TrainingCourse.objects.create(title="Premiers secours")
         record_lointain = TrainingRecord.objects.create(
             user=self.marin, course=cours_lointain,
             completed_at=timezone.localdate() - timedelta(days=10),
@@ -214,7 +214,7 @@ class EspacePersonnelTests(TestCase):
         """Si le marin a renouvelé une formation, l'ancien enregistrement expiré
         ne doit plus apparaître : une seule ligne par formation, la plus
         récente (arbitrage PO sur la page Notion de la tâche)."""
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         TrainingRecord.objects.create(
             user=self.marin, course=cours,
             completed_at=timezone.localdate() - timedelta(days=400),
@@ -232,7 +232,7 @@ class EspacePersonnelTests(TestCase):
         self.assertEqual(list(response.context["mes_qualifications"]), [record_recent])
 
     def test_badge_expiree_pour_une_qualification_dont_lexpiration_est_passee(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         TrainingRecord.objects.create(
             user=self.marin, course=cours,
             completed_at=timezone.localdate() - timedelta(days=400),
@@ -251,7 +251,7 @@ class EspacePersonnelTests(TestCase):
         notify_expiring_training (90 jours par défaut) : une qualification qui
         expire dans 30 jours doit donc afficher « Bientôt expirée », pas « À
         jour »."""
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         TrainingRecord.objects.create(
             user=self.marin, course=cours,
             completed_at=timezone.localdate() - timedelta(days=335),
@@ -266,7 +266,7 @@ class EspacePersonnelTests(TestCase):
         self.assertIn("text-bg-warning", contenu)
 
     def test_badge_a_jour_pour_une_qualification_dont_lexpiration_est_lointaine(self):
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         TrainingRecord.objects.create(
             user=self.marin, course=cours,
             completed_at=timezone.localdate(),

@@ -180,7 +180,7 @@ class BilanInstantaneTests(TestCase):
             sector=self.autre_secteur
         )
 
-        cours = TrainingCourse.objects.create(sector=self.secteur, title="Sécurité incendie")
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
         TrainingRecord.objects.create(
             user=equipier, course=cours,
             completed_at=timezone.localdate() - timedelta(days=300),

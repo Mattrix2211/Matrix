@@ -69,7 +69,7 @@ class MaJourneeTests(TestCase):
         self.assertFalse(Notification.objects.filter(user=self.marin).exists())
 
     def test_ma_journee_demain_resume_le_lendemain(self):
-        course = TrainingCourse.objects.create(sector=self.sector, title="Sécurité incendie")
+        course = TrainingCourse.objects.create(title="Sécurité incendie")
         session = TrainingSession.objects.create(
             course=course,
             scheduled_at=timezone.make_aware(
