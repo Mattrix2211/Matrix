@@ -84,12 +84,14 @@ def _evenements_personnels(user, start, end):
 
 def evenements_utilisateur_jour(user, day):
     """Événements de calendrier concernant précisément `user` pour le jour
-    `day` : maintenances assignées, formations (assignées par un référent ou
-    réservées en libre-service), événements personnels libres. Même logique
-    de filtrage que le filtre "user" de calendar_events/_collect_events
-    (assignees, attendees | reservations, owner) — réutilisée ici par le
-    digest quotidien « Ma journée »/« Ma journée de demain »
-    (notifications.tasks) pour ne pas dupliquer l'agrégation."""
+    `day` : maintenances assignées, formations (assignées par un référent,
+    réservées en libre-service, ou animées en tant que formateur), événements
+    personnels libres. Même logique de filtrage que le filtre "user" de
+    calendar_events/_collect_events (assignees, attendees | reservations |
+    instructor, owner) — réutilisée ici par le digest quotidien « Ma
+    journée »/« Ma journée de demain » (notifications.tasks) pour ne pas
+    dupliquer l'agrégation. Le formateur d'une session doit voir sa journée
+    de formation dans son digest même s'il n'est pas lui-même stagiaire."""
     maintenances = list(
         MaintenanceOccurrence.objects.filter(scheduled_for=day, assignees=user)
         .select_related("asset", "installation_maintenance__installation")
@@ -97,7 +99,7 @@ def evenements_utilisateur_jour(user, day):
     )
     formations = list(
         TrainingSession.objects.filter(scheduled_at__date=day)
-        .filter(Q(attendees=user) | Q(reservations=user))
+        .filter(Q(attendees=user) | Q(reservations=user) | Q(instructor=user))
         .select_related("course")
         .distinct()
     )
@@ -120,6 +122,28 @@ def _appliquer_filtres_tickets(qs, filters):
 
 
 class CalendarView(LoginRequiredMixin, TemplateView):
+    """Calendrier central unique (colonne vertébrale, CLAUDE.md) : PAS de
+    restriction automatique de périmètre à l'affichage, quel que soit le
+    rôle — tout le monde voit tout par défaut ("vue globale"), et bascule en
+    "vue personnelle" en choisissant son propre nom dans le filtre
+    "Utilisateur" (ou en consultant "Ma journée"/le tableau de bord). C'est
+    volontaire : un CHEF_SERVICE planifiant une session de formation doit
+    voir TOUTES les sessions déjà programmées sur le calendrier (disponibilité
+    des salles/formateurs), pas seulement celles où il est lui-même affecté.
+
+    Sur les autres types d'événements (maintenance, tickets), les menus
+    déroulants navire/service/secteur restent en plus disponibles pour
+    affiner la vue globale par périmètre organisationnel — mais n'ont plus
+    d'effet sur les sessions de formation depuis qu'une formation
+    (TrainingCourse) est une fiche globale partagée par tous les navires
+    (portabilité des qualifications) : une session de formation ne se
+    rattache plus à un périmètre organisationnel précis, seule l'affectation
+    personnelle du marin (attendees/reservations/instructor, cf.
+    _perimetre_session ci-dessus) a un sens pour elle. La vue globale reste
+    donc utile pour la formation comme pour les autres types d'événements —
+    seul son critère de filtrage change (affectation personnelle plutôt que
+    périmètre organisationnel)."""
+
     template_name = "calendar/index.html"
 
     def get(self, request, *args, **kwargs):
@@ -213,16 +237,21 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                 "status": t.status,
             })
 
-        # Sessions de formation : assignées par un référent (attendees) OU
+        # Sessions de formation : assignées par un référent (attendees),
         # réservées en libre-service par le marin (reservations, cf. T-FORM
-        # réservation) — un marin doit voir les deux sur son calendrier
-        # personnel, d'où le OU plutôt qu'un simple filtre sur attendees.
+        # réservation), OU animées en tant que formateur (instructor) — un
+        # marin doit voir les trois sur son calendrier personnel (filtre
+        # "Utilisateur" = lui-même), d'où le OU plutôt qu'un simple filtre sur
+        # attendees. Même liste de champs que _perimetre_session ci-dessus
+        # (utilisée pour l'autorisation de déplacement), pour rester cohérent.
         # Formation désormais globale (plus de secteur, cf. _perimetre_session
         # ci-dessus) : le filtre "sector" du calendrier ne s'applique plus aux
         # sessions de formation, uniquement aux autres types d'événements.
         ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
         if filters.get("user"):
-            ses_qs = ses_qs.filter(Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"])).distinct()
+            ses_qs = ses_qs.filter(
+                Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"]) | Q(instructor__id=filters["user"])
+            ).distinct()
         if filters.get("status"):
             ses_qs = ses_qs.filter(status=filters["status"])
         if filters.get("type") and filters["type"] != "training":
@@ -354,15 +383,18 @@ def calendar_events(request):
                 "extendedProps": {"type": "ticket", "status": t.status},
                 **couleur,
             })
-    # Sessions de formation : assignées par un référent (attendees) OU
+    # Sessions de formation : assignées par un référent (attendees),
     # réservées en libre-service par le marin (reservations, cf. T-FORM
-    # réservation) — mêmes conventions que _collect_events ci-dessus.
+    # réservation), OU animées en tant que formateur (instructor) — mêmes
+    # conventions que _collect_events ci-dessus.
     # Formation désormais globale (plus de secteur, cf. _perimetre_session
     # ci-dessus) : le filtre "sector" du calendrier ne s'applique plus aux
     # sessions de formation, uniquement aux autres types d'événements.
     ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
     if filters.get("user"):
-        ses_qs = ses_qs.filter(Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"])).distinct()
+        ses_qs = ses_qs.filter(
+            Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"]) | Q(instructor__id=filters["user"])
+        ).distinct()
     if filters.get("status"):
         ses_qs = ses_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "training":

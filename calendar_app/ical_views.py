@@ -26,10 +26,11 @@ def user_ical_feed(request):
         ev.add('description', description)
         cal.add_component(ev)
     # Sessions de formation de l'utilisateur : assignées par un référent
-    # (attendees) OU réservées en libre-service (reservations, cf. T-FORM
-    # réservation) — même mécanisme de calendrier personnel que ci-dessus.
+    # (attendees), réservées en libre-service (reservations, cf. T-FORM
+    # réservation) OU animées en tant que formateur (instructor) — même
+    # mécanisme de calendrier personnel que ci-dessus.
     ses_qs = TrainingSession.objects.filter(
-        Q(attendees=request.user) | Q(reservations=request.user)
+        Q(attendees=request.user) | Q(reservations=request.user) | Q(instructor=request.user)
     ).select_related('course').distinct()
     for s in ses_qs:
         ev = Event()

@@ -43,7 +43,12 @@
               </a>
               <div class="small text-muted font-mono">Le {{ session.scheduled_at|date:"d/m/Y à H:i" }}</div>
             </div>
-            <span class="badge bg-secondary align-self-center">{{ session.get_status_display }}</span>
+            <div class="d-flex flex-column gap-1 align-items-end">
+              {% if session.est_formateur %}
+              <span class="badge bg-info align-self-end">Formateur</span>
+              {% endif %}
+              <span class="badge bg-secondary align-self-end">{{ session.get_status_display }}</span>
+            </div>
           </li>
           {% endfor %}
         </ul>

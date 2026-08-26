@@ -93,6 +93,27 @@ class MaJourneeTests(TestCase):
         self.assertIn("1 événement(s) personnel(s)", notif.verb)
         self.assertIn(self.tomorrow.strftime("%d/%m/%Y"), notif.verb)
 
+    def test_ma_journee_resume_une_session_ou_le_marin_est_formateur(self):
+        """Le formateur d'une session doit voir sa journée de formation dans
+        son digest même s'il n'est ni présent (attendees) ni inscrit en
+        libre-service (reservations) — seul le champ instructor le rattache
+        à la session (cf. calendar_app.views._perimetre_session et tâche
+        Notion « Calendrier de formation piloté par l'affectation
+        personnelle »)."""
+        course = TrainingCourse.objects.create(title="Sécurité incendie")
+        TrainingSession.objects.create(
+            course=course,
+            scheduled_at=timezone.make_aware(
+                timezone.datetime.combine(self.today, timezone.datetime.min.time().replace(hour=9))
+            ),
+            instructor=self.marin,
+        )
+
+        notify_ma_journee()
+
+        notif = Notification.objects.get(user=self.marin)
+        self.assertIn("1 formation(s)", notif.verb)
+
     def test_pas_de_doublon_meme_execution_multiple_meme_jour(self):
         MaintenanceOccurrence.objects.create(
             plan=self.plan, asset=self.asset, scheduled_for=self.today, status="ASSIGNED"

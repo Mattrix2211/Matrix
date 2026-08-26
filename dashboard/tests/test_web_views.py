@@ -143,6 +143,35 @@ class EspacePersonnelTests(TestCase):
 
         self.assertEqual(list(response.context["mes_formations"]), [])
 
+    def test_formation_animee_en_tant_que_formateur_apparait_dans_le_contexte(self):
+        """Le formateur d'une session doit la voir dans son espace personnel
+        même s'il n'y est ni stagiaire (attendees) ni inscrit en libre-service
+        (reservations) — seul le champ instructor le rattache à la session."""
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
+        session = TrainingSession.objects.create(
+            course=cours, scheduled_at=timezone.now() + timedelta(days=10), status="PLANNED",
+            instructor=self.marin,
+        )
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertEqual(list(response.context["mes_formations"]), [session])
+        self.assertTrue(response.context["mes_formations"][0].est_formateur)
+        self.assertContains(response, "Formateur")
+
+    def test_formation_ou_le_marin_est_stagiaire_nest_pas_marquee_formateur(self):
+        cours = TrainingCourse.objects.create(title="Sécurité incendie")
+        session = TrainingSession.objects.create(
+            course=cours, scheduled_at=timezone.now() + timedelta(days=10), status="PLANNED",
+        )
+        session.attendees.add(self.marin)
+
+        self.client.login(username="marin", password="pass")
+        response = self.client.get(self.url)
+
+        self.assertFalse(response.context["mes_formations"][0].est_formateur)
+
     def test_formation_effectuee_est_exclue(self):
         cours = TrainingCourse.objects.create(title="Sécurité incendie")
         session = TrainingSession.objects.create(

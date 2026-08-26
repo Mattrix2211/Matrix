@@ -87,16 +87,27 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
                 occurrence.status, "bg-secondary"
             )
 
-        # Formations où le marin est inscrit par un référent (attendees) OU où
-        # il a réservé sa place lui-même en libre-service (reservations, cf.
-        # T-FORM réservation) — les deux mécanismes doivent apparaître dans
-        # son espace personnel, d'où le OU plutôt qu'un simple filtre.
+        # Formations où le marin est inscrit par un référent (attendees), où il
+        # a réservé sa place lui-même en libre-service (reservations, cf.
+        # T-FORM réservation), OU où il est le formateur (instructor) de la
+        # session — les trois cas doivent apparaître dans son espace
+        # personnel : un formateur doit voir dans SON tableau de bord les
+        # sessions qu'il anime, même s'il n'y est pas lui-même stagiaire
+        # (cf. tâche Notion « Calendrier de formation piloté par l'affectation
+        # personnelle »). D'où le OU plutôt qu'un simple filtre.
         mes_formations = list(
             TrainingSession.objects.select_related("course")
-            .filter(Q(attendees=self.request.user) | Q(reservations=self.request.user), status="PLANNED")
+            .filter(
+                Q(attendees=self.request.user)
+                | Q(reservations=self.request.user)
+                | Q(instructor=self.request.user),
+                status="PLANNED",
+            )
             .distinct()
             .order_by("scheduled_at")
         )
+        for session in mes_formations:
+            session.est_formateur = session.instructor_id == self.request.user.id
 
         mes_tickets = list(
             CorrectiveTicket.objects.select_related("asset")
