@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load org_extras %}
 {% block content %}
 <h1 class="h3 mb-3">{% if user.is_superuser %}Paramètres{% else %}Mes notifications{% endif %}</h1>
 <ul class="nav nav-tabs mb-3">
@@ -361,7 +362,7 @@
           <tr>
             <td>{{ sh.name }}</td>
             <td class="font-mono">{{ sh.code }}</td>
-            <td>{{ sh.get_type_unite_display }}</td>
+            <td>{{ sh|badge_type_unite }}</td>
             <td>
               <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}">Modifier</button>
               <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>
@@ -390,8 +391,13 @@
       </div>
       <div class="col-auto">
         <select name="ship" class="form-select" onchange="this.form.submit()">
-          {% for sh in ships %}
-            <option value="{{ sh.id }}" {% if selected_ship and selected_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% unites_groupees_par_type ships as groupes_unites %}
+          {% for libelle_type, liste_unites in groupes_unites %}
+            <optgroup label="{{ libelle_type }}">
+              {% for sh in liste_unites %}
+                <option value="{{ sh.id }}" {% if selected_ship and selected_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+              {% endfor %}
+            </optgroup>
           {% endfor %}
         </select>
       </div>
