@@ -152,7 +152,7 @@ _CHAMP_PERIMETRE = {"navire": "ship_id", "secteur": "sector_id", "section": "sec
 # ce que le chef voit réellement, pas un intitulé générique.
 _TITRE_PERIMETRE = {
     "flotte": "Vue de la flotte",
-    "navire": "Vue de mon navire",
+    "navire": "Vue de mon unité",
     "secteur": "Vue de mon secteur",
     "section": "Vue de ma section",
 }
@@ -162,7 +162,7 @@ _TITRE_PERIMETRE = {
 # secteur « Passerelle »." — évite de gérer l'accord masculin/féminin dans le
 # template.
 _PREFIXE_SOUS_TITRE_PERIMETRE = {
-    "navire": "du navire",
+    "navire": "de l'unité",
     "secteur": "du secteur",
     "section": "de la section",
 }
@@ -171,7 +171,7 @@ _PREFIXE_SOUS_TITRE_PERIMETRE = {
 # objet du niveau attendu n'est renseigné sur le profil (ex. CHEF_SECTEUR
 # sans secteur rattaché) — accord au masculin/féminin selon le niveau.
 _MESSAGE_AUCUN_PERIMETRE = {
-    "navire": "Aucun navire n'est associé à votre profil : impossible d'afficher la vue flotte.",
+    "navire": "Aucune unité n'est associée à votre profil : impossible d'afficher la vue flotte.",
     "secteur": "Aucun secteur n'est associé à votre profil : impossible d'afficher la vue flotte.",
     "section": "Aucune section n'est associée à votre profil : impossible d'afficher la vue flotte.",
 }
@@ -246,7 +246,7 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
         contexte["nom_perimetre"] = nom_perimetre
         contexte["flotte_entiere"] = flotte_entiere
         if flotte_entiere:
-            contexte["sous_titre_perimetre"] = "Vue agrégée de la flotte entière (tous navires confondus)."
+            contexte["sous_titre_perimetre"] = "Vue agrégée de la flotte entière (toutes unités confondues)."
         elif nom_perimetre:
             contexte["sous_titre_perimetre"] = (
                 f"Vue agrégée {_PREFIXE_SOUS_TITRE_PERIMETRE[niveau_perimetre]} « {nom_perimetre} »."
@@ -602,11 +602,11 @@ class SessionAppareillageOuvrirView(LoginRequiredMixin, View):
 
         ship_id = ship_id_for_user(user)
         if ship_id is None:
-            messages.error(request, "Aucun navire n'est associé à votre profil : impossible d'ouvrir une session.")
+            messages.error(request, "Aucune unité n'est associée à votre profil : impossible d'ouvrir une session.")
             return redirect("pret-appareillage")
 
         if SessionAppareillage.objects.filter(ship_id=ship_id, cloturee_le__isnull=True).exists():
-            messages.warning(request, "Une session d'appareillage est déjà ouverte pour ce navire.")
+            messages.warning(request, "Une session d'appareillage est déjà ouverte pour cette unité.")
             return redirect("pret-appareillage")
 
         session = SessionAppareillage.objects.create(ship_id=ship_id, created_by=user, updated_by=user)

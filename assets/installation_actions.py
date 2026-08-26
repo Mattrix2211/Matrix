@@ -89,7 +89,7 @@ def _action_edit_installation(view, request, inst, qs):
     # Périmètre (T-SEC) : même contrôle que sur la liste (InstallationListView),
     # pour empêcher un contournement via la fiche détail.
     if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-        messages.error(request, "Navire hors de votre périmètre.")
+        messages.error(request, "Unité hors de votre périmètre.")
         return redirect(f"/installations/{pk}/{qs}")
     if service_id and not _org_dans_perimetre(request.user, Service, service_id):
         messages.error(request, "Service hors de votre périmètre.")

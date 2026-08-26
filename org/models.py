@@ -9,9 +9,25 @@ from matrix.core.models import TimeStampedModel
 User = get_user_model()
 
 class Ship(TimeStampedModel):
+    # Types d'unité possibles : une unité n'est pas forcément un navire
+    # opérationnel (école, centre de formation, bureau à terre...). Valeur par
+    # défaut NAVIRE pour rester rétrocompatible avec les unités existantes.
+    class TypeUnite(models.TextChoices):
+        NAVIRE = "NAVIRE", "Navire"
+        ECOLE = "ECOLE", "École"
+        CENTRE_FORMATION = "CENTRE_FORMATION", "Centre de formation"
+        BUREAU = "BUREAU", "Bureau"
+
     name = models.CharField(max_length=255, unique=True)
     code = models.CharField(max_length=50, unique=True)
+    type_unite = models.CharField(
+        max_length=20, choices=TypeUnite.choices, default=TypeUnite.NAVIRE, verbose_name="Type d'unité"
+    )
     archived = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Unité"
+        verbose_name_plural = "Unités"
 
     def __str__(self):
         return self.name

@@ -7,7 +7,7 @@
                 <dt class="col-5">Désignation</dt><dd class="col-7">{{ object.designation }}</dd>
                 <dt class="col-5">Référence</dt><dd class="col-7 font-mono">{{ object.reference|default:"—" }}</dd>
                 <dt class="col-5">Marque</dt><dd class="col-7">{{ object.marque|default:"—" }}</dd>
-                <dt class="col-5">Navire</dt><dd class="col-7">{% if object.ship %}{{ object.ship.name }}{% else %}—{% endif %}</dd>
+                <dt class="col-5">Unité</dt><dd class="col-7">{% if object.ship %}{{ object.ship.name }}{% else %}—{% endif %}</dd>
                 <dt class="col-5">Service</dt><dd class="col-7">{% if object.service %}{{ object.service.name }}{% else %}—{% endif %}</dd>
                 <dt class="col-5">Secteur</dt><dd class="col-7">{% if object.sector %}{{ object.sector.name }}{% else %}—{% endif %}</dd>
                 <dt class="col-5">Section</dt><dd class="col-7">{% if object.section %}{{ object.section.name }}{% else %}—{% endif %}</dd>

@@ -18,7 +18,7 @@
     </a>
   </div>
 </div>
-<p class="small text-muted">Catalogue commun à tous les navires : une formation validée reste acquise même après une mutation.</p>
+<p class="small text-muted">Catalogue commun à toutes les unités : une formation validée reste acquise même après une mutation.</p>
 
 <form method="get" class="row g-2 mb-3">
   <div class="col-auto">
@@ -35,13 +35,13 @@
 <div class="card mb-3">
   <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
     <div>
-      <span class="fw-semibold small">Référent formation du navire {{ navire_courant.name }} :</span>
+      <span class="fw-semibold small">Référent formation de l'unité {{ navire_courant.name }} :</span>
       {% if referent_formation_navire %}
         <span class="badge text-bg-info">{{ referent_formation_navire.user.get_full_name|default:referent_formation_navire.user.username }}</span>
       {% else %}
         <span class="small text-muted">Aucun désigné</span>
       {% endif %}
-      <div class="form-text mb-0">Autorité de validation sur toutes les formations du navire — distinct des référents propres à chaque formation.</div>
+      <div class="form-text mb-0">Autorité de validation sur toutes les formations de l'unité — distinct des référents propres à chaque formation.</div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-2">
@@ -93,7 +93,7 @@
           {% endfor %}
         </div>
         <div class="mb-2">
-          <span class="fw-semibold small">Référents (votre navire) :</span>
+          <span class="fw-semibold small">Référents (votre unité) :</span>
           {% for r in f.mes_referents %}
             <span class="badge text-bg-info">{{ r.get_full_name|default:r.username }}</span>
           {% empty %}
@@ -215,7 +215,7 @@
           <datalist id="categoriesToutes">
             {% for cat in categories_existantes %}<option value="{{ cat }}"></option>{% endfor %}
           </datalist>
-          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à tous les navires).</p>
+          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à toutes les unités).</p>
           <div class="prereq-group">
             {% for c in candidats_prerequis %}
               <div class="form-check prereq-item" data-course="{{ c.id }}">
@@ -226,8 +226,8 @@
           </div>
           <hr>
           <p class="small text-muted">
-            Référents habilités à valider cette formation, POUR VOTRE NAVIRE
-            {% if navire_courant %}({{ navire_courant.name }}){% endif %} — un autre navire peut désigner
+            Référents habilités à valider cette formation, POUR VOTRE UNITÉ
+            {% if navire_courant %}({{ navire_courant.name }}){% endif %} — une autre unité peut désigner
             d'autres référents pour la même formation.
           </p>
           <div class="referent-group">
@@ -237,7 +237,7 @@
                 <label class="form-check-label" for="referent-{{ u.id }}">{{ u.get_full_name|default:u.username }}</label>
               </div>
             {% empty %}
-              <span class="small text-muted">Aucun utilisateur trouvé sur votre navire.</span>
+              <span class="small text-muted">Aucun utilisateur trouvé sur votre unité.</span>
             {% endfor %}
           </div>
         </div>
@@ -308,7 +308,7 @@
                    placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
             <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
           </div>
-          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à tous les navires).</p>
+          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à toutes les unités).</p>
           {% for c in candidats_prerequis %}
             <div class="form-check">
               <input class="form-check-input" type="checkbox" name="prerequisites" value="{{ c.id }}" id="create-prereq-{{ c.id }}">

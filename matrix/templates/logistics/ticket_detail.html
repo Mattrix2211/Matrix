@@ -23,7 +23,7 @@
     <form method="post" action="{% url 'ticket-assign' ticket.id %}" class="d-flex flex-wrap align-items-end gap-2">
       {% csrf_token %}
       <div>
-        <label class="form-label small mb-1">Marins assignés (équipage du navire)</label>
+        <label class="form-label small mb-1">Marins assignés (équipage de l'unité)</label>
         <select class="form-select form-select-sm" name="assignees" multiple size="4" style="min-width: 260px;">
           {% for u in utilisateurs_assignables %}
           <option value="{{ u.id }}" {% if u in ticket.assignees.all %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>

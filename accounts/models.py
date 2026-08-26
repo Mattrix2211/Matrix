@@ -10,7 +10,7 @@ User = get_user_model()
 
 class Roles(models.TextChoices):
     MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général"
-    ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur navire"
+    ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité"
     COMMANDANT = "COMMANDANT", "Commandant"
     ETAT_MAJOR = "ETAT_MAJOR", "État-major"
     CHEF_SERVICE = "CHEF_SERVICE", "Chef de service"

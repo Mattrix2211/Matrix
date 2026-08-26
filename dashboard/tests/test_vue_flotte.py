@@ -214,7 +214,7 @@ class VueFlotteAgregationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["aucun_perimetre"])
-        self.assertContains(response, "Aucun navire n'est associé à votre profil")
+        self.assertContains(response, "Aucune unité n'est associée à votre profil")
         # Les jauges (principe n°5 CLAUDE.md) doivent rester à 0, pas planter,
         # même sans aucune donnée à agréger.
         self.assertEqual(response.context["maintenances_en_retard_pct"], 0)

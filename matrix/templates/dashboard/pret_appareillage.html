@@ -6,17 +6,17 @@
     <span class="bi bi-clock-history" aria-hidden="true"></span> Historique des sessions
   </a>
 </div>
-<p class="text-muted mb-4">Checklist de préparation à un appareillage sur les installations critiques du navire.</p>
+<p class="text-muted mb-4">Checklist de préparation à un appareillage sur les installations critiques de l'unité.</p>
 
 {% if aucun_navire %}
 <div class="alert alert-warning" role="alert">
-  Aucun navire n'est associé à votre profil : impossible d'afficher les sessions d'appareillage.
+  Aucune unité n'est associée à votre profil : impossible d'afficher les sessions d'appareillage.
   Contactez un administrateur pour renseigner votre périmètre.
 </div>
 {% elif multi_navires %}
 <div class="alert alert-warning" role="alert">
-  Cette page fonctionne par navire. Consultez l'<a href="{% url 'historique-appareillage' %}">historique des sessions</a>
-  de tous les navires de la flotte, ou connectez-vous avec un profil rattaché à un navire pour en ouvrir une.
+  Cette page fonctionne par unité. Consultez l'<a href="{% url 'historique-appareillage' %}">historique des sessions</a>
+  de toutes les unités de la flotte, ou connectez-vous avec un profil rattaché à une unité pour en ouvrir une.
 </div>
 {% elif not session %}
 <div class="alert alert-secondary d-flex justify-content-between align-items-center flex-wrap gap-2" role="alert">

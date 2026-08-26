@@ -87,7 +87,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 ws.title = "Utilisateurs"
                 headers = [
                     "Identifiant", "Prénom", "Nom", "Rôle", "Grade", "Spécialité", "Matricule",
-                    "Navire", "Service", "Secteur", "Section", "Fonction", "Date de naissance", "Âge"
+                    "Unité", "Service", "Secteur", "Section", "Fonction", "Date de naissance", "Âge"
                 ]
                 ws.append(headers)
                 for u in qs:
@@ -166,7 +166,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     profile.ship = ship
                     profile.save(update_fields=["ship"])
                     AuditLog.objects.create(actor=request.user, action="bulk_update_ship", target_user=user, details=f"ship_id={ship_id}")
-                messages.success(request, f"Navire mis à jour pour {count} utilisateur(s).")
+                messages.success(request, f"Unité mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_fonction":
                 fonction = request.POST.get("fonction_service", "")
                 for user in users:

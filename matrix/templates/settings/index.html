@@ -5,7 +5,7 @@
   {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="/parametre/?tab=utilisateurs">Utilisateurs</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Navires</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Unités</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
   {% endif %}
@@ -18,7 +18,7 @@
 {% if active_tab == 'generale' %}
 <div class="card">
   <div class="card-header">Paramètres généraux
-    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Paramètres généraux" data-bs-content="Paramétrez les options globales de Matrix. Ces réglages s’appliquent à tous les navires et utilisateurs.">
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Paramètres généraux" data-bs-content="Paramétrez les options globales de Matrix. Ces réglages s’appliquent à toutes les unités et utilisateurs.">
       <span class="bi bi-info-circle"></span>
     </button>
   </div>
@@ -29,12 +29,12 @@
 {% elif active_tab == 'utilisateurs' %}
 <div class="row g-3">
   <div class="col-12">
-    <p class="text-muted">Grades et Spécialités sont communs à tous les navires. La hiérarchie (Services/Secteurs/Sections) se configure dans l’onglet Hiérarchie.</p>
+    <p class="text-muted">Grades et Spécialités sont communs à toutes les unités. La hiérarchie (Services/Secteurs/Sections) se configure dans l’onglet Hiérarchie.</p>
   </div>
   <div class="col-md-6">
     <div class="card">
       <div class="card-header">Grades
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Grades" data-bs-content="Liste des grades disponibles pour tous les navires. Supprimez un grade lorsqu’il n’est plus utilisé.">
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Grades" data-bs-content="Liste des grades disponibles pour toutes les unités. Supprimez un grade lorsqu’il n’est plus utilisé.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -142,7 +142,7 @@
       </div>
     </div>
   </div>
-  {# Gestion des navires déplacée dans l'onglet dédié #}
+  {# Gestion des unités déplacée dans l'onglet dédié #}
 
   {# Blocs Services/Secteurs/Sections retirés de l'onglet Utilisateurs; voir onglet Hiérarchie #}
 
@@ -335,8 +335,8 @@
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header">Navires
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Navires" data-bs-content="Vous pouvez modifier, supprimer ou dupliquer un navire. La duplication copie la hiérarchie (services/secteurs/sections) sous un nouveau nom et code.">
+      <div class="card-header">Unités
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Unités" data-bs-content="Vous pouvez modifier, supprimer ou dupliquer une unité (navire, école, centre de formation ou bureau). La duplication copie la hiérarchie (services/secteurs/sections) sous un nouveau nom et code.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -345,23 +345,31 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="add_ship" />
           <input type="hidden" name="next_tab" value="navires" />
-          <div class="col-md-8"><input class="form-control" name="name" placeholder="Nom du navire" /></div>
-          <div class="col-md-4"><input class="form-control" name="code" placeholder="Code unique" /></div>
+          <div class="col-md-6"><input class="form-control" name="name" placeholder="Nom de l'unité" /></div>
+          <div class="col-md-3"><input class="form-control" name="code" placeholder="Code unique" /></div>
+          <div class="col-md-3">
+            <select class="form-select" name="type_unite">
+              {% for valeur, libelle in type_unite_choices %}
+                <option value="{{ valeur }}">{{ libelle }}</option>
+              {% endfor %}
+            </select>
+          </div>
           <div class="col-12"><button class="btn btn-primary" type="submit">Ajouter</button></div>
         </form>
-        <table class="table table-sm"><thead><tr><th>Nom</th><th>Code</th><th></th></tr></thead><tbody>
+        <table class="table table-sm"><thead><tr><th>Nom</th><th>Code</th><th>Type</th><th></th></tr></thead><tbody>
         {% for sh in ships %}
           <tr>
             <td>{{ sh.name }}</td>
             <td class="font-mono">{{ sh.code }}</td>
+            <td>{{ sh.get_type_unite_display }}</td>
             <td>
-              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}">Modifier</button>
+              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}">Modifier</button>
               <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>
-              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer le navire {{ sh.name }}">Supprimer</button>
+              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer l'unité {{ sh.name }}">Supprimer</button>
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="3" class="text-muted">Aucun navire</td></tr>
+          <tr><td colspan="4" class="text-muted">Aucune unité</td></tr>
         {% endfor %}
         </tbody></table>
       </div>
@@ -375,8 +383,8 @@
   <div class="col-12">
     <form method="get" class="row g-2 align-items-center">
       <input type="hidden" name="tab" value="hierarchie" />
-      <div class="col-auto"><label class="col-form-label">Navire:</label>
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Sélection du navire" data-bs-content="Choisissez un navire pour éditer son arborescence de Services, Secteurs et Sections.">
+      <div class="col-auto"><label class="col-form-label">Unité :</label>
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Sélection de l'unité" data-bs-content="Choisissez une unité pour éditer son arborescence de Services, Secteurs et Sections.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -391,8 +399,8 @@
   </div>
   <div class="col-12">
     <div class="card">
-      <div class="card-header">Arborescence du navire {% if selected_ship %}<strong>{{ selected_ship.name }}</strong>{% endif %}
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Arborescence" data-bs-content="Ajoutez ou supprimez des Services, puis leurs Secteurs et Sections pour structurer l’organisation du navire.">
+      <div class="card-header">Arborescence de l'unité {% if selected_ship %}<strong>{{ selected_ship.name }}</strong>{% endif %}
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Arborescence" data-bs-content="Ajoutez ou supprimez des Services, puis leurs Secteurs et Sections pour structurer l’organisation de l'unité.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -469,13 +477,13 @@
                   </ul>
                 </li>
               {% empty %}
-                <li class="text-muted">Aucun service pour ce navire</li>
+                <li class="text-muted">Aucun service pour cette unité</li>
               {% endfor %}
             </ul>
           </li>
         </ul>
         {% else %}
-          <p class="text-muted">Veuillez sélectionner un navire pour éditer l'arborescence.</p>
+          <p class="text-muted">Veuillez sélectionner une unité pour éditer l'arborescence.</p>
         {% endif %}
       </div>
     </div>
@@ -509,12 +517,12 @@
   </div>
 </div>
 
-{# Modal édition navire #}
+{# Modal édition unité #}
 <div class="modal fade" id="editShipModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Modifier le navire</h5>
+        <h5 class="modal-title">Modifier l'unité</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="editShipForm">
@@ -531,6 +539,14 @@
             <label class="form-label">Code</label>
             <input class="form-control" name="code" id="editShipCode" />
           </div>
+          <div class="mb-3">
+            <label class="form-label">Type d'unité</label>
+            <select class="form-select" name="type_unite" id="editShipTypeUnite">
+              {% for valeur, libelle in type_unite_choices %}
+                <option value="{{ valeur }}">{{ libelle }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -541,12 +557,12 @@
   </div>
 </div>
 
-{# Modal duplication navire #}
+{# Modal duplication unité #}
 <div class="modal fade" id="duplicateShipModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Dupliquer le navire</h5>
+        <h5 class="modal-title">Dupliquer l'unité</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="duplicateShipForm">
@@ -557,13 +573,13 @@
           <input type="hidden" name="source_pk" id="duplicateShipSourcePk" />
           <div class="mb-3">
             <label class="form-label">Nouveau nom</label>
-            <input class="form-control" name="name" id="duplicateShipName" placeholder="Nom du nouveau navire" />
+            <input class="form-control" name="name" id="duplicateShipName" placeholder="Nom de la nouvelle unité" />
           </div>
           <div class="mb-3">
             <label class="form-label">Nouveau code</label>
             <input class="form-control" name="code" id="duplicateShipCode" placeholder="Code unique" />
           </div>
-          <p class="text-muted">La duplication copie les Services, Secteurs et Sections du navire source vers le nouveau navire.</p>
+          <p class="text-muted">La duplication copie les Services, Secteurs et Sections de l'unité source vers la nouvelle unité (même type d'unité).</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -593,9 +609,11 @@
       var pk = button.getAttribute('data-pk');
       var name = button.getAttribute('data-name');
       var code = button.getAttribute('data-code');
+      var typeUnite = button.getAttribute('data-type-unite');
       document.getElementById('editShipPk').value = pk;
       document.getElementById('editShipName').value = name || '';
       document.getElementById('editShipCode').value = code || '';
+      document.getElementById('editShipTypeUnite').value = typeUnite || 'NAVIRE';
     });
 
     var duplicateModal = document.getElementById('duplicateShipModal');

@@ -468,7 +468,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         ship_id = ship_id_for_user(request.user)
         navire = Ship.objects.filter(pk=ship_id).first() if ship_id else None
         if navire is None:
-            messages.error(request, "Aucun navire rattaché à votre profil.")
+            messages.error(request, "Aucune unité rattachée à votre profil.")
             return redirect("formation-list")
         # Ne fait pas confiance au formulaire : seuls les utilisateurs
         # visibles sur ce navire peuvent être désignés (revalidation côté
@@ -479,17 +479,17 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             if candidat_id is not None else None
         )
         if candidat is None:
-            messages.error(request, "Marin introuvable dans votre navire.")
+            messages.error(request, "Marin introuvable dans votre unité.")
             return redirect("formation-list")
         ReferentFormationNavire.objects.update_or_create(ship=navire, defaults={"user": candidat})
         if candidat != request.user:
             Notification.objects.create(
                 user=candidat,
-                verb=f"Vous avez été désigné référent formation du navire {navire.name}.",
+                verb=f"Vous avez été désigné référent formation de l'unité {navire.name}.",
             )
         messages.success(
             request,
-            f"{candidat.get_full_name() or candidat.username} est désormais référent formation du navire {navire.name}.",
+            f"{candidat.get_full_name() or candidat.username} est désormais référent formation de l'unité {navire.name}.",
         )
         return redirect("formation-list")
 
@@ -501,7 +501,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         ship_id = ship_id_for_user(request.user)
         if ship_id:
             ReferentFormationNavire.objects.filter(ship_id=ship_id).delete()
-        messages.success(request, "Référent formation du navire retiré.")
+        messages.success(request, "Référent formation de l'unité retiré.")
         return redirect("formation-list")
 
     def _reserver_session(self, request):

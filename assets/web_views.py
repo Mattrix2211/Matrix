@@ -46,7 +46,7 @@ import calendar
 
 _ENTETES_EXPORT_ASSETS = [
     'Désignation', 'Type', 'Identifiant interne', 'N° série', 'Statut', 'Criticité',
-    'Navire', 'Service', 'Secteur', 'Section', 'Emplacement',
+    'Unité', 'Service', 'Secteur', 'Section', 'Emplacement',
 ]
 
 
@@ -73,7 +73,7 @@ def _lignes_export_assets(qs):
 
 _ENTETES_EXPORT_INSTALLATIONS = [
     'Désignation', 'Référence', 'Marque', 'Gisement', 'Local',
-    'Navire', 'Service', 'Secteur', 'Section', 'Emplacement',
+    'Unité', 'Service', 'Secteur', 'Section', 'Emplacement',
 ]
 
 
@@ -622,9 +622,9 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 return _appliquer_bulk_update(
                     request, assets, 'ship', Ship.objects.filter(pk=ship_id).first(),
                     action_audit='bulk_update_asset_ship', detail_audit=f'ship_id={ship_id}',
-                    message_succes='Navire mis à jour pour {count} matériel(s).',
+                    message_succes='Unité mise à jour pour {count} matériel(s).',
                     redirect_url_name='asset-list',
-                    org_model=Ship, org_id=ship_id, libelle_org='Navire',
+                    org_model=Ship, org_id=ship_id, libelle_org='Unité',
                 )
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
@@ -744,7 +744,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # au périmètre de l'appelant, même principe que _resoudre_parent_valide pour
             # le champ parent_id — ne fait pas confiance aux menus déroulants du formulaire.
             if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Navire hors de votre périmètre.")
+                messages.error(request, "Unité hors de votre périmètre.")
                 return redirect('asset-list')
             if service_id and not _org_dans_perimetre(request.user, Service, service_id):
                 messages.error(request, "Service hors de votre périmètre.")
@@ -829,7 +829,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre (T-SEC) : même contrôle qu'à la création, contre un POST direct
             # qui déplacerait le matériel hors du périmètre de l'appelant.
             if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Navire hors de votre périmètre.")
+                messages.error(request, "Unité hors de votre périmètre.")
                 return redirect('asset-list')
             if service_id and not _org_dans_perimetre(request.user, Service, service_id):
                 messages.error(request, "Service hors de votre périmètre.")
@@ -1112,9 +1112,9 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 return _appliquer_bulk_update(
                     request, items, 'ship', Ship.objects.filter(pk=ship_id).first(),
                     action_audit='bulk_update_installation_ship', detail_audit=f'ship_id={ship_id}',
-                    message_succes='Navire mis à jour pour {count} installation(s).',
+                    message_succes='Unité mise à jour pour {count} installation(s).',
                     redirect_url_name='installation-list',
-                    org_model=Ship, org_id=ship_id, libelle_org='Navire',
+                    org_model=Ship, org_id=ship_id, libelle_org='Unité',
                 )
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
@@ -1173,7 +1173,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
             # au périmètre de l'appelant — ne fait pas confiance au menu déroulant.
             if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Navire hors de votre périmètre.")
+                messages.error(request, "Unité hors de votre périmètre.")
                 return redirect('installation-list')
             if service_id and not _org_dans_perimetre(request.user, Service, service_id):
                 messages.error(request, "Service hors de votre périmètre.")
@@ -1246,7 +1246,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             section_id = request.POST.get('section_id')
             # Périmètre (T-SEC) : même contrôle qu'à la création.
             if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Navire hors de votre périmètre.")
+                messages.error(request, "Unité hors de votre périmètre.")
                 return redirect('installation-list')
             if service_id and not _org_dans_perimetre(request.user, Service, service_id):
                 messages.error(request, "Service hors de votre périmètre.")

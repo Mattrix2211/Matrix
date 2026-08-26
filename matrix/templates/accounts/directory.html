@@ -4,9 +4,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div class="d-flex align-items-center gap-2">
     <form method="get" class="d-flex align-items-center gap-2">
-      <label class="form-label mb-0">Navire:</label>
+      <label class="form-label mb-0">Unité :</label>
       <select name="ship" class="form-select" onchange="this.form.submit()" style="min-width: 220px;">
-        <option value="">Tous les navires</option>
+        <option value="">Toutes les unités</option>
         {% for sh in ships %}
           <option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>
         {% endfor %}
@@ -26,7 +26,7 @@
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
       <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkRoleModal">Modifier rôle…</button></li>
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier navire…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier unité…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkFonctionModal">Modifier fonction…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkServiceModal">Modifier service…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectorModal">Modifier secteur…</button></li>
@@ -53,7 +53,7 @@
       <th>Grade</th>
       <th>Spécialité</th>
       <th>Matricule</th>
-      <th>Navire</th>
+      <th>Unité</th>
       <th>Fonction</th>
       <th>Service</th>
       <th>Secteur</th>
@@ -160,7 +160,7 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Navire</label>
+              <label class="form-label">Unité</label>
               <select class="form-select" name="ship_id" id="createShip">
                 <option value="">—</option>
                 {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
@@ -270,7 +270,7 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Navire</label>
+              <label class="form-label">Unité</label>
               <select class="form-select" name="ship_id" id="editShip">
                 <option value="">—</option>
                 {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
@@ -377,7 +377,7 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Préselection du navire courant et filtrage des listes hiérarchiques
+    // Préselection de l'unité courante et filtrage des listes hiérarchiques
     function getSelectedShipFilter() {
       var shipFilter = document.querySelector("form[action=''] select[name='ship'], form select[name='ship']");
       if (shipFilter) { return shipFilter.value || ''; }
@@ -643,17 +643,17 @@
   </div>
   </div>
 
-{# Modale: Modifier navire #}
+{# Modale: Modifier unité #}
 <div class="modal fade" id="bulkShipModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Modifier le navire (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-header"><h5 class="modal-title">Modifier l'unité (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
       <form method="post" id="bulkShipForm">
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="bulk_update_ship" />
           <div class="mb-3">
-            <label class="form-label">Navire</label>
+            <label class="form-label">Unité</label>
             <select class="form-select" name="ship_id">
               <option value="">—</option>
               {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}

@@ -129,6 +129,7 @@ class SettingsView(LoginRequiredMixin, View):
             'global_vib_days_b': global_vib_days_b,
             'global_vib_days_c': global_vib_days_c,
             'ships': ships_qs,
+            'type_unite_choices': Ship.TypeUnite.choices,
             'selected_ship': selected_ship,
             'services': services_qs.order_by('name'),
             'sectors': sectors_qs.order_by('service__name','name'),
@@ -163,27 +164,31 @@ class SettingsView(LoginRequiredMixin, View):
             AuditLog.objects.create(actor=request.user, action='add_fonction', details=f'name={name}')
         elif action == 'add_ship' and name:
             code = request.POST.get('code', '').strip()
+            type_unite = request.POST.get('type_unite') or Ship.TypeUnite.NAVIRE
             if code:
-                Ship.objects.get_or_create(name=name, code=code)
-                messages.success(request, "Navire ajouté.")
+                Ship.objects.get_or_create(name=name, code=code, defaults={'type_unite': type_unite})
+                messages.success(request, "Unité ajoutée.")
                 AuditLog.objects.create(actor=request.user, action='add_ship', details=f'name={name}; code={code}')
         elif action == 'delete_ship':
             pk = request.POST.get('pk')
             Ship.objects.filter(pk=pk).delete()
-            messages.success(request, "Navire supprimé.")
+            messages.success(request, "Unité supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_ship', details=f'pk={pk}')
         elif action == 'edit_ship':
             pk = request.POST.get('pk')
             name = request.POST.get('name', '').strip()
             code = request.POST.get('code', '').strip()
+            type_unite = request.POST.get('type_unite')
             try:
                 sh = Ship.objects.get(pk=pk)
                 if name:
                     sh.name = name
                 if code:
                     sh.code = code
+                if type_unite:
+                    sh.type_unite = type_unite
                 sh.save()
-                messages.success(request, "Navire mis à jour.")
+                messages.success(request, "Unité mise à jour.")
                 AuditLog.objects.create(actor=request.user, action='edit_ship', details=f'pk={pk}')
             except Ship.DoesNotExist:
                 pass
@@ -195,8 +200,8 @@ class SettingsView(LoginRequiredMixin, View):
                 src_ship = Ship.objects.get(pk=src_pk)
                 if not name or not code:
                     raise ValueError("Nom et code requis pour dupliquer.")
-                # Crée le nouveau navire
-                new_ship = Ship.objects.create(name=name, code=code)
+                # Crée la nouvelle unité, en reprenant le type de l'unité source
+                new_ship = Ship.objects.create(name=name, code=code, type_unite=src_ship.type_unite)
                 # Map des services et secteurs pour rattacher correctement
                 service_map = {}
                 sector_map = {}
@@ -215,7 +220,7 @@ class SettingsView(LoginRequiredMixin, View):
                     parent_new_sc = sector_map.get(se.sector_id)
                     if parent_new_sc:
                         Section.objects.create(sector=parent_new_sc, name=se.name)
-                messages.success(request, "Navire dupliqué.")
+                messages.success(request, "Unité dupliquée.")
                 AuditLog.objects.create(actor=request.user, action='duplicate_ship', details=f'source={src_pk}; name={name}; code={code}')
             except (Ship.DoesNotExist, ValueError):
                 pass

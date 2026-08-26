@@ -45,7 +45,7 @@ class ShipViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Seul un administrateur général peut créer un nouveau navire dans la flotte.
         if not _is_master_admin(self.request.user):
-            raise PermissionDenied("Vous ne pouvez pas créer de navire.")
+            raise PermissionDenied("Vous ne pouvez pas créer d'unité.")
         serializer.save()
 
     def perform_update(self, serializer):
@@ -54,7 +54,7 @@ class ShipViewSet(viewsets.ModelViewSet):
             instance = self.get_object()
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or instance.id != user_ship_id:
-                raise PermissionDenied("Vous ne pouvez modifier que votre navire.")
+                raise PermissionDenied("Vous ne pouvez modifier que votre unité.")
         serializer.save()
 
 class ServiceViewSet(viewsets.ModelViewSet):
@@ -77,7 +77,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
             ship = serializer.validated_data.get("ship")
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or not ship or ship.id != user_ship_id:
-                raise PermissionDenied("Service hors du navire autorisé.")
+                raise PermissionDenied("Service hors de l'unité autorisée.")
         serializer.save()
 
     def perform_update(self, serializer):
@@ -85,7 +85,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
             ship = serializer.validated_data.get("ship") or getattr(self.get_object(), "ship", None)
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or not ship or ship.id != user_ship_id:
-                raise PermissionDenied("Service hors du navire autorisé.")
+                raise PermissionDenied("Service hors de l'unité autorisée.")
         serializer.save()
 
 class SectorViewSet(viewsets.ModelViewSet):
@@ -108,7 +108,7 @@ class SectorViewSet(viewsets.ModelViewSet):
             service = serializer.validated_data.get("service")
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or not service or service.ship_id != user_ship_id:
-                raise PermissionDenied("Secteur hors du navire autorisé.")
+                raise PermissionDenied("Secteur hors de l'unité autorisée.")
         serializer.save()
 
     def perform_update(self, serializer):
@@ -116,7 +116,7 @@ class SectorViewSet(viewsets.ModelViewSet):
             service = serializer.validated_data.get("service") or getattr(self.get_object(), "service", None)
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or not service or service.ship_id != user_ship_id:
-                raise PermissionDenied("Secteur hors du navire autorisé.")
+                raise PermissionDenied("Secteur hors de l'unité autorisée.")
         serializer.save()
 
 class SectionViewSet(viewsets.ModelViewSet):
@@ -139,7 +139,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             sector = serializer.validated_data.get("sector")
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
-                raise PermissionDenied("Section hors du navire autorisé.")
+                raise PermissionDenied("Section hors de l'unité autorisée.")
         serializer.save()
 
     def perform_update(self, serializer):
@@ -147,7 +147,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             sector = serializer.validated_data.get("sector") or getattr(self.get_object(), "sector", None)
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
-                raise PermissionDenied("Section hors du navire autorisé.")
+                raise PermissionDenied("Section hors de l'unité autorisée.")
         serializer.save()
 
 class SectorConfigViewSet(viewsets.ModelViewSet):

@@ -111,7 +111,7 @@ class StockPiece(TimeStampedModel, OwnedModel):
     quantite = models.PositiveIntegerField(default=0, verbose_name="Quantité")
     quantite_minimale = models.PositiveIntegerField(default=0, verbose_name="Quantité minimale")
     emplacement = models.CharField(max_length=255, blank=True, default="", verbose_name="Emplacement")
-    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Navire")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Unité")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Service")
     sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Secteur")
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="stock_pieces", verbose_name="Section")

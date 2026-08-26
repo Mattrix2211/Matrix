@@ -109,7 +109,7 @@ def _ship_du_profil_q(ship_id):
 
 _ENTETES_EXPORT_STOCK = [
     'Référence', 'Désignation', 'Quantité', 'Quantité minimale', 'Emplacement',
-    'Navire', 'Service', 'Secteur', 'Section',
+    'Unité', 'Service', 'Secteur', 'Section',
 ]
 
 
