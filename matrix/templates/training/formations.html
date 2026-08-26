@@ -133,6 +133,22 @@
                     {% endif %}
                   </form>
                 </div>
+                {% if peut_valider %}
+                <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1 mt-2">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="affecter_session">
+                  <input type="hidden" name="session_id" value="{{ s.id }}">
+                  <select name="marin_id" class="form-select form-select-sm" required>
+                    <option value="">Affecter un marin...</option>
+                    {% for m in marins %}
+                      <option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-outline-secondary btn-sm flex-shrink-0" {% if s.capacite_max and s.places_restantes == 0 %}disabled{% endif %}>
+                    Affecter
+                  </button>
+                </form>
+                {% endif %}
               </li>
             {% endfor %}
           </ul>

@@ -451,6 +451,8 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             return self._reserver_session(request)
         if action == "annuler_reservation":
             return self._annuler_reservation(request)
+        if action == "affecter_session":
+            return self._affecter_session(request)
         if action == "set_referent_navire":
             return self._set_referent_navire(request)
         if action == "retirer_referent_navire":
@@ -568,6 +570,79 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             _afficher_erreur_prerequis(request, exc)
             return redirect("formation-list")
         messages.success(request, "Réservation annulée.")
+        return redirect("formation-list")
+
+    def _affecter_session(self, request):
+        """Un référent réserve PROACTIVEMENT une place sur une session pour un
+        marin (contrairement à _reserver_session ci-dessus, où c'est le marin
+        qui réserve pour lui-même) — équivaut à une réservation self-service
+        (TrainingSession.reservations, PAS attendees : la présence/réussite
+        réelle reste constatée séparément le jour J, cf. ValiderFormationView).
+        Autorisation identique à ValiderFormationView (peut_valider_formation,
+        POUR LE NAVIRE DU MARIN CIBLÉ) : pas de nouveau seuil de permission,
+        même contrôle que pour la validation d'une formation. Les règles
+        métier (capacité, session planifiée, prérequis) sont appliquées par le
+        même signal m2m que la réservation self-service
+        (training/models.py::_controler_reservation), seule source de vérité,
+        qui se déclenche ici aussi car l'ajout se fait toujours par le même
+        ManyToManyField, quel que soit l'appelant."""
+        session_id = _entier_ou_none(request.POST.get("session_id"))
+        marin_id = _entier_ou_none(request.POST.get("marin_id"))
+        session = (
+            TrainingSession.objects.select_related("course").filter(pk=session_id).first()
+            if session_id is not None else None
+        )
+        marin = (
+            User.objects.filter(pk=marin_id, is_active=True).first()
+            if marin_id is not None else None
+        )
+        if session is None or marin is None:
+            messages.error(request, "Session ou marin introuvable.")
+            return redirect("formation-list")
+
+        # Autorisation : référent de cette formation précise POUR LE NAVIRE DU
+        # MARIN CIBLÉ, référent formation de ce navire, ou COMMANDANT+ — même
+        # contrôle que ValiderFormationView, réutilisé tel quel, complété par
+        # le seuil générique CHEF_SECTION+ borné au périmètre organisationnel
+        # de l'appelant sur le marin.
+        navire_marin = navire_de(marin)
+        autorise_par_referent = peut_valider_formation(request.user, session.course, navire_marin)
+        if not autorise_par_referent and not _peut_valider_formation(request.user):
+            raise PermissionDenied
+
+        # Revalidation côté serveur du marin ciblé, même principe que
+        # ValiderFormationView : empêche d'affecter un marin hors périmètre en
+        # forgeant la requête POST.
+        if autorise_par_referent:
+            if not _marins_validables(request.user).filter(pk=marin.pk).exists():
+                raise PermissionDenied
+        else:
+            q_perimetre_marin = filtres_perimetre_marin(request.user)
+            if q_perimetre_marin is not None and not User.objects.filter(q_perimetre_marin, pk=marin.pk).exists():
+                raise PermissionDenied
+
+        if marin in session.reservations.all():
+            messages.info(request, "Ce marin a déjà une place réservée sur cette session.")
+            return redirect("formation-list")
+        try:
+            # Savepoint explicite, même principe que _reserver_session ci-dessus.
+            with transaction.atomic():
+                session.reservations.add(marin)
+        except ValidationError as exc:
+            _afficher_erreur_prerequis(request, exc)
+            return redirect("formation-list")
+        Notification.objects.create(
+            user=marin,
+            verb=(
+                f"Une place vous a été réservée: {session.course.title} — session du "
+                f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}"
+            ),
+        )
+        messages.success(
+            request,
+            f"Place réservée pour {marin.get_full_name() or marin.username}. "
+            "La session apparaît désormais dans son calendrier personnel.",
+        )
         return redirect("formation-list")
 
 
