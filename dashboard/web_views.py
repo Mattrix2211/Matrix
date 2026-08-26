@@ -26,8 +26,8 @@ from maintenance.models import MaintenanceOccurrence
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
-from notifications.tasks import JOURS_ALERTE_EXPIRATION_FORMATION
-from training.models import TrainingRecord, TrainingSession
+from training.models import TrainingSession
+from training.services import qualifications_validees_de
 
 # Occurrences considérées comme terminées : on ne les affiche pas dans "Mes
 # maintenances", seules celles qui restent à faire intéressent le marin.
@@ -43,25 +43,6 @@ _BADGE_STATUT_MAINTENANCE = {
     "OVERDUE": "bg-danger",
     "WAITING_VALIDATION": "bg-warning",
 }
-
-# Seuil (en jours) sous lequel une qualification déjà validée est considérée
-# "bientôt expirée" plutôt que "à jour" dans la carte "Mes qualifications" :
-# aligné sur la plus lointaine échéance de notify_expiring_training
-# (notifications/tasks.py), pour que le badge de la carte corresponde à
-# l'alerte que le marin a déjà pu recevoir.
-_SEUIL_QUALIFICATION_BIENTOT_EXPIREE_JOURS = max(JOURS_ALERTE_EXPIRATION_FORMATION)
-
-
-def _badge_qualification(record, aujourdhui):
-    """Classe de badge + libellé pour une qualification (TrainingRecord),
-    même palette que logistics/stock_list.html (badge-conforme/text-bg-warning/
-    text-bg-danger) : expirée si la date d'expiration est passée, bientôt
-    expirée si elle tombe dans le seuil d'alerte ci-dessus, à jour sinon."""
-    if record.expires_at < aujourdhui:
-        return "text-bg-danger", "Expirée"
-    if record.expires_at <= aujourdhui + timezone.timedelta(days=_SEUIL_QUALIFICATION_BIENTOT_EXPIREE_JOURS):
-        return "text-bg-warning", "Bientôt expirée"
-    return "badge-conforme", "À jour"
 
 
 class TableauDeBordView(LoginRequiredMixin, TemplateView):
@@ -119,30 +100,14 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
         aujourdhui = timezone.localdate()
 
         # Formations déjà validées par le marin (TrainingRecord), avec leur
-        # date d'expiration — jusqu'ici cette information n'apparaissait que
-        # sous forme de notification ponctuelle (notify_expiring_training,
-        # notifications/tasks.py) qui disparaît une fois passée, sans vue
-        # d'ensemble permanente dans l'espace personnel du marin.
-        #
-        # Une seule ligne par formation : en cas de renouvellement, seul le
-        # dernier enregistrement (le plus récent completed_at, created_at en
-        # cas d'égalité) doit apparaître — l'ancien enregistrement expiré n'a
-        # pas d'intérêt une fois remplacé (arbitrage PO sur la page Notion de
-        # la tâche).
-        derniere_qualification_par_formation = {}
-        for qualification in (
-            TrainingRecord.objects.select_related("course")
-            .filter(user=self.request.user)
-            .order_by("-completed_at", "-created_at")
-        ):
-            derniere_qualification_par_formation.setdefault(qualification.course_id, qualification)
-        mes_qualifications = sorted(
-            derniere_qualification_par_formation.values(), key=lambda q: q.expires_at
-        )
-        for qualification in mes_qualifications:
-            qualification.badge_classe, qualification.badge_libelle = _badge_qualification(
-                qualification, aujourdhui
-            )
+        # date d'expiration et leur badge de statut — jusqu'ici cette
+        # information n'apparaissait que sous forme de notification
+        # ponctuelle (notify_expiring_training, notifications/tasks.py) qui
+        # disparaît une fois passée, sans vue d'ensemble permanente dans
+        # l'espace personnel du marin. Requête factorisée dans
+        # training/services.py (réutilisée à l'identique par « Mon profil »,
+        # accounts/web_views.py).
+        mes_qualifications = qualifications_validees_de(self.request.user, aujourdhui)
 
         contexte["mes_maintenances"] = mes_maintenances
         contexte["mes_formations"] = mes_formations

@@ -189,7 +189,9 @@
                 </a>
               </li>
               {% endif %}
-              <li class="nav-item"><span class="navbar-text me-2">{{ user.username }}</span></li>
+              <li class="nav-item">
+                <a class="nav-link navbar-text me-2" href="{% url 'mon-profil' %}" title="Mon profil" aria-label="Mon profil">{{ user.username }}</a>
+              </li>
               <li class="nav-item">
                 <a class="nav-link" href="/logout/" title="Se déconnecter" aria-label="Se déconnecter">
                   <span class="bi bi-box-arrow-right nav-icon" aria-hidden="true"></span>

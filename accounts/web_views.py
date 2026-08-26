@@ -1,13 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView
+from django.views.generic import ListView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from .forms import UserProfileForm
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
+from training.services import qualifications_validees_de
 
 
 def _role_attribution_autorisee(acting_user, role_cible):
@@ -404,7 +404,27 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         return redirect("user-directory")
 
 
-# Vue Mon Profil supprimée: les informations sont gérées par l'ADMIN_NAVIRE
+class MonProfilView(LoginRequiredMixin, TemplateView):
+    """« Mon profil » : fiche personnelle du marin connecté, en lecture seule.
+
+    Le rattachement organisationnel (rôle, unité, service, secteur, section,
+    grade, spécialité, matricule) n'est pas modifiable ici : sa gestion a été
+    volontairement centralisée dans l'annuaire (UserDirectoryView, POST
+    /users/), réservé à COMMANDANT et au-dessus depuis la correction de
+    sécurité ci-dessus (cf. _role_attribution_autorisee) — rouvrir une
+    édition en self-service sur ces champs reviendrait à recréer la faille
+    corrigée. Cette page se contente donc d'afficher ces informations, et y
+    ajoute la liste des qualifications (formations) déjà validées du marin,
+    en réutilisant telle quelle la requête de la carte « Mes qualifications »
+    du tableau de bord (training/services.py::qualifications_validees_de)."""
+
+    template_name = "accounts/profile.html"
+
+    def get_context_data(self, **kwargs):
+        contexte = super().get_context_data(**kwargs)
+        contexte["profil"] = getattr(self.request.user, "profile", None)
+        contexte["mes_qualifications"] = qualifications_validees_de(self.request.user)
+        return contexte
 
 
 class UserSettingsView(LoginRequiredMixin, ListView):

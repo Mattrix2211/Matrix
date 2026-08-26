@@ -184,3 +184,53 @@ def regrouper_par_categorie(carte):
     if "" in par_categorie:
         groupes.append((CATEGORIE_NON_RENSEIGNEE, composantes_par_niveau(par_categorie[""])))
     return groupes
+
+
+def _badge_qualification(record, aujourdhui, seuil_bientot_expiree_jours):
+    """Classe de badge + libellé pour une qualification (TrainingRecord)
+    validée, même palette que logistics/stock_list.html
+    (badge-conforme/text-bg-warning/text-bg-danger) : expirée si la date
+    d'expiration est passée, bientôt expirée si elle tombe dans le seuil
+    d'alerte passé en paramètre, à jour sinon."""
+    if record.expires_at < aujourdhui:
+        return "text-bg-danger", "Expirée"
+    if record.expires_at <= aujourdhui + timezone.timedelta(days=seuil_bientot_expiree_jours):
+        return "text-bg-warning", "Bientôt expirée"
+    return "badge-conforme", "À jour"
+
+
+def qualifications_validees_de(user, reference_date=None):
+    """Dernière qualification validée (TrainingRecord) par formation pour
+    `user`, triée par date d'expiration croissante, avec un badge de statut
+    (à jour / bientôt expirée / expirée) attaché à chaque enregistrement.
+
+    Une seule ligne par formation : en cas de renouvellement, seul le dernier
+    enregistrement (le plus récent completed_at, created_at en cas d'égalité)
+    est conservé — l'ancien enregistrement expiré n'a pas d'intérêt une fois
+    remplacé (arbitrage PO, tâche Notion « Mes qualifications » du tableau de
+    bord).
+
+    Factorisé ici pour être appelé à l'identique par la carte « Mes
+    qualifications » du tableau de bord (dashboard/web_views.py) ET la
+    section qualifications de « Mon profil » (accounts/web_views.py), sans
+    dupliquer ni la requête ni la règle de badge."""
+    # Import différé : notifications.tasks importe training.models, un import
+    # en tête de fichier créerait un cycle training <-> notifications au
+    # chargement des modules.
+    from notifications.tasks import JOURS_ALERTE_EXPIRATION_FORMATION
+
+    aujourdhui = reference_date or timezone.localdate()
+    seuil_jours = max(JOURS_ALERTE_EXPIRATION_FORMATION)
+    derniere_par_formation = {}
+    for qualification in (
+        TrainingRecord.objects.select_related("course")
+        .filter(user=user)
+        .order_by("-completed_at", "-created_at")
+    ):
+        derniere_par_formation.setdefault(qualification.course_id, qualification)
+    qualifications = sorted(derniere_par_formation.values(), key=lambda q: q.expires_at)
+    for qualification in qualifications:
+        qualification.badge_classe, qualification.badge_libelle = _badge_qualification(
+            qualification, aujourdhui, seuil_jours
+        )
+    return qualifications
