@@ -304,6 +304,81 @@ def _bloquer_inscription_sans_prerequis(sender, instance, action, pk_set, **kwar
             )
 
 
+class DemandePlace(TimeStampedModel, OwnedModel):
+    """Circuit A — Demande et attribution de places sur une formation à
+    quota limité (ex. TP Sécurité) : un chef de secteur demande des places
+    pour son bord (`ship`, toujours celui du demandeur) auprès de
+    l'organisme de formation, qui répond en attribuant un nombre de places
+    (`nb_places_attribuees`) éventuellement relié à une TrainingSession
+    (existante ou créée pour l'occasion). Le chef de secteur affecte ensuite
+    des marins de son secteur sur ces places (cf. PlaceAffectee ci-dessous,
+    et training/web_views.py::TrainingCourseListView._affecter_place_demandee).
+
+    Plusieurs bords peuvent partager la MÊME session, chacun avec son propre
+    quota : TrainingSession.capacite_max reste le plafond physique global de
+    la session (contrôlé par le signal _controler_reservation existant, non
+    dupliqué ici), tandis que PlaceAffectee permet de compter, PAR DEMANDE
+    (donc par bord), la consommation du quota attribué à CE bord précis."""
+
+    STATUS = (
+        ("REQUESTED", "Demandée"),
+        ("GRANTED", "Attribuée"),
+        ("REFUSED", "Refusée"),
+        ("CANCELLED", "Annulée"),
+    )
+    course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="demandes_places")
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="demandes_places")
+    nb_places_demandees = models.PositiveIntegerField(verbose_name="Nombre de places demandées")
+    nb_places_attribuees = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="Nombre de places attribuées"
+    )
+    # SET_NULL plutôt que CASCADE : la suppression d'une session (ex. annulée
+    # puis nettoyée) ne doit pas faire disparaître l'historique de la demande
+    # elle-même, seulement son rattachement à cette session précise.
+    session = models.ForeignKey(
+        TrainingSession, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes_places"
+    )
+    statut = models.CharField(max_length=16, choices=STATUS, default="REQUESTED")
+    attribue_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes_places_attribuees"
+    )
+    date_attribution = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Demande de places"
+        verbose_name_plural = "Demandes de places"
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.ship} — {self.course} ({self.nb_places_demandees} place(s) demandée(s))"
+
+    def places_consommees(self):
+        """Nombre de places déjà affectées à un marin sur cette demande précise
+        (PlaceAffectee), indépendamment du remplissage global de la session —
+        utilisé pour le double contrôle de quota (cf. PlaceAffectee)."""
+        return self.places_affectees.count()
+
+
+class PlaceAffectee(TimeStampedModel):
+    """Trace qu'un marin occupe une place attribuée à un bord précis via une
+    DemandePlace : créé EN MÊME TEMPS que l'ajout du marin à
+    TrainingSession.reservations lors d'une affectation partant d'une
+    DemandePlace (cf. _affecter_place_demandee), jamais lors d'une
+    affectation/réservation classique (_affecter_session, _reserver_session)
+    qui ne sont pas rattachées à un quota par bord."""
+
+    demande_place = models.ForeignKey(DemandePlace, on_delete=models.CASCADE, related_name="places_affectees")
+    marin = models.ForeignKey(User, on_delete=models.CASCADE, related_name="places_affectees")
+
+    class Meta:
+        verbose_name = "Place affectée"
+        verbose_name_plural = "Places affectées"
+        unique_together = ("demande_place", "marin")
+
+    def __str__(self):
+        return f"{self.marin} — {self.demande_place}"
+
+
 class TrainingRecord(TimeStampedModel, OwnedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="training_records")
     course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="records")

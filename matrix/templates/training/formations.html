@@ -67,6 +67,126 @@
 </div>
 {% endif %}
 
+{% if demandes_a_traiter %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-inbox"></i> Demandes de places à traiter</h6>
+    {% for d in demandes_a_traiter %}
+      <div class="border rounded p-2 mb-2">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <span class="fw-semibold">{{ d.course.title }}</span>
+            <span class="small text-muted">— demandée par {{ d.ship.name }} le {{ d.created_at|date:"d/m/Y" }}</span>
+            <div class="small">{{ d.nb_places_demandees }} place(s) demandée(s)</div>
+          </div>
+          <span class="badge text-bg-secondary">Demandée</span>
+        </div>
+        <form method="post" action="{% url 'formation-list' %}" class="row g-2 align-items-end mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="attribuer_places">
+          <input type="hidden" name="demande_id" value="{{ d.id }}">
+          <div class="col-auto">
+            <label class="form-label small mb-0">Places attribuées</label>
+            <input type="number" min="1" class="form-control form-control-sm" name="nb_places_attribuees" required style="width:6rem;">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Session existante</label>
+            <select class="form-select form-select-sm" name="session_id" style="min-width:14rem;">
+              <option value="">— Nouvelle session ci-dessous —</option>
+              {% for s in d.sessions_disponibles %}
+                <option value="{{ s.id }}">{{ s.scheduled_at|date:"d/m/Y H:i" }}{% if s.location %} — {{ s.location }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Ou nouvelle session : date/heure</label>
+            <input type="datetime-local" class="form-control form-control-sm" name="nouvelle_session_date">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Lieu</label>
+            <input type="text" class="form-control form-control-sm" name="nouvelle_session_lieu" style="width:9rem;">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Capacité totale</label>
+            <input type="number" min="1" class="form-control form-control-sm" name="nouvelle_session_capacite" style="width:7rem;">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm">Attribuer</button>
+          </div>
+        </form>
+        <form method="post" action="{% url 'formation-list' %}" class="mt-1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="refuser_demande_place">
+          <input type="hidden" name="demande_id" value="{{ d.id }}">
+          <button type="submit" class="btn btn-outline-danger btn-sm">Refuser</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if peut_demander_places %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-send"></i> Mes demandes de places</h6>
+    {% if mes_demandes_places %}
+      {% for d in mes_demandes_places %}
+        <div class="border rounded p-2 mb-2">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+              <span class="fw-semibold">{{ d.course.title }}</span>
+              <span class="small text-muted">— {{ d.nb_places_demandees }} place(s) demandée(s) le {{ d.created_at|date:"d/m/Y" }}</span>
+              {% if d.session %}
+                <div class="small font-mono">Session : {{ d.session.scheduled_at|date:"d/m/Y H:i" }}</div>
+              {% endif %}
+            </div>
+            {% if d.statut == "REQUESTED" %}
+              <span class="badge text-bg-secondary">Demandée</span>
+            {% elif d.statut == "GRANTED" %}
+              <span class="badge badge-conforme">{{ d.nb_places_attribuees }} place(s) attribuée(s)</span>
+            {% elif d.statut == "REFUSED" %}
+              <span class="badge text-bg-danger">Refusée</span>
+            {% else %}
+              <span class="badge text-bg-light border text-muted">Annulée</span>
+            {% endif %}
+          </div>
+          {% if d.statut == "REQUESTED" %}
+            <form method="post" action="{% url 'formation-list' %}" class="mt-1">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="annuler_demande_place">
+              <input type="hidden" name="demande_id" value="{{ d.id }}">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Annuler ma demande</button>
+            </form>
+          {% elif d.statut == "GRANTED" and d.session %}
+            <div class="small text-muted mt-1">
+              {{ d.places_consommees }} / {{ d.nb_places_attribuees }} place(s) affectée(s) à un marin
+            </div>
+            <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1 mt-1">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="affecter_place_demandee">
+              <input type="hidden" name="demande_id" value="{{ d.id }}">
+              <select name="marin_id" class="form-select form-select-sm" required>
+                <option value="">Affecter un marin de mon secteur...</option>
+                {% for m in marins_demande %}
+                  <option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-outline-primary btn-sm flex-shrink-0"
+                      {% if d.places_consommees >= d.nb_places_attribuees %}disabled{% endif %}>
+                Affecter
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="small text-muted mb-0">Aucune demande de places pour l'instant — utilisez le bouton « Demander des places » sur une formation ci-dessous.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% if formations %}
 <div class="g3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--s3);">
   {% for f in formations %}
@@ -190,6 +310,15 @@
             </table>
           </div>
         </div>
+        {% endif %}
+        {% if peut_demander_places %}
+        <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1 mb-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="demander_places">
+          <input type="hidden" name="course_id" value="{{ f.id }}">
+          <input type="number" min="1" name="nb_places_demandees" class="form-control form-control-sm" placeholder="Nb places" style="width:6rem;" required>
+          <button type="submit" class="btn btn-outline-primary btn-sm flex-shrink-0">Demander des places</button>
+        </form>
         {% endif %}
         {% if peut_gerer_prerequis %}
           <button type="button" class="btn btn-outline-primary btn-sm"

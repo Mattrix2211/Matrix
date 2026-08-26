@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import (
+    DemandePlace,
+    PlaceAffectee,
     ReferentFormation,
     TrainingCourse,
     TrainingRequirement,
@@ -39,3 +41,12 @@ class TrainingSessionAdmin(admin.ModelAdmin):
 class TrainingRecordAdmin(admin.ModelAdmin):
     list_display = ("user", "course", "completed_at", "expires_at")
     list_filter = ("completed_at", "expires_at")
+
+@admin.register(DemandePlace)
+class DemandePlaceAdmin(admin.ModelAdmin):
+    list_display = ("course", "ship", "nb_places_demandees", "nb_places_attribuees", "session", "statut")
+    list_filter = ("statut", "ship")
+
+@admin.register(PlaceAffectee)
+class PlaceAffecteeAdmin(admin.ModelAdmin):
+    list_display = ("demande_place", "marin")

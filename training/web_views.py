@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -18,6 +18,8 @@ from org.models import Ship
 
 from .models import (
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
+    DemandePlace,
+    PlaceAffectee,
     ReferentFormation,
     ReferentFormationNavire,
     TrainingCourse,
@@ -97,6 +99,19 @@ NIVEAU_REQUIS_GESTION_REFERENT_NAVIRE = NIVEAU_SUPERVISION_GLOBALE_FORMATION
 
 def _peut_gerer_referent_navire(user):
     return user_role_level(user) >= NIVEAU_REQUIS_GESTION_REFERENT_NAVIRE
+
+
+# Seuil de rôle requis pour formuler/annuler une DemandePlace (Circuit A —
+# demande et attribution de places à quota) pour son propre bord : même
+# niveau que NIVEAU_REQUIS_VALIDATION, un chef de secteur étant déjà habilité
+# à ce niveau à affecter des marins de son secteur sur une session
+# (_affecter_session) — la demande de places n'est qu'une étape amont du même
+# périmètre de responsabilité.
+NIVEAU_REQUIS_DEMANDE_PLACES = RoleLevel.CHEF_SECTION
+
+
+def _peut_demander_places(user):
+    return user_role_level(user) >= NIVEAU_REQUIS_DEMANDE_PLACES
 
 
 def _utilisateurs_du_navire_q(ship):
@@ -181,6 +196,20 @@ def _marins_validables(user):
     return marins.filter(q).distinct().order_by("last_name", "first_name", "username")
 
 
+def _marins_perimetre_demandeur(user):
+    """Marins proposables pour l'affectation des places attribuées d'une
+    DemandePlace : périmètre organisationnel habituel du demandeur
+    (filtres_perimetre_marin), identique à celui revalidé côté serveur dans
+    _affecter_place_demandee — contrairement à _marins_validables ci-dessus,
+    pas d'élargissement aux navires où le demandeur serait référent : une
+    DemandePlace ne s'affecte qu'à des marins de son PROPRE secteur."""
+    marins = User.objects.filter(is_active=True).select_related("profile")
+    q = filtres_perimetre_marin(user)
+    if q is None:
+        return marins.order_by("last_name", "first_name", "username")
+    return marins.filter(q).order_by("last_name", "first_name", "username")
+
+
 def _entier_ou_none(valeur):
     """Convertit une valeur postée en entier, ou renvoie None si elle est vide
     ou non numérique — évite un ValueError non attrapé (donc une erreur 500)
@@ -199,6 +228,19 @@ def _identifiants_valides(valeurs):
     pk__in, qui lève le même ValueError non attrapé si une valeur n'est pas
     numérique."""
     return [v for v in valeurs if _entier_ou_none(v) is not None]
+
+
+def _parse_datetime_local(date_str):
+    """Convertit la valeur d'un champ <input type="datetime-local"> en
+    date/heure « aware », en tenant compte du fuseau horaire local du bord —
+    même principe que calendar_app/views.py::_parse_personal_event_datetime,
+    réutilisé ici pour la création d'une nouvelle TrainingSession à
+    l'attribution d'une DemandePlace (peut lever ValueError si la chaîne
+    postée n'est pas une date/heure valide, laissé à l'appelant à attraper)."""
+    naive_dt = datetime.fromisoformat(date_str)
+    if timezone.is_aware(naive_dt):
+        return naive_dt
+    return timezone.make_aware(naive_dt)
 
 
 def _afficher_erreur_prerequis(request, erreur):
@@ -359,6 +401,38 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             # pour un référent (cf. _marins_validables).
             ctx["marins"] = _marins_validables(self.request.user)
             ctx["formations_validables"] = toutes_formations
+
+        # Circuit A — Demande et attribution de places (T-FORM demande de
+        # places) : un chef de secteur (CHEF_SECTION+) peut formuler une
+        # demande pour son propre bord (navire_courant, résolu ci-dessus).
+        ctx["peut_demander_places"] = _peut_demander_places(self.request.user) and navire_courant is not None
+        if ctx["peut_demander_places"]:
+            ctx["mes_demandes_places"] = list(
+                DemandePlace.objects.filter(created_by=self.request.user)
+                .select_related("course", "session")
+                .order_by("-created_at")
+            )
+            # Marins proposables pour l'affectation des places attribuées :
+            # même périmètre organisationnel que celui revalidé côté serveur
+            # dans _affecter_place_demandee.
+            ctx["marins_demande"] = _marins_perimetre_demandeur(self.request.user)
+
+        # Demandes à traiter par l'organisme de formation (référent de la
+        # formation POUR SON PROPRE NAVIRE, ou supervision globale) : même
+        # autorisation que l'attribution/le refus (peut_valider_formation).
+        demandes_en_attente = list(
+            DemandePlace.objects.filter(statut="REQUESTED").select_related("course", "ship")
+        )
+        demandes_a_traiter = [
+            d for d in demandes_en_attente
+            if peut_valider_formation(self.request.user, d.course, navire_courant)
+        ]
+        for d in demandes_a_traiter:
+            d.sessions_disponibles = list(
+                TrainingSession.objects.filter(course=d.course, status="PLANNED").order_by("scheduled_at")
+            )
+        ctx["demandes_a_traiter"] = demandes_a_traiter
+
         # Objet date (pas de chaîne) : comparé tel quel à r.expires_at dans le
         # template pour le badge À jour/Expirée. Le rendu template d'un objet
         # date appelle str(), qui produit déjà le format ISO AAAA-MM-JJ attendu
@@ -453,6 +527,16 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             return self._annuler_reservation(request)
         if action == "affecter_session":
             return self._affecter_session(request)
+        if action == "demander_places":
+            return self._demander_places(request)
+        if action == "annuler_demande_place":
+            return self._annuler_demande_place(request)
+        if action == "attribuer_places":
+            return self._attribuer_places(request)
+        if action == "refuser_demande_place":
+            return self._refuser_demande_place(request)
+        if action == "affecter_place_demandee":
+            return self._affecter_place_demandee(request)
         if action == "set_referent_navire":
             return self._set_referent_navire(request)
         if action == "retirer_referent_navire":
@@ -628,6 +712,219 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             # Savepoint explicite, même principe que _reserver_session ci-dessus.
             with transaction.atomic():
                 session.reservations.add(marin)
+        except ValidationError as exc:
+            _afficher_erreur_prerequis(request, exc)
+            return redirect("formation-list")
+        Notification.objects.create(
+            user=marin,
+            verb=(
+                f"Une place vous a été réservée: {session.course.title} — session du "
+                f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}"
+            ),
+        )
+        messages.success(
+            request,
+            f"Place réservée pour {marin.get_full_name() or marin.username}. "
+            "La session apparaît désormais dans son calendrier personnel.",
+        )
+        return redirect("formation-list")
+
+    def _demander_places(self, request):
+        """Circuit A (T-FORM demande de places) — un chef de secteur formule
+        une demande de places sur une formation à quota, pour SON BORD. Le
+        navire de la demande est TOUJOURS celui résolu de l'appelant
+        (navire_de, jamais un identifiant posté) : impossible de demander des
+        places au nom d'un autre bord en forgeant la requête."""
+        if not _peut_demander_places(request.user):
+            raise PermissionDenied
+        navire = navire_de(request.user)
+        if navire is None:
+            messages.error(request, "Aucune unité rattachée à votre profil.")
+            return redirect("formation-list")
+        course_id = _entier_ou_none(request.POST.get("course_id"))
+        course = TrainingCourse.objects.filter(pk=course_id).first() if course_id is not None else None
+        if course is None:
+            messages.error(request, "Formation introuvable.")
+            return redirect("formation-list")
+        nb = _entier_ou_none(request.POST.get("nb_places_demandees"))
+        if not nb or nb <= 0:
+            messages.error(request, "Le nombre de places demandées doit être un nombre positif.")
+            return redirect("formation-list")
+        DemandePlace.objects.create(
+            course=course, ship=navire, nb_places_demandees=nb, created_by=request.user,
+        )
+        messages.success(request, f"Demande de {nb} place(s) envoyée pour « {course.title} ».")
+        return redirect("formation-list")
+
+    def _annuler_demande_place(self, request):
+        """Annulation par le demandeur (created_by) de SA PROPRE demande,
+        uniquement tant qu'elle n'a pas encore été traitée par l'organisme."""
+        demande_id = _entier_ou_none(request.POST.get("demande_id"))
+        demande = DemandePlace.objects.filter(pk=demande_id).first() if demande_id is not None else None
+        if demande is None:
+            messages.error(request, "Demande introuvable.")
+            return redirect("formation-list")
+        if demande.created_by_id != request.user.id:
+            raise PermissionDenied
+        if demande.statut != "REQUESTED":
+            messages.info(request, "Cette demande n'est plus annulable.")
+            return redirect("formation-list")
+        demande.statut = "CANCELLED"
+        demande.save(update_fields=["statut"])
+        messages.success(request, "Demande annulée.")
+        return redirect("formation-list")
+
+    def _attribuer_places(self, request):
+        """Réponse de l'organisme de formation (référent de cette formation
+        POUR SON PROPRE NAVIRE — l'école/centre de formation, cf.
+        peut_valider_formation, réutilisé tel quel) à une DemandePlace :
+        renseigne le nombre de places attribuées et relie une TrainingSession
+        (existante, choisie parmi les sessions de la même formation, ou
+        nouvellement créée), puis passe le statut à GRANTED."""
+        demande_id = _entier_ou_none(request.POST.get("demande_id"))
+        demande = (
+            DemandePlace.objects.select_related("course", "ship").filter(pk=demande_id).first()
+            if demande_id is not None else None
+        )
+        if demande is None:
+            messages.error(request, "Demande introuvable.")
+            return redirect("formation-list")
+
+        navire_organisme = navire_de(request.user)
+        if not peut_valider_formation(request.user, demande.course, navire_organisme):
+            raise PermissionDenied
+
+        nb = _entier_ou_none(request.POST.get("nb_places_attribuees"))
+        if not nb or nb <= 0:
+            messages.error(request, "Le nombre de places attribuées doit être un nombre positif.")
+            return redirect("formation-list")
+
+        session_id = _entier_ou_none(request.POST.get("session_id"))
+        session = None
+        if session_id is not None:
+            # Ne fait pas confiance au formulaire : la session choisie doit
+            # bien concerner la formation de cette demande.
+            session = TrainingSession.objects.filter(pk=session_id, course=demande.course).first()
+            if session is None:
+                messages.error(request, "Session introuvable pour cette formation.")
+                return redirect("formation-list")
+        else:
+            nouvelle_date = request.POST.get("nouvelle_session_date", "").strip()
+            if nouvelle_date:
+                try:
+                    scheduled_at = _parse_datetime_local(nouvelle_date)
+                except ValueError:
+                    messages.error(request, "Date de session invalide.")
+                    return redirect("formation-list")
+                capacite_brut = request.POST.get("nouvelle_session_capacite", "").strip()
+                session = TrainingSession.objects.create(
+                    course=demande.course,
+                    scheduled_at=scheduled_at,
+                    location=request.POST.get("nouvelle_session_lieu", "").strip(),
+                    capacite_max=_entier_ou_none(capacite_brut) if capacite_brut else None,
+                )
+
+        demande.nb_places_attribuees = nb
+        demande.session = session
+        demande.statut = "GRANTED"
+        demande.attribue_par = request.user
+        demande.date_attribution = timezone.now()
+        demande.save(update_fields=[
+            "nb_places_attribuees", "session", "statut", "attribue_par", "date_attribution",
+        ])
+
+        if demande.created_by_id:
+            Notification.objects.create(
+                user_id=demande.created_by_id,
+                verb=(
+                    f"Demande de places accordée : {nb} place(s) pour « {demande.course.title} » "
+                    f"({demande.ship.name})."
+                ),
+            )
+        messages.success(request, f"{nb} place(s) attribuée(s) pour « {demande.course.title} ».")
+        return redirect("formation-list")
+
+    def _refuser_demande_place(self, request):
+        """Refus d'une demande par l'organisme de formation (même autorisation
+        que l'attribution, cf. _attribuer_places)."""
+        demande_id = _entier_ou_none(request.POST.get("demande_id"))
+        demande = (
+            DemandePlace.objects.select_related("course", "ship").filter(pk=demande_id).first()
+            if demande_id is not None else None
+        )
+        if demande is None:
+            messages.error(request, "Demande introuvable.")
+            return redirect("formation-list")
+        navire_organisme = navire_de(request.user)
+        if not peut_valider_formation(request.user, demande.course, navire_organisme):
+            raise PermissionDenied
+        demande.statut = "REFUSED"
+        demande.attribue_par = request.user
+        demande.date_attribution = timezone.now()
+        demande.save(update_fields=["statut", "attribue_par", "date_attribution"])
+        if demande.created_by_id:
+            Notification.objects.create(
+                user_id=demande.created_by_id,
+                verb=f"Demande de places refusée pour « {demande.course.title} » ({demande.ship.name}).",
+            )
+        messages.success(request, "Demande refusée.")
+        return redirect("formation-list")
+
+    def _affecter_place_demandee(self, request):
+        """Affecte un marin sur une place ATTRIBUÉE d'une DemandePlace précise
+        : seul le chef de secteur demandeur (created_by de la demande) peut
+        affecter, uniquement des marins de son propre périmètre
+        organisationnel (filtres_perimetre_marin, même périmètre que le
+        chef non-référent dans _affecter_session), et seulement dans la
+        limite du quota attribué à SA demande.
+
+        Double contrôle de quota (point métier clé — plusieurs bords peuvent
+        partager la même session, chacun avec son propre quota) : le plafond
+        attribué à CETTE demande précise (PlaceAffectee.objects.filter(...).count(),
+        compté par bord) est contrôlé ICI, EN PLUS du plafond physique global
+        de la session déjà appliqué par le signal m2m existant
+        (training/models.py::_controler_reservation, non dupliqué)."""
+        demande_id = _entier_ou_none(request.POST.get("demande_id"))
+        marin_id = _entier_ou_none(request.POST.get("marin_id"))
+        demande = (
+            DemandePlace.objects.select_related("course", "session").filter(pk=demande_id).first()
+            if demande_id is not None else None
+        )
+        marin = User.objects.filter(pk=marin_id, is_active=True).first() if marin_id is not None else None
+        if demande is None or marin is None:
+            messages.error(request, "Demande ou marin introuvable.")
+            return redirect("formation-list")
+
+        if demande.created_by_id != request.user.id:
+            raise PermissionDenied
+        if demande.statut != "GRANTED" or demande.session_id is None:
+            messages.error(
+                request,
+                "Cette demande n'a pas encore de places attribuées et reliées à une session.",
+            )
+            return redirect("formation-list")
+
+        # Revalidation côté serveur du marin ciblé : ne fait pas confiance au
+        # formulaire, même principe que _affecter_session.
+        q_perimetre_marin = filtres_perimetre_marin(request.user)
+        if q_perimetre_marin is not None and not User.objects.filter(q_perimetre_marin, pk=marin.pk).exists():
+            raise PermissionDenied
+
+        if demande.nb_places_attribuees is not None and demande.places_consommees() >= demande.nb_places_attribuees:
+            messages.error(request, "Le quota de places attribuées à votre unité pour cette demande est atteint.")
+            return redirect("formation-list")
+
+        session = demande.session
+        if marin in session.reservations.all():
+            messages.info(request, "Ce marin a déjà une place réservée sur cette session.")
+            return redirect("formation-list")
+        try:
+            # Savepoint explicite, même principe que _reserver_session : la
+            # réservation globale (m2m) et la trace du quota par bord
+            # (PlaceAffectee) sont créées ensemble, ou pas du tout.
+            with transaction.atomic():
+                session.reservations.add(marin)
+                PlaceAffectee.objects.create(demande_place=demande, marin=marin)
         except ValidationError as exc:
             _afficher_erreur_prerequis(request, exc)
             return redirect("formation-list")
