@@ -432,6 +432,12 @@
                           <div class="small text-danger">Session complète ({{ s.capacite_max }} place(s))</div>
                         {% endif %}
                       {% endwith %}
+                      {% if s.nb_en_attente %}
+                        <div class="small text-muted font-mono">{{ s.nb_en_attente }} en liste d'attente</div>
+                      {% endif %}
+                      {% if s.mon_entree_attente %}
+                        <span class="badge text-bg-warning mt-1">Vous êtes en position {{ s.ma_position_attente }} sur liste d'attente</span>
+                      {% endif %}
                     {% endif %}
                   </div>
                   <form method="post" action="{% url 'formation-list' %}" class="flex-shrink-0">
@@ -440,10 +446,24 @@
                     {% if s.deja_reserve %}
                       <input type="hidden" name="action" value="annuler_reservation">
                       <button type="submit" class="btn btn-outline-danger btn-sm">Annuler ma réservation</button>
+                    {% elif s.mon_entree_attente and s.places_restantes > 0 %}
+                      {# Une place s'est libérée pendant que le marin était en liste d'attente
+                         (une entrée en liste d'attente n'existe que si capacite_max est renseignée,
+                         cf. _reserver_session). Le retrait de sa place dans la file est automatique
+                         dès la réservation confirmée (training\models.py::_controler_reservation),
+                         donc l'action prioritaire est de réserver — « Quitter » reste possible mais
+                         devient secondaire. #}
+                      <div class="d-flex flex-column align-items-end gap-1">
+                        <button type="submit" name="action" value="reserver_session" class="btn btn-outline-primary btn-sm">Réserver ma place</button>
+                        <button type="submit" name="action" value="quitter_liste_attente" class="btn btn-link btn-sm text-muted p-0">Quitter la liste d'attente</button>
+                      </div>
+                    {% elif s.mon_entree_attente %}
+                      <input type="hidden" name="action" value="quitter_liste_attente">
+                      <button type="submit" class="btn btn-outline-secondary btn-sm">Quitter la liste d'attente</button>
                     {% else %}
                       <input type="hidden" name="action" value="reserver_session">
-                      <button type="submit" class="btn btn-outline-primary btn-sm" {% if s.capacite_max and s.places_restantes == 0 %}disabled{% endif %}>
-                        Réserver ma place
+                      <button type="submit" class="btn btn-outline-primary btn-sm">
+                        {% if s.capacite_max and s.places_restantes == 0 %}Rejoindre la liste d'attente{% else %}Réserver ma place{% endif %}
                       </button>
                     {% endif %}
                   </form>

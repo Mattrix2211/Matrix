@@ -87,8 +87,10 @@ class ReservationSessionTests(TestCase):
 
 
 class CapaciteReservationTests(TestCase):
-    """Refus (message clair) si la capacité maximale de la session est déjà
-    atteinte — pas de liste d'attente pour cette version."""
+    """Si la capacité maximale de la session est déjà atteinte, le marin est
+    mis en liste d'attente FIFO (T-ATTENTE) plutôt que simplement refusé —
+    cf. training/tests/test_liste_attente.py pour le détail de la liste
+    d'attente elle-même."""
 
     def setUp(self):
         self.course = TrainingCourse.objects.create(title="Extinction niveau 1")
@@ -100,7 +102,7 @@ class CapaciteReservationTests(TestCase):
         self.marin = User.objects.create_user(username="marin_capa", password="pass")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
 
-    def test_reservation_refusee_si_session_complete(self):
+    def test_reservation_mise_en_liste_dattente_si_session_complete(self):
         self.client.login(username="marin_capa", password="pass")
         r = self.client.post("/formations/", {
             "action": "reserver_session",
@@ -109,6 +111,7 @@ class CapaciteReservationTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertNotIn(self.marin, self.session.reservations.all())
         self.assertEqual(self.session.reservations.count(), 1)
+        self.assertTrue(self.session.liste_attente.filter(user=self.marin).exists())
 
     def test_places_restantes_correctement_calculees(self):
         self.assertEqual(self.session.places_restantes(), 0)

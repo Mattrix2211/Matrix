@@ -1,3 +1,4 @@
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -6,6 +7,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
 from matrix.core.roles import RoleLevel, user_role_level
+from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Ship, Service, Section
 
 User = get_user_model()
@@ -283,6 +285,106 @@ class TrainingSession(TimeStampedModel):
             return None
         return max(0, self.capacite_max - len(self.reservations.all()))
 
+    def inscrire_liste_attente(self, user):
+        """Inscrit `user` en fin de liste d'attente FIFO de cette session
+        (TrainingWaitlistEntry, ci-dessous), après avoir vérifié les mêmes
+        règles métier qu'une réservation directe — session toujours
+        planifiée, prérequis de la formation validés (réutilise
+        _prerequis_manquants, comme _controler_reservation ci-dessous) — à
+        l'exception de la capacité, volontairement PAS revérifiée ici :
+        c'est justement parce qu'elle est déjà atteinte que l'appelant
+        (training/web_views.py::_reserver_session) passe par la liste
+        d'attente plutôt que par une réservation directe. Idempotent :
+        renvoie l'entrée existante si `user` y figure déjà, ne le met pas en
+        double file."""
+        if self.status != "PLANNED":
+            raise ValidationError(
+                "Impossible de s'inscrire sur liste d'attente : cette session n'est plus planifiée."
+            )
+        reference_date = self.scheduled_at.date() if self.scheduled_at else timezone.localdate()
+        manquants = _prerequis_manquants(user, self.course, reference_date)
+        if manquants:
+            noms = ", ".join(p.title for p in manquants)
+            raise ValidationError(
+                "Impossible de s'inscrire sur liste d'attente : formation(s) prérequise(s) "
+                f"non validée(s) — {noms}."
+            )
+        entry, _ = TrainingWaitlistEntry.objects.get_or_create(session=self, user=user)
+        return entry
+
+
+class TrainingWaitlistEntry(TimeStampedModel):
+    """Liste d'attente FIFO sur une TrainingSession complète (T-ATTENTE) :
+    quand un marin tente de réserver une place en libre-service alors que
+    `capacite_max` est déjà atteinte, il est mis en attente plutôt que
+    simplement refusé (cf. TrainingSession.inscrire_liste_attente ci-dessus,
+    appelée depuis training/web_views.py::_reserver_session). Ordre FIFO
+    garanti par `created_at` (TimeStampedModel), le plus ancien étant
+    toujours le premier de la file.
+
+    Dès qu'une place se libère (annulation d'une réservation ferme, cf.
+    `_notifier_premier_liste_attente` ci-dessous, déclenchée par le signal
+    m2m existant à la suppression d'une réservation), le PREMIER de la file
+    est notifié qu'une place s'est libérée — mais N'EST PAS inscrit
+    automatiquement : cohérent avec le principe self-service déjà en place
+    pour les réservations, c'est à lui de réserver lui-même. L'entrée est
+    retirée dès que ce marin réserve effectivement une place sur cette
+    session (cf. action "post_add" du signal ci-dessous), ou qu'il quitte
+    volontairement la liste d'attente (training/web_views.py::
+    _quitter_liste_attente)."""
+
+    session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name="liste_attente")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="entrees_liste_attente")
+
+    class Meta:
+        verbose_name = "Entrée en liste d'attente"
+        verbose_name_plural = "Entrées en liste d'attente"
+        ordering = ("created_at",)
+        unique_together = ("session", "user")
+
+    def __str__(self):
+        return f"{self.user} — liste d'attente ({self.session})"
+
+    def position(self):
+        """Position (1-based) de cette entrée dans la file FIFO de sa
+        session — 1 = premier de la file, prochain à être notifié dès
+        qu'une place se libère."""
+        return TrainingWaitlistEntry.objects.filter(
+            session_id=self.session_id, created_at__lt=self.created_at
+        ).count() + 1
+
+
+def _notifier_premier_liste_attente(session):
+    """Notifie le premier de la liste d'attente qu'une place vient de se
+    libérer sur `session` — appelé après la suppression effective d'une
+    réservation (action "post_remove" du signal ci-dessous). Ne l'inscrit
+    PAS automatiquement (cf. docstring TrainingWaitlistEntry) : c'est à lui
+    de réserver la place libérée depuis l'écran des formations. Notification
+    idempotente (get_or_create sur le couple session/utilisateur tant
+    qu'elle n'est pas lue) pour ne pas spammer si plusieurs annulations
+    successives se produisent avant qu'il n'ait réservé."""
+    if session.capacite_max is None:
+        return
+    if session.places_restantes() <= 0:
+        return
+    premier = session.liste_attente.order_by("created_at").first()
+    if premier is None:
+        return
+    Notification.objects.get_or_create(
+        user=premier.user,
+        content_type=ContentType.objects.get_for_model(TrainingSession),
+        object_id=str(session.pk),
+        is_read=False,
+        defaults={
+            "verb": (
+                f"Une place s'est libérée: {session.course.title} — session du "
+                f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}. "
+                "Réservez-la vite, elle n'est pas garantie."
+            ),
+            "level": NotificationLevel.INFO,
+        },
+    )
+
 
 @receiver(m2m_changed, sender=TrainingSession.reservations.through)
 def _controler_reservation(sender, instance, action, pk_set, **kwargs):
@@ -293,7 +395,13 @@ def _controler_reservation(sender, instance, action, pk_set, **kwargs):
     principe défensif que _bloquer_inscription_sans_prerequis (attendees),
     seul point de passage garanti quel que soit l'appelant (vue web, API,
     admin, shell). À la suppression (pre_remove), interdit d'annuler une
-    réservation sur une session déjà passée."""
+    réservation sur une session déjà passée.
+
+    Complété par la liste d'attente (T-ATTENTE) : dès qu'une réservation
+    obtient effectivement une place (post_add), son éventuelle entrée en
+    liste d'attente pour cette même session est retirée (plus de raison d'y
+    rester) ; dès qu'une réservation est effectivement retirée (post_remove),
+    le premier de la liste d'attente est notifié qu'une place s'est libérée."""
     if action == "pre_add" and pk_set:
         if instance.status != "PLANNED":
             raise ValidationError(
@@ -314,11 +422,15 @@ def _controler_reservation(sender, instance, action, pk_set, **kwargs):
                     f"Impossible de réserver une place pour {user.get_full_name() or user.get_username()} : "
                     f"formation(s) prérequise(s) non validée(s) — {noms}."
                 )
+    elif action == "post_add" and pk_set:
+        TrainingWaitlistEntry.objects.filter(session=instance, user_id__in=pk_set).delete()
     elif action == "pre_remove" and pk_set:
         if instance.scheduled_at and instance.scheduled_at <= timezone.now():
             raise ValidationError(
                 "Impossible d'annuler cette réservation : la session a déjà eu lieu."
             )
+    elif action == "post_remove" and pk_set:
+        _notifier_premier_liste_attente(instance)
 
 
 @receiver(m2m_changed, sender=TrainingSession.attendees.through)

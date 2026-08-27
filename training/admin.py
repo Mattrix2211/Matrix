@@ -9,6 +9,7 @@ from .models import (
     TrainingRequirement,
     TrainingSession,
     TrainingRecord,
+    TrainingWaitlistEntry,
     ReferentFormationNavire,
 )
 
@@ -45,6 +46,11 @@ class TrainingSessionAdmin(admin.ModelAdmin):
 class TrainingRecordAdmin(admin.ModelAdmin):
     list_display = ("user", "course", "completed_at", "expires_at")
     list_filter = ("completed_at", "expires_at")
+
+@admin.register(TrainingWaitlistEntry)
+class TrainingWaitlistEntryAdmin(admin.ModelAdmin):
+    list_display = ("session", "user", "created_at")
+    list_filter = ("session",)
 
 @admin.register(DemandePlace)
 class DemandePlaceAdmin(admin.ModelAdmin):

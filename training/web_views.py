@@ -27,6 +27,7 @@ from .models import (
     TrainingCourse,
     TrainingRecord,
     TrainingSession,
+    TrainingWaitlistEntry,
     navire_de,
     peut_valider_formation,
 )
@@ -551,12 +552,23 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 scheduled_at__gte=timezone.now(),
             )
             .select_related("instructor")
-            .prefetch_related("reservations")
+            .prefetch_related("reservations", "liste_attente")
             .order_by("scheduled_at")
         )
         sessions_par_formation = defaultdict(list)
         for s in sessions_qs:
             s.deja_reserve = self.request.user in s.reservations.all()
+            # Liste d'attente (T-ATTENTE) : entrées déjà triées FIFO par le
+            # prefetch (Meta.ordering de TrainingWaitlistEntry = created_at),
+            # aucune requête supplémentaire par session.
+            entrees_attente = list(s.liste_attente.all())
+            s.nb_en_attente = len(entrees_attente)
+            s.mon_entree_attente = next(
+                (e for e in entrees_attente if e.user_id == self.request.user.id), None
+            )
+            s.ma_position_attente = (
+                entrees_attente.index(s.mon_entree_attente) + 1 if s.mon_entree_attente else None
+            )
             sessions_par_formation[s.course_id].append(s)
         # Suivi des validations (T-FORM) : compteurs à jour/expirées et
         # dernières validations par formation, affichés directement sur
@@ -809,6 +821,8 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             return self._reserver_session(request)
         if action == "annuler_reservation":
             return self._annuler_reservation(request)
+        if action == "quitter_liste_attente":
+            return self._quitter_liste_attente(request)
         if action == "affecter_session":
             return self._affecter_session(request)
         if action == "demander_places":
@@ -961,7 +975,18 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         (training/models.py::_controler_reservation), seule source de vérité.
         Catalogue global : toute session planifiée est réservable, quel que
         soit le navire qui l'organise (une session peut par exemple être
-        organisée par un autre bord ou un centre de formation à terre)."""
+        organisée par un autre bord ou un centre de formation à terre).
+
+        Liste d'attente (T-ATTENTE) : si la session est déjà complète au
+        moment de la tentative, le marin est mis en fin de file FIFO
+        (TrainingSession.inscrire_liste_attente) plutôt que simplement
+        refusé — il sera notifié dès qu'une place se libère, à lui de la
+        réserver lui-même (pas d'inscription automatique). Le contrôle de
+        capacité est donc fait AVANT celui d'une éventuelle entrée en liste
+        d'attente déjà existante : un marin notifié qu'une place s'est
+        libérée doit pouvoir la réserver normalement, même s'il figure
+        encore dans la file (son entrée est retirée automatiquement, cf.
+        training/models.py::_controler_reservation, action post_add)."""
         session_id = _entier_ou_none(request.POST.get("session_id"))
         session = (
             TrainingSession.objects.select_related("course").filter(pk=session_id).first()
@@ -972,6 +997,21 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             return redirect("formation-list")
         if request.user in session.reservations.all():
             messages.info(request, "Vous avez déjà réservé une place pour cette session.")
+            return redirect("formation-list")
+        if session.capacite_max is not None and session.places_restantes() == 0:
+            if TrainingWaitlistEntry.objects.filter(session=session, user=request.user).exists():
+                messages.info(request, "Vous êtes déjà en liste d'attente pour cette session.")
+                return redirect("formation-list")
+            try:
+                entree = session.inscrire_liste_attente(request.user)
+            except ValidationError as exc:
+                _afficher_erreur_prerequis(request, exc)
+                return redirect("formation-list")
+            messages.success(
+                request,
+                f"Session complète : vous êtes en position {entree.position()} sur la liste "
+                "d'attente. Vous serez prévenu dès qu'une place se libère.",
+            )
             return redirect("formation-list")
         try:
             # Savepoint explicite : si le signal m2m (capacité, prérequis,
@@ -998,7 +1038,10 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
     def _annuler_reservation(self, request):
         """Annulation de SA PROPRE réservation par le marin connecté, tant que
         la session n'a pas encore eu lieu (contrôle fait par le signal m2m
-        TrainingSession.reservations, cf. training/models.py::_controler_reservation)."""
+        TrainingSession.reservations, cf. training/models.py::_controler_reservation).
+        La notification au premier de la liste d'attente (s'il y en a une) est
+        déclenchée automatiquement par ce même signal (action post_remove),
+        pas ici : seule source de vérité, quel que soit l'appelant."""
         session_id = _entier_ou_none(request.POST.get("session_id"))
         session = TrainingSession.objects.select_related("course").filter(pk=session_id).first() \
             if session_id is not None else None
@@ -1016,6 +1059,21 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             _afficher_erreur_prerequis(request, exc)
             return redirect("formation-list")
         messages.success(request, "Réservation annulée.")
+        return redirect("formation-list")
+
+    def _quitter_liste_attente(self, request):
+        """Retrait volontaire de SA PROPRE entrée en liste d'attente, sans
+        attendre qu'une place ne se libère — aucune règle métier
+        supplémentaire à appliquer (contrairement à l'annulation d'une
+        réservation ferme), l'entrée est simplement supprimée."""
+        session_id = _entier_ou_none(request.POST.get("session_id"))
+        supprimees, _ = TrainingWaitlistEntry.objects.filter(
+            session_id=session_id, user=request.user
+        ).delete()
+        if supprimees:
+            messages.success(request, "Vous avez quitté la liste d'attente.")
+        else:
+            messages.info(request, "Vous n'êtes pas en liste d'attente pour cette session.")
         return redirect("formation-list")
 
     def _affecter_session(self, request):
