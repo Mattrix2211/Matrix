@@ -75,6 +75,19 @@ class TrainingCourse(TimeStampedModel, OwnedModel):
         max_length=24, choices=STATUT_VALIDATION_CHOICES, default="ACTIVE",
     )
 
+    # Barème/référentiel de notation associé à la formation (retour de test
+    # PO : « pour chaque formation il faudrait qu'on puisse y affilier une
+    # fiche avec le barème de la formation si il y en a un »). Facultatif —
+    # toutes les formations n'en ont pas — et rétrocompatible (formations
+    # existantes non concernées). Un simple FileField optionnel, même pattern
+    # que TrainingRecord.attachment ci-dessous : un seul document par
+    # formation, pas besoin d'un modèle de pièces jointes séparé
+    # (AssetDocument/InstallationEventAttachment) réservé aux cas où
+    # plusieurs documents doivent être attachés au même objet.
+    bareme = models.FileField(
+        upload_to="training_baremes/", null=True, blank=True, verbose_name="Barème",
+    )
+
     def __str__(self):
         return self.title
 

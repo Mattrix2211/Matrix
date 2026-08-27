@@ -751,6 +751,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 description=request.POST.get("description", "").strip(),
                 category=request.POST.get("category", "").strip(),
                 validity_days=validity_days,
+                bareme=request.FILES.get("bareme"),
             )
             # Prérequis facultatifs dès la création, parmi le catalogue global
             # existant (revalidation côté serveur, même principe que pour
@@ -797,6 +798,18 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             if "category" in request.POST:
                 course.category = request.POST.get("category", "").strip()
                 course.save(update_fields=["category"])
+            # Barème modifiable dans la même modale (un seul clic pour tout mettre
+            # à jour) : soit on téléverse un nouveau fichier (remplace l'ancien),
+            # soit on coche « retirer_bareme » pour l'enlever sans le remplacer —
+            # les deux ne sont jamais combinés dans un même envoi de formulaire.
+            nouveau_bareme = request.FILES.get("bareme")
+            if nouveau_bareme:
+                course.bareme = nouveau_bareme
+                course.save(update_fields=["bareme"])
+            elif "retirer_bareme" in request.POST:
+                course.bareme.delete(save=False)
+                course.bareme = None
+                course.save(update_fields=["bareme"])
             # Référents modifiables dans la même modale (un seul clic pour tout
             # mettre à jour) — champ absent du POST : on ne touche pas aux
             # référents existants (compatibilité avec un appel qui ne gérerait
@@ -1681,6 +1694,15 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         course.validity_days = validity_days
         course.gere_par_le_bord = True
         course.statut_validation = statut_cible
+        # Barème facultatif, même principe que create_course et
+        # update_prerequisites ci-dessus : un nouveau fichier remplace
+        # l'ancien, sinon « retirer_bareme » l'enlève sans le remplacer.
+        nouveau_bareme = request.FILES.get("bareme")
+        if nouveau_bareme:
+            course.bareme = nouveau_bareme
+        elif "retirer_bareme" in request.POST and course.pk:
+            course.bareme.delete(save=False)
+            course.bareme = None
         if course.created_by_id is None:
             course.created_by = request.user
         course.updated_by = request.user

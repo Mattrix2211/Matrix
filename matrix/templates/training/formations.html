@@ -400,6 +400,16 @@
         </div>
         {% if f.description %}<p class="small mb-2">{{ f.description }}</p>{% endif %}
         <div class="mb-2">
+          <span class="fw-semibold small">Barème :</span>
+          {% if f.bareme %}
+            <a href="{{ f.bareme.url }}" target="_blank" class="badge rounded-pill text-decoration-none text-bg-light border">
+              <i class="bi bi-paperclip me-1"></i>Voir le barème
+            </a>
+          {% else %}
+            <span class="small text-muted">Aucun</span>
+          {% endif %}
+        </div>
+        <div class="mb-2">
           <span class="fw-semibold small">Prérequis :</span>
           {% for p in f.prerequisites.all %}
             <span class="badge text-bg-secondary">{{ p.title }}</span>
@@ -563,6 +573,7 @@
                   data-bs-toggle="modal" data-bs-target="#prerequisitesModal"
                   data-pk="{{ f.id }}" data-title="{{ f.title }}"
                   data-category="{{ f.category }}"
+                  data-has-bareme="{% if f.bareme %}1{% else %}0{% endif %}"
                   data-selected="{% for p in f.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
                   data-referents-selected="{% for r in f.mes_referents %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
             <i class="bi bi-pencil"></i> Modifier
@@ -572,7 +583,8 @@
           <button type="button" class="btn btn-outline-primary btn-sm"
                   data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
                   data-pk="{{ f.id }}" data-title="{{ f.title }}" data-description="{{ f.description }}"
-                  data-category="{{ f.category }}" data-validity="{{ f.validity_days }}">
+                  data-category="{{ f.category }}" data-validity="{{ f.validity_days }}"
+                  data-has-bareme="{% if f.bareme %}1{% else %}0{% endif %}">
             <i class="bi bi-anchor"></i> Modifier (bord)
           </button>
         {% endif %}
@@ -587,7 +599,7 @@
 {% if peut_gerer_prerequis %}
 <div class="modal fade" id="prerequisitesModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form method="post" action="{% url 'formation-list' %}">
+    <form method="post" action="{% url 'formation-list' %}" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="hidden" name="action" value="update_prerequisites">
       <input type="hidden" name="pk" id="prereqPk">
@@ -606,6 +618,14 @@
           <datalist id="categoriesToutes">
             {% for cat in categories_existantes %}<option value="{{ cat }}"></option>{% endfor %}
           </datalist>
+          <div class="mb-3">
+            <label for="prereqBareme" class="form-label">Barème (fiche de notation, facultatif)</label>
+            <input type="file" class="form-control" name="bareme" id="prereqBareme">
+            <div class="form-check mt-1" id="prereqRetirerBaremeWrap" style="display:none;">
+              <input class="form-check-input" type="checkbox" name="retirer_bareme" id="prereqRetirerBareme">
+              <label class="form-check-label small" for="prereqRetirerBareme">Retirer le barème actuellement associé</label>
+            </div>
+          </div>
           <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à toutes les unités).</p>
           <div class="prereq-group">
             {% for c in candidats_prerequis %}
@@ -652,6 +672,11 @@
     document.getElementById('prereqPk').value = pk;
     document.getElementById('prereqTitle').textContent = b.getAttribute('data-title');
     document.getElementById('prereqCategory').value = b.getAttribute('data-category') || '';
+    document.getElementById('prereqBareme').value = '';
+    var retirerCase = document.getElementById('prereqRetirerBareme');
+    retirerCase.checked = false;
+    document.getElementById('prereqRetirerBaremeWrap').style.display =
+      (b.getAttribute('data-has-bareme') === '1') ? '' : 'none';
     // Catalogue global : on exclut uniquement la formation éditée elle-même
     // (impossible de se choisir comme son propre prérequis), toutes les
     // autres restent proposées.
@@ -672,7 +697,7 @@
 {% if peut_creer_formation %}
 <div class="modal fade" id="createCourseModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form method="post" action="{% url 'formation-list' %}">
+    <form method="post" action="{% url 'formation-list' %}" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="hidden" name="action" value="create_course">
       <div class="modal-content">
@@ -698,6 +723,10 @@
             <input type="text" class="form-control" name="category" id="createCategory" list="categoriesToutes"
                    placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
             <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
+          </div>
+          <div class="mb-3">
+            <label for="createBareme" class="form-label">Barème (fiche de notation, facultatif)</label>
+            <input type="file" class="form-control" name="bareme" id="createBareme">
           </div>
           <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à toutes les unités).</p>
           {% for c in candidats_prerequis %}
@@ -725,7 +754,7 @@
    modification (pk pré-rempli) d'une formation « gérée par le bord ». #}
 <div class="modal fade" id="proposerFormationBordModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form method="post" action="{% url 'formation-list' %}">
+    <form method="post" action="{% url 'formation-list' %}" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="hidden" name="action" value="proposer_formation_bord">
       <input type="hidden" name="pk" id="proposerBordPk">
@@ -757,6 +786,14 @@
                    placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
             <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
           </div>
+          <div class="mb-3">
+            <label for="proposerBordBareme" class="form-label">Barème (fiche de notation, facultatif)</label>
+            <input type="file" class="form-control" name="bareme" id="proposerBordBareme">
+            <div class="form-check mt-1" id="proposerBordRetirerBaremeWrap" style="display:none;">
+              <input class="form-check-input" type="checkbox" name="retirer_bareme" id="proposerBordRetirerBareme">
+              <label class="form-check-label small" for="proposerBordRetirerBareme">Retirer le barème actuellement associé</label>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -777,6 +814,11 @@
     document.getElementById('proposerBordDescription').value = b.getAttribute('data-description') || '';
     document.getElementById('proposerBordCategory').value = b.getAttribute('data-category') || '';
     document.getElementById('proposerBordValidityDays').value = b.getAttribute('data-validity') || '365';
+    document.getElementById('proposerBordBareme').value = '';
+    var retirerCase = document.getElementById('proposerBordRetirerBareme');
+    retirerCase.checked = false;
+    document.getElementById('proposerBordRetirerBaremeWrap').style.display =
+      (b.getAttribute('data-has-bareme') === '1') ? '' : 'none';
   });
 })();
 </script>
