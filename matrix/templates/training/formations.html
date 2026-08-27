@@ -13,6 +13,12 @@
         <i class="bi bi-plus-lg"></i> Nouvelle formation
       </button>
     {% endif %}
+    {% if peut_proposer_formation_bord %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
+              data-pk="" data-title="" data-description="" data-category="" data-validity="365">
+        <i class="bi bi-send-plus"></i> Proposer une formation (bord)
+      </button>
+    {% endif %}
     <a class="btn btn-primary" href="{% url 'formation-arbre-competences' %}">
       <i class="bi bi-diagram-3"></i> Arbre de compétences
     </a>
@@ -252,6 +258,68 @@
 </div>
 {% endif %}
 
+{% if formations_bord_a_valider %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-anchor"></i> Formations gérées par un bord à valider</h6>
+    {% for f in formations_bord_a_valider %}
+      <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ f.title }}</span>
+          <span class="small text-muted">
+            — proposée par {{ f.updated_by.get_full_name|default:f.updated_by.username }}
+            {% if f.category %}, catégorie « {{ f.category }} »{% endif %}
+          </span>
+          {% if f.description %}<div class="small">{{ f.description }}</div>{% endif %}
+        </div>
+        <div class="d-flex gap-1">
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="valider_formation_bord">
+            <input type="hidden" name="pk" value="{{ f.id }}">
+            <button type="submit" class="btn btn-primary btn-sm">Valider</button>
+          </form>
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="refuser_formation_bord">
+            <input type="hidden" name="pk" value="{{ f.id }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Refuser</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if peut_proposer_formation_bord and mes_propositions_bord %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-send-plus"></i> Mes propositions de formation (bord)</h6>
+    {% for f in mes_propositions_bord %}
+      <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ f.title }}</span>
+          {% if f.category %}<span class="small text-muted">— {{ f.category }}</span>{% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          {% if f.statut_validation == "WAITING_VALIDATION" %}
+            <span class="badge text-bg-secondary">En attente de validation</span>
+          {% else %}
+            <span class="badge text-bg-danger">Refusée</span>
+          {% endif %}
+          <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
+                  data-pk="{{ f.id }}" data-title="{{ f.title }}" data-description="{{ f.description }}"
+                  data-category="{{ f.category }}" data-validity="{{ f.validity_days }}">
+            <i class="bi bi-pencil"></i> Modifier et proposer à nouveau
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if peut_demander_places %}
 <div class="card mb-3">
   <div class="card-body">
@@ -326,6 +394,7 @@
           {% else %}
             <span class="badge text-bg-light border text-muted">Non catégorisée</span>
           {% endif %}
+          {% if f.gere_par_le_bord %}<span class="badge text-bg-info"><i class="bi bi-anchor"></i> Géré par le bord</span>{% endif %}
           <span class="badge badge-conforme">{{ f.nb_a_jour }} à jour</span>
           {% if f.nb_expires %}<span class="badge text-bg-danger">{{ f.nb_expires }} à renouveler</span>{% endif %}
         </div>
@@ -479,6 +548,14 @@
             <i class="bi bi-pencil"></i> Modifier
           </button>
         {% endif %}
+        {% if f.gere_par_le_bord and peut_proposer_formation_bord %}
+          <button type="button" class="btn btn-outline-primary btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
+                  data-pk="{{ f.id }}" data-title="{{ f.title }}" data-description="{{ f.description }}"
+                  data-category="{{ f.category }}" data-validity="{{ f.validity_days }}">
+            <i class="bi bi-anchor"></i> Modifier (bord)
+          </button>
+        {% endif %}
       </div>
     </div>
   {% endfor %}
@@ -620,6 +697,69 @@
     </form>
   </div>
 </div>
+{% endif %}
+
+{% if peut_proposer_formation_bord %}
+{# Circuit C — Circuit d'approbation chef de secteur -> chef de service :
+   une seule modale sert à la fois à la création (pk vide) et à la
+   modification (pk pré-rempli) d'une formation « gérée par le bord ». #}
+<div class="modal fade" id="proposerFormationBordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'formation-list' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="proposer_formation_bord">
+      <input type="hidden" name="pk" id="proposerBordPk">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Proposer une formation gérée par le bord</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">
+            Une formation « bord » reste invisible du catalogue tant qu'un chef de service de votre
+            périmètre ne l'a pas validée — vous retrouvez son état dans « Mes propositions de formation ».
+          </p>
+          <div class="mb-3">
+            <label for="proposerBordTitle" class="form-label">Titre</label>
+            <input type="text" class="form-control" name="title" id="proposerBordTitle" required>
+          </div>
+          <div class="mb-3">
+            <label for="proposerBordDescription" class="form-label">Description</label>
+            <textarea class="form-control" name="description" id="proposerBordDescription" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="proposerBordValidityDays" class="form-label">Durée de validité (jours)</label>
+            <input type="number" class="form-control" name="validity_days" id="proposerBordValidityDays" min="1" value="365">
+          </div>
+          <div class="mb-3">
+            <label for="proposerBordCategory" class="form-label">Catégorie (domaine métier)</label>
+            <input type="text" class="form-control" name="category" id="proposerBordCategory" list="categoriesToutes"
+                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
+            <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Proposer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var modal = document.getElementById('proposerFormationBordModal');
+  if (!modal) return;
+  modal.addEventListener('show.bs.modal', function(event){
+    var b = event.relatedTarget;
+    document.getElementById('proposerBordPk').value = b.getAttribute('data-pk') || '';
+    document.getElementById('proposerBordTitle').value = b.getAttribute('data-title') || '';
+    document.getElementById('proposerBordDescription').value = b.getAttribute('data-description') || '';
+    document.getElementById('proposerBordCategory').value = b.getAttribute('data-category') || '';
+    document.getElementById('proposerBordValidityDays').value = b.getAttribute('data-validity') || '365';
+  });
+})();
+</script>
 {% endif %}
 
 {% if peut_valider %}

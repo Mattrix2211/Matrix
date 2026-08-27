@@ -16,8 +16,10 @@ from .models import (
 class TrainingCourseAdmin(admin.ModelAdmin):
     # Formation désormais globale (plus de "sector") : filtre/tri par
     # catégorie (domaine métier), seul regroupement encore pertinent.
-    list_display = ("title", "category", "validity_days")
-    list_filter = ("category",)
+    # gere_par_le_bord/statut_validation : Circuit C (approbation chef de
+    # secteur -> chef de service, cf. training/models.py).
+    list_display = ("title", "category", "validity_days", "gere_par_le_bord", "statut_validation")
+    list_filter = ("category", "gere_par_le_bord", "statut_validation")
     filter_horizontal = ("prerequisites",)
 
 @admin.register(ReferentFormation)

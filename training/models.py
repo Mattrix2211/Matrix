@@ -10,7 +10,7 @@ from org.models import Sector, Ship, Service, Section
 
 User = get_user_model()
 
-class TrainingCourse(TimeStampedModel):
+class TrainingCourse(TimeStampedModel, OwnedModel):
     """Formation : fiche UNIQUE et globale, partagée par tous les navires — décision
     produit confirmée (tâche Notion « Formation unique et portable entre navires »)
     pour que la qualification d'un marin le suive lors d'une mutation, sans qu'il
@@ -19,7 +19,12 @@ class TrainingCourse(TimeStampedModel):
     TrainingRequirement (quel navire EXIGE cette formation, système déjà existant,
     réutilisé tel quel) et ReferentFormation ci-dessous (qui est habilité à la
     VALIDER, par navire — un référent pour un navire donné ne l'est pas forcément
-    pour un autre navire proposant la même formation)."""
+    pour un autre navire proposant la même formation).
+
+    Étend désormais OwnedModel (created_by/updated_by) — jusqu'ici inutilisé sur
+    ce modèle — pour le Circuit C ci-dessous (gere_par_le_bord/statut_validation) :
+    `updated_by` trace TOUJOURS le dernier auteur d'une proposition (création ou
+    modification), utilisé pour le contrôle de périmètre à la validation."""
     title = models.CharField(max_length=255)
     # Domaine métier de la formation (ex. "Sécurité/Incendie", "Habilitation
     # électrique", "Levage"...) : texte libre saisi par le chef, pas de liste
@@ -34,6 +39,38 @@ class TrainingCourse(TimeStampedModel):
     # related_name="unlocks" : les formations que la validation de celle-ci débloque.
     prerequisites = models.ManyToManyField(
         "self", symmetrical=False, blank=True, related_name="unlocks"
+    )
+
+    # Circuit C — Circuit d'approbation chef de secteur -> chef de service
+    # (tâche Notion du même nom) : certaines formations sont administrées par
+    # les bords eux-mêmes (ex. formations internes propres à un navire)
+    # plutôt que par un organisme de formation externe. Booléen EXPLICITE
+    # plutôt qu'une déduction implicite depuis le secteur/l'unité rattachée
+    # (décision produit tranchée par l'utilisateur, commentaire Notion du
+    # 27/08/2026) — la formation reste une fiche GLOBALE (aucun rattachement
+    # à un navire précis, cf. docstring ci-dessus) : ce champ qualifie
+    # uniquement QUI en assure la gestion administrative, pas un rattachement
+    # organisationnel.
+    gere_par_le_bord = models.BooleanField(default=False, verbose_name="Gérée par un bord")
+
+    STATUT_VALIDATION_CHOICES = (
+        ("ACTIVE", "Active"),
+        ("WAITING_VALIDATION", "En attente de validation"),
+        ("REFUSED", "Refusée"),
+    )
+    # Même pattern d'état explicite que MaintenanceOccurrence.status =
+    # "WAITING_VALIDATION" (maintenance/models.py), réutilisé ici plutôt que
+    # d'inventer un nouveau mécanisme : une formation "gérée par le bord"
+    # proposée ou modifiée par un CHEF_SECTEUR (en dessous de CHEF_SERVICE)
+    # passe par cet état intermédiaire, invisible du catalogue habituel (cf.
+    # TrainingCourseListView.get_queryset) jusqu'à validation explicite d'un
+    # CHEF_SERVICE de son périmètre (ou supervision globale). Un CHEF_SERVICE+
+    # proposant directement reste ACTIVE sans passer par cet état : son
+    # propre rôle vaut déjà l'accord requis. Une formation gérée par un
+    # organisme (gere_par_le_bord=False) reste toujours ACTIVE, ce circuit ne
+    # la concerne pas.
+    statut_validation = models.CharField(
+        max_length=24, choices=STATUT_VALIDATION_CHOICES, default="ACTIVE",
     )
 
     def __str__(self):

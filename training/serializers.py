@@ -6,6 +6,18 @@ class TrainingCourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingCourse
         fields = "__all__"
+        # `gere_par_le_bord` et `statut_validation` sont exclusivement
+        # pilotés par le Circuit C (chef de secteur -> chef de service,
+        # training/web_views.py::TrainingCourseListView._proposer_formation_bord
+        # et suivants), qui applique un contrôle de périmètre organisationnel
+        # que l'API ne reproduit pas ici — les rendre en lecture seule évite
+        # qu'un utilisateur autorisé à écrire sur ce ViewSet (CHEF_SECTION+,
+        # cf. RolePermission.min_level_write) ne contourne ce circuit en
+        # posant directement statut_validation="ACTIVE" via l'API (faille
+        # signalée par le Tech Lead, tâche Notion Circuit C). Une formation
+        # créée via l'API reste donc toujours « organisme » (valeurs par
+        # défaut du modèle : gere_par_le_bord=False, statut_validation=ACTIVE).
+        read_only_fields = ["gere_par_le_bord", "statut_validation"]
 
 class ReferentFormationSerializer(serializers.ModelSerializer):
     class Meta:

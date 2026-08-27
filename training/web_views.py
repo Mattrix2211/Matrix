@@ -161,6 +161,106 @@ def _peut_gerer_brh(user):
     return user_role_level(user) >= NIVEAU_REQUIS_GESTION_BRH
 
 
+# Seuil de rôle requis pour proposer la création ou la modification d'une
+# formation « gérée par le bord » (Circuit C — Circuit d'approbation chef de
+# secteur -> chef de service) : CHEF_SECTEUR+, à ne pas confondre avec
+# NIVEAU_REQUIS_CREATION_FORMATION (ADMIN_NAVIRE+, INCHANGÉ) qui reste le seul
+# seuil de création d'une formation « organisme » classique.
+NIVEAU_REQUIS_PROPOSITION_FORMATION_BORD = RoleLevel.CHEF_SECTEUR
+
+
+def _peut_proposer_formation_bord(user):
+    return user_role_level(user) >= NIVEAU_REQUIS_PROPOSITION_FORMATION_BORD
+
+
+# Seuil de rôle à partir duquel une proposition de formation « bord » est
+# ACTIVE immédiatement, sans passer par l'état WAITING_VALIDATION (cf.
+# training/models.py::TrainingCourse.statut_validation) : le proposeur est
+# déjà au moins chef de service, son propre rôle vaut l'accord requis.
+NIVEAU_REQUIS_VALIDATION_FORMATION_BORD = RoleLevel.CHEF_SERVICE
+
+
+def peut_valider_proposition_bord(user, proposeur):
+    """Vrai si `user` peut valider/refuser une formation « gérée par le bord »
+    (Circuit C) proposée par `proposeur` : seuil générique CHEF_SERVICE+ ET
+    proposeur dans le périmètre organisationnel de l'appelant
+    (filtres_perimetre_marin, même principe que
+    _peut_valider_candidature_hierarchie pour le Circuit B ci-dessous,
+    appliqué ici au CHEF_SECTEUR proposeur plutôt qu'à un marin candidat) —
+    ou supervision globale (COMMANDANT+, même seuil que peut_valider_formation).
+
+    Nom public (sans préfixe `_`) car réutilisée telle quelle par
+    training/views.py (API REST) pour filtrer le queryset de
+    TrainingCourseViewSet — une formation WAITING_VALIDATION/REFUSED ne doit
+    être visible, via l'API comme via le web, qu'à son proposeur et à ses
+    validateurs compétents (cf. commentaire Tech Lead, tâche Notion Circuit C)."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        return True
+    if user_role_level(user) < NIVEAU_REQUIS_VALIDATION_FORMATION_BORD:
+        return False
+    if proposeur is None:
+        return False
+    q_perimetre = filtres_perimetre_marin(user)
+    if q_perimetre is None:
+        return True
+    return User.objects.filter(q_perimetre, pk=proposeur.pk).exists()
+
+
+def peut_modifier_formation_bord(user, course):
+    """Vrai si `user` peut modifier CETTE formation « bord » précise, déjà
+    existante (édition via _proposer_formation_bord, `pk` fourni dans le
+    POST) : le proposeur d'origine lui-même (course.updated_by — jamais
+    réécrit par la validation/le refus, cf. _valider_formation_bord et
+    _refuser_formation_bord qui ne touchent que statut_validation), un autre
+    marin dont le périmètre organisationnel couvre ce proposeur d'origine
+    (filtres_perimetre_marin, même principe que peut_valider_proposition_bord
+    ci-dessus), ou la supervision globale (COMMANDANT+).
+
+    Sans ce contrôle, un chef de secteur d'un AUTRE navire pourrait modifier
+    — donc faire disparaître le temps de la revalidation, du catalogue
+    général comme des prérequis et de l'arbre de compétences — une formation
+    bord hors de son périmètre (faille signalée par le Tech Lead, tâche
+    Notion Circuit C).
+
+    Nom public (sans préfixe `_`, comme peut_valider_proposition_bord
+    ci-dessus) car réutilisée telle quelle par training/views.py (API REST) :
+    le premier refus du Tech Lead portait sur la visibilité en lecture,
+    le second sur l'écriture (PATCH) — cette fonction couvre désormais les
+    deux entrées (web ET API) au même périmètre, sans dupliquer la règle."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        return True
+    proposeur_origine = course.updated_by
+    if proposeur_origine is None:
+        return False
+    if user.pk == proposeur_origine.pk:
+        return True
+    q_perimetre = filtres_perimetre_marin(user)
+    if q_perimetre is None:
+        return True
+    return User.objects.filter(q_perimetre, pk=proposeur_origine.pk).exists()
+
+
+def formation_bord_en_service(course):
+    """Vrai si une formation « bord » déjà ACTIVE est réellement utilisée en
+    production : au moins une validation enregistrée (TrainingRecord), une
+    session liée (TrainingSession), ou un rôle de prérequis pour une autre
+    formation (`unlocks`, related_name de TrainingCourse.prerequisites).
+
+    Dans ce cas, une modification en place (via _proposer_formation_bord côté
+    web OU via un PATCH/PUT côté API REST, cf. training/views.py) est
+    refusée : la formation redeviendrait invisible du catalogue général, des
+    prérequis et de l'arbre de compétences pour TOUS les navires l'ayant déjà
+    validée, le temps de la revalidation — sans rollback possible (faille
+    signalée par le Tech Lead, tâche Notion Circuit C). Une modification
+    substantielle d'une formation déjà utilisée doit alors passer par une
+    NOUVELLE formation proposée, pas par une mutation en place d'une fiche
+    dont d'autres dépendent déjà.
+
+    Nom public (sans préfixe `_`) pour la même raison que
+    peut_modifier_formation_bord ci-dessus."""
+    return course.records.exists() or course.sessions.exists() or course.unlocks.exists()
+
+
 def _utilisateurs_du_navire_q(ship):
     """Filtre les utilisateurs dont le profil couvre le navire donné, quel que
     soit le niveau de périmètre auquel leur profil est réellement rattaché
@@ -331,8 +431,15 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
     context_object_name = "formations"
 
     def get_queryset(self):
+        # Catalogue affiché = uniquement les formations ACTIVE (Circuit C —
+        # Circuit d'approbation chef de secteur -> chef de service) : une
+        # formation « gérée par le bord » proposée/modifiée par un chef de
+        # secteur, tant qu'elle est en attente de validation ou refusée,
+        # reste invisible ici pour tout le monde — elle n'apparaît que dans
+        # les sections dédiées « Mes propositions » / « À valider » ci-dessous
+        # (cf. get_context_data), jamais dans le catalogue général.
         qs = (
-            TrainingCourse.objects.all()
+            TrainingCourse.objects.filter(statut_validation="ACTIVE")
             .prefetch_related("prerequisites", "records", "records__user")
             .order_by("title")
         )
@@ -388,19 +495,23 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 .distinct()
             )
 
-        # Candidats prérequis : catalogue global (toutes les formations),
-        # l'exclusion de la formation elle-même étant faite côté client (JS,
-        # cf. formations.html) puisqu'une seule liste sert à toutes les cartes.
-        toutes_formations = list(TrainingCourse.objects.order_by("title"))
+        # Candidats prérequis : catalogue global des formations ACTIVE
+        # uniquement (une formation « bord » en attente de validation ou
+        # refusée ne peut pas encore servir de prérequis à une autre, cf.
+        # Circuit C), l'exclusion de la formation elle-même étant faite côté
+        # client (JS, cf. formations.html) puisqu'une seule liste sert à
+        # toutes les cartes.
+        toutes_formations = list(TrainingCourse.objects.filter(statut_validation="ACTIVE").order_by("title"))
         ctx["candidats_prerequis"] = toutes_formations
 
-        # Catégories déjà utilisées (toutes formations confondues) : sert à
+        # Catégories déjà utilisées (formations ACTIVE uniquement) : sert à
         # l'autocomplétion du champ catégorie (datalist HTML natif) pour
         # limiter les doublons/fautes de frappe sans imposer de liste fermée,
         # et au filtre déroulant en tête de page.
-        ctx["categories_existantes"] = sorted(
-            {c for c in TrainingCourse.objects.exclude(category="").values_list("category", flat=True)}
-        )
+        ctx["categories_existantes"] = sorted({
+            c for c in TrainingCourse.objects.filter(statut_validation="ACTIVE")
+            .exclude(category="").values_list("category", flat=True)
+        })
 
         # Candidats référents (ReferentFormation) : les utilisateurs visibles
         # sur le NAVIRE de l'appelant — un chef ne peut désigner de référent
@@ -563,6 +674,40 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             if peut_valider_formation(self.request.user, c.course, navire_courant)
         ]
 
+        # Circuit C — Circuit d'approbation chef de secteur -> chef de service
+        # (formations « gérées par le bord ») : un chef de secteur propose,
+        # invisible du catalogue général (get_queryset) tant qu'un chef de
+        # service de son périmètre (ou supervision globale) ne l'a pas
+        # validée — même pattern d'état explicite que WAITING_VALIDATION sur
+        # les occurrences de maintenance (maintenance/models.py).
+        ctx["peut_proposer_formation_bord"] = _peut_proposer_formation_bord(self.request.user)
+        if ctx["peut_proposer_formation_bord"]:
+            # Mes propres propositions (création ou modification), qu'elles
+            # soient encore en attente ou déjà refusées : permet au chef de
+            # secteur de suivre l'état de ce qu'il a soumis, et de reprendre
+            # une proposition refusée pour la corriger et la soumettre à
+            # nouveau (cf. _proposer_formation_bord).
+            ctx["mes_propositions_bord"] = list(
+                TrainingCourse.objects.filter(
+                    gere_par_le_bord=True,
+                    updated_by=self.request.user,
+                    statut_validation__in=["WAITING_VALIDATION", "REFUSED"],
+                ).order_by("-updated_at")
+            )
+        # Propositions à valider par l'appelant (CHEF_SERVICE+ du périmètre du
+        # proposeur, ou supervision globale) : même principe que
+        # candidatures_brh_a_traiter ci-dessus, filtrage Python sur l'autorité
+        # réelle après un premier filtre côté requête sur le statut.
+        propositions_en_attente = list(
+            TrainingCourse.objects.filter(
+                gere_par_le_bord=True, statut_validation="WAITING_VALIDATION",
+            ).select_related("updated_by")
+        )
+        ctx["formations_bord_a_valider"] = [
+            c for c in propositions_en_attente
+            if peut_valider_proposition_bord(self.request.user, c.updated_by)
+        ]
+
         # Objet date (pas de chaîne) : comparé tel quel à r.expires_at dans le
         # template pour le badge À jour/Expirée. Le rendu template d'un objet
         # date appelle str(), qui produit déjà le format ISO AAAA-MM-JJ attendu
@@ -608,7 +753,16 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             if not _peut_gerer_prerequis(request.user):
                 raise PermissionDenied
             pk = _entier_ou_none(request.POST.get("pk"))
-            course = TrainingCourse.objects.filter(pk=pk).first() if pk is not None else None
+            # Formation ACTIVE uniquement (correctif QA — Circuit C, gap
+            # supplémentaire trouvé dans le même esprit que les 4 signalés) :
+            # une formation « bord » en attente de validation ou refusée ne
+            # peut pas être éditée hors du circuit dédié
+            # (_proposer_formation_bord), même par un autre chef de section
+            # devinant son identifiant.
+            course = (
+                TrainingCourse.objects.filter(pk=pk, statut_validation="ACTIVE").first()
+                if pk is not None else None
+            )
             if course is None:
                 messages.error(request, "Formation introuvable.")
                 return redirect("formation-list")
@@ -689,6 +843,12 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             return self._selectionner_candidature(request)
         if action == "refuser_candidature_organisme":
             return self._refuser_candidature_organisme(request)
+        if action == "proposer_formation_bord":
+            return self._proposer_formation_bord(request)
+        if action == "valider_formation_bord":
+            return self._valider_formation_bord(request)
+        if action == "refuser_formation_bord":
+            return self._refuser_formation_bord(request)
         return redirect("formation-list")
 
     def _set_referent_navire(self, request):
@@ -944,7 +1104,14 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             messages.error(request, "Aucune unité rattachée à votre profil.")
             return redirect("formation-list")
         course_id = _entier_ou_none(request.POST.get("course_id"))
-        course = TrainingCourse.objects.filter(pk=course_id).first() if course_id is not None else None
+        # Formation ACTIVE uniquement (correctif QA — Circuit C) : une
+        # formation « bord » en attente de validation ou refusée reste
+        # invisible/inutilisable pour tout le monde sauf le proposeur/
+        # validateur concerné, même en devinant son identifiant.
+        course = (
+            TrainingCourse.objects.filter(pk=course_id, statut_validation="ACTIVE").first()
+            if course_id is not None else None
+        )
         if course is None:
             messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
@@ -990,6 +1157,16 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         )
         if demande is None:
             messages.error(request, "Demande introuvable.")
+            return redirect("formation-list")
+        # Revalidation du statut de la formation (correctif QA — Circuit C) :
+        # une formation « bord » peut être revalidée/refusée entre la
+        # DEMANDE (toujours ACTIVE à l'origine, cf. _demander_places) et
+        # cette ATTRIBUTION — tant qu'aucune session ne lui est encore
+        # rattachée, formation_bord_en_service ne bloque pas sa réédition.
+        # Ne jamais attribuer de place sur une formation qui n'est plus (ou
+        # pas encore) ACTIVE.
+        if demande.course.statut_validation != "ACTIVE":
+            messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
 
         navire_organisme = navire_de(request.user)
@@ -1151,7 +1328,14 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         doublon tant qu'une candidature précédente n'est pas allée à son
         terme, refus compris)."""
         course_id = _entier_ou_none(request.POST.get("course_id"))
-        course = TrainingCourse.objects.filter(pk=course_id).first() if course_id is not None else None
+        # Formation ACTIVE uniquement (correctif QA — Circuit C) : une
+        # formation « bord » en attente de validation ou refusée reste
+        # invisible/inutilisable pour tout le monde sauf le proposeur/
+        # validateur concerné, même en devinant son identifiant.
+        course = (
+            TrainingCourse.objects.filter(pk=course_id, statut_validation="ACTIVE").first()
+            if course_id is not None else None
+        )
         if course is None:
             messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
@@ -1357,6 +1541,156 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         messages.success(request, "Candidature refusée.")
         return redirect("formation-list")
 
+    def _proposer_formation_bord(self, request):
+        """Circuit C — un chef de secteur (CHEF_SECTEUR+) crée ou modifie une
+        formation « gérée par le bord » : les champs sont appliqués
+        immédiatement, mais la formation reste invisible du catalogue général
+        (statut_validation WAITING_VALIDATION, cf. get_queryset) tant qu'un
+        chef de service de son périmètre (ou supervision globale) ne l'a pas
+        validée — même pattern d'état explicite que WAITING_VALIDATION sur
+        les occurrences de maintenance (maintenance/models.py). Un
+        CHEF_SERVICE+ proposant directement n'a besoin d'aucune validation
+        supplémentaire : son propre rôle vaut déjà l'accord requis, la
+        formation est immédiatement ACTIVE (cf.
+        NIVEAU_REQUIS_VALIDATION_FORMATION_BORD).
+
+        La MODIFICATION d'une formation bord existante (pk fourni) est
+        toujours bornée au périmètre organisationnel de son proposeur
+        d'origine (peut_modifier_formation_bord) et refusée si la formation
+        est déjà ACTIVE et réellement en service (formation_bord_en_service)
+        — deux contrôles ajoutés suite au refus du Tech Lead sur la première
+        livraison de cette tâche (fuite inter-navire, absence de rollback),
+        et réutilisés à l'identique côté API REST (training/views.py) suite
+        au deuxième refus (même contrôle absent sur PATCH/PUT)."""
+        if not _peut_proposer_formation_bord(request.user):
+            raise PermissionDenied
+        titre = request.POST.get("title", "").strip()
+        if not titre:
+            messages.error(request, "Le titre est obligatoire.")
+            return redirect("formation-list")
+        validity_days_brut = request.POST.get("validity_days", "").strip()
+        validity_days = TrainingCourse._meta.get_field("validity_days").get_default()
+        if validity_days_brut:
+            try:
+                validity_days = int(validity_days_brut)
+                if validity_days <= 0:
+                    raise ValueError
+            except ValueError:
+                messages.error(request, "La durée de validité doit être un nombre de jours positif.")
+                return redirect("formation-list")
+
+        pk = _entier_ou_none(request.POST.get("pk"))
+        course = None
+        if pk is not None:
+            # Modification d'une formation bord existante uniquement — jamais
+            # une formation « organisme » (gere_par_le_bord=False), dont
+            # l'édition des champs cœur reste hors du périmètre de ce circuit.
+            course = TrainingCourse.objects.filter(pk=pk, gere_par_le_bord=True).first()
+            if course is None:
+                messages.error(request, "Formation introuvable, ou non gérée par un bord.")
+                return redirect("formation-list")
+            # Périmètre d'origine (issue Tech Lead n°2) : seul le proposeur
+            # d'origine, un marin dont le périmètre le couvre, ou la
+            # supervision globale peut modifier cette formation précise.
+            if not peut_modifier_formation_bord(request.user, course):
+                raise PermissionDenied
+            # Formation déjà en service (issue Tech Lead n°3) : pas de
+            # mutation en place d'une formation ACTIVE dont d'autres navires
+            # dépendent déjà (validations, sessions, prérequis) — la revalider
+            # la ferait disparaître partout sans possibilité de rollback.
+            # Choix retenu : exclusion plutôt que snapshot/rollback (option
+            # (b) du commentaire Tech Lead), une modification substantielle
+            # d'une formation déjà utilisée doit passer par une NOUVELLE
+            # formation proposée.
+            if course.statut_validation == "ACTIVE" and formation_bord_en_service(course):
+                messages.error(
+                    request,
+                    f"« {course.title} » est déjà active et utilisée (validations, sessions ou "
+                    "prérequis d'une autre formation) : proposez une nouvelle formation plutôt "
+                    "que de la modifier directement.",
+                )
+                return redirect("formation-list")
+        if course is None:
+            course = TrainingCourse()
+
+        statut_cible = (
+            "ACTIVE" if user_role_level(request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
+            else "WAITING_VALIDATION"
+        )
+        course.title = titre
+        course.description = request.POST.get("description", "").strip()
+        course.category = request.POST.get("category", "").strip()
+        course.validity_days = validity_days
+        course.gere_par_le_bord = True
+        course.statut_validation = statut_cible
+        if course.created_by_id is None:
+            course.created_by = request.user
+        course.updated_by = request.user
+        course.save()
+
+        if statut_cible == "WAITING_VALIDATION":
+            messages.success(
+                request,
+                f"Formation « {course.title} » proposée, en attente de validation du chef de service.",
+            )
+        else:
+            messages.success(request, f"Formation « {course.title} » enregistrée et active.")
+        return redirect("formation-list")
+
+    def _valider_formation_bord(self, request):
+        """Validation, par un chef de service (CHEF_SERVICE+) du même
+        périmètre que le proposeur, ou par supervision globale (COMMANDANT+),
+        d'une formation « bord » en attente — fait passer la formation en
+        ACTIVE, désormais visible dans le catalogue (cf.
+        _peut_valider_proposition_bord)."""
+        pk = _entier_ou_none(request.POST.get("pk"))
+        course = (
+            TrainingCourse.objects.filter(pk=pk, statut_validation="WAITING_VALIDATION")
+            .select_related("updated_by").first()
+            if pk is not None else None
+        )
+        if course is None:
+            messages.error(request, "Proposition de formation introuvable ou déjà traitée.")
+            return redirect("formation-list")
+        if not peut_valider_proposition_bord(request.user, course.updated_by):
+            raise PermissionDenied
+        course.statut_validation = "ACTIVE"
+        course.save(update_fields=["statut_validation"])
+        if course.updated_by_id:
+            Notification.objects.create(
+                user_id=course.updated_by_id,
+                verb=f"Votre proposition de formation « {course.title} » a été validée par le chef de service.",
+            )
+        messages.success(request, f"Formation « {course.title} » validée et désormais active.")
+        return redirect("formation-list")
+
+    def _refuser_formation_bord(self, request):
+        """Refus par le chef de service (même autorisation que la
+        validation, cf. _valider_formation_bord) : la formation reste hors du
+        catalogue (statut REFUSED), le chef de secteur pouvant la reprendre
+        et la soumettre à nouveau (cf. _proposer_formation_bord)."""
+        pk = _entier_ou_none(request.POST.get("pk"))
+        course = (
+            TrainingCourse.objects.filter(pk=pk, statut_validation="WAITING_VALIDATION")
+            .select_related("updated_by").first()
+            if pk is not None else None
+        )
+        if course is None:
+            messages.error(request, "Proposition de formation introuvable ou déjà traitée.")
+            return redirect("formation-list")
+        if not peut_valider_proposition_bord(request.user, course.updated_by):
+            raise PermissionDenied
+        course.statut_validation = "REFUSED"
+        course.save(update_fields=["statut_validation"])
+        if course.updated_by_id:
+            Notification.objects.create(
+                user_id=course.updated_by_id,
+                level="warning",
+                verb=f"Votre proposition de formation « {course.title} » a été refusée par le chef de service.",
+            )
+        messages.success(request, "Proposition de formation refusée.")
+        return redirect("formation-list")
+
 
 class ValiderFormationView(LoginRequiredMixin, View):
     """Crée un TrainingRecord : un chef valide qu'un marin a suivi/réussi une
@@ -1379,7 +1713,11 @@ class ValiderFormationView(LoginRequiredMixin, View):
             return redirect("formation-list")
 
         try:
-            course = TrainingCourse.objects.get(pk=course_id)
+            # Formation ACTIVE uniquement (correctif QA — Circuit C) : une
+            # formation « bord » en attente de validation ou refusée reste
+            # invisible/inutilisable pour tout le monde sauf le proposeur/
+            # validateur concerné, même en devinant son identifiant.
+            course = TrainingCourse.objects.get(pk=course_id, statut_validation="ACTIVE")
         except TrainingCourse.DoesNotExist:
             messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
@@ -1455,8 +1793,13 @@ class CompetencyTreeView(LoginRequiredMixin, View):
     template_name = "training/arbre_competences.html"
 
     def get(self, request, *args, **kwargs):
+        # Formations ACTIVE uniquement (Circuit C) : une formation « bord »
+        # en attente de validation ou refusée n'apparaît pas encore dans
+        # l'arbre de compétences, même principe que le catalogue général
+        # (cf. TrainingCourseListView.get_queryset).
         formations = list(
-            TrainingCourse.objects.all().prefetch_related("prerequisites").order_by("title")
+            TrainingCourse.objects.filter(statut_validation="ACTIVE")
+            .prefetch_related("prerequisites").order_by("title")
         )
         carte = calculer_carte_competences(formations, request.user)
         categories = regrouper_par_categorie(carte)

@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from rest_framework import viewsets, permissions
+from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied
 from rest_framework.permissions import SAFE_METHODS
 from .models import (
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
@@ -17,6 +19,23 @@ from .serializers import (
     TrainingRequirementSerializer,
     TrainingSessionSerializer,
     TrainingRecordSerializer,
+)
+# Réutilise le contrôle de périmètre du Circuit C (chef de secteur -> chef de
+# service), déjà correct côté web — jamais recréé ici (cf. CLAUDE.md,
+# principe « ne jamais recréer un système déjà existant »). Import direct de
+# training.web_views : aucun cycle, web_views.py n'importe jamais views.py.
+# peut_modifier_formation_bord/formation_bord_en_service/
+# NIVEAU_REQUIS_VALIDATION_FORMATION_BORD : mêmes garde-fous que
+# TrainingCourseListView._proposer_formation_bord, appliqués ici à
+# TrainingCourseViewSet.perform_update/perform_destroy suite au deuxième
+# refus du Tech Lead (tâche Notion Circuit C) — un PATCH/PUT/DELETE sur une
+# formation « bord » via l'API contournait jusqu'ici totalement ces
+# contrôles, pourtant déjà corrects côté web.
+from .web_views import (
+    formation_bord_en_service,
+    NIVEAU_REQUIS_VALIDATION_FORMATION_BORD,
+    peut_modifier_formation_bord,
+    peut_valider_proposition_bord,
 )
 from matrix.core.permissions import RolePermission
 from matrix.core.roles import user_role_level
@@ -38,12 +57,99 @@ class DefaultPermission(permissions.IsAuthenticated):
 
 class TrainingCourseViewSet(viewsets.ModelViewSet):
     # Formation désormais globale (aucun rattachement navire) : aucun filtre de
-    # périmètre à appliquer, le catalogue est visible par tout utilisateur
+    # périmètre à appliquer au catalogue ACTIVE, visible par tout utilisateur
     # connecté (cf. peut_valider_formation pour l'autorisation d'écriture sur
-    # les enregistrements de validation, seul point réellement sensible).
+    # les enregistrements de validation, seul point réellement sensible). En
+    # revanche, une formation « bord » encore WAITING_VALIDATION/REFUSED
+    # (Circuit C) reste hors de get_queryset ci-dessous pour tout marin
+    # normal — voir aussi TrainingCourseSerializer.Meta.read_only_fields pour
+    # l'écriture de gere_par_le_bord/statut_validation. `queryset` reste
+    # déclaré ici (non filtré) uniquement pour que le routeur DRF puisse en
+    # déduire le `basename` : la requête réelle passe toujours par
+    # get_queryset ci-dessous, jamais par cet attribut directement.
     queryset = TrainingCourse.objects.all()
     serializer_class = TrainingCourseSerializer
     permission_classes = [RolePermission]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return TrainingCourse.objects.none()
+        base = TrainingCourse.objects.all()
+        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+            return base
+        # Mêmes deux ensembles complémentaires que
+        # TrainingCourseListView.get_context_data (mes_propositions_bord /
+        # formations_bord_a_valider) côté web, transposés à l'API : le
+        # catalogue ACTIVE, PLUS les propositions du marin connecté
+        # (peu importe leur statut), PLUS les propositions que ce marin a
+        # autorité de valider (WAITING_VALIDATION uniquement — une formation
+        # déjà REFUSED ne reste visible qu'à son propre proposeur).
+        en_attente_ou_refusees = base.exclude(statut_validation="ACTIVE")
+        mes_propositions_ids = list(
+            en_attente_ou_refusees.filter(updated_by=user).values_list("pk", flat=True)
+        )
+        propositions_en_attente = (
+            en_attente_ou_refusees.filter(gere_par_le_bord=True, statut_validation="WAITING_VALIDATION")
+            .select_related("updated_by")
+        )
+        a_valider_ids = [
+            c.pk for c in propositions_en_attente
+            if peut_valider_proposition_bord(user, c.updated_by)
+        ]
+        return base.filter(
+            Q(statut_validation="ACTIVE") | Q(pk__in=mes_propositions_ids) | Q(pk__in=a_valider_ids)
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        if not instance.gere_par_le_bord:
+            # Formation « organisme » classique : aucun garde-fou du Circuit C
+            # ne s'applique, seul le seuil générique RolePermission compte.
+            serializer.save()
+            return
+        # Périmètre organisationnel du proposeur d'origine (deuxième refus du
+        # Tech Lead, tâche Notion Circuit C) : un CHEF_SECTION satisfait le
+        # seuil d'écriture générique du ViewSet (RolePermission.min_level_write)
+        # sans que cela lui donne autorité sur une formation bord hors de son
+        # périmètre — même contrôle, mot pour mot, que côté web.
+        if not peut_modifier_formation_bord(self.request.user, instance):
+            raise ApiPermissionDenied(
+                "Vous n'avez pas l'autorité pour modifier cette formation gérée par un "
+                "bord : elle est hors de votre périmètre."
+            )
+        # Formation déjà en service (validations, sessions, ou prérequis
+        # d'une autre formation) : pas de mutation en place, même règle que
+        # TrainingCourseListView._proposer_formation_bord.
+        if instance.statut_validation == "ACTIVE" and formation_bord_en_service(instance):
+            raise ApiPermissionDenied(
+                f"« {instance.title} » est déjà active et utilisée (validations, sessions ou "
+                "prérequis d'une autre formation) : proposez une nouvelle formation plutôt "
+                "que de la modifier directement."
+            )
+        # Une modification en place d'une formation bord pas encore en
+        # service repasse par le même circuit de (re)validation que côté web :
+        # ACTIVE immédiatement si l'auteur de LA MODIFICATION est déjà
+        # CHEF_SERVICE+ de son périmètre (son propre rôle vaut l'accord
+        # requis, cf. peut_modifier_formation_bord ci-dessus qui l'a déjà
+        # vérifié), WAITING_VALIDATION sinon — jamais silencieusement ACTIVE
+        # (issue signalée par le Tech Lead en complément du contrôle
+        # d'accès). `gere_par_le_bord`/`statut_validation` restent en lecture
+        # seule côté serializer (Meta.read_only_fields) : ce sont ces kwargs
+        # explicites de .save() qui les pilotent, jamais le payload posté.
+        statut_cible = (
+            "ACTIVE" if user_role_level(self.request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
+            else "WAITING_VALIDATION"
+        )
+        serializer.save(statut_validation=statut_cible, updated_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.gere_par_le_bord and not peut_modifier_formation_bord(self.request.user, instance):
+            raise ApiPermissionDenied(
+                "Vous n'avez pas l'autorité pour supprimer cette formation gérée par un "
+                "bord : elle est hors de votre périmètre."
+            )
+        instance.delete()
 
 class ReferentFormationPermission(RolePermission):
     """Désignation d'un référent (ReferentFormation) soumise au seuil générique
