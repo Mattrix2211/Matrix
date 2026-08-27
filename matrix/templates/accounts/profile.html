@@ -67,4 +67,33 @@
   {% endif %}
   </div>
 </div>
+
+<div class="card mt-4">
+  <div class="card-header">Mes candidatures en cours</div>
+  <div class="card-body">
+  {% if mes_candidatures %}
+  <ul class="list-group list-group-flush">
+    {% for c in mes_candidatures %}
+    <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+      <div>
+        <span class="fw-semibold">{{ c.course.title }}</span>
+        <div class="small text-muted font-mono">Déposée le {{ c.created_at|date:"d/m/Y" }}</div>
+      </div>
+      {% if c.statut == "PENDING_APPROVAL" %}
+        <span class="badge text-bg-secondary align-self-center">En attente de validation</span>
+      {% elif c.statut == "TRANSMITTED" %}
+        <span class="badge text-bg-info align-self-center">Transmise à l'organisme</span>
+      {% elif c.statut == "SELECTED" %}
+        <span class="badge badge-conforme align-self-center">Sélectionnée</span>
+      {% else %}
+        <span class="badge text-bg-danger align-self-center">{{ c.get_statut_display }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted mb-0">Aucune candidature à un stage n'est actuellement en cours.</p>
+  {% endif %}
+  </div>
+</div>
 {% endblock %}

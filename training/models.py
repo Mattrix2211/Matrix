@@ -379,6 +379,94 @@ class PlaceAffectee(TimeStampedModel):
         return f"{self.marin} — {self.demande_place}"
 
 
+class PersonnelBRH(TimeStampedModel):
+    """Personnel désigné « BRH » (Bureau des Ressources Humaines), habilité à
+    valider une candidature individuelle à un stage (Circuit B, cf.
+    CandidatureFormation ci-dessous), POUR UN NAVIRE DONNÉ. Plusieurs
+    personnes BRH sont possibles pour un même navire (FK simple répétable,
+    PAS de OneToOneField sur Ship, PAS de ManyToMany) — même pattern que
+    ReferentFormation ci-dessus, à ne pas confondre avec
+    ReferentFormationNavire (référent unique). Désignation réservée à
+    COMMANDANT+ (même seuil que la désignation du référent formation navire,
+    cf. training/web_views.py::_peut_gerer_referent_navire)."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="personnels_brh")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="navires_brh")
+
+    class Meta:
+        verbose_name = "Personnel BRH"
+        verbose_name_plural = "Personnels BRH"
+        unique_together = ("ship", "user")
+
+    def __str__(self):
+        return f"{self.user} — BRH ({self.ship})"
+
+
+class CandidatureFormation(TimeStampedModel, OwnedModel):
+    """Circuit B — Candidature individuelle d'un marin à un stage (à la
+    différence du Circuit A ci-dessus, DemandePlace, formulé par un chef pour
+    tout son bord sur une formation à quota type TP Sécurité) : le marin
+    postule lui-même (`marin`, `created_by`) sur n'importe quelle formation
+    du catalogue.
+
+    Sélection ASCENDANTE à deux validations indépendantes, dans n'importe
+    quel ordre : sa hiérarchie (CHEF_SECTION+ dont le périmètre couvre le
+    marin, cf. filtres_perimetre_marin) ET un personnel BRH désigné pour son
+    navire (PersonnelBRH ci-dessus). Dès que les DEUX sont réunies, le statut
+    passe automatiquement à TRANSMITTED (cf. transmettre_si_double_validation
+    ci-dessous, appelée explicitement après chaque validation — même principe
+    que training/web_views.py::_attribuer_places qui pose statut="GRANTED"
+    explicitement) : aucune action manuelle de transmission n'existe.
+
+    L'organisme de formation (référent de la formation POUR SON PROPRE
+    NAVIRE, ou COMMANDANT+, cf. peut_valider_formation, réutilisé tel quel)
+    sélectionne ou refuse ensuite le marin. Si sélectionné et le stage a
+    effectivement lieu, la réussite est actée par un TrainingRecord classique
+    (ValiderFormationView existante, comme pour le Circuit A) : pas de statut
+    dédié supplémentaire après SELECTED — décision produit explicite, pas de
+    champ motif de refus non plus."""
+
+    STATUS = (
+        ("PENDING_APPROVAL", "En attente de validation"),
+        ("TRANSMITTED", "Transmise à l'organisme"),
+        ("SELECTED", "Sélectionnée"),
+        ("REJECTED_HIERARCHIE", "Refusée par la hiérarchie"),
+        ("REJECTED_BRH", "Refusée par le BRH"),
+        ("REJECTED_ORGANISME", "Refusée par l'organisme"),
+    )
+    course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="candidatures")
+    marin = models.ForeignKey(User, on_delete=models.CASCADE, related_name="candidatures_formation")
+    statut = models.CharField(max_length=24, choices=STATUS, default="PENDING_APPROVAL")
+    hierarchie_validee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="candidatures_validees_hierarchie"
+    )
+    date_validation_hierarchie = models.DateTimeField(null=True, blank=True)
+    brh_validee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="candidatures_validees_brh"
+    )
+    date_validation_brh = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Candidature à une formation"
+        verbose_name_plural = "Candidatures à une formation"
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.marin} — {self.course} ({self.get_statut_display()})"
+
+    def transmettre_si_double_validation(self):
+        """Fait passer automatiquement le statut à TRANSMITTED dès que les
+        deux validations (hiérarchie ET BRH) sont réunies, quel que soit
+        l'ordre dans lequel elles ont été posées — à appeler explicitement
+        après chaque validation (hiérarchie ou BRH), jamais avant qu'une
+        seule des deux ne soit encore renseignée. N'agit que si la
+        candidature est encore PENDING_APPROVAL : ne réécrit jamais un statut
+        déjà avancé (SELECTED) ni un refus déjà posé."""
+        if self.statut == "PENDING_APPROVAL" and self.hierarchie_validee_par_id and self.brh_validee_par_id:
+            self.statut = "TRANSMITTED"
+            self.save(update_fields=["statut"])
+
+
 class TrainingRecord(TimeStampedModel, OwnedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="training_records")
     course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="records")

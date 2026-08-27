@@ -1,6 +1,8 @@
 from django.contrib import admin
 from .models import (
+    CandidatureFormation,
     DemandePlace,
+    PersonnelBRH,
     PlaceAffectee,
     ReferentFormation,
     TrainingCourse,
@@ -50,3 +52,13 @@ class DemandePlaceAdmin(admin.ModelAdmin):
 @admin.register(PlaceAffectee)
 class PlaceAffecteeAdmin(admin.ModelAdmin):
     list_display = ("demande_place", "marin")
+
+@admin.register(PersonnelBRH)
+class PersonnelBRHAdmin(admin.ModelAdmin):
+    list_display = ("ship", "user")
+    list_filter = ("ship",)
+
+@admin.register(CandidatureFormation)
+class CandidatureFormationAdmin(admin.ModelAdmin):
+    list_display = ("marin", "course", "statut", "hierarchie_validee_par", "brh_validee_par")
+    list_filter = ("statut",)

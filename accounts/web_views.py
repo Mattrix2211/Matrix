@@ -7,6 +7,7 @@ from django.core.exceptions import PermissionDenied
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
+from training.models import CandidatureFormation
 from training.services import qualifications_validees_de
 
 
@@ -416,7 +417,9 @@ class MonProfilView(LoginRequiredMixin, TemplateView):
     corrigée. Cette page se contente donc d'afficher ces informations, et y
     ajoute la liste des qualifications (formations) déjà validées du marin,
     en réutilisant telle quelle la requête de la carte « Mes qualifications »
-    du tableau de bord (training/services.py::qualifications_validees_de)."""
+    du tableau de bord (training/services.py::qualifications_validees_de),
+    ainsi que le suivi de ses candidatures individuelles à un stage (Circuit
+    B — training/models.py::CandidatureFormation) en cours de traitement."""
 
     template_name = "accounts/profile.html"
 
@@ -424,6 +427,9 @@ class MonProfilView(LoginRequiredMixin, TemplateView):
         contexte = super().get_context_data(**kwargs)
         contexte["profil"] = getattr(self.request.user, "profile", None)
         contexte["mes_qualifications"] = qualifications_validees_de(self.request.user)
+        contexte["mes_candidatures"] = list(
+            CandidatureFormation.objects.filter(marin=self.request.user).select_related("course")
+        )
         return contexte
 
 

@@ -18,7 +18,9 @@ from org.models import Ship
 
 from .models import (
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
+    CandidatureFormation,
     DemandePlace,
+    PersonnelBRH,
     PlaceAffectee,
     ReferentFormation,
     ReferentFormationNavire,
@@ -112,6 +114,51 @@ NIVEAU_REQUIS_DEMANDE_PLACES = RoleLevel.CHEF_SECTION
 
 def _peut_demander_places(user):
     return user_role_level(user) >= NIVEAU_REQUIS_DEMANDE_PLACES
+
+
+# Seuil de rôle requis pour valider une CandidatureFormation (Circuit B) en
+# tant que hiérarchie du candidat : même niveau que NIVEAU_REQUIS_VALIDATION,
+# TOUJOURS borné par filtres_perimetre_marin sur le marin candidat (cf.
+# _peut_valider_candidature_hierarchie ci-dessous) — un chef de rang
+# supérieur mais dont le marin candidat est hors périmètre reste refusé.
+NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE = RoleLevel.CHEF_SECTION
+
+
+def _peut_valider_candidature_hierarchie(user, marin):
+    """Vrai si `user` peut valider/refuser, en tant que hiérarchie, la
+    candidature individuelle (Circuit B) du `marin` donné : seuil générique
+    CHEF_SECTION+ ET marin dans le périmètre organisationnel de l'appelant
+    (filtres_perimetre_marin, même fonction que pour le Circuit A)."""
+    if user_role_level(user) < NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE:
+        return False
+    q_perimetre = filtres_perimetre_marin(user)
+    if q_perimetre is None:
+        return True
+    return User.objects.filter(q_perimetre, pk=marin.pk).exists()
+
+
+def _peut_valider_candidature_brh(user, ship):
+    """Vrai si `user` peut valider/refuser, en tant que BRH, une candidature
+    individuelle (Circuit B) d'un marin rattaché au navire `ship` : désigné
+    PersonnelBRH POUR CE NAVIRE, ou supervision globale (COMMANDANT+, même
+    seuil que peut_valider_formation). `ship` est toujours celui du marin
+    candidat (navire_de), jamais celui de l'appelant."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        return True
+    if ship is None:
+        return False
+    return PersonnelBRH.objects.filter(ship=ship, user=user).exists()
+
+
+# Seuil de rôle requis pour désigner/retirer un personnel BRH d'un navire
+# (PersonnelBRH, training/models.py) : même niveau que la désignation du
+# référent formation du navire (ReferentFormationNavire) — décision produit
+# explicite, cf. tâche Notion « Circuit B — Candidature individuelle ».
+NIVEAU_REQUIS_GESTION_BRH = NIVEAU_REQUIS_GESTION_REFERENT_NAVIRE
+
+
+def _peut_gerer_brh(user):
+    return user_role_level(user) >= NIVEAU_REQUIS_GESTION_BRH
 
 
 def _utilisateurs_du_navire_q(ship):
@@ -208,6 +255,19 @@ def _marins_perimetre_demandeur(user):
     if q is None:
         return marins.order_by("last_name", "first_name", "username")
     return marins.filter(q).order_by("last_name", "first_name", "username")
+
+
+def _marins_perimetre_hierarchie(user):
+    """Marins dont une candidature individuelle (Circuit B) est validable par
+    `user` en tant que hiérarchie : périmètre organisationnel habituel
+    (filtres_perimetre_marin), même principe que _marins_perimetre_demandeur
+    ci-dessus — utilisé pour restreindre, côté requête, les candidatures
+    proposées à un chef sans devoir tester marin par marin en Python."""
+    marins = User.objects.filter(is_active=True)
+    q = filtres_perimetre_marin(user)
+    if q is None:
+        return marins
+    return marins.filter(q)
 
 
 def _entier_ou_none(valeur):
@@ -312,6 +372,22 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 .distinct()
             )
 
+        # Personnels BRH du navire (Circuit B — Candidature individuelle) :
+        # géré ici pour le NAVIRE DE L'APPELANT uniquement, même principe que
+        # le référent formation du navire ci-dessus, mais PLUSIEURS personnes
+        # possibles par navire (PersonnelBRH, FK simple répétable).
+        ctx["peut_gerer_brh"] = _peut_gerer_brh(self.request.user)
+        if ctx["peut_gerer_brh"] and navire_courant is not None:
+            ctx["personnels_brh"] = list(
+                PersonnelBRH.objects.filter(ship=navire_courant).select_related("user")
+            )
+            ctx["candidats_brh"] = (
+                User.objects.filter(_utilisateurs_du_navire_q(navire_courant), is_active=True)
+                .select_related("profile")
+                .order_by("last_name", "first_name", "username")
+                .distinct()
+            )
+
         # Candidats prérequis : catalogue global (toutes les formations),
         # l'exclusion de la formation elle-même étant faite côté client (JS,
         # cf. formations.html) puisqu'une seule liste sert à toutes les cartes.
@@ -375,9 +451,22 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         # dernières validations par formation, affichés directement sur
         # chaque carte sans navigation supplémentaire.
         aujourdhui = timezone.localdate()
+        # Circuit B — Candidature individuelle : la candidature la PLUS
+        # RÉCENTE du marin connecté pour chaque formation, affichée sur la
+        # carte à la place du bouton « Candidater » tant qu'elle est active
+        # (cf. _candidater_formation, qui bloque un nouveau dépôt tant que la
+        # précédente n'est pas allée à son terme). Le queryset est trié du
+        # plus récent au plus ancien (Meta.ordering de CandidatureFormation) :
+        # setdefault garde la PREMIÈRE occurrence rencontrée par formation,
+        # donc la plus récente, plutôt que la dernière (ce que ferait un
+        # simple dict comprehension, qui écraserait avec la plus ancienne).
+        mes_candidatures_par_course = {}
+        for c in CandidatureFormation.objects.filter(marin=self.request.user).select_related("course"):
+            mes_candidatures_par_course.setdefault(c.course_id, c)
         for f in formations:
             f.sessions_a_venir = sessions_par_formation.get(f.id, [])
             f.mes_referents = referents_par_formation.get(f.id, [])
+            f.ma_candidature = mes_candidatures_par_course.get(f.id)
             records = list(f.records.all())
             f.nb_a_jour = sum(1 for r in records if r.expires_at >= aujourdhui)
             f.nb_expires = sum(1 for r in records if r.expires_at < aujourdhui)
@@ -432,6 +521,47 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 TrainingSession.objects.filter(course=d.course, status="PLANNED").order_by("scheduled_at")
             )
         ctx["demandes_a_traiter"] = demandes_a_traiter
+
+        # Circuit B — Candidature individuelle : trois files de traitement
+        # distinctes, une par niveau de validation (hiérarchie, BRH,
+        # organisme), chacune filtrée selon l'autorité réelle de l'appelant
+        # (même principe que demandes_a_traiter ci-dessus pour le Circuit A).
+        if user_role_level(self.request.user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE:
+            marins_perimetre_ids = _marins_perimetre_hierarchie(self.request.user).values_list("pk", flat=True)
+            ctx["candidatures_hierarchie_a_traiter"] = list(
+                CandidatureFormation.objects.filter(
+                    statut="PENDING_APPROVAL",
+                    hierarchie_validee_par__isnull=True,
+                    marin_id__in=marins_perimetre_ids,
+                ).select_related("course", "marin", "marin__profile")
+            )
+        else:
+            ctx["candidatures_hierarchie_a_traiter"] = []
+
+        candidatures_brh_en_attente = list(
+            CandidatureFormation.objects.filter(
+                statut="PENDING_APPROVAL", brh_validee_par__isnull=True,
+            ).select_related("course", "marin", "marin__profile")
+        )
+        ctx["candidatures_brh_a_traiter"] = [
+            c for c in candidatures_brh_en_attente
+            if _peut_valider_candidature_brh(self.request.user, navire_de(c.marin))
+        ]
+
+        # Autorisation calquée sur le Circuit A (demandes_a_traiter
+        # ci-dessus) : navire de référence = celui de L'ORGANISME (l'appelant
+        # lui-même, navire_courant, résolu plus haut), PAS celui de chaque
+        # marin candidat — un référent d'école traite les candidatures reçues
+        # par son propre établissement, quel que soit le bord d'origine du
+        # candidat.
+        candidatures_transmises = list(
+            CandidatureFormation.objects.filter(statut="TRANSMITTED")
+            .select_related("course", "marin", "marin__profile")
+        )
+        ctx["candidatures_organisme_a_traiter"] = [
+            c for c in candidatures_transmises
+            if peut_valider_formation(self.request.user, c.course, navire_courant)
+        ]
 
         # Objet date (pas de chaîne) : comparé tel quel à r.expires_at dans le
         # template pour le badge À jour/Expirée. Le rendu template d'un objet
@@ -541,6 +671,24 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             return self._set_referent_navire(request)
         if action == "retirer_referent_navire":
             return self._retirer_referent_navire(request)
+        if action == "set_brh":
+            return self._set_brh(request)
+        if action == "retirer_brh":
+            return self._retirer_brh(request)
+        if action == "candidater_formation":
+            return self._candidater_formation(request)
+        if action == "valider_candidature_hierarchie":
+            return self._valider_candidature_hierarchie(request)
+        if action == "refuser_candidature_hierarchie":
+            return self._refuser_candidature_hierarchie(request)
+        if action == "valider_candidature_brh":
+            return self._valider_candidature_brh(request)
+        if action == "refuser_candidature_brh":
+            return self._refuser_candidature_brh(request)
+        if action == "selectionner_candidature":
+            return self._selectionner_candidature(request)
+        if action == "refuser_candidature_organisme":
+            return self._refuser_candidature_organisme(request)
         return redirect("formation-list")
 
     def _set_referent_navire(self, request):
@@ -588,6 +736,60 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         if ship_id:
             ReferentFormationNavire.objects.filter(ship_id=ship_id).delete()
         messages.success(request, "Référent formation de l'unité retiré.")
+        return redirect("formation-list")
+
+    def _set_brh(self, request):
+        """Désigne un personnel BRH supplémentaire pour le navire de
+        l'appelant (Circuit B — Candidature individuelle) : PLUSIEURS
+        personnes BRH sont possibles pour un même navire, contrairement au
+        référent formation du navire ci-dessus (ReferentFormationNavire,
+        unique)."""
+        if not _peut_gerer_brh(request.user):
+            raise PermissionDenied
+        ship_id = ship_id_for_user(request.user)
+        navire = Ship.objects.filter(pk=ship_id).first() if ship_id else None
+        if navire is None:
+            messages.error(request, "Aucune unité rattachée à votre profil.")
+            return redirect("formation-list")
+        # Ne fait pas confiance au formulaire : seuls les utilisateurs
+        # visibles sur ce navire peuvent être désignés (même principe que
+        # _set_referent_navire ci-dessus).
+        candidat_id = _entier_ou_none(request.POST.get("brh_id"))
+        candidat = (
+            User.objects.filter(_utilisateurs_du_navire_q(navire), pk=candidat_id).first()
+            if candidat_id is not None else None
+        )
+        if candidat is None:
+            messages.error(request, "Marin introuvable dans votre unité.")
+            return redirect("formation-list")
+        _, cree = PersonnelBRH.objects.get_or_create(ship=navire, user=candidat)
+        if not cree:
+            messages.info(
+                request,
+                f"{candidat.get_full_name() or candidat.username} est déjà personnel BRH de l'unité {navire.name}.",
+            )
+            return redirect("formation-list")
+        if candidat != request.user:
+            Notification.objects.create(
+                user=candidat,
+                verb=f"Vous avez été désigné personnel BRH de l'unité {navire.name}.",
+            )
+        messages.success(
+            request,
+            f"{candidat.get_full_name() or candidat.username} est désormais personnel BRH de l'unité {navire.name}.",
+        )
+        return redirect("formation-list")
+
+    def _retirer_brh(self, request):
+        """Retire un personnel BRH précis (parmi plusieurs possibles) du
+        navire de l'appelant."""
+        if not _peut_gerer_brh(request.user):
+            raise PermissionDenied
+        brh_id = _entier_ou_none(request.POST.get("brh_id"))
+        ship_id = ship_id_for_user(request.user)
+        if brh_id is not None and ship_id:
+            PersonnelBRH.objects.filter(pk=brh_id, ship_id=ship_id).delete()
+        messages.success(request, "Personnel BRH retiré.")
         return redirect("formation-list")
 
     def _reserver_session(self, request):
@@ -940,6 +1142,219 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             f"Place réservée pour {marin.get_full_name() or marin.username}. "
             "La session apparaît désormais dans son calendrier personnel.",
         )
+        return redirect("formation-list")
+
+    def _candidater_formation(self, request):
+        """Circuit B — Candidature individuelle : le marin postule lui-même
+        (TOUJOURS le marin connecté, jamais un tiers) sur une formation du
+        catalogue. Un seul dépôt actif à la fois par formation (bloque un
+        doublon tant qu'une candidature précédente n'est pas allée à son
+        terme, refus compris)."""
+        course_id = _entier_ou_none(request.POST.get("course_id"))
+        course = TrainingCourse.objects.filter(pk=course_id).first() if course_id is not None else None
+        if course is None:
+            messages.error(request, "Formation introuvable.")
+            return redirect("formation-list")
+        if CandidatureFormation.objects.filter(
+            course=course, marin=request.user, statut__in=["PENDING_APPROVAL", "TRANSMITTED"],
+        ).exists():
+            messages.info(request, "Vous avez déjà une candidature en cours pour cette formation.")
+            return redirect("formation-list")
+        CandidatureFormation.objects.create(course=course, marin=request.user, created_by=request.user)
+        messages.success(request, f"Candidature envoyée pour « {course.title} ».")
+        return redirect("formation-list")
+
+    def _valider_candidature_hierarchie(self, request):
+        """Première des deux validations ascendantes (Circuit B) : la
+        hiérarchie du candidat (CHEF_SECTION+ dont le périmètre le couvre).
+        Dès que la validation BRH est également réunie, le statut passe
+        automatiquement à TRANSMITTED (cf.
+        CandidatureFormation.transmettre_si_double_validation)."""
+        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature = (
+            CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
+            if candidature_id is not None else None
+        )
+        if candidature is None:
+            messages.error(request, "Candidature introuvable.")
+            return redirect("formation-list")
+        if not _peut_valider_candidature_hierarchie(request.user, candidature.marin):
+            raise PermissionDenied
+        if candidature.statut != "PENDING_APPROVAL":
+            messages.info(request, "Cette candidature n'est plus en attente de validation.")
+            return redirect("formation-list")
+        candidature.hierarchie_validee_par = request.user
+        candidature.date_validation_hierarchie = timezone.now()
+        candidature.save(update_fields=["hierarchie_validee_par", "date_validation_hierarchie"])
+        candidature.transmettre_si_double_validation()
+        if candidature.statut == "TRANSMITTED":
+            Notification.objects.create(
+                user=candidature.marin,
+                verb=f"Votre candidature à « {candidature.course.title} » a été transmise à l'organisme de formation.",
+            )
+            messages.success(
+                request,
+                "Validation hiérarchie enregistrée : les deux validations sont réunies, "
+                "la candidature est transmise à l'organisme.",
+            )
+        else:
+            messages.success(request, "Validation hiérarchie enregistrée. En attente de la validation BRH.")
+        return redirect("formation-list")
+
+    def _refuser_candidature_hierarchie(self, request):
+        """Refus par la hiérarchie : arrête définitivement la candidature,
+        sans attendre la validation BRH (même autorisation que la
+        validation, cf. _valider_candidature_hierarchie)."""
+        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature = (
+            CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
+            if candidature_id is not None else None
+        )
+        if candidature is None:
+            messages.error(request, "Candidature introuvable.")
+            return redirect("formation-list")
+        if not _peut_valider_candidature_hierarchie(request.user, candidature.marin):
+            raise PermissionDenied
+        if candidature.statut != "PENDING_APPROVAL":
+            messages.info(request, "Cette candidature n'est plus en attente de validation.")
+            return redirect("formation-list")
+        candidature.statut = "REJECTED_HIERARCHIE"
+        candidature.save(update_fields=["statut"])
+        Notification.objects.create(
+            user=candidature.marin,
+            level="warning",
+            verb=f"Votre candidature à « {candidature.course.title} » a été refusée par votre hiérarchie.",
+        )
+        messages.success(request, "Candidature refusée.")
+        return redirect("formation-list")
+
+    def _valider_candidature_brh(self, request):
+        """Seconde des deux validations ascendantes (Circuit B) : le
+        personnel BRH désigné pour le navire du candidat (ou supervision
+        globale). Dès que la validation hiérarchie est également réunie, le
+        statut passe automatiquement à TRANSMITTED."""
+        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature = (
+            CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
+            if candidature_id is not None else None
+        )
+        if candidature is None:
+            messages.error(request, "Candidature introuvable.")
+            return redirect("formation-list")
+        navire_marin = navire_de(candidature.marin)
+        if not _peut_valider_candidature_brh(request.user, navire_marin):
+            raise PermissionDenied
+        if candidature.statut != "PENDING_APPROVAL":
+            messages.info(request, "Cette candidature n'est plus en attente de validation.")
+            return redirect("formation-list")
+        candidature.brh_validee_par = request.user
+        candidature.date_validation_brh = timezone.now()
+        candidature.save(update_fields=["brh_validee_par", "date_validation_brh"])
+        candidature.transmettre_si_double_validation()
+        if candidature.statut == "TRANSMITTED":
+            Notification.objects.create(
+                user=candidature.marin,
+                verb=f"Votre candidature à « {candidature.course.title} » a été transmise à l'organisme de formation.",
+            )
+            messages.success(
+                request,
+                "Validation BRH enregistrée : les deux validations sont réunies, "
+                "la candidature est transmise à l'organisme.",
+            )
+        else:
+            messages.success(request, "Validation BRH enregistrée. En attente de la validation de la hiérarchie.")
+        return redirect("formation-list")
+
+    def _refuser_candidature_brh(self, request):
+        """Refus par le BRH : arrête définitivement la candidature, sans
+        attendre la validation hiérarchie (même autorisation que la
+        validation, cf. _valider_candidature_brh)."""
+        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature = (
+            CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
+            if candidature_id is not None else None
+        )
+        if candidature is None:
+            messages.error(request, "Candidature introuvable.")
+            return redirect("formation-list")
+        navire_marin = navire_de(candidature.marin)
+        if not _peut_valider_candidature_brh(request.user, navire_marin):
+            raise PermissionDenied
+        if candidature.statut != "PENDING_APPROVAL":
+            messages.info(request, "Cette candidature n'est plus en attente de validation.")
+            return redirect("formation-list")
+        candidature.statut = "REJECTED_BRH"
+        candidature.save(update_fields=["statut"])
+        Notification.objects.create(
+            user=candidature.marin,
+            level="warning",
+            verb=f"Votre candidature à « {candidature.course.title} » a été refusée par le BRH.",
+        )
+        messages.success(request, "Candidature refusée.")
+        return redirect("formation-list")
+
+    def _selectionner_candidature(self, request):
+        """Sélection par l'organisme de formation (référent de la formation
+        POUR SON PROPRE NAVIRE, ou supervision globale, cf.
+        peut_valider_formation) d'une candidature déjà TRANSMITTED (double
+        validation hiérarchie + BRH réunie). La réussite effective du stage
+        sera ensuite actée séparément par un TrainingRecord classique
+        (ValiderFormationView), pas ici."""
+        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature = (
+            CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
+            if candidature_id is not None else None
+        )
+        if candidature is None:
+            messages.error(request, "Candidature introuvable.")
+            return redirect("formation-list")
+        # Autorisation calquée sur le Circuit A (_attribuer_places) : le
+        # navire de référence est celui de L'ORGANISME (l'appelant, souvent
+        # une école — navire_de(request.user)), PAS celui du marin candidat —
+        # un référent d'école valide pour son propre établissement, quel que
+        # soit le bord d'origine du candidat.
+        navire_organisme = navire_de(request.user)
+        if not peut_valider_formation(request.user, candidature.course, navire_organisme):
+            raise PermissionDenied
+        if candidature.statut != "TRANSMITTED":
+            messages.info(request, "Cette candidature n'est pas (ou plus) transmise à l'organisme.")
+            return redirect("formation-list")
+        candidature.statut = "SELECTED"
+        candidature.save(update_fields=["statut"])
+        Notification.objects.create(
+            user=candidature.marin,
+            verb=f"Vous avez été sélectionné(e) pour le stage « {candidature.course.title} ».",
+        )
+        messages.success(request, "Candidature sélectionnée.")
+        return redirect("formation-list")
+
+    def _refuser_candidature_organisme(self, request):
+        """Refus par l'organisme de formation d'une candidature TRANSMITTED
+        (même autorisation que la sélection, cf. _selectionner_candidature)."""
+        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature = (
+            CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
+            if candidature_id is not None else None
+        )
+        if candidature is None:
+            messages.error(request, "Candidature introuvable.")
+            return redirect("formation-list")
+        # Même autorisation que _selectionner_candidature ci-dessus (navire
+        # de l'ORGANISME, l'appelant — pas celui du marin candidat).
+        navire_organisme = navire_de(request.user)
+        if not peut_valider_formation(request.user, candidature.course, navire_organisme):
+            raise PermissionDenied
+        if candidature.statut != "TRANSMITTED":
+            messages.info(request, "Cette candidature n'est pas (ou plus) transmise à l'organisme.")
+            return redirect("formation-list")
+        candidature.statut = "REJECTED_ORGANISME"
+        candidature.save(update_fields=["statut"])
+        Notification.objects.create(
+            user=candidature.marin,
+            level="warning",
+            verb=f"Votre candidature à « {candidature.course.title} » a été refusée par l'organisme de formation.",
+        )
+        messages.success(request, "Candidature refusée.")
         return redirect("formation-list")
 
 
