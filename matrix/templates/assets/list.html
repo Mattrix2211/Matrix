@@ -18,6 +18,9 @@
       </div>
     </div>
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssetModal" title="Nouveau matériel"><i class="bi bi-plus-lg"></i> Ajouter</button>
+    <a href="{% url 'asset-import' %}" class="btn btn-outline-primary" title="Importer plusieurs matériels d'un coup depuis un fichier Excel">
+      <i class="bi bi-file-earmark-excel"></i> Importer
+    </a>
     <div class="dropdown">
       <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Exporter la liste (respecte les filtres actifs et votre périmètre)">
         <i class="bi bi-download"></i> Exporter

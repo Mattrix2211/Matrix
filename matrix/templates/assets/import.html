@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Importer du matériel depuis un fichier Excel</h1>
+  <a class="btn btn-outline-secondary" href="{% url 'asset-list' %}">Retour à la liste</a>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <p>
+      Cette page permet de créer plusieurs matériels d'un coup (extincteurs, EPI...)
+      à partir d'un fichier Excel, plutôt que de les saisir un par un.
+    </p>
+    <ol class="mb-3">
+      <li>Téléchargez le modèle ci-dessous et remplissez une ligne par matériel.</li>
+      <li>Importez le fichier rempli : les matériels sont créés directement.</li>
+      <li>Si certaines lignes contiennent une erreur, elles sont listées ci-dessous
+        avec leur numéro — corrigez-les dans le fichier puis réimportez uniquement
+        ces lignes (les matériels déjà créés ne sont pas dupliqués si vous
+        réimportez tout le fichier, sauf en cas de numéro de série identique,
+        volontairement refusé).</li>
+    </ol>
+    <a class="btn btn-outline-primary" href="{% url 'asset-import-modele' %}">
+      <i class="bi bi-download"></i> Télécharger le modèle Excel
+    </a>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label">Fichier Excel (.xlsx) rempli</label>
+        <input type="file" class="form-control" name="fichier" accept=".xlsx" required />
+      </div>
+      <button type="submit" class="btn btn-primary">Importer</button>
+    </form>
+  </div>
+</div>
+
+{% if resultat %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h2 class="h5">Résultat de l'import</h2>
+    <p>
+      {{ resultat.total_lignes }} ligne(s) traitée(s) —
+      <strong class="text-success">{{ resultat.crees }} matériel(s) créé(s)</strong>{% if resultat.erreurs %},
+      <strong class="text-danger">{{ resultat.erreurs|length }} en erreur</strong>{% endif %}.
+    </p>
+    {% if resultat.erreurs %}
+    <ul class="list-group">
+      {% for erreur in resultat.erreurs %}
+      <li class="list-group-item list-group-item-danger">{{ erreur }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

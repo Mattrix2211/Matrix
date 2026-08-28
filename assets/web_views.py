@@ -1,7 +1,7 @@
 from django.views.generic import DetailView, View, ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import TemplateView
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse, Http404
@@ -34,6 +34,7 @@ from matrix.core.export import (
 )
 from accounts.models import AuditLog
 from org.models import Ship, Service, Sector, Section
+from .import_materiel import importer_materiel_depuis_fichier, generer_modele_xlsx
 
 # Statuts d'occurrence considérés comme terminés pour le scan QR : une occurrence
 # déjà DONE ou CANCELLED ne doit plus être proposée au marin qui scanne
@@ -439,6 +440,47 @@ class ScanQRView(LoginRequiredMixin, View):
         if asset is not None:
             return redirect('asset-detail', pk=asset.pk)
         return redirect('installation-detail', pk=installation.pk)
+
+
+class AssetImportView(LoginRequiredMixin, View):
+    """Import en masse de matériel mobile depuis un fichier Excel (Phase 6) :
+    upload direct, création ligne par ligne dans le périmètre de l'utilisateur
+    connecté, avec rapport d'erreurs clair si certaines lignes échouent — sans
+    bloquer les autres lignes valides du même fichier (import atomique par
+    ligne, cf. assets/import_materiel.py). Même seuil de rôle que la création
+    manuelle d'un matériel (_peut_gerer_materiel)."""
+    template_name = 'assets/import.html'
+
+    def get(self, request):
+        if not _peut_gerer_materiel(request.user):
+            raise PermissionDenied
+        return render(request, self.template_name, {})
+
+    def post(self, request):
+        if not _peut_gerer_materiel(request.user):
+            raise PermissionDenied
+        fichier = request.FILES.get('fichier')
+        if not fichier:
+            messages.error(request, "Sélectionnez un fichier Excel (.xlsx) à importer.")
+            return render(request, self.template_name, {})
+        resultat = importer_materiel_depuis_fichier(fichier, request.user)
+        if resultat.crees:
+            messages.success(request, f"{resultat.crees} matériel(s) importé(s) avec succès.")
+        return render(request, self.template_name, {'resultat': resultat})
+
+
+class AssetImportModeleView(LoginRequiredMixin, View):
+    """Téléchargement du modèle Excel documentant les colonnes attendues pour
+    l'import en masse de matériel (voir AssetImportView)."""
+
+    def get(self, request):
+        if not _peut_gerer_materiel(request.user):
+            raise PermissionDenied
+        contenu = generer_modele_xlsx()
+        if contenu is None:
+            messages.error(request, "La génération du modèle Excel n'est pas disponible sur ce serveur.")
+            return redirect('asset-import')
+        return reponse_fichier(contenu, 'modele_import_materiel.xlsx', XLSX_CONTENT_TYPE)
 
 
 class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
