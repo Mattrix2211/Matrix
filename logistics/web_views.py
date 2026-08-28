@@ -112,7 +112,7 @@ def _ship_du_profil_q(ship_id):
     )
 
 _ENTETES_EXPORT_STOCK = [
-    'Référence', 'Désignation', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
+    'Référence', 'Désignation', 'NNO', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
     'Unité', 'Service', 'Secteur', 'Section',
 ]
 
@@ -124,6 +124,7 @@ def _lignes_export_stock(qs):
         [
             p.reference,
             p.designation,
+            p.nno,
             p.quantite,
             p.quantite_minimale,
             p.quantite_critique if p.quantite_critique is not None else '',
@@ -612,6 +613,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         champs = {
             "reference": reference,
             "designation": designation,
+            "nno": request.POST.get('nno', '').strip(),
             "quantite": max(quantite, 0),
             "quantite_minimale": max(quantite_minimale, 0),
             "quantite_critique": quantite_critique,

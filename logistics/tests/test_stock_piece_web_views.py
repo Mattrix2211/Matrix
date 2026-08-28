@@ -268,6 +268,45 @@ class StockPieceListViewTests(TestCase):
         self.piece_dans_perimetre.refresh_from_db()
         self.assertTrue(self.piece_dans_perimetre.photo)
 
+    def test_creation_piece_avec_nno(self):
+        self.client.login(username="chef", password="pass")
+        self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-030", "designation": "Pièce avec NNO",
+            "quantite": "1", "quantite_minimale": "1", "sector_id": self.secteur.id,
+            "nno": "5310-14-123-4567",
+        })
+        piece = StockPiece.objects.get(reference="REF-030")
+        self.assertEqual(piece.nno, "5310-14-123-4567")
+
+    def test_creation_piece_sans_nno_est_acceptee(self):
+        # Le NNO est optionnel : son absence ne doit pas bloquer la création.
+        self.client.login(username="chef", password="pass")
+        response = self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-031", "designation": "Pièce sans NNO",
+            "quantite": "1", "quantite_minimale": "1", "sector_id": self.secteur.id,
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        piece = StockPiece.objects.get(reference="REF-031")
+        self.assertEqual(piece.nno, "")
+
+    def test_modification_piece_change_le_nno(self):
+        self.client.login(username="chef", password="pass")
+        self.client.post(self.url, {
+            "action": "edit_piece", "pk": self.piece_dans_perimetre.pk,
+            "reference": "REF-001", "designation": "Joint torique", "quantite": "8",
+            "quantite_minimale": "5", "sector_id": self.secteur.id,
+            "nno": "5310-14-999-0001",
+        })
+        self.piece_dans_perimetre.refresh_from_db()
+        self.assertEqual(self.piece_dans_perimetre.nno, "5310-14-999-0001")
+
+    def test_nno_affiche_dans_la_popup_de_detail(self):
+        self.piece_dans_perimetre.nno = "5310-14-123-4567"
+        self.piece_dans_perimetre.save()
+        self.client.login(username="equipier", password="pass")
+        response = self.client.get(self.url)
+        self.assertContains(response, 'data-nno="5310-14-123-4567"')
+
     def test_chef_ne_peut_pas_transferer_une_piece_vers_un_secteur_hors_perimetre(self):
         # Même si la pièce ciblée est dans son périmètre, le chef ne doit pas pouvoir
         # la transférer vers un secteur hors périmètre en postant directement son id.

@@ -355,8 +355,11 @@
               {% endfor %}
             </select>
           </div>
+          <div class="col-12"><input class="form-control" name="classe_navire" placeholder="Classe de navire (optionnel, ex : Frégate La Fayette)" /></div>
           <div class="col-12"><button class="btn btn-primary" type="submit">Ajouter</button></div>
         </form>
+        {# La classe de navire n'est pas affichée dans ce tableau compact (déjà 4
+        colonnes) : elle reste consultable/modifiable via le bouton « Modifier ». #}
         <table class="table table-sm"><thead><tr><th>Nom</th><th>Code</th><th>Type</th><th></th></tr></thead><tbody>
         {% for sh in ships %}
           <tr>
@@ -364,7 +367,7 @@
             <td class="font-mono">{{ sh.code }}</td>
             <td>{{ sh|badge_type_unite }}</td>
             <td>
-              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}">Modifier</button>
+              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}" data-classe-navire="{{ sh.classe_navire }}">Modifier</button>
               <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>
               <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer l'unité {{ sh.name }}">Supprimer</button>
             </td>
@@ -553,6 +556,10 @@
               {% endfor %}
             </select>
           </div>
+          <div class="mb-3">
+            <label class="form-label">Classe de navire</label>
+            <input class="form-control" name="classe_navire" id="editShipClasseNavire" placeholder="Optionnel, ex : Frégate La Fayette" />
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -616,10 +623,12 @@
       var name = button.getAttribute('data-name');
       var code = button.getAttribute('data-code');
       var typeUnite = button.getAttribute('data-type-unite');
+      var classeNavire = button.getAttribute('data-classe-navire');
       document.getElementById('editShipPk').value = pk;
       document.getElementById('editShipName').value = name || '';
       document.getElementById('editShipCode').value = code || '';
       document.getElementById('editShipTypeUnite').value = typeUnite || 'NAVIRE';
+      document.getElementById('editShipClasseNavire').value = classeNavire || '';
     });
 
     var duplicateModal = document.getElementById('duplicateShipModal');

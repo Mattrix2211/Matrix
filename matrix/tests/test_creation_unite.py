@@ -88,3 +88,45 @@ class CreationUniteViaReglagesTests(TestCase):
         self.assertContains(response, "École")
         self.assertContains(response, "Centre de formation")
         self.assertContains(response, "Bureau")
+
+
+class ClasseNavireTests(TestCase):
+    """Tâche « [FEAT] Champs complémentaires : NNO (pièces), classe de navire » :
+    champ optionnel, texte libre (pas de liste fermée : nomenclature propre à
+    la Marine Nationale que l'utilisateur remplit lui-même)."""
+
+    def setUp(self):
+        self.superuser = User.objects.create_superuser(
+            username="admin_classe", email="admin_classe@navy.fr", password="pass",
+        )
+        self.url = reverse("settings")
+
+    def test_creation_avec_classe_de_navire(self):
+        self.client.login(username="admin_classe", password="pass")
+        self.client.post(self.url, {
+            "action": "add_ship", "name": "Aquitaine", "code": "AQU",
+            "classe_navire": "Frégate La Fayette", "next_tab": "navires",
+        })
+        unite = Ship.objects.get(code="AQU")
+        self.assertEqual(unite.classe_navire, "Frégate La Fayette")
+
+    def test_creation_sans_classe_de_navire_reste_vide(self):
+        # Rétrocompatibilité : les unités déjà existantes (créées avant cette
+        # tâche) doivent avoir une chaîne vide, pas None, sans action manuelle.
+        self.client.login(username="admin_classe", password="pass")
+        self.client.post(self.url, {
+            "action": "add_ship", "name": "Surcouf II", "code": "SU2", "next_tab": "navires",
+        })
+        unite = Ship.objects.get(code="SU2")
+        self.assertEqual(unite.classe_navire, "")
+
+    def test_modification_de_la_classe_de_navire(self):
+        unite = Ship.objects.create(name="Suffren", code="SUF")
+        self.client.login(username="admin_classe", password="pass")
+        response = self.client.post(self.url, {
+            "action": "edit_ship", "pk": unite.pk, "name": "Suffren", "code": "SUF",
+            "classe_navire": "Sous-marin nucléaire d'attaque type Suffren", "next_tab": "navires",
+        })
+        self.assertEqual(response.status_code, 302)
+        unite.refresh_from_db()
+        self.assertEqual(unite.classe_navire, "Sous-marin nucléaire d'attaque type Suffren")

@@ -165,8 +165,12 @@ class SettingsView(LoginRequiredMixin, View):
         elif action == 'add_ship' and name:
             code = request.POST.get('code', '').strip()
             type_unite = request.POST.get('type_unite') or Ship.TypeUnite.NAVIRE
+            classe_navire = request.POST.get('classe_navire', '').strip()
             if code:
-                Ship.objects.get_or_create(name=name, code=code, defaults={'type_unite': type_unite})
+                Ship.objects.get_or_create(
+                    name=name, code=code,
+                    defaults={'type_unite': type_unite, 'classe_navire': classe_navire},
+                )
                 messages.success(request, "Unité ajoutée.")
                 AuditLog.objects.create(actor=request.user, action='add_ship', details=f'name={name}; code={code}')
         elif action == 'delete_ship':
@@ -179,6 +183,9 @@ class SettingsView(LoginRequiredMixin, View):
             name = request.POST.get('name', '').strip()
             code = request.POST.get('code', '').strip()
             type_unite = request.POST.get('type_unite')
+            # Champ optionnel : contrairement à name/code, on l'écrase avec la valeur
+            # postée même vide, pour permettre d'effacer une classe déjà renseignée.
+            classe_navire = request.POST.get('classe_navire', '').strip()
             try:
                 sh = Ship.objects.get(pk=pk)
                 if name:
@@ -187,6 +194,7 @@ class SettingsView(LoginRequiredMixin, View):
                     sh.code = code
                 if type_unite:
                     sh.type_unite = type_unite
+                sh.classe_navire = classe_navire
                 sh.save()
                 messages.success(request, "Unité mise à jour.")
                 AuditLog.objects.create(actor=request.user, action='edit_ship', details=f'pk={pk}')
@@ -200,8 +208,12 @@ class SettingsView(LoginRequiredMixin, View):
                 src_ship = Ship.objects.get(pk=src_pk)
                 if not name or not code:
                     raise ValueError("Nom et code requis pour dupliquer.")
-                # Crée la nouvelle unité, en reprenant le type de l'unité source
-                new_ship = Ship.objects.create(name=name, code=code, type_unite=src_ship.type_unite)
+                # Crée la nouvelle unité, en reprenant le type et la classe de l'unité
+                # source (des unités dupliquées sont généralement des navires « sister-
+                # ship » de même classe).
+                new_ship = Ship.objects.create(
+                    name=name, code=code, type_unite=src_ship.type_unite, classe_navire=src_ship.classe_navire,
+                )
                 # Map des services et secteurs pour rattacher correctement
                 service_map = {}
                 sector_map = {}

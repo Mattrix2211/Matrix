@@ -23,6 +23,12 @@ class Ship(TimeStampedModel):
     type_unite = models.CharField(
         max_length=20, choices=TypeUnite.choices, default=TypeUnite.NAVIRE, verbose_name="Type d'unité"
     )
+    # Classe du navire (ex : frégate de type La Fayette, sous-marin nucléaire
+    # d'attaque type Suffren...). Texte libre car la nomenclature des classes
+    # de la Marine Nationale n'est pas une liste fermée à figer dans le code.
+    # Optionnel et sans valeur par défaut arbitraire : reste rétrocompatible
+    # avec les unités déjà existantes, non concernées par les unités non-navires.
+    classe_navire = models.CharField(max_length=100, blank=True, default="", verbose_name="Classe de navire")
     archived = models.BooleanField(default=False)
 
     class Meta:

@@ -42,6 +42,7 @@
         {% for p in pieces %}
         <tr style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#detailPieceModal"
           data-pk="{{ p.id }}" data-reference="{{ p.reference }}" data-designation="{{ p.designation }}"
+          data-nno="{{ p.nno }}"
           data-emplacement="{{ p.emplacement }}" data-note="{{ p.note }}"
           data-quantite="{{ p.quantite }}" data-quantite-minimale="{{ p.quantite_minimale }}"
           data-quantite-critique="{% if p.quantite_critique is not None %}{{ p.quantite_critique }}{% endif %}"
@@ -97,6 +98,7 @@
         </div>
         <img id="detailPhoto" alt="Photo de la pièce" style="max-width:100%; max-height:220px; display:none;" class="mb-3 rounded" />
         <div class="row g-2 small">
+          <div class="col-6"><strong>NNO :</strong> <span class="font-mono" id="detailNno"></span></div>
           <div class="col-6"><strong>Quantité :</strong> <span class="font-mono" id="detailQuantite"></span></div>
           <div class="col-6"><strong>Seuil minimal :</strong> <span class="font-mono" id="detailSeuilMinimal"></span></div>
           <div class="col-6"><strong>Seuil critique :</strong> <span class="font-mono" id="detailSeuilCritique"></span></div>
@@ -131,6 +133,7 @@
           <div class="row g-3">
             <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" required></div>
             <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" required></div>
+            <div class="col-6"><label class="form-label">NNO (optionnel)</label><input class="form-control font-mono" name="nno" placeholder="Numéro de Nomenclature OTAN"></div>
             <div class="col-4"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" value="0" required></div>
             <div class="col-4"><label class="form-label">Seuil minimal (alerte bas)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" value="0" required></div>
             <div class="col-4"><label class="form-label">Seuil critique (optionnel)</label><input type="number" min="0" class="form-control font-mono" name="quantite_critique" placeholder="Ex : 1"></div>
@@ -185,6 +188,7 @@
           <div class="row g-3">
             <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="modifierReference" required></div>
             <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="modifierDesignation" required></div>
+            <div class="col-6"><label class="form-label">NNO (optionnel)</label><input class="form-control font-mono" name="nno" id="modifierNno" placeholder="Numéro de Nomenclature OTAN"></div>
             <div class="col-4"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" id="modifierQuantite" required></div>
             <div class="col-4"><label class="form-label">Seuil minimal (alerte bas)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" id="modifierQuantiteMinimale" required></div>
             <div class="col-4"><label class="form-label">Seuil critique (optionnel)</label><input type="number" min="0" class="form-control font-mono" name="quantite_critique" id="modifierQuantiteCritique" placeholder="Ex : 1"></div>
@@ -279,6 +283,7 @@ les vérifications "if (element)" ci-dessous s'adaptent à leur absence. #}
       document.getElementById('modifierPk').value = b.getAttribute('data-pk') || '';
       document.getElementById('modifierReference').value = b.getAttribute('data-reference') || '';
       document.getElementById('modifierDesignation').value = b.getAttribute('data-designation') || '';
+      document.getElementById('modifierNno').value = b.getAttribute('data-nno') || '';
       document.getElementById('modifierEmplacement').value = b.getAttribute('data-emplacement') || '';
       document.getElementById('modifierQuantite').value = b.getAttribute('data-quantite') || 0;
       document.getElementById('modifierQuantiteMinimale').value = b.getAttribute('data-quantite-minimale') || 0;
@@ -303,6 +308,7 @@ les vérifications "if (element)" ci-dessous s'adaptent à leur absence. #}
         ligneCourante = b;
         document.getElementById('detailReference').textContent = b.getAttribute('data-reference') || '';
         document.getElementById('detailDesignation').textContent = b.getAttribute('data-designation') || '';
+        document.getElementById('detailNno').textContent = b.getAttribute('data-nno') || '—';
         document.getElementById('detailQuantite').textContent = b.getAttribute('data-quantite') || '0';
         document.getElementById('detailSeuilMinimal').textContent = b.getAttribute('data-quantite-minimale') || '0';
         document.getElementById('detailSeuilCritique').textContent = b.getAttribute('data-quantite-critique') || 'Non défini (0 par défaut)';

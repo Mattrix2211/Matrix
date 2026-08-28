@@ -109,6 +109,11 @@ class StockPiece(TimeStampedModel, OwnedModel):
     """
     reference = models.CharField(max_length=255, verbose_name="Référence")
     designation = models.CharField(max_length=255, verbose_name="Désignation")
+    # NNO : Numéro de Nomenclature OTAN, référence militaire standard permettant
+    # d'identifier une pièce de façon univoque entre bâtiments et armées. Texte
+    # libre (pas de format imposé) et optionnel : rétrocompatible avec les
+    # pièces déjà existantes, saisies avant l'ajout de ce champ.
+    nno = models.CharField(max_length=50, blank=True, default="", verbose_name="NNO (Numéro de Nomenclature OTAN)")
     quantite = models.PositiveIntegerField(default=0, verbose_name="Quantité")
     quantite_minimale = models.PositiveIntegerField(default=0, verbose_name="Quantité minimale")
     # Seuil critique (optionnel) : franchi, il déclenche une alerte de niveau

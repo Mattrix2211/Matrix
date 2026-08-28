@@ -28,6 +28,22 @@ class StockPieceTests(TestCase):
         self.assertEqual(str(piece), "REF-001 - Joint torique")
         self.assertEqual(piece.quantite, 10)
 
+    def test_nno_optionnel_par_defaut_vide(self):
+        # Rétrocompatibilité : une pièce créée sans NNO (comme toutes celles
+        # existant avant l'ajout de ce champ) doit avoir une chaîne vide, pas None.
+        piece = StockPiece.objects.create(
+            reference="REF-030", designation="Sans NNO",
+            ship=self.ship, service=self.service, sector=self.sector,
+        )
+        self.assertEqual(piece.nno, "")
+
+    def test_nno_renseigne(self):
+        piece = StockPiece.objects.create(
+            reference="REF-031", designation="Avec NNO", nno="5310-14-123-4567",
+            ship=self.ship, service=self.service, sector=self.sector,
+        )
+        self.assertEqual(piece.nno, "5310-14-123-4567")
+
     def test_section_optionnelle(self):
         # La section n'est pas obligatoire, contrairement à ship/service/sector.
         piece = StockPiece.objects.create(
