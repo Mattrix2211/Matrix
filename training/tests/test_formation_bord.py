@@ -703,3 +703,72 @@ class FuiteStatutValidationUpdatePrerequisitesTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.course.refresh_from_db()
         self.assertEqual(self.course.category, "")
+
+
+class FuiteStatutValidationCandidatureOrganismeTests(TestCase):
+    """Même non-régression que ci-dessus, pour action=selectionner_candidature
+    et action=refuser_candidature_organisme (Circuit B — deux points oubliés
+    lors de la correction des 5 autres, signalés dans une tâche de
+    durcissement défensif dédiée : la formation peut être repassée en attente
+    ou refusée entre la TRANSMISSION de la candidature et son traitement par
+    l'organisme)."""
+
+    def setUp(self):
+        self.ecole = Ship.objects.create(name="École Gap Organisme", code="GAPORGE", type_unite=Ship.TypeUnite.ECOLE)
+        self.ship, self.service, self.sector, self.section = _construire_bord("GAPORGB")
+        self.chef_secteur = User.objects.create_user(username="chef_secteur_gaporg", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.chef_secteur, defaults={"role": "CHEF_SECTEUR", "sector": self.sector},
+        )
+        self.course = TrainingCourse.objects.create(
+            title="Formation bord candidature organisme", gere_par_le_bord=True, statut_validation="ACTIVE",
+            created_by=self.chef_secteur, updated_by=self.chef_secteur,
+        )
+        self.referent = User.objects.create_user(username="referent_gaporg", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.referent, defaults={"role": "EQUIPIER", "ship": self.ecole},
+        )
+        ReferentFormation.objects.create(course=self.course, ship=self.ecole, user=self.referent)
+        self.marin = User.objects.create_user(username="marin_gaporg", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.marin, defaults={"role": "EQUIPIER", "section": self.section},
+        )
+        self.candidature = CandidatureFormation.objects.create(
+            course=self.course, marin=self.marin, statut="TRANSMITTED", created_by=self.marin,
+        )
+
+    def _tenter(self, action):
+        self.client.login(username="referent_gaporg", password="pass")
+        return self.client.post("/formations/", {"action": action, "candidature_id": self.candidature.id})
+
+    def test_selection_refusee_si_formation_repassee_en_attente(self):
+        self.course.statut_validation = "WAITING_VALIDATION"
+        self.course.save(update_fields=["statut_validation"])
+        r = self._tenter("selectionner_candidature")
+        self.assertEqual(r.status_code, 302)
+        self.candidature.refresh_from_db()
+        self.assertEqual(self.candidature.statut, "TRANSMITTED")
+
+    def test_selection_refusee_si_formation_refusee(self):
+        self.course.statut_validation = "REFUSED"
+        self.course.save(update_fields=["statut_validation"])
+        r = self._tenter("selectionner_candidature")
+        self.assertEqual(r.status_code, 302)
+        self.candidature.refresh_from_db()
+        self.assertEqual(self.candidature.statut, "TRANSMITTED")
+
+    def test_refus_organisme_refuse_si_formation_repassee_en_attente(self):
+        self.course.statut_validation = "WAITING_VALIDATION"
+        self.course.save(update_fields=["statut_validation"])
+        r = self._tenter("refuser_candidature_organisme")
+        self.assertEqual(r.status_code, 302)
+        self.candidature.refresh_from_db()
+        self.assertEqual(self.candidature.statut, "TRANSMITTED")
+
+    def test_refus_organisme_refuse_si_formation_refusee(self):
+        self.course.statut_validation = "REFUSED"
+        self.course.save(update_fields=["statut_validation"])
+        r = self._tenter("refuser_candidature_organisme")
+        self.assertEqual(r.status_code, 302)
+        self.candidature.refresh_from_db()
+        self.assertEqual(self.candidature.statut, "TRANSMITTED")

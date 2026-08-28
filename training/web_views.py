@@ -1563,6 +1563,14 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         if candidature is None:
             messages.error(request, "Candidature introuvable.")
             return redirect("formation-list")
+        # Revalidation du statut de la formation (correctif QA — Circuit C,
+        # durcissement défensif par cohérence avec les 5 autres points déjà
+        # corrigés — cf. _attribuer_places ci-dessus pour le même pattern) :
+        # une formation « bord » peut être repassée en attente ou refusée
+        # entre la TRANSMISSION de la candidature et cette SÉLECTION.
+        if candidature.course.statut_validation != "ACTIVE":
+            messages.error(request, "Formation introuvable.")
+            return redirect("formation-list")
         # Autorisation calquée sur le Circuit A (_attribuer_places) : le
         # navire de référence est celui de L'ORGANISME (l'appelant, souvent
         # une école — navire_de(request.user)), PAS celui du marin candidat —
@@ -1593,6 +1601,11 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         )
         if candidature is None:
             messages.error(request, "Candidature introuvable.")
+            return redirect("formation-list")
+        # Même revalidation que _selectionner_candidature ci-dessus (correctif
+        # QA — Circuit C, durcissement défensif par cohérence).
+        if candidature.course.statut_validation != "ACTIVE":
+            messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
         # Même autorisation que _selectionner_candidature ci-dessus (navire
         # de l'ORGANISME, l'appelant — pas celui du marin candidat).
