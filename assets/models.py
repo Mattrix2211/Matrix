@@ -173,7 +173,12 @@ class Installation(TimeStampedModel, OwnedModel):
         _verifier_absence_de_cycle(self)
 
     def __str__(self):
-        return f"{self.designation} ({self.ship} / {self.service} / {self.sector})"
+        # On utilise le nom brut de chaque niveau (et non son __str__) car
+        # Service.__str__ et Sector.__str__ remontent déjà toute la chaîne
+        # hiérarchique (ex: Sector -> "Navire / Service / Secteur"). Concaténer
+        # leurs __str__ ici dupliquait les segments navire/service dans le
+        # libellé de l'installation (bug remonté par le QA).
+        return f"{self.designation} ({self.ship.name} / {self.service.name} / {self.sector.name})"
 
 
 class AssetFolder(TimeStampedModel, OwnedModel):
