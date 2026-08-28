@@ -1,11 +1,24 @@
 from django.contrib import admin
-from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument
+from .models import Location, Deck, Zone, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument
 from matrix.core.admin import AdminScopedMixin
 
 @admin.register(Location)
 class LocationAdmin(AdminScopedMixin, admin.ModelAdmin):
     list_display = ("name", "ship", "parent")
     list_filter = ("ship",)
+    search_fields = ("name",)
+
+@admin.register(Deck)
+class DeckAdmin(AdminScopedMixin, admin.ModelAdmin):
+    list_display = ("name", "ship", "order")
+    list_filter = ("ship",)
+    ordering = ("ship__name", "order", "name")
+
+@admin.register(Zone)
+class ZoneAdmin(admin.ModelAdmin):
+    list_display = ("name", "deck", "location")
+    list_filter = ("deck__ship", "deck")
+    autocomplete_fields = ("location",)
 
 class ChecklistItemInline(admin.TabularInline):
     model = ChecklistItemTemplate

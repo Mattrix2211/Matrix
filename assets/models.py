@@ -43,6 +43,69 @@ class Location(TimeStampedModel):
     def __str__(self):
         return self.name
 
+class Deck(TimeStampedModel):
+    """Pont d'un navire (ex: pont supérieur, pont principal).
+
+    Sert de support au futur plan visuel cliquable du navire (voir Zone
+    ci-dessous) : un plan distinct par pont, avec une navigation ordonnée
+    entre les ponts. Cette tâche ne couvre que le modèle de données — l'image
+    de fond et l'éditeur de zones arrivent dans une tâche suivante.
+    """
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="decks", verbose_name="Navire")
+    name = models.CharField(max_length=255, verbose_name="Nom du pont")
+    # Permet de trier les ponts dans la navigation (ex: du pont le plus haut au
+    # plus bas), indépendamment de l'ordre alphabétique des noms.
+    order = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
+
+    class Meta:
+        ordering = ["ship__name", "order", "name"]
+        unique_together = ("ship", "name")
+        verbose_name = "Pont"
+        verbose_name_plural = "Ponts"
+
+    def __str__(self):
+        return f"{self.name} ({self.ship.name})"
+
+
+class Zone(TimeStampedModel):
+    """Zone cliquable délimitée sur le plan d'un pont.
+
+    Le contour est stocké sous forme de liste de points normalisés en
+    pourcentage (0 à 100) de la largeur/hauteur de l'image de fond du pont,
+    plutôt qu'en pixels : la zone reste ainsi valide quelle que soit la
+    résolution de l'image téléversée. Un simple rectangle (4 points) suffit
+    pour cette première version, mais le format polygone évite d'enfermer une
+    future zone de forme quelconque (ex: contour d'une coque) dans une
+    nouvelle migration.
+    """
+    deck = models.ForeignKey(Deck, on_delete=models.CASCADE, related_name="zones", verbose_name="Pont")
+    name = models.CharField(max_length=255, verbose_name="Nom de la zone")
+    # Réutilise l'Emplacement (Location) déjà utilisé sur le matériel et les
+    # installations : c'est ce lien qui permettra, dans une tâche suivante, de
+    # filtrer le matériel affiché lors d'un clic sur la zone. PROTECT plutôt
+    # que SET_NULL : on évite qu'un emplacement supprimé laisse silencieusement
+    # une zone du plan sans matériel associé.
+    location = models.ForeignKey(
+        Location, on_delete=models.PROTECT, related_name="zones", verbose_name="Emplacement",
+    )
+    # Contour normalisé (0-100%) : liste de points [{"x": .., "y": ..}, ...].
+    # Un rectangle se représente avec 4 points, dans l'ordre des coins.
+    points = JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Contour de la zone",
+        help_text="Liste de points {x, y} en pourcentage (0-100) de l'image du pont.",
+    )
+
+    class Meta:
+        ordering = ["deck__ship__name", "deck__order", "deck__name", "name"]
+        verbose_name = "Zone"
+        verbose_name_plural = "Zones"
+
+    def __str__(self):
+        return f"{self.name} ({self.deck})"
+
+
 class AssetType(TimeStampedModel):
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=255)
