@@ -16,9 +16,9 @@
       <li>Importez le fichier rempli : les matériels sont créés directement.</li>
       <li>Si certaines lignes contiennent une erreur, elles sont listées ci-dessous
         avec leur numéro — corrigez-les dans le fichier puis réimportez uniquement
-        ces lignes (les matériels déjà créés ne sont pas dupliqués si vous
-        réimportez tout le fichier, sauf en cas de numéro de série identique,
-        volontairement refusé).</li>
+        ces lignes (attention : réimporter tout le fichier crée de nouveaux
+        matériels en double, le numéro de série n'étant pas utilisé comme
+        identifiant unique).</li>
     </ol>
     <a class="btn btn-outline-primary" href="{% url 'asset-import-modele' %}">
       <i class="bi bi-download"></i> Télécharger le modèle Excel

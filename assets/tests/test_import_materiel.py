@@ -92,7 +92,11 @@ class ImportMaterielTests(TestCase):
         self.assertTrue(Asset.objects.filter(serial_number='SN-A').exists())
         self.assertTrue(Asset.objects.filter(serial_number='SN-B').exists())
 
-    def test_numero_de_serie_deja_utilise_est_refuse(self):
+    def test_numero_de_serie_deja_utilise_ou_duplique_est_accepte(self):
+        """Un même numéro de série peut légitimement appartenir à plusieurs
+        matériels différents (numérotations réutilisées entre fournisseurs) :
+        ni un doublon avec un matériel déjà existant, ni un doublon entre deux
+        lignes du même fichier, ne doit être rejeté."""
         Asset.objects.create(
             asset_type=self.type_extincteur, designation="Existant", serial_number="SN-DEJA",
             ship=self.navire, service=self.service, sector=self.secteur,
@@ -100,10 +104,12 @@ class ImportMaterielTests(TestCase):
         fichier = _classeur_depuis_lignes([
             ENTETES_MODELE,
             self._ligne("Nouveau", "Extincteur", **{'N° série': 'SN-DEJA'}),
+            self._ligne("Autre nouveau", "Extincteur", **{'N° série': 'SN-DEJA'}),
         ])
         resultat = importer_materiel_depuis_fichier(fichier, self.chef)
-        self.assertEqual(resultat.crees, 0)
-        self.assertIn("numéro de série déjà utilisé", resultat.erreurs[0])
+        self.assertEqual(resultat.crees, 2)
+        self.assertEqual(resultat.erreurs, [])
+        self.assertEqual(Asset.objects.filter(serial_number='SN-DEJA').count(), 3)
 
     def test_designation_manquante_est_signalee(self):
         fichier = _classeur_depuis_lignes([

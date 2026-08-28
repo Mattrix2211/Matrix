@@ -8,11 +8,16 @@ dépendance, et réutilise le contrôle de périmètre déjà en place pour la c
 manuelle d'un matériel (`_org_dans_perimetre`, assets/web_views.py).
 
 Import atomique PAR LIGNE : une ligne en erreur (colonne manquante, type
-inconnu, numéro de série déjà utilisé...) n'empêche pas les autres lignes
-valides du même fichier d'être importées. Chaque ligne en erreur est reportée
-avec son numéro et un message en français, pour correction dans le tableur
-puis un nouvel import (pas de système de brouillon à valider : le fichier est
-traité directement, conformément à la demande).
+inconnu...) n'empêche pas les autres lignes valides du même fichier d'être
+importées. Chaque ligne en erreur est reportée avec son numéro et un message
+en français, pour correction dans le tableur puis un nouvel import (pas de
+système de brouillon à valider : le fichier est traité directement,
+conformément à la demande).
+
+Le numéro de série n'est volontairement soumis à aucune contrainte d'unicité :
+plusieurs fournisseurs peuvent réutiliser les mêmes numérotations, un même
+numéro de série peut donc légitimement apparaître sur plusieurs matériels
+(cf. correction métier Marine Nationale).
 """
 import zipfile
 from dataclasses import dataclass, field
@@ -20,8 +25,15 @@ from dataclasses import dataclass, field
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from openpyxl import load_workbook
-from openpyxl.utils.exceptions import InvalidFileException
+try:
+    from openpyxl import load_workbook
+    from openpyxl.utils.exceptions import InvalidFileException
+except ImportError:  # pragma: no cover - openpyxl est listée dans requirements.txt
+    # Dépendance optionnelle, même garde-fou que matrix/core/export.py : son
+    # absence ne doit jamais empêcher le chargement des URLs de l'app assets
+    # (ce module est importé au niveau module par assets/web_views.py).
+    load_workbook = None
+    InvalidFileException = Exception
 
 from matrix.core.export import rendre_xlsx_sections
 from org.models import Ship, Service, Sector, Section
@@ -54,8 +66,8 @@ _INSTRUCTIONS = [
     ('Type', "Obligatoire. Doit correspondre exactement (accents/majuscules non "
              "significatifs) au nom d'un type de matériel déjà créé dans le secteur visé."),
     ('Identifiant interne', "Facultatif."),
-    ('N° série', "Facultatif. Doit être unique : une ligne est refusée si ce numéro "
-                 "est déjà utilisé par un autre matériel."),
+    ('N° série', "Facultatif. Aucune contrainte d'unicité (plusieurs matériels "
+                 "peuvent partager le même numéro, notamment entre fournisseurs)."),
     ('Statut', "Facultatif (OK par défaut). Valeurs possibles : OK, En service, Hors "
                "service, Défectueux."),
     ('Criticité', "Facultatif (1 par défaut). Nombre entier de 1 à 5."),
@@ -246,7 +258,7 @@ def _resoudre_criticite(ligne, index_colonnes):
     return valeur
 
 
-def _creer_asset_depuis_ligne(ligne, index_colonnes, user, profil, numeros_serie_vus):
+def _creer_asset_depuis_ligne(ligne, index_colonnes, user, profil):
     """Valide et crée un `Asset` à partir d'une ligne du tableur. Lève
     `_ErreurLigneImport` (message métier déjà en français) ou `ValidationError`
     (via full_clean, ex : protection anti-cycle) en cas d'échec — dans les deux
@@ -268,8 +280,6 @@ def _creer_asset_depuis_ligne(ligne, index_colonnes, user, profil, numeros_serie
     criticite = _resoudre_criticite(ligne, index_colonnes)
 
     serial = _valeur_colonne(ligne, index_colonnes, 'n° série')
-    if serial and (serial in numeros_serie_vus or Asset.objects.filter(serial_number=serial).exists()):
-        raise _ErreurLigneImport(f"numéro de série déjà utilisé : « {serial} »")
 
     nom_emplacement = _valeur_colonne(ligne, index_colonnes, 'emplacement')
     location = None
@@ -296,8 +306,6 @@ def _creer_asset_depuis_ligne(ligne, index_colonnes, user, profil, numeros_serie
     )
     asset.full_clean()
     asset.save()
-    if serial:
-        numeros_serie_vus.add(serial)
     AuditLog.objects.create(
         actor=user, action='import_asset',
         details=f'type_id={asset_type.id}; internal_id={asset.internal_id}',
@@ -308,6 +316,10 @@ def importer_materiel_depuis_fichier(fichier, user) -> ResultatImportMateriel:
     """Point d'entrée de l'import : lit le fichier Excel uploadé, valide les
     en-têtes, puis traite chaque ligne indépendamment (import atomique par
     ligne — une ligne en erreur n'empêche pas les suivantes d'être importées)."""
+    if load_workbook is None:
+        return ResultatImportMateriel(
+            erreurs=["Import Excel indisponible sur ce serveur (dépendance openpyxl manquante)."]
+        )
     try:
         classeur = load_workbook(fichier, data_only=True, read_only=True)
         feuille = classeur.worksheets[0]
@@ -335,14 +347,13 @@ def importer_materiel_depuis_fichier(fichier, user) -> ResultatImportMateriel:
 
     resultat = ResultatImportMateriel()
     profil = getattr(user, 'profile', None)
-    numeros_serie_vus = set()
     for numero, ligne in enumerate(lignes[1:], start=2):
         if _ligne_vide(ligne):
             continue
         resultat.total_lignes += 1
         try:
             with transaction.atomic():
-                _creer_asset_depuis_ligne(ligne, index_colonnes, user, profil, numeros_serie_vus)
+                _creer_asset_depuis_ligne(ligne, index_colonnes, user, profil)
             resultat.crees += 1
         except _ErreurLigneImport as exc:
             resultat.erreurs.append(f"Ligne {numero} : {exc}")
