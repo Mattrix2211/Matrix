@@ -126,6 +126,11 @@ class Zone(TimeStampedModel):
     def etat_materiel(self):
         """État agrégé du matériel rattaché à l'emplacement de cette zone.
 
+        Périmètre volontairement limité au matériel mobile (Asset) : les
+        installations fixes (Installation) ne sont pas prises en compte ici,
+        ce n'est pas un oubli mais un choix de portée pour cette première
+        version du plan interactif.
+
         - NEUTRE : zone brouillon (sans emplacement, cf. sous-tâche 1) ou
           emplacement sans aucun matériel répertorié — pour ne jamais afficher
           une fausse alerte verte sur une zone vide.
@@ -133,8 +138,13 @@ class Zone(TimeStampedModel):
           Asset.status OUT_OF_SERVICE/FAULTY), équivalent "périmé/hors service".
         - ATTENTION : aucun matériel en danger, mais au moins un matériel a une
           échéance de contrôle en retard (MaintenanceOccurrence.status =
-          OVERDUE), réutilisant le système d'entretien préventif existant
-          plutôt que d'inventer un nouveau champ "à contrôler".
+          OVERDUE, réutilisant le système d'entretien préventif existant
+          plutôt que d'inventer un nouveau champ "à contrôler"), OU au moins
+          un ticket correctif encore ouvert (CorrectiveTicket hors CLOSED/
+          CANCELLED) est lié à ce matériel. Ce second cas est nécessaire car
+          Asset.status n'est jamais remis à jour automatiquement à
+          l'ouverture d'un ticket correctif : sans cela, un matériel resté
+          "OK" avec une réparation en cours s'afficherait à tort en vert.
         - OK : tout le matériel de l'emplacement est en bon état.
         """
         if self.location_id is None:
@@ -144,14 +154,22 @@ class Zone(TimeStampedModel):
             return self.ETAT_NEUTRE
         if any(m.status in ("OUT_OF_SERVICE", "FAULTY") for m in materiels):
             return self.ETAT_DANGER
-        # Import tardif : maintenance.models importe assets.models (dépendance
-        # inverse), un import en tête de fichier créerait un import circulaire.
+        # Imports tardifs : maintenance.models et reports.services importent
+        # tous les deux assets.models (dépendance inverse), un import en tête
+        # de fichier créerait un import circulaire.
+        from logistics.models import CorrectiveTicket
         from maintenance.models import MaintenanceOccurrence
+        from reports.services import STATUTS_TICKET_FERMES
         ids_materiels = [m.pk for m in materiels]
         en_retard = MaintenanceOccurrence.objects.filter(
             asset_id__in=ids_materiels, status="OVERDUE",
         ).exists()
-        return self.ETAT_ATTENTION if en_retard else self.ETAT_OK
+        if en_retard:
+            return self.ETAT_ATTENTION
+        ticket_ouvert = CorrectiveTicket.objects.filter(
+            asset_id__in=ids_materiels,
+        ).exclude(status__in=STATUTS_TICKET_FERMES).exists()
+        return self.ETAT_ATTENTION if ticket_ouvert else self.ETAT_OK
 
     @property
     def rectangle_pourcent(self):

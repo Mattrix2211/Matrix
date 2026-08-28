@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Deck, Location, Zone
+from logistics.models import CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from org.models import Sector, Service, Ship
 
@@ -76,6 +77,26 @@ class ZoneEtatMaterielTests(TestCase):
             plan=plan, asset=asset, scheduled_for=timezone.now().date(), status="OVERDUE",
         )
         self.assertEqual(self.zone.etat_materiel, Zone.ETAT_ATTENTION)
+
+    def test_zone_avec_ticket_correctif_ouvert_est_orange(self):
+        # Asset.status n'est jamais remis à jour automatiquement à l'ouverture
+        # d'un ticket correctif : un matériel resté "OK" avec un ticket en
+        # cours doit quand même déclencher l'alerte (sinon faux sentiment de
+        # sécurité sur le plan).
+        asset = self._creer_asset(status="OK")
+        CorrectiveTicket.objects.create(asset=asset, description="Fuite constatée", status="REPORTED")
+        self.assertEqual(self.zone.etat_materiel, Zone.ETAT_ATTENTION)
+
+    def test_zone_avec_ticket_correctif_en_reparation_est_orange(self):
+        asset = self._creer_asset(status="OK")
+        CorrectiveTicket.objects.create(asset=asset, description="Réparation en cours", status="IN_REPAIR")
+        self.assertEqual(self.zone.etat_materiel, Zone.ETAT_ATTENTION)
+
+    def test_zone_avec_ticket_correctif_ferme_ou_annule_reste_ok(self):
+        asset = self._creer_asset(status="OK")
+        CorrectiveTicket.objects.create(asset=asset, description="Panne résolue", status="CLOSED")
+        CorrectiveTicket.objects.create(asset=asset, description="Signalement annulé", status="CANCELLED")
+        self.assertEqual(self.zone.etat_materiel, Zone.ETAT_OK)
 
     def test_danger_l_emporte_sur_le_controle_en_retard(self):
         # Un matériel en retard de contrôle ET un autre hors service dans la
