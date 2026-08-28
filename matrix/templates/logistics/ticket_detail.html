@@ -52,5 +52,35 @@
   </div>
 </div>
 
+{% if peut_prelever_stock %}
+<div class="card mt-3">
+  <div class="card-header">Prélèvement de stock</div>
+  <div class="card-body">
+    {% if pieces_disponibles %}
+    <form method="post" action="{% url 'ticket-stock-prelevement' ticket.id %}" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <div class="col-7">
+        <label class="form-label small mb-1">Pièce en stock</label>
+        <select class="form-select form-select-sm" name="piece_id" required>
+          {% for p in pieces_disponibles %}
+          <option value="{{ p.id }}">{{ p.reference }} - {{ p.designation }} ({{ p.quantite }} disponible{{ p.quantite|pluralize }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-3">
+        <label class="form-label small mb-1">Quantité prélevée</label>
+        <input class="form-control form-control-sm" type="number" name="quantite" min="1" value="1" required>
+      </div>
+      <div class="col-2">
+        <button class="btn btn-sm btn-primary w-100" type="submit">Prélever</button>
+      </div>
+    </form>
+    {% else %}
+    <p class="text-muted mb-0">Aucune pièce disponible dans votre périmètre de stock.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% include 'threads/_messages.html' with commentaire_action=commentaire_action_url %}
 {% endblock %}

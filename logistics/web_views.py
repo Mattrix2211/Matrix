@@ -3,6 +3,7 @@ from django.views.generic import ListView
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
@@ -10,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Q
 from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
+from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
@@ -159,6 +161,17 @@ class TicketDetailView(LoginRequiredMixin, View):
             "commentaires": commentaires_de(ticket),
             "commentaire_action_url": reverse('ticket-comment-create', args=[ticket.pk]),
         }
+        # Prélèvement de stock en un clic (T-FEAT) : réservé à CHEF_SECTION et
+        # au-dessus, même seuil que l'assignation et les autres actions
+        # d'écriture du module. La liste proposée ne montre que les pièces du
+        # périmètre de l'appelant (scope_filters_for_user, même filtre que
+        # StockPieceListView) et déjà en stock, pour éviter de proposer une
+        # pièce impossible à prélever.
+        contexte["peut_prelever_stock"] = contexte["peut_assigner"]
+        if contexte["peut_prelever_stock"]:
+            filtres_stock = scope_filters_for_user(request.user)
+            pieces_qs = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+            contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
         if contexte["peut_assigner"]:
             # Utilisateurs assignables : l'équipage du navire portant l'actif en
             # panne — un chef choisit ensuite librement parmi eux. Le navire de
@@ -379,6 +392,81 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
             part_requests = line.part_request.ticket.part_requests.prefetch_related('lines').all()
             return render(request, 'logistics/_part_requests.html', {"ticket": line.part_request.ticket, "part_requests": part_requests})
         return redirect('ticket-detail', pk=line.part_request.ticket.pk)
+
+
+class TicketStockPrelevementView(LoginRequiredMixin, View):
+    """Prélève une pièce déjà en stock (StockPiece) directement depuis la fiche
+    d'un ticket correctif, en un seul clic (T-FEAT prélèvement de stock).
+
+    Évite au marin de quitter ticket_detail.html pour aller rouvrir la modale
+    « Modifier » de /logistics/stock/ et resaisir la quantité à la main —
+    contraire au principe n°2 de CLAUDE.md (plus rapide qu'Excel). Réservé à
+    CHEF_SECTION et au-dessus, même seuil que les autres actions d'écriture du
+    module (transitions, assignation, gestion du stock).
+
+    Contrôle de périmètre en deux temps, même logique que
+    StockPieceListView.post (T-SEC) : le ticket ciblé doit être dans le
+    périmètre de l'appelant (build_scope_q sur l'actif, même filtre que
+    TicketDetailView), et la pièce prélevée doit être rechargée via un
+    queryset scopé (scope_filters_for_user) plutôt qu'un simple
+    StockPiece.objects.filter(pk=pk) — sans quoi un chef de section pourrait
+    prélever une pièce d'un autre secteur/bâtiment en postant directement son
+    identifiant, hors du menu déroulant du formulaire.
+
+    Traçabilité volontairement simple à ce stade (décision produit) : la
+    quantité est décrémentée directement sur StockPiece et un message système
+    est ajouté au fil de suivi du ticket — pas de nouveau modèle de mouvement
+    de stock formel.
+    """
+
+    def post(self, request, pk):
+        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
+        try:
+            ticket = CorrectiveTicket.objects.select_related('asset').filter(
+                build_scope_q(request.user, "asset__")
+            ).get(pk=pk)
+        except CorrectiveTicket.DoesNotExist:
+            return HttpResponseBadRequest('Ticket introuvable')
+
+        filtres_stock = scope_filters_for_user(request.user)
+        pieces = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+        try:
+            piece = pieces.get(pk=request.POST.get('piece_id'))
+        except (StockPiece.DoesNotExist, ValueError):
+            messages.error(request, "Pièce introuvable ou hors de votre périmètre.")
+            return redirect('ticket-detail', pk=ticket.pk)
+
+        try:
+            quantite = int(request.POST.get('quantite') or 0)
+        except ValueError:
+            quantite = 0
+        if quantite <= 0:
+            messages.error(request, "La quantité prélevée doit être un nombre entier positif.")
+            return redirect('ticket-detail', pk=ticket.pk)
+        if quantite > piece.quantite:
+            messages.error(
+                request,
+                f"Stock insuffisant : {piece.quantite} unité(s) disponible(s) pour {piece.reference}.",
+            )
+            return redirect('ticket-detail', pk=ticket.pk)
+
+        piece.quantite -= quantite
+        piece.updated_by = request.user
+        piece.save(update_fields=['quantite', 'updated_by', 'updated_at'])
+
+        # Trace du prélèvement : message système dans le fil de suivi du ticket,
+        # même mécanisme que les transitions de statut
+        # (CorrectiveTicketViewSet.transition, logistics/views.py).
+        ct = ContentType.objects.get_for_model(CorrectiveTicket)
+        thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(ticket.pk))
+        Message.objects.create(
+            thread=thread, author=request.user, is_system=True,
+            body=f"Prélèvement stock : {quantite} x {piece.reference} ({piece.designation})",
+        )
+
+        messages.success(request, f"{quantite} unité(s) de {piece.reference} prélevée(s) du stock.")
+        return redirect('ticket-detail', pk=ticket.pk)
 
 
 class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
