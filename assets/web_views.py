@@ -1,18 +1,19 @@
 from django.views.generic import DetailView, View, ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import TemplateView
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse, Http404
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db.utils import OperationalError
-from django.db.models import Sum
+from django.db.models import Max, Sum
 from django.db.models.functions import TruncMonth
 from django.db import models
 from collections import defaultdict
-from .models import Asset, AssetType, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument
+from .models import Asset, AssetType, Deck, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument, Zone
 from .models import InstallationBigrameChoice, InstallationEvent, InstallationPart, InstallationHourReading, InstallationVibrationReading, InstallationIsolationReading
 from .models import InstallationMaintenance
 from datetime import datetime
@@ -22,7 +23,7 @@ from logistics.models import CorrectiveTicket, StockPiece
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -102,6 +103,14 @@ def _peut_gerer_rattachement_parent(user):
     """Seuls les CHEF_SERVICE et rôles supérieurs peuvent créer ou modifier le
     rattachement parent/enfant d'une installation ou d'un matériel (même seuil
     que les tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS ci-dessous)."""
+    return user_role_level(user) >= RoleLevel.CHEF_SERVICE
+
+
+def _peut_configurer_plan_navire(user):
+    """Seuls les CHEF_SERVICE et rôles supérieurs peuvent configurer les ponts
+    et zones du plan visuel du navire (même seuil que la gestion du
+    rattachement parent/enfant et des tâches d'entretien ci-dessus : une
+    action de configuration structurante, pas une simple consultation)."""
     return user_role_level(user) >= RoleLevel.CHEF_SERVICE
 
 
@@ -200,6 +209,32 @@ def _resoudre_emplacement(request, ship):
     if location_id:
         return Location.objects.filter(pk=location_id).first()
     return None
+
+
+def _valider_points_zone(points_json):
+    """Décode et valide le contour posté par l'éditeur de plan (Zone.points) :
+    une liste d'au moins 3 points {x, y} en pourcentage (0-100). Renvoie None
+    si le format est invalide (ex: manipulation du formulaire), plutôt que de
+    lever une exception — l'appelant affiche alors un message d'erreur simple
+    et ne modifie pas le contour existant."""
+    try:
+        points = json.loads(points_json or "[]")
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(points, list) or len(points) < 3:
+        return None
+    contour = []
+    for point in points:
+        if not isinstance(point, dict):
+            return None
+        try:
+            x, y = float(point.get("x")), float(point.get("y"))
+        except (TypeError, ValueError):
+            return None
+        if not (0 <= x <= 100 and 0 <= y <= 100):
+            return None
+        contour.append({"x": round(x, 2), "y": round(y, 2)})
+    return contour
 
 
 def _org_dans_perimetre(user, model, cible_id):
@@ -1616,3 +1651,187 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 # emplacements se fait désormais directement depuis les formulaires matériel et
 # installation, avec création à la volée via _resoudre_emplacement ci-dessus —
 # plus besoin d'un écran de gestion séparé.)
+
+
+def _navire_selectionne(request):
+    """Détermine le navire à configurer pour le plan visuel (ponts/zones).
+
+    Un utilisateur rattaché à un navire précis (ship_id_for_user) ne peut
+    configurer que celui-ci. Un utilisateur à accès flotte entière
+    (is_master_admin, cf. matrix/core/scopes.py) choisit le navire via le
+    sélecteur ?navire=, même principe que le sélecteur de navire de
+    SettingsView (matrix/views.py). Renvoie (navire, liste_des_navires ou None
+    si l'utilisateur n'a pas de sélecteur à afficher)."""
+    if is_master_admin(request.user):
+        navires = list(Ship.objects.order_by('name'))
+        navire_id = request.GET.get('navire') or request.POST.get('navire_id')
+        navire = None
+        if navire_id:
+            navire = next((n for n in navires if str(n.pk) == str(navire_id)), None)
+        if navire is None:
+            navire = navires[0] if navires else None
+        return navire, navires
+    navire_id = ship_id_for_user(request.user)
+    navire = Ship.objects.filter(pk=navire_id).first() if navire_id else None
+    return navire, None
+
+
+class PlanNavireListView(LoginRequiredMixin, View):
+    """Configuration des ponts d'un navire (Deck) : création, renommage,
+    réordonnancement, suppression, et accès à l'éditeur de zones de chaque
+    pont (voir PlanNavireDeckView ci-dessous).
+
+    Réservée aux CHEF_SERVICE et rôles supérieurs (_peut_configurer_plan_navire),
+    restreinte au navire de l'utilisateur — voir _navire_selectionne."""
+
+    template_name = 'assets/plan_navire_list.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not _peut_configurer_plan_navire(request.user):
+            raise PermissionDenied("Réservé aux chefs de service et aux rôles supérieurs.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        navire, navires = _navire_selectionne(request)
+        contexte = {
+            'navire': navire,
+            'navires': navires,
+            'multi_navires': navires is not None,
+        }
+        if navire is not None:
+            contexte['ponts'] = Deck.objects.filter(ship=navire).order_by('order', 'name')
+        return render(request, self.template_name, contexte)
+
+    def post(self, request):
+        navire, _navires = _navire_selectionne(request)
+        if navire is None:
+            messages.error(request, "Aucune unité sélectionnée : impossible de configurer un pont.")
+            return redirect('plan-navire-list')
+
+        action = request.POST.get('action')
+        if action == 'create_deck':
+            nom = request.POST.get('name', '').strip()
+            if not nom:
+                messages.error(request, "Le nom du pont est obligatoire.")
+            else:
+                ordre_max = Deck.objects.filter(ship=navire).aggregate(m=Max('order'))['m'] or 0
+                Deck.objects.create(ship=navire, name=nom, order=ordre_max + 1)
+                messages.success(request, "Pont créé.")
+        elif action == 'rename_deck':
+            pont = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).first()
+            nom = request.POST.get('name', '').strip()
+            if pont and nom:
+                pont.name = nom
+                pont.save(update_fields=['name'])
+                messages.success(request, "Pont renommé.")
+        elif action == 'delete_deck':
+            supprimes, _detail = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).delete()
+            if supprimes:
+                messages.success(request, "Pont supprimé.")
+        elif action in ('move_up', 'move_down'):
+            pont = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).first()
+            if pont:
+                ponts = list(Deck.objects.filter(ship=navire).order_by('order', 'name'))
+                idx = next((i for i, p in enumerate(ponts) if p.pk == pont.pk), None)
+                cible = idx - 1 if action == 'move_up' else idx + 1
+                if idx is not None and 0 <= cible < len(ponts):
+                    autre = ponts[cible]
+                    pont.order, autre.order = autre.order, pont.order
+                    Deck.objects.bulk_update([pont, autre], ['order'])
+
+        suffixe = f"?navire={navire.id}" if is_master_admin(request.user) else ""
+        return redirect(f"{reverse('plan-navire-list')}{suffixe}")
+
+
+class PlanNavireDeckView(LoginRequiredMixin, View):
+    """Éditeur du plan d'un pont : téléversement de l'image de fond, et
+    positionnement/édition/suppression des zones cliquables (Zone) dessinées
+    dessus (rectangle par clic-glisser, coordonnées en pourcentage — voir le
+    script de assets/plan_navire_deck.html, en JS natif sans dépendance
+    externe). Une zone peut être laissée sans emplacement assigné (brouillon,
+    cf. Zone.location) : la sous-tâche suivante s'appuiera sur ce lien pour
+    filtrer le matériel affiché lors d'un clic sur la zone.
+
+    Même seuil et même contrôle de périmètre que PlanNavireListView."""
+
+    template_name = 'assets/plan_navire_deck.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not _peut_configurer_plan_navire(request.user):
+            raise PermissionDenied("Réservé aux chefs de service et aux rôles supérieurs.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _pont_dans_perimetre(self, request, pk):
+        pont = get_object_or_404(Deck.objects.select_related('ship'), pk=pk)
+        if not is_master_admin(request.user) and ship_id_for_user(request.user) != pont.ship_id:
+            raise PermissionDenied("Ce pont n'appartient pas à votre unité.")
+        return pont
+
+    def get(self, request, pk):
+        pont = self._pont_dans_perimetre(request, pk)
+        ponts_navire = list(Deck.objects.filter(ship=pont.ship).order_by('order', 'name'))
+        idx = next((i for i, p in enumerate(ponts_navire) if p.pk == pont.pk), 0)
+        zones = list(pont.zones.select_related('location').order_by('name'))
+        contexte = {
+            'pont': pont,
+            'zones': zones,
+            'zones_json': json.dumps([
+                {
+                    'id': z.id,
+                    'name': z.name,
+                    'location_id': z.location_id,
+                    'points': z.points,
+                }
+                for z in zones
+            ]),
+            'emplacements': Location.objects.filter(ship=pont.ship).order_by('name'),
+            'pont_precedent': ponts_navire[idx - 1] if idx > 0 else None,
+            'pont_suivant': ponts_navire[idx + 1] if idx < len(ponts_navire) - 1 else None,
+        }
+        return render(request, self.template_name, contexte)
+
+    def post(self, request, pk):
+        pont = self._pont_dans_perimetre(request, pk)
+        action = request.POST.get('action')
+
+        if action == 'upload_image':
+            image = request.FILES.get('image')
+            if image:
+                pont.image = image
+                pont.save(update_fields=['image'])
+                messages.success(request, "Image du plan mise à jour.")
+            else:
+                messages.error(request, "Aucune image sélectionnée.")
+        elif action in ('create_zone', 'update_zone'):
+            self._enregistrer_zone(request, pont, action)
+        elif action == 'delete_zone':
+            supprimes, _detail = Zone.objects.filter(pk=request.POST.get('zone_id'), deck=pont).delete()
+            if supprimes:
+                messages.success(request, "Zone supprimée.")
+
+        return redirect('plan-navire-deck', pk=pont.pk)
+
+    def _enregistrer_zone(self, request, pont, action):
+        nom = request.POST.get('zone_name', '').strip()
+        if not nom:
+            messages.error(request, "Le nom de la zone est obligatoire.")
+            return
+        contour = _valider_points_zone(request.POST.get('points'))
+        if contour is None:
+            messages.error(request, "Contour de zone invalide : redessinez la zone sur le plan.")
+            return
+        emplacement = _resoudre_emplacement(request, pont.ship)
+
+        if action == 'update_zone':
+            zone = Zone.objects.filter(pk=request.POST.get('zone_id'), deck=pont).first()
+            if zone is None:
+                messages.error(request, "Zone introuvable.")
+                return
+            zone.name = nom
+            zone.points = contour
+            zone.location = emplacement
+            zone.save(update_fields=['name', 'points', 'location'])
+            messages.success(request, "Zone mise à jour.")
+        else:
+            Zone.objects.create(deck=pont, name=nom, points=contour, location=emplacement)
+            messages.success(request, "Zone créée.")

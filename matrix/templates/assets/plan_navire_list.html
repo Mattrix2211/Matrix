@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0"><span class="bi bi-map me-2"></span>Plan du navire</h1>
+  {% if multi_navires %}
+  <form method="get" class="d-flex align-items-center gap-2">
+    <label class="form-label mb-0 small text-muted">Unité</label>
+    <select name="navire" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:220px;">
+      {% for n in navires %}
+        <option value="{{ n.id }}" {% if navire and n.id == navire.id %}selected{% endif %}>{{ n.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
+</div>
+
+{% if not navire %}
+  <div class="alert alert-warning">Aucune unité n'est associée à votre profil : impossible de configurer un plan de navire.</div>
+{% else %}
+  <p class="text-muted">Gérez les ponts de <strong>{{ navire.name }}</strong>, puis ouvrez chaque pont pour positionner ses zones cliquables sur le plan.</p>
+
+  <div class="card mb-3">
+    <div class="card-header">Ajouter un pont</div>
+    <div class="card-body">
+      <form method="post" class="d-flex gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_deck" />
+        {% if multi_navires %}<input type="hidden" name="navire_id" value="{{ navire.id }}" />{% endif %}
+        <input type="text" name="name" class="form-control" placeholder="Nom du pont (ex : Pont supérieur)" required />
+        <button type="submit" class="btn btn-primary text-nowrap"><span class="bi bi-plus-lg"></span> Ajouter</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Ponts ({{ ponts|length }})</div>
+    <ul class="list-group list-group-flush">
+      {% for pont in ponts %}
+      <li class="list-group-item d-flex align-items-center gap-2">
+        {% if pont.image %}
+          <img src="{{ pont.image.url }}" alt="" style="width:48px;height:32px;object-fit:cover;border-radius:4px;" />
+        {% else %}
+          <span class="bi bi-image text-muted fs-5" title="Aucune image"></span>
+        {% endif %}
+        <a href="{% url 'plan-navire-deck' pk=pont.id %}" class="flex-grow-1 text-decoration-none">
+          <span class="fw-semibold">{{ pont.name }}</span>
+          <span class="text-muted small ms-2">{{ pont.zones.count }} zone{{ pont.zones.count|pluralize }}</span>
+        </a>
+        <form method="post" class="d-flex gap-1">
+          {% csrf_token %}
+          <input type="hidden" name="pk" value="{{ pont.id }}" />
+          {% if multi_navires %}<input type="hidden" name="navire_id" value="{{ navire.id }}" />{% endif %}
+          <button type="submit" name="action" value="move_up" class="btn btn-sm btn-outline-secondary" title="Monter">
+            <span class="bi bi-arrow-up"></span>
+          </button>
+          <button type="submit" name="action" value="move_down" class="btn btn-sm btn-outline-secondary" title="Descendre">
+            <span class="bi bi-arrow-down"></span>
+          </button>
+        </form>
+        <a href="{% url 'plan-navire-deck' pk=pont.id %}" class="btn btn-sm btn-outline-primary" title="Configurer le plan"><span class="bi bi-pencil-square"></span></a>
+        <form method="post" onsubmit="return confirm('Supprimer le pont « {{ pont.name }} » et toutes ses zones ?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_deck" />
+          <input type="hidden" name="pk" value="{{ pont.id }}" />
+          {% if multi_navires %}<input type="hidden" name="navire_id" value="{{ navire.id }}" />{% endif %}
+          <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"><span class="bi bi-trash"></span></button>
+        </form>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-muted">Aucun pont configuré pour cette unité.</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+{% endblock %}

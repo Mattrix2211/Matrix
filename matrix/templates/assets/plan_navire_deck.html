@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% load asset_extras %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <a href="{% url 'plan-navire-list' %}?navire={{ pont.ship_id }}" class="text-decoration-none small text-muted">
+      <span class="bi bi-arrow-left"></span> Retour aux ponts
+    </a>
+    <h1 class="h3 mb-0"><span class="bi bi-map me-2"></span>{{ pont.name }} <span class="text-muted fs-6">({{ pont.ship.name }})</span></h1>
+  </div>
+  <div class="d-flex gap-2">
+    {% if pont_precedent %}
+      <a href="{% url 'plan-navire-deck' pk=pont_precedent.id %}" class="btn btn-outline-secondary btn-sm" title="Pont précédent">
+        <span class="bi bi-chevron-left"></span> {{ pont_precedent.name }}
+      </a>
+    {% endif %}
+    {% if pont_suivant %}
+      <a href="{% url 'plan-navire-deck' pk=pont_suivant.id %}" class="btn btn-outline-secondary btn-sm" title="Pont suivant">
+        {{ pont_suivant.name }} <span class="bi bi-chevron-right"></span>
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body d-flex align-items-center gap-3">
+    <form method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-grow-1">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload_image" />
+      <label class="form-label mb-0 text-nowrap">Image du plan</label>
+      <input type="file" name="image" accept="image/*" class="form-control" required />
+      <button type="submit" class="btn btn-primary text-nowrap"><span class="bi bi-upload"></span> {% if pont.image %}Remplacer{% else %}Téléverser{% endif %}</button>
+    </form>
+  </div>
+</div>
+
+{% if pont.image %}
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Plan — cliquez-glissez pour dessiner une zone</span>
+        <button type="button" id="btnDessinerZone" class="btn btn-sm btn-outline-primary">
+          <span class="bi bi-bounding-box-circles"></span> Dessiner une zone
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="planContainer" class="position-relative" style="user-select:none;">
+          <img id="planImage" src="{{ pont.image.url }}" class="img-fluid w-100 d-block rounded" draggable="false" alt="Plan du pont {{ pont.name }}" />
+          <div id="zonesOverlay"></div>
+          <div id="drawRect" class="position-absolute border border-danger border-2" style="display:none;pointer-events:none;background:rgba(220,53,69,0.15);"></div>
+        </div>
+        <p class="small text-muted mt-2 mb-0">Astuce : cliquez sur « Dessiner une zone », puis cliquez-glissez un rectangle sur le plan à l'endroit voulu. Cliquez sur une zone existante (en pointillés) pour la modifier ou la repositionner.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card">
+      <div class="card-header">Zones ({{ zones|length }})</div>
+      <ul class="list-group list-group-flush">
+        {% for z in zones %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold">{{ z.name }}</div>
+            <div class="small {% if z.location %}text-success{% else %}text-muted{% endif %}">
+              {% if z.location %}<span class="bi bi-geo-alt-fill"></span> {{ z.location.name }}{% else %}<span class="bi bi-dash-circle"></span> Brouillon (sans emplacement){% endif %}
+            </div>
+          </div>
+          <div class="d-flex gap-1">
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-editer-zone" data-zone-id="{{ z.id }}" title="Modifier"><span class="bi bi-pencil"></span></button>
+            <form method="post" onsubmit="return confirm('Supprimer la zone « {{ z.name }} » ?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_zone" />
+              <input type="hidden" name="zone_id" value="{{ z.id }}" />
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"><span class="bi bi-trash"></span></button>
+            </form>
+          </div>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">Aucune zone dessinée pour l'instant.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# Modale de saisie/édition d'une zone (nom + emplacement), après dessin du rectangle #}
+<div class="modal fade" id="zoneModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" id="zoneForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="zoneModalTitle">Nouvelle zone</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="zoneAction" value="create_zone" />
+          <input type="hidden" name="zone_id" id="zoneId" />
+          <input type="hidden" name="points" id="zonePoints" />
+          <div class="mb-3">
+            <label class="form-label">Nom de la zone</label>
+            <input type="text" class="form-control" name="zone_name" id="zoneName" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Emplacement lié (facultatif)</label>
+            <select class="form-select" name="location_id" id="zoneLocation">
+              <option value="">— Brouillon, sans emplacement —</option>
+              {% for loc in emplacements %}<option value="{{ loc.id }}">{{ loc.name }}</option>{% endfor %}
+              <option value="__new__">+ Ajouter un nouvel emplacement…</option>
+            </select>
+            <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="zoneLocationNew" placeholder="Nom du nouvel emplacement" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="btnRepositionnerZone" class="btn btn-outline-secondary d-none" data-bs-dismiss="modal">
+            <span class="bi bi-arrows-move"></span> Redessiner sur le plan
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var zones = {{ zones_json|safe }};
+  var container = document.getElementById('planContainer');
+  var img = document.getElementById('planImage');
+  var overlay = document.getElementById('zonesOverlay');
+  var drawRect = document.getElementById('drawRect');
+  var btnDessiner = document.getElementById('btnDessinerZone');
+  var modalEl = document.getElementById('zoneModal');
+  var modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+  var zoneLocationSelect = document.getElementById('zoneLocation');
+  var zoneLocationNew = document.getElementById('zoneLocationNew');
+  var btnRepositionner = document.getElementById('btnRepositionnerZone');
+  // Zone en cours de repositionnement (redessin d'un contour existant) : ses
+  // nom/emplacement sont conservés, seul le contour change une fois le
+  // nouveau rectangle dessiné sur le plan.
+  var zoneARepositionner = null;
+
+  function arrondi(v){ return Math.round(v * 100) / 100; }
+
+  // Coordonnées en pourcentage (0-100) de l'image, à partir d'un évènement souris.
+  function pourcentDepuisEvenement(e){
+    var rect = img.getBoundingClientRect();
+    var x = ((e.clientX - rect.left) / rect.width) * 100;
+    var y = ((e.clientY - rect.top) / rect.height) * 100;
+    return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+  }
+
+  // Convertit un contour (liste de points quelconque) en rectangle englobant,
+  // pour l'affichage des zones déjà enregistrées sur le plan (l'outil de
+  // dessin ne produit que des rectangles, cf. Zone.points côté serveur).
+  function boiteEnglobante(points){
+    var xs = points.map(function(p){ return p.x; });
+    var ys = points.map(function(p){ return p.y; });
+    return { x1: Math.min.apply(null, xs), y1: Math.min.apply(null, ys), x2: Math.max.apply(null, xs), y2: Math.max.apply(null, ys) };
+  }
+
+  function dessinerZonesExistantes(){
+    overlay.innerHTML = '';
+    zones.forEach(function(zone){
+      if (!zone.points || zone.points.length < 3) return;
+      var boite = boiteEnglobante(zone.points);
+      var div = document.createElement('div');
+      div.className = 'position-absolute border border-primary border-dashed btn-editer-zone';
+      div.style.left = boite.x1 + '%';
+      div.style.top = boite.y1 + '%';
+      div.style.width = (boite.x2 - boite.x1) + '%';
+      div.style.height = (boite.y2 - boite.y1) + '%';
+      div.style.borderStyle = 'dashed';
+      div.style.cursor = 'pointer';
+      div.style.background = 'rgba(13,110,253,0.10)';
+      div.title = zone.name;
+      div.setAttribute('data-zone-id', zone.id);
+      overlay.appendChild(div);
+    });
+  }
+
+  function ouvrirModaleZone(mode, zone, points){
+    document.getElementById('zoneModalTitle').textContent = mode === 'create' ? 'Nouvelle zone' : 'Modifier la zone';
+    document.getElementById('zoneAction').value = mode === 'create' ? 'create_zone' : 'update_zone';
+    document.getElementById('zoneId').value = zone ? zone.id : '';
+    document.getElementById('zoneName').value = zone ? zone.name : '';
+    document.getElementById('zonePoints').value = JSON.stringify(points);
+    zoneLocationSelect.value = (zone && zone.location_id) ? zone.location_id : '';
+    zoneLocationNew.classList.add('d-none');
+    zoneLocationNew.value = '';
+    // Le bouton « Redessiner sur le plan » n'a de sens que pour une zone déjà
+    // existante (mode edit), pas pour une zone qu'on vient de dessiner.
+    btnRepositionner.classList.toggle('d-none', mode !== 'edit');
+    btnRepositionner.setAttribute('data-zone-id', zone ? zone.id : '');
+    if (modal) modal.show();
+  }
+
+  if (zoneLocationSelect) {
+    zoneLocationSelect.addEventListener('change', function(){
+      zoneLocationNew.classList.toggle('d-none', zoneLocationSelect.value !== '__new__');
+    });
+  }
+
+  btnRepositionner && btnRepositionner.addEventListener('click', function(){
+    var zoneId = btnRepositionner.getAttribute('data-zone-id');
+    var zone = zones.find(function(z){ return String(z.id) === String(zoneId); });
+    if (!zone) return;
+    zoneARepositionner = zone;
+    dessinActif = true;
+    btnDessiner.classList.add('btn-primary');
+    btnDessiner.classList.remove('btn-outline-primary');
+    btnDessiner.innerHTML = '<span class="bi bi-x-lg"></span> Annuler le dessin';
+  });
+
+  // Clic sur une zone existante (liste ou overlay sur le plan) : ouvre la
+  // modale pré-remplie, sans redessiner (le contour actuel est conservé sauf
+  // si l'utilisateur redessine une nouvelle zone par-dessus).
+  document.addEventListener('click', function(e){
+    var cible = e.target.closest('.btn-editer-zone');
+    if (!cible) return;
+    var zoneId = cible.getAttribute('data-zone-id');
+    var zone = zones.find(function(z){ return String(z.id) === String(zoneId); });
+    if (zone) ouvrirModaleZone('edit', zone, zone.points);
+  });
+
+  if (!img || !container) { dessinerZonesExistantes(); return; }
+
+  var dessinActif = false;
+  var depart = null;
+
+  btnDessiner && btnDessiner.addEventListener('click', function(){
+    dessinActif = !dessinActif;
+    btnDessiner.classList.toggle('btn-primary', dessinActif);
+    btnDessiner.classList.toggle('btn-outline-primary', !dessinActif);
+    btnDessiner.innerHTML = dessinActif
+      ? '<span class="bi bi-x-lg"></span> Annuler le dessin'
+      : '<span class="bi bi-bounding-box-circles"></span> Dessiner une zone';
+  });
+
+  img.addEventListener('mousedown', function(e){
+    if (!dessinActif) return;
+    depart = pourcentDepuisEvenement(e);
+    drawRect.style.display = 'block';
+    e.preventDefault();
+  });
+
+  container.addEventListener('mousemove', function(e){
+    if (!dessinActif || !depart) return;
+    var courant = pourcentDepuisEvenement(e);
+    var x1 = Math.min(depart.x, courant.x), x2 = Math.max(depart.x, courant.x);
+    var y1 = Math.min(depart.y, courant.y), y2 = Math.max(depart.y, courant.y);
+    drawRect.style.left = x1 + '%';
+    drawRect.style.top = y1 + '%';
+    drawRect.style.width = (x2 - x1) + '%';
+    drawRect.style.height = (y2 - y1) + '%';
+  });
+
+  container.addEventListener('mouseup', function(e){
+    if (!dessinActif || !depart) return;
+    var fin = pourcentDepuisEvenement(e);
+    var x1 = Math.min(depart.x, fin.x), x2 = Math.max(depart.x, fin.x);
+    var y1 = Math.min(depart.y, fin.y), y2 = Math.max(depart.y, fin.y);
+    depart = null;
+    dessinActif = false;
+    btnDessiner.classList.remove('btn-primary');
+    btnDessiner.classList.add('btn-outline-primary');
+    btnDessiner.innerHTML = '<span class="bi bi-bounding-box-circles"></span> Dessiner une zone';
+    drawRect.style.display = 'none';
+    if ((x2 - x1) < 1 || (y2 - y1) < 1) return; // rectangle trop petit, on ignore
+
+    var points = [
+      { x: arrondi(x1), y: arrondi(y1) }, { x: arrondi(x2), y: arrondi(y1) },
+      { x: arrondi(x2), y: arrondi(y2) }, { x: arrondi(x1), y: arrondi(y2) },
+    ];
+    if (zoneARepositionner) {
+      // Redessin d'une zone existante : on rouvre la modale en mode édition,
+      // avec le nouveau contour mais le nom/emplacement déjà enregistrés.
+      var zone = zoneARepositionner;
+      zoneARepositionner = null;
+      ouvrirModaleZone('edit', zone, points);
+    } else {
+      ouvrirModaleZone('create', null, points);
+    }
+  });
+
+  dessinerZonesExistantes();
+})();
+</script>
+{% else %}
+  <div class="alert alert-info">Téléversez d'abord une image de plan pour ce pont afin de pouvoir y positionner des zones.</div>
+{% endif %}
+{% endblock %}

@@ -56,6 +56,11 @@ class Deck(TimeStampedModel):
     # Permet de trier les ponts dans la navigation (ex: du pont le plus haut au
     # plus bas), indépendamment de l'ordre alphabétique des noms.
     order = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
+    # Image de fond du plan de ce pont, sur laquelle les zones cliquables
+    # (Zone ci-dessous) sont positionnées en pourcentage. Optionnelle : un
+    # pont peut être créé avant que son plan ne soit téléversé. Même
+    # convention que Asset.photo/Installation.photo (FileField, dossier dédié).
+    image = models.FileField(upload_to="deck_images/", null=True, blank=True, verbose_name="Image du plan")
 
     class Meta:
         ordering = ["ship__name", "order", "name"]

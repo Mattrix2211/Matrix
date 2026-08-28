@@ -2,6 +2,7 @@ from django.urls import path
 from .web_views import (
     AssetDetailView, StartVisualCheckView, AssetListView, InstallationListView,
     InstallationDetailView, ScanQRView, AssetImportView, AssetImportModeleView,
+    PlanNavireListView, PlanNavireDeckView,
 )
 
 urlpatterns = [
@@ -15,4 +16,8 @@ urlpatterns = [
     # Scan QR : point d'entrée unique pour matériel mobile ET installation fixe
     # (même UUID, ScanQRView résout le bon modèle).
     path('scan/<uuid:pk>/', ScanQRView.as_view(), name='scan-qr'),
+    # Plan visuel du navire : configuration des ponts et de leurs zones cliquables
+    # (réservée CHEF_SERVICE+, cf. PlanNavireListView/PlanNavireDeckView).
+    path('assets/plan/', PlanNavireListView.as_view(), name='plan-navire-list'),
+    path('assets/plan/<int:pk>/', PlanNavireDeckView.as_view(), name='plan-navire-deck'),
 ]
