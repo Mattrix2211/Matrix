@@ -12,6 +12,7 @@ from django.utils import timezone
 from .models import MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, mettre_a_jour_echeance_installation
 from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemplate
 from threads.models import Thread, Message, Attachment
+from threads.utils import ajouter_commentaire, commentaires_de
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.roles import user_role_level, RoleLevel
 
@@ -32,7 +33,13 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         items = []
         if occ.plan and occ.plan.checklist_template:
             items = list(occ.plan.checklist_template.items.order_by('order').all())
-        return render(request, self.template_name, {"occ": occ, "items": items})
+        contexte = {
+            "occ": occ,
+            "items": items,
+            "commentaires": commentaires_de(occ),
+            "commentaire_action_url": reverse('occurrence-comment-create', args=[occ.pk]),
+        }
+        return render(request, self.template_name, contexte)
 
     def post(self, request, pk):
         try:
@@ -109,6 +116,30 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         if request.headers.get('HX-Request'):
             return render(request, 'maintenance/_execute_done.html', {"occ": occ, "exec": exec_obj})
         return redirect('/')
+
+
+class OccurrenceCommentCreateView(LoginRequiredMixin, View):
+    """Ajoute un commentaire de suivi libre sur une occurrence de maintenance.
+
+    Même contrôle d'accès que OccurrenceExecuteView : assigné à l'occurrence,
+    ou CHEF_SECTION et au-dessus — pas de nouveau système de droits, on
+    réutilise exactement la règle déjà appliquée à la fiche d'exécution.
+    """
+
+    def post(self, request, pk):
+        try:
+            occ = MaintenanceOccurrence.objects.get(pk=pk)
+        except MaintenanceOccurrence.DoesNotExist:
+            return HttpResponseBadRequest('Occurrence introuvable')
+        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
+            raise PermissionDenied
+        corps = request.POST.get('body', '').strip()
+        if not corps:
+            messages.error(request, "Le commentaire ne peut pas être vide.")
+        else:
+            ajouter_commentaire(occ, request.user, corps)
+            messages.success(request, "Commentaire ajouté.")
+        return redirect('occurrence-execute', pk=occ.pk)
 
 
 # ---------------------------------------------------------------------------

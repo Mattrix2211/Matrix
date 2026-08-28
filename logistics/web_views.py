@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
+from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Q
 from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
@@ -24,6 +25,7 @@ from matrix.core.export import (
 from accounts.models import AuditLog
 from org.models import Sector, Section
 from assets.models import Asset
+from threads.utils import ajouter_commentaire, commentaires_de
 
 User = get_user_model()
 
@@ -133,11 +135,20 @@ def _lignes_export_stock(qs):
 
 
 class TicketDetailView(LoginRequiredMixin, View):
+    """Fiche détail d'un ticket correctif — lecture (dont les commentaires de
+    suivi) restreinte au périmètre du matériel concerné, même filtre que
+    CorrectiveTicketViewSet/TicketListView (build_scope_q sur l'actif du
+    ticket) : un ticket hors périmètre est traité comme introuvable, pour ne
+    pas révéler son existence à un utilisateur qui n'y a pas accès."""
     template_name = 'logistics/ticket_detail.html'
 
     def get(self, request, pk):
         try:
-            ticket = CorrectiveTicket.objects.select_related('asset').get(pk=pk)
+            ticket = (
+                CorrectiveTicket.objects.select_related('asset')
+                .filter(build_scope_q(request.user, "asset__"))
+                .get(pk=pk)
+            )
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         part_requests = ticket.part_requests.prefetch_related('lines').all()
@@ -145,6 +156,8 @@ class TicketDetailView(LoginRequiredMixin, View):
             "ticket": ticket,
             "part_requests": part_requests,
             "peut_assigner": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
+            "commentaires": commentaires_de(ticket),
+            "commentaire_action_url": reverse('ticket-comment-create', args=[ticket.pk]),
         }
         if contexte["peut_assigner"]:
             # Utilisateurs assignables : l'équipage du navire portant l'actif en
@@ -286,6 +299,31 @@ class TicketTransitionView(LoginRequiredMixin, View):
         if request.headers.get('HX-Request'):
             part_requests = ticket.part_requests.prefetch_related('lines').all()
             return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+        return redirect('ticket-detail', pk=ticket.pk)
+
+
+class TicketCommentCreateView(LoginRequiredMixin, View):
+    """Ajoute un commentaire de suivi libre sur un ticket correctif.
+
+    Ouvert à tout marin dont le périmètre couvre le matériel concerné — pas de
+    seuil de rôle, contrairement à l'assignation ou aux transitions : un
+    commentaire de suivi n'engage pas le ticket, il ne fait qu'informer.
+    Contrôle de périmètre identique à TicketDetailView (build_scope_q sur
+    l'actif du ticket), pour qu'un utilisateur ne puisse jamais commenter un
+    ticket qu'il ne peut même pas consulter.
+    """
+
+    def post(self, request, pk):
+        try:
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__")).get(pk=pk)
+        except CorrectiveTicket.DoesNotExist:
+            return HttpResponseBadRequest('Ticket introuvable')
+        corps = request.POST.get('body', '').strip()
+        if not corps:
+            messages.error(request, "Le commentaire ne peut pas être vide.")
+        else:
+            ajouter_commentaire(ticket, request.user, corps)
+            messages.success(request, "Commentaire ajouté.")
         return redirect('ticket-detail', pk=ticket.pk)
 
 

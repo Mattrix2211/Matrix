@@ -1,0 +1,34 @@
+{# Fil de commentaires de suivi générique (T. commentaires transverses).
+   Variables attendues du contexte appelant :
+   - commentaires : messages du fil (système ou libres), triés chronologiquement
+   - commentaire_action : URL de soumission du formulaire d'ajout #}
+<div class="card mt-3">
+  <div class="card-header">Commentaires de suivi</div>
+  <div class="card-body">
+    {% if commentaires %}
+    <ul class="list-unstyled mb-3">
+      {% for message in commentaires %}
+      <li class="mb-2 pb-2 border-bottom">
+        {% if message.is_system %}
+          <span class="badge bg-secondary">Message système</span>
+        {% else %}
+          <span class="badge bg-info text-dark">{{ message.author.get_full_name|default:message.author.username|default:"Utilisateur supprimé" }}</span>
+        {% endif %}
+        <span class="text-muted small ms-2 font-mono">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+        <div class="{% if message.is_system %}fst-italic text-muted{% endif %}">{{ message.body }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted mb-3">Aucun commentaire pour le moment.</p>
+    {% endif %}
+    <form method="post" action="{{ commentaire_action }}">
+      {% csrf_token %}
+      <div class="mb-2">
+        <label class="form-label small mb-1" for="id_commentaire_body">Ajouter un commentaire</label>
+        <textarea class="form-control" id="id_commentaire_body" name="body" rows="2" placeholder="Votre commentaire de suivi..." required></textarea>
+      </div>
+      <button class="btn btn-sm btn-primary" type="submit">Publier le commentaire</button>
+    </form>
+  </div>
+</div>
