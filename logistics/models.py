@@ -2,8 +2,9 @@ import uuid
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from matrix.core.models import TimeStampedModel, OwnedModel
-from assets.models import Asset
+from assets.models import Asset, Installation
 from org.models import Ship, Service, Sector, Section
 
 User = get_user_model()
@@ -110,16 +111,75 @@ class StockPiece(TimeStampedModel, OwnedModel):
     designation = models.CharField(max_length=255, verbose_name="Désignation")
     quantite = models.PositiveIntegerField(default=0, verbose_name="Quantité")
     quantite_minimale = models.PositiveIntegerField(default=0, verbose_name="Quantité minimale")
+    # Seuil critique (optionnel) : franchi, il déclenche une alerte de niveau
+    # supérieur (DANGER) à celle du seuil bas (WARNING), cf. notifications/tasks.py
+    # ::notify_low_stock. Nullable plutôt qu'une valeur par défaut arbitraire, même
+    # convention que Installation.isolation_seuil_ohms : sans valeur renseignée, le
+    # comportement historique est conservé (pièce à quantité 0 = critique), pour
+    # rester rétrocompatible avec les pièces déjà existantes sans backfill.
+    quantite_critique = models.PositiveIntegerField(null=True, blank=True, verbose_name="Seuil critique")
     emplacement = models.CharField(max_length=255, blank=True, default="", verbose_name="Emplacement")
+    # Note libre affichée dans la fiche détaillée de la pièce (pop-up), pour toute
+    # information complémentaire ne méritant pas un champ dédié.
+    note = models.TextField(blank=True, default="", verbose_name="Note")
+    # Photo de la pièce, même mécanisme que les autres photos du projet
+    # (Asset.photo, Installation.photo, InstallationPart.photo) : pas de nouveau
+    # système de pièce jointe.
+    photo = models.FileField(upload_to="stock_photos/", null=True, blank=True, verbose_name="Photo")
     ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Unité")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Service")
     sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Secteur")
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="stock_pieces", verbose_name="Section")
+    # Lien optionnel vers l'équipement affilié (une installation fixe OU un
+    # matériel mobile, jamais les deux) : la pièce apparaît alors dans l'onglet
+    # « Pièces » de la fiche de cet équipement. SET_NULL plutôt que CASCADE : la
+    # suppression d'un équipement ne doit pas faire disparaître la pièce en stock,
+    # seulement son rattachement.
+    installation = models.ForeignKey(
+        Installation, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="pieces_stock", verbose_name="Installation liée",
+    )
+    asset = models.ForeignKey(
+        Asset, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="pieces_stock", verbose_name="Matériel lié",
+    )
 
     class Meta:
         verbose_name = "Pièce en stock"
         verbose_name_plural = "Pièces en stock"
         ordering = ["reference"]
+
+    def clean(self):
+        super().clean()
+        if self.installation_id and self.asset_id:
+            raise ValidationError(
+                "Une pièce ne peut être liée qu'à un seul équipement : une installation OU un matériel, pas les deux."
+            )
+        # Le lien doit rester dans le même périmètre que la pièce (même secteur),
+        # même principe que le contrôle déjà appliqué côté vue sur le secteur posté.
+        if self.installation_id and self.installation.sector_id != self.sector_id:
+            raise ValidationError({"installation": "L'installation liée doit appartenir au même secteur que la pièce."})
+        if self.asset_id and self.asset.sector_id != self.sector_id:
+            raise ValidationError({"asset": "Le matériel lié doit appartenir au même secteur que la pièce."})
+
+    @property
+    def seuil_critique_effectif(self):
+        """Seuil critique réellement appliqué : la valeur renseignée, ou 0 par
+        défaut (comportement historique : seule une rupture totale était
+        considérée comme critique avant l'ajout de ce champ)."""
+        return self.quantite_critique if self.quantite_critique is not None else 0
+
+    @property
+    def est_critique(self):
+        return self.quantite <= self.seuil_critique_effectif
+
+    @property
+    def est_bas(self):
+        return not self.est_critique and self.quantite < self.quantite_minimale
+
+    @property
+    def equipement_lie(self):
+        return self.installation or self.asset
 
     def __str__(self):
         return f"{self.reference} - {self.designation}"

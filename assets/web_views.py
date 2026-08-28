@@ -18,7 +18,7 @@ from .models import InstallationMaintenance
 from datetime import datetime
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
-from logistics.models import CorrectiveTicket
+from logistics.models import CorrectiveTicket, StockPiece
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin
@@ -372,6 +372,10 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
             .select_related('asset', 'asset__ship')
             .order_by('-reported_at')[:20]
         )
+        # Pièces de stock affiliées (T-FEAT stock détaillé) : lien optionnel côté
+        # StockPiece (logistics), affiché ici en lecture seule, la gestion du stock
+        # se faisant depuis /logistics/stock/.
+        ctx['pieces_stock'] = StockPiece.objects.filter(asset=self.object).order_by('reference')
         return ctx
 
 class StartVisualCheckView(LoginRequiredMixin, View):
@@ -1374,6 +1378,10 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             .order_by('-date')
         )
         ctx['parts'] = InstallationPart.objects.filter(installation=self.object).order_by('name')
+        # Pièces de stock affiliées (T-FEAT stock détaillé) : lien optionnel côté
+        # StockPiece (logistics), affiché ici en lecture seule dans l'onglet
+        # « Pièces », la gestion du stock se faisant depuis /logistics/stock/.
+        ctx['pieces_stock'] = StockPiece.objects.filter(installation=self.object).order_by('reference')
         ctx['extra_fields'] = list(self.object.extra_fields.all())
         # Entretien: liste des tâches d'entretien définies sur l'installation
         try:

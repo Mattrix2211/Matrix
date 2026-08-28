@@ -29,7 +29,9 @@ class NotifyLowStockTests(TestCase):
             role=Roles.CHEF_SECTION, section=self.section
         )
 
-    def test_notification_creee_si_piece_sous_le_seuil(self):
+    def test_notification_creee_si_piece_sous_le_seuil_bas(self):
+        # Sous le seuil minimal mais pas encore critique (quantité > seuil critique,
+        # ici 0 par défaut car non renseigné) : alerte de niveau WARNING (stock bas).
         piece = StockPiece.objects.create(
             reference="REF-001",
             designation="Joint torique",
@@ -48,11 +50,90 @@ class NotifyLowStockTests(TestCase):
                 Notification.objects.filter(user=user, verb__icontains=piece.reference).exists(),
                 f"Notification attendue pour {user.username}",
             )
-        # Une rupture de stock est critique : niveau DANGER (déclenche un push).
         self.assertFalse(
             Notification.objects.filter(verb__icontains=piece.reference)
-            .exclude(level=NotificationLevel.DANGER)
+            .exclude(level=NotificationLevel.WARNING)
             .exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(verb__icontains=f"Stock bas : {piece.reference}").exists()
+        )
+
+    def test_notification_creee_si_piece_en_rupture_totale(self):
+        # Rupture totale (quantité à 0) : critique par défaut (seuil critique non
+        # renseigné = 0), niveau DANGER (déclenche un push) - comportement historique
+        # conservé pour rester rétrocompatible avec les pièces déjà existantes.
+        piece = StockPiece.objects.create(
+            reference="REF-010",
+            designation="Vis",
+            quantite=0,
+            quantite_minimale=5,
+            ship=self.ship,
+            service=self.service,
+            sector=self.sector,
+        )
+
+        notify_low_stock()
+
+        self.assertTrue(
+            Notification.objects.filter(
+                verb__icontains=f"Stock critique : {piece.reference}", level=NotificationLevel.DANGER
+            ).exists()
+        )
+
+    def test_notification_critique_si_seuil_critique_renseigne_franchi(self):
+        # Seuil critique explicite : la pièce n'est pas à 0 mais est déjà passée
+        # sous son seuil critique -> DANGER, pas seulement WARNING.
+        piece = StockPiece.objects.create(
+            reference="REF-011",
+            designation="Courroie",
+            quantite=2,
+            quantite_minimale=5,
+            quantite_critique=3,
+            ship=self.ship,
+            service=self.service,
+            sector=self.sector,
+        )
+
+        notify_low_stock()
+
+        self.assertTrue(
+            Notification.objects.filter(
+                verb__icontains=f"Stock critique : {piece.reference}", level=NotificationLevel.DANGER
+            ).exists()
+        )
+
+    def test_notification_escalade_de_bas_a_critique_sans_doublon(self):
+        # La pièce passe de "bas" à "critique" sans repasser au-dessus du seuil
+        # minimal entre-temps : la notification active existante doit être mise à
+        # jour vers DANGER, pas dupliquée.
+        piece = StockPiece.objects.create(
+            reference="REF-012",
+            designation="Manchon",
+            quantite=4,
+            quantite_minimale=5,
+            ship=self.ship,
+            service=self.service,
+            sector=self.sector,
+        )
+
+        notify_low_stock()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.chef_service, verb__icontains=piece.reference, level=NotificationLevel.WARNING
+            ).exists()
+        )
+
+        StockPiece.objects.filter(pk=piece.pk).update(quantite=0)
+        notify_low_stock()
+
+        self.assertEqual(
+            Notification.objects.filter(user=self.chef_service, verb__icontains=piece.reference).count(), 1
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=self.chef_service, verb__icontains=piece.reference, level=NotificationLevel.DANGER
+            ).exists()
         )
 
     def test_aucune_notification_si_quantite_suffisante(self):

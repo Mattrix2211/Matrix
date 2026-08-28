@@ -5,10 +5,12 @@ pour l'écriture (CHEF_SECTION, même seuil que les autres actions d'écriture d
 module logistics), et la création/modification via la vue liste.
 """
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
+from assets.models import Asset, AssetType, Installation
 from org.models import Sector, Section, Service, Ship
 from logistics.models import StockPiece
 
@@ -123,6 +125,16 @@ class StockPieceListViewTests(TestCase):
         self.assertIn('badge text-bg-danger">Stock critique', contenu)
         self.assertIn('badge badge-conforme">Conforme', contenu)
 
+    def test_seuil_minimal_deplace_dans_la_popup_de_detail(self):
+        # Le tableau n'affiche plus la colonne "Seuil minimal" (T-FEAT stock
+        # détaillé) : l'information est désormais disponible dans la pop-up de
+        # détail (data-quantite-minimale sur chaque ligne), pas dans le tableau.
+        self.client.login(username="equipier", password="pass")
+        response = self.client.get(self.url)
+        contenu = response.content.decode()
+        self.assertNotIn('<th class="text-end">Seuil minimal</th>', contenu)
+        self.assertIn('data-quantite-minimale="5"', contenu)
+
     def test_section_dun_autre_secteur_est_ignoree(self):
         # Le secteur posté (self.secteur) est bien dans le périmètre du chef ; la
         # section postée appartient à un autre secteur (self.autre_secteur) : elle
@@ -175,6 +187,86 @@ class StockPieceListViewTests(TestCase):
         # transférée vers le périmètre de l'attaquant).
         self.assertEqual(self.piece_hors_perimetre.quantite, 10)
         self.assertEqual(self.piece_hors_perimetre.sector, self.autre_secteur)
+
+    def test_creation_piece_avec_lien_installation_du_meme_secteur(self):
+        installation = Installation.objects.create(
+            designation="Pompe T14", ship=self.navire, service=self.service, sector=self.secteur,
+        )
+        self.client.login(username="chef", password="pass")
+        self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-020", "designation": "Joint lié",
+            "quantite": "2", "quantite_minimale": "1", "sector_id": self.secteur.id,
+            "equipement": f"installation:{installation.id}",
+        })
+        piece = StockPiece.objects.get(reference="REF-020")
+        self.assertEqual(piece.installation, installation)
+        self.assertIsNone(piece.asset)
+
+    def test_creation_piece_avec_lien_installation_hors_secteur_est_refusee(self):
+        # L'installation choisie appartient à un autre secteur que celui posté pour
+        # la pièce : le lien ne doit pas être créé (périmètre incohérent).
+        installation = Installation.objects.create(
+            designation="Pompe autre secteur", ship=self.navire, service=self.service, sector=self.autre_secteur,
+        )
+        self.client.login(username="chef", password="pass")
+        response = self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-021", "designation": "Joint mal lié",
+            "quantite": "2", "quantite_minimale": "1", "sector_id": self.secteur.id,
+            "equipement": f"installation:{installation.id}",
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(StockPiece.objects.filter(reference="REF-021").exists())
+
+    def test_creation_piece_avec_lien_asset_du_meme_secteur(self):
+        asset_type = AssetType.objects.create(name="Extincteur", category="Sécurité", sector=self.secteur)
+        asset = Asset.objects.create(asset_type=asset_type, ship=self.navire, service=self.service, sector=self.secteur)
+        self.client.login(username="chef", password="pass")
+        self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-022", "designation": "Cartouche",
+            "quantite": "1", "quantite_minimale": "1", "sector_id": self.secteur.id,
+            "equipement": f"asset:{asset.id}",
+        })
+        piece = StockPiece.objects.get(reference="REF-022")
+        self.assertEqual(piece.asset, asset)
+        self.assertIsNone(piece.installation)
+
+    def test_seuil_critique_superieur_ou_egal_au_seuil_bas_est_refuse(self):
+        self.client.login(username="chef", password="pass")
+        response = self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-023", "designation": "Incohérent",
+            "quantite": "1", "quantite_minimale": "3", "quantite_critique": "3",
+            "sector_id": self.secteur.id,
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(StockPiece.objects.filter(reference="REF-023").exists())
+
+    def test_creation_piece_avec_seuil_critique_photo_et_note(self):
+        photo = SimpleUploadedFile("photo.jpg", b"contenu-fictif", content_type="image/jpeg")
+        self.client.login(username="chef", password="pass")
+        self.client.post(self.url, {
+            "action": "create_piece", "reference": "REF-024", "designation": "Pièce complète",
+            "quantite": "5", "quantite_minimale": "3", "quantite_critique": "1",
+            "sector_id": self.secteur.id, "note": "Commander chez le fournisseur habituel",
+            "photo": photo,
+        })
+        piece = StockPiece.objects.get(reference="REF-024")
+        self.assertEqual(piece.quantite_critique, 1)
+        self.assertEqual(piece.note, "Commander chez le fournisseur habituel")
+        self.assertTrue(piece.photo)
+
+    def test_modification_piece_conserve_la_photo_si_aucune_nouvelle_fournie(self):
+        photo = SimpleUploadedFile("photo.jpg", b"contenu-fictif", content_type="image/jpeg")
+        self.piece_dans_perimetre.photo = photo
+        self.piece_dans_perimetre.save()
+
+        self.client.login(username="chef", password="pass")
+        self.client.post(self.url, {
+            "action": "edit_piece", "pk": self.piece_dans_perimetre.pk,
+            "reference": "REF-001", "designation": "Joint torique", "quantite": "8",
+            "quantite_minimale": "5", "sector_id": self.secteur.id,
+        })
+        self.piece_dans_perimetre.refresh_from_db()
+        self.assertTrue(self.piece_dans_perimetre.photo)
 
     def test_chef_ne_peut_pas_transferer_une_piece_vers_un_secteur_hors_perimetre(self):
         # Même si la pièce ciblée est dans son périmètre, le chef ne doit pas pouvoir

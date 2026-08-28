@@ -51,6 +51,12 @@ def notify_overdue_occurrences():
 def notify_low_stock():
     """Alerte les chefs concernés dès qu'une pièce de stock passe sous son seuil minimal.
 
+    Deux niveaux de gravité, cohérents avec le code couleur de la fiche stock
+    (--amber "stock bas" / --red "stock critique") : dès le passage sous le seuil
+    minimal, alerte WARNING ; dès le passage sous le seuil critique (StockPiece.
+    seuil_critique_effectif : la valeur renseignée, ou 0 par défaut si non
+    renseignée), alerte DANGER (plus grave, déclenche un push).
+
     Le destinataire est déterminé à partir du périmètre de la pièce (service/secteur/
     section) : chef de service dont le service correspond, chef de secteur dont le
     secteur correspond, et chef de section dont la section correspond si la pièce en
@@ -58,7 +64,10 @@ def notify_low_stock():
 
     Déduplication : une seule notification active par pièce et par destinataire tant
     qu'elle n'a pas été résolue - pas de rappel quotidien pour une même pièce déjà sous
-    le seuil.
+    le seuil. update_or_create (et non get_or_create) : si la pièce s'aggrave (bas ->
+    critique) ou s'améliore (critique -> bas) sans repasser au-dessus du seuil minimal
+    entre-temps, la notification active existante est mise à jour vers le nouveau
+    niveau plutôt que de rester bloquée sur le premier niveau constaté.
 
     Cycle de vie de l'alerte : dès qu'une pièce repasse au-dessus (ou à l'égal) de son
     seuil minimal, la notification active liée à cette pièce est résolue (même pattern
@@ -85,14 +94,20 @@ def notify_low_stock():
         if piece.section_id:
             scope_filter |= Q(role=Roles.CHEF_SECTION, section=piece.section)
 
-        verb = f"Stock sous le seuil : {piece.reference} - {piece.designation} ({piece.quantite}/{piece.quantite_minimale})"
+        if piece.est_critique:
+            niveau = NotificationLevel.DANGER
+            verb = f"Stock critique : {piece.reference} - {piece.designation} ({piece.quantite}/{piece.quantite_minimale})"
+        else:
+            niveau = NotificationLevel.WARNING
+            verb = f"Stock bas : {piece.reference} - {piece.designation} ({piece.quantite}/{piece.quantite_minimale})"
+
         for profile in UserProfile.objects.filter(scope_filter).select_related("user"):
-            Notification.objects.get_or_create(
+            Notification.objects.update_or_create(
                 user=profile.user,
                 content_type=piece_ct,
                 object_id=str(piece.pk),
                 is_read=False,
-                defaults={"verb": verb, "level": NotificationLevel.DANGER},
+                defaults={"verb": verb, "level": niveau},
             )
     return {"status": "ok"}
 

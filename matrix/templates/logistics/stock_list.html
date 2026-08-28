@@ -35,48 +35,86 @@
           <th>Emplacement</th>
           <th>Périmètre</th>
           <th class="text-end">Quantité</th>
-          <th class="text-end">Seuil minimal</th>
           <th>État</th>
-          {% if peut_gerer %}<th></th>{% endif %}
         </tr>
       </thead>
       <tbody>
         {% for p in pieces %}
-        <tr>
+        <tr style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#detailPieceModal"
+          data-pk="{{ p.id }}" data-reference="{{ p.reference }}" data-designation="{{ p.designation }}"
+          data-emplacement="{{ p.emplacement }}" data-note="{{ p.note }}"
+          data-quantite="{{ p.quantite }}" data-quantite-minimale="{{ p.quantite_minimale }}"
+          data-quantite-critique="{% if p.quantite_critique is not None %}{{ p.quantite_critique }}{% endif %}"
+          data-sector-id="{{ p.sector.id }}" data-section-id="{% if p.section %}{{ p.section.id }}{% endif %}"
+          data-perimetre="{{ p.ship.name }} / {{ p.service.name }} / {{ p.sector.name }}{% if p.section %} / {{ p.section.name }}{% endif %}"
+          data-photo-url="{% if p.photo %}{{ p.photo.url }}{% endif %}"
+          {% if p.installation %}data-equipement="installation:{{ p.installation.id }}" data-equipement-label="{{ p.installation.designation }}" data-equipement-url="{% url 'installation-detail' p.installation.id %}"
+          {% elif p.asset %}data-equipement="asset:{{ p.asset.id }}" data-equipement-label="{{ p.asset }}" data-equipement-url="{% url 'asset-detail' p.asset.id %}"
+          {% else %}data-equipement="" data-equipement-label="" data-equipement-url=""
+          {% endif %}
+        >
           <td class="font-mono">{{ p.reference }}</td>
           <td>{{ p.designation }}</td>
           <td>{{ p.emplacement|default:"—" }}</td>
           <td class="small text-muted">{{ p.ship.name }} / {{ p.service.name }} / {{ p.sector.name }}{% if p.section %} / {{ p.section.name }}{% endif %}</td>
           <td class="text-end font-mono">{{ p.quantite }}</td>
-          <td class="text-end font-mono">{{ p.quantite_minimale }}</td>
           <td style="min-width:140px;">
-            {% if p.quantite == 0 %}
+            {% if p.est_critique %}
               <span class="badge text-bg-danger">Stock critique</span>
-            {% elif p.quantite < p.quantite_minimale %}
+            {% elif p.est_bas %}
               <span class="badge text-bg-warning">Stock bas</span>
             {% else %}
               <span class="badge badge-conforme">Conforme</span>
             {% endif %}
             <div class="progress mt-1" style="height:6px;" title="{{ p.quantite }}/{{ p.quantite_minimale }} — {{ p.jauge_pct }} % du seuil minimal">
-              <div class="progress-bar" role="progressbar" style="width: {{ p.jauge_pct }}%; background: {% if p.quantite == 0 %}var(--red){% elif p.quantite < p.quantite_minimale %}var(--amber){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ p.jauge_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+              <div class="progress-bar" role="progressbar" style="width: {{ p.jauge_pct }}%; background: {% if p.est_critique %}var(--red){% elif p.est_bas %}var(--amber){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ p.jauge_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
           </td>
-          {% if peut_gerer %}
-          <td>
-            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modifierPieceModal"
-              data-pk="{{ p.id }}" data-reference="{{ p.reference }}" data-designation="{{ p.designation }}"
-              data-emplacement="{{ p.emplacement }}" data-quantite="{{ p.quantite }}" data-quantite-minimale="{{ p.quantite_minimale }}"
-              data-sector-id="{{ p.sector.id }}" data-section-id="{% if p.section %}{{ p.section.id }}{% endif %}">
-              <i class="bi bi-pencil"></i> Modifier
-            </button>
-          </td>
-          {% endif %}
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-center text-muted py-4">Aucune pièce en stock sur votre périmètre</td></tr>
+        <tr><td colspan="6" class="text-center text-muted py-4">Aucune pièce en stock sur votre périmètre</td></tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+
+{# Modale détail : clic sur une ligne, ouverte à tout utilisateur (lecture seule). #}
+<div class="modal fade" id="detailPieceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail de la pièce</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <div class="font-mono fw-bold" id="detailReference"></div>
+            <div id="detailDesignation"></div>
+          </div>
+          <span id="detailBadge"></span>
+        </div>
+        <img id="detailPhoto" alt="Photo de la pièce" style="max-width:100%; max-height:220px; display:none;" class="mb-3 rounded" />
+        <div class="row g-2 small">
+          <div class="col-6"><strong>Quantité :</strong> <span class="font-mono" id="detailQuantite"></span></div>
+          <div class="col-6"><strong>Seuil minimal :</strong> <span class="font-mono" id="detailSeuilMinimal"></span></div>
+          <div class="col-6"><strong>Seuil critique :</strong> <span class="font-mono" id="detailSeuilCritique"></span></div>
+          <div class="col-6"><strong>Emplacement :</strong> <span id="detailEmplacement"></span></div>
+          <div class="col-12"><strong>Périmètre :</strong> <span id="detailPerimetre"></span></div>
+          <div class="col-12"><strong>Équipement affilié :</strong> <span id="detailEquipement"></span></div>
+          <div class="col-12"><strong>Note :</strong> <div id="detailNote" class="text-muted"></div></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        {% if peut_gerer %}
+        <button type="button" class="btn btn-outline-secondary" id="detailBtnModifier">
+          <i class="bi bi-pencil"></i> Modifier
+        </button>
+        {% endif %}
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -86,15 +124,16 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Nouvelle pièce en stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
-      <form method="post" id="creerPieceForm">
+      <form method="post" id="creerPieceForm" enctype="multipart/form-data">
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="create_piece">
           <div class="row g-3">
             <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" required></div>
             <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" required></div>
-            <div class="col-6"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" value="0" required></div>
-            <div class="col-6"><label class="form-label">Seuil minimal (alerte)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" value="0" required></div>
+            <div class="col-4"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" value="0" required></div>
+            <div class="col-4"><label class="form-label">Seuil minimal (alerte bas)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" value="0" required></div>
+            <div class="col-4"><label class="form-label">Seuil critique (optionnel)</label><input type="number" min="0" class="form-control font-mono" name="quantite_critique" placeholder="Ex : 1"></div>
             <div class="col-12"><label class="form-label">Emplacement</label><input class="form-control" name="emplacement" placeholder="Ex : Magasin bâbord"></div>
             <div class="col-6">
               <label class="form-label">Secteur</label>
@@ -110,6 +149,21 @@
                 {% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}
               </select>
             </div>
+            <div class="col-12">
+              <label class="form-label">Équipement affilié (optionnel)</label>
+              <select class="form-select" name="equipement" id="creerEquipement">
+                <option value="">Aucun</option>
+                <optgroup label="Installations">
+                  {% for i in installations %}<option value="installation:{{ i.id }}" data-sector="{{ i.sector_id }}">{{ i.designation }}</option>{% endfor %}
+                </optgroup>
+                <optgroup label="Matériel mobile">
+                  {% for a in assets_materiel %}<option value="asset:{{ a.id }}" data-sector="{{ a.sector_id }}">{{ a }}</option>{% endfor %}
+                </optgroup>
+              </select>
+              <div class="form-text">La pièce apparaîtra alors dans l'onglet « Pièces » de la fiche de cet équipement.</div>
+            </div>
+            <div class="col-12"><label class="form-label">Photo (optionnel)</label><input type="file" class="form-control" name="photo" accept="image/*"></div>
+            <div class="col-12"><label class="form-label">Note (optionnel)</label><textarea class="form-control" name="note" rows="2"></textarea></div>
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="document.getElementById('creerPieceForm').requestSubmit()">Créer</button></div>
@@ -118,12 +172,12 @@
   </div>
 </div>
 
-{# Modale modification #}
+{# Modale modification : ouverte depuis le bouton « Modifier » de la modale détail #}
 <div class="modal fade" id="modifierPieceModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Modifier la pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
-      <form method="post" id="modifierPieceForm">
+      <form method="post" id="modifierPieceForm" enctype="multipart/form-data">
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="edit_piece">
@@ -131,8 +185,9 @@
           <div class="row g-3">
             <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="modifierReference" required></div>
             <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="modifierDesignation" required></div>
-            <div class="col-6"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" id="modifierQuantite" required></div>
-            <div class="col-6"><label class="form-label">Seuil minimal (alerte)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" id="modifierQuantiteMinimale" required></div>
+            <div class="col-4"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" id="modifierQuantite" required></div>
+            <div class="col-4"><label class="form-label">Seuil minimal (alerte bas)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" id="modifierQuantiteMinimale" required></div>
+            <div class="col-4"><label class="form-label">Seuil critique (optionnel)</label><input type="number" min="0" class="form-control font-mono" name="quantite_critique" id="modifierQuantiteCritique" placeholder="Ex : 1"></div>
             <div class="col-12"><label class="form-label">Emplacement</label><input class="form-control" name="emplacement" id="modifierEmplacement"></div>
             <div class="col-6">
               <label class="form-label">Secteur</label>
@@ -148,6 +203,25 @@
                 {% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}
               </select>
             </div>
+            <div class="col-12">
+              <label class="form-label">Équipement affilié (optionnel)</label>
+              <select class="form-select" name="equipement" id="modifierEquipement">
+                <option value="">Aucun</option>
+                <optgroup label="Installations">
+                  {% for i in installations %}<option value="installation:{{ i.id }}" data-sector="{{ i.sector_id }}">{{ i.designation }}</option>{% endfor %}
+                </optgroup>
+                <optgroup label="Matériel mobile">
+                  {% for a in assets_materiel %}<option value="asset:{{ a.id }}" data-sector="{{ a.sector_id }}">{{ a }}</option>{% endfor %}
+                </optgroup>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Photo</label>
+              <div><img id="modifierPhotoActuelle" alt="Photo actuelle" style="max-height:80px; display:none;" class="mb-2 rounded" /></div>
+              <input type="file" class="form-control" name="photo" accept="image/*">
+              <div class="form-text">Laisser vide pour conserver la photo actuelle.</div>
+            </div>
+            <div class="col-12"><label class="form-label">Note (optionnel)</label><textarea class="form-control" name="note" id="modifierNote" rows="2"></textarea></div>
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="document.getElementById('modifierPieceForm').requestSubmit()">Enregistrer</button></div>
@@ -155,46 +229,120 @@
     </div>
   </div>
 </div>
+{% endif %}
 
+{# Script commun : la pop-up de détail (lecture) doit fonctionner pour tout
+utilisateur, pas seulement ceux qui peuvent gérer le stock — seuls les éléments
+liés à la création/modification sont gardés côté template par peut_gerer, et
+les vérifications "if (element)" ci-dessous s'adaptent à leur absence. #}
 <script>
   (function(){
-    // Filtre la liste des sections en fonction du secteur choisi (évite de proposer
-    // des sections d'un autre secteur, sans dupliquer un système de cascade complet).
-    function filtrerSections(sectorSelect, sectionSelect){
-      if (!sectorSelect || !sectionSelect) return;
-      var sectorVal = sectorSelect.value;
-      Array.from(sectionSelect.options).forEach(function(opt){
-        if (!opt.value) { opt.hidden = false; return; }
-        opt.hidden = !!sectorVal && opt.getAttribute('data-sector') !== sectorVal;
+    // Filtre une ou plusieurs listes déroulantes en fonction du secteur choisi
+    // (évite de proposer des sections/équipements d'un autre secteur), sans
+    // dupliquer un système de cascade complet.
+    function filtrerParSecteur(sourceSelect, targetSelects){
+      if (!sourceSelect) return;
+      var sectorVal = sourceSelect.value;
+      targetSelects.forEach(function(sel){
+        if (!sel) return;
+        Array.from(sel.options).forEach(function(opt){
+          if (!opt.value) { opt.hidden = false; return; }
+          opt.hidden = !!sectorVal && opt.getAttribute('data-sector') !== sectorVal;
+        });
+        if (sel.selectedOptions.length && sel.selectedOptions[0].hidden) {
+          sel.selectedIndex = 0;
+        }
       });
-      if (sectionSelect.selectedOptions.length && sectionSelect.selectedOptions[0].hidden) {
-        sectionSelect.selectedIndex = 0;
-      }
     }
     var creerSector = document.getElementById('creerSector');
     var creerSection = document.getElementById('creerSection');
-    if (creerSector) { creerSector.addEventListener('change', function(){ filtrerSections(creerSector, creerSection); }); }
+    var creerEquipement = document.getElementById('creerEquipement');
+    if (creerSector) { creerSector.addEventListener('change', function(){ filtrerParSecteur(creerSector, [creerSection, creerEquipement]); }); }
 
     var modifierSector = document.getElementById('modifierSector');
     var modifierSection = document.getElementById('modifierSection');
-    if (modifierSector) { modifierSector.addEventListener('change', function(){ filtrerSections(modifierSector, modifierSection); }); }
+    var modifierEquipement = document.getElementById('modifierEquipement');
+    if (modifierSector) { modifierSector.addEventListener('change', function(){ filtrerParSecteur(modifierSector, [modifierSection, modifierEquipement]); }); }
 
-    var modifierModal = document.getElementById('modifierPieceModal');
-    if (modifierModal) {
-      modifierModal.addEventListener('show.bs.modal', function(event){
-        var b = event.relatedTarget;
-        document.getElementById('modifierPk').value = b.getAttribute('data-pk') || '';
-        document.getElementById('modifierReference').value = b.getAttribute('data-reference') || '';
-        document.getElementById('modifierDesignation').value = b.getAttribute('data-designation') || '';
-        document.getElementById('modifierEmplacement').value = b.getAttribute('data-emplacement') || '';
-        document.getElementById('modifierQuantite').value = b.getAttribute('data-quantite') || 0;
-        document.getElementById('modifierQuantiteMinimale').value = b.getAttribute('data-quantite-minimale') || 0;
+    // Libellé état + couleur, même règle que côté serveur (StockPiece.est_critique
+    // / est_bas) : seuil critique renseigné, sinon 0 par défaut.
+    function calculerEtat(quantite, quantiteMinimale, quantiteCritique){
+      var seuilCritique = (quantiteCritique === '' || quantiteCritique === null) ? 0 : parseInt(quantiteCritique, 10);
+      if (quantite <= seuilCritique) { return {label: 'Stock critique', classe: 'text-bg-danger'}; }
+      if (quantite < quantiteMinimale) { return {label: 'Stock bas', classe: 'text-bg-warning'}; }
+      return {label: 'Conforme', classe: 'badge-conforme'};
+    }
+
+    // Remplit le formulaire de modification à partir des attributs de la ligne
+    // cliquée (source commune pour la modale détail).
+    function remplirFormulaireModifier(b){
+      document.getElementById('modifierPk').value = b.getAttribute('data-pk') || '';
+      document.getElementById('modifierReference').value = b.getAttribute('data-reference') || '';
+      document.getElementById('modifierDesignation').value = b.getAttribute('data-designation') || '';
+      document.getElementById('modifierEmplacement').value = b.getAttribute('data-emplacement') || '';
+      document.getElementById('modifierQuantite').value = b.getAttribute('data-quantite') || 0;
+      document.getElementById('modifierQuantiteMinimale').value = b.getAttribute('data-quantite-minimale') || 0;
+      document.getElementById('modifierQuantiteCritique').value = b.getAttribute('data-quantite-critique') || '';
+      document.getElementById('modifierNote').value = b.getAttribute('data-note') || '';
+      var photoUrl = b.getAttribute('data-photo-url');
+      var imgActuelle = document.getElementById('modifierPhotoActuelle');
+      if (photoUrl) { imgActuelle.src = photoUrl; imgActuelle.style.display = ''; } else { imgActuelle.style.display = 'none'; }
+      if (modifierSector) {
         modifierSector.value = b.getAttribute('data-sector-id') || '';
-        filtrerSections(modifierSector, modifierSection);
-        modifierSection.value = b.getAttribute('data-section-id') || '';
+        filtrerParSecteur(modifierSector, [modifierSection, modifierEquipement]);
+      }
+      if (modifierSection) { modifierSection.value = b.getAttribute('data-section-id') || ''; }
+      if (modifierEquipement) { modifierEquipement.value = b.getAttribute('data-equipement') || ''; }
+    }
+
+    var detailModal = document.getElementById('detailPieceModal');
+    var ligneCourante = null;
+    if (detailModal) {
+      detailModal.addEventListener('show.bs.modal', function(event){
+        var b = event.relatedTarget;
+        ligneCourante = b;
+        document.getElementById('detailReference').textContent = b.getAttribute('data-reference') || '';
+        document.getElementById('detailDesignation').textContent = b.getAttribute('data-designation') || '';
+        document.getElementById('detailQuantite').textContent = b.getAttribute('data-quantite') || '0';
+        document.getElementById('detailSeuilMinimal').textContent = b.getAttribute('data-quantite-minimale') || '0';
+        document.getElementById('detailSeuilCritique').textContent = b.getAttribute('data-quantite-critique') || 'Non défini (0 par défaut)';
+        document.getElementById('detailEmplacement').textContent = b.getAttribute('data-emplacement') || '—';
+        document.getElementById('detailPerimetre').textContent = b.getAttribute('data-perimetre') || '—';
+        document.getElementById('detailNote').textContent = b.getAttribute('data-note') || 'Aucune';
+
+        var equipementLabel = b.getAttribute('data-equipement-label');
+        var equipementUrl = b.getAttribute('data-equipement-url');
+        var detailEquipement = document.getElementById('detailEquipement');
+        if (equipementLabel && equipementUrl) {
+          detailEquipement.innerHTML = '<a href="' + equipementUrl + '">' + equipementLabel + '</a>';
+        } else {
+          detailEquipement.textContent = 'Aucun';
+        }
+
+        var photoUrl = b.getAttribute('data-photo-url');
+        var img = document.getElementById('detailPhoto');
+        if (photoUrl) { img.src = photoUrl; img.style.display = ''; } else { img.style.display = 'none'; }
+
+        var etat = calculerEtat(
+          parseInt(b.getAttribute('data-quantite') || '0', 10),
+          parseInt(b.getAttribute('data-quantite-minimale') || '0', 10),
+          b.getAttribute('data-quantite-critique')
+        );
+        document.getElementById('detailBadge').innerHTML = '<span class="badge ' + etat.classe + '">' + etat.label + '</span>';
       });
+
+      var btnModifier = document.getElementById('detailBtnModifier');
+      if (btnModifier) {
+        btnModifier.addEventListener('click', function(){
+          if (!ligneCourante) return;
+          remplirFormulaireModifier(ligneCourante);
+          var instanceDetail = bootstrap.Modal.getInstance(detailModal);
+          if (instanceDetail) { instanceDetail.hide(); }
+          var instanceModifier = bootstrap.Modal.getOrCreateInstance(document.getElementById('modifierPieceModal'));
+          instanceModifier.show();
+        });
+      }
     }
   })();
 </script>
-{% endif %}
 {% endblock %}

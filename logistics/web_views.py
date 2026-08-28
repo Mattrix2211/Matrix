@@ -26,7 +26,7 @@ from matrix.core.export import (
 )
 from accounts.models import AuditLog
 from org.models import Sector, Section
-from assets.models import Asset
+from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, commentaires_de
 
 User = get_user_model()
@@ -112,7 +112,7 @@ def _ship_du_profil_q(ship_id):
     )
 
 _ENTETES_EXPORT_STOCK = [
-    'Référence', 'Désignation', 'Quantité', 'Quantité minimale', 'Emplacement',
+    'Référence', 'Désignation', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
     'Unité', 'Service', 'Secteur', 'Section',
 ]
 
@@ -126,6 +126,7 @@ def _lignes_export_stock(qs):
             p.designation,
             p.quantite,
             p.quantite_minimale,
+            p.quantite_critique if p.quantite_critique is not None else '',
             p.emplacement,
             p.ship.name if p.ship else '',
             p.service.name if p.service else '',
@@ -482,7 +483,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     context_object_name = 'pieces'
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section')
+        qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section', 'installation', 'asset', 'asset__asset_type')
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(
@@ -495,6 +496,12 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['peut_gerer'] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('service__ship__name', 'service__name', 'name')
         ctx['sections'] = Section.objects.select_related('sector').order_by('sector__name', 'name')
+        # Équipement affiliable (T-FEAT stock détaillé) : listés une seule fois,
+        # avec leur secteur en attribut, pour filtrer côté client selon le secteur
+        # choisi (même principe que le filtrage des sections). Le contrôle réel
+        # d'appartenance au secteur est fait côté serveur (voir post()).
+        ctx['installations'] = Installation.objects.select_related('sector').order_by('designation')
+        ctx['assets_materiel'] = Asset.objects.select_related('sector', 'asset_type').order_by('designation')
         ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
         ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
         ctx['xlsx_disponible'] = xlsx_disponible()
@@ -570,20 +577,60 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             messages.error(request, "Les quantités doivent être des nombres entiers.")
             return redirect('stock-piece-list')
 
+        # Seuil critique (optionnel) : distinct du seuil bas déjà existant, pour une
+        # alerte de niveau supérieur une fois franchi (notify_low_stock). Doit rester
+        # strictement inférieur au seuil bas, sinon la distinction n'a pas de sens.
+        quantite_critique = None
+        quantite_critique_brut = request.POST.get('quantite_critique', '').strip()
+        if quantite_critique_brut:
+            try:
+                quantite_critique = int(quantite_critique_brut)
+            except ValueError:
+                messages.error(request, "Le seuil critique doit être un nombre entier.")
+                return redirect('stock-piece-list')
+            if quantite_critique < 0 or quantite_critique >= quantite_minimale:
+                messages.error(request, "Le seuil critique doit être inférieur au seuil bas.")
+                return redirect('stock-piece-list')
+
+        # Équipement affilié (optionnel) : une installation OU un matériel, dans le
+        # même secteur que la pièce (le secteur de la pièce a déjà été validé comme
+        # appartenant au périmètre de l'appelant ci-dessus). Format posté :
+        # "installation:<id>" ou "asset:<id>".
+        installation = None
+        asset = None
+        equipement = request.POST.get('equipement', '').strip()
+        if equipement:
+            type_equipement, _, id_equipement = equipement.partition(':')
+            if type_equipement == 'installation':
+                installation = Installation.objects.filter(pk=id_equipement, sector=sector).first()
+            elif type_equipement == 'asset':
+                asset = Asset.objects.filter(pk=id_equipement, sector=sector).first()
+            if installation is None and asset is None:
+                messages.error(request, "L'équipement choisi ne fait pas partie du secteur sélectionné.")
+                return redirect('stock-piece-list')
+
         champs = {
             "reference": reference,
             "designation": designation,
             "quantite": max(quantite, 0),
             "quantite_minimale": max(quantite_minimale, 0),
+            "quantite_critique": quantite_critique,
             "emplacement": request.POST.get('emplacement', '').strip(),
+            "note": request.POST.get('note', '').strip(),
             "ship": sector.service.ship,
             "service": sector.service,
             "sector": sector,
             "section": section,
+            "installation": installation,
+            "asset": asset,
         }
+        photo = request.FILES.get('photo')
 
         if action == 'create_piece':
-            StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+            piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+            if photo:
+                piece.photo = photo
+                piece.save(update_fields=['photo'])
             messages.info(request, "Pièce ajoutée au stock.")
         else:
             pk = request.POST.get('pk')
@@ -591,9 +638,18 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # filtre que la liste) plutôt qu'un simple StockPiece.objects.filter(pk=pk) :
             # une pièce hors périmètre doit être traitée comme introuvable, pour empêcher
             # un chef de section de modifier une pièce d'un autre bâtiment via un POST direct.
-            if not self.get_queryset().filter(pk=pk).exists():
+            piece = self.get_queryset().filter(pk=pk).first()
+            if piece is None:
                 messages.error(request, "Pièce introuvable.")
                 return redirect('stock-piece-list')
-            StockPiece.objects.filter(pk=pk).update(updated_by=request.user, **champs)
+            # Mise à jour via l'instance (et non un .update() de queryset) : nécessaire
+            # pour que l'affectation de la photo soit correctement enregistrée dans le
+            # stockage de fichiers, ce que .update() ne fait pas.
+            for champ, valeur in champs.items():
+                setattr(piece, champ, valeur)
+            piece.updated_by = request.user
+            if photo:
+                piece.photo = photo
+            piece.save()
             messages.info(request, "Pièce mise à jour.")
         return redirect('stock-piece-list')

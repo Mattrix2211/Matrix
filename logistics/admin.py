@@ -23,6 +23,6 @@ class PartRequestAdmin(admin.ModelAdmin):
 
 @admin.register(StockPiece)
 class StockPieceAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("reference", "designation", "quantite", "quantite_minimale", "emplacement", "ship", "service", "sector", "section")
+    list_display = ("reference", "designation", "quantite", "quantite_minimale", "quantite_critique", "emplacement", "ship", "service", "sector", "section", "installation", "asset")
     list_filter = ("ship", "service", "sector")
     search_fields = ("reference", "designation", "emplacement")
