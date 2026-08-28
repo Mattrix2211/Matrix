@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="h3 mb-3">Matériels</h1>
+{% if filtre_location %}
+<div class="alert alert-info d-flex justify-content-between align-items-center py-2">
+  <span><span class="bi bi-geo-alt-fill me-1"></span> Filtré sur l'emplacement <strong>{{ filtre_location.name }}</strong> (venu du plan du navire).</span>
+  <a href="{% url 'asset-list' %}" class="btn btn-sm btn-outline-secondary">Voir tout le matériel</a>
+</div>
+{% endif %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div class="d-flex align-items-center gap-2">
     <div class="dropdown">

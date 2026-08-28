@@ -2,7 +2,7 @@ from django.urls import path
 from .web_views import (
     AssetDetailView, StartVisualCheckView, AssetListView, InstallationListView,
     InstallationDetailView, ScanQRView, AssetImportView, AssetImportModeleView,
-    PlanNavireListView, PlanNavireDeckView,
+    PlanNavireListView, PlanNavireDeckView, PlanNavireVueView, PlanNavireVueDeckView,
 )
 
 urlpatterns = [
@@ -20,4 +20,8 @@ urlpatterns = [
     # (réservée CHEF_SERVICE+, cf. PlanNavireListView/PlanNavireDeckView).
     path('assets/plan/', PlanNavireListView.as_view(), name='plan-navire-list'),
     path('assets/plan/<int:pk>/', PlanNavireDeckView.as_view(), name='plan-navire-deck'),
+    # Plan visuel du navire : consultation en lecture seule, ouverte à tous les
+    # rôles (cf. PlanNavireVueView/PlanNavireVueDeckView) — sous-tâche 3/3.
+    path('assets/plan-navire/', PlanNavireVueView.as_view(), name='plan-navire-vue'),
+    path('assets/plan-navire/<int:pk>/', PlanNavireVueDeckView.as_view(), name='plan-navire-vue-deck'),
 ]

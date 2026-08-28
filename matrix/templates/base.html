@@ -74,11 +74,17 @@
                 <span class="visually-hidden">Installations</span>
               </a>
             </li>
-            {% if user|peut_configurer_plan_navire %}
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'plan-navire-list' %}" title="Plan du navire" aria-label="Plan du navire">
+              <a class="nav-link" href="{% url 'plan-navire-vue' %}" title="Plan du navire" aria-label="Plan du navire">
                 <span class="bi bi-map nav-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Plan du navire</span>
+              </a>
+            </li>
+            {% if user|peut_configurer_plan_navire %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'plan-navire-list' %}" title="Configurer le plan du navire" aria-label="Configurer le plan du navire">
+                <span class="bi bi-map-fill nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Configurer le plan du navire</span>
               </a>
             </li>
             {% endif %}

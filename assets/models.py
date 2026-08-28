@@ -112,6 +112,66 @@ class Zone(TimeStampedModel):
     def __str__(self):
         return f"{self.name} ({self.deck})"
 
+    # États possibles pour le code couleur du plan interactif (rendu de
+    # consultation, cf. assets/web_views.py::PlanNavireVueDeckView). Le pire
+    # état présent parmi le matériel de l'emplacement lié l'emporte toujours :
+    # un seul élément hors service suffit à colorer toute la zone en rouge
+    # (règle tranchée par le Tech Lead/PO pour cette tâche).
+    ETAT_NEUTRE = "NEUTRE"
+    ETAT_OK = "OK"
+    ETAT_ATTENTION = "ATTENTION"
+    ETAT_DANGER = "DANGER"
+
+    @property
+    def etat_materiel(self):
+        """État agrégé du matériel rattaché à l'emplacement de cette zone.
+
+        - NEUTRE : zone brouillon (sans emplacement, cf. sous-tâche 1) ou
+          emplacement sans aucun matériel répertorié — pour ne jamais afficher
+          une fausse alerte verte sur une zone vide.
+        - DANGER : au moins un matériel hors service ou défectueux (statut
+          Asset.status OUT_OF_SERVICE/FAULTY), équivalent "périmé/hors service".
+        - ATTENTION : aucun matériel en danger, mais au moins un matériel a une
+          échéance de contrôle en retard (MaintenanceOccurrence.status =
+          OVERDUE), réutilisant le système d'entretien préventif existant
+          plutôt que d'inventer un nouveau champ "à contrôler".
+        - OK : tout le matériel de l'emplacement est en bon état.
+        """
+        if self.location_id is None:
+            return self.ETAT_NEUTRE
+        materiels = list(self.location.assets.all())
+        if not materiels:
+            return self.ETAT_NEUTRE
+        if any(m.status in ("OUT_OF_SERVICE", "FAULTY") for m in materiels):
+            return self.ETAT_DANGER
+        # Import tardif : maintenance.models importe assets.models (dépendance
+        # inverse), un import en tête de fichier créerait un import circulaire.
+        from maintenance.models import MaintenanceOccurrence
+        ids_materiels = [m.pk for m in materiels]
+        en_retard = MaintenanceOccurrence.objects.filter(
+            asset_id__in=ids_materiels, status="OVERDUE",
+        ).exists()
+        return self.ETAT_ATTENTION if en_retard else self.ETAT_OK
+
+    @property
+    def rectangle_pourcent(self):
+        """Boîte englobante du contour, en pourcentage (left/top/width/height),
+        pour un positionnement CSS absolu simple sur le plan de consultation —
+        même principe que boiteEnglobante() côté éditeur en JS
+        (assets/plan_navire_deck.html), calculé ici côté serveur puisque la
+        page de consultation est en lecture seule (pas de redessin à gérer).
+        Renvoie None si le contour est vide/invalide."""
+        if not self.points:
+            return None
+        try:
+            xs = [float(p["x"]) for p in self.points]
+            ys = [float(p["y"]) for p in self.points]
+        except (TypeError, KeyError, ValueError):
+            return None
+        x1, x2 = min(xs), max(xs)
+        y1, y2 = min(ys), max(ys)
+        return {"left": x1, "top": y1, "width": x2 - x1, "height": y2 - y1}
+
 
 class AssetType(TimeStampedModel):
     name = models.CharField(max_length=255)

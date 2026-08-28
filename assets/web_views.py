@@ -559,6 +559,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         status = self.request.GET.get('status')
         asset_type_id = self.request.GET.get('type')
         folder_id = self.request.GET.get('folder')
+        # Filtre par emplacement (Location) : utilisé notamment par le clic sur
+        # une zone du plan visuel du navire (PlanNavireVueDeckView), qui renvoie
+        # ici avec ?location=<id> plutôt que d'ouvrir un nouvel écran de liste.
+        location_id = self.request.GET.get('location')
         q = self.request.GET.get('q', '').strip()
         if ship_id:
             qs = qs.filter(ship_id=ship_id)
@@ -572,14 +576,19 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             qs = qs.filter(status=status)
         if asset_type_id:
             qs = qs.filter(asset_type_id=asset_type_id)
+        if location_id:
+            qs = qs.filter(location_id=location_id)
         if folder_id:
             qs = qs.filter(folder_id=folder_id)
-        elif not q:
-            # Vue racine (aucun dossier sélectionné, pas de recherche globale) :
-            # n'affiche que les matériels non classés dans un dossier, symétrique au
-            # filtrage déjà appliqué aux dossiers eux-mêmes (parent__isnull=True) plus
-            # bas. Sans ce filtre, un matériel rangé dans un sous-dossier se retrouvait
-            # mélangé à la racine et ne semblait jamais "rangé" dans son dossier.
+        elif not q and not location_id:
+            # Vue racine (aucun dossier sélectionné, pas de recherche globale, pas
+            # de filtre par emplacement) : n'affiche que les matériels non classés
+            # dans un dossier, symétrique au filtrage déjà appliqué aux dossiers
+            # eux-mêmes (parent__isnull=True) plus bas. Sans ce filtre, un matériel
+            # rangé dans un sous-dossier se retrouvait mélangé à la racine et ne
+            # semblait jamais "rangé" dans son dossier. Le filtre par emplacement
+            # doit au contraire remonter tout le matériel de la zone, quel que
+            # soit le dossier dans lequel il est classé.
             qs = qs.filter(folder__isnull=True)
         if q:
             qs = qs.filter(
@@ -602,6 +611,11 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['types'] = AssetType.objects.order_by('name')
         ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
+        # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
+        # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi
+        # la liste est restreinte, avec un lien pour revenir à la vue complète.
+        location_id = self.request.GET.get('location')
+        ctx['filtre_location'] = Location.objects.filter(pk=location_id).first() if location_id else None
         ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
         ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
         ctx['xlsx_disponible'] = xlsx_disponible()
@@ -1743,14 +1757,28 @@ class PlanNavireListView(LoginRequiredMixin, View):
         return redirect(f"{reverse('plan-navire-list')}{suffixe}")
 
 
+def _pont_dans_perimetre(request, pk):
+    """Renvoie le pont demandé si son navire correspond au périmètre de
+    l'utilisateur (ou si celui-ci a un accès flotte entière), sinon lève un
+    refus d'accès. Factorisé ici pour être partagé par l'éditeur du plan
+    (PlanNavireDeckView, réservé CHEF_SERVICE+) et sa page de consultation
+    (PlanNavireVueDeckView, ouverte à tous les rôles) : le contrôle de
+    périmètre est identique, seul le seuil de rôle diffère entre les deux."""
+    pont = get_object_or_404(Deck.objects.select_related('ship'), pk=pk)
+    if not is_master_admin(request.user) and ship_id_for_user(request.user) != pont.ship_id:
+        raise PermissionDenied("Ce pont n'appartient pas à votre unité.")
+    return pont
+
+
 class PlanNavireDeckView(LoginRequiredMixin, View):
     """Éditeur du plan d'un pont : téléversement de l'image de fond, et
     positionnement/édition/suppression des zones cliquables (Zone) dessinées
     dessus (rectangle par clic-glisser, coordonnées en pourcentage — voir le
     script de assets/plan_navire_deck.html, en JS natif sans dépendance
     externe). Une zone peut être laissée sans emplacement assigné (brouillon,
-    cf. Zone.location) : la sous-tâche suivante s'appuiera sur ce lien pour
-    filtrer le matériel affiché lors d'un clic sur la zone.
+    cf. Zone.location) : la page de consultation (PlanNavireVueDeckView plus
+    bas) s'appuie sur ce lien pour filtrer le matériel affiché lors d'un clic
+    sur la zone.
 
     Même seuil et même contrôle de périmètre que PlanNavireListView."""
 
@@ -1761,14 +1789,8 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
             raise PermissionDenied("Réservé aux chefs de service et aux rôles supérieurs.")
         return super().dispatch(request, *args, **kwargs)
 
-    def _pont_dans_perimetre(self, request, pk):
-        pont = get_object_or_404(Deck.objects.select_related('ship'), pk=pk)
-        if not is_master_admin(request.user) and ship_id_for_user(request.user) != pont.ship_id:
-            raise PermissionDenied("Ce pont n'appartient pas à votre unité.")
-        return pont
-
     def get(self, request, pk):
-        pont = self._pont_dans_perimetre(request, pk)
+        pont = _pont_dans_perimetre(request, pk)
         ponts_navire = list(Deck.objects.filter(ship=pont.ship).order_by('order', 'name'))
         idx = next((i for i, p in enumerate(ponts_navire) if p.pk == pont.pk), 0)
         zones = list(pont.zones.select_related('location').order_by('name'))
@@ -1791,7 +1813,7 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
         return render(request, self.template_name, contexte)
 
     def post(self, request, pk):
-        pont = self._pont_dans_perimetre(request, pk)
+        pont = _pont_dans_perimetre(request, pk)
         action = request.POST.get('action')
 
         if action == 'upload_image':
@@ -1835,3 +1857,73 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
         else:
             Zone.objects.create(deck=pont, name=nom, points=contour, location=emplacement)
             messages.success(request, "Zone créée.")
+
+
+class PlanNavireVueView(LoginRequiredMixin, View):
+    """Point d'entrée de la consultation du plan visuel du navire (rendu final
+    de la sous-tâche 3/3), ouverte à tous les rôles — contrairement à
+    PlanNavireListView (réservée CHEF_SERVICE+), voir la distinction des deux
+    entrées de navigation dans base.html. Redirige vers le premier pont du
+    navire de l'utilisateur (dans l'ordre Deck.order), ou affiche un message
+    clair si aucun pont n'est encore configuré plutôt qu'une page cassée."""
+
+    template_name = 'assets/plan_navire_vue.html'
+
+    def get(self, request):
+        navire, navires = _navire_selectionne(request)
+        if navire is None:
+            return render(request, self.template_name, {
+                'navire': None, 'navires': navires, 'multi_navires': navires is not None,
+            })
+        premier_pont = Deck.objects.filter(ship=navire).order_by('order', 'name').first()
+        if premier_pont is None:
+            return render(request, self.template_name, {
+                'navire': navire, 'navires': navires, 'multi_navires': navires is not None,
+                'aucun_pont': True,
+            })
+        suffixe = f"?navire={navire.id}" if is_master_admin(request.user) else ""
+        return redirect(f"{reverse('plan-navire-vue-deck', kwargs={'pk': premier_pont.pk})}{suffixe}")
+
+
+class PlanNavireVueDeckView(LoginRequiredMixin, View):
+    """Consultation en lecture seule du plan d'un pont : navigation par
+    onglets entre les ponts du navire (dans l'ordre Deck.order), zones du plan
+    affichées en overlay avec un code couleur selon l'état du matériel qu'elles
+    contiennent (cf. Zone.etat_materiel : le pire état présent l'emporte), et
+    clic sur une zone pour ouvrir la liste du matériel déjà filtrable
+    (AssetListView), filtrée sur l'emplacement lié à cette zone.
+
+    Ouverte à tous les rôles (contrairement à PlanNavireDeckView) : seul le
+    contrôle de périmètre (navire de l'utilisateur) est conservé, via la même
+    fonction _pont_dans_perimetre que l'éditeur."""
+
+    template_name = 'assets/plan_navire_vue.html'
+
+    def get(self, request, pk):
+        pont = _pont_dans_perimetre(request, pk)
+        ponts_navire = list(Deck.objects.filter(ship=pont.ship).order_by('order', 'name'))
+        zones = list(pont.zones.select_related('location').order_by('name'))
+        zones_affichees = []
+        for zone in zones:
+            rectangle = zone.rectangle_pourcent
+            if rectangle is None:
+                # Zone sans contour valide (ne devrait pas arriver via l'éditeur,
+                # qui impose au moins 3 points) : on ne l'affiche simplement pas
+                # plutôt que de faire échouer toute la page.
+                continue
+            zones_affichees.append({
+                'zone': zone,
+                'rectangle': rectangle,
+                'etat': zone.etat_materiel,
+                'url_materiel': (
+                    f"{reverse('asset-list')}?location={zone.location_id}" if zone.location_id else None
+                ),
+            })
+        contexte = {
+            'navire': pont.ship,
+            'pont': pont,
+            'ponts': ponts_navire,
+            'zones': zones_affichees,
+            'multi_navires': is_master_admin(request.user),
+        }
+        return render(request, self.template_name, contexte)

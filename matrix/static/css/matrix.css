@@ -449,3 +449,38 @@ code, pre, kbd, .font-mono {
   color: var(--text-sec);
   white-space: nowrap;
 }
+
+/* Plan interactif du navire (consultation, cf. assets/plan_navire_vue.html) —
+   zones positionnées en pourcentage par-dessus l'image du pont, avec le même
+   code couleur que le reste du projet : --green-tech (OK), --amber
+   (attention, contrôle en retard), --red (danger, matériel hors service), et
+   --text-ter (neutre, zone sans matériel/emplacement) pour ne jamais afficher
+   une fausse alerte verte sur une zone vide. */
+.zone-plan {
+  position: absolute;
+  border: 2px solid;
+  border-radius: 4px;
+  transition: filter .15s ease;
+}
+.zone-plan--cliquable { cursor: pointer; }
+.zone-plan--cliquable:hover { filter: brightness(1.15); }
+.zone-plan--ok { border-color: var(--green-tech); background: rgba(22,184,78,.18); }
+.zone-plan--attention { border-color: var(--amber); background: rgba(244,162,97,.22); }
+.zone-plan--danger { border-color: var(--red); background: rgba(230,57,70,.22); }
+.zone-plan--neutre { border-color: var(--text-ter); background: rgba(0,0,0,.06); cursor: default; }
+.zone-plan__label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 1px 6px;
+  border-radius: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+.zone-plan:hover .zone-plan__label { opacity: 1; }

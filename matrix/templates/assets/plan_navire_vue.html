@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load asset_extras %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0"><span class="bi bi-map me-2"></span>Plan du navire{% if navire %} <span class="text-muted fs-6">({{ navire.name }})</span>{% endif %}</h1>
+  {% if multi_navires and navires %}
+  <form method="get" class="d-flex align-items-center gap-2">
+    <label class="form-label mb-0 small text-muted">Unité</label>
+    <select name="navire" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:220px;">
+      {% for n in navires %}
+        <option value="{{ n.id }}" {% if navire and n.id == navire.id %}selected{% endif %}>{{ n.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
+</div>
+
+{% if not navire %}
+  <div class="alert alert-warning">Aucune unité n'est associée à votre profil : impossible d'afficher un plan.</div>
+{% elif aucun_pont %}
+  <div class="alert alert-info">
+    Aucun pont n'est encore configuré pour <strong>{{ navire.name }}</strong>.
+    {% if user|peut_configurer_plan_navire %}
+      <a href="{% url 'plan-navire-list' %}" class="alert-link">Configurez le plan du navire</a> pour créer les ponts et positionner les zones.
+    {% else %}
+      Demandez à un chef de service de configurer le plan du navire.
+    {% endif %}
+  </div>
+{% elif not pont.image %}
+  <ul class="nav nav-tabs mb-3">
+    {% for p in ponts %}
+      <li class="nav-item"><a class="nav-link {% if p.id == pont.id %}active{% endif %}" href="{% url 'plan-navire-vue-deck' pk=p.id %}{% if multi_navires %}?navire={{ navire.id }}{% endif %}">{{ p.name }}</a></li>
+    {% endfor %}
+  </ul>
+  <div class="alert alert-info">Aucune image n'a encore été téléversée pour ce pont.</div>
+{% else %}
+  <ul class="nav nav-tabs mb-3">
+    {% for p in ponts %}
+      <li class="nav-item"><a class="nav-link {% if p.id == pont.id %}active{% endif %}" href="{% url 'plan-navire-vue-deck' pk=p.id %}{% if multi_navires %}?navire={{ navire.id }}{% endif %}">{{ p.name }}</a></li>
+    {% endfor %}
+  </ul>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-9">
+      <div class="card">
+        <div class="card-header">{{ pont.name }} — cliquez sur une zone pour voir son matériel</div>
+        <div class="card-body">
+          <div class="position-relative" style="user-select:none;">
+            <img src="{{ pont.image.url }}" class="img-fluid w-100 d-block rounded" draggable="false" alt="Plan du pont {{ pont.name }}" />
+            {% for item in zones %}
+              <a
+                {% if item.url_materiel %}href="{{ item.url_materiel }}"{% endif %}
+                class="zone-plan {% if item.url_materiel %}zone-plan--cliquable{% endif %} zone-plan--{{ item.etat|lower }}"
+                style="left:{{ item.rectangle.left }}%; top:{{ item.rectangle.top }}%; width:{{ item.rectangle.width }}%; height:{{ item.rectangle.height }}%;"
+                title="{{ item.zone.name }}{% if not item.url_materiel %} — aucun emplacement associé{% endif %}"
+              >
+                <span class="zone-plan__label">{{ item.zone.name }}</span>
+              </a>
+            {% empty %}
+              <div class="position-absolute top-50 start-50 translate-middle text-muted small">Aucune zone dessinée sur ce pont.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-3">
+      <div class="card mb-3">
+        <div class="card-header">Légende</div>
+        <div class="card-body">
+          <div class="mb-2"><span class="legende-puce" style="background: var(--green-tech);"></span> Matériel OK</div>
+          <div class="mb-2"><span class="legende-puce" style="background: var(--amber);"></span> Contrôle en retard</div>
+          <div class="mb-2"><span class="legende-puce" style="background: var(--red);"></span> Matériel hors service</div>
+          <div><span class="legende-puce" style="background: var(--text-ter);"></span> Aucun matériel</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Zones ({{ zones|length }})</div>
+        <ul class="list-group list-group-flush">
+          {% for item in zones %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {% if item.url_materiel %}
+              <a href="{{ item.url_materiel }}" class="text-decoration-none">{{ item.zone.name }}</a>
+            {% else %}
+              <span class="text-muted">{{ item.zone.name }}</span>
+            {% endif %}
+            <span class="legende-puce" style="background: var(--{% if item.etat == 'OK' %}green-tech{% elif item.etat == 'ATTENTION' %}amber{% elif item.etat == 'DANGER' %}red{% else %}text-ter{% endif %}); margin-right:0;"></span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">Aucune zone dessinée pour l'instant.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
