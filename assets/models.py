@@ -82,11 +82,13 @@ class Zone(TimeStampedModel):
     name = models.CharField(max_length=255, verbose_name="Nom de la zone")
     # Réutilise l'Emplacement (Location) déjà utilisé sur le matériel et les
     # installations : c'est ce lien qui permettra, dans une tâche suivante, de
-    # filtrer le matériel affiché lors d'un clic sur la zone. PROTECT plutôt
-    # que SET_NULL : on évite qu'un emplacement supprimé laisse silencieusement
-    # une zone du plan sans matériel associé.
+    # filtrer le matériel affiché lors d'un clic sur la zone. Facultatif et en
+    # SET_NULL, comme sur Asset/Installation : une zone peut être dessinée en
+    # brouillon avant qu'un emplacement lui soit assigné, et la suppression
+    # d'un emplacement ne doit pas être bloquée par une simple zone de plan.
     location = models.ForeignKey(
-        Location, on_delete=models.PROTECT, related_name="zones", verbose_name="Emplacement",
+        Location, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="zones", verbose_name="Emplacement",
     )
     # Contour normalisé (0-100%) : liste de points [{"x": .., "y": ..}, ...].
     # Un rectangle se représente avec 4 points, dans l'ordre des coins.

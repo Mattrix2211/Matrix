@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=255, verbose_name='Nom de la zone')),
                 ('points', models.JSONField(blank=True, default=list, help_text="Liste de points {x, y} en pourcentage (0-100) de l'image du pont.", verbose_name='Contour de la zone')),
                 ('deck', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='zones', to='assets.deck', verbose_name='Pont')),
-                ('location', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='zones', to='assets.location', verbose_name='Emplacement')),
+                ('location', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='zones', to='assets.location', verbose_name='Emplacement')),
             ],
             options={
                 'verbose_name': 'Zone',

@@ -68,13 +68,19 @@ class ZoneTests(TestCase):
         zone = Zone.objects.create(deck=self.pont, name="Zone sans contour", location=self.emplacement)
         self.assertEqual(zone.points, [])
 
-    def test_suppression_dun_emplacement_utilise_par_une_zone_est_bloquee(self):
-        """PROTECT : on évite qu'une zone du plan se retrouve sans emplacement
-        associé si l'emplacement est supprimé par ailleurs."""
-        Zone.objects.create(deck=self.pont, name="Local machine avant", location=self.emplacement)
-        with self.assertRaises(Exception):
-            with transaction.atomic():
-                self.emplacement.delete()
+    def test_suppression_dun_emplacement_met_la_zone_a_none_sans_erreur(self):
+        """SET_NULL : la suppression d'un emplacement ne doit pas être bloquée
+        par une simple zone de plan (donnée de présentation)."""
+        zone = Zone.objects.create(deck=self.pont, name="Local machine avant", location=self.emplacement)
+        self.emplacement.delete()
+        zone.refresh_from_db()
+        self.assertIsNone(zone.location)
+
+    def test_creation_dune_zone_brouillon_sans_emplacement(self):
+        """Une zone peut être dessinée avant qu'un emplacement lui soit
+        assigné (flux brouillon de l'éditeur visuel)."""
+        zone = Zone.objects.create(deck=self.pont, name="Zone en cours de rattachement")
+        self.assertIsNone(zone.location)
 
     def test_suppression_du_pont_supprime_ses_zones(self):
         zone = Zone.objects.create(deck=self.pont, name="Local machine avant", location=self.emplacement)
