@@ -418,10 +418,15 @@ class StartVisualCheckView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : même filtre que ScanQRView (scope_filters_for_user) — sans
+        # lui, un chef de section connaissant l'identifiant d'un matériel d'un
+        # autre navire pouvait déclencher un contrôle visuel dessus (T-SEC).
+        filtres = scope_filters_for_user(request.user)
+        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
         try:
-            asset = Asset.objects.get(pk=pk)
+            asset = assets.get(pk=pk)
         except Asset.DoesNotExist:
-            return HttpResponseBadRequest('Asset not found')
+            return HttpResponseBadRequest('Matériel introuvable ou hors de votre périmètre.')
         plan = MaintenancePlan.objects.filter(scope='ASSET_TYPE', asset_type=asset.asset_type).first()
         name = plan.name if plan else 'Contrôle visuel'
         occ, _ = MaintenanceOccurrence.objects.get_or_create(

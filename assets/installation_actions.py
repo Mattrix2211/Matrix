@@ -7,10 +7,7 @@ dans des fonctions dédiées et testables plutôt que dans une longue chaîne
 if/elif (~30 branches, ~560 lignes avant ce découpage).
 
 Refactor pur : chaque handler reproduit exactement le comportement de la branche
-elif correspondante d'origine, y compris ses particularités (ex. edit_part ne
-redirige pas explicitement en cas de succès et retombe donc sur la réponse 400
-« Action non prise en charge » — comportement existant conservé à l'identique,
-non corrigé ici pour rester dans le périmètre de ce refactor).
+elif correspondante d'origine.
 
 Chaque handler reçoit (view, request, inst, qs) :
 - view : l'instance de InstallationDetailView (pour view.get_queryset(), scopé
@@ -29,7 +26,6 @@ from datetime import datetime, time
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.utils import OperationalError
-from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.utils import timezone
 
@@ -444,11 +440,7 @@ def _action_edit_part(view, request, inst, qs):
     p.save()
     AuditLog.objects.create(actor=request.user, action='edit_installation_part', details=f'part_id={p.id}')
     messages.success(request, 'Pièce mise à jour.')
-    # Comportement d'origine conservé à l'identique (refactor pur) : cette branche
-    # ne redirige pas explicitement après le succès et retombe donc sur la réponse
-    # 400 « Action non prise en charge » du dispatcher. Pas corrigé ici, hors
-    # périmètre de ce refactor — signalé au Tech Lead comme bogue préexistant.
-    return HttpResponseBadRequest('Action non prise en charge')
+    return redirect(f"/installations/{inst.id}/{qs}")
 
 
 def _action_delete_part(view, request, inst, qs):

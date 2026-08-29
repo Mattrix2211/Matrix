@@ -11,6 +11,7 @@ mobile (aucun mot de passe exigé).
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from assets.models import Asset, AssetType, Installation, InstallationMaintenance, ModeDeclenchement
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
@@ -112,3 +113,72 @@ class SignatureValidationExecutionTests(TestCase):
         self.client.post(url, {"conformity": "CONFORME"})
         occ.refresh_from_db()
         self.assertEqual(occ.status, "DONE")
+
+
+class SignatureValidationAPIExecutionTests(TestCase):
+    """Mêmes règles que SignatureValidationExecutionTests ci-dessus, mais via
+    l'action DRF MaintenanceOccurrenceViewSet.complete (tâche [SEC] Signature
+    mot de passe contournable via l'API) : l'API ne doit pas offrir un moyen
+    de contourner la ré-authentification exigée par l'interface web."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire test signature exec API", code="NT-SIGX-API")
+        self.service = Service.objects.create(ship=self.ship, name="Service test signature exec API")
+        self.sector = Sector.objects.create(service=self.service, name="Secteur test signature exec API")
+        self.installation_critique = Installation.objects.create(
+            designation="Groupe électrogène critique API",
+            ship=self.ship, service=self.service, sector=self.sector,
+            critique=True,
+        )
+        self.tech = User.objects.create_user(username="tech_signature_api", password="MotDePasseCorrect1")
+        maintenance = InstallationMaintenance.objects.create(
+            installation=self.installation_critique,
+            periodicity="1 mois",
+            title="Contrôle général",
+            mode_declenchement=ModeDeclenchement.CALENDRIER,
+            intervalle=1,
+            unite_intervalle="M",
+        )
+        self.occ = MaintenanceOccurrence.objects.create(
+            installation_maintenance=maintenance, scheduled_for=timezone.localdate(), status="ASSIGNED",
+        )
+        self.occ.assignees.add(self.tech)
+        self.client = APIClient()
+        self.client.login(username="tech_signature_api", password="MotDePasseCorrect1")
+        self.url = f"/api/maintenance/occurrences/{self.occ.id}/complete/"
+
+    def test_refusee_avec_mauvais_mot_de_passe(self):
+        r = self.client.post(self.url, {"conformity": "CONFORME", "mot_de_passe": "faux-mot-de-passe"}, format="json")
+        self.assertEqual(r.status_code, 403)
+        self.occ.refresh_from_db()
+        self.assertEqual(self.occ.status, "ASSIGNED")
+        self.assertFalse(MaintenanceExecution.objects.filter(occurrence=self.occ).exists())
+
+    def test_refusee_sans_mot_de_passe(self):
+        r = self.client.post(self.url, {"conformity": "CONFORME"}, format="json")
+        self.assertEqual(r.status_code, 403)
+        self.occ.refresh_from_db()
+        self.assertEqual(self.occ.status, "ASSIGNED")
+        self.assertFalse(MaintenanceExecution.objects.filter(occurrence=self.occ).exists())
+
+    def test_acceptee_avec_bon_mot_de_passe(self):
+        r = self.client.post(
+            self.url, {"conformity": "CONFORME", "mot_de_passe": "MotDePasseCorrect1"}, format="json"
+        )
+        self.assertEqual(r.status_code, 200)
+        self.occ.refresh_from_db()
+        self.assertEqual(self.occ.status, "DONE")
+        execution = MaintenanceExecution.objects.get(occurrence=self.occ)
+        self.assertEqual(execution.valide_par, self.tech)
+        self.assertIsNotNone(execution.date_validation)
+
+    def test_patch_generique_ne_permet_pas_de_contourner_la_signature(self):
+        """Régression (contre-vérification sécurité) : le statut ne doit pas
+        pouvoir être modifié via le endpoint générique du ViewSet, qui ne passe
+        pas par complete() et donc pas par le contrôle mot de passe."""
+        detail_url = f"/api/maintenance/occurrences/{self.occ.id}/"
+        r = self.client.patch(detail_url, {"status": "DONE"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.occ.refresh_from_db()
+        self.assertEqual(self.occ.status, "ASSIGNED")
+        self.assertFalse(MaintenanceExecution.objects.filter(occurrence=self.occ).exists())

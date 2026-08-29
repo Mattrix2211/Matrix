@@ -1,4 +1,6 @@
 from rest_framework import viewsets, permissions, decorators, response
+from rest_framework.exceptions import ValidationError
+from django.utils import timezone
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
@@ -18,6 +20,27 @@ class CorrectiveTicketViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         # Un ticket correctif porte sur un matériel mobile (asset), qui
         # porte lui-même les 4 champs de périmètre.
         return build_scope_q(self.request.user, "asset__")
+
+    def perform_update(self, serializer):
+        # "status" est en lecture seule côté serializer (CorrectiveTicketSerializer.
+        # Meta.read_only_fields) : un PATCH/PUT générique qui tente malgré tout de le
+        # changer est explicitement refusé plutôt que silencieusement ignoré, pour
+        # guider vers l'action dédiée transition() — seul chemin qui applique le REX
+        # obligatoire à CLOSED et la signature de validation à RETURNED_TO_SERVICE.
+        # Sans ce garde-fou, `PATCH /api/corrective-tickets/{pk}/
+        # {"status": "RETURNED_TO_SERVICE"}` contournait totalement le contrôle mot
+        # de passe de transition().
+        nouveau_statut = self.request.data.get("status")
+        if nouveau_statut and nouveau_statut != serializer.instance.status:
+            raise ValidationError(
+                {
+                    "status": (
+                        "Le statut d'un ticket correctif ne se modifie pas via cette route : "
+                        "utilisez l'action dédiée /transition/."
+                    )
+                }
+            )
+        serializer.save()
 
     @decorators.action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
@@ -39,9 +62,26 @@ class CorrectiveTicketViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
                     },
                     status=400,
                 )
+            # Remise en service : geste engageant qui exige une ré-authentification
+            # légère (mot de passe courant), exactement comme TicketTransitionView.post
+            # (logistics/web_views.py) — systématique sur ce statut, pas seulement si
+            # l'installation est critique. Vérifié avant toute écriture, pour ne rien
+            # modifier au ticket si le mot de passe saisi est incorrect.
+            if new_status == "RETURNED_TO_SERVICE" and not request.user.check_password(
+                request.data.get("mot_de_passe", "")
+            ):
+                return response.Response(
+                    {"detail": "Mot de passe incorrect : la remise en service n'a pas été validée."},
+                    status=403,
+                )
             old = ticket.status
             ticket.status = new_status
-            ticket.save(update_fields=["status"])
+            champs = ["status"]
+            if new_status == "RETURNED_TO_SERVICE":
+                ticket.valide_par = request.user
+                ticket.date_validation = timezone.now()
+                champs += ["valide_par", "date_validation"]
+            ticket.save(update_fields=champs)
             TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user)
             # system thread message
             ct = ContentType.objects.get_for_model(CorrectiveTicket)

@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, decorators, response, status
+from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from .models import (
     MaintenancePlan,
@@ -51,6 +52,26 @@ class MaintenanceOccurrenceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             "installation_maintenance__installation__",
         )
 
+    def perform_update(self, serializer):
+        # "status" est en lecture seule côté serializer (MaintenanceOccurrenceSerializer.
+        # Meta.read_only_fields) : un PATCH/PUT générique qui tente malgré tout de le
+        # changer est explicitement refusé plutôt que silencieusement ignoré, pour
+        # guider vers les actions dédiées start()/complete() — seul chemin qui
+        # applique la signature de validation sur installation critique. Sans ce
+        # garde-fou, `PATCH /api/maintenance-occurrences/{pk}/ {"status": "DONE"}`
+        # contournait totalement le contrôle mot de passe de complete().
+        nouveau_statut = self.request.data.get("status")
+        if nouveau_statut and nouveau_statut != serializer.instance.status:
+            raise ValidationError(
+                {
+                    "status": (
+                        "Le statut d'une occurrence ne se modifie pas via cette route : "
+                        "utilisez l'action dédiée /start/ ou /complete/."
+                    )
+                }
+            )
+        serializer.save()
+
     @decorators.action(detail=True, methods=["post"])
     def start(self, request, pk=None):
         occ = self.get_object()
@@ -65,12 +86,31 @@ class MaintenanceOccurrenceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
         occ = self.get_object()
+        conformity = request.data.get("conformity", "")
+
+        # Passage en "Terminée" (DONE) d'une installation critique : geste engageant
+        # qui exige une ré-authentification légère (mot de passe courant), exactement
+        # comme OccurrenceExecuteView.post (maintenance/web_views.py) — sans ce
+        # contrôle, l'API offrait un moyen de contourner la signature de validation.
+        # Une occurrence NON_CONFORME repasse en WAITING_VALIDATION (pas DONE) et
+        # n'est donc pas concernée.
+        installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
+        exige_validation = bool(installation and installation.critique) and conformity != "NON_CONFORME"
+        if exige_validation and not request.user.check_password(request.data.get("mot_de_passe", "")):
+            return response.Response(
+                {"detail": "Mot de passe incorrect : l'exécution n'a pas été validée."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         exec, _ = MaintenanceExecution.objects.get_or_create(occurrence=occ)
         exec.completed_at = timezone.now()
-        exec.conformity = request.data.get("conformity", "")
+        exec.conformity = conformity
         exec.notes = request.data.get("notes", "")
         exec.results = request.data.get("results", {})
         exec.measurements = request.data.get("measurements", {})
+        if exige_validation:
+            exec.valide_par = request.user
+            exec.date_validation = timezone.now()
         exec.save()
         occ.status = "DONE" if exec.conformity != "NON_CONFORME" else "WAITING_VALIDATION"
         occ.save(update_fields=["status"])

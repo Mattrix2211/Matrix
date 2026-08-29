@@ -21,11 +21,15 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
     template_name = 'maintenance/execute.html'
 
     def get(self, request, pk):
+        # Périmètre : même filtre que MaintenanceOccurrenceSelfAssignView
+        # (build_scope_q sur asset OU installation_maintenance__installation) —
+        # sans lui, un marin connaissant l'identifiant d'une occurrence d'un
+        # autre navire pouvait consulter et exécuter sa checklist (T-SEC).
         try:
             occ = MaintenanceOccurrence.objects.select_related(
                 'plan', 'asset', 'plan__checklist_template',
                 'installation_maintenance', 'installation_maintenance__installation',
-            ).get(pk=pk)
+            ).filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__")).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
@@ -42,11 +46,12 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         return render(request, self.template_name, contexte)
 
     def post(self, request, pk):
+        # Périmètre : même filtre que get() ci-dessus.
         try:
             occ = MaintenanceOccurrence.objects.select_related(
                 'plan', 'asset', 'plan__checklist_template',
                 'installation_maintenance', 'installation_maintenance__installation',
-            ).get(pk=pk)
+            ).filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__")).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
@@ -127,8 +132,13 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
     """
 
     def post(self, request, pk):
+        # Périmètre : même filtre que OccurrenceExecuteView — sans lui, un
+        # marin connaissant l'identifiant d'une occurrence d'un autre navire
+        # pouvait y poster un commentaire (T-SEC, fuite de périmètre).
         try:
-            occ = MaintenanceOccurrence.objects.get(pk=pk)
+            occ = MaintenanceOccurrence.objects.filter(
+                build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
+            ).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):

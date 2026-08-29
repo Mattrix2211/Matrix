@@ -88,10 +88,24 @@ class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class ChecklistItemTemplateViewSet(viewsets.ModelViewSet):
+class ChecklistItemTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = ChecklistItemTemplate.objects.select_related("template").all()
     serializer_class = ChecklistItemTemplateSerializer
     permission_classes = [RolePermission]
+
+    def get_scoped_filters(self):
+        # Une ligne de checklist n'est rattachée qu'indirectement à un
+        # secteur, via son modèle de checklist (template) — même traduction
+        # de périmètre que ChecklistTemplateViewSet ci-dessus, préfixée par
+        # la relation "template__".
+        return build_scope_q(
+            self.request.user,
+            {
+                "ship_id": "template__sector__service__ship_id",
+                "service_id": "template__sector__service_id",
+                "sector_id": "template__sector_id",
+            },
+        )
 
 class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Asset.objects.select_related("asset_type", "ship", "service", "sector", "section", "location").all()
@@ -114,15 +128,28 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         url = request.build_absolute_uri(f"/scan/{asset.pk}/")
         return HttpResponse(_construire_qr_png(url), content_type="image/png")
 
-class AssetDocumentViewSet(viewsets.ModelViewSet):
+class AssetDocumentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetDocument.objects.select_related("asset").all()
     serializer_class = AssetDocumentSerializer
     permission_classes = [RolePermission]
 
-class AssetChecklistOverrideViewSet(viewsets.ModelViewSet):
+    def get_scoped_filters(self):
+        # Un document n'est rattaché qu'indirectement à un navire/service/
+        # secteur/section, via le matériel mobile auquel il appartient (le
+        # champ "asset" porte lui-même les 4 niveaux) : même principe que
+        # LocationViewSet.get_scoped_filters ci-dessus, préfixé par "asset__".
+        return build_scope_q(self.request.user, "asset__")
+
+class AssetChecklistOverrideViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetChecklistOverride.objects.select_related("asset", "template").all()
     serializer_class = AssetChecklistOverrideSerializer
     permission_classes = [RolePermission]
+
+    def get_scoped_filters(self):
+        # Une personnalisation de checklist est rattachée à un matériel
+        # mobile précis (champ "asset", qui porte lui-même les 4 niveaux de
+        # périmètre) : même traduction que AssetDocumentViewSet ci-dessus.
+        return build_scope_q(self.request.user, "asset__")
 
 
 def _installation_scopee_ou_404(request, pk):

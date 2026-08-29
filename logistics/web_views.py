@@ -9,7 +9,8 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.urls import reverse
 from django.utils import timezone
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import F, Q
 from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
 from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
@@ -237,8 +238,14 @@ class TicketAssignView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : même filtre que TicketDetailView/CorrectiveTicketViewSet
+        # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
+        # connaissant l'identifiant d'un ticket d'un autre navire pouvait
+        # modifier ses assignés (T-SEC).
         try:
-            ticket = CorrectiveTicket.objects.select_related('asset').get(pk=pk)
+            ticket = CorrectiveTicket.objects.select_related('asset').filter(
+                build_scope_q(request.user, "asset__")
+            ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         ids = request.POST.getlist('assignees')
@@ -265,8 +272,12 @@ class TicketTransitionView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : même filtre que TicketDetailView/TicketAssignView
+        # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
+        # connaissant l'identifiant d'un ticket d'un autre navire pouvait le
+        # faire transitionner, y compris le remettre en service (T-SEC).
         try:
-            ticket = CorrectiveTicket.objects.get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__")).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         new_status = request.POST.get('status')
@@ -346,8 +357,12 @@ class PartRequestCreateView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : même filtre que TicketDetailView/TicketAssignView
+        # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
+        # connaissant l'identifiant d'un ticket d'un autre navire pouvait lui
+        # créer une demande de pièces (IDOR).
         try:
-            ticket = CorrectiveTicket.objects.get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__")).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         pr = PartRequest.objects.create(ticket=ticket, requested_by=request.user if request.user.is_authenticated else None, needed_by_date=request.POST.get('needed_by_date') or None)
@@ -361,8 +376,14 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
     def post(self, request, pr_id):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : une demande de pièces porte sur un ticket, lui-même rattaché
+        # à un actif (asset), même filtre que PartRequestCreateView — sans lui, un
+        # chef de section connaissant l'identifiant d'une demande d'un autre navire
+        # pouvait lui ajouter des lignes (IDOR).
         try:
-            pr = PartRequest.objects.select_related('ticket').get(pk=pr_id)
+            pr = PartRequest.objects.select_related('ticket').filter(
+                build_scope_q(request.user, "ticket__asset__")
+            ).get(pk=pr_id)
         except PartRequest.DoesNotExist:
             return HttpResponseBadRequest('Demande introuvable')
         PartLineItem.objects.create(
@@ -381,8 +402,15 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
     def post(self, request, line_id):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : une ligne de pièce porte sur une demande, elle-même rattachée
+        # à un ticket puis à un actif (asset), même filtre que
+        # PartRequestCreateView/PartLineItemCreateView — sans lui, un chef de
+        # section connaissant l'identifiant d'une ligne d'un autre navire pouvait
+        # en changer le statut (IDOR).
         try:
-            line = PartLineItem.objects.select_related('part_request', 'part_request.ticket').get(pk=line_id)
+            line = PartLineItem.objects.select_related('part_request', 'part_request__ticket').filter(
+                build_scope_q(request.user, "part_request__ticket__asset__")
+            ).get(pk=line_id)
         except PartLineItem.DoesNotExist:
             return HttpResponseBadRequest('Ligne introuvable')
         status = request.POST.get('status')
@@ -453,9 +481,30 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
             )
             return redirect('ticket-detail', pk=ticket.pk)
 
-        piece.quantite -= quantite
-        piece.updated_by = request.user
-        piece.save(update_fields=['quantite', 'updated_by', 'updated_at'])
+        # Mise à jour atomique conditionnelle (T-CONC) : deux prélèvements
+        # concurrents sur la même pièce pourraient sinon tous les deux lire la
+        # même quantité disponible avant d'écrire, et la perdre en écrasant
+        # l'écriture de l'autre (perte de mise à jour). Le contrôle
+        # "quantite > piece.quantite" ci-dessus reste utile pour un message
+        # d'erreur rapide dans le cas courant, mais seule cette écriture
+        # conditionnelle en base (WHERE quantite >= quantite demandée)
+        # garantit qu'on ne prélève jamais plus que le stock réellement
+        # disponible au moment de l'écriture.
+        with transaction.atomic():
+            lignes_modifiees = StockPiece.objects.filter(
+                pk=piece.pk, quantite__gte=quantite,
+            ).update(
+                quantite=F('quantite') - quantite,
+                updated_by=request.user,
+                updated_at=timezone.now(),
+            )
+        if not lignes_modifiees:
+            messages.error(
+                request,
+                f"Stock insuffisant : la quantité disponible pour {piece.reference} "
+                "a changé entre-temps, réessayez.",
+            )
+            return redirect('ticket-detail', pk=ticket.pk)
 
         # Trace du prélèvement : message système dans le fil de suivi du ticket,
         # même mécanisme que les transitions de statut

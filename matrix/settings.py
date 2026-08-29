@@ -2,11 +2,32 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-key")
+# Valeur de secours utilisée uniquement en développement local (DEBUG=1 par
+# défaut). En production (DJANGO_DEBUG=0), une clé secrète explicite et
+# différente de cette valeur de dev est obligatoire — voir le contrôle
+# ci-dessous, qui fait échouer le démarrage plutôt que de retomber
+# silencieusement sur cette clé publique.
+_CLE_SECRETE_DEV_PAR_DEFAUT = "dev-secret-key"
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", _CLE_SECRETE_DEV_PAR_DEFAUT)
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
+
+# Garde-fou de démarrage : en production (DEBUG=False), il est interdit de
+# démarrer avec la clé secrète de développement — un fallback silencieux
+# exposerait une clé publique connue en environnement réel. En dev local
+# (DEBUG=True, comportement par défaut sans variables d'environnement
+# positionnées), aucune vérification n'est faite pour ne pas gêner le
+# développement quotidien.
+if not DEBUG and SECRET_KEY == _CLE_SECRETE_DEV_PAR_DEFAUT:
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY doit être défini avec une valeur de production "
+        "(différente de la clé de développement) lorsque DJANGO_DEBUG=0."
+    )
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -239,3 +260,9 @@ CSRF_TRUSTED_ORIGINS = [
         "http://127.0.0.1:8000",
     ]
 ]
+
+# Durcissement HTTPS : actif uniquement en production (DEBUG=False), pour ne
+# pas casser le développement local en HTTP simple (runserver, tests).
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = not DEBUG

@@ -121,6 +121,30 @@ class TicketStockPrelevementTests(TestCase):
         self.piece.refresh_from_db()
         self.assertEqual(self.piece.quantite, 5)
 
+    def test_deux_prelevements_qui_depassent_ensemble_le_stock_refusent_proprement_le_second(self):
+        # Simule un scénario de concurrence (T-CONC) : deux prélèvements qui,
+        # pris séparément, semblent chacun possibles au moment où l'utilisateur
+        # valide son formulaire, mais qui ensemble dépassent le stock réel (5
+        # unités). Le second appel doit être refusé proprement (message
+        # d'erreur, pas d'exception, pas de quantité négative), grâce à la mise
+        # à jour atomique conditionnelle (StockPiece.objects.filter(quantite__gte=...)
+        # .update(...)) qui revérifie le stock au moment de l'écriture en base,
+        # et non plus seulement au moment de la lecture initiale.
+        self.client.login(username="chef_np", password="pass")
+
+        premiere = self.client.post(self.url, {"piece_id": self.piece.id, "quantite": "3"}, follow=True)
+        seconde = self.client.post(self.url, {"piece_id": self.piece.id, "quantite": "3"}, follow=True)
+
+        self.assertEqual(premiere.status_code, 200)
+        self.assertEqual(seconde.status_code, 200)
+        self.piece.refresh_from_db()
+        # Seul le premier prélèvement (3) a été appliqué : il ne restait que 2
+        # unités pour le second, qui en demandait 3 — refusé, stock jamais négatif.
+        self.assertEqual(self.piece.quantite, 2)
+        self.assertGreaterEqual(self.piece.quantite, 0)
+        messages_thread = list(commentaires_de(self.ticket))
+        self.assertEqual(len(messages_thread), 1)
+
     def test_la_fiche_ticket_propose_les_pieces_du_perimetre(self):
         self.client.login(username="chef_np", password="pass")
 
