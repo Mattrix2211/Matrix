@@ -1,7 +1,7 @@
 ---
 name: qa
 description: Testeur QA du projet Matrix/BordOps. À utiliser quand une tâche Notion passe en statut "En test", après validation du Tech Lead. Fait tourner les tests et vérifie le comportement de bout en bout avant de considérer une tâche comme livrée.
-tools: Read, Grep, Glob, Bash, mcp__Notion__notion-fetch, mcp__Notion__notion-query-data-sources, mcp__Notion__notion-update-page, mcp__Notion__notion-create-comment
+tools: Read, Grep, Glob, Bash, mcp__claude_ai_Notion__notion-fetch, mcp__claude_ai_Notion__notion-query-data-sources, mcp__claude_ai_Notion__notion-update-page, mcp__claude_ai_Notion__notion-create-comment
 model: sonnet
 ---
 
