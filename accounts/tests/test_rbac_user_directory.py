@@ -1,25 +1,42 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from accounts.models import UserProfile, Roles
+from org.models import Ship
 
 
 class UserDirectoryRBACTests(TestCase):
     """Vérifie la faille corrigée sur UserDirectoryView.post() : avant correction,
     n'importe quel utilisateur connecté pouvait POST /users/ pour s'auto-promouvoir
-    ou agir sur les comptes d'autrui, faute de tout contrôle de rôle."""
+    ou agir sur les comptes d'autrui, faute de tout contrôle de rôle.
+
+    Tous les comptes sont rattachés au même navire (self.navire) : ces tests
+    portent sur le contrôle de rôle (RBAC), pas sur le périmètre navire (déjà
+    couvert par accounts/tests/test_scope_leak_users_web.py) — un COMMANDANT
+    ou un ADMIN_NAVIRE sans navire rattaché à son propre profil ne verrait de
+    toute façon personne (cf. matrix/core/scopes.py::perimetre_navire_q)."""
 
     def setUp(self):
+        self.navire = Ship.objects.create(name="Navire RBAC annuaire", code="NV-RBAC")
+
         self.equipier = User.objects.create_user(username="equipier1", password="pass")
-        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": Roles.EQUIPIER})
+        UserProfile.objects.update_or_create(
+            user=self.equipier, defaults={"role": Roles.EQUIPIER, "ship": self.navire}
+        )
 
         self.commandant = User.objects.create_user(username="cmdt1", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": Roles.COMMANDANT})
+        UserProfile.objects.update_or_create(
+            user=self.commandant, defaults={"role": Roles.COMMANDANT, "ship": self.navire}
+        )
 
         self.admin_navire = User.objects.create_user(username="adm1", password="pass")
-        UserProfile.objects.update_or_create(user=self.admin_navire, defaults={"role": Roles.ADMIN_NAVIRE})
+        UserProfile.objects.update_or_create(
+            user=self.admin_navire, defaults={"role": Roles.ADMIN_NAVIRE, "ship": self.navire}
+        )
 
         self.autre = User.objects.create_user(username="autre1", password="pass")
-        UserProfile.objects.update_or_create(user=self.autre, defaults={"role": Roles.EQUIPIER})
+        UserProfile.objects.update_or_create(
+            user=self.autre, defaults={"role": Roles.EQUIPIER, "ship": self.navire}
+        )
 
     def test_equipier_ne_peut_pas_sauto_promouvoir_master_admin(self):
         """Scénario d'exploitation trouvé par l'audit : un EQUIPIER poste
@@ -80,7 +97,6 @@ class UserDirectoryRBACTests(TestCase):
         self.assertEqual(self.autre.profile.role, Roles.EQUIPIER)
 
     def test_equipier_ne_peut_pas_rattacher_un_utilisateur_a_un_autre_navire(self):
-        from org.models import Ship
         ship = Ship.objects.create(name="Navire test")
         self.client.login(username="equipier1", password="pass")
         r = self.client.post("/users/", {
@@ -90,7 +106,7 @@ class UserDirectoryRBACTests(TestCase):
         })
         self.assertEqual(r.status_code, 403)
         self.autre.profile.refresh_from_db()
-        self.assertIsNone(self.autre.profile.ship)
+        self.assertEqual(self.autre.profile.ship, self.navire)
 
     def test_commandant_ne_peut_pas_sauto_promouvoir_admin_navire(self):
         """Le COMMANDANT franchit le seuil d'accès à la vue, mais la matrice

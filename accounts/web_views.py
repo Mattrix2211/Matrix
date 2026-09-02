@@ -30,6 +30,27 @@ def _role_attribution_autorisee(acting_user, role_cible):
     return role_cible in allowed
 
 
+def _utilisateurs_gerables_par(acting_user):
+    """Périmètre des comptes utilisateurs qu'un COMMANDANT (et au-dessus) peut
+    modifier via les actions POST de l'annuaire (édition, suppression,
+    réinitialisation de mot de passe, actions groupées).
+
+    Réutilise exactement le même périmètre que la lecture
+    (UserDirectoryView.get_queryset() ci-dessous) : seul MASTER_ADMIN (ou un
+    superutilisateur) peut agir sur la flotte entière ; un COMMANDANT ou un
+    ADMIN_NAVIRE ne peut agir que sur le personnel de SON navire. Avant
+    correction, les actions POST (edit_user, delete_user, set_password,
+    bulk_*) résolvaient l'utilisateur cible sans aucun filtre de périmètre :
+    un COMMANDANT du navire A pouvait éditer, supprimer ou réinitialiser le
+    mot de passe d'un utilisateur d'un autre navire en forgeant une requête
+    (faille IDOR en écriture)."""
+    User = get_user_model()
+    qs = User.objects.all()
+    if not is_master_admin(acting_user):
+        qs = qs.filter(perimetre_navire_q(acting_user, "profile__"))
+    return qs
+
+
 class UserDirectoryView(LoginRequiredMixin, ListView):
     template_name = "accounts/directory.html"
     context_object_name = "users"
@@ -165,8 +186,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # Actions groupées
         if action in ("bulk_update_role", "bulk_update_ship", "bulk_update_fonction", "bulk_update_service", "bulk_update_sector", "bulk_update_section", "bulk_update_grade", "bulk_update_specialite", "bulk_delete_users", "bulk_reset_passwords"):
             ids = request.POST.getlist("selected_ids")
-            User = get_user_model()
-            users = User.objects.filter(id__in=ids)
+            # Périmètre navire appliqué avant toute exécution : un id hors du
+            # navire de l'appelant (COMMANDANT/ADMIN_NAVIRE) est ignoré, comme
+            # s'il n'existait pas (cf. _utilisateurs_gerables_par ci-dessus).
+            users = _utilisateurs_gerables_par(request.user).filter(id__in=ids)
             count = users.count()
             if action == "bulk_update_role":
                 role = request.POST.get("role")
@@ -345,12 +368,15 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         elif action == "delete_user":
             pk = request.POST.get("pk")
             User = get_user_model()
+            # Résolution de la cible bornée au périmètre navire de l'appelant
+            # (cf. _utilisateurs_gerables_par) : un id hors périmètre lève
+            # User.DoesNotExist, exactement comme si le compte n'existait pas.
             try:
-                user = User.objects.get(pk=pk)
+                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
                 AuditLog.objects.create(actor=request.user, action="delete_user", target_user=user, details=f"username={user.username}")
+                user.delete()
             except User.DoesNotExist:
                 pass
-            User.objects.filter(pk=pk).delete()
         elif action == "edit_user":
             pk = request.POST.get("pk")
             role = request.POST.get("role")
@@ -358,8 +384,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
                 return redirect("user-directory")
             User = get_user_model()
+            # Résolution de la cible bornée au périmètre navire de l'appelant
+            # (cf. _utilisateurs_gerables_par).
             try:
-                user = User.objects.get(pk=pk)
+                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
                 user.username = request.POST.get("username", user.username).strip() or user.username
                 user.email = request.POST.get("email", user.email).strip()
                 user.first_name = request.POST.get("first_name", user.first_name).strip()
@@ -408,8 +436,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             password = request.POST.get("password", "").strip()
             # pas d'envoi d'email
             User = get_user_model()
+            # Résolution de la cible bornée au périmètre navire de l'appelant
+            # (cf. _utilisateurs_gerables_par).
             try:
-                user = User.objects.get(pk=pk)
+                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
                 # Génère un mot de passe si vide
                 if not password:
                     import secrets, string
