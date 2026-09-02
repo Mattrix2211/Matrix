@@ -308,3 +308,86 @@ class ScopeLeakUsersWebAssignmentDestinationTests(TestCase):
         nouveau = User.objects.get(first_name="Nouveau", last_name="MarinDansPerimetre")
         self.assertEqual(nouveau.profile.ship_id, self.ship_a.pk)
         self.assertEqual(nouveau.profile.sector_id, self.sector_a.pk)
+
+    # -- edit_user : avant correction (retour Tech Lead), la cible était bien
+    # bornée au périmètre de l'appelant (cf. ScopeLeakUsersWebWriteTests
+    # ci-dessus) mais ship_id/service_id/sector_id/section_id de DESTINATION
+    # étaient résolus par un simple get_or_none(Model, pk), sans passer par
+    # _resoudre_affectation_dans_perimetre : un COMMANDANT/ADMIN_NAVIRE
+    # pouvait donc contourner tout le correctif de create_user/bulk_update_*
+    # en utilisant "Modifier" sur un utilisateur de son propre périmètre.
+
+    def test_edit_user_refuse_une_destination_hors_perimetre_navire(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {
+                "action": "edit_user",
+                "pk": self.equipier_a.pk,
+                "first_name": "TentativeModif",
+                "ship_id": self.ship_b.pk,
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.refresh_from_db()
+        self.equipier_a.profile.refresh_from_db()
+        # Aucune modification, pas même les champs simples (username/nom) qui
+        # accompagnaient la requête : la validation de la destination doit
+        # avoir lieu AVANT toute écriture, pour ne jamais laisser un état
+        # partiellement appliqué.
+        self.assertEqual(self.equipier_a.profile.ship_id, self.ship_a.pk)
+        self.assertNotEqual(self.equipier_a.first_name, "TentativeModif")
+
+    def test_edit_user_refuse_une_destination_hors_perimetre_service(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {"action": "edit_user", "pk": self.equipier_a.pk, "service_id": self.service_b.pk},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertIsNone(self.equipier_a.profile.service_id)
+        # La destination invalide bloque tout, y compris le champ déjà valide
+        # (navire) transmis dans la même requête : aucune écriture partielle.
+        self.assertEqual(self.equipier_a.profile.ship_id, self.ship_a.pk)
+
+    def test_edit_user_refuse_une_destination_hors_perimetre_secteur(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {"action": "edit_user", "pk": self.equipier_a.pk, "sector_id": self.sector_b.pk},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertIsNone(self.equipier_a.profile.sector_id)
+
+    def test_edit_user_refuse_une_destination_hors_perimetre_section(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {"action": "edit_user", "pk": self.equipier_a.pk, "section_id": self.section_b.pk},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertIsNone(self.equipier_a.profile.section_id)
+
+    def test_edit_user_fonctionne_avec_une_destination_dans_le_perimetre(self):
+        """Non-régression : édition + rattachement dans le périmètre de
+        l'appelant restent opérationnels après correction."""
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {
+                "action": "edit_user",
+                "pk": self.equipier_a.pk,
+                "first_name": "Modifie",
+                "ship_id": self.ship_a.pk,
+                "sector_id": self.sector_a.pk,
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.refresh_from_db()
+        self.equipier_a.profile.refresh_from_db()
+        self.assertEqual(self.equipier_a.first_name, "Modifie")
+        self.assertEqual(self.equipier_a.profile.ship_id, self.ship_a.pk)
+        self.assertEqual(self.equipier_a.profile.sector_id, self.sector_a.pk)

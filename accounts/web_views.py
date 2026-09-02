@@ -215,7 +215,6 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         from django.shortcuts import redirect
-        from org.models import Ship, Service, Sector, Section
         from django.utils.text import slugify
         # Seuil minimum pour toute action d'écriture sur l'annuaire des comptes : la
         # gestion des comptes utilisateurs (création, rôle, mot de passe, suppression,
@@ -446,6 +445,27 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             # (cf. _utilisateurs_gerables_par).
             try:
                 user = _utilisateurs_gerables_par(request.user).get(pk=pk)
+                # Valeurs de destination (navire/service/secteur/section) validées
+                # contre le périmètre de l'appelant AVANT toute modification du
+                # compte (cf. _resoudre_affectation_dans_perimetre), exactement
+                # comme pour create_user et les actions bulk_update_*. Fait
+                # AVANT le moindre .save() pour ne jamais laisser l'utilisateur
+                # dans un état partiellement modifié si l'affectation demandée
+                # est hors périmètre (faille corrigée : edit_user résolvait
+                # auparavant ship_id/service_id/sector_id/section_id par un
+                # simple id sans aucune vérification de périmètre, permettant de
+                # contourner le correctif de create_user/bulk_* en passant par
+                # "Modifier" un utilisateur de son propre périmètre).
+                ship_id = request.POST.get("ship_id")
+                service_id = request.POST.get("service_id")
+                sector_id = request.POST.get("sector_id")
+                section_id = request.POST.get("section_id")
+                ok, ship, service, sector, section = _resoudre_affectation_dans_perimetre(
+                    request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id
+                )
+                if not ok:
+                    messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 user.username = request.POST.get("username", user.username).strip() or user.username
                 user.email = request.POST.get("email", user.email).strip()
                 user.first_name = request.POST.get("first_name", user.first_name).strip()
@@ -470,20 +490,12 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                         pass
                 else:
                     profile.date_naissance = None
-                # Mise à jour des relations
-                ship_id = request.POST.get("ship_id")
-                service_id = request.POST.get("service_id")
-                sector_id = request.POST.get("sector_id")
-                section_id = request.POST.get("section_id")
-                def get_or_none(model, pk):
-                    try:
-                        return model.objects.get(pk=pk)
-                    except model.DoesNotExist:
-                        return None
-                profile.ship = get_or_none(Ship, ship_id) if ship_id else None
-                profile.service = get_or_none(Service, service_id) if service_id else None
-                profile.sector = get_or_none(Sector, sector_id) if sector_id else None
-                profile.section = get_or_none(Section, section_id) if section_id else None
+                # Relations déjà résolues et validées contre le périmètre de
+                # l'appelant ci-dessus (cf. _resoudre_affectation_dans_perimetre).
+                profile.ship = ship
+                profile.service = service
+                profile.sector = sector
+                profile.section = section
                 profile.save()
                 AuditLog.objects.create(actor=request.user, action="edit_user", target_user=user, details="profil mis à jour")
                 messages.success(request, f"Utilisateur {user.username} mis à jour.")
