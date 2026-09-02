@@ -1,9 +1,15 @@
 """Exposition API utilisateurs : UserViewSet/UserProfileViewSet doivent
-appliquer le même périmètre et le même seuil de rôle que UserDirectoryView
-(accounts/web_views.py) — COMMANDANT et au-dessus voient la flotte entière,
-en-dessous la lecture est restreinte au périmètre hiérarchique de l'appelant.
-Avant correction, l'API exposait tous les comptes à tout utilisateur connecté,
-y compris un simple équipier. Cf. tâche [SEC] Exposition API utilisateurs.
+appliquer le même périmètre que UserDirectoryView (accounts/web_views.py) —
+seul MASTER_ADMIN (ou un superutilisateur) voit la flotte entière, tous les
+autres rôles (ADMIN_NAVIRE et COMMANDANT compris, cf.
+matrix/core/scopes.py::is_master_admin) sont rattachés à un navire précis et
+la lecture est restreinte à leur périmètre hiérarchique.
+
+Avant correction (audit sécurité du 2026-08-29), un COMMANDANT (et tout rôle
+au-dessus) voyait le personnel de TOUS les navires de la flotte, y compris
+via une simple requête d'API sur un autre navire que le sien (fuite de
+données inter-navire). Cf. tâche « Sécurité : restreindre un COMMANDANT (et
+rôles supérieurs) à son propre navire dans l'annuaire du personnel ».
 """
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -37,6 +43,13 @@ class ScopeLeakUsersAPITests(TestCase):
         UserProfile.objects.update_or_create(
             user=self.commandant_a, defaults={"role": "COMMANDANT", "ship": self.ship_a}
         )
+        self.admin_navire_a = User.objects.create_user(username="admin_navire_a_cpt", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.admin_navire_a, defaults={"role": "ADMIN_NAVIRE", "ship": self.ship_a}
+        )
+        self.master_admin = User.objects.create_superuser(
+            username="master_admin_cpt", password="pass", email="master_admin_cpt@example.com"
+        )
 
     def _login(self, username):
         client = APIClient()
@@ -59,10 +72,45 @@ class ScopeLeakUsersAPITests(TestCase):
         self.assertIn(self.equipier_a.id, user_ids)
         self.assertNotIn(self.equipier_b.id, user_ids)
 
-    def test_commandant_voit_la_flotte_entiere_via_users(self):
+    def test_commandant_ne_voit_que_son_propre_navire_via_users(self):
         client = self._login("commandant_a_cpt")
         r = client.get("/api/accounts/users/")
         self.assertEqual(r.status_code, 200)
         usernames = {u["username"] for u in r.data}
         self.assertIn("equipier_a_cpt", usernames)
+        self.assertNotIn("equipier_b_cpt", usernames)
+
+    def test_commandant_ne_voit_que_son_propre_navire_via_profiles(self):
+        client = self._login("commandant_a_cpt")
+        r = client.get("/api/accounts/profiles/")
+        self.assertEqual(r.status_code, 200)
+        user_ids = {p["user"]["id"] for p in r.data}
+        self.assertIn(self.equipier_a.id, user_ids)
+        self.assertNotIn(self.equipier_b.id, user_ids)
+
+    def test_admin_navire_ne_voit_que_son_propre_navire_via_users(self):
+        """ADMIN_NAVIRE est, comme COMMANDANT, rattaché à un navire précis
+        (matrix/core/scopes.py::is_master_admin) : seul MASTER_ADMIN a une
+        vue flotte entière."""
+        client = self._login("admin_navire_a_cpt")
+        r = client.get("/api/accounts/users/")
+        self.assertEqual(r.status_code, 200)
+        usernames = {u["username"] for u in r.data}
+        self.assertIn("equipier_a_cpt", usernames)
+        self.assertNotIn("equipier_b_cpt", usernames)
+
+    def test_master_admin_voit_la_flotte_entiere_via_users(self):
+        client = self._login("master_admin_cpt")
+        r = client.get("/api/accounts/users/")
+        self.assertEqual(r.status_code, 200)
+        usernames = {u["username"] for u in r.data}
+        self.assertIn("equipier_a_cpt", usernames)
         self.assertIn("equipier_b_cpt", usernames)
+
+    def test_master_admin_voit_la_flotte_entiere_via_profiles(self):
+        client = self._login("master_admin_cpt")
+        r = client.get("/api/accounts/profiles/")
+        self.assertEqual(r.status_code, 200)
+        user_ids = {p["user"]["id"] for p in r.data}
+        self.assertIn(self.equipier_a.id, user_ids)
+        self.assertIn(self.equipier_b.id, user_ids)

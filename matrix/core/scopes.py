@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 
 def scope_filters_for_user(user) -> Dict[str, Any]:
@@ -53,6 +54,38 @@ def sector_id_for_user(user) -> Optional[int]:
     profile = getattr(user, "profile", None)
     sector = getattr(profile, "sector", None)
     return sector.id if sector else None
+
+
+def perimetre_navire_q(user, prefix: str = "") -> Q:
+    """Filtre Q couvrant tout le personnel rattaché au navire de
+    l'utilisateur, à n'importe quel niveau de la hiérarchie organisationnelle
+    (navire/service/secteur/section). Utilisé pour restreindre un COMMANDANT
+    ou un ADMIN_NAVIRE à son propre navire dans l'annuaire du personnel.
+
+    Contrairement à build_scope_q() (matrix/core/mixins.py), qui compare le
+    périmètre de l'appelant au seul champ direct de même niveau sur la
+    cible, ce filtre doit couvrir tout marin du navire quel que soit le
+    niveau de rattachement renseigné sur sa fiche : certains profils ne
+    renseignent qu'un secteur ou une section, sans remplir eux-mêmes le
+    champ "Unité" (ship). Sans ce parcours de la hiérarchie, un COMMANDANT
+    ne verrait que les marins dont le profil porte directement le champ
+    ship, et perdrait de vue tout le reste de son équipage.
+
+    `prefix` permet de préfixer les lookups Django selon le modèle interrogé
+    (ex. "profile__" pour filtrer le modèle User, "" pour filtrer
+    UserProfile lui-même). Si l'utilisateur n'a pas de navire rattaché,
+    renvoie un Q qui n'égale jamais rien : mieux vaut ne rien montrer que de
+    renvoyer une donnée hors périmètre.
+    """
+    ship_id = ship_id_for_user(user)
+    if not ship_id:
+        return Q(pk__in=[])
+    return (
+        Q(**{f"{prefix}ship_id": ship_id})
+        | Q(**{f"{prefix}service__ship_id": ship_id})
+        | Q(**{f"{prefix}sector__service__ship_id": ship_id})
+        | Q(**{f"{prefix}section__sector__service__ship_id": ship_id})
+    )
 
 
 def section_id_for_user(user) -> Optional[int]:

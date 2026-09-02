@@ -7,6 +7,7 @@ from django.core.exceptions import PermissionDenied
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
+from matrix.core.scopes import is_master_admin, ship_id_for_user, perimetre_navire_q
 from training.models import CandidatureFormation
 from training.services import qualifications_validees_de
 
@@ -49,12 +50,24 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         User = get_user_model()
         qs = User.objects.select_related("profile", "profile__ship").order_by("profile__ship__name", "username")
+        # Périmètre par défaut : seul MASTER_ADMIN (ou un superutilisateur) voit
+        # la flotte entière. L'accès à cette vue est déjà réservé à COMMANDANT
+        # et au-dessus (cf. dispatch() ci-dessus) ; tous les rôles restants
+        # (ADMIN_NAVIRE et COMMANDANT) sont rattachés à un navire précis (cf.
+        # matrix/core/scopes.py::is_master_admin) et ne doivent voir que le
+        # personnel de LEUR navire, à n'importe quel niveau de rattachement
+        # (navire/service/secteur/section — perimetre_navire_q, contrairement
+        # à build_scope_q, couvre aussi les profils dont seul le secteur ou la
+        # section est renseigné, sans le champ "Unité" lui-même). Appliqué
+        # avant le filtre ?ship= ci-dessous pour qu'il ne puisse jamais
+        # élargir la vue au-delà de ce périmètre (bug sécurité corrigé : un
+        # COMMANDANT pouvait consulter le personnel d'un autre navire via ce
+        # paramètre d'URL).
+        if not is_master_admin(self.request.user):
+            qs = qs.filter(perimetre_navire_q(self.request.user, "profile__"))
         ship_id = self.request.GET.get("ship")
         if ship_id:
-            return qs.filter(profile__ship_id=ship_id)
-        # Export Excel
-        if self.request.GET.get("export") == "xlsx":
-            return qs
+            qs = qs.filter(profile__ship_id=ship_id)
         return qs
 
     def get_context_data(self, **kwargs):
@@ -65,11 +78,22 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         all_roles = [c for c in Roles.choices if c[0] != 'MASTER_ADMIN']
         opts = {o.code: o.active for o in RoleAvailability.objects.all()}
         ctx["roles"] = [{"code": code, "label": label} for code, label in all_roles if opts.get(code, True)]
-        # Hiérarchie pour sélection
-        ctx["ships"] = Ship.objects.order_by("name")
-        ctx["services"] = Service.objects.select_related("ship").order_by("name")
-        ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
-        ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+        # Hiérarchie pour sélection (filtre "Unité" et formulaires de création/
+        # édition) : un utilisateur limité à son navire (non MASTER_ADMIN) ne
+        # doit se voir proposer que son propre navire — lui montrer les autres
+        # navires de la flotte n'aurait aucun sens (l'annuaire ne renverra de
+        # toute façon aucun résultat pour eux) et fuiterait leurs noms.
+        if is_master_admin(self.request.user):
+            ctx["ships"] = Ship.objects.order_by("name")
+            ctx["services"] = Service.objects.select_related("ship").order_by("name")
+            ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
+            ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+        else:
+            mon_navire_id = ship_id_for_user(self.request.user)
+            ctx["ships"] = Ship.objects.filter(pk=mon_navire_id).order_by("name")
+            ctx["services"] = Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name")
+            ctx["sectors"] = Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name")
+            ctx["sections"] = Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name")
         # Choix pour fonction, grade et spécialité
         ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
         ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")

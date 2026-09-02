@@ -10,7 +10,8 @@ from .serializers import (
 )
 from matrix.core.mixins import build_scope_q
 from matrix.core.permissions import RolePermission, ManageUsersPermission
-from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.scopes import is_master_admin, perimetre_navire_q
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -19,17 +20,24 @@ class DefaultPermission(permissions.IsAuthenticated):
 def _utilisateurs_visibles_par(user):
     """Périmètre de lecture des comptes utilisateurs, aligné sur celui déjà
     appliqué à l'annuaire web (UserDirectoryView, accounts/web_views.py) :
-    COMMANDANT et au-dessus voient la flotte entière, en-dessous la lecture
-    est restreinte au périmètre hiérarchique du profil de l'appelant (navire/
-    service/secteur/section). Sans ce filtre, l'API exposait l'ensemble des
-    comptes (identifiants, rôles, rattachements) à tout utilisateur connecté,
-    y compris un simple équipier (T-SEC).
+    - MASTER_ADMIN (ou un superutilisateur) voit la flotte entière ;
+    - COMMANDANT et ADMIN_NAVIRE, rattachés à un navire précis (cf.
+      matrix/core/scopes.py::is_master_admin), voient tout le personnel de
+      LEUR navire, à n'importe quel niveau de rattachement (navire/service/
+      secteur/section) ;
+    - les autres rôles restent restreints à leur périmètre hiérarchique
+      habituel (build_scope_q).
+    Avant correction, un COMMANDANT (ou au-dessus) voyait le personnel de
+    tous les navires de la flotte (fuite de données inter-navire, audit
+    sécurité du 2026-08-29).
 
     User ne porte pas directement les 4 champs de périmètre — c'est son
-    profil qui les porte — d'où le préfixe "profile__" passé à build_scope_q.
+    profil qui les porte — d'où le préfixe "profile__" passé aux filtres.
     """
-    if user_role_level(user) >= RoleLevel.COMMANDANT:
+    if is_master_admin(user):
         return User.objects.all()
+    if user_role_level(user) >= RoleLevel.COMMANDANT:
+        return User.objects.filter(perimetre_navire_q(user, "profile__"))
     return User.objects.filter(build_scope_q(user, "profile__"))
 
 
@@ -56,8 +64,10 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         # UserProfile lui-même (qui porte directement les 4 champs de
         # périmètre, contrairement à User).
         qs = UserProfile.objects.select_related("user", "ship", "service", "sector", "section").all()
-        if user_role_level(self.request.user) >= RoleLevel.COMMANDANT:
+        if is_master_admin(self.request.user):
             return qs
+        if user_role_level(self.request.user) >= RoleLevel.COMMANDANT:
+            return qs.filter(perimetre_navire_q(self.request.user, ""))
         return qs.filter(build_scope_q(self.request.user, ""))
 
 
