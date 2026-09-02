@@ -30,6 +30,48 @@ def _role_attribution_autorisee(acting_user, role_cible):
     return role_cible in allowed
 
 
+def _resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=None, sector_id=None, section_id=None):
+    """Résout les valeurs d'affectation (navire/service/secteur/section) demandées
+    pour un utilisateur, en s'assurant qu'elles appartiennent au périmètre navire
+    de l'appelant : un COMMANDANT ou un ADMIN_NAVIRE ne peut affecter un
+    utilisateur qu'à son propre navire (ou à un service/secteur/section qui en
+    dépend) ; MASTER_ADMIN (et un superutilisateur) garde une liberté totale sur
+    la flotte entière. Réutilise exactement le même filtrage que celui déjà
+    appliqué aux listes déroulantes du formulaire (cf.
+    UserDirectoryView.get_context_data) plutôt que d'introduire un nouveau
+    mécanisme de vérification de périmètre.
+
+    Avant correction, create_user et les actions bulk_update_ship/service/
+    sector/section faisaient confiance à l'id transmis par le formulaire sans
+    jamais vérifier qu'il appartenait au périmètre de l'appelant : un
+    COMMANDANT pouvait ainsi, en forgeant une requête, rattacher un utilisateur
+    de son navire à un navire/service/secteur/section d'un AUTRE navire.
+
+    Renvoie (True, ship, service, sector, section) si toutes les valeurs
+    demandées (celles non vides) existent et sont dans le périmètre. Renvoie
+    (False, None, None, None, None) si l'une d'elles est invalide ou hors
+    périmètre : l'appelant ne doit alors procéder à AUCUNE modification, pour
+    éviter un état partiellement appliqué."""
+    from org.models import Ship, Service, Sector, Section
+    if is_master_admin(acting_user):
+        ship_qs, service_qs = Ship.objects.all(), Service.objects.all()
+        sector_qs, section_qs = Sector.objects.all(), Section.objects.all()
+    else:
+        mon_navire_id = ship_id_for_user(acting_user)
+        ship_qs = Ship.objects.filter(pk=mon_navire_id)
+        service_qs = Service.objects.filter(ship_id=mon_navire_id)
+        sector_qs = Sector.objects.filter(service__ship_id=mon_navire_id)
+        section_qs = Section.objects.filter(sector__service__ship_id=mon_navire_id)
+    try:
+        ship = ship_qs.get(pk=ship_id) if ship_id else None
+        service = service_qs.get(pk=service_id) if service_id else None
+        sector = sector_qs.get(pk=sector_id) if sector_id else None
+        section = section_qs.get(pk=section_id) if section_id else None
+    except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
+        return False, None, None, None, None
+    return True, ship, service, sector, section
+
+
 def _utilisateurs_gerables_par(acting_user):
     """Périmètre des comptes utilisateurs qu'un COMMANDANT (et au-dessus) peut
     modifier via les actions POST de l'annuaire (édition, suppression,
@@ -204,11 +246,14 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Rôle mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_ship":
                 ship_id = request.POST.get("ship_id")
-                ship = None
-                try:
-                    ship = Ship.objects.get(pk=ship_id)
-                except Ship.DoesNotExist:
-                    ship = None
+                # Valeur de destination validée contre le périmètre de l'appelant :
+                # un COMMANDANT/ADMIN_NAVIRE ne peut affecter ses utilisateurs qu'à
+                # son propre navire, jamais à un navire tiers (cf.
+                # _resoudre_affectation_dans_perimetre).
+                ok, ship, _, _, _ = _resoudre_affectation_dans_perimetre(request.user, ship_id=ship_id)
+                if not ok:
+                    messages.error(request, "Unité invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.ship = ship
@@ -225,11 +270,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Fonction mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_service":
                 service_id = request.POST.get("service_id")
-                service = None
-                try:
-                    service = Service.objects.get(pk=service_id)
-                except Service.DoesNotExist:
-                    service = None
+                # Valeur de destination validée contre le périmètre de l'appelant
+                # (cf. _resoudre_affectation_dans_perimetre) : le service ciblé doit
+                # dépendre du navire de l'appelant.
+                ok, _, service, _, _ = _resoudre_affectation_dans_perimetre(request.user, service_id=service_id)
+                if not ok:
+                    messages.error(request, "Service invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.service = service
@@ -238,11 +285,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Service mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_sector":
                 sector_id = request.POST.get("sector_id")
-                sector = None
-                try:
-                    sector = Sector.objects.get(pk=sector_id)
-                except Sector.DoesNotExist:
-                    sector = None
+                # Valeur de destination validée contre le périmètre de l'appelant
+                # (cf. _resoudre_affectation_dans_perimetre) : le secteur ciblé doit
+                # dépendre du navire de l'appelant.
+                ok, _, _, sector, _ = _resoudre_affectation_dans_perimetre(request.user, sector_id=sector_id)
+                if not ok:
+                    messages.error(request, "Secteur invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.sector = sector
@@ -251,11 +300,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Secteur mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_section":
                 section_id = request.POST.get("section_id")
-                section = None
-                try:
-                    section = Section.objects.get(pk=section_id)
-                except Section.DoesNotExist:
-                    section = None
+                # Valeur de destination validée contre le périmètre de l'appelant
+                # (cf. _resoudre_affectation_dans_perimetre) : la section ciblée doit
+                # dépendre du navire de l'appelant.
+                ok, _, _, _, section = _resoudre_affectation_dans_perimetre(request.user, section_id=section_id)
+                if not ok:
+                    messages.error(request, "Section invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.section = section
@@ -315,6 +366,18 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             if role and not _role_attribution_autorisee(request.user, role):
                 messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
                 return redirect("user-directory")
+            # Valeurs de destination (navire/service/secteur/section) validées
+            # contre le périmètre de l'appelant AVANT toute création de compte
+            # (cf. _resoudre_affectation_dans_perimetre), pour ne jamais créer un
+            # utilisateur rattaché à un navire hors du périmètre du COMMANDANT/
+            # ADMIN_NAVIRE appelant, et pour ne pas laisser un compte créé dans un
+            # état partiel si la valeur demandée est refusée.
+            ok, ship, service, sector, section = _resoudre_affectation_dans_perimetre(
+                request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id
+            )
+            if not ok:
+                messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
+                return redirect("user-directory")
             if role:
                 User = get_user_model()
                 # Identifiant = prenom.nom (slugifié), avec suffixe numérique si collision
@@ -351,17 +414,12 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                         profile.date_naissance = datetime.strptime(date_naissance, "%Y-%m-%d").date()
                     except Exception:
                         profile.date_naissance = None
-                try:
-                    if ship_id:
-                        profile.ship = Ship.objects.get(pk=ship_id)
-                    if service_id:
-                        profile.service = Service.objects.get(pk=service_id)
-                    if sector_id:
-                        profile.sector = Sector.objects.get(pk=sector_id)
-                    if section_id:
-                        profile.section = Section.objects.get(pk=section_id)
-                except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
-                    pass
+                # Objets déjà résolus et validés contre le périmètre de l'appelant
+                # ci-dessus (cf. _resoudre_affectation_dans_perimetre).
+                profile.ship = ship
+                profile.service = service
+                profile.sector = sector
+                profile.section = section
                 profile.save()
                 AuditLog.objects.create(actor=request.user, action="create_user", target_user=user, details=f"role={role}; ship_id={ship_id}")
                 messages.success(request, f"Utilisateur {user.username} créé avec succès.")

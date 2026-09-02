@@ -15,7 +15,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from accounts.models import UserProfile
-from org.models import Sector, Service, Ship
+from org.models import Section, Sector, Service, Ship
 
 
 class ScopeLeakUsersWebTests(TestCase):
@@ -177,3 +177,134 @@ class ScopeLeakUsersWebWriteTests(TestCase):
         equipier_a.refresh_from_db()
         self.assertEqual(equipier_a.first_name, "Modifie")
         self.assertEqual(equipier_a.last_name, "AvecDroit")
+
+
+class ScopeLeakUsersWebAssignmentDestinationTests(TestCase):
+    """Avant correction, create_user et les actions bulk_update_ship/service/
+    sector/section ne validaient que le PÉRIMÈTRE DE LA CIBLE (l'utilisateur
+    modifié devait déjà appartenir au navire de l'appelant), jamais la valeur
+    de DESTINATION demandée : un COMMANDANT/ADMIN_NAVIRE pouvait ainsi
+    rattacher un utilisateur de son propre navire à un navire/service/
+    secteur/section d'un AUTRE navire. Cf.
+    accounts/web_views.py::_resoudre_affectation_dans_perimetre."""
+
+    def setUp(self):
+        # Navire A (celui du COMMANDANT appelant)
+        self.ship_a = Ship.objects.create(name="Navire A affectation", code="NA-AFF")
+        self.service_a = Service.objects.create(ship=self.ship_a, name="Service A affectation")
+        self.sector_a = Sector.objects.create(service=self.service_a, name="Secteur A affectation")
+        self.section_a = Section.objects.create(sector=self.sector_a, name="Section A affectation")
+
+        # Navire B (hors périmètre de l'appelant)
+        self.ship_b = Ship.objects.create(name="Navire B affectation", code="NB-AFF")
+        self.service_b = Service.objects.create(ship=self.ship_b, name="Service B affectation")
+        self.sector_b = Sector.objects.create(service=self.service_b, name="Secteur B affectation")
+        self.section_b = Section.objects.create(sector=self.sector_b, name="Section B affectation")
+
+        self.commandant_a = User.objects.create_user(username="commandant_a_aff", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.commandant_a, defaults={"role": "COMMANDANT", "ship": self.ship_a}
+        )
+        self.equipier_a = User.objects.create_user(username="equipier_a_aff", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.equipier_a, defaults={"role": "EQUIPIER", "ship": self.ship_a}
+        )
+
+    def test_bulk_update_ship_refuse_une_destination_hors_perimetre(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {"action": "bulk_update_ship", "selected_ids": [str(self.equipier_a.pk)], "ship_id": self.ship_b.pk},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertEqual(self.equipier_a.profile.ship_id, self.ship_a.pk)
+
+    def test_bulk_update_service_refuse_une_destination_hors_perimetre(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {
+                "action": "bulk_update_service",
+                "selected_ids": [str(self.equipier_a.pk)],
+                "service_id": self.service_b.pk,
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertIsNone(self.equipier_a.profile.service_id)
+
+    def test_bulk_update_sector_refuse_une_destination_hors_perimetre(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {
+                "action": "bulk_update_sector",
+                "selected_ids": [str(self.equipier_a.pk)],
+                "sector_id": self.sector_b.pk,
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertIsNone(self.equipier_a.profile.sector_id)
+
+    def test_bulk_update_section_refuse_une_destination_hors_perimetre(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {
+                "action": "bulk_update_section",
+                "selected_ids": [str(self.equipier_a.pk)],
+                "section_id": self.section_b.pk,
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertIsNone(self.equipier_a.profile.section_id)
+
+    def test_bulk_update_ship_fonctionne_avec_une_destination_dans_le_perimetre(self):
+        """Non-régression : affecter au propre navire de l'appelant reste possible."""
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {"action": "bulk_update_ship", "selected_ids": [str(self.equipier_a.pk)], "ship_id": self.ship_a.pk},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertEqual(self.equipier_a.profile.ship_id, self.ship_a.pk)
+
+    def test_create_user_refuse_une_destination_hors_perimetre(self):
+        self.client.login(username="commandant_a_aff", password="pass")
+        nb_utilisateurs_avant = User.objects.count()
+        r = self.client.post(
+            "/users/",
+            {
+                "action": "create_user",
+                "first_name": "Nouveau",
+                "last_name": "MarinHorsPerimetre",
+                "role": "EQUIPIER",
+                "ship_id": self.ship_b.pk,
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(User.objects.count(), nb_utilisateurs_avant)
+        self.assertFalse(User.objects.filter(first_name="Nouveau", last_name="MarinHorsPerimetre").exists())
+
+    def test_create_user_fonctionne_avec_une_destination_dans_le_perimetre(self):
+        """Non-régression : la création reste possible dans le périmètre de l'appelant."""
+        self.client.login(username="commandant_a_aff", password="pass")
+        r = self.client.post(
+            "/users/",
+            {
+                "action": "create_user",
+                "first_name": "Nouveau",
+                "last_name": "MarinDansPerimetre",
+                "role": "EQUIPIER",
+                "ship_id": self.ship_a.pk,
+                "sector_id": self.sector_a.pk,
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        nouveau = User.objects.get(first_name="Nouveau", last_name="MarinDansPerimetre")
+        self.assertEqual(nouveau.profile.ship_id, self.ship_a.pk)
+        self.assertEqual(nouveau.profile.sector_id, self.sector_a.pk)
