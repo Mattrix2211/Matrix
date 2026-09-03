@@ -50,7 +50,10 @@ class ManageUsersPermission(BasePermission):
 
     Règles :
     - MASTER_ADMIN : gère tout
-    - ADMIN_NAVIRE : gère tout (scoping par navire à implémenter au besoin)
+    - ADMIN_NAVIRE : gère tout le personnel de son navire (le scoping par
+      navire de la DESTINATION d'affectation — ship/service/sector/section —
+      est appliqué dans UserProfileSerializer.validate(), pas ici : cette
+      permission ne porte que sur le RÔLE gérable, pas sur le périmètre)
     - COMMANDANT: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - ETAT_MAJOR: peut gérer CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - CHEF_SERVICE: peut gérer CHEF_SECTEUR, CHEF_SECTION, EQUIPIER

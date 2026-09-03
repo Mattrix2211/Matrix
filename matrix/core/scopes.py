@@ -88,6 +88,48 @@ def perimetre_navire_q(user, prefix: str = "") -> Q:
     )
 
 
+def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=None, sector_id=None, section_id=None):
+    """Résout les valeurs d'affectation (navire/service/secteur/section) demandées
+    pour un utilisateur, en s'assurant qu'elles appartiennent au périmètre navire
+    de l'appelant : un COMMANDANT ou un ADMIN_NAVIRE ne peut affecter un
+    utilisateur qu'à son propre navire (ou à un service/secteur/section qui en
+    dépend) ; MASTER_ADMIN (et un superutilisateur) garde une liberté totale sur
+    la flotte entière. Centralisée ici pour être réutilisée aussi bien par
+    l'annuaire web (accounts/web_views.py) que par l'API DRF
+    (accounts/serializers.py::UserProfileSerializer), plutôt que dupliquée.
+
+    Avant correction, l'annuaire web (create_user, edit_user, bulk_update_*)
+    faisait confiance à l'id transmis par le formulaire sans jamais vérifier
+    qu'il appartenait au périmètre de l'appelant, et l'API DRF
+    (UserProfileViewSet) n'effectuait aucune vérification équivalente en
+    écriture : un COMMANDANT pouvait ainsi rattacher un utilisateur de son
+    navire à un navire/service/secteur/section d'un AUTRE navire.
+
+    Renvoie (True, ship, service, sector, section) si toutes les valeurs
+    demandées (celles non vides) existent et sont dans le périmètre. Renvoie
+    (False, None, None, None, None) si l'une d'elles est invalide ou hors
+    périmètre : l'appelant ne doit alors procéder à AUCUNE modification, pour
+    éviter un état partiellement appliqué."""
+    from org.models import Ship, Service, Sector, Section
+    if is_master_admin(acting_user):
+        ship_qs, service_qs = Ship.objects.all(), Service.objects.all()
+        sector_qs, section_qs = Sector.objects.all(), Section.objects.all()
+    else:
+        mon_navire_id = ship_id_for_user(acting_user)
+        ship_qs = Ship.objects.filter(pk=mon_navire_id)
+        service_qs = Service.objects.filter(ship_id=mon_navire_id)
+        sector_qs = Sector.objects.filter(service__ship_id=mon_navire_id)
+        section_qs = Section.objects.filter(sector__service__ship_id=mon_navire_id)
+    try:
+        ship = ship_qs.get(pk=ship_id) if ship_id else None
+        service = service_qs.get(pk=service_id) if service_id else None
+        sector = sector_qs.get(pk=sector_id) if sector_id else None
+        section = section_qs.get(pk=section_id) if section_id else None
+    except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
+        return False, None, None, None, None
+    return True, ship, service, sector, section
+
+
 def section_id_for_user(user) -> Optional[int]:
     """Renvoie l'id de la section rattachée au profil de l'utilisateur, ou None
     si aucune section n'est renseignée. Même logique que ship_id_for_user()

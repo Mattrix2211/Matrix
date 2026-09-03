@@ -186,7 +186,7 @@ class ScopeLeakUsersWebAssignmentDestinationTests(TestCase):
     de DESTINATION demandée : un COMMANDANT/ADMIN_NAVIRE pouvait ainsi
     rattacher un utilisateur de son propre navire à un navire/service/
     secteur/section d'un AUTRE navire. Cf.
-    accounts/web_views.py::_resoudre_affectation_dans_perimetre."""
+    matrix/core/scopes.py::resoudre_affectation_dans_perimetre."""
 
     def setUp(self):
         # Navire A (celui du COMMANDANT appelant)
@@ -313,7 +313,7 @@ class ScopeLeakUsersWebAssignmentDestinationTests(TestCase):
     # bornée au périmètre de l'appelant (cf. ScopeLeakUsersWebWriteTests
     # ci-dessus) mais ship_id/service_id/sector_id/section_id de DESTINATION
     # étaient résolus par un simple get_or_none(Model, pk), sans passer par
-    # _resoudre_affectation_dans_perimetre : un COMMANDANT/ADMIN_NAVIRE
+    # resoudre_affectation_dans_perimetre : un COMMANDANT/ADMIN_NAVIRE
     # pouvait donc contourner tout le correctif de create_user/bulk_update_*
     # en utilisant "Modifier" sur un utilisateur de son propre périmètre.
 
