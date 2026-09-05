@@ -13,13 +13,21 @@
 
   {# Filtres #}
   <form method="get" class="row g-2 align-items-end mb-3">
+    {% comment %}
+    La vue (Jour/Semaine/Mois) n'est plus soumise par ce formulaire : elle
+    est pilotée en JS pur par calendar.changeView() (voir script plus bas)
+    pour éviter tout rechargement de page. Le champ caché ci-dessous garde
+    uniquement la vue courante en mémoire, pour qu'elle soit préservée si
+    l'utilisateur soumet les autres filtres classiques.
+    {% endcomment %}
+    <input type="hidden" name="view" id="vue-courante" value="{{ view }}">
     <div class="col-auto">
-      <label class="form-label mb-1">Vue</label>
-      <select name="view" class="form-select form-select-sm">
-        <option value="month" {% if view == 'month' %}selected{% endif %}>Mois</option>
-        <option value="week" {% if view == 'week' %}selected{% endif %}>Semaine</option>
-        <option value="day" {% if view == 'day' %}selected{% endif %}>Jour</option>
-      </select>
+      <label class="form-label mb-1 d-block">Vue</label>
+      <div class="btn-group btn-group-sm" role="group" aria-label="Vue du calendrier">
+        <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="day">Jour</button>
+        <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="week">Semaine</button>
+        <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="month">Mois</button>
+      </div>
     </div>
     <div class="col-auto">
       <label class="form-label mb-1">Date</label>
@@ -211,7 +219,7 @@ FullCalendar.globalLocales.push({
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const params  = new URLSearchParams(window.location.search);
-  const view    = params.get('view')    || 'month';
+  let   view    = params.get('view')    || 'month';
   const date    = params.get('date')    || '{{ date|date:"Y-m-d" }}';
   const ship    = params.get('ship')    || '';
   const service = params.get('service') || '';
@@ -220,19 +228,24 @@ document.addEventListener('DOMContentLoaded', function () {
   const type    = params.get('type')    || '';
   const status  = params.get('status')  || '';
 
-  const fcView = view === 'week' ? 'dayGridWeek' : (view === 'day' ? 'timeGridDay' : 'dayGridMonth');
-  const eventsUrl = `/calendar/events/?view=${view}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
+  // Correspondance entre la vue courte utilisée dans l'URL (day/week/month,
+  // partagée avec le rendu initial côté serveur) et le nom de vue FullCalendar.
+  const VUES_FULLCALENDAR = { day: 'timeGridDay', week: 'dayGridWeek', month: 'dayGridMonth' };
+
+  function construireUrlEvenements(vue) {
+    return `/calendar/events/?view=${vue}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
+  }
 
   const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     locale: 'fr',
-    initialView: fcView,
+    initialView: VUES_FULLCALENDAR[view] || 'dayGridMonth',
     initialDate: date,
     editable: true,
     height: 'auto',
     headerToolbar: { start: '', center: 'title', end: '' },
     buttonText: { today: "Aujourd'hui", month: 'Mois', week: 'Semaine', day: 'Jour' },
     eventSources: [{
-      url: eventsUrl,
+      url: construireUrlEvenements(view),
       method: 'GET',
       failure: function () {
         document.getElementById('cal-erreur').classList.remove('d-none');
@@ -444,6 +457,49 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('btnToday').addEventListener('click', () => calendar.today());
   document.getElementById('btnPrev').addEventListener('click',  () => calendar.prev());
   document.getElementById('btnNext').addEventListener('click',  () => calendar.next());
+
+  // --- Bascule Jour/Semaine/Mois sans rechargement de page -----------------
+  const boutonsVue = document.querySelectorAll('.btn-vue-calendrier');
+  const champVueCourante = document.getElementById('vue-courante');
+
+  function marquerBoutonVueActif(vue) {
+    boutonsVue.forEach(function (bouton) {
+      bouton.classList.toggle('active', bouton.dataset.vue === vue);
+    });
+  }
+
+  function changerVue(nouvelleVue) {
+    if (nouvelleVue === view || !VUES_FULLCALENDAR[nouvelleVue]) return;
+    view = nouvelleVue;
+    calendar.changeView(VUES_FULLCALENDAR[view]);
+    marquerBoutonVueActif(view);
+    champVueCourante.value = view;
+
+    // URL partageable : la vue choisie est conservée si la page est
+    // rechargée ou si le lien est transmis à quelqu'un d'autre.
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', view);
+    history.pushState({}, '', url);
+
+    // La source d'événements dépend de la vue (elle détermine la période
+    // demandée au serveur, cf. calendar_app/views.py::_parse_common_period) :
+    // on la reconstruit avec la nouvelle vue avant de rafraîchir.
+    calendar.getEventSources().forEach(function (source) { source.remove(); });
+    calendar.addEventSource({
+      url: construireUrlEvenements(view),
+      method: 'GET',
+      failure: function () {
+        document.getElementById('cal-erreur').classList.remove('d-none');
+      }
+    });
+    calendar.refetchEvents();
+  }
+
+  boutonsVue.forEach(function (bouton) {
+    bouton.addEventListener('click', function () { changerVue(bouton.dataset.vue); });
+  });
+  marquerBoutonVueActif(view);
+  // --------------------------------------------------------------------
 
   function getCookie(name) {
     const value = `; ${document.cookie}`;
