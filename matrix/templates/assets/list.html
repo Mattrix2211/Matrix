@@ -160,7 +160,11 @@
             <input type="hidden" name="criticality" value="1" />
             <div class="col-md-6"><label class="form-label">Unité</label><select class="form-select" name="ship_id" id="createShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if sh.id == user_ship_id %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
             <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if sv.id == user_service_id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if sc.id == user_sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4">
+              <label class="form-label">Secteur{% if not request.GET.type %} <span class="text-danger">*</span>{% endif %}</label>
+              <select class="form-select" name="sector_id" id="createSector" {% if not request.GET.type %}required{% endif %}><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if sc.id == user_sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select>
+              <div class="invalid-feedback" id="createSectorFeedback">Aucun type de matériel n'est configuré pour ce secteur. Choisissez un autre secteur ou demandez à un administrateur d'en configurer un.</div>
+            </div>
             <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if se.id == user_section_id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
             <div class="col-md-6">
               <label class="form-label">Emplacement</label>
@@ -331,7 +335,7 @@
       function filterOptions(select, dataAttr, match){ if(!select) return; var val = match || ''; Array.from(select.options).forEach(function(opt){ if(!opt.value || opt.value === '__new__'){ opt.hidden=false; return; } var dv = opt.getAttribute(dataAttr); opt.hidden = !val || (dv !== val); }); if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; } }
       function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); filterOptions(locationSel, 'data-ship', shipSel ? shipSel.value : ''); }
       function onService(){ filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
-      function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); }
+      function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); if (sectorSel) sectorSel.classList.remove('is-invalid'); }
       if (shipSel) shipSel.addEventListener('change', onShip);
       if (serviceSel) serviceSel.addEventListener('change', onService);
       if (sectorSel) sectorSel.addEventListener('change', onSector);
@@ -359,10 +363,27 @@
     configurerBasculeEmplacement('editLocation', 'editLocationNew');
     function updateAssetTypeFromSector(){ var hiddenSel = document.getElementById('createAssetTypeHidden'); var out = document.getElementById('createAssetTypeValue'); var sectorSel = document.getElementById('createSector'); if(!hiddenSel || !out || !sectorSel) return; var sec = sectorSel.value || ''; var chosen = ''; for (var i=0;i<hiddenSel.options.length;i++){ var opt = hiddenSel.options[i]; if (opt.getAttribute('data-sector') === sec){ chosen = opt.value; break; } } out.value = chosen; }
     var createModal = document.getElementById('createAssetModal');
-    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCreateCascades(); updateAssetTypeFromSector(); var cf = document.getElementById('createFolderId'); if (cf) { var currentParam = new URLSearchParams(window.location.search).get('folder'); cf.value = currentParam || ''; } var clNew = document.getElementById('createLocationNew'); if (clNew) { clNew.classList.add('d-none'); clNew.value = ''; } }); }
-    // Garantir que le type est calculé avant l'envoi
+    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCreateCascades(); updateAssetTypeFromSector(); var cf = document.getElementById('createFolderId'); if (cf) { var currentParam = new URLSearchParams(window.location.search).get('folder'); cf.value = currentParam || ''; } var clNew = document.getElementById('createLocationNew'); if (clNew) { clNew.classList.add('d-none'); clNew.value = ''; } var cs = document.getElementById('createSector'); if (cs) cs.classList.remove('is-invalid'); }); }
+    // Garantir que le type est calculé avant l'envoi, et bloquer la soumission si le
+    // secteur choisi n'a aucun type de matériel configuré (sinon la création échoue en
+    // silence côté serveur et l'utilisateur perd toute sa saisie).
     var createForm = document.querySelector('#createAssetModal form');
-    if (createForm) { createForm.addEventListener('submit', function(){ updateAssetTypeFromSector(); }); }
+    if (createForm) {
+      createForm.addEventListener('submit', function(ev){
+        updateAssetTypeFromSector();
+        var typeValue = document.getElementById('createAssetTypeValue');
+        var sectorSel = document.getElementById('createSector');
+        // Le contrôle ne s'applique que lorsque le type doit être déduit du secteur
+        // (pas de type déjà imposé via le filtre "?type=").
+        if (typeValue && sectorSel && sectorSel.value && !typeValue.value) {
+          ev.preventDefault();
+          sectorSel.classList.add('is-invalid');
+          sectorSel.focus();
+        } else if (sectorSel) {
+          sectorSel.classList.remove('is-invalid');
+        }
+      });
+    }
     // Drag & Drop to folders
     var draggedId = null;
     document.querySelectorAll('.asset-card').forEach(function(card){
