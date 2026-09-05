@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+from django.contrib.messages import constants as message_constants
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -68,6 +69,19 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# Correspondance entre les niveaux de messages Django et les classes Bootstrap 5
+# utilisées par les toasts (matrix/templates/base.html : "text-bg-{{ message.tags }}").
+# Sans ce mapping, Django tague les messages avec ses propres noms ("error",
+# "debug"), qui ne correspondent à AUCUNE classe Bootstrap 5 valide (Bootstrap
+# utilise "danger", et n'a pas de variante "debug") : le toast s'affiche alors
+# avec un fond neutre au lieu du rouge attendu, le rendant facile à manquer.
+# INFO, SUCCESS et WARNING ont déjà un tag Django identique à la classe
+# Bootstrap correspondante, ils n'ont donc pas besoin d'entrée ici.
+MESSAGE_TAGS = {
+    message_constants.DEBUG: "secondary",
+    message_constants.ERROR: "danger",
+}
 
 ROOT_URLCONF = "matrix.urls"
 
