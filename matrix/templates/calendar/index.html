@@ -356,8 +356,17 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="text-muted mb-2">${echapperHtml(formatDateHeure(event.start))}</div>
         ${note}
         <div class="d-flex flex-wrap gap-1">${actions}</div>
+        <div class="text-danger mt-2 d-none" data-popover-erreur></div>
       </div>
     `;
+  }
+
+  function afficherErreurPopover(bulle, message) {
+    const zoneErreur = bulle.querySelector('[data-popover-erreur]');
+    if (zoneErreur) {
+      zoneErreur.textContent = message;
+      zoneErreur.classList.remove('d-none');
+    }
   }
 
   function attacherActionsPopover(bulle, event, props) {
@@ -373,7 +382,11 @@ document.addEventListener('DOMContentLoaded', function () {
           if (reponse.ok) {
             fermerPopover();
             calendar.refetchEvents();
+          } else {
+            afficherErreurPopover(bulle, "Échec de la suppression (session expirée ou erreur serveur). Réessayez.");
           }
+        }).catch(function () {
+          afficherErreurPopover(bulle, "Échec de la suppression : connexion au serveur impossible.");
         });
       });
     }
