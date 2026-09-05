@@ -107,6 +107,28 @@ def evenements_utilisateur_jour(user, day):
     return {"maintenances": maintenances, "formations": formations, "personnels": personnels}
 
 
+def _peut_agir_occurrence(occ, user, ids_perimetre, niveau_role):
+    """Vrai si `user` a le droit d'ouvrir/exécuter cette occurrence de
+    maintenance depuis le popover du calendrier — RIGOUREUSEMENT la même
+    règle que OccurrenceExecuteView (maintenance/web_views.py) : appartenir
+    au périmètre de l'occurrence (matériel mobile ou installation fixe), ET
+    (être assigné à l'occurrence OU être CHEF_SECTION et au-dessus). Ne
+    duplique pas cette logique côté JavaScript : le booléen calculé ici est
+    simplement transmis tel quel au calendrier via extendedProps."""
+    if occ.id not in ids_perimetre:
+        return False
+    return niveau_role >= RoleLevel.CHEF_SECTION or user in occ.assignees.all()
+
+
+def _peut_agir_ticket(ticket, ids_perimetre, niveau_role):
+    """Vrai si l'utilisateur a le droit de faire transitionner ce ticket
+    correctif depuis le popover du calendrier — même règle que
+    TicketTransitionView/TicketAssignView (logistics/web_views.py) :
+    appartenir au périmètre du ticket (matériel mobile) ET être CHEF_SECTION
+    et au-dessus."""
+    return ticket.pk in ids_perimetre and niveau_role >= RoleLevel.CHEF_SECTION
+
+
 def _appliquer_filtres_tickets(qs, filters):
     """Applique les filtres navire/service/secteur choisis dans les menus
     déroulants du calendrier à un queryset de tickets correctifs. Fonction
@@ -338,6 +360,7 @@ def calendar_events(request):
         "status": request.GET.get("status") or None,
     }
     events = []
+    niveau_role = user_role_level(request.user)
     # Occurrences de maintenance préventive : matériel mobile (asset) ou installation fixe.
     occ_qs = MaintenanceOccurrence.objects.select_related(
         "asset", "asset__ship", "asset__service", "asset__sector",
@@ -345,12 +368,19 @@ def calendar_events(request):
         "installation_maintenance__installation__ship",
         "installation_maintenance__installation__service",
         "installation_maintenance__installation__sector",
-    ).filter(scheduled_for__range=(start, end))
+    ).prefetch_related("assignees").filter(scheduled_for__range=(start, end))
     occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
     if filters.get("status"):
         occ_qs = occ_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "maintenance":
         occ_qs = occ_qs.none()
+    # Périmètre réel (matériel ou installation) de chaque occurrence — calculé
+    # une seule fois pour tout le lot, réutilisé par _peut_agir_occurrence
+    # pour ne pas déclencher une requête par événement.
+    ids_occ_perimetre = set(
+        occ_qs.filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__"))
+        .values_list("id", flat=True)
+    )
     for occ in occ_qs:
         couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
@@ -359,8 +389,12 @@ def calendar_events(request):
             "start": occ.scheduled_for.isoformat(),
             "end": occ.scheduled_for.isoformat(),
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
-            "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-            "extendedProps": {"type": "maintenance", "status": occ.status},
+            "editable": niveau_role >= RoleLevel.CHEF_SECTION,
+            "extendedProps": {
+                "type": "maintenance",
+                "status": occ.status,
+                "peut_agir": _peut_agir_occurrence(occ, request.user, ids_occ_perimetre, niveau_role),
+            },
             **couleur,
         })
     # Tickets correctifs planifiés
@@ -370,6 +404,11 @@ def calendar_events(request):
         ticket_qs = ticket_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "ticket":
         ticket_qs = ticket_qs.none()
+    # Même principe que pour les occurrences ci-dessus : périmètre calculé une
+    # seule fois pour tout le lot de tickets affichés.
+    ids_ticket_perimetre = set(
+        ticket_qs.filter(build_scope_q(request.user, "asset__")).values_list("pk", flat=True)
+    )
     for t in ticket_qs:
         if t.planned_for and (start <= t.planned_for <= end):
             couleur = _couleur_evenement("ticket")
@@ -379,8 +418,12 @@ def calendar_events(request):
                 "start": t.planned_for.isoformat(),
                 "end": t.planned_for.isoformat(),
                 "url": f"/logistics/tickets/{t.pk}/",
-                "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-                "extendedProps": {"type": "ticket", "status": t.status},
+                "editable": niveau_role >= RoleLevel.CHEF_SECTION,
+                "extendedProps": {
+                    "type": "ticket",
+                    "status": t.status,
+                    "peut_agir": _peut_agir_ticket(t, ids_ticket_perimetre, niveau_role),
+                },
                 **couleur,
             })
     # Sessions de formation : assignées par un référent (attendees),
@@ -408,8 +451,15 @@ def calendar_events(request):
             "start": s.scheduled_at.isoformat(),
             "end": s.scheduled_at.isoformat(),
             "url": "/training/",
-            "editable": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-            "extendedProps": {"type": "training", "status": s.status},
+            "editable": niveau_role >= RoleLevel.CHEF_SECTION,
+            # Pas d'action rapide proposée pour une session de formation
+            # depuis le popover : la validation d'une formation dépend du
+            # marin concerné (peut_valider_formation exige un navire précis
+            # par candidature, cf. training/models.py), pas de la session
+            # dans son ensemble — reproduire ce calcul par événement ferait
+            # perdre son sens à un simple booléen. Seul le lien "Voir la
+            # fiche complète" est proposé pour ce type.
+            "extendedProps": {"type": "training", "status": s.status, "peut_agir": False},
             **couleur,
         })
     # Événements personnels libres : uniquement ceux du marin connecté,
@@ -424,7 +474,17 @@ def calendar_events(request):
                 "end": pe.starts_at.isoformat(),
                 "url": "",
                 "editable": True,
-                "extendedProps": {"type": "personal", "status": None, "note": pe.note},
+                # Un événement personnel n'appartient qu'à son créateur
+                # (_evenements_personnels ne renvoie que ceux du marin
+                # connecté) : la modification/suppression lui sont donc
+                # toujours ouvertes ici. Vérifié explicitement (plutôt que
+                # supposé) pour rester robuste si ce filtrage change un jour.
+                "extendedProps": {
+                    "type": "personal",
+                    "status": None,
+                    "note": pe.note,
+                    "peut_agir": pe.owner_id == request.user.id,
+                },
                 **couleur,
             })
     return JsonResponse(events, safe=False)

@@ -239,10 +239,12 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }],
     eventClick: function (info) {
-      if (info.event.url) {
-        window.location.href = info.event.url;
-        info.jsEvent.preventDefault();
-      }
+      // Popover d'aperçu rapide (comme un calendrier natif) au lieu d'un
+      // rechargement complet de la page : la fiche complète reste accessible
+      // via un bouton dédié dans le popover, pour qui a une URL de fiche
+      // (absente pour un événement personnel, qui n'en a pas).
+      info.jsEvent.preventDefault();
+      ouvrirPopoverEvenement(info);
     },
     eventDidMount: function (info) {
       const props = info.event.extendedProps;
@@ -267,6 +269,164 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
   calendar.render();
+
+  // --- Popover de détail rapide au clic sur un événement ------------------
+  // Libellés français des statuts par type d'événement, pour affichage dans
+  // le popover (mêmes libellés que le menu déroulant "Statut" ci-dessus).
+  const LIBELLES_STATUT = {
+    maintenance: {
+      PLANNED: 'Planifiée', ASSIGNED: 'Assignée', IN_PROGRESS: 'En cours',
+      WAITING_VALIDATION: 'En validation', DONE: 'Terminée', OVERDUE: 'En retard', CANCELLED: 'Annulée',
+    },
+    ticket: {
+      REPORTED: 'Signalé', DIAGNOSED: 'Diagnostiqué', WAITING_PARTS: 'Attente pièces',
+      IN_REPAIR: 'En réparation', TESTING: 'En test', RETURNED_TO_SERVICE: 'Remis en service',
+      BLOCKED: 'Bloqué', CLOSED: 'Clôturé', CANCELLED: 'Annulée',
+    },
+    training: { PLANNED: 'Planifiée', DONE: 'Effectuée', CANCELLED: 'Annulée' },
+  };
+
+  function libelleStatut(type, statut) {
+    return (LIBELLES_STATUT[type] && LIBELLES_STATUT[type][statut]) || statut || '';
+  }
+
+  // Échappe tout texte d'origine utilisateur (titre d'un ticket/matériel,
+  // note d'un événement personnel...) avant insertion dans le HTML du
+  // popover : le popover est construit avec sanitize:false (voir plus bas)
+  // pour pouvoir afficher des boutons d'action, donc l'échappement doit être
+  // fait nous-mêmes sur toute valeur qui n'est pas un texte fixe du gabarit.
+  function echapperHtml(texte) {
+    const div = document.createElement('div');
+    div.textContent = texte == null ? '' : String(texte);
+    return div.innerHTML;
+  }
+
+  function formatDateHeure(date) {
+    if (!date) return '';
+    const jour = date.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return `${jour} à ${heure}`;
+  }
+
+  // Convertit un objet Date en valeur compatible avec un champ
+  // datetime-local ("AAAA-MM-JJTHH:MM"), à partir de ses composants locaux
+  // (mêmes composants que ceux affichés sur la grille du calendrier).
+  function versDatetimeLocal(date) {
+    const deuxChiffres = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${deuxChiffres(date.getMonth() + 1)}-${deuxChiffres(date.getDate())}T${deuxChiffres(date.getHours())}:${deuxChiffres(date.getMinutes())}`;
+  }
+
+  let popoverActif = null;
+  let elementDeclencheur = null;
+
+  function fermerPopover() {
+    if (popoverActif) {
+      popoverActif.dispose();
+      popoverActif = null;
+      elementDeclencheur = null;
+    }
+  }
+
+  function construireContenuPopover(event, props) {
+    const couleur = event.backgroundColor || '#6c757d';
+    const badgeStatut = props.status
+      ? `<span class="badge mb-2" style="background-color:${couleur}">${echapperHtml(libelleStatut(props.type, props.status))}</span><br>`
+      : '';
+    const note = (props.type === 'personal' && props.note)
+      ? `<div class="mb-2">${echapperHtml(props.note)}</div>`
+      : '';
+    let actions = '';
+    if (event.url) {
+      actions += `<a href="${event.url}" class="btn btn-primary btn-sm">Voir la fiche complète</a>`;
+    }
+    // Actions rapides : uniquement pour un événement personnel dont
+    // l'utilisateur connecté est propriétaire (peut_agir calculé côté
+    // serveur, calendar_app/views.py::calendar_events — jamais recalculé
+    // ici). Pour la maintenance/les tickets, la fiche complète reste le
+    // seul point d'entrée : les transitions de statut y exigent des
+    // vérifications (checklist, signature, REX...) qu'un popover ne doit
+    // pas dupliquer.
+    if (props.type === 'personal' && props.peut_agir) {
+      actions += `<button type="button" class="btn btn-outline-secondary btn-sm" data-popover-action="modifier">Modifier</button>`;
+      actions += `<button type="button" class="btn btn-outline-danger btn-sm" data-popover-action="supprimer">Supprimer</button>`;
+    }
+    return `
+      <div class="small">
+        ${badgeStatut}
+        <div class="text-muted mb-2">${echapperHtml(formatDateHeure(event.start))}</div>
+        ${note}
+        <div class="d-flex flex-wrap gap-1">${actions}</div>
+      </div>
+    `;
+  }
+
+  function attacherActionsPopover(bulle, event, props) {
+    const boutonSupprimer = bulle.querySelector('[data-popover-action="supprimer"]');
+    if (boutonSupprimer) {
+      boutonSupprimer.addEventListener('click', function () {
+        if (!confirm('Supprimer cet événement personnel ?')) return;
+        const idBrut = event.id.replace(/^per-/, '');
+        fetch(`/calendar/personnel/${idBrut}/supprimer/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        }).then(function (reponse) {
+          if (reponse.ok) {
+            fermerPopover();
+            calendar.refetchEvents();
+          }
+        });
+      });
+    }
+    const boutonModifier = bulle.querySelector('[data-popover-action="modifier"]');
+    if (boutonModifier) {
+      boutonModifier.addEventListener('click', function () {
+        const idBrut = event.id.replace(/^per-/, '');
+        // Le titre affiché porte le préfixe "📌 " ajouté côté serveur
+        // (calendar_app/views.py) : on ne garde que la partie après le
+        // premier espace pour ré-alimenter le formulaire d'origine.
+        champId.value = idBrut;
+        champTitre.value = event.title.slice(event.title.indexOf(' ') + 1);
+        champDate.value = versDatetimeLocal(event.start);
+        champNote.value = props.note || '';
+        btnValider.textContent = 'Modifier';
+        btnAnnuler.classList.remove('d-none');
+        fermerPopover();
+        champTitre.focus();
+      });
+    }
+  }
+
+  function ouvrirPopoverEvenement(info) {
+    fermerPopover();
+    const props = info.event.extendedProps || {};
+    popoverActif = new bootstrap.Popover(info.el, {
+      html: true,
+      sanitize: false,
+      trigger: 'manual',
+      placement: 'auto',
+      container: 'body',
+      title: echapperHtml(info.event.title),
+      content: construireContenuPopover(info.event, props),
+    });
+    elementDeclencheur = info.el;
+    popoverActif.show();
+    const bulle = document.querySelector('.popover');
+    if (bulle) {
+      attacherActionsPopover(bulle, info.event, props);
+    }
+  }
+
+  // Ferme le popover au clic en dehors de celui-ci ou de l'événement
+  // déclencheur (mais pas au clic qui vient de l'ouvrir, puisqu'il cible
+  // alors l'élément déclencheur lui-même).
+  document.addEventListener('click', function (e) {
+    if (!popoverActif) return;
+    const bulle = document.querySelector('.popover');
+    if (bulle && bulle.contains(e.target)) return;
+    if (elementDeclencheur && elementDeclencheur.contains(e.target)) return;
+    fermerPopover();
+  });
+  // --------------------------------------------------------------------
 
   document.getElementById('btnToday').addEventListener('click', () => calendar.today());
   document.getElementById('btnPrev').addEventListener('click',  () => calendar.prev());
