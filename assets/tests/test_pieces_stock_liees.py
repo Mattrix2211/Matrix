@@ -59,3 +59,12 @@ class PiecesStockLieesTests(TestCase):
         response_asset = self.client.get(reverse("asset-detail", args=[self.asset.id]))
         self.assertNotIn(piece, list(response_installation.context["pieces_stock"]))
         self.assertNotIn(piece, list(response_asset.context["pieces_stock"]))
+
+    def test_commentaire_dev_pieces_stock_non_affiche_en_clair(self):
+        """Le commentaire {# ... #} explicatif ne doit jamais apparaître dans le
+        rendu HTML (régression : commentaire multi-lignes mal formé, invisible
+        seulement avec {% comment %}...{% endcomment %})."""
+        response_installation = self.client.get(reverse("installation-detail", args=[self.installation.id]))
+        response_asset = self.client.get(reverse("asset-detail", args=[self.asset.id]))
+        self.assertNotContains(response_installation, "Pièces de stock affiliées")
+        self.assertNotContains(response_asset, "Lien optionnel défini depuis")

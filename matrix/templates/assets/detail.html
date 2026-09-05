@@ -86,8 +86,10 @@
 <hr class="my-4" />
 <div>
   <h2 class="h6">Pièces en stock liées</h2>
-  {# Lien optionnel défini depuis /logistics/stock/ (T-FEAT stock détaillé) :
-  affiché ici en lecture seule, la gestion du stock se fait sur sa propre page. #}
+  {% comment %}
+  Lien optionnel défini depuis /logistics/stock/ (T-FEAT stock détaillé) :
+  affiché ici en lecture seule, la gestion du stock se fait sur sa propre page.
+  {% endcomment %}
   {% if pieces_stock %}
   <div class="card">
     <div class="table-responsive">

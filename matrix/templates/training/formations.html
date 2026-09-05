@@ -457,12 +457,14 @@
                       <input type="hidden" name="action" value="annuler_reservation">
                       <button type="submit" class="btn btn-outline-danger btn-sm">Annuler ma réservation</button>
                     {% elif s.mon_entree_attente and s.places_restantes > 0 %}
-                      {# Une place s'est libérée pendant que le marin était en liste d'attente
-                         (une entrée en liste d'attente n'existe que si capacite_max est renseignée,
-                         cf. _reserver_session). Le retrait de sa place dans la file est automatique
-                         dès la réservation confirmée (training\models.py::_controler_reservation),
-                         donc l'action prioritaire est de réserver — « Quitter » reste possible mais
-                         devient secondaire. #}
+                      {% comment %}
+                      Une place s'est libérée pendant que le marin était en liste d'attente
+                      (une entrée en liste d'attente n'existe que si capacite_max est renseignée,
+                      cf. _reserver_session). Le retrait de sa place dans la file est automatique
+                      dès la réservation confirmée (training\models.py::_controler_reservation),
+                      donc l'action prioritaire est de réserver — « Quitter » reste possible mais
+                      devient secondaire.
+                      {% endcomment %}
                       <div class="d-flex flex-column align-items-end gap-1">
                         <button type="submit" name="action" value="reserver_session" class="btn btn-outline-primary btn-sm">Réserver ma place</button>
                         <button type="submit" name="action" value="quitter_liste_attente" class="btn btn-link btn-sm text-muted p-0">Quitter la liste d'attente</button>
@@ -749,9 +751,11 @@
 {% endif %}
 
 {% if peut_proposer_formation_bord %}
-{# Circuit C — Circuit d'approbation chef de secteur -> chef de service :
-   une seule modale sert à la fois à la création (pk vide) et à la
-   modification (pk pré-rempli) d'une formation « gérée par le bord ». #}
+{% comment %}
+Circuit C — Circuit d'approbation chef de secteur -> chef de service :
+une seule modale sert à la fois à la création (pk vide) et à la
+modification (pk pré-rempli) d'une formation « gérée par le bord ».
+{% endcomment %}
 <div class="modal fade" id="proposerFormationBordModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form method="post" action="{% url 'formation-list' %}" enctype="multipart/form-data">

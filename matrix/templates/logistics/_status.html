@@ -27,8 +27,10 @@
       </div>
       <div class="form-text mb-2">Le diagnostic final et la solution appliquée sont obligatoires pour passer au statut « Fermé ».</div>
       <div class="d-flex gap-2">
-        {# Options codées en dur dans l'ordre du cycle de vie (CLAUDE.md) : la syntaxe
-        Django ne permet pas d'appeler .split() sur une chaîne dans un template. #}
+        {% comment %}
+        Options codées en dur dans l'ordre du cycle de vie (CLAUDE.md) : la syntaxe
+        Django ne permet pas d'appeler .split() sur une chaîne dans un template.
+        {% endcomment %}
         <select class="form-select form-select-sm" name="status" style="width: 220px;">
           <option value="REPORTED" {% if ticket.status == "REPORTED" %}selected{% endif %}>Signalé</option>
           <option value="DIAGNOSED" {% if ticket.status == "DIAGNOSED" %}selected{% endif %}>Diagnostiqué</option>

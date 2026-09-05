@@ -87,6 +87,15 @@ class GestionMaintenanceWebViewsTests(TestCase):
         occurrences = list(response.context["occurrences"])
         self.assertIn(self.occ_a_planifiee, occurrences)
 
+    def test_commentaire_dev_formulaire_plan_non_affiche_en_clair(self):
+        """Régression : le commentaire {# ... #} multi-lignes d'en-tête des
+        champs communs de plan (maintenance/_plan_form_fields.html, inclus
+        dans les modales de création/modification) s'affichait en clair,
+        faute d'être invisible avec {% comment %}...{% endcomment %}."""
+        self.client.login(username="equipier_a", password="pass")
+        response = self.client.get(self.url_plans)
+        self.assertNotContains(response, "Champs communs aux modales de création/modification")
+
     def test_utilisateur_non_authentifie_redirige_vers_login(self):
         response = self.client.get(self.url_plans)
         self.assertEqual(response.status_code, 302)

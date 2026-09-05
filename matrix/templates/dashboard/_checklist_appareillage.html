@@ -1,8 +1,10 @@
-{# Checklist d'une session d'appareillage — partagée entre la page principale
-   (PretAppareillageView), le retour HTMX du cochage d'un item
-   (ItemAppareillageCocherView) et le détail en lecture seule d'une session
-   passée (SessionAppareillageDetailView). Le contexte attendu :
-   session, items_par_categorie, peut_signer. #}
+{% comment %}
+Checklist d'une session d'appareillage — partagée entre la page principale
+(PretAppareillageView), le retour HTMX du cochage d'un item
+(ItemAppareillageCocherView) et le détail en lecture seule d'une session
+passée (SessionAppareillageDetailView). Le contexte attendu :
+session, items_par_categorie, peut_signer.
+{% endcomment %}
 <div id="session-appareillage">
   <div class="alert {% if not session.est_ouverte %}alert-success{% elif session.tout_verifie %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center gap-2" role="alert">
     {% if not session.est_ouverte %}

@@ -358,8 +358,10 @@
           <div class="col-12"><input class="form-control" name="classe_navire" placeholder="Classe de navire (optionnel, ex : Frégate La Fayette)" /></div>
           <div class="col-12"><button class="btn btn-primary" type="submit">Ajouter</button></div>
         </form>
-        {# La classe de navire n'est pas affichée dans ce tableau compact (déjà 4
-        colonnes) : elle reste consultable/modifiable via le bouton « Modifier ». #}
+        {% comment %}
+        La classe de navire n'est pas affichée dans ce tableau compact (déjà 4
+        colonnes) : elle reste consultable/modifiable via le bouton « Modifier ».
+        {% endcomment %}
         <table class="table table-sm"><thead><tr><th>Nom</th><th>Code</th><th>Type</th><th></th></tr></thead><tbody>
         {% for sh in ships %}
           <tr>

@@ -103,3 +103,14 @@ class OccurrenceCommentsTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertFalse(Message.objects.filter(body="Je m'incruste").exists())
+
+    def test_commentaire_dev_fil_de_suivi_non_affiche_en_clair(self):
+        """Régression : le commentaire {# ... #} multi-lignes explicatif du fil
+        de suivi générique (threads/_messages.html, inclus dans la checklist
+        d'exécution) s'affichait en clair, faute d'être invisible avec
+        {% comment %}...{% endcomment %}."""
+        self.client.login(username="assigne_noc", password="pass")
+
+        response = self.client.get(self.url_detail)
+
+        self.assertNotContains(response, "Fil de commentaires de suivi générique")

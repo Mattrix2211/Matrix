@@ -22,8 +22,10 @@
             <td>{{ li.qty }}</td>
             <td><span class="badge bg-light text-dark">{{ li.get_status_display }}</span></td>
             <td>
-              {# Options codées en dur : la syntaxe Django ne permet pas d'appeler
-              .split() sur une chaîne dans un template. #}
+              {% comment %}
+              Options codées en dur : la syntaxe Django ne permet pas d'appeler
+              .split() sur une chaîne dans un template.
+              {% endcomment %}
               <form hx-post="/logistics/part-line/{{ li.id }}/status/" hx-target="#part-requests" hx-swap="outerHTML" class="d-flex gap-2">
                 <select class="form-select form-select-sm" name="status">
                   <option value="TO_ORDER" {% if li.status == "TO_ORDER" %}selected{% endif %}>À commander</option>

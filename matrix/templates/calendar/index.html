@@ -122,9 +122,11 @@
       </div>
     </div>
 
-    {# Ajout libre d'un événement personnel (rappel, note) — visible uniquement
-       par son créateur, à côté des événements auto-générés (maintenance,
-       formation). #}
+    {% comment %}
+    Ajout libre d'un événement personnel (rappel, note) — visible uniquement
+    par son créateur, à côté des événements auto-générés (maintenance,
+    formation).
+    {% endcomment %}
     <div class="col-lg-3">
       <div class="card shadow-sm mb-3">
         <div class="card-header py-2">
@@ -186,8 +188,10 @@
   </div>
 </div>
 
-{# Bibliothèque auto-hébergée — aucune dépendance CDN, fonctionne hors-ligne sur le réseau du bord.
-   FullCalendar 6 injecte son propre CSS via le script, aucune feuille de style externe requise. #}
+{% comment %}
+Bibliothèque auto-hébergée — aucune dépendance CDN, fonctionne hors-ligne sur le réseau du bord.
+FullCalendar 6 injecte son propre CSS via le script, aucune feuille de style externe requise.
+{% endcomment %}
 <script src="{% static 'vendor/fullcalendar/index.global.min.js' %}"></script>
 <script>
 // Locale française embarquée directement — pas de dépendance CDN

@@ -143,3 +143,12 @@ class PersonalEventTests(TestCase):
             "date": f"{self.aujourdhui.isoformat()}T00:00:00",
         })
         self.assertEqual(reponse.status_code, 403)
+
+    def test_commentaires_dev_calendrier_non_affiches_en_clair(self):
+        """Régression : deux commentaires {# ... #} multi-lignes de
+        calendar/index.html (bloc « Ajout libre » et note sur la bibliothèque
+        FullCalendar auto-hébergée) s'affichaient en clair, faute d'être
+        invisibles avec {% comment %}...{% endcomment %}."""
+        reponse = self.client.get(reverse("calendar-index"))
+        self.assertNotContains(reponse, "Ajout libre d'un événement personnel")
+        self.assertNotContains(reponse, "Bibliothèque auto-hébergée — aucune dépendance CDN")

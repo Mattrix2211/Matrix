@@ -67,6 +67,15 @@ class PropositionCreationTests(TestCase):
         titres = [f.title for f in liste.context["formations"]]
         self.assertNotIn("Sécurité incendie interne", titres)
 
+    def test_commentaire_dev_modale_circuit_c_non_affiche_en_clair(self):
+        """Régression : le commentaire {# ... #} multi-lignes d'en-tête de la
+        modale de proposition (Circuit C) s'affichait en clair, faute d'être
+        invisible avec {% comment %}...{% endcomment %}."""
+        self.client.login(username="chef_secteur_prop", password="pass")
+        r = self.client.get("/formations/")
+        self.assertTrue(r.context["peut_proposer_formation_bord"])
+        self.assertNotContains(r, "Circuit C — Circuit d'approbation chef de secteur")
+
     def test_apparait_dans_mes_propositions(self):
         self.client.login(username="chef_secteur_prop", password="pass")
         self.client.post("/formations/", {

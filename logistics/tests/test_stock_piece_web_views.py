@@ -135,6 +135,14 @@ class StockPieceListViewTests(TestCase):
         self.assertNotIn('<th class="text-end">Seuil minimal</th>', contenu)
         self.assertIn('data-quantite-minimale="5"', contenu)
 
+    def test_commentaire_dev_script_commun_non_affiche_en_clair(self):
+        """Régression : le commentaire {# ... #} multi-lignes expliquant le
+        script commun de la pop-up de détail s'affichait en clair, faute
+        d'être invisible avec {% comment %}...{% endcomment %}."""
+        self.client.login(username="equipier", password="pass")
+        response = self.client.get(self.url)
+        self.assertNotContains(response, "la pop-up de détail (lecture) doit fonctionner pour tout")
+
     def test_section_dun_autre_secteur_est_ignoree(self):
         # Le secteur posté (self.secteur) est bien dans le périmètre du chef ; la
         # section postée appartient à un autre secteur (self.autre_secteur) : elle

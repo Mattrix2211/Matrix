@@ -130,3 +130,11 @@ class ClasseNavireTests(TestCase):
         self.assertEqual(response.status_code, 302)
         unite.refresh_from_db()
         self.assertEqual(unite.classe_navire, "Sous-marin nucléaire d'attaque type Suffren")
+
+    def test_commentaire_dev_classe_navire_non_affiche_en_clair(self):
+        """Régression : le commentaire {# ... #} multi-lignes expliquant
+        l'absence de la classe de navire dans le tableau compact s'affichait
+        en clair, faute d'être invisible avec {% comment %}...{% endcomment %}."""
+        self.client.login(username="admin_classe", password="pass")
+        response = self.client.get(self.url, {"tab": "navires"})
+        self.assertNotContains(response, "n'est pas affichée dans ce tableau compact")

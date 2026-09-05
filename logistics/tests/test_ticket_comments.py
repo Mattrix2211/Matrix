@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType
-from logistics.models import CorrectiveTicket
+from logistics.models import CorrectiveTicket, PartLineItem, PartRequest
 from org.models import Sector, Service, Ship
 from threads.models import Message, Thread
 from threads.utils import ajouter_commentaire
@@ -105,3 +105,20 @@ class TicketCommentsTests(TestCase):
 
         self.assertIn(response.status_code, (400, 403, 404))
         self.assertFalse(Message.objects.filter(body="Je m'incruste").exists())
+
+    def test_commentaires_dev_non_affiches_en_clair_sur_la_fiche_ticket(self):
+        """Régression : plusieurs commentaires {# ... #} multi-lignes mal formés
+        (fil de suivi, sélecteur de statut, demandes de pièces) s'affichaient en
+        clair sur la fiche ticket faute d'être invisibles avec {% comment %}."""
+        # Une ligne de demande de pièces est nécessaire pour que le fragment
+        # logistics/_part_requests.html (dont le commentaire fautif est imbriqué
+        # dans une boucle sur les lignes) soit effectivement rendu.
+        demande = PartRequest.objects.create(ticket=self.ticket)
+        PartLineItem.objects.create(part_request=demande, reference="REF-1", description="Joint", qty=1)
+        self.client.login(username="marin_nc", password="pass")
+
+        response = self.client.get(self.url_detail)
+
+        self.assertNotContains(response, "Fil de commentaires de suivi générique")
+        self.assertNotContains(response, "Options codées en dur dans l'ordre du cycle de vie")
+        self.assertNotContains(response, "Options codées en dur : la syntaxe Django")

@@ -16,9 +16,11 @@
           </table>
         </div>
 
-        {# Pièces de stock affiliées (T-FEAT stock détaillé) : lien optionnel défini
+        {% comment %}
+        Pièces de stock affiliées (T-FEAT stock détaillé) : lien optionnel défini
         depuis /logistics/stock/, affiché ici en lecture seule (la gestion du stock
-        se fait sur sa propre page, pas de doublon d'écran). #}
+        se fait sur sa propre page, pas de doublon d'écran).
+        {% endcomment %}
         <h6 class="mt-4 mb-2">Pièces en stock liées</h6>
         <div class="table-responsive">
           <table class="table table-sm align-middle">

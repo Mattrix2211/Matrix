@@ -343,6 +343,10 @@ class BoutonReservationApresLiberationTests(TestCase):
         self.assertContains(r, "Réserver ma place")
         self.assertContains(r, 'value="reserver_session"')
         self.assertContains(r, "Quitter la liste d'attente")
+        # Régression : le commentaire {# ... #} multi-lignes expliquant ce
+        # bloc s'affichait en clair, faute d'être invisible avec
+        # {% comment %}...{% endcomment %}.
+        self.assertNotContains(r, "Une place s'est libérée pendant que le marin était en liste d'attente")
 
     def test_reserver_ma_place_absent_tant_quaucune_place_ne_sest_liberee(self):
         # Non-régression : tant que la session reste complète, seul « Quitter »

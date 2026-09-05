@@ -92,6 +92,14 @@ class AccesPageTests(PretAppareillageTestsBase):
         self.assertTrue(response.context["peut_ouvrir_session"])
         self.assertContains(response, self.url_ouvrir)
 
+    def test_commentaire_dev_checklist_non_affiche_en_clair(self):
+        """Régression : le commentaire {# ... #} multi-lignes d'en-tête de
+        dashboard/_checklist_appareillage.html s'affichait en clair, faute
+        d'être invisible avec {% comment %}...{% endcomment %}."""
+        self.client.login(username="equipier", password="pass")
+        response = self.client.get(self.url_page)
+        self.assertNotContains(response, "Checklist d'une session d'appareillage")
+
 
 class OuvertureSessionTests(PretAppareillageTestsBase):
     """Création d'une session : réservée à CHEF_SECTEUR+, une seule session

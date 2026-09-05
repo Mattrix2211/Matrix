@@ -235,10 +235,12 @@
 </div>
 {% endif %}
 
-{# Script commun : la pop-up de détail (lecture) doit fonctionner pour tout
+{% comment %}
+Script commun : la pop-up de détail (lecture) doit fonctionner pour tout
 utilisateur, pas seulement ceux qui peuvent gérer le stock — seuls les éléments
 liés à la création/modification sont gardés côté template par peut_gerer, et
-les vérifications "if (element)" ci-dessous s'adaptent à leur absence. #}
+les vérifications "if (element)" ci-dessous s'adaptent à leur absence.
+{% endcomment %}
 <script>
   (function(){
     // Filtre une ou plusieurs listes déroulantes en fonction du secteur choisi
