@@ -97,18 +97,38 @@ class ScanQRViewTests(TestCase):
         response = self.client.get(f"/scan/{self.asset_a.id}/")
         self.assertRedirects(response, f"/assets/{self.asset_a.id}/")
 
-    def test_scan_asset_hors_perimetre_rejete(self):
-        response = self.client.get(f"/scan/{self.asset_b.id}/")
-        self.assertEqual(response.status_code, 404)
+    def test_scan_asset_hors_perimetre_redirige_avec_message_francais(self):
+        # Régression : un 404 technique brut (en anglais) ne doit jamais être
+        # renvoyé — l'équipement existe mais hors périmètre, donc redirection
+        # vers le tableau de bord avec un message d'erreur clair en français.
+        response = self.client.get(f"/scan/{self.asset_b.id}/", follow=True)
+        self.assertRedirects(response, "/")
+        messages_affiches = [str(m) for m in response.context["messages"]]
+        self.assertEqual(
+            messages_affiches,
+            ["Cet équipement n'appartient pas à votre navire, vous ne pouvez pas y accéder."],
+        )
+        # Aucune information sur l'équipement d'un autre navire ne doit fuiter
+        # (ni son nom, ni le nom de son navire).
+        contenu = response.content.decode()
+        self.assertNotIn("Pompe B", contenu)
+        self.assertNotIn("Navire B", contenu)
 
-    def test_scan_installation_hors_perimetre_rejetee(self):
-        response = self.client.get(f"/scan/{self.installation_b.id}/")
-        self.assertEqual(response.status_code, 404)
+    def test_scan_installation_hors_perimetre_redirige_avec_message_francais(self):
+        response = self.client.get(f"/scan/{self.installation_b.id}/", follow=True)
+        self.assertRedirects(response, "/")
+        messages_affiches = [str(m) for m in response.context["messages"]]
+        self.assertEqual(
+            messages_affiches,
+            ["Cet équipement n'appartient pas à votre navire, vous ne pouvez pas y accéder."],
+        )
 
-    def test_scan_identifiant_inexistant_rejete(self):
+    def test_scan_identifiant_inexistant_redirige_avec_message_francais(self):
         import uuid
-        response = self.client.get(f"/scan/{uuid.uuid4()}/")
-        self.assertEqual(response.status_code, 404)
+        response = self.client.get(f"/scan/{uuid.uuid4()}/", follow=True)
+        self.assertRedirects(response, "/")
+        messages_affiches = [str(m) for m in response.context["messages"]]
+        self.assertEqual(messages_affiches, ["QR code invalide ou équipement introuvable."])
 
     def test_scan_necessite_authentification(self):
         self.client.logout()

@@ -5,7 +5,7 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import TemplateView
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse, Http404
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db.utils import OperationalError
@@ -465,7 +465,24 @@ class ScanQRView(LoginRequiredMixin, View):
         installation = installations.filter(pk=pk).first()
         if installation is not None:
             return self._rediriger(request, installation=installation)
-        raise Http404("Équipement introuvable ou hors de votre périmètre.")
+
+        # Ni Asset ni Installation dans le périmètre de l'utilisateur : au
+        # lieu de laisser Django renvoyer sa page 404 technique (brute, en
+        # anglais en debug), on distingue deux cas et on redirige vers le
+        # tableau de bord avec un message clair en français. On ne révèle
+        # jamais le nom/navire de l'équipement d'un autre bâtiment : le
+        # message reste générique dans le cas « hors périmètre ».
+        existe_hors_perimetre = (
+            Asset.objects.filter(pk=pk).exists() or Installation.objects.filter(pk=pk).exists()
+        )
+        if existe_hors_perimetre:
+            messages.error(
+                request,
+                "Cet équipement n'appartient pas à votre navire, vous ne pouvez pas y accéder.",
+            )
+        else:
+            messages.error(request, "QR code invalide ou équipement introuvable.")
+        return redirect('home')
 
     def _rediriger(self, request, asset=None, installation=None):
         occurrences_du_jour = MaintenanceOccurrence.objects.filter(
