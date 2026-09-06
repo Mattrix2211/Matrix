@@ -144,6 +144,117 @@ class PersonalEventTests(TestCase):
         })
         self.assertEqual(reponse.status_code, 403)
 
+    def test_creation_evenement_personnel_avec_date_fin(self):
+        reponse = self.client.post(reverse("calendar-personal-save"), {
+            "title": "Réunion de bord",
+            "starts_at": f"{self.aujourdhui.isoformat()}T09:00",
+            "ends_at": f"{self.aujourdhui.isoformat()}T10:30",
+        })
+        self.assertRedirects(reponse, reverse("calendar-index"))
+        evenement = PersonalEvent.objects.get()
+        self.assertIsNotNone(evenement.ends_at)
+        self.assertEqual(timezone.localtime(evenement.ends_at).strftime("%H:%M"), "10:30")
+
+    def test_date_fin_anterieure_a_date_debut_refusee(self):
+        reponse = self.client.post(reverse("calendar-personal-save"), {
+            "title": "Réunion de bord",
+            "starts_at": f"{self.aujourdhui.isoformat()}T10:00",
+            "ends_at": f"{self.aujourdhui.isoformat()}T09:00",
+        })
+        self.assertRedirects(reponse, reverse("calendar-index"))
+        self.assertEqual(PersonalEvent.objects.count(), 0)
+
+    def test_evenement_personnel_avec_fin_expose_end_dans_calendar_events(self):
+        PersonalEvent.objects.create(
+            owner=self.marin, title="Avec durée",
+            starts_at=timezone.make_aware(timezone.datetime.combine(self.aujourdhui, timezone.datetime.min.time())),
+            ends_at=timezone.make_aware(timezone.datetime.combine(self.aujourdhui, timezone.datetime.min.time()))
+            + timezone.timedelta(hours=2),
+        )
+        url = reverse("calendar-events") + f"?date={self.aujourdhui.isoformat()}&view=day"
+        reponse = self.client.get(url)
+        perso = [e for e in reponse.json() if e["extendedProps"]["type"] == "personal"]
+        self.assertEqual(len(perso), 1)
+        self.assertNotEqual(perso[0]["start"], perso[0]["end"])
+
+    def test_redimensionnement_evenement_personnel_persiste_la_date_de_fin(self):
+        debut = timezone.make_aware(timezone.datetime.combine(self.aujourdhui, timezone.datetime.min.time()))
+        evenement = PersonalEvent.objects.create(owner=self.marin, title="À redimensionner", starts_at=debut)
+        nouvelle_fin = debut + timezone.timedelta(hours=1, minutes=30)
+        reponse = self.client.post(reverse("calendar-event-move"), {
+            "type": "personal",
+            "id": evenement.id,
+            "date": debut.isoformat(),
+            "end_date": nouvelle_fin.isoformat(),
+        })
+        self.assertEqual(reponse.status_code, 200)
+        evenement.refresh_from_db()
+        self.assertIsNotNone(evenement.ends_at)
+        self.assertEqual(timezone.localtime(evenement.ends_at), timezone.localtime(nouvelle_fin))
+
+    def test_redimensionnement_avec_fin_avant_debut_refuse(self):
+        debut = timezone.make_aware(timezone.datetime.combine(self.aujourdhui, timezone.datetime.min.time()))
+        evenement = PersonalEvent.objects.create(owner=self.marin, title="Protégé", starts_at=debut)
+        fin_invalide = debut - timezone.timedelta(hours=1)
+        reponse = self.client.post(reverse("calendar-event-move"), {
+            "type": "personal",
+            "id": evenement.id,
+            "date": debut.isoformat(),
+            "end_date": fin_invalide.isoformat(),
+        })
+        self.assertEqual(reponse.status_code, 400)
+        evenement.refresh_from_db()
+        self.assertIsNone(evenement.ends_at)
+
+    def test_deplacement_conserve_la_duree_existante(self):
+        """Régression QA : un déplacement par glisser (eventDrop, sans
+        end_date) d'un événement qui a déjà une date de fin ne doit pas
+        laisser ends_at figé sur son ancienne valeur — sinon il finit
+        antérieur à starts_at, une incohérence persistée en base sans
+        aucune erreur renvoyée."""
+        debut = timezone.make_aware(timezone.datetime.combine(self.aujourdhui, timezone.datetime.min.time())) \
+            + timezone.timedelta(hours=9)
+        fin = debut + timezone.timedelta(hours=1, minutes=30)
+        evenement = PersonalEvent.objects.create(
+            owner=self.marin, title="Avec durée à déplacer", starts_at=debut, ends_at=fin,
+        )
+        nouveau_debut = debut + timezone.timedelta(days=2)
+        reponse = self.client.post(reverse("calendar-event-move"), {
+            "type": "personal",
+            "id": evenement.id,
+            "date": nouveau_debut.isoformat(),
+        })
+        self.assertEqual(reponse.status_code, 200)
+        evenement.refresh_from_db()
+        self.assertEqual(evenement.starts_at, nouveau_debut)
+        # La durée (1h30) doit être conservée, pas la date de fin d'origine.
+        self.assertEqual(evenement.ends_at, nouveau_debut + timezone.timedelta(hours=1, minutes=30))
+        self.assertGreater(evenement.ends_at, evenement.starts_at)
+
+    def test_modification_heure_debut_via_modale_conserve_la_duree(self):
+        """Régression QA : la modale d'édition ne propose pas de champ de
+        date de fin — modifier uniquement l'heure de début d'un événement
+        qui a déjà une durée ne doit pas laisser ends_at figé sur son
+        ancienne valeur."""
+        debut = timezone.make_aware(timezone.datetime.combine(self.aujourdhui, timezone.datetime.min.time())) \
+            + timezone.timedelta(hours=9)
+        fin = debut + timezone.timedelta(hours=2)
+        evenement = PersonalEvent.objects.create(
+            owner=self.marin, title="Avec durée à éditer", starts_at=debut, ends_at=fin,
+        )
+        nouvelle_heure = debut + timezone.timedelta(hours=3)
+        self.client.post(reverse("calendar-personal-save"), {
+            "id": evenement.id,
+            "title": evenement.title,
+            "starts_at": nouvelle_heure.strftime("%Y-%m-%dT%H:%M"),
+            "note": "",
+        })
+        evenement.refresh_from_db()
+        self.assertEqual(evenement.starts_at, nouvelle_heure)
+        # La durée (2h) doit être conservée, pas la date de fin d'origine.
+        self.assertEqual(evenement.ends_at, nouvelle_heure + timezone.timedelta(hours=2))
+        self.assertGreater(evenement.ends_at, evenement.starts_at)
+
     def test_commentaires_dev_calendrier_non_affiches_en_clair(self):
         """Régression : deux commentaires {# ... #} multi-lignes de
         calendar/index.html (bloc « Ajout libre » et note sur la bibliothèque

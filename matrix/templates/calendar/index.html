@@ -300,6 +300,26 @@ document.addEventListener('DOMContentLoaded', function () {
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
         body: formData
       }).then(r => { if (!r.ok) info.revert(); }).catch(() => info.revert());
+    },
+    // Redimensionnement par glisser (bord de l'événement) : réservé aux
+    // événements personnels, seuls à porter une notion de durée métier
+    // (maintenance/tickets/formations restent des événements ponctuels,
+    // cf. cadrage Notion). Même endpoint et même schéma de résultat que
+    // eventDrop ci-dessus (calendar-event-move), avec en plus la nouvelle
+    // date de fin.
+    eventResize: function (info) {
+      const props = info.event.extendedProps;
+      if (!props || props.type !== 'personal') { info.revert(); return; }
+      const formData = new FormData();
+      formData.append('type', 'personal');
+      formData.append('id', info.event.id.replace(/^per-/, ''));
+      formData.append('date', info.event.startStr);
+      formData.append('end_date', info.event.endStr);
+      fetch('/calendar/events/move/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: formData
+      }).then(r => { if (!r.ok) info.revert(); }).catch(() => info.revert());
     }
   });
   calendar.render();

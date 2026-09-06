@@ -18,6 +18,11 @@ class PersonalEvent(TimeStampedModel):
     )
     title = models.CharField("Titre", max_length=200)
     starts_at = models.DateTimeField("Date et heure")
+    # Nullable pur (pas de valeur par défaut forcée) : reste rétrocompatible
+    # avec les événements existants, créés avant l'ajout de ce champ. Un
+    # événement sans date de fin s'affiche simplement sans durée sur le
+    # calendrier (FullCalendar gère très bien un événement ponctuel).
+    ends_at = models.DateTimeField("Date et heure de fin", null=True, blank=True)
     note = models.TextField("Note", blank=True)
 
     class Meta:

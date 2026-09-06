@@ -296,7 +296,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                     "type": "personal",
                     "title": f"Personnel - {pe.title}",
                     "start": pe.starts_at.isoformat(),
-                    "end": pe.starts_at.isoformat(),
+                    "end": pe.ends_at.isoformat() if pe.ends_at else pe.starts_at.isoformat(),
                     "url": "",
                     "status": None,
                 })
@@ -471,7 +471,10 @@ def calendar_events(request):
                 "id": f"per-{pe.id}",
                 "title": f"📌 {pe.title}",
                 "start": pe.starts_at.isoformat(),
-                "end": pe.starts_at.isoformat(),
+                # Sans date de fin renseignée, on retombe sur l'ancien
+                # comportement (événement ponctuel, sans durée) — FullCalendar
+                # affiche très bien un événement sans "end".
+                "end": pe.ends_at.isoformat() if pe.ends_at else pe.starts_at.isoformat(),
                 "url": "",
                 "editable": True,
                 # Un événement personnel n'appartient qu'à son créateur
@@ -565,8 +568,35 @@ def calendar_event_move(request):
         except PersonalEvent.DoesNotExist:
             return HttpResponseForbidden()
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
+        champs_modifies = ["starts_at"]
+        # Date de fin optionnelle : envoyée par le redimensionnement par
+        # glisser (eventResize) de la vue calendrier, absente lors d'un
+        # simple déplacement (eventDrop) — même endpoint pour les deux, comme
+        # pour les autres types d'événements ci-dessus.
+        end_date_str = request.POST.get("end_date")
+        if end_date_str:
+            try:
+                parsed_end = datetime.fromisoformat(end_date_str)
+            except ValueError:
+                return HttpResponseBadRequest("Date de fin invalide")
+            aware_end = parsed_end if timezone.is_aware(parsed_end) else timezone.make_aware(parsed_end)
+            if aware_end <= aware_dt:
+                return HttpResponseBadRequest("La date de fin doit être postérieure à la date de début.")
+            pe.ends_at = aware_end
+            champs_modifies.append("ends_at")
+        elif pe.ends_at:
+            # Simple déplacement (eventDrop, sans redimensionnement) d'un
+            # événement qui a déjà une durée : on décale la date de fin du
+            # même delta que la date de début, pour conserver la durée —
+            # comportement standard d'un calendrier. Sans ce décalage,
+            # ends_at resterait figé sur son ancienne valeur et pourrait
+            # devenir antérieur à starts_at (incohérence silencieuse en
+            # base, cf. régression signalée par le QA).
+            delta = aware_dt - pe.starts_at
+            pe.ends_at = pe.ends_at + delta
+            champs_modifies.append("ends_at")
         pe.starts_at = aware_dt
-        pe.save(update_fields=["starts_at"])
+        pe.save(update_fields=champs_modifies)
         return JsonResponse({"ok": True})
     return HttpResponseBadRequest("Unsupported event type")
 
@@ -590,6 +620,7 @@ def personal_event_save(request):
         return HttpResponseBadRequest("POST required")
     titre = (request.POST.get("title") or "").strip()
     date_str = request.POST.get("starts_at") or ""
+    fin_str = request.POST.get("ends_at") or ""
     note = (request.POST.get("note") or "").strip()
     event_id = request.POST.get("id") or None
 
@@ -602,15 +633,42 @@ def personal_event_save(request):
         messages.error(request, "Date invalide.")
         return redirect("calendar-index")
 
+    ends_at = None
+    if fin_str:
+        try:
+            ends_at = _parse_personal_event_datetime(fin_str)
+        except ValueError:
+            messages.error(request, "Date de fin invalide.")
+            return redirect("calendar-index")
+        if ends_at <= starts_at:
+            messages.error(request, "La date de fin doit être postérieure à la date de début.")
+            return redirect("calendar-index")
+
     if event_id:
         evenement = get_object_or_404(PersonalEvent, pk=event_id, owner=request.user)
+        ancien_debut = evenement.starts_at
         evenement.title = titre
         evenement.starts_at = starts_at
+        # Le formulaire de modification (modale) ne propose pas encore de
+        # champ de date de fin : on ne l'écrase donc que si elle est
+        # explicitement fournie, pour ne pas effacer une durée déjà réglée
+        # par glisser-redimensionnement (eventResize) sur le calendrier.
+        if fin_str:
+            evenement.ends_at = ends_at
+        elif evenement.ends_at:
+            # Seule la date de début a été modifiée via la modale : on
+            # décale la date de fin du même delta pour conserver la durée
+            # existante, au lieu de la laisser figée (ce qui produirait une
+            # incohérence ends_at < starts_at en base, cf. régression
+            # signalée par le QA).
+            evenement.ends_at = evenement.ends_at + (starts_at - ancien_debut)
         evenement.note = note
-        evenement.save(update_fields=["title", "starts_at", "note"])
+        evenement.save(update_fields=["title", "starts_at", "ends_at", "note"])
         messages.success(request, "Événement personnel modifié.")
     else:
-        PersonalEvent.objects.create(owner=request.user, title=titre, starts_at=starts_at, note=note)
+        PersonalEvent.objects.create(
+            owner=request.user, title=titre, starts_at=starts_at, ends_at=ends_at, note=note,
+        )
         messages.success(request, "Événement personnel ajouté à votre calendrier.")
     return redirect("calendar-index")
 
