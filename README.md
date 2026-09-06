@@ -1,6 +1,8 @@
 # Matrix
 
-Application Django de gestion opérationnelle pour la Marine Nationale française : maintenance préventive et corrective, matériel mobile, formations, logistique, notifications et tableaux de bord.
+Plateforme numérique opérationnelle quotidienne pour la Marine Nationale française — maintenance préventive et corrective, matériel mobile, formations, logistique, notifications, tableaux de bord, et bientôt quarts/services à quai/échanges. La maintenance (GMAO) est un module de Matrix, pas sa finalité : l'objectif est que chaque marin ouvre Matrix tous les jours, pas seulement quand il touche à un équipement.
+
+**Vision et feuille de route complètes : voir [`VISION_MATRIX_2_0.md`](VISION_MATRIX_2_0.md)** — à lire avant toute décision d'architecture ou de nouveau module. `CLAUDE.md` reste la référence du quotidien pour Claude Code.
 
 ## Stack
 - Python 3.12+, Django 5, DRF, Bootstrap 5 + HTMX
@@ -28,6 +30,12 @@ Accès : http://127.0.0.1:8000/ (admin : `/admin/`)
 L'export PDF des bilans nécessite les bibliothèques natives GTK (WeasyPrint) — absentes par défaut sous Windows. Sans elles, tout le reste de l'application fonctionne normalement ; seul l'export PDF reste indisponible (CSV/Excel restent disponibles).
 
 ## Docker services (Postgres + Redis)
+Un fichier `.env` (copié depuis `.env.example`) doit exister à la racine **avant** de lancer
+Docker : `POSTGRES_PASSWORD` n'a plus de valeur par défaut, le démarrage du conteneur `db`
+échoue explicitement si elle n'est pas définie (pas de mot de passe trivial en prod par oubli).
+Les ports de `db` (5432) et `redis` (6379) ne sont exposés que sur `127.0.0.1` de la machine
+hôte (pas sur le réseau) : suffisant pour ce workflow, où Django/Celery tournent hors conteneur
+et s'y connectent via `localhost`.
 ```bash
 docker compose up -d
 set DB_HOST=localhost
