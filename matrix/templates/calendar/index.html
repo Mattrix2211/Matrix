@@ -243,9 +243,28 @@ document.addEventListener('DOMContentLoaded', function () {
     initialView: VUES_FULLCALENDAR[view] || 'dayGridMonth',
     initialDate: date,
     editable: true,
+    // Autorise le simple clic (vue mois, callback dateClick) et le
+    // glisser-sélection d'une plage horaire (vues semaine/jour, callback
+    // select) pour la création rapide d'un événement personnel.
+    selectable: true,
     height: 'auto',
     headerToolbar: { start: '', center: 'title', end: '' },
     buttonText: { today: "Aujourd'hui", month: 'Mois', week: 'Semaine', day: 'Jour' },
+    // Clic simple sur une case vide en vue mois : pré-remplit le formulaire
+    // "Ajouter un événement personnel" avec la date cliquée. Volontairement
+    // limité à l'événement personnel : la création d'une maintenance, d'un
+    // ticket ou d'une formation reste réservée à son propre écran, chacun
+    // ayant ses règles métier (checklist, prérequis, signature...).
+    dateClick: function (info) {
+      preRemplirFormulairePersonnel(info.date);
+    },
+    // Sélection d'une plage horaire en vues semaine/jour (ou clic simple,
+    // FullCalendar déclenchant aussi select dans ce cas) : même
+    // pré-remplissage, à partir du début de la plage sélectionnée.
+    select: function (info) {
+      preRemplirFormulairePersonnel(info.start);
+      calendar.unselect();
+    },
     eventSources: [{
       url: construireUrlEvenements(view),
       method: 'GET',
@@ -568,6 +587,21 @@ document.addEventListener('DOMContentLoaded', function () {
   const champNote = document.getElementById('pe-note');
   const btnAnnuler = document.getElementById('pe-annuler');
   const btnValider = formPersonnel.querySelector('button[type="submit"]');
+
+  // Pré-remplit le formulaire "Ajouter un événement personnel" à partir
+  // d'une date cliquée/sélectionnée sur le calendrier (callbacks dateClick
+  // et select ci-dessus) : remet le formulaire en mode "Ajout" (au cas où
+  // une modification était en cours) puis reporte le focus dessus pour que
+  // l'utilisateur voie immédiatement le pré-remplissage.
+  function preRemplirFormulairePersonnel(date) {
+    formPersonnel.reset();
+    champId.value = '';
+    champDate.value = versDatetimeLocal(date);
+    btnValider.textContent = 'Ajouter';
+    btnAnnuler.classList.add('d-none');
+    formPersonnel.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    champTitre.focus();
+  }
 
   document.querySelectorAll('.btn-modifier-evenement').forEach(function (bouton) {
     bouton.addEventListener('click', function () {
