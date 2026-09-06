@@ -304,6 +304,34 @@ class CalendarView(LoginRequiredMixin, TemplateView):
 
 
 def _parse_common_period(request):
+    """Détermine la période (start, end inclus) demandée par l'appelant.
+
+    FullCalendar (event source de type URL) envoie automatiquement des
+    paramètres `start`/`end` FRAIS à chaque navigation (Précédent/Aujourd'hui/
+    Suivant, changement de vue...), même si le paramètre `date` transmis par
+    le gabarit reste figé côté client sur sa valeur de chargement initial —
+    c'est cette dernière valeur qu'on utilisait par erreur, ce qui figeait les
+    événements affichés sur la période initiale (cf. bug Notion « Précédent/
+    Aujourd'hui/Suivant ne rafraîchissent pas les événements affichés »).
+    On donne donc la priorité à `start`/`end` quand ils sont fournis, avec un
+    repli sur `view`+`date` sinon, pour ne pas casser d'éventuels autres
+    appelants de cet endpoint qui n'enverraient que `view`+`date`."""
+    start_str = request.GET.get("start")
+    end_str = request.GET.get("end")
+    if start_str and end_str:
+        try:
+            start = datetime.fromisoformat(start_str[:10]).date()
+            # FullCalendar envoie une borne de fin EXCLUSIVE (minuit du
+            # lendemain du dernier jour affiché) : on la ramène au dernier
+            # jour réellement inclus dans la grille, pour un filtrage
+            # `__range` (inclusif des deux côtés) cohérent avec le reste du
+            # code.
+            fin_exclusive = datetime.fromisoformat(end_str[:10]).date()
+            end = fin_exclusive - timedelta(days=1) if fin_exclusive > start else fin_exclusive
+            return start, end
+        except (ValueError, TypeError):
+            pass  # repli sur view/date ci-dessous en cas de valeur invalide
+
     view = request.GET.get("view", "month")
     date_str = request.GET.get("date")
     today = timezone.localdate()
