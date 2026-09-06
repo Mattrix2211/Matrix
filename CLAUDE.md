@@ -144,10 +144,11 @@ Invoque chaque agent explicitement (`@po`, `@dev`, `@tech-lead`, `@qa`) selon le
 
 ## Garde-fous automatiques (hooks)
 
-En plus de ce que chaque agent vérifie lui-même, trois hooks (`.claude/hooks/`) font respecter mécaniquement des règles non négociables, indépendamment de la discipline de l'agent :
+En plus de ce que chaque agent vérifie lui-même, quatre hooks (`.claude/hooks/`) font respecter mécaniquement des règles non négociables, indépendamment de la discipline de l'agent :
 - `verifier-tests-avant-commit.sh` — bloque tout `git commit` si `python manage.py test` échoue
 - `verifier-francais-avant-commit.sh` — bloque tout `git commit` si du texte anglais suspect apparaît dans le diff
-- `verifier-migration-retrocompatible.sh` — alerte si une migration ajoute un champ sans valeur par défaut
+- `verifier-migration-retrocompatible.sh` — alerte si une migration ajoute un champ sans valeur par défaut (rétrocompatibilité du schéma)
+- `verifier-migrations-appliquees-avant-commit.sh` — bloque tout `git commit` si des migrations Django ne sont pas appliquées à la base de développement locale (`db.sqlite3`), distinct du précédent qui contrôle le schéma et non l'application effective. Un garde-fou complémentaire (`matrix/core/checks.py`, système de checks Django) avertit aussi au démarrage de `python manage.py runserver` si des migrations restent en attente, pour couvrir le cas d'un poste qui récupère du code déjà commité par quelqu'un d'autre
 
 Si un commit est bloqué par un hook, traite-le comme un refus du Tech Lead : redonne la main à `@dev` avec le message d'erreur du hook, ne contourne jamais le blocage.
 
