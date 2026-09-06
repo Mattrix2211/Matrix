@@ -56,7 +56,7 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 | `training` | Formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation (indépendant du rang), réservation self-service de sessions |
 | `threads` | Discussions génériques (attachées à n'importe quel objet) |
 | `notifications` | Alertes in-app (niveaux info/warning/danger), Web Push pour le niveau danger (clé VAPID auto-hébergée) |
-| `dashboard` | Tableau de bord personnel, vue flotte (CHEF_SERVICE+), graphiques Chart.js |
+| `dashboard` | Tableau de bord personnel, vue flotte (CHEF_SECTION+, périmètre auto-adapté au rôle : section/secteur/navire/flotte entière), graphiques Chart.js |
 | `calendar_app` | Calendrier central (colonne vertébrale), vue globale + personnelle, export iCal |
 | `reports` | Bilans instantané/période, export PDF (si WeasyPrint/GTK disponible) / CSV / Excel |
 
