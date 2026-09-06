@@ -46,9 +46,11 @@
     });
   }
 
-  // Suppression PJ: modale globale
+  // Suppression PJ: modale globale, instanciée paresseusement (à la première
+  // ouverture) car bootstrap.bundle.min.js est chargé plus bas dans le body,
+  // après ce bloc de contenu, et n'est pas encore défini à l'exécution de ce script.
   var confirmModalEl = document.getElementById('confirmDeleteAttachment');
-  var confirmModal; if (confirmModalEl && window.bootstrap) { confirmModal = new bootstrap.Modal(confirmModalEl); }
+  var confirmModal = null;
   document.addEventListener('click', function(e){
     var btn = e.target.closest('.btn-delete-attachment');
     if (!btn) return;
@@ -69,7 +71,10 @@
       var msg = confirmModalEl.querySelector('.confirm-filename');
       if (msg) { msg.textContent = filename; }
     }
-    if (confirmModal) { confirmModal.show(); }
+    if (confirmModalEl) {
+      if (!confirmModal) confirmModal = new bootstrap.Modal(confirmModalEl);
+      confirmModal.show();
+    }
   });
 
   // Initialiser les tooltips Bootstrap

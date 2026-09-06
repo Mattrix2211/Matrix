@@ -134,7 +134,10 @@
   var drawRect = document.getElementById('drawRect');
   var btnDessiner = document.getElementById('btnDessinerZone');
   var modalEl = document.getElementById('zoneModal');
-  var modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+  // Instance de la modale créée paresseusement (à la première ouverture),
+  // pas à l'exécution du script : bootstrap.bundle.min.js est chargé plus bas
+  // dans le body (après ce bloc de contenu) et ne serait pas encore défini ici.
+  var modal = null;
   var zoneLocationSelect = document.getElementById('zoneLocation');
   var zoneLocationNew = document.getElementById('zoneLocationNew');
   var btnRepositionner = document.getElementById('btnRepositionnerZone');
@@ -195,6 +198,7 @@
     // existante (mode edit), pas pour une zone qu'on vient de dessiner.
     btnRepositionner.classList.toggle('d-none', mode !== 'edit');
     btnRepositionner.setAttribute('data-zone-id', zone ? zone.id : '');
+    if (!modal && modalEl) modal = new bootstrap.Modal(modalEl);
     if (modal) modal.show();
   }
 
