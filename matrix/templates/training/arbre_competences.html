@@ -31,6 +31,11 @@
   {# même raison, disposées en sous-colonnes (arbre-composantes) plutôt que  #}
   {# de s'empiler l'une sous l'autre ; seules les formations reliées par un  #}
   {# prérequis (niveaux successifs d'une même chaîne) restent empilées.      #}
+  <p class="small text-muted d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-arrows-move"></i>
+    Cliquez n'importe où dans le cadre ci-dessous et glissez pour vous déplacer dans l'arbre, comme sur une carte.
+  </p>
+  <div class="arbre-viewport" id="arbre-viewport">
   <div class="arbre-categories">
   {% for nom_categorie, composantes in categories %}
   <section class="arbre-categorie" id="cat-{{ nom_categorie|slugify }}">
@@ -91,6 +96,7 @@
     </div>
   </section>
   {% endfor %}
+  </div>
   </div>
 <script src="{% static 'js/arbre_competences.js' %}"></script>
 {% endif %}

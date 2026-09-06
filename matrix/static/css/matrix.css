@@ -287,24 +287,50 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 /* formations côte à côte (CSS flex, pas de grille de graphe externe) ;    */
 /* connecteurs en SVG pur généré par matrix/static/js/arbre_competences.js */
 /* (aucune bibliothèque de graphe, conforme au principe hors-ligne).      */
+/* Navigation : plus de barre de défilement par colonne ni de défilement   */
+/* horizontal de page — un seul cadre panoramique (.arbre-viewport) que    */
+/* l'on déplace au clic-glisser (arbre_competences.js), comme sur une      */
+/* carte interactive, en JavaScript vanilla (sans bibliothèque externe).   */
 /* ---------------------------------------------------------------------- */
+/* Cadre panoramique : hauteur généreuse pour que l'arbre prenne le plus de
+   place possible sur l'écran, mais bornée (comme une carte) puisque le
+   déplacement se fait désormais par glisser plutôt que par défilement de
+   page. overflow: hidden masque tout dépassement du contenu déplacé par
+   transform plutôt que de faire apparaître une barre de défilement. */
+.arbre-viewport {
+  position: relative;
+  overflow: hidden;
+  height: min(72vh, 900px);
+  min-height: 440px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  cursor: grab;
+}
+/* Pendant le glisser : curseur « attrapé » et texte non sélectionnable
+   (évite de sélectionner les titres de carte au passage de la souris). */
+.arbre-viewport--glisse,
+.arbre-viewport--glisse * {
+  cursor: grabbing;
+  user-select: none;
+}
 /* Les catégories (domaines métier) sont des branches indépendantes les unes
    des autres : elles doivent se lire côte à côte plutôt que de s'empiler
    verticalement (bug signalé : « les formations de différentes branches se
-   mettent les unes au-dessus des autres »). Rangée de colonnes parallèles
-   avec défilement horizontal plutôt qu'un retour à la ligne qui casserait
-   la lisibilité de chaque arbre sur petit écran. Ce conteneur porte le seul
-   défilement horizontal de l'arbre : les niveaux d'imbrication suivants
-   (composantes) n'en ajoutent pas un second, pour éviter d'empiler
-   plusieurs barres de défilement imbriquées. */
+   mettent les unes au-dessus des autres »). Rangée de colonnes parallèles,
+   déplacée par panoramique (transform, cf. arbre_competences.js) plutôt que
+   par défilement : ce conteneur ne porte plus son propre défilement, les
+   niveaux d'imbrication suivants (composantes) n'en portent pas non plus,
+   pour ne garder qu'un seul geste de navigation sur tout l'arbre. */
 .arbre-categories {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   flex-wrap: nowrap;
   gap: var(--s8);
-  overflow-x: auto;
-  padding-bottom: var(--s2);
+  padding: var(--s4);
+  width: max-content;
+  will-change: transform;
 }
 /* Une section par catégorie (domaine métier) dans l'arbre de compétences —
    le calcul du graphe reste global au catalogue, seul cet affichage regroupe
@@ -345,7 +371,6 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 
 .arbre-competences-conteneur {
   position: relative;
-  overflow-x: auto;
   padding-bottom: var(--s4);
 }
 .arbre-connecteurs {
