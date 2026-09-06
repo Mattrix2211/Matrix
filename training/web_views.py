@@ -51,16 +51,22 @@ NIVEAU_REQUIS_GESTION_PREREQUIS = RoleLevel.CHEF_SECTION
 # tout aussi pertinent, sinon davantage.
 NIVEAU_REQUIS_CREATION_FORMATION = RoleLevel.ADMIN_NAVIRE
 
-# Seuil de rôle générique à partir duquel un marin peut valider n'importe
-# quelle formation de son périmètre organisationnel, MÊME sans être désigné
-# référent — même seuil que NIVEAU_REQUIS_GESTION_PREREQUIS. Ce seuil
-# générique s'ajoute (sans le remplacer) au vrai contrôle d'accès défini par
-# training.models.peut_valider_formation (référent de la formation précise
-# POUR LE NAVIRE DU MARIN CIBLÉ, référent formation du navire, ou COMMANDANT+,
-# déjà utilisé côté API par TrainingRecordPermission) : un marin de rang
-# inférieur à ce seuil peut donc tout de même valider une formation précise
-# dès lors qu'il en est désigné référent — cf. _est_referent_formation et
-# ValiderFormationView ci-dessous.
+# Seuil de rôle générique à partir duquel un chef peut RÉSERVER (mais pas
+# VALIDER) une place de session pour un marin de son propre périmètre
+# organisationnel, sans être désigné référent de la formation précise — cf.
+# _affecter_session ci-dessous, SEUL usage restant de ce seuil. Il ne
+# s'applique PLUS ni à la validation elle-même (création d'un TrainingRecord,
+# ValiderFormationView), ni à la visibilité du bouton « Valider une
+# formation » : pour ces deux usages, ce seuil générique contournait à tort
+# le vrai contrôle d'accès défini par training.models.peut_valider_formation
+# (référent de la formation précise POUR LE NAVIRE DU MARIN CIBLÉ, référent
+# formation du navire, ou COMMANDANT+, déjà utilisé côté API par
+# TrainingRecordPermission) — faille corrigée (tâche Notion « Sécurité : la
+# validation de formation contourne le contrôle par référent (seuil
+# générique CHEF_SECTION+) »). Réserver une place ne certifie en rien qu'un
+# marin a suivi/réussi la formation (seul ValiderFormationView crée un
+# TrainingRecord) : le risque associé à ce seuil, pour ce seul usage restant,
+# reste borné.
 NIVEAU_REQUIS_VALIDATION = RoleLevel.CHEF_SECTION
 
 
@@ -73,6 +79,12 @@ def _peut_creer_formation(user):
 
 
 def _peut_valider_formation(user):
+    """Seuil générique CHEF_SECTION+ — réservé à la RÉSERVATION proactive
+    d'une place de session pour un marin (_affecter_session), PAS à la
+    validation d'une formation elle-même (ValiderFormationView), qui ne doit
+    reposer QUE sur le vrai contrôle d'accès par référent
+    (training.models.peut_valider_formation, cf. NIVEAU_REQUIS_VALIDATION
+    ci-dessus)."""
     return user_role_level(user) >= NIVEAU_REQUIS_VALIDATION
 
 
@@ -80,11 +92,11 @@ def _est_referent_formation(user):
     """Vrai si l'utilisateur est désigné référent d'au moins une formation
     précise pour au moins un navire (ReferentFormation) ou référent formation
     d'un navire entier (ReferentFormationNavire) — cf.
-    training.models.peut_valider_formation. Complète _peut_valider_formation
-    ci-dessus (seuil générique CHEF_SECTION) pour un marin de rang inférieur
-    (ex. EQUIPIER) désigné référent : sans ce contrôle, le bouton « Valider
-    une formation » resterait invisible pour lui alors qu'il a bien
-    l'autorité sur sa formation."""
+    training.models.peut_valider_formation. Complète le seuil de supervision
+    globale (COMMANDANT+, NIVEAU_SUPERVISION_GLOBALE_FORMATION) pour un marin
+    de rang inférieur (ex. EQUIPIER) désigné référent : sans ce contrôle, le
+    bouton « Valider une formation » resterait invisible pour lui alors qu'il
+    a bien l'autorité sur sa formation."""
     return (
         ReferentFormation.objects.filter(user=user).exists()
         or ReferentFormationNavire.objects.filter(user=user).exists()
@@ -596,13 +608,20 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             f.dernieres_validations = sorted(records, key=lambda r: r.completed_at, reverse=True)[:5]
         ctx["formations"] = formations
 
-        # Peut valider une formation : seuil générique CHEF_SECTION+ (comme
-        # avant) COMPLÉTÉ par le statut de référent (formation précise ou
-        # navire entier) — sans quoi un référent de rang inférieur (ex.
-        # EQUIPIER) ne verrait jamais le bouton alors qu'il a bien
-        # l'autorité de valider SA formation (training.models.
-        # peut_valider_formation, déjà utilisée côté API).
-        peut_valider = _peut_valider_formation(self.request.user) or _est_referent_formation(self.request.user)
+        # Peut valider une formation : rôle de supervision globale
+        # (COMMANDANT+, comme training.models.peut_valider_formation) OU
+        # statut de référent (formation précise ou navire entier) — SANS le
+        # seuil générique CHEF_SECTION+ historique, qui autorisait à tort
+        # tout chef de section (et au-dessus) à valider n'importe quelle
+        # formation de son périmètre sans en être désigné référent (faille
+        # corrigée, tâche Notion « Sécurité : la validation de formation
+        # contourne le contrôle par référent »). Un référent de rang
+        # inférieur (ex. EQUIPIER) voit quand même le bouton, cf.
+        # _est_referent_formation.
+        peut_valider = (
+            user_role_level(self.request.user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION
+            or _est_referent_formation(self.request.user)
+        )
         ctx["peut_valider"] = peut_valider
         if peut_valider:
             # Catalogue global : toutes les formations sont proposables dans
@@ -1095,11 +1114,20 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         qui réserve pour lui-même) — équivaut à une réservation self-service
         (TrainingSession.reservations, PAS attendees : la présence/réussite
         réelle reste constatée séparément le jour J, cf. ValiderFormationView).
-        Autorisation identique à ValiderFormationView (peut_valider_formation,
-        POUR LE NAVIRE DU MARIN CIBLÉ) : pas de nouveau seuil de permission,
-        même contrôle que pour la validation d'une formation. Les règles
-        métier (capacité, session planifiée, prérequis) sont appliquées par le
-        même signal m2m que la réservation self-service
+        Autorisation branchée sur le même contrôle par référent que
+        ValiderFormationView (peut_valider_formation, POUR LE NAVIRE DU MARIN
+        CIBLÉ), MAIS complétée ici par le seuil générique CHEF_SECTION+
+        (borné au périmètre organisationnel de l'appelant sur le marin, cf.
+        ci-dessous) — DEPUIS LA CORRECTION DE LA FAILLE sur ValiderFormationView
+        (tâche Notion « Sécurité : la validation de formation contourne le
+        contrôle par référent »), ce n'est PLUS le même contrôle : réserver
+        une place ne certifie en rien que le marin a suivi/réussi la
+        formation (seul ValiderFormationView crée un TrainingRecord), donc un
+        chef peut toujours planifier une session pour un marin de son propre
+        périmètre sans en être désigné référent — risque bien moindre que
+        celui corrigé sur la validation elle-même. Les règles métier
+        (capacité, session planifiée, prérequis) sont appliquées par le même
+        signal m2m que la réservation self-service
         (training/models.py::_controler_reservation), seule source de vérité,
         qui se déclenche ici aussi car l'ajout se fait toujours par le même
         ManyToManyField, quel que soit l'appelant."""
@@ -1118,10 +1146,13 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             return redirect("formation-list")
 
         # Autorisation : référent de cette formation précise POUR LE NAVIRE DU
-        # MARIN CIBLÉ, référent formation de ce navire, ou COMMANDANT+ — même
-        # contrôle que ValiderFormationView, réutilisé tel quel, complété par
-        # le seuil générique CHEF_SECTION+ borné au périmètre organisationnel
-        # de l'appelant sur le marin.
+        # MARIN CIBLÉ, référent formation de ce navire, ou COMMANDANT+ (même
+        # fonction que ValiderFormationView, réutilisée telle quelle) —
+        # COMPLÉTÉE ICI (contrairement à ValiderFormationView depuis le
+        # correctif de sécurité ci-dessus) par le seuil générique
+        # CHEF_SECTION+ borné au périmètre organisationnel de l'appelant sur
+        # le marin : réserver une place ne valide rien, cf. docstring de
+        # cette méthode.
         navire_marin = navire_de(marin)
         autorise_par_referent = peut_valider_formation(request.user, session.course, navire_marin)
         if not autorise_par_referent and not _peut_valider_formation(request.user):
@@ -1815,35 +1846,28 @@ class ValiderFormationView(LoginRequiredMixin, View):
             messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
 
-        # Autorisation réelle de validation, branchée sur le vrai contrôle
-        # d'accès du modèle (training.models.peut_valider_formation, déjà
-        # utilisé côté API par TrainingRecordPermission) : référent de cette
-        # formation précise POUR LE NAVIRE DU MARIN CIBLÉ, référent formation
-        # de ce navire, ou COMMANDANT+. COMPLÉTÉE (sans être remplacée) par le
-        # seuil générique CHEF_SECTION+ historique du web, dans ce cas
-        # toujours borné au périmètre organisationnel effectif de l'appelant
-        # sur le MARIN (le catalogue de formations, désormais global, n'a
-        # plus de périmètre propre à revalider).
+        # Autorisation réelle de validation, UNIQUEMENT branchée sur le vrai
+        # contrôle d'accès du modèle (training.models.peut_valider_formation,
+        # déjà utilisé côté API par TrainingRecordPermission) : référent de
+        # cette formation précise POUR LE NAVIRE DU MARIN CIBLÉ, référent
+        # formation de ce navire, ou COMMANDANT+. Le seuil générique
+        # CHEF_SECTION+ historique du web a été RETIRÉ (faille corrigée,
+        # tâche Notion « Sécurité : la validation de formation contourne le
+        # contrôle par référent (seuil générique CHEF_SECTION+) ») : il
+        # autorisait à tort n'importe quel chef de section (et au-dessus) à
+        # valider n'importe quelle formation de son périmètre organisationnel
+        # sans en être désigné référent.
         navire_marin = navire_de(marin)
-        autorise_par_referent = peut_valider_formation(request.user, course, navire_marin)
-        if not autorise_par_referent:
-            if not _peut_valider_formation(request.user):
-                raise PermissionDenied
+        if not peut_valider_formation(request.user, course, navire_marin):
+            raise PermissionDenied
 
         # Revalidation côté serveur du marin ciblé : empêche de valider une
-        # formation pour un marin hors périmètre, en forgeant la requête POST
-        # avec un autre marin_id que ceux proposés par le select du GET. Pour
-        # un référent (formation précise ou navire), le périmètre est élargi
-        # en conséquence (_marins_validables) ; pour le seuil générique
-        # CHEF_SECTION+, le périmètre organisationnel habituel reste seul
-        # applicable, comme avant.
-        if autorise_par_referent:
-            if not _marins_validables(request.user).filter(pk=marin.pk).exists():
-                raise PermissionDenied
-        else:
-            q_perimetre_marin = filtres_perimetre_marin(request.user)
-            if q_perimetre_marin is not None and not User.objects.filter(q_perimetre_marin, pk=marin.pk).exists():
-                raise PermissionDenied
+        # formation pour un marin hors périmètre (parmi ceux proposés à un
+        # référent, potentiellement élargi à plusieurs navires — cf.
+        # _marins_validables), en forgeant la requête POST avec un autre
+        # marin_id que ceux proposés par le select du GET.
+        if not _marins_validables(request.user).filter(pk=marin.pk).exists():
+            raise PermissionDenied
 
         try:
             completed_at = date.fromisoformat(completed_at_str)
