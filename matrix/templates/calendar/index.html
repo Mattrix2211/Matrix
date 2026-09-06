@@ -148,9 +148,23 @@
               <label class="form-label mb-1" for="pe-title">Titre</label>
               <input type="text" class="form-control form-control-sm" id="pe-title" name="title" maxlength="200" required>
             </div>
-            <div class="mb-2">
-              <label class="form-label mb-1" for="pe-starts-at">Date et heure</label>
-              <input type="datetime-local" class="form-control form-control-sm" id="pe-starts-at" name="starts_at" required>
+            <div class="row g-2 mb-2">
+              {% comment %}
+              Deux champs côte à côte (début/fin), comme le formulaire de
+              création rapide du calendrier Apple : la fin est facultative
+              (une durée par défaut d'une heure est appliquée côté serveur
+              si elle est laissée vide, cf. calendar_app/views.py) et se
+              recale automatiquement en JS si le début est avancé au-delà
+              d'elle (voir ajusterFinSiNecessaire plus bas).
+              {% endcomment %}
+              <div class="col-6">
+                <label class="form-label mb-1" for="pe-starts-at">Début</label>
+                <input type="datetime-local" class="form-control form-control-sm" id="pe-starts-at" name="starts_at" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label mb-1" for="pe-ends-at">Fin (facultatif)</label>
+                <input type="datetime-local" class="form-control form-control-sm" id="pe-ends-at" name="ends_at">
+              </div>
             </div>
             <div class="mb-2">
               <label class="form-label mb-1" for="pe-note">Note (facultatif)</label>
@@ -454,6 +468,10 @@ document.addEventListener('DOMContentLoaded', function () {
         champId.value = idBrut;
         champTitre.value = event.title.slice(event.title.indexOf(' ') + 1);
         champDate.value = versDatetimeLocal(event.start);
+        // Champ de fin laissé vide : la modification ne le propose pas
+        // encore, la durée existante est conservée côté serveur (décalée du
+        // même delta que le début, cf. personal_event_save).
+        champFin.value = '';
         champNote.value = props.note || '';
         btnValider.textContent = 'Modifier';
         btnAnnuler.classList.remove('d-none');
@@ -604,9 +622,25 @@ document.addEventListener('DOMContentLoaded', function () {
   const champId = document.getElementById('pe-id');
   const champTitre = document.getElementById('pe-title');
   const champDate = document.getElementById('pe-starts-at');
+  const champFin = document.getElementById('pe-ends-at');
   const champNote = document.getElementById('pe-note');
   const btnAnnuler = document.getElementById('pe-annuler');
   const btnValider = formPersonnel.querySelector('button[type="submit"]');
+
+  // Comme le formulaire de création rapide du calendrier Apple : si une
+  // heure de fin est déjà saisie et que l'utilisateur avance le début
+  // au-delà (ou dessus) d'elle, on recale automatiquement la fin une heure
+  // après le nouveau début, pour ne jamais soumettre une fin antérieure au
+  // début. Simple confort JS — le serveur revalide de toute façon cette
+  // règle (calendar_app/views.py::personal_event_save) et ne fait jamais
+  // confiance à cet ajustement seul.
+  function ajusterFinSiNecessaire() {
+    if (!champFin.value || !champDate.value) return;
+    if (champFin.value > champDate.value) return;
+    const nouveauDebut = new Date(champDate.value);
+    champFin.value = versDatetimeLocal(new Date(nouveauDebut.getTime() + 60 * 60 * 1000));
+  }
+  champDate.addEventListener('change', ajusterFinSiNecessaire);
 
   // Pré-remplit le formulaire "Ajouter un événement personnel" à partir
   // d'une date cliquée/sélectionnée sur le calendrier (callbacks dateClick
@@ -628,6 +662,9 @@ document.addEventListener('DOMContentLoaded', function () {
       champId.value = bouton.dataset.id;
       champTitre.value = bouton.dataset.title;
       champDate.value = bouton.dataset.startsAt;
+      // Champ de fin laissé vide : voir commentaire équivalent ci-dessus
+      // (popover "Modifier").
+      champFin.value = '';
       champNote.value = bouton.dataset.note || '';
       btnValider.textContent = 'Modifier';
       btnAnnuler.classList.remove('d-none');

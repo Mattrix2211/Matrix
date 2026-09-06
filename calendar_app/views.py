@@ -694,6 +694,12 @@ def personal_event_save(request):
         evenement.save(update_fields=["title", "starts_at", "ends_at", "note"])
         messages.success(request, "Événement personnel modifié.")
     else:
+        if not ends_at:
+            # Champ de fin facultatif (formulaire de création rapide, comme
+            # le calendrier Apple) : une durée par défaut d'une heure est
+            # appliquée si l'utilisateur ne la renseigne pas, plutôt que de
+            # bloquer la création ou de créer un événement sans durée.
+            ends_at = starts_at + timedelta(hours=1)
         PersonalEvent.objects.create(
             owner=request.user, title=titre, starts_at=starts_at, ends_at=ends_at, note=note,
         )

@@ -155,14 +155,35 @@ class PersonalEventTests(TestCase):
         self.assertIsNotNone(evenement.ends_at)
         self.assertEqual(timezone.localtime(evenement.ends_at).strftime("%H:%M"), "10:30")
 
+    def test_creation_evenement_personnel_sans_fin_applique_une_duree_par_defaut(self):
+        """Le champ « Heure de fin » du formulaire rapide est facultatif :
+        une durée par défaut d'une heure est appliquée côté serveur si
+        l'utilisateur ne la renseigne pas (comme le calendrier Apple), pour
+        que l'événement dispose toujours d'une durée affichable sur le
+        calendrier, sans jamais bloquer la création rapide."""
+        reponse = self.client.post(reverse("calendar-personal-save"), {
+            "title": "Pause café",
+            "starts_at": f"{self.aujourdhui.isoformat()}T15:00",
+        })
+        self.assertRedirects(reponse, reverse("calendar-index"))
+        evenement = PersonalEvent.objects.get()
+        self.assertIsNotNone(evenement.ends_at)
+        self.assertEqual(evenement.ends_at, evenement.starts_at + timezone.timedelta(hours=1))
+
     def test_date_fin_anterieure_a_date_debut_refusee(self):
+        """Garde-fou côté serveur : même si le JS du formulaire recale
+        automatiquement la fin quand le début la dépasse, on ne fait jamais
+        confiance au client seul — une fin antérieure au début forcée malgré
+        tout est rejetée avec un message français clair."""
         reponse = self.client.post(reverse("calendar-personal-save"), {
             "title": "Réunion de bord",
             "starts_at": f"{self.aujourdhui.isoformat()}T10:00",
             "ends_at": f"{self.aujourdhui.isoformat()}T09:00",
-        })
+        }, follow=True)
         self.assertRedirects(reponse, reverse("calendar-index"))
         self.assertEqual(PersonalEvent.objects.count(), 0)
+        messages_affiches = [str(m) for m in reponse.context["messages"]]
+        self.assertIn("La date de fin doit être postérieure à la date de début.", messages_affiches)
 
     def test_evenement_personnel_avec_fin_expose_end_dans_calendar_events(self):
         PersonalEvent.objects.create(
