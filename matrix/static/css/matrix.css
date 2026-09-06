@@ -146,6 +146,46 @@ code, pre, kbd, .font-mono {
 /* Badges de type de fichier (text-bg-primary) : même correctif de contraste */
 .text-bg-primary { color: var(--ink) !important; }
 
+/* ------------------------------------------------------------------------ */
+/* Champs de saisie date/heure — habillage du widget natif du navigateur.   */
+/* Choix volontaire : pas de composant date-picker JS sur mesure (le widget */
+/* natif reste accessible, sans dépendance supplémentaire à auto-héberger,  */
+/* cf. principe hors-ligne CLAUDE.md n°4). Les navigateurs ne permettant pas */
+/* de restyler le popup/l'icône natifs en profondeur, on aligne au moins la */
+/* police (JetBrains Mono, §3, données techniques) et le focus (--signal)   */
+/* sur le reste des formulaires du design system, et on teinte l'icône      */
+/* calendrier native en --signal sur Chrome/Edge (::-webkit-…) — Firefox    */
+/* ignore ce sélecteur et conserve son icône native sans dégradation.       */
+/* Règle globale unique : s'applique à tous les champs date/heure existants */
+/* sans modifier un seul template.                                         */
+/* ------------------------------------------------------------------------ */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  font-family: var(--f-mono);
+  color-scheme: light;
+}
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus {
+  border-color: var(--signal-ui);
+  box-shadow: 0 0 0 .25rem rgba(0, 180, 216, .25);
+}
+/* Filtre approximant --signal (#00B4D8) à partir de l'icône noire native. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(48%) sepia(89%) saturate(1875%) hue-rotate(160deg) brightness(96%) contrast(101%);
+  cursor: pointer;
+  opacity: .85;
+  transition: opacity .15s ease;
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator,
+input[type="time"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
 /* Statuts — vert unique --green-tech pour Matrix (validations, systèmes) */
 .badge.bg-success, .text-bg-success {
   background-color: var(--green-tech) !important;
