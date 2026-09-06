@@ -66,6 +66,29 @@ class InstallationHierarchieParentTests(TestCase):
         with self.assertRaises(ValidationError):
             a.clean()
 
+    def test_cycle_direct_refuse_via_save_sans_clean(self):
+        # save() doit rejeter le cycle même sans passer par un formulaire/serializer
+        # qui appellerait clean() explicitement (T2 bis : save() n'appelle jamais
+        # full_clean() automatiquement en Django, contrairement à ce qu'on pourrait
+        # croire).
+        installation = Installation.objects.create(
+            designation="Pompe A", ship=self.ship, service=self.service, sector=self.sector,
+        )
+        installation.parent = installation
+        with self.assertRaises(ValidationError):
+            installation.save()
+        installation.refresh_from_db()
+        self.assertIsNone(installation.parent)
+
+    def test_cycle_indirect_refuse_via_save_sans_clean(self):
+        a = Installation.objects.create(designation="A", ship=self.ship, service=self.service, sector=self.sector)
+        b = Installation.objects.create(designation="B", ship=self.ship, service=self.service, sector=self.sector, parent=a)
+        a.parent = b
+        with self.assertRaises(ValidationError):
+            a.save()
+        a.refresh_from_db()
+        self.assertIsNone(a.parent)
+
 
 class AssetHierarchieParentTests(TestCase):
     """T2 : rattachement parent/enfant (self-FK) sur Asset (matériel mobile)."""
@@ -115,3 +138,24 @@ class AssetHierarchieParentTests(TestCase):
         asset.parent = asset
         with self.assertRaises(ValidationError):
             asset.clean()
+
+    def test_cycle_direct_refuse_via_save_sans_clean(self):
+        # save() doit rejeter le cycle même sans passer par un formulaire/serializer
+        # qui appellerait clean() explicitement (T2 bis).
+        asset = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        asset.parent = asset
+        with self.assertRaises(ValidationError):
+            asset.save()
+        asset.refresh_from_db()
+        self.assertIsNone(asset.parent)
+
+    def test_cycle_indirect_refuse_via_save_sans_clean(self):
+        a = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        b = Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector, parent=a,
+        )
+        a.parent = b
+        with self.assertRaises(ValidationError):
+            a.save()
+        a.refresh_from_db()
+        self.assertIsNone(a.parent)

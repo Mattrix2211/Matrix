@@ -265,6 +265,13 @@ class Asset(TimeStampedModel, OwnedModel):
         super().clean()
         _verifier_absence_de_cycle(self)
 
+    def save(self, *args, **kwargs):
+        # clean() n'est pas appelé automatiquement par save() : sans ce contrôle
+        # explicite, un .save() direct (hors formulaire/serializer) contournerait
+        # totalement la protection anti-cycle sur le rattachement parent/enfant.
+        _verifier_absence_de_cycle(self)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.asset_type.name} #{self.internal_id or self.serial_number or self.id}"
 
@@ -319,6 +326,13 @@ class Installation(TimeStampedModel, OwnedModel):
     def clean(self):
         super().clean()
         _verifier_absence_de_cycle(self)
+
+    def save(self, *args, **kwargs):
+        # clean() n'est pas appelé automatiquement par save() : sans ce contrôle
+        # explicite, un .save() direct (hors formulaire/serializer) contournerait
+        # totalement la protection anti-cycle sur le rattachement parent/enfant.
+        _verifier_absence_de_cycle(self)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         # On utilise le nom brut de chaque niveau (et non son __str__) car
