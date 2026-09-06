@@ -221,12 +221,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const params  = new URLSearchParams(window.location.search);
   let   view    = params.get('view')    || 'month';
   const date    = params.get('date')    || '{{ date|date:"Y-m-d" }}';
-  const ship    = params.get('ship')    || '';
-  const service = params.get('service') || '';
-  const sector  = params.get('sector')  || '';
-  const user    = params.get('user')    || '';
-  const type    = params.get('type')    || '';
-  const status  = params.get('status')  || '';
+  // Filtres modifiables sans rechargement de page (voir bloc "Filtres
+  // appliqués sans rechargement de page" plus bas) : d'où le `let`.
+  let ship    = params.get('ship')    || '';
+  let service = params.get('service') || '';
+  let sector  = params.get('sector')  || '';
+  let user    = params.get('user')    || '';
+  let type    = params.get('type')    || '';
+  let status  = params.get('status')  || '';
 
   // Correspondance entre la vue courte utilisée dans l'URL (day/week/month,
   // partagée avec le rendu initial côté serveur) et le nom de vue FullCalendar.
@@ -468,22 +470,27 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function changerVue(nouvelleVue) {
-    if (nouvelleVue === view || !VUES_FULLCALENDAR[nouvelleVue]) return;
-    view = nouvelleVue;
-    calendar.changeView(VUES_FULLCALENDAR[view]);
-    marquerBoutonVueActif(view);
-    champVueCourante.value = view;
-
-    // URL partageable : la vue choisie est conservée si la page est
-    // rechargée ou si le lien est transmis à quelqu'un d'autre.
+  // Synchronise l'URL de la page (vue + filtres actifs) via history.pushState,
+  // pour que l'état affiché soit partageable et retrouvé tel quel au
+  // rechargement — sans jamais recharger la page nous-mêmes.
+  function synchroniserUrlPage() {
     const url = new URL(window.location.href);
-    url.searchParams.set('view', view);
+    const parametres = { view, ship, service, sector, user, type, status };
+    Object.keys(parametres).forEach(function (cle) {
+      const valeur = parametres[cle];
+      if (valeur) {
+        url.searchParams.set(cle, valeur);
+      } else {
+        url.searchParams.delete(cle);
+      }
+    });
     history.pushState({}, '', url);
+  }
 
-    // La source d'événements dépend de la vue (elle détermine la période
-    // demandée au serveur, cf. calendar_app/views.py::_parse_common_period) :
-    // on la reconstruit avec la nouvelle vue avant de rafraîchir.
+  // La source d'événements dépend à la fois de la vue (période demandée,
+  // cf. calendar_app/views.py::_parse_common_period) et des filtres actifs :
+  // on la reconstruit entièrement avant de rafraîchir le calendrier.
+  function actualiserSourceEvenements() {
     calendar.getEventSources().forEach(function (source) { source.remove(); });
     calendar.addEventSource({
       url: construireUrlEvenements(view),
@@ -495,10 +502,55 @@ document.addEventListener('DOMContentLoaded', function () {
     calendar.refetchEvents();
   }
 
+  function changerVue(nouvelleVue) {
+    if (nouvelleVue === view || !VUES_FULLCALENDAR[nouvelleVue]) return;
+    view = nouvelleVue;
+    calendar.changeView(VUES_FULLCALENDAR[view]);
+    marquerBoutonVueActif(view);
+    champVueCourante.value = view;
+    synchroniserUrlPage();
+    actualiserSourceEvenements();
+  }
+
   boutonsVue.forEach(function (bouton) {
     bouton.addEventListener('click', function () { changerVue(bouton.dataset.vue); });
   });
   marquerBoutonVueActif(view);
+  // --------------------------------------------------------------------
+
+  // --- Filtres appliqués sans rechargement de page -------------------------
+  // Chaque <select> de filtre (navire/service/secteur/utilisateur/type/statut)
+  // rafraîchit directement les événements en JS au lieu de soumettre le
+  // formulaire. Le bouton "Filtrer" et la soumission classique du formulaire
+  // restent en place comme secours (accessibilité, JS désactivé).
+  const champsFiltres = {
+    ship: document.querySelector('select[name="ship"]'),
+    service: document.querySelector('select[name="service"]'),
+    sector: document.querySelector('select[name="sector"]'),
+    user: document.querySelector('select[name="user"]'),
+    type: document.querySelector('select[name="type"]'),
+    status: document.querySelector('select[name="status"]'),
+  };
+
+  function appliquerFiltre(cle, valeur) {
+    switch (cle) {
+      case 'ship': ship = valeur; break;
+      case 'service': service = valeur; break;
+      case 'sector': sector = valeur; break;
+      case 'user': user = valeur; break;
+      case 'type': type = valeur; break;
+      case 'status': status = valeur; break;
+    }
+    synchroniserUrlPage();
+    actualiserSourceEvenements();
+  }
+
+  Object.keys(champsFiltres).forEach(function (cle) {
+    const champ = champsFiltres[cle];
+    if (champ) {
+      champ.addEventListener('change', function () { appliquerFiltre(cle, champ.value); });
+    }
+  });
   // --------------------------------------------------------------------
 
   function getCookie(name) {
