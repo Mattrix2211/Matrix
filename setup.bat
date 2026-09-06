@@ -32,6 +32,13 @@ echo [3/6] Activation de l'environnement virtuel...
 call venv\Scripts\activate.bat
 echo.
 
+REM Creation du fichier de configuration locale (jamais commite, voir .gitignore)
+if not exist .env (
+    copy .env.example .env >nul
+    echo Fichier .env cree a partir de .env.example
+    echo.
+)
+
 REM Installation des dependances
 echo [4/6] Installation des dependances Python...
 python -m pip install --upgrade pip

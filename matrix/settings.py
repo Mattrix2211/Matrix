@@ -7,23 +7,48 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _charger_variables_env_locales(chemin):
+    """Charge un fichier .env minimal (une variable "CLE=VALEUR" par ligne,
+    lignes vides et commentaires "#" ignorés) dans os.environ, uniquement
+    pour les variables qui n'y sont pas déjà définies.
+
+    Sans dépendance externe (pas de python-dotenv) : ce projet fonctionne
+    hors-ligne et le format supporté par .env.example est volontairement
+    simple. Les vraies variables d'environnement (typiquement positionnées
+    par le système en production) restent toujours prioritaires sur ce
+    fichier local — .env ne sert qu'au confort du poste de développement
+    (voir .env.example, jamais commité, voir .gitignore).
+    """
+    if not chemin.exists():
+        return
+    for ligne in chemin.read_text(encoding="utf-8").splitlines():
+        ligne = ligne.strip()
+        if not ligne or ligne.startswith("#") or "=" not in ligne:
+            continue
+        cle, _, valeur = ligne.partition("=")
+        os.environ.setdefault(cle.strip(), valeur.strip().strip('"').strip("'"))
+
+
+_charger_variables_env_locales(BASE_DIR / ".env")
+
 # Valeur de secours utilisée uniquement en développement local (DEBUG=1 par
-# défaut). En production (DJANGO_DEBUG=0), une clé secrète explicite et
-# différente de cette valeur de dev est obligatoire — voir le contrôle
-# ci-dessous, qui fait échouer le démarrage plutôt que de retomber
+# défaut dans .env.example). En production (DJANGO_DEBUG=0, comportement par
+# défaut sans variable d'environnement ni fichier .env), une clé secrète
+# explicite et différente de cette valeur de dev est obligatoire — voir le
+# contrôle ci-dessous, qui fait échouer le démarrage plutôt que de retomber
 # silencieusement sur cette clé publique.
 _CLE_SECRETE_DEV_PAR_DEFAUT = "dev-secret-key"
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", _CLE_SECRETE_DEV_PAR_DEFAUT)
-DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
+DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
 # Garde-fou de démarrage : en production (DEBUG=False), il est interdit de
 # démarrer avec la clé secrète de développement — un fallback silencieux
 # exposerait une clé publique connue en environnement réel. En dev local
-# (DEBUG=True, comportement par défaut sans variables d'environnement
-# positionnées), aucune vérification n'est faite pour ne pas gêner le
-# développement quotidien.
+# (DEBUG=True via le fichier .env du poste), aucune vérification n'est faite
+# pour ne pas gêner le développement quotidien.
 if not DEBUG and SECRET_KEY == _CLE_SECRETE_DEV_PAR_DEFAUT:
     raise ImproperlyConfigured(
         "DJANGO_SECRET_KEY doit être défini avec une valeur de production "
