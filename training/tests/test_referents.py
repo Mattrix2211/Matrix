@@ -328,7 +328,12 @@ class APIReferentFormationScopingTests(TestCase):
             data=json.dumps({"user": self.chef.id}),
             content_type="application/json",
         )
-        self.assertEqual(r.status_code, 403, r.content)
+        # 404, pas 403 : depuis la correction de ReferentFormationViewSet.get_queryset()
+        # (audit sécurité scoping API), un référent d'un autre navire est
+        # filtré du queryset AVANT même le contrôle d'objet ci-dessous — il
+        # n'existe donc plus pour cet appelant, même règle que partout
+        # ailleurs dans le projet (cf. maintenance/logistics/tests/test_scope_leak.py).
+        self.assertEqual(r.status_code, 404, r.content)
 
     def test_chef_ne_peut_pas_supprimer_un_referent_dun_autre_navire(self):
         referent_existant = ReferentFormation.objects.create(
@@ -336,7 +341,8 @@ class APIReferentFormationScopingTests(TestCase):
         )
         self.client.login(username="chef_api_ref", password="pass")
         r = self.client.delete(f"/api/training/referents/{referent_existant.id}/")
-        self.assertEqual(r.status_code, 403, r.content)
+        # 404, pas 403 : même raison que ci-dessus.
+        self.assertEqual(r.status_code, 404, r.content)
         self.assertTrue(ReferentFormation.objects.filter(pk=referent_existant.id).exists())
 
     def test_supervision_globale_peut_designer_un_referent_sur_nimporte_quel_navire(self):
@@ -350,6 +356,60 @@ class APIReferentFormationScopingTests(TestCase):
         self.assertTrue(
             ReferentFormation.objects.filter(course=self.course, ship=self.autre_ship, user=self.marin).exists()
         )
+
+
+class APIReferentFormationLectureScopingTests(TestCase):
+    """Vérifie la faille corrigée sur ReferentFormationViewSet.get_queryset() :
+    avant correction, seule l'ÉCRITURE était scopée au navire de l'appelant
+    (ReferentFormationPermission ci-dessus) — la LECTURE (GET liste/détail)
+    n'appliquait AUCUN filtre de périmètre, alors que la même information
+    est déjà scopée au navire de l'appelant côté web (cf.
+    test_referent_dun_autre_navire_non_affiche ci-dessous)."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Lecture A", code="LCA")
+        self.autre_ship = Ship.objects.create(name="Navire Lecture B", code="LCB")
+        self.course = TrainingCourse.objects.create(title="Amarrage niveau 2")
+
+        self.marin = User.objects.create_user(username="marin_lecture_ref", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
+
+        self.chef = User.objects.create_user(username="chef_lecture_ref", password="pass")
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION", "ship": self.ship})
+
+        self.marin_autre_navire = User.objects.create_user(username="marin_lecture_autre", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.marin_autre_navire, defaults={"role": "EQUIPIER", "ship": self.autre_ship}
+        )
+
+        self.referent_a = ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.marin)
+        self.referent_b = ReferentFormation.objects.create(
+            course=self.course, ship=self.autre_ship, user=self.marin_autre_navire
+        )
+
+        self.commandant = User.objects.create_user(username="commandant_lecture_ref", password="pass")
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+
+    def test_liste_des_referents_ne_contient_pas_ceux_dun_autre_navire(self):
+        self.client.login(username="chef_lecture_ref", password="pass")
+        r = self.client.get("/api/training/referents/")
+        self.assertEqual(r.status_code, 200)
+        ids = {ref["id"] for ref in r.json()}
+        self.assertIn(self.referent_a.id, ids)
+        self.assertNotIn(self.referent_b.id, ids)
+
+    def test_ne_peut_pas_lire_un_referent_dun_autre_navire_par_pk(self):
+        self.client.login(username="chef_lecture_ref", password="pass")
+        r = self.client.get(f"/api/training/referents/{self.referent_b.id}/")
+        self.assertEqual(r.status_code, 404)
+
+    def test_supervision_globale_voit_les_referents_de_toute_la_flotte(self):
+        self.client.login(username="commandant_lecture_ref", password="pass")
+        r = self.client.get("/api/training/referents/")
+        self.assertEqual(r.status_code, 200)
+        ids = {ref["id"] for ref in r.json()}
+        self.assertIn(self.referent_a.id, ids)
+        self.assertIn(self.referent_b.id, ids)
 
 
 class VueGestionReferentsTests(TestCase):

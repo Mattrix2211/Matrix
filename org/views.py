@@ -154,3 +154,38 @@ class SectorConfigViewSet(viewsets.ModelViewSet):
     queryset = SectorConfig.objects.select_related("sector").all()
     serializer_class = SectorConfigSerializer
     permission_classes = [RolePermission]
+
+    def get_queryset(self):
+        # Même périmètre "navire" que les ViewSets d'organisation ci-dessus
+        # (Ship/Service/Sector/Section) : la configuration d'un secteur
+        # (préférences d'affichage, seuils d'alerte, widgets du tableau de
+        # bord) n'était filtrée par AUCUN périmètre avant cette correction —
+        # n'importe quel utilisateur authentifié pouvait lire, et tout
+        # utilisateur au seuil d'écriture générique (CHEF_SECTION+) modifier,
+        # la configuration d'un secteur appartenant à un AUTRE navire (audit
+        # sécurité scoping API, tâche Notion « Audit complet du scoping par
+        # périmètre »).
+        qs = super().get_queryset()
+        user = self.request.user
+        if _is_master_admin(user):
+            return qs
+        ship_id = _user_ship_id(user)
+        if ship_id is None:
+            return SectorConfig.objects.none()
+        return qs.filter(sector__service__ship_id=ship_id)
+
+    def perform_create(self, serializer):
+        if not _is_master_admin(self.request.user):
+            sector = serializer.validated_data.get("sector")
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
+                raise PermissionDenied("Configuration hors de l'unité autorisée.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if not _is_master_admin(self.request.user):
+            sector = serializer.validated_data.get("sector") or getattr(self.get_object(), "sector", None)
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
+                raise PermissionDenied("Configuration hors de l'unité autorisée.")
+        serializer.save()

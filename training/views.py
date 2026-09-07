@@ -39,6 +39,7 @@ from .web_views import (
 )
 from matrix.core.permissions import RolePermission
 from matrix.core.roles import user_role_level
+from matrix.core.scopes import perimetre_navire_q, resoudre_affectation_dans_perimetre, ship_id_for_user
 
 User = get_user_model()
 
@@ -204,10 +205,122 @@ class ReferentFormationViewSet(viewsets.ModelViewSet):
     serializer_class = ReferentFormationSerializer
     permission_classes = [ReferentFormationPermission]
 
+    def get_queryset(self):
+        # ReferentFormationPermission (ci-dessus) scope déjà l'ÉCRITURE au
+        # navire de l'appelant, mais la LECTURE (GET liste/détail) n'était
+        # soumise à aucun filtre de périmètre avant cette correction : un
+        # utilisateur pouvait lister/consulter via l'API les référents de
+        # TOUS les navires, alors que la même information est déjà scopée
+        # au navire de l'appelant côté web (training/web_views.py, cf.
+        # test_referent_dun_autre_navire_non_affiche) — faille corrigée ici
+        # (audit sécurité scoping API, tâche Notion « Audit complet du
+        # scoping par périmètre »).
+        qs = super().get_queryset()
+        user = self.request.user
+        if not user.is_authenticated:
+            return ReferentFormation.objects.none()
+        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+            return qs
+        ship_id = ship_id_for_user(user)
+        if ship_id is None:
+            return qs.none()
+        return qs.filter(ship_id=ship_id)
+
+
+class TrainingRequirementPermission(RolePermission):
+    """Une exigence de formation (TrainingRequirement) peut cibler un navire/
+    service/secteur/section précis (applies_to_ship/service/sector/section),
+    soumise au seuil générique CHEF_SECTION (RolePermission) — mais ce
+    rattachement doit TOUJOURS appartenir au périmètre navire de L'APPELANT,
+    jamais à un navire fourni librement dans le payload (faille corrigée :
+    avant ce contrôle, un CHEF_SECTION pouvait imposer une exigence de
+    formation à n'importe quel navire/service/secteur/section de la flotte).
+    Réutilise resoudre_affectation_dans_perimetre (matrix/core/scopes.py),
+    déjà utilisé pour le même contrôle côté annuaire
+    (accounts/serializers.py::UserProfileSerializer), plutôt que de recréer
+    une vérification équivalente. Seuls les rôles de supervision globale
+    (COMMANDANT et au-dessus, cf. NIVEAU_SUPERVISION_GLOBALE_FORMATION)
+    peuvent cibler n'importe quel navire, ou ne cibler aucun navire du tout
+    (exigence valable pour toute la flotte)."""
+
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return super().has_permission(request, view)
+        if not super().has_permission(request, view):
+            return False
+        if request.method != "POST":
+            # PUT/PATCH/DELETE : le contrôle du rattachement porte sur
+            # l'objet existant, tranché par has_object_permission ci-dessous.
+            return True
+        return self._perimetre_valide(request)
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        if not super().has_object_permission(request, view, obj):
+            return False
+        return self._perimetre_valide(request, existant=obj)
+
+    @staticmethod
+    def _perimetre_valide(request, existant=None):
+        if user_role_level(request.user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+            return True
+        data = request.data
+
+        def _id_demande(champ_payload, champ_modele):
+            if champ_payload in data:
+                return _entier_ou_none(data.get(champ_payload))
+            return getattr(existant, champ_modele, None) if existant else None
+
+        ship_id = _id_demande("applies_to_ship", "applies_to_ship_id")
+        service_id = _id_demande("applies_to_service", "applies_to_service_id")
+        sector_id = _id_demande("applies_to_sector", "applies_to_sector_id")
+        section_id = _id_demande("applies_to_section", "applies_to_section_id")
+        if not any([ship_id, service_id, sector_id, section_id]):
+            # Aucun rattachement organisationnel précisé : une exigence
+            # valable pour TOUTE la flotte est réservée à la supervision
+            # globale, pour qu'un chef de section ne puisse pas l'imposer
+            # sans validation d'un rôle supérieur.
+            return False
+        ok, *_ = resoudre_affectation_dans_perimetre(
+            request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id,
+        )
+        return ok
+
+
 class TrainingRequirementViewSet(viewsets.ModelViewSet):
-    queryset = TrainingRequirement.objects.select_related("course").all()
+    queryset = TrainingRequirement.objects.select_related(
+        "course", "applies_to_ship", "applies_to_service", "applies_to_sector", "applies_to_section"
+    ).all()
     serializer_class = TrainingRequirementSerializer
-    permission_classes = [RolePermission]
+    permission_classes = [TrainingRequirementPermission]
+
+    def get_queryset(self):
+        # Aucun filtre de périmètre n'était appliqué avant cette correction :
+        # n'importe quel utilisateur authentifié pouvait lister/consulter via
+        # l'API les exigences de formation de TOUS les navires (audit
+        # sécurité scoping API, tâche Notion « Audit complet du scoping par
+        # périmètre »). Une exigence sans aucun rattachement (applies_to_*
+        # tous vides) vaut pour toute la flotte et reste visible de tous ;
+        # les autres ne le sont que pour le navire qu'elles ciblent
+        # (perimetre_navire_q parcourt les 4 niveaux de rattachement
+        # possibles, même logique que pour le personnel de l'annuaire,
+        # matrix/core/scopes.py).
+        qs = super().get_queryset()
+        user = self.request.user
+        if not user.is_authenticated:
+            return TrainingRequirement.objects.none()
+        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+            return qs
+        return qs.filter(
+            perimetre_navire_q(user, "applies_to_")
+            | Q(
+                applies_to_ship__isnull=True,
+                applies_to_service__isnull=True,
+                applies_to_sector__isnull=True,
+                applies_to_section__isnull=True,
+            )
+        )
 
 
 class TrainingRecordPermission(RolePermission):
@@ -321,6 +434,15 @@ class TrainingSessionPermission(RolePermission):
         return True
 
 
+# Lecture volontairement non scopée (queryset non filtré, comme
+# TrainingRecordViewSet ci-dessous) : une session de formation n'est plus
+# rattachée à un périmètre organisationnel précis depuis que TrainingCourse
+# est une fiche globale partagée par tous les navires (portabilité des
+# qualifications), et CalendarView (calendar_app/views.py) affiche
+# volontairement TOUTES les sessions à tout utilisateur pour que la
+# planification (disponibilité salles/formateurs) reste visible flotte
+# entière. Seule l'ÉCRITURE reste contrôlée finement (TrainingSessionPermission
+# ci-dessus, par affectation personnelle des marins concernés).
 class TrainingSessionViewSet(viewsets.ModelViewSet):
     queryset = TrainingSession.objects.select_related("course", "instructor").all()
     serializer_class = TrainingSessionSerializer

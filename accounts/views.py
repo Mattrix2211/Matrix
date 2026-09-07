@@ -71,6 +71,15 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return qs.filter(build_scope_q(self.request.user, ""))
 
 
+# Les trois ViewSets ci-dessous exposent des référentiels GLOBAUX, communs à
+# toute la flotte (grades, spécialités, disponibilité des rôles) — pas de
+# rattachement navire/service/secteur/section sur ces modèles, donc aucun
+# scoping à appliquer ici (audit sécurité scoping API, tâche Notion « Audit
+# complet du scoping par périmètre ») : contrairement à GradeChoice/
+# SpecialityChoice/RoleAvailability, un profil utilisateur ou une affectation
+# EST rattaché à un navire précis, mais la LISTE des grades/spécialités
+# possibles est partagée par tous les bords. L'écriture reste réservée à
+# MASTER_ADMIN (référentiel commun à toute la flotte, pas à modifier par bord).
 class GradeChoiceViewSet(viewsets.ModelViewSet):
     queryset = GradeChoice.objects.all().order_by("name")
     serializer_class = GradeChoiceSerializer
