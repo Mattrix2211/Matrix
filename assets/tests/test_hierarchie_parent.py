@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from rest_framework.test import APIClient
 
 from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
@@ -159,3 +160,58 @@ class AssetHierarchieParentTests(TestCase):
             a.save()
         a.refresh_from_db()
         self.assertIsNone(a.parent)
+
+
+class AssetApiCycleRejectionTests(TestCase):
+    """T2 ter : AssetSerializer.validate() doit rejeter un parent cyclique avec un
+    400 propre côté API DRF, plutôt que de laisser Asset.save() lever une
+    ValidationError Django non interceptée (500)."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="S1")
+        self.service = Service.objects.create(name="Srv", ship=self.ship)
+        self.sector = Sector.objects.create(name="Sec", service=self.service)
+        self.asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
+        self.chef = User.objects.create_user(username="c3", password="pass")
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION"})
+        self.client_api = APIClient()
+        self.client_api.login(username="c3", password="pass")
+
+    def test_patch_avec_parent_cyclique_renvoie_400(self):
+        asset = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        response = self.client_api.patch(
+            f"/api/assets/assets/{asset.pk}/", {"parent": str(asset.pk)}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("parent", response.data)
+        asset.refresh_from_db()
+        self.assertIsNone(asset.parent)
+
+    def test_patch_avec_parent_cyclique_indirect_renvoie_400(self):
+        a = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        b = Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector, parent=a,
+        )
+        response = self.client_api.patch(
+            f"/api/assets/assets/{a.pk}/", {"parent": str(b.pk)}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("parent", response.data)
+        a.refresh_from_db()
+        self.assertIsNone(a.parent)
+
+    def test_post_avec_parent_valide_reste_accepte(self):
+        # Non-régression : un rattachement parent normal (sans cycle) reste accepté.
+        caisse = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        response = self.client_api.post(
+            "/api/assets/assets/",
+            {
+                "ship": self.ship.id,
+                "service": self.service.id,
+                "sector": self.sector.id,
+                "asset_type": self.asset_type.id,
+                "parent": str(caisse.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
