@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .roles import user_role_level, RoleLevel
+from .role_thresholds import seuil_role, ship_id_de
 from django.contrib.auth import get_user_model
 from accounts.models import Roles
 
@@ -11,16 +12,33 @@ class RolePermission(BasePermission):
     def _seuil_requis(self, request, view):
         """Seuil de rôle minimal pour la méthode d'écriture courante.
 
-        Par défaut, `min_role_level_write` s'applique uniformément à toute
-        écriture (POST/PUT/PATCH/DELETE), comme avant. Un ViewSet peut en
-        plus définir `min_role_level_delete` pour exiger un seuil plus élevé
-        spécifiquement sur DELETE (ex. AssetViewSet : création/modification
-        réservées à CHEF_SECTION mais suppression réservée à CHEF_SERVICE,
-        même seuil que AssetListView.NIVEAU_REQUIS_PAR_ACTION côté web)."""
+        Un ViewSet peut définir `role_threshold_action_write` (et, pour un
+        seuil DELETE spécifique, `role_threshold_action_delete`) : une clé du
+        registre `matrix/core/role_thresholds.py`, résolue dynamiquement
+        selon la configuration du navire de l'appelant (configurable par
+        ADMIN_NAVIRE/MASTER_ADMIN, onglet « Sécurité » des Réglages).
+
+        Les anciens attributs `min_role_level_write`/`min_role_level_delete`
+        (constante RoleLevel figée) restent pris en charge pour les ViewSets
+        non couverts par cette tâche, en repli si aucune clé d'action n'est
+        définie — comportement inchangé pour eux.
+
+        Par défaut, le seuil s'applique uniformément à toute écriture
+        (POST/PUT/PATCH/DELETE), comme avant. Un ViewSet peut exiger un
+        seuil plus élevé spécifiquement sur DELETE (ex. AssetViewSet :
+        création/modification réservées à CHEF_SECTION mais suppression
+        réservée à CHEF_SERVICE, même seuil que
+        AssetListView.ACTION_VERS_SEUIL côté web)."""
         if request.method == 'DELETE':
+            cle_delete = getattr(view, 'role_threshold_action_delete', None)
+            if cle_delete is not None:
+                return seuil_role(cle_delete, ship_id_de(request.user))
             seuil_delete = getattr(view, 'min_role_level_delete', None)
             if seuil_delete is not None:
                 return seuil_delete
+        cle_write = getattr(view, 'role_threshold_action_write', None)
+        if cle_write is not None:
+            return seuil_role(cle_write, ship_id_de(request.user))
         return getattr(view, 'min_role_level_write', self.min_level_write)
 
     def has_permission(self, request, view):

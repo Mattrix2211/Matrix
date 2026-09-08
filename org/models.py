@@ -81,3 +81,36 @@ class SectorConfig(TimeStampedModel):
 
     def __str__(self):
         return f"Config {self.sector}"
+
+
+class RoleThresholdConfig(TimeStampedModel):
+    """Seuils de rôle minimal requis par action, configurables par navire.
+
+    Remplace les constantes RoleLevel codées en dur qui étaient dispersées
+    dans assets/views.py, maintenance/views.py, threads/views.py,
+    accounts/views.py, assets/web_views.py et maintenance/web_views.py
+    (tâche Notion « Seuils de rôle configurables par navire »). Même
+    principe que SectorConfig ci-dessus : un JSONField configurable, avec
+    repli sur une valeur par défaut raisonnable si rien n'est configuré —
+    voir matrix/core/role_thresholds.py pour le registre des actions
+    configurables et leurs valeurs par défaut (qui reproduisent exactement
+    les seuils codés en dur avant ce système, pour ne rien casser).
+
+    `ship=None` porte la configuration GLOBALE (flotte entière), utilisée
+    par les actions de portée flotte (ex. référentiels communs à tout le
+    bord : grades, spécialités — modèles non rattachés à un navire
+    précis). Un seul enregistrement ship=None doit exister en pratique
+    (appliqué par convention côté vue via get_or_create, pas par
+    contrainte SQL stricte : NULL n'est jamais comparé pour l'unicité).
+    """
+    ship = models.OneToOneField(
+        Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="role_threshold_config"
+    )
+    thresholds = JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = "Configuration des seuils de rôle"
+        verbose_name_plural = "Configurations des seuils de rôle"
+
+    def __str__(self):
+        return f"Seuils de rôle — {self.ship}" if self.ship_id else "Seuils de rôle — configuration globale (flotte)"

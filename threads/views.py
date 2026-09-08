@@ -5,7 +5,6 @@ from .models import Thread, Message, Attachment
 from .serializers import ThreadSerializer, MessageSerializer, AttachmentSerializer
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import IsAuthorOrReadOnly, RolePermission
-from matrix.core.roles import RoleLevel
 from matrix.core.scopes import scope_filters_for_user
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -66,8 +65,9 @@ class ThreadViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Thread.objects.all()
     serializer_class = ThreadSerializer
     permission_classes = [RolePermission]
-    # limiter l'écriture aux chefs de section et plus
-    min_role_level_write = RoleLevel.CHEF_SECTION
+    # Seuil configurable par navire (matrix/core/role_thresholds.py) : limite
+    # l'écriture aux chefs de section et plus, par défaut.
+    role_threshold_action_write = "thread_ecriture"
 
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user)

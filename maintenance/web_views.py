@@ -14,7 +14,8 @@ from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemp
 from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, commentaires_de
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
-from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import user_role_level
+from matrix.core.role_thresholds import niveau_requis_pour
 
 
 class OccurrenceExecuteView(LoginRequiredMixin, View):
@@ -32,7 +33,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             ).filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__")).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
-        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
+        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
         items = []
         if occ.plan and occ.plan.checklist_template:
@@ -54,7 +55,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             ).filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__")).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
-        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
+        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
 
         items = []
@@ -127,7 +128,8 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
     """Ajoute un commentaire de suivi libre sur une occurrence de maintenance.
 
     Même contrôle d'accès que OccurrenceExecuteView : assigné à l'occurrence,
-    ou CHEF_SECTION et au-dessus — pas de nouveau système de droits, on
+    ou seuil "maintenance_occurrence_gestion_tiers" (CHEF_SECTION par défaut,
+    configurable par navire) — pas de nouveau système de droits, on
     réutilise exactement la règle déjà appliquée à la fiche d'exécution.
     """
 
@@ -141,7 +143,7 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
             ).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
-        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < RoleLevel.CHEF_SECTION):
+        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
         corps = request.POST.get('body', '').strip()
         if not corps:
@@ -156,7 +158,7 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
 # Page de gestion de la maintenance (plans + occurrences), distincte de la
 # vue calendrier (grille datée) : ici, un tableau de pilotage et la gestion
 # des plans préventifs. Voir maintenance/views.py pour les ViewSets DRF dont
-# le périmètre (build_scope_q) et les seuils de rôle (RoleLevel) sont repris
+# le périmètre (build_scope_q) et les seuils de rôle (role_thresholds) sont repris
 # à l'identique, sans en dupliquer la logique sous-jacente.
 # ---------------------------------------------------------------------------
 
@@ -237,10 +239,10 @@ def _checklists_disponibles(user):
 class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     """Liste des plans de maintenance préventive, scopée navire/service/secteur.
 
-    Lecture ouverte à tout marin scopé. Création/modification réservées à
-    CHEF_SECTION et au-dessus — même seuil que MaintenancePlanViewSet côté API
-    (RolePermission.min_level_write par défaut, aucun min_role_level_write
-    personnalisé sur ce ViewSet).
+    Lecture ouverte à tout marin scopé. Création/modification réservées au
+    seuil "maintenance_plan_ecriture" (CHEF_SECTION par défaut, configurable
+    par navire) — même clé que MaintenancePlanViewSet côté API
+    (maintenance/views.py).
     """
     model = MaintenancePlan
     template_name = "maintenance/plan_list.html"
@@ -271,7 +273,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["onglet"] = "plans"
-        ctx["peut_gerer"] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
+        ctx["peut_gerer"] = user_role_level(self.request.user) >= niveau_requis_pour(self.request.user, 'maintenance_plan_ecriture')
         for plan in ctx["plans"]:
             plan.periodicite_affichee = _periodicite_lisible(plan.every_n_days)
             plan.duree_heures = plan.expected_duration_min // 60
@@ -283,7 +285,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
         return ctx
 
     def post(self, request, *args, **kwargs):
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_plan_ecriture'):
             raise PermissionDenied
         action = request.POST.get("action")
         if action not in ("create_plan", "edit_plan"):
@@ -409,8 +411,8 @@ class MaintenanceOccurrenceListView(LoginRequiredMixin, ScopedQuerySetMixin, Lis
 class MaintenanceOccurrenceSelfAssignView(LoginRequiredMixin, View):
     """Auto-assignation en un clic sur une occurrence, depuis le tableau de
     pilotage — plus rapide qu'un formulaire d'assignation séparé (principe
-    n°2 CLAUDE.md). Ouvert à EQUIPIER et au-dessus (même seuil que
-    min_role_level_write=EQUIPIER sur MaintenanceOccurrenceViewSet) : tout
+    n°2 CLAUDE.md). Ouvert à EQUIPIER et au-dessus (même seuil par défaut que
+    maintenance_execution_ecriture sur MaintenanceOccurrenceViewSet) : tout
     marin scopé peut se déclarer preneur d'une occurrence, un second clic le
     retire. Un clic ré-assigne/désassigne uniquement l'auteur du clic, jamais
     un tiers — pas de sélection multi-utilisateurs ici, pour rester aussi

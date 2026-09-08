@@ -84,18 +84,21 @@ class GradeChoiceViewSet(viewsets.ModelViewSet):
     queryset = GradeChoice.objects.all().order_by("name")
     serializer_class = GradeChoiceSerializer
     permission_classes = [RolePermission]
-    min_role_level_write = RoleLevel.MASTER_ADMIN
+    # Seuil de portée GLOBALE (flotte entière, pas par navire) : ce
+    # référentiel n'est rattaché à aucun navire précis, cf.
+    # matrix/core/role_thresholds.py (referentiel_global_ecriture).
+    role_threshold_action_write = "referentiel_global_ecriture"
 
 
 class SpecialityChoiceViewSet(viewsets.ModelViewSet):
     queryset = SpecialityChoice.objects.all().order_by("name")
     serializer_class = SpecialityChoiceSerializer
     permission_classes = [RolePermission]
-    min_role_level_write = RoleLevel.MASTER_ADMIN
+    role_threshold_action_write = "referentiel_global_ecriture"
 
 
 class RoleAvailabilityViewSet(viewsets.ModelViewSet):
     queryset = RoleAvailability.objects.all().order_by("code")
     serializer_class = RoleAvailabilitySerializer
     permission_classes = [RolePermission]
-    min_role_level_write = RoleLevel.MASTER_ADMIN
+    role_threshold_action_write = "referentiel_global_ecriture"

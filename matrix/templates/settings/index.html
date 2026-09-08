@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load org_extras %}
 {% block content %}
-<h1 class="h3 mb-3">{% if user.is_superuser %}Paramètres{% else %}Mes notifications{% endif %}</h1>
+<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils %}Paramètres{% else %}Mes notifications{% endif %}</h1>
 <ul class="nav nav-tabs mb-3">
   {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
@@ -9,6 +9,9 @@
   <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Unités</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
+  {% endif %}
+  {% if peut_gerer_seuils %}
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'seuils_role' %}active{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Sécurité</a></li>
   {% endif %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" href="/parametre/?tab=notifications">Notification</a></li>
   {% if user.is_superuser %}
@@ -258,6 +261,135 @@
         </form>
       </div>
     </div>
+  </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'seuils_role' %}
+<div class="row g-3">
+  {% if user.is_superuser %}
+  <div class="col-12">
+    <form method="get" class="row g-2 align-items-center">
+      <input type="hidden" name="tab" value="seuils_role" />
+      <div class="col-auto"><label class="col-form-label">Unité :</label></div>
+      <div class="col-auto">
+        <select name="ship" class="form-select" onchange="this.form.submit()">
+          {% for sh in ships %}
+            <option value="{{ sh.id }}" {% if seuils_ship and seuils_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Seuils de rôle{% if seuils_ship %} — {{ seuils_ship.name }}{% endif %}
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Seuils de rôle" data-bs-content="Le rôle minimal requis pour chaque action peut être ajusté pour cette unité. Tant qu'aucune valeur n'est modifiée, le comportement par défaut de Matrix s'applique. « Réinitialiser » revient à la valeur par défaut.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        {% regroup seuils_lignes by categorie as seuils_par_categorie %}
+        {% for groupe in seuils_par_categorie %}
+          <h6 class="text-muted mt-2">{{ groupe.grouper }}</h6>
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Action</th><th style="width:220px">Seuil minimal requis</th><th style="width:160px"></th></tr></thead>
+            <tbody>
+            {% for ligne in groupe.list %}
+              <tr>
+                <td>{{ ligne.libelle }}</td>
+                <td>
+                  <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_role_threshold" />
+                    <input type="hidden" name="next_tab" value="seuils_role" />
+                    {% if seuils_ship %}<input type="hidden" name="ship_id" value="{{ seuils_ship.id }}" />{% endif %}
+                    <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                    <select name="nouveau_role" class="form-select form-select-sm">
+                      {% for code, label in roles_pour_seuils %}
+                        <option value="{{ code }}" {% if ligne.niveau_actuel.name == code %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                    <button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button>
+                  </form>
+                </td>
+                <td>
+                  {% if ligne.niveau_actuel != ligne.niveau_defaut %}
+                  <form method="post" style="display:inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reset_role_threshold" />
+                    <input type="hidden" name="next_tab" value="seuils_role" />
+                    {% if seuils_ship %}<input type="hidden" name="ship_id" value="{{ seuils_ship.id }}" />{% endif %}
+                    <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">Réinitialiser</button>
+                  </form>
+                  {% else %}
+                    <small class="text-muted">Valeur par défaut</small>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% empty %}
+          <p class="text-muted mb-0">Aucune unité sélectionnée.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% if peut_editer_global %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Référentiels communs à toute la flotte
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Référentiels globaux" data-bs-content="Ces référentiels (grades, spécialités...) ne sont rattachés à aucune unité précise : leur seuil s'applique à toute la flotte, réservé aux administrateurs généraux.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Action</th><th style="width:220px">Seuil minimal requis</th><th style="width:160px"></th></tr></thead>
+          <tbody>
+          {% for ligne in seuils_lignes_globales %}
+            <tr>
+              <td>{{ ligne.libelle }}</td>
+              <td>
+                <form method="post" class="d-flex gap-2">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_role_threshold" />
+                  <input type="hidden" name="next_tab" value="seuils_role" />
+                  <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                  <select name="nouveau_role" class="form-select form-select-sm">
+                    {% for code, label in roles_pour_seuils %}
+                      <option value="{{ code }}" {% if ligne.niveau_actuel.name == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button>
+                </form>
+              </td>
+              <td>
+                {% if ligne.niveau_actuel != ligne.niveau_defaut %}
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reset_role_threshold" />
+                  <input type="hidden" name="next_tab" value="seuils_role" />
+                  <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">Réinitialiser</button>
+                </form>
+                {% else %}
+                  <small class="text-muted">Valeur par défaut</small>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="col-12">
+    <p class="text-muted">Chaque modification est historisée (auteur, date, ancienne et nouvelle valeur){% if user.is_superuser %} — consultable dans l'onglet Journal{% endif %}.</p>
   </div>
 </div>
 {% endif %}

@@ -9,9 +9,35 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from accounts.models import GradeChoice, SpecialityChoice, ServiceFunctionChoice, RoleAvailability, Roles, AuditLog
 from assets.models import InstallationBigrameChoice, Installation
-from org.models import Ship, Service, Sector, Section
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig
 from django.contrib import messages
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.roles import RoleLevel
+from matrix.core.role_thresholds import REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache
+
+# Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
+# les 8 rôles, du plus bas (Équipier) au plus haut (Administrateur général) —
+# ordre ascendant de RoleLevel, libellés français repris de Roles.choices.
+_LIBELLE_ROLE = dict(Roles.choices)
+ROLES_POUR_SEUILS = [(niveau.name, _LIBELLE_ROLE.get(niveau.name, niveau.name)) for niveau in RoleLevel]
+
+
+def _lignes_seuils(ship_id, portee_visee):
+    """Construit les lignes affichables pour l'onglet Sécurité des Réglages :
+    une ligne par action configurable de la portée demandée (SHIP ou
+    GLOBALE), avec son seuil actuel (configuré pour ce navire, ou seuil par
+    défaut si rien n'est configuré)."""
+    return [
+        {
+            "cle": action.cle,
+            "libelle": action.libelle,
+            "categorie": action.categorie,
+            "niveau_actuel": seuil_role(action.cle, ship_id),
+            "niveau_defaut": action.defaut,
+        }
+        for action in REGISTRE_ACTIONS
+        if action.portee == portee_visee
+    ]
 
 
 @login_required
@@ -50,14 +76,28 @@ class SettingsView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
-            # Seule la section "Notification quotidienne" (réglage personnel de
-            # chaque marin) est accessible aux non-superusers. Le reste des
-            # Réglages (rôles, navires, hiérarchie, journal...) reste réservé
-            # aux comptes techniques superuser Django.
+            # Seules les sections "Notification quotidienne" (réglage personnel
+            # de chaque marin) et "Sécurité" (seuils de rôle, réservée aux
+            # ADMIN_NAVIRE — configuration de LEUR navire, cf. tâche Notion
+            # « Seuils de rôle configurables par navire ») sont accessibles aux
+            # non-superusers. Le reste des Réglages (référentiels globaux,
+            # navires, hiérarchie, journal...) reste réservé aux comptes
+            # techniques superuser Django (MASTER_ADMIN).
             from django.http import HttpResponseForbidden
-            tab_ok = request.method == 'GET' and request.GET.get('tab', 'generale') == 'notifications'
-            action_ok = request.method == 'POST' and request.POST.get('action') == 'update_notification_time'
-            if not (tab_ok or action_ok):
+            profile = getattr(request.user, 'profile', None)
+            est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
+            tab = request.GET.get('tab', 'generale')
+            tab_ok = request.method == 'GET' and (
+                tab == 'notifications' or (tab == 'seuils_role' and est_admin_navire)
+            )
+            action = request.POST.get('action')
+            action_notif_ok = request.method == 'POST' and action == 'update_notification_time'
+            action_seuil_ok = (
+                request.method == 'POST'
+                and action in ('update_role_threshold', 'reset_role_threshold')
+                and est_admin_navire
+            )
+            if not (tab_ok or action_notif_ok or action_seuil_ok):
                 return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
 
@@ -72,13 +112,26 @@ class SettingsView(LoginRequiredMixin, View):
                 return '08:00'
 
         if not request.user.is_superuser:
-            # Vue restreinte : uniquement le réglage personnel des horaires de
-            # notification quotidienne, sans les données réservées aux superusers.
+            # Vue restreinte : réglage personnel des horaires de notification,
+            # et (si ADMIN_NAVIRE) l'onglet Sécurité limité à SON navire —
+            # sans les autres données réservées aux superusers.
+            profile = getattr(request.user, 'profile', None)
+            est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             context = {
-                'active_tab': 'notifications',
-                'user_notification_time': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time', None)),
-                'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
+                'active_tab': tab if tab == 'seuils_role' else 'notifications',
+                'user_notification_time': fmt_time(getattr(profile, 'notification_time', None)),
+                'user_notification_time_soir': fmt_time(getattr(profile, 'notification_time_soir', None)),
+                'peut_gerer_seuils': est_admin_navire,
             }
+            if tab == 'seuils_role' and est_admin_navire:
+                mon_ship_id = ship_id_for_user(request.user)
+                context.update({
+                    'seuils_ship': Ship.objects.filter(pk=mon_ship_id).first(),
+                    'seuils_lignes': _lignes_seuils(mon_ship_id, 'SHIP'),
+                    'seuils_lignes_globales': [],
+                    'peut_editer_global': False,
+                    'roles_pour_seuils': ROLES_POUR_SEUILS,
+                })
             return render(request, self.template_name, context)
 
         # Prépare l'état des rôles (actif/inactif) côté serveur pour simplifier le template
@@ -139,15 +192,27 @@ class SettingsView(LoginRequiredMixin, View):
             'roles_with_state': roles_with_state,
             'user_notification_time': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time', None)),
             'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
+            'peut_gerer_seuils': True,
         }
         if tab == 'journal':
             context['logs'] = AuditLog.objects.select_related('actor','target_user').order_by('-created_at')[:200]
+        if tab == 'seuils_role':
+            # MASTER_ADMIN choisit le navire à configurer (même sélecteur que
+            # l'onglet Hiérarchie, cf. selected_ship ci-dessus), et peut en plus
+            # éditer la configuration GLOBALE (flotte) des référentiels communs.
+            context.update({
+                'seuils_ship': selected_ship,
+                'seuils_lignes': _lignes_seuils(selected_ship.id if selected_ship else None, 'SHIP'),
+                'seuils_lignes_globales': _lignes_seuils(None, PORTEE_GLOBALE),
+                'peut_editer_global': True,
+                'roles_pour_seuils': ROLES_POUR_SEUILS,
+            })
         return render(request, self.template_name, context)
 
     def post(self, request):
         action = request.POST.get('action')
         next_tab = request.POST.get('next_tab') or 'utilisateurs'
-        selected_ship_id = request.POST.get('selected_ship') or request.GET.get('ship')
+        selected_ship_id = request.POST.get('selected_ship') or request.POST.get('ship_id') or request.GET.get('ship')
         selected_installation_id = None
         name = request.POST.get('name', '').strip()
         if action == 'add_grade' and name:
@@ -336,6 +401,55 @@ class SettingsView(LoginRequiredMixin, View):
             except Exception:
                 messages.error(request, "Valeurs invalides pour les paramètres vibratoires.")
                 next_tab = 'installations'
+        elif action in ('update_role_threshold', 'reset_role_threshold'):
+            # Onglet Sécurité : modification (ou réinitialisation à la valeur
+            # par défaut) d'un seuil de rôle configurable par navire, cf.
+            # matrix/core/role_thresholds.py. Accessible à un ADMIN_NAVIRE
+            # (limité à SON navire, ship_id posté ignoré) ou à un MASTER_ADMIN
+            # (choisit le navire, ou édite la configuration GLOBALE flotte).
+            next_tab = 'seuils_role'
+            cle_action = request.POST.get('cle_action')
+            action_seuil = REGISTRE_PAR_CLE.get(cle_action)
+            if action_seuil is None:
+                messages.error(request, "Seuil de rôle inconnu.")
+            elif action_seuil.portee == PORTEE_GLOBALE and not is_master_admin(request.user):
+                messages.error(request, "Seuls les administrateurs généraux peuvent modifier ce référentiel commun à toute la flotte.")
+            else:
+                if action_seuil.portee == PORTEE_GLOBALE:
+                    ship = None
+                elif request.user.is_superuser:
+                    ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                else:
+                    ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
+                if ship is None and action_seuil.portee != PORTEE_GLOBALE:
+                    messages.error(request, "Aucune unité sélectionnée.")
+                else:
+                    config, _ = RoleThresholdConfig.objects.get_or_create(ship=ship)
+                    cible = ship.name if ship else "flotte (configuration globale)"
+                    if action == 'update_role_threshold':
+                        nouveau_role = request.POST.get('nouveau_role')
+                        if nouveau_role not in dict(ROLES_POUR_SEUILS):
+                            messages.error(request, "Rôle invalide.")
+                        else:
+                            ancien = config.thresholds.get(cle_action) or action_seuil.defaut.name
+                            config.thresholds[cle_action] = nouveau_role
+                            config.save(update_fields=['thresholds', 'updated_at'])
+                            invalidate_cache(ship.id if ship else None)
+                            AuditLog.objects.create(
+                                actor=request.user, action='update_role_threshold',
+                                details=f"navire={cible}; action={cle_action}; {ancien} -> {nouveau_role}",
+                            )
+                            messages.success(request, "Seuil de rôle mis à jour.")
+                    else:
+                        if cle_action in config.thresholds:
+                            ancien = config.thresholds.pop(cle_action)
+                            config.save(update_fields=['thresholds', 'updated_at'])
+                            invalidate_cache(ship.id if ship else None)
+                            AuditLog.objects.create(
+                                actor=request.user, action='reset_role_threshold',
+                                details=f"navire={cible}; action={cle_action}; {ancien} -> défaut ({action_seuil.defaut.name})",
+                            )
+                        messages.success(request, "Seuil de rôle réinitialisé à sa valeur par défaut.")
         elif action == 'update_notification_time':
             val = (request.POST.get('notification_time') or '').strip()
             val_soir = (request.POST.get('notification_time_soir') or '').strip()

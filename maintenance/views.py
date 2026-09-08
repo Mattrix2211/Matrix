@@ -11,7 +11,6 @@ from .models import (
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
 from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from matrix.core.permissions import RolePermission
-from matrix.core.roles import RoleLevel
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -20,6 +19,12 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = MaintenancePlan.objects.select_related("asset", "asset_type", "checklist_template").all()
     serializer_class = MaintenancePlanSerializer
     permission_classes = [RolePermission]
+    # Seuil configurable par navire (matrix/core/role_thresholds.py), même
+    # clé que MaintenancePlanListView côté web (maintenance/web_views.py) —
+    # rendu explicite ici (avant : seuil générique CHEF_SECTION implicite de
+    # RolePermission), même valeur par défaut, sans effet sur les autres
+    # ViewSets qui restent au seuil générique non configurable.
+    role_threshold_action_write = "maintenance_plan_ecriture"
 
     def get_scoped_filters(self):
         # Un plan porte soit sur un actif précis (asset, qui porte lui-même
@@ -50,7 +55,8 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
     queryset = MaintenanceOccurrence.objects.select_related("plan", "asset", "installation_maintenance").all()
     serializer_class = MaintenanceOccurrenceSerializer
     permission_classes = [RolePermission]
-    min_role_level_write = RoleLevel.EQUIPIER
+    # Seuil configurable par navire (matrix/core/role_thresholds.py).
+    role_threshold_action_write = "maintenance_execution_ecriture"
 
     def get_scoped_filters(self):
         # Une occurrence porte soit sur du matériel mobile (asset), soit sur
@@ -136,7 +142,9 @@ class MaintenanceExecutionViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin
     queryset = MaintenanceExecution.objects.select_related("occurrence", "occurrence__plan").all()
     serializer_class = MaintenanceExecutionSerializer
     permission_classes = [RolePermission]
-    min_role_level_write = RoleLevel.EQUIPIER
+    # Seuil configurable par navire (matrix/core/role_thresholds.py), même
+    # clé que MaintenanceOccurrenceViewSet ci-dessus.
+    role_threshold_action_write = "maintenance_execution_ecriture"
 
     def get_scoped_filters(self):
         # Une exécution ne porte pas elle-même le périmètre : on le

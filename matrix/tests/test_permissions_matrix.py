@@ -33,12 +33,13 @@ from django.test import Client, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from accounts.models import UserProfile
+from accounts.models import GradeChoice, UserProfile
 from assets.models import Asset, AssetType, Deck, Installation, InstallationMaintenance, Zone
 from calendar_app.models import PersonalEvent
 from logistics.models import CorrectiveTicket, StockPiece
+from matrix.core.role_thresholds import invalidate_cache
 from matrix.core.roles import RoleLevel
-from org.models import Sector, Section, Service, Ship
+from org.models import RoleThresholdConfig, Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
 # Ordre croissant du niveau hiérarchique, du plus bas (Équipier) au plus haut
@@ -96,8 +97,9 @@ class MatricePermissionsTestCase(TestCase):
 
 class AssetMatriceTests(MatricePermissionsTestCase):
     """Matériel mobile (Asset) : création/modification réservées à
-    CHEF_SECTION+, suppression réservée à CHEF_SERVICE+ (assets/web_views.py
-    ::AssetListView.NIVEAU_REQUIS_PAR_ACTION)."""
+    CHEF_SECTION+, suppression réservée à CHEF_SERVICE+ par défaut —
+    seuils configurables par navire (assets/web_views.py
+    ::AssetListView.ACTION_VERS_SEUIL, matrix/core/role_thresholds.py)."""
 
     @classmethod
     def setUpTestData(cls):
@@ -180,10 +182,11 @@ class AssetMatriceTests(MatricePermissionsTestCase):
     def test_suppression_asset_via_api_reservee_chef_service(self):
         """Régression du refus du Tech Lead : AssetViewSet (assets/views.py)
         utilisait le seuil générique d'écriture (CHEF_SECTION, RolePermission)
-        pour DELETE, alors que le web (AssetListView.NIVEAU_REQUIS_PAR_ACTION
+        pour DELETE, alors que le web (AssetListView.ACTION_VERS_SEUIL
         ['delete_asset']) exige CHEF_SERVICE — un chef de section bloqué à
         l'écran pouvait donc supprimer le même matériel en appelant
-        directement l'API. min_role_level_delete aligne les deux chemins."""
+        directement l'API. role_threshold_action_delete='asset_gestion_avancee'
+        aligne les deux chemins sur la même clé configurable."""
         def executer(client, role):
             a = Asset.objects.create(
                 asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
@@ -199,8 +202,9 @@ class AssetMatriceTests(MatricePermissionsTestCase):
 
 class InstallationMatriceTests(MatricePermissionsTestCase):
     """Installation fixe : création/modification réservées à CHEF_SECTION+,
-    suppression réservée à CHEF_SERVICE+ (assets/web_views.py::
-    InstallationListView.NIVEAU_REQUIS_PAR_ACTION)."""
+    suppression réservée à CHEF_SERVICE+ par défaut — seuils configurables
+    par navire (assets/web_views.py::InstallationListView.ACTION_VERS_SEUIL,
+    matrix/core/role_thresholds.py)."""
 
     @classmethod
     def setUpTestData(cls):
@@ -662,3 +666,101 @@ class PersonalEventMatriceTests(MatricePermissionsTestCase):
                 self.assertEqual(r.status_code, 404)
         evenement.refresh_from_db()
         self.assertEqual(evenement.title, "Événement privé")
+
+
+class SeuilRoleConfigurableTests(MatricePermissionsTestCase):
+    """Tâche Notion « Seuils de rôle configurables par navire » : prouve
+    qu'un changement de RoleThresholdConfig modifie RÉELLEMENT le
+    comportement de l'API/du web, pas seulement que la configuration existe
+    en base — sur les trois familles de seuils configurables (portée navire
+    côté API DRF, portée navire côté web, portée GLOBALE flotte)."""
+
+    def tearDown(self):
+        # Invalide le cache des seuils entre chaque test (une configuration
+        # créée dans un test ne doit jamais fuiter sur le suivant).
+        invalidate_cache(self.ship.id)
+        invalidate_cache(None)
+        super().tearDown()
+
+    def test_seuil_navire_api_delete_asset_abaisse_a_chef_section(self):
+        """Par défaut, la suppression d'un matériel via l'API (asset_gestion_avancee)
+        exige CHEF_SERVICE (AssetViewSet.role_threshold_action_delete). Un
+        ADMIN_NAVIRE abaisse ce seuil à CHEF_SECTION pour son navire : un
+        CHEF_SECTION peut désormais supprimer via l'API, alors qu'il en était
+        incapable avant la reconfiguration."""
+        asset_type = AssetType.objects.create(name="Touret", category="Manutention", sector=self.sector)
+        chef_section = self.client_pour(RoleLevel.CHEF_SECTION, api=True)
+
+        # Avant configuration : seuil par défaut CHEF_SERVICE, refusé à CHEF_SECTION.
+        asset = Asset.objects.create(
+            asset_type=asset_type, ship=self.ship, service=self.service, sector=self.sector,
+            section=self.section, serial_number="SN-AVANT", internal_id="INT-AVANT",
+        )
+        r = chef_section.delete(f"/api/assets/assets/{asset.id}/")
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(Asset.objects.filter(pk=asset.id).exists())
+
+        # Reconfiguration du navire : asset_gestion_avancee abaissé à CHEF_SECTION.
+        RoleThresholdConfig.objects.create(
+            ship=self.ship, thresholds={"asset_gestion_avancee": "CHEF_SECTION"},
+        )
+        invalidate_cache(self.ship.id)
+
+        # Après configuration : le même rôle, sur le même navire, réussit désormais.
+        r = chef_section.delete(f"/api/assets/assets/{asset.id}/")
+        self.assertEqual(r.status_code, 204)
+        self.assertFalse(Asset.objects.filter(pk=asset.id).exists())
+
+    def test_seuil_navire_web_asset_ecriture_simple_releve_a_chef_service(self):
+        """Par défaut, la création d'un matériel côté web (asset_ecriture_simple)
+        exige CHEF_SECTION. Un ADMIN_NAVIRE relève ce seuil à CHEF_SERVICE
+        pour son navire : un CHEF_SECTION, auparavant autorisé, se retrouve
+        refusé sur ce même navire après la reconfiguration."""
+        asset_type = AssetType.objects.create(name="Extincteur", category="Incendie", sector=self.sector)
+        chef_section = self.client_pour(RoleLevel.CHEF_SECTION)
+
+        payload = {
+            "action": "create_asset", "internal_id": "INT-RELEVE", "serial_number": "SN-RELEVE",
+            "designation": "Matériel test", "ship_id": str(self.ship.id), "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id), "asset_type_id": str(asset_type.id),
+        }
+
+        # Avant configuration : seuil par défaut CHEF_SECTION, autorisé.
+        r = chef_section.post("/assets/", payload)
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Asset.objects.filter(internal_id="INT-RELEVE").exists())
+
+        # Reconfiguration du navire : asset_ecriture_simple relevé à CHEF_SERVICE.
+        RoleThresholdConfig.objects.create(
+            ship=self.ship, thresholds={"asset_ecriture_simple": "CHEF_SERVICE"},
+        )
+        invalidate_cache(self.ship.id)
+
+        # Après configuration : le même rôle, sur le même navire, est refusé.
+        payload["internal_id"] = "INT-RELEVE-2"
+        payload["serial_number"] = "SN-RELEVE-2"
+        r = chef_section.post("/assets/", payload)
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(Asset.objects.filter(internal_id="INT-RELEVE-2").exists())
+
+    def test_seuil_global_referentiel_ne_depend_pas_du_navire(self):
+        """referentiel_global_ecriture (grades/spécialités, référentiel commun à
+        toute la flotte) est de portée GLOBALE : sa reconfiguration (ship=None)
+        s'applique quel que soit le navire de l'appelant, sans qu'il soit
+        nécessaire de créer une RoleThresholdConfig par navire."""
+        chef_section = self.client_pour(RoleLevel.CHEF_SECTION, api=True)
+
+        # Avant configuration : seuil par défaut MASTER_ADMIN, refusé à CHEF_SECTION.
+        r = chef_section.post("/api/accounts/grades/", {"name": "Grade avant"}, format="json")
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(GradeChoice.objects.filter(name="Grade avant").exists())
+
+        # Reconfiguration GLOBALE (ship=None) : abaisse referentiel_global_ecriture à CHEF_SECTION.
+        RoleThresholdConfig.objects.create(
+            ship=None, thresholds={"referentiel_global_ecriture": "CHEF_SECTION"},
+        )
+        invalidate_cache(None)
+
+        r = chef_section.post("/api/accounts/grades/", {"name": "Grade après"}, format="json")
+        self.assertEqual(r.status_code, 201)
+        self.assertTrue(GradeChoice.objects.filter(name="Grade après").exists())

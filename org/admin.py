@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Ship, Service, Sector, Section, SectorConfig
+from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
@@ -25,3 +25,11 @@ class SectionAdmin(admin.ModelAdmin):
 @admin.register(SectorConfig)
 class SectorConfigAdmin(admin.ModelAdmin):
     list_display = ("sector", "created_at")
+
+@admin.register(RoleThresholdConfig)
+class RoleThresholdConfigAdmin(admin.ModelAdmin):
+    # Interface de gestion réservée aux administrateurs techniques (superusers
+    # Django) : l'interface destinée aux ADMIN_NAVIRE/MASTER_ADMIN au quotidien
+    # est l'onglet « Sécurité » de /parametre/ (matrix/views.py::SettingsView),
+    # pas ce Django admin brut (principe n°2 CLAUDE.md).
+    list_display = ("ship", "updated_at")

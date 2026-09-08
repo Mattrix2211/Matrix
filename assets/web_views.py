@@ -22,6 +22,7 @@ from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket, StockPiece
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.export import (
@@ -100,18 +101,21 @@ def _lignes_export_installations(qs):
 
 
 def _peut_gerer_rattachement_parent(user):
-    """Seuls les CHEF_SERVICE et rôles supérieurs peuvent créer ou modifier le
-    rattachement parent/enfant d'une installation ou d'un matériel (même seuil
-    que les tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS ci-dessous)."""
-    return user_role_level(user) >= RoleLevel.CHEF_SERVICE
+    """Seuls les CHEF_SERVICE et rôles supérieurs (par défaut, seuil
+    configurable par navire : matrix/core/role_thresholds.py,
+    "rattachement_parent_gestion") peuvent créer ou modifier le rattachement
+    parent/enfant d'une installation ou d'un matériel (même seuil que les
+    tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS ci-dessous)."""
+    return user_role_level(user) >= niveau_requis_pour(user, "rattachement_parent_gestion")
 
 
 def _peut_configurer_plan_navire(user):
-    """Seuls les CHEF_SERVICE et rôles supérieurs peuvent configurer les ponts
-    et zones du plan visuel du navire (même seuil que la gestion du
-    rattachement parent/enfant et des tâches d'entretien ci-dessus : une
-    action de configuration structurante, pas une simple consultation)."""
-    return user_role_level(user) >= RoleLevel.CHEF_SERVICE
+    """Seuls les CHEF_SERVICE et rôles supérieurs (par défaut, seuil
+    configurable par navire : matrix/core/role_thresholds.py,
+    "plan_navire_configuration") peuvent configurer les ponts et zones du
+    plan visuel du navire : une action de configuration structurante, pas
+    une simple consultation."""
+    return user_role_level(user) >= niveau_requis_pour(user, "plan_navire_configuration")
 
 
 def _dernier_par_installation(queryset, champ_installation='installation_id'):
@@ -545,26 +549,31 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     template_name = 'assets/list.html'
     context_object_name = 'assets'
 
-    # Contrôle de rôle par action (T-SEC) : CHEF_SECTION pour la création/édition
-    # simple, CHEF_SERVICE pour les suppressions et les actions groupées — même seuil
-    # que MAINTENANCE_WRITE_ACTIONS (InstallationDetailView) et
-    # _peut_gerer_rattachement_parent, pour rester cohérent avec le reste du fichier.
-    NIVEAU_REQUIS_PAR_ACTION = {
-        'create_folder': RoleLevel.CHEF_SECTION,
-        'rename_folder': RoleLevel.CHEF_SECTION,
-        'delete_folder': RoleLevel.CHEF_SERVICE,
-        'move_asset_to_folder': RoleLevel.CHEF_SECTION,
-        'create_asset': RoleLevel.CHEF_SECTION,
-        'edit_asset': RoleLevel.CHEF_SECTION,
-        'delete_asset': RoleLevel.CHEF_SERVICE,
-        'delete_asset_document': RoleLevel.CHEF_SERVICE,
-        'bulk_update_status': RoleLevel.CHEF_SERVICE,
-        'bulk_update_location': RoleLevel.CHEF_SERVICE,
-        'bulk_update_ship': RoleLevel.CHEF_SERVICE,
-        'bulk_update_service': RoleLevel.CHEF_SERVICE,
-        'bulk_update_sector': RoleLevel.CHEF_SERVICE,
-        'bulk_update_section': RoleLevel.CHEF_SERVICE,
-        'bulk_delete_assets': RoleLevel.CHEF_SERVICE,
+    # Contrôle de rôle par action (T-SEC) : chaque action POST est associée à
+    # une clé du registre des seuils configurables par navire
+    # (matrix/core/role_thresholds.py), résolue dynamiquement à chaque
+    # requête dans post() ci-dessous — asset_ecriture_simple pour la
+    # création/édition simple (CHEF_SECTION par défaut), asset_gestion_avancee
+    # pour les suppressions et les actions groupées (CHEF_SERVICE par défaut,
+    # même seuil que MAINTENANCE_WRITE_ACTIONS d'InstallationDetailView et
+    # _peut_gerer_rattachement_parent, pour rester cohérent avec le reste du
+    # fichier).
+    ACTION_VERS_SEUIL = {
+        'create_folder': 'asset_ecriture_simple',
+        'rename_folder': 'asset_ecriture_simple',
+        'delete_folder': 'asset_gestion_avancee',
+        'move_asset_to_folder': 'asset_ecriture_simple',
+        'create_asset': 'asset_ecriture_simple',
+        'edit_asset': 'asset_ecriture_simple',
+        'delete_asset': 'asset_gestion_avancee',
+        'delete_asset_document': 'asset_gestion_avancee',
+        'bulk_update_status': 'asset_gestion_avancee',
+        'bulk_update_location': 'asset_gestion_avancee',
+        'bulk_update_ship': 'asset_gestion_avancee',
+        'bulk_update_service': 'asset_gestion_avancee',
+        'bulk_update_sector': 'asset_gestion_avancee',
+        'bulk_update_section': 'asset_gestion_avancee',
+        'bulk_delete_assets': 'asset_gestion_avancee',
     }
 
     def get_queryset(self):
@@ -703,8 +712,8 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
-        niveau_requis = self.NIVEAU_REQUIS_PAR_ACTION.get(action)
-        if niveau_requis is not None and user_role_level(request.user) < niveau_requis:
+        cle_seuil = self.ACTION_VERS_SEUIL.get(action)
+        if cle_seuil is not None and user_role_level(request.user) < niveau_requis_pour(request.user, cle_seuil):
             raise PermissionDenied
         # Bulk actions
         if action in (
@@ -1031,19 +1040,23 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     template_name = 'assets/installations.html'
     context_object_name = 'installations'
 
-    # Contrôle de rôle par action (T-SEC) : CHEF_SECTION pour la création/édition
-    # simple, CHEF_SERVICE pour les suppressions et les actions groupées — même seuil
-    # que MAINTENANCE_WRITE_ACTIONS (InstallationDetailView) et AssetListView.
-    NIVEAU_REQUIS_PAR_ACTION = {
-        'create_installation': RoleLevel.CHEF_SECTION,
-        'edit_installation': RoleLevel.CHEF_SECTION,
-        'delete_installation': RoleLevel.CHEF_SERVICE,
-        'bulk_update_location': RoleLevel.CHEF_SERVICE,
-        'bulk_update_ship': RoleLevel.CHEF_SERVICE,
-        'bulk_update_service': RoleLevel.CHEF_SERVICE,
-        'bulk_update_sector': RoleLevel.CHEF_SERVICE,
-        'bulk_update_section': RoleLevel.CHEF_SERVICE,
-        'bulk_delete_installations': RoleLevel.CHEF_SERVICE,
+    # Contrôle de rôle par action (T-SEC) : chaque action POST est associée à
+    # une clé du registre des seuils configurables par navire
+    # (matrix/core/role_thresholds.py) — installation_ecriture_simple pour la
+    # création/édition simple (CHEF_SECTION par défaut),
+    # installation_gestion_avancee pour les suppressions et les actions
+    # groupées (CHEF_SERVICE par défaut), même seuil que
+    # MAINTENANCE_WRITE_ACTIONS (InstallationDetailView) et AssetListView.
+    ACTION_VERS_SEUIL = {
+        'create_installation': 'installation_ecriture_simple',
+        'edit_installation': 'installation_ecriture_simple',
+        'delete_installation': 'installation_gestion_avancee',
+        'bulk_update_location': 'installation_gestion_avancee',
+        'bulk_update_ship': 'installation_gestion_avancee',
+        'bulk_update_service': 'installation_gestion_avancee',
+        'bulk_update_sector': 'installation_gestion_avancee',
+        'bulk_update_section': 'installation_gestion_avancee',
+        'bulk_delete_installations': 'installation_gestion_avancee',
     }
 
     def get_queryset(self):
@@ -1203,8 +1216,8 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
-        niveau_requis = self.NIVEAU_REQUIS_PAR_ACTION.get(action)
-        if niveau_requis is not None and user_role_level(request.user) < niveau_requis:
+        cle_seuil = self.ACTION_VERS_SEUIL.get(action)
+        if cle_seuil is not None and user_role_level(request.user) < niveau_requis_pour(request.user, cle_seuil):
             raise PermissionDenied
         if action in (
             'bulk_update_location', 'bulk_update_ship', 'bulk_update_service',
@@ -1445,7 +1458,8 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
     template_name = 'assets/installation_detail.html'
 
     # Actions liées aux tâches d'entretien (InstallationMaintenance) : réservées
-    # aux CHEF_SERVICE et au-dessus, cf. RolePermission déjà utilisé côté API DRF.
+    # par défaut aux CHEF_SERVICE et au-dessus, seuil configurable par navire
+    # (matrix/core/role_thresholds.py, "installation_entretien_gestion").
     MAINTENANCE_WRITE_ACTIONS = {
         'add_maintenance',
         'edit_maintenance',
@@ -1455,10 +1469,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
     }
 
     # Actions de gestion de la fiche installation elle-même (hors tâches d'entretien) :
-    # même seuil que sur la liste (AssetListView/InstallationListView) — CHEF_SECTION
-    # pour l'édition simple, CHEF_SERVICE pour la suppression. Corrige le contournement
-    # possible via la fiche détail, ces deux actions n'étant pas dans
-    # MAINTENANCE_WRITE_ACTIONS (T-SEC).
+    # même seuils que sur la liste (AssetListView/InstallationListView) —
+    # installation_ecriture_simple pour l'édition simple,
+    # installation_gestion_avancee pour la suppression. Corrige le
+    # contournement possible via la fiche détail, ces deux actions n'étant pas
+    # dans MAINTENANCE_WRITE_ACTIONS (T-SEC).
     INSTALLATION_WRITE_ACTIONS = {'edit_installation'}
     INSTALLATION_DELETE_ACTIONS = {'delete_installation'}
 
@@ -1666,11 +1681,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
-        if action in self.MAINTENANCE_WRITE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SERVICE:
+        if action in self.MAINTENANCE_WRITE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_entretien_gestion'):
             raise PermissionDenied
-        if action in self.INSTALLATION_WRITE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if action in self.INSTALLATION_WRITE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_ecriture_simple'):
             raise PermissionDenied
-        if action in self.INSTALLATION_DELETE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SERVICE:
+        if action in self.INSTALLATION_DELETE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_gestion_avancee'):
             raise PermissionDenied
         inst = self.get_object()
         tab = (request.POST.get('tab') or '').strip()

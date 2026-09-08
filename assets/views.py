@@ -9,7 +9,6 @@ from .serializers import (
 )
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
-from matrix.core.roles import RoleLevel
 from matrix.core.scopes import scope_filters_for_user
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -114,12 +113,14 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     permission_classes = [RolePermission]
     filter_backends = [filters.SearchFilter]
     search_fields = ["serial_number", "internal_id"]
-    # Création/modification laissées au seuil générique CHEF_SECTION
-    # (RolePermission.min_level_write), suppression remontée à CHEF_SERVICE
-    # pour rester alignée avec AssetListView.NIVEAU_REQUIS_PAR_ACTION
-    # ['delete_asset'] côté web (assets/web_views.py) — décision métier :
-    # un chef de section ne doit jamais pouvoir supprimer un matériel.
-    min_role_level_delete = RoleLevel.CHEF_SERVICE
+    # Seuils configurables par navire (matrix/core/role_thresholds.py) :
+    # écriture (création/modification) alignée sur asset_ecriture_simple,
+    # suppression remontée à asset_gestion_avancee — même clé que
+    # AssetListView.ACTION_VERS_SEUIL['delete_asset'] côté web
+    # (assets/web_views.py) — décision métier par défaut : un chef de
+    # section ne doit jamais pouvoir supprimer un matériel.
+    role_threshold_action_write = "asset_ecriture_simple"
+    role_threshold_action_delete = "asset_gestion_avancee"
 
     @decorators.action(detail=True, methods=["get"], url_path="qr")
     def qr_code(self, request, pk=None):
@@ -139,9 +140,10 @@ class AssetDocumentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetDocument.objects.select_related("asset").all()
     serializer_class = AssetDocumentSerializer
     permission_classes = [RolePermission]
-    # Même écart corrigé que AssetViewSet ci-dessus, pour rester aligné avec
-    # AssetListView.NIVEAU_REQUIS_PAR_ACTION['delete_asset_document'] côté web.
-    min_role_level_delete = RoleLevel.CHEF_SERVICE
+    # Même clé de seuil configurable que AssetViewSet ci-dessus, pour rester
+    # aligné avec AssetListView.ACTION_VERS_SEUIL['delete_asset_document']
+    # côté web.
+    role_threshold_action_delete = "asset_gestion_avancee"
 
     def get_scoped_filters(self):
         # Un document n'est rattaché qu'indirectement à un navire/service/
