@@ -8,13 +8,28 @@ class RolePermission(BasePermission):
     # Valeurs par défaut minimales et pragmatiques par action ; à affiner par ViewSet si besoin
     min_level_write = RoleLevel.CHEF_SECTION
 
+    def _seuil_requis(self, request, view):
+        """Seuil de rôle minimal pour la méthode d'écriture courante.
+
+        Par défaut, `min_role_level_write` s'applique uniformément à toute
+        écriture (POST/PUT/PATCH/DELETE), comme avant. Un ViewSet peut en
+        plus définir `min_role_level_delete` pour exiger un seuil plus élevé
+        spécifiquement sur DELETE (ex. AssetViewSet : création/modification
+        réservées à CHEF_SECTION mais suppression réservée à CHEF_SERVICE,
+        même seuil que AssetListView.NIVEAU_REQUIS_PAR_ACTION côté web)."""
+        if request.method == 'DELETE':
+            seuil_delete = getattr(view, 'min_role_level_delete', None)
+            if seuil_delete is not None:
+                return seuil_delete
+        return getattr(view, 'min_role_level_write', self.min_level_write)
+
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return request.user.is_authenticated
         if request.user.is_superuser:
             return True
         lvl = user_role_level(request.user)
-        return lvl >= getattr(view, 'min_role_level_write', self.min_level_write)
+        return lvl >= self._seuil_requis(request, view)
 
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
@@ -26,7 +41,7 @@ class RolePermission(BasePermission):
         model_name = obj.__class__.__name__
         if model_name == 'MaintenanceOccurrence':
             return lvl >= RoleLevel.CHEF_SECTION or request.user in obj.assignees.all()
-        return lvl >= getattr(view, 'min_role_level_write', self.min_level_write)
+        return lvl >= self._seuil_requis(request, view)
 
 
 class IsAuthorOrReadOnly(BasePermission):

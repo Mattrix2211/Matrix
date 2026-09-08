@@ -177,6 +177,25 @@ class AssetMatriceTests(MatricePermissionsTestCase):
             return not Asset.objects.filter(pk=a.id).exists()
         self.assert_seuil(RoleLevel.CHEF_SERVICE, executer)
 
+    def test_suppression_asset_via_api_reservee_chef_service(self):
+        """Régression du refus du Tech Lead : AssetViewSet (assets/views.py)
+        utilisait le seuil générique d'écriture (CHEF_SECTION, RolePermission)
+        pour DELETE, alors que le web (AssetListView.NIVEAU_REQUIS_PAR_ACTION
+        ['delete_asset']) exige CHEF_SERVICE — un chef de section bloqué à
+        l'écran pouvait donc supprimer le même matériel en appelant
+        directement l'API. min_role_level_delete aligne les deux chemins."""
+        def executer(client, role):
+            a = Asset.objects.create(
+                asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+                section=self.section, serial_number=f"SN-API-DEL-{role.name}", internal_id=f"INT-API-DEL-{role.name}",
+            )
+            r = client.delete(f"/api/assets/assets/{a.id}/")
+            if r.status_code == 403:
+                return False
+            self.assertEqual(r.status_code, 204)
+            return not Asset.objects.filter(pk=a.id).exists()
+        self.assert_seuil(RoleLevel.CHEF_SERVICE, executer, api=True)
+
 
 class InstallationMatriceTests(MatricePermissionsTestCase):
     """Installation fixe : création/modification réservées à CHEF_SECTION+,
