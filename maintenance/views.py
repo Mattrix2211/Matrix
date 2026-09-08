@@ -9,7 +9,7 @@ from .models import (
     mettre_a_jour_echeance_installation,
 )
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from matrix.core.roles import RoleLevel
 
@@ -36,7 +36,17 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class MaintenanceOccurrenceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+    # Suppression interdite (SuppressionInterditeMixin), même raisonnement que
+    # CorrectiveTicketViewSet (logistics/views.py) : une occurrence n'est
+    # jamais créée à la main (seule generate_occurrences/Celery le fait, cf.
+    # commentaire de MaintenanceOccurrenceListView) et porte l'historique de
+    # statuts (OccurrenceStatusLog) ainsi que la signature de validation
+    # d'une installation critique (start()/complete() ci-dessous) — un
+    # ModelViewSet standard exposait sa suppression complète dès le seuil
+    # générique atteint, effaçant silencieusement cet historique (audit
+    # suite au refus du Tech Lead sur CorrectiveTicketViewSet, tâche Notion
+    # « Matrice de tests de permissions »).
     queryset = MaintenanceOccurrence.objects.select_related("plan", "asset", "installation_maintenance").all()
     serializer_class = MaintenanceOccurrenceSerializer
     permission_classes = [RolePermission]
@@ -118,7 +128,11 @@ class MaintenanceOccurrenceViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             mettre_a_jour_echeance_installation(occ)
         return response.Response(MaintenanceExecutionSerializer(exec).data)
 
-class MaintenanceExecutionViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class MaintenanceExecutionViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+    # Suppression interdite (SuppressionInterditeMixin) : une exécution porte
+    # le résultat réel de l'entretien (conformité, mesures, signature de
+    # validation) — même raisonnement que MaintenanceOccurrenceViewSet
+    # ci-dessus.
     queryset = MaintenanceExecution.objects.select_related("occurrence", "occurrence__plan").all()
     serializer_class = MaintenanceExecutionSerializer
     permission_classes = [RolePermission]

@@ -109,3 +109,46 @@ class ScopeNavireTests(TestCase):
         ids = {s["id"] for s in resp.data["results"]} if "results" in resp.data else {s["id"] for s in resp.data}
         self.assertIn(self.navire_a.id, ids)
         self.assertIn(self.navire_b.id, ids)
+
+    # --- Suppression (audit suite au refus du Tech Lead sur CorrectiveTicketViewSet,
+    # tâche Notion « Matrice de tests de permissions ») : ShipViewSet.destroy()
+    # ne portait avant correction AUCUNE restriction (contrairement à
+    # perform_create/perform_update, déjà réservés à l'administrateur général ou
+    # au propre navire de l'appelant) — un CHEF_SECTION pouvait donc supprimer
+    # SON PROPRE navire et toute la hiérarchie en cascade (services, secteurs,
+    # sections). ------------------------------------------------------------
+
+    def test_chef_section_ne_peut_pas_supprimer_son_propre_navire(self):
+        self.client.login(username="chef_a", password="pass")
+        resp = self.client.delete(f"/api/org/ships/{self.navire_a.id}/")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Ship.objects.filter(pk=self.navire_a.id).exists())
+
+    def test_admin_navire_ne_peut_pas_supprimer_son_propre_navire(self):
+        self.client.login(username="admin_a", password="pass")
+        resp = self.client.delete(f"/api/org/ships/{self.navire_a.id}/")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Ship.objects.filter(pk=self.navire_a.id).exists())
+
+    def test_master_admin_peut_supprimer_un_navire(self):
+        self.client.login(username="master", password="pass")
+        resp = self.client.delete(f"/api/org/ships/{self.navire_b.id}/")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Ship.objects.filter(pk=self.navire_b.id).exists())
+
+    def test_chef_section_peut_toujours_supprimer_un_service_de_son_propre_navire(self):
+        """Régression : la restriction ajoutée sur destroy() ne doit pas revenir
+        sur la capacité déjà existante d'un CHEF_SECTION à gérer (créer/modifier/
+        supprimer) l'organisation de SON PROPRE navire."""
+        self.client.login(username="chef_a", password="pass")
+        resp = self.client.delete(f"/api/org/services/{self.service_a.id}/")
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Service.objects.filter(pk=self.service_a.id).exists())
+
+    def test_chef_section_ne_peut_pas_supprimer_un_service_dun_autre_navire(self):
+        self.client.login(username="chef_a", password="pass")
+        resp = self.client.delete(f"/api/org/services/{self.service_b.id}/")
+        # 404 : le service d'un autre navire est hors du périmètre visible du chef
+        # de section (get_queryset filtré), déjà vérifié avant perform_destroy.
+        self.assertIn(resp.status_code, (403, 404))
+        self.assertTrue(Service.objects.filter(pk=self.service_b.id).exists())

@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from django.contrib.contenttypes.models import ContentType
 from threads.models import Thread, Message
 from matrix.core.permissions import RolePermission
@@ -11,7 +11,15 @@ from matrix.core.permissions import RolePermission
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-class CorrectiveTicketViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+    # Suppression interdite (SuppressionInterditeMixin) : un ticket correctif
+    # porte tout le cycle de vie de la panne (statuts, REX obligatoire à
+    # CLOSED, signature de validation à RETURNED_TO_SERVICE) — il ne doit
+    # jamais pouvoir disparaître, seulement changer de statut jusqu'à CLOSED.
+    # Avant ce correctif, `DELETE /api/logistics/tickets/{id}/` supprimait
+    # réellement le ticket dès le seuil générique CHEF_SECTION atteint,
+    # contournant tout ce cycle (refus du Tech Lead, tâche Notion « Matrice
+    # de tests de permissions »).
     queryset = CorrectiveTicket.objects.select_related("asset").all()
     serializer_class = CorrectiveTicketSerializer
     permission_classes = [RolePermission]

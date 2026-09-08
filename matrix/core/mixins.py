@@ -47,6 +47,22 @@ def build_scope_q(user, *lookup_paths):
     return q if matched else Q(pk__in=[])
 
 
+class SuppressionInterditeMixin:
+    """Retire la méthode DELETE d'un ViewSet DRF (retourne 405 avant même la
+    vérification des permissions) : à réutiliser sur toute ressource dont
+    l'historique ne doit jamais pouvoir disparaître, parce que son cycle de
+    statuts et/ou sa signature de validation font foi (ex. CorrectiveTicket,
+    MaintenanceOccurrence/MaintenanceExecution). Sans ce garde-fou, un
+    ModelViewSet standard expose une suppression complète de l'objet à tout
+    rôle satisfaisant le seuil d'écriture générique, ce qui contourne
+    silencieusement tout le cycle de vie métier (cf. tâche Notion « Matrice
+    de tests de permissions », refus du Tech Lead sur CorrectiveTicketViewSet
+    initialement enregistré sans cette restriction).
+    """
+
+    http_method_names = ["get", "post", "put", "patch", "head", "options", "trace"]
+
+
 class ScopedQuerySetMixin:
     """Filtre le queryset d'un ViewSet DRF selon le périmètre (navire/
     service/secteur/section) de l'utilisateur connecté.

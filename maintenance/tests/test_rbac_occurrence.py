@@ -41,3 +41,28 @@ class MaintenanceRBACTests(TestCase):
         client.login(username="tech", password="pass")
         r2 = client.post(url, {})
         self.assertEqual(r2.status_code, 200)
+
+    def test_suppression_occurrence_interdite_via_api(self):
+        """Une occurrence n'est jamais créée à la main (seule generate_occurrences
+        le fait) et porte l'historique de statuts ainsi que la signature de
+        validation d'une installation critique : sa suppression via l'API est
+        donc interdite pour tout utilisateur, même un administrateur général
+        (SuppressionInterditeMixin, matrix/core/mixins.py — même audit que la
+        correction de CorrectiveTicketViewSet, tâche Notion « Matrice de tests de
+        permissions »)."""
+        ship = Ship.objects.create(name="S2")
+        service = Service.objects.create(name="Srv2", ship=ship)
+        sector = Sector.objects.create(name="Sec2", service=service)
+        at = AssetType.objects.create(name="TypeB", category="Cat", sector=sector)
+        asset = Asset.objects.create(asset_type=at, ship=ship, service=service, sector=sector)
+        plan = MaintenancePlan.objects.create(scope="ASSET", asset=asset, name="Plan B", every_n_days=30)
+        occ = MaintenanceOccurrence.objects.create(
+            plan=plan, asset=asset, scheduled_for=timezone.now().date(), status="PLANNED",
+        )
+        admin = User.objects.create_superuser(username="admin_mtx", password="pass", email="a@a.fr")
+
+        client = APIClient()
+        client.login(username="admin_mtx", password="pass")
+        r = client.delete(f"/api/maintenance/occurrences/{occ.id}/")
+        self.assertEqual(r.status_code, 405)
+        self.assertTrue(MaintenanceOccurrence.objects.filter(pk=occ.id).exists())

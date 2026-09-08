@@ -386,6 +386,29 @@ class CorrectiveTicketMatriceTests(MatricePermissionsTestCase):
         self.assertEqual(ticket.valide_par, chef)
         self.assertIsNotNone(ticket.date_validation)
 
+    def test_suppression_ticket_interdite_via_api_quel_que_soit_le_role(self):
+        """Régression du refus du Tech Lead : CorrectiveTicketViewSet héritait de
+        ModelViewSet sans aucune restriction de méthode ni override de destroy(),
+        si bien que `DELETE /api/logistics/tickets/{id}/` supprimait réellement le
+        ticket dès le seuil générique CHEF_SECTION atteint — contournant tout le
+        cycle de statuts et le REX obligatoire à CLOSED. Un ticket correctif ne
+        doit jamais pouvoir disparaître, quel que soit le rôle appelant : seul le
+        cycle de statuts (transition()) fait foi (SuppressionInterditeMixin,
+        matrix/core/mixins.py)."""
+        for role in ROLES:
+            with self.subTest(role=role.name):
+                ticket = CorrectiveTicket.objects.create(
+                    asset=self.asset, description=f"Ticket {role.name}",
+                )
+                client = self.client_pour(role, api=True)
+                r = client.delete(f"/api/logistics/tickets/{ticket.id}/")
+                # 403 pour un rôle sous le seuil d'écriture générique (RolePermission
+                # tranche AVANT même la résolution de la méthode HTTP), 405 au-delà
+                # (DELETE retiré de http_method_names) : dans tous les cas, jamais
+                # supprimé — c'est le seul point qui compte ici.
+                self.assertIn(r.status_code, (403, 405))
+                self.assertTrue(CorrectiveTicket.objects.filter(pk=ticket.id).exists())
+
 
 class StockPieceMatriceTests(MatricePermissionsTestCase):
     """Stock de pièces : lecture ouverte à tout rôle, création/modification

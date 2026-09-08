@@ -57,6 +57,21 @@ class ShipViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("Vous ne pouvez modifier que votre unité.")
         serializer.save()
 
+    def perform_destroy(self, instance):
+        # Suppression d'un navire réservée à l'administrateur général : cette
+        # action supprime en cascade tout ce qui est rattaché (services,
+        # secteurs, sections...), au même titre que perform_create ci-dessus
+        # réserve déjà la CRÉATION d'un navire au seul administrateur général.
+        # Avant ce correctif, aucune restriction n'existait sur destroy() : un
+        # simple CHEF_SECTION satisfaisant le seuil générique d'écriture
+        # (RolePermission) pouvait supprimer son propre navire et tout ce
+        # qu'il contient (audit suite au refus du Tech Lead sur
+        # CorrectiveTicketViewSet, tâche Notion « Matrice de tests de
+        # permissions »).
+        if not _is_master_admin(self.request.user):
+            raise PermissionDenied("Vous ne pouvez pas supprimer d'unité.")
+        instance.delete()
+
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.select_related("ship").all().order_by("ship__name", "name")
     serializer_class = ServiceSerializer
@@ -87,6 +102,16 @@ class ServiceViewSet(viewsets.ModelViewSet):
             if not user_ship_id or not ship or ship.id != user_ship_id:
                 raise PermissionDenied("Service hors de l'unité autorisée.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        # Même seuil que perform_update ci-dessus : aucune restriction
+        # n'existait sur destroy() avant ce correctif (même audit que
+        # ShipViewSet.perform_destroy).
+        if not _is_master_admin(self.request.user):
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or instance.ship_id != user_ship_id:
+                raise PermissionDenied("Service hors de l'unité autorisée.")
+        instance.delete()
 
 class SectorViewSet(viewsets.ModelViewSet):
     queryset = Sector.objects.select_related("service", "service__ship").all().order_by("service__name", "name")
@@ -119,6 +144,15 @@ class SectorViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("Secteur hors de l'unité autorisée.")
         serializer.save()
 
+    def perform_destroy(self, instance):
+        # Même seuil que perform_update ci-dessus (même audit que
+        # ShipViewSet.perform_destroy).
+        if not _is_master_admin(self.request.user):
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or instance.service.ship_id != user_ship_id:
+                raise PermissionDenied("Secteur hors de l'unité autorisée.")
+        instance.delete()
+
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.select_related("sector", "sector__service", "sector__service__ship").all().order_by("sector__name", "name")
     serializer_class = SectionSerializer
@@ -149,6 +183,15 @@ class SectionViewSet(viewsets.ModelViewSet):
             if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
                 raise PermissionDenied("Section hors de l'unité autorisée.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        # Même seuil que perform_update ci-dessus (même audit que
+        # ShipViewSet.perform_destroy).
+        if not _is_master_admin(self.request.user):
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or instance.sector.service.ship_id != user_ship_id:
+                raise PermissionDenied("Section hors de l'unité autorisée.")
+        instance.delete()
 
 class SectorConfigViewSet(viewsets.ModelViewSet):
     queryset = SectorConfig.objects.select_related("sector").all()
@@ -189,3 +232,12 @@ class SectorConfigViewSet(viewsets.ModelViewSet):
             if not user_ship_id or not sector or sector.service.ship_id != user_ship_id:
                 raise PermissionDenied("Configuration hors de l'unité autorisée.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        # Même seuil que perform_update ci-dessus (même audit que
+        # ShipViewSet.perform_destroy).
+        if not _is_master_admin(self.request.user):
+            user_ship_id = _user_ship_id(self.request.user)
+            if not user_ship_id or instance.sector.service.ship_id != user_ship_id:
+                raise PermissionDenied("Configuration hors de l'unité autorisée.")
+        instance.delete()
