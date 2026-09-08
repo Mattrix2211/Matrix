@@ -11,13 +11,15 @@ from django.urls import reverse
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import F, Q
-from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
+from .models import (
+    CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
+    destinataires_ticket, niveau_alerte_ticket,
+)
 from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
-from notifications.models import Notification, NotificationLevel
-from accounts.models import Roles, UserProfile
+from notifications.models import Notification
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -113,20 +115,6 @@ def _ship_du_profil_q(ship_id):
         | Q(profile__sector__service__ship_id=ship_id)
         | Q(profile__section__sector__service__ship_id=ship_id)
     )
-
-def _destinataires_ticket(asset):
-    """Chefs concernés par un ticket correctif portant sur cet actif — même
-    construction que notifications/tasks.py::_destinataires_installation
-    (chef de service/secteur dont le périmètre correspond, et chef de section
-    si l'actif en a une), reprise ici plutôt que dupliquée en profondeur : un
-    Asset porte directement les 4 champs de périmètre, comme StockPiece."""
-    scope_filter = Q(role=Roles.CHEF_SERVICE, service=asset.service) | Q(
-        role=Roles.CHEF_SECTEUR, sector=asset.sector
-    )
-    if asset.section_id:
-        scope_filter |= Q(role=Roles.CHEF_SECTION, section=asset.section)
-    return UserProfile.objects.filter(scope_filter).select_related("user")
-
 
 _ENTETES_EXPORT_STOCK = [
     'Référence', 'Désignation', 'NNO', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
@@ -246,17 +234,11 @@ class TicketCreateView(LoginRequiredMixin, View):
         # Alerte les chefs du périmètre de l'actif dès le signalement, pour
         # qu'ils n'aient pas à consulter la liste des tickets pour découvrir
         # l'anomalie (§38 cahier des charges, exemple « création de ticket
-        # correctif »). Niveau aligné sur le code couleur déjà utilisé pour la
-        # jauge de sévérité (ticket_list.html: rouge >= 4, ambre == 3, vert < 3) :
-        # une anomalie grave (Web Push, DANGER) n'a pas le même besoin
-        # d'urgence qu'une anomalie mineure (in-app seul, INFO).
-        if gravite >= 4:
-            niveau_alerte = NotificationLevel.DANGER
-        elif gravite == 3:
-            niveau_alerte = NotificationLevel.WARNING
-        else:
-            niveau_alerte = NotificationLevel.INFO
-        for profile in _destinataires_ticket(asset):
+        # correctif »). Destinataires et niveau mutualisés (logistics/models.py)
+        # avec le chemin de création automatique via l'inspection QR
+        # (maintenance/models.py::create_corrective_on_non_conform).
+        niveau_alerte = niveau_alerte_ticket(gravite)
+        for profile in destinataires_ticket(asset):
             if profile.user_id == request.user.id:
                 continue
             Notification.objects.create(

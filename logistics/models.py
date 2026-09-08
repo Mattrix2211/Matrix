@@ -1,11 +1,14 @@
 import uuid
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from matrix.core.models import TimeStampedModel, OwnedModel
 from assets.models import Asset, Installation
 from org.models import Ship, Service, Sector, Section
+from accounts.models import Roles, UserProfile
+from notifications.models import NotificationLevel
 
 User = get_user_model()
 
@@ -188,3 +191,34 @@ class StockPiece(TimeStampedModel, OwnedModel):
 
     def __str__(self):
         return f"{self.reference} - {self.designation}"
+
+
+def destinataires_ticket(asset):
+    """Chefs concernés par un ticket correctif portant sur cet actif — même
+    construction que notifications/tasks.py::_destinataires_installation
+    (chef de service/secteur dont le périmètre correspond, et chef de section
+    si l'actif en a une). Point unique, appelable aussi bien depuis la
+    création manuelle d'un ticket (logistics/web_views.py::TicketCreateView)
+    que depuis la création automatique via le signal d'inspection QR
+    (maintenance/models.py::create_corrective_on_non_conform), pour ne pas
+    dupliquer cette logique de destinataires entre les deux chemins."""
+    scope_filter = Q(role=Roles.CHEF_SERVICE, service=asset.service) | Q(
+        role=Roles.CHEF_SECTEUR, sector=asset.sector
+    )
+    if asset.section_id:
+        scope_filter |= Q(role=Roles.CHEF_SECTION, section=asset.section)
+    return UserProfile.objects.filter(scope_filter).select_related("user")
+
+
+def niveau_alerte_ticket(severity):
+    """Mappe la gravité d'un ticket correctif (1-5) vers un niveau de
+    notification — même code couleur que la jauge de sévérité affichée dans
+    ticket_list.html (rouge >= 4, ambre == 3, vert < 3) : une anomalie grave
+    déclenche un Web Push (DANGER), une anomalie mineure reste in-app (INFO).
+    Point unique, partagé par la création manuelle et la création automatique
+    d'un ticket correctif."""
+    if severity >= 4:
+        return NotificationLevel.DANGER
+    if severity == 3:
+        return NotificationLevel.WARNING
+    return NotificationLevel.INFO

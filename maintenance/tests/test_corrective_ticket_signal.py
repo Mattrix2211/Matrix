@@ -2,10 +2,12 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 
+from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
 from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket, TicketStatusLog
 from maintenance.models import MaintenanceOccurrence, MaintenanceExecution, MaintenancePlan
+from notifications.models import Notification, NotificationLevel
 
 
 class CorrectiveTicketSignalTests(TestCase):
@@ -103,3 +105,68 @@ class CorrectiveTicketSignalTests(TestCase):
         ticket = CorrectiveTicket.objects.get(asset=self.asset)
         self.assertEqual(ticket.status, "REPORTED")
         self.assertIn(str(occ.id), ticket.description)
+
+
+class CorrectiveTicketSignalNotificationTests(TestCase):
+    """Le chemin de création automatique (inspection QR non conforme) doit
+    informer les chefs du périmètre au même titre que le signalement manuel
+    (tâche Notion « Élargir les notifications au-delà du seul niveau DANGER »)
+    — c'est le même événement métier (anomalie détectée sur un actif), seul
+    le déclencheur diffère."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Notif QR", code="NQR")
+        self.service = Service.objects.create(ship=self.ship, name="Service Notif QR")
+        self.sector = Sector.objects.create(service=self.service, name="Secteur Notif QR")
+        self.asset_type = AssetType.objects.create(name="Extincteur", category="Incendie", sector=self.sector)
+        self.asset = Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+        )
+        self.plan = MaintenancePlan.objects.create(
+            scope="ASSET", asset=self.asset, name="Contrôle annuel", every_n_days=365,
+        )
+        self.tech = User.objects.create_user(username="tech_notif_qr", password="pass")
+
+        self.chef_secteur = User.objects.create_user(username="chef_secteur_notif_qr", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.chef_secteur, defaults={"role": "CHEF_SECTEUR", "sector": self.sector}
+        )
+
+    def _executer_inspection_non_conforme(self):
+        occ = MaintenanceOccurrence.objects.create(
+            plan=self.plan, asset=self.asset, scheduled_for="2026-01-15", status="ASSIGNED",
+        )
+        MaintenanceExecution.objects.create(
+            occurrence=occ, executed_by=self.tech, conformity="NON_CONFORME",
+        )
+        return occ
+
+    def test_chef_du_perimetre_est_notifie_a_la_creation_automatique(self):
+        self._executer_inspection_non_conforme()
+        ticket = CorrectiveTicket.objects.get(asset=self.asset)
+        notif = Notification.objects.get(user=self.chef_secteur)
+        # Ticket auto-créé avec severity=3 (valeur par défaut) → niveau WARNING,
+        # même mapping que la création manuelle (severity == 3).
+        self.assertEqual(notif.level, NotificationLevel.WARNING)
+        self.assertIn(str(self.asset), notif.verb)
+        self.assertIn(ticket.description, notif.verb)
+
+    def test_technicien_executant_nest_pas_notifie_en_double(self):
+        # Si le technicien qui a exécuté l'inspection est aussi un chef du
+        # périmètre (ici du secteur, seul niveau scopé par l'actif dans ce
+        # test), il n'a pas besoin d'être notifié de sa propre inspection.
+        UserProfile.objects.update_or_create(
+            user=self.tech, defaults={"role": "CHEF_SECTEUR", "sector": self.sector}
+        )
+        self._executer_inspection_non_conforme()
+        self.assertFalse(Notification.objects.filter(user=self.tech).exists())
+
+    def test_pas_de_notification_si_aucun_ticket_nest_cree(self):
+        # Non-régression : une exécution conforme ne crée ni ticket ni
+        # notification (le garde "if created_ticket" ne doit pas se déclencher
+        # sur un get_or_create qui récupère un ticket déjà existant).
+        occ = MaintenanceOccurrence.objects.create(
+            plan=self.plan, asset=self.asset, scheduled_for="2026-01-15", status="ASSIGNED",
+        )
+        MaintenanceExecution.objects.create(occurrence=occ, executed_by=self.tech, conformity="CONFORME")
+        self.assertFalse(Notification.objects.exists())

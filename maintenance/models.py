@@ -8,7 +8,8 @@ from assets.models import AssetType
 from assets.models import InstallationHourReading, ModeDeclenchement
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from logistics.models import CorrectiveTicket, TicketStatusLog
+from logistics.models import CorrectiveTicket, TicketStatusLog, destinataires_ticket, niveau_alerte_ticket
+from notifications.models import Notification
 
 User = get_user_model()
 
@@ -148,3 +149,19 @@ def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", c
         )
         if created_ticket:
             TicketStatusLog.objects.create(ticket=ticket, old_status="REPORTED", new_status="REPORTED")
+            # Alerte les chefs du périmètre dès la création automatique du ticket,
+            # au même titre que le signalement manuel (logistics/web_views.py::
+            # TicketCreateView) — c'est le même événement métier (anomalie
+            # détectée sur un actif), seul le déclencheur diffère (inspection QR
+            # non conforme plutôt qu'un signalement direct). Destinataires et
+            # niveau mutualisés (logistics/models.py) pour ne pas dupliquer cette
+            # logique entre les deux chemins de création.
+            niveau_alerte = niveau_alerte_ticket(ticket.severity)
+            for profile in destinataires_ticket(asset):
+                if instance.executed_by_id and profile.user_id == instance.executed_by_id:
+                    continue
+                Notification.objects.create(
+                    user=profile.user,
+                    level=niveau_alerte,
+                    verb=f"Anomalie détectée sur {asset} lors d'une inspection : {ticket.description}",
+                )
