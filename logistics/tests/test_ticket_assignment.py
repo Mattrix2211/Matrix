@@ -12,6 +12,7 @@ from django.urls import reverse
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket
+from notifications.models import Notification
 from org.models import Sector, Service, Ship
 
 
@@ -215,3 +216,27 @@ class TicketAssignViewTests(TestCase):
         self.client.login(username="equipier_ass", password="pass")
         response = self.client.get(reverse("ticket-detail", args=[self.ticket.id]))
         self.assertNotContains(response, 'name="assignees"')
+
+    def test_marin_nouvellement_assigne_est_notifie(self):
+        self.client.login(username="chef_ass", password="pass")
+        self.client.post(self.url, {"assignees": [str(self.marin.id)]}, follow=True)
+        notif = Notification.objects.get(user=self.marin)
+        self.assertIn("assigné", notif.verb)
+        self.assertIn("Élingue usée", notif.verb)
+
+    def test_marin_deja_assigne_nest_pas_renotifie(self):
+        self.ticket.assignees.add(self.marin)
+        self.client.login(username="chef_ass", password="pass")
+        self.client.post(
+            self.url, {"assignees": [str(self.marin.id), str(self.equipier.id)]}, follow=True
+        )
+        self.assertFalse(Notification.objects.filter(user=self.marin).exists())
+        self.assertTrue(Notification.objects.filter(user=self.equipier).exists())
+
+    def test_chef_qui_sassigne_lui_meme_nest_pas_notifie(self):
+        # self.chef est scopé au secteur de l'actif : il correspond déjà au
+        # filtre _ship_du_profil_q via profile__sector__service__ship_id, pas
+        # besoin de lui affecter un navire en direct.
+        self.client.login(username="chef_ass", password="pass")
+        self.client.post(self.url, {"assignees": [str(self.chef.id)]}, follow=True)
+        self.assertFalse(Notification.objects.filter(user=self.chef).exists())

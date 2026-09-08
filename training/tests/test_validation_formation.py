@@ -17,6 +17,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from accounts.models import UserProfile
+from notifications.models import Notification
 from org.models import Section, Sector, Service, Ship
 from training.models import ReferentFormation, TrainingCourse, TrainingRecord
 
@@ -58,6 +59,20 @@ class ValidationFormationTests(TestCase):
         self.assertEqual(record.completed_at, date(2026, 1, 15))
         self.assertEqual(record.expires_at, date(2027, 1, 15))
         self.assertEqual(record.validated_by, self.chef)
+
+    def test_le_marin_est_notifie_de_sa_formation_validee(self):
+        # Tâche Notion « Élargir les notifications au-delà du seul niveau
+        # DANGER » : le marin concerné doit être informé de sa qualification,
+        # pas seulement le chef qui valide (message Django affiché à ce dernier).
+        self.client.login(username="chef_validation", password="pass")
+        self.client.post("/formations/valider/", {
+            "marin_id": self.marin.id,
+            "course_id": self.course.id,
+            "completed_at": "2026-01-15",
+        })
+        notif = Notification.objects.get(user=self.marin)
+        self.assertIn("Équipier de sécurité incendie", notif.verb)
+        self.assertIn("15/01/2027", notif.verb)
 
     def test_equipier_ne_peut_pas_valider(self):
         self.client.login(username="equipier_sans_droit", password="pass")

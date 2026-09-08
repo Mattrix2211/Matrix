@@ -47,6 +47,43 @@ def notify_overdue_occurrences():
             )
     return {"status": "ok"}
 
+# Nombre de jours avant l'échéance d'une occurrence de maintenance assignée à
+# partir duquel un rappel est envoyé aux marins qui s'en sont déclarés preneurs
+# (auto-assignation) — AVANT qu'elle ne passe en retard. notify_overdue_occurrences
+# ci-dessus ne couvre que l'échéance déjà dépassée (DANGER) ; ce rappel-ci
+# intervient plus tôt, en WARNING, sur le même principe que
+# JOURS_ALERTE_EXPIRATION_FORMATION mais avec une fenêtre plus courte, cohérente
+# avec la maille habituelle d'une occurrence de maintenance (jours/semaines,
+# rarement des mois comme une formation).
+JOURS_ALERTE_ECHEANCE_MAINTENANCE = 3
+
+
+@shared_task
+def notify_maintenance_echeance_proche(jours=JOURS_ALERTE_ECHEANCE_MAINTENANCE):
+    """Rappelle aux marins assignés qu'une occurrence de maintenance arrive à
+    échéance sous peu (§38 cahier des charges, exemple « maintenance assignée
+    avec échéance »), avant qu'elle ne passe en retard.
+
+    Une occurrence sans assigné n'intéresse personne en particulier (aucun
+    marin ne s'en est encore déclaré preneur) et n'est donc pas concernée ici :
+    seul un marin déjà assigné (auto-assignation depuis le tableau de
+    pilotage) reçoit ce rappel préventif.
+    """
+    cible = timezone.localdate() + timedelta(days=jours)
+    occurrences = MaintenanceOccurrence.objects.filter(scheduled_for=cible).exclude(
+        status__in=("DONE", "CANCELLED", "OVERDUE")
+    ).select_related(
+        'plan', 'installation_maintenance', 'installation_maintenance__installation'
+    ).prefetch_related('assignees')
+    for occ in occurrences:
+        for u in occ.assignees.all():
+            Notification.objects.get_or_create(
+                user=u,
+                verb=f"Échéance proche ({jours} j) : {occ.titre_affiche}",
+                defaults={"level": NotificationLevel.WARNING},
+            )
+    return {"status": "ok"}
+
 @shared_task
 def notify_low_stock():
     """Alerte les chefs concernés dès qu'une pièce de stock passe sous son seuil minimal.

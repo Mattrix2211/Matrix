@@ -16,6 +16,8 @@ from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.scopes import scope_filters_for_user
+from notifications.models import Notification, NotificationLevel
+from accounts.models import Roles, UserProfile
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -111,6 +113,20 @@ def _ship_du_profil_q(ship_id):
         | Q(profile__sector__service__ship_id=ship_id)
         | Q(profile__section__sector__service__ship_id=ship_id)
     )
+
+def _destinataires_ticket(asset):
+    """Chefs concernés par un ticket correctif portant sur cet actif — même
+    construction que notifications/tasks.py::_destinataires_installation
+    (chef de service/secteur dont le périmètre correspond, et chef de section
+    si l'actif en a une), reprise ici plutôt que dupliquée en profondeur : un
+    Asset porte directement les 4 champs de périmètre, comme StockPiece."""
+    scope_filter = Q(role=Roles.CHEF_SERVICE, service=asset.service) | Q(
+        role=Roles.CHEF_SECTEUR, sector=asset.sector
+    )
+    if asset.section_id:
+        scope_filter |= Q(role=Roles.CHEF_SECTION, section=asset.section)
+    return UserProfile.objects.filter(scope_filter).select_related("user")
+
 
 _ENTETES_EXPORT_STOCK = [
     'Référence', 'Désignation', 'NNO', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
@@ -226,6 +242,29 @@ class TicketCreateView(LoginRequiredMixin, View):
         TicketStatusLog.objects.create(
             ticket=ticket, old_status='REPORTED', new_status='REPORTED', user=request.user
         )
+
+        # Alerte les chefs du périmètre de l'actif dès le signalement, pour
+        # qu'ils n'aient pas à consulter la liste des tickets pour découvrir
+        # l'anomalie (§38 cahier des charges, exemple « création de ticket
+        # correctif »). Niveau aligné sur le code couleur déjà utilisé pour la
+        # jauge de sévérité (ticket_list.html: rouge >= 4, ambre == 3, vert < 3) :
+        # une anomalie grave (Web Push, DANGER) n'a pas le même besoin
+        # d'urgence qu'une anomalie mineure (in-app seul, INFO).
+        if gravite >= 4:
+            niveau_alerte = NotificationLevel.DANGER
+        elif gravite == 3:
+            niveau_alerte = NotificationLevel.WARNING
+        else:
+            niveau_alerte = NotificationLevel.INFO
+        for profile in _destinataires_ticket(asset):
+            if profile.user_id == request.user.id:
+                continue
+            Notification.objects.create(
+                user=profile.user,
+                level=niveau_alerte,
+                verb=f"Anomalie signalée sur {asset} : {description}",
+            )
+
         messages.success(request, "Anomalie signalée : le ticket correctif a été créé.")
         return redirect('ticket-detail', pk=ticket.pk)
 
@@ -248,11 +287,26 @@ class TicketAssignView(LoginRequiredMixin, View):
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
+        anciens_assignes = set(ticket.assignees.all())
         ids = request.POST.getlist('assignees')
         # On ne retient que des utilisateurs de l'équipage du navire de l'actif
         # concerné, même filtre que le formulaire (contournement d'un POST direct).
-        utilisateurs = User.objects.filter(_ship_du_profil_q(ticket.asset.ship_id), pk__in=ids)
+        utilisateurs = list(User.objects.filter(_ship_du_profil_q(ticket.asset.ship_id), pk__in=ids))
         ticket.assignees.set(utilisateurs)
+
+        # Notifie uniquement les marins nouvellement assignés (pas ceux déjà
+        # présents avant cette mise à jour, ni l'auteur de l'assignation
+        # lui-même s'il s'est ajouté : il vient de le faire, inutile de le
+        # notifier de sa propre action — même principe que l'auto-assignation
+        # d'une occurrence de maintenance, maintenance/web_views.py).
+        for marin in set(utilisateurs) - anciens_assignes:
+            if marin.id == request.user.id:
+                continue
+            Notification.objects.create(
+                user=marin,
+                verb=f"Vous avez été assigné(e) au ticket correctif : {ticket.asset} — {ticket.description[:80]}",
+            )
+
         messages.info(request, "Assignation du ticket mise à jour.")
         return redirect('ticket-detail', pk=ticket.pk)
 

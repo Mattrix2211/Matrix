@@ -213,6 +213,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notifications.tasks.notify_overdue_occurrences",
         "schedule": 60 * 60,
     },
+    # Rappel préventif AVANT l'échéance (WARNING), complémentaire de la tâche
+    # ci-dessus qui n'alerte qu'une fois l'échéance déjà dépassée (DANGER).
+    "notify_maintenance_echeance_proche_daily": {
+        "task": "notifications.tasks.notify_maintenance_echeance_proche",
+        "schedule": 60 * 60 * 24,
+    },
     "notify_low_stock_daily": {
         "task": "notifications.tasks.notify_low_stock",
         "schedule": 60 * 60 * 24,

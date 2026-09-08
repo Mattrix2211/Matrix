@@ -1884,6 +1884,17 @@ class ValiderFormationView(LoginRequiredMixin, View):
             validated_by=request.user,
             created_by=request.user,
         )
+        # Informe le marin lui-même de sa qualification validée (§38 cahier des
+        # charges, notifications intelligentes) — jusqu'ici seul le chef qui
+        # valide voyait la confirmation (message Django ci-dessous), le marin
+        # concerné n'était jamais notifié.
+        Notification.objects.create(
+            user=marin,
+            verb=(
+                f"Formation « {course.title} » validée : expire le "
+                f"{expires_at.strftime('%d/%m/%Y')}."
+            ),
+        )
         # Niveau 25 = validation réussie (constante de niveau la plus élevée du
         # module de messages Django, juste au-dessus du niveau d'information).
         messages.add_message(

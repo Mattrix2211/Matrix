@@ -4,6 +4,7 @@ from django.test import TestCase
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket
+from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Service, Ship
 
 
@@ -57,3 +58,64 @@ class TicketCreateViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(CorrectiveTicket.objects.filter(asset=self.asset_b).exists())
+
+
+class TicketCreateViewNotificationTests(TestCase):
+    """Le signalement d'une anomalie doit informer réellement les chefs du
+    périmètre concerné (tâche Notion « Élargir les notifications au-delà du
+    seul niveau DANGER »), pas seulement apparaître dans la liste des tickets."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Notif", code="NN")
+        self.service = Service.objects.create(ship=self.ship, name="Service Notif")
+        self.sector = Sector.objects.create(service=self.service, name="Secteur Notif")
+        self.asset_type = AssetType.objects.create(name="Pompe", category="Méca", sector=self.sector)
+        self.asset = Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+        )
+
+        self.equipier = User.objects.create_user(username="equipier_notif", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.equipier, defaults={"role": "EQUIPIER", "ship": self.ship}
+        )
+
+        self.chef_secteur = User.objects.create_user(username="chef_secteur_notif", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.chef_secteur, defaults={"role": "CHEF_SECTEUR", "sector": self.sector}
+        )
+
+        self.client.login(username="equipier_notif", password="pass")
+
+    def test_chef_du_perimetre_est_notifie_a_la_creation(self):
+        self.client.post(
+            f"/logistics/tickets/creer/{self.asset.id}/",
+            {"description": "Fuite hydraulique", "severity": "3"},
+        )
+        notif = Notification.objects.get(user=self.chef_secteur)
+        self.assertEqual(notif.level, NotificationLevel.WARNING)
+        self.assertIn("Fuite hydraulique", notif.verb)
+
+    def test_severite_faible_notifie_en_info(self):
+        self.client.post(
+            f"/logistics/tickets/creer/{self.asset.id}/",
+            {"description": "Rayure cosmétique", "severity": "1"},
+        )
+        notif = Notification.objects.get(user=self.chef_secteur)
+        self.assertEqual(notif.level, NotificationLevel.INFO)
+
+    def test_severite_elevee_notifie_en_danger_avec_push_reserve(self):
+        self.client.post(
+            f"/logistics/tickets/creer/{self.asset.id}/",
+            {"description": "Panne majeure", "severity": "5"},
+        )
+        notif = Notification.objects.get(user=self.chef_secteur)
+        self.assertEqual(notif.level, NotificationLevel.DANGER)
+
+    def test_le_signaleur_lui_meme_nest_pas_notifie_en_double(self):
+        # Le signaleur (equipier_notif) est déjà auto-assigné au ticket : il
+        # sait ce qu'il vient de faire, pas besoin de le lui notifier.
+        self.client.post(
+            f"/logistics/tickets/creer/{self.asset.id}/",
+            {"description": "Fuite", "severity": "3"},
+        )
+        self.assertFalse(Notification.objects.filter(user=self.equipier).exists())
