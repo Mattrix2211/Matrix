@@ -2,13 +2,14 @@ from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from assets.models import Asset
+from assets.models import Asset, AssetDocument
 from logistics.models import CorrectiveTicket
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from accounts.models import GradeChoice, SpecialityChoice, ServiceFunctionChoice, RoleAvailability, Roles, AuditLog
 from assets.models import InstallationBigrameChoice, Installation
+from training.models import TrainingCourse
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig
 from django.contrib import messages
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
@@ -44,14 +45,25 @@ def _lignes_seuils(ship_id, portee_visee):
 def global_search(request):
     # Recherche globale réservée aux utilisateurs connectés, restreinte à leur
     # périmètre (navire/service/secteur/section) via scope_filters_for_user —
-    # pas de nouveau système de scope. Le matériel porte directement les champs
-    # de périmètre ; les tickets et les personnes n'en ont pas, on traduit donc
-    # le périmètre via la relation vers le matériel (asset) ou le profil (profile).
+    # pas de nouveau système de scope. Le matériel et les installations portent
+    # directement les champs de périmètre ; les tickets, les documents et les
+    # personnes n'en ont pas, on traduit donc le périmètre via la relation vers
+    # le matériel (asset) ou le profil (profile).
+    #
+    # Couverture §37 cahier des charges (recherche universelle) — 6 types sur
+    # les 9 listés : matériel mobile, installations (équipement fixe), tickets
+    # correctifs, personnes, formations, documents. Volontairement hors
+    # périmètre de cette itération (cf. commentaire Notion de la tâche) :
+    # tâches (aucun modèle "Tâche" unique n'existe — un marin suit ses
+    # échéances via son espace personnel, pas via un objet cherchable dédié),
+    # événements de calendrier et discussions — pour éviter la sur-ingénierie
+    # et prioriser les types les plus utiles au quotidien en premier.
     q = request.GET.get('q', '').strip()
     perimetre = scope_filters_for_user(request.user)
     perimetre_tickets = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
+    perimetre_documents = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
     perimetre_users = {f"profile__{cle}": valeur for cle, valeur in perimetre.items()}
-    assets = tickets = users = []
+    assets = tickets = users = installations = formations = documents = []
     if q:
         assets = Asset.objects.filter(**perimetre).filter(
             Q(internal_id__icontains=q) | Q(serial_number__icontains=q)
@@ -62,7 +74,23 @@ def global_search(request):
         users = User.objects.filter(**perimetre_users).filter(
             Q(username__icontains=q) | Q(email__icontains=q)
         )[:20]
-    return render(request, 'search.html', {"q": q, "assets": assets, "tickets": tickets, "users": users})
+        installations = Installation.objects.select_related('ship', 'service', 'sector').filter(**perimetre).filter(
+            Q(designation__icontains=q) | Q(reference__icontains=q)
+        )[:20]
+        # Formation : fiche UNIQUE et globale (pas de rattachement navire, cf.
+        # TrainingCourse et TrainingCourseListView) — même filtre "catalogue
+        # actif" que la liste des formations, aucun périmètre supplémentaire à
+        # appliquer puisque le référentiel est déjà commun à toute la flotte.
+        formations = TrainingCourse.objects.filter(statut_validation="ACTIVE").filter(
+            Q(title__icontains=q) | Q(category__icontains=q)
+        )[:20]
+        documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
+            Q(name__icontains=q)
+        )[:20]
+    return render(request, 'search.html', {
+        "q": q, "assets": assets, "tickets": tickets, "users": users,
+        "installations": installations, "formations": formations, "documents": documents,
+    })
 
 
 def logout_then_login(request):
