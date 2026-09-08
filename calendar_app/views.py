@@ -16,6 +16,7 @@ from .models import PersonalEvent
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.scopes import scope_filters_for_user
 from matrix.core.mixins import build_scope_q
+from accounts.models import AuditLog
 
 
 def _perimetre_ticket(qs, user):
@@ -547,6 +548,14 @@ def calendar_event_move(request):
             return HttpResponseForbidden()
         t.planned_for = new_date
         t.save(update_fields=["planned_for"])
+        # Journal d'audit transverse : modification de la planification d'un
+        # ticket depuis le calendrier central, potentiellement par un chef
+        # non assigné au ticket — cf. tâche Notion « Unifier les modèles
+        # d'historique/audit ».
+        AuditLog.objects.create(
+            actor=request.user, action="calendar_move_ticket",
+            details=f"ticket={t.pk}; planned_for={new_date.isoformat()}",
+        )
         return JsonResponse({"ok": True})
     if ev_type == "maintenance" and ev_id:
         try:
@@ -566,6 +575,16 @@ def calendar_event_move(request):
                 return HttpResponseForbidden()
         occ.scheduled_for = new_date
         occ.save(update_fields=["scheduled_for"])
+        if not est_assigne:
+            # Journal d'audit transverse : seul le cas d'un chef qui replanifie
+            # l'occurrence d'un TIERS est tracé (action à enjeu, cf. tâche
+            # Notion « Unifier les modèles d'historique/audit ») — un assigné
+            # qui déplace sa propre occurrence reste un geste courant,
+            # équivalent à un événement personnel.
+            AuditLog.objects.create(
+                actor=request.user, action="calendar_move_occurrence",
+                details=f"occurrence={occ.pk}; scheduled_for={new_date.isoformat()}",
+            )
         return JsonResponse({"ok": True})
     if ev_type == "training" and ev_id:
         # CHEF_SECTION+ peut déplacer une session de formation, à condition
@@ -587,6 +606,13 @@ def calendar_event_move(request):
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         s.scheduled_at = aware_dt
         s.save(update_fields=["scheduled_at"])
+        # Journal d'audit transverse : replanification d'une session de
+        # formation partagée (impacte tous les inscrits/présents), cf. tâche
+        # Notion « Unifier les modèles d'historique/audit ».
+        AuditLog.objects.create(
+            actor=request.user, action="calendar_move_training_session",
+            details=f"session={s.pk}; course={s.course_id}; scheduled_at={aware_dt.isoformat()}",
+        )
         return JsonResponse({"ok": True})
     if ev_type == "personal" and ev_id:
         try:

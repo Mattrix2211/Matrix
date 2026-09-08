@@ -15,6 +15,7 @@ from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import Ship
+from accounts.models import AuditLog
 
 from .models import (
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
@@ -1780,6 +1781,14 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             raise PermissionDenied
         course.statut_validation = "ACTIVE"
         course.save(update_fields=["statut_validation"])
+        # Journal d'audit transverse (§30 cahier des charges) : validation d'une
+        # formation « bord » proposée par un chef de secteur — action sensible
+        # équivalente à la validation d'un ticket/occurrence critique, cf. tâche
+        # Notion « Unifier les modèles d'historique/audit ».
+        AuditLog.objects.create(
+            actor=request.user, action="validate_training_course_bord",
+            target_user=course.updated_by, details=f"course={course.pk}; title={course.title}",
+        )
         if course.updated_by_id:
             Notification.objects.create(
                 user_id=course.updated_by_id,
@@ -1806,6 +1815,10 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             raise PermissionDenied
         course.statut_validation = "REFUSED"
         course.save(update_fields=["statut_validation"])
+        AuditLog.objects.create(
+            actor=request.user, action="refuse_training_course_bord",
+            target_user=course.updated_by, details=f"course={course.pk}; title={course.title}",
+        )
         if course.updated_by_id:
             Notification.objects.create(
                 user_id=course.updated_by_id,
@@ -1883,6 +1896,14 @@ class ValiderFormationView(LoginRequiredMixin, View):
             expires_at=expires_at,
             validated_by=request.user,
             created_by=request.user,
+        )
+        # Journal d'audit transverse (§30 cahier des charges) : validation
+        # qu'un marin a suivi/réussi une formation — action sensible au même
+        # titre qu'une validation de maintenance/ticket, cf. tâche Notion
+        # « Unifier les modèles d'historique/audit ».
+        AuditLog.objects.create(
+            actor=request.user, action="validate_training_record", target_user=marin,
+            details=f"course={course.pk}; title={course.title}; expire_le={expires_at.isoformat()}",
         )
         # Informe le marin lui-même de sa qualification validée (§38 cahier des
         # charges, notifications intelligentes) — jusqu'ici seul le chef qui

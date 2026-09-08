@@ -7,6 +7,7 @@ from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, b
 from django.contrib.contenttypes.models import ContentType
 from threads.models import Thread, Message
 from matrix.core.permissions import RolePermission
+from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -91,6 +92,14 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
                 champs += ["valide_par", "date_validation"]
             ticket.save(update_fields=champs)
             TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user)
+            # Journal transverse (AuditLog) en plus du TicketStatusLog dédié —
+            # même principe que TicketTransitionView (logistics/web_views.py),
+            # cf. tâche Notion « Unifier les modèles d'historique/audit ».
+            AuditLog.objects.create(
+                actor=request.user,
+                action='ticket_status_change' if new_status != 'RETURNED_TO_SERVICE' else 'ticket_validation_critique',
+                details=f'ticket={ticket.pk}; {old} -> {new_status}',
+            )
             # system thread message
             ct = ContentType.objects.get_for_model(CorrectiveTicket)
             thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(ticket.pk))

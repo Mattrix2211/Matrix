@@ -11,6 +11,7 @@ from .models import (
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
 from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from matrix.core.permissions import RolePermission
+from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -95,8 +96,21 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
         if not exec.started_at:
             exec.started_at = timezone.now()
             exec.save()
+        ancien_statut = occ.status
         occ.status = "IN_PROGRESS"
         occ.save(update_fields=["status"])
+        # Historique structuré (propre à l'occurrence, affichable sur sa fiche)
+        # + entrée dans le journal transverse (AuditLog) — même principe que
+        # CorrectiveTicketViewSet.transition (logistics/views.py) : les deux
+        # mécanismes coexistent, cf. tâche Notion « Unifier les modèles
+        # d'historique/audit ».
+        OccurrenceStatusLog.objects.create(
+            occurrence=occ, old_status=ancien_statut, new_status="IN_PROGRESS", user=request.user,
+        )
+        AuditLog.objects.create(
+            actor=request.user, action="occurrence_status_change",
+            details=f"occurrence={occ.pk}; {ancien_statut} -> IN_PROGRESS",
+        )
         return response.Response(MaintenanceExecutionSerializer(exec).data)
 
     @decorators.action(detail=True, methods=["post"])
@@ -128,8 +142,20 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
             exec.valide_par = request.user
             exec.date_validation = timezone.now()
         exec.save()
+        ancien_statut = occ.status
         occ.status = "DONE" if exec.conformity != "NON_CONFORME" else "WAITING_VALIDATION"
         occ.save(update_fields=["status"])
+        OccurrenceStatusLog.objects.create(
+            occurrence=occ, old_status=ancien_statut, new_status=occ.status, user=request.user,
+        )
+        # Action sensible (§30 cahier des charges) : passage en "Terminée" d'une
+        # installation critique exige la signature de validation vérifiée
+        # ci-dessus — l'entrée d'audit distingue ce cas via exige_validation.
+        AuditLog.objects.create(
+            actor=request.user,
+            action="occurrence_status_change" if not exige_validation else "occurrence_validation_critique",
+            details=f"occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}",
+        )
         if occ.status == "DONE":
             mettre_a_jour_echeance_installation(occ)
         return response.Response(MaintenanceExecutionSerializer(exec).data)

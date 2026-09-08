@@ -9,13 +9,17 @@ from django.http import HttpResponseBadRequest
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.utils import timezone
-from .models import MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, mettre_a_jour_echeance_installation
+from .models import (
+    MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, OccurrenceStatusLog,
+    mettre_a_jour_echeance_installation,
+)
 from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemplate
 from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, commentaires_de
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.roles import user_role_level
 from matrix.core.role_thresholds import niveau_requis_pour
+from accounts.models import AuditLog
 
 
 class OccurrenceExecuteView(LoginRequiredMixin, View):
@@ -103,8 +107,21 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         exec_obj.save()
 
         # Mettre à jour le statut de l'occurrence (le signal gère le ticket si NON_CONFORME)
+        ancien_statut = occ.status
         occ.status = 'DONE' if conformity != 'NON_CONFORME' else 'WAITING_VALIDATION'
         occ.save(update_fields=['status'])
+        # Historique structuré de l'occurrence + journal transverse (AuditLog) —
+        # même principe que TicketTransitionView (logistics/web_views.py), cf.
+        # tâche Notion « Unifier les modèles d'historique/audit ».
+        OccurrenceStatusLog.objects.create(
+            occurrence=occ, old_status=ancien_statut, new_status=occ.status,
+            user=request.user if request.user.is_authenticated else None,
+        )
+        AuditLog.objects.create(
+            actor=request.user if request.user.is_authenticated else None,
+            action='occurrence_status_change' if not exige_validation else 'occurrence_validation_critique',
+            details=f'occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}',
+        )
         if occ.status == 'DONE':
             # Occurrence liée à une installation fixe : remise à zéro de l'échéance
             # (branche compteur uniquement ici, la branche calendaire est relue

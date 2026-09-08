@@ -6,6 +6,7 @@ from .serializers import ThreadSerializer, MessageSerializer, AttachmentSerializ
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import IsAuthorOrReadOnly, RolePermission
 from matrix.core.scopes import scope_filters_for_user
+from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -72,6 +73,18 @@ class ThreadViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user)
 
+    def perform_destroy(self, instance):
+        # Suppression d'un fil de discussion entier (cascade sur tous ses
+        # messages) : action sensible, tracée dans le journal transverse
+        # AVANT suppression effective, pour conserver l'identifiant de
+        # l'objet concerné — cf. tâche Notion « Unifier les modèles
+        # d'historique/audit ».
+        AuditLog.objects.create(
+            actor=self.request.user, action="delete_thread",
+            details=f"thread={instance.pk}; objet={instance.content_type}#{instance.object_id}",
+        )
+        super().perform_destroy(instance)
+
 class MessageViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Message.objects.select_related("thread", "author").all()
     serializer_class = MessageSerializer
@@ -79,6 +92,17 @@ class MessageViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
 
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user, prefix="thread__")
+
+    def perform_destroy(self, instance):
+        # Suppression d'un message d'une discussion : action sensible (un
+        # message peut porter une décision ou une consigne), tracée dans le
+        # journal transverse — cf. tâche Notion « Unifier les modèles
+        # d'historique/audit ».
+        AuditLog.objects.create(
+            actor=self.request.user, action="delete_message",
+            details=f"message={instance.pk}; thread={instance.thread_id}",
+        )
+        super().perform_destroy(instance)
 
 class AttachmentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Attachment.objects.select_related("message").all()

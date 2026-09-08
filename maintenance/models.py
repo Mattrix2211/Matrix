@@ -10,6 +10,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from logistics.models import CorrectiveTicket, TicketStatusLog, destinataires_ticket, niveau_alerte_ticket
 from notifications.models import Notification
+from accounts.models import AuditLog
 
 User = get_user_model()
 
@@ -149,6 +150,14 @@ def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", c
         )
         if created_ticket:
             TicketStatusLog.objects.create(ticket=ticket, old_status="REPORTED", new_status="REPORTED")
+            # Journal transverse (AuditLog) en plus du TicketStatusLog dédié —
+            # même principe que les créations manuelles de ticket, cf. tâche
+            # Notion « Unifier les modèles d'historique/audit ». actor=None :
+            # création automatique par le signal, pas par un utilisateur.
+            AuditLog.objects.create(
+                actor=instance.executed_by, action="create_ticket_auto",
+                details=f"ticket={ticket.pk}; asset={asset}; occurrence={occ.id}",
+            )
             # Alerte les chefs du périmètre dès la création automatique du ticket,
             # au même titre que le signalement manuel (logistics/web_views.py::
             # TicketCreateView) — c'est le même événement métier (anomalie

@@ -230,6 +230,14 @@ class TicketCreateView(LoginRequiredMixin, View):
         TicketStatusLog.objects.create(
             ticket=ticket, old_status='REPORTED', new_status='REPORTED', user=request.user
         )
+        # Journal transverse (AuditLog) en plus du TicketStatusLog dédié — le
+        # premier reste la référence de l'historique propre au ticket (affiché
+        # à terme sur sa fiche), le second alimente la vue d'audit globale
+        # (onglet Réglages > Journal). Cf. tâche Notion « Unifier les modèles
+        # d'historique/audit ».
+        AuditLog.objects.create(
+            actor=request.user, action='create_ticket', details=f'ticket={ticket.pk}; asset={asset}',
+        )
 
         # Alerte les chefs du périmètre de l'actif dès le signalement, pour
         # qu'ils n'aient pas à consulter la liste des tickets pour découvrir
@@ -357,6 +365,14 @@ class TicketTransitionView(LoginRequiredMixin, View):
             messages.error(request, erreur_fermeture)
         else:
             TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user if request.user.is_authenticated else None)
+            # Action sensible (§30 cahier des charges) : la remise en service
+            # exige la signature de validation vérifiée plus haut — l'entrée
+            # d'audit distingue ce cas des autres transitions.
+            AuditLog.objects.create(
+                actor=request.user if request.user.is_authenticated else None,
+                action='ticket_status_change' if new_status != 'RETURNED_TO_SERVICE' else 'ticket_validation_critique',
+                details=f'ticket={ticket.pk}; {old} -> {new_status}',
+            )
 
         if request.headers.get('HX-Request'):
             part_requests = ticket.part_requests.prefetch_related('lines').all()
