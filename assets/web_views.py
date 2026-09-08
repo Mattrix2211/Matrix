@@ -133,13 +133,17 @@ def _dernier_par_installation(queryset, champ_installation='installation_id'):
 
 
 def _peut_gerer_materiel(user):
-    """Seuils d'écriture pour la création/modification/suppression de dossiers,
-    matériels et installations : CHEF_SECTION et au-dessus, comme pour l'API DRF
-    (RolePermission.min_level_write) — un ÉQUIPIER ne doit pas pouvoir créer un
-    dossier, un matériel ou une installation. Attention à ne pas confondre avec
-    _peut_gerer_rattachement_parent (CHEF_SERVICE), seuil plus élevé réservé au
-    seul rattachement parent/enfant : l'appliquer ici bloquerait à tort un
-    CHEF_SECTEUR alors qu'il doit pouvoir créer un dossier ou un matériel."""
+    """Seuil d'accès à l'import en masse de matériel (AssetImportView,
+    AssetImportModeleView) : CHEF_SECTION et au-dessus, en dur — usage isolé et
+    volontairement non migré vers le registre configurable ACTION_VERS_SEUIL
+    (fonctionnalité annexe, pas une action de création/édition/suppression
+    couverte par ce registre). Ne plus utiliser cette fonction pour les actions
+    déjà migrées de AssetListView.post()/InstallationListView.post()
+    (create_folder, create_asset, create_installation, etc.) : le contrôle en
+    tête de post() via ACTION_VERS_SEUIL/niveau_requis_pour suffit désormais et
+    rend le seuil configurable par navire (bug corrigé après refus du Tech
+    Lead : un doublon avec ce seuil codé en dur rendait la configuration sans
+    effet réel sur ces actions)."""
     return user_role_level(user) >= RoleLevel.CHEF_SECTION
 
 
@@ -789,13 +793,11 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
         # Folder operations
         if action == 'create_folder':
-            # Création d'un dossier : réservée aux CHEF_SECTION et au-dessus, même
-            # seuil que la création de matériel ci-dessous. Un ÉQUIPIER ne doit pas
-            # pouvoir ajouter un dossier (bug sécurité corrigé ici) ; attention à ne
-            # pas reprendre le seuil CHEF_SERVICE du rattachement parent, plus élevé,
-            # qui bloquerait à tort un CHEF_SECTEUR.
-            if not _peut_gerer_materiel(request.user):
-                raise PermissionDenied
+            # Création d'un dossier : seuil déjà vérifié en tête de post() via
+            # ACTION_VERS_SEUIL['create_folder'] = 'asset_ecriture_simple'
+            # (configurable par navire) — ne pas dupliquer le contrôle avec
+            # _peut_gerer_materiel, sous peine de rendre la configuration sans
+            # effet réel sur cette action (bug corrigé après refus du Tech Lead).
             name = request.POST.get('name', '').strip()
             parent_id = request.POST.get('parent_id')
             parent = AssetFolder.objects.filter(pk=parent_id).first() if parent_id else None
@@ -843,13 +845,13 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
         # Single create/edit/delete
         if action == 'create_asset':
-            # Création d'un matériel : réservée aux CHEF_SECTION et au-dessus (même
-            # seuil que l'API DRF, cf. RolePermission.min_level_write) — un ÉQUIPIER
-            # ne doit pas pouvoir ajouter de matériel (bug sécurité corrigé ici).
+            # Création d'un matériel : seuil déjà vérifié en tête de post() via
+            # ACTION_VERS_SEUIL['create_asset'] = 'asset_ecriture_simple'
+            # (configurable par navire) — ne pas dupliquer le contrôle avec
+            # _peut_gerer_materiel, sous peine de rendre la configuration sans
+            # effet réel sur cette action (bug corrigé après refus du Tech Lead).
             # L'édition et la suppression restent volontairement ouvertes à tous les
             # utilisateurs connectés (comportement existant, cf. tests T2/T3).
-            if not _peut_gerer_materiel(request.user):
-                raise PermissionDenied
             type_id = request.POST.get('asset_type_id')
             internal_id = request.POST.get('internal_id', '').strip()
             serial = request.POST.get('serial_number', '').strip()
@@ -1282,13 +1284,13 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 )
 
         if action == 'create_installation':
-            # Création d'une installation : réservée aux CHEF_SECTION et au-dessus,
-            # même seuil que la création de matériel — un ÉQUIPIER ne doit pas
-            # pouvoir en ajouter une (bug sécurité corrigé ici). L'édition et la
-            # suppression restent volontairement ouvertes à tous les utilisateurs
-            # connectés (comportement existant, cf. tests T2/T3).
-            if not _peut_gerer_materiel(request.user):
-                raise PermissionDenied
+            # Création d'une installation : seuil déjà vérifié en tête de post() via
+            # ACTION_VERS_SEUIL['create_installation'] = 'installation_ecriture_simple'
+            # (configurable par navire) — ne pas dupliquer le contrôle avec
+            # _peut_gerer_materiel, sous peine de rendre la configuration sans
+            # effet réel sur cette action (bug corrigé après refus du Tech Lead).
+            # L'édition et la suppression restent volontairement ouvertes à tous les
+            # utilisateurs connectés (comportement existant, cf. tests T2/T3).
             designation = request.POST.get('designation', '').strip()
             reference = request.POST.get('reference', '').strip()
             marque = request.POST.get('marque', '').strip()

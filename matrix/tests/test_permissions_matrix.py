@@ -34,7 +34,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import GradeChoice, UserProfile
-from assets.models import Asset, AssetType, Deck, Installation, InstallationMaintenance, Zone
+from assets.models import Asset, AssetFolder, AssetType, Deck, Installation, InstallationMaintenance, Zone
 from calendar_app.models import PersonalEvent
 from logistics.models import CorrectiveTicket, StockPiece
 from matrix.core.role_thresholds import invalidate_cache
@@ -742,6 +742,72 @@ class SeuilRoleConfigurableTests(MatricePermissionsTestCase):
         r = chef_section.post("/assets/", payload)
         self.assertEqual(r.status_code, 403)
         self.assertFalse(Asset.objects.filter(internal_id="INT-RELEVE-2").exists())
+
+    def test_seuil_navire_web_asset_ecriture_simple_abaisse_a_equipier(self):
+        """Régression du refus du Tech Lead : create_folder/create_asset dans
+        AssetListView.post() (assets/web_views.py) appelaient en plus, de façon
+        redondante, l'ancienne fonction _peut_gerer_materiel codée en dur sur
+        CHEF_SECTION — si bien qu'abaisser asset_ecriture_simple sous ce seuil
+        via RoleThresholdConfig restait sans effet réel : le contrôle en tête
+        de post() laissait passer, mais l'appel redondant bloquait quand même.
+        Ce test ABAISSE le seuil (contrairement aux deux tests précédents qui
+        ne font que le relever) et prouve qu'un ÉQUIPIER, normalement
+        insuffisant, peut désormais créer un dossier et un matériel."""
+        asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
+        equipier = self.client_pour(RoleLevel.EQUIPIER)
+
+        # Avant configuration : seuil par défaut CHEF_SECTION, refusé à l'ÉQUIPIER.
+        r = equipier.post("/assets/", {"action": "create_folder", "name": "Dossier avant"})
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(AssetFolder.objects.filter(name="Dossier avant").exists())
+
+        # Reconfiguration du navire : asset_ecriture_simple abaissé à EQUIPIER.
+        RoleThresholdConfig.objects.create(
+            ship=self.ship, thresholds={"asset_ecriture_simple": "EQUIPIER"},
+        )
+        invalidate_cache(self.ship.id)
+
+        # Après configuration : le même ÉQUIPIER, sur le même navire, réussit désormais.
+        r = equipier.post("/assets/", {"action": "create_folder", "name": "Dossier après"})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(AssetFolder.objects.filter(name="Dossier après").exists())
+
+        r = equipier.post("/assets/", {
+            "action": "create_asset", "internal_id": "INT-EQUIPIER", "serial_number": "SN-EQUIPIER",
+            "designation": "Matériel créé par équipier", "ship_id": str(self.ship.id),
+            "service_id": str(self.service.id), "sector_id": str(self.sector.id),
+            "asset_type_id": str(asset_type.id),
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Asset.objects.filter(internal_id="INT-EQUIPIER").exists())
+
+    def test_seuil_navire_web_installation_ecriture_simple_abaisse_a_equipier(self):
+        """Même régression que ci-dessus, côté InstallationListView.post() :
+        create_installation appelait aussi _peut_gerer_materiel en plus du
+        contrôle configurable en tête de post(), rendant installation_ecriture_simple
+        sans effet réel une fois abaissé sous CHEF_SECTION."""
+        equipier = self.client_pour(RoleLevel.EQUIPIER)
+        payload = {
+            "action": "create_installation", "designation": "Pompe créée par équipier",
+            "ship_id": str(self.ship.id), "service_id": str(self.service.id),
+            "sector_id": str(self.sector.id), "section_id": str(self.section.id),
+        }
+
+        # Avant configuration : seuil par défaut CHEF_SECTION, refusé à l'ÉQUIPIER.
+        r = equipier.post("/installations/", payload)
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(Installation.objects.filter(designation="Pompe créée par équipier").exists())
+
+        # Reconfiguration du navire : installation_ecriture_simple abaissé à EQUIPIER.
+        RoleThresholdConfig.objects.create(
+            ship=self.ship, thresholds={"installation_ecriture_simple": "EQUIPIER"},
+        )
+        invalidate_cache(self.ship.id)
+
+        # Après configuration : le même ÉQUIPIER, sur le même navire, réussit désormais.
+        r = equipier.post("/installations/", payload)
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Installation.objects.filter(designation="Pompe créée par équipier").exists())
 
     def test_seuil_global_referentiel_ne_depend_pas_du_navire(self):
         """referentiel_global_ecriture (grades/spécialités, référentiel commun à
