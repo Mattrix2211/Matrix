@@ -290,7 +290,8 @@ def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
         nb_maintenances = len(evenements["maintenances"])
         nb_formations = len(evenements["formations"])
         nb_personnels = len(evenements["personnels"])
-        if not (nb_maintenances or nb_formations or nb_personnels):
+        nb_creneaux = len(evenements["creneaux"])
+        if not (nb_maintenances or nb_formations or nb_personnels or nb_creneaux):
             continue
 
         parts = []
@@ -298,6 +299,8 @@ def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
             parts.append(f"{nb_maintenances} maintenance(s)")
         if nb_formations:
             parts.append(f"{nb_formations} formation(s)")
+        if nb_creneaux:
+            parts.append(f"{nb_creneaux} créneau(x) de quart/garde")
         if nb_personnels:
             parts.append(f"{nb_personnels} événement(s) personnel(s)")
         verb = f"{prefixe}: {', '.join(parts)} le {target_date.strftime('%d/%m/%Y')}"

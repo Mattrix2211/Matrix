@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
+from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
 from .models import PersonalEvent
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.scopes import scope_filters_for_user
@@ -74,6 +75,39 @@ def _appliquer_filtres_occurrences(qs, filters):
     return qs
 
 
+def _creneaux_quart_assignes(start, end, user=None):
+    """Créneaux de quart affectés à un marin, sur la période donnée, dont la
+    liste (Quart) est déjà PUBLIÉE — une liste en brouillon reste une
+    préparation interne au chef de liste, jamais montrée sur le calendrier
+    personnel avant publication (cf. Quart.publier, quarts/models.py). Un
+    créneau sans marin affecté n'apparaît jamais ici (pas encore une
+    affectation personnelle). `user` restreint à un seul marin (vue
+    personnelle) ; laissé à None, tous les créneaux affectés de la période
+    sont renvoyés (vue globale), même principe que les sessions de formation
+    (cf. _perimetre_session ci-dessus : l'affectation personnelle prime sur
+    le périmètre organisationnel pour ce type d'événement)."""
+    qs = CreneauQuart.objects.select_related("quart", "marin").filter(
+        quart__statut=Quart.STATUT_PUBLIEE, marin__isnull=False, debut__date__range=(start, end)
+    )
+    if user is not None:
+        qs = qs.filter(marin=user)
+    return qs
+
+
+def _creneaux_garde_assignes(start, end, user=None):
+    """Équivalent de _creneaux_quart_assignes pour les services de garde
+    (ServiceGarde/CreneauServiceGarde) — même logique, factorisée en deux
+    fonctions distinctes (pas une seule générique) pour rester cohérente avec
+    la décision de garder Quart et ServiceGarde comme deux modèles Django
+    distincts (cf. docstring de quarts/models.py)."""
+    qs = CreneauServiceGarde.objects.select_related("service_garde", "marin").filter(
+        service_garde__statut=ServiceGarde.STATUT_PUBLIEE, marin__isnull=False, debut__date__range=(start, end)
+    )
+    if user is not None:
+        qs = qs.filter(marin=user)
+    return qs
+
+
 def _evenements_personnels(user, start, end):
     """Événements personnels libres (rappels, notes) créés par l'utilisateur,
     dans la période affichée. Toujours restreints à leur propriétaire, quels
@@ -105,7 +139,12 @@ def evenements_utilisateur_jour(user, day):
         .distinct()
     )
     personnels = list(_evenements_personnels(user, day, day))
-    return {"maintenances": maintenances, "formations": formations, "personnels": personnels}
+    # Créneaux de quart/service de garde assignés à `user` ce jour-là, cf.
+    # _creneaux_quart_assignes/_creneaux_garde_assignes ci-dessus — même
+    # agrégation que le calendrier personnel (calendar_events), pas de
+    # système parallèle.
+    creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user))
+    return {"maintenances": maintenances, "formations": formations, "personnels": personnels, "creneaux": creneaux}
 
 
 def _peut_agir_occurrence(occ, user, ids_perimetre, niveau_role):
@@ -301,6 +340,33 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                     "url": "",
                     "status": None,
                 })
+
+        # Créneaux de quart/service de garde affectés à un marin, sur les
+        # listes déjà publiées (cf. _creneaux_quart_assignes ci-dessus) —
+        # même principe que les sessions de formation : affectation
+        # personnelle (marin) plutôt que périmètre organisationnel.
+        if not filters.get("type") or filters["type"] == "quart":
+            quart_qs = _creneaux_quart_assignes(start, end, filters.get("user") or None)
+            for c in quart_qs:
+                events.append({
+                    "type": "quart",
+                    "title": f"Quart - {c.poste}",
+                    "start": c.debut.isoformat(),
+                    "end": c.fin.isoformat(),
+                    "url": f"/quarts/quart/{c.quart_id}/",
+                    "status": None,
+                })
+        if not filters.get("type") or filters["type"] == "service_garde":
+            garde_qs = _creneaux_garde_assignes(start, end, filters.get("user") or None)
+            for c in garde_qs:
+                events.append({
+                    "type": "service_garde",
+                    "title": f"Garde - {c.poste}",
+                    "start": c.debut.isoformat(),
+                    "end": c.fin.isoformat(),
+                    "url": f"/quarts/garde/{c.service_garde_id}/",
+                    "status": None,
+                })
         return events
 
 
@@ -364,10 +430,15 @@ _COULEUR_STATUT_MAINTENANCE = {
     "WAITING_VALIDATION": {"backgroundColor": "#0dcaf0", "borderColor": "#0aa8cc", "textColor": "#000"},
 }
 _COULEUR_PAR_TYPE = {
-    "maintenance": {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
-    "ticket":      {"backgroundColor": "#fd7e14", "borderColor": "#d96307", "textColor": "#fff"},
-    "training":    {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
-    "personal":    {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
+    "maintenance":   {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
+    "ticket":        {"backgroundColor": "#fd7e14", "borderColor": "#d96307", "textColor": "#fff"},
+    "training":      {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
+    "personal":      {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
+    # Teintes assombries par rapport à un simple "teal"/"pink" Bootstrap : un
+    # texte blanc sur #20c997/#d63384 ne respecte pas le contraste WCAG AA
+    # (ratio < 4.5:1) — #0b7285/#a61e4d passent largement (ratio > 5:1).
+    "quart":         {"backgroundColor": "#0b7285", "borderColor": "#095c6b", "textColor": "#fff"},
+    "service_garde": {"backgroundColor": "#a61e4d", "borderColor": "#84173d", "textColor": "#fff"},
 }
 
 def _couleur_evenement(ev_type, status=None):
@@ -491,6 +562,42 @@ def calendar_events(request):
             "extendedProps": {"type": "training", "status": s.status, "peut_agir": False},
             **couleur,
         })
+    # Créneaux de quart : affectation personnelle du marin (marin), pas de
+    # périmètre organisationnel — même principe que les sessions de
+    # formation ci-dessus. Seules les listes déjà PUBLIÉES sont montrées
+    # (cf. _creneaux_quart_assignes). Aucune action rapide ni déplacement
+    # depuis le calendrier pour cette V1 (l'échange de service est une tâche
+    # séparée à venir, cf. quarts/models.py) : "editable" toujours faux.
+    if not filters.get("type") or filters["type"] == "quart":
+        quart_qs = _creneaux_quart_assignes(start, end, filters.get("user") or None)
+        for c in quart_qs:
+            couleur = _couleur_evenement("quart")
+            events.append({
+                "id": f"qrt-{c.id}",
+                "title": f"⏱ {c.poste}",
+                "start": c.debut.isoformat(),
+                "end": c.fin.isoformat(),
+                "url": f"/quarts/quart/{c.quart_id}/",
+                "editable": False,
+                "extendedProps": {"type": "quart", "status": None, "peut_agir": False},
+                **couleur,
+            })
+    # Créneaux de service de garde : même principe que les créneaux de quart
+    # ci-dessus (cf. _creneaux_garde_assignes).
+    if not filters.get("type") or filters["type"] == "service_garde":
+        garde_qs = _creneaux_garde_assignes(start, end, filters.get("user") or None)
+        for c in garde_qs:
+            couleur = _couleur_evenement("service_garde")
+            events.append({
+                "id": f"svc-{c.id}",
+                "title": f"🛡 {c.poste}",
+                "start": c.debut.isoformat(),
+                "end": c.fin.isoformat(),
+                "url": f"/quarts/garde/{c.service_garde_id}/",
+                "editable": False,
+                "extendedProps": {"type": "service_garde", "status": None, "peut_agir": False},
+                **couleur,
+            })
     # Événements personnels libres : uniquement ceux du marin connecté,
     # affichés à côté des événements auto-générés sur son calendrier.
     if not filters.get("type") or filters["type"] == "personal":

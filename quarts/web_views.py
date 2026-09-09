@@ -4,10 +4,17 @@ Périmètre de cette tâche (cf. tâche Notion « Quarts/services ») : un chef 
 liste désigné crée une liste (Quart ou ServiceGarde) sur une période, y
 affecte des marins sur des créneaux, et la publie. Explicitement hors
 périmètre (tâches séparées à venir) : échange de service entre marins,
-génération automatique de répartition, affichage des créneaux dans le
-calendrier personnel du marin — cette dernière limite volontairement la
-visibilité en lecture ci-dessous à une simple fiche détail, pas une
-intégration calendrier.
+génération automatique de répartition.
+
+L'affichage des créneaux assignés dans le calendrier personnel du marin (cf.
+tâche Notion « Quarts/services : afficher les créneaux assignés dans le
+calendrier personnel du marin ») est désormais fait — mais PAS ici : il vit
+dans calendar_app (calendar_app/views.py::_creneaux_quart_assignes/
+_creneaux_garde_assignes, calendar_events, ical_views.py), qui agrège déjà
+toutes les sources d'événements du calendrier central, pour ne pas dupliquer
+cette mécanique. La visibilité en lecture ci-dessous reste volontairement
+limitée à une simple fiche détail d'une liste précise (_peut_lire_liste),
+consultée depuis le lien "Voir la fiche complète" du popover calendrier.
 """
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -198,10 +205,11 @@ def _listes_publiees_me_concernant(model, user):
     """Listes déjà PUBLIÉES dont le périmètre couvre le rattachement
     organisationnel de `user` (son propre niveau, ou tout niveau ANCÊTRE qui
     l'englobe — ex. un marin d'une section voit aussi les listes publiées au
-    niveau du secteur, du service ou du navire) — seul moyen, dans le
-    périmètre de cette tâche, pour un marin sans rôle de chef de liste de
-    consulter une liste le concernant (l'intégration au calendrier personnel
-    est une tâche séparée à venir, cf. docstring de module)."""
+    niveau du secteur, du service ou du navire) — moyen, pour un marin sans
+    rôle de chef de liste, de consulter la fiche complète d'une liste le
+    concernant depuis ce tableau de bord (ses créneaux personnels affectés
+    apparaissent en plus directement sur son calendrier, cf. docstring de
+    module)."""
     profile = getattr(user, "profile", None)
     if not profile:
         return model.objects.none()

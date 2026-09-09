@@ -4,6 +4,7 @@ from django.utils import timezone
 from icalendar import Calendar, Event
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
+from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
 from .models import PersonalEvent
 
 def user_ical_feed(request):
@@ -37,6 +38,28 @@ def user_ical_feed(request):
         ev.add('summary', f"Formation: {s.course.title}")
         ev.add('dtstart', s.scheduled_at)
         ev.add('dtend', s.scheduled_at)
+        cal.add_component(ev)
+    # Créneaux de quart/service de garde affectés au marin, sur les listes
+    # déjà PUBLIÉES uniquement (une liste en brouillon reste une préparation
+    # interne au chef de liste, cf. Quart.publier, quarts/models.py) — même
+    # mécanisme de calendrier personnel que ci-dessus.
+    quart_qs = CreneauQuart.objects.filter(
+        marin=request.user, quart__statut=Quart.STATUT_PUBLIEE
+    ).select_related('quart')
+    for c in quart_qs:
+        ev = Event()
+        ev.add('summary', f"Quart: {c.poste}")
+        ev.add('dtstart', c.debut)
+        ev.add('dtend', c.fin)
+        cal.add_component(ev)
+    garde_qs = CreneauServiceGarde.objects.filter(
+        marin=request.user, service_garde__statut=ServiceGarde.STATUT_PUBLIEE
+    ).select_related('service_garde')
+    for c in garde_qs:
+        ev = Event()
+        ev.add('summary', f"Garde: {c.poste}")
+        ev.add('dtstart', c.debut)
+        ev.add('dtend', c.fin)
         cal.add_component(ev)
     # Événements personnels libres du marin (rappels, notes).
     for pe in PersonalEvent.objects.filter(owner=request.user):

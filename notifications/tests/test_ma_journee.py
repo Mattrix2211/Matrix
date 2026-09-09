@@ -16,6 +16,7 @@ from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from notifications.models import Notification
 from notifications.tasks import notify_ma_journee, notify_ma_journee_demain
 from org.models import Sector, Service, Ship
+from quarts.models import CreneauQuart, Quart
 from training.models import TrainingCourse, TrainingSession
 
 
@@ -113,6 +114,29 @@ class MaJourneeTests(TestCase):
 
         notif = Notification.objects.get(user=self.marin)
         self.assertIn("1 formation(s)", notif.verb)
+
+    def test_ma_journee_resume_un_creneau_de_quart_assigne(self):
+        """Un créneau de quart affecté au marin, sur une liste déjà publiée,
+        doit remonter dans le digest — même agrégation que le calendrier
+        personnel (calendar_app.evenements_utilisateur_jour)."""
+        quart = Quart.objects.create(
+            sector=self.sector, date_debut=self.today, date_fin=self.today, statut=Quart.STATUT_PUBLIEE,
+        )
+        CreneauQuart.objects.create(
+            quart=quart, poste="Barre",
+            debut=timezone.make_aware(
+                timezone.datetime.combine(self.today, timezone.datetime.min.time().replace(hour=8))
+            ),
+            fin=timezone.make_aware(
+                timezone.datetime.combine(self.today, timezone.datetime.min.time().replace(hour=12))
+            ),
+            marin=self.marin,
+        )
+
+        notify_ma_journee()
+
+        notif = Notification.objects.get(user=self.marin)
+        self.assertIn("1 créneau(x) de quart/garde", notif.verb)
 
     def test_pas_de_doublon_meme_execution_multiple_meme_jour(self):
         MaintenanceOccurrence.objects.create(

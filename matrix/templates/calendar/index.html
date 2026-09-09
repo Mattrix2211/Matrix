@@ -76,6 +76,8 @@
         <option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>🔧 Maintenance</option>
         <option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>🛠 Ticket</option>
         <option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>📚 Formation</option>
+        <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>⏱ Quart</option>
+        <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>🛡 Garde</option>
         <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>📌 Personnel</option>
       </select>
     </div>
@@ -115,6 +117,8 @@
     <span><span class="badge" style="background:#6c757d">✓ Terminée</span></span>
     <span><span class="badge" style="background:#fd7e14">🛠 Ticket</span></span>
     <span><span class="badge" style="background:#198754">📚 Formation</span></span>
+    <span><span class="badge" style="background:#0b7285">⏱ Quart</span></span>
+    <span><span class="badge" style="background:#a61e4d">🛡 Garde</span></span>
     <span><span class="badge" style="background:#6f42c1">📌 Personnel</span></span>
   </div>
 
