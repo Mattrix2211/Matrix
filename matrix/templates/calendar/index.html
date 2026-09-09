@@ -199,7 +199,7 @@
                         data-starts-at="{{ pe.starts_at|date:'Y-m-d\TH:i' }}" data-note="{{ pe.note }}">
                   Modifier
                 </button>
-                <form method="post" action="{% url 'calendar-personal-delete' pe.id %}" onsubmit="return confirm('Supprimer cet événement personnel ?');">
+                <form method="post" action="{% url 'calendar-personal-delete' pe.id %}" class="form-suppression-evenement-personnel">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">Suppr.</button>
                 </form>
@@ -209,6 +209,44 @@
             <li class="list-group-item small text-muted">Aucun événement personnel à venir.</li>
           {% endfor %}
         </ul>
+      </div>
+    </div>
+  </div>
+
+  {% comment %}
+  Modale de confirmation de suppression d'un événement personnel — remplace
+  le confirm() natif du navigateur (incompatible avec l'automatisation de
+  test et non personnalisable, cf. cadrage QA). Partagée par les deux points
+  d'entrée (liste "Mes événements personnels" et popover d'aperçu rapide) :
+  au clic sur "Supprimer", l'action réelle (soumission du formulaire ou
+  appel fetch, selon l'origine) est mémorisée puis exécutée seulement à la
+  confirmation, cf. script plus bas.
+  {% endcomment %}
+  {% comment %}
+  z-index relevé au-dessus du popover d'aperçu rapide (Bootstrap : popover
+  1070 > modale 1055 par défaut) : la modale doit rester lisible même quand
+  elle est ouverte depuis le bouton "Supprimer" du popover, laissé ouvert
+  derrière elle pour conserver l'affichage d'un éventuel message d'erreur
+  (voir afficherErreurPopover plus bas).
+  {% endcomment %}
+  <style>
+    #modaleConfirmationSuppressionEvenement { z-index: 1080; }
+  </style>
+  <div class="modal fade" id="modaleConfirmationSuppressionEvenement" tabindex="-1"
+       aria-hidden="true" aria-labelledby="modaleConfirmationSuppressionEvenementLabel">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modaleConfirmationSuppressionEvenementLabel">Supprimer l'événement</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">Supprimer cet événement personnel ? Cette action est définitive.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmerSuppressionEvenement">Supprimer</button>
+        </div>
       </div>
     </div>
   </div>
@@ -388,6 +426,32 @@ document.addEventListener('DOMContentLoaded', function () {
     return `${date.getFullYear()}-${deuxChiffres(date.getMonth() + 1)}-${deuxChiffres(date.getDate())}T${deuxChiffres(date.getHours())}:${deuxChiffres(date.getMinutes())}`;
   }
 
+  // --- Modale de confirmation de suppression (remplace confirm() natif) ---
+  const elementModaleSuppression = document.getElementById('modaleConfirmationSuppressionEvenement');
+  const modaleConfirmationSuppression = new bootstrap.Modal(elementModaleSuppression);
+  let actionSuppressionEnAttente = null;
+
+  // Ouvre la modale de confirmation et mémorise l'action à exécuter si
+  // l'utilisateur confirme (fermée sans rien faire sur "Annuler"/croix).
+  function demanderConfirmationSuppression(action) {
+    actionSuppressionEnAttente = action;
+    modaleConfirmationSuppression.show();
+  }
+
+  document.getElementById('btnConfirmerSuppressionEvenement').addEventListener('click', function () {
+    const action = actionSuppressionEnAttente;
+    actionSuppressionEnAttente = null;
+    modaleConfirmationSuppression.hide();
+    if (action) action();
+  });
+  // Si la modale est refermée sans confirmation (croix, "Annuler", touche
+  // Échap, clic hors modale), l'action mémorisée ne doit pas persister pour
+  // une prochaine ouverture accidentelle.
+  elementModaleSuppression.addEventListener('hidden.bs.modal', function () {
+    actionSuppressionEnAttente = null;
+  });
+  // --------------------------------------------------------------------
+
   let popoverActif = null;
   let elementDeclencheur = null;
 
@@ -445,20 +509,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const boutonSupprimer = bulle.querySelector('[data-popover-action="supprimer"]');
     if (boutonSupprimer) {
       boutonSupprimer.addEventListener('click', function () {
-        if (!confirm('Supprimer cet événement personnel ?')) return;
-        const idBrut = event.id.replace(/^per-/, '');
-        fetch(`/calendar/personnel/${idBrut}/supprimer/`, {
-          method: 'POST',
-          headers: { 'X-CSRFToken': getCookie('csrftoken') },
-        }).then(function (reponse) {
-          if (reponse.ok) {
-            fermerPopover();
-            calendar.refetchEvents();
-          } else {
-            afficherErreurPopover(bulle, "Échec de la suppression (session expirée ou erreur serveur). Réessayez.");
-          }
-        }).catch(function () {
-          afficherErreurPopover(bulle, "Échec de la suppression : connexion au serveur impossible.");
+        demanderConfirmationSuppression(function () {
+          const idBrut = event.id.replace(/^per-/, '');
+          fetch(`/calendar/personnel/${idBrut}/supprimer/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          }).then(function (reponse) {
+            if (reponse.ok) {
+              fermerPopover();
+              calendar.refetchEvents();
+            } else {
+              afficherErreurPopover(bulle, "Échec de la suppression (session expirée ou erreur serveur). Réessayez.");
+            }
+          }).catch(function () {
+            afficherErreurPopover(bulle, "Échec de la suppression : connexion au serveur impossible.");
+          });
         });
       });
     }
@@ -681,6 +746,18 @@ document.addEventListener('DOMContentLoaded', function () {
     champId.value = '';
     btnValider.textContent = 'Ajouter';
     btnAnnuler.classList.add('d-none');
+  });
+
+  // Suppression d'un événement personnel depuis la liste "Mes événements
+  // personnels" : la soumission classique du formulaire est interceptée
+  // pour passer par la modale de confirmation partagée ci-dessus, puis
+  // exécutée telle quelle (même formulaire, mêmes champs, même endpoint)
+  // une fois confirmée.
+  document.querySelectorAll('.form-suppression-evenement-personnel').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      demanderConfirmationSuppression(function () { form.submit(); });
+    });
   });
 });
 </script>
