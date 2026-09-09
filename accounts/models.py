@@ -88,6 +88,28 @@ class ServiceFunctionChoice(models.Model):
         return self.name
 
 
+class FonctionQuartChoice(models.Model):
+    """Référentiel configurable des fonctions de quart (ex. Barre, Veille,
+    Machine avant) — même pattern que ServiceFunctionChoice ci-dessus, mais
+    distinct : une fonction de QUART (rotation de postes courte) n'a pas le
+    même sens métier qu'une fonction de SERVICE/garde, et la nomenclature des
+    deux n'a aucune raison de coïncider (CLAUDE.md §6 : configuration plutôt
+    que code en dur, décision de cadrage du 09/09/2026 sur le module
+    Quarts/services). Utilisé par quarts.models.Quart.fonction — ServiceGarde
+    réutilise ServiceFunctionChoice ci-dessus, qui existait déjà pour la
+    fonction de service du profil marin."""
+
+    name = models.CharField(max_length=128, unique=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Fonction de quart"
+        verbose_name_plural = "Fonctions de quart"
+
+    def __str__(self):
+        return self.name
+
+
 class RoleAvailability(models.Model):
     code = models.CharField(max_length=64, choices=Roles.choices, unique=True)
     active = models.BooleanField(default=True)

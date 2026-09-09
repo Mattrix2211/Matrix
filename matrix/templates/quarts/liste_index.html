@@ -31,7 +31,7 @@
         <a href="{% url 'quart-detail' q.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
           <span>
             <span class="fw-semibold">{{ q.nom|default:"Liste de quarts" }}</span>
-            <span class="d-block small text-muted font-mono">{{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
+            <span class="d-block small text-muted font-mono">{{ q.fonction }} — {{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
           </span>
           <span class="badge {% if q.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ q.get_statut_display }}</span>
         </a>
@@ -50,7 +50,7 @@
         <a href="{% url 'garde-detail' g.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
           <span>
             <span class="fw-semibold">{{ g.nom|default:g.type_service|default:"Liste de services de garde" }}</span>
-            <span class="d-block small text-muted font-mono">{{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
+            <span class="d-block small text-muted font-mono">{{ g.fonction }} — {{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
           </span>
           <span class="badge {% if g.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ g.get_statut_display }}</span>
         </a>
@@ -69,13 +69,13 @@
     {% for q in quarts_publies_me_concernant %}
     <a href="{% url 'quart-detail' q.pk %}" class="list-group-item list-group-item-action">
       <span class="badge text-bg-secondary me-2">Quart</span>{{ q.nom|default:"Liste de quarts" }}
-      <span class="d-block small text-muted font-mono">{{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
+      <span class="d-block small text-muted font-mono">{{ q.fonction }} — {{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
     </a>
     {% endfor %}
     {% for g in gardes_publiees_me_concernant %}
     <a href="{% url 'garde-detail' g.pk %}" class="list-group-item list-group-item-action">
       <span class="badge text-bg-secondary me-2">Garde</span>{{ g.nom|default:g.type_service|default:"Liste de services de garde" }}
-      <span class="d-block small text-muted font-mono">{{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
+      <span class="d-block small text-muted font-mono">{{ g.fonction }} — {{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
     </a>
     {% endfor %}
   </div>
@@ -94,9 +94,27 @@
       <div class="modal-body">
         <div class="mb-3">
           <label class="form-label">Type de liste</label>
-          <select name="action" class="form-select" required>
+          <select name="action" id="creerListeType" class="form-select" required>
             <option value="creer_quart">Quart (rotation de postes)</option>
             <option value="creer_service_garde">Service à quai / garde</option>
+          </select>
+        </div>
+        <div class="mb-3" id="creerListeFonctionQuart">
+          <label class="form-label">Fonction de quart</label>
+          <select name="fonction_quart" class="form-select" required>
+            <option value="">— Choisir une fonction —</option>
+            {% for f in fonctions_quart %}
+            <option value="{{ f.pk }}">{{ f.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="creerListeFonctionService">
+          <label class="form-label">Fonction de service</label>
+          <select name="fonction_service" class="form-select">
+            <option value="">— Choisir une fonction —</option>
+            {% for f in fonctions_service %}
+            <option value="{{ f.pk }}">{{ f.name }}</option>
+            {% endfor %}
           </select>
         </div>
         <div class="mb-3">
@@ -129,5 +147,28 @@
     </form>
   </div>
 </div>
+<script>
+  // Bascule le champ "Fonction" affiché (quart ou service) selon le type de
+  // liste choisi — deux référentiels distincts (cf. quarts/models.py,
+  // correction de cadrage du 09/09/2026). Le champ masqué est désactivé
+  // (required retiré) pour ne pas bloquer la validation du formulaire.
+  (function () {
+    var typeSelect = document.getElementById('creerListeType');
+    var blocQuart = document.getElementById('creerListeFonctionQuart');
+    var blocService = document.getElementById('creerListeFonctionService');
+    if (!typeSelect || !blocQuart || !blocService) { return; }
+    var selectQuart = blocQuart.querySelector('select');
+    var selectService = blocService.querySelector('select');
+    function actualiser() {
+      var estQuart = typeSelect.value === 'creer_quart';
+      blocQuart.classList.toggle('d-none', !estQuart);
+      blocService.classList.toggle('d-none', estQuart);
+      selectQuart.required = estQuart;
+      selectService.required = !estQuart;
+    }
+    typeSelect.addEventListener('change', actualiser);
+    actualiser();
+  })();
+</script>
 {% endif %}
 {% endblock %}

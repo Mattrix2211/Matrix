@@ -7,7 +7,8 @@ from logistics.models import CorrectiveTicket
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
-from accounts.models import GradeChoice, SpecialityChoice, ServiceFunctionChoice, RoleAvailability, Roles, AuditLog
+from django.db.models import ProtectedError
+from accounts.models import GradeChoice, SpecialityChoice, ServiceFunctionChoice, FonctionQuartChoice, RoleAvailability, Roles, AuditLog
 from assets.models import InstallationBigrameChoice, Installation
 from training.models import TrainingCourse
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig
@@ -204,6 +205,7 @@ class SettingsView(LoginRequiredMixin, View):
             'grades': GradeChoice.objects.order_by('name'),
             'specialites': SpecialityChoice.objects.order_by('name'),
             'fonctions': ServiceFunctionChoice.objects.order_by('name'),
+            'fonctions_quart': FonctionQuartChoice.objects.order_by('name'),
             'bigrames': InstallationBigrameChoice.objects.order_by('name'),
             'installations': installations_qs,
             'global_vib_days_a': global_vib_days_a,
@@ -255,6 +257,10 @@ class SettingsView(LoginRequiredMixin, View):
             ServiceFunctionChoice.objects.get_or_create(name=name, defaults={'active': True})
             messages.success(request, "Fonction ajoutée.")
             AuditLog.objects.create(actor=request.user, action='add_fonction', details=f'name={name}')
+        elif action == 'add_fonction_quart' and name:
+            FonctionQuartChoice.objects.get_or_create(name=name, defaults={'active': True})
+            messages.success(request, "Fonction de quart ajoutée.")
+            AuditLog.objects.create(actor=request.user, action='add_fonction_quart', details=f'name={name}')
         elif action == 'add_ship' and name:
             code = request.POST.get('code', '').strip()
             type_unite = request.POST.get('type_unite') or Ship.TypeUnite.NAVIRE
@@ -395,9 +401,24 @@ class SettingsView(LoginRequiredMixin, View):
             AuditLog.objects.create(actor=request.user, action='delete_specialite', details=f'pk={pk}')
         elif action == 'delete_fonction':
             pk = request.POST.get('pk')
-            ServiceFunctionChoice.objects.filter(pk=pk).delete()
-            messages.success(request, "Fonction supprimée.")
-            AuditLog.objects.create(actor=request.user, action='delete_fonction', details=f'pk={pk}')
+            try:
+                ServiceFunctionChoice.objects.filter(pk=pk).delete()
+                messages.success(request, "Fonction supprimée.")
+                AuditLog.objects.create(actor=request.user, action='delete_fonction', details=f'pk={pk}')
+            except ProtectedError:
+                # Utilisée par au moins une liste de services de garde
+                # (quarts.models.ServiceGarde.fonction, on_delete=PROTECT) —
+                # on ne supprime pas silencieusement une fonction déjà en
+                # usage, cf. correction de cadrage du 09/09/2026.
+                messages.error(request, "Impossible de supprimer : cette fonction est utilisée par au moins une liste de services de garde.")
+        elif action == 'delete_fonction_quart':
+            pk = request.POST.get('pk')
+            try:
+                FonctionQuartChoice.objects.filter(pk=pk).delete()
+                messages.success(request, "Fonction de quart supprimée.")
+                AuditLog.objects.create(actor=request.user, action='delete_fonction_quart', details=f'pk={pk}')
+            except ProtectedError:
+                messages.error(request, "Impossible de supprimer : cette fonction est utilisée par au moins une liste de quarts.")
         elif action == 'add_bigrame' and name:
             InstallationBigrameChoice.objects.get_or_create(name=name, defaults={'active': True})
             messages.success(request, "Bigrame ajouté.")

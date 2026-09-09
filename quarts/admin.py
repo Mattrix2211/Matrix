@@ -19,8 +19,8 @@ class CreneauQuartInline(admin.TabularInline):
 
 @admin.register(Quart)
 class QuartAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("nom", "ship", "service", "sector", "section", "date_debut", "date_fin", "statut")
-    list_filter = ("statut", "ship", "service", "sector")
+    list_display = ("nom", "fonction", "ship", "service", "sector", "section", "date_debut", "date_fin", "statut")
+    list_filter = ("statut", "fonction", "ship", "service", "sector")
     inlines = [CreneauQuartInline]
 
 
@@ -31,6 +31,6 @@ class CreneauServiceGardeInline(admin.TabularInline):
 
 @admin.register(ServiceGarde)
 class ServiceGardeAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("nom", "type_service", "ship", "service", "sector", "section", "date_debut", "date_fin", "statut")
-    list_filter = ("statut", "ship", "service", "sector")
+    list_display = ("nom", "fonction", "type_service", "ship", "service", "sector", "section", "date_debut", "date_fin", "statut")
+    list_filter = ("statut", "fonction", "ship", "service", "sector")
     inlines = [CreneauServiceGardeInline]

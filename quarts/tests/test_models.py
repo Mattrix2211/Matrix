@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
-from accounts.models import UserProfile
+from accounts.models import FonctionQuartChoice, ServiceFunctionChoice, UserProfile
 from notifications.models import Notification
 from org.models import Sector, Section, Service, Ship
 from quarts.models import (
@@ -28,23 +28,28 @@ class PerimetreUniqueTests(TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire Quarts", code="QRT")
         self.service = Service.objects.create(ship=self.ship, name="Pont")
+        self.fonction_quart = FonctionQuartChoice.objects.create(name="Barre")
 
     def test_quart_sans_aucun_perimetre_est_invalide(self):
-        quart = Quart(date_debut=timezone.localdate(), date_fin=timezone.localdate())
+        quart = Quart(fonction=self.fonction_quart, date_debut=timezone.localdate(), date_fin=timezone.localdate())
         with self.assertRaises(ValidationError):
             quart.full_clean()
 
     def test_quart_avec_deux_niveaux_est_invalide(self):
-        quart = Quart(ship=self.ship, service=self.service, date_debut=timezone.localdate(), date_fin=timezone.localdate())
+        quart = Quart(
+            fonction=self.fonction_quart, ship=self.ship, service=self.service,
+            date_debut=timezone.localdate(), date_fin=timezone.localdate(),
+        )
         with self.assertRaises(ValidationError):
             quart.full_clean()
 
     def test_quart_avec_un_seul_niveau_est_valide(self):
-        quart = Quart(service=self.service, date_debut=timezone.localdate(), date_fin=timezone.localdate())
+        quart = Quart(fonction=self.fonction_quart, service=self.service, date_debut=timezone.localdate(), date_fin=timezone.localdate())
         quart.full_clean()  # ne doit pas lever
 
     def test_date_fin_avant_date_debut_est_invalide(self):
         quart = Quart(
+            fonction=self.fonction_quart,
             service=self.service,
             date_debut=timezone.localdate(),
             date_fin=timezone.localdate() - timedelta(days=1),
@@ -57,6 +62,18 @@ class PerimetreUniqueTests(TestCase):
         cdl = ChefDeListe(user=user)
         with self.assertRaises(ValidationError):
             cdl.full_clean()
+
+    def test_quart_sans_fonction_est_invalide(self):
+        # Correction de cadrage du 09/09/2026 : la fonction de quart est
+        # désormais obligatoire (cf. docstring de quarts/models.py).
+        quart = Quart(service=self.service, date_debut=timezone.localdate(), date_fin=timezone.localdate())
+        with self.assertRaises(ValidationError):
+            quart.full_clean()
+
+    def test_service_garde_sans_fonction_est_invalide(self):
+        garde = ServiceGarde(service=self.service, date_debut=timezone.localdate(), date_fin=timezone.localdate())
+        with self.assertRaises(ValidationError):
+            garde.full_clean()
 
 
 class ModelesDistinctsTests(TestCase):

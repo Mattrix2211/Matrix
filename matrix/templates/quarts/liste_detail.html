@@ -4,7 +4,7 @@
   <div>
     <h1 class="h3 mb-0">{{ liste.nom|default:liste.libelle_type|capfirst }}</h1>
     <div class="text-muted font-mono">
-      {{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}
+      {{ liste.fonction }} — {{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}
       {% if liste.type_service %} — {{ liste.type_service }}{% endif %}
     </div>
   </div>

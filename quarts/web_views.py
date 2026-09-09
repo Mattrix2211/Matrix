@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views import View
 
+from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Sector, Section, Service, Ship
@@ -282,6 +283,11 @@ class ListeIndexView(LoginRequiredMixin, View):
             "perimetres_creation": perimetres_creation,
             "peut_creer": bool(perimetres_creation),
             "peut_designer_chef_de_liste": user_role_level(user) >= NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE,
+            # Fonction obligatoire par liste (correction de cadrage du
+            # 09/09/2026, cf. docstring de quarts/models.py) : deux
+            # référentiels distincts selon le type de liste créée.
+            "fonctions_quart": FonctionQuartChoice.objects.filter(active=True).order_by("name"),
+            "fonctions_service": ServiceFunctionChoice.objects.filter(active=True).order_by("name"),
         }
 
     def get(self, request):
@@ -311,11 +317,17 @@ class ListeIndexView(LoginRequiredMixin, View):
             date_debut=date_debut, date_fin=date_fin,
             created_by=request.user, updated_by=request.user,
         )
+        # Fonction obligatoire, référentiel distinct selon le type de liste
+        # (cf. docstring de quarts/models.py, correction du 09/09/2026) :
+        # une liste de quarts choisit une FonctionQuartChoice, une liste de
+        # garde réutilise le référentiel ServiceFunctionChoice déjà existant.
         if action == "creer_quart":
-            liste = Quart(**champs_communs)
+            fonction = FonctionQuartChoice.objects.filter(pk=request.POST.get("fonction_quart"), active=True).first()
+            liste = Quart(fonction=fonction, **champs_communs)
             url_name = "quart-detail"
         else:
-            liste = ServiceGarde(**champs_communs)
+            fonction = ServiceFunctionChoice.objects.filter(pk=request.POST.get("fonction_service"), active=True).first()
+            liste = ServiceGarde(fonction=fonction, **champs_communs)
             url_name = "garde-detail"
 
         try:

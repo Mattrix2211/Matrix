@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from accounts.models import UserProfile
+from accounts.models import FonctionQuartChoice, ServiceFunctionChoice, UserProfile
 from notifications.models import Notification
 from org.models import Sector, Section, Service, Ship
 from quarts.models import ChefDeListe, CreneauQuart, Quart, ServiceGarde
@@ -26,14 +26,25 @@ class CreationListeTests(TestCase):
         self.equipier = User.objects.create_user(username="equipier_creation", password="pass")
         UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
 
+        # Fonction obligatoire par liste (correction de cadrage du 09/09/2026,
+        # cf. docstring de quarts/models.py) : un référentiel distinct selon
+        # le type de liste créée.
+        self.fonction_quart = FonctionQuartChoice.objects.create(name="Barre")
+        self.fonction_service = ServiceFunctionChoice.objects.create(name="Permanence")
+
     def _payload(self, action="creer_quart"):
-        return {
+        payload = {
             "action": action,
             "perimetre": f"sector:{self.sector.pk}",
             "nom": "Semaine test",
             "date_debut": str(timezone.localdate()),
             "date_fin": str(timezone.localdate() + timedelta(days=6)),
         }
+        if action == "creer_quart":
+            payload["fonction_quart"] = self.fonction_quart.pk
+        else:
+            payload["fonction_service"] = self.fonction_service.pk
+        return payload
 
     def test_chef_de_liste_peut_creer_un_quart_sur_son_perimetre(self):
         self.client.login(username="cdl_creation", password="pass")

@@ -146,6 +146,43 @@
       </div>
     </div>
   </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Fonctions de quart
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Fonctions de quart" data-bs-content="Liste des fonctions de quart (ex: Barre, Veille, Machine avant), transversales aux secteurs/services, utilisées pour organiser les listes de quarts du module Quarts/services.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_fonction_quart" />
+          <input class="form-control" name="name" placeholder="Nouvelle fonction de quart" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th></th></tr></thead>
+          <tbody>
+          {% for f in fonctions_quart %}
+            <tr>
+              <td>{{ f.name }}</td>
+              <td>
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_fonction_quart" />
+                  <input type="hidden" name="pk" value="{{ f.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="text-muted">Aucune fonction de quart</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
   {# Gestion des unités déplacée dans l'onglet dédié #}
 
   {# Blocs Services/Secteurs/Sections retirés de l'onglet Utilisateurs; voir onglet Hiérarchie #}

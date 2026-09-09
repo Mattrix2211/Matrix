@@ -28,12 +28,49 @@ hiérarchique implicite vers les sous-niveaux : décision produit volontairement
 simple, cf. tâche Notion « Quarts/services », point (b) du cadrage) — hormis
 la supervision globale (COMMANDANT et au-dessus), qui passe outre comme
 partout ailleurs dans le projet (cf. peut_valider_formation, training/models.py).
+
+Correction majeure de cadrage du 09/09/2026 (l'utilisateur — ancien chef de
+secteur — a signalé après coup une dimension métier manquante et essentielle) :
+les listes de quarts/gardes doivent être organisables par FONCTION, transversale
+aux secteurs/services, pas seulement par périmètre organisationnel. Concrètement
+: `Quart.fonction` (nouveau référentiel configurable `FonctionQuartChoice`,
+même pattern que `ServiceFunctionChoice` déjà existant dans accounts/models.py
+pour le profil marin) et `ServiceGarde.fonction` (réutilise directement
+`ServiceFunctionChoice`, qui existait déjà mais n'était jamais utilisé en
+relation — seulement comme source d'un champ texte libre sur le profil marin)
+sont désormais des champs OBLIGATOIRES de chaque liste (nullables en base par
+cohérence avec ship/service/sector/section ci-dessous — la contrainte
+"obligatoire" est portée par la validation du formulaire, pas par le schéma,
+pour rester rétrocompatible avec le principe déjà appliqué au périmètre
+organisationnel).
+
+Choix d'implémentation retenu pour la portée de la liste (à documenter comme
+hypothèse, remonté dans le compte-rendu de la tâche plutôt que tranché sans
+recul) : le périmètre organisationnel (ship/service/sector/section, toujours
+EXACTEMENT un des quatre, cf. _valider_perimetre_unique) reste inchangé — y
+compris le choix déjà existant « Navire seul » (aucun changement de schéma ni
+de règle de désignation ChefDeListe/seuils). Ce qui change réellement : une
+liste choisissant le périmètre « Navire » est maintenant ORGANISÉE PAR
+FONCTION (champ obligatoire), ce qui permet enfin de constituer une liste
+transversale à tous les secteurs/services du navire pour une fonction donnée
+(ex. « Barre — navire entier ») — cas qui existait déjà techniquement (choix
+« Navire » du périmètre) mais n'avait jusqu'ici aucune façon de distinguer les
+fonctions entre elles, ni n'était réellement exploitable puisque seule la
+supervision globale (COMMANDANT+) peut être désignée chef de liste au niveau
+Navire (cf. `_perimetre_autorise_pour_designation`, inchangé). Le seuil de
+désignation (CHEF_SERVICE+ borné à son propre périmètre, COMMANDANT+ libre)
+n'a donc pas été modifié : il reste cohérent tel quel, un CHEF_SERVICE ne
+devant de toute façon pas pouvoir constituer une liste dépassant son propre
+service même au nom d'une fonction transversale — seule une autorité de niveau
+navire (COMMANDANT+) a la légitimité de faire cohabiter des marins de
+secteurs/services différents sur une même liste.
 """
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.roles import RoleLevel, user_role_level
 from notifications.models import Notification
@@ -212,15 +249,23 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
                 )
 
     def __str__(self):
-        return f"{self.nom or self.libelle_type().capitalize()} — {self.perimetre} ({self.date_debut} au {self.date_fin})"
+        fonction = f" [{self.fonction}]" if self.fonction_id else ""
+        return f"{self.nom or self.libelle_type().capitalize()}{fonction} — {self.perimetre} ({self.date_debut} au {self.date_fin})"
 
 
 class Quart(ListeServiceAbstract):
     """Liste de quarts : rotation de postes à créneaux courts et répétés
     (ex. barre, passerelle, machine — toutes les 4h). `duree_creneau_heures`
     n'est qu'une durée par défaut éditable pré-remplissant le formulaire
-    d'ajout d'un créneau (aucune règle codée en dur, CLAUDE.md §6)."""
+    d'ajout d'un créneau (aucune règle codée en dur, CLAUDE.md §6).
+    `fonction` (obligatoire, cf. correction de cadrage du 09/09/2026 en tête
+    de module) rattache la liste à une fonction de quart transversale aux
+    secteurs/services (ex. Barre, Veille, Machine avant)."""
 
+    fonction = models.ForeignKey(
+        FonctionQuartChoice, null=True, blank=False, on_delete=models.PROTECT,
+        related_name="quarts", verbose_name="Fonction de quart",
+    )
     duree_creneau_heures = models.PositiveSmallIntegerField(
         default=4, verbose_name="Durée par défaut d'un créneau (heures)"
     )
@@ -238,8 +283,15 @@ class ServiceGarde(ListeServiceAbstract):
     garde de nuit, permanence — cf. VISION_MATRIX_2_0.md §7.2). `type_service`
     est un texte libre (pas une liste fermée figée dans le code) et
     `duree_creneau_heures` n'est qu'une durée par défaut éditable, même
-    principe que Quart.duree_creneau_heures ci-dessus."""
+    principe que Quart.duree_creneau_heures ci-dessus. `fonction` (obligatoire,
+    cf. correction de cadrage du 09/09/2026 en tête de module) réutilise le
+    référentiel ServiceFunctionChoice déjà existant pour le profil marin
+    (accounts.models) — pas de nouveau référentiel dupliqué pour les gardes."""
 
+    fonction = models.ForeignKey(
+        ServiceFunctionChoice, null=True, blank=False, on_delete=models.PROTECT,
+        related_name="services_garde", verbose_name="Fonction de service",
+    )
     type_service = models.CharField(max_length=255, blank=True, default="", verbose_name="Type de service")
     duree_creneau_heures = models.PositiveSmallIntegerField(
         default=24, verbose_name="Durée par défaut d'un créneau (heures)"
