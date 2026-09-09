@@ -39,6 +39,7 @@ urlpatterns = [
     path("maintenance/", include("maintenance.web_urls")),
     path("logistics/", include("logistics.web_urls")),
     path("formations/", include("training.web_urls")),
+    path("quarts/", include("quarts.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),
     path("search/", global_search, name="global-search"),

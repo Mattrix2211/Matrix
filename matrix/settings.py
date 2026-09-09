@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "maintenance.apps.MaintenanceConfig",
     "logistics.apps.LogisticsConfig",
     "training.apps.TrainingConfig",
+    "quarts.apps.QuartsConfig",
     "threads.apps.ThreadsConfig",
     "notifications.apps.NotificationsConfig",
     "dashboard.apps.DashboardConfig",
