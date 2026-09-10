@@ -132,16 +132,25 @@ def _ajouter_visuels(resultat, periode):
     maximum observé dans le périmètre pour cette période — sert à dimensionner
     les mini jauges visuelles du chef de liste (CLAUDE.md §5 : préférer une
     représentation visuelle à un tableau de chiffres bruts), sans inventer de
-    barème arbitraire (le maximum est toujours celui réellement constaté)."""
-    maximum = max(
-        (valeur for item in resultat for valeur in item[periode].values()),
-        default=0,
-    )
+    barème arbitraire (le maximum est toujours celui réellement constaté).
+
+    Le maximum est calculé SÉPARÉMENT par catégorie (semaine / vendredi /
+    week-end), jamais un maximum global partagé entre les 3 : la catégorie
+    "semaine" compte structurellement plus de jours possibles (lundi-jeudi)
+    que "vendredi" (1 jour) ou "week-end" (2 jours), donc un maximum global
+    serait presque toujours tiré par "semaine" et afficherait des jauges
+    "vendredi"/"week-end" trompeusement quasi-vides même pour un marin au
+    maximum réellement observé sur SA catégorie (bug signalé par le Tech
+    Lead)."""
+    maximums = {
+        categorie: max((item[periode][categorie] for item in resultat), default=0)
+        for categorie in (CATEGORIE_SEMAINE, CATEGORIE_VENDREDI, CATEGORIE_WEEKEND)
+    }
     for item in resultat:
         item[f"{periode}_visuel"] = {
             categorie: {
                 "valeur": valeur,
-                "pourcentage": round(valeur / maximum * 100) if maximum else 0,
+                "pourcentage": round(valeur / maximums[categorie] * 100) if maximums[categorie] else 0,
             }
             for categorie, valeur in item[periode].items()
         }

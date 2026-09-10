@@ -134,6 +134,80 @@ class ScopingPerimetreTests(TestCase):
         self.assertNotIn(self.marin_hors_perimetre.pk, marins_presents)
 
 
+class VisuelsParCategorieTests(TestCase):
+    """Vérifie que les mini jauges visuelles (`_ajouter_visuels`) utilisent un
+    maximum SÉPARÉ par catégorie (semaine / vendredi / week-end), et non un
+    maximum global partagé entre les 3 — bug signalé par le Tech Lead : la
+    catégorie "semaine" ayant structurellement plus de jours possibles que
+    "vendredi" ou "week-end", un maximum global fait s'afficher les jauges
+    "vendredi"/"week-end" comme quasi-vides même pour un marin au maximum
+    réellement observé sur SA catégorie."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Équité Visuels", code="EQV")
+        self.sector = Sector.objects.create(
+            service=Service.objects.create(ship=self.ship, name="Pont"), name="Manœuvre"
+        )
+
+        self.marin_semaine = User.objects.create_user(username="marin_semaine_forte", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.marin_semaine, defaults={"role": "EQUIPIER", "sector": self.sector}
+        )
+        self.marin_weekend = User.objects.create_user(username="marin_weekend_faible_semaine", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.marin_weekend, defaults={"role": "EQUIPIER", "sector": self.sector}
+        )
+
+        self.aujourdhui = date(2026, 9, 8)
+        self.garde = ServiceGarde.objects.create(
+            sector=self.sector, date_debut=self.aujourdhui, date_fin=self.aujourdhui + timedelta(days=60),
+        )
+
+        # marin_semaine : 8 créneaux en semaine (lundi-jeudi de septembre
+        # 2026), aucun vendredi ni week-end -> gros volume "semaine" qui, en
+        # cas de maximum global, écraserait les jauges des autres catégories.
+        for jour in (1, 2, 3, 7, 8, 9, 10, 14):
+            debut = _aware(2026, 9, jour)
+            CreneauServiceGarde.objects.create(
+                service_garde=self.garde, poste="Garde 24h", debut=debut, fin=debut + timedelta(hours=24),
+                marin=self.marin_semaine,
+            )
+
+        # marin_weekend : 2 créneaux de week-end (samedi + dimanche), aucun
+        # créneau en semaine -> doit être à 100% sur SA catégorie week-end.
+        for jour in (12, 13):
+            debut = _aware(2026, 9, jour)
+            CreneauServiceGarde.objects.create(
+                service_garde=self.garde, poste="Garde 24h", debut=debut, fin=debut + timedelta(hours=24),
+                marin=self.marin_weekend,
+            )
+
+        self.garde.publier(self.marin_semaine)
+
+    def test_jauge_weekend_au_maximum_de_sa_categorie_nest_pas_sous_estimee(self):
+        resultat = compteurs_equite_perimetre(self.garde, aujourdhui=self.aujourdhui)
+        par_marin = {item["marin"].pk: item for item in resultat}
+
+        # Sanity check sur les compteurs bruts avant de vérifier les jauges.
+        item_weekend = par_marin[self.marin_weekend.pk]
+        self.assertEqual(item_weekend["mois"][CATEGORIE_SEMAINE], 0)
+        self.assertEqual(item_weekend["mois"][CATEGORIE_WEEKEND], 2)
+
+        # Le marin_weekend est au maximum réellement observé sur SA catégorie
+        # week-end (2 sur 2) : sa jauge doit afficher 100%, pas une valeur
+        # écrasée par le volume "semaine" de l'autre marin.
+        self.assertEqual(item_weekend["mois_visuel"][CATEGORIE_WEEKEND]["pourcentage"], 100)
+
+        # Le marin_semaine reste bien à 100% sur sa propre catégorie "semaine".
+        item_semaine = par_marin[self.marin_semaine.pk]
+        self.assertEqual(item_semaine["mois_visuel"][CATEGORIE_SEMAINE]["pourcentage"], 100)
+
+        # Catégorie sans aucune valeur observée (vendredi) : 0% pour tout le
+        # monde, sans division par zéro.
+        self.assertEqual(item_semaine["mois_visuel"][CATEGORIE_VENDREDI]["pourcentage"], 0)
+        self.assertEqual(item_weekend["mois_visuel"][CATEGORIE_VENDREDI]["pourcentage"], 0)
+
+
 class VisibiliteWebTests(TestCase):
     """Vérifie la visibilité à deux niveaux exigée par le cadrage : le chef
     de liste voit les compteurs détaillés de tout son périmètre sur la fiche
