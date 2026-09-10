@@ -176,3 +176,19 @@ class PlanNavireConsultationRenduTests(TestCase):
         )
         r = self.client.get(f"/assets/plan-navire/{self.pont.id}/")
         self.assertNotContains(r, "EXT-NON-POSITIONNE")
+
+    def test_position_non_entiere_rendue_avec_point_decimal_et_non_virgule(self):
+        # Avec LANGUAGE_CODE="fr", Django localise les décimaux dans les
+        # templates ("33.5" -> "33,5"), ce qui rend le style CSS inline
+        # invalide (une virgule n'est pas un séparateur décimal CSS valide) et
+        # empêche l'épingle de s'afficher à la bonne position. La quasi-
+        # totalité des positions réelles sont non-entières (clic libre côté
+        # JS), donc ce cas doit être couvert avec une valeur non-entière.
+        Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+            internal_id="EXT-PRECIS", plan_deck=self.pont, position_x=33.5, position_y=66.25,
+        )
+        r = self.client.get(f"/assets/plan-navire/{self.pont.id}/")
+        self.assertContains(r, "left:33.5%; top:66.25%;")
+        self.assertNotContains(r, "left:33,5%")
+        self.assertNotContains(r, "top:66,25%")
