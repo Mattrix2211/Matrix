@@ -40,7 +40,10 @@
   <div class="d-flex align-items-center gap-2">
     <input type="text" id="assetSearch" class="form-control" placeholder="Rechercher..." style="max-width: 260px;" />
     <div class="dropdown">
-      <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
+      {# Repliées par défaut (audit visuel §2/§5) : n'apparaissent qu'après sélection d'au
+      moins un matériel (classe d-none basculée en JS, cf. countSelected() plus bas), pour
+      ne pas encombrer la barre d'outils quand elles ne servent à rien. #}
+      <button class="btn btn-outline-secondary dropdown-toggle d-none" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
       <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkStatusModal">Modifier statut…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier unité…</button></li>
@@ -77,6 +80,13 @@
         </div>
         <button id="btnNewFolderHere" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createFolderModal">Nouveau</button>
       </div>
+      {% if folders %}
+      {# Vue par défaut allégée (audit visuel §2/§5) : le contenu du dossier n'est
+      rendu que s'il y a au moins un sous-dossier à afficher, pour ne pas imposer
+      une grande carte vide aux utilisateurs qui ne se servent jamais des dossiers.
+      Le bandeau ci-dessus (fil d'Ariane + bouton "Nouveau") reste toujours visible :
+      la navigation et la création de dossier restent possibles en toute
+      circonstance. #}
       <div class="card-body">
         <div class="row g-3" id="folderGrid">
           {% for f in folders %}
@@ -92,12 +102,11 @@
               <div class="card-body py-2"><div class="text-truncate" title="{{ f.name }}">{{ f.name }}</div></div>
             </div>
           </div>
-          {% empty %}
-          <div class="col-12 text-muted">Aucun sous-dossier</div>
           {% endfor %}
         </div>
         <div class="small text-muted mt-2">Astuce: clic droit sur un dossier pour Nouveau/Modifier/Supprimer; glisser-déposer un matériel sur une carte dossier pour l’y déplacer.</div>
       </div>
+      {% endif %}
     </div>
   </div>
   <div class="col-12">
@@ -271,7 +280,10 @@
     var selectAll = document.getElementById('selectAll');
     function countSelected(){
       var rows = document.querySelectorAll('.row-select:checked');
-      var n = rows.length; bulkBtn.disabled = n === 0; bulkBtn.textContent = n>0 ? ('Actions groupées ('+n+')') : 'Actions groupées';
+      var n = rows.length;
+      bulkBtn.disabled = n === 0;
+      bulkBtn.classList.toggle('d-none', n === 0);
+      bulkBtn.textContent = n>0 ? ('Actions groupées ('+n+')') : 'Actions groupées';
     }
     document.querySelectorAll('.row-select').forEach(function(ch){ ch.addEventListener('change', countSelected); });
     if (selectAll) { selectAll.addEventListener('change', function(){ var rows = document.querySelectorAll('.row-select'); rows.forEach(function(ch){ ch.checked = selectAll.checked; }); countSelected(); }); }
