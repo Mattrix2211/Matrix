@@ -17,7 +17,7 @@
 {% if not navire %}
   <div class="alert alert-warning">Aucune unité n'est associée à votre profil : impossible de configurer un plan de navire.</div>
 {% else %}
-  <p class="text-muted">Gérez les ponts de <strong>{{ navire.name }}</strong>, puis ouvrez chaque pont pour positionner ses zones cliquables sur le plan.</p>
+  <p class="text-muted">Gérez les ponts de <strong>{{ navire.name }}</strong>, puis ouvrez chaque pont pour positionner le matériel par épingle sur le plan.</p>
 
   <div class="card mb-3">
     <div class="card-header">Ajouter un pont</div>
@@ -44,7 +44,7 @@
         {% endif %}
         <a href="{% url 'plan-navire-deck' pk=pont.id %}" class="flex-grow-1 text-decoration-none">
           <span class="fw-semibold">{{ pont.name }}</span>
-          <span class="text-muted small ms-2">{{ pont.zones.count }} zone{{ pont.zones.count|pluralize }}</span>
+          <span class="text-muted small ms-2">{{ pont.assets_positionnes.count }} matériel{{ pont.assets_positionnes.count|pluralize }} positionné{{ pont.assets_positionnes.count|pluralize }}</span>
         </a>
         <form method="post" class="d-flex gap-1">
           {% csrf_token %}

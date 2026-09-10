@@ -1,18 +1,19 @@
-"""[FEAT] Administration : configurer les ponts et zones d'un navire.
+"""[FEAT] Administration : configurer les ponts et positionner le matériel
+sur le plan d'un navire.
 
 Sous-tâche 2/3 du plan visuel du navire : interface web (CHEF_SERVICE+) pour
-créer/réordonner les ponts, téléverser leur image de fond, et dessiner/éditer
-les zones cliquables dessus. La sous-tâche 1 a livré le modèle de données
-(Deck/Zone), la sous-tâche 3 branchera le clic sur une zone vers le matériel.
+créer/réordonner les ponts, téléverser leur image de fond, et positionner le
+matériel dessus par épingle précise (x/y). Remplace l'ancien éditeur de zones
+rectangulaires (Zone, supprimé), décision métier tranchée par l'utilisateur
+(cf. tâche Notion « Remplacer les zones du plan navire par un placement
+PRÉCIS du matériel »).
 """
-import json
-
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from accounts.models import UserProfile
-from assets.models import Deck, Location, Zone
+from assets.models import Asset, AssetType, Deck
 from org.models import Sector, Service, Ship
 
 
@@ -116,102 +117,95 @@ class PlanNavireDeckCRUDTests(TestCase):
         self.assertTrue(bool(pont.image))
 
 
-class PlanNavireZoneCRUDTests(TestCase):
-    """Positionnement/édition/suppression des zones cliquables d'un pont."""
+class PlanNavireEpingleCRUDTests(TestCase):
+    """Positionnement/repositionnement/retrait des épingles de matériel sur
+    le plan d'un pont."""
 
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire A", code="NAV-A")
+        self.service = Service.objects.create(ship=self.ship, name="Service A")
+        self.sector = Sector.objects.create(service=self.service, name="Secteur A")
+        self.asset_type = AssetType.objects.create(name="Extincteur", category="Sécurité", sector=self.sector)
         self.pont = Deck.objects.create(ship=self.ship, name="Pont A", order=1)
-        self.emplacement = Location.objects.create(ship=self.ship, name="Local machine")
+        self.materiel = Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+            internal_id="EXT-01",
+        )
         self.chef = User.objects.create_user(username="chef_a", password="pass")
         UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
         self.client.login(username="chef_a", password="pass")
         self.url = f"/assets/plan/{self.pont.id}/"
-        self.points = json.dumps([
-            {"x": 10, "y": 10}, {"x": 40, "y": 10}, {"x": 40, "y": 30}, {"x": 10, "y": 30},
-        ])
 
-    def test_creation_dune_zone_avec_emplacement(self):
-        r = self.client.post(self.url, {
-            "action": "create_zone", "zone_name": "Local machine avant",
-            "location_id": self.emplacement.id, "points": self.points,
-        })
+    def test_positionnement_dun_materiel(self):
+        r = self.client.post(self.url, {"action": "place_pin", "asset_id": str(self.materiel.id), "x": "25", "y": "60"})
         self.assertEqual(r.status_code, 302)
-        zone = Zone.objects.get(deck=self.pont)
-        self.assertEqual(zone.name, "Local machine avant")
-        self.assertEqual(zone.location, self.emplacement)
-        self.assertEqual(len(zone.points), 4)
+        self.materiel.refresh_from_db()
+        self.assertEqual(self.materiel.plan_deck, self.pont)
+        self.assertEqual(self.materiel.position_x, 25)
+        self.assertEqual(self.materiel.position_y, 60)
 
-    def test_page_editeur_saffiche_avec_image_et_zones_existantes(self):
-        """Rendu complet de l'éditeur (image + zones déjà dessinées), pour
-        détecter une erreur de template plutôt qu'une simple absence de crash
-        sur les vues sans image (cf. tests de périmètre ci-dessus)."""
+    def test_page_editeur_saffiche_avec_image_et_materiel_positionne(self):
+        """Rendu complet de l'éditeur (image + épingles déjà positionnées),
+        pour détecter une erreur de template plutôt qu'une simple absence de
+        crash sur les vues sans image (cf. tests de périmètre ci-dessus)."""
         self.pont.image = _image_1x1_png()
         self.pont.save(update_fields=["image"])
-        Zone.objects.create(
-            deck=self.pont, name="Local machine avant", location=self.emplacement,
-            points=json.loads(self.points),
-        )
+        self.materiel.plan_deck = self.pont
+        self.materiel.position_x = 25
+        self.materiel.position_y = 60
+        self.materiel.save(update_fields=["plan_deck", "position_x", "position_y"])
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Local machine avant")
+        self.assertContains(r, "EXT-01")
 
-    def test_creation_dune_zone_brouillon_sans_emplacement(self):
-        r = self.client.post(self.url, {
-            "action": "create_zone", "zone_name": "Zone en cours de rattachement",
-            "location_id": "", "points": self.points,
-        })
+    def test_positionnement_refuse_si_materiel_hors_unite(self):
+        autre_navire = Ship.objects.create(name="Navire B", code="NAV-B")
+        autre_service = Service.objects.create(ship=autre_navire, name="Service B")
+        autre_sector = Sector.objects.create(service=autre_service, name="Secteur B")
+        materiel_etranger = Asset.objects.create(
+            asset_type=AssetType.objects.create(name="Casque", category="EPI", sector=autre_sector),
+            ship=autre_navire, service=autre_service, sector=autre_sector, internal_id="ETR-01",
+        )
+        r = self.client.post(self.url, {"action": "place_pin", "asset_id": str(materiel_etranger.id), "x": "10", "y": "10"})
         self.assertEqual(r.status_code, 302)
-        zone = Zone.objects.get(deck=self.pont)
-        self.assertIsNone(zone.location)
+        materiel_etranger.refresh_from_db()
+        self.assertIsNone(materiel_etranger.plan_deck)
 
-    def test_creation_zone_refusee_si_contour_invalide(self):
-        r = self.client.post(self.url, {
-            "action": "create_zone", "zone_name": "Zone cassée",
-            "points": "pas-du-json",
-        })
+    def test_positionnement_refuse_si_coordonnees_invalides(self):
+        r = self.client.post(self.url, {"action": "place_pin", "asset_id": str(self.materiel.id), "x": "150", "y": "10"})
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(Zone.objects.count(), 0)
+        self.materiel.refresh_from_db()
+        self.assertIsNone(self.materiel.plan_deck)
 
-    def test_creation_zone_refusee_sans_nom(self):
-        r = self.client.post(self.url, {"action": "create_zone", "zone_name": "  ", "points": self.points})
+    def test_repositionnement_dun_materiel_deja_positionne(self):
+        self.materiel.plan_deck = self.pont
+        self.materiel.position_x = 10
+        self.materiel.position_y = 10
+        self.materiel.save(update_fields=["plan_deck", "position_x", "position_y"])
+        r = self.client.post(self.url, {"action": "place_pin", "asset_id": str(self.materiel.id), "x": "80", "y": "90"})
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(Zone.objects.count(), 0)
+        self.materiel.refresh_from_db()
+        self.assertEqual(self.materiel.position_x, 80)
+        self.assertEqual(self.materiel.position_y, 90)
 
-    def test_edition_dune_zone_renommage_et_changement_demplacement(self):
-        zone = Zone.objects.create(deck=self.pont, name="Zone brute", points=json.loads(self.points))
-        nouveau_local = Location.objects.create(ship=self.ship, name="Local machine arrière")
-        r = self.client.post(self.url, {
-            "action": "update_zone", "zone_id": zone.id, "zone_name": "Local machine arrière",
-            "location_id": nouveau_local.id, "points": self.points,
-        })
+    def test_retrait_dun_materiel_du_plan(self):
+        self.materiel.plan_deck = self.pont
+        self.materiel.position_x = 10
+        self.materiel.position_y = 10
+        self.materiel.save(update_fields=["plan_deck", "position_x", "position_y"])
+        r = self.client.post(self.url, {"action": "remove_pin", "asset_id": str(self.materiel.id)})
         self.assertEqual(r.status_code, 302)
-        zone.refresh_from_db()
-        self.assertEqual(zone.name, "Local machine arrière")
-        self.assertEqual(zone.location, nouveau_local)
-
-    def test_repositionnement_dune_zone_change_son_contour(self):
-        zone = Zone.objects.create(deck=self.pont, name="Zone brute", points=json.loads(self.points))
-        nouveaux_points = json.dumps([
-            {"x": 50, "y": 50}, {"x": 80, "y": 50}, {"x": 80, "y": 70}, {"x": 50, "y": 70},
-        ])
-        r = self.client.post(self.url, {
-            "action": "update_zone", "zone_id": zone.id, "zone_name": "Zone brute", "points": nouveaux_points,
-        })
-        self.assertEqual(r.status_code, 302)
-        zone.refresh_from_db()
-        self.assertEqual(zone.points[0], {"x": 50.0, "y": 50.0})
-
-    def test_suppression_dune_zone(self):
-        zone = Zone.objects.create(deck=self.pont, name="Zone brute", points=json.loads(self.points))
-        r = self.client.post(self.url, {"action": "delete_zone", "zone_id": zone.id})
-        self.assertEqual(r.status_code, 302)
-        self.assertFalse(Zone.objects.filter(pk=zone.id).exists())
+        self.materiel.refresh_from_db()
+        self.assertIsNone(self.materiel.plan_deck)
+        self.assertIsNone(self.materiel.position_x)
+        self.assertIsNone(self.materiel.position_y)
+        # Le matériel n'est jamais supprimé, seule sa position sur le plan l'est.
+        self.assertTrue(Asset.objects.filter(pk=self.materiel.pk).exists())
 
 
 class PlanNavirePerimetreTests(TestCase):
-    """Un utilisateur ne doit pouvoir configurer que les ponts/zones du navire
-    de son propre périmètre — même logique que le reste du projet
+    """Un utilisateur ne doit pouvoir configurer que les ponts/matériel du
+    navire de son propre périmètre — même logique que le reste du projet
     (cf. assets/tests/test_perimetre_crud_web.py)."""
 
     def setUp(self):
@@ -235,10 +229,9 @@ class PlanNavirePerimetreTests(TestCase):
         self.assertEqual(r.status_code, 403)
 
         r2 = self.client.post(f"/assets/plan/{self.pont_b.id}/", {
-            "action": "create_zone", "zone_name": "Intrusion", "points": "[]",
+            "action": "upload_image", "image": _image_1x1_png(),
         })
         self.assertEqual(r2.status_code, 403)
-        self.assertEqual(Zone.objects.filter(deck=self.pont_b).count(), 0)
 
     def test_master_admin_peut_choisir_le_navire_via_selecteur(self):
         self.client.login(username="master", password="pass")

@@ -72,7 +72,7 @@ REGISTRE_ACTIONS = [
     ),
     ActionSeuil(
         "plan_navire_configuration",
-        "Configurer les ponts et zones du plan visuel du navire",
+        "Configurer les ponts et le positionnement du matériel sur le plan visuel du navire",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(

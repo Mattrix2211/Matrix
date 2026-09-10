@@ -13,7 +13,7 @@ from django.db.models import Max, Sum
 from django.db.models.functions import TruncMonth
 from django.db import models
 from collections import defaultdict
-from .models import Asset, AssetType, Deck, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument, Zone
+from .models import Asset, AssetType, Deck, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument
 from .models import InstallationBigrameChoice, InstallationEvent, InstallationPart, InstallationHourReading, InstallationVibrationReading, InstallationIsolationReading
 from .models import InstallationMaintenance
 from datetime import datetime
@@ -219,30 +219,20 @@ def _resoudre_emplacement(request, ship):
     return None
 
 
-def _valider_points_zone(points_json):
-    """Décode et valide le contour posté par l'éditeur de plan (Zone.points) :
-    une liste d'au moins 3 points {x, y} en pourcentage (0-100). Renvoie None
-    si le format est invalide (ex: manipulation du formulaire), plutôt que de
-    lever une exception — l'appelant affiche alors un message d'erreur simple
-    et ne modifie pas le contour existant."""
+def _valider_coordonnee_pourcent(valeur):
+    """Décode et valide une coordonnée (x ou y) postée par l'éditeur de plan
+    (épingle de matériel) : un nombre en pourcentage (0-100) de la largeur/
+    hauteur de l'image du pont. Renvoie None si le format est invalide (ex:
+    manipulation du formulaire), plutôt que de lever une exception —
+    l'appelant affiche alors un message d'erreur simple et ne modifie pas la
+    position existante."""
     try:
-        points = json.loads(points_json or "[]")
+        nombre = float(valeur)
     except (TypeError, ValueError):
         return None
-    if not isinstance(points, list) or len(points) < 3:
+    if not (0 <= nombre <= 100):
         return None
-    contour = []
-    for point in points:
-        if not isinstance(point, dict):
-            return None
-        try:
-            x, y = float(point.get("x")), float(point.get("y"))
-        except (TypeError, ValueError):
-            return None
-        if not (0 <= x <= 100 and 0 <= y <= 100):
-            return None
-        contour.append({"x": round(x, 2), "y": round(y, 2)})
-    return contour
+    return round(nombre, 2)
 
 
 def _org_dans_perimetre(user, model, cible_id):
@@ -1811,13 +1801,17 @@ def _pont_dans_perimetre(request, pk):
 
 class PlanNavireDeckView(LoginRequiredMixin, View):
     """Éditeur du plan d'un pont : téléversement de l'image de fond, et
-    positionnement/édition/suppression des zones cliquables (Zone) dessinées
-    dessus (rectangle par clic-glisser, coordonnées en pourcentage — voir le
-    script de assets/plan_navire_deck.html, en JS natif sans dépendance
-    externe). Une zone peut être laissée sans emplacement assigné (brouillon,
-    cf. Zone.location) : la page de consultation (PlanNavireVueDeckView plus
-    bas) s'appuie sur ce lien pour filtrer le matériel affiché lors d'un clic
-    sur la zone.
+    positionnement précis du matériel dessus par épingle (clic sur le plan,
+    coordonnées en pourcentage — voir le script de assets/plan_navire_deck.html,
+    en JS natif sans dépendance externe). Remplace l'ancien système de zones
+    rectangulaires groupant plusieurs matériels par Emplacement (modèle Zone,
+    supprimé) : chaque épingle représente désormais un seul matériel (Asset),
+    positionné via Asset.plan_deck/position_x/position_y.
+
+    Portée volontairement limitée au matériel mobile (Asset), comme l'était
+    déjà l'ancien système de zones (Zone.etat_materiel ne traitait pas non
+    plus les installations fixes) : ce n'est pas un oubli mais une reprise à
+    l'identique du périmètre existant.
 
     Même seuil et même contrôle de périmètre que PlanNavireListView."""
 
@@ -1832,20 +1826,27 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
         pont = _pont_dans_perimetre(request, pk)
         ponts_navire = list(Deck.objects.filter(ship=pont.ship).order_by('order', 'name'))
         idx = next((i for i, p in enumerate(ponts_navire) if p.pk == pont.pk), 0)
-        zones = list(pont.zones.select_related('location').order_by('name'))
+        materiels_navire = list(
+            Asset.objects.filter(ship=pont.ship).select_related('asset_type', 'plan_deck').order_by('asset_type__name')
+        )
+        positionnes = [a for a in materiels_navire if a.plan_deck_id == pont.pk]
+
+        def _libelle_option(a):
+            if a.plan_deck_id == pont.pk:
+                return f"{a} — déjà positionné ici"
+            if a.plan_deck_id:
+                return f"{a} — actuellement sur {a.plan_deck.name}"
+            return str(a)
+
         contexte = {
             'pont': pont,
-            'zones': zones,
-            'zones_json': json.dumps([
-                {
-                    'id': z.id,
-                    'name': z.name,
-                    'location_id': z.location_id,
-                    'points': z.points,
-                }
-                for z in zones
+            'positionnes': positionnes,
+            'materiels': materiels_navire,
+            'materiels_options': [{'id': str(a.id), 'label': _libelle_option(a)} for a in materiels_navire],
+            'pins_json': json.dumps([
+                {'id': str(a.id), 'label': str(a), 'x': a.position_x, 'y': a.position_y}
+                for a in positionnes if a.position_x is not None and a.position_y is not None
             ]),
-            'emplacements': Location.objects.filter(ship=pont.ship).order_by('name'),
             'pont_precedent': ponts_navire[idx - 1] if idx > 0 else None,
             'pont_suivant': ponts_navire[idx + 1] if idx < len(ponts_navire) - 1 else None,
         }
@@ -1863,39 +1864,34 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
                 messages.success(request, "Image du plan mise à jour.")
             else:
                 messages.error(request, "Aucune image sélectionnée.")
-        elif action in ('create_zone', 'update_zone'):
-            self._enregistrer_zone(request, pont, action)
-        elif action == 'delete_zone':
-            supprimes, _detail = Zone.objects.filter(pk=request.POST.get('zone_id'), deck=pont).delete()
-            if supprimes:
-                messages.success(request, "Zone supprimée.")
+        elif action == 'place_pin':
+            self._positionner_materiel(request, pont)
+        elif action == 'remove_pin':
+            materiel = Asset.objects.filter(pk=request.POST.get('asset_id'), ship=pont.ship, plan_deck=pont).first()
+            if materiel:
+                materiel.plan_deck = None
+                materiel.position_x = None
+                materiel.position_y = None
+                materiel.save(update_fields=['plan_deck', 'position_x', 'position_y'])
+                messages.success(request, "Matériel retiré du plan.")
 
         return redirect('plan-navire-deck', pk=pont.pk)
 
-    def _enregistrer_zone(self, request, pont, action):
-        nom = request.POST.get('zone_name', '').strip()
-        if not nom:
-            messages.error(request, "Le nom de la zone est obligatoire.")
+    def _positionner_materiel(self, request, pont):
+        materiel = Asset.objects.filter(pk=request.POST.get('asset_id'), ship=pont.ship).first()
+        if materiel is None:
+            messages.error(request, "Matériel introuvable ou hors de votre unité.")
             return
-        contour = _valider_points_zone(request.POST.get('points'))
-        if contour is None:
-            messages.error(request, "Contour de zone invalide : redessinez la zone sur le plan.")
+        x = _valider_coordonnee_pourcent(request.POST.get('x'))
+        y = _valider_coordonnee_pourcent(request.POST.get('y'))
+        if x is None or y is None:
+            messages.error(request, "Position invalide : cliquez à nouveau sur le plan.")
             return
-        emplacement = _resoudre_emplacement(request, pont.ship)
-
-        if action == 'update_zone':
-            zone = Zone.objects.filter(pk=request.POST.get('zone_id'), deck=pont).first()
-            if zone is None:
-                messages.error(request, "Zone introuvable.")
-                return
-            zone.name = nom
-            zone.points = contour
-            zone.location = emplacement
-            zone.save(update_fields=['name', 'points', 'location'])
-            messages.success(request, "Zone mise à jour.")
-        else:
-            Zone.objects.create(deck=pont, name=nom, points=contour, location=emplacement)
-            messages.success(request, "Zone créée.")
+        materiel.plan_deck = pont
+        materiel.position_x = x
+        materiel.position_y = y
+        materiel.save(update_fields=['plan_deck', 'position_x', 'position_y'])
+        messages.success(request, f"« {materiel} » positionné sur le plan.")
 
 
 class PlanNavireVueView(LoginRequiredMixin, View):
@@ -1926,11 +1922,11 @@ class PlanNavireVueView(LoginRequiredMixin, View):
 
 class PlanNavireVueDeckView(LoginRequiredMixin, View):
     """Consultation en lecture seule du plan d'un pont : navigation par
-    onglets entre les ponts du navire (dans l'ordre Deck.order), zones du plan
-    affichées en overlay avec un code couleur selon l'état du matériel qu'elles
-    contiennent (cf. Zone.etat_materiel : le pire état présent l'emporte), et
-    clic sur une zone pour ouvrir la liste du matériel déjà filtrable
-    (AssetListView), filtrée sur l'emplacement lié à cette zone.
+    onglets entre les ponts du navire (dans l'ordre Deck.order), épingles de
+    matériel affichées en overlay avec un code couleur selon l'état de CE
+    matériel (cf. Asset.etat_plan), et clic sur une épingle pour ouvrir
+    directement sa fiche (AssetDetailView) — remplace l'ancien clic sur une
+    zone qui ouvrait une liste de matériel groupé par emplacement.
 
     Ouverte à tous les rôles (contrairement à PlanNavireDeckView) : seul le
     contrôle de périmètre (navire de l'utilisateur) est conservé, via la même
@@ -1941,28 +1937,23 @@ class PlanNavireVueDeckView(LoginRequiredMixin, View):
     def get(self, request, pk):
         pont = _pont_dans_perimetre(request, pk)
         ponts_navire = list(Deck.objects.filter(ship=pont.ship).order_by('order', 'name'))
-        zones = list(pont.zones.select_related('location').order_by('name'))
-        zones_affichees = []
-        for zone in zones:
-            rectangle = zone.rectangle_pourcent
-            if rectangle is None:
-                # Zone sans contour valide (ne devrait pas arriver via l'éditeur,
-                # qui impose au moins 3 points) : on ne l'affiche simplement pas
-                # plutôt que de faire échouer toute la page.
-                continue
-            zones_affichees.append({
-                'zone': zone,
-                'rectangle': rectangle,
-                'etat': zone.etat_materiel,
-                'url_materiel': (
-                    f"{reverse('asset-list')}?location={zone.location_id}" if zone.location_id else None
-                ),
-            })
+        materiels = list(
+            Asset.objects.filter(plan_deck=pont, position_x__isnull=False, position_y__isnull=False)
+            .select_related('asset_type').order_by('asset_type__name')
+        )
+        epingles = [
+            {
+                'materiel': materiel,
+                'etat': materiel.etat_plan,
+                'url_materiel': reverse('asset-detail', kwargs={'pk': materiel.pk}),
+            }
+            for materiel in materiels
+        ]
         contexte = {
             'navire': pont.ship,
             'pont': pont,
             'ponts': ponts_navire,
-            'zones': zones_affichees,
+            'epingles': epingles,
             'multi_navires': is_master_admin(request.user),
         }
         return render(request, self.template_name, contexte)

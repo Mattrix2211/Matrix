@@ -21,7 +21,7 @@
   <div class="alert alert-info">
     Aucun pont n'est encore configuré pour <strong>{{ navire.name }}</strong>.
     {% if user|peut_configurer_plan_navire %}
-      <a href="{% url 'plan-navire-list' %}" class="alert-link">Configurez le plan du navire</a> pour créer les ponts et positionner les zones.
+      <a href="{% url 'plan-navire-list' %}" class="alert-link">Configurez le plan du navire</a> pour créer les ponts et positionner le matériel.
     {% else %}
       Demandez à un chef de service de configurer le plan du navire.
     {% endif %}
@@ -43,21 +43,21 @@
   <div class="row g-3">
     <div class="col-12 col-lg-9">
       <div class="card">
-        <div class="card-header">{{ pont.name }} — cliquez sur une zone pour voir son matériel</div>
+        <div class="card-header">{{ pont.name }} — cliquez sur une épingle pour voir la fiche du matériel</div>
         <div class="card-body">
           <div class="position-relative" style="user-select:none;">
             <img src="{{ pont.image.url }}" class="img-fluid w-100 d-block rounded" draggable="false" alt="Plan du pont {{ pont.name }}" />
-            {% for item in zones %}
+            {% for item in epingles %}
               <a
-                {% if item.url_materiel %}href="{{ item.url_materiel }}"{% endif %}
-                class="zone-plan {% if item.url_materiel %}zone-plan--cliquable{% endif %} zone-plan--{{ item.etat|lower }}"
-                style="left:{{ item.rectangle.left }}%; top:{{ item.rectangle.top }}%; width:{{ item.rectangle.width }}%; height:{{ item.rectangle.height }}%;"
-                title="{{ item.zone.name }}{% if not item.url_materiel %} — aucun emplacement associé{% endif %}"
+                href="{{ item.url_materiel }}"
+                class="pin-plan pin-plan--{{ item.etat|lower }}"
+                style="left:{{ item.materiel.position_x }}%; top:{{ item.materiel.position_y }}%;"
+                title="{{ item.materiel }}"
               >
-                <span class="zone-plan__label">{{ item.zone.name }}</span>
+                <span class="bi bi-geo-alt-fill"></span>
               </a>
             {% empty %}
-              <div class="position-absolute top-50 start-50 translate-middle text-muted small">Aucune zone dessinée sur ce pont.</div>
+              <div class="position-absolute top-50 start-50 translate-middle text-muted small">Aucun matériel positionné sur ce pont.</div>
             {% endfor %}
           </div>
         </div>
@@ -70,24 +70,19 @@
         <div class="card-body">
           <div class="mb-2"><span class="legende-puce" style="background: var(--green-tech);"></span> Matériel OK</div>
           <div class="mb-2"><span class="legende-puce" style="background: var(--amber);"></span> Contrôle en retard</div>
-          <div class="mb-2"><span class="legende-puce" style="background: var(--red);"></span> Matériel hors service</div>
-          <div><span class="legende-puce" style="background: var(--text-ter);"></span> Aucun matériel</div>
+          <div><span class="legende-puce" style="background: var(--red);"></span> Matériel hors service</div>
         </div>
       </div>
       <div class="card">
-        <div class="card-header">Zones ({{ zones|length }})</div>
+        <div class="card-header">Matériel positionné ({{ epingles|length }})</div>
         <ul class="list-group list-group-flush">
-          {% for item in zones %}
+          {% for item in epingles %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
-            {% if item.url_materiel %}
-              <a href="{{ item.url_materiel }}" class="text-decoration-none">{{ item.zone.name }}</a>
-            {% else %}
-              <span class="text-muted">{{ item.zone.name }}</span>
-            {% endif %}
-            <span class="legende-puce" style="background: var(--{% if item.etat == 'OK' %}green-tech{% elif item.etat == 'ATTENTION' %}amber{% elif item.etat == 'DANGER' %}red{% else %}text-ter{% endif %}); margin-right:0;"></span>
+            <a href="{{ item.url_materiel }}" class="text-decoration-none">{{ item.materiel }}</a>
+            <span class="legende-puce" style="background: var(--{% if item.etat == 'OK' %}green-tech{% elif item.etat == 'ATTENTION' %}amber{% else %}red{% endif %}); margin-right:0;"></span>
           </li>
           {% empty %}
-          <li class="list-group-item text-muted">Aucune zone dessinée pour l'instant.</li>
+          <li class="list-group-item text-muted">Aucun matériel positionné pour l'instant.</li>
           {% endfor %}
         </ul>
       </div>

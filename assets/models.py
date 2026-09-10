@@ -46,20 +46,21 @@ class Location(TimeStampedModel):
 class Deck(TimeStampedModel):
     """Pont d'un navire (ex: pont supérieur, pont principal).
 
-    Sert de support au futur plan visuel cliquable du navire (voir Zone
-    ci-dessous) : un plan distinct par pont, avec une navigation ordonnée
-    entre les ponts. Cette tâche ne couvre que le modèle de données — l'image
-    de fond et l'éditeur de zones arrivent dans une tâche suivante.
+    Sert de support au plan visuel cliquable du navire : un plan distinct par
+    pont, avec une navigation ordonnée entre les ponts, sur lequel chaque
+    matériel (Asset) peut être positionné précisément par une épingle
+    (voir Asset.plan_deck/position_x/position_y).
     """
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="decks", verbose_name="Navire")
     name = models.CharField(max_length=255, verbose_name="Nom du pont")
     # Permet de trier les ponts dans la navigation (ex: du pont le plus haut au
     # plus bas), indépendamment de l'ordre alphabétique des noms.
     order = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
-    # Image de fond du plan de ce pont, sur laquelle les zones cliquables
-    # (Zone ci-dessous) sont positionnées en pourcentage. Optionnelle : un
-    # pont peut être créé avant que son plan ne soit téléversé. Même
-    # convention que Asset.photo/Installation.photo (FileField, dossier dédié).
+    # Image de fond du plan de ce pont, sur laquelle les épingles de matériel
+    # (Asset.position_x/position_y) sont positionnées en pourcentage.
+    # Optionnelle : un pont peut être créé avant que son plan ne soit
+    # téléversé. Même convention que Asset.photo/Installation.photo
+    # (FileField, dossier dédié).
     image = models.FileField(upload_to="deck_images/", null=True, blank=True, verbose_name="Image du plan")
 
     class Meta:
@@ -70,125 +71,6 @@ class Deck(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} ({self.ship.name})"
-
-
-class Zone(TimeStampedModel):
-    """Zone cliquable délimitée sur le plan d'un pont.
-
-    Le contour est stocké sous forme de liste de points normalisés en
-    pourcentage (0 à 100) de la largeur/hauteur de l'image de fond du pont,
-    plutôt qu'en pixels : la zone reste ainsi valide quelle que soit la
-    résolution de l'image téléversée. Un simple rectangle (4 points) suffit
-    pour cette première version, mais le format polygone évite d'enfermer une
-    future zone de forme quelconque (ex: contour d'une coque) dans une
-    nouvelle migration.
-    """
-    deck = models.ForeignKey(Deck, on_delete=models.CASCADE, related_name="zones", verbose_name="Pont")
-    name = models.CharField(max_length=255, verbose_name="Nom de la zone")
-    # Réutilise l'Emplacement (Location) déjà utilisé sur le matériel et les
-    # installations : c'est ce lien qui permettra, dans une tâche suivante, de
-    # filtrer le matériel affiché lors d'un clic sur la zone. Facultatif et en
-    # SET_NULL, comme sur Asset/Installation : une zone peut être dessinée en
-    # brouillon avant qu'un emplacement lui soit assigné, et la suppression
-    # d'un emplacement ne doit pas être bloquée par une simple zone de plan.
-    location = models.ForeignKey(
-        Location, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name="zones", verbose_name="Emplacement",
-    )
-    # Contour normalisé (0-100%) : liste de points [{"x": .., "y": ..}, ...].
-    # Un rectangle se représente avec 4 points, dans l'ordre des coins.
-    points = JSONField(
-        default=list,
-        blank=True,
-        verbose_name="Contour de la zone",
-        help_text="Liste de points {x, y} en pourcentage (0-100) de l'image du pont.",
-    )
-
-    class Meta:
-        ordering = ["deck__ship__name", "deck__order", "deck__name", "name"]
-        verbose_name = "Zone"
-        verbose_name_plural = "Zones"
-
-    def __str__(self):
-        return f"{self.name} ({self.deck})"
-
-    # États possibles pour le code couleur du plan interactif (rendu de
-    # consultation, cf. assets/web_views.py::PlanNavireVueDeckView). Le pire
-    # état présent parmi le matériel de l'emplacement lié l'emporte toujours :
-    # un seul élément hors service suffit à colorer toute la zone en rouge
-    # (règle tranchée par le Tech Lead/PO pour cette tâche).
-    ETAT_NEUTRE = "NEUTRE"
-    ETAT_OK = "OK"
-    ETAT_ATTENTION = "ATTENTION"
-    ETAT_DANGER = "DANGER"
-
-    @property
-    def etat_materiel(self):
-        """État agrégé du matériel rattaché à l'emplacement de cette zone.
-
-        Périmètre volontairement limité au matériel mobile (Asset) : les
-        installations fixes (Installation) ne sont pas prises en compte ici,
-        ce n'est pas un oubli mais un choix de portée pour cette première
-        version du plan interactif.
-
-        - NEUTRE : zone brouillon (sans emplacement, cf. sous-tâche 1) ou
-          emplacement sans aucun matériel répertorié — pour ne jamais afficher
-          une fausse alerte verte sur une zone vide.
-        - DANGER : au moins un matériel hors service ou défectueux (statut
-          Asset.status OUT_OF_SERVICE/FAULTY), équivalent "périmé/hors service".
-        - ATTENTION : aucun matériel en danger, mais au moins un matériel a une
-          échéance de contrôle en retard (MaintenanceOccurrence.status =
-          OVERDUE, réutilisant le système d'entretien préventif existant
-          plutôt que d'inventer un nouveau champ "à contrôler"), OU au moins
-          un ticket correctif encore ouvert (CorrectiveTicket hors CLOSED/
-          CANCELLED) est lié à ce matériel. Ce second cas est nécessaire car
-          Asset.status n'est jamais remis à jour automatiquement à
-          l'ouverture d'un ticket correctif : sans cela, un matériel resté
-          "OK" avec une réparation en cours s'afficherait à tort en vert.
-        - OK : tout le matériel de l'emplacement est en bon état.
-        """
-        if self.location_id is None:
-            return self.ETAT_NEUTRE
-        materiels = list(self.location.assets.all())
-        if not materiels:
-            return self.ETAT_NEUTRE
-        if any(m.status in ("OUT_OF_SERVICE", "FAULTY") for m in materiels):
-            return self.ETAT_DANGER
-        # Imports tardifs : maintenance.models et reports.services importent
-        # tous les deux assets.models (dépendance inverse), un import en tête
-        # de fichier créerait un import circulaire.
-        from logistics.models import CorrectiveTicket
-        from maintenance.models import MaintenanceOccurrence
-        from reports.services import STATUTS_TICKET_FERMES
-        ids_materiels = [m.pk for m in materiels]
-        en_retard = MaintenanceOccurrence.objects.filter(
-            asset_id__in=ids_materiels, status="OVERDUE",
-        ).exists()
-        if en_retard:
-            return self.ETAT_ATTENTION
-        ticket_ouvert = CorrectiveTicket.objects.filter(
-            asset_id__in=ids_materiels,
-        ).exclude(status__in=STATUTS_TICKET_FERMES).exists()
-        return self.ETAT_ATTENTION if ticket_ouvert else self.ETAT_OK
-
-    @property
-    def rectangle_pourcent(self):
-        """Boîte englobante du contour, en pourcentage (left/top/width/height),
-        pour un positionnement CSS absolu simple sur le plan de consultation —
-        même principe que boiteEnglobante() côté éditeur en JS
-        (assets/plan_navire_deck.html), calculé ici côté serveur puisque la
-        page de consultation est en lecture seule (pas de redessin à gérer).
-        Renvoie None si le contour est vide/invalide."""
-        if not self.points:
-            return None
-        try:
-            xs = [float(p["x"]) for p in self.points]
-            ys = [float(p["y"]) for p in self.points]
-        except (TypeError, KeyError, ValueError):
-            return None
-        x1, x2 = min(xs), max(xs)
-        y1, y2 = min(ys), max(ys)
-        return {"left": x1, "top": y1, "width": x2 - x1, "height": y2 - y1}
 
 
 class AssetType(TimeStampedModel):
@@ -260,6 +142,57 @@ class Asset(TimeStampedModel, OwnedModel):
     folder = models.ForeignKey('AssetFolder', null=True, blank=True, on_delete=models.SET_NULL, related_name='assets')
     # Rattachement hiérarchique optionnel (ex: un multimètre rattaché à une caisse à outils)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="sous_ensembles")
+    # Positionnement précis sur le plan visuel du navire (épingle x/y),
+    # remplace l'ancien système de zones rectangulaires groupant plusieurs
+    # matériels par Emplacement (modèle Zone, supprimé). Un matériel n'a
+    # qu'une seule épingle à la fois : le repositionner écrase l'ancienne
+    # position. Les trois champs restent facultatifs, tant qu'aucune épingle
+    # n'a été posée pour ce matériel.
+    plan_deck = models.ForeignKey(
+        Deck, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="assets_positionnes", verbose_name="Pont du plan",
+    )
+    # Coordonnées normalisées (0-100%) de la largeur/hauteur de l'image du
+    # pont, même convention que l'ancien Zone.points : la position reste
+    # valide quelle que soit la résolution de l'image téléversée.
+    position_x = models.FloatField(null=True, blank=True, verbose_name="Position X (%)")
+    position_y = models.FloatField(null=True, blank=True, verbose_name="Position Y (%)")
+
+    # États possibles pour le code couleur de l'épingle sur le plan interactif
+    # (cf. assets/web_views.py::PlanNavireVueDeckView), repris à l'identique de
+    # l'ancien Zone.etat_materiel mais calculé pour CE matériel uniquement
+    # (une épingle = un seul matériel, plus de regroupement par zone).
+    ETAT_OK = "OK"
+    ETAT_ATTENTION = "ATTENTION"
+    ETAT_DANGER = "DANGER"
+
+    @property
+    def etat_plan(self):
+        """État de ce matériel pour l'affichage de son épingle sur le plan :
+        - DANGER : matériel hors service ou défectueux.
+        - ATTENTION : matériel en bon état déclaré, mais échéance de contrôle
+          en retard (MaintenanceOccurrence.status = OVERDUE) ou ticket
+          correctif encore ouvert (CorrectiveTicket hors CLOSED/CANCELLED) —
+          Asset.status n'étant jamais remis à jour automatiquement à
+          l'ouverture d'un ticket, sans ce second cas un matériel resté "OK"
+          avec une réparation en cours s'afficherait à tort en vert.
+        - OK : aucun signal d'alerte.
+        """
+        if self.status in ("OUT_OF_SERVICE", "FAULTY"):
+            return self.ETAT_DANGER
+        # Imports tardifs : maintenance.models et reports.services importent
+        # tous les deux assets.models (dépendance inverse), un import en tête
+        # de fichier créerait un import circulaire.
+        from logistics.models import CorrectiveTicket
+        from maintenance.models import MaintenanceOccurrence
+        from reports.services import STATUTS_TICKET_FERMES
+        en_retard = MaintenanceOccurrence.objects.filter(asset_id=self.pk, status="OVERDUE").exists()
+        if en_retard:
+            return self.ETAT_ATTENTION
+        ticket_ouvert = CorrectiveTicket.objects.filter(
+            asset_id=self.pk,
+        ).exclude(status__in=STATUTS_TICKET_FERMES).exists()
+        return self.ETAT_ATTENTION if ticket_ouvert else self.ETAT_OK
 
     def clean(self):
         super().clean()

@@ -25,7 +25,6 @@ référents : seul le seuil générique d'écriture (RolePermission) est revéri
 ici sur les 8 rôles, pour compléter la matrice sans dupliquer cette
 couverture déjà existante.
 """
-import json
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -34,7 +33,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import GradeChoice, UserProfile
-from assets.models import Asset, AssetFolder, AssetType, Deck, Installation, InstallationMaintenance, Zone
+from assets.models import Asset, AssetFolder, AssetType, Deck, Installation, InstallationMaintenance
 from calendar_app.models import PersonalEvent
 from logistics.models import CorrectiveTicket, StockPiece
 from matrix.core.role_thresholds import invalidate_cache
@@ -492,22 +491,20 @@ class StockPieceMatriceTests(MatricePermissionsTestCase):
         self.assert_seuil(RoleLevel.CHEF_SECTION, executer)
 
 
-class ZoneMatriceTests(MatricePermissionsTestCase):
-    """Zone cliquable du plan visuel du navire : configuration (création,
-    modification, suppression) réservée à CHEF_SERVICE+ (assets/web_views.py::
-    _peut_configurer_plan_navire), au même seuil que le rattachement
-    parent/enfant. La consultation (PlanNavireVueDeckView) est en revanche
-    ouverte à tous les rôles, seul le périmètre navire est vérifié."""
-
-    _POINTS = json.dumps([
-        {"x": 10, "y": 10}, {"x": 40, "y": 10},
-        {"x": 40, "y": 30}, {"x": 10, "y": 30},
-    ])
+class PlanNaviePositionMatriceTests(MatricePermissionsTestCase):
+    """Positionnement précis du matériel sur le plan visuel du navire
+    (épingle x/y, cf. Asset.plan_deck/position_x/position_y) : configuration
+    (placement, repositionnement, retrait) réservée à CHEF_SERVICE+ (assets/
+    web_views.py::_peut_configurer_plan_navire), au même seuil que
+    l'ancien système de zones qu'elle remplace. La consultation
+    (PlanNavireVueDeckView) est en revanche ouverte à tous les rôles, seul le
+    périmètre navire est vérifié."""
 
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
         cls.deck = Deck.objects.create(ship=cls.ship, name="Pont principal", order=1)
+        cls.asset_type = AssetType.objects.create(name="Extincteur", category="Incendie", sector=cls.sector)
 
     def test_lecture_ouverte_a_tout_role(self):
         for role in ROLES:
@@ -515,45 +512,52 @@ class ZoneMatriceTests(MatricePermissionsTestCase):
                 r = self.client_pour(role).get(f"/assets/plan-navire/{self.deck.id}/")
                 self.assertEqual(r.status_code, 200)
 
-    def test_creation_zone(self):
+    def test_placement_dune_epingle(self):
         def executer(client, role):
+            materiel = Asset.objects.create(
+                asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+                internal_id=f"EPINGLE-{role.name}",
+            )
             r = client.post(f"/assets/plan/{self.deck.id}/", {
-                "action": "create_zone",
-                "zone_name": f"Zone {role.name}",
-                "points": self._POINTS,
+                "action": "place_pin", "asset_id": str(materiel.id), "x": "10", "y": "20",
             })
             if r.status_code == 403:
                 return False
             self.assertEqual(r.status_code, 302)
-            return Zone.objects.filter(deck=self.deck, name=f"Zone {role.name}").exists()
+            materiel.refresh_from_db()
+            return materiel.plan_deck_id == self.deck.id and materiel.position_x == 10 and materiel.position_y == 20
         self.assert_seuil(RoleLevel.CHEF_SERVICE, executer)
 
-    def test_modification_zone(self):
+    def test_repositionnement_dune_epingle(self):
         def executer(client, role):
-            zone = Zone.objects.create(deck=self.deck, name=f"Avant modif {role.name}", points=[])
+            materiel = Asset.objects.create(
+                asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+                internal_id=f"REPOS-{role.name}", plan_deck=self.deck, position_x=10, position_y=10,
+            )
             r = client.post(f"/assets/plan/{self.deck.id}/", {
-                "action": "update_zone",
-                "zone_id": str(zone.id),
-                "zone_name": f"Modifiée par {role.name}",
-                "points": self._POINTS,
+                "action": "place_pin", "asset_id": str(materiel.id), "x": "60", "y": "70",
             })
             if r.status_code == 403:
                 return False
             self.assertEqual(r.status_code, 302)
-            zone.refresh_from_db()
-            return zone.name == f"Modifiée par {role.name}"
+            materiel.refresh_from_db()
+            return materiel.position_x == 60 and materiel.position_y == 70
         self.assert_seuil(RoleLevel.CHEF_SERVICE, executer)
 
-    def test_suppression_zone(self):
+    def test_retrait_dune_epingle(self):
         def executer(client, role):
-            zone = Zone.objects.create(deck=self.deck, name=f"À supprimer {role.name}", points=[])
+            materiel = Asset.objects.create(
+                asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector,
+                internal_id=f"RETRAIT-{role.name}", plan_deck=self.deck, position_x=10, position_y=10,
+            )
             r = client.post(f"/assets/plan/{self.deck.id}/", {
-                "action": "delete_zone", "zone_id": str(zone.id),
+                "action": "remove_pin", "asset_id": str(materiel.id),
             })
             if r.status_code == 403:
                 return False
             self.assertEqual(r.status_code, 302)
-            return not Zone.objects.filter(pk=zone.id).exists()
+            materiel.refresh_from_db()
+            return materiel.plan_deck_id is None and materiel.position_x is None
         self.assert_seuil(RoleLevel.CHEF_SERVICE, executer)
 
 
