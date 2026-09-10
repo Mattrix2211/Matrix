@@ -40,9 +40,11 @@ from .models import (
     NIVEAU_SUPERVISION_GLOBALE_LISTE,
     Quart,
     ServiceGarde,
+    marins_du_perimetre,
     peut_gerer_liste,
     utilisateur_autorise_pour_perimetre,
 )
+from .services import compteurs_equite_perimetre
 
 User = get_user_model()
 
@@ -230,40 +232,14 @@ def _listes_publiees_me_concernant(model, user):
     return model.objects.filter(q, statut=model.STATUT_PUBLIEE)
 
 
-def _q_marins_du_perimetre(liste):
-    """Marins affectables sur un créneau de `liste` : tout le périmètre visé
-    et tout ce qui en descend (ex. une liste au niveau secteur peut affecter
-    n'importe quel marin d'une section de ce secteur) — à ne pas confondre
-    avec la règle de gestion de la liste elle-même (peut_gerer_liste), qui ne
-    tolère aucune cascade."""
-    if liste.section_id:
-        return Q(profile__section_id=liste.section_id)
-    if liste.sector_id:
-        return Q(profile__sector_id=liste.sector_id) | Q(profile__section__sector_id=liste.sector_id)
-    if liste.service_id:
-        return (
-            Q(profile__service_id=liste.service_id)
-            | Q(profile__sector__service_id=liste.service_id)
-            | Q(profile__section__sector__service_id=liste.service_id)
-        )
-    if liste.ship_id:
-        return (
-            Q(profile__ship_id=liste.ship_id)
-            | Q(profile__service__ship_id=liste.ship_id)
-            | Q(profile__sector__service__ship_id=liste.ship_id)
-            | Q(profile__section__sector__service__ship_id=liste.ship_id)
-        )
-    return Q(pk__in=[])
-
-
 def _peut_lire_liste(user, liste):
     """Lecture d'une liste déjà PUBLIÉE, ouverte à tout marin qui en relève
     (même règle de cascade que les marins affectables sur un créneau, cf.
-    _q_marins_du_perimetre) — une liste encore en BROUILLON reste visible
+    marins_du_perimetre) — une liste encore en BROUILLON reste visible
     uniquement à ses chefs de liste gérants (cf. peut_gerer_liste)."""
     if liste.statut != liste.STATUT_PUBLIEE:
         return False
-    return User.objects.filter(_q_marins_du_perimetre(liste), pk=user.pk).exists()
+    return User.objects.filter(marins_du_perimetre(liste), pk=user.pk).exists()
 
 
 class ListeIndexView(LoginRequiredMixin, View):
@@ -379,9 +355,18 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             "peut_gerer": peut_gerer,
             "url_prefix": self.url_prefix,
             "marins_perimetre": (
-                User.objects.filter(_q_marins_du_perimetre(liste)).select_related("profile")
+                User.objects.filter(marins_du_perimetre(liste)).select_related("profile")
                 .order_by("username").distinct()
                 if peut_gerer else User.objects.none()
+            ),
+            # Compteur d'équité (Phase 2, tâche Notion « Services/gardes :
+            # compteur d'équité par marin ») : uniquement pour les services de
+            # garde (pas les quarts, cf. docstring de quarts/services.py), et
+            # réservé au chef de liste gérant cette liste — un marin lambda
+            # consulte son propre total depuis son tableau de bord personnel
+            # (dashboard/web_views.py), pas ici.
+            "compteurs_equite": (
+                compteurs_equite_perimetre(liste) if peut_gerer and isinstance(liste, ServiceGarde) else None
             ),
         }
         return render(request, self.template_name, contexte)
@@ -426,7 +411,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         marin = None
         marin_id = request.POST.get("marin")
         if marin_id:
-            marin = User.objects.filter(_q_marins_du_perimetre(liste), pk=marin_id).distinct().first()
+            marin = User.objects.filter(marins_du_perimetre(liste), pk=marin_id).distinct().first()
             if marin is None:
                 messages.error(request, "Le marin choisi ne fait pas partie du périmètre de cette liste.")
                 return

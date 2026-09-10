@@ -115,4 +115,79 @@
   </div>
 </div>
 {% endif %}
+
+{% if compteurs_equite is not None %}
+<div class="mt-4">
+  <h2 class="h5">Équité des services de garde — périmètre de cette liste</h2>
+  <p class="text-muted small mb-2">
+    Compteur en lecture seule : créneaux des listes déjà publiées uniquement, pour vous aider à répartir équitablement les prochaines affectations.
+  </p>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th rowspan="2" class="align-middle">Marin</th>
+            <th colspan="3" class="text-center font-mono">Mois en cours</th>
+            <th colspan="3" class="text-center font-mono">Année en cours</th>
+          </tr>
+          <tr>
+            <th class="small text-muted text-center fw-normal">En semaine</th>
+            <th class="small text-muted text-center fw-normal">Vendredi</th>
+            <th class="small text-muted text-center fw-normal">Week-end</th>
+            <th class="small text-muted text-center fw-normal">En semaine</th>
+            <th class="small text-muted text-center fw-normal">Vendredi</th>
+            <th class="small text-muted text-center fw-normal">Week-end</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in compteurs_equite %}
+          <tr>
+            <td>{{ item.marin.get_full_name|default:item.marin.username }}</td>
+            <td style="min-width: 90px;">
+              <div class="small font-mono text-center">{{ item.mois_visuel.semaine.valeur }}</div>
+              <div class="progress" style="height:6px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ item.mois_visuel.semaine.pourcentage }}%;" aria-valuenow="{{ item.mois_visuel.semaine.valeur }}" aria-valuemin="0"></div>
+              </div>
+            </td>
+            <td style="min-width: 90px;">
+              <div class="small font-mono text-center">{{ item.mois_visuel.vendredi.valeur }}</div>
+              <div class="progress" style="height:6px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ item.mois_visuel.vendredi.pourcentage }}%;" aria-valuenow="{{ item.mois_visuel.vendredi.valeur }}" aria-valuemin="0"></div>
+              </div>
+            </td>
+            <td style="min-width: 90px;">
+              <div class="small font-mono text-center">{{ item.mois_visuel.weekend.valeur }}</div>
+              <div class="progress" style="height:6px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ item.mois_visuel.weekend.pourcentage }}%;" aria-valuenow="{{ item.mois_visuel.weekend.valeur }}" aria-valuemin="0"></div>
+              </div>
+            </td>
+            <td style="min-width: 90px;">
+              <div class="small font-mono text-center">{{ item.annee_visuel.semaine.valeur }}</div>
+              <div class="progress" style="height:6px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ item.annee_visuel.semaine.pourcentage }}%;" aria-valuenow="{{ item.annee_visuel.semaine.valeur }}" aria-valuemin="0"></div>
+              </div>
+            </td>
+            <td style="min-width: 90px;">
+              <div class="small font-mono text-center">{{ item.annee_visuel.vendredi.valeur }}</div>
+              <div class="progress" style="height:6px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ item.annee_visuel.vendredi.pourcentage }}%;" aria-valuenow="{{ item.annee_visuel.vendredi.valeur }}" aria-valuemin="0"></div>
+              </div>
+            </td>
+            <td style="min-width: 90px;">
+              <div class="small font-mono text-center">{{ item.annee_visuel.weekend.valeur }}</div>
+              <div class="progress" style="height:6px;">
+                <div class="progress-bar" role="progressbar" style="width: {{ item.annee_visuel.weekend.pourcentage }}%;" aria-valuenow="{{ item.annee_visuel.weekend.valeur }}" aria-valuemin="0"></div>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">Aucun marin dans le périmètre de cette liste.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

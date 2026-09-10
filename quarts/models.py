@@ -68,6 +68,7 @@ secteurs/services différents sur une même liste.
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
@@ -174,6 +175,35 @@ def peut_gerer_liste(user, liste):
     """Vrai si `user` peut modifier/publier CETTE liste précise déjà
     existante (Quart ou ServiceGarde) — cf. utilisateur_autorise_pour_perimetre."""
     return utilisateur_autorise_pour_perimetre(user, liste.ship, liste.service, liste.sector, liste.section)
+
+
+def marins_du_perimetre(liste):
+    """Marins affectables sur un créneau de `liste` (Quart ou ServiceGarde) :
+    tout le périmètre visé et tout ce qui en descend (ex. une liste au niveau
+    secteur couvre n'importe quel marin d'une section de ce secteur) — à ne
+    pas confondre avec la règle de gestion de la liste elle-même
+    (peut_gerer_liste), qui ne tolère aucune cascade. Utilisé à la fois pour
+    l'affectation d'un créneau (quarts/web_views.py) et pour le compteur
+    d'équité par marin (quarts/services.py), qui doit couvrir exactement les
+    mêmes marins que ceux affectables sur la liste."""
+    if liste.section_id:
+        return Q(profile__section_id=liste.section_id)
+    if liste.sector_id:
+        return Q(profile__sector_id=liste.sector_id) | Q(profile__section__sector_id=liste.sector_id)
+    if liste.service_id:
+        return (
+            Q(profile__service_id=liste.service_id)
+            | Q(profile__sector__service_id=liste.service_id)
+            | Q(profile__section__sector__service_id=liste.service_id)
+        )
+    if liste.ship_id:
+        return (
+            Q(profile__ship_id=liste.ship_id)
+            | Q(profile__service__ship_id=liste.ship_id)
+            | Q(profile__sector__service__ship_id=liste.ship_id)
+            | Q(profile__section__sector__service__ship_id=liste.ship_id)
+        )
+    return Q(pk__in=[])
 
 
 class ListeServiceAbstract(TimeStampedModel, OwnedModel):

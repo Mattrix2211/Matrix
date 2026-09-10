@@ -84,6 +84,32 @@
   </div>
   <div class="col-md-6 col-lg-3">
     <div class="card h-100">
+      <div class="card-header">Mes services de garde (équité)</div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">
+          Créneaux des listes publiées uniquement, à titre de transparence sur votre propre situation.
+        </p>
+        <div class="mb-3">
+          <div class="small text-muted mb-1">Mois en cours</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-week" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.mois.semaine }} en semaine</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-day" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.mois.vendredi }} vendredi(s)</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-heart" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.mois.weekend }} week-end(s)</span>
+          </div>
+        </div>
+        <div>
+          <div class="small text-muted mb-1">Année en cours</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-week" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.annee.semaine }} en semaine</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-day" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.annee.vendredi }} vendredi(s)</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-heart" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.annee.weekend }} week-end(s)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
       <div class="card-header">Mes qualifications</div>
       <div class="card-body">
         {% if mes_qualifications %}

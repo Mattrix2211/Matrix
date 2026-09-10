@@ -26,6 +26,7 @@ from maintenance.models import MaintenanceOccurrence
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
+from quarts.services import compteur_equite_marin
 from training.models import TrainingSession
 from training.services import qualifications_validees_de
 
@@ -108,6 +109,14 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
         # training/services.py (réutilisée à l'identique par « Mon profil »,
         # accounts/web_views.py).
         mes_qualifications = qualifications_validees_de(self.request.user, aujourdhui)
+
+        # Compteur d'équité des services de garde (Phase 2, tâche Notion
+        # « Services/gardes : compteur d'équité par marin ») : transparence du
+        # marin sur SA propre situation (mois en cours + année en cours),
+        # jamais celle des autres — les compteurs détaillés du périmètre
+        # entier restent réservés au chef de liste, sur la fiche de la liste
+        # (quarts/web_views.py::_DetailListeViewBase).
+        contexte["mes_compteurs_equite_garde"] = compteur_equite_marin(self.request.user, aujourdhui=aujourdhui)
 
         contexte["mes_maintenances"] = mes_maintenances
         contexte["mes_formations"] = mes_formations
