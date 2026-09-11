@@ -106,6 +106,7 @@ def _action_edit_installation(view, request, inst, qs):
         it.marque = request.POST.get('marque', it.marque).strip()
         it.gisement = request.POST.get('gisement', it.gisement).strip()
         it.local = request.POST.get('local', it.local).strip()
+        it.critique = request.POST.get('critique') == 'on'
         bigrame_id = request.POST.get('bigrame_id')
         photo = request.FILES.get('photo')
         if photo:

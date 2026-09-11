@@ -214,48 +214,88 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="edit_asset" />
           <input type="hidden" name="pk" id="editAssetPk" />
-          <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="editDesignation" required /></div>
-            <div class="col-md-6"><label class="form-label">Type</label><select class="form-select" name="asset_type_id" id="editAssetType">{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control font-mono" name="nno" id="editNno" /></div>
-            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="editReference" /></div>
-            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" id="editMarque" /></div>
-            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" id="editGisement" /></div>
-            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" id="editLocal" /></div>
-            <div class="col-md-3"><label class="form-label">Identifiant interne</label><input class="form-control font-mono" name="internal_id" id="editInternalId" /></div>
-            <div class="col-md-3"><label class="form-label">N° série</label><input class="form-control font-mono" name="serial_number" id="editSerialNumber" /></div>
-            <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status" id="editStatus"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div>
-            <div class="col-md-3"><label class="form-label">Criticité</label><input type="number" min="1" max="5" class="form-control" name="criticality" id="editCriticality" /></div>
-            <div class="col-md-6"><label class="form-label">Unité</label><select class="form-select" name="ship_id" id="editShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="editService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-6">
-              <label class="form-label">Emplacement</label>
-              <select class="form-select" name="location_id" id="editLocation">
-                <option value="">—</option>
-                {% for loc in locations %}<option value="{{ loc.id }}">{{ loc.name }} — {{ loc.ship.name }}</option>{% endfor %}
-                <option value="__new__">+ Ajouter un nouvel emplacement…</option>
-              </select>
-              <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="editLocationNew" placeholder="Nom du nouvel emplacement" />
+          <div class="accordion accordion-flush" id="accordionEditAsset">
+
+            {# Section ouverte par défaut : les champs les plus souvent corrigés #}
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#editAssetSectionIdentite" aria-expanded="true" aria-controls="editAssetSectionIdentite"><span class="bi bi-card-text me-2"></span>Identité</button>
+              </h2>
+              <div id="editAssetSectionIdentite" class="accordion-collapse collapse show">
+                <div class="accordion-body">
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="editDesignation" required /></div>
+                    <div class="col-md-6"><label class="form-label">Type</label><select class="form-select" name="asset_type_id" id="editAssetType">{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control font-mono" name="nno" id="editNno" /></div>
+                    <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="editReference" /></div>
+                    <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" id="editMarque" /></div>
+                    <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" id="editGisement" /></div>
+                    <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" id="editLocal" /></div>
+                    <div class="col-md-3"><label class="form-label">Identifiant interne</label><input class="form-control font-mono" name="internal_id" id="editInternalId" /></div>
+                    <div class="col-md-3"><label class="form-label">N° série</label><input class="form-control font-mono" name="serial_number" id="editSerialNumber" /></div>
+                    <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status" id="editStatus"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div>
+                    <div class="col-md-3"><label class="form-label">Criticité</label><input type="number" min="1" max="5" class="form-control" name="criticality" id="editCriticality" /></div>
+                    <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
-            {% if peut_gerer_parent %}
-            <div class="col-md-6">
-              <label class="form-label">Rattaché à (facultatif)</label>
-              <select class="form-select" name="parent_id" id="editParentAsset">
-                <option value="">— Aucun —</option>
-                {% for p in assets_pour_parent %}
-                  <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation|default:p.asset_type.name }}</option>
-                {% endfor %}
-              </select>
+
+            {# Section repliée par défaut : rattachement organisationnel, modifié moins souvent #}
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#editAssetSectionOrganisation" aria-expanded="false" aria-controls="editAssetSectionOrganisation"><span class="bi bi-diagram-3 me-2"></span>Organisation</button>
+              </h2>
+              <div id="editAssetSectionOrganisation" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Unité</label><select class="form-select" name="ship_id" id="editShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="editService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-6">
+                      <label class="form-label">Emplacement</label>
+                      <select class="form-select" name="location_id" id="editLocation">
+                        <option value="">—</option>
+                        {% for loc in locations %}<option value="{{ loc.id }}">{{ loc.name }} — {{ loc.ship.name }}</option>{% endfor %}
+                        <option value="__new__">+ Ajouter un nouvel emplacement…</option>
+                      </select>
+                      <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="editLocationNew" placeholder="Nom du nouvel emplacement" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            {% endif %}
-            <div class="col-12"><label class="form-label">Ajouter des documents</label><input type="file" class="form-control" name="documents" multiple /></div>
-            <div class="col-12">
-              <label class="form-label">Documents existants</label>
-              <div id="editAssetDocsList" class="d-flex flex-wrap gap-2"></div>
+
+            {# Section repliée par défaut : réglages avancés, consultés ponctuellement #}
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#editAssetSectionAvance" aria-expanded="false" aria-controls="editAssetSectionAvance"><span class="bi bi-sliders me-2"></span>Options avancées</button>
+              </h2>
+              <div id="editAssetSectionAvance" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                  <div class="row g-3">
+                    {% if peut_gerer_parent %}
+                    <div class="col-md-6">
+                      <label class="form-label">Rattaché à (facultatif)</label>
+                      <select class="form-select" name="parent_id" id="editParentAsset">
+                        <option value="">— Aucun —</option>
+                        {% for p in assets_pour_parent %}
+                          <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation|default:p.asset_type.name }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-12"><label class="form-label">Ajouter des documents</label><input type="file" class="form-control" name="documents" multiple /></div>
+                    <div class="col-12">
+                      <label class="form-label">Documents existants</label>
+                      <div id="editAssetDocsList" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
