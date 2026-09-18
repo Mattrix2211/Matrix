@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">Dashboard classe de navire</h1>
+<p class="text-muted mb-4">Choisissez la classe de navire à consulter (vue transverse à tous les navires de cette classe).</p>
+
+<div class="list-group">
+  {% for classe in classes %}
+  <a href="{% url 'dashboard-classe-navire' classe %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+    {{ classe }}
+    <span class="bi bi-chevron-right"></span>
+  </a>
+  {% empty %}
+  <p class="text-muted">Aucune classe de navire disponible.</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -8,10 +8,13 @@ from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.db.models import ProtectedError
-from accounts.models import GradeChoice, SpecialityChoice, ServiceFunctionChoice, FonctionQuartChoice, RoleAvailability, Roles, AuditLog
+from accounts.models import (
+    GradeChoice, SpecialityChoice, ServiceFunctionChoice, FonctionQuartChoice, RoleAvailability, Roles,
+    AuditLog, ResponsableSpecialite,
+)
 from assets.models import InstallationBigrameChoice, Installation
 from training.models import TrainingCourse
-from org.models import Ship, Service, Sector, Section, RoleThresholdConfig
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire
 from django.contrib import messages
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.roles import RoleLevel
@@ -223,6 +226,21 @@ class SettingsView(LoginRequiredMixin, View):
             'user_notification_time': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time', None)),
             'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
             'peut_gerer_seuils': True,
+            # Responsables transverses (dashboards par spécialité / par classe de
+            # navire, tâche Notion « Dashboards transverses par spécialité et par
+            # classe de navire ») : rôle indépendant de la hiérarchie Navire →
+            # Service → Secteur → Section, géré ici comme les autres
+            # référentiels communs à toute la flotte.
+            'responsables_specialite': ResponsableSpecialite.objects.select_related('specialite', 'user').order_by(
+                'specialite__name', 'user__last_name', 'user__first_name'
+            ),
+            'responsables_classe_navire': ResponsableClasseNavire.objects.select_related('user').order_by(
+                'classe_navire', 'user__last_name', 'user__first_name'
+            ),
+            'classes_navire_disponibles': list(
+                Ship.objects.exclude(classe_navire='').values_list('classe_navire', flat=True).distinct().order_by('classe_navire')
+            ),
+            'marins_disponibles': User.objects.order_by('last_name', 'first_name', 'username'),
         }
         if tab == 'journal':
             context['logs'] = AuditLog.objects.select_related('actor','target_user').order_by('-created_at')[:200]
@@ -399,6 +417,54 @@ class SettingsView(LoginRequiredMixin, View):
             SpecialityChoice.objects.filter(pk=pk).delete()
             messages.success(request, "Spécialité supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_specialite', details=f'pk={pk}')
+        elif action == 'add_responsable_specialite':
+            specialite_id = request.POST.get('specialite_id')
+            user_id = request.POST.get('user_id')
+            try:
+                specialite = SpecialityChoice.objects.get(pk=specialite_id)
+                marin = User.objects.get(pk=user_id)
+                _, cree = ResponsableSpecialite.objects.get_or_create(specialite=specialite, user=marin)
+                if cree:
+                    messages.success(
+                        request,
+                        f"{marin.get_full_name() or marin.username} désigné responsable de « {specialite.name} ».",
+                    )
+                    AuditLog.objects.create(
+                        actor=request.user, action='add_responsable_specialite',
+                        details=f'specialite={specialite.name}; user={marin.username}',
+                    )
+                else:
+                    messages.warning(request, "Ce marin est déjà responsable de cette spécialité.")
+            except (SpecialityChoice.DoesNotExist, User.DoesNotExist, ValueError):
+                messages.error(request, "Spécialité ou marin introuvable.")
+        elif action == 'retirer_responsable_specialite':
+            pk = request.POST.get('pk')
+            ResponsableSpecialite.objects.filter(pk=pk).delete()
+            messages.success(request, "Responsable de spécialité retiré.")
+            AuditLog.objects.create(actor=request.user, action='retirer_responsable_specialite', details=f'pk={pk}')
+        elif action == 'add_responsable_classe' and name:
+            user_id = request.POST.get('user_id')
+            try:
+                marin = User.objects.get(pk=user_id)
+                _, cree = ResponsableClasseNavire.objects.get_or_create(classe_navire=name, user=marin)
+                if cree:
+                    messages.success(
+                        request,
+                        f"{marin.get_full_name() or marin.username} désigné responsable de la classe « {name} ».",
+                    )
+                    AuditLog.objects.create(
+                        actor=request.user, action='add_responsable_classe',
+                        details=f'classe={name}; user={marin.username}',
+                    )
+                else:
+                    messages.warning(request, "Ce marin est déjà responsable de cette classe de navire.")
+            except (User.DoesNotExist, ValueError):
+                messages.error(request, "Marin introuvable.")
+        elif action == 'retirer_responsable_classe':
+            pk = request.POST.get('pk')
+            ResponsableClasseNavire.objects.filter(pk=pk).delete()
+            messages.success(request, "Responsable de classe de navire retiré.")
+            AuditLog.objects.create(actor=request.user, action='retirer_responsable_classe', details=f'pk={pk}')
         elif action == 'delete_fonction':
             pk = request.POST.get('pk')
             try:

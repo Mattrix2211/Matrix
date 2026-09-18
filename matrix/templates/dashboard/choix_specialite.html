@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">Dashboard spécialité</h1>
+<p class="text-muted mb-4">Choisissez la spécialité à consulter (vue transverse à toute la flotte).</p>
+
+<div class="list-group">
+  {% for specialite in specialites %}
+  <a href="{% url 'dashboard-specialite' specialite.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+    {{ specialite.name }}
+    <span class="bi bi-chevron-right"></span>
+  </a>
+  {% empty %}
+  <p class="text-muted">Aucune spécialité disponible.</p>
+  {% endfor %}
+</div>
+{% endblock %}

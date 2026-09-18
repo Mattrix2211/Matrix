@@ -138,6 +138,22 @@
               </a>
             </li>
             {% endif %}
+            {% if user|peut_voir_dashboard_specialite %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'dashboard-specialite-choix' %}" title="Dashboard spécialité" aria-label="Dashboard spécialité">
+                <span class="bi bi-award nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Dashboard spécialité</span>
+              </a>
+            </li>
+            {% endif %}
+            {% if user|peut_voir_dashboard_classe_navire %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'dashboard-classe-navire-choix' %}" title="Dashboard classe de navire" aria-label="Dashboard classe de navire">
+                <span class="bi bi-diagram-2 nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Dashboard classe de navire</span>
+              </a>
+            </li>
+            {% endif %}
             {% if user|peut_voir_pret_appareillage %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'pret-appareillage' %}" title="Prêt à appareillage" aria-label="Prêt à appareillage">

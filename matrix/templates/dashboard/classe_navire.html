@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">Classe de navire « {{ classe_navire }} »</h1>
+<p class="text-muted mb-4">Vue agrégée de {{ navires|length }} unité{{ navires|length|pluralize }} de cette classe : {% for navire in navires %}{{ navire.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+
+<h2 class="h5 mb-3">Comparatif de disponibilité opérationnelle entre unités</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header">Taux de pannes, maintenance en retard et installations critiques hors service, par unité</div>
+      <div class="card-body">
+        {% if comparatif_navires %}
+        <canvas id="chartComparatifNavires" style="max-height:260px;"></canvas>
+        {% else %}
+        <p class="text-muted mb-0">Aucune unité à comparer.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Détail par unité</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Unité</th><th>Pannes</th><th>Retard</th><th>Install. critiques HS</th></tr></thead>
+          <tbody>
+          {% for ligne in comparatif_navires %}
+            <tr>
+              <td>{{ ligne.navire.name }}</td>
+              <td class="font-mono {% if ligne.taux_pannes_pct %}text-danger{% endif %}">{{ ligne.taux_pannes_pct }} %</td>
+              <td class="font-mono {% if ligne.maintenances_en_retard_pct %}text-warning{% endif %}">{{ ligne.maintenances_en_retard_pct }} %</td>
+              <td class="font-mono {% if ligne.installations_critiques_hors_service %}text-danger{% endif %}">{{ ligne.installations_critiques_hors_service }}/{{ ligne.installations_critiques_total }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-muted">Aucune unité.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h5 mb-3">Totaux de la classe (toutes unités confondues)</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Maintenances en retard</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold {% if maintenances_en_retard %}text-danger{% endif %} font-mono">{{ maintenances_en_retard }}</span>
+        <div class="progress mt-2" style="height:8px;" title="{{ maintenances_en_retard_pct }} % des maintenances actives sont en retard">
+          <div class="progress-bar" role="progressbar" style="width: {{ maintenances_en_retard_pct }}%; background: {% if maintenances_en_retard %}var(--red){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ maintenances_en_retard_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <small class="text-muted font-mono">{{ maintenances_en_retard_pct }} % des maintenances actives</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Tickets correctifs ouverts</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold font-mono">{{ total_tickets_ouverts }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Pièces de stock sous seuil</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold {% if pieces_sous_seuil %}text-warning{% endif %} font-mono">{{ pieces_sous_seuil|length }}</span>
+        <div class="progress mt-2" style="height:8px;" title="{{ pieces_sous_seuil_pct }} % des pièces de stock de la classe sont sous seuil">
+          <div class="progress-bar" role="progressbar" style="width: {{ pieces_sous_seuil_pct }}%; background: {% if pieces_sous_seuil %}var(--amber){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ pieces_sous_seuil_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <small class="text-muted font-mono">{{ pieces_sous_seuil_pct }} % des pièces de la classe</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Tickets correctifs ouverts par statut</div>
+      <div class="card-body">
+        {% if tickets_par_statut and total_tickets_ouverts %}
+        <canvas id="chartTicketsClasse" style="max-height:220px;"></canvas>
+        {% endif %}
+        <ul class="list-group list-group-flush mt-2">
+          {% for item in tickets_par_statut %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ item.libelle }}</span>
+            <span class="badge bg-secondary font-mono">{{ item.total }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Pièces de stock sous le seuil</div>
+      <div class="card-body">
+        {% if pieces_sous_seuil %}
+        <ul class="list-group list-group-flush">
+          {% for piece in pieces_sous_seuil %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <span class="fw-semibold">{{ piece.reference }} — {{ piece.designation }}</span>
+              <div class="small text-muted font-mono">{{ piece.ship }} / {{ piece.service }} / {{ piece.sector }}{% if piece.section %} / {{ piece.section }}{% endif %}</div>
+            </div>
+            <span class="badge bg-warning align-self-center font-mono">{{ piece.quantite }}/{{ piece.quantite_minimale }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune pièce de stock sous le seuil minimal.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if comparatif_navires %}
+<script>
+(function(){
+  // Graphique en barres groupées (principe n°5 CLAUDE.md) : un comparatif se
+  // lit plus vite qu'un tableau de chiffres quand il s'agit de repérer l'unité
+  // la moins disponible de la classe.
+  var ctxComparatif = document.getElementById('chartComparatifNavires');
+  if (ctxComparatif && window.Chart) {
+    new Chart(ctxComparatif, {
+      type: 'bar',
+      data: {
+        labels: {{ comparatif_chart_labels_json|safe }},
+        datasets: [
+          { label: 'Taux de pannes (%)', data: {{ comparatif_taux_pannes_json|safe }}, backgroundColor: '#dc3545' },
+          { label: 'Maintenance en retard (%)', data: {{ comparatif_maintenance_retard_json|safe }}, backgroundColor: '#ffc107' },
+          { label: 'Installations critiques hors service', data: {{ comparatif_installations_hors_service_json|safe }}, backgroundColor: '#6610f2' },
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    });
+  }
+})();
+</script>
+{% endif %}
+
+{% if tickets_par_statut and total_tickets_ouverts %}
+<script>
+(function(){
+  // Même composant Chart.js que la Vue flotte (dashboard/flotte.html) —
+  // cohérence visuelle entre les deux écrans (principe n°5 CLAUDE.md).
+  var ctx = document.getElementById('chartTicketsClasse');
+  if (!ctx || !window.Chart) return;
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: {{ tickets_chart_labels_json|safe }},
+      datasets: [{
+        label: 'Tickets ouverts',
+        data: {{ tickets_chart_values_json|safe }},
+        backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

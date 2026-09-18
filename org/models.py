@@ -114,3 +114,34 @@ class RoleThresholdConfig(TimeStampedModel):
 
     def __str__(self):
         return f"Seuils de rôle — {self.ship}" if self.ship_id else "Seuils de rôle — configuration globale (flotte)"
+
+
+class ResponsableClasseNavire(TimeStampedModel):
+    """Marin désigné responsable d'une classe de navire pour TOUTE LA FLOTTE
+    (tous les navires portant cette classe) — même principe transverse que
+    accounts.ResponsableSpecialite, décliné sur Ship.classe_navire plutôt
+    que sur la spécialité d'un marin.
+
+    `classe_navire` est un texte libre (comme Ship.classe_navire ci-dessus,
+    nomenclature Marine non fermée) : la responsabilité porte sur la VALEUR
+    de classe, pas sur un navire précis — elle couvre donc tout navire
+    existant ou futur portant cette classe. Donne accès en LECTURE SEULE au
+    dashboard classe de navire (dashboard/web_views.py::DashboardClasseNavireView),
+    aucun droit d'écriture supplémentaire.
+
+    Désignation réservée à MASTER_ADMIN, même seuil configurable que
+    ResponsableSpecialite (cf. matrix/core/role_thresholds.py::REGISTRE_ACTIONS,
+    "responsabilite_transverse_gestion")."""
+
+    classe_navire = models.CharField(max_length=100, verbose_name="Classe de navire")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="classes_navire_dont_il_est_responsable"
+    )
+
+    class Meta:
+        unique_together = ("classe_navire", "user")
+        verbose_name = "Responsable de classe de navire"
+        verbose_name_plural = "Responsables de classe de navire"
+
+    def __str__(self):
+        return f"{self.user} — responsable classe ({self.classe_navire})"

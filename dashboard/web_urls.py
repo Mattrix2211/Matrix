@@ -1,6 +1,10 @@
 from django.urls import path
 
 from .web_views import (
+    DashboardClasseNavireChoixView,
+    DashboardClasseNavireView,
+    DashboardSpecialiteChoixView,
+    DashboardSpecialiteView,
     HistoriqueAppareillageView,
     ItemAppareillageCocherView,
     PretAppareillageView,
@@ -12,6 +16,10 @@ from .web_views import (
 
 urlpatterns = [
     path("flotte/", VueFlotteView.as_view(), name="vue-flotte"),
+    path("specialite/", DashboardSpecialiteChoixView.as_view(), name="dashboard-specialite-choix"),
+    path("specialite/<int:pk>/", DashboardSpecialiteView.as_view(), name="dashboard-specialite"),
+    path("classe-navire/", DashboardClasseNavireChoixView.as_view(), name="dashboard-classe-navire-choix"),
+    path("classe-navire/<str:classe>/", DashboardClasseNavireView.as_view(), name="dashboard-classe-navire"),
     path("pret-appareillage/", PretAppareillageView.as_view(), name="pret-appareillage"),
     path("pret-appareillage/ouvrir/", SessionAppareillageOuvrirView.as_view(), name="session-appareillage-ouvrir"),
     path(

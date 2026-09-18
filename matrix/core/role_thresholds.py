@@ -99,6 +99,11 @@ REGISTRE_ACTIONS = [
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,
     ),
+    ActionSeuil(
+        "responsabilite_transverse_gestion",
+        "Désigner ou retirer un responsable de spécialité ou de classe de navire (dashboards transverses flotte)",
+        "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,
+    ),
 ]
 
 REGISTRE_PAR_CLE = {a.cle: a for a in REGISTRE_ACTIONS}

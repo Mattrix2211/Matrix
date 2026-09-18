@@ -128,6 +128,35 @@ class AuditLog(TimeStampedModel):
         return f"{self.created_at} {self.actor} {self.action}"
 
 
+class ResponsableSpecialite(TimeStampedModel):
+    """Marin désigné responsable d'une spécialité pour TOUTE LA FLOTTE (tous
+    navires confondus) — rôle transverse, indépendant de la hiérarchie
+    Navire → Service → Secteur → Section et du rôle hiérarchique du marin
+    (CLAUDE.md), au même titre que training.ReferentFormation est
+    indépendant du rang. Donne accès en LECTURE SEULE au dashboard
+    spécialité (dashboard/web_views.py::DashboardSpecialiteView) : aucun
+    droit d'écriture supplémentaire sur les fiches des marins concernés.
+
+    Désignation réservée à MASTER_ADMIN (référentiel commun à toute la
+    flotte, même seuil que les grades/spécialités — cf.
+    matrix/core/role_thresholds.py::REGISTRE_ACTIONS,
+    "responsabilite_transverse_gestion").
+
+    Plusieurs responsables possibles pour une même spécialité (FK simple
+    répétable, pas de OneToOneField), même pattern que ReferentFormation."""
+
+    specialite = models.ForeignKey(SpecialityChoice, on_delete=models.CASCADE, related_name="responsables")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="specialites_dont_il_est_responsable")
+
+    class Meta:
+        unique_together = ("specialite", "user")
+        verbose_name = "Responsable de spécialité"
+        verbose_name_plural = "Responsables de spécialité"
+
+    def __str__(self):
+        return f"{self.user} — responsable spécialité ({self.specialite})"
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     # Crée automatiquement un profil pour tout nouvel utilisateur

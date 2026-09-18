@@ -1,6 +1,7 @@
 from django import template
 
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.scopes import is_master_admin
 
 register = template.Library()
 
@@ -27,3 +28,28 @@ def peut_voir_pret_appareillage(user):
     d'une session et sa signature restent réservées à CHEF_SECTEUR et aux
     rôles supérieurs (cf. dashboard.web_views)."""
     return bool(getattr(user, "is_authenticated", False))
+
+
+@register.filter
+def peut_voir_dashboard_specialite(user):
+    """Vrai si l'utilisateur peut accéder à un dashboard transverse de
+    spécialité : désigné responsable d'au moins une spécialité
+    (accounts.ResponsableSpecialite), ou MASTER_ADMIN (supervision globale
+    de la flotte)."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if is_master_admin(user):
+        return True
+    return user.specialites_dont_il_est_responsable.exists()
+
+
+@register.filter
+def peut_voir_dashboard_classe_navire(user):
+    """Vrai si l'utilisateur peut accéder à un dashboard transverse de
+    classe de navire : désigné responsable d'au moins une classe
+    (org.ResponsableClasseNavire), ou MASTER_ADMIN."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if is_master_admin(user):
+        return True
+    return user.classes_navire_dont_il_est_responsable.exists()

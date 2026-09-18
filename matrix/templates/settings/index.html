@@ -215,6 +215,102 @@
       </div>
     </div>
   </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Responsables de spécialité (dashboard flotte)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de spécialité" data-bs-content="Un marin désigné responsable d’une spécialité accède au dashboard transverse de cette spécialité, agrégé sur toute la flotte (tous navires confondus).">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-2 mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_responsable_specialite" />
+          <div class="col-5">
+            <select name="specialite_id" class="form-select form-select-sm" required>
+              <option value="">Spécialité...</option>
+              {% for s in specialites %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-5">
+            <select name="user_id" class="form-select form-select-sm" required>
+              <option value="">Marin...</option>
+              {% for m in marins_disponibles %}<option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-2"><button class="btn btn-primary btn-sm w-100" type="submit">Ajouter</button></div>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Spécialité</th><th>Marin</th><th></th></tr></thead>
+          <tbody>
+          {% for r in responsables_specialite %}
+            <tr>
+              <td>{{ r.specialite.name }}</td>
+              <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+              <td>
+                <form method="post" style="display:inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="retirer_responsable_specialite" />
+                  <input type="hidden" name="pk" value="{{ r.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Retirer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucun responsable désigné</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Responsables de classe de navire (dashboard flotte)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de classe de navire" data-bs-content="Un marin désigné responsable d’une classe de navire accède au dashboard transverse de cette classe, agrégé sur tous les navires de la classe.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-2 mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_responsable_classe" />
+          <div class="col-5">
+            <input class="form-control form-control-sm" name="name" list="classes-navire" placeholder="Classe de navire" required />
+            <datalist id="classes-navire">
+              {% for c in classes_navire_disponibles %}<option value="{{ c }}"></option>{% endfor %}
+            </datalist>
+          </div>
+          <div class="col-5">
+            <select name="user_id" class="form-select form-select-sm" required>
+              <option value="">Marin...</option>
+              {% for m in marins_disponibles %}<option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-2"><button class="btn btn-primary btn-sm w-100" type="submit">Ajouter</button></div>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Classe</th><th>Marin</th><th></th></tr></thead>
+          <tbody>
+          {% for r in responsables_classe_navire %}
+            <tr>
+              <td>{{ r.classe_navire }}</td>
+              <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+              <td>
+                <form method="post" style="display:inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="retirer_responsable_classe" />
+                  <input type="hidden" name="pk" value="{{ r.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Retirer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucun responsable désigné</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 {% endif %}
 
