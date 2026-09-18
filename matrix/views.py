@@ -17,8 +17,10 @@ from training.models import TrainingCourse
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire
 from django.contrib import messages
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
-from matrix.core.roles import RoleLevel
-from matrix.core.role_thresholds import REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache
+from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.role_thresholds import (
+    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
+)
 
 # Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
 # les 8 rôles, du plus bas (Équipier) au plus haut (Administrateur général) —
@@ -118,6 +120,14 @@ class SettingsView(LoginRequiredMixin, View):
             from django.http import HttpResponseForbidden
             profile = getattr(request.user, 'profile', None)
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
+            # Seuil configurable (portée GLOBALE, cf. matrix/core/role_thresholds.py)
+            # pour désigner/retirer un responsable de spécialité ou de classe de
+            # navire (tâche Notion « Dashboards transverses par spécialité et par
+            # classe de navire ») : MASTER_ADMIN par défaut, mais un ADMIN_NAVIRE
+            # peut abaisser ce seuil pour un rôle inférieur.
+            peut_gerer_responsables = user_role_level(request.user) >= niveau_requis_pour(
+                request.user, 'responsabilite_transverse_gestion'
+            )
             tab = request.GET.get('tab', 'generale')
             tab_ok = request.method == 'GET' and (
                 tab == 'notifications' or (tab == 'seuils_role' and est_admin_navire)
@@ -129,7 +139,15 @@ class SettingsView(LoginRequiredMixin, View):
                 and action in ('update_role_threshold', 'reset_role_threshold')
                 and est_admin_navire
             )
-            if not (tab_ok or action_notif_ok or action_seuil_ok):
+            action_responsable_ok = (
+                request.method == 'POST'
+                and action in (
+                    'add_responsable_specialite', 'retirer_responsable_specialite',
+                    'add_responsable_classe', 'retirer_responsable_classe',
+                )
+                and peut_gerer_responsables
+            )
+            if not (tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok):
                 return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
 
