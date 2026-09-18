@@ -1,11 +1,15 @@
 {% extends "base.html" %}
 {% load org_extras %}
 {% block content %}
-<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils %}Paramètres{% else %}Mes notifications{% endif %}</h1>
+<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables %}Paramètres{% else %}Mes notifications{% endif %}</h1>
 <ul class="nav nav-tabs mb-3">
   {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
+  {% endif %}
+  {% if user.is_superuser or peut_gerer_responsables %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="/parametre/?tab=utilisateurs">Utilisateurs</a></li>
+  {% endif %}
+  {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Unités</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
@@ -32,6 +36,7 @@
 </div>
 {% elif active_tab == 'utilisateurs' %}
 <div class="row g-3">
+  {% if user.is_superuser %}
   <div class="col-12">
     <p class="text-muted">Grades et Spécialités sont communs à toutes les unités. La hiérarchie (Services/Secteurs/Sections) se configure dans l’onglet Hiérarchie.</p>
   </div>
@@ -215,6 +220,8 @@
       </div>
     </div>
   </div>
+  {% endif %}
+  {% if user.is_superuser or peut_gerer_responsables %}
   <div class="col-md-6">
     <div class="card">
       <div class="card-header">Responsables de spécialité (dashboard flotte)
@@ -311,6 +318,7 @@
       </div>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endif %}
 

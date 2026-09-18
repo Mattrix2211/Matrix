@@ -155,3 +155,56 @@ class GestionResponsablesTransversesTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(ResponsableSpecialite.objects.filter(specialite=self.specialite, user=self.marin).count(), 1)
+
+    def test_seuil_abaisse_expose_reellement_l_onglet_utilisateurs_en_get(self):
+        """Corrige le refus Tech Lead (2e itération) : un rôle habilité par le
+        seuil abaissé doit pouvoir accéder à l'onglet « Utilisateurs » via un
+        GET classique (navigation normale), pas seulement poster une action à
+        la main — la section responsables doit être réellement présente dans
+        le HTML rendu, avec les données nécessaires à la désignation."""
+        commandant = User.objects.create_user(username="commandant_get", password="pass")
+        UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT"})
+        RoleThresholdConfig.objects.create(
+            ship=None, thresholds={"responsabilite_transverse_gestion": "COMMANDANT"},
+        )
+        invalidate_cache(None)
+        self.addCleanup(invalidate_cache, None)
+        ResponsableSpecialite.objects.create(specialite=self.specialite, user=self.marin)
+
+        self.client.login(username="commandant_get", password="pass")
+        response = self.client.get(self.url, {"tab": "utilisateurs"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_tab"], "utilisateurs")
+        self.assertTrue(response.context["peut_gerer_responsables"])
+        self.assertContains(response, "Responsables de spécialité (dashboard flotte)")
+        self.assertContains(response, "Responsables de classe de navire (dashboard flotte)")
+        # Le marin déjà désigné responsable apparaît bien dans le tableau.
+        self.assertContains(response, "Électricité")
+        # Les référentiels globaux réservés au superuser (Grades, Rôles...)
+        # restent absents de cette vue restreinte.
+        self.assertNotContains(response, "Rôles (assignables)")
+
+    def test_role_non_habilite_ne_peut_pas_charger_l_onglet_utilisateurs_en_get(self):
+        """Sans seuil abaissé, un rôle non habilité (ni superuser, ni au niveau
+        du seuil configuré) ne doit ni voir la section, ni même charger la
+        page via l'onglet « Utilisateurs »."""
+        chef = User.objects.create_user(username="chef_get", password="pass")
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SERVICE"})
+        self.client.login(username="chef_get", password="pass")
+
+        response = self.client.get(self.url, {"tab": "utilisateurs"})
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_role_non_habilite_ne_voit_pas_le_lien_utilisateurs_dans_la_navigation(self):
+        """Sur un onglet auquel il a accès (notifications), le rôle non habilité
+        ne doit pas voir apparaître le lien « Utilisateurs » dans la navigation."""
+        chef = User.objects.create_user(username="chef_nav", password="pass")
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SERVICE"})
+        self.client.login(username="chef_nav", password="pass")
+
+        response = self.client.get(self.url, {"tab": "notifications"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, ">Utilisateurs<")

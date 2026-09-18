@@ -108,29 +108,37 @@ def logout_then_login(request):
 class SettingsView(LoginRequiredMixin, View):
     template_name = 'settings/index.html'
 
+    @staticmethod
+    def _peut_gerer_responsables(user):
+        # Seuil configurable (portée GLOBALE, cf. matrix/core/role_thresholds.py)
+        # pour désigner/retirer un responsable de spécialité ou de classe de
+        # navire (tâche Notion « Dashboards transverses par spécialité et par
+        # classe de navire ») : MASTER_ADMIN par défaut, mais un ADMIN_NAVIRE
+        # peut abaisser ce seuil pour un rôle inférieur. Factorisé ici pour être
+        # utilisé à la fois côté contrôle d'accès (dispatch) et côté contexte
+        # (get), sans dupliquer le calcul.
+        return user_role_level(user) >= niveau_requis_pour(user, 'responsabilite_transverse_gestion')
+
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             # Seules les sections "Notification quotidienne" (réglage personnel
-            # de chaque marin) et "Sécurité" (seuils de rôle, réservée aux
+            # de chaque marin), "Sécurité" (seuils de rôle, réservée aux
             # ADMIN_NAVIRE — configuration de LEUR navire, cf. tâche Notion
-            # « Seuils de rôle configurables par navire ») sont accessibles aux
-            # non-superusers. Le reste des Réglages (référentiels globaux,
-            # navires, hiérarchie, journal...) reste réservé aux comptes
-            # techniques superuser Django (MASTER_ADMIN).
+            # « Seuils de rôle configurables par navire ») et "Utilisateurs"
+            # (uniquement la désignation de responsables transverses, réservée
+            # au rôle habilité par le seuil configurable ci-dessous) sont
+            # accessibles aux non-superusers. Le reste des Réglages
+            # (référentiels globaux, navires, hiérarchie, journal...) reste
+            # réservé aux comptes techniques superuser Django (MASTER_ADMIN).
             from django.http import HttpResponseForbidden
             profile = getattr(request.user, 'profile', None)
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
-            # Seuil configurable (portée GLOBALE, cf. matrix/core/role_thresholds.py)
-            # pour désigner/retirer un responsable de spécialité ou de classe de
-            # navire (tâche Notion « Dashboards transverses par spécialité et par
-            # classe de navire ») : MASTER_ADMIN par défaut, mais un ADMIN_NAVIRE
-            # peut abaisser ce seuil pour un rôle inférieur.
-            peut_gerer_responsables = user_role_level(request.user) >= niveau_requis_pour(
-                request.user, 'responsabilite_transverse_gestion'
-            )
+            peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             tab = request.GET.get('tab', 'generale')
             tab_ok = request.method == 'GET' and (
-                tab == 'notifications' or (tab == 'seuils_role' and est_admin_navire)
+                tab == 'notifications'
+                or (tab == 'seuils_role' and est_admin_navire)
+                or (tab == 'utilisateurs' and peut_gerer_responsables)
             )
             action = request.POST.get('action')
             action_notif_ok = request.method == 'POST' and action == 'update_notification_time'
@@ -163,17 +171,26 @@ class SettingsView(LoginRequiredMixin, View):
 
         if not request.user.is_superuser:
             # Vue restreinte : réglage personnel des horaires de notification,
-            # et (si ADMIN_NAVIRE) l'onglet Sécurité limité à SON navire —
-            # sans les autres données réservées aux superusers.
+            # (si ADMIN_NAVIRE) l'onglet Sécurité limité à SON navire, et (si
+            # habilité par le seuil configurable) l'onglet Utilisateurs limité
+            # à la désignation de responsables transverses — sans les autres
+            # données/référentiels réservés aux superusers.
             profile = getattr(request.user, 'profile', None)
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
+            peut_gerer_responsables = self._peut_gerer_responsables(request.user)
+            active_tab = 'notifications'
+            if tab == 'seuils_role' and est_admin_navire:
+                active_tab = 'seuils_role'
+            elif tab == 'utilisateurs' and peut_gerer_responsables:
+                active_tab = 'utilisateurs'
             context = {
-                'active_tab': tab if tab == 'seuils_role' else 'notifications',
+                'active_tab': active_tab,
                 'user_notification_time': fmt_time(getattr(profile, 'notification_time', None)),
                 'user_notification_time_soir': fmt_time(getattr(profile, 'notification_time_soir', None)),
                 'peut_gerer_seuils': est_admin_navire,
+                'peut_gerer_responsables': peut_gerer_responsables,
             }
-            if tab == 'seuils_role' and est_admin_navire:
+            if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
                 context.update({
                     'seuils_ship': Ship.objects.filter(pk=mon_ship_id).first(),
@@ -181,6 +198,27 @@ class SettingsView(LoginRequiredMixin, View):
                     'seuils_lignes_globales': [],
                     'peut_editer_global': False,
                     'roles_pour_seuils': ROLES_POUR_SEUILS,
+                })
+            if active_tab == 'utilisateurs':
+                # Seules les données nécessaires à la désignation de
+                # responsables transverses sont exposées ici (pas les
+                # référentiels Grades/Fonctions/Rôles, qui restent réservés au
+                # superuser) : liste des spécialités pour le sélecteur, et les
+                # responsables déjà désignés.
+                context.update({
+                    'specialites': SpecialityChoice.objects.order_by('name'),
+                    'responsables_specialite': ResponsableSpecialite.objects.select_related(
+                        'specialite', 'user'
+                    ).order_by('specialite__name', 'user__last_name', 'user__first_name'),
+                    'responsables_classe_navire': ResponsableClasseNavire.objects.select_related('user').order_by(
+                        'classe_navire', 'user__last_name', 'user__first_name'
+                    ),
+                    'classes_navire_disponibles': list(
+                        Ship.objects.exclude(classe_navire='').values_list(
+                            'classe_navire', flat=True
+                        ).distinct().order_by('classe_navire')
+                    ),
+                    'marins_disponibles': User.objects.order_by('last_name', 'first_name', 'username'),
                 })
             return render(request, self.template_name, context)
 
@@ -244,6 +282,7 @@ class SettingsView(LoginRequiredMixin, View):
             'user_notification_time': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time', None)),
             'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
             'peut_gerer_seuils': True,
+            'peut_gerer_responsables': True,
             # Responsables transverses (dashboards par spécialité / par classe de
             # navire, tâche Notion « Dashboards transverses par spécialité et par
             # classe de navire ») : rôle indépendant de la hiérarchie Navire →
