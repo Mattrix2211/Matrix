@@ -58,7 +58,7 @@
           </button>
         </form>
         <a href="{% url 'plan-navire-deck' pk=pont.id %}" class="btn btn-sm btn-outline-primary" title="Configurer le plan"><span class="bi bi-pencil-square"></span></a>
-        <form method="post" onsubmit="return confirm('Supprimer le pont « {{ pont.name }} » et toutes ses zones ?');">
+        <form method="post" onsubmit="return confirm('Supprimer le pont « {{ pont.name }} » ?');">
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_deck" />
           <input type="hidden" name="pk" value="{{ pont.id }}" />

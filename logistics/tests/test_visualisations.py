@@ -75,6 +75,15 @@ class JaugeSeveriteTicketTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(self._ticket_par_pk(response, ticket.pk).severite_pct, 80)
 
+    def test_barre_severite_rendue_avec_point_et_non_virgule(self):
+        # 3/5 = 60.0 en flottant : la locale française rendrait « 60,0 »,
+        # valeur invalide dans un attribut CSS.
+        CorrectiveTicket.objects.create(asset=self.asset, description="Panne", severity=3)
+        response = self.client.get(self.url)
+        contenu = response.content.decode()
+        self.assertIn("width: 60.0%", contenu)
+        self.assertNotIn("width: 60,0%", contenu)
+
     def test_severite_pct_plafonnee_a_100_au_dela_de_5(self):
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Panne", severity=9)
         response = self.client.get(self.url)
