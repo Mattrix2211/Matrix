@@ -30,22 +30,22 @@
         <button class="nav-link active" id="tab-infos" data-bs-toggle="tab" data-bs-target="#pane-infos" type="button" role="tab">Infos</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-histo" data-bs-toggle="tab" data-bs-target="#pane-histo" type="button" role="tab">Historique</button>
+        <button class="nav-link" id="tab-histo" data-bs-toggle="tab" data-bs-target="#pane-histo" type="button" role="tab">Historique{% if events|length %} <span class="badge text-bg-secondary rounded-pill">{{ events|length }}</span>{% endif %}</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-entretien" data-bs-toggle="tab" data-bs-target="#pane-entretien" type="button" role="tab">Entretien</button>
+        <button class="nav-link" id="tab-entretien" data-bs-toggle="tab" data-bs-target="#pane-entretien" type="button" role="tab">Entretien{% if maintenances|length %} <span class="badge text-bg-secondary rounded-pill">{{ maintenances|length }}</span>{% endif %}</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-vibration" data-bs-toggle="tab" data-bs-target="#pane-vibration" type="button" role="tab">Vibration</button>
+        <button class="nav-link" id="tab-vibration" data-bs-toggle="tab" data-bs-target="#pane-vibration" type="button" role="tab">Vibration{% if vibration_logs|length %} <span class="badge text-bg-secondary rounded-pill">{{ vibration_logs|length }}</span>{% endif %}</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-hours" data-bs-toggle="tab" data-bs-target="#pane-hours" type="button" role="tab">Heure de marche</button>
+        <button class="nav-link" id="tab-hours" data-bs-toggle="tab" data-bs-target="#pane-hours" type="button" role="tab">Heure de marche{% if hour_logs|length %} <span class="badge text-bg-secondary rounded-pill">{{ hour_logs|length }}</span>{% endif %}</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-isolement" data-bs-toggle="tab" data-bs-target="#pane-isolement" type="button" role="tab">Isolement</button>
+        <button class="nav-link" id="tab-isolement" data-bs-toggle="tab" data-bs-target="#pane-isolement" type="button" role="tab">Isolement{% if isolation_logs|length %} <span class="badge text-bg-secondary rounded-pill">{{ isolation_logs|length }}</span>{% endif %}</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-parts" data-bs-toggle="tab" data-bs-target="#pane-parts" type="button" role="tab">Pièces</button>
+        <button class="nav-link" id="tab-parts" data-bs-toggle="tab" data-bs-target="#pane-parts" type="button" role="tab">Pièces{% if parts|length %} <span class="badge text-bg-secondary rounded-pill">{{ parts|length }}</span>{% endif %}</button>
       </li>
     </ul>
 

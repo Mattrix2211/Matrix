@@ -1550,6 +1550,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
                 next_days = None
         ctx['vibration_next_date'] = next_date
         ctx['vibration_next_days'] = next_days
+        ctx['vibration_retard_jours'] = -next_days if next_days is not None and next_days < 0 else 0
         ctx['vibration_last_state'] = last_state
         # Frise visuelle de l'évolution des états A/B/C (principe n°5 CLAUDE.md :
         # le tableau brut existant ne donne aucune vue d'ensemble de la tendance).

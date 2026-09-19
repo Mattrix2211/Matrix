@@ -1,4 +1,37 @@
       <div class="tab-pane fade show active" id="pane-infos" role="tabpanel" aria-labelledby="tab-infos">
+        {# Synthèse d'un coup d'œil : les indicateurs clés avant le détail (principe n°5) #}
+        <div class="row g-2 mb-3" id="synthese-installation">
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 h-100">
+              <div class="small text-muted">Criticité</div>
+              {% if object.critique %}<span class="badge text-bg-danger">Critique</span>{% else %}<span class="badge text-bg-secondary">Standard</span>{% endif %}
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 h-100">
+              <div class="small text-muted">État vibratoire</div>
+              {% if vibration_last_state %}
+                <span class="badge {% if vibration_last_state == 'A' %}text-bg-success{% elif vibration_last_state == 'B' %}text-bg-warning{% else %}text-bg-danger{% endif %}">État {{ vibration_last_state }}</span>
+                {% if vibration_next_days is not None %}<span class="small {% if vibration_next_days < 0 %}text-danger{% else %}text-muted{% endif %}">{% if vibration_next_days < 0 %}en retard de {{ vibration_retard_jours }} j{% else %}prochain dans {{ vibration_next_days }} j{% endif %}</span>{% endif %}
+              {% else %}<span class="text-muted">Aucun relevé</span>{% endif %}
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 h-100">
+              <div class="small text-muted">Dernier isolement</div>
+              {% if isolation_last %}
+                <span class="font-mono">{{ isolation_last.ohms }} Ω</span>
+                {% if isolation_next_days is not None and isolation_next_days < 0 %}<span class="badge text-bg-danger">Relevé en retard</span>{% endif %}
+              {% else %}<span class="text-muted">Aucun relevé</span>{% endif %}
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="border rounded p-2 h-100">
+              <div class="small text-muted">Heures de marche</div>
+              {% if hour_logs %}<span class="font-mono">{{ hours_total }} h</span>{% else %}<span class="text-muted">Aucun relevé</span>{% endif %}
+            </div>
+          </div>
+        </div>
         <div class="row g-3">
           <div class="col-md-6">
             <div class="border rounded p-3 h-100">
