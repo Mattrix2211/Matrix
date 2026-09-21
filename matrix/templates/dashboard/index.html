@@ -60,6 +60,25 @@
   </div>
   <div class="col-md-6 col-lg-3">
     <div class="card h-100">
+      <div class="card-header">Mes rondes du jour</div>
+      <div class="card-body">
+        {% if mes_rondes %}
+        <ul class="list-group list-group-flush">
+          {% for ronde in mes_rondes %}
+          <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <a href="{% url 'ronde-detail' ronde.pk %}" class="fw-semibold text-decoration-none">{{ ronde.nom }}</a>
+            <span class="badge {% if ronde.statut == 'EN_RETARD' %}bg-danger{% else %}bg-secondary{% endif %}">{{ ronde.get_statut_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune ronde à faire.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
       <div class="card-header">Mes tickets correctifs</div>
       <div class="card-body">
         {% if mes_tickets %}

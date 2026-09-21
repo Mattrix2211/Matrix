@@ -13,6 +13,8 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from rondes.models import Ronde
+from rondes.services import rondes_visibles
 from .models import PersonalEvent
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.scopes import scope_filters_for_user
@@ -108,6 +110,17 @@ def _creneaux_garde_assignes(start, end, user=None):
     return qs
 
 
+def _rondes_a_faire(user, start, end):
+    """Rondes ouvertes du marin (assignées à lui, ou non assignées et dans son
+    périmètre) prévues sur la période — même principe que les autres
+    affectations personnelles du calendrier."""
+    return (
+        rondes_visibles(user)
+        .filter(statut__in=Ronde.STATUTS_OUVERTS, date_prevue__range=(start, end))
+        .filter(Q(assigne_a=user) | Q(assigne_a=None))
+    )
+
+
 def _evenements_personnels(user, start, end):
     """Événements personnels libres (rappels, notes) créés par l'utilisateur,
     dans la période affichée. Toujours restreints à leur propriétaire, quels
@@ -144,7 +157,11 @@ def evenements_utilisateur_jour(user, day):
     # agrégation que le calendrier personnel (calendar_events), pas de
     # système parallèle.
     creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user))
-    return {"maintenances": maintenances, "formations": formations, "personnels": personnels, "creneaux": creneaux}
+    rondes = list(_rondes_a_faire(user, day, day))
+    return {
+        "maintenances": maintenances, "formations": formations, "personnels": personnels,
+        "creneaux": creneaux, "rondes": rondes,
+    }
 
 
 def _peut_agir_occurrence(occ, user, ids_perimetre, niveau_role):
@@ -439,6 +456,7 @@ _COULEUR_PAR_TYPE = {
     # (ratio < 4.5:1) — #0b7285/#a61e4d passent largement (ratio > 5:1).
     "quart":         {"backgroundColor": "#0b7285", "borderColor": "#095c6b", "textColor": "#fff"},
     "service_garde": {"backgroundColor": "#a61e4d", "borderColor": "#84173d", "textColor": "#fff"},
+    "ronde":         {"backgroundColor": "#5f3dc4", "borderColor": "#4c2fa0", "textColor": "#fff"},
 }
 
 def _couleur_evenement(ev_type, status=None):
@@ -597,6 +615,19 @@ def calendar_events(request):
                 "editable": False,
                 "extendedProps": {"type": "service_garde", "status": None, "peut_agir": False},
                 **couleur,
+            })
+    # Rondes à faire : affectation personnelle (ou périmètre du marin).
+    if not filters.get("type") or filters["type"] == "ronde":
+        for ronde in _rondes_a_faire(request.user, start, end):
+            events.append({
+                "id": f"rnd-{ronde.id}",
+                "title": f"🧭 {ronde.nom}",
+                "start": ronde.date_prevue.isoformat(),
+                "end": ronde.date_prevue.isoformat(),
+                "url": f"/rondes/{ronde.id}/",
+                "editable": False,
+                "extendedProps": {"type": "ronde", "status": ronde.statut, "peut_agir": False},
+                **_couleur_evenement("ronde"),
             })
     # Événements personnels libres : uniquement ceux du marin connecté,
     # affichés à côté des événements auto-générés sur son calendrier.

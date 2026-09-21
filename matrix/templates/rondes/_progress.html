@@ -1,0 +1,12 @@
+<div id="ronde-progress" {% if oob %}hx-swap-oob="true"{% endif %} class="mb-3">
+  <div class="d-flex justify-content-between small font-mono mb-1">
+    <span>{{ repondus }} / {{ total }} points</span>
+    <span><span style="color: var(--green-tech);">{{ conformes }} conformes</span> · <span style="color: var(--red);">{{ non_conformes }} non conformes</span></span>
+  </div>
+  <div class="progress" style="height:10px;" title="Progression de la ronde : {{ pct }} %">
+    {% if total %}
+    <div class="progress-bar" style="width: {% widthratio conformes total 100 %}%; background: var(--green-tech);"></div>
+    <div class="progress-bar" style="width: {% widthratio non_conformes total 100 %}%; background: var(--red);"></div>
+    {% endif %}
+  </div>
+</div>

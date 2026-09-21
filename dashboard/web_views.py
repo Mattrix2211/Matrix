@@ -30,6 +30,7 @@ from matrix.core.scopes import is_master_admin, section_id_for_user, sector_id_f
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
 from quarts.services import compteur_equite_marin
+from rondes.services import rondes_du_marin
 from training.models import TrainingSession
 from training.services import qualifications_validees_de
 
@@ -123,6 +124,8 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
         # (quarts/web_views.py::_DetailListeViewBase).
         contexte["mes_compteurs_equite_garde"] = compteur_equite_marin(self.request.user, aujourdhui=aujourdhui)
 
+        # Rondes à faire aujourd'hui (ou en retard) : assignées au marin ou de son périmètre.
+        contexte["mes_rondes"] = list(rondes_du_marin(self.request.user, aujourdhui)[:10])
         contexte["mes_maintenances"] = mes_maintenances
         contexte["mes_formations"] = mes_formations
         contexte["mes_tickets"] = mes_tickets

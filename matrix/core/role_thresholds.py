@@ -91,6 +91,11 @@ REGISTRE_ACTIONS = [
         "Maintenance", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "ronde_gestion",
+        "Créer ou modifier un modèle de ronde et ses points de contrôle",
+        "Rondes", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
         "thread_ecriture", "Créer ou modifier une discussion",
         "Discussions", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),

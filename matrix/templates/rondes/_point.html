@@ -1,0 +1,43 @@
+<div class="card mb-2" id="point-{{ r.pk }}">
+  <div class="card-body px-3 py-3">
+    <div class="d-flex justify-content-between align-items-start gap-2">
+      <div>
+        <div class="fw-bold"><span class="font-mono text-muted">{{ r.ordre }}.</span> {{ r.libelle }}</div>
+        {% if r.consigne %}<div class="small text-muted">{{ r.consigne }}</div>{% endif %}
+        {% if r.equipement_libelle %}<div class="small"><span class="bi bi-gear" aria-hidden="true"></span> {{ r.equipement_libelle }}</div>{% endif %}
+      </div>
+      {% if r.resultat == 'CONFORME' %}<span class="badge" style="background: var(--green-tech);">Conforme</span>
+      {% elif r.resultat == 'NON_CONFORME' %}<span class="badge" style="background: var(--red);">Non conforme</span>
+      {% else %}<span class="badge bg-secondary">À contrôler</span>{% endif %}
+    </div>
+    {% if erreur %}<div class="alert alert-danger py-1 my-2 small" role="alert">{{ erreur }}</div>{% endif %}
+    {% if anomalie_creee %}<div class="alert alert-warning py-1 my-2 small">Anomalie transmise : <a href="{% url 'anomalie-detail' anomalie_creee.pk %}">{{ anomalie_creee.titre }}</a></div>{% endif %}
+    {% if ronde.est_ouverte %}
+    <form method="post" action="{% url 'ronde-resultat' ronde.pk r.pk %}" hx-post="{% url 'ronde-resultat' ronde.pk r.pk %}" hx-target="#point-{{ r.pk }}" hx-swap="outerHTML" class="mt-2">
+      {% csrf_token %}
+      <div class="row g-2 mb-2">
+        {% if r.avec_mesure %}
+        <div class="col-5">
+          <div class="input-group input-group-sm">
+            <input class="form-control" name="mesure" inputmode="decimal" placeholder="Valeur" aria-label="Valeur relevée" value="{{ r.mesure|default_if_none:''|stringformat:'s' }}">
+            {% if r.unite_mesure %}<span class="input-group-text">{{ r.unite_mesure }}</span>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+        <div class="col"><input class="form-control form-control-sm" name="commentaire" placeholder="Commentaire (obligatoire si non conforme)" aria-label="Commentaire" value="{{ r.commentaire }}"></div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn flex-fill text-white" style="background: var(--green-tech); min-height:44px;" type="submit" name="resultat" value="CONFORME"><span class="bi bi-check-lg" aria-hidden="true"></span> Conforme</button>
+        <button class="btn flex-fill text-white" style="background: var(--red); min-height:44px;" type="submit" name="resultat" value="NON_CONFORME"><span class="bi bi-x-lg" aria-hidden="true"></span> Non conforme</button>
+      </div>
+    </form>
+    {% else %}
+      <div class="small mt-1 font-mono">
+        {% if r.mesure is not None %}Valeur : {{ r.mesure|floatformat:"-3" }} {{ r.unite_mesure }} · {% endif %}
+        {% if r.saisi_par %}{{ r.saisi_par.get_full_name|default:r.saisi_par.username }} — {{ r.saisi_le|date:"d/m/Y H:i" }}{% endif %}
+      </div>
+      {% if r.commentaire %}<div class="small" style="white-space: pre-line;">{{ r.commentaire }}</div>{% endif %}
+      {% if r.anomalie %}<div class="small"><a href="{% url 'anomalie-detail' r.anomalie.pk %}">Anomalie liée</a></div>{% endif %}
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Rondes</h1>
+  <a class="btn btn-outline-primary" href="{% url 'ronde-modeles' %}">{% if peut_gerer %}Gérer les modèles{% else %}Modèles de ronde{% endif %}</a>
+</div>
+
+<h2 class="h5">À faire</h2>
+{% for ronde in a_faire %}
+<a class="card text-decoration-none mb-2" href="{% url 'ronde-detail' ronde.pk %}">
+  <div class="card-body py-2">
+    <div class="d-flex justify-content-between">
+      <strong>{{ ronde.nom }}</strong>
+      <span class="badge {% if ronde.statut == 'EN_RETARD' %}bg-danger{% elif ronde.statut == 'EN_COURS' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ ronde.get_statut_display }}</span>
+    </div>
+    <div class="small text-muted font-mono">Prévue le {{ ronde.date_prevue|date:"d/m/Y" }} · {{ ronde.repondus }}/{{ ronde.total }} points</div>
+    <div class="progress mt-1" style="height:6px;"><div class="progress-bar" style="width: {{ ronde.pct }}%; background: var(--signal);"></div></div>
+  </div>
+</a>
+{% empty %}
+<p class="text-muted">Aucune ronde à faire pour le moment.</p>
+{% endfor %}
+
+<h2 class="h5 mt-4">Dernières rondes terminées</h2>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Ronde</th><th>Terminée le</th><th>Résultat</th></tr></thead>
+      <tbody>
+        {% for ronde in recentes %}
+        <tr onclick="window.location='{% url 'ronde-detail' ronde.pk %}'" style="cursor:pointer;">
+          <td>{{ ronde.nom }}</td>
+          <td class="font-mono">{{ ronde.fin|date:"d/m/Y H:i" }}</td>
+          <td>{% if ronde.non_conformes %}<span class="badge" style="background: var(--red);">{{ ronde.non_conformes }} non conforme(s)</span>{% else %}<span class="badge" style="background: var(--green-tech);">Tout conforme</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-center text-muted py-3">Aucune ronde terminée.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

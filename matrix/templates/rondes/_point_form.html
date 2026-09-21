@@ -1,0 +1,16 @@
+<form method="post" class="row g-2 mt-1" action="{% if pt %}{% url 'ronde-point' modele.pk pt.pk 'modifier' %}{% else %}{% url 'ronde-point-ajouter' modele.pk 'ajouter' %}{% endif %}">
+  {% csrf_token %}
+  <div class="col-md-5"><input class="form-control form-control-sm" name="libelle" required placeholder="Point à contrôler (ex. État de la coursive pont 2)" aria-label="Libellé" value="{{ pt.libelle }}"></div>
+  <div class="col-md-4"><input class="form-control form-control-sm" name="consigne" placeholder="Consigne (facultatif)" aria-label="Consigne" value="{{ pt.consigne }}"></div>
+  <div class="col-md-3">
+    <select class="form-select form-select-sm" name="equipement" aria-label="Équipement lié (facultatif)">
+      <option value="">Aucun équipement</option>
+      {% for i in installations %}<option value="installation:{{ i.pk }}" {% if pt.installation_id == i.pk %}selected{% endif %}>{{ i.designation }}</option>{% endfor %}
+      {% for a in materiels %}<option value="asset:{{ a.pk }}" {% if pt.asset_id == a.pk %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto form-check ms-2 align-self-center"><input class="form-check-input" type="checkbox" name="avec_mesure" {% if pt.avec_mesure %}checked{% endif %}><label class="form-check-label small">Relever une valeur</label></div>
+  <div class="col-md-2"><input class="form-control form-control-sm" name="unite_mesure" placeholder="Unité" aria-label="Unité" value="{{ pt.unite_mesure }}"></div>
+  <div class="col-md-2"><input class="form-control form-control-sm" name="gravite" type="number" min="1" max="5" value="{{ pt.gravite|default:3 }}" title="Gravité de l'anomalie créée si non conforme (1 à 5)" aria-label="Gravité"></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary" type="submit">{{ libelle_bouton }}</button></div>
+</form>
