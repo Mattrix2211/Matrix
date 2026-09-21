@@ -23,13 +23,13 @@ from accounts.models import AuditLog
 def _perimetre_ticket(qs, user):
     """Restreint un queryset de tickets correctifs au périmètre (navire/
     service/secteur/section) de l'utilisateur, via le matériel mobile (asset)
-    qui porte les 4 champs de périmètre. Réutilise scope_filters_for_user
+    ou l'installation fixe visés, qui portent tous deux les 4 champs de périmètre. Réutilise scope_filters_for_user
     (aucun nouveau système de périmètre)."""
     filtres = scope_filters_for_user(user)
     if not filtres:
         return qs
     (cle, valeur), = filtres.items()
-    return qs.filter(**{f"asset__{cle}": valeur})
+    return qs.filter(Q(**{f"asset__{cle}": valeur}) | Q(**{f"installation__{cle}": valeur}))
 
 
 def _perimetre_session(qs, user):
@@ -175,11 +175,11 @@ def _appliquer_filtres_tickets(qs, filters):
     commune à CalendarView et calendar_events, pour ne pas dupliquer cette
     logique."""
     if filters.get("ship"):
-        qs = qs.filter(asset__ship_id=filters["ship"])
+        qs = qs.filter(Q(asset__ship_id=filters["ship"]) | Q(installation__ship_id=filters["ship"]))
     if filters.get("service"):
-        qs = qs.filter(asset__service_id=filters["service"])
+        qs = qs.filter(Q(asset__service_id=filters["service"]) | Q(installation__service_id=filters["service"]))
     if filters.get("sector"):
-        qs = qs.filter(asset__sector_id=filters["sector"])
+        qs = qs.filter(Q(asset__sector_id=filters["sector"]) | Q(installation__sector_id=filters["sector"]))
     return qs
 
 
@@ -287,12 +287,12 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             })
 
         # Tickets (logistique) planifiés: on affiche tous, ou ceux avec statut PLANNED/IN_REPAIR/TESTING si on avait des dates; ici, on ne dispose pas d’échéance => montrer ouverts
-        ticket_qs = CorrectiveTicket.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").exclude(status__in=["CLOSED", "CANCELLED"])  # proxy
+        ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])  # proxy
         ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
         for t in ticket_qs:
             events.append({
                 "type": "ticket",
-                "title": f"Ticket - {t.asset}",
+                "title": f"Ticket - {t.equipement}",
                 "start": start.isoformat(),
                 "end": end.isoformat(),
                 "url": f"/logistics/tickets/{t.pk}/",
@@ -498,7 +498,7 @@ def calendar_events(request):
             **couleur,
         })
     # Tickets correctifs planifiés
-    ticket_qs = CorrectiveTicket.objects.select_related("asset", "asset__ship", "asset__service", "asset__sector").exclude(status__in=["CLOSED", "CANCELLED"])
+    ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])
     ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
     if filters.get("status"):
         ticket_qs = ticket_qs.filter(status=filters["status"])
@@ -507,14 +507,14 @@ def calendar_events(request):
     # Même principe que pour les occurrences ci-dessus : périmètre calculé une
     # seule fois pour tout le lot de tickets affichés.
     ids_ticket_perimetre = set(
-        ticket_qs.filter(build_scope_q(request.user, "asset__")).values_list("pk", flat=True)
+        ticket_qs.filter(build_scope_q(request.user, "asset__", "installation__")).values_list("pk", flat=True)
     )
     for t in ticket_qs:
         if t.planned_for and (start <= t.planned_for <= end):
             couleur = _couleur_evenement("ticket")
             events.append({
                 "id": f"tic-{t.pk}",
-                "title": f"🛠 {t.asset}",
+                "title": f"🛠 {t.equipement}",
                 "start": t.planned_for.isoformat(),
                 "end": t.planned_for.isoformat(),
                 "url": f"/logistics/tickets/{t.pk}/",

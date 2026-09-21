@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h4 mb-3">Signaler une anomalie</h1>
+<form method="post" enctype="multipart/form-data" class="card card-body" style="max-width: 720px;">
+  {% csrf_token %}
+  <div class="mb-3">
+    <label class="form-label" for="titre">Que constatez-vous ?</label>
+    <input class="form-control" id="titre" name="titre" maxlength="150" value="{{ valeurs.titre }}" placeholder="Ex. : fuite d'eau en coursive bâbord" required autofocus>
+  </div>
+  <div class="mb-3">
+    <label class="form-label" for="gravite">Gravité</label>
+    <select class="form-select" id="gravite" name="gravite">
+      <option value="1" {% if valeurs.gravite == '1' %}selected{% endif %}>1 — Mineure</option>
+      <option value="2" {% if valeurs.gravite == '2' %}selected{% endif %}>2</option>
+      <option value="3" {% if valeurs.gravite == '3' %}selected{% endif %}>3 — Moyenne</option>
+      <option value="4" {% if valeurs.gravite == '4' %}selected{% endif %}>4</option>
+      <option value="5" {% if valeurs.gravite == '5' %}selected{% endif %}>5 — Critique</option>
+    </select>
+  </div>
+  <details class="mb-3" {% if valeurs.installation or valeurs.asset or valeurs.localisation or valeurs.description %}open{% endif %}>
+    <summary class="mb-2">Précisions (facultatif)</summary>
+    <div class="mb-3">
+      <label class="form-label" for="description">Description</label>
+      <textarea class="form-control" id="description" name="description" rows="3">{{ valeurs.description }}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="localisation">Lieu</label>
+      <input class="form-control" id="localisation" name="localisation" maxlength="255" value="{{ valeurs.localisation }}" placeholder="Ex. : coursive bâbord, pont 2">
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="secteur">Secteur concerné</label>
+      <select class="form-select" id="secteur" name="secteur">
+        <option value="">— Mon périmètre —</option>
+        {% for sec in secteurs %}<option value="{{ sec.id }}" {% if valeurs.secteur == sec.id|stringformat:'s' %}selected{% endif %}>{{ sec.service.name }} — {{ sec.name }}</option>{% endfor %}
+      </select>
+      <div class="form-text">Ignoré si vous choisissez un équipement : c'est alors celui de l'équipement.</div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-md-6">
+        <label class="form-label" for="installation">Installation concernée</label>
+        <select class="form-select" id="installation" name="installation">
+          <option value="">— Aucune —</option>
+          {% for i in installations %}<option value="{{ i.id }}" {% if valeurs.installation == i.id|stringformat:'s' %}selected{% endif %}>{{ i.designation }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="asset">Matériel concerné</label>
+        <select class="form-select" id="asset" name="asset">
+          <option value="">— Aucun —</option>
+          {% for m in materiels %}<option value="{{ m.id }}" {% if valeurs.asset == m.id|stringformat:'s' %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div>
+      <label class="form-label" for="photo">Photo</label>
+      <input class="form-control" type="file" id="photo" name="photo" accept="image/*" capture="environment">
+    </div>
+  </details>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Signaler</button>
+    <a class="btn btn-outline-secondary" href="{% url 'anomalie-list' %}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

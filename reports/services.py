@@ -10,7 +10,7 @@ Réutilise scope_filters_for_user (aucun nouveau système de permission ni de sc
 from datetime import datetime, timedelta
 
 from django.conf import settings
-from django.db.models import F
+from django.db.models import F, Q
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -102,6 +102,29 @@ def _nom_materiel(asset):
     return asset.designation or str(asset)
 
 
+def _q_perimetre_tickets(filtre_scope, prefixe=""):
+    """Filtre de périmètre d'un ticket correctif : il vise soit un matériel
+    mobile (asset), soit une installation fixe, qui portent tous deux les 4
+    champs de périmètre. `prefixe` permet de partir d'un modèle lié (ex.
+    "part_request__ticket__")."""
+    filtre = Q()
+    for cle, valeur in filtre_scope.items():
+        filtre |= Q(**{f"{prefixe}asset__{cle}": valeur}) | Q(**{f"{prefixe}installation__{cle}": valeur})
+    return filtre
+
+
+def _nom_equipement_ticket(ticket):
+    """Désignation de l'équipement visé par un ticket (matériel ou installation)."""
+    if ticket.installation_id:
+        return ticket.installation.designation
+    return _nom_materiel(ticket.asset)
+
+
+def _type_equipement_ticket(ticket):
+    """Type d'équipement visé par un ticket : type du matériel, ou « Installation »."""
+    return "Installation" if ticket.installation_id else ticket.asset.asset_type.name
+
+
 def _resoudre_perimetre(scope_type, scope_id):
     """Récupère l'objet (Navire/Service/Secteur/Section) correspondant au
     périmètre demandé, pour affichage dans l'en-tête du bilan."""
@@ -189,11 +212,11 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     ]
 
     # Tickets correctifs ouverts sur le matériel mobile du périmètre.
-    filtre_tickets = {f"asset__{cle}": valeur for cle, valeur in filtre_scope.items()}
+    filtre_tickets = _q_perimetre_tickets(filtre_scope)
     tickets_ouverts = list(
-        CorrectiveTicket.objects.filter(**filtre_tickets)
+        CorrectiveTicket.objects.filter(filtre_tickets)
         .exclude(status__in=STATUTS_TICKET_FERMES)
-        .select_related("asset", "asset__asset_type")
+        .select_related("asset", "asset__asset_type", "installation")
         .order_by("reported_at")
     )
     for ticket in tickets_ouverts:
@@ -287,8 +310,8 @@ def _sections_bilan_instantane(contexte: dict) -> list:
 
     lignes_tickets = [
         [
-            _nom_materiel(ticket.asset),
-            ticket.asset.asset_type.name,
+            _nom_equipement_ticket(ticket),
+            _type_equipement_ticket(ticket),
             ticket.get_status_display(),
             _fmt_date(ticket.reported_at),
             ticket.anciennete_jours,
@@ -432,19 +455,19 @@ def construire_contexte_periode(
     )
 
     # Tickets correctifs sur le matériel mobile du périmètre.
-    filtre_tickets = {f"asset__{cle}": valeur for cle, valeur in filtre_scope.items()}
+    filtre_tickets = _q_perimetre_tickets(filtre_scope)
     tickets_ouverts_periode = list(
         CorrectiveTicket.objects.filter(
-            reported_at__date__range=(date_debut, date_fin), **filtre_tickets
+            filtre_tickets, reported_at__date__range=(date_debut, date_fin)
         )
-        .select_related("asset", "asset__asset_type")
+        .select_related("asset", "asset__asset_type", "installation")
         .order_by("reported_at")
     )
     tickets_fermes_periode = list(
         CorrectiveTicket.objects.filter(
-            status="CLOSED", updated_at__date__range=(date_debut, date_fin), **filtre_tickets
+            filtre_tickets, status="CLOSED", updated_at__date__range=(date_debut, date_fin)
         )
-        .select_related("asset", "asset__asset_type")
+        .select_related("asset", "asset__asset_type", "installation")
         .order_by("updated_at")
     )
     for ticket in tickets_fermes_periode:
@@ -458,9 +481,9 @@ def construire_contexte_periode(
     # Snapshot au dernier statut connu : tickets signalés avant/pendant la fenêtre
     # et toujours non clos à ce jour.
     tickets_encore_ouverts_fin_periode = list(
-        CorrectiveTicket.objects.filter(reported_at__date__lte=date_fin, **filtre_tickets)
+        CorrectiveTicket.objects.filter(filtre_tickets, reported_at__date__lte=date_fin)
         .exclude(status__in=STATUTS_TICKET_FERMES)
-        .select_related("asset", "asset__asset_type")
+        .select_related("asset", "asset__asset_type", "installation")
         .order_by("reported_at")
     )
 
@@ -489,14 +512,12 @@ def construire_contexte_periode(
     )
 
     # Pièces consommées : PartLineItem passées en statut CONSUMED sur la fenêtre.
-    filtre_pieces = {
-        f"part_request__ticket__asset__{cle}": valeur for cle, valeur in filtre_scope.items()
-    }
+    filtre_pieces = _q_perimetre_tickets(filtre_scope, "part_request__ticket__")
     pieces_consommees = list(
         PartLineItem.objects.filter(
-            status="CONSUMED", received_at__range=(date_debut, date_fin), **filtre_pieces
+            filtre_pieces, status="CONSUMED", received_at__range=(date_debut, date_fin)
         )
-        .select_related("part_request", "part_request__ticket", "part_request__ticket__asset")
+        .select_related("part_request", "part_request__ticket", "part_request__ticket__asset", "part_request__ticket__installation")
         .order_by("-received_at")
     )
 
@@ -574,14 +595,14 @@ def _sections_bilan_periode(contexte: dict) -> list:
     ]
 
     lignes_tickets_ouverts = [
-        [_nom_materiel(t.asset), t.asset.asset_type.name, t.get_status_display(), _fmt_date(t.reported_at)]
+        [_nom_equipement_ticket(t), _type_equipement_ticket(t), t.get_status_display(), _fmt_date(t.reported_at)]
         for t in contexte["tickets_ouverts_periode"]
     ]
 
     lignes_tickets_fermes = [
         [
-            _nom_materiel(t.asset),
-            t.asset.asset_type.name,
+            _nom_equipement_ticket(t),
+            _type_equipement_ticket(t),
             _fmt_date(t.reported_at),
             _fmt_date(t.updated_at),
             t.delai_resolution_jours,
@@ -590,7 +611,7 @@ def _sections_bilan_periode(contexte: dict) -> list:
     ]
 
     lignes_tickets_encore_ouverts = [
-        [_nom_materiel(t.asset), t.asset.asset_type.name, t.get_status_display(), _fmt_date(t.reported_at)]
+        [_nom_equipement_ticket(t), _type_equipement_ticket(t), t.get_status_display(), _fmt_date(t.reported_at)]
         for t in contexte["tickets_encore_ouverts_fin_periode"]
     ]
 
@@ -609,7 +630,7 @@ def _sections_bilan_periode(contexte: dict) -> list:
             p.reference,
             p.description,
             p.qty,
-            _nom_materiel(p.part_request.ticket.asset),
+            _nom_equipement_ticket(p.part_request.ticket),
             _fmt_date(p.received_at),
         ]
         for p in contexte["pieces_consommees"]

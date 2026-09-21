@@ -97,7 +97,7 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
             session.est_formateur = session.instructor_id == self.request.user.id
 
         mes_tickets = list(
-            CorrectiveTicket.objects.select_related("asset")
+            CorrectiveTicket.objects.select_related("asset", "installation")
             .filter(assignees=self.request.user)
             .exclude(status__in=_STATUTS_TICKET_TERMINES)
             .order_by("-severity", "reported_at")
@@ -270,7 +270,7 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
             filtre_occurrence = Q(**{f"asset__{champ}": perimetre_id}) | Q(
                 **{f"installation_maintenance__installation__{champ}": perimetre_id}
             )
-            filtre_ticket = Q(**{f"asset__{champ}": perimetre_id})
+            filtre_ticket = Q(**{f"asset__{champ}": perimetre_id}) | Q(**{f"installation__{champ}": perimetre_id})
             filtre_stock = Q(**{champ: perimetre_id})
 
         contexte.update(_agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_stock))
@@ -1040,7 +1040,7 @@ class DashboardClasseNavireView(LoginRequiredMixin, TemplateView):
         filtre_occurrence = Q(asset__ship_id__in=ship_ids) | Q(
             installation_maintenance__installation__ship_id__in=ship_ids
         )
-        filtre_ticket = Q(asset__ship_id__in=ship_ids)
+        filtre_ticket = Q(asset__ship_id__in=ship_ids) | Q(installation__ship_id__in=ship_ids)
         filtre_stock = Q(ship_id__in=ship_ids)
         contexte.update(_agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_stock))
 

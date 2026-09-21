@@ -33,7 +33,15 @@ class CorrectiveTicket(TimeStampedModel, OwnedModel):
         ("CANCELLED", "Annulé"),
     )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="tickets")
+    # Un ticket vise un matériel mobile (asset) OU une installation fixe
+    # (installation), jamais les deux (voir clean) : les deux sont nullables au
+    # niveau base pour rester rétrocompatible avec les tickets existants, tous
+    # rattachés à un asset.
+    asset = models.ForeignKey(Asset, null=True, blank=True, on_delete=models.CASCADE, related_name="tickets")
+    installation = models.ForeignKey(
+        Installation, null=True, blank=True, on_delete=models.CASCADE, related_name="tickets",
+        verbose_name="Installation concernée",
+    )
     created_by_text = models.CharField(max_length=255, blank=True, default="")
     reported_at = models.DateTimeField(default=timezone.now)
     planned_for = models.DateField(null=True, blank=True)
@@ -64,6 +72,20 @@ class CorrectiveTicket(TimeStampedModel, OwnedModel):
         related_name="tickets_valides", verbose_name="Validé par",
     )
     date_validation = models.DateTimeField(null=True, blank=True, verbose_name="Date de validation")
+
+    def clean(self):
+        super().clean()
+        if bool(self.asset_id) == bool(self.installation_id):
+            raise ValidationError("Un ticket doit viser un matériel OU une installation (l'un des deux, pas les deux).")
+
+    @property
+    def equipement(self):
+        """Équipement visé par le ticket : matériel mobile ou installation fixe."""
+        return self.installation or self.asset
+
+    def __str__(self):
+        return f"Ticket {self.equipement}"
+
 
 class TicketStatusLog(TimeStampedModel):
     ticket = models.ForeignKey(CorrectiveTicket, on_delete=models.CASCADE, related_name="status_logs")
@@ -222,3 +244,138 @@ def niveau_alerte_ticket(severity):
     if severity == 3:
         return NotificationLevel.WARNING
     return NotificationLevel.INFO
+
+
+def perimetre_du_profil(profil):
+    """(navire, service, secteur, section) d'un profil, remontés depuis le
+    niveau le plus fin renseigné ; (None,)*4 sans profil."""
+    if profil is None:
+        return None, None, None, None
+    section = profil.section
+    sector = profil.sector or (section.sector if section else None)
+    service = profil.service or (sector.service if sector else None)
+    ship = profil.ship or (service.ship if service else None)
+    return ship, service, sector, section
+
+
+STATUTS_ANOMALIE_OUVERTS = ["SIGNALEE", "PRISE_EN_COMPTE"]
+
+
+class Anomalie(TimeStampedModel, OwnedModel):
+    """Signalement libre d'une anomalie constatée à bord (ex. fuite en coursive,
+    obstacle sur une issue de secours), avec ou sans équipement enregistré.
+
+    Distinct de CorrectiveTicket, qui exige un matériel mobile : une anomalie
+    peut être rattachée à une Installation OU à un Asset, ou à aucun des deux
+    (localisation en texte libre). Quand un matériel est identifié, un chef peut
+    la convertir en ticket correctif ; le lien est conservé dans les deux sens
+    (Anomalie.ticket / CorrectiveTicket.anomalie_source).
+    """
+    STATUTS = (
+        ("SIGNALEE", "Signalée"),
+        ("PRISE_EN_COMPTE", "Prise en compte"),
+        ("TRAITEE", "Traitée"),
+        ("CLOTUREE", "Clôturée"),
+    )
+    titre = models.CharField(max_length=150, verbose_name="Titre")
+    description = models.TextField(blank=True, default="", verbose_name="Description")
+    # Même échelle 1-5 que CorrectiveTicket.severity, pour réutiliser
+    # niveau_alerte_ticket et la même jauge colorée.
+    gravite = models.PositiveSmallIntegerField(default=3, verbose_name="Gravité")
+    statut = models.CharField(max_length=20, choices=STATUTS, default="SIGNALEE", verbose_name="Statut")
+    localisation = models.CharField(max_length=255, blank=True, default="", verbose_name="Localisation")
+    photo = models.FileField(upload_to="anomalie_photos/", null=True, blank=True, verbose_name="Photo")
+    # Périmètre organisationnel, déduit de l'équipement lié sinon du profil du
+    # déclarant (voir rattacher_a) : sert uniquement au scoping et aux
+    # notifications, jamais saisi à la main.
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
+    installation = models.ForeignKey(
+        Installation, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="anomalies", verbose_name="Installation concernée",
+    )
+    asset = models.ForeignKey(
+        Asset, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="anomalies", verbose_name="Matériel concerné",
+    )
+    ticket = models.OneToOneField(
+        CorrectiveTicket, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="anomalie_source", verbose_name="Ticket correctif issu de l'anomalie",
+    )
+
+    class Meta:
+        verbose_name = "Anomalie"
+        verbose_name_plural = "Anomalies"
+        ordering = ["-created_at"]
+
+    def clean(self):
+        super().clean()
+        if self.installation_id and self.asset_id:
+            raise ValidationError(
+                "Une anomalie ne peut être liée qu'à un seul équipement : une installation OU un matériel, pas les deux."
+            )
+
+    def rattacher_a(self, profil=None, secteur=None):
+        """Renseigne navire/service/secteur/section : ceux de l'équipement lié
+        s'il y en a un, sinon ceux du secteur explicitement choisi par le
+        déclarant (le service et le navire en découlent, pas de section), sinon
+        ceux du profil du déclarant. Sans rien de tout cela, l'anomalie reste
+        sans périmètre (visible seulement de son auteur et des administrateurs)."""
+        equipement = self.installation or self.asset
+        if equipement:
+            self.ship_id, self.service_id = equipement.ship_id, equipement.service_id
+            self.sector_id, self.section_id = equipement.sector_id, equipement.section_id
+            return
+        ship, service, sector, section = perimetre_du_profil(profil)
+        if secteur is not None and secteur != sector:
+            ship, service, sector, section = secteur.service.ship, secteur.service, secteur, None
+        self.ship, self.service, self.sector, self.section = ship, service, sector, section
+
+    @property
+    def equipement_lie(self):
+        return self.installation or self.asset
+
+    @property
+    def est_ouverte(self):
+        return self.statut in STATUTS_ANOMALIE_OUVERTS
+
+    def __str__(self):
+        return self.titre
+
+
+class AnomalieStatutLog(TimeStampedModel):
+    """Historique des changements de statut d'une anomalie (qui, quand, ancienne
+    et nouvelle valeur) — même principe que TicketStatusLog."""
+    anomalie = models.ForeignKey(Anomalie, on_delete=models.CASCADE, related_name="status_logs")
+    ancien_statut = models.CharField(max_length=20)
+    nouveau_statut = models.CharField(max_length=20)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    note = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["created_at"]
+
+    @property
+    def ancien_libelle(self):
+        return dict(Anomalie.STATUTS).get(self.ancien_statut, self.ancien_statut)
+
+    @property
+    def nouveau_libelle(self):
+        return dict(Anomalie.STATUTS).get(self.nouveau_statut, self.nouveau_statut)
+
+
+def destinataires_anomalie(anomalie):
+    """Chefs concernés par une anomalie : chef de service/secteur/section dont
+    le périmètre correspond, uniquement sur les niveaux renseignés (une
+    anomalie sans périmètre ne notifie personne plutôt qu'un chef au hasard).
+    Même construction que destinataires_ticket."""
+    filtre = Q(pk__in=[])
+    if anomalie.service_id:
+        filtre |= Q(role=Roles.CHEF_SERVICE, service_id=anomalie.service_id)
+    if anomalie.sector_id:
+        filtre |= Q(role=Roles.CHEF_SECTEUR, sector_id=anomalie.sector_id)
+    if anomalie.section_id:
+        filtre |= Q(role=Roles.CHEF_SECTION, section_id=anomalie.section_id)
+    return UserProfile.objects.filter(filtre).select_related("user")

@@ -14,6 +14,19 @@ class CorrectiveTicketSerializer(serializers.ModelSerializer):
         # ci-contre).
         read_only_fields = ["status"]
 
+    def validate(self, attrs):
+        # Règle « un matériel OU une installation » (CorrectiveTicket.clean) :
+        # ModelSerializer n'appelle pas clean(), on la rejoue ici en tenant compte
+        # de la valeur existante lors d'une mise à jour partielle.
+        instance = self.instance
+        asset = attrs["asset"] if "asset" in attrs else getattr(instance, "asset", None)
+        installation = attrs["installation"] if "installation" in attrs else getattr(instance, "installation", None)
+        if bool(asset) == bool(installation):
+            raise serializers.ValidationError(
+                "Un ticket doit viser un matériel OU une installation (l'un des deux, pas les deux)."
+            )
+        return attrs
+
 class TicketStatusLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = TicketStatusLog

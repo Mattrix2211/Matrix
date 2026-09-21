@@ -50,7 +50,7 @@ def _filtre_perimetre_threads(user, prefix=""):
     from logistics.models import CorrectiveTicket
     from maintenance.models import MaintenanceOccurrence
 
-    ids_tickets = CorrectiveTicket.objects.filter(build_scope_q(user, "asset__")).values_list("pk", flat=True)
+    ids_tickets = CorrectiveTicket.objects.filter(build_scope_q(user, "asset__", "installation__")).values_list("pk", flat=True)
     ids_occurrences = MaintenanceOccurrence.objects.filter(
         build_scope_q(user, "asset__", "installation_maintenance__installation__")
     ).values_list("pk", flat=True)

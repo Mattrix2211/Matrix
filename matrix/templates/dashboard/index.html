@@ -68,7 +68,7 @@
           <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
             <div>
               <a href="{% url 'ticket-detail' ticket.pk %}" class="fw-semibold text-decoration-none">
-                {{ ticket.asset }}
+                {{ ticket.equipement }}
               </a>
               <div class="small text-muted font-mono">Signalé le {{ ticket.reported_at|date:"d/m/Y" }}</div>
             </div>

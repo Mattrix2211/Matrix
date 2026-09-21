@@ -195,7 +195,7 @@
         <tbody>
             {% for ticket in tickets_ouverts %}
             <tr>
-                <td>{{ ticket.asset }}</td>
+                <td>{{ ticket.equipement }}</td>
                 <td>{{ ticket.description }}</td>
                 <td>{{ ticket.get_status_display }}</td>
                 <td class="mono">{{ ticket.reported_at|date:"d/m/Y" }}</td>

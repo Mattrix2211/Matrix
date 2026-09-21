@@ -26,7 +26,7 @@
       <tbody>
         {% for ticket in tickets %}
         <tr onclick="window.location='{% url 'ticket-detail' ticket.pk %}'" style="cursor: pointer;">
-          <td>{{ ticket.asset }}</td>
+          <td>{{ ticket.equipement }}</td>
           <td>{{ ticket.description|truncatechars:80 }}</td>
           <td class="font-mono">{{ ticket.reported_at|date:"d/m/Y" }}</td>
           <td style="min-width:100px;">

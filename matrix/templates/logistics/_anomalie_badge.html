@@ -1,0 +1,1 @@
+<span class="badge {% if anomalie.statut == 'SIGNALEE' %}bg-danger{% elif anomalie.statut == 'PRISE_EN_COMPTE' %}bg-warning text-dark{% elif anomalie.statut == 'TRAITEE' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ anomalie.get_statut_display }}</span>

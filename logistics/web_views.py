@@ -78,13 +78,13 @@ class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # Un ticket correctif porte sur un matériel mobile (asset), qui porte
         # lui-même les 4 champs de périmètre — même logique que
         # CorrectiveTicketViewSet côté API (logistics/views.py).
-        return build_scope_q(self.request.user, "asset__")
+        return build_scope_q(self.request.user, "asset__", "installation__")
 
     def _vue_perimetre_autorisee(self):
         return user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related('asset').order_by('-reported_at')
+        qs = super().get_queryset().select_related('asset', 'installation').order_by('-reported_at')
         self.vue = self.request.GET.get('vue', 'mes')
         if self.vue != 'perimetre' or not self._vue_perimetre_autorisee():
             self.vue = 'mes'
@@ -154,8 +154,8 @@ class TicketDetailView(LoginRequiredMixin, View):
     def get(self, request, pk):
         try:
             ticket = (
-                CorrectiveTicket.objects.select_related('asset')
-                .filter(build_scope_q(request.user, "asset__"))
+                CorrectiveTicket.objects.select_related('asset', 'installation')
+                .filter(build_scope_q(request.user, "asset__", "installation__"))
                 .get(pk=pk)
             )
         except CorrectiveTicket.DoesNotExist:
@@ -186,7 +186,7 @@ class TicketDetailView(LoginRequiredMixin, View):
             # ou déduit de son périmètre plus fin (service/secteur/section), un
             # profil scopé au secteur n'ayant jamais ship renseigné directement.
             contexte["utilisateurs_assignables"] = User.objects.filter(
-                _ship_du_profil_q(ticket.asset.ship_id)
+                _ship_du_profil_q(ticket.equipement.ship_id)
             ).select_related("profile").order_by("username").distinct()
         return render(request, self.template_name, contexte)
 
@@ -272,8 +272,8 @@ class TicketAssignView(LoginRequiredMixin, View):
         # connaissant l'identifiant d'un ticket d'un autre navire pouvait
         # modifier ses assignés (T-SEC).
         try:
-            ticket = CorrectiveTicket.objects.select_related('asset').filter(
-                build_scope_q(request.user, "asset__")
+            ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
+                build_scope_q(request.user, "asset__", "installation__")
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
@@ -281,7 +281,7 @@ class TicketAssignView(LoginRequiredMixin, View):
         ids = request.POST.getlist('assignees')
         # On ne retient que des utilisateurs de l'équipage du navire de l'actif
         # concerné, même filtre que le formulaire (contournement d'un POST direct).
-        utilisateurs = list(User.objects.filter(_ship_du_profil_q(ticket.asset.ship_id), pk__in=ids))
+        utilisateurs = list(User.objects.filter(_ship_du_profil_q(ticket.equipement.ship_id), pk__in=ids))
         ticket.assignees.set(utilisateurs)
 
         # Notifie uniquement les marins nouvellement assignés (pas ceux déjà
@@ -294,7 +294,7 @@ class TicketAssignView(LoginRequiredMixin, View):
                 continue
             Notification.objects.create(
                 user=marin,
-                verb=f"Vous avez été assigné(e) au ticket correctif : {ticket.asset} — {ticket.description[:80]}",
+                verb=f"Vous avez été assigné(e) au ticket correctif : {ticket.equipement} — {ticket.description[:80]}",
             )
 
         messages.info(request, "Assignation du ticket mise à jour.")
@@ -321,7 +321,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
         # connaissant l'identifiant d'un ticket d'un autre navire pouvait le
         # faire transitionner, y compris le remettre en service (T-SEC).
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         new_status = request.POST.get('status')
@@ -393,7 +393,7 @@ class TicketCommentCreateView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         corps = request.POST.get('body', '').strip()
@@ -414,7 +414,7 @@ class PartRequestCreateView(LoginRequiredMixin, View):
         # connaissant l'identifiant d'un ticket d'un autre navire pouvait lui
         # créer une demande de pièces (IDOR).
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         pr = PartRequest.objects.create(ticket=ticket, requested_by=request.user if request.user.is_authenticated else None, needed_by_date=request.POST.get('needed_by_date') or None)
@@ -434,7 +434,7 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
         # pouvait lui ajouter des lignes (IDOR).
         try:
             pr = PartRequest.objects.select_related('ticket').filter(
-                build_scope_q(request.user, "ticket__asset__")
+                build_scope_q(request.user, "ticket__asset__", "ticket__installation__")
             ).get(pk=pr_id)
         except PartRequest.DoesNotExist:
             return HttpResponseBadRequest('Demande introuvable')
@@ -461,7 +461,7 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
         # en changer le statut (IDOR).
         try:
             line = PartLineItem.objects.select_related('part_request', 'part_request__ticket').filter(
-                build_scope_q(request.user, "part_request__ticket__asset__")
+                build_scope_q(request.user, "part_request__ticket__asset__", "part_request__ticket__installation__")
             ).get(pk=line_id)
         except PartLineItem.DoesNotExist:
             return HttpResponseBadRequest('Ligne introuvable')
@@ -505,8 +505,8 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         try:
-            ticket = CorrectiveTicket.objects.select_related('asset').filter(
-                build_scope_q(request.user, "asset__")
+            ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
+                build_scope_q(request.user, "asset__", "installation__")
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')

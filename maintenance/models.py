@@ -137,10 +137,9 @@ def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", c
     if instance.conformity == "NON_CONFORME":
         occ = instance.occurrence
         asset = occ.asset
-        # CorrectiveTicket ne concerne aujourd'hui que le matériel mobile (FK asset
-        # non-nullable) : aucun équivalent n'existe côté installation fixe. Une
-        # occurrence d'installation (occ.asset is None) ne doit donc pas déclencher
-        # de ticket correctif tant que ce concept n'existe pas pour les installations.
+        # Une occurrence d'installation (occ.asset is None) ne déclenche pas de
+        # ticket automatique : seuls les tickets créés à la main ou par conversion
+        # d'une anomalie peuvent viser une installation (CorrectiveTicket.installation).
         if asset is None:
             return
         ticket, created_ticket = CorrectiveTicket.objects.get_or_create(

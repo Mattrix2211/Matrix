@@ -19,6 +19,7 @@
 <div id="actions">
   <button class="btn btn-primary" hx-post="/assets/{{ object.id }}/start-visual/" hx-target="#result" hx-swap="innerHTML">Démarrer contrôle visuel</button>
   <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#signalerAnomalieModal">Signaler une anomalie</button>
+  <a class="btn btn-outline-secondary" href="{% url 'anomalie-create' %}?asset={{ object.id }}">Signalement libre</a>
   <a class="btn btn-outline-primary" href="/logistics/tickets/{{ object.tickets.first.id }}/" {% if object.tickets.count == 0 %}style="display:none"{% endif %}>Voir ticket récent</a>
   <div id="result" class="mt-2"></div>
   <p class="text-muted mt-2">Une occurrence de maintenance planifiée aujourd'hui sera créée/assignée.</p>

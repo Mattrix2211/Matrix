@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1 class="h4">Ticket correctif #{{ ticket.id }}</h1>
-<div class="mb-2 text-muted">Actif: <a href="/assets/{{ ticket.asset.id }}/">{{ ticket.asset }}</a></div>
+<div class="mb-2 text-muted">Actif : {% if ticket.installation %}<a href="/installations/{{ ticket.installation.id }}/">{{ ticket.installation.designation }}</a>{% else %}<a href="/assets/{{ ticket.asset.id }}/">{{ ticket.asset }}</a>{% endif %}</div>
+
+{% if ticket.anomalie_source %}<div class="mb-2 text-muted">Issu de l'anomalie : <a href="{% url 'anomalie-detail' ticket.anomalie_source.pk %}">{{ ticket.anomalie_source.titre }}</a></div>{% endif %}
 
 <div id="ticket-status" hx-target="this" hx-swap="outerHTML">
   {% include 'logistics/_status.html' %}

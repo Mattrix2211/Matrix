@@ -1,4 +1,8 @@
 from django.urls import path
+from .anomalie_views import (
+    AnomalieListView, AnomalieCreateView, AnomalieDetailView, AnomalieTransitionView,
+    AnomalieConvertirView, AnomalieCommentView,
+)
 from .web_views import (
     TicketListView, TicketDetailView, TicketCreateView, TicketAssignView, TicketTransitionView,
     TicketCommentCreateView, PartRequestCreateView,
@@ -7,6 +11,12 @@ from .web_views import (
 )
 
 urlpatterns = [
+    path('anomalies/', AnomalieListView.as_view(), name='anomalie-list'),
+    path('anomalies/signaler/', AnomalieCreateView.as_view(), name='anomalie-create'),
+    path('anomalies/<int:pk>/', AnomalieDetailView.as_view(), name='anomalie-detail'),
+    path('anomalies/<int:pk>/statut/', AnomalieTransitionView.as_view(), name='anomalie-transition'),
+    path('anomalies/<int:pk>/convertir/', AnomalieConvertirView.as_view(), name='anomalie-convertir'),
+    path('anomalies/<int:pk>/commentaire/', AnomalieCommentView.as_view(), name='anomalie-comment'),
     path('tickets/', TicketListView.as_view(), name='ticket-list'),
     path('tickets/creer/<uuid:asset_pk>/', TicketCreateView.as_view(), name='ticket-create'),
     path('tickets/<uuid:pk>/', TicketDetailView.as_view(), name='ticket-detail'),

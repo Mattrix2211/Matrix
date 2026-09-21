@@ -8,6 +8,7 @@
   </div>
   <div class="d-flex gap-2 align-items-center">
     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addEventModal" onclick="document.querySelector('#addEventModal input[name=label]').value='Anomalie'; document.querySelector('#addEventModal textarea[name=notes]').focus();">Signaler une anomalie</button>
+    <a class="btn btn-outline-secondary" href="{% url 'anomalie-create' %}?installation={{ object.id }}">Signalement libre</a>
     <a class="btn btn-secondary" href="/installations/">Retour</a>
     <div class="dropdown">
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>

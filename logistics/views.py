@@ -28,7 +28,7 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
     def get_scoped_filters(self):
         # Un ticket correctif porte sur un matériel mobile (asset), qui
         # porte lui-même les 4 champs de périmètre.
-        return build_scope_q(self.request.user, "asset__")
+        return build_scope_q(self.request.user, "asset__", "installation__")
 
     def perform_update(self, serializer):
         # "status" est en lecture seule côté serializer (CorrectiveTicketSerializer.
@@ -114,7 +114,7 @@ class PartRequestViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     def get_scoped_filters(self):
         # Une demande de pièces porte sur un ticket, lui-même rattaché à un
         # matériel mobile (asset).
-        return build_scope_q(self.request.user, "ticket__asset__")
+        return build_scope_q(self.request.user, "ticket__asset__", "ticket__installation__")
 
 class PartLineItemViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = PartLineItem.objects.select_related("part_request").all()
@@ -124,4 +124,4 @@ class PartLineItemViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     def get_scoped_filters(self):
         # Une ligne de pièce porte sur une demande, elle-même rattachée à
         # un ticket, lui-même rattaché à un matériel mobile (asset).
-        return build_scope_q(self.request.user, "part_request__ticket__asset__")
+        return build_scope_q(self.request.user, "part_request__ticket__asset__", "part_request__ticket__installation__")

@@ -66,7 +66,9 @@ def global_search(request):
     # et prioriser les types les plus utiles au quotidien en premier.
     q = request.GET.get('q', '').strip()
     perimetre = scope_filters_for_user(request.user)
-    perimetre_tickets = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
+    perimetre_tickets = Q()
+    for cle, valeur in perimetre.items():
+        perimetre_tickets |= Q(**{f"asset__{cle}": valeur}) | Q(**{f"installation__{cle}": valeur})
     perimetre_documents = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
     perimetre_users = {f"profile__{cle}": valeur for cle, valeur in perimetre.items()}
     assets = tickets = users = installations = formations = documents = []
@@ -74,7 +76,7 @@ def global_search(request):
         assets = Asset.objects.filter(**perimetre).filter(
             Q(internal_id__icontains=q) | Q(serial_number__icontains=q)
         )[:20]
-        tickets = CorrectiveTicket.objects.filter(**perimetre_tickets).filter(
+        tickets = CorrectiveTicket.objects.filter(perimetre_tickets).filter(
             Q(description__icontains=q) | Q(id__icontains=q)
         )[:20]
         users = User.objects.filter(**perimetre_users).filter(
