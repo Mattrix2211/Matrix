@@ -247,7 +247,7 @@ class InstallationMatriceTests(MatricePermissionsTestCase):
 
     def test_modification_installation(self):
         def executer(client, role):
-            r = client.post("/installations/", {
+            r = client.post(f"/installations/{self.installation.id}/", {
                 "action": "edit_installation",
                 "pk": str(self.installation.id),
                 "designation": f"Groupe électrogène ({role.name})",

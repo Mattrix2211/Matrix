@@ -86,7 +86,7 @@ class PerimetreCrudAssetWebTests(TestCase):
 
     def test_chef_service_peut_editer_une_installation_en_postant_son_propre_navire(self):
         self.client.login(username="chef_perim", password="pass")
-        r = self.client.post("/installations/", {
+        r = self.client.post(f"/installations/{self.installation.id}/", {
             "action": "edit_installation",
             "pk": str(self.installation.id),
             "designation": "Groupe électrogène révisé",
@@ -165,7 +165,7 @@ class PerimetreCrudAssetWebTests(TestCase):
 
     def test_chef_service_ne_peut_pas_deplacer_une_installation_vers_un_navire_hors_perimetre(self):
         self.client.login(username="chef_perim", password="pass")
-        r = self.client.post("/installations/", {
+        r = self.client.post(f"/installations/{self.installation.id}/", {
             "action": "edit_installation",
             "pk": str(self.installation.id),
             "designation": "Groupe modifié",
@@ -265,8 +265,7 @@ class PerimetreCrudAssetWebTests(TestCase):
     def test_chef_service_peut_editer_une_installation_avec_un_nouvel_emplacement_a_la_volee_depuis_la_fiche(self):
         """Chemin réellement utilisé par l'écran (modale d'édition de la fiche
         installation, cf. _modales_fiche_installation.html), géré par
-        _action_edit_installation dans installation_actions.py — distinct du
-        handler de la liste testé ci-dessus."""
+        _action_edit_installation dans installation_actions.py."""
         self.client.login(username="chef_perim", password="pass")
         r = self.client.post(f"/installations/{self.installation.id}/", {
             "action": "edit_installation",
@@ -296,20 +295,3 @@ class PerimetreCrudAssetWebTests(TestCase):
         self.client.login(username="chef_perim", password="pass")
         r = self.client.get(f"/assets/{self.materiel.id}/")
         self.assertEqual(r.status_code, 200)
-
-    def test_chef_service_peut_editer_une_installation_avec_un_nouvel_emplacement_a_la_volee(self):
-        self.client.login(username="chef_perim", password="pass")
-        r = self.client.post("/installations/", {
-            "action": "edit_installation",
-            "pk": str(self.installation.id),
-            "designation": self.installation.designation,
-            "ship_id": str(self.ship.id),
-            "service_id": str(self.service.id),
-            "sector_id": str(self.sector.id),
-            "location_id": "__new__",
-            "new_location_name": "Local machine arrière",
-        })
-        self.assertEqual(r.status_code, 302)
-        self.installation.refresh_from_db()
-        self.assertIsNotNone(self.installation.location)
-        self.assertEqual(self.installation.location.name, "Local machine arrière")

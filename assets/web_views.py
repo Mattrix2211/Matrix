@@ -547,7 +547,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     # une clé du registre des seuils configurables par navire
     # (matrix/core/role_thresholds.py), résolue dynamiquement à chaque
     # requête dans post() ci-dessous — asset_ecriture_simple pour la
-    # création/édition simple (CHEF_SECTION par défaut), asset_gestion_avancee
+    # création simple (CHEF_SECTION par défaut ; l'édition passe par la fiche détail), asset_gestion_avancee
     # pour les suppressions et les actions groupées (CHEF_SERVICE par défaut,
     # même seuil que MAINTENANCE_WRITE_ACTIONS d'InstallationDetailView et
     # _peut_gerer_rattachement_parent, pour rester cohérent avec le reste du
@@ -1035,13 +1035,12 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     # Contrôle de rôle par action (T-SEC) : chaque action POST est associée à
     # une clé du registre des seuils configurables par navire
     # (matrix/core/role_thresholds.py) — installation_ecriture_simple pour la
-    # création/édition simple (CHEF_SECTION par défaut),
+    # création simple (CHEF_SECTION par défaut ; l'édition passe par la fiche détail),
     # installation_gestion_avancee pour les suppressions et les actions
     # groupées (CHEF_SERVICE par défaut), même seuil que
     # MAINTENANCE_WRITE_ACTIONS (InstallationDetailView) et AssetListView.
     ACTION_VERS_SEUIL = {
         'create_installation': 'installation_ecriture_simple',
-        'edit_installation': 'installation_ecriture_simple',
         'delete_installation': 'installation_gestion_avancee',
         'bulk_update_location': 'installation_gestion_avancee',
         'bulk_update_ship': 'installation_gestion_avancee',
@@ -1360,73 +1359,6 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 pass
             AuditLog.objects.create(actor=request.user, action='create_installation', details=f'designation={designation}')
             messages.success(request, 'Installation créée.')
-        elif action == 'edit_installation':
-            pk = request.POST.get('pk')
-            ship_id = request.POST.get('ship_id')
-            service_id = request.POST.get('service_id')
-            sector_id = request.POST.get('sector_id')
-            section_id = request.POST.get('section_id')
-            # Périmètre (T-SEC) : même contrôle qu'à la création.
-            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Unité hors de votre périmètre.")
-                return redirect('installation-list')
-            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
-                messages.error(request, "Service hors de votre périmètre.")
-                return redirect('installation-list')
-            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
-                messages.error(request, "Secteur hors de votre périmètre.")
-                return redirect('installation-list')
-            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
-                messages.error(request, "Section hors de votre périmètre.")
-                return redirect('installation-list')
-            try:
-                # Périmètre : l'installation visée doit appartenir au périmètre de
-                # l'appelant (self.get_queryset(), scopé) — un identifiant hors périmètre
-                # est traité comme introuvable plutôt que d'être chargé via le manager brut.
-                it = self.get_queryset().get(pk=pk)
-                it.designation = request.POST.get('designation', it.designation).strip()
-                it.reference = request.POST.get('reference', it.reference).strip()
-                it.marque = request.POST.get('marque', it.marque).strip()
-                it.gisement = request.POST.get('gisement', it.gisement).strip()
-                it.local = request.POST.get('local', it.local).strip()
-                it.critique = request.POST.get('critique') == 'on'
-                bigrame_id = request.POST.get('bigrame_id')
-                photo = request.FILES.get('photo')
-                if photo:
-                    it.photo = photo
-                it.ship = Ship.objects.filter(pk=ship_id).first() if ship_id else None
-                it.service = Service.objects.filter(pk=service_id).first() if service_id else None
-                it.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
-                it.section = Section.objects.filter(pk=section_id).first() if section_id else None
-                it.location = _resoudre_emplacement(request, it.ship)
-                it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
-                iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
-                if iso_period in ('M','T','A'):
-                    it.iso_periodicity = iso_period
-                it.save()
-                # Met à jour les champs personnalisés si fournis
-                try:
-                    import json
-                    extras_json = request.POST.get('extra_fields')
-                    if extras_json is not None:
-                        InstallationExtraField.objects.filter(installation=it).delete()
-                        extras = json.loads(extras_json) if extras_json else []
-                        order = 0
-                        for ex in extras:
-                            lbl = (ex.get('label') or '').strip()
-                            val = (ex.get('value') or '').strip()
-                            if not lbl:
-                                continue
-                            InstallationExtraField.objects.create(
-                                installation=it, label=lbl, value=val, order=order, created_by=request.user
-                            )
-                            order += 1
-                except Exception:
-                    pass
-                AuditLog.objects.create(actor=request.user, action='edit_installation', details=f'id={it.id}')
-                messages.success(request, 'Installation mise à jour.')
-            except Installation.DoesNotExist:
-                messages.error(request, 'Installation introuvable.')
         elif action == 'delete_installation':
             pk = request.POST.get('pk')
             # Périmètre : une installation hors périmètre est traitée comme introuvable.
