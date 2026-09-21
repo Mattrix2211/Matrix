@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from matrix.core.admin import AdminScopedMixin
 
-from .models import ChefDeListe, CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from .models import ChefDeListe, CreneauQuart, CreneauServiceGarde, EchangeService, Quart, ServiceGarde
 
 
 @admin.register(ChefDeListe)
@@ -34,3 +34,9 @@ class ServiceGardeAdmin(AdminScopedMixin, admin.ModelAdmin):
     list_display = ("nom", "fonction", "type_service", "ship", "service", "sector", "section", "date_debut", "date_fin", "statut")
     list_filter = ("statut", "fonction", "ship", "service", "sector")
     inlines = [CreneauServiceGardeInline]
+
+
+@admin.register(EchangeService)
+class EchangeServiceAdmin(admin.ModelAdmin):
+    list_display = ("demandeur", "cible", "statut", "created_at")
+    list_filter = ("statut",)

@@ -3,6 +3,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Quarts et services de garde</h1>
   <div class="d-flex gap-2">
+    <a href="{% url 'echanges-index' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left-right"></i> Mes échanges
+    </a>
     {% if peut_designer_chef_de_liste %}
     <a href="{% url 'quarts-reglages' %}" class="btn btn-outline-secondary">
       <i class="bi bi-person-badge"></i> Chefs de liste

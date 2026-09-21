@@ -35,7 +35,29 @@
           <td>{{ c.poste }}</td>
           <td class="font-mono">{{ c.debut|date:"d/m/Y H:i" }}</td>
           <td class="font-mono">{{ c.fin|date:"d/m/Y H:i" }}</td>
-          <td>{% if c.marin %}{{ c.marin.get_full_name|default:c.marin.username }}{% else %}<span class="text-muted">Non affecté</span>{% endif %}</td>
+          <td>
+            {% if c.marin %}{{ c.marin.get_full_name|default:c.marin.username }}{% else %}<span class="text-muted">Non affecté</span>{% endif %}
+            {% if c.en_echange %}<span class="badge text-bg-info ms-1">Échange en cours</span>{% endif %}
+            {% if c.peut_echanger %}
+            <div class="dropdown d-inline ms-1">
+              <button class="btn btn-sm btn-outline-primary" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                <i class="bi bi-arrow-left-right"></i> Proposer un échange
+              </button>
+              <form method="post" action="{% url 'echange-proposer' liste.pk %}" class="dropdown-menu p-3" style="min-width: 22rem">
+                {% csrf_token %}
+                <input type="hidden" name="creneau_id" value="{{ c.pk }}">
+                <label class="form-label small">Échanger contre le tour de</label>
+                <select name="cible_creneau_id" class="form-select form-select-sm mb-2" required>
+                  {% for t in tours_echangeables %}
+                  <option value="{{ t.pk }}">{{ t.marin.get_full_name|default:t.marin.username }} — {{ t.poste }} le {{ t.debut|date:"d/m/Y H:i" }}</option>
+                  {% endfor %}
+                </select>
+                <input type="text" name="motif" class="form-control form-control-sm mb-2" placeholder="Motif (facultatif)">
+                <button type="submit" class="btn btn-sm btn-primary">Envoyer la demande</button>
+              </form>
+            </div>
+            {% endif %}
+          </td>
           <td class="small text-muted">{{ c.note|default:"—" }}</td>
           {% if peut_gerer %}
           <td>
@@ -114,6 +136,28 @@
     </div>
   </div>
 </div>
+{% if formations_disponibles is not None %}
+<div class="card card-body mt-3">
+  <h2 class="h5">Règles des échanges de tour</h2>
+  <form method="post" class="row g-2">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="regler_echanges">
+    <div class="col-md-4">
+      <label class="form-label">Délai minimal avant le tour (heures)</label>
+      <input type="number" min="0" name="delai_minimal_echange_heures" value="{{ liste.delai_minimal_echange_heures }}" class="form-control">
+    </div>
+    <div class="col-md-8">
+      <label class="form-label">Habilitations exigées pour reprendre un tour <span class="text-muted small">(facultatif)</span></label>
+      <select name="formations_requises" multiple class="form-select">
+        {% for f in formations_disponibles %}
+        <option value="{{ f.pk }}" {% if f in liste.formations_requises.all %}selected{% endif %}>{{ f.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12"><button type="submit" class="btn btn-outline-primary">Enregistrer les règles</button></div>
+  </form>
+</div>
+{% endif %}
 {% endif %}
 
 {% if compteurs_equite is not None %}

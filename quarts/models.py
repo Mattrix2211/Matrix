@@ -326,6 +326,17 @@ class ServiceGarde(ListeServiceAbstract):
     duree_creneau_heures = models.PositiveSmallIntegerField(
         default=24, verbose_name="Durée par défaut d'un créneau (heures)"
     )
+    # Règles des échanges de tour (VISION §7.4, CLAUDE.md §6) : configurables
+    # par liste, jamais codées en dur. Formations dont le marin qui reprend un
+    # tour doit avoir une validation encore valable le jour du tour, et délai
+    # minimal (en heures) entre une demande d'échange et le début du tour.
+    formations_requises = models.ManyToManyField(
+        "training.TrainingCourse", blank=True, related_name="services_garde_exigeant",
+        verbose_name="Habilitations requises pour tenir ce service",
+    )
+    delai_minimal_echange_heures = models.PositiveSmallIntegerField(
+        default=0, verbose_name="Délai minimal avant le tour pour demander un échange (heures)"
+    )
 
     class Meta(ListeServiceAbstract.Meta):
         verbose_name = "Liste de services de garde"
@@ -379,3 +390,95 @@ class CreneauServiceGarde(CreneauAbstract):
     class Meta(CreneauAbstract.Meta):
         verbose_name = "Créneau de service de garde"
         verbose_name_plural = "Créneaux de service de garde"
+
+
+class EchangeService(TimeStampedModel):
+    """Échange de deux tours de service de garde d'une même liste (VISION
+    §7.4) : le marin A (`demandeur`) propose de céder son créneau contre celui
+    du marin B (`cible`). B accepte ou refuse ; si B accepte, le chef de liste
+    valide en dernier ; seulement alors les deux affectations sont permutées.
+
+    `demandeur`/`cible` et les libellés de créneaux sont figés à la création :
+    ils conservent la situation d'AVANT l'échange (jamais d'écrasement silencieux
+    de l'ancienne affectation, même si les créneaux changent ou disparaissent).
+    Le déroulé complet vit dans EchangeServiceEvenement."""
+
+    STATUT_DEMANDE = "DEMANDE"
+    STATUT_ACCEPTE = "ACCEPTE"
+    STATUT_VALIDE = "VALIDE"
+    STATUT_REFUSE = "REFUSE"
+    STATUT_REJETE = "REJETE"
+    STATUT_ANNULE = "ANNULE"
+    STATUT_CHOICES = (
+        (STATUT_DEMANDE, "En attente de l'accord du marin"),
+        (STATUT_ACCEPTE, "En attente du chef de liste"),
+        (STATUT_VALIDE, "Échange validé"),
+        (STATUT_REFUSE, "Refusé par le marin"),
+        (STATUT_REJETE, "Refusé par le chef de liste"),
+        (STATUT_ANNULE, "Annulé"),
+    )
+    STATUTS_EN_COURS = (STATUT_DEMANDE, STATUT_ACCEPTE)
+
+    creneau_demandeur = models.ForeignKey(
+        CreneauServiceGarde, null=True, on_delete=models.SET_NULL, related_name="echanges_proposes"
+    )
+    creneau_cible = models.ForeignKey(
+        CreneauServiceGarde, null=True, on_delete=models.SET_NULL, related_name="echanges_recus"
+    )
+    libelle_creneau_demandeur = models.CharField(max_length=255, default="")
+    libelle_creneau_cible = models.CharField(max_length=255, default="")
+    demandeur = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="echanges_demandes")
+    cible = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="echanges_proposes_a")
+    statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_DEMANDE)
+    motif = models.TextField(blank=True, default="", verbose_name="Motif de la demande")
+    motif_decision = models.TextField(blank=True, default="", verbose_name="Motif du refus")
+    accepte_le = models.DateTimeField(null=True, blank=True)
+    decide_le = models.DateTimeField(null=True, blank=True)
+    decide_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="echanges_decides"
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Échange de service"
+        verbose_name_plural = "Échanges de service"
+
+    @property
+    def en_cours(self):
+        return self.statut in self.STATUTS_EN_COURS
+
+    @property
+    def liste(self):
+        creneau = self.creneau_demandeur or self.creneau_cible
+        return creneau.service_garde if creneau else None
+
+    def __str__(self):
+        return f"Échange {self.demandeur} ↔ {self.cible} ({self.get_statut_display()})"
+
+
+class EchangeServiceEvenement(TimeStampedModel):
+    """Historique immuable d'un échange : qui a fait quoi et quand, avec
+    l'ancienne et la nouvelle valeur lors de la permutation."""
+
+    echange = models.ForeignKey(EchangeService, on_delete=models.CASCADE, related_name="evenements")
+    acteur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    action = models.CharField(max_length=64)
+    detail = models.TextField(blank=True, default="")
+
+    LIBELLES = {
+        "demande": "Demande envoyée",
+        "acceptation": "Accepté par le marin",
+        "refus_marin": "Refusé par le marin",
+        "annulation": "Demande annulée",
+        "annulation_creneau_supprime": "Annulé (créneau supprimé)",
+        "refus_chef": "Refusé par le chef de liste",
+        "validation": "Validé par le chef de liste, tours permutés",
+    }
+
+    class Meta:
+        ordering = ("created_at", "pk")
+        verbose_name = "Événement d'échange"
+        verbose_name_plural = "Événements d'échange"
+
+    def get_action_libelle(self):
+        return self.LIBELLES.get(self.action, self.action)
