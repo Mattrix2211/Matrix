@@ -18,12 +18,16 @@ from training.models import TrainingCourse
 from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
-from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
+)
+from matrix.core.modules import (
+    REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif,
+    invalidate_cache as invalidate_modules_cache,
 )
 
 # Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
@@ -48,6 +52,22 @@ def _lignes_seuils(ship_id, portee_visee):
         }
         for action in REGISTRE_ACTIONS
         if action.portee == portee_visee
+    ]
+
+
+def _lignes_modules(ship_id):
+    """Construit les lignes affichables pour l'onglet Modules des Réglages :
+    une ligne par module désactivable du registre, avec son état actuel pour
+    ce navire (activé par défaut tant que rien n'est configuré explicitement,
+    cf. matrix/core/modules.py)."""
+    return [
+        {
+            "cle": mod.cle,
+            "libelle": mod.libelle,
+            "description": mod.description,
+            "actif": module_actif(mod.cle, ship_id),
+        }
+        for mod in REGISTRE_MODULES
     ]
 
 
@@ -158,14 +178,25 @@ class SettingsView(LoginRequiredMixin, View):
         # (get), sans dupliquer le calcul.
         return user_role_level(user) >= niveau_requis_pour(user, 'responsabilite_transverse_gestion')
 
+    @staticmethod
+    def _peut_gerer_modules(user):
+        # Seuil configurable (portée SHIP, cf. matrix/core/role_thresholds.py,
+        # clé "module_gestion") pour activer/désactiver un module applicatif
+        # sur SON navire : COMMANDANT par défaut (et tout rôle supérieur,
+        # ADMIN_NAVIRE compris, puisque la comparaison est >=), ajustable par
+        # navire comme n'importe quel autre seuil de l'onglet Sécurité.
+        return user_role_level(user) >= niveau_requis_pour(user, 'module_gestion')
+
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             # Seules les sections "Notification quotidienne" (réglage personnel
             # de chaque marin), "Sécurité" (seuils de rôle, réservée aux
             # ADMIN_NAVIRE — configuration de LEUR navire, cf. tâche Notion
-            # « Seuils de rôle configurables par navire ») et "Utilisateurs"
+            # « Seuils de rôle configurables par navire »), "Utilisateurs"
             # (uniquement la désignation de responsables transverses, réservée
-            # au rôle habilité par le seuil configurable ci-dessous) sont
+            # au rôle habilité par le seuil configurable ci-dessous) et
+            # "Modules" (activation/désactivation d'un module pour SON navire,
+            # réservée au rôle habilité par le seuil "module_gestion") sont
             # accessibles aux non-superusers. Le reste des Réglages
             # (référentiels globaux, navires, hiérarchie, journal...) reste
             # réservé aux comptes techniques superuser Django (MASTER_ADMIN).
@@ -173,11 +204,13 @@ class SettingsView(LoginRequiredMixin, View):
             profile = getattr(request.user, 'profile', None)
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
+            peut_gerer_modules = self._peut_gerer_modules(request.user)
             tab = request.GET.get('tab', 'generale')
             tab_ok = request.method == 'GET' and (
                 tab == 'notifications'
                 or (tab == 'seuils_role' and est_admin_navire)
                 or (tab == 'utilisateurs' and peut_gerer_responsables)
+                or (tab == 'modules' and peut_gerer_modules)
             )
             action = request.POST.get('action')
             action_notif_ok = request.method == 'POST' and action == 'update_notification_time'
@@ -194,7 +227,10 @@ class SettingsView(LoginRequiredMixin, View):
                 )
                 and peut_gerer_responsables
             )
-            if not (tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok):
+            action_module_ok = (
+                request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
+            )
+            if not (tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok):
                 return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
 
@@ -217,17 +253,21 @@ class SettingsView(LoginRequiredMixin, View):
             profile = getattr(request.user, 'profile', None)
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
+            peut_gerer_modules = self._peut_gerer_modules(request.user)
             active_tab = 'notifications'
             if tab == 'seuils_role' and est_admin_navire:
                 active_tab = 'seuils_role'
             elif tab == 'utilisateurs' and peut_gerer_responsables:
                 active_tab = 'utilisateurs'
+            elif tab == 'modules' and peut_gerer_modules:
+                active_tab = 'modules'
             context = {
                 'active_tab': active_tab,
                 'user_notification_time': fmt_time(getattr(profile, 'notification_time', None)),
                 'user_notification_time_soir': fmt_time(getattr(profile, 'notification_time_soir', None)),
                 'peut_gerer_seuils': est_admin_navire,
                 'peut_gerer_responsables': peut_gerer_responsables,
+                'peut_gerer_modules': peut_gerer_modules,
             }
             if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
@@ -237,6 +277,12 @@ class SettingsView(LoginRequiredMixin, View):
                     'seuils_lignes_globales': [],
                     'peut_editer_global': False,
                     'roles_pour_seuils': ROLES_POUR_SEUILS,
+                })
+            if active_tab == 'modules':
+                mon_ship_id = ship_id_for_user(request.user)
+                context.update({
+                    'modules_ship': Ship.objects.filter(pk=mon_ship_id).first(),
+                    'modules_lignes': _lignes_modules(mon_ship_id),
                 })
             if active_tab == 'utilisateurs':
                 # Seules les données nécessaires à la désignation de
@@ -322,6 +368,7 @@ class SettingsView(LoginRequiredMixin, View):
             'user_notification_time_soir': fmt_time(getattr(getattr(request.user, 'profile', None), 'notification_time_soir', None)),
             'peut_gerer_seuils': True,
             'peut_gerer_responsables': True,
+            'peut_gerer_modules': True,
             # Responsables transverses (dashboards par spécialité / par classe de
             # navire, tâche Notion « Dashboards transverses par spécialité et par
             # classe de navire ») : rôle indépendant de la hiérarchie Navire →
@@ -350,6 +397,13 @@ class SettingsView(LoginRequiredMixin, View):
                 'seuils_lignes_globales': _lignes_seuils(None, PORTEE_GLOBALE),
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
+            })
+        if tab == 'modules':
+            # MASTER_ADMIN choisit le navire à configurer, même sélecteur que
+            # l'onglet Sécurité ci-dessus (selected_ship).
+            context.update({
+                'modules_ship': selected_ship,
+                'modules_lignes': _lignes_modules(selected_ship.id if selected_ship else None),
             })
         return render(request, self.template_name, context)
 
@@ -661,6 +715,42 @@ class SettingsView(LoginRequiredMixin, View):
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> défaut ({action_seuil.defaut.name})",
                             )
                         messages.success(request, "Seuil de rôle réinitialisé à sa valeur par défaut.")
+        elif action == 'toggle_module':
+            # Onglet Modules : bascule activé/désactivé d'un module applicatif
+            # pour un navire. Accessible à un rôle habilité par le seuil
+            # configurable "module_gestion" (COMMANDANT par défaut, cf.
+            # matrix/core/role_thresholds.py) limité à SON navire, ou à un
+            # MASTER_ADMIN qui choisit le navire. Aucune donnée n'est jamais
+            # supprimée : seuls le menu et les vues web du module sont masqués
+            # tant qu'il reste désactivé (cf. matrix/core/modules.py).
+            next_tab = 'modules'
+            cle_module = request.POST.get('cle_module')
+            module_info = MODULES_PAR_CLE.get(cle_module)
+            if module_info is None:
+                messages.error(request, "Module inconnu.")
+            else:
+                if request.user.is_superuser:
+                    ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                else:
+                    ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
+                if ship is None:
+                    messages.error(request, "Aucune unité sélectionnée.")
+                else:
+                    etat, _ = ModuleActivation.objects.get_or_create(
+                        ship=ship, module=cle_module, defaults={'active': True},
+                    )
+                    etat.active = not etat.active
+                    etat.save(update_fields=['active', 'updated_at'])
+                    invalidate_modules_cache(ship.id)
+                    AuditLog.objects.create(
+                        actor=request.user, action='toggle_module',
+                        details=f"navire={ship.name}; module={cle_module}; actif={etat.active}",
+                    )
+                    messages.success(
+                        request,
+                        f"Module « {module_info.libelle} » "
+                        f"{'activé' if etat.active else 'désactivé'} pour {ship.name}.",
+                    )
         elif action == 'update_notification_time':
             val = (request.POST.get('notification_time') or '').strip()
             val_soir = (request.POST.get('notification_time_soir') or '').strip()

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig
+from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
@@ -33,3 +33,11 @@ class RoleThresholdConfigAdmin(admin.ModelAdmin):
     # est l'onglet « Sécurité » de /parametre/ (matrix/views.py::SettingsView),
     # pas ce Django admin brut (principe n°2 CLAUDE.md).
     list_display = ("ship", "updated_at")
+
+@admin.register(ModuleActivation)
+class ModuleActivationAdmin(admin.ModelAdmin):
+    # Même principe que RoleThresholdConfigAdmin ci-dessus : interface de
+    # secours technique, l'interface quotidienne est l'onglet « Modules » de
+    # /parametre/ (matrix/views.py::SettingsView).
+    list_display = ("ship", "module", "active", "updated_at")
+    list_filter = ("ship", "module", "active")

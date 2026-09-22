@@ -1,6 +1,7 @@
 {% load static %}
 {% load dashboard_extras %}
 {% load asset_extras %}
+{% load org_extras %}
 <!doctype html>
 <html lang="fr">
   <head>
@@ -62,6 +63,7 @@
                 <span class="visually-hidden">Tableau de bord</span>
               </a>
             </li>
+            {% if user|module_actif:"assets" %}
             <li class="nav-item">
               <a class="nav-link" href="/assets/" title="Matériels" aria-label="Matériels">
                 <span class="bi bi-box-seam nav-icon" aria-hidden="true"></span>
@@ -88,6 +90,8 @@
               </a>
             </li>
             {% endif %}
+            {% endif %}
+            {% if user|module_actif:"maintenance" %}
             <li class="nav-item">
               <a class="nav-link" href="/calendar/?type=maintenance" title="Maintenance" aria-label="Maintenance">
                 <span class="bi bi-tools nav-icon" aria-hidden="true"></span>
@@ -100,6 +104,8 @@
                 <span class="visually-hidden">Gestion Maintenance</span>
               </a>
             </li>
+            {% endif %}
+            {% if user|module_actif:"logistics" %}
             <li class="nav-item">
               <a class="nav-link" href="/logistics/stock/" title="Logistique" aria-label="Logistique">
                 <span class="bi bi-boxes nav-icon" aria-hidden="true"></span>
@@ -118,24 +124,31 @@
                 <span class="visually-hidden">Anomalies</span>
               </a>
             </li>
+            {% endif %}
+            {% if user|module_actif:"training" %}
             <li class="nav-item">
               <a class="nav-link" href="/formations/" title="Formations" aria-label="Formations">
                 <span class="bi bi-mortarboard nav-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Formations</span>
               </a>
             </li>
+            {% endif %}
+            {% if user|module_actif:"rondes" %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'rondes-index' %}" title="Rondes" aria-label="Rondes">
                 <span class="bi bi-signpost-split nav-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Rondes</span>
               </a>
             </li>
+            {% endif %}
+            {% if user|module_actif:"quarts" %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'quarts-index' %}" title="Quarts et gardes" aria-label="Quarts et gardes">
                 <span class="bi bi-clock-history nav-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Quarts et gardes</span>
               </a>
             </li>
+            {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="/calendar/" title="Calendrier" aria-label="Calendrier">
                 <span class="bi bi-calendar3 nav-icon" aria-hidden="true"></span>

@@ -95,6 +95,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Modules activables par bâtiment : bloque l'accès direct par URL aux
+    # vues web d'un module désactivé sur le navire du marin connecté (voir
+    # matrix/core/middleware.py et matrix/core/modules.py).
+    "matrix.core.middleware.ModuleActivationMiddleware",
 ]
 
 # Correspondance entre les niveaux de messages Django et les classes Bootstrap 5

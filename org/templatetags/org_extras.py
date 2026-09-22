@@ -27,6 +27,19 @@ _ICONES_TYPE_UNITE = {
 
 
 @register.filter
+def module_actif(user, cle_module):
+    """Vrai si le module applicatif <cle_module> (ex. "assets", "logistics")
+    est activé sur le navire de l'utilisateur — comportement par défaut :
+    toujours activé (voir matrix/core/modules.py). Utilisé par
+    matrix/templates/base.html pour masquer les entrées de menu des modules
+    désactivés (tâche Notion « Modules activables par bâtiment »)."""
+    if not getattr(user, "is_authenticated", False):
+        return True
+    from matrix.core.modules import module_actif_pour_user
+    return module_actif_pour_user(cle_module, user)
+
+
+@register.filter
 def badge_type_unite(unite):
     """Badge Bootstrap (icône + libellé) selon le type de l'unité fournie."""
     if not unite:

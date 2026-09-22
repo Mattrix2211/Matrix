@@ -100,6 +100,11 @@ REGISTRE_ACTIONS = [
         "Discussions", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "module_gestion",
+        "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
+        "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,

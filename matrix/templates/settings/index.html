@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load org_extras %}
 {% block content %}
-<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables %}Paramètres{% else %}Mes notifications{% endif %}</h1>
+<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules %}Paramètres{% else %}Mes notifications{% endif %}</h1>
 <ul class="nav nav-tabs mb-3">
   {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
@@ -16,6 +16,9 @@
   {% endif %}
   {% if peut_gerer_seuils %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'seuils_role' %}active{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Sécurité</a></li>
+  {% endif %}
+  {% if peut_gerer_modules %}
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'modules' %}active{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a></li>
   {% endif %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" href="/parametre/?tab=notifications">Notification</a></li>
   {% if user.is_superuser %}
@@ -531,6 +534,74 @@
   {% endif %}
   <div class="col-12">
     <p class="text-muted">Chaque modification est historisée (auteur, date, ancienne et nouvelle valeur){% if user.is_superuser %} — consultable dans l'onglet Journal{% endif %}.</p>
+  </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'modules' %}
+<div class="row g-3">
+  {% if user.is_superuser %}
+  <div class="col-12">
+    <form method="get" class="row g-2 align-items-center">
+      <input type="hidden" name="tab" value="modules" />
+      <div class="col-auto"><label class="col-form-label">Unité :</label></div>
+      <div class="col-auto">
+        <select name="ship" class="form-select" onchange="this.form.submit()">
+          {% for sh in ships %}
+            <option value="{{ sh.id }}" {% if modules_ship and modules_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Modules activables{% if modules_ship %} — {{ modules_ship.name }}{% endif %}
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Modules activables" data-bs-content="Désactiver un module masque son entrée de menu et ses pages pour tout le monde sur cette unité, mais ne supprime aucune donnée : réactiver le module fait tout réapparaître tel quel.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        {% if modules_ship %}
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Module</th><th>Contenu</th><th style="width:140px">État</th><th style="width:140px"></th></tr></thead>
+          <tbody>
+          {% for ligne in modules_lignes %}
+            <tr>
+              <td class="fw-semibold">{{ ligne.libelle }}</td>
+              <td class="text-muted small">{{ ligne.description }}</td>
+              <td>
+                {% if ligne.actif %}
+                  <span class="badge bg-success">Activé</span>
+                {% else %}
+                  <span class="badge bg-secondary">Désactivé</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_module" />
+                  <input type="hidden" name="next_tab" value="modules" />
+                  <input type="hidden" name="ship_id" value="{{ modules_ship.id }}" />
+                  <input type="hidden" name="cle_module" value="{{ ligne.cle }}" />
+                  <button class="btn btn-sm {% if ligne.actif %}btn-outline-danger{% else %}btn-outline-success{% endif %}" type="submit">
+                    {% if ligne.actif %}Désactiver{% else %}Activer{% endif %}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Aucune unité sélectionnée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <p class="text-muted">Les modules de socle (comptes, organisation, notifications, tableau de bord, calendrier, discussions) ne sont pas listés ici : ils sont nécessaires au fonctionnement de Matrix et restent toujours activés.</p>
   </div>
 </div>
 {% endif %}

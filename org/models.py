@@ -116,6 +116,33 @@ class RoleThresholdConfig(TimeStampedModel):
         return f"Seuils de rôle — {self.ship}" if self.ship_id else "Seuils de rôle — configuration globale (flotte)"
 
 
+class ModuleActivation(TimeStampedModel):
+    """Active ou désactive un module applicatif (une app Django) pour un
+    navire donné (tâche Notion « Modules activables par bâtiment »).
+
+    Absence d'enregistrement pour un couple (ship, module) = module ACTIVÉ
+    (comportement par défaut, rétrocompatible avec tous les navires déjà
+    existants — voir matrix/core/modules.py pour le registre des modules
+    désactivables, leur résolution avec repli sur "activé" par défaut, et
+    la liste documentée des apps de socle jamais désactivables).
+
+    Contrairement à RoleThresholdConfig ci-dessus, il n'existe pas de
+    configuration GLOBALE (ship=None) : un module s'active/se désactive
+    toujours pour un navire précis, jamais pour toute la flotte d'un coup.
+    """
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="modules_actives")
+    module = models.CharField(max_length=50, verbose_name="Module")
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("ship", "module")
+        verbose_name = "Activation de module"
+        verbose_name_plural = "Activations de module"
+
+    def __str__(self):
+        return f"{self.ship} — {self.module} ({'activé' if self.active else 'désactivé'})"
+
+
 class ResponsableClasseNavire(TimeStampedModel):
     """Marin désigné responsable d'une classe de navire pour TOUTE LA FLOTTE
     (tous les navires portant cette classe) — même principe transverse que
