@@ -149,6 +149,14 @@
               </a>
             </li>
             {% endif %}
+            {% if user|module_actif:"absences" %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'absences-index' %}" title="Mes absences" aria-label="Mes absences">
+                <span class="bi bi-calendar-x nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Mes absences</span>
+              </a>
+            </li>
+            {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="/calendar/" title="Calendrier" aria-label="Calendrier">
                 <span class="bi bi-calendar3 nav-icon" aria-hidden="true"></span>

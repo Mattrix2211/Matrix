@@ -86,6 +86,11 @@ REGISTRE_MODULES = [
         "Listes de quart, gardes à quai, échanges de service, chefs de liste.",
     ),
     ModuleInfo(
+        "absences", "Absences et indisponibilités",
+        "Déclaration et validation des absences (permission, mission, maladie...), "
+        "prises en compte par les échanges de service et le calendrier personnel.",
+    ),
+    ModuleInfo(
         "rondes", "Rondes",
         "Modèles de ronde et points de contrôle configurables, exécution des rondes.",
     ),

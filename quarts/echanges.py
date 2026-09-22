@@ -9,14 +9,15 @@ créneaux suffit à le refléter pour A comme pour B.
 
 Périmètre : échanges entre deux créneaux d'UNE MÊME liste de gardes (même chef
 de liste, mêmes habilitations) — hypothèse de cadrage, non étendue aux quarts.
-Les absences ne sont pas modélisées dans Matrix à ce jour : la détection couvre
-donc les conflits d'affectation (autre garde ou quart au même moment) et les
-habilitations manquantes ; un modèle d'absence pourra s'y brancher plus tard
-dans `analyser_echange`."""
+La détection couvre les conflits d'affectation (autre garde ou quart au même
+moment), les habilitations manquantes, et — depuis la tâche Notion « Absences
+et indisponibilités » — les absences déclarées (`absences.models.Absence`)
+qui chevauchent le tour repris par le marin (cf. `_absences_marin` ci-dessous)."""
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from absences.models import Absence
 from accounts.models import AuditLog
 from notifications.models import Notification, NotificationLevel
 from training.models import TrainingRecord
@@ -71,6 +72,16 @@ def _habilitations_manquantes(marin, creneau):
     return manquantes
 
 
+def _absences_marin(marin, creneau):
+    """Absences déclarées de `marin` (validées ou en attente de validation)
+    qui chevauchent `creneau`, même principe que _conflits_marin/
+    _habilitations_manquantes ci-dessus — cf. absences/models.py::Absence."""
+    jour_debut = timezone.localtime(creneau.debut).date()
+    jour_fin = timezone.localtime(creneau.fin).date()
+    candidates = Absence.objects.filter(marin=marin, date_debut__lte=jour_fin, date_fin__gte=jour_debut)
+    return [a for a in candidates if a.chevauche_creneau(creneau)]
+
+
 def analyser_echange(echange, verifier_delai=False):
     """Liste des raisons, expliquées en français, pour lesquelles l'échange
     est impossible (liste vide = faisable)."""
@@ -121,6 +132,12 @@ def analyser_echange(echange, verifier_delai=False):
             problemes.append(
                 f"Habilitation manquante : {_nom(marin)} n'a pas de validation en cours pour "
                 f"« {' », « '.join(manquantes)} » le jour du tour {_libelle_creneau(prend)}."
+            )
+        for absence in _absences_marin(marin, prend):
+            precision = "" if absence.statut == Absence.STATUT_VALIDEE else " (déclarée, en attente de validation)"
+            problemes.append(
+                f"Absence : {_nom(marin)} est {absence.type_absence} du {absence.date_debut:%d/%m/%Y} "
+                f"au {absence.date_fin:%d/%m/%Y}{precision} — indisponible pour le tour {_libelle_creneau(prend)}."
             )
     return problemes
 
