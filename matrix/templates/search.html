@@ -2,7 +2,7 @@
 {% block content %}
 <h1 class="h4">Recherche</h1>
 <form class="row g-2 mb-3">
-  <div class="col-auto"><input class="form-control" type="text" name="q" value="{{ q }}" placeholder="Rechercher matériel, installations, tickets, formations, documents, personnes"></div>
+  <div class="col-auto"><input class="form-control" type="text" name="q" value="{{ q }}" placeholder="Rechercher matériel, installations, tickets, formations, documents, personnes, anomalies, rondes, échanges de service"></div>
   <div class="col-auto"><button class="btn btn-primary">Rechercher</button></div>
 {% if q %}<div class="col-12 text-muted">Résultats pour "{{ q }}"</div>{% endif %}
 </form>
@@ -68,6 +68,50 @@
     <ul class="list-group">
       {% for u in users %}
       <li class="list-group-item">{{ u.username }} <small class="text-muted">{{ u.email }}</small></li>
+      {% empty %}<li class="list-group-item text-muted">Aucun</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="col-md-4">
+    <h2 class="h6">Anomalies</h2>
+    <ul class="list-group">
+      {% for a in anomalies %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{% url 'anomalie-detail' a.pk %}">{{ a.titre|truncatechars:48 }}</a>
+        {% include 'logistics/_anomalie_badge.html' with anomalie=a %}
+      </li>
+      {% empty %}<li class="list-group-item text-muted">Aucune</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="col-md-4">
+    <h2 class="h6">Modèles de ronde</h2>
+    <ul class="list-group">
+      {% for m in ronde_modeles %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{% url 'ronde-modele' m.pk %}">{{ m.nom }}</a>
+        <small class="text-muted">{{ m.libelle_perimetre }}</small>
+      </li>
+      {% empty %}<li class="list-group-item text-muted">Aucun</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="col-md-4">
+    <h2 class="h6">Rondes</h2>
+    <ul class="list-group">
+      {% for r in rondes %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{% url 'ronde-detail' r.pk %}">{{ r.nom }}</a>
+        <span class="badge {% if r.statut == 'EN_RETARD' %}bg-danger{% elif r.statut == 'EN_COURS' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ r.get_statut_display }}</span>
+      </li>
+      {% empty %}<li class="list-group-item text-muted">Aucune</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="col-md-4">
+    <h2 class="h6">Échanges de service</h2>
+    <ul class="list-group">
+      {% for e in echanges %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{% url 'echanges-index' %}">{{ e.demandeur.get_full_name|default:e.demandeur.username }} ↔ {{ e.cible.get_full_name|default:e.cible.username }}</a>
+        <span class="badge {% if e.statut == 'VALIDE' %}text-bg-success{% elif e.statut == 'REFUSE' or e.statut == 'REJETE' %}text-bg-danger{% elif e.statut == 'ANNULE' %}text-bg-secondary{% else %}text-bg-info{% endif %}">{{ e.get_statut_display }}</span>
+      </li>
       {% empty %}<li class="list-group-item text-muted">Aucun</li>{% endfor %}
     </ul>
   </div>

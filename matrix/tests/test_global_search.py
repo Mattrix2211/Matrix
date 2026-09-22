@@ -2,18 +2,27 @@
 la vue était accessible sans authentification et sans filtre de périmètre.
 
 Vérifie que la recherche est réservée aux utilisateurs connectés et que
-chaque résultat (matériel, ticket, personne) est restreint au périmètre de
-l'utilisateur via scope_filters_for_user (pas de nouveau système de scope).
+chaque résultat (matériel, ticket, personne, anomalie, ronde, échange de
+service) est restreint au périmètre de l'utilisateur — via
+scope_filters_for_user pour les types "historiques", et via les fonctions de
+périmètre propres à chaque app pour les types ajoutés le 22/09/2026
+(anomalies_visibles, modeles_visibles/rondes_visibles, peut_valider_echange) :
+aucun nouveau système de scope n'est créé, l'existant est réutilisé partout.
 """
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from accounts.models import UserProfile
+from accounts.models import ServiceFunctionChoice, UserProfile
 from assets.models import Asset, AssetDocument, AssetType, Installation
-from logistics.models import CorrectiveTicket
+from logistics.models import Anomalie, CorrectiveTicket
 from org.models import Sector, Section, Service, Ship
+from quarts.models import ChefDeListe, CreneauServiceGarde, EchangeService, ServiceGarde
+from rondes.models import Ronde, RondeModele
 from training.models import TrainingCourse
 
 
@@ -83,6 +92,63 @@ class GlobalSearchViewTests(TestCase):
             username="autre_marin_cible", email="autre.cible@navy.fr", password="pass",
         )
         UserProfile.objects.filter(user=self.autre_marin).update(role="EQUIPIER", ship=self.navire_b)
+
+        # Anomalie : un équipier sans section ne voit (hors chef) que SES
+        # propres signalements (logistics.anomalie_views.anomalies_visibles)
+        # — pas de notion de navire ici, contrairement aux types ci-dessus.
+        self.anomalie_dans_perimetre = Anomalie.objects.create(
+            titre="Anomalie CIBLE A", created_by=self.marin, updated_by=self.marin,
+        )
+        self.anomalie_hors_perimetre = Anomalie.objects.create(
+            titre="Anomalie CIBLE B", created_by=self.autre_marin, updated_by=self.autre_marin,
+        )
+
+        # Ronde : modèle et occurrence rattachés directement au niveau navire
+        # (rondes.services.perimetre_couvrant_q couvre le navire du marin).
+        self.ronde_modele_dans_perimetre = RondeModele(nom="Ronde CIBLE A", created_by=self.marin)
+        self.ronde_modele_dans_perimetre.rattacher(ship=self.navire_a)
+        self.ronde_modele_dans_perimetre.save()
+        self.ronde_modele_hors_perimetre = RondeModele(nom="Ronde CIBLE B", created_by=self.autre_marin)
+        self.ronde_modele_hors_perimetre.rattacher(ship=self.navire_b)
+        self.ronde_modele_hors_perimetre.save()
+
+        self.ronde_dans_perimetre = Ronde.objects.create(
+            nom="Ronde CIBLE A", ship=self.navire_a, date_prevue=timezone.localdate(),
+        )
+        self.ronde_hors_perimetre = Ronde.objects.create(
+            nom="Ronde CIBLE B", ship=self.navire_b, date_prevue=timezone.localdate(),
+        )
+
+        # Échange de service : visible uniquement du demandeur, de la cible ou
+        # du chef de liste habilité (quarts.echanges.peut_valider_echange) —
+        # ni le navire ni le rôle générique n'entrent en jeu.
+        self.demandeur_echange = User.objects.create_user(username="svc_demandeur_cible", password="pass")
+        UserProfile.objects.filter(user=self.demandeur_echange).update(role="EQUIPIER", sector=self.secteur_a)
+        self.cible_echange = User.objects.create_user(username="svc_cible_cible", password="pass")
+        UserProfile.objects.filter(user=self.cible_echange).update(role="EQUIPIER", sector=self.secteur_a)
+        self.chef_liste_echange = User.objects.create_user(username="svc_chef_cible", password="pass")
+        UserProfile.objects.filter(user=self.chef_liste_echange).update(role="EQUIPIER", sector=self.secteur_a)
+        ChefDeListe.objects.create(user=self.chef_liste_echange, sector=self.secteur_a)
+
+        garde = ServiceGarde.objects.create(
+            sector=self.secteur_a, fonction=ServiceFunctionChoice.objects.create(name="Permanence CIBLE"),
+            date_debut=timezone.localdate(), date_fin=timezone.localdate() + timedelta(days=30),
+            statut=ServiceGarde.STATUT_PUBLIEE, created_by=self.chef_liste_echange,
+        )
+        debut = timezone.now() + timedelta(days=5)
+        creneau_demandeur = CreneauServiceGarde.objects.create(
+            service_garde=garde, poste="Quart CIBLE", debut=debut, fin=debut + timedelta(hours=24),
+            marin=self.demandeur_echange,
+        )
+        creneau_cible = CreneauServiceGarde.objects.create(
+            service_garde=garde, poste="Quart CIBLE", debut=debut + timedelta(days=1),
+            fin=debut + timedelta(days=1, hours=24), marin=self.cible_echange,
+        )
+        self.echange = EchangeService.objects.create(
+            creneau_demandeur=creneau_demandeur, creneau_cible=creneau_cible,
+            libelle_creneau_demandeur="« Quart CIBLE » du tour A", libelle_creneau_cible="« Quart CIBLE » du tour B",
+            demandeur=self.demandeur_echange, cible=self.cible_echange,
+        )
 
         self.url = reverse("global-search")
 
@@ -161,3 +227,67 @@ class GlobalSearchViewTests(TestCase):
         self.assertIn(self.ticket_hors_perimetre, tickets)
         self.assertIn(self.installation_hors_perimetre, installations)
         self.assertIn(self.document_hors_perimetre, documents)
+
+    def test_recherche_ne_renvoie_que_les_anomalies_du_perimetre(self):
+        self.client.login(username="marin_cible", password="pass")
+        response = self.client.get(self.url, {"q": "CIBLE"})
+        self.assertEqual(response.status_code, 200)
+        anomalies = list(response.context["anomalies"])
+        self.assertIn(self.anomalie_dans_perimetre, anomalies)
+        self.assertNotIn(self.anomalie_hors_perimetre, anomalies)
+
+    def test_recherche_anomalies_inversee_pour_lautre_marin(self):
+        self.client.login(username="autre_marin_cible", password="pass")
+        response = self.client.get(self.url, {"q": "CIBLE"})
+        anomalies = list(response.context["anomalies"])
+        self.assertIn(self.anomalie_hors_perimetre, anomalies)
+        self.assertNotIn(self.anomalie_dans_perimetre, anomalies)
+
+    def test_recherche_ne_renvoie_que_les_modeles_de_ronde_du_perimetre(self):
+        self.client.login(username="marin_cible", password="pass")
+        response = self.client.get(self.url, {"q": "CIBLE"})
+        self.assertEqual(response.status_code, 200)
+        modeles = list(response.context["ronde_modeles"])
+        self.assertIn(self.ronde_modele_dans_perimetre, modeles)
+        self.assertNotIn(self.ronde_modele_hors_perimetre, modeles)
+
+    def test_recherche_ne_renvoie_que_les_rondes_du_perimetre(self):
+        self.client.login(username="marin_cible", password="pass")
+        response = self.client.get(self.url, {"q": "CIBLE"})
+        self.assertEqual(response.status_code, 200)
+        rondes = list(response.context["rondes"])
+        self.assertIn(self.ronde_dans_perimetre, rondes)
+        self.assertNotIn(self.ronde_hors_perimetre, rondes)
+
+    def test_recherche_rondes_inversee_pour_lautre_marin(self):
+        self.client.login(username="autre_marin_cible", password="pass")
+        response = self.client.get(self.url, {"q": "CIBLE"})
+        modeles = list(response.context["ronde_modeles"])
+        rondes = list(response.context["rondes"])
+        self.assertIn(self.ronde_modele_hors_perimetre, modeles)
+        self.assertNotIn(self.ronde_modele_dans_perimetre, modeles)
+        self.assertIn(self.ronde_hors_perimetre, rondes)
+        self.assertNotIn(self.ronde_dans_perimetre, rondes)
+
+    def test_recherche_echange_visible_par_le_demandeur_et_la_cible(self):
+        for identifiant in ("svc_demandeur_cible", "svc_cible_cible"):
+            self.client.login(username=identifiant, password="pass")
+            response = self.client.get(self.url, {"q": "CIBLE"})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(self.echange, list(response.context["echanges"]))
+
+    def test_recherche_echange_visible_par_le_chef_de_liste_habilite(self):
+        self.client.login(username="svc_chef_cible", password="pass")
+        response = self.client.get(self.url, {"q": "CIBLE"})
+        self.assertIn(self.echange, list(response.context["echanges"]))
+
+    def test_recherche_echange_invisible_pour_un_marin_non_concerne(self):
+        # Même s'il est dans le même secteur que la garde, un marin qui n'est
+        # ni demandeur, ni cible, ni chef de liste ne doit pas voir l'échange
+        # (contrairement aux autres types, aucun scope géographique ne
+        # s'applique ici — seule la relation directe à l'échange compte).
+        marin_du_secteur = User.objects.create_user(username="marin_secteur_a_intrus", password="pass")
+        UserProfile.objects.filter(user=marin_du_secteur).update(role="EQUIPIER", sector=self.secteur_a)
+        self.client.login(username="marin_secteur_a_intrus", password="pass")
+        response = self.client.get(self.url, {"q": "CIBLE"})
+        self.assertNotIn(self.echange, list(response.context["echanges"]))
