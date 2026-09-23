@@ -1,8 +1,8 @@
 # Matrix
 
-Plateforme numérique opérationnelle quotidienne pour la Marine Nationale française — maintenance préventive et corrective, matériel mobile, formations, logistique, notifications, tableaux de bord, et bientôt quarts/services à quai/échanges. La maintenance (GMAO) est un module de Matrix, pas sa finalité : l'objectif est que chaque marin ouvre Matrix tous les jours, pas seulement quand il touche à un équipement.
+Plateforme numérique opérationnelle quotidienne pour la Marine nationale française — quarts, services à quai et échanges, calendrier, maintenance préventive et corrective, matériel mobile, rondes, anomalies, formations, logistique, notifications, tableaux de bord. La maintenance (GMAO) est un module de Matrix, pas sa finalité : l'objectif est que chaque marin ouvre Matrix tous les jours, pas seulement quand il touche à un équipement.
 
-**Vision et feuille de route complètes : voir [`VISION_MATRIX_2_0.md`](VISION_MATRIX_2_0.md)** — à lire avant toute décision d'architecture ou de nouveau module. `CLAUDE.md` reste la référence du quotidien pour Claude Code.
+**Vision, cahier des charges et feuille de route : page Notion « Cahier des charges » du projet Matrix** (il n'existe pas de fichier de vision dans ce dépôt). `CLAUDE.md` contient les règles techniques pour Claude Code et renvoie vers les pages Notion de référence. `docs/archive/` ne contient que des documents historiques.
 
 ## Stack
 - Python 3.12+, Django 5, DRF, Bootstrap 5 + HTMX
@@ -88,14 +88,17 @@ Renseigner les variables d'environnement `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY
 ```bash
 python manage.py test
 ```
+Les tests nécessitent un fichier `.env` local contenant au minimum `DJANGO_DEBUG=1` (sinon l'application démarre en mode production et exige une vraie clé secrète) et la bibliothèque `pywebpush` installée (en cas d'échec d'installation : `pip install --use-pep517 pywebpush`).
 
 ## Applications principales
 - `accounts` — profils utilisateurs, rôles hiérarchiques (`MASTER_ADMIN` → ... → `EQUIPIER`)
-- `org` — hiérarchie Navire → Service → Secteur → Section
+- `org` — unités typées (navire, école, centre de formation, bureau) → Service → Secteur → Section, classes de navire, modules activables par bâtiment
 - `assets` — installations fixes + matériel mobile, checklists, documents, mesures techniques (heures/vibration/isolement), hiérarchie parent/enfant, détection de dérive avant seuil
 - `maintenance` — plans préventifs, occurrences, exécutions guidées, signature de validation (mot de passe) sur les transitions critiques
 - `logistics` — tickets correctifs, demandes de pièces, stock, retours d'expérience (REX)
 - `training` — formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation, réservation self-service de sessions
+- `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, absences, compteur d'équité, génération assistée des listes
+- `rondes` — rondes de contrôle avec points de contrôle configurables et anomalies automatiques
 - `threads` — discussions génériques attachées à n'importe quel objet
 - `notifications` — alertes in-app (info/warning/danger) + Web Push pour le niveau danger
 - `dashboard` — tableau de bord personnel + vue flotte scopée au périmètre du chef connecté (rôles CHEF_SECTION et au-dessus : section, secteur, navire ou flotte entière selon le rôle)

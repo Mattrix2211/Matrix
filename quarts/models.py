@@ -1,5 +1,5 @@
-"""Quarts et services de garde/quai (Phase 2 — Vie quotidienne, cf. VISION_MATRIX_2_0.md
-§7.1/§7.2 et tâche Notion « Quarts/services »).
+"""Quarts et services de garde/quai (Phase 2 — Vie quotidienne, cf. cahier des charges
+Notion §8/§9 et tâche Notion « Quarts/services »).
 
 Décision de cadrage confirmée le 09/09/2026 (corrige un cadrage antérieur du
 06/09) : Quart (rotation de postes, créneaux courts répétés, ex. 4h) et
@@ -310,7 +310,7 @@ class Quart(ListeServiceAbstract):
 
 class ServiceGarde(ListeServiceAbstract):
     """Liste de services à quai/gardes : affectation longue (ex. garde 24h,
-    garde de nuit, permanence — cf. VISION_MATRIX_2_0.md §7.2). `type_service`
+    garde de nuit, permanence — cf. cahier des charges Notion §9). `type_service`
     est un texte libre (pas une liste fermée figée dans le code) et
     `duree_creneau_heures` n'est qu'une durée par défaut éditable, même
     principe que Quart.duree_creneau_heures ci-dessus. `fonction` (obligatoire,

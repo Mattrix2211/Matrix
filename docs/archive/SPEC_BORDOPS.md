@@ -1,3 +1,5 @@
+> **Document historique (août 2026), archivé le 23/09/2026.** Ce plan a été réalisé (tâches T1 à T20). Ne pas le suivre comme consigne actuelle : voir `CLAUDE.md` et les pages Notion de référence.
+
 # BordOps — Plan d'amélioration basé sur l'analyse d'Atlas CMMS
 
 > Document de travail pour Claude Code. Analyse comparative entre le projet Matrix/BordOps existant (github.com/Mattrix2211/Matrix) et Atlas CMMS (github.com/Grashjs/cmms), aboutissant à 4 chantiers concrets.
