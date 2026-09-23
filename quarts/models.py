@@ -64,17 +64,65 @@ devant de toute façon pas pouvoir constituer une liste dépassant son propre
 service même au nom d'une fonction transversale — seule une autorité de niveau
 navire (COMMANDANT+) a la légitimité de faire cohabiter des marins de
 secteurs/services différents sur une même liste.
+
+Ajout du 22/09/2026 (tâche Notion « Versionnage des listes de service et
+workflow brouillon → proposition → validation → publication », cahier des
+charges §31 « configuration versionnée » et §34 « workflow proposer → valider
+→ publier ») : deux volets, tous deux concentrés sur Quart/ServiceGarde (pas
+de système de version générique réutilisable ailleurs, cf. cadrage de la
+tâche) :
+
+1. VERSIONNAGE — chaque publication (première publication, republication
+   après correction, ou permutation par un échange de service validé, cf.
+   quarts/echanges.py::valider_echange) fige un INSTANTANÉ horodaté des
+   créneaux dans VersionQuart/VersionServiceGarde (créneaux_fige, JSON) sans
+   jamais réécrire ni supprimer les versions précédentes — inspiré du
+   versionnage par instantané déjà utilisé par les rondes (rondes.models.
+   RondeModele.version + ResultatPoint qui copie les points du modèle),
+   adapté ici en snapshot COMPLET des créneaux (pas un simple compteur
+   entier) car l'exemple du cahier des charges (§31 : v1/v2/v3) exige de
+   pouvoir consulter la liste ACTIVE à une date donnée, pas seulement
+   détecter qu'un changement a eu lieu. `ListeServiceAbstract.
+   version_a_la_date` répond à ce besoin.
+
+2. WORKFLOW — un statut intermédiaire STATUT_PROPOSEE s'intercale entre
+   Brouillon et Publiée. Proposer (BROUILLON -> PROPOSEE) reste réservé au
+   chef de liste actuel (peut_gerer_liste, inchangé). Publier (PROPOSEE ->
+   PUBLIEE) exige désormais un rôle DISTINCT (peut_gerer_liste seul ne
+   suffit plus) : seuil configurable par navire (matrix/core/role_thresholds.
+   py, action "liste_service_publication", défaut CHEF_SERVICE) ET périmètre
+   organisationnel personnel couvrant celui de la liste (même construction
+   que _perimetre_autorise_pour_designation, web_views.py) — ou supervision
+   globale (COMMANDANT+), qui passe toujours outre. Un chef de liste qui
+   n'a que le droit de proposer (ex. rôle EQUIPIER désigné ChefDeListe) ne
+   peut donc pas publier lui-même. Par souci de ne pas complexifier une
+   simple correction mineure (CLAUDE.md §2), la republication d'une liste
+   DÉJÀ publiée reste possible directement (sans repasser par "proposer") —
+   seule la toute première publication doit obligatoirement transiter par
+   l'étape Proposée.
+
+Hypothèses de cadrage documentées dans le compte-rendu [Dev] de la tâche
+(non tranchées seules, à confirmer par le métier) : qui exactement doit
+recevoir la notification de proposition (périmètre organisationnel EXACT de
+la liste uniquement, sans cascade vers les niveaux ancêtres, cf.
+publicateurs_a_notifier) ; et l'historique des versions n'est consultable
+que par qui gère ou peut publier la liste (pas ouvert à tout marin lecteur
+d'une liste publiée).
 """
+from datetime import datetime, time as heure_du_jour
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
+from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
+from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
-from notifications.models import Notification
+from matrix.core.scopes import scope_filters_for_user
+from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Section, Service, Ship
 
 User = get_user_model()
@@ -172,9 +220,87 @@ def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=No
 
 
 def peut_gerer_liste(user, liste):
-    """Vrai si `user` peut modifier/publier CETTE liste précise déjà
-    existante (Quart ou ServiceGarde) — cf. utilisateur_autorise_pour_perimetre."""
+    """Vrai si `user` peut gérer CETTE liste précise déjà existante (Quart ou
+    ServiceGarde) : modifier ses créneaux et la proposer à la publication —
+    cf. utilisateur_autorise_pour_perimetre. Ne couvre PLUS le droit de
+    publier depuis le 22/09/2026 (workflow proposer -> valider/publier,
+    cf. peut_publier_liste ci-dessous, qui exige un rôle distinct)."""
     return utilisateur_autorise_pour_perimetre(user, liste.ship, liste.service, liste.sector, liste.section)
+
+
+def _perimetre_dans_scope_utilisateur(user, ship, service, sector, section, niveau_requis):
+    """Vrai si `user` atteint `niveau_requis` ET si son propre périmètre
+    organisationnel personnel (scope_filters_for_user) couvre EXACTEMENT le
+    périmètre donné (ship/service/sector/section) — brique commune à la
+    désignation d'un chef de liste (web_views.py::
+    _perimetre_autorise_pour_designation) et à la publication d'une liste
+    (peut_publier_liste ci-dessous), pour ne jamais faire diverger ces deux
+    contrôles de seuil + périmètre."""
+    if user_role_level(user) < niveau_requis:
+        return False
+    filtres = scope_filters_for_user(user)
+    if not filtres:
+        return True
+    (cle, valeur), = filtres.items()
+    valeur = str(valeur)
+    if cle == "section_id":
+        return section is not None and str(section.pk) == valeur
+    if cle == "sector_id":
+        if sector is not None:
+            return str(sector.pk) == valeur
+        if section is not None:
+            return str(section.sector_id) == valeur
+        return False
+    if cle == "service_id":
+        if service is not None:
+            return str(service.pk) == valeur
+        if sector is not None:
+            return str(sector.service_id) == valeur
+        if section is not None:
+            return str(section.sector.service_id) == valeur
+        return False
+    if cle == "ship_id":
+        if ship is not None:
+            return str(ship.pk) == valeur
+        if service is not None:
+            return str(service.ship_id) == valeur
+        if sector is not None:
+            return str(sector.service.ship_id) == valeur
+        if section is not None:
+            return str(section.sector.service.ship_id) == valeur
+        return False
+    return False
+
+
+def peut_publier_liste(user, liste):
+    """Vrai si `user` peut publier (valider) CETTE liste précise — rôle
+    DISTINCT de celui qui peut la gérer/proposer (cf. peut_gerer_liste),
+    cahier des charges §34 : « un utilisateur peut avoir le droit de
+    proposer une modification sans avoir le droit de la publier ». Seuil
+    configurable par navire (matrix/core/role_thresholds.py, action
+    "liste_service_publication") : supervision globale (COMMANDANT et
+    au-dessus) toujours autorisée, sinon rôle atteignant le seuil ET
+    périmètre organisationnel personnel couvrant celui de la liste (aucune
+    cascade implicite, même principe que peut_gerer_liste)."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+        return True
+    seuil = niveau_requis_pour(user, "liste_service_publication")
+    return _perimetre_dans_scope_utilisateur(user, liste.ship, liste.service, liste.sector, liste.section, seuil)
+
+
+def publicateurs_a_notifier(liste):
+    """Marins habilités à publier CETTE liste (cf. peut_publier_liste),
+    notifiés quand elle passe au statut Proposée. Repli sur le créateur de la
+    liste si personne n'est identifié — même filet de sécurité que
+    quarts.echanges.chefs_de_liste_a_notifier, pour qu'une proposition ne
+    reste jamais sans destinataire."""
+    destinataires = [
+        u for u in User.objects.filter(is_active=True).select_related("profile")
+        if peut_publier_liste(u, liste)
+    ]
+    if not destinataires and liste.created_by_id:
+        destinataires = [liste.created_by]
+    return destinataires
 
 
 def marins_du_perimetre(liste):
@@ -214,9 +340,11 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
     09/09/2026)."""
 
     STATUT_BROUILLON = "BROUILLON"
+    STATUT_PROPOSEE = "PROPOSEE"
     STATUT_PUBLIEE = "PUBLIEE"
     STATUT_CHOICES = (
         (STATUT_BROUILLON, "Brouillon"),
+        (STATUT_PROPOSEE, "Proposée"),
         (STATUT_PUBLIEE, "Publiée"),
     )
 
@@ -230,6 +358,11 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
     date_debut = models.DateField(verbose_name="Début de période")
     date_fin = models.DateField(verbose_name="Fin de période")
     statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_BROUILLON)
+    proposee_le = models.DateTimeField(null=True, blank=True, verbose_name="Proposée le")
+    proposee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="%(class)ss_proposees", verbose_name="Proposée par",
+    )
     publiee_le = models.DateTimeField(null=True, blank=True, verbose_name="Publiée le")
     publiee_par = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
@@ -255,17 +388,48 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
         par chaque modèle concret (« quart » / « service de garde »)."""
         raise NotImplementedError
 
+    def proposer(self, user):
+        """Passe la liste de Brouillon à Proposée (workflow proposer ->
+        valider/publier, cahier des charges §34) et notifie les
+        publicateurs habilités (cf. peut_publier_liste) qu'une validation
+        est attendue. Ne modifie jamais le statut d'une liste qui n'est pas
+        en brouillon (contrôlé côté vue, quarts/web_views.py::_proposer)."""
+        self.statut = self.STATUT_PROPOSEE
+        self.proposee_le = timezone.now()
+        self.proposee_par = user
+        self.save(update_fields=["statut", "proposee_le", "proposee_par", "updated_at"])
+        AuditLog.objects.create(
+            actor=user, action="liste_service_proposee",
+            details=f"{self.libelle_type()} #{self.pk} ({self.perimetre}) proposé(e) à la publication.",
+        )
+        for destinataire in publicateurs_a_notifier(self):
+            Notification.objects.create(
+                user=destinataire,
+                verb=(
+                    f"Proposition à valider : le {self.libelle_type()} "
+                    f"« {self.nom or self.perimetre} » attend votre publication."
+                ),
+                level=NotificationLevel.WARNING,
+            )
+
     def publier(self, user):
-        """Passe la liste au statut Publiée et notifie chaque marin affecté sur
-        un créneau. Republier une liste déjà publiée (après une correction) ne
-        renvoie pas de nouvelles notifications : seule la toute première
-        publication alerte les marins, conformément au périmètre MVP de cette
-        tâche (pas de workflow de republication après modification)."""
+        """Passe la liste au statut Publiée, fige une nouvelle version
+        horodatée (cf. creer_version) et notifie chaque marin affecté sur un
+        créneau. Republier une liste déjà publiée (après une correction) ne
+        renvoie pas de nouvelles notifications aux marins : seule la toute
+        première publication les alerte — mais une nouvelle version est bien
+        créée à chaque appel (cf. cahier des charges §31, docstring de
+        module)."""
         deja_publiee = self.statut == self.STATUT_PUBLIEE
         self.statut = self.STATUT_PUBLIEE
         self.publiee_le = timezone.now()
         self.publiee_par = user
         self.save(update_fields=["statut", "publiee_le", "publiee_par", "updated_at"])
+        version = self.creer_version(user)
+        AuditLog.objects.create(
+            actor=user, action="liste_service_publiee",
+            details=f"{self.libelle_type()} #{self.pk} ({self.perimetre}) publié(e), version {version.numero}.",
+        )
         if deja_publiee:
             return
         for creneau in self.creneaux.select_related("marin").all():
@@ -277,6 +441,39 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
                         f"« {creneau.poste} » le {timezone.localtime(creneau.debut):%d/%m/%Y à %H:%M}."
                     ),
                 )
+
+    def creer_version(self, user):
+        """Fige une nouvelle version horodatée de la liste (cahier des
+        charges §31) : chaque publication (première publication,
+        republication après correction, ou permutation via un échange de
+        service validé — cf. quarts/echanges.py::valider_echange) enregistre
+        un nouvel instantané des créneaux, sans jamais réécrire ni supprimer
+        les versions précédentes. `self.versions` est le related_name défini
+        sur VersionQuart/VersionServiceGarde (ci-dessous) : fonctionne à
+        l'identique pour les deux modèles concrets sans code spécifique ici."""
+        dernier_numero = self.versions.aggregate(models.Max("numero"))["numero__max"] or 0
+        creneaux_fige = [
+            {
+                "poste": c.poste,
+                "debut": timezone.localtime(c.debut).strftime("%d/%m/%Y %H:%M"),
+                "fin": timezone.localtime(c.fin).strftime("%d/%m/%Y %H:%M"),
+                "marin_id": c.marin_id,
+                "marin_nom": (c.marin.get_full_name() or c.marin.username) if c.marin_id else "",
+                "note": c.note,
+            }
+            for c in self.creneaux.select_related("marin").order_by("debut")
+        ]
+        return self.versions.create(
+            numero=dernier_numero + 1, publiee_le=timezone.now(), publiee_par=user, creneaux_fige=creneaux_fige,
+        )
+
+    def version_a_la_date(self, date_):
+        """Dernière version de la liste publiée au plus tard le `date_`
+        donné (borne de fin de journée locale) — répond à « quelle liste
+        était active à telle date » (cahier des charges §31). None si la
+        liste n'était pas encore publiée à cette date."""
+        limite = timezone.make_aware(datetime.combine(date_, heure_du_jour.max))
+        return self.versions.filter(publiee_le__lte=limite).order_by("-numero").first()
 
     def __str__(self):
         fonction = f" [{self.fonction}]" if self.fonction_id else ""
@@ -390,6 +587,55 @@ class CreneauServiceGarde(CreneauAbstract):
     class Meta(CreneauAbstract.Meta):
         verbose_name = "Créneau de service de garde"
         verbose_name_plural = "Créneaux de service de garde"
+
+
+class VersionListeAbstract(TimeStampedModel):
+    """Instantané figé d'une liste au moment d'une publication (versionnage,
+    cahier des charges §31) : jamais réécrit ni supprimé après coup, même si
+    la liste est ensuite corrigée ou republiée — permet de savoir quelle
+    affectation était active à une date donnée (cf. ListeServiceAbstract.
+    version_a_la_date). Inspiré du versionnage par instantané déjà utilisé
+    par les rondes (rondes.models.RondeModele.version + ResultatPoint qui
+    copie les points du modèle), adapté ici en snapshot complet des créneaux
+    (nécessaire pour répondre à « quelle était la liste active à telle
+    date », pas seulement détecter qu'un changement a eu lieu)."""
+
+    numero = models.PositiveIntegerField(verbose_name="Numéro de version")
+    publiee_le = models.DateTimeField(verbose_name="Publiée le")
+    publiee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Publiée par",
+    )
+    # Instantané des créneaux au moment de la publication : liste de dicts
+    # {poste, debut, fin (déjà formatés en français), marin_id, marin_nom,
+    # note} — snapshot texte plutôt que FK vers les créneaux vivants, pour ne
+    # jamais dépendre de leur état futur (un créneau peut être modifié,
+    # réaffecté par un échange, ou supprimé après coup).
+    creneaux_fige = models.JSONField(default=list, verbose_name="Créneaux figés")
+
+    class Meta:
+        abstract = True
+        ordering = ("-numero",)
+
+    def __str__(self):
+        return f"Version {self.numero} du {self.publiee_le:%d/%m/%Y %H:%M}"
+
+
+class VersionQuart(VersionListeAbstract):
+    quart = models.ForeignKey(Quart, on_delete=models.CASCADE, related_name="versions")
+
+    class Meta(VersionListeAbstract.Meta):
+        verbose_name = "Version de liste de quarts"
+        verbose_name_plural = "Versions de liste de quarts"
+        unique_together = ("quart", "numero")
+
+
+class VersionServiceGarde(VersionListeAbstract):
+    service_garde = models.ForeignKey(ServiceGarde, on_delete=models.CASCADE, related_name="versions")
+
+    class Meta(VersionListeAbstract.Meta):
+        verbose_name = "Version de liste de services de garde"
+        verbose_name_plural = "Versions de liste de services de garde"
+        unique_together = ("service_garde", "numero")
 
 
 class EchangeService(TimeStampedModel):

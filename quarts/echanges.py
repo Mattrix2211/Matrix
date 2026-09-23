@@ -300,7 +300,12 @@ def rejeter_echange(echange, user, motif=""):
 @transaction.atomic
 def valider_echange(echange, user):
     """Dernière étape : les conditions sont revérifiées (la situation a pu
-    changer depuis l'accord), puis les deux marins sont permutés."""
+    changer depuis l'accord), puis les deux marins sont permutés. Fige une
+    nouvelle version de la liste (cf. ListeServiceAbstract.creer_version,
+    cahier des charges §31) : un échange validé change l'affectation active
+    d'une liste déjà publiée, exactement le cas d'exemple « v3 + échange
+    validé » du cahier des charges — jamais un écrasement silencieux de
+    l'historique."""
     _echange_en_attente(echange, EchangeService.STATUT_ACCEPTE)
     if not peut_valider_echange(user, echange):
         raise EchangeImpossible("Seul le chef de la liste concernée peut valider cet échange.")
@@ -316,6 +321,7 @@ def valider_echange(echange, user):
     echange.decide_le = timezone.now()
     echange.decide_par = user
     echange.save(update_fields=["statut", "decide_le", "decide_par", "updated_at"])
+    echange.liste.creer_version(user)
     _tracer(
         echange, user, "validation",
         f"{echange.libelle_creneau_demandeur} : {_nom(echange.demandeur)} -> {_nom(echange.cible)} ; "

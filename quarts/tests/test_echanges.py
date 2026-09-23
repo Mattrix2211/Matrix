@@ -103,6 +103,15 @@ class WorkflowTests(BaseEchangeTests):
         self.assertIn("marin_a -> marin_b", journal.details)
         for user in (self.a, self.b, self.chef):
             self.assertTrue(Notification.objects.filter(user=user, verb__startswith="Échange validé").exists())
+        # L'échange validé fige une nouvelle version de la liste (cahier des
+        # charges §31, exemple « v3 + échange validé ») : l'affectation
+        # d'avant l'échange reste consultable dans l'historique.
+        self.assertEqual(self.garde.versions.count(), 1)
+        creneau_a_fige = next(
+            c for c in self.garde.versions.get().creneaux_fige if c["poste"] == "Officier de quart"
+            and c["debut"] == timezone.localtime(self.creneau_a.debut).strftime("%d/%m/%Y %H:%M")
+        )
+        self.assertEqual(creneau_a_fige["marin_nom"], self.b.get_full_name() or self.b.username)
 
     def test_calendriers_personnels_mis_a_jour(self):
         echange = self._echange_accepte()
