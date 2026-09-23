@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">Spécialité « {{ specialite.name }} »</h1>
+<p class="text-muted mb-4">Vue agrégée de toute la flotte (tous navires confondus).</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Marins de cette spécialité</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold font-mono">{{ total_marins }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Unités représentées</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold font-mono">{{ nombre_navires }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Qualifications expirées</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold font-mono {% if qualifications_par_statut.Expirée %}text-danger{% endif %}">{{ qualifications_par_statut.Expirée }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Répartition par unité</div>
+      <div class="card-body">
+        {% if total_marins %}
+        <canvas id="chartRepartitionNavire" style="max-height:220px;"></canvas>
+        {% else %}
+        <p class="text-muted mb-0">Aucun marin de cette spécialité.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Qualifications par statut</div>
+      <div class="card-body">
+        {% if total_marins %}
+        <canvas id="chartQualifications" style="max-height:220px;"></canvas>
+        {% else %}
+        <p class="text-muted mb-0">Aucune donnée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h5 mb-3">Vue technique — maintenance liée à cette spécialité</h2>
+<p class="text-muted small mb-3">Maintenances et tickets correctifs actuellement assignés aux marins de cette spécialité, toute la flotte confondue.</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Maintenances en retard</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold {% if technique_maintenances_en_retard %}text-danger{% endif %} font-mono">{{ technique_maintenances_en_retard }}</span>
+        <div class="progress mt-2" style="height:8px;" title="{{ technique_maintenances_en_retard_pct }} % des maintenances actives assignées à ces marins sont en retard">
+          <div class="progress-bar" role="progressbar" style="width: {{ technique_maintenances_en_retard_pct }}%; background: {% if technique_maintenances_en_retard %}var(--red){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ technique_maintenances_en_retard_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <small class="text-muted font-mono">{{ technique_maintenances_en_retard_pct }} % des maintenances actives assignées</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Tickets correctifs ouverts</div>
+      <div class="card-body">
+        <span class="display-6 fw-bold font-mono">{{ technique_total_tickets_ouverts }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Tickets par statut</div>
+      <div class="card-body">
+        {% if technique_total_tickets_ouverts %}
+        <canvas id="chartTicketsSpecialite" style="max-height:180px;"></canvas>
+        {% else %}
+        <p class="text-muted mb-0">Aucun ticket ouvert.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Liste des marins</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Nom</th><th>Grade</th><th>Unité</th><th>Service</th></tr></thead>
+      <tbody>
+      {% for marin in marins %}
+        <tr>
+          <td>{{ marin.get_full_name|default:marin.username }}</td>
+          <td>{{ marin.profile.grade|default:"—" }}</td>
+          <td>{{ marin.profile.ship|default:"—" }}</td>
+          <td>{{ marin.profile.service|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="text-muted">Aucun marin de cette spécialité.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if total_marins %}
+<script>
+(function(){
+  // Même composant Chart.js que le reste des dashboards (principe n°5
+  // CLAUDE.md) : un doughnut pour la répartition par unité, un autre pour le
+  // statut des qualifications.
+  var ctxNavire = document.getElementById('chartRepartitionNavire');
+  if (ctxNavire && window.Chart) {
+    new Chart(ctxNavire, {
+      type: 'doughnut',
+      data: {
+        labels: {{ repartition_navire_labels_json|safe }},
+        datasets: [{
+          label: 'Marins',
+          data: {{ repartition_navire_values_json|safe }},
+          backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+  var ctxQualif = document.getElementById('chartQualifications');
+  if (ctxQualif && window.Chart) {
+    new Chart(ctxQualif, {
+      type: 'doughnut',
+      data: {
+        labels: {{ qualifications_chart_labels_json|safe }},
+        datasets: [{
+          label: 'Qualifications',
+          data: {{ qualifications_chart_values_json|safe }},
+          backgroundColor: ['#20c997', '#ffc107', '#dc3545'],
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+  var ctxTickets = document.getElementById('chartTicketsSpecialite');
+  if (ctxTickets && window.Chart) {
+    new Chart(ctxTickets, {
+      type: 'doughnut',
+      data: {
+        labels: {{ technique_tickets_chart_labels_json|safe }},
+        datasets: [{
+          label: 'Tickets ouverts',
+          data: {{ technique_tickets_chart_values_json|safe }},
+          backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

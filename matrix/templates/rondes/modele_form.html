@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">{% if modele %}{{ modele.nom }}{% else %}Nouveau modèle de ronde{% endif %}</h1>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ronde-modeles' %}">Retour</a>
+</div>
+
+<form method="post" class="card mb-3" action="{% if modele %}{% url 'ronde-modele' modele.pk %}{% else %}{% url 'ronde-modele-nouveau' %}{% endif %}">
+  {% csrf_token %}
+  <fieldset class="card-body row g-2" {% if not peut_gerer %}disabled{% endif %}>
+    <div class="col-md-6"><label class="form-label" for="nom">Nom</label>
+      <input class="form-control" id="nom" name="nom" required value="{% if modele %}{{ modele.nom }}{% else %}{{ valeurs.nom }}{% endif %}"></div>
+    <div class="col-md-3"><label class="form-label" for="periodicite_jours">Tous les (jours)</label>
+      <input class="form-control" id="periodicite_jours" name="periodicite_jours" type="number" min="1" value="{% if modele %}{{ modele.periodicite_jours }}{% else %}{{ valeurs.periodicite_jours|default:1 }}{% endif %}"></div>
+    <div class="col-md-3"><label class="form-label" for="perimetre">Périmètre</label>
+      {% if modele %}<input class="form-control" value="{{ modele.libelle_perimetre }}" disabled>
+      {% else %}<select class="form-select" id="perimetre" name="perimetre" required>
+        {% for valeur, libelle in perimetres %}<option value="{{ valeur }}" {% if valeurs.perimetre == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+      </select>{% endif %}</div>
+    <div class="col-12"><label class="form-label" for="description">Description</label>
+      <input class="form-control" id="description" name="description" value="{% if modele %}{{ modele.description }}{% else %}{{ valeurs.description }}{% endif %}"></div>
+    <div class="col-12 d-flex justify-content-between align-items-center">
+      <div class="form-check"><input class="form-check-input" type="checkbox" id="actif" name="actif" {% if not modele or modele.actif %}checked{% endif %}><label class="form-check-label" for="actif">Ronde active (proposée automatiquement)</label></div>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </div>
+  </fieldset>
+</form>
+
+{% if modele %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="h5 mb-0">Points de contrôle <span class="text-muted small font-mono">version {{ modele.version }}</span></h2>
+  {% if modele.actif %}<form method="post" action="{% url 'ronde-lancer' modele.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary" type="submit">Faire la ronde maintenant</button></form>{% endif %}
+</div>
+{% for p in points %}
+<div class="card mb-2"><div class="card-body py-2">
+  <div class="d-flex justify-content-between align-items-center gap-2">
+    <div><span class="font-mono text-muted">{{ forloop.counter }}.</span> <strong>{{ p.libelle }}</strong>
+      {% if p.installation %}<span class="badge bg-light text-dark">{{ p.installation.designation }}</span>{% elif p.asset %}<span class="badge bg-light text-dark">{{ p.asset }}</span>{% endif %}
+      {% if p.avec_mesure %}<span class="badge bg-light text-dark">Valeur{% if p.unite_mesure %} ({{ p.unite_mesure }}){% endif %}</span>{% endif %}
+      {% if p.consigne %}<div class="small text-muted">{{ p.consigne }}</div>{% endif %}</div>
+    {% if peut_gerer %}
+    <div class="d-flex gap-1">
+      <form method="post" action="{% url 'ronde-point' modele.pk p.pk 'monter' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Monter" aria-label="Monter" type="submit"><span class="bi bi-arrow-up"></span></button></form>
+      <form method="post" action="{% url 'ronde-point' modele.pk p.pk 'descendre' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Descendre" aria-label="Descendre" type="submit"><span class="bi bi-arrow-down"></span></button></form>
+      <form method="post" action="{% url 'ronde-point' modele.pk p.pk 'supprimer' %}" onsubmit="return confirm('Supprimer ce point ?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Supprimer" aria-label="Supprimer" type="submit"><span class="bi bi-trash"></span></button></form>
+    </div>
+    {% endif %}
+  </div>
+  {% if peut_gerer %}
+  <details class="mt-1"><summary class="small">Modifier</summary>
+    {% include 'rondes/_point_form.html' with pt=p libelle_bouton='Enregistrer' %}
+  </details>
+  {% endif %}
+</div></div>
+{% empty %}<p class="text-muted">Aucun point : ajoutez le premier ci-dessous.</p>
+{% endfor %}
+{% if peut_gerer %}
+<div class="card mt-3"><div class="card-header">Ajouter un point</div><div class="card-body">
+  {% include 'rondes/_point_form.html' with pt=None libelle_bouton='Ajouter le point' %}
+</div></div>
+{% endif %}
+{% endif %}
+{% endblock %}

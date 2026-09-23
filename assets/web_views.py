@@ -1,39 +1,150 @@
 from django.views.generic import DetailView, View, ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import TemplateView
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db.utils import OperationalError
-from django.db.models import Sum
+from django.db.models import Max, Sum
 from django.db.models.functions import TruncMonth
 from django.db import models
-from .models import Asset, AssetType, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument
-from .models import InstallationBigrameChoice, InstallationEvent, InstallationEventAttachment, InstallationPart, InstallationHourReading, InstallationVibrationReading, InstallationIsolationReading
-from .models import InstallationMaintenance, InstallationMaintenanceAttachment, ModeDeclenchement
-from datetime import datetime, time
+from collections import defaultdict
+from .models import Asset, AssetType, Deck, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument
+from .models import InstallationBigrameChoice, InstallationEvent, InstallationPart, InstallationHourReading, InstallationVibrationReading, InstallationIsolationReading
+from .models import InstallationMaintenance
+from datetime import datetime
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
+from logistics.models import CorrectiveTicket, StockPiece
+from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.role_thresholds import niveau_requis_pour
+from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.export import (
+    CSV_CONTENT_TYPE,
+    XLSX_CONTENT_TYPE,
+    construire_url_export,
+    rendre_csv,
+    rendre_xlsx,
+    reponse_fichier,
+    xlsx_disponible,
+)
 from accounts.models import AuditLog
 from org.models import Ship, Service, Sector, Section
+from .import_materiel import importer_materiel_depuis_fichier, generer_modele_xlsx
+
+# Statuts d'occurrence considérés comme terminés pour le scan QR : une occurrence
+# déjà DONE ou CANCELLED ne doit plus être proposée au marin qui scanne
+# l'équipement (même logique que dashboard/web_views.py, symbole privé non
+# réimporté ici puisqu'il appartient à un autre module).
+_STATUTS_OCCURRENCE_TERMINES = ("DONE", "CANCELLED")
 import json
-import io
 import calendar
-try:
-    from openpyxl import Workbook
-except Exception:
-    Workbook = None
+
+
+_ENTETES_EXPORT_ASSETS = [
+    'Désignation', 'Type', 'Identifiant interne', 'N° série', 'Statut', 'Criticité',
+    'Unité', 'Service', 'Secteur', 'Section', 'Emplacement',
+]
+
+
+def _lignes_export_assets(qs):
+    """Construit les lignes de l'export tableur des matériels, à partir d'un
+    queryset déjà filtré par périmètre (voir AssetListView.get)."""
+    return [
+        [
+            a.designation,
+            a.asset_type.name,
+            a.internal_id,
+            a.serial_number,
+            a.get_status_display(),
+            a.criticality,
+            a.ship.name if a.ship else '',
+            a.service.name if a.service else '',
+            a.sector.name if a.sector else '',
+            a.section.name if a.section else '',
+            a.location.name if a.location else '',
+        ]
+        for a in qs
+    ]
+
+
+_ENTETES_EXPORT_INSTALLATIONS = [
+    'Désignation', 'Référence', 'Marque', 'Gisement', 'Local',
+    'Unité', 'Service', 'Secteur', 'Section', 'Emplacement',
+]
+
+
+def _lignes_export_installations(qs):
+    """Construit les lignes de l'export tableur des installations, à partir d'un
+    queryset déjà filtré par périmètre (voir InstallationListView.get)."""
+    return [
+        [
+            i.designation,
+            i.reference,
+            i.marque,
+            i.gisement,
+            i.local,
+            i.ship.name if i.ship else '',
+            i.service.name if i.service else '',
+            i.sector.name if i.sector else '',
+            i.section.name if i.section else '',
+            i.location.name if i.location else '',
+        ]
+        for i in qs
+    ]
 
 
 def _peut_gerer_rattachement_parent(user):
-    """Seuls les CHEF_SERVICE et rôles supérieurs peuvent créer ou modifier le
-    rattachement parent/enfant d'une installation ou d'un matériel (même seuil
-    que les tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS ci-dessous)."""
-    return user_role_level(user) >= RoleLevel.CHEF_SERVICE
+    """Seuls les CHEF_SERVICE et rôles supérieurs (par défaut, seuil
+    configurable par navire : matrix/core/role_thresholds.py,
+    "rattachement_parent_gestion") peuvent créer ou modifier le rattachement
+    parent/enfant d'une installation ou d'un matériel (même seuil que les
+    tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS ci-dessous)."""
+    return user_role_level(user) >= niveau_requis_pour(user, "rattachement_parent_gestion")
+
+
+def _peut_configurer_plan_navire(user):
+    """Seuls les CHEF_SERVICE et rôles supérieurs (par défaut, seuil
+    configurable par navire : matrix/core/role_thresholds.py,
+    "plan_navire_configuration") peuvent configurer les ponts et zones du
+    plan visuel du navire : une action de configuration structurante, pas
+    une simple consultation."""
+    return user_role_level(user) >= niveau_requis_pour(user, "plan_navire_configuration")
+
+
+def _dernier_par_installation(queryset, champ_installation='installation_id'):
+    """Retourne {installation_id: dernier enregistrement} à partir d'un queryset
+    déjà trié du plus récent au plus ancien (ordering par défaut des modèles de
+    relevés d'installation) — une seule requête groupée quel que soit le nombre
+    d'installations, au lieu d'une requête par installation affichée (même pattern
+    que reports/services.py::_dernier_par_installation)."""
+    resultat = {}
+    for obj in queryset:
+        cle = getattr(obj, champ_installation)
+        if cle not in resultat:
+            resultat[cle] = obj
+    return resultat
+
+
+def _peut_gerer_materiel(user):
+    """Seuil d'accès à l'import en masse de matériel (AssetImportView,
+    AssetImportModeleView) : CHEF_SECTION et au-dessus, en dur — usage isolé et
+    volontairement non migré vers le registre configurable ACTION_VERS_SEUIL
+    (fonctionnalité annexe, pas une action de création/édition/suppression
+    couverte par ce registre). Ne plus utiliser cette fonction pour les actions
+    déjà migrées de AssetListView.post()/InstallationListView.post()
+    (create_folder, create_asset, create_installation, etc.) : le contrôle en
+    tête de post() via ACTION_VERS_SEUIL/niveau_requis_pour suffit désormais et
+    rend le seuil configurable par navire (bug corrigé après refus du Tech
+    Lead : un doublon avec ce seuil codé en dur rendait la configuration sans
+    effet réel sur ces actions)."""
+    return user_role_level(user) >= RoleLevel.CHEF_SECTION
 
 
 def _sous_ensembles_ids(equipement):
@@ -85,6 +196,104 @@ def _resoudre_parent_valide(request, objet, model):
     return None
 
 
+def _resoudre_emplacement(request, ship):
+    """Lit location_id (et new_location_name le cas échéant) dans les données POST et
+    renvoie l'emplacement (Location) à assigner à un matériel/installation, ou None.
+
+    Permet la création d'un nouvel emplacement à la volée depuis le formulaire de
+    matériel/installation (option "+ Ajouter un nouvel emplacement…", location_id
+    vaut alors "__new__") sans passer par un écran de gestion séparé. Le nouvel
+    emplacement est toujours rattaché au navire déjà validé (ship, résolu et
+    contrôlé en périmètre par l'appelant) — jamais à un navire posté séparément,
+    pour ne pas pouvoir contourner le contrôle de périmètre déjà effectué sur ship_id.
+    get_or_create évite les doublons si le même nom est saisi deux fois pour ce navire."""
+    location_id = request.POST.get('location_id')
+    if location_id == '__new__':
+        nom = request.POST.get('new_location_name', '').strip()
+        if not nom or ship is None:
+            return None
+        emplacement, _cree = Location.objects.get_or_create(ship=ship, name=nom, parent=None)
+        return emplacement
+    if location_id:
+        return Location.objects.filter(pk=location_id).first()
+    return None
+
+
+def _valider_coordonnee_pourcent(valeur):
+    """Décode et valide une coordonnée (x ou y) postée par l'éditeur de plan
+    (épingle de matériel) : un nombre en pourcentage (0-100) de la largeur/
+    hauteur de l'image du pont. Renvoie None si le format est invalide (ex:
+    manipulation du formulaire), plutôt que de lever une exception —
+    l'appelant affiche alors un message d'erreur simple et ne modifie pas la
+    position existante."""
+    try:
+        nombre = float(valeur)
+    except (TypeError, ValueError):
+        return None
+    if not (0 <= nombre <= 100):
+        return None
+    return round(nombre, 2)
+
+
+def _org_dans_perimetre(user, model, cible_id):
+    """Vérifie qu'un navire/service/secteur/section posté (à la création, à
+    l'édition, ou dans une action groupée bulk_update_ship/service/sector/
+    section) appartient bien au périmètre de l'appelant, en réutilisant le
+    même système de périmètre que scope_filters_for_user (matrix/core/
+    scopes.py, déjà utilisé par ScopedQuerySetMixin côté API) plutôt que
+    d'en recréer un nouveau. Un utilisateur sans périmètre restreint (aucun
+    ship/service/sector/section assigné à son profil, ex: vue globale) peut
+    choisir n'importe quelle cible existante. Un utilisateur cantonné à un
+    niveau peut choisir : ce niveau lui-même, un de ses ancêtres qui
+    contient effectivement son propre périmètre (ex: un chef de service
+    postant le navire auquel appartient déjà son service — cas normal d'un
+    formulaire qui poste toute la chaîne ship/service/sector/section), ou
+    un de ses descendants (ex: un utilisateur scopé navire choisissant un
+    service de ce navire). Ne fait pas confiance aux menus déroulants du
+    formulaire, qui peuvent être contournés par un POST direct (même
+    principe que _resoudre_parent_valide pour le champ parent_id)."""
+    if not cible_id:
+        return True
+    profil = getattr(user, 'profile', None)
+    niveau, valeur = profil.scope if profil else (None, None)
+    if niveau is None:
+        return model.objects.filter(pk=cible_id).exists()
+    # Pour chaque modèle cible, chemin permettant de vérifier que la cible
+    # contient (ou est) le périmètre de l'appelant, quel que soit le niveau
+    # relatif : ancêtre (ex: Ship pour un appelant scopé "service"), lui-même,
+    # ou descendant (ex: Sector pour un appelant scopé "ship").
+    chemins = {
+        Ship: {
+            'ship': 'id',
+            'service': 'services__id',
+            'sector': 'services__sectors__id',
+            'section': 'services__sectors__sections__id',
+        },
+        Service: {
+            'ship': 'ship_id',
+            'service': 'id',
+            'sector': 'sectors__id',
+            'section': 'sectors__sections__id',
+        },
+        Sector: {
+            'ship': 'service__ship_id',
+            'service': 'service_id',
+            'sector': 'id',
+            'section': 'sections__id',
+        },
+        Section: {
+            'ship': 'sector__service__ship_id',
+            'service': 'sector__service_id',
+            'sector': 'sector_id',
+            'section': 'id',
+        },
+    }
+    champ = chemins.get(model, {}).get(niveau)
+    if champ is None:
+        return False
+    return model.objects.filter(pk=cible_id, **{champ: valeur}).exists()
+
+
 def _afficher_erreur_validation(request, erreur):
     """Affiche en français le message d'une ValidationError levée par full_clean()
     (notamment la protection anti-cycle sur le rattachement parent), plutôt que de
@@ -95,18 +304,127 @@ def _afficher_erreur_validation(request, erreur):
         messages.error(request, "Rattachement invalide : " + " ".join(erreur.messages))
 
 
-class AssetDetailView(LoginRequiredMixin, DetailView):
+def _appliquer_bulk_update(request, queryset, champ, valeur, *, action_audit, detail_audit, message_succes,
+                            redirect_url_name, org_model=None, org_id=None, libelle_org=None):
+    """Applique une valeur à un champ, en masse, sur les objets du queryset fourni
+    (déjà filtré par périmètre via ScopedQuerySetMixin ET par les identifiants
+    sélectionnés — voir l'appelant). Si org_model est fourni (champs navire/
+    service/secteur/section), valide au préalable que org_id appartient au
+    périmètre de l'appelant (même contrôle T-SEC que _org_dans_perimetre pour la
+    création/édition) et redirige avec un message d'erreur sans rien modifier si
+    ce n'est pas le cas. Crée une entrée d'audit par objet modifié, puis un
+    message de succès récapitulatif. Factorise le bloc bulk_update_* commun à
+    AssetListView.post (matériel mobile) et InstallationListView.post
+    (installation fixe) — ~55 lignes quasi identiques avant factorisation."""
+    if org_model is not None and not _org_dans_perimetre(request.user, org_model, org_id):
+        messages.error(request, f"{libelle_org} hors de votre périmètre.")
+        return redirect(redirect_url_name)
+    objets = list(queryset)
+    for objet in objets:
+        setattr(objet, champ, valeur)
+        objet.save(update_fields=[champ])
+        AuditLog.objects.create(actor=request.user, action=action_audit, details=detail_audit)
+    messages.success(request, message_succes.format(count=len(objets)))
+    return redirect(redirect_url_name)
+
+
+def _appliquer_bulk_suppression(request, queryset, *, action_audit, message_succes, redirect_url_name):
+    """Supprime en masse les objets du queryset fourni (déjà filtré par périmètre
+    et par les identifiants sélectionnés — voir l'appelant), avec une entrée
+    d'audit par objet supprimé puis un message de succès récapitulatif.
+    Factorise le bloc bulk_delete_* commun à AssetListView.post et
+    InstallationListView.post."""
+    count = queryset.count()
+    for objet in queryset:
+        AuditLog.objects.create(actor=request.user, action=action_audit, details=f'id={objet.id}')
+    queryset.delete()
+    messages.success(request, message_succes.format(count=count))
+    return redirect(redirect_url_name)
+
+
+def _perimetre_utilisateur(user):
+    """Navire/service/secteur/section affectés à l'utilisateur connecté (profil),
+    utilisés pour pré-remplir automatiquement les formulaires de création de
+    matériel et d'installation avec le périmètre du chef connecté, plutôt que de
+    lui faire ressaisir à la main une hiérarchie déjà connue (principe « plus
+    rapide qu'Excel »). Réutilise le profil existant (accounts.UserProfile),
+    sans nouveau système de scope."""
+    profile = getattr(user, 'profile', None)
+    if not profile:
+        return {'user_ship_id': None, 'user_service_id': None, 'user_sector_id': None, 'user_section_id': None}
+    return {
+        'user_ship_id': profile.ship_id,
+        'user_service_id': profile.service_id,
+        'user_sector_id': profile.sector_id,
+        'user_section_id': profile.section_id,
+    }
+
+
+def _redirect_liste_materiel(request):
+    """Redirige vers la liste des matériels en conservant le dossier actuellement
+    parcouru (paramètre ?folder=), qui figure déjà dans l'URL courante puisque les
+    formulaires de la page n'ont pas d'attribut action. Sans cela, toute création,
+    modification ou suppression ramenait systématiquement l'utilisateur à la racine
+    et donnait l'impression qu'un matériel ajouté dans un sous-dossier n'y apparaissait
+    jamais (bug d'affichage corrigé ici)."""
+    folder_id = request.GET.get('folder') or request.POST.get('folder_id')
+    if folder_id:
+        return redirect(f"/assets/?folder={folder_id}")
+    return redirect('asset-list')
+
+
+class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
+    # Périmètre : même principe que InstallationDetailView (déjà scopée) — sans
+    # ScopedQuerySetMixin, un utilisateur connaissant l'UUID d'un matériel hors de
+    # son périmètre (ex. deviné, retrouvé dans un lien) pouvait consulter sa fiche
+    # complète malgré l'absence de tout lien y menant depuis la liste (déjà
+    # filtrée, elle). Un matériel hors périmètre est désormais traité comme
+    # introuvable (404), pas de nouveau contrôle d'accès (T-SEC).
     model = Asset
     template_name = 'assets/detail.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # Recherche « pannes déjà rencontrées » (REX) : volontairement tous navires
+        # confondus, sans filtre de périmètre (scope_filters_for_user), contrairement
+        # à toutes les autres requêtes de l'application. Choix assumé, cohérent avec
+        # la portabilité déjà pratiquée pour les formations entre bâtiments : un
+        # même type d'équipement peut tomber en panne de la même façon sur un autre
+        # navire, et cet historique de diagnostic/solution est utile à tout le
+        # monde, même hors du périmètre habituel de l'utilisateur.
+        # On compare par (nom, catégorie) et non par asset_type_id : AssetType est
+        # rattaché à un Sector (unique_together sector+name), donc chaque navire a
+        # sa propre ligne AssetType même pour un équipement identique — comparer
+        # les clés étrangères ne trouverait jamais de correspondance entre navires.
+        ctx['pannes_deja_rencontrees'] = (
+            CorrectiveTicket.objects.filter(
+                status='CLOSED',
+                asset__asset_type__name=self.object.asset_type.name,
+                asset__asset_type__category=self.object.asset_type.category,
+            )
+            .exclude(diagnostic_final='', solution='')
+            .select_related('asset', 'asset__ship')
+            .order_by('-reported_at')[:20]
+        )
+        # Pièces de stock affiliées (T-FEAT stock détaillé) : lien optionnel côté
+        # StockPiece (logistics), affiché ici en lecture seule, la gestion du stock
+        # se faisant depuis /logistics/stock/.
+        ctx['pieces_stock'] = StockPiece.objects.filter(asset=self.object).order_by('reference')
+        return ctx
 
 class StartVisualCheckView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : même filtre que ScanQRView (scope_filters_for_user) — sans
+        # lui, un chef de section connaissant l'identifiant d'un matériel d'un
+        # autre navire pouvait déclencher un contrôle visuel dessus (T-SEC).
+        filtres = scope_filters_for_user(request.user)
+        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
         try:
-            asset = Asset.objects.get(pk=pk)
+            asset = assets.get(pk=pk)
         except Asset.DoesNotExist:
-            return HttpResponseBadRequest('Asset not found')
+            return HttpResponseBadRequest('Matériel introuvable ou hors de votre périmètre.')
         plan = MaintenancePlan.objects.filter(scope='ASSET_TYPE', asset_type=asset.asset_type).first()
         name = plan.name if plan else 'Contrôle visuel'
         occ, _ = MaintenanceOccurrence.objects.get_or_create(
@@ -120,13 +438,145 @@ class StartVisualCheckView(LoginRequiredMixin, View):
         return redirect(f"/maintenance/occurrences/{occ.id}/execute/")
 
 
-class AssetListView(LoginRequiredMixin, ListView):
+class ScanQRView(LoginRequiredMixin, View):
+    """Point d'entrée du QR code apposé sur un équipement (matériel mobile ou
+    installation fixe) — workflow « Scan QR → occurrence du jour → checklist »
+    (CLAUDE.md). Résout l'équipement scanné (même identifiant pour Asset et
+    Installation, on essaie l'un puis l'autre), puis :
+    - s'il existe une occurrence de maintenance planifiée aujourd'hui et
+      assignée au marin connecté sur cet équipement, ouvre directement la
+      checklist guidée d'exécution (aucune recherche à faire au poste) ;
+    - sinon, affiche la fiche de l'équipement, d'où une anomalie peut être
+      signalée en un clic.
+    """
+
+    def get(self, request, pk):
+        # Périmètre : réutilise scope_filters_for_user (même système que
+        # ScopedQuerySetMixin côté API) — un équipement hors périmètre est
+        # traité comme introuvable, pas de nouveau contrôle d'accès.
+        filtres = scope_filters_for_user(request.user)
+        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        asset = assets.filter(pk=pk).first()
+        if asset is not None:
+            return self._rediriger(request, asset=asset)
+        installations = Installation.objects.filter(**filtres) if filtres else Installation.objects.all()
+        installation = installations.filter(pk=pk).first()
+        if installation is not None:
+            return self._rediriger(request, installation=installation)
+
+        # Ni Asset ni Installation dans le périmètre de l'utilisateur : au
+        # lieu de laisser Django renvoyer sa page 404 technique (brute, en
+        # anglais en debug), on distingue deux cas et on redirige vers le
+        # tableau de bord avec un message clair en français. On ne révèle
+        # jamais le nom/navire de l'équipement d'un autre bâtiment : le
+        # message reste générique dans le cas « hors périmètre ».
+        existe_hors_perimetre = (
+            Asset.objects.filter(pk=pk).exists() or Installation.objects.filter(pk=pk).exists()
+        )
+        if existe_hors_perimetre:
+            messages.error(
+                request,
+                "Cet équipement n'appartient pas à votre navire, vous ne pouvez pas y accéder.",
+            )
+        else:
+            messages.error(request, "QR code invalide ou équipement introuvable.")
+        return redirect('home')
+
+    def _rediriger(self, request, asset=None, installation=None):
+        occurrences_du_jour = MaintenanceOccurrence.objects.filter(
+            scheduled_for=timezone.localdate(), assignees=request.user
+        ).exclude(status__in=_STATUTS_OCCURRENCE_TERMINES)
+        if asset is not None:
+            occurrence = occurrences_du_jour.filter(asset=asset).first()
+        else:
+            occurrence = occurrences_du_jour.filter(installation_maintenance__installation=installation).first()
+        if occurrence is not None:
+            return redirect('occurrence-execute', pk=occurrence.pk)
+        if asset is not None:
+            return redirect('asset-detail', pk=asset.pk)
+        return redirect('installation-detail', pk=installation.pk)
+
+
+class AssetImportView(LoginRequiredMixin, View):
+    """Import en masse de matériel mobile depuis un fichier Excel (Phase 6) :
+    upload direct, création ligne par ligne dans le périmètre de l'utilisateur
+    connecté, avec rapport d'erreurs clair si certaines lignes échouent — sans
+    bloquer les autres lignes valides du même fichier (import atomique par
+    ligne, cf. assets/import_materiel.py). Même seuil de rôle que la création
+    manuelle d'un matériel (_peut_gerer_materiel)."""
+    template_name = 'assets/import.html'
+
+    def get(self, request):
+        if not _peut_gerer_materiel(request.user):
+            raise PermissionDenied
+        return render(request, self.template_name, {})
+
+    def post(self, request):
+        if not _peut_gerer_materiel(request.user):
+            raise PermissionDenied
+        fichier = request.FILES.get('fichier')
+        if not fichier:
+            messages.error(request, "Sélectionnez un fichier Excel (.xlsx) à importer.")
+            return render(request, self.template_name, {})
+        resultat = importer_materiel_depuis_fichier(fichier, request.user)
+        if resultat.crees:
+            messages.success(request, f"{resultat.crees} matériel(s) importé(s) avec succès.")
+        return render(request, self.template_name, {'resultat': resultat})
+
+
+class AssetImportModeleView(LoginRequiredMixin, View):
+    """Téléchargement du modèle Excel documentant les colonnes attendues pour
+    l'import en masse de matériel (voir AssetImportView)."""
+
+    def get(self, request):
+        if not _peut_gerer_materiel(request.user):
+            raise PermissionDenied
+        contenu = generer_modele_xlsx()
+        if contenu is None:
+            messages.error(request, "La génération du modèle Excel n'est pas disponible sur ce serveur.")
+            return redirect('asset-import')
+        return reponse_fichier(contenu, 'modele_import_materiel.xlsx', XLSX_CONTENT_TYPE)
+
+
+class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     model = Asset
     template_name = 'assets/list.html'
     context_object_name = 'assets'
 
+    # Contrôle de rôle par action (T-SEC) : chaque action POST est associée à
+    # une clé du registre des seuils configurables par navire
+    # (matrix/core/role_thresholds.py), résolue dynamiquement à chaque
+    # requête dans post() ci-dessous — asset_ecriture_simple pour la
+    # création simple (CHEF_SECTION par défaut ; l'édition passe par la fiche détail), asset_gestion_avancee
+    # pour les suppressions et les actions groupées (CHEF_SERVICE par défaut,
+    # même seuil que MAINTENANCE_WRITE_ACTIONS d'InstallationDetailView et
+    # _peut_gerer_rattachement_parent, pour rester cohérent avec le reste du
+    # fichier).
+    ACTION_VERS_SEUIL = {
+        'create_folder': 'asset_ecriture_simple',
+        'rename_folder': 'asset_ecriture_simple',
+        'delete_folder': 'asset_gestion_avancee',
+        'move_asset_to_folder': 'asset_ecriture_simple',
+        'create_asset': 'asset_ecriture_simple',
+        'edit_asset': 'asset_ecriture_simple',
+        'delete_asset': 'asset_gestion_avancee',
+        'delete_asset_document': 'asset_gestion_avancee',
+        'bulk_update_status': 'asset_gestion_avancee',
+        'bulk_update_location': 'asset_gestion_avancee',
+        'bulk_update_ship': 'asset_gestion_avancee',
+        'bulk_update_service': 'asset_gestion_avancee',
+        'bulk_update_sector': 'asset_gestion_avancee',
+        'bulk_update_section': 'asset_gestion_avancee',
+        'bulk_delete_assets': 'asset_gestion_avancee',
+    }
+
     def get_queryset(self):
-        qs = Asset.objects.select_related('asset_type', 'ship', 'service', 'sector', 'section', 'location', 'folder').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'asset_type__name')
+        # Périmètre appliqué par ScopedQuerySetMixin (même système que l'API) avant les
+        # filtres de recherche/tri propres à cette vue. prefetch_related('documents') :
+        # la liste affiche les pièces jointes de chaque matériel
+        # (matrix/templates/assets/list.html) — sans cela, une requête AssetDocument
+        # est exécutée par matériel affiché (N+1).
+        qs = super().get_queryset().select_related('asset_type', 'ship', 'service', 'sector', 'section', 'location', 'folder').prefetch_related('documents').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'asset_type__name')
         ship_id = self.request.GET.get('ship')
         service_id = self.request.GET.get('service')
         sector_id = self.request.GET.get('sector')
@@ -134,6 +584,10 @@ class AssetListView(LoginRequiredMixin, ListView):
         status = self.request.GET.get('status')
         asset_type_id = self.request.GET.get('type')
         folder_id = self.request.GET.get('folder')
+        # Filtre par emplacement (Location) : utilisé notamment par le clic sur
+        # une zone du plan visuel du navire (PlanNavireVueDeckView), qui renvoie
+        # ici avec ?location=<id> plutôt que d'ouvrir un nouvel écran de liste.
+        location_id = self.request.GET.get('location')
         q = self.request.GET.get('q', '').strip()
         if ship_id:
             qs = qs.filter(ship_id=ship_id)
@@ -147,8 +601,20 @@ class AssetListView(LoginRequiredMixin, ListView):
             qs = qs.filter(status=status)
         if asset_type_id:
             qs = qs.filter(asset_type_id=asset_type_id)
+        if location_id:
+            qs = qs.filter(location_id=location_id)
         if folder_id:
             qs = qs.filter(folder_id=folder_id)
+        elif not q and not location_id:
+            # Vue racine (aucun dossier sélectionné, pas de recherche globale, pas
+            # de filtre par emplacement) : n'affiche que les matériels non classés
+            # dans un dossier, symétrique au filtrage déjà appliqué aux dossiers
+            # eux-mêmes (parent__isnull=True) plus bas. Sans ce filtre, un matériel
+            # rangé dans un sous-dossier se retrouvait mélangé à la racine et ne
+            # semblait jamais "rangé" dans son dossier. Le filtre par emplacement
+            # doit au contraire remonter tout le matériel de la zone, quel que
+            # soit le dossier dans lequel il est classé.
+            qs = qs.filter(folder__isnull=True)
         if q:
             qs = qs.filter(
                 models.Q(serial_number__icontains=q) |
@@ -170,7 +636,14 @@ class AssetListView(LoginRequiredMixin, ListView):
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['types'] = AssetType.objects.order_by('name')
         ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
-        ctx['export_url'] = self.request.build_absolute_uri('?' + (self.request.META.get('QUERY_STRING') or '') + ('&' if self.request.META.get('QUERY_STRING') else '') + 'export=xlsx')
+        # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
+        # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi
+        # la liste est restreinte, avec un lien pour revenir à la vue complète.
+        location_id = self.request.GET.get('location')
+        ctx['filtre_location'] = Location.objects.filter(pk=location_id).first() if location_id else None
+        ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
+        ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
+        ctx['xlsx_disponible'] = xlsx_disponible()
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, filtré
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
@@ -178,6 +651,9 @@ class AssetListView(LoginRequiredMixin, ListView):
             Asset.objects.select_related('sector', 'asset_type').order_by('designation')
             if ctx['peut_gerer_parent'] else Asset.objects.none()
         )
+        # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
+        # de création à partir du profil du chef connecté.
+        ctx.update(_perimetre_utilisateur(self.request.user))
         # Navigation par dossiers
         current_folder_id = self.request.GET.get('folder')
         current_folder = AssetFolder.objects.filter(pk=current_folder_id).select_related('parent').first() if current_folder_id else None
@@ -197,32 +673,42 @@ class AssetListView(LoginRequiredMixin, ListView):
         return ctx
 
     def get(self, request, *args, **kwargs):
-        if request.GET.get('export') == 'xlsx' and Workbook is not None:
-            qs = self.get_queryset()
-            wb = Workbook(); ws = wb.active; ws.title = 'Matériels'
-            ws.append(['Type', 'Identifiant interne', 'N° série', 'Statut', 'Criticité', 'Navire', 'Service', 'Secteur', 'Section', 'Emplacement'])
-            for a in qs:
-                ws.append([
-                    a.asset_type.name,
-                    a.internal_id,
-                    a.serial_number,
-                    a.status,
-                    a.criticality,
-                    a.ship.name if a.ship else '',
-                    a.service.name if a.service else '',
-                    a.sector.name if a.sector else '',
-                    a.section.name if a.section else '',
-                    a.location.name if a.location else '',
-                ])
-            buf = io.BytesIO(); wb.save(buf); buf.seek(0)
-            resp = HttpResponse(buf.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            resp['Content-Disposition'] = 'attachment; filename=materiels.xlsx'
-            AuditLog.objects.create(actor=request.user, action='export_assets_xlsx', target_user=None, details=f'rows={qs.count()}')
-            return resp
+        format_export = request.GET.get('export')
+        if format_export in ('csv', 'xlsx'):
+            # Périmètre : l'export ne doit JAMAIS dépasser le périmètre de
+            # l'utilisateur, même si l'affichage de cette liste n'est pas
+            # lui-même restreint par périmètre (elle propose des filtres
+            # navire/service/secteur/section manuels, cf. get_queryset ci-dessus,
+            # destinés à un usage de gestion transverse) — sécurité appliquée
+            # explicitement ici, indépendamment de get_queryset().
+            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            lignes = _lignes_export_assets(qs)
+            if format_export == 'xlsx':
+                contenu = rendre_xlsx(_ENTETES_EXPORT_ASSETS, lignes, titre_feuille='Matériels')
+                if contenu is None:
+                    messages.error(
+                        request,
+                        "L'export Excel n'est pas disponible sur ce serveur. Utilisez le CSV.",
+                    )
+                    parametres = request.GET.copy()
+                    parametres.pop('export', None)
+                    return redirect(f"{request.path}?{parametres.urlencode()}")
+                content_type = XLSX_CONTENT_TYPE
+            else:
+                contenu = rendre_csv(_ENTETES_EXPORT_ASSETS, lignes)
+                content_type = CSV_CONTENT_TYPE
+            AuditLog.objects.create(
+                actor=request.user, action=f'export_assets_{format_export}',
+                target_user=None, details=f'rows={len(lignes)}',
+            )
+            return reponse_fichier(contenu, f'materiels.{format_export}', content_type)
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
+        cle_seuil = self.ACTION_VERS_SEUIL.get(action)
+        if cle_seuil is not None and user_role_level(request.user) < niveau_requis_pour(request.user, cle_seuil):
+            raise PermissionDenied
         # Bulk actions
         if action in (
             'bulk_update_status', 'bulk_update_location', 'bulk_update_ship',
@@ -230,64 +716,78 @@ class AssetListView(LoginRequiredMixin, ListView):
             'bulk_delete_assets'
         ):
             ids = request.POST.getlist('selected_ids')
-            assets = Asset.objects.filter(id__in=ids)
-            count = assets.count()
+            # Périmètre : seuls les matériels du périmètre de l'appelant sont chargés
+            # (self.get_queryset(), scopé via ScopedQuerySetMixin) — un identifiant posté
+            # hors périmètre est simplement ignoré, comme s'il n'existait pas.
+            assets = self.get_queryset().filter(id__in=ids)
             if action == 'bulk_update_status':
                 status = request.POST.get('status')
-                for a in assets:
-                    a.status = status
-                    a.save(update_fields=['status'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_status', details=f'status={status}')
-                messages.success(request, f'Statut mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'status', status,
+                    action_audit='bulk_update_asset_status', detail_audit=f'status={status}',
+                    message_succes='Statut mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                )
             elif action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
                 loc = Location.objects.filter(pk=loc_id).first()
-                for a in assets:
-                    a.location = loc
-                    a.save(update_fields=['location'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_location', details=f'location_id={loc_id}')
-                messages.success(request, f'Emplacement mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'location', loc,
+                    action_audit='bulk_update_asset_location', detail_audit=f'location_id={loc_id}',
+                    message_succes='Emplacement mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                )
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
-                ship = Ship.objects.filter(pk=ship_id).first()
-                for a in assets:
-                    a.ship = ship
-                    a.save(update_fields=['ship'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_ship', details=f'ship_id={ship_id}')
-                messages.success(request, f'Navire mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'ship', Ship.objects.filter(pk=ship_id).first(),
+                    action_audit='bulk_update_asset_ship', detail_audit=f'ship_id={ship_id}',
+                    message_succes='Unité mise à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Ship, org_id=ship_id, libelle_org='Unité',
+                )
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
-                sv = Service.objects.filter(pk=service_id).first()
-                for a in assets:
-                    a.service = sv
-                    a.save(update_fields=['service'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_service', details=f'service_id={service_id}')
-                messages.success(request, f'Service mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'service', Service.objects.filter(pk=service_id).first(),
+                    action_audit='bulk_update_asset_service', detail_audit=f'service_id={service_id}',
+                    message_succes='Service mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Service, org_id=service_id, libelle_org='Service',
+                )
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
-                sc = Sector.objects.filter(pk=sector_id).first()
-                for a in assets:
-                    a.sector = sc
-                    a.save(update_fields=['sector'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_sector', details=f'sector_id={sector_id}')
-                messages.success(request, f'Secteur mis à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'sector', Sector.objects.filter(pk=sector_id).first(),
+                    action_audit='bulk_update_asset_sector', detail_audit=f'sector_id={sector_id}',
+                    message_succes='Secteur mis à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Sector, org_id=sector_id, libelle_org='Secteur',
+                )
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
-                se = Section.objects.filter(pk=section_id).first()
-                for a in assets:
-                    a.section = se
-                    a.save(update_fields=['section'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_asset_section', details=f'section_id={section_id}')
-                messages.success(request, f'Section mise à jour pour {count} matériel(s).')
+                return _appliquer_bulk_update(
+                    request, assets, 'section', Section.objects.filter(pk=section_id).first(),
+                    action_audit='bulk_update_asset_section', detail_audit=f'section_id={section_id}',
+                    message_succes='Section mise à jour pour {count} matériel(s).',
+                    redirect_url_name='asset-list',
+                    org_model=Section, org_id=section_id, libelle_org='Section',
+                )
             elif action == 'bulk_delete_assets':
-                for a in assets:
-                    AuditLog.objects.create(actor=request.user, action='bulk_delete_asset', details=f'id={a.id}')
-                assets.delete()
-                messages.success(request, f'{count} matériel(s) supprimé(s).')
-            return redirect('asset-list')
+                return _appliquer_bulk_suppression(
+                    request, assets,
+                    action_audit='bulk_delete_asset',
+                    message_succes='{count} matériel(s) supprimé(s).',
+                    redirect_url_name='asset-list',
+                )
 
         # Folder operations
         if action == 'create_folder':
+            # Création d'un dossier : seuil déjà vérifié en tête de post() via
+            # ACTION_VERS_SEUIL['create_folder'] = 'asset_ecriture_simple'
+            # (configurable par navire) — ne pas dupliquer le contrôle avec
+            # _peut_gerer_materiel, sous peine de rendre la configuration sans
+            # effet réel sur cette action (bug corrigé après refus du Tech Lead).
             name = request.POST.get('name', '').strip()
             parent_id = request.POST.get('parent_id')
             parent = AssetFolder.objects.filter(pk=parent_id).first() if parent_id else None
@@ -302,7 +802,7 @@ class AssetListView(LoginRequiredMixin, ListView):
                     fld.save(update_fields=['parent'])
                 messages.success(request, 'Dossier créé.')
                 AuditLog.objects.create(actor=request.user, action='create_asset_folder', details=f'name={name}')
-            return redirect('asset-list')
+            return _redirect_liste_materiel(request)
         if action == 'rename_folder':
             pk = request.POST.get('pk')
             name = request.POST.get('name', '').strip()
@@ -315,18 +815,18 @@ class AssetListView(LoginRequiredMixin, ListView):
                     messages.success(request, 'Dossier renommé.')
             except AssetFolder.DoesNotExist:
                 messages.error(request, 'Dossier introuvable.')
-            return redirect('asset-list')
+            return _redirect_liste_materiel(request)
         if action == 'delete_folder':
             pk = request.POST.get('pk')
             AssetFolder.objects.filter(pk=pk).delete()
             AuditLog.objects.create(actor=request.user, action='delete_asset_folder', details=f'id={pk}')
             messages.success(request, 'Dossier supprimé.')
-            return redirect('asset-list')
+            return _redirect_liste_materiel(request)
         if action == 'move_asset_to_folder':
             asset_id = request.POST.get('asset_id')
             folder_id = request.POST.get('folder_id')
             try:
-                a = Asset.objects.get(pk=asset_id)
+                a = self.get_queryset().get(pk=asset_id)
                 a.folder = AssetFolder.objects.filter(pk=folder_id).first() if folder_id else None
                 a.save(update_fields=['folder'])
                 return JsonResponse({'ok': True})
@@ -335,6 +835,13 @@ class AssetListView(LoginRequiredMixin, ListView):
 
         # Single create/edit/delete
         if action == 'create_asset':
+            # Création d'un matériel : seuil déjà vérifié en tête de post() via
+            # ACTION_VERS_SEUIL['create_asset'] = 'asset_ecriture_simple'
+            # (configurable par navire) — ne pas dupliquer le contrôle avec
+            # _peut_gerer_materiel, sous peine de rendre la configuration sans
+            # effet réel sur cette action (bug corrigé après refus du Tech Lead).
+            # L'édition et la suppression restent volontairement ouvertes à tous les
+            # utilisateurs connectés (comportement existant, cf. tests T2/T3).
             type_id = request.POST.get('asset_type_id')
             internal_id = request.POST.get('internal_id', '').strip()
             serial = request.POST.get('serial_number', '').strip()
@@ -350,8 +857,22 @@ class AssetListView(LoginRequiredMixin, ListView):
             service_id = request.POST.get('service_id')
             sector_id = request.POST.get('sector_id')
             section_id = request.POST.get('section_id')
-            location_id = request.POST.get('location_id')
             folder_id = request.POST.get('folder_id') or self.request.GET.get('folder')
+            # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
+            # au périmètre de l'appelant, même principe que _resoudre_parent_valide pour
+            # le champ parent_id — ne fait pas confiance aux menus déroulants du formulaire.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Unité hors de votre périmètre.")
+                return redirect('asset-list')
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect('asset-list')
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect('asset-list')
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect('asset-list')
             # Fallback côté serveur pour type si non fourni: premier type du secteur
             if not type_id and sector_id:
                 try:
@@ -363,7 +884,7 @@ class AssetListView(LoginRequiredMixin, ListView):
             try:
                 if not type_id:
                     messages.error(request, "Aucun type disponible pour le secteur sélectionné.")
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 at = AssetType.objects.get(pk=type_id)
                 asset = Asset(
                     asset_type=at,
@@ -389,17 +910,16 @@ class AssetListView(LoginRequiredMixin, ListView):
                     asset.sector = Sector.objects.filter(pk=sector_id).first()
                 if section_id:
                     asset.section = Section.objects.filter(pk=section_id).first()
-                if location_id:
-                    asset.location = Location.objects.filter(pk=location_id).first()
+                asset.location = _resoudre_emplacement(request, asset.ship)
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
                     messages.error(request, erreur_parent)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 try:
                     asset.full_clean()
                 except ValidationError as exc:
                     _afficher_erreur_validation(request, exc)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 asset.save()
                 # Associer au dossier courant si présent
                 if folder_id:
@@ -420,8 +940,29 @@ class AssetListView(LoginRequiredMixin, ListView):
                 messages.error(request, 'Type de matériel introuvable.')
         elif action == 'edit_asset':
             pk = request.POST.get('pk')
+            ship_id = request.POST.get('ship_id')
+            service_id = request.POST.get('service_id')
+            sector_id = request.POST.get('sector_id')
+            section_id = request.POST.get('section_id')
+            # Périmètre (T-SEC) : même contrôle qu'à la création, contre un POST direct
+            # qui déplacerait le matériel hors du périmètre de l'appelant.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Unité hors de votre périmètre.")
+                return redirect('asset-list')
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect('asset-list')
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect('asset-list')
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect('asset-list')
             try:
-                asset = Asset.objects.get(pk=pk)
+                # Périmètre : le matériel visé doit appartenir au périmètre de l'appelant
+                # (self.get_queryset(), scopé) — un identifiant hors périmètre est traité
+                # comme introuvable plutôt que d'être chargé via le manager brut.
+                asset = self.get_queryset().get(pk=pk)
                 asset.internal_id = request.POST.get('internal_id', asset.internal_id).strip()
                 asset.serial_number = request.POST.get('serial_number', asset.serial_number).strip()
                 asset.designation = request.POST.get('designation', asset.designation).strip()
@@ -441,20 +982,20 @@ class AssetListView(LoginRequiredMixin, ListView):
                 photo = request.FILES.get('photo')
                 if photo:
                     asset.photo = photo
-                asset.ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first() if request.POST.get('ship_id') else None
-                asset.service = Service.objects.filter(pk=request.POST.get('service_id')).first() if request.POST.get('service_id') else None
-                asset.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
-                asset.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
-                asset.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
+                asset.ship = Ship.objects.filter(pk=ship_id).first() if ship_id else None
+                asset.service = Service.objects.filter(pk=service_id).first() if service_id else None
+                asset.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
+                asset.section = Section.objects.filter(pk=section_id).first() if section_id else None
+                asset.location = _resoudre_emplacement(request, asset.ship)
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
                     messages.error(request, erreur_parent)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 try:
                     asset.full_clean()
                 except ValidationError as exc:
                     _afficher_erreur_validation(request, exc)
-                    return redirect('asset-list')
+                    return _redirect_liste_materiel(request)
                 asset.save()
                 # Ajout de nouveaux documents pendant la modification
                 try:
@@ -465,30 +1006,54 @@ class AssetListView(LoginRequiredMixin, ListView):
                 AuditLog.objects.create(actor=request.user, action='edit_asset', details=f'id={asset.id}')
                 messages.success(request, 'Matériel mis à jour.')
             except Asset.DoesNotExist:
-                pass
+                messages.error(request, 'Matériel introuvable.')
         elif action == 'delete_asset':
             pk = request.POST.get('pk')
-            Asset.objects.filter(pk=pk).delete()
-            messages.success(request, 'Matériel supprimé.')
+            # Périmètre : un matériel hors périmètre est traité comme introuvable.
+            supprimes = self.get_queryset().filter(pk=pk).delete()[0]
+            if supprimes:
+                messages.success(request, 'Matériel supprimé.')
+            else:
+                messages.error(request, 'Matériel introuvable.')
         elif action == 'delete_asset_document':
             pk = request.POST.get('pk')
             doc_id = request.POST.get('document_id')
             try:
-                asset = Asset.objects.get(pk=pk)
+                asset = self.get_queryset().get(pk=pk)
                 AssetDocument.objects.filter(pk=doc_id, asset=asset).delete()
                 messages.success(request, 'Document supprimé.')
             except Asset.DoesNotExist:
                 messages.error(request, 'Matériel introuvable.')
-        return redirect('asset-list')
+        return _redirect_liste_materiel(request)
 
 
-class InstallationListView(LoginRequiredMixin, ListView):
+class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     model = Installation
     template_name = 'assets/installations.html'
     context_object_name = 'installations'
 
+    # Contrôle de rôle par action (T-SEC) : chaque action POST est associée à
+    # une clé du registre des seuils configurables par navire
+    # (matrix/core/role_thresholds.py) — installation_ecriture_simple pour la
+    # création simple (CHEF_SECTION par défaut ; l'édition passe par la fiche détail),
+    # installation_gestion_avancee pour les suppressions et les actions
+    # groupées (CHEF_SERVICE par défaut), même seuil que
+    # MAINTENANCE_WRITE_ACTIONS (InstallationDetailView) et AssetListView.
+    ACTION_VERS_SEUIL = {
+        'create_installation': 'installation_ecriture_simple',
+        'delete_installation': 'installation_gestion_avancee',
+        'bulk_update_location': 'installation_gestion_avancee',
+        'bulk_update_ship': 'installation_gestion_avancee',
+        'bulk_update_service': 'installation_gestion_avancee',
+        'bulk_update_sector': 'installation_gestion_avancee',
+        'bulk_update_section': 'installation_gestion_avancee',
+        'bulk_delete_installations': 'installation_gestion_avancee',
+    }
+
     def get_queryset(self):
-        qs = Installation.objects.select_related('ship', 'service', 'sector', 'section', 'location').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'designation')
+        # Périmètre appliqué par ScopedQuerySetMixin (même système que l'API) avant les
+        # filtres de recherche/tri propres à cette vue.
+        qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section', 'location').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'designation')
         ship_id = self.request.GET.get('ship')
         service_id = self.request.GET.get('service')
         sector_id = self.request.GET.get('sector')
@@ -514,6 +1079,13 @@ class InstallationListView(LoginRequiredMixin, ListView):
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
+        # Pré-remplissage du formulaire de création : Navire/Service/Secteur du
+        # périmètre de l'utilisateur connecté, pour éviter de ressaisir à la main
+        # ce que son profil connaît déjà (principe « plus rapide qu'Excel »).
+        # Reste modifiable si l'utilisateur doit créer ailleurs dans son périmètre.
+        ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
+        ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
+        ctx['xlsx_disponible'] = xlsx_disponible()
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, filtré
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
@@ -521,22 +1093,38 @@ class InstallationListView(LoginRequiredMixin, ListView):
             Installation.objects.select_related('sector').order_by('designation')
             if ctx['peut_gerer_parent'] else Installation.objects.none()
         )
-        # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement)
+        # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
+        # de création à partir du profil du chef connecté.
+        ctx.update(_perimetre_utilisateur(self.request.user))
+        # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement).
+        # Requêtes groupées (installation_id__in=...) plutôt qu'une requête par
+        # installation affichée : le nombre de requêtes ne dépend plus de N.
         try:
             installations = list(ctx.get('installations', []))
         except Exception:
             installations = []
+        installation_ids = [it.id for it in installations]
+        try:
+            derniers_vibrations = _dernier_par_installation(
+                InstallationVibrationReading.objects.filter(installation_id__in=installation_ids)
+            )
+        except OperationalError:
+            derniers_vibrations = {}
+        try:
+            derniers_isolements = _dernier_par_installation(
+                InstallationIsolationReading.objects.filter(installation_id__in=installation_ids)
+            )
+        except OperationalError:
+            derniers_isolements = {}
+        try:
+            releves_heures_par_installation = defaultdict(list)
+            for releve in InstallationHourReading.objects.filter(installation_id__in=installation_ids):
+                releves_heures_par_installation[releve.installation_id].append(releve)
+        except OperationalError:
+            releves_heures_par_installation = {}
         for it in installations:
             # Vibrations: dernier état et prochaine échéance
-            try:
-                last_vib = (
-                    InstallationVibrationReading.objects
-                    .filter(installation=it)
-                    .order_by('-date')
-                    .first()
-                )
-            except OperationalError:
-                last_vib = None
+            last_vib = derniers_vibrations.get(it.id)
             if last_vib:
                 it.vibration_last_state_card = last_vib.state
                 a, b, c = getattr(it, 'vib_days_a', 180), getattr(it, 'vib_days_b', 90), getattr(it, 'vib_days_c', 30)
@@ -553,29 +1141,14 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 it.vibration_next_date_card = None
                 it.vibration_next_days_card = None
             # Heures de marche: total et depuis dernière visite
-            try:
-                hour_logs = list(
-                    InstallationHourReading.objects
-                    .filter(installation=it)
-                    .order_by('-date')
-                )
-            except OperationalError:
-                hour_logs = []
+            hour_logs = releves_heures_par_installation.get(it.id, [])
             total = sum(float(r.hours or 0) for r in hour_logs) if hour_logs else 0.0
             last_visit = next((r for r in hour_logs if getattr(r, 'is_visit', False)), None)
             since_last = sum(float(r.hours or 0) for r in hour_logs if last_visit and r.date > last_visit.date) if hour_logs and last_visit else total
             it.hours_total_card = total
             it.hours_last_visit_card = since_last
             # Isolement: dernière mesure
-            try:
-                last_iso = (
-                    InstallationIsolationReading.objects
-                    .filter(installation=it)
-                    .order_by('-date')
-                    .first()
-                )
-            except OperationalError:
-                last_iso = None
+            last_iso = derniers_isolements.get(it.id)
             if last_iso:
                 it.isolation_last_ohms_card = last_iso.ohms
                 it.isolation_last_date_card = last_iso.date
@@ -601,63 +1174,112 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 it.isolation_next_days_card = None
         return ctx
 
+    def get(self, request, *args, **kwargs):
+        format_export = request.GET.get('export')
+        if format_export in ('csv', 'xlsx'):
+            # Périmètre : même garde-fou que AssetListView.get — l'export ne doit
+            # JAMAIS dépasser le périmètre de l'utilisateur, même si l'affichage
+            # de cette liste n'est pas lui-même restreint par périmètre.
+            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            lignes = _lignes_export_installations(qs)
+            if format_export == 'xlsx':
+                contenu = rendre_xlsx(
+                    _ENTETES_EXPORT_INSTALLATIONS, lignes, titre_feuille='Installations'
+                )
+                if contenu is None:
+                    messages.error(
+                        request,
+                        "L'export Excel n'est pas disponible sur ce serveur. Utilisez le CSV.",
+                    )
+                    parametres = request.GET.copy()
+                    parametres.pop('export', None)
+                    return redirect(f"{request.path}?{parametres.urlencode()}")
+                content_type = XLSX_CONTENT_TYPE
+            else:
+                contenu = rendre_csv(_ENTETES_EXPORT_INSTALLATIONS, lignes)
+                content_type = CSV_CONTENT_TYPE
+            AuditLog.objects.create(
+                actor=request.user, action=f'export_installations_{format_export}',
+                target_user=None, details=f'rows={len(lignes)}',
+            )
+            return reponse_fichier(contenu, f'installations.{format_export}', content_type)
+        return super().get(request, *args, **kwargs)
+
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
+        cle_seuil = self.ACTION_VERS_SEUIL.get(action)
+        if cle_seuil is not None and user_role_level(request.user) < niveau_requis_pour(request.user, cle_seuil):
+            raise PermissionDenied
         if action in (
             'bulk_update_location', 'bulk_update_ship', 'bulk_update_service',
             'bulk_update_sector', 'bulk_update_section', 'bulk_delete_installations'
         ):
             ids = request.POST.getlist('selected_ids')
-            items = Installation.objects.filter(id__in=ids)
-            count = items.count()
+            # Périmètre : seules les installations du périmètre de l'appelant sont
+            # chargées (self.get_queryset(), scopé via ScopedQuerySetMixin) — un
+            # identifiant posté hors périmètre est simplement ignoré.
+            items = self.get_queryset().filter(id__in=ids)
             if action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
                 loc = Location.objects.filter(pk=loc_id).first()
-                for it in items:
-                    it.location = loc
-                    it.save(update_fields=['location'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_location', details=f'location_id={loc_id}')
-                messages.success(request, f'Emplacement mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'location', loc,
+                    action_audit='bulk_update_installation_location', detail_audit=f'location_id={loc_id}',
+                    message_succes='Emplacement mis à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                )
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
-                ship = Ship.objects.filter(pk=ship_id).first()
-                for it in items:
-                    it.ship = ship
-                    it.save(update_fields=['ship'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_ship', details=f'ship_id={ship_id}')
-                messages.success(request, f'Navire mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'ship', Ship.objects.filter(pk=ship_id).first(),
+                    action_audit='bulk_update_installation_ship', detail_audit=f'ship_id={ship_id}',
+                    message_succes='Unité mise à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Ship, org_id=ship_id, libelle_org='Unité',
+                )
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
-                sv = Service.objects.filter(pk=service_id).first()
-                for it in items:
-                    it.service = sv
-                    it.save(update_fields=['service'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_service', details=f'service_id={service_id}')
-                messages.success(request, f'Service mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'service', Service.objects.filter(pk=service_id).first(),
+                    action_audit='bulk_update_installation_service', detail_audit=f'service_id={service_id}',
+                    message_succes='Service mis à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Service, org_id=service_id, libelle_org='Service',
+                )
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
-                sc = Sector.objects.filter(pk=sector_id).first()
-                for it in items:
-                    it.sector = sc
-                    it.save(update_fields=['sector'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_sector', details=f'sector_id={sector_id}')
-                messages.success(request, f'Secteur mis à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'sector', Sector.objects.filter(pk=sector_id).first(),
+                    action_audit='bulk_update_installation_sector', detail_audit=f'sector_id={sector_id}',
+                    message_succes='Secteur mis à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Sector, org_id=sector_id, libelle_org='Secteur',
+                )
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
-                se = Section.objects.filter(pk=section_id).first()
-                for it in items:
-                    it.section = se
-                    it.save(update_fields=['section'])
-                    AuditLog.objects.create(actor=request.user, action='bulk_update_installation_section', details=f'section_id={section_id}')
-                messages.success(request, f'Section mise à jour pour {count} installation(s).')
+                return _appliquer_bulk_update(
+                    request, items, 'section', Section.objects.filter(pk=section_id).first(),
+                    action_audit='bulk_update_installation_section', detail_audit=f'section_id={section_id}',
+                    message_succes='Section mise à jour pour {count} installation(s).',
+                    redirect_url_name='installation-list',
+                    org_model=Section, org_id=section_id, libelle_org='Section',
+                )
             elif action == 'bulk_delete_installations':
-                for it in items:
-                    AuditLog.objects.create(actor=request.user, action='bulk_delete_installation', details=f'id={it.id}')
-                items.delete()
-                messages.success(request, f'{count} installation(s) supprimée(s).')
-            return redirect('installation-list')
+                return _appliquer_bulk_suppression(
+                    request, items,
+                    action_audit='bulk_delete_installation',
+                    message_succes='{count} installation(s) supprimée(s).',
+                    redirect_url_name='installation-list',
+                )
 
         if action == 'create_installation':
+            # Création d'une installation : seuil déjà vérifié en tête de post() via
+            # ACTION_VERS_SEUIL['create_installation'] = 'installation_ecriture_simple'
+            # (configurable par navire) — ne pas dupliquer le contrôle avec
+            # _peut_gerer_materiel, sous peine de rendre la configuration sans
+            # effet réel sur cette action (bug corrigé après refus du Tech Lead).
+            # L'édition et la suppression restent volontairement ouvertes à tous les
+            # utilisateurs connectés (comportement existant, cf. tests T2/T3).
             designation = request.POST.get('designation', '').strip()
             reference = request.POST.get('reference', '').strip()
             marque = request.POST.get('marque', '').strip()
@@ -668,14 +1290,28 @@ class InstallationListView(LoginRequiredMixin, ListView):
             service_id = request.POST.get('service_id')
             sector_id = request.POST.get('sector_id')
             section_id = request.POST.get('section_id')
-            location_id = request.POST.get('location_id')
             iso_period = (request.POST.get('iso_periodicity') or 'M').strip().upper()
+            # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
+            # au périmètre de l'appelant — ne fait pas confiance au menu déroulant.
+            if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
+                messages.error(request, "Unité hors de votre périmètre.")
+                return redirect('installation-list')
+            if service_id and not _org_dans_perimetre(request.user, Service, service_id):
+                messages.error(request, "Service hors de votre périmètre.")
+                return redirect('installation-list')
+            if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
+                messages.error(request, "Secteur hors de votre périmètre.")
+                return redirect('installation-list')
+            if section_id and not _org_dans_perimetre(request.user, Section, section_id):
+                messages.error(request, "Section hors de votre périmètre.")
+                return redirect('installation-list')
             it = Installation(
                 designation=designation,
                 reference=reference,
                 marque=marque,
                 gisement=gisement,
                 local=local,
+                critique=request.POST.get('critique') == 'on',
             )
             photo = request.FILES.get('photo')
             if photo:
@@ -688,8 +1324,7 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 it.sector = Sector.objects.filter(pk=sector_id).first()
             if section_id:
                 it.section = Section.objects.filter(pk=section_id).first()
-            if location_id:
-                it.location = Location.objects.filter(pk=location_id).first()
+            it.location = _resoudre_emplacement(request, it.ship)
             if bigrame_id:
                 it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first()
             if iso_period in ('M','T','A'):
@@ -724,65 +1359,31 @@ class InstallationListView(LoginRequiredMixin, ListView):
                 pass
             AuditLog.objects.create(actor=request.user, action='create_installation', details=f'designation={designation}')
             messages.success(request, 'Installation créée.')
-        elif action == 'edit_installation':
-            pk = request.POST.get('pk')
-            try:
-                it = Installation.objects.get(pk=pk)
-                it.designation = request.POST.get('designation', it.designation).strip()
-                it.reference = request.POST.get('reference', it.reference).strip()
-                it.marque = request.POST.get('marque', it.marque).strip()
-                it.gisement = request.POST.get('gisement', it.gisement).strip()
-                it.local = request.POST.get('local', it.local).strip()
-                bigrame_id = request.POST.get('bigrame_id')
-                photo = request.FILES.get('photo')
-                if photo:
-                    it.photo = photo
-                it.ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first() if request.POST.get('ship_id') else None
-                it.service = Service.objects.filter(pk=request.POST.get('service_id')).first() if request.POST.get('service_id') else None
-                it.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
-                it.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
-                it.location = Location.objects.filter(pk=request.POST.get('location_id')).first() if request.POST.get('location_id') else None
-                it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
-                iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
-                if iso_period in ('M','T','A'):
-                    it.iso_periodicity = iso_period
-                it.save()
-                # Met à jour les champs personnalisés si fournis
-                try:
-                    import json
-                    extras_json = request.POST.get('extra_fields')
-                    if extras_json is not None:
-                        InstallationExtraField.objects.filter(installation=it).delete()
-                        extras = json.loads(extras_json) if extras_json else []
-                        order = 0
-                        for ex in extras:
-                            lbl = (ex.get('label') or '').strip()
-                            val = (ex.get('value') or '').strip()
-                            if not lbl:
-                                continue
-                            InstallationExtraField.objects.create(
-                                installation=it, label=lbl, value=val, order=order, created_by=request.user
-                            )
-                            order += 1
-                except Exception:
-                    pass
-                AuditLog.objects.create(actor=request.user, action='edit_installation', details=f'id={it.id}')
-                messages.success(request, 'Installation mise à jour.')
-            except Installation.DoesNotExist:
-                pass
         elif action == 'delete_installation':
             pk = request.POST.get('pk')
-            Installation.objects.filter(pk=pk).delete()
-            messages.success(request, 'Installation supprimée.')
+            # Périmètre : une installation hors périmètre est traitée comme introuvable.
+            supprimees = self.get_queryset().filter(pk=pk).delete()[0]
+            if supprimees:
+                messages.success(request, 'Installation supprimée.')
+            else:
+                messages.error(request, 'Installation introuvable.')
         return redirect('installation-list')
 
 
-class InstallationDetailView(LoginRequiredMixin, DetailView):
+# Import placé ici (après les helpers ci-dessus, avant leur premier usage) plutôt
+# qu'en tête de fichier : installation_actions.py importe lui-même certains de ces
+# helpers (_org_dans_perimetre, _resoudre_parent_valide, _afficher_erreur_validation)
+# depuis ce module — les définir avant cet import évite un import circulaire.
+from .installation_actions import ACTION_HANDLERS
+
+
+class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
     model = Installation
     template_name = 'assets/installation_detail.html'
 
     # Actions liées aux tâches d'entretien (InstallationMaintenance) : réservées
-    # aux CHEF_SERVICE et au-dessus, cf. RolePermission déjà utilisé côté API DRF.
+    # par défaut aux CHEF_SERVICE et au-dessus, seuil configurable par navire
+    # (matrix/core/role_thresholds.py, "installation_entretien_gestion").
     MAINTENANCE_WRITE_ACTIONS = {
         'add_maintenance',
         'edit_maintenance',
@@ -791,6 +1392,15 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
         'delete_maintenance_attachment',
     }
 
+    # Actions de gestion de la fiche installation elle-même (hors tâches d'entretien) :
+    # même seuils que sur la liste (AssetListView/InstallationListView) —
+    # installation_ecriture_simple pour l'édition simple,
+    # installation_gestion_avancee pour la suppression. Corrige le
+    # contournement possible via la fiche détail, ces deux actions n'étant pas
+    # dans MAINTENANCE_WRITE_ACTIONS (T-SEC).
+    INSTALLATION_WRITE_ACTIONS = {'edit_installation'}
+    INSTALLATION_DELETE_ACTIONS = {'delete_installation'}
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['ships'] = Ship.objects.order_by('name')
@@ -798,6 +1408,7 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
+        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, options
         # limitées au même secteur que l'installation courante (même périmètre),
         # en excluant l'installation elle-même et ses sous-ensembles (évite un choix
@@ -819,6 +1430,10 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
             .order_by('-date')
         )
         ctx['parts'] = InstallationPart.objects.filter(installation=self.object).order_by('name')
+        # Pièces de stock affiliées (T-FEAT stock détaillé) : lien optionnel côté
+        # StockPiece (logistics), affiché ici en lecture seule dans l'onglet
+        # « Pièces », la gestion du stock se faisant depuis /logistics/stock/.
+        ctx['pieces_stock'] = StockPiece.objects.filter(installation=self.object).order_by('reference')
         ctx['extra_fields'] = list(self.object.extra_fields.all())
         # Entretien: liste des tâches d'entretien définies sur l'installation
         try:
@@ -867,7 +1482,15 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
                 next_days = None
         ctx['vibration_next_date'] = next_date
         ctx['vibration_next_days'] = next_days
+        ctx['vibration_retard_jours'] = -next_days if next_days is not None and next_days < 0 else 0
         ctx['vibration_last_state'] = last_state
+        # Frise visuelle de l'évolution des états A/B/C (principe n°5 CLAUDE.md :
+        # le tableau brut existant ne donne aucune vue d'ensemble de la tendance).
+        # 100% SVG/CSS, même famille que l'arbre de compétences (training) : pas
+        # de nouvelle dépendance JS. Limité aux 20 relevés les plus récents, dans
+        # l'ordre chronologique (du plus ancien au plus récent, lecture naturelle),
+        # pour rester lisible sans défiler indéfiniment.
+        ctx['vibration_timeline'] = list(reversed(vib_logs[:20]))
         # Isolement: relevés (Ohm)
         try:
             iso_logs = list(
@@ -900,6 +1523,27 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
         ctx['isolation_last'] = isolation_last
         ctx['isolation_next_date'] = isolation_next_date
         ctx['isolation_next_days'] = isolation_next_days
+        # Courbe de tendance (principe n°5 CLAUDE.md) : même pattern Chart.js que
+        # hoursPerMonthChart, avec une ligne horizontale au seuil d'alerte. Ordre
+        # chronologique (du plus ancien au plus récent) pour une lecture naturelle
+        # de gauche à droite.
+        iso_logs_asc = list(reversed(iso_logs))
+        ctx['isolation_chart_labels_json'] = json.dumps(
+            [r.date.strftime('%d/%m/%Y') for r in iso_logs_asc]
+        )
+        ctx['isolation_chart_values_json'] = json.dumps(
+            [float(r.ohms) for r in iso_logs_asc]
+        )
+        ctx['isolation_seuil_ohms'] = self.object.isolation_seuil_ohms
+        # Estimation de dérive : réutilise la régression linéaire déjà utilisée par
+        # notifications/tasks.py::detect_installation_drift, affichée ici en clair
+        # plutôt que laissée uniquement dans les alertes.
+        ctx['isolation_jours_avant_seuil'] = None
+        if self.object.isolation_seuil_ohms:
+            releves = [(r.date, float(r.ohms)) for r in iso_logs]
+            ctx['isolation_jours_avant_seuil'] = jours_avant_franchissement_seuil(
+                releves, float(self.object.isolation_seuil_ohms), sens="BAISSE"
+            )
         # Heure de marche: relevés et indicateurs (tolère absence de table/colonne avant migration)
         try:
             logs = list(
@@ -962,611 +1606,287 @@ class InstallationDetailView(LoginRequiredMixin, DetailView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
-        if action in self.MAINTENANCE_WRITE_ACTIONS and user_role_level(request.user) < RoleLevel.CHEF_SERVICE:
+        if action in self.MAINTENANCE_WRITE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_entretien_gestion'):
+            raise PermissionDenied
+        if action in self.INSTALLATION_WRITE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_ecriture_simple'):
+            raise PermissionDenied
+        if action in self.INSTALLATION_DELETE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_gestion_avancee'):
             raise PermissionDenied
         inst = self.get_object()
         tab = (request.POST.get('tab') or '').strip()
         tab = tab if tab in ('infos','histo','parts','hours','vibration','isolement','entretien') else ''
         qs = f"?tab={tab}" if tab else ''
-        if action == 'edit_installation':
-            pk = request.POST.get('pk')
-            try:
-                it = Installation.objects.get(pk=pk)
-                it.designation = request.POST.get('designation', it.designation).strip()
-                it.reference = request.POST.get('reference', it.reference).strip()
-                it.marque = request.POST.get('marque', it.marque).strip()
-                it.gisement = request.POST.get('gisement', it.gisement).strip()
-                it.local = request.POST.get('local', it.local).strip()
-                bigrame_id = request.POST.get('bigrame_id')
-                photo = request.FILES.get('photo')
-                if photo:
-                    it.photo = photo
-                it.ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first() if request.POST.get('ship_id') else None
-                it.service = Service.objects.filter(pk=request.POST.get('service_id')).first() if request.POST.get('service_id') else None
-                it.sector = Sector.objects.filter(pk=request.POST.get('sector_id')).first() if request.POST.get('sector_id') else None
-                it.section = Section.objects.filter(pk=request.POST.get('section_id')).first() if request.POST.get('section_id') else None
-                it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
-                # Périodicité isolement
-                iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
-                if iso_period in ('M','T','A'):
-                    it.iso_periodicity = iso_period
-                erreur_parent = _resoudre_parent_valide(request, it, Installation)
-                if erreur_parent:
-                    messages.error(request, erreur_parent)
-                    return redirect(f"/installations/{pk}/{qs}")
-                try:
-                    it.full_clean()
-                except ValidationError as exc:
-                    _afficher_erreur_validation(request, exc)
-                    return redirect(f"/installations/{pk}/{qs}")
-                it.save()
-                # Met à jour les champs personnalisés si fournis
-                try:
-                    import json
-                    extras_json = request.POST.get('extra_fields')
-                    if extras_json is not None:
-                        InstallationExtraField.objects.filter(installation=it).delete()
-                        extras = json.loads(extras_json) if extras_json else []
-                        order = 0
-                        for ex in extras:
-                            lbl = (ex.get('label') or '').strip()
-                            val = (ex.get('value') or '').strip()
-                            if not lbl:
-                                continue
-                            InstallationExtraField.objects.create(
-                                installation=it, label=lbl, value=val, order=order, created_by=request.user
-                            )
-                            order += 1
-                except Exception:
-                    pass
-                AuditLog.objects.create(actor=request.user, action='edit_installation', details=f'id={it.id}')
-                messages.success(request, 'Installation mise à jour.')
-            except Installation.DoesNotExist:
-                messages.error(request, "Installation introuvable")
-            return redirect(f"/installations/{pk}/{qs}")
-        elif action == 'delete_installation':
-            pk = request.POST.get('pk')
-            Installation.objects.filter(pk=pk).delete()
-            messages.success(request, 'Installation supprimée.')
-            return redirect('installation-list')
-        elif action == 'add_event':
-            label = request.POST.get('label', '').strip()
-            notes = request.POST.get('notes', '').strip()
-            date_str = request.POST.get('date', '').strip()
-            if not label:
-                messages.error(request, "Le champ 'Événement' est requis.")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            # Parse date JJ/MM/AAAA
-            ev_date = None
-            if date_str:
-                try:
-                    dt = datetime.strptime(date_str, '%d/%m/%Y')
-                    ev_date = timezone.make_aware(datetime.combine(dt.date(), time(0, 0)), timezone.get_current_timezone())
-                except Exception:
-                    ev_date = None
-            ev = InstallationEvent.objects.create(
-                installation=inst,
-                label=label,
-                notes=notes,
-                date=ev_date or timezone.now(),
-                created_by=request.user,
-                updated_by=request.user,
-            )
-            for f in request.FILES.getlist('attachments'):
-                InstallationEventAttachment.objects.create(event=ev, file=f, created_by=request.user, updated_by=request.user)
-            AuditLog.objects.create(actor=request.user, action='add_installation_event', details=f'installation_id={inst.id}, event_id={ev.id}')
-            messages.success(request, 'Événement ajouté.')
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'edit_event':
-            event_id = request.POST.get('event_id')
-            try:
-                ev = InstallationEvent.objects.get(pk=event_id, installation=inst)
-            except InstallationEvent.DoesNotExist:
-                messages.error(request, "Événement introuvable")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            ev.label = request.POST.get('label', ev.label).strip()
-            ev.notes = request.POST.get('notes', ev.notes or '').strip()
-            date_str = request.POST.get('date', '').strip()
-            if date_str:
-                try:
-                    dt = datetime.strptime(date_str, '%d/%m/%Y')
-                    new_dt = timezone.make_aware(datetime.combine(dt.date(), time(0, 0)), timezone.get_current_timezone())
-                    ev.date = new_dt
-                except Exception:
-                    pass
-            ev.updated_by = request.user
-            ev.save()
-            for f in request.FILES.getlist('attachments'):
-                InstallationEventAttachment.objects.create(event=ev, file=f, created_by=request.user, updated_by=request.user)
-            AuditLog.objects.create(actor=request.user, action='edit_installation_event', details=f'event_id={ev.id}')
-            messages.success(request, "Événement mis à jour.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'delete_event_attachment':
-            event_id = request.POST.get('event_id')
-            att_id = request.POST.get('attachment_id')
-            try:
-                ev = InstallationEvent.objects.get(pk=event_id, installation=inst)
-            except InstallationEvent.DoesNotExist:
-                messages.error(request, "Événement introuvable")
-                return redirect(f"/installations/{inst.id}/")
-            deleted = InstallationEventAttachment.objects.filter(event=ev, pk=att_id).delete()[0]
-            if deleted:
-                AuditLog.objects.create(actor=request.user, action='delete_installation_event_attachment', details=f'attachment_id={att_id}')
-                messages.success(request, 'Pièce jointe supprimée.')
-            else:
-                messages.error(request, "Pièce jointe introuvable")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'delete_event':
-            event_id = request.POST.get('event_id')
-            InstallationEvent.objects.filter(pk=event_id, installation=inst).delete()
-            AuditLog.objects.create(actor=request.user, action='delete_installation_event', details=f'event_id={event_id}')
-            messages.success(request, 'Événement supprimé.')
-            return redirect(f"/installations/{inst.id}/{qs}")
-        # Entretien: création d'une tâche
-        elif action == 'add_maintenance':
-            periodicity = (request.POST.get('periodicity') or '').strip()
-            title = (request.POST.get('title') or '').strip()
-            description = (request.POST.get('description') or '').strip()
-            # Parse durée HH:MM -> minutes
-            try:
-                hours = int((request.POST.get('planned_duration_hours') or '0') or 0)
-            except Exception:
-                hours = 0
-            try:
-                minutes = int((request.POST.get('planned_duration_minutes') or '0') or 0)
-            except Exception:
-                minutes = 0
-            minutes = max(0, min(59, minutes))
-            duration = max(0, hours * 60 + minutes)
-            people = int((request.POST.get('people_count') or '1') or 1)
-            competence = (request.POST.get('competence') or 'BORD').strip().upper()
-            if competence not in ('BORD','SLM','INDUSTRIEL'):
-                competence = 'BORD'
-            if not title:
-                messages.error(request, "Le titre est requis.")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            m = InstallationMaintenance.objects.create(
-                installation=inst,
-                periodicity=periodicity or '—',
-                title=title,
-                description=description,
-                planned_duration_min=max(0, duration),
-                people_count=max(1, people),
-                competence=competence,
-                created_by=request.user,
-                updated_by=request.user,
-            )
-            for f in request.FILES.getlist('attachments'):
-                InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
-            AuditLog.objects.create(actor=request.user, action='add_installation_maintenance', details=f'maintenance_id={m.id}')
-            messages.success(request, "Entretien ajouté.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-            for f in request.FILES.getlist('attachments'):
-                InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
-            AuditLog.objects.create(actor=request.user, action='add_installation_maintenance', details=f'maintenance_id={m.id}')
-            messages.success(request, "Entretien ajouté.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        # Entretien: ajout de PJ sur une tâche existante
-        elif action == 'add_maintenance_attachment':
-            mid = request.POST.get('maintenance_id')
-            try:
-                m = InstallationMaintenance.objects.get(pk=mid, installation=inst)
-            except InstallationMaintenance.DoesNotExist:
-                messages.error(request, "Tâche d'entretien introuvable")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            count = 0
-            for f in request.FILES.getlist('attachments'):
-                InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
-                count += 1
-            AuditLog.objects.create(actor=request.user, action='add_installation_maintenance_attachment', details=f'maintenance_id={m.id}; files={count}')
-            messages.success(request, f"{count} pièce(s) jointe(s) ajoutée(s).")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        # Entretien: suppression d'une PJ
-        elif action == 'delete_maintenance_attachment':
-            mid = request.POST.get('maintenance_id')
-            att_id = request.POST.get('attachment_id')
-            try:
-                m = InstallationMaintenance.objects.get(pk=mid, installation=inst)
-            except InstallationMaintenance.DoesNotExist:
-                messages.error(request, "Tâche d'entretien introuvable")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            deleted = InstallationMaintenanceAttachment.objects.filter(maintenance=m, pk=att_id).delete()[0]
-            if deleted:
-                AuditLog.objects.create(actor=request.user, action='delete_installation_maintenance_attachment', details=f'attachment_id={att_id}')
-                messages.success(request, 'Pièce jointe supprimée.')
-            else:
-                messages.error(request, "Pièce jointe introuvable")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        # Entretien: suppression de la tâche
-        elif action == 'delete_maintenance':
-            mid = request.POST.get('maintenance_id')
-            InstallationMaintenance.objects.filter(pk=mid, installation=inst).delete()
-            AuditLog.objects.create(actor=request.user, action='delete_installation_maintenance', details=f'maintenance_id={mid}')
-            messages.success(request, "Entretien supprimé.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'edit_maintenance':
-            mid = request.POST.get('maintenance_id')
-            try:
-                m = InstallationMaintenance.objects.get(pk=mid, installation=inst)
-            except InstallationMaintenance.DoesNotExist:
-                messages.error(request, "Tâche d'entretien introuvable")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            m.periodicity = (request.POST.get('periodicity') or m.periodicity or '').strip()
-            m.title = (request.POST.get('title') or m.title or '').strip()
-            m.description = (request.POST.get('description') or m.description or '').strip()
-            try:
-                hours = int((request.POST.get('planned_duration_hours') or '') or 0)
-            except Exception:
-                hours = m.planned_duration_min // 60
-            try:
-                minutes = int((request.POST.get('planned_duration_minutes') or '') or 0)
-            except Exception:
-                minutes = m.planned_duration_min % 60
-            minutes = max(0, min(59, minutes))
-            m.planned_duration_min = max(0, hours * 60 + minutes)
-            try:
-                people = int((request.POST.get('people_count') or '') or m.people_count)
-            except Exception:
-                people = m.people_count
-            m.people_count = max(1, people)
-            comp = (request.POST.get('competence') or m.competence or '').strip().upper()
-            m.competence = comp if comp in ('BORD','SLM','INDUSTRIEL') else m.competence
-            # Mode de suivi de l'échéance (calendaire / compteur / le premier des deux) et
-            # champs associés. On mémorise l'ancien mode avant modification pour tracer
-            # le changement dans l'historique de l'installation (InstallationEvent).
-            ancien_mode = m.mode_declenchement
-            ancien_mode_display = m.get_mode_declenchement_display()
-            nouveau_mode = (request.POST.get('mode_declenchement') or '').strip().upper()
-            if nouveau_mode in ModeDeclenchement.values:
-                m.mode_declenchement = nouveau_mode
-            intervalle_raw = (request.POST.get('intervalle') or '').strip()
-            if intervalle_raw:
-                try:
-                    m.intervalle = max(1, int(intervalle_raw))
-                except ValueError:
-                    pass
-            unite = (request.POST.get('unite_intervalle') or '').strip().upper()
-            if unite in dict(InstallationMaintenance.UNITE_INTERVALLE_CHOICES):
-                m.unite_intervalle = unite
-            seuil_raw = (request.POST.get('seuil_heures') or '').strip()
-            if seuil_raw:
-                try:
-                    m.seuil_heures = max(0, int(seuil_raw))
-                except ValueError:
-                    pass
-            m.updated_by = request.user
-            m.save()
-            # Traçabilité du changement de mode de suivi : historisé via InstallationEvent
-            # (système d'historique déjà existant, pas de nouveau mécanisme d'audit).
-            if m.mode_declenchement != ancien_mode:
-                utilisateur = request.user.get_full_name() or request.user.username
-                InstallationEvent.objects.create(
-                    installation=inst,
-                    label="Changement mode de suivi maintenance",
-                    notes=(
-                        f"{m.title} : {ancien_mode_display} → {m.get_mode_declenchement_display()} "
-                        f"(par {utilisateur})"
-                    ),
-                    created_by=request.user,
-                    updated_by=request.user,
-                )
-            # Ajout de nouvelles pièces jointes lors de la modification
-            for f in request.FILES.getlist('attachments'):
-                InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
-            AuditLog.objects.create(actor=request.user, action='edit_installation_maintenance', details=f'maintenance_id={m.id}')
-            messages.success(request, "Entretien mis à jour.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'add_part':
-            name = request.POST.get('designation', '').strip()
-            nno = request.POST.get('nno', '').strip()
-            reference = request.POST.get('reference', '').strip()
-            marque = request.POST.get('marque', '').strip()
-            if not name:
-                messages.error(request, "La désignation de la pièce est requise.")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            p = InstallationPart.objects.create(
-                installation=inst,
-                name=name,
-                nno=nno,
-                reference=reference,
-                marque=marque,
-                created_by=request.user,
-                updated_by=request.user,
-            )
-            photo = request.FILES.get('photo')
-            if photo:
-                p.photo = photo
-                p.save(update_fields=['photo'])
-            AuditLog.objects.create(actor=request.user, action='add_installation_part', details=f'part_id={p.id}')
-            messages.success(request, 'Pièce ajoutée.')
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'edit_part':
-            part_id = request.POST.get('part_id')
-            try:
-                p = InstallationPart.objects.get(pk=part_id, installation=inst)
-            except InstallationPart.DoesNotExist:
-                messages.error(request, "Pièce introuvable")
-                return redirect(f"/installations/{inst.id}/")
-            p.name = request.POST.get('designation', p.name).strip()
-            p.nno = request.POST.get('nno', p.nno or '').strip()
-            p.reference = request.POST.get('reference', p.reference or '').strip()
-            p.marque = request.POST.get('marque', p.marque or '').strip()
-            photo = request.FILES.get('photo')
-            if photo:
-                p.photo = photo
-            p.updated_by = request.user
-            p.save()
-            AuditLog.objects.create(actor=request.user, action='edit_installation_part', details=f'part_id={p.id}')
-            messages.success(request, 'Pièce mise à jour.')
-            
-        elif action == 'delete_part':
-            part_id = request.POST.get('part_id')
-            InstallationPart.objects.filter(pk=part_id, installation=inst).delete()
-            AuditLog.objects.create(actor=request.user, action='delete_installation_part', details=f'part_id={part_id}')
-            messages.success(request, 'Pièce supprimée.')
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'add_hour_reading':
-            date_str = request.POST.get('date', '').strip()
-            hours_str = request.POST.get('hours', '').strip()
-            is_visit = bool(request.POST.get('is_visit'))
-            if not hours_str:
-                messages.error(request, "Le champ 'Heures' est requis.")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            # Parse date JJ/MM/AAAA -> DateField
-            rd_date = None
-            if date_str:
-                try:
-                    dt = datetime.strptime(date_str, '%d/%m/%Y').date()
-                    rd_date = dt
-                except Exception:
-                    rd_date = None
-            try:
-                val = float(hours_str.replace(',', '.'))
-                if val < 0:
-                    val = 0.0
-            except Exception:
-                messages.error(request, "Valeur d'heures invalide.")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            try:
-                reading = InstallationHourReading.objects.create(
-                    installation=inst,
-                    date=rd_date or timezone.localdate(),
-                    hours=val,
-                    is_visit=is_visit,
-                    created_by=request.user,
-                    updated_by=request.user,
-                )
-            except OperationalError:
-                messages.error(request, "Base non à jour: appliquez les migrations (assets).")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            AuditLog.objects.create(actor=request.user, action='add_installation_hour_reading', details=f'reading_id={reading.id}')
-            messages.success(request, "Relevé d'heures ajouté.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'edit_hour_reading':
-            rid = request.POST.get('reading_id')
-            try:
-                reading = InstallationHourReading.objects.get(pk=rid, installation=inst)
-            except InstallationHourReading.DoesNotExist:
-                messages.error(request, "Relevé introuvable")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            date_str = request.POST.get('date', '').strip()
-            hours_str = request.POST.get('hours', '').strip()
-            is_visit = bool(request.POST.get('is_visit'))
-            if date_str:
-                try:
-                    reading.date = datetime.strptime(date_str, '%d/%m/%Y').date()
-                except Exception:
-                    pass
-            if hours_str:
-                try:
-                    val = float(hours_str.replace(',', '.'))
-                    reading.hours = val if val >= 0 else 0.0
-                except Exception:
-                    pass
-            try:
-                reading.is_visit = is_visit
-                reading.updated_by = request.user
-                reading.save()
-            except OperationalError:
-                messages.error(request, "Base non à jour: appliquez les migrations (assets).")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            AuditLog.objects.create(actor=request.user, action='edit_installation_hour_reading', details=f'reading_id={reading.id}')
-            messages.success(request, "Relevé mis à jour.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'delete_hour_reading':
-            rid = request.POST.get('reading_id')
-            InstallationHourReading.objects.filter(pk=rid, installation=inst).delete()
-            AuditLog.objects.create(actor=request.user, action='delete_installation_hour_reading', details=f'reading_id={rid}')
-            messages.success(request, "Relevé supprimé.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'edit_vibration':
-            rid = request.POST.get('reading_id')
-            try:
-                vb = InstallationVibrationReading.objects.get(pk=rid, installation=inst)
-            except InstallationVibrationReading.DoesNotExist:
-                messages.error(request, "Mesure introuvable")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            date_str = request.POST.get('date', '').strip()
-            state = (request.POST.get('state') or '').strip().upper()
-            note = request.POST.get('note', '').strip()
-            if date_str:
-                try:
-                    vb.date = datetime.strptime(date_str, '%d/%m/%Y').date()
-                except Exception:
-                    pass
-            if state in ('A','B','C'):
-                vb.state = state
-            vb.note = note
-            try:
-                vb.updated_by = request.user
-                vb.save()
-            except OperationalError:
-                messages.error(request, "Base non à jour: appliquez les migrations (assets).")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            AuditLog.objects.create(actor=request.user, action='edit_installation_vibration', details=f'reading_id={vb.id}')
-            messages.success(request, "Mesure de vibration mise à jour.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'delete_vibration':
-            rid = request.POST.get('reading_id')
-            InstallationVibrationReading.objects.filter(pk=rid, installation=inst).delete()
-            AuditLog.objects.create(actor=request.user, action='delete_installation_vibration', details=f'reading_id={rid}')
-            messages.success(request, "Mesure supprimée.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'add_vibration':
-            date_str = request.POST.get('date', '').strip()
-            state = (request.POST.get('state') or '').strip().upper()
-            note = request.POST.get('note', '').strip()
-            if state not in ('A','B','C'):
-                messages.error(request, "État vibratoire invalide (A/B/C).")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            vb_date = timezone.localdate()
-            if date_str:
-                try:
-                    vb_date = datetime.strptime(date_str, '%d/%m/%Y').date()
-                except Exception:
-                    pass
-            try:
-                reading = InstallationVibrationReading.objects.create(
-                    installation=inst,
-                    date=vb_date,
-                    state=state,
-                    note=note,
-                    created_by=request.user,
-                    updated_by=request.user,
-                )
-            except OperationalError:
-                messages.error(request, "Base non à jour: appliquez les migrations (assets).")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            AuditLog.objects.create(actor=request.user, action='add_installation_vibration', details=f'reading_id={reading.id}')
-            messages.success(request, "Mesure de vibration ajoutée.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'add_isolation':
-            date_str = request.POST.get('date', '').strip()
-            ohm_str = request.POST.get('ohms', '').strip()
-            note = request.POST.get('note', '').strip()
-            if not ohm_str:
-                messages.error(request, "La mesure (Ohm) est requise.")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            iso_date = timezone.localdate()
-            if date_str:
-                try:
-                    iso_date = datetime.strptime(date_str, '%d/%m/%Y').date()
-                except Exception:
-                    pass
-            try:
-                val = float(ohm_str.replace(',', '.'))
-            except Exception:
-                messages.error(request, "Valeur de mesure invalide.")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            try:
-                rd = InstallationIsolationReading.objects.create(
-                    installation=inst,
-                    date=iso_date,
-                    ohms=val,
-                    note=note,
-                    created_by=request.user,
-                    updated_by=request.user,
-                )
-            except OperationalError:
-                messages.error(request, "Base non à jour: appliquez les migrations (assets).")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            AuditLog.objects.create(actor=request.user, action='add_installation_isolation', details=f'reading_id={rd.id}')
-            messages.success(request, "Mesure d'isolement ajoutée.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'edit_isolation':
-            rid = request.POST.get('reading_id')
-            try:
-                rd = InstallationIsolationReading.objects.get(pk=rid, installation=inst)
-            except InstallationIsolationReading.DoesNotExist:
-                messages.error(request, "Mesure d'isolement introuvable")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            date_str = request.POST.get('date', '').strip()
-            ohm_str = request.POST.get('ohms', '').strip()
-            note = request.POST.get('note', '').strip()
-            if date_str:
-                try:
-                    rd.date = datetime.strptime(date_str, '%d/%m/%Y').date()
-                except Exception:
-                    pass
-            if ohm_str:
-                try:
-                    val = float(ohm_str.replace(',', '.'))
-                    rd.ohms = val
-                except Exception:
-                    pass
-            rd.note = note
-            try:
-                rd.updated_by = request.user
-                rd.save()
-            except OperationalError:
-                messages.error(request, "Base non à jour: appliquez les migrations (assets).")
-                return redirect(f"/installations/{inst.id}/{qs}")
-            AuditLog.objects.create(actor=request.user, action='edit_installation_isolation', details=f'reading_id={rd.id}')
-            messages.success(request, "Mesure d'isolement mise à jour.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        elif action == 'delete_isolation':
-            rid = request.POST.get('reading_id')
-            InstallationIsolationReading.objects.filter(pk=rid, installation=inst).delete()
-            AuditLog.objects.create(actor=request.user, action='delete_installation_isolation', details=f'reading_id={rid}')
-            messages.success(request, "Mesure d'isolement supprimée.")
-            return redirect(f"/installations/{inst.id}/{qs}")
-        return HttpResponseBadRequest('Action non prise en charge')
+        handler = ACTION_HANDLERS.get(action)
+        if handler is None:
+            return HttpResponseBadRequest('Action non prise en charge')
+        return handler(self, request, inst, qs)
 
-
-class LocationListView(LoginRequiredMixin, ListView):
-    model = Location
-    template_name = 'assets/locations.html'
-    context_object_name = 'locations'
-
-    def get_queryset(self):
-        qs = Location.objects.select_related('ship', 'parent').order_by('ship__name', 'name')
-        ship_id = self.request.GET.get('ship')
-        if ship_id:
-            qs = qs.filter(ship_id=ship_id)
-        q = self.request.GET.get('q', '').strip()
-        if q:
-            qs = qs.filter(name__icontains=q)
-        return qs
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['parents'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
-        return ctx
-
-    def post(self, request, *args, **kwargs):
-        action = request.POST.get('action')
-        if action == 'create_location':
-            name = request.POST.get('name', '').strip()
-            ship_id = request.POST.get('ship_id')
-            parent_id = request.POST.get('parent_id')
-            if name and ship_id:
-                loc = Location.objects.create(name=name, ship=Ship.objects.get(pk=ship_id))
-                if parent_id:
-                    loc.parent = Location.objects.filter(pk=parent_id).first()
-                    loc.save()
-                AuditLog.objects.create(actor=request.user, action='create_location', details=f'name={name}')
-                messages.success(request, 'Emplacement créé.')
-        elif action == 'edit_location':
-            pk = request.POST.get('pk')
-            try:
-                loc = Location.objects.get(pk=pk)
-                loc.name = request.POST.get('name', loc.name).strip()
-                ship_id = request.POST.get('ship_id')
-                if ship_id:
-                    try:
-                        loc.ship = Ship.objects.get(pk=ship_id)
-                    except Ship.DoesNotExist:
-                        pass
-                parent_id = request.POST.get('parent_id')
-                loc.parent = Location.objects.filter(pk=parent_id).first() if parent_id else None
-                loc.save()
-                AuditLog.objects.create(actor=request.user, action='edit_location', details=f'id={loc.id}')
-                messages.success(request, 'Emplacement mis à jour.')
-            except Location.DoesNotExist:
-                pass
-        elif action == 'delete_location':
-            pk = request.POST.get('pk'); Location.objects.filter(pk=pk).delete(); messages.success(request, 'Emplacement supprimé.')
-        return redirect('location-list')
 
 # (Standalone InstallationSettingsView removed; settings are now managed in global Settings > Installations)
+# (LocationListView et la page /locations/ ont été retirées : la gestion des
+# emplacements se fait désormais directement depuis les formulaires matériel et
+# installation, avec création à la volée via _resoudre_emplacement ci-dessus —
+# plus besoin d'un écran de gestion séparé.)
+
+
+def _navire_selectionne(request):
+    """Détermine le navire à configurer pour le plan visuel (ponts/zones).
+
+    Un utilisateur rattaché à un navire précis (ship_id_for_user) ne peut
+    configurer que celui-ci. Un utilisateur à accès flotte entière
+    (is_master_admin, cf. matrix/core/scopes.py) choisit le navire via le
+    sélecteur ?navire=, même principe que le sélecteur de navire de
+    SettingsView (matrix/views.py). Renvoie (navire, liste_des_navires ou None
+    si l'utilisateur n'a pas de sélecteur à afficher)."""
+    if is_master_admin(request.user):
+        navires = list(Ship.objects.order_by('name'))
+        navire_id = request.GET.get('navire') or request.POST.get('navire_id')
+        navire = None
+        if navire_id:
+            navire = next((n for n in navires if str(n.pk) == str(navire_id)), None)
+        if navire is None:
+            navire = navires[0] if navires else None
+        return navire, navires
+    navire_id = ship_id_for_user(request.user)
+    navire = Ship.objects.filter(pk=navire_id).first() if navire_id else None
+    return navire, None
+
+
+class PlanNavireListView(LoginRequiredMixin, View):
+    """Configuration des ponts d'un navire (Deck) : création, renommage,
+    réordonnancement, suppression, et accès à l'éditeur de zones de chaque
+    pont (voir PlanNavireDeckView ci-dessous).
+
+    Réservée aux CHEF_SERVICE et rôles supérieurs (_peut_configurer_plan_navire),
+    restreinte au navire de l'utilisateur — voir _navire_selectionne."""
+
+    template_name = 'assets/plan_navire_list.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not _peut_configurer_plan_navire(request.user):
+            raise PermissionDenied("Réservé aux chefs de service et aux rôles supérieurs.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        navire, navires = _navire_selectionne(request)
+        contexte = {
+            'navire': navire,
+            'navires': navires,
+            'multi_navires': navires is not None,
+        }
+        if navire is not None:
+            contexte['ponts'] = Deck.objects.filter(ship=navire).order_by('order', 'name')
+        return render(request, self.template_name, contexte)
+
+    def post(self, request):
+        navire, _navires = _navire_selectionne(request)
+        if navire is None:
+            messages.error(request, "Aucune unité sélectionnée : impossible de configurer un pont.")
+            return redirect('plan-navire-list')
+
+        action = request.POST.get('action')
+        if action == 'create_deck':
+            nom = request.POST.get('name', '').strip()
+            if not nom:
+                messages.error(request, "Le nom du pont est obligatoire.")
+            else:
+                ordre_max = Deck.objects.filter(ship=navire).aggregate(m=Max('order'))['m'] or 0
+                Deck.objects.create(ship=navire, name=nom, order=ordre_max + 1)
+                messages.success(request, "Pont créé.")
+        elif action == 'rename_deck':
+            pont = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).first()
+            nom = request.POST.get('name', '').strip()
+            if pont and nom:
+                pont.name = nom
+                pont.save(update_fields=['name'])
+                messages.success(request, "Pont renommé.")
+        elif action == 'delete_deck':
+            supprimes, _detail = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).delete()
+            if supprimes:
+                messages.success(request, "Pont supprimé.")
+        elif action in ('move_up', 'move_down'):
+            pont = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).first()
+            if pont:
+                ponts = list(Deck.objects.filter(ship=navire).order_by('order', 'name'))
+                idx = next((i for i, p in enumerate(ponts) if p.pk == pont.pk), None)
+                cible = idx - 1 if action == 'move_up' else idx + 1
+                if idx is not None and 0 <= cible < len(ponts):
+                    autre = ponts[cible]
+                    pont.order, autre.order = autre.order, pont.order
+                    Deck.objects.bulk_update([pont, autre], ['order'])
+
+        suffixe = f"?navire={navire.id}" if is_master_admin(request.user) else ""
+        return redirect(f"{reverse('plan-navire-list')}{suffixe}")
+
+
+def _pont_dans_perimetre(request, pk):
+    """Renvoie le pont demandé si son navire correspond au périmètre de
+    l'utilisateur (ou si celui-ci a un accès flotte entière), sinon lève un
+    refus d'accès. Factorisé ici pour être partagé par l'éditeur du plan
+    (PlanNavireDeckView, réservé CHEF_SERVICE+) et sa page de consultation
+    (PlanNavireVueDeckView, ouverte à tous les rôles) : le contrôle de
+    périmètre est identique, seul le seuil de rôle diffère entre les deux."""
+    pont = get_object_or_404(Deck.objects.select_related('ship'), pk=pk)
+    if not is_master_admin(request.user) and ship_id_for_user(request.user) != pont.ship_id:
+        raise PermissionDenied("Ce pont n'appartient pas à votre unité.")
+    return pont
+
+
+class PlanNavireDeckView(LoginRequiredMixin, View):
+    """Éditeur du plan d'un pont : téléversement de l'image de fond, et
+    positionnement précis du matériel dessus par épingle (clic sur le plan,
+    coordonnées en pourcentage — voir le script de assets/plan_navire_deck.html,
+    en JS natif sans dépendance externe). Remplace l'ancien système de zones
+    rectangulaires groupant plusieurs matériels par Emplacement (modèle Zone,
+    supprimé) : chaque épingle représente désormais un seul matériel (Asset),
+    positionné via Asset.plan_deck/position_x/position_y.
+
+    Portée volontairement limitée au matériel mobile (Asset), comme l'était
+    déjà l'ancien système de zones (Zone.etat_materiel ne traitait pas non
+    plus les installations fixes) : ce n'est pas un oubli mais une reprise à
+    l'identique du périmètre existant.
+
+    Même seuil et même contrôle de périmètre que PlanNavireListView."""
+
+    template_name = 'assets/plan_navire_deck.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not _peut_configurer_plan_navire(request.user):
+            raise PermissionDenied("Réservé aux chefs de service et aux rôles supérieurs.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, pk):
+        pont = _pont_dans_perimetre(request, pk)
+        ponts_navire = list(Deck.objects.filter(ship=pont.ship).order_by('order', 'name'))
+        idx = next((i for i, p in enumerate(ponts_navire) if p.pk == pont.pk), 0)
+        materiels_navire = list(
+            Asset.objects.filter(ship=pont.ship).select_related('asset_type', 'plan_deck').order_by('asset_type__name')
+        )
+        positionnes = [a for a in materiels_navire if a.plan_deck_id == pont.pk]
+
+        def _libelle_option(a):
+            if a.plan_deck_id == pont.pk:
+                return f"{a} — déjà positionné ici"
+            if a.plan_deck_id:
+                return f"{a} — actuellement sur {a.plan_deck.name}"
+            return str(a)
+
+        contexte = {
+            'pont': pont,
+            'positionnes': positionnes,
+            'materiels': materiels_navire,
+            'materiels_options': [{'id': str(a.id), 'label': _libelle_option(a)} for a in materiels_navire],
+            'pins_json': json.dumps([
+                {'id': str(a.id), 'label': str(a), 'x': a.position_x, 'y': a.position_y}
+                for a in positionnes if a.position_x is not None and a.position_y is not None
+            ]),
+            'pont_precedent': ponts_navire[idx - 1] if idx > 0 else None,
+            'pont_suivant': ponts_navire[idx + 1] if idx < len(ponts_navire) - 1 else None,
+        }
+        return render(request, self.template_name, contexte)
+
+    def post(self, request, pk):
+        pont = _pont_dans_perimetre(request, pk)
+        action = request.POST.get('action')
+
+        if action == 'upload_image':
+            image = request.FILES.get('image')
+            if image:
+                pont.image = image
+                pont.save(update_fields=['image'])
+                messages.success(request, "Image du plan mise à jour.")
+            else:
+                messages.error(request, "Aucune image sélectionnée.")
+        elif action == 'place_pin':
+            self._positionner_materiel(request, pont)
+        elif action == 'remove_pin':
+            materiel = Asset.objects.filter(pk=request.POST.get('asset_id'), ship=pont.ship, plan_deck=pont).first()
+            if materiel:
+                materiel.plan_deck = None
+                materiel.position_x = None
+                materiel.position_y = None
+                materiel.save(update_fields=['plan_deck', 'position_x', 'position_y'])
+                messages.success(request, "Matériel retiré du plan.")
+
+        return redirect('plan-navire-deck', pk=pont.pk)
+
+    def _positionner_materiel(self, request, pont):
+        materiel = Asset.objects.filter(pk=request.POST.get('asset_id'), ship=pont.ship).first()
+        if materiel is None:
+            messages.error(request, "Matériel introuvable ou hors de votre unité.")
+            return
+        x = _valider_coordonnee_pourcent(request.POST.get('x'))
+        y = _valider_coordonnee_pourcent(request.POST.get('y'))
+        if x is None or y is None:
+            messages.error(request, "Position invalide : cliquez à nouveau sur le plan.")
+            return
+        materiel.plan_deck = pont
+        materiel.position_x = x
+        materiel.position_y = y
+        materiel.save(update_fields=['plan_deck', 'position_x', 'position_y'])
+        messages.success(request, f"« {materiel} » positionné sur le plan.")
+
+
+class PlanNavireVueView(LoginRequiredMixin, View):
+    """Point d'entrée de la consultation du plan visuel du navire (rendu final
+    de la sous-tâche 3/3), ouverte à tous les rôles — contrairement à
+    PlanNavireListView (réservée CHEF_SERVICE+), voir la distinction des deux
+    entrées de navigation dans base.html. Redirige vers le premier pont du
+    navire de l'utilisateur (dans l'ordre Deck.order), ou affiche un message
+    clair si aucun pont n'est encore configuré plutôt qu'une page cassée."""
+
+    template_name = 'assets/plan_navire_vue.html'
+
+    def get(self, request):
+        navire, navires = _navire_selectionne(request)
+        if navire is None:
+            return render(request, self.template_name, {
+                'navire': None, 'navires': navires, 'multi_navires': navires is not None,
+            })
+        premier_pont = Deck.objects.filter(ship=navire).order_by('order', 'name').first()
+        if premier_pont is None:
+            return render(request, self.template_name, {
+                'navire': navire, 'navires': navires, 'multi_navires': navires is not None,
+                'aucun_pont': True,
+            })
+        suffixe = f"?navire={navire.id}" if is_master_admin(request.user) else ""
+        return redirect(f"{reverse('plan-navire-vue-deck', kwargs={'pk': premier_pont.pk})}{suffixe}")
+
+
+class PlanNavireVueDeckView(LoginRequiredMixin, View):
+    """Consultation en lecture seule du plan d'un pont : navigation par
+    onglets entre les ponts du navire (dans l'ordre Deck.order), épingles de
+    matériel affichées en overlay avec un code couleur selon l'état de CE
+    matériel (cf. Asset.etat_plan), et clic sur une épingle pour ouvrir
+    directement sa fiche (AssetDetailView) — remplace l'ancien clic sur une
+    zone qui ouvrait une liste de matériel groupé par emplacement.
+
+    Ouverte à tous les rôles (contrairement à PlanNavireDeckView) : seul le
+    contrôle de périmètre (navire de l'utilisateur) est conservé, via la même
+    fonction _pont_dans_perimetre que l'éditeur."""
+
+    template_name = 'assets/plan_navire_vue.html'
+
+    def get(self, request, pk):
+        pont = _pont_dans_perimetre(request, pk)
+        ponts_navire = list(Deck.objects.filter(ship=pont.ship).order_by('order', 'name'))
+        materiels = list(
+            Asset.objects.filter(plan_deck=pont, position_x__isnull=False, position_y__isnull=False)
+            .select_related('asset_type').order_by('asset_type__name')
+        )
+        epingles = [
+            {
+                'materiel': materiel,
+                'etat': materiel.etat_plan,
+                'url_materiel': reverse('asset-detail', kwargs={'pk': materiel.pk}),
+            }
+            for materiel in materiels
+        ]
+        contexte = {
+            'navire': pont.ship,
+            'pont': pont,
+            'ponts': ponts_navire,
+            'epingles': epingles,
+            'multi_navires': is_master_admin(request.user),
+        }
+        return render(request, self.template_name, contexte)

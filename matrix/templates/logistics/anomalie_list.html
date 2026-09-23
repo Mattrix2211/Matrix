@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Anomalies</h1>
+  <div class="d-flex gap-2 align-items-center">
+    {% if peut_voir_perimetre %}
+    <div class="btn-group" role="group" aria-label="Filtre des anomalies">
+      <a href="?vue=mes" class="btn btn-sm {% if vue == 'mes' %}btn-primary{% else %}btn-outline-primary{% endif %}">Mes signalements</a>
+      <a href="?vue=perimetre" class="btn btn-sm {% if vue == 'perimetre' %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ libelle_perimetre }}</a>
+    </div>
+    {% endif %}
+    <a class="btn btn-primary" href="{% url 'anomalie-create' %}">Signaler une anomalie</a>
+  </div>
+</div>
+
+{# Répartition par statut : cartes cliquables (filtre) + barre empilée #}
+<div class="row g-2 mb-2">
+  {% for etape in etapes %}
+  <div class="col-6 col-md-3">
+    <a class="card text-decoration-none h-100 {% if statut == etape.code %}border-primary{% endif %}" href="?vue={{ vue }}&statut={{ etape.code }}">
+      <div class="card-body py-2">
+        <div class="small text-muted">{{ etape.libelle }}</div>
+        <div class="h3 mb-0 font-mono">{{ etape.nombre }}</div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% if total %}
+<div class="progress mb-3" style="height:8px;" title="Répartition des {{ total }} anomalies par statut">
+  {% for etape in etapes %}
+  <div class="progress-bar" role="progressbar" style="width: {{ etape.pct }}%; background: {% if etape.code == 'SIGNALEE' %}var(--red){% elif etape.code == 'PRISE_EN_COMPTE' %}var(--amber){% elif etape.code == 'TRAITEE' %}var(--signal){% else %}var(--green-tech){% endif %};" title="{{ etape.libelle }} : {{ etape.nombre }}"></div>
+  {% endfor %}
+</div>
+{% endif %}
+{% if statut %}<p class="small"><a href="?vue={{ vue }}">Afficher tous les statuts</a></p>{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>Anomalie</th><th>Équipement / lieu</th><th>Signalée le</th><th>Gravité</th><th>Statut</th></tr>
+      </thead>
+      <tbody>
+        {% for anomalie in anomalies %}
+        <tr onclick="window.location='{% url 'anomalie-detail' anomalie.pk %}'" style="cursor: pointer;">
+          <td>{{ anomalie.titre|truncatechars:70 }}</td>
+          <td>{% if anomalie.installation %}{{ anomalie.installation.designation }}{% elif anomalie.asset %}{{ anomalie.asset }}{% else %}{{ anomalie.localisation|default:"—" }}{% endif %}</td>
+          <td class="font-mono">{{ anomalie.created_at|date:"d/m/Y" }}</td>
+          <td style="min-width:100px;">
+            <span class="font-mono">{{ anomalie.gravite }}</span>
+            <div class="progress mt-1" style="height:6px;" title="Gravité {{ anomalie.gravite }}/5">
+              <div class="progress-bar" role="progressbar" style="width: {% widthratio anomalie.gravite 5 100 %}%; background: {% if anomalie.gravite >= 4 %}var(--red){% elif anomalie.gravite == 3 %}var(--amber){% else %}var(--green-tech){% endif %};"></div>
+            </div>
+          </td>
+          <td>{% include 'logistics/_anomalie_badge.html' %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-4">Aucune anomalie{% if statut %} avec ce statut{% endif %}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

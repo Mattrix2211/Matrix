@@ -1,20 +1,35 @@
 {% extends "base.html" %}
+{% load org_extras %}
 {% block content %}
-<h1 class="h3 mb-3">Paramètres</h1>
+<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules %}Paramètres{% else %}Mes notifications{% endif %}</h1>
 <ul class="nav nav-tabs mb-3">
+  {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
+  {% endif %}
+  {% if user.is_superuser or peut_gerer_responsables %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="/parametre/?tab=utilisateurs">Utilisateurs</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Navires</a></li>
+  {% endif %}
+  {% if user.is_superuser %}
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Unités</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
   <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
+  {% endif %}
+  {% if peut_gerer_seuils %}
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'seuils_role' %}active{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Sécurité</a></li>
+  {% endif %}
+  {% if peut_gerer_modules %}
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'modules' %}active{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a></li>
+  {% endif %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" href="/parametre/?tab=notifications">Notification</a></li>
+  {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'journal' %}active{% endif %}" href="/parametre/?tab=journal">Journal</a></li>
+  {% endif %}
 </ul>
 
 {% if active_tab == 'generale' %}
 <div class="card">
   <div class="card-header">Paramètres généraux
-    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Paramètres généraux" data-bs-content="Paramétrez les options globales de Matrix. Ces réglages s’appliquent à tous les navires et utilisateurs.">
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Paramètres généraux" data-bs-content="Paramétrez les options globales de Matrix. Ces réglages s’appliquent à toutes les unités et utilisateurs.">
       <span class="bi bi-info-circle"></span>
     </button>
   </div>
@@ -24,13 +39,14 @@
 </div>
 {% elif active_tab == 'utilisateurs' %}
 <div class="row g-3">
+  {% if user.is_superuser %}
   <div class="col-12">
-    <p class="text-muted">Grades et Spécialités sont communs à tous les navires. La hiérarchie (Services/Secteurs/Sections) se configure dans l’onglet Hiérarchie.</p>
+    <p class="text-muted">Grades et Spécialités sont communs à toutes les unités. La hiérarchie (Services/Secteurs/Sections) se configure dans l’onglet Hiérarchie.</p>
   </div>
   <div class="col-md-6">
     <div class="card">
       <div class="card-header">Grades
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Grades" data-bs-content="Liste des grades disponibles pour tous les navires. Supprimez un grade lorsqu’il n’est plus utilisé.">
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Grades" data-bs-content="Liste des grades disponibles pour toutes les unités. Supprimez un grade lorsqu’il n’est plus utilisé.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -138,7 +154,44 @@
       </div>
     </div>
   </div>
-  {# Gestion des navires déplacée dans l'onglet dédié #}
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Fonctions de quart
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Fonctions de quart" data-bs-content="Liste des fonctions de quart (ex: Barre, Veille, Machine avant), transversales aux secteurs/services, utilisées pour organiser les listes de quarts du module Quarts/services.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="input-group mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_fonction_quart" />
+          <input class="form-control" name="name" placeholder="Nouvelle fonction de quart" />
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Nom</th><th></th></tr></thead>
+          <tbody>
+          {% for f in fonctions_quart %}
+            <tr>
+              <td>{{ f.name }}</td>
+              <td>
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_fonction_quart" />
+                  <input type="hidden" name="pk" value="{{ f.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="text-muted">Aucune fonction de quart</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {# Gestion des unités déplacée dans l'onglet dédié #}
 
   {# Blocs Services/Secteurs/Sections retirés de l'onglet Utilisateurs; voir onglet Hiérarchie #}
 
@@ -154,7 +207,7 @@
         <table class="table table-sm"><thead><tr><th>Code</th><th>Actif</th><th></th></tr></thead><tbody>
         {% for r in roles_with_state %}
           <tr>
-            <td>{{ r.label }} <small class="text-muted">({{ r.code }})</small></td>
+            <td>{{ r.label }} <small class="text-muted font-mono">({{ r.code }})</small></td>
             <td>{{ r.active|yesno:"Oui,Non" }}</td>
             <td>
               <form method="post" style="display:inline">{% csrf_token %}
@@ -170,6 +223,105 @@
       </div>
     </div>
   </div>
+  {% endif %}
+  {% if user.is_superuser or peut_gerer_responsables %}
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Responsables de spécialité (dashboard flotte)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de spécialité" data-bs-content="Un marin désigné responsable d’une spécialité accède au dashboard transverse de cette spécialité, agrégé sur toute la flotte (tous navires confondus).">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-2 mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_responsable_specialite" />
+          <div class="col-5">
+            <select name="specialite_id" class="form-select form-select-sm" required>
+              <option value="">Spécialité...</option>
+              {% for s in specialites %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-5">
+            <select name="user_id" class="form-select form-select-sm" required>
+              <option value="">Marin...</option>
+              {% for m in marins_disponibles %}<option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-2"><button class="btn btn-primary btn-sm w-100" type="submit">Ajouter</button></div>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Spécialité</th><th>Marin</th><th></th></tr></thead>
+          <tbody>
+          {% for r in responsables_specialite %}
+            <tr>
+              <td>{{ r.specialite.name }}</td>
+              <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+              <td>
+                <form method="post" style="display:inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="retirer_responsable_specialite" />
+                  <input type="hidden" name="pk" value="{{ r.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Retirer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucun responsable désigné</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Responsables de classe de navire (dashboard flotte)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de classe de navire" data-bs-content="Un marin désigné responsable d’une classe de navire accède au dashboard transverse de cette classe, agrégé sur tous les navires de la classe.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <form method="post" class="row g-2 mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_responsable_classe" />
+          <div class="col-5">
+            <input class="form-control form-control-sm" name="name" list="classes-navire" placeholder="Classe de navire" required />
+            <datalist id="classes-navire">
+              {% for c in classes_navire_disponibles %}<option value="{{ c }}"></option>{% endfor %}
+            </datalist>
+          </div>
+          <div class="col-5">
+            <select name="user_id" class="form-select form-select-sm" required>
+              <option value="">Marin...</option>
+              {% for m in marins_disponibles %}<option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-2"><button class="btn btn-primary btn-sm w-100" type="submit">Ajouter</button></div>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Classe</th><th>Marin</th><th></th></tr></thead>
+          <tbody>
+          {% for r in responsables_classe_navire %}
+            <tr>
+              <td>{{ r.classe_navire }}</td>
+              <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+              <td>
+                <form method="post" style="display:inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="retirer_responsable_classe" />
+                  <input type="hidden" name="pk" value="{{ r.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Retirer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucun responsable désigné</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -195,7 +347,7 @@
           <tbody>
           {% for b in bigrames %}
             <tr>
-              <td>{{ b.name }}</td>
+              <td class="font-mono">{{ b.name }}</td>
               <td>{{ b.active|yesno:"Oui,Non" }}</td>
               <td class="text-end">
                 <form method="post" style="display:inline">{% csrf_token %}
@@ -257,10 +409,207 @@
 </div>
 {% endif %}
 
+{% if active_tab == 'seuils_role' %}
+<div class="row g-3">
+  {% if user.is_superuser %}
+  <div class="col-12">
+    <form method="get" class="row g-2 align-items-center">
+      <input type="hidden" name="tab" value="seuils_role" />
+      <div class="col-auto"><label class="col-form-label">Unité :</label></div>
+      <div class="col-auto">
+        <select name="ship" class="form-select" onchange="this.form.submit()">
+          {% for sh in ships %}
+            <option value="{{ sh.id }}" {% if seuils_ship and seuils_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Seuils de rôle{% if seuils_ship %} — {{ seuils_ship.name }}{% endif %}
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Seuils de rôle" data-bs-content="Le rôle minimal requis pour chaque action peut être ajusté pour cette unité. Tant qu'aucune valeur n'est modifiée, le comportement par défaut de Matrix s'applique. « Réinitialiser » revient à la valeur par défaut.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        {% regroup seuils_lignes by categorie as seuils_par_categorie %}
+        {% for groupe in seuils_par_categorie %}
+          <h6 class="text-muted mt-2">{{ groupe.grouper }}</h6>
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Action</th><th style="width:220px">Seuil minimal requis</th><th style="width:160px"></th></tr></thead>
+            <tbody>
+            {% for ligne in groupe.list %}
+              <tr>
+                <td>{{ ligne.libelle }}</td>
+                <td>
+                  <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_role_threshold" />
+                    <input type="hidden" name="next_tab" value="seuils_role" />
+                    {% if seuils_ship %}<input type="hidden" name="ship_id" value="{{ seuils_ship.id }}" />{% endif %}
+                    <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                    <select name="nouveau_role" class="form-select form-select-sm">
+                      {% for code, label in roles_pour_seuils %}
+                        <option value="{{ code }}" {% if ligne.niveau_actuel.name == code %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                    <button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button>
+                  </form>
+                </td>
+                <td>
+                  {% if ligne.niveau_actuel != ligne.niveau_defaut %}
+                  <form method="post" style="display:inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reset_role_threshold" />
+                    <input type="hidden" name="next_tab" value="seuils_role" />
+                    {% if seuils_ship %}<input type="hidden" name="ship_id" value="{{ seuils_ship.id }}" />{% endif %}
+                    <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">Réinitialiser</button>
+                  </form>
+                  {% else %}
+                    <small class="text-muted">Valeur par défaut</small>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% empty %}
+          <p class="text-muted mb-0">Aucune unité sélectionnée.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% if peut_editer_global %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Référentiels communs à toute la flotte
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Référentiels globaux" data-bs-content="Ces référentiels (grades, spécialités...) ne sont rattachés à aucune unité précise : leur seuil s'applique à toute la flotte, réservé aux administrateurs généraux.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Action</th><th style="width:220px">Seuil minimal requis</th><th style="width:160px"></th></tr></thead>
+          <tbody>
+          {% for ligne in seuils_lignes_globales %}
+            <tr>
+              <td>{{ ligne.libelle }}</td>
+              <td>
+                <form method="post" class="d-flex gap-2">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_role_threshold" />
+                  <input type="hidden" name="next_tab" value="seuils_role" />
+                  <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                  <select name="nouveau_role" class="form-select form-select-sm">
+                    {% for code, label in roles_pour_seuils %}
+                      <option value="{{ code }}" {% if ligne.niveau_actuel.name == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button>
+                </form>
+              </td>
+              <td>
+                {% if ligne.niveau_actuel != ligne.niveau_defaut %}
+                <form method="post" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reset_role_threshold" />
+                  <input type="hidden" name="next_tab" value="seuils_role" />
+                  <input type="hidden" name="cle_action" value="{{ ligne.cle }}" />
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">Réinitialiser</button>
+                </form>
+                {% else %}
+                  <small class="text-muted">Valeur par défaut</small>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="col-12">
+    <p class="text-muted">Chaque modification est historisée (auteur, date, ancienne et nouvelle valeur){% if user.is_superuser %} — consultable dans l'onglet Journal{% endif %}.</p>
+  </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'modules' %}
+<div class="row g-3">
+  {% if user.is_superuser %}
+  <div class="col-12">
+    <form method="get" class="row g-2 align-items-center">
+      <input type="hidden" name="tab" value="modules" />
+      <div class="col-auto"><label class="col-form-label">Unité :</label></div>
+      <div class="col-auto">
+        <select name="ship" class="form-select" onchange="this.form.submit()">
+          {% for sh in ships %}
+            <option value="{{ sh.id }}" {% if modules_ship and modules_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Modules activables{% if modules_ship %} — {{ modules_ship.name }}{% endif %}
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Modules activables" data-bs-content="Désactiver un module masque son entrée de menu et ses pages pour tout le monde sur cette unité, mais ne supprime aucune donnée : réactiver le module fait tout réapparaître tel quel.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        {% if modules_ship %}
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Module</th><th>Contenu</th><th style="width:140px">État</th><th style="width:140px"></th></tr></thead>
+          <tbody>
+          {% for ligne in modules_lignes %}
+            <tr>
+              <td class="fw-semibold">{{ ligne.libelle }}</td>
+              <td class="text-muted small">{{ ligne.description }}</td>
+              <td>
+                {% if ligne.actif %}
+                  <span class="badge bg-success">Activé</span>
+                {% else %}
+                  <span class="badge bg-secondary">Désactivé</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_module" />
+                  <input type="hidden" name="next_tab" value="modules" />
+                  <input type="hidden" name="ship_id" value="{{ modules_ship.id }}" />
+                  <input type="hidden" name="cle_module" value="{{ ligne.cle }}" />
+                  <button class="btn btn-sm {% if ligne.actif %}btn-outline-danger{% else %}btn-outline-success{% endif %}" type="submit">
+                    {% if ligne.actif %}Désactiver{% else %}Activer{% endif %}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Aucune unité sélectionnée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <p class="text-muted">Les modules de socle (comptes, organisation, notifications, tableau de bord, calendrier, discussions) ne sont pas listés ici : ils sont nécessaires au fonctionnement de Matrix et restent toujours activés.</p>
+  </div>
+</div>
+{% endif %}
+
 {% if active_tab == 'notifications' %}
 <div class="card">
   <div class="card-header">Notification quotidienne
-    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Notification quotidienne" data-bs-content="Choisissez l’heure à laquelle vous recevez les alertes d’échéance chaque jour (vibration/isolement/…)">
+    <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Notification quotidienne" data-bs-content="Choisissez l’heure du matin (alertes d’échéance, résumé « Ma journée ») et l’heure du soir (résumé « Ma journée de demain »)">
       <span class="bi bi-info-circle"></span>
     </button>
   </div>
@@ -270,14 +619,18 @@
       <input type="hidden" name="action" value="update_notification_time" />
       <input type="hidden" name="next_tab" value="notifications" />
       <div class="col-auto">
-        <label class="form-label">Heure souhaitée</label>
+        <label class="form-label">Heure du matin (« Ma journée »)</label>
         <input type="time" name="notification_time" class="form-control" value="{{ user_notification_time }}" required />
+      </div>
+      <div class="col-auto">
+        <label class="form-label">Heure du soir (« Ma journée de demain »)</label>
+        <input type="time" name="notification_time_soir" class="form-control" value="{{ user_notification_time_soir }}" required />
       </div>
       <div class="col-auto">
         <button class="btn btn-primary" type="submit">Enregistrer</button>
       </div>
     </form>
-    <small class="text-muted d-block mt-2">Ce réglage est personnel (lié à votre compte).</small>
+    <small class="text-muted d-block mt-2">Ce réglage est personnel (lié à votre compte). Chaque matin, un résumé de votre journée (maintenances, formations, événements personnels) ; chaque soir, un aperçu de votre lendemain.</small>
   </div>
 </div>
 {% endif %}
@@ -303,11 +656,11 @@
       <tbody>
         {% for log in logs %}
           <tr>
-            <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
-            <td>{{ log.actor|default:"—" }}</td>
-            <td>{{ log.action }}</td>
-            <td>{% if log.target_user %}{{ log.target_user.username }}{% else %}—{% endif %}</td>
-            <td><small class="text-muted">{{ log.details }}</small></td>
+            <td class="font-mono">{{ log.created_at|date:"d/m/Y H:i" }}</td>
+            <td class="font-mono">{{ log.actor|default:"—" }}</td>
+            <td class="font-mono">{{ log.action }}</td>
+            <td class="font-mono">{% if log.target_user %}{{ log.target_user.username }}{% else %}—{% endif %}</td>
+            <td><small class="text-muted font-mono">{{ log.details }}</small></td>
           </tr>
         {% empty %}
           <tr><td colspan="5" class="text-muted">Aucune entrée de journal</td></tr>
@@ -327,8 +680,8 @@
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header">Navires
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Navires" data-bs-content="Vous pouvez modifier, supprimer ou dupliquer un navire. La duplication copie la hiérarchie (services/secteurs/sections) sous un nouveau nom et code.">
+      <div class="card-header">Unités
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Unités" data-bs-content="Vous pouvez modifier, supprimer ou dupliquer une unité (navire, école, centre de formation ou bureau). La duplication copie la hiérarchie (services/secteurs/sections) sous un nouveau nom et code.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -337,23 +690,36 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="add_ship" />
           <input type="hidden" name="next_tab" value="navires" />
-          <div class="col-md-8"><input class="form-control" name="name" placeholder="Nom du navire" /></div>
-          <div class="col-md-4"><input class="form-control" name="code" placeholder="Code unique" /></div>
+          <div class="col-md-6"><input class="form-control" name="name" placeholder="Nom de l'unité" /></div>
+          <div class="col-md-3"><input class="form-control" name="code" placeholder="Code unique" /></div>
+          <div class="col-md-3">
+            <select class="form-select" name="type_unite">
+              {% for valeur, libelle in type_unite_choices %}
+                <option value="{{ valeur }}">{{ libelle }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12"><input class="form-control" name="classe_navire" placeholder="Classe de navire (optionnel, ex : Frégate La Fayette)" /></div>
           <div class="col-12"><button class="btn btn-primary" type="submit">Ajouter</button></div>
         </form>
-        <table class="table table-sm"><thead><tr><th>Nom</th><th>Code</th><th></th></tr></thead><tbody>
+        {% comment %}
+        La classe de navire n'est pas affichée dans ce tableau compact (déjà 4
+        colonnes) : elle reste consultable/modifiable via le bouton « Modifier ».
+        {% endcomment %}
+        <table class="table table-sm"><thead><tr><th>Nom</th><th>Code</th><th>Type</th><th></th></tr></thead><tbody>
         {% for sh in ships %}
           <tr>
             <td>{{ sh.name }}</td>
-            <td>{{ sh.code }}</td>
+            <td class="font-mono">{{ sh.code }}</td>
+            <td>{{ sh|badge_type_unite }}</td>
             <td>
-              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}">Modifier</button>
+              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}" data-classe-navire="{{ sh.classe_navire }}">Modifier</button>
               <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>
-              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer le navire {{ sh.name }}">Supprimer</button>
+              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer l'unité {{ sh.name }}">Supprimer</button>
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="3" class="text-muted">Aucun navire</td></tr>
+          <tr><td colspan="4" class="text-muted">Aucune unité</td></tr>
         {% endfor %}
         </tbody></table>
       </div>
@@ -367,15 +733,20 @@
   <div class="col-12">
     <form method="get" class="row g-2 align-items-center">
       <input type="hidden" name="tab" value="hierarchie" />
-      <div class="col-auto"><label class="col-form-label">Navire:</label>
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Sélection du navire" data-bs-content="Choisissez un navire pour éditer son arborescence de Services, Secteurs et Sections.">
+      <div class="col-auto"><label class="col-form-label">Unité :</label>
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Sélection de l'unité" data-bs-content="Choisissez une unité pour éditer son arborescence de Services, Secteurs et Sections.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
       <div class="col-auto">
         <select name="ship" class="form-select" onchange="this.form.submit()">
-          {% for sh in ships %}
-            <option value="{{ sh.id }}" {% if selected_ship and selected_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% unites_groupees_par_type ships as groupes_unites %}
+          {% for libelle_type, liste_unites in groupes_unites %}
+            <optgroup label="{{ libelle_type }}">
+              {% for sh in liste_unites %}
+                <option value="{{ sh.id }}" {% if selected_ship and selected_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+              {% endfor %}
+            </optgroup>
           {% endfor %}
         </select>
       </div>
@@ -383,8 +754,8 @@
   </div>
   <div class="col-12">
     <div class="card">
-      <div class="card-header">Arborescence du navire {% if selected_ship %}<strong>{{ selected_ship.name }}</strong>{% endif %}
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Arborescence" data-bs-content="Ajoutez ou supprimez des Services, puis leurs Secteurs et Sections pour structurer l’organisation du navire.">
+      <div class="card-header">Arborescence de l'unité {% if selected_ship %}<strong>{{ selected_ship.name }}</strong>{% endif %}
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Arborescence" data-bs-content="Ajoutez ou supprimez des Services, puis leurs Secteurs et Sections pour structurer l’organisation de l'unité.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -461,13 +832,13 @@
                   </ul>
                 </li>
               {% empty %}
-                <li class="text-muted">Aucun service pour ce navire</li>
+                <li class="text-muted">Aucun service pour cette unité</li>
               {% endfor %}
             </ul>
           </li>
         </ul>
         {% else %}
-          <p class="text-muted">Veuillez sélectionner un navire pour éditer l'arborescence.</p>
+          <p class="text-muted">Veuillez sélectionner une unité pour éditer l'arborescence.</p>
         {% endif %}
       </div>
     </div>
@@ -501,12 +872,12 @@
   </div>
 </div>
 
-{# Modal édition navire #}
+{# Modal édition unité #}
 <div class="modal fade" id="editShipModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Modifier le navire</h5>
+        <h5 class="modal-title">Modifier l'unité</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="editShipForm">
@@ -523,6 +894,18 @@
             <label class="form-label">Code</label>
             <input class="form-control" name="code" id="editShipCode" />
           </div>
+          <div class="mb-3">
+            <label class="form-label">Type d'unité</label>
+            <select class="form-select" name="type_unite" id="editShipTypeUnite">
+              {% for valeur, libelle in type_unite_choices %}
+                <option value="{{ valeur }}">{{ libelle }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Classe de navire</label>
+            <input class="form-control" name="classe_navire" id="editShipClasseNavire" placeholder="Optionnel, ex : Frégate La Fayette" />
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -533,12 +916,12 @@
   </div>
 </div>
 
-{# Modal duplication navire #}
+{# Modal duplication unité #}
 <div class="modal fade" id="duplicateShipModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Dupliquer le navire</h5>
+        <h5 class="modal-title">Dupliquer l'unité</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" id="duplicateShipForm">
@@ -549,13 +932,13 @@
           <input type="hidden" name="source_pk" id="duplicateShipSourcePk" />
           <div class="mb-3">
             <label class="form-label">Nouveau nom</label>
-            <input class="form-control" name="name" id="duplicateShipName" placeholder="Nom du nouveau navire" />
+            <input class="form-control" name="name" id="duplicateShipName" placeholder="Nom de la nouvelle unité" />
           </div>
           <div class="mb-3">
             <label class="form-label">Nouveau code</label>
             <input class="form-control" name="code" id="duplicateShipCode" placeholder="Code unique" />
           </div>
-          <p class="text-muted">La duplication copie les Services, Secteurs et Sections du navire source vers le nouveau navire.</p>
+          <p class="text-muted">La duplication copie les Services, Secteurs et Sections de l'unité source vers la nouvelle unité (même type d'unité).</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -585,9 +968,13 @@
       var pk = button.getAttribute('data-pk');
       var name = button.getAttribute('data-name');
       var code = button.getAttribute('data-code');
+      var typeUnite = button.getAttribute('data-type-unite');
+      var classeNavire = button.getAttribute('data-classe-navire');
       document.getElementById('editShipPk').value = pk;
       document.getElementById('editShipName').value = name || '';
       document.getElementById('editShipCode').value = code || '';
+      document.getElementById('editShipTypeUnite').value = typeUnite || 'NAVIRE';
+      document.getElementById('editShipClasseNavire').value = classeNavire || '';
     });
 
     var duplicateModal = document.getElementById('duplicateShipModal');

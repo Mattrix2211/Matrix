@@ -1,7 +1,9 @@
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from rest_framework.test import APIClient
 
+from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
 from assets.models import Asset, AssetType, Installation
 
@@ -14,6 +16,10 @@ class InstallationHierarchieParentTests(TestCase):
         self.service = Service.objects.create(name="Srv", ship=self.ship)
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.user = User.objects.create_user(username="u1", password="pass")
+        # Suppression réservée à CHEF_SERVICE et au-dessus (T-SEC) : le profil auto-créé
+        # par défaut (EQUIPIER) est relevé pour tester le comportement SET_NULL, qui
+        # n'est pas propre au rôle testé ici.
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE"})
 
     def test_creation_avec_parent(self):
         groupe = Installation.objects.create(
@@ -61,6 +67,29 @@ class InstallationHierarchieParentTests(TestCase):
         with self.assertRaises(ValidationError):
             a.clean()
 
+    def test_cycle_direct_refuse_via_save_sans_clean(self):
+        # save() doit rejeter le cycle même sans passer par un formulaire/serializer
+        # qui appellerait clean() explicitement (T2 bis : save() n'appelle jamais
+        # full_clean() automatiquement en Django, contrairement à ce qu'on pourrait
+        # croire).
+        installation = Installation.objects.create(
+            designation="Pompe A", ship=self.ship, service=self.service, sector=self.sector,
+        )
+        installation.parent = installation
+        with self.assertRaises(ValidationError):
+            installation.save()
+        installation.refresh_from_db()
+        self.assertIsNone(installation.parent)
+
+    def test_cycle_indirect_refuse_via_save_sans_clean(self):
+        a = Installation.objects.create(designation="A", ship=self.ship, service=self.service, sector=self.sector)
+        b = Installation.objects.create(designation="B", ship=self.ship, service=self.service, sector=self.sector, parent=a)
+        a.parent = b
+        with self.assertRaises(ValidationError):
+            a.save()
+        a.refresh_from_db()
+        self.assertIsNone(a.parent)
+
 
 class AssetHierarchieParentTests(TestCase):
     """T2 : rattachement parent/enfant (self-FK) sur Asset (matériel mobile)."""
@@ -71,6 +100,10 @@ class AssetHierarchieParentTests(TestCase):
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
         self.user = User.objects.create_user(username="u2", password="pass")
+        # Suppression réservée à CHEF_SERVICE et au-dessus (T-SEC) : le profil auto-créé
+        # par défaut (EQUIPIER) est relevé pour tester le comportement SET_NULL, qui
+        # n'est pas propre au rôle testé ici.
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE"})
 
     def test_creation_avec_parent(self):
         caisse = Asset.objects.create(
@@ -106,3 +139,79 @@ class AssetHierarchieParentTests(TestCase):
         asset.parent = asset
         with self.assertRaises(ValidationError):
             asset.clean()
+
+    def test_cycle_direct_refuse_via_save_sans_clean(self):
+        # save() doit rejeter le cycle même sans passer par un formulaire/serializer
+        # qui appellerait clean() explicitement (T2 bis).
+        asset = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        asset.parent = asset
+        with self.assertRaises(ValidationError):
+            asset.save()
+        asset.refresh_from_db()
+        self.assertIsNone(asset.parent)
+
+    def test_cycle_indirect_refuse_via_save_sans_clean(self):
+        a = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        b = Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector, parent=a,
+        )
+        a.parent = b
+        with self.assertRaises(ValidationError):
+            a.save()
+        a.refresh_from_db()
+        self.assertIsNone(a.parent)
+
+
+class AssetApiCycleRejectionTests(TestCase):
+    """T2 ter : AssetSerializer.validate() doit rejeter un parent cyclique avec un
+    400 propre côté API DRF, plutôt que de laisser Asset.save() lever une
+    ValidationError Django non interceptée (500)."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="S1")
+        self.service = Service.objects.create(name="Srv", ship=self.ship)
+        self.sector = Sector.objects.create(name="Sec", service=self.service)
+        self.asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
+        self.chef = User.objects.create_user(username="c3", password="pass")
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION"})
+        self.client_api = APIClient()
+        self.client_api.login(username="c3", password="pass")
+
+    def test_patch_avec_parent_cyclique_renvoie_400(self):
+        asset = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        response = self.client_api.patch(
+            f"/api/assets/assets/{asset.pk}/", {"parent": str(asset.pk)}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("parent", response.data)
+        asset.refresh_from_db()
+        self.assertIsNone(asset.parent)
+
+    def test_patch_avec_parent_cyclique_indirect_renvoie_400(self):
+        a = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        b = Asset.objects.create(
+            asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector, parent=a,
+        )
+        response = self.client_api.patch(
+            f"/api/assets/assets/{a.pk}/", {"parent": str(b.pk)}, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("parent", response.data)
+        a.refresh_from_db()
+        self.assertIsNone(a.parent)
+
+    def test_post_avec_parent_valide_reste_accepte(self):
+        # Non-régression : un rattachement parent normal (sans cycle) reste accepté.
+        caisse = Asset.objects.create(asset_type=self.asset_type, ship=self.ship, service=self.service, sector=self.sector)
+        response = self.client_api.post(
+            "/api/assets/assets/",
+            {
+                "ship": self.ship.id,
+                "service": self.service.id,
+                "sector": self.sector.id,
+                "asset_type": self.asset_type.id,
+                "parent": str(caisse.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)

@@ -5,15 +5,18 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-matrix}
       POSTGRES_USER: ${POSTGRES_USER:-matrix}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matrix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?La variable POSTGRES_PASSWORD doit être définie dans le fichier .env (voir .env.example)}
     ports:
-      - "5432:5432"
+      # Bind sur 127.0.0.1 uniquement : le serveur Django et Celery tournent
+      # sur la machine hôte (hors conteneur) et s'y connectent via localhost,
+      # mais la base ne doit pas être joignable depuis le reste du réseau (LAN du bord).
+      - "127.0.0.1:5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
 volumes:

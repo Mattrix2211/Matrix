@@ -1,10 +1,36 @@
 from django.contrib import admin
-from .models import TrainingCourse, TrainingRequirement, TrainingSession, TrainingRecord
+from .models import (
+    CandidatureFormation,
+    DemandePlace,
+    PersonnelBRH,
+    PlaceAffectee,
+    ReferentFormation,
+    TrainingCourse,
+    TrainingRequirement,
+    TrainingSession,
+    TrainingRecord,
+    TrainingWaitlistEntry,
+    ReferentFormationNavire,
+)
 
 @admin.register(TrainingCourse)
 class TrainingCourseAdmin(admin.ModelAdmin):
-    list_display = ("title", "sector", "validity_days")
-    list_filter = ("sector",)
+    # Formation désormais globale (plus de "sector") : filtre/tri par
+    # catégorie (domaine métier), seul regroupement encore pertinent.
+    # gere_par_le_bord/statut_validation : Circuit C (approbation chef de
+    # secteur -> chef de service, cf. training/models.py).
+    list_display = ("title", "category", "validity_days", "gere_par_le_bord", "statut_validation")
+    list_filter = ("category", "gere_par_le_bord", "statut_validation")
+    filter_horizontal = ("prerequisites",)
+
+@admin.register(ReferentFormation)
+class ReferentFormationAdmin(admin.ModelAdmin):
+    list_display = ("course", "ship", "user")
+    list_filter = ("ship",)
+
+@admin.register(ReferentFormationNavire)
+class ReferentFormationNavireAdmin(admin.ModelAdmin):
+    list_display = ("ship", "user")
 
 @admin.register(TrainingRequirement)
 class TrainingRequirementAdmin(admin.ModelAdmin):
@@ -20,3 +46,27 @@ class TrainingSessionAdmin(admin.ModelAdmin):
 class TrainingRecordAdmin(admin.ModelAdmin):
     list_display = ("user", "course", "completed_at", "expires_at")
     list_filter = ("completed_at", "expires_at")
+
+@admin.register(TrainingWaitlistEntry)
+class TrainingWaitlistEntryAdmin(admin.ModelAdmin):
+    list_display = ("session", "user", "created_at")
+    list_filter = ("session",)
+
+@admin.register(DemandePlace)
+class DemandePlaceAdmin(admin.ModelAdmin):
+    list_display = ("course", "ship", "nb_places_demandees", "nb_places_attribuees", "session", "statut")
+    list_filter = ("statut", "ship")
+
+@admin.register(PlaceAffectee)
+class PlaceAffecteeAdmin(admin.ModelAdmin):
+    list_display = ("demande_place", "marin")
+
+@admin.register(PersonnelBRH)
+class PersonnelBRHAdmin(admin.ModelAdmin):
+    list_display = ("ship", "user")
+    list_filter = ("ship",)
+
+@admin.register(CandidatureFormation)
+class CandidatureFormationAdmin(admin.ModelAdmin):
+    list_display = ("marin", "course", "statut", "hierarchie_validee_par", "brh_validee_par")
+    list_filter = ("statut",)

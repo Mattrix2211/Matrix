@@ -1,48 +1,407 @@
 from django.views import View
 from django.views.generic import ListView
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
+from django.urls import reverse
 from django.utils import timezone
-from django.db.models import Q
-from .models import CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece
+from django.db import transaction
+from django.db.models import F, Q
+from .models import (
+    CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
+    destinataires_ticket, niveau_alerte_ticket,
+)
+from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.scopes import scope_filters_for_user
+from notifications.models import Notification
+from matrix.core.export import (
+    CSV_CONTENT_TYPE,
+    XLSX_CONTENT_TYPE,
+    construire_url_export,
+    rendre_csv,
+    rendre_xlsx,
+    reponse_fichier,
+    xlsx_disponible,
+)
+from accounts.models import AuditLog
 from org.models import Sector, Section
+from assets.models import Asset, Installation
+from threads.utils import ajouter_commentaire, commentaires_de
+
+User = get_user_model()
+
+
+def _secteur_dans_perimetre(user, sector_id):
+    """Vérifie qu'un secteur posté dans le formulaire de gestion du stock (T14)
+    appartient bien au périmètre de l'appelant, en réutilisant scope_filters_for_user
+    (le même système que ScopedQuerySetMixin) plutôt que d'en recréer un nouveau —
+    même principe que _org_dans_perimetre dans assets/web_views.py. Un utilisateur
+    sans périmètre restreint (ex. administrateur général) peut choisir n'importe
+    quel secteur existant ; un utilisateur cantonné à un niveau (navire/service/
+    secteur/section) ne peut choisir qu'un secteur qui en descend — pour un chef de
+    section, uniquement le secteur contenant sa propre section. Ne fait pas
+    confiance au menu déroulant du formulaire, contournable par un POST direct."""
+    filters = scope_filters_for_user(user)
+    if not filters:
+        return Sector.objects.filter(pk=sector_id).exists()
+    (key, value), = filters.items()
+    if key == "sector_id":
+        return str(value) == str(sector_id)
+    chemins = {
+        "ship_id": "service__ship_id",
+        "service_id": "service_id",
+        "section_id": "sections__id",
+    }
+    return Sector.objects.filter(pk=sector_id, **{chemins[key]: value}).exists()
+
+
+class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
+    """Liste des tickets correctifs, scopée par périmètre ET par assignation.
+
+    Par défaut, chaque marin ne voit que « ses » tickets (ceux qui lui sont
+    assignés) — même principe que "Mes maintenances" sur le tableau de bord
+    (principe fondamental n°3 de CLAUDE.md). Un chef de section et au-dessus
+    peut basculer vers "Tout le périmètre" pour voir l'ensemble des tickets
+    de son périmètre, pas seulement les siens.
+    """
+    model = CorrectiveTicket
+    template_name = 'logistics/ticket_list.html'
+    context_object_name = 'tickets'
+
+    def get_scoped_filters(self):
+        # Un ticket correctif porte sur un matériel mobile (asset), qui porte
+        # lui-même les 4 champs de périmètre — même logique que
+        # CorrectiveTicketViewSet côté API (logistics/views.py).
+        return build_scope_q(self.request.user, "asset__", "installation__")
+
+    def _vue_perimetre_autorisee(self):
+        return user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('asset', 'installation').order_by('-reported_at')
+        self.vue = self.request.GET.get('vue', 'mes')
+        if self.vue != 'perimetre' or not self._vue_perimetre_autorisee():
+            self.vue = 'mes'
+            qs = qs.filter(assignees=self.request.user)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['vue'] = self.vue
+        ctx['peut_voir_perimetre'] = self._vue_perimetre_autorisee()
+        # Jauge de sévérité (principe n°5 CLAUDE.md) : le chiffre brut 1-5 ne se
+        # lit pas aussi vite qu'une barre colorée. Capée à 5 pour l'affichage
+        # même si une valeur plus haute était postée directement.
+        for ticket in list(ctx.get('tickets', [])):
+            ticket.severite_pct = min(ticket.severity, 5) / 5 * 100
+        return ctx
+
+
+def _ship_du_profil_q(ship_id):
+    """Filtre les utilisateurs dont le profil appartient au navire donné, quel
+    que soit le niveau de périmètre auquel leur profil est réellement scopé
+    (ship directement, ou service/sector/section dont on remonte jusqu'au
+    navire) — un profil scopé au secteur n'a jamais profile.ship renseigné
+    directement, contrairement à profile.service/sector/section."""
+    return (
+        Q(profile__ship_id=ship_id)
+        | Q(profile__service__ship_id=ship_id)
+        | Q(profile__sector__service__ship_id=ship_id)
+        | Q(profile__section__sector__service__ship_id=ship_id)
+    )
+
+_ENTETES_EXPORT_STOCK = [
+    'Référence', 'Désignation', 'NNO', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
+    'Unité', 'Service', 'Secteur', 'Section',
+]
+
+
+def _lignes_export_stock(qs):
+    """Construit les lignes de l'export tableur du stock de pièces, à partir
+    d'un queryset déjà filtré par périmètre (ScopedQuerySetMixin)."""
+    return [
+        [
+            p.reference,
+            p.designation,
+            p.nno,
+            p.quantite,
+            p.quantite_minimale,
+            p.quantite_critique if p.quantite_critique is not None else '',
+            p.emplacement,
+            p.ship.name if p.ship else '',
+            p.service.name if p.service else '',
+            p.sector.name if p.sector else '',
+            p.section.name if p.section else '',
+        ]
+        for p in qs
+    ]
 
 
 class TicketDetailView(LoginRequiredMixin, View):
+    """Fiche détail d'un ticket correctif — lecture (dont les commentaires de
+    suivi) restreinte au périmètre du matériel concerné, même filtre que
+    CorrectiveTicketViewSet/TicketListView (build_scope_q sur l'actif du
+    ticket) : un ticket hors périmètre est traité comme introuvable, pour ne
+    pas révéler son existence à un utilisateur qui n'y a pas accès."""
     template_name = 'logistics/ticket_detail.html'
 
     def get(self, request, pk):
         try:
-            ticket = CorrectiveTicket.objects.select_related('asset').get(pk=pk)
+            ticket = (
+                CorrectiveTicket.objects.select_related('asset', 'installation')
+                .filter(build_scope_q(request.user, "asset__", "installation__"))
+                .get(pk=pk)
+            )
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         part_requests = ticket.part_requests.prefetch_related('lines').all()
-        return render(request, self.template_name, {"ticket": ticket, "part_requests": part_requests})
+        contexte = {
+            "ticket": ticket,
+            "part_requests": part_requests,
+            "peut_assigner": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
+            "commentaires": commentaires_de(ticket),
+            "commentaire_action_url": reverse('ticket-comment-create', args=[ticket.pk]),
+        }
+        # Prélèvement de stock en un clic (T-FEAT) : réservé à CHEF_SECTION et
+        # au-dessus, même seuil que l'assignation et les autres actions
+        # d'écriture du module. La liste proposée ne montre que les pièces du
+        # périmètre de l'appelant (scope_filters_for_user, même filtre que
+        # StockPieceListView) et déjà en stock, pour éviter de proposer une
+        # pièce impossible à prélever.
+        contexte["peut_prelever_stock"] = contexte["peut_assigner"]
+        if contexte["peut_prelever_stock"]:
+            filtres_stock = scope_filters_for_user(request.user)
+            pieces_qs = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+            contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
+        if contexte["peut_assigner"]:
+            # Utilisateurs assignables : l'équipage du navire portant l'actif en
+            # panne — un chef choisit ensuite librement parmi eux. Le navire de
+            # l'utilisateur peut être porté directement par son profil (profile.ship)
+            # ou déduit de son périmètre plus fin (service/secteur/section), un
+            # profil scopé au secteur n'ayant jamais ship renseigné directement.
+            contexte["utilisateurs_assignables"] = User.objects.filter(
+                _ship_du_profil_q(ticket.equipement.ship_id)
+            ).select_related("profile").order_by("username").distinct()
+        return render(request, self.template_name, contexte)
 
 
-class TicketTransitionView(LoginRequiredMixin, View):
+class TicketCreateView(LoginRequiredMixin, View):
+    """Signalement rapide d'une anomalie sur du matériel mobile : crée un ticket
+    correctif à partir de la fiche de l'équipement, en un seul clic (description
+    + gravité), sans passer par un formulaire séparé. Accessible à tout marin
+    connecté (pas de restriction de rôle) : un équipier doit pouvoir signaler
+    une panne constatée sur le terrain sans dépendre d'un chef.
+    """
+
+    def post(self, request, asset_pk):
+        # Périmètre : un marin ne peut signaler une anomalie que sur un matériel
+        # de son propre périmètre — même filtre que ScopedQuerySetMixin/AssetViewSet.
+        filtres = scope_filters_for_user(request.user)
+        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        try:
+            asset = assets.get(pk=asset_pk)
+        except Asset.DoesNotExist:
+            return HttpResponseBadRequest('Matériel introuvable ou hors de votre périmètre.')
+
+        description = request.POST.get('description', '').strip()
+        if not description:
+            messages.error(request, "Merci de décrire l'anomalie constatée.")
+            return redirect('asset-detail', pk=asset.pk)
+
+        try:
+            gravite = int(request.POST.get('severity') or 3)
+        except ValueError:
+            gravite = 3
+
+        ticket = CorrectiveTicket.objects.create(
+            asset=asset,
+            description=description,
+            severity=gravite,
+            created_by=request.user,
+            updated_by=request.user,
+        )
+        ticket.assignees.add(request.user)
+        TicketStatusLog.objects.create(
+            ticket=ticket, old_status='REPORTED', new_status='REPORTED', user=request.user
+        )
+        # Journal transverse (AuditLog) en plus du TicketStatusLog dédié — le
+        # premier reste la référence de l'historique propre au ticket (affiché
+        # à terme sur sa fiche), le second alimente la vue d'audit globale
+        # (onglet Réglages > Journal). Cf. tâche Notion « Unifier les modèles
+        # d'historique/audit ».
+        AuditLog.objects.create(
+            actor=request.user, action='create_ticket', details=f'ticket={ticket.pk}; asset={asset}',
+        )
+
+        # Alerte les chefs du périmètre de l'actif dès le signalement, pour
+        # qu'ils n'aient pas à consulter la liste des tickets pour découvrir
+        # l'anomalie (§38 cahier des charges, exemple « création de ticket
+        # correctif »). Destinataires et niveau mutualisés (logistics/models.py)
+        # avec le chemin de création automatique via l'inspection QR
+        # (maintenance/models.py::create_corrective_on_non_conform).
+        niveau_alerte = niveau_alerte_ticket(gravite)
+        for profile in destinataires_ticket(asset):
+            if profile.user_id == request.user.id:
+                continue
+            Notification.objects.create(
+                user=profile.user,
+                level=niveau_alerte,
+                verb=f"Anomalie signalée sur {asset} : {description}",
+            )
+
+        messages.success(request, "Anomalie signalée : le ticket correctif a été créé.")
+        return redirect('ticket-detail', pk=ticket.pk)
+
+
+class TicketAssignView(LoginRequiredMixin, View):
+    """Assigne un ou plusieurs marins à un ticket correctif — réservé à
+    CHEF_SECTION et au-dessus, même seuil que les autres actions d'écriture
+    de ce module (transitions, demandes de pièces)."""
+
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : même filtre que TicketDetailView/CorrectiveTicketViewSet
+        # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
+        # connaissant l'identifiant d'un ticket d'un autre navire pouvait
+        # modifier ses assignés (T-SEC).
         try:
-            ticket = CorrectiveTicket.objects.get(pk=pk)
+            ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
+                build_scope_q(request.user, "asset__", "installation__")
+            ).get(pk=pk)
+        except CorrectiveTicket.DoesNotExist:
+            return HttpResponseBadRequest('Ticket introuvable')
+        anciens_assignes = set(ticket.assignees.all())
+        ids = request.POST.getlist('assignees')
+        # On ne retient que des utilisateurs de l'équipage du navire de l'actif
+        # concerné, même filtre que le formulaire (contournement d'un POST direct).
+        utilisateurs = list(User.objects.filter(_ship_du_profil_q(ticket.equipement.ship_id), pk__in=ids))
+        ticket.assignees.set(utilisateurs)
+
+        # Notifie uniquement les marins nouvellement assignés (pas ceux déjà
+        # présents avant cette mise à jour, ni l'auteur de l'assignation
+        # lui-même s'il s'est ajouté : il vient de le faire, inutile de le
+        # notifier de sa propre action — même principe que l'auto-assignation
+        # d'une occurrence de maintenance, maintenance/web_views.py).
+        for marin in set(utilisateurs) - anciens_assignes:
+            if marin.id == request.user.id:
+                continue
+            Notification.objects.create(
+                user=marin,
+                verb=f"Vous avez été assigné(e) au ticket correctif : {ticket.equipement} — {ticket.description[:80]}",
+            )
+
+        messages.info(request, "Assignation du ticket mise à jour.")
+        return redirect('ticket-detail', pk=ticket.pk)
+
+
+class TicketTransitionView(LoginRequiredMixin, View):
+    """Change le statut d'un ticket correctif.
+
+    Le retour d'expérience (diagnostic final + solution appliquée) est saisi dans
+    le même formulaire que le changement de statut — un seul clic, pas un
+    formulaire séparé — et enregistré à chaque soumission. Il devient obligatoire
+    pour passer au statut CLOSED : validation appliquée ici (pas seulement une
+    contrainte de formulaire HTML), pour garantir qu'un ticket fermé porte
+    toujours un REX exploitable, retrouvable ensuite via la recherche « pannes
+    déjà rencontrées » sur la fiche d'un actif.
+    """
+
+    def post(self, request, pk):
+        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
+        # Périmètre : même filtre que TicketDetailView/TicketAssignView
+        # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
+        # connaissant l'identifiant d'un ticket d'un autre navire pouvait le
+        # faire transitionner, y compris le remettre en service (T-SEC).
+        try:
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         new_status = request.POST.get('status')
         if not new_status:
             return HttpResponseBadRequest('Statut requis')
-        old = ticket.status
-        ticket.status = new_status
-        ticket.save(update_fields=['status'])
-        TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user if request.user.is_authenticated else None)
+
+        # Remise en service : geste engageant qui exige une ré-authentification légère
+        # (mot de passe courant de l'appelant, comme un "sudo" léger) avant toute
+        # écriture. Vérifié en tout premier, pour ne strictement rien modifier au
+        # ticket si le mot de passe saisi est incorrect.
+        if new_status == 'RETURNED_TO_SERVICE' and not request.user.check_password(request.POST.get('mot_de_passe', '')):
+            erreur_fermeture = "Mot de passe incorrect : la remise en service n'a pas été validée."
+            messages.error(request, erreur_fermeture)
+            if request.headers.get('HX-Request'):
+                part_requests = ticket.part_requests.prefetch_related('lines').all()
+                return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+            return redirect('ticket-detail', pk=ticket.pk)
+
+        diagnostic_final = request.POST.get('diagnostic_final', '').strip()
+        solution = request.POST.get('solution', '').strip()
+        ticket.diagnostic_final = diagnostic_final
+        ticket.solution = solution
+
+        erreur_fermeture = None
+        champs = ['status', 'diagnostic_final', 'solution']
+        if new_status == 'CLOSED' and not (diagnostic_final and solution):
+            erreur_fermeture = "Impossible de fermer le ticket : le diagnostic final et la solution appliquée sont obligatoires (retour d'expérience)."
+        else:
+            old = ticket.status
+            ticket.status = new_status
+            if new_status == 'RETURNED_TO_SERVICE':
+                # Mot de passe déjà vérifié plus haut : on enregistre la signature de
+                # validation en même temps que la transition.
+                ticket.valide_par = request.user
+                ticket.date_validation = timezone.now()
+                champs += ['valide_par', 'date_validation']
+
+        ticket.save(update_fields=champs)
+
+        if erreur_fermeture:
+            messages.error(request, erreur_fermeture)
+        else:
+            TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user if request.user.is_authenticated else None)
+            # Action sensible (§30 cahier des charges) : la remise en service
+            # exige la signature de validation vérifiée plus haut — l'entrée
+            # d'audit distingue ce cas des autres transitions.
+            AuditLog.objects.create(
+                actor=request.user if request.user.is_authenticated else None,
+                action='ticket_status_change' if new_status != 'RETURNED_TO_SERVICE' else 'ticket_validation_critique',
+                details=f'ticket={ticket.pk}; {old} -> {new_status}',
+            )
+
         if request.headers.get('HX-Request'):
             part_requests = ticket.part_requests.prefetch_related('lines').all()
-            return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests})
+            return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+        return redirect('ticket-detail', pk=ticket.pk)
+
+
+class TicketCommentCreateView(LoginRequiredMixin, View):
+    """Ajoute un commentaire de suivi libre sur un ticket correctif.
+
+    Ouvert à tout marin dont le périmètre couvre le matériel concerné — pas de
+    seuil de rôle, contrairement à l'assignation ou aux transitions : un
+    commentaire de suivi n'engage pas le ticket, il ne fait qu'informer.
+    Contrôle de périmètre identique à TicketDetailView (build_scope_q sur
+    l'actif du ticket), pour qu'un utilisateur ne puisse jamais commenter un
+    ticket qu'il ne peut même pas consulter.
+    """
+
+    def post(self, request, pk):
+        try:
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
+        except CorrectiveTicket.DoesNotExist:
+            return HttpResponseBadRequest('Ticket introuvable')
+        corps = request.POST.get('body', '').strip()
+        if not corps:
+            messages.error(request, "Le commentaire ne peut pas être vide.")
+        else:
+            ajouter_commentaire(ticket, request.user, corps)
+            messages.success(request, "Commentaire ajouté.")
         return redirect('ticket-detail', pk=ticket.pk)
 
 
@@ -50,8 +409,12 @@ class PartRequestCreateView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : même filtre que TicketDetailView/TicketAssignView
+        # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
+        # connaissant l'identifiant d'un ticket d'un autre navire pouvait lui
+        # créer une demande de pièces (IDOR).
         try:
-            ticket = CorrectiveTicket.objects.get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         pr = PartRequest.objects.create(ticket=ticket, requested_by=request.user if request.user.is_authenticated else None, needed_by_date=request.POST.get('needed_by_date') or None)
@@ -65,8 +428,14 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
     def post(self, request, pr_id):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : une demande de pièces porte sur un ticket, lui-même rattaché
+        # à un actif (asset), même filtre que PartRequestCreateView — sans lui, un
+        # chef de section connaissant l'identifiant d'une demande d'un autre navire
+        # pouvait lui ajouter des lignes (IDOR).
         try:
-            pr = PartRequest.objects.select_related('ticket').get(pk=pr_id)
+            pr = PartRequest.objects.select_related('ticket').filter(
+                build_scope_q(request.user, "ticket__asset__", "ticket__installation__")
+            ).get(pk=pr_id)
         except PartRequest.DoesNotExist:
             return HttpResponseBadRequest('Demande introuvable')
         PartLineItem.objects.create(
@@ -85,8 +454,15 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
     def post(self, request, line_id):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
+        # Périmètre : une ligne de pièce porte sur une demande, elle-même rattachée
+        # à un ticket puis à un actif (asset), même filtre que
+        # PartRequestCreateView/PartLineItemCreateView — sans lui, un chef de
+        # section connaissant l'identifiant d'une ligne d'un autre navire pouvait
+        # en changer le statut (IDOR).
         try:
-            line = PartLineItem.objects.select_related('part_request', 'part_request.ticket').get(pk=line_id)
+            line = PartLineItem.objects.select_related('part_request', 'part_request__ticket').filter(
+                build_scope_q(request.user, "part_request__ticket__asset__", "part_request__ticket__installation__")
+            ).get(pk=line_id)
         except PartLineItem.DoesNotExist:
             return HttpResponseBadRequest('Ligne introuvable')
         status = request.POST.get('status')
@@ -98,6 +474,102 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
             part_requests = line.part_request.ticket.part_requests.prefetch_related('lines').all()
             return render(request, 'logistics/_part_requests.html', {"ticket": line.part_request.ticket, "part_requests": part_requests})
         return redirect('ticket-detail', pk=line.part_request.ticket.pk)
+
+
+class TicketStockPrelevementView(LoginRequiredMixin, View):
+    """Prélève une pièce déjà en stock (StockPiece) directement depuis la fiche
+    d'un ticket correctif, en un seul clic (T-FEAT prélèvement de stock).
+
+    Évite au marin de quitter ticket_detail.html pour aller rouvrir la modale
+    « Modifier » de /logistics/stock/ et resaisir la quantité à la main —
+    contraire au principe n°2 de CLAUDE.md (plus rapide qu'Excel). Réservé à
+    CHEF_SECTION et au-dessus, même seuil que les autres actions d'écriture du
+    module (transitions, assignation, gestion du stock).
+
+    Contrôle de périmètre en deux temps, même logique que
+    StockPieceListView.post (T-SEC) : le ticket ciblé doit être dans le
+    périmètre de l'appelant (build_scope_q sur l'actif, même filtre que
+    TicketDetailView), et la pièce prélevée doit être rechargée via un
+    queryset scopé (scope_filters_for_user) plutôt qu'un simple
+    StockPiece.objects.filter(pk=pk) — sans quoi un chef de section pourrait
+    prélever une pièce d'un autre secteur/bâtiment en postant directement son
+    identifiant, hors du menu déroulant du formulaire.
+
+    Traçabilité volontairement simple à ce stade (décision produit) : la
+    quantité est décrémentée directement sur StockPiece et un message système
+    est ajouté au fil de suivi du ticket — pas de nouveau modèle de mouvement
+    de stock formel.
+    """
+
+    def post(self, request, pk):
+        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
+        try:
+            ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
+                build_scope_q(request.user, "asset__", "installation__")
+            ).get(pk=pk)
+        except CorrectiveTicket.DoesNotExist:
+            return HttpResponseBadRequest('Ticket introuvable')
+
+        filtres_stock = scope_filters_for_user(request.user)
+        pieces = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+        try:
+            piece = pieces.get(pk=request.POST.get('piece_id'))
+        except (StockPiece.DoesNotExist, ValueError):
+            messages.error(request, "Pièce introuvable ou hors de votre périmètre.")
+            return redirect('ticket-detail', pk=ticket.pk)
+
+        try:
+            quantite = int(request.POST.get('quantite') or 0)
+        except ValueError:
+            quantite = 0
+        if quantite <= 0:
+            messages.error(request, "La quantité prélevée doit être un nombre entier positif.")
+            return redirect('ticket-detail', pk=ticket.pk)
+        if quantite > piece.quantite:
+            messages.error(
+                request,
+                f"Stock insuffisant : {piece.quantite} unité(s) disponible(s) pour {piece.reference}.",
+            )
+            return redirect('ticket-detail', pk=ticket.pk)
+
+        # Mise à jour atomique conditionnelle (T-CONC) : deux prélèvements
+        # concurrents sur la même pièce pourraient sinon tous les deux lire la
+        # même quantité disponible avant d'écrire, et la perdre en écrasant
+        # l'écriture de l'autre (perte de mise à jour). Le contrôle
+        # "quantite > piece.quantite" ci-dessus reste utile pour un message
+        # d'erreur rapide dans le cas courant, mais seule cette écriture
+        # conditionnelle en base (WHERE quantite >= quantite demandée)
+        # garantit qu'on ne prélève jamais plus que le stock réellement
+        # disponible au moment de l'écriture.
+        with transaction.atomic():
+            lignes_modifiees = StockPiece.objects.filter(
+                pk=piece.pk, quantite__gte=quantite,
+            ).update(
+                quantite=F('quantite') - quantite,
+                updated_by=request.user,
+                updated_at=timezone.now(),
+            )
+        if not lignes_modifiees:
+            messages.error(
+                request,
+                f"Stock insuffisant : la quantité disponible pour {piece.reference} "
+                "a changé entre-temps, réessayez.",
+            )
+            return redirect('ticket-detail', pk=ticket.pk)
+
+        # Trace du prélèvement : message système dans le fil de suivi du ticket,
+        # même mécanisme que les transitions de statut
+        # (CorrectiveTicketViewSet.transition, logistics/views.py).
+        ct = ContentType.objects.get_for_model(CorrectiveTicket)
+        thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(ticket.pk))
+        Message.objects.create(
+            thread=thread, author=request.user, is_system=True,
+            body=f"Prélèvement stock : {quantite} x {piece.reference} ({piece.designation})",
+        )
+
+        messages.success(request, f"{quantite} unité(s) de {piece.reference} prélevée(s) du stock.")
+        return redirect('ticket-detail', pk=ticket.pk)
 
 
 class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
@@ -113,7 +585,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     context_object_name = 'pieces'
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section')
+        qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section', 'installation', 'asset', 'asset__asset_type')
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(
@@ -126,7 +598,51 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['peut_gerer'] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('service__ship__name', 'service__name', 'name')
         ctx['sections'] = Section.objects.select_related('sector').order_by('sector__name', 'name')
+        # Équipement affiliable (T-FEAT stock détaillé) : listés une seule fois,
+        # avec leur secteur en attribut, pour filtrer côté client selon le secteur
+        # choisi (même principe que le filtrage des sections). Le contrôle réel
+        # d'appartenance au secteur est fait côté serveur (voir post()).
+        ctx['installations'] = Installation.objects.select_related('sector').order_by('designation')
+        ctx['assets_materiel'] = Asset.objects.select_related('sector', 'asset_type').order_by('designation')
+        ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
+        ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
+        ctx['xlsx_disponible'] = xlsx_disponible()
+        # Jauge de niveau (principe n°5 CLAUDE.md) : proportion de la quantité
+        # actuelle par rapport au seuil minimal, pour visualiser le niveau de
+        # stock en un coup d'œil plutôt qu'une colonne de deux chiffres à
+        # comparer mentalement. Sans seuil renseigné (0), la pièce n'a pas
+        # d'exigence minimale : jauge pleine par convention.
+        for p in list(ctx.get('pieces', [])):
+            p.jauge_pct = min(round(p.quantite / p.quantite_minimale * 100), 100) if p.quantite_minimale else 100
         return ctx
+
+    def get(self, request, *args, **kwargs):
+        format_export = request.GET.get('export')
+        if format_export in ('csv', 'xlsx'):
+            # get_queryset() est déjà filtré par périmètre (ScopedQuerySetMixin) :
+            # l'export ne peut donc jamais dépasser le périmètre de l'utilisateur.
+            qs = self.get_queryset()
+            lignes = _lignes_export_stock(qs)
+            if format_export == 'xlsx':
+                contenu = rendre_xlsx(_ENTETES_EXPORT_STOCK, lignes, titre_feuille='Stock')
+                if contenu is None:
+                    messages.error(
+                        request,
+                        "L'export Excel n'est pas disponible sur ce serveur. Utilisez le CSV.",
+                    )
+                    parametres = request.GET.copy()
+                    parametres.pop('export', None)
+                    return redirect(f"{request.path}?{parametres.urlencode()}")
+                content_type = XLSX_CONTENT_TYPE
+            else:
+                contenu = rendre_csv(_ENTETES_EXPORT_STOCK, lignes)
+                content_type = CSV_CONTENT_TYPE
+            AuditLog.objects.create(
+                actor=request.user, action=f'export_stock_{format_export}',
+                target_user=None, details=f'rows={len(lignes)}',
+            )
+            return reponse_fichier(contenu, f'stock.{format_export}', content_type)
+        return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
@@ -145,6 +661,13 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         if not sector:
             messages.error(request, "Le secteur est obligatoire.")
             return redirect('stock-piece-list')
+        # Le secteur posté doit appartenir au périmètre de l'appelant, sans quoi un
+        # chef de section pourrait créer ou transférer une pièce vers un secteur (voire
+        # un bâtiment) hors de son périmètre en postant directement un sector_id, en
+        # dehors du menu déroulant du formulaire.
+        if not _secteur_dans_perimetre(request.user, sector.pk):
+            messages.error(request, "Ce secteur ne fait pas partie de votre périmètre.")
+            return redirect('stock-piece-list')
         # La section doit appartenir au secteur choisi, sinon on l'ignore plutôt que
         # de créer une hiérarchie incohérente (Section -> Sector -> Service -> Ship).
         section = Section.objects.filter(pk=request.POST.get('section_id'), sector=sector).first()
@@ -156,26 +679,80 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             messages.error(request, "Les quantités doivent être des nombres entiers.")
             return redirect('stock-piece-list')
 
+        # Seuil critique (optionnel) : distinct du seuil bas déjà existant, pour une
+        # alerte de niveau supérieur une fois franchi (notify_low_stock). Doit rester
+        # strictement inférieur au seuil bas, sinon la distinction n'a pas de sens.
+        quantite_critique = None
+        quantite_critique_brut = request.POST.get('quantite_critique', '').strip()
+        if quantite_critique_brut:
+            try:
+                quantite_critique = int(quantite_critique_brut)
+            except ValueError:
+                messages.error(request, "Le seuil critique doit être un nombre entier.")
+                return redirect('stock-piece-list')
+            if quantite_critique < 0 or quantite_critique >= quantite_minimale:
+                messages.error(request, "Le seuil critique doit être inférieur au seuil bas.")
+                return redirect('stock-piece-list')
+
+        # Équipement affilié (optionnel) : une installation OU un matériel, dans le
+        # même secteur que la pièce (le secteur de la pièce a déjà été validé comme
+        # appartenant au périmètre de l'appelant ci-dessus). Format posté :
+        # "installation:<id>" ou "asset:<id>".
+        installation = None
+        asset = None
+        equipement = request.POST.get('equipement', '').strip()
+        if equipement:
+            type_equipement, _, id_equipement = equipement.partition(':')
+            if type_equipement == 'installation':
+                installation = Installation.objects.filter(pk=id_equipement, sector=sector).first()
+            elif type_equipement == 'asset':
+                asset = Asset.objects.filter(pk=id_equipement, sector=sector).first()
+            if installation is None and asset is None:
+                messages.error(request, "L'équipement choisi ne fait pas partie du secteur sélectionné.")
+                return redirect('stock-piece-list')
+
         champs = {
             "reference": reference,
             "designation": designation,
+            "nno": request.POST.get('nno', '').strip(),
             "quantite": max(quantite, 0),
             "quantite_minimale": max(quantite_minimale, 0),
+            "quantite_critique": quantite_critique,
             "emplacement": request.POST.get('emplacement', '').strip(),
+            "note": request.POST.get('note', '').strip(),
             "ship": sector.service.ship,
             "service": sector.service,
             "sector": sector,
             "section": section,
+            "installation": installation,
+            "asset": asset,
         }
+        photo = request.FILES.get('photo')
 
         if action == 'create_piece':
-            StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+            piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+            if photo:
+                piece.photo = photo
+                piece.save(update_fields=['photo'])
             messages.info(request, "Pièce ajoutée au stock.")
         else:
             pk = request.POST.get('pk')
-            if not StockPiece.objects.filter(pk=pk).exists():
+            # Recharge la pièce ciblée via le queryset déjà scopé (get_queryset(), même
+            # filtre que la liste) plutôt qu'un simple StockPiece.objects.filter(pk=pk) :
+            # une pièce hors périmètre doit être traitée comme introuvable, pour empêcher
+            # un chef de section de modifier une pièce d'un autre bâtiment via un POST direct.
+            piece = self.get_queryset().filter(pk=pk).first()
+            if piece is None:
                 messages.error(request, "Pièce introuvable.")
                 return redirect('stock-piece-list')
-            StockPiece.objects.filter(pk=pk).update(updated_by=request.user, **champs)
+            # Mise à jour via l'instance (et non un .update() de queryset) : nécessaire
+            # pour que l'affectation de la photo soit correctement enregistrée dans le
+            # stockage de fichiers, ce que .update() ne fait pas.
+            for champ, valeur in champs.items():
+                setattr(piece, champ, valeur)
+            piece.updated_by = request.user
+            if photo:
+                piece.photo = photo
+            piece.save()
             messages.info(request, "Pièce mise à jour.")
         return redirect('stock-piece-list')

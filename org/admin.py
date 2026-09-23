@@ -1,8 +1,5 @@
 from django.contrib import admin
-from .models import Ship, Service, Sector, Section, SectorConfig
-from django.contrib import admin
-from django.db import models
-from django.apps import apps
+from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
@@ -29,9 +26,18 @@ class SectionAdmin(admin.ModelAdmin):
 class SectorConfigAdmin(admin.ModelAdmin):
     list_display = ("sector", "created_at")
 
-DynamicFieldDefinition = apps.get_model('org', 'DynamicFieldDefinition')
+@admin.register(RoleThresholdConfig)
+class RoleThresholdConfigAdmin(admin.ModelAdmin):
+    # Interface de gestion réservée aux administrateurs techniques (superusers
+    # Django) : l'interface destinée aux ADMIN_NAVIRE/MASTER_ADMIN au quotidien
+    # est l'onglet « Sécurité » de /parametre/ (matrix/views.py::SettingsView),
+    # pas ce Django admin brut (principe n°2 CLAUDE.md).
+    list_display = ("ship", "updated_at")
 
-@admin.register(DynamicFieldDefinition)
-class DynamicFieldDefinitionAdmin(admin.ModelAdmin):
-    list_display = ("name", "label", "type", "sector", "applies_to", "required")
-    list_filter = ("sector", "type", "required")
+@admin.register(ModuleActivation)
+class ModuleActivationAdmin(admin.ModelAdmin):
+    # Même principe que RoleThresholdConfigAdmin ci-dessus : interface de
+    # secours technique, l'interface quotidienne est l'onglet « Modules » de
+    # /parametre/ (matrix/views.py::SettingsView).
+    list_display = ("ship", "module", "active", "updated_at")
+    list_filter = ("ship", "module", "active")

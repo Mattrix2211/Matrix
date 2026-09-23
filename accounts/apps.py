@@ -7,3 +7,6 @@ class AccountsConfig(AppConfig):
     verbose_name = "Comptes"
     # Fix Windows multiple-path issue by pinning absolute path
     path = os.path.dirname(os.path.abspath(__file__))
+
+    def ready(self):
+        from matrix.core import checks  # noqa: F401 - enregistre le garde-fou migrations en attente

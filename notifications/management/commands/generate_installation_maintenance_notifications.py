@@ -1,27 +1,12 @@
-from calendar import monthrange
-from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from assets.models import InstallationMaintenance, InstallationEvent, InstallationHourReading, ModeDeclenchement
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
+from notifications.utils import add_interval, human_delta
 
 User = get_user_model()
-
-
-def add_interval(base_date: date, unite: str, intervalle: int) -> date:
-    """Calcule la prochaine échéance calendaire à partir d’une date de base."""
-    if unite == "J":
-        return base_date + timedelta(days=intervalle)
-    if unite == "S":
-        return base_date + timedelta(weeks=intervalle)
-    # Mois ou années : arithmétique calendaire (même logique que la branche isolement existante)
-    months = intervalle if unite == "M" else intervalle * 12
-    y = base_date.year + (base_date.month - 1 + months) // 12
-    m = (base_date.month - 1 + months) % 12 + 1
-    d = min(base_date.day, monthrange(y, m)[1])
-    return date(y, m, d)
 
 
 class Command(BaseCommand):
@@ -36,7 +21,9 @@ class Command(BaseCommand):
         now = timezone.now()
         start_of_day = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
 
-        users = list(User.objects.filter(is_active=True))
+        # select_related("profile") évite une requête par utilisateur pour lire sa
+        # préférence d'heure de notification.
+        users = list(User.objects.filter(is_active=True).select_related("profile"))
         if not users:
             self.stdout.write("Aucun utilisateur actif. Abort.")
             return
@@ -44,17 +31,19 @@ class Command(BaseCommand):
         maint_ct = ContentType.objects.get_for_model(InstallationMaintenance)
         created = 0
 
-        def human_delta(days: int) -> str:
-            if days == 0:
-                return "aujourd’hui"
-            if days > 0:
-                return f"dans {days} j"
-            return f"depuis {-days} j"
-
         # Heure courante (HH:MM) pour comparer aux préférences utilisateur
         now_local = timezone.localtime(now).time().replace(second=0, microsecond=0)
 
-        def notify(maintenance, verb):
+        # Notifications déjà envoyées aujourd'hui, chargées en une seule requête et
+        # utilisées ensuite en mémoire : évite un .exists() par combinaison
+        # maintenance x utilisateur (N x M requêtes), inoffensif tant que la commande
+        # n'est jamais planifiée, problématique une fois exécutée chaque jour.
+        deja_notifies = set(
+            Notification.objects.filter(content_type=maint_ct, created_at__gte=start_of_day)
+            .values_list("user_id", "object_id", "verb")
+        )
+
+        def notify(maintenance, verb, level):
             nonlocal created
             for u in users:
                 pref = getattr(getattr(u, 'profile', None), 'notification_time', None)
@@ -62,9 +51,13 @@ class Command(BaseCommand):
                 target_time = pref or timezone.datetime.strptime('08:00', '%H:%M').time()
                 if (now_local.hour, now_local.minute) != (target_time.hour, target_time.minute):
                     continue
-                if Notification.objects.filter(user=u, content_type=maint_ct, object_id=str(maintenance.id), verb=verb, created_at__gte=start_of_day).exists():
+                cle = (u.id, str(maintenance.id), verb)
+                if cle in deja_notifies:
                     continue
-                Notification.objects.create(user=u, verb=verb, content_type=maint_ct, object_id=str(maintenance.id))
+                Notification.objects.create(
+                    user=u, verb=verb, level=level, content_type=maint_ct, object_id=str(maintenance.id)
+                )
+                deja_notifies.add(cle)
                 created += 1
 
         for maintenance in InstallationMaintenance.objects.select_related("installation").all():
@@ -85,8 +78,10 @@ class Command(BaseCommand):
                 next_date = add_interval(base_date, maintenance.unite_intervalle, maintenance.intervalle)
                 days = (next_date - today).days
                 if days <= window:
+                    # Échéance calendaire déjà dépassée = critique, à venir = simple attention.
+                    level = NotificationLevel.DANGER if days <= 0 else NotificationLevel.WARNING
                     verb = f"Entretien — {inst.designation} : {maintenance.title} (échéance calendaire le {next_date.strftime('%d/%m/%Y')}, {human_delta(days)})"
-                    notify(maintenance, verb)
+                    notify(maintenance, verb, level)
 
             # Branche compteur
             if mode in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX) and maintenance.seuil_heures:
@@ -95,7 +90,8 @@ class Command(BaseCommand):
                     baseline = maintenance.derniere_echeance_heures or 0
                     seuil = baseline + maintenance.seuil_heures
                     if last_reading.hours >= seuil:
+                        # Seuil compteur déjà atteint/dépassé : toujours critique.
                         verb = f"Entretien — {inst.designation} : {maintenance.title} (échéance compteur atteinte : {last_reading.hours} h / seuil {seuil} h)"
-                        notify(maintenance, verb)
+                        notify(maintenance, verb, NotificationLevel.DANGER)
 
         self.stdout.write(f"Notifications créées: {created}")

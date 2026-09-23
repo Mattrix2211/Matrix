@@ -1,14 +1,20 @@
 {% extends "base.html" %}
+{% load org_extras %}
 {% block content %}
 <h1 class="h3 mb-3">Annuaire des utilisateurs</h1>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div class="d-flex align-items-center gap-2">
     <form method="get" class="d-flex align-items-center gap-2">
-      <label class="form-label mb-0">Navire:</label>
+      <label class="form-label mb-0">Unité :</label>
       <select name="ship" class="form-select" onchange="this.form.submit()" style="min-width: 220px;">
-        <option value="">Tous les navires</option>
-        {% for sh in ships %}
-          <option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>
+        <option value="">Toutes les unités</option>
+        {% unites_groupees_par_type ships as groupes_unites %}
+        {% for libelle_type, liste_unites in groupes_unites %}
+          <optgroup label="{{ libelle_type }}">
+            {% for sh in liste_unites %}
+              <option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>
+            {% endfor %}
+          </optgroup>
         {% endfor %}
       </select>
     </form>
@@ -26,7 +32,7 @@
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
       <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkRoleModal">Modifier rôle…</button></li>
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier navire…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier unité…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkFonctionModal">Modifier fonction…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkServiceModal">Modifier service…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectorModal">Modifier secteur…</button></li>
@@ -53,7 +59,7 @@
       <th>Grade</th>
       <th>Spécialité</th>
       <th>Matricule</th>
-      <th>Navire</th>
+      <th>Unité</th>
       <th>Fonction</th>
       <th>Service</th>
       <th>Secteur</th>
@@ -67,17 +73,17 @@
     {% for u in users %}
       <tr>
         <td class="select-col"><input type="checkbox" value="{{ u.id }}" class="row-select" /></td>
-        <td>{{ u.username }}</td>
+        <td class="font-mono">{{ u.username }}</td>
         <td>{{ u.profile.role|default:"—" }}</td>
         <td>{{ u.profile.grade|default:"—" }}</td>
         <td>{{ u.profile.specialite|default:"—" }}</td>
-        <td>{{ u.profile.matricule|default:"—" }}</td>
-        <td>{{ u.profile.ship|default:"—" }}</td>
+        <td class="font-mono">{{ u.profile.matricule|default:"—" }}</td>
+        <td>{% if u.profile.ship %}{{ u.profile.ship.name }} {{ u.profile.ship|badge_type_unite }}{% else %}—{% endif %}</td>
         <td>{{ u.profile.fonction_service|default:"—" }}</td>
         <td>{{ u.profile.service.name|default:"—" }}</td>
         <td>{{ u.profile.sector.name|default:"—" }}</td>
         <td>{{ u.profile.section.name|default:"—" }}</td>
-        <td>{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td class="font-mono">{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:"d/m/Y" }}{% else %}—{% endif %}</td>
         <td>{{ u.profile.age|default:"—" }}</td>
         <td>
             <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editUserModal" title="Modifier"
@@ -160,10 +166,15 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Navire</label>
+              <label class="form-label">Unité</label>
               <select class="form-select" name="ship_id" id="createShip">
                 <option value="">—</option>
-                {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+                {% unites_groupees_par_type ships as groupes_unites %}
+                {% for libelle_type, liste_unites in groupes_unites %}
+                  <optgroup label="{{ libelle_type }}">
+                    {% for sh in liste_unites %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+                  </optgroup>
+                {% endfor %}
               </select>
             </div>
             <div class="col-md-6">
@@ -270,10 +281,15 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Navire</label>
+              <label class="form-label">Unité</label>
               <select class="form-select" name="ship_id" id="editShip">
                 <option value="">—</option>
-                {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+                {% unites_groupees_par_type ships as groupes_unites %}
+                {% for libelle_type, liste_unites in groupes_unites %}
+                  <optgroup label="{{ libelle_type }}">
+                    {% for sh in liste_unites %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+                  </optgroup>
+                {% endfor %}
               </select>
             </div>
             <div class="col-md-6">
@@ -377,7 +393,7 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Préselection du navire courant et filtrage des listes hiérarchiques
+    // Préselection de l'unité courante et filtrage des listes hiérarchiques
     function getSelectedShipFilter() {
       var shipFilter = document.querySelector("form[action=''] select[name='ship'], form select[name='ship']");
       if (shipFilter) { return shipFilter.value || ''; }
@@ -643,20 +659,25 @@
   </div>
   </div>
 
-{# Modale: Modifier navire #}
+{# Modale: Modifier unité #}
 <div class="modal fade" id="bulkShipModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Modifier le navire (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-header"><h5 class="modal-title">Modifier l'unité (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
       <form method="post" id="bulkShipForm">
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="bulk_update_ship" />
           <div class="mb-3">
-            <label class="form-label">Navire</label>
+            <label class="form-label">Unité</label>
             <select class="form-select" name="ship_id">
               <option value="">—</option>
-              {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+              {% unites_groupees_par_type ships as groupes_unites %}
+              {% for libelle_type, liste_unites in groupes_unites %}
+                <optgroup label="{{ libelle_type }}">
+                  {% for sh in liste_unites %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+                </optgroup>
+              {% endfor %}
             </select>
           </div>
         </div>

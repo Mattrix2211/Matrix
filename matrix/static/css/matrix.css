@@ -146,6 +146,46 @@ code, pre, kbd, .font-mono {
 /* Badges de type de fichier (text-bg-primary) : même correctif de contraste */
 .text-bg-primary { color: var(--ink) !important; }
 
+/* ------------------------------------------------------------------------ */
+/* Champs de saisie date/heure — habillage du widget natif du navigateur.   */
+/* Choix volontaire : pas de composant date-picker JS sur mesure (le widget */
+/* natif reste accessible, sans dépendance supplémentaire à auto-héberger,  */
+/* cf. principe hors-ligne CLAUDE.md n°4). Les navigateurs ne permettant pas */
+/* de restyler le popup/l'icône natifs en profondeur, on aligne au moins la */
+/* police (JetBrains Mono, §3, données techniques) et le focus (--signal)   */
+/* sur le reste des formulaires du design system, et on teinte l'icône      */
+/* calendrier native en --signal sur Chrome/Edge (::-webkit-…) — Firefox    */
+/* ignore ce sélecteur et conserve son icône native sans dégradation.       */
+/* Règle globale unique : s'applique à tous les champs date/heure existants */
+/* sans modifier un seul template.                                         */
+/* ------------------------------------------------------------------------ */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  font-family: var(--f-mono);
+  color-scheme: light;
+}
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus {
+  border-color: var(--signal-ui);
+  box-shadow: 0 0 0 .25rem rgba(0, 180, 216, .25);
+}
+/* Filtre approximant --signal (#00B4D8) à partir de l'icône noire native. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(48%) sepia(89%) saturate(1875%) hue-rotate(160deg) brightness(96%) contrast(101%);
+  cursor: pointer;
+  opacity: .85;
+  transition: opacity .15s ease;
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator,
+input[type="time"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
 /* Statuts — vert unique --green-tech pour Matrix (validations, systèmes) */
 .badge.bg-success, .text-bg-success {
   background-color: var(--green-tech) !important;
@@ -234,3 +274,271 @@ code, pre, kbd, .font-mono {
   width: 16px;
   height: 16px;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Arbre de compétences (training/web_views.py::CompetencyTreeView) —     */
+/* les catégories (branches indépendantes) sont côte à côte en colonnes    */
+/* parallèles ; à l'intérieur d'une catégorie, les formations sans aucun   */
+/* lien de prérequis entre elles (composantes connexes distinctes, cf.    */
+/* training/services.py::regrouper_par_composantes_connexes) sont à leur   */
+/* tour côte à côte en sous-colonnes ; à l'intérieur d'une sous-colonne,   */
+/* les niveaux s'empilent du haut vers le bas (l'arbre « descend », comme  */
+/* un arbre de compétences de jeu vidéo), chaque niveau affichant ses      */
+/* formations côte à côte (CSS flex, pas de grille de graphe externe) ;    */
+/* connecteurs en SVG pur généré par matrix/static/js/arbre_competences.js */
+/* (aucune bibliothèque de graphe, conforme au principe hors-ligne).      */
+/* Navigation : plus de barre de défilement par colonne ni de défilement   */
+/* horizontal de page — un seul cadre panoramique (.arbre-viewport) que    */
+/* l'on déplace au clic-glisser (arbre_competences.js), comme sur une      */
+/* carte interactive, en JavaScript vanilla (sans bibliothèque externe).   */
+/* ---------------------------------------------------------------------- */
+/* Cadre panoramique : hauteur généreuse pour que l'arbre prenne le plus de
+   place possible sur l'écran, mais bornée (comme une carte) puisque le
+   déplacement se fait désormais par glisser plutôt que par défilement de
+   page. overflow: hidden masque tout dépassement du contenu déplacé par
+   transform plutôt que de faire apparaître une barre de défilement. */
+.arbre-viewport {
+  position: relative;
+  overflow: hidden;
+  height: min(72vh, 900px);
+  min-height: 440px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  cursor: grab;
+}
+/* Pendant le glisser : curseur « attrapé » et texte non sélectionnable
+   (évite de sélectionner les titres de carte au passage de la souris). */
+.arbre-viewport--glisse,
+.arbre-viewport--glisse * {
+  cursor: grabbing;
+  user-select: none;
+}
+/* Les catégories (domaines métier) sont des branches indépendantes les unes
+   des autres : elles doivent se lire côte à côte plutôt que de s'empiler
+   verticalement (bug signalé : « les formations de différentes branches se
+   mettent les unes au-dessus des autres »). Rangée de colonnes parallèles,
+   déplacée par panoramique (transform, cf. arbre_competences.js) plutôt que
+   par défilement : ce conteneur ne porte plus son propre défilement, les
+   niveaux d'imbrication suivants (composantes) n'en portent pas non plus,
+   pour ne garder qu'un seul geste de navigation sur tout l'arbre. */
+.arbre-categories {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: var(--s8);
+  padding: var(--s4);
+  width: max-content;
+  will-change: transform;
+}
+/* Une section par catégorie (domaine métier) dans l'arbre de compétences —
+   le calcul du graphe reste global au catalogue, seul cet affichage regroupe
+   par catégorie (cf. training/services.py::regrouper_par_categorie). Largeur
+   minimale (pas de largeur fixe) : une catégorie ne contenant qu'une seule
+   branche reste une colonne raisonnable, tandis qu'une catégorie contenant
+   plusieurs branches indépendantes (composantes) peut s'élargir pour les
+   accueillir côte à côte sans les écraser. */
+.arbre-categorie {
+  flex: 0 0 auto;
+  min-width: min(340px, 88vw);
+}
+.arbre-categorie-titre {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--ink);
+  padding-bottom: var(--s2);
+  margin-bottom: var(--s4);
+  border-bottom: 2px solid var(--border);
+}
+/* Au sein d'une catégorie, les formations reliées par AUCUN lien de
+   prérequis (même transitif) forment des branches indépendantes : elles
+   doivent, comme les catégories elles-mêmes, se lire côte à côte plutôt que
+   de s'empiler verticalement (complément du même bug, confirmé par
+   l'utilisateur : « en fait les deux »). */
+.arbre-composantes {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: var(--s6);
+}
+.arbre-composante {
+  flex: 0 0 auto;
+  min-width: 260px;
+}
+
+.arbre-competences-conteneur {
+  position: relative;
+  padding-bottom: var(--s4);
+}
+.arbre-connecteurs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.arbre-connecteur {
+  fill: none;
+  stroke-width: 2px;
+}
+/* Un prérequis déjà validé : trait --green-tech (chemin débloqué). */
+.arbre-connecteur--valide { stroke: var(--green-tech); }
+/* Un prérequis pas encore validé : trait grisé (chemin encore fermé). */
+.arbre-connecteur--verrouille { stroke: var(--text-ter); opacity: .5; }
+
+/* Empilement vertical des niveaux (niveau 0 en haut, puis chaque niveau
+   suivant en dessous) : c'est cet empilement, combiné aux connecteurs
+   verticaux dessinés par arbre_competences.js, qui donne la lecture
+   « arbre qui descend » attendue plutôt qu'un simple alignement en colonnes
+   ressemblant à un tableau. */
+.arbre-competences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  position: relative;
+}
+.arbre-niveau {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.arbre-niveau-titre {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-sec);
+}
+/* Les formations d'un même niveau sont côte à côte : un niveau qui ne
+   contient qu'une seule formation ne doit jamais ressembler à une ligne de
+   liste isolée, il doit rester une « rangée » de l'arbre au même titre que
+   les niveaux à plusieurs formations. */
+.arbre-niveau-cartes {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--s4);
+}
+
+/* Largeur fixe (plutôt qu'un simple min-width hérité du conteneur) pour que
+   les cartes d'un même niveau restent alignées entre elles quel que soit le
+   nombre de formations du niveau — sans cela, une seule carte prendrait
+   toute la largeur du conteneur et ressemblerait à une ligne de tableau. */
+.formation-card {
+  position: relative;
+  width: 260px;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+/* États d'une formation pour le marin connecté — vert unique --green-tech pour
+   « validé » (jamais --green-sport, réservé au cyclisme), --signal pour
+   « disponible » (prérequis remplis), et --text-ter (teinte tertiaire déjà
+   définie plus haut) pour « verrouillé », plutôt que d'introduire une nouvelle
+   variable --ink-faint hors de la palette existante. */
+.formation-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.formation-card--valide { border-color: var(--green-tech); }
+.formation-card--valide::before { background: linear-gradient(90deg, var(--green-tech), transparent); }
+.formation-card--disponible { border-color: var(--signal-ui); }
+.formation-card--disponible::before { background: linear-gradient(90deg, var(--signal), transparent); }
+.formation-card--verrouille { border-color: var(--border); background: var(--chalk); opacity: .85; }
+.formation-card--verrouille::before { background: var(--text-ter); opacity: .3; }
+
+.badge-etat--valide { background: var(--green-tech); color: var(--ink); }
+.badge-etat--disponible { background: var(--signal); color: var(--ink); }
+.badge-etat--verrouille { background: var(--border); color: var(--text-sec); }
+
+.legende-puce {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: var(--s1);
+  vertical-align: middle;
+}
+.legende-puce--valide { background: var(--green-tech); }
+.legende-puce--disponible { background: var(--signal); }
+.legende-puce--verrouille { background: var(--text-ter); }
+
+/* Frise de relevés — timeline horizontale 100% SVG/CSS (même famille que
+   l'arbre de compétences), utilisée pour l'évolution qualitative A/B/C des
+   relevés de vibration (principe n°5 CLAUDE.md). */
+.frise-timeline {
+  display: flex;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding: var(--s3) var(--s1);
+}
+.frise-point {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+}
+.frise-point:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.frise-puce {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--paper);
+  box-shadow: 0 0 0 1px var(--border);
+  z-index: 1;
+}
+.frise-puce--a { background: var(--green-tech); }
+.frise-puce--b { background: var(--amber); }
+.frise-puce--c { background: var(--red); }
+.frise-date {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  margin-top: var(--s1);
+  color: var(--text-sec);
+  white-space: nowrap;
+}
+
+/* Plan interactif du navire — épingle de matériel positionnée précisément en
+   pourcentage par-dessus l'image du pont (assets/plan_navire_vue.html en
+   consultation, assets/plan_navire_deck.html en édition). Remplace l'ancien
+   système de zones rectangulaires (.zone-plan) : une épingle = un seul
+   matériel. Même code couleur que le reste du projet : --green-tech (OK),
+   --amber (attention, contrôle en retard), --red (danger, matériel hors
+   service). La pointe de l'épingle (bas du pictogramme) désigne le point
+   exact cliqué, d'où le translate(-50%,-100%). */
+.pin-plan {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: filter .15s ease, transform .15s ease;
+}
+.pin-plan:hover { filter: brightness(1.2); transform: translate(-50%, -100%) scale(1.1); }
+.pin-plan--ok { color: var(--green-tech); }
+.pin-plan--attention { color: var(--amber); }
+.pin-plan--danger { color: var(--red); }
+/* Épingle de l'éditeur (assets/plan_navire_deck.html), sans état à colorer
+   (l'éditeur sert au positionnement, pas au diagnostic) : accent unique du
+   design system. */
+.pin-plan:not([class*="pin-plan--"]) { color: var(--signal-ui); }

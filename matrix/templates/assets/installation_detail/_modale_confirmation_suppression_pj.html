@@ -1,0 +1,20 @@
+<div class="modal fade" id="confirmDeleteAttachment" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Supprimer la pièce jointe</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_event_attachment" />
+          <input type="hidden" name="event_id" value="" />
+          <input type="hidden" name="attachment_id" value="" />
+          <p>Confirmer la suppression de « <span class="confirm-filename"></span> » ?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

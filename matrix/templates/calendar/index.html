@@ -13,20 +13,28 @@
 
   {# Filtres #}
   <form method="get" class="row g-2 align-items-end mb-3">
+    {% comment %}
+    La vue (Jour/Semaine/Mois) n'est plus soumise par ce formulaire : elle
+    est pilotée en JS pur par calendar.changeView() (voir script plus bas)
+    pour éviter tout rechargement de page. Le champ caché ci-dessous garde
+    uniquement la vue courante en mémoire, pour qu'elle soit préservée si
+    l'utilisateur soumet les autres filtres classiques.
+    {% endcomment %}
+    <input type="hidden" name="view" id="vue-courante" value="{{ view }}">
     <div class="col-auto">
-      <label class="form-label mb-1">Vue</label>
-      <select name="view" class="form-select form-select-sm">
-        <option value="month" {% if view == 'month' %}selected{% endif %}>Mois</option>
-        <option value="week" {% if view == 'week' %}selected{% endif %}>Semaine</option>
-        <option value="day" {% if view == 'day' %}selected{% endif %}>Jour</option>
-      </select>
+      <label class="form-label mb-1 d-block">Vue</label>
+      <div class="btn-group btn-group-sm" role="group" aria-label="Vue du calendrier">
+        <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="day">Jour</button>
+        <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="week">Semaine</button>
+        <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="month">Mois</button>
+      </div>
     </div>
     <div class="col-auto">
       <label class="form-label mb-1">Date</label>
       <input type="date" name="date" value="{{ date|date:'Y-m-d' }}" class="form-control form-control-sm" />
     </div>
     <div class="col-auto">
-      <label class="form-label mb-1">Navire</label>
+      <label class="form-label mb-1">Unité</label>
       <select name="ship" class="form-select form-select-sm">
         <option value="">Tous</option>
         {% for s in ships %}
@@ -68,6 +76,10 @@
         <option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>🔧 Maintenance</option>
         <option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>🛠 Ticket</option>
         <option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>📚 Formation</option>
+        <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>⏱ Quart</option>
+        <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>🧭 Ronde</option>
+        <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>🛡 Garde</option>
+        <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>📌 Personnel</option>
       </select>
     </div>
     <div class="col-auto">
@@ -106,20 +118,146 @@
     <span><span class="badge" style="background:#6c757d">✓ Terminée</span></span>
     <span><span class="badge" style="background:#fd7e14">🛠 Ticket</span></span>
     <span><span class="badge" style="background:#198754">📚 Formation</span></span>
+    <span><span class="badge" style="background:#0b7285">⏱ Quart</span></span>
+    <span><span class="badge" style="background:#a61e4d">🛡 Garde</span></span>
+    <span><span class="badge" style="background:#5f3dc4">🧭 Ronde</span></span>
+    <span><span class="badge" style="background:#6f42c1">📌 Personnel</span></span>
   </div>
 
   {# Alerte chargement #}
   <div id="cal-erreur" class="alert alert-danger d-none">Impossible de charger les événements.</div>
 
-  <div class="card shadow-sm">
-    <div class="card-body p-2">
-      <div id="calendar"></div>
+  <div class="row g-3">
+    <div class="col-lg-9">
+      <div class="card shadow-sm">
+        <div class="card-body p-2">
+          <div id="calendar"></div>
+        </div>
+      </div>
+    </div>
+
+    {% comment %}
+    Ajout libre d'un événement personnel (rappel, note) — visible uniquement
+    par son créateur, à côté des événements auto-générés (maintenance,
+    formation).
+    {% endcomment %}
+    <div class="col-lg-3">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header py-2">
+          <strong>Ajouter un événement personnel</strong>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{% url 'calendar-personal-save' %}" id="form-evenement-personnel">
+            {% csrf_token %}
+            <input type="hidden" name="id" id="pe-id" value="">
+            <div class="mb-2">
+              <label class="form-label mb-1" for="pe-title">Titre</label>
+              <input type="text" class="form-control form-control-sm" id="pe-title" name="title" maxlength="200" required>
+            </div>
+            <div class="row g-2 mb-2">
+              {% comment %}
+              Deux champs côte à côte (début/fin), comme le formulaire de
+              création rapide du calendrier Apple : la fin est facultative
+              (une durée par défaut d'une heure est appliquée côté serveur
+              si elle est laissée vide, cf. calendar_app/views.py) et se
+              recale automatiquement en JS si le début est avancé au-delà
+              d'elle (voir ajusterFinSiNecessaire plus bas).
+              {% endcomment %}
+              <div class="col-6">
+                <label class="form-label mb-1" for="pe-starts-at">Début</label>
+                <input type="datetime-local" class="form-control form-control-sm" id="pe-starts-at" name="starts_at" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label mb-1" for="pe-ends-at">Fin (facultatif)</label>
+                <input type="datetime-local" class="form-control form-control-sm" id="pe-ends-at" name="ends_at">
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label mb-1" for="pe-note">Note (facultatif)</label>
+              <textarea class="form-control form-control-sm" id="pe-note" name="note" rows="2"></textarea>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary btn-sm flex-fill">Ajouter</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="pe-annuler">Annuler</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header py-2">
+          <strong>Mes événements personnels</strong>
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for pe in mes_evenements_personnels %}
+            <li class="list-group-item d-flex justify-content-between align-items-start gap-2 small">
+              <div>
+                <div class="fw-semibold">{{ pe.title }}</div>
+                <div class="text-muted">{{ pe.starts_at|date:"d/m/Y H:i" }}</div>
+              </div>
+              <div class="d-flex gap-1">
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 btn-modifier-evenement"
+                        data-id="{{ pe.id }}" data-title="{{ pe.title }}"
+                        data-starts-at="{{ pe.starts_at|date:'Y-m-d\TH:i' }}" data-note="{{ pe.note }}">
+                  Modifier
+                </button>
+                <form method="post" action="{% url 'calendar-personal-delete' pe.id %}" class="form-suppression-evenement-personnel">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">Suppr.</button>
+                </form>
+              </div>
+            </li>
+          {% empty %}
+            <li class="list-group-item small text-muted">Aucun événement personnel à venir.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {% comment %}
+  Modale de confirmation de suppression d'un événement personnel — remplace
+  le confirm() natif du navigateur (incompatible avec l'automatisation de
+  test et non personnalisable, cf. cadrage QA). Partagée par les deux points
+  d'entrée (liste "Mes événements personnels" et popover d'aperçu rapide) :
+  au clic sur "Supprimer", l'action réelle (soumission du formulaire ou
+  appel fetch, selon l'origine) est mémorisée puis exécutée seulement à la
+  confirmation, cf. script plus bas.
+  {% endcomment %}
+  {% comment %}
+  z-index relevé au-dessus du popover d'aperçu rapide (Bootstrap : popover
+  1070 > modale 1055 par défaut) : la modale doit rester lisible même quand
+  elle est ouverte depuis le bouton "Supprimer" du popover, laissé ouvert
+  derrière elle pour conserver l'affichage d'un éventuel message d'erreur
+  (voir afficherErreurPopover plus bas).
+  {% endcomment %}
+  <style>
+    #modaleConfirmationSuppressionEvenement { z-index: 1080; }
+  </style>
+  <div class="modal fade" id="modaleConfirmationSuppressionEvenement" tabindex="-1"
+       aria-hidden="true" aria-labelledby="modaleConfirmationSuppressionEvenementLabel">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modaleConfirmationSuppressionEvenementLabel">Supprimer l'événement</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0">Supprimer cet événement personnel ? Cette action est définitive.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmerSuppressionEvenement">Supprimer</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-{# Bibliothèque auto-hébergée — aucune dépendance CDN, fonctionne hors-ligne sur le réseau du bord.
-   FullCalendar 6 injecte son propre CSS via le script, aucune feuille de style externe requise. #}
+{% comment %}
+Bibliothèque auto-hébergée — aucune dépendance CDN, fonctionne hors-ligne sur le réseau du bord.
+FullCalendar 6 injecte son propre CSS via le script, aucune feuille de style externe requise.
+{% endcomment %}
 <script src="{% static 'vendor/fullcalendar/index.global.min.js' %}"></script>
 <script>
 // Locale française embarquée directement — pas de dépendance CDN
@@ -139,38 +277,66 @@ FullCalendar.globalLocales.push({
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const params  = new URLSearchParams(window.location.search);
-  const view    = params.get('view')    || 'month';
+  let   view    = params.get('view')    || 'month';
   const date    = params.get('date')    || '{{ date|date:"Y-m-d" }}';
-  const ship    = params.get('ship')    || '';
-  const service = params.get('service') || '';
-  const sector  = params.get('sector')  || '';
-  const user    = params.get('user')    || '';
-  const type    = params.get('type')    || '';
-  const status  = params.get('status')  || '';
+  // Filtres modifiables sans rechargement de page (voir bloc "Filtres
+  // appliqués sans rechargement de page" plus bas) : d'où le `let`.
+  let ship    = params.get('ship')    || '';
+  let service = params.get('service') || '';
+  let sector  = params.get('sector')  || '';
+  let user    = params.get('user')    || '';
+  let type    = params.get('type')    || '';
+  let status  = params.get('status')  || '';
 
-  const fcView = view === 'week' ? 'dayGridWeek' : (view === 'day' ? 'timeGridDay' : 'dayGridMonth');
-  const eventsUrl = `/calendar/events/?view=${view}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
+  // Correspondance entre la vue courte utilisée dans l'URL (day/week/month,
+  // partagée avec le rendu initial côté serveur) et le nom de vue FullCalendar.
+  const VUES_FULLCALENDAR = { day: 'timeGridDay', week: 'dayGridWeek', month: 'dayGridMonth' };
+
+  function construireUrlEvenements(vue) {
+    return `/calendar/events/?view=${vue}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
+  }
 
   const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     locale: 'fr',
-    initialView: fcView,
+    initialView: VUES_FULLCALENDAR[view] || 'dayGridMonth',
     initialDate: date,
     editable: true,
+    // Autorise le simple clic (vue mois, callback dateClick) et le
+    // glisser-sélection d'une plage horaire (vues semaine/jour, callback
+    // select) pour la création rapide d'un événement personnel.
+    selectable: true,
     height: 'auto',
     headerToolbar: { start: '', center: 'title', end: '' },
     buttonText: { today: "Aujourd'hui", month: 'Mois', week: 'Semaine', day: 'Jour' },
+    // Clic simple sur une case vide en vue mois : pré-remplit le formulaire
+    // "Ajouter un événement personnel" avec la date cliquée. Volontairement
+    // limité à l'événement personnel : la création d'une maintenance, d'un
+    // ticket ou d'une formation reste réservée à son propre écran, chacun
+    // ayant ses règles métier (checklist, prérequis, signature...).
+    dateClick: function (info) {
+      preRemplirFormulairePersonnel(info.date);
+    },
+    // Sélection d'une plage horaire en vues semaine/jour (ou clic simple,
+    // FullCalendar déclenchant aussi select dans ce cas) : même
+    // pré-remplissage, à partir du début de la plage sélectionnée.
+    select: function (info) {
+      preRemplirFormulairePersonnel(info.start);
+      calendar.unselect();
+    },
     eventSources: [{
-      url: eventsUrl,
+      url: construireUrlEvenements(view),
       method: 'GET',
       failure: function () {
         document.getElementById('cal-erreur').classList.remove('d-none');
       }
     }],
     eventClick: function (info) {
-      if (info.event.url) {
-        window.location.href = info.event.url;
-        info.jsEvent.preventDefault();
-      }
+      // Popover d'aperçu rapide (comme un calendrier natif) au lieu d'un
+      // rechargement complet de la page : la fiche complète reste accessible
+      // via un bouton dédié dans le popover, pour qui a une URL de fiche
+      // (absente pour un événement personnel, qui n'en a pas).
+      info.jsEvent.preventDefault();
+      ouvrirPopoverEvenement(info);
     },
     eventDidMount: function (info) {
       const props = info.event.extendedProps;
@@ -180,8 +346,8 @@ document.addEventListener('DOMContentLoaded', function () {
     },
     eventDrop: function (info) {
       const id = info.event.id;
-      const evType = id.startsWith('occ-') ? 'maintenance' : (id.startsWith('tic-') ? 'ticket' : (id.startsWith('trn-') ? 'training' : ''));
-      const cleanId = id.replace(/^(occ-|tic-|trn-)/, '');
+      const evType = id.startsWith('occ-') ? 'maintenance' : (id.startsWith('tic-') ? 'ticket' : (id.startsWith('trn-') ? 'training' : (id.startsWith('per-') ? 'personal' : '')));
+      const cleanId = id.replace(/^(occ-|tic-|trn-|per-)/, '');
       if (!evType) { info.revert(); return; }
       const formData = new FormData();
       formData.append('type', evType);
@@ -192,19 +358,409 @@ document.addEventListener('DOMContentLoaded', function () {
         headers: { 'X-CSRFToken': getCookie('csrftoken') },
         body: formData
       }).then(r => { if (!r.ok) info.revert(); }).catch(() => info.revert());
+    },
+    // Redimensionnement par glisser (bord de l'événement) : réservé aux
+    // événements personnels, seuls à porter une notion de durée métier
+    // (maintenance/tickets/formations restent des événements ponctuels,
+    // cf. cadrage Notion). Même endpoint et même schéma de résultat que
+    // eventDrop ci-dessus (calendar-event-move), avec en plus la nouvelle
+    // date de fin.
+    eventResize: function (info) {
+      const props = info.event.extendedProps;
+      if (!props || props.type !== 'personal') { info.revert(); return; }
+      const formData = new FormData();
+      formData.append('type', 'personal');
+      formData.append('id', info.event.id.replace(/^per-/, ''));
+      formData.append('date', info.event.startStr);
+      formData.append('end_date', info.event.endStr);
+      fetch('/calendar/events/move/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: formData
+      }).then(r => { if (!r.ok) info.revert(); }).catch(() => info.revert());
     }
   });
   calendar.render();
 
+  // --- Popover de détail rapide au clic sur un événement ------------------
+  // Libellés français des statuts par type d'événement, pour affichage dans
+  // le popover (mêmes libellés que le menu déroulant "Statut" ci-dessus).
+  const LIBELLES_STATUT = {
+    maintenance: {
+      PLANNED: 'Planifiée', ASSIGNED: 'Assignée', IN_PROGRESS: 'En cours',
+      WAITING_VALIDATION: 'En validation', DONE: 'Terminée', OVERDUE: 'En retard', CANCELLED: 'Annulée',
+    },
+    ticket: {
+      REPORTED: 'Signalé', DIAGNOSED: 'Diagnostiqué', WAITING_PARTS: 'Attente pièces',
+      IN_REPAIR: 'En réparation', TESTING: 'En test', RETURNED_TO_SERVICE: 'Remis en service',
+      BLOCKED: 'Bloqué', CLOSED: 'Clôturé', CANCELLED: 'Annulée',
+    },
+    training: { PLANNED: 'Planifiée', DONE: 'Effectuée', CANCELLED: 'Annulée' },
+  };
+
+  function libelleStatut(type, statut) {
+    return (LIBELLES_STATUT[type] && LIBELLES_STATUT[type][statut]) || statut || '';
+  }
+
+  // Échappe tout texte d'origine utilisateur (titre d'un ticket/matériel,
+  // note d'un événement personnel...) avant insertion dans le HTML du
+  // popover : le popover est construit avec sanitize:false (voir plus bas)
+  // pour pouvoir afficher des boutons d'action, donc l'échappement doit être
+  // fait nous-mêmes sur toute valeur qui n'est pas un texte fixe du gabarit.
+  function echapperHtml(texte) {
+    const div = document.createElement('div');
+    div.textContent = texte == null ? '' : String(texte);
+    return div.innerHTML;
+  }
+
+  function formatDateHeure(date) {
+    if (!date) return '';
+    const jour = date.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return `${jour} à ${heure}`;
+  }
+
+  // Convertit un objet Date en valeur compatible avec un champ
+  // datetime-local ("AAAA-MM-JJTHH:MM"), à partir de ses composants locaux
+  // (mêmes composants que ceux affichés sur la grille du calendrier).
+  function versDatetimeLocal(date) {
+    const deuxChiffres = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${deuxChiffres(date.getMonth() + 1)}-${deuxChiffres(date.getDate())}T${deuxChiffres(date.getHours())}:${deuxChiffres(date.getMinutes())}`;
+  }
+
+  // --- Modale de confirmation de suppression (remplace confirm() natif) ---
+  const elementModaleSuppression = document.getElementById('modaleConfirmationSuppressionEvenement');
+  const modaleConfirmationSuppression = new bootstrap.Modal(elementModaleSuppression);
+  let actionSuppressionEnAttente = null;
+
+  // Ouvre la modale de confirmation et mémorise l'action à exécuter si
+  // l'utilisateur confirme (fermée sans rien faire sur "Annuler"/croix).
+  function demanderConfirmationSuppression(action) {
+    actionSuppressionEnAttente = action;
+    modaleConfirmationSuppression.show();
+  }
+
+  document.getElementById('btnConfirmerSuppressionEvenement').addEventListener('click', function () {
+    const action = actionSuppressionEnAttente;
+    actionSuppressionEnAttente = null;
+    modaleConfirmationSuppression.hide();
+    if (action) action();
+  });
+  // Si la modale est refermée sans confirmation (croix, "Annuler", touche
+  // Échap, clic hors modale), l'action mémorisée ne doit pas persister pour
+  // une prochaine ouverture accidentelle.
+  elementModaleSuppression.addEventListener('hidden.bs.modal', function () {
+    actionSuppressionEnAttente = null;
+  });
+  // --------------------------------------------------------------------
+
+  let popoverActif = null;
+  let elementDeclencheur = null;
+
+  function fermerPopover() {
+    if (popoverActif) {
+      popoverActif.dispose();
+      popoverActif = null;
+      elementDeclencheur = null;
+    }
+  }
+
+  function construireContenuPopover(event, props) {
+    const couleur = event.backgroundColor || '#6c757d';
+    const badgeStatut = props.status
+      ? `<span class="badge mb-2" style="background-color:${couleur}">${echapperHtml(libelleStatut(props.type, props.status))}</span><br>`
+      : '';
+    const note = (props.type === 'personal' && props.note)
+      ? `<div class="mb-2">${echapperHtml(props.note)}</div>`
+      : '';
+    let actions = '';
+    if (event.url) {
+      actions += `<a href="${event.url}" class="btn btn-primary btn-sm">Voir la fiche complète</a>`;
+    }
+    // Actions rapides : uniquement pour un événement personnel dont
+    // l'utilisateur connecté est propriétaire (peut_agir calculé côté
+    // serveur, calendar_app/views.py::calendar_events — jamais recalculé
+    // ici). Pour la maintenance/les tickets, la fiche complète reste le
+    // seul point d'entrée : les transitions de statut y exigent des
+    // vérifications (checklist, signature, REX...) qu'un popover ne doit
+    // pas dupliquer.
+    if (props.type === 'personal' && props.peut_agir) {
+      actions += `<button type="button" class="btn btn-outline-secondary btn-sm" data-popover-action="modifier">Modifier</button>`;
+      actions += `<button type="button" class="btn btn-outline-danger btn-sm" data-popover-action="supprimer">Supprimer</button>`;
+    }
+    return `
+      <div class="small">
+        ${badgeStatut}
+        <div class="text-muted mb-2">${echapperHtml(formatDateHeure(event.start))}</div>
+        ${note}
+        <div class="d-flex flex-wrap gap-1">${actions}</div>
+        <div class="text-danger mt-2 d-none" data-popover-erreur></div>
+      </div>
+    `;
+  }
+
+  function afficherErreurPopover(bulle, message) {
+    const zoneErreur = bulle.querySelector('[data-popover-erreur]');
+    if (zoneErreur) {
+      zoneErreur.textContent = message;
+      zoneErreur.classList.remove('d-none');
+    }
+  }
+
+  function attacherActionsPopover(bulle, event, props) {
+    const boutonSupprimer = bulle.querySelector('[data-popover-action="supprimer"]');
+    if (boutonSupprimer) {
+      boutonSupprimer.addEventListener('click', function () {
+        demanderConfirmationSuppression(function () {
+          const idBrut = event.id.replace(/^per-/, '');
+          fetch(`/calendar/personnel/${idBrut}/supprimer/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          }).then(function (reponse) {
+            if (reponse.ok) {
+              fermerPopover();
+              calendar.refetchEvents();
+            } else {
+              afficherErreurPopover(bulle, "Échec de la suppression (session expirée ou erreur serveur). Réessayez.");
+            }
+          }).catch(function () {
+            afficherErreurPopover(bulle, "Échec de la suppression : connexion au serveur impossible.");
+          });
+        });
+      });
+    }
+    const boutonModifier = bulle.querySelector('[data-popover-action="modifier"]');
+    if (boutonModifier) {
+      boutonModifier.addEventListener('click', function () {
+        const idBrut = event.id.replace(/^per-/, '');
+        // Le titre affiché porte le préfixe "📌 " ajouté côté serveur
+        // (calendar_app/views.py) : on ne garde que la partie après le
+        // premier espace pour ré-alimenter le formulaire d'origine.
+        champId.value = idBrut;
+        champTitre.value = event.title.slice(event.title.indexOf(' ') + 1);
+        champDate.value = versDatetimeLocal(event.start);
+        // Champ de fin laissé vide : la modification ne le propose pas
+        // encore, la durée existante est conservée côté serveur (décalée du
+        // même delta que le début, cf. personal_event_save).
+        champFin.value = '';
+        champNote.value = props.note || '';
+        btnValider.textContent = 'Modifier';
+        btnAnnuler.classList.remove('d-none');
+        fermerPopover();
+        champTitre.focus();
+      });
+    }
+  }
+
+  function ouvrirPopoverEvenement(info) {
+    fermerPopover();
+    const props = info.event.extendedProps || {};
+    popoverActif = new bootstrap.Popover(info.el, {
+      html: true,
+      sanitize: false,
+      trigger: 'manual',
+      placement: 'auto',
+      container: 'body',
+      title: echapperHtml(info.event.title),
+      content: construireContenuPopover(info.event, props),
+    });
+    elementDeclencheur = info.el;
+    popoverActif.show();
+    const bulle = document.querySelector('.popover');
+    if (bulle) {
+      attacherActionsPopover(bulle, info.event, props);
+    }
+  }
+
+  // Ferme le popover au clic en dehors de celui-ci ou de l'événement
+  // déclencheur (mais pas au clic qui vient de l'ouvrir, puisqu'il cible
+  // alors l'élément déclencheur lui-même).
+  document.addEventListener('click', function (e) {
+    if (!popoverActif) return;
+    const bulle = document.querySelector('.popover');
+    if (bulle && bulle.contains(e.target)) return;
+    if (elementDeclencheur && elementDeclencheur.contains(e.target)) return;
+    fermerPopover();
+  });
+  // --------------------------------------------------------------------
+
   document.getElementById('btnToday').addEventListener('click', () => calendar.today());
   document.getElementById('btnPrev').addEventListener('click',  () => calendar.prev());
   document.getElementById('btnNext').addEventListener('click',  () => calendar.next());
+
+  // --- Bascule Jour/Semaine/Mois sans rechargement de page -----------------
+  const boutonsVue = document.querySelectorAll('.btn-vue-calendrier');
+  const champVueCourante = document.getElementById('vue-courante');
+
+  function marquerBoutonVueActif(vue) {
+    boutonsVue.forEach(function (bouton) {
+      bouton.classList.toggle('active', bouton.dataset.vue === vue);
+    });
+  }
+
+  // Synchronise l'URL de la page (vue + filtres actifs) via history.pushState,
+  // pour que l'état affiché soit partageable et retrouvé tel quel au
+  // rechargement — sans jamais recharger la page nous-mêmes.
+  function synchroniserUrlPage() {
+    const url = new URL(window.location.href);
+    const parametres = { view, ship, service, sector, user, type, status };
+    Object.keys(parametres).forEach(function (cle) {
+      const valeur = parametres[cle];
+      if (valeur) {
+        url.searchParams.set(cle, valeur);
+      } else {
+        url.searchParams.delete(cle);
+      }
+    });
+    history.pushState({}, '', url);
+  }
+
+  // La source d'événements dépend à la fois de la vue (période demandée,
+  // cf. calendar_app/views.py::_parse_common_period) et des filtres actifs :
+  // on la reconstruit entièrement avant de rafraîchir le calendrier.
+  function actualiserSourceEvenements() {
+    calendar.getEventSources().forEach(function (source) { source.remove(); });
+    calendar.addEventSource({
+      url: construireUrlEvenements(view),
+      method: 'GET',
+      failure: function () {
+        document.getElementById('cal-erreur').classList.remove('d-none');
+      }
+    });
+    calendar.refetchEvents();
+  }
+
+  function changerVue(nouvelleVue) {
+    if (nouvelleVue === view || !VUES_FULLCALENDAR[nouvelleVue]) return;
+    view = nouvelleVue;
+    calendar.changeView(VUES_FULLCALENDAR[view]);
+    marquerBoutonVueActif(view);
+    champVueCourante.value = view;
+    synchroniserUrlPage();
+    actualiserSourceEvenements();
+  }
+
+  boutonsVue.forEach(function (bouton) {
+    bouton.addEventListener('click', function () { changerVue(bouton.dataset.vue); });
+  });
+  marquerBoutonVueActif(view);
+  // --------------------------------------------------------------------
+
+  // --- Filtres appliqués sans rechargement de page -------------------------
+  // Chaque <select> de filtre (navire/service/secteur/utilisateur/type/statut)
+  // rafraîchit directement les événements en JS au lieu de soumettre le
+  // formulaire. Le bouton "Filtrer" et la soumission classique du formulaire
+  // restent en place comme secours (accessibilité, JS désactivé).
+  const champsFiltres = {
+    ship: document.querySelector('select[name="ship"]'),
+    service: document.querySelector('select[name="service"]'),
+    sector: document.querySelector('select[name="sector"]'),
+    user: document.querySelector('select[name="user"]'),
+    type: document.querySelector('select[name="type"]'),
+    status: document.querySelector('select[name="status"]'),
+  };
+
+  function appliquerFiltre(cle, valeur) {
+    switch (cle) {
+      case 'ship': ship = valeur; break;
+      case 'service': service = valeur; break;
+      case 'sector': sector = valeur; break;
+      case 'user': user = valeur; break;
+      case 'type': type = valeur; break;
+      case 'status': status = valeur; break;
+    }
+    synchroniserUrlPage();
+    actualiserSourceEvenements();
+  }
+
+  Object.keys(champsFiltres).forEach(function (cle) {
+    const champ = champsFiltres[cle];
+    if (champ) {
+      champ.addEventListener('change', function () { appliquerFiltre(cle, champ.value); });
+    }
+  });
+  // --------------------------------------------------------------------
 
   function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) return parts.pop().split(';').shift();
   }
+
+  // Passage du formulaire d'ajout en mode modification pour un événement
+  // personnel existant : un seul formulaire sert aux deux usages.
+  const formPersonnel = document.getElementById('form-evenement-personnel');
+  const champId = document.getElementById('pe-id');
+  const champTitre = document.getElementById('pe-title');
+  const champDate = document.getElementById('pe-starts-at');
+  const champFin = document.getElementById('pe-ends-at');
+  const champNote = document.getElementById('pe-note');
+  const btnAnnuler = document.getElementById('pe-annuler');
+  const btnValider = formPersonnel.querySelector('button[type="submit"]');
+
+  // Comme le formulaire de création rapide du calendrier Apple : si une
+  // heure de fin est déjà saisie et que l'utilisateur avance le début
+  // au-delà (ou dessus) d'elle, on recale automatiquement la fin une heure
+  // après le nouveau début, pour ne jamais soumettre une fin antérieure au
+  // début. Simple confort JS — le serveur revalide de toute façon cette
+  // règle (calendar_app/views.py::personal_event_save) et ne fait jamais
+  // confiance à cet ajustement seul.
+  function ajusterFinSiNecessaire() {
+    if (!champFin.value || !champDate.value) return;
+    if (champFin.value > champDate.value) return;
+    const nouveauDebut = new Date(champDate.value);
+    champFin.value = versDatetimeLocal(new Date(nouveauDebut.getTime() + 60 * 60 * 1000));
+  }
+  champDate.addEventListener('change', ajusterFinSiNecessaire);
+
+  // Pré-remplit le formulaire "Ajouter un événement personnel" à partir
+  // d'une date cliquée/sélectionnée sur le calendrier (callbacks dateClick
+  // et select ci-dessus) : remet le formulaire en mode "Ajout" (au cas où
+  // une modification était en cours) puis reporte le focus dessus pour que
+  // l'utilisateur voie immédiatement le pré-remplissage.
+  function preRemplirFormulairePersonnel(date) {
+    formPersonnel.reset();
+    champId.value = '';
+    champDate.value = versDatetimeLocal(date);
+    btnValider.textContent = 'Ajouter';
+    btnAnnuler.classList.add('d-none');
+    formPersonnel.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    champTitre.focus();
+  }
+
+  document.querySelectorAll('.btn-modifier-evenement').forEach(function (bouton) {
+    bouton.addEventListener('click', function () {
+      champId.value = bouton.dataset.id;
+      champTitre.value = bouton.dataset.title;
+      champDate.value = bouton.dataset.startsAt;
+      // Champ de fin laissé vide : voir commentaire équivalent ci-dessus
+      // (popover "Modifier").
+      champFin.value = '';
+      champNote.value = bouton.dataset.note || '';
+      btnValider.textContent = 'Modifier';
+      btnAnnuler.classList.remove('d-none');
+      champTitre.focus();
+    });
+  });
+
+  btnAnnuler.addEventListener('click', function () {
+    formPersonnel.reset();
+    champId.value = '';
+    btnValider.textContent = 'Ajouter';
+    btnAnnuler.classList.add('d-none');
+  });
+
+  // Suppression d'un événement personnel depuis la liste "Mes événements
+  // personnels" : la soumission classique du formulaire est interceptée
+  // pour passer par la modale de confirmation partagée ci-dessus, puis
+  // exécutée telle quelle (même formulaire, mêmes champs, même endpoint)
+  // une fois confirmée.
+  document.querySelectorAll('.form-suppression-evenement-personnel').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      demanderConfirmationSuppression(function () { form.submit(); });
+    });
+  });
 });
 </script>
 {% endblock %}

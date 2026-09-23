@@ -1,0 +1,23 @@
+{# Modale ajout événement #}
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouvel événement</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_event" />
+          <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Événement</label><input class="form-control" name="label" required /></div>
+          <div class="mb-3"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="4"></textarea></div>
+          <div class="mb-3"><label class="form-label">Pièces jointes</label>
+            <div class="attachments-preview d-flex flex-wrap gap-2" id="attachments-preview-add"></div>
+            <div class="attachments-hidden d-none" id="attachments-hidden-add"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-add-attachment" data-hidden="#attachments-hidden-add" data-preview="#attachments-preview-add">Ajouter une PJ</button>
+          </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>

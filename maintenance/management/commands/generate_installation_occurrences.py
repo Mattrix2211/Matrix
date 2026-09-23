@@ -1,28 +1,13 @@
-from calendar import monthrange
 from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from assets.models import InstallationMaintenance, InstallationEvent, InstallationHourReading, ModeDeclenchement
 from maintenance.models import MaintenanceOccurrence, MaintenanceExecution
+from notifications.utils import add_interval
 
 # Statuts considérés comme "terminés" : une occurrence dans un de ces statuts
 # ne bloque pas la création d'une nouvelle occurrence pour la même maintenance.
 STATUTS_TERMINES = ("DONE", "CANCELLED")
-
-
-def add_interval(base_date: date, unite: str, intervalle: int) -> date:
-    """Calcule la prochaine échéance calendaire à partir d’une date de base
-    (même logique que generate_installation_maintenance_notifications)."""
-    if unite == "J":
-        return base_date + timedelta(days=intervalle)
-    if unite == "S":
-        return base_date + timedelta(weeks=intervalle)
-    # Mois ou années : arithmétique calendaire (même logique que la branche isolement existante)
-    months = intervalle if unite == "M" else intervalle * 12
-    y = base_date.year + (base_date.month - 1 + months) // 12
-    m = (base_date.month - 1 + months) % 12 + 1
-    d = min(base_date.day, monthrange(y, m)[1])
-    return date(y, m, d)
 
 
 def prochaine_echeance(maintenance: InstallationMaintenance, today: date, until: date):

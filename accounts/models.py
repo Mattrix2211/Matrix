@@ -10,7 +10,7 @@ User = get_user_model()
 
 class Roles(models.TextChoices):
     MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général"
-    ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur navire"
+    ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité"
     COMMANDANT = "COMMANDANT", "Commandant"
     ETAT_MAJOR = "ETAT_MAJOR", "État-major"
     CHEF_SERVICE = "CHEF_SERVICE", "Chef de service"
@@ -26,7 +26,12 @@ class UserProfile(TimeStampedModel):
     fonction_service = models.CharField(max_length=128, blank=True, default="")
     matricule = models.CharField(max_length=64, blank=True, default="")
     date_naissance = models.DateField(null=True, blank=True)
+    # Heure du matin : alertes d'échéance (installations) et digest « Ma journée ».
     notification_time = models.TimeField(default=time(8,0))
+    # Heure du soir : digest « Ma journée de demain » (anticiper le lendemain
+    # avant de quitter son poste) — distincte de notification_time car elle
+    # sert un besoin différent (fin de journée, pas le matin).
+    notification_time_soir = models.TimeField(default=time(18,0))
 
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
@@ -83,6 +88,28 @@ class ServiceFunctionChoice(models.Model):
         return self.name
 
 
+class FonctionQuartChoice(models.Model):
+    """Référentiel configurable des fonctions de quart (ex. Barre, Veille,
+    Machine avant) — même pattern que ServiceFunctionChoice ci-dessus, mais
+    distinct : une fonction de QUART (rotation de postes courte) n'a pas le
+    même sens métier qu'une fonction de SERVICE/garde, et la nomenclature des
+    deux n'a aucune raison de coïncider (CLAUDE.md §6 : configuration plutôt
+    que code en dur, décision de cadrage du 09/09/2026 sur le module
+    Quarts/services). Utilisé par quarts.models.Quart.fonction — ServiceGarde
+    réutilise ServiceFunctionChoice ci-dessus, qui existait déjà pour la
+    fonction de service du profil marin."""
+
+    name = models.CharField(max_length=128, unique=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Fonction de quart"
+        verbose_name_plural = "Fonctions de quart"
+
+    def __str__(self):
+        return self.name
+
+
 class RoleAvailability(models.Model):
     code = models.CharField(max_length=64, choices=Roles.choices, unique=True)
     active = models.BooleanField(default=True)
@@ -99,6 +126,35 @@ class AuditLog(TimeStampedModel):
 
     def __str__(self):
         return f"{self.created_at} {self.actor} {self.action}"
+
+
+class ResponsableSpecialite(TimeStampedModel):
+    """Marin désigné responsable d'une spécialité pour TOUTE LA FLOTTE (tous
+    navires confondus) — rôle transverse, indépendant de la hiérarchie
+    Navire → Service → Secteur → Section et du rôle hiérarchique du marin
+    (CLAUDE.md), au même titre que training.ReferentFormation est
+    indépendant du rang. Donne accès en LECTURE SEULE au dashboard
+    spécialité (dashboard/web_views.py::DashboardSpecialiteView) : aucun
+    droit d'écriture supplémentaire sur les fiches des marins concernés.
+
+    Désignation réservée à MASTER_ADMIN (référentiel commun à toute la
+    flotte, même seuil que les grades/spécialités — cf.
+    matrix/core/role_thresholds.py::REGISTRE_ACTIONS,
+    "responsabilite_transverse_gestion").
+
+    Plusieurs responsables possibles pour une même spécialité (FK simple
+    répétable, pas de OneToOneField), même pattern que ReferentFormation."""
+
+    specialite = models.ForeignKey(SpecialityChoice, on_delete=models.CASCADE, related_name="responsables")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="specialites_dont_il_est_responsable")
+
+    class Meta:
+        unique_together = ("specialite", "user")
+        verbose_name = "Responsable de spécialité"
+        verbose_name_plural = "Responsables de spécialité"
+
+    def __str__(self):
+        return f"{self.user} — responsable spécialité ({self.specialite})"
 
 
 @receiver(post_save, sender=User)

@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Gestion de la maintenance</h1>
+{% include 'maintenance/_gestion_tabs.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <p class="text-muted mb-0">Plans de maintenance préventive de votre périmètre.</p>
+  {% if peut_gerer %}
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerPlanModal">
+    <i class="bi bi-plus-lg"></i> Nouveau plan
+  </button>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Rattaché à</th>
+          <th>Périodicité</th>
+          <th>Durée estimée</th>
+          <th>Checklist</th>
+          <th>Validation</th>
+          {% if peut_gerer %}<th></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for plan in plans %}
+        <tr>
+          <td>{{ plan.name }}</td>
+          <td>
+            {% if plan.scope == 'ASSET' %}
+              <span class="small">{{ plan.asset }}</span>
+            {% else %}
+              <span class="small">{{ plan.asset_type }} <span class="text-muted">(type)</span></span>
+            {% endif %}
+          </td>
+          <td class="font-mono">{{ plan.periodicite_affichee }}</td>
+          <td class="font-mono">{% if plan.duree_heures %}{{ plan.duree_heures }} h{% if plan.duree_minutes %} {{ plan.duree_minutes }} min{% endif %}{% else %}{{ plan.duree_minutes }} min{% endif %}</td>
+          <td>{{ plan.checklist_template|default:"—" }}</td>
+          <td>
+            {% if plan.requires_validation %}
+              <span class="badge text-bg-warning">Validation requise</span>
+            {% else %}
+              <span class="badge bg-secondary">Sans validation</span>
+            {% endif %}
+          </td>
+          {% if peut_gerer %}
+          <td>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modifierPlanModal"
+              data-pk="{{ plan.id }}" data-name="{{ plan.name }}" data-scope="{{ plan.scope }}"
+              data-asset-id="{% if plan.asset %}{{ plan.asset.id }}{% endif %}"
+              data-asset-type-id="{% if plan.asset_type %}{{ plan.asset_type.id }}{% endif %}"
+              data-every-n-days="{{ plan.every_n_days }}" data-expected-duration-min="{{ plan.expected_duration_min }}"
+              data-checklist-id="{% if plan.checklist_template %}{{ plan.checklist_template.id }}{% endif %}"
+              data-requires-validation="{% if plan.requires_validation %}1{% else %}0{% endif %}">
+              <i class="bi bi-pencil"></i> Modifier
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Aucun plan de maintenance sur votre périmètre.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if peut_gerer %}
+{# Modale création #}
+<div class="modal fade" id="creerPlanModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nouveau plan de maintenance</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <form method="post" id="creerPlanForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_plan">
+          {% include 'maintenance/_plan_form_fields.html' with prefix="creer" %}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="document.getElementById('creerPlanForm').requestSubmit()">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Modale modification #}
+<div class="modal fade" id="modifierPlanModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier le plan de maintenance</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <form method="post" id="modifierPlanForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_plan">
+          <input type="hidden" name="pk" id="modifierPlanPk">
+          {% include 'maintenance/_plan_form_fields.html' with prefix="modifier" %}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="document.getElementById('modifierPlanForm').requestSubmit()">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    // Bascule l'affichage matériel/type de matériel selon le périmètre choisi,
+    // sans dupliquer de système de cascade (même esprit que le filtre
+    // secteur/section de logistics/stock_list.html).
+    function basculerPerimetre(prefix){
+      var scopeAsset = document.getElementById(prefix + 'ScopeAsset');
+      var scopeType = document.getElementById(prefix + 'ScopeType');
+      var blocAsset = document.getElementById(prefix + 'BlocAsset');
+      var blocType = document.getElementById(prefix + 'BlocType');
+      if (!scopeAsset || !scopeType || !blocAsset || !blocType) return;
+      var estAsset = scopeAsset.checked;
+      blocAsset.hidden = !estAsset;
+      blocType.hidden = estAsset;
+    }
+    ['creer', 'modifier'].forEach(function(prefix){
+      var scopeAsset = document.getElementById(prefix + 'ScopeAsset');
+      var scopeType = document.getElementById(prefix + 'ScopeType');
+      if (scopeAsset) { scopeAsset.addEventListener('change', function(){ basculerPerimetre(prefix); }); }
+      if (scopeType) { scopeType.addEventListener('change', function(){ basculerPerimetre(prefix); }); }
+    });
+
+    var modifierModal = document.getElementById('modifierPlanModal');
+    if (modifierModal) {
+      modifierModal.addEventListener('show.bs.modal', function(event){
+        var b = event.relatedTarget;
+        document.getElementById('modifierPlanPk').value = b.getAttribute('data-pk') || '';
+        document.getElementById('modifierName').value = b.getAttribute('data-name') || '';
+        document.getElementById('modifierEveryNDays').value = b.getAttribute('data-every-n-days') || '';
+        document.getElementById('modifierExpectedDurationMin').value = b.getAttribute('data-expected-duration-min') || '';
+        document.getElementById('modifierChecklist').value = b.getAttribute('data-checklist-id') || '';
+        document.getElementById('modifierRequiresValidation').checked = b.getAttribute('data-requires-validation') === '1';
+        var scope = b.getAttribute('data-scope');
+        document.getElementById('modifierScopeAsset').checked = scope === 'ASSET';
+        document.getElementById('modifierScopeType').checked = scope === 'ASSET_TYPE';
+        document.getElementById('modifierAsset').value = b.getAttribute('data-asset-id') || '';
+        document.getElementById('modifierAssetType').value = b.getAttribute('data-asset-type-id') || '';
+        basculerPerimetre('modifier');
+      });
+    }
+    basculerPerimetre('creer');
+    basculerPerimetre('modifier');
+  })();
+</script>
+{% endif %}
+{% endblock %}

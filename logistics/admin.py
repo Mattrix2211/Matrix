@@ -4,7 +4,7 @@ from matrix.core.admin import AdminScopedMixin
 
 @admin.register(CorrectiveTicket)
 class CorrectiveTicketAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("id", "asset", "status", "severity", "reported_at")
+    list_display = ("id", "asset", "status", "severity", "reported_at", "valide_par", "date_validation")
     list_filter = ("status", "severity")
     search_fields = ("id", "description")
 
@@ -23,6 +23,6 @@ class PartRequestAdmin(admin.ModelAdmin):
 
 @admin.register(StockPiece)
 class StockPieceAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("reference", "designation", "quantite", "quantite_minimale", "emplacement", "ship", "service", "sector", "section")
+    list_display = ("reference", "designation", "quantite", "quantite_minimale", "quantite_critique", "emplacement", "ship", "service", "sector", "section", "installation", "asset")
     list_filter = ("ship", "service", "sector")
     search_fields = ("reference", "designation", "emplacement")

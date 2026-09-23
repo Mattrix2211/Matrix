@@ -2,7 +2,7 @@
 {% block content %}
 <div class="d-flex align-items-center mb-3">
   <h1 class="h4 mb-0">Actif: {{ object }}</h1>
-  <img class="ms-3" alt="QR" src="/api/assets/assets/{{ object.id }}/qr_png/" height="96" />
+  <img class="ms-3" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur le matériel" src="/api/assets/assets/{{ object.id }}/qr_png/" height="96" />
   <a class="btn btn-outline-secondary btn-sm ms-2" href="/api/assets/assets/{{ object.id }}/" target="_blank">API</a>
   <a class="btn btn-outline-secondary btn-sm ms-2" href="/api/assets/assets/{{ object.id }}/qr/" target="_blank">QR JSON</a>
   </div>
@@ -18,10 +18,47 @@
 
 <div id="actions">
   <button class="btn btn-primary" hx-post="/assets/{{ object.id }}/start-visual/" hx-target="#result" hx-swap="innerHTML">Démarrer contrôle visuel</button>
+  <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#signalerAnomalieModal">Signaler une anomalie</button>
+  <a class="btn btn-outline-secondary" href="{% url 'anomalie-create' %}?asset={{ object.id }}">Signalement libre</a>
   <a class="btn btn-outline-primary" href="/logistics/tickets/{{ object.tickets.first.id }}/" {% if object.tickets.count == 0 %}style="display:none"{% endif %}>Voir ticket récent</a>
   <div id="result" class="mt-2"></div>
   <p class="text-muted mt-2">Une occurrence de maintenance planifiée aujourd'hui sera créée/assignée.</p>
   <p class="mt-3"><a href="/admin/assets/asset/{{ object.id }}/change/" class="btn btn-outline-dark btn-sm">Ouvrir dans l'admin</a></p>
+</div>
+
+{# Signalement rapide d'anomalie : crée un ticket correctif en un clic (description + gravité). #}
+<div class="modal fade" id="signalerAnomalieModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Signaler une anomalie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="post" action="/logistics/tickets/creer/{{ object.id }}/">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Description de l'anomalie</label>
+            <textarea class="form-control" name="description" rows="4" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Gravité</label>
+            <select class="form-select" name="severity">
+              <option value="1">1 — Mineure</option>
+              <option value="2">2</option>
+              <option value="3" selected>3 — Moyenne</option>
+              <option value="4">4</option>
+              <option value="5">5 — Critique</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Signaler</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <hr class="my-4" />
@@ -45,5 +82,73 @@
       <span class="text-muted">Aucun document</span>
     {% endfor %}
   </div>
+</div>
+
+<hr class="my-4" />
+<div>
+  <h2 class="h6">Pièces en stock liées</h2>
+  {% comment %}
+  Lien optionnel défini depuis /logistics/stock/ (T-FEAT stock détaillé) :
+  affiché ici en lecture seule, la gestion du stock se fait sur sa propre page.
+  {% endcomment %}
+  {% if pieces_stock %}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Référence</th><th>Désignation</th><th class="text-end">Quantité</th><th>État</th></tr></thead>
+        <tbody>
+          {% for ps in pieces_stock %}
+          <tr onclick="window.location='/logistics/stock/'" style="cursor:pointer;">
+            <td class="font-mono">{{ ps.reference }}</td>
+            <td>{{ ps.designation }}</td>
+            <td class="text-end font-mono">{{ ps.quantite }}</td>
+            <td>
+              {% if ps.est_critique %}<span class="badge text-bg-danger">Stock critique</span>
+              {% elif ps.est_bas %}<span class="badge text-bg-warning">Stock bas</span>
+              {% else %}<span class="badge badge-conforme">Conforme</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted">Aucune pièce en stock liée à ce matériel.</p>
+  {% endif %}
+</div>
+
+<hr class="my-4" />
+<div>
+  <h2 class="h6">Pannes déjà rencontrées sur ce type d'équipement</h2>
+  <p class="text-muted small">Tickets fermés pour « {{ object.asset_type.name }} », toutes unités confondues.</p>
+  {% if pannes_deja_rencontrees %}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Unité</th>
+            <th>Signalé le</th>
+            <th>Diagnostic final</th>
+            <th>Solution appliquée</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for panne in pannes_deja_rencontrees %}
+          <tr onclick="window.location='/logistics/tickets/{{ panne.id }}/'" style="cursor: pointer;">
+            <td>{{ panne.asset.ship }}</td>
+            <td class="font-mono">{{ panne.reported_at|date:"d/m/Y" }}</td>
+            <td>{{ panne.diagnostic_final|truncatechars:120 }}</td>
+            <td>{{ panne.solution|truncatechars:120 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted">Aucune panne déjà rencontrée et documentée pour ce type d'équipement.</p>
+  {% endif %}
 </div>
 {% endblock %}

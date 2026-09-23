@@ -1,0 +1,13 @@
+{# Onglets partagés entre les deux sections de la page de gestion Maintenance #}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if onglet == 'occurrences' %}active{% endif %}" href="{% url 'maintenance-occurrences' %}">
+      <span class="bi bi-clipboard-check" aria-hidden="true"></span> Occurrences
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if onglet == 'plans' %}active{% endif %}" href="{% url 'maintenance-plans' %}">
+      <span class="bi bi-diagram-2" aria-hidden="true"></span> Plans de maintenance
+    </a>
+  </li>
+</ul>

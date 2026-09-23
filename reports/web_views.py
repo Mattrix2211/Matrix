@@ -10,26 +10,54 @@ from datetime import date
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views import View
 
+from matrix.core.export import CSV_CONTENT_TYPE, XLSX_CONTENT_TYPE, reponse_fichier
 from matrix.core.roles import RoleLevel, user_role_level
 
 from .services import (
     PerimetreNonAutorise,
+    generer_bilan_instantane_csv,
     generer_bilan_instantane_pdf,
+    generer_bilan_instantane_xlsx,
+    generer_bilan_periode_csv,
     generer_bilan_periode_pdf,
+    generer_bilan_periode_xlsx,
 )
+
+# Générateurs disponibles par format d'export demandé (paramètre `format`), désignés
+# par leur nom plutôt que par référence directe : les tests patchent les noms
+# importés dans ce module (ex: "reports.web_views.generer_bilan_instantane_pdf",
+# pour simuler PerimetreNonAutorise) — la résolution par globals() au moment de
+# l'appel (voir get() ci-dessous) respecte donc ces patchs.
+_GENERATEURS_INSTANTANE = {
+    "pdf": ("generer_bilan_instantane_pdf", "pdf", "application/pdf"),
+    "csv": ("generer_bilan_instantane_csv", "csv", CSV_CONTENT_TYPE),
+    "xlsx": ("generer_bilan_instantane_xlsx", "xlsx", XLSX_CONTENT_TYPE),
+}
+_GENERATEURS_PERIODE = {
+    "pdf": ("generer_bilan_periode_pdf", "pdf", "application/pdf"),
+    "csv": ("generer_bilan_periode_csv", "csv", CSV_CONTENT_TYPE),
+    "xlsx": ("generer_bilan_periode_xlsx", "xlsx", XLSX_CONTENT_TYPE),
+}
+
+# Libellé affiché dans le message d'erreur quand le format demandé n'est pas
+# disponible sur ce serveur (dépendance optionnelle manquante : WeasyPrint/GTK
+# pour le PDF, openpyxl pour l'Excel — le CSV, lui, n'a aucune dépendance
+# native et est donc toujours disponible).
+_LIBELLES_FORMAT = {"pdf": "PDF", "xlsx": "Excel"}
 
 
 class GenererBilanView(LoginRequiredMixin, View):
-    """Génère et renvoie en téléchargement le bilan PDF du périmètre propre de
+    """Génère et renvoie en téléchargement le bilan du périmètre propre de
     l'utilisateur connecté.
 
     - Sans `date_debut`/`date_fin` : Mode Instantané (photo de l'état actuel).
     - Avec `date_debut` et `date_fin` (format AAAA-MM-JJ) : Mode Période.
+    - `format` : `pdf` (défaut), `csv` ou `xlsx` — même contexte de données que
+      le PDF, juste un rendu tableur alternatif (reports/services.py).
     """
 
     def get(self, request):
@@ -50,6 +78,7 @@ class GenererBilanView(LoginRequiredMixin, View):
             )
             return redirect("home")
 
+        format_export = request.GET.get("format", "pdf")
         date_debut_str = request.GET.get("date_debut")
         date_fin_str = request.GET.get("date_fin")
 
@@ -61,13 +90,19 @@ class GenererBilanView(LoginRequiredMixin, View):
                 except ValueError:
                     messages.error(request, "Dates invalides (format attendu : AAAA-MM-JJ).")
                     return redirect("home")
-                pdf_bytes = generer_bilan_periode_pdf(
-                    scope_type, scope_id, request.user, date_debut, date_fin
+                nom_generateur, extension, content_type = _GENERATEURS_PERIODE.get(
+                    format_export, _GENERATEURS_PERIODE["pdf"]
                 )
-                nom_fichier = f"bilan_{scope_type}_{date_debut}_{date_fin}.pdf"
+                generateur = globals()[nom_generateur]
+                contenu = generateur(scope_type, scope_id, request.user, date_debut, date_fin)
+                nom_fichier = f"bilan_{scope_type}_{date_debut}_{date_fin}.{extension}"
             else:
-                pdf_bytes = generer_bilan_instantane_pdf(scope_type, scope_id, request.user)
-                nom_fichier = f"bilan_{scope_type}_{timezone.localdate()}.pdf"
+                nom_generateur, extension, content_type = _GENERATEURS_INSTANTANE.get(
+                    format_export, _GENERATEURS_INSTANTANE["pdf"]
+                )
+                generateur = globals()[nom_generateur]
+                contenu = generateur(scope_type, scope_id, request.user)
+                nom_fichier = f"bilan_{scope_type}_{timezone.localdate()}.{extension}"
         except PerimetreNonAutorise:
             messages.error(
                 request, "Vous n'êtes pas autorisé à générer le bilan de ce périmètre."
@@ -78,6 +113,16 @@ class GenererBilanView(LoginRequiredMixin, View):
             messages.error(request, str(exc))
             return redirect("home")
 
-        response = HttpResponse(pdf_bytes, content_type="application/pdf")
-        response["Content-Disposition"] = f"attachment; filename={nom_fichier}"
-        return response
+        if contenu is None:
+            # Format demandé indisponible (PDF sans WeasyPrint/GTK, ou Excel sans
+            # openpyxl) : le CSV reste toujours disponible en repli, aucune
+            # dépendance native.
+            libelle_format = _LIBELLES_FORMAT.get(extension, extension.upper())
+            messages.error(
+                request,
+                f"L'export {libelle_format} n'est pas disponible sur ce serveur. "
+                "Utilisez le format CSV, toujours disponible.",
+            )
+            return redirect("home")
+
+        return reponse_fichier(contenu, nom_fichier, content_type)

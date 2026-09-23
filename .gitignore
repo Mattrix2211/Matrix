@@ -8,5 +8,6 @@ celerybeat-schedule-wal
 __pycache__/ 
 *.pyc 
 .env 
-media/ 
-staticfiles/ 
+media/
+staticfiles/
+.claude/worktrees/ 

@@ -1,0 +1,71 @@
+{# Modales pièces: détail + édition, par pièce #}
+{% for p in parts %}
+<div class="modal fade" id="partDetailModal-{{ p.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Détail pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><strong>Désignation:</strong> {{ p.name }}</div>
+        <div class="mb-2"><strong>NNO:</strong> <span class="font-mono">{{ p.nno|default:"" }}</span></div>
+        <div class="mb-2"><strong>Référence:</strong> <span class="font-mono">{{ p.reference|default:"" }}</span></div>
+        <div class="mb-2"><strong>Marque:</strong> {{ p.marque|default:"" }}</div>
+        {% if p.photo %}
+        <div class="mt-2"><img src="{{ p.photo.url }}" alt="photo" style="max-width: 100%; height: auto;" /></div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-target="#partEditModal-{{ p.id }}" data-bs-toggle="modal">Modifier</button>
+        <form method="post" class="ms-auto">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_part" />
+          <input type="hidden" name="part_id" value="{{ p.id }}" />
+          <button type="submit" class="btn btn-outline-danger">Supprimer</button>
+        </form>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="partEditModal-{{ p.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Modifier la pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_part" />
+          <input type="hidden" name="part_id" value="{{ p.id }}" />
+          <div class="mb-3"><label class="form-label">Désignation</label><input class="form-control" name="designation" value="{{ p.name }}" required /></div>
+          <div class="mb-3"><label class="form-label">NNO</label><input class="form-control" name="nno" value="{{ p.nno }}" /></div>
+          <div class="mb-3"><label class="form-label">Référence</label><input class="form-control" name="reference" value="{{ p.reference }}" /></div>
+          <div class="mb-3"><label class="form-label">Marque</label><input class="form-control" name="marque" value="{{ p.marque }}" /></div>
+          <div class="mb-3"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{# Modale ajout pièce #}
+<div class="modal fade" id="addPartModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Ajouter une pièce</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_part" />
+          <div class="mb-3"><label class="form-label">Désignation</label><input class="form-control" name="designation" required /></div>
+          <div class="mb-3"><label class="form-label">NNO</label><input class="form-control" name="nno" /></div>
+          <div class="mb-3"><label class="form-label">Référence</label><input class="form-control" name="reference" /></div>
+          <div class="mb-3"><label class="form-label">Marque</label><input class="form-control" name="marque" /></div>
+          <div class="mb-3"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
+      </form>
+    </div>
+  </div>
+</div>

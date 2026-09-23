@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.utils import timezone
 from accounts.models import UserProfile
 from assets.models import Installation, InstallationMaintenance, InstallationHourReading, ModeDeclenchement
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
 from org.models import Ship, Service, Sector
 
 
@@ -36,9 +36,10 @@ class GenerateInstallationMaintenanceNotificationsTests(TestCase):
 
         call_command("generate_installation_maintenance_notifications")
 
-        self.assertTrue(
-            Notification.objects.filter(user=self.user, verb__icontains="Vidange").exists()
-        )
+        notif = Notification.objects.filter(user=self.user, verb__icontains="Vidange").first()
+        self.assertIsNotNone(notif)
+        # Seuil compteur déjà atteint/dépassé : niveau critique (déclenche un push).
+        self.assertEqual(notif.level, NotificationLevel.DANGER)
         self.assertTrue(maintenance.pk)
 
     def test_notification_branche_calendrier(self):

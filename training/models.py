@@ -1,19 +1,251 @@
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
+from matrix.core.roles import RoleLevel, user_role_level
+from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Ship, Service, Section
 
 User = get_user_model()
 
-class TrainingCourse(TimeStampedModel):
-    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="training_courses")
+class TrainingCourse(TimeStampedModel, OwnedModel):
+    """Formation : fiche UNIQUE et globale, partagée par tous les navires — décision
+    produit confirmée (tâche Notion « Formation unique et portable entre navires »)
+    pour que la qualification d'un marin le suive lors d'une mutation, sans qu'il
+    ait à repartir de zéro sur un autre bâtiment. Le rattachement à un navire
+    précis n'existe donc plus ici (l'ancien champ `sector` est retiré) : voir
+    TrainingRequirement (quel navire EXIGE cette formation, système déjà existant,
+    réutilisé tel quel) et ReferentFormation ci-dessous (qui est habilité à la
+    VALIDER, par navire — un référent pour un navire donné ne l'est pas forcément
+    pour un autre navire proposant la même formation).
+
+    Étend désormais OwnedModel (created_by/updated_by) — jusqu'ici inutilisé sur
+    ce modèle — pour le Circuit C ci-dessous (gere_par_le_bord/statut_validation) :
+    `updated_by` trace TOUJOURS le dernier auteur d'une proposition (création ou
+    modification), utilisé pour le contrôle de périmètre à la validation."""
     title = models.CharField(max_length=255)
+    # Domaine métier de la formation (ex. "Sécurité/Incendie", "Habilitation
+    # électrique", "Levage"...) : texte libre saisi par le chef, pas de liste
+    # figée — même pattern que AssetType.category (assets/models.py), pour ne
+    # pas décider à la place de la Marine la liste exhaustive des domaines
+    # métier. Champ facultatif et rétrocompatible : les formations existantes
+    # ont une catégorie vide, à compléter ensuite par les chefs.
+    category = models.CharField(max_length=255, blank=True, default="")
     description = models.TextField(blank=True, default="")
     validity_days = models.PositiveIntegerField(default=365)
+    # Arbre de compétences : formations à valider avant de pouvoir suivre celle-ci.
+    # related_name="unlocks" : les formations que la validation de celle-ci débloque.
+    prerequisites = models.ManyToManyField(
+        "self", symmetrical=False, blank=True, related_name="unlocks"
+    )
+
+    # Circuit C — Circuit d'approbation chef de secteur -> chef de service
+    # (tâche Notion du même nom) : certaines formations sont administrées par
+    # les bords eux-mêmes (ex. formations internes propres à un navire)
+    # plutôt que par un organisme de formation externe. Booléen EXPLICITE
+    # plutôt qu'une déduction implicite depuis le secteur/l'unité rattachée
+    # (décision produit tranchée par l'utilisateur, commentaire Notion du
+    # 27/08/2026) — la formation reste une fiche GLOBALE (aucun rattachement
+    # à un navire précis, cf. docstring ci-dessus) : ce champ qualifie
+    # uniquement QUI en assure la gestion administrative, pas un rattachement
+    # organisationnel.
+    gere_par_le_bord = models.BooleanField(default=False, verbose_name="Gérée par un bord")
+
+    STATUT_VALIDATION_CHOICES = (
+        ("ACTIVE", "Active"),
+        ("WAITING_VALIDATION", "En attente de validation"),
+        ("REFUSED", "Refusée"),
+    )
+    # Même pattern d'état explicite que MaintenanceOccurrence.status =
+    # "WAITING_VALIDATION" (maintenance/models.py), réutilisé ici plutôt que
+    # d'inventer un nouveau mécanisme : une formation "gérée par le bord"
+    # proposée ou modifiée par un CHEF_SECTEUR (en dessous de CHEF_SERVICE)
+    # passe par cet état intermédiaire, invisible du catalogue habituel (cf.
+    # TrainingCourseListView.get_queryset) jusqu'à validation explicite d'un
+    # CHEF_SERVICE de son périmètre (ou supervision globale). Un CHEF_SERVICE+
+    # proposant directement reste ACTIVE sans passer par cet état : son
+    # propre rôle vaut déjà l'accord requis. Une formation gérée par un
+    # organisme (gere_par_le_bord=False) reste toujours ACTIVE, ce circuit ne
+    # la concerne pas.
+    statut_validation = models.CharField(
+        max_length=24, choices=STATUT_VALIDATION_CHOICES, default="ACTIVE",
+    )
+
+    # Barème/référentiel de notation associé à la formation (retour de test
+    # PO : « pour chaque formation il faudrait qu'on puisse y affilier une
+    # fiche avec le barème de la formation si il y en a un »). Facultatif —
+    # toutes les formations n'en ont pas — et rétrocompatible (formations
+    # existantes non concernées). Un simple FileField optionnel, même pattern
+    # que TrainingRecord.attachment ci-dessous : un seul document par
+    # formation, pas besoin d'un modèle de pièces jointes séparé
+    # (AssetDocument/InstallationEventAttachment) réservé aux cas où
+    # plusieurs documents doivent être attachés au même objet.
+    bareme = models.FileField(
+        upload_to="training_baremes/", null=True, blank=True, verbose_name="Barème",
+    )
 
     def __str__(self):
         return self.title
+
+
+class ReferentFormation(TimeStampedModel):
+    """Référent précisément désigné comme habilité à valider CETTE formation
+    (créer/modifier un TrainingRecord, gérer les présences d'une session),
+    POUR UN NAVIRE DONNÉ — la formation étant désormais une fiche globale
+    partagée par tous les navires (TrainingCourse ci-dessus), un même marin
+    peut être référent de "Habilitation électrique" pour son propre navire
+    sans l'être pour un autre navire qui propose la même formation.
+    Remplace l'ancien TrainingCourse.referents (M2M sans notion de navire,
+    incompatible avec un catalogue partagé : un référent l'aurait été de
+    fait pour TOUS les navires en même temps). Voir peut_valider_formation()
+    ci-dessous : le navire de référence utilisé est TOUJOURS celui du marin
+    concerné par l'action (jamais celui de l'appelant)."""
+
+    course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="referents")
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="referents_formation")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="formations_referentes")
+
+    class Meta:
+        unique_together = ("course", "ship", "user")
+
+    def __str__(self):
+        return f"{self.user} — référent ({self.course}, {self.ship})"
+
+
+class ReferentFormationNavire(TimeStampedModel):
+    """Référent formation désigné pour l'ENSEMBLE d'un navire — à ne pas
+    confondre avec TrainingCourse.referents ci-dessus (référent d'UNE
+    formation précise, choisi pour sa compétence sur ce sujet précis). Ce
+    rôle donne autorité de validation sur TOUTES les formations du navire,
+    quel que soit le secteur, pour un marin chargé de piloter le volet
+    formation de tout le bord (ex. "cellule formation") sans lui donner pour
+    autant le rang de COMMANDANT. Un seul référent par navire (OneToOneField
+    sur Ship) ; désigné/retiré uniquement par un rôle de supervision globale
+    (cf. peut_valider_formation ci-dessous et
+    training/web_views.py::_peut_gerer_referent_navire)."""
+
+    ship = models.OneToOneField(Ship, on_delete=models.CASCADE, related_name="referent_formation")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="navires_dont_il_est_referent_formation"
+    )
+
+    def __str__(self):
+        return f"{self.user} — référent formation ({self.ship})"
+
+
+# Rôle à partir duquel un utilisateur peut valider n'importe quelle formation,
+# même s'il n'est pas désigné référent : supervision globale (COMMANDANT et
+# au-dessus), même logique que is_master_admin (matrix/core/scopes.py) pour
+# les rôles élevés qui court-circuitent un contrôle plus fin ailleurs dans le
+# projet. En dessous de ce seuil — y compris un chef de rang supérieur mais
+# non désigné référent ni référent formation du navire — seul le statut de
+# référent compte : il est attribué pour la compétence sur la formation (ou,
+# pour ReferentFormationNavire, pour la mission confiée sur tout le navire),
+# pas pour la position hiérarchique.
+NIVEAU_SUPERVISION_GLOBALE_FORMATION = RoleLevel.COMMANDANT
+
+
+def navire_de(user):
+    """Résout le navire réel d'un utilisateur, quel que soit le niveau auquel
+    son profil est rattaché (navire/service/secteur/section) — contrairement
+    à ship_id_for_user (matrix/core/scopes.py) qui ne renvoie que profile.ship
+    quand il est renseigné DIRECTEMENT, sans remonter la hiérarchie. Un marin
+    rattaché à une section (le cas le plus courant pour un équipier) doit
+    quand même avoir un navire de référence pour peut_valider_formation()
+    ci-dessous : une formation étant désormais globale, c'est le SEUL moyen
+    de déterminer quels référents ont autorité sur lui."""
+    profile = getattr(user, "profile", None)
+    if not profile:
+        return None
+    if profile.ship_id:
+        return profile.ship
+    if profile.service_id:
+        return profile.service.ship
+    if profile.sector_id:
+        return profile.sector.service.ship
+    if profile.section_id:
+        return profile.section.sector.service.ship
+    return None
+
+
+def peut_valider_formation(user, course, ship):
+    """Vrai si `user` peut créer/modifier/supprimer un enregistrement de
+    validation (TrainingRecord) pour `course`, ou gérer les présences d'une
+    session de cette formation (TrainingSession.attendees) : soit parce qu'il
+    est désigné référent de cette formation précise POUR CE NAVIRE
+    (ReferentFormation), soit parce qu'il est désigné référent formation de
+    l'ensemble de ce navire (ReferentFormationNavire, autorité valable sur
+    toutes les formations du navire), soit parce qu'il occupe un rôle de
+    supervision globale (COMMANDANT et au-dessus).
+
+    `ship` est TOUJOURS le navire du marin concerné par l'action (celui dont
+    on crée/modifie le TrainingRecord, ou qu'on ajoute/retire des présents
+    d'une session) — jamais celui de l'appelant : un référent est désigné
+    pour valider les marins d'un navire précis, pas pour son propre
+    rattachement. `ship` peut être None si ce marin n'a aucun navire
+    résolvable (cf. navire_de ci-dessus) : dans ce cas, seule la supervision
+    globale donne l'autorité de validation."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        return True
+    if ship is None:
+        return False
+    if ReferentFormation.objects.filter(course=course, ship=ship, user=user).exists():
+        return True
+    return ReferentFormationNavire.objects.filter(ship=ship, user=user).exists()
+
+
+def _verifier_absence_de_cycle_prerequis(course, nouveaux_ids):
+    """Empêche qu'une formation ait, directement ou indirectement, elle-même comme
+    prérequis. Même principe que _verifier_absence_de_cycle (assets/models.py) pour
+    la hiérarchie parent/enfant des équipements, adapté à un graphe à plusieurs
+    branches (une formation peut avoir plusieurs prérequis) plutôt qu'une simple
+    chaîne à parent unique : on remonte les prérequis des prérequis en largeur, et on
+    refuse si la formation elle-même réapparaît dans cette chaîne."""
+    a_visiter = list(nouveaux_ids)
+    vus = set()
+    while a_visiter:
+        pk = a_visiter.pop()
+        if pk == course.pk:
+            raise ValidationError(
+                "Rattachement invalide : cela créerait une boucle dans la chaîne de prérequis."
+            )
+        if pk in vus:
+            continue
+        vus.add(pk)
+        suivants = TrainingCourse.objects.filter(pk=pk).values_list("prerequisites__id", flat=True)
+        a_visiter.extend(i for i in suivants if i is not None)
+
+
+@receiver(m2m_changed, sender=TrainingCourse.prerequisites.through)
+def _bloquer_cycle_prerequis(sender, instance, action, pk_set, **kwargs):
+    """Contrôle exécuté à chaque ajout de prérequis (formulaire web, API, admin,
+    shell) : un ManyToManyField n'est pas validé par full_clean() une fois
+    l'instance enregistrée, contrairement à une ForeignKey — ce signal est donc le
+    seul point de passage garanti pour empêcher une boucle, quel que soit
+    l'appelant."""
+    if action == "pre_add" and pk_set:
+        _verifier_absence_de_cycle_prerequis(instance, pk_set)
+
+
+def _prerequis_manquants(user, course, reference_date=None):
+    """Renvoie la liste des formations prérequises à `course` que `user` n'a pas
+    validées avec un enregistrement (TrainingRecord) non expiré à la date de
+    référence (aujourd'hui par défaut). Liste vide si tous les prérequis sont
+    remplis, ou s'il n'y en a aucun."""
+    reference_date = reference_date or timezone.localdate()
+    prerequis = list(course.prerequisites.all())
+    if not prerequis:
+        return []
+    valides_ids = set(
+        TrainingRecord.objects.filter(
+            user=user, course_id__in=[p.id for p in prerequis], expires_at__gte=reference_date
+        ).values_list("course_id", flat=True)
+    )
+    return [p for p in prerequis if p.id not in valides_ids]
 
 class TrainingRequirement(TimeStampedModel):
     ROLE_CHOICES = (
@@ -41,8 +273,361 @@ class TrainingSession(TimeStampedModel):
     scheduled_at = models.DateTimeField()
     instructor = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="instructed_sessions")
     attendees = models.ManyToManyField(User, blank=True, related_name="training_sessions")
+    # Capacité maximale de places réservables en libre-service : illimitée si
+    # laissée vide (aucun contrôle de capacité dans ce cas).
+    capacite_max = models.PositiveIntegerField(null=True, blank=True)
+    # Réservations self-service : intention d'un marin d'assister à cette
+    # session, distincte de `attendees` (présence/réussite réellement
+    # constatée, gérée uniquement par les référents — cf. peut_valider_formation
+    # ci-dessus, à ne pas toucher). Un marin ne réserve/annule que SA PROPRE
+    # réservation (contrôle fait dans training/web_views.py) ; les règles
+    # métier (capacité, session toujours planifiée, prérequis, session pas
+    # encore passée) sont appliquées ci-dessous par _controler_reservation,
+    # seul point de passage garanti quel que soit l'appelant.
+    reservations = models.ManyToManyField(User, blank=True, related_name="training_reservations")
     location = models.CharField(max_length=255, blank=True, default="")
     status = models.CharField(max_length=16, choices=STATUS, default="PLANNED")
+
+    def places_restantes(self):
+        """Nombre de places encore réservables, ou None si la capacité est
+        illimitée (capacite_max non renseignée). Utilise `len(...all())` plutôt
+        que `.count()` pour réutiliser le cache d'un éventuel
+        prefetch_related('reservations') fait par l'appelant (liste des
+        sessions d'une formation), sans requête supplémentaire par session."""
+        if self.capacite_max is None:
+            return None
+        return max(0, self.capacite_max - len(self.reservations.all()))
+
+    def inscrire_liste_attente(self, user):
+        """Inscrit `user` en fin de liste d'attente FIFO de cette session
+        (TrainingWaitlistEntry, ci-dessous), après avoir vérifié les mêmes
+        règles métier qu'une réservation directe — session toujours
+        planifiée, prérequis de la formation validés (réutilise
+        _prerequis_manquants, comme _controler_reservation ci-dessous) — à
+        l'exception de la capacité, volontairement PAS revérifiée ici :
+        c'est justement parce qu'elle est déjà atteinte que l'appelant
+        (training/web_views.py::_reserver_session) passe par la liste
+        d'attente plutôt que par une réservation directe. Idempotent :
+        renvoie l'entrée existante si `user` y figure déjà, ne le met pas en
+        double file."""
+        if self.status != "PLANNED":
+            raise ValidationError(
+                "Impossible de s'inscrire sur liste d'attente : cette session n'est plus planifiée."
+            )
+        reference_date = self.scheduled_at.date() if self.scheduled_at else timezone.localdate()
+        manquants = _prerequis_manquants(user, self.course, reference_date)
+        if manquants:
+            noms = ", ".join(p.title for p in manquants)
+            raise ValidationError(
+                "Impossible de s'inscrire sur liste d'attente : formation(s) prérequise(s) "
+                f"non validée(s) — {noms}."
+            )
+        entry, _ = TrainingWaitlistEntry.objects.get_or_create(session=self, user=user)
+        return entry
+
+
+class TrainingWaitlistEntry(TimeStampedModel):
+    """Liste d'attente FIFO sur une TrainingSession complète (T-ATTENTE) :
+    quand un marin tente de réserver une place en libre-service alors que
+    `capacite_max` est déjà atteinte, il est mis en attente plutôt que
+    simplement refusé (cf. TrainingSession.inscrire_liste_attente ci-dessus,
+    appelée depuis training/web_views.py::_reserver_session). Ordre FIFO
+    garanti par `created_at` (TimeStampedModel), le plus ancien étant
+    toujours le premier de la file.
+
+    Dès qu'une place se libère (annulation d'une réservation ferme, cf.
+    `_notifier_premier_liste_attente` ci-dessous, déclenchée par le signal
+    m2m existant à la suppression d'une réservation), le PREMIER de la file
+    est notifié qu'une place s'est libérée — mais N'EST PAS inscrit
+    automatiquement : cohérent avec le principe self-service déjà en place
+    pour les réservations, c'est à lui de réserver lui-même. L'entrée est
+    retirée dès que ce marin réserve effectivement une place sur cette
+    session (cf. action "post_add" du signal ci-dessous), ou qu'il quitte
+    volontairement la liste d'attente (training/web_views.py::
+    _quitter_liste_attente)."""
+
+    session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name="liste_attente")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="entrees_liste_attente")
+
+    class Meta:
+        verbose_name = "Entrée en liste d'attente"
+        verbose_name_plural = "Entrées en liste d'attente"
+        ordering = ("created_at",)
+        unique_together = ("session", "user")
+
+    def __str__(self):
+        return f"{self.user} — liste d'attente ({self.session})"
+
+    def position(self):
+        """Position (1-based) de cette entrée dans la file FIFO de sa
+        session — 1 = premier de la file, prochain à être notifié dès
+        qu'une place se libère."""
+        return TrainingWaitlistEntry.objects.filter(
+            session_id=self.session_id, created_at__lt=self.created_at
+        ).count() + 1
+
+
+def _notifier_premier_liste_attente(session):
+    """Notifie le premier de la liste d'attente qu'une place vient de se
+    libérer sur `session` — appelé après la suppression effective d'une
+    réservation (action "post_remove" du signal ci-dessous). Ne l'inscrit
+    PAS automatiquement (cf. docstring TrainingWaitlistEntry) : c'est à lui
+    de réserver la place libérée depuis l'écran des formations. Notification
+    idempotente (get_or_create sur le couple session/utilisateur tant
+    qu'elle n'est pas lue) pour ne pas spammer si plusieurs annulations
+    successives se produisent avant qu'il n'ait réservé."""
+    if session.capacite_max is None:
+        return
+    if session.places_restantes() <= 0:
+        return
+    premier = session.liste_attente.order_by("created_at").first()
+    if premier is None:
+        return
+    Notification.objects.get_or_create(
+        user=premier.user,
+        content_type=ContentType.objects.get_for_model(TrainingSession),
+        object_id=str(session.pk),
+        is_read=False,
+        defaults={
+            "verb": (
+                f"Une place s'est libérée: {session.course.title} — session du "
+                f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}. "
+                "Réservez-la vite, elle n'est pas garantie."
+            ),
+            "level": NotificationLevel.INFO,
+        },
+    )
+
+
+@receiver(m2m_changed, sender=TrainingSession.reservations.through)
+def _controler_reservation(sender, instance, action, pk_set, **kwargs):
+    """Contrôle les réservations self-service (TrainingSession.reservations,
+    distinctes de attendees ci-dessous) : à l'ajout (pre_add), vérifie que la
+    session est toujours planifiée, que la capacité maximale n'est pas
+    dépassée, et que les prérequis de la formation sont validés — même
+    principe défensif que _bloquer_inscription_sans_prerequis (attendees),
+    seul point de passage garanti quel que soit l'appelant (vue web, API,
+    admin, shell). À la suppression (pre_remove), interdit d'annuler une
+    réservation sur une session déjà passée.
+
+    Complété par la liste d'attente (T-ATTENTE) : dès qu'une réservation
+    obtient effectivement une place (post_add), son éventuelle entrée en
+    liste d'attente pour cette même session est retirée (plus de raison d'y
+    rester) ; dès qu'une réservation est effectivement retirée (post_remove),
+    le premier de la liste d'attente est notifié qu'une place s'est libérée."""
+    if action == "pre_add" and pk_set:
+        if instance.status != "PLANNED":
+            raise ValidationError(
+                "Impossible de réserver une place : cette session n'est plus planifiée."
+            )
+        if instance.capacite_max is not None:
+            deja_reserves = instance.reservations.count()
+            if deja_reserves + len(pk_set) > instance.capacite_max:
+                raise ValidationError(
+                    "Impossible de réserver une place : cette session est complète."
+                )
+        reference_date = instance.scheduled_at.date() if instance.scheduled_at else timezone.localdate()
+        for user in User.objects.filter(pk__in=pk_set):
+            manquants = _prerequis_manquants(user, instance.course, reference_date)
+            if manquants:
+                noms = ", ".join(p.title for p in manquants)
+                raise ValidationError(
+                    f"Impossible de réserver une place pour {user.get_full_name() or user.get_username()} : "
+                    f"formation(s) prérequise(s) non validée(s) — {noms}."
+                )
+    elif action == "post_add" and pk_set:
+        TrainingWaitlistEntry.objects.filter(session=instance, user_id__in=pk_set).delete()
+    elif action == "pre_remove" and pk_set:
+        if instance.scheduled_at and instance.scheduled_at <= timezone.now():
+            raise ValidationError(
+                "Impossible d'annuler cette réservation : la session a déjà eu lieu."
+            )
+    elif action == "post_remove" and pk_set:
+        _notifier_premier_liste_attente(instance)
+
+
+@receiver(m2m_changed, sender=TrainingSession.attendees.through)
+def _bloquer_inscription_sans_prerequis(sender, instance, action, pk_set, **kwargs):
+    """Empêche d'inscrire un marin à une session si les formations prérequises de
+    la formation concernée n'ont pas toutes un enregistrement (TrainingRecord)
+    valide à la date de la session (référence retenue : la date de la session
+    plutôt que la date d'inscription, un marin devant être qualifié le jour où la
+    formation a effectivement lieu)."""
+    if action != "pre_add" or not pk_set:
+        return
+    reference_date = instance.scheduled_at.date() if instance.scheduled_at else timezone.localdate()
+    for user in User.objects.filter(pk__in=pk_set):
+        manquants = _prerequis_manquants(user, instance.course, reference_date)
+        if manquants:
+            noms = ", ".join(p.title for p in manquants)
+            raise ValidationError(
+                f"Impossible d'inscrire {user.get_full_name() or user.get_username()} à cette "
+                f"session : formation(s) prérequise(s) non validée(s) — {noms}."
+            )
+
+
+class DemandePlace(TimeStampedModel, OwnedModel):
+    """Circuit A — Demande et attribution de places sur une formation à
+    quota limité (ex. TP Sécurité) : un chef de secteur demande des places
+    pour son bord (`ship`, toujours celui du demandeur) auprès de
+    l'organisme de formation, qui répond en attribuant un nombre de places
+    (`nb_places_attribuees`) éventuellement relié à une TrainingSession
+    (existante ou créée pour l'occasion). Le chef de secteur affecte ensuite
+    des marins de son secteur sur ces places (cf. PlaceAffectee ci-dessous,
+    et training/web_views.py::TrainingCourseListView._affecter_place_demandee).
+
+    Plusieurs bords peuvent partager la MÊME session, chacun avec son propre
+    quota : TrainingSession.capacite_max reste le plafond physique global de
+    la session (contrôlé par le signal _controler_reservation existant, non
+    dupliqué ici), tandis que PlaceAffectee permet de compter, PAR DEMANDE
+    (donc par bord), la consommation du quota attribué à CE bord précis."""
+
+    STATUS = (
+        ("REQUESTED", "Demandée"),
+        ("GRANTED", "Attribuée"),
+        ("REFUSED", "Refusée"),
+        ("CANCELLED", "Annulée"),
+    )
+    course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="demandes_places")
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="demandes_places")
+    nb_places_demandees = models.PositiveIntegerField(verbose_name="Nombre de places demandées")
+    nb_places_attribuees = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="Nombre de places attribuées"
+    )
+    # SET_NULL plutôt que CASCADE : la suppression d'une session (ex. annulée
+    # puis nettoyée) ne doit pas faire disparaître l'historique de la demande
+    # elle-même, seulement son rattachement à cette session précise.
+    session = models.ForeignKey(
+        TrainingSession, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes_places"
+    )
+    statut = models.CharField(max_length=16, choices=STATUS, default="REQUESTED")
+    attribue_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes_places_attribuees"
+    )
+    date_attribution = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Demande de places"
+        verbose_name_plural = "Demandes de places"
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.ship} — {self.course} ({self.nb_places_demandees} place(s) demandée(s))"
+
+    def places_consommees(self):
+        """Nombre de places déjà affectées à un marin sur cette demande précise
+        (PlaceAffectee), indépendamment du remplissage global de la session —
+        utilisé pour le double contrôle de quota (cf. PlaceAffectee)."""
+        return self.places_affectees.count()
+
+
+class PlaceAffectee(TimeStampedModel):
+    """Trace qu'un marin occupe une place attribuée à un bord précis via une
+    DemandePlace : créé EN MÊME TEMPS que l'ajout du marin à
+    TrainingSession.reservations lors d'une affectation partant d'une
+    DemandePlace (cf. _affecter_place_demandee), jamais lors d'une
+    affectation/réservation classique (_affecter_session, _reserver_session)
+    qui ne sont pas rattachées à un quota par bord."""
+
+    demande_place = models.ForeignKey(DemandePlace, on_delete=models.CASCADE, related_name="places_affectees")
+    marin = models.ForeignKey(User, on_delete=models.CASCADE, related_name="places_affectees")
+
+    class Meta:
+        verbose_name = "Place affectée"
+        verbose_name_plural = "Places affectées"
+        unique_together = ("demande_place", "marin")
+
+    def __str__(self):
+        return f"{self.marin} — {self.demande_place}"
+
+
+class PersonnelBRH(TimeStampedModel):
+    """Personnel désigné « BRH » (Bureau des Ressources Humaines), habilité à
+    valider une candidature individuelle à un stage (Circuit B, cf.
+    CandidatureFormation ci-dessous), POUR UN NAVIRE DONNÉ. Plusieurs
+    personnes BRH sont possibles pour un même navire (FK simple répétable,
+    PAS de OneToOneField sur Ship, PAS de ManyToMany) — même pattern que
+    ReferentFormation ci-dessus, à ne pas confondre avec
+    ReferentFormationNavire (référent unique). Désignation réservée à
+    COMMANDANT+ (même seuil que la désignation du référent formation navire,
+    cf. training/web_views.py::_peut_gerer_referent_navire)."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="personnels_brh")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="navires_brh")
+
+    class Meta:
+        verbose_name = "Personnel BRH"
+        verbose_name_plural = "Personnels BRH"
+        unique_together = ("ship", "user")
+
+    def __str__(self):
+        return f"{self.user} — BRH ({self.ship})"
+
+
+class CandidatureFormation(TimeStampedModel, OwnedModel):
+    """Circuit B — Candidature individuelle d'un marin à un stage (à la
+    différence du Circuit A ci-dessus, DemandePlace, formulé par un chef pour
+    tout son bord sur une formation à quota type TP Sécurité) : le marin
+    postule lui-même (`marin`, `created_by`) sur n'importe quelle formation
+    du catalogue.
+
+    Sélection ASCENDANTE à deux validations indépendantes, dans n'importe
+    quel ordre : sa hiérarchie (CHEF_SECTION+ dont le périmètre couvre le
+    marin, cf. filtres_perimetre_marin) ET un personnel BRH désigné pour son
+    navire (PersonnelBRH ci-dessus). Dès que les DEUX sont réunies, le statut
+    passe automatiquement à TRANSMITTED (cf. transmettre_si_double_validation
+    ci-dessous, appelée explicitement après chaque validation — même principe
+    que training/web_views.py::_attribuer_places qui pose statut="GRANTED"
+    explicitement) : aucune action manuelle de transmission n'existe.
+
+    L'organisme de formation (référent de la formation POUR SON PROPRE
+    NAVIRE, ou COMMANDANT+, cf. peut_valider_formation, réutilisé tel quel)
+    sélectionne ou refuse ensuite le marin. Si sélectionné et le stage a
+    effectivement lieu, la réussite est actée par un TrainingRecord classique
+    (ValiderFormationView existante, comme pour le Circuit A) : pas de statut
+    dédié supplémentaire après SELECTED — décision produit explicite, pas de
+    champ motif de refus non plus."""
+
+    STATUS = (
+        ("PENDING_APPROVAL", "En attente de validation"),
+        ("TRANSMITTED", "Transmise à l'organisme"),
+        ("SELECTED", "Sélectionnée"),
+        ("REJECTED_HIERARCHIE", "Refusée par la hiérarchie"),
+        ("REJECTED_BRH", "Refusée par le BRH"),
+        ("REJECTED_ORGANISME", "Refusée par l'organisme"),
+    )
+    course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="candidatures")
+    marin = models.ForeignKey(User, on_delete=models.CASCADE, related_name="candidatures_formation")
+    statut = models.CharField(max_length=24, choices=STATUS, default="PENDING_APPROVAL")
+    hierarchie_validee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="candidatures_validees_hierarchie"
+    )
+    date_validation_hierarchie = models.DateTimeField(null=True, blank=True)
+    brh_validee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="candidatures_validees_brh"
+    )
+    date_validation_brh = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Candidature à une formation"
+        verbose_name_plural = "Candidatures à une formation"
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.marin} — {self.course} ({self.get_statut_display()})"
+
+    def transmettre_si_double_validation(self):
+        """Fait passer automatiquement le statut à TRANSMITTED dès que les
+        deux validations (hiérarchie ET BRH) sont réunies, quel que soit
+        l'ordre dans lequel elles ont été posées — à appeler explicitement
+        après chaque validation (hiérarchie ou BRH), jamais avant qu'une
+        seule des deux ne soit encore renseignée. N'agit que si la
+        candidature est encore PENDING_APPROVAL : ne réécrit jamais un statut
+        déjà avancé (SELECTED) ni un refus déjà posé."""
+        if self.statut == "PENDING_APPROVAL" and self.hierarchie_validee_par_id and self.brh_validee_par_id:
+            self.statut = "TRANSMITTED"
+            self.save(update_fields=["statut"])
+
 
 class TrainingRecord(TimeStampedModel, OwnedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="training_records")
@@ -51,6 +636,23 @@ class TrainingRecord(TimeStampedModel, OwnedModel):
     expires_at = models.DateField()
     validated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="validated_training_records")
     attachment = models.FileField(upload_to="training_certificates/", null=True, blank=True)
+
+    def clean(self):
+        super().clean()
+        # Référence retenue : la date de réalisation de cette formation (les
+        # prérequis doivent être valides au moment où celle-ci est obtenue),
+        # avec repli sur aujourd'hui si cette date n'est pas encore renseignée.
+        if self.user_id and self.course_id:
+            reference_date = self.completed_at or timezone.localdate()
+            manquants = _prerequis_manquants(self.user, self.course, reference_date)
+            if manquants:
+                noms = ", ".join(p.title for p in manquants)
+                raise ValidationError({
+                    "course": (
+                        "Impossible d'enregistrer cette validation : formation(s) "
+                        f"prérequise(s) non validée(s) — {noms}."
+                    ),
+                })
 
     @staticmethod
     def compute_expiry(completed_at, validity_days):

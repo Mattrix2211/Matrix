@@ -1,13 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="h3 mb-3">Matériels</h1>
+{% if filtre_location %}
+<div class="alert alert-info d-flex justify-content-between align-items-center py-2">
+  <span><span class="bi bi-geo-alt-fill me-1"></span> Filtré sur l'emplacement <strong>{{ filtre_location.name }}</strong> (venu du plan du navire).</span>
+  <a href="{% url 'asset-list' %}" class="btn btn-sm btn-outline-secondary">Voir tout le matériel</a>
+</div>
+{% endif %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div class="d-flex align-items-center gap-2">
     <div class="dropdown">
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filtersBtn" data-bs-toggle="dropdown" aria-expanded="false">Filtres</button>
       <div class="dropdown-menu p-3" aria-labelledby="filtersBtn" style="min-width: 480px;">
         <form method="get" id="filtersForm" class="row g-2">
-          <div class="col-6"><label class="form-label">Navire</label><select name="ship" class="form-select"><option value="">Tous</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
+          <div class="col-6"><label class="form-label">Unité</label><select name="ship" class="form-select"><option value="">Tous</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
           <div class="col-6"><label class="form-label">Service</label><select name="service" class="form-select"><option value="">Tous</option>{% for sv in services %}<option value="{{ sv.id }}" {% if request.GET.service == sv.id|stringformat:'s' %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
           <div class="col-6"><label class="form-label">Secteur</label><select name="sector" class="form-select"><option value="">Tous</option>{% for sc in sectors %}<option value="{{ sc.id }}" {% if request.GET.sector == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
           <div class="col-6"><label class="form-label">Section</label><select name="section" class="form-select"><option value="">Toutes</option>{% for se in sections %}<option value="{{ se.id }}" {% if request.GET.section == se.id|stringformat:'s' %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
@@ -18,15 +24,29 @@
       </div>
     </div>
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssetModal" title="Nouveau matériel"><i class="bi bi-plus-lg"></i> Ajouter</button>
-    <a class="btn btn-outline-success" href="{{ export_url }}" title="Exporter en Excel">Exporter</a>
+    <a href="{% url 'asset-import' %}" class="btn btn-outline-primary" title="Importer plusieurs matériels d'un coup depuis un fichier Excel">
+      <i class="bi bi-file-earmark-excel"></i> Importer
+    </a>
+    <div class="dropdown">
+      <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Exporter la liste (respecte les filtres actifs et votre périmètre)">
+        <i class="bi bi-download"></i> Exporter
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="exportBtn">
+        {% if xlsx_disponible %}<li><a class="dropdown-item" href="{{ export_url_xlsx }}">Excel (.xlsx)</a></li>{% endif %}
+        <li><a class="dropdown-item" href="{{ export_url_csv }}">CSV</a></li>
+      </ul>
+    </div>
   </div>
   <div class="d-flex align-items-center gap-2">
     <input type="text" id="assetSearch" class="form-control" placeholder="Rechercher..." style="max-width: 260px;" />
     <div class="dropdown">
-      <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
+      {# Repliées par défaut (audit visuel §2/§5) : n'apparaissent qu'après sélection d'au
+      moins un matériel (classe d-none basculée en JS, cf. countSelected() plus bas), pour
+      ne pas encombrer la barre d'outils quand elles ne servent à rien. #}
+      <button class="btn btn-outline-secondary dropdown-toggle d-none" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
       <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkStatusModal">Modifier statut…</button></li>
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier navire…</button></li>
+        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier unité…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkServiceModal">Modifier service…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectorModal">Modifier secteur…</button></li>
         <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectionModal">Modifier section…</button></li>
@@ -60,6 +80,13 @@
         </div>
         <button id="btnNewFolderHere" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createFolderModal">Nouveau</button>
       </div>
+      {% if folders %}
+      {# Vue par défaut allégée (audit visuel §2/§5) : le contenu du dossier n'est
+      rendu que s'il y a au moins un sous-dossier à afficher, pour ne pas imposer
+      une grande carte vide aux utilisateurs qui ne se servent jamais des dossiers.
+      Le bandeau ci-dessus (fil d'Ariane + bouton "Nouveau") reste toujours visible :
+      la navigation et la création de dossier restent possibles en toute
+      circonstance. #}
       <div class="card-body">
         <div class="row g-3" id="folderGrid">
           {% for f in folders %}
@@ -75,12 +102,11 @@
               <div class="card-body py-2"><div class="text-truncate" title="{{ f.name }}">{{ f.name }}</div></div>
             </div>
           </div>
-          {% empty %}
-          <div class="col-12 text-muted">Aucun sous-dossier</div>
           {% endfor %}
         </div>
         <div class="small text-muted mt-2">Astuce: clic droit sur un dossier pour Nouveau/Modifier/Supprimer; glisser-déposer un matériel sur une carte dossier pour l’y déplacer.</div>
       </div>
+      {% endif %}
     </div>
   </div>
   <div class="col-12">
@@ -96,14 +122,14 @@
               <h6 class="card-title mb-1 text-truncate" title="{{ a.designation|default:'Matériel' }}">{{ a.designation|default:"(sans désignation)" }}</h6>
               <div class="small text-muted">{{ a.ship.name }} • {{ a.service.name }}</div>
               
-              <div class="small text-muted">{{ a.marque|default:"" }} {{ a.reference|default:"" }}</div>
+              <div class="small text-muted">{{ a.marque|default:"" }} <span class="font-mono">{{ a.reference|default:"" }}</span></div>
             </div>
             <div class="card-footer d-flex gap-2">
               <input type="checkbox" value="{{ a.id }}" class="form-check-input me-2 row-select" />
                           <button class="btn btn-outline-secondary btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#editAssetModal"
                             data-pk="{{ a.id }}" data-type-id="{{ a.asset_type.id }}" data-designation="{{ a.designation }}" data-nno="{{ a.nno }}" data-reference="{{ a.reference }}" data-marque="{{ a.marque }}" data-gisement="{{ a.gisement }}" data-local="{{ a.local }}"
                       data-internal-id="{{ a.internal_id }}" data-serial-number="{{ a.serial_number }}"
-                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}">✏️</button>
+                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}" data-location-id="{% if a.location_id %}{{ a.location_id }}{% endif %}">✏️</button>
               <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="delete_asset" data-pk="{{ a.id }}" data-label="Supprimer le matériel {{ a.designation|default:a.serial_number }}">🗑️</button>
             </div>
           </div>
@@ -133,18 +159,31 @@
               <input type="hidden" name="asset_type_id" id="createAssetTypeValue" />
               <select id="createAssetTypeHidden" class="form-select d-none">{% for t in types %}<option value="{{ t.id }}" data-sector="{{ t.sector.id }}">{{ t.name }}</option>{% endfor %}</select>
             {% endif %}
-            <div class="col-md-3"><label class="form-label">N°</label><input class="form-control" name="serial_number" /></div>
-            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" /></div>
+            <div class="col-md-3"><label class="form-label">N°</label><input class="form-control font-mono" name="serial_number" /></div>
+            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" /></div>
             <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" /></div>
-            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control" name="nno" /></div>
+            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control font-mono" name="nno" /></div>
             <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" /></div>
             <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" /></div>
             <input type="hidden" name="status" value="OK" />
             <input type="hidden" name="criticality" value="1" />
-            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="createShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="createSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}">{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6"><label class="form-label">Unité</label><select class="form-select" name="ship_id" id="createShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if sh.id == user_ship_id %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if sv.id == user_service_id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-4">
+              <label class="form-label">Secteur{% if not request.GET.type %} <span class="text-danger">*</span>{% endif %}</label>
+              <select class="form-select" name="sector_id" id="createSector" {% if not request.GET.type %}required{% endif %}><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if sc.id == user_sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select>
+              <div class="invalid-feedback" id="createSectorFeedback">Aucun type de matériel n'est configuré pour ce secteur. Choisissez un autre secteur ou demandez à un administrateur d'en configurer un.</div>
+            </div>
+            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if se.id == user_section_id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-6">
+              <label class="form-label">Emplacement</label>
+              <select class="form-select" name="location_id" id="createLocation">
+                <option value="">—</option>
+                {% for loc in locations %}<option value="{{ loc.id }}" data-ship="{{ loc.ship.id }}">{{ loc.name }}</option>{% endfor %}
+                <option value="__new__">+ Ajouter un nouvel emplacement…</option>
+              </select>
+              <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="createLocationNew" placeholder="Nom du nouvel emplacement" />
+            </div>
             <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
             {% if peut_gerer_parent %}
             <div class="col-md-6">
@@ -175,39 +214,88 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="edit_asset" />
           <input type="hidden" name="pk" id="editAssetPk" />
-          <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="editDesignation" required /></div>
-            <div class="col-md-6"><label class="form-label">Type</label><select class="form-select" name="asset_type_id" id="editAssetType">{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control" name="nno" id="editNno" /></div>
-            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control" name="reference" id="editReference" /></div>
-            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" id="editMarque" /></div>
-            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" id="editGisement" /></div>
-            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" id="editLocal" /></div>
-            <div class="col-md-3"><label class="form-label">Identifiant interne</label><input class="form-control" name="internal_id" id="editInternalId" /></div>
-            <div class="col-md-3"><label class="form-label">N° série</label><input class="form-control" name="serial_number" id="editSerialNumber" /></div>
-            <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status" id="editStatus"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div>
-            <div class="col-md-3"><label class="form-label">Criticité</label><input type="number" min="1" max="5" class="form-control" name="criticality" id="editCriticality" /></div>
-            <div class="col-md-6"><label class="form-label">Navire</label><select class="form-select" name="ship_id" id="editShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="editService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
-            {% if peut_gerer_parent %}
-            <div class="col-md-6">
-              <label class="form-label">Rattaché à (facultatif)</label>
-              <select class="form-select" name="parent_id" id="editParentAsset">
-                <option value="">— Aucun —</option>
-                {% for p in assets_pour_parent %}
-                  <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation|default:p.asset_type.name }}</option>
-                {% endfor %}
-              </select>
+          <div class="accordion accordion-flush" id="accordionEditAsset">
+
+            {# Section ouverte par défaut : les champs les plus souvent corrigés #}
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#editAssetSectionIdentite" aria-expanded="true" aria-controls="editAssetSectionIdentite"><span class="bi bi-card-text me-2"></span>Identité</button>
+              </h2>
+              <div id="editAssetSectionIdentite" class="accordion-collapse collapse show">
+                <div class="accordion-body">
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="editDesignation" required /></div>
+                    <div class="col-md-6"><label class="form-label">Type</label><select class="form-select" name="asset_type_id" id="editAssetType">{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control font-mono" name="nno" id="editNno" /></div>
+                    <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="editReference" /></div>
+                    <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" id="editMarque" /></div>
+                    <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" id="editGisement" /></div>
+                    <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" id="editLocal" /></div>
+                    <div class="col-md-3"><label class="form-label">Identifiant interne</label><input class="form-control font-mono" name="internal_id" id="editInternalId" /></div>
+                    <div class="col-md-3"><label class="form-label">N° série</label><input class="form-control font-mono" name="serial_number" id="editSerialNumber" /></div>
+                    <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status" id="editStatus"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div>
+                    <div class="col-md-3"><label class="form-label">Criticité</label><input type="number" min="1" max="5" class="form-control" name="criticality" id="editCriticality" /></div>
+                    <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            {% endif %}
-            <div class="col-12"><label class="form-label">Ajouter des documents</label><input type="file" class="form-control" name="documents" multiple /></div>
-            <div class="col-12">
-              <label class="form-label">Documents existants</label>
-              <div id="editAssetDocsList" class="d-flex flex-wrap gap-2"></div>
+
+            {# Section repliée par défaut : rattachement organisationnel, modifié moins souvent #}
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#editAssetSectionOrganisation" aria-expanded="false" aria-controls="editAssetSectionOrganisation"><span class="bi bi-diagram-3 me-2"></span>Organisation</button>
+              </h2>
+              <div id="editAssetSectionOrganisation" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                  <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Unité</label><select class="form-select" name="ship_id" id="editShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="editService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label">Secteur</label><select class="form-select" name="sector_id" id="editSector"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="editSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-6">
+                      <label class="form-label">Emplacement</label>
+                      <select class="form-select" name="location_id" id="editLocation">
+                        <option value="">—</option>
+                        {% for loc in locations %}<option value="{{ loc.id }}">{{ loc.name }} — {{ loc.ship.name }}</option>{% endfor %}
+                        <option value="__new__">+ Ajouter un nouvel emplacement…</option>
+                      </select>
+                      <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="editLocationNew" placeholder="Nom du nouvel emplacement" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {# Section repliée par défaut : réglages avancés, consultés ponctuellement #}
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#editAssetSectionAvance" aria-expanded="false" aria-controls="editAssetSectionAvance"><span class="bi bi-sliders me-2"></span>Options avancées</button>
+              </h2>
+              <div id="editAssetSectionAvance" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                  <div class="row g-3">
+                    {% if peut_gerer_parent %}
+                    <div class="col-md-6">
+                      <label class="form-label">Rattaché à (facultatif)</label>
+                      <select class="form-select" name="parent_id" id="editParentAsset">
+                        <option value="">— Aucun —</option>
+                        {% for p in assets_pour_parent %}
+                          <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation|default:p.asset_type.name }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-12"><label class="form-label">Ajouter des documents</label><input type="file" class="form-control" name="documents" multiple /></div>
+                    <div class="col-12">
+                      <label class="form-label">Documents existants</label>
+                      <div id="editAssetDocsList" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
@@ -218,7 +306,7 @@
 
 {# Modales groupées #}
 <div class="modal fade" id="bulkStatusModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le statut (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkStatusForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_status" /><label class="form-label">Statut</label><select class="form-select" name="status"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
-<div class="modal fade" id="bulkShipModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le navire (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkShipForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_ship" /><label class="form-label">Navire</label><select class="form-select" name="ship_id"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
+<div class="modal fade" id="bulkShipModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier l'unité (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkShipForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_ship" /><label class="form-label">Unité</label><select class="form-select" name="ship_id"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
 <div class="modal fade" id="bulkServiceModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le service (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkServiceForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_service" /><label class="form-label">Service</label><select class="form-select" name="service_id"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
 <div class="modal fade" id="bulkSectorModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le secteur (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkSectorForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_sector" /><label class="form-label">Secteur</label><select class="form-select" name="sector_id"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
 <div class="modal fade" id="bulkSectionModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier la section (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkSectionForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_section" /><label class="form-label">Section</label><select class="form-select" name="section_id"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
@@ -232,7 +320,10 @@
     var selectAll = document.getElementById('selectAll');
     function countSelected(){
       var rows = document.querySelectorAll('.row-select:checked');
-      var n = rows.length; bulkBtn.disabled = n === 0; bulkBtn.textContent = n>0 ? ('Actions groupées ('+n+')') : 'Actions groupées';
+      var n = rows.length;
+      bulkBtn.disabled = n === 0;
+      bulkBtn.classList.toggle('d-none', n === 0);
+      bulkBtn.textContent = n>0 ? ('Actions groupées ('+n+')') : 'Actions groupées';
     }
     document.querySelectorAll('.row-select').forEach(function(ch){ ch.addEventListener('change', countSelected); });
     if (selectAll) { selectAll.addEventListener('change', function(){ var rows = document.querySelectorAll('.row-select'); rows.forEach(function(ch){ ch.checked = selectAll.checked; }); countSelected(); }); }
@@ -269,6 +360,8 @@
       document.getElementById('editGisement').value = b.getAttribute('data-gisement')||'';
       var locVal = b.getAttribute('data-local')||''; var editLocal = document.getElementById('editLocal'); if (editLocal) editLocal.value = locVal;
       document.getElementById('editInternalId').value = b.getAttribute('data-internal-id')||''; document.getElementById('editSerialNumber').value = b.getAttribute('data-serial-number')||''; setSel('editStatus', b.getAttribute('data-status')||''); document.getElementById('editCriticality').value = b.getAttribute('data-criticality')||''; setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||'');
+      setSel('editLocation', b.getAttribute('data-location-id')||'');
+      var editLocationNew = document.getElementById('editLocationNew'); if (editLocationNew) { editLocationNew.classList.add('d-none'); editLocationNew.value = ''; }
       // Rattachement parent (T3) : ne propose que les matériels du même secteur, en excluant le matériel lui-même.
       var parentSel = document.getElementById('editParentAsset');
       if (parentSel) {
@@ -290,21 +383,59 @@
       var sectorSel = document.getElementById('createSector');
       var sectionSel = document.getElementById('createSection');
       var parentSel = document.getElementById('createParentAsset');
-      function filterOptions(select, dataAttr, match){ if(!select) return; var val = match || ''; Array.from(select.options).forEach(function(opt){ if(!opt.value){ opt.hidden=false; return; } var dv = opt.getAttribute(dataAttr); opt.hidden = !val || (dv !== val); }); if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; } }
-      function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
+      var locationSel = document.getElementById('createLocation');
+      function filterOptions(select, dataAttr, match){ if(!select) return; var val = match || ''; Array.from(select.options).forEach(function(opt){ if(!opt.value || opt.value === '__new__'){ opt.hidden=false; return; } var dv = opt.getAttribute(dataAttr); opt.hidden = !val || (dv !== val); }); if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; } }
+      function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); filterOptions(locationSel, 'data-ship', shipSel ? shipSel.value : ''); }
       function onService(){ filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
-      function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); }
+      function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); if (sectorSel) sectorSel.classList.remove('is-invalid'); }
       if (shipSel) shipSel.addEventListener('change', onShip);
       if (serviceSel) serviceSel.addEventListener('change', onService);
       if (sectorSel) sectorSel.addEventListener('change', onSector);
-      onShip(); onService(); onSector();
+      // Filtrage initial non destructif : conserve le périmètre pré-rempli depuis le
+      // profil du chef connecté au lieu de le réinitialiser en cascade (onShip/onService
+      // effacent les niveaux inférieurs, ce qui annulait le pré-remplissage automatique).
+      filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : '');
+      filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : '');
+      filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : '');
+      filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : '');
+      filterOptions(locationSel, 'data-ship', shipSel ? shipSel.value : '');
     }
+    // Bascule du champ "Nouvel emplacement" : affiché uniquement quand l'option
+    // "+ Ajouter un nouvel emplacement…" est sélectionnée dans le menu déroulant.
+    function configurerBasculeEmplacement(idSelect, idChamp){
+      var sel = document.getElementById(idSelect); var champ = document.getElementById(idChamp);
+      if (!sel || !champ) return;
+      sel.addEventListener('change', function(){
+        var estNouveau = sel.value === '__new__';
+        champ.classList.toggle('d-none', !estNouveau);
+        if (!estNouveau) champ.value = '';
+      });
+    }
+    configurerBasculeEmplacement('createLocation', 'createLocationNew');
+    configurerBasculeEmplacement('editLocation', 'editLocationNew');
     function updateAssetTypeFromSector(){ var hiddenSel = document.getElementById('createAssetTypeHidden'); var out = document.getElementById('createAssetTypeValue'); var sectorSel = document.getElementById('createSector'); if(!hiddenSel || !out || !sectorSel) return; var sec = sectorSel.value || ''; var chosen = ''; for (var i=0;i<hiddenSel.options.length;i++){ var opt = hiddenSel.options[i]; if (opt.getAttribute('data-sector') === sec){ chosen = opt.value; break; } } out.value = chosen; }
     var createModal = document.getElementById('createAssetModal');
-    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCreateCascades(); updateAssetTypeFromSector(); var cf = document.getElementById('createFolderId'); if (cf) { var currentParam = new URLSearchParams(window.location.search).get('folder'); cf.value = currentParam || ''; } }); }
-    // Garantir que le type est calculé avant l'envoi
+    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCreateCascades(); updateAssetTypeFromSector(); var cf = document.getElementById('createFolderId'); if (cf) { var currentParam = new URLSearchParams(window.location.search).get('folder'); cf.value = currentParam || ''; } var clNew = document.getElementById('createLocationNew'); if (clNew) { clNew.classList.add('d-none'); clNew.value = ''; } var cs = document.getElementById('createSector'); if (cs) cs.classList.remove('is-invalid'); }); }
+    // Garantir que le type est calculé avant l'envoi, et bloquer la soumission si le
+    // secteur choisi n'a aucun type de matériel configuré (sinon la création échoue en
+    // silence côté serveur et l'utilisateur perd toute sa saisie).
     var createForm = document.querySelector('#createAssetModal form');
-    if (createForm) { createForm.addEventListener('submit', function(){ updateAssetTypeFromSector(); }); }
+    if (createForm) {
+      createForm.addEventListener('submit', function(ev){
+        updateAssetTypeFromSector();
+        var typeValue = document.getElementById('createAssetTypeValue');
+        var sectorSel = document.getElementById('createSector');
+        // Le contrôle ne s'applique que lorsque le type doit être déduit du secteur
+        // (pas de type déjà imposé via le filtre "?type=").
+        if (typeValue && sectorSel && sectorSel.value && !typeValue.value) {
+          ev.preventDefault();
+          sectorSel.classList.add('is-invalid');
+          sectorSel.focus();
+        } else if (sectorSel) {
+          sectorSel.classList.remove('is-invalid');
+        }
+      });
+    }
     // Drag & Drop to folders
     var draggedId = null;
     document.querySelectorAll('.asset-card').forEach(function(card){

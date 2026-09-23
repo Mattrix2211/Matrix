@@ -2,6 +2,155 @@
 {% load reports_extras %}
 {% block content %}
 <h1 class="h3 mb-3">Tableau de bord</h1>
+
+<h2 class="h5 mb-3">Mon espace personnel</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header">Mes maintenances assignées</div>
+      <div class="card-body">
+        {% if mes_maintenances %}
+        <ul class="list-group list-group-flush">
+          {% for occurrence in mes_maintenances %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <a href="{% url 'occurrence-execute' occurrence.pk %}" class="fw-semibold text-decoration-none">
+                {{ occurrence.titre_affiche }}
+              </a>
+              <div class="small text-muted font-mono">Prévue le {{ occurrence.scheduled_for|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge {{ occurrence.badge_classe }} align-self-center">{{ occurrence.get_status_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune maintenance ne vous est actuellement assignée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header">Mes formations</div>
+      <div class="card-body">
+        {% if mes_formations %}
+        <ul class="list-group list-group-flush">
+          {% for session in mes_formations %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <a href="{% url 'calendar-index' %}?view=day&date={{ session.scheduled_at|date:'Y-m-d' }}" class="fw-semibold text-decoration-none">
+                {{ session.course.title }}
+              </a>
+              <div class="small text-muted font-mono">Le {{ session.scheduled_at|date:"d/m/Y à H:i" }}</div>
+            </div>
+            <div class="d-flex flex-column gap-1 align-items-end">
+              {% if session.est_formateur %}
+              <span class="badge bg-info align-self-end">Formateur</span>
+              {% endif %}
+              <span class="badge bg-secondary align-self-end">{{ session.get_status_display }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune formation ne vous est actuellement programmée.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header">Mes rondes du jour</div>
+      <div class="card-body">
+        {% if mes_rondes %}
+        <ul class="list-group list-group-flush">
+          {% for ronde in mes_rondes %}
+          <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <a href="{% url 'ronde-detail' ronde.pk %}" class="fw-semibold text-decoration-none">{{ ronde.nom }}</a>
+            <span class="badge {% if ronde.statut == 'EN_RETARD' %}bg-danger{% else %}bg-secondary{% endif %}">{{ ronde.get_statut_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune ronde à faire.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header">Mes tickets correctifs</div>
+      <div class="card-body">
+        {% if mes_tickets %}
+        <ul class="list-group list-group-flush">
+          {% for ticket in mes_tickets %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <a href="{% url 'ticket-detail' ticket.pk %}" class="fw-semibold text-decoration-none">
+                {{ ticket.equipement }}
+              </a>
+              <div class="small text-muted font-mono">Signalé le {{ ticket.reported_at|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge bg-secondary align-self-center">{{ ticket.get_status_display }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucun ticket correctif ne vous est actuellement assigné.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header">Mes services de garde (équité)</div>
+      <div class="card-body">
+        <p class="small text-muted mb-2">
+          Créneaux des listes publiées uniquement, à titre de transparence sur votre propre situation.
+        </p>
+        <div class="mb-3">
+          <div class="small text-muted mb-1">Mois en cours</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-week" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.mois.semaine }} en semaine</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-day" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.mois.vendredi }} vendredi(s)</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-heart" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.mois.weekend }} week-end(s)</span>
+          </div>
+        </div>
+        <div>
+          <div class="small text-muted mb-1">Année en cours</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-week" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.annee.semaine }} en semaine</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-day" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.annee.vendredi }} vendredi(s)</span>
+            <span class="badge text-bg-secondary"><i class="bi bi-calendar-heart" aria-hidden="true"></i> {{ mes_compteurs_equite_garde.annee.weekend }} week-end(s)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header">Mes qualifications</div>
+      <div class="card-body">
+        {% if mes_qualifications %}
+        <ul class="list-group list-group-flush">
+          {% for qualification in mes_qualifications %}
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <span class="fw-semibold">{{ qualification.course.title }}</span>
+              <div class="small text-muted font-mono">Expire le {{ qualification.expires_at|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge {{ qualification.badge_classe }} align-self-center">{{ qualification.badge_libelle }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Aucune formation validée n'est actuellement enregistrée à votre nom.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card">
@@ -22,15 +171,22 @@
   {% if user|peut_generer_bilan %}
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header">Bilan PDF du périmètre</div>
+      <div class="card-header">Bilan du périmètre</div>
       <div class="card-body">
         <p class="text-muted small mb-3">
           Document de synthèse pour votre hiérarchie : état actuel de votre périmètre,
-          ou activité réalisée sur une période choisie.
+          ou activité réalisée sur une période choisie. Disponible en PDF ou en tableur
+          (Excel/CSV) pour retravailler les chiffres.
         </p>
         <div class="d-flex flex-wrap gap-2">
           <a href="{% url 'rapport-bilan' %}" class="btn btn-primary">
-            <span class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></span>Générer le bilan
+            <span class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></span>Générer le bilan (PDF)
+          </a>
+          <a href="{% url 'rapport-bilan' %}?format=xlsx" class="btn btn-outline-success" title="Exporter en Excel">
+            <span class="bi bi-file-earmark-excel me-1" aria-hidden="true"></span>Excel
+          </a>
+          <a href="{% url 'rapport-bilan' %}?format=csv" class="btn btn-outline-success" title="Exporter en CSV">
+            <span class="bi bi-filetype-csv me-1" aria-hidden="true"></span>CSV
           </a>
           <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#periode-bilan" aria-expanded="false" aria-controls="periode-bilan">
             <span class="bi bi-calendar-range me-1" aria-hidden="true"></span>Choisir une période
@@ -51,6 +207,14 @@
               <div class="col-auto">
                 <label for="bilan-date-fin" class="form-label small mb-0">Au</label>
                 <input type="date" class="form-control form-control-sm" id="bilan-date-fin" name="date_fin" required>
+              </div>
+              <div class="col-auto">
+                <label for="bilan-format" class="form-label small mb-0">Format</label>
+                <select class="form-select form-select-sm" id="bilan-format" name="format">
+                  <option value="pdf">PDF</option>
+                  <option value="xlsx">Excel</option>
+                  <option value="csv">CSV</option>
+                </select>
               </div>
               <div class="col-auto">
                 {# Type par défaut d'un <button> dans un <form> : valide le formulaire au clic #}

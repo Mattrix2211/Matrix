@@ -1,10 +1,42 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1 class="h4">Ticket correctif #{{ ticket.id }}</h1>
-<div class="mb-2 text-muted">Actif: <a href="/assets/{{ ticket.asset.id }}/">{{ ticket.asset }}</a></div>
+<div class="mb-2 text-muted">Actif : {% if ticket.installation %}<a href="/installations/{{ ticket.installation.id }}/">{{ ticket.installation.designation }}</a>{% else %}<a href="/assets/{{ ticket.asset.id }}/">{{ ticket.asset }}</a>{% endif %}</div>
+
+{% if ticket.anomalie_source %}<div class="mb-2 text-muted">Issu de l'anomalie : <a href="{% url 'anomalie-detail' ticket.anomalie_source.pk %}">{{ ticket.anomalie_source.titre }}</a></div>{% endif %}
 
 <div id="ticket-status" hx-target="this" hx-swap="outerHTML">
   {% include 'logistics/_status.html' %}
+</div>
+
+<div class="card mt-3">
+  <div class="card-header">Assignation</div>
+  <div class="card-body">
+    {% if ticket.assignees.all %}
+    <p class="mb-2">
+      {% for marin in ticket.assignees.all %}
+        <span class="badge bg-info text-dark me-1">{{ marin.get_full_name|default:marin.username }}</span>
+      {% endfor %}
+    </p>
+    {% else %}
+    <p class="text-muted mb-2">Aucun marin assigné à ce ticket.</p>
+    {% endif %}
+    {% if peut_assigner %}
+    <form method="post" action="{% url 'ticket-assign' ticket.id %}" class="d-flex flex-wrap align-items-end gap-2">
+      {% csrf_token %}
+      <div>
+        <label class="form-label small mb-1">Marins assignés (équipage de l'unité)</label>
+        <select class="form-select form-select-sm" name="assignees" multiple size="4" style="min-width: 260px;">
+          {% for u in utilisateurs_assignables %}
+          <option value="{{ u.id }}" {% if u in ticket.assignees.all %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {# Type par défaut d'un <button> dans un <form> : valide le formulaire au clic #}
+      <button class="btn btn-sm btn-primary">Assigner</button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card mt-3">
@@ -21,4 +53,36 @@
     {% include 'logistics/_part_requests.html' %}
   </div>
 </div>
+
+{% if peut_prelever_stock %}
+<div class="card mt-3">
+  <div class="card-header">Prélèvement de stock</div>
+  <div class="card-body">
+    {% if pieces_disponibles %}
+    <form method="post" action="{% url 'ticket-stock-prelevement' ticket.id %}" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <div class="col-7">
+        <label class="form-label small mb-1">Pièce en stock</label>
+        <select class="form-select form-select-sm" name="piece_id" required>
+          {% for p in pieces_disponibles %}
+          <option value="{{ p.id }}">{{ p.reference }} - {{ p.designation }} ({{ p.quantite }} disponible{{ p.quantite|pluralize }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-3">
+        <label class="form-label small mb-1">Quantité prélevée</label>
+        <input class="form-control form-control-sm" type="number" name="quantite" min="1" value="1" required>
+      </div>
+      <div class="col-2">
+        <button class="btn btn-sm btn-primary w-100" type="submit">Prélever</button>
+      </div>
+    </form>
+    {% else %}
+    <p class="text-muted mb-0">Aucune pièce disponible dans votre périmètre de stock.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% include 'threads/_messages.html' with commentaire_action=commentaire_action_url %}
 {% endblock %}

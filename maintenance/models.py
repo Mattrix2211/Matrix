@@ -8,7 +8,9 @@ from assets.models import AssetType
 from assets.models import InstallationHourReading, ModeDeclenchement
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from logistics.models import CorrectiveTicket, TicketStatusLog
+from logistics.models import CorrectiveTicket, TicketStatusLog, destinataires_ticket, niveau_alerte_ticket
+from notifications.models import Notification
+from accounts.models import AuditLog
 
 User = get_user_model()
 
@@ -60,6 +62,16 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
             ),
         ]
 
+    @property
+    def titre_affiche(self):
+        """Libellé lisible de l'occurrence, qu'elle concerne du matériel
+        mobile (plan + asset) ou une installation fixe (installation_maintenance).
+        Point unique pour ce libellé, utilisé par calendar_app, dashboard et
+        l'export iCal — à ne pas dupliquer ailleurs."""
+        if self.installation_maintenance_id:
+            return f"{self.installation_maintenance.installation} - {self.installation_maintenance.title}"
+        return str(self.asset)
+
 class OccurrenceStatusLog(TimeStampedModel):
     occurrence = models.ForeignKey(MaintenanceOccurrence, on_delete=models.CASCADE, related_name="status_logs")
     old_status = models.CharField(max_length=24)
@@ -81,6 +93,16 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     measurements = JSONField(default=dict, blank=True)
     conformity = models.CharField(max_length=24, choices=CONFORMITY, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    # Signature de validation (T-FEAT signature) : le passage en "Terminée" (DONE) sur
+    # une installation critique exige une ré-authentification légère (mot de passe
+    # courant, cf. OccurrenceExecuteView) avant d'être appliqué. AuditLog trace déjà
+    # "qui a fait quoi", mais ces deux champs distinguent explicitement une validation
+    # engageante d'une simple exécution.
+    valide_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="executions_validees", verbose_name="Validé par",
+    )
+    date_validation = models.DateTimeField(null=True, blank=True, verbose_name="Date de validation")
 
 
 def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
@@ -115,10 +137,9 @@ def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", c
     if instance.conformity == "NON_CONFORME":
         occ = instance.occurrence
         asset = occ.asset
-        # CorrectiveTicket ne concerne aujourd'hui que le matériel mobile (FK asset
-        # non-nullable) : aucun équivalent n'existe côté installation fixe. Une
-        # occurrence d'installation (occ.asset is None) ne doit donc pas déclencher
-        # de ticket correctif tant que ce concept n'existe pas pour les installations.
+        # Une occurrence d'installation (occ.asset is None) ne déclenche pas de
+        # ticket automatique : seuls les tickets créés à la main ou par conversion
+        # d'une anomalie peuvent viser une installation (CorrectiveTicket.installation).
         if asset is None:
             return
         ticket, created_ticket = CorrectiveTicket.objects.get_or_create(
@@ -128,3 +149,27 @@ def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", c
         )
         if created_ticket:
             TicketStatusLog.objects.create(ticket=ticket, old_status="REPORTED", new_status="REPORTED")
+            # Journal transverse (AuditLog) en plus du TicketStatusLog dédié —
+            # même principe que les créations manuelles de ticket, cf. tâche
+            # Notion « Unifier les modèles d'historique/audit ». actor=None :
+            # création automatique par le signal, pas par un utilisateur.
+            AuditLog.objects.create(
+                actor=instance.executed_by, action="create_ticket_auto",
+                details=f"ticket={ticket.pk}; asset={asset}; occurrence={occ.id}",
+            )
+            # Alerte les chefs du périmètre dès la création automatique du ticket,
+            # au même titre que le signalement manuel (logistics/web_views.py::
+            # TicketCreateView) — c'est le même événement métier (anomalie
+            # détectée sur un actif), seul le déclencheur diffère (inspection QR
+            # non conforme plutôt qu'un signalement direct). Destinataires et
+            # niveau mutualisés (logistics/models.py) pour ne pas dupliquer cette
+            # logique entre les deux chemins de création.
+            niveau_alerte = niveau_alerte_ticket(ticket.severity)
+            for profile in destinataires_ticket(asset):
+                if instance.executed_by_id and profile.user_id == instance.executed_by_id:
+                    continue
+                Notification.objects.create(
+                    user=profile.user,
+                    level=niveau_alerte,
+                    verb=f"Anomalie détectée sur {asset} lors d'une inspection : {ticket.description}",
+                )

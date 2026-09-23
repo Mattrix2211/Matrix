@@ -1,45 +1,125 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView
+from django.views.generic import ListView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib import messages
-from .forms import UserProfileForm
-from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog
+from django.core.exceptions import PermissionDenied
+from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.permissions import ManageUsersPermission
+from matrix.core.scopes import (
+    is_master_admin,
+    ship_id_for_user,
+    perimetre_navire_q,
+    resoudre_affectation_dans_perimetre,
+)
+from training.models import CandidatureFormation
+from training.services import qualifications_validees_de
+
+
+def _role_attribution_autorisee(acting_user, role_cible):
+    """Vérifie que l'utilisateur courant peut attribuer le rôle demandé à un tiers.
+
+    Réutilise la matrice ManageUsersPermission.MANAGE_MAP déjà définie côté API DRF
+    (matrix/core/permissions.py) pour que le web et l'API appliquent exactement la
+    même règle. Empêche par exemple un COMMANDANT de s'auto-attribuer (ou d'attribuer
+    à un tiers) le rôle ADMIN_NAVIRE ou MASTER_ADMIN.
+    """
+    if getattr(acting_user, "is_superuser", False):
+        return True
+    profile = getattr(acting_user, "profile", None)
+    acting_role = profile.role if profile else None
+    if acting_role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
+        return True
+    allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
+    return role_cible in allowed
+
+
+def _utilisateurs_gerables_par(acting_user):
+    """Périmètre des comptes utilisateurs qu'un COMMANDANT (et au-dessus) peut
+    modifier via les actions POST de l'annuaire (édition, suppression,
+    réinitialisation de mot de passe, actions groupées).
+
+    Réutilise exactement le même périmètre que la lecture
+    (UserDirectoryView.get_queryset() ci-dessous) : seul MASTER_ADMIN (ou un
+    superutilisateur) peut agir sur la flotte entière ; un COMMANDANT ou un
+    ADMIN_NAVIRE ne peut agir que sur le personnel de SON navire. Avant
+    correction, les actions POST (edit_user, delete_user, set_password,
+    bulk_*) résolvaient l'utilisateur cible sans aucun filtre de périmètre :
+    un COMMANDANT du navire A pouvait éditer, supprimer ou réinitialiser le
+    mot de passe d'un utilisateur d'un autre navire en forgeant une requête
+    (faille IDOR en écriture)."""
+    User = get_user_model()
+    qs = User.objects.all()
+    if not is_master_admin(acting_user):
+        qs = qs.filter(perimetre_navire_q(acting_user, "profile__"))
+    return qs
 
 
 class UserDirectoryView(LoginRequiredMixin, ListView):
     template_name = "accounts/directory.html"
     context_object_name = "users"
 
+    def dispatch(self, request, *args, **kwargs):
+        # L'annuaire utilisateurs (consultation ET actions de gestion) est réservé
+        # aux administrateurs (COMMANDANT et au-dessus) : gérer les identifiants,
+        # rôles et mots de passe des marins n'est pas du ressort d'un chef de
+        # secteur/service. Aucun seuil n'était en place auparavant (bug sécurité).
+        # Le test d'authentification (redirection vers /login/) reste géré par
+        # LoginRequiredMixin ci-dessous ; on ne bloque en 403 qu'un utilisateur
+        # déjà connecté mais dont le rôle est insuffisant.
+        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden()
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         User = get_user_model()
         qs = User.objects.select_related("profile", "profile__ship").order_by("profile__ship__name", "username")
-        lvl = user_role_level(self.request.user)
-        if lvl < RoleLevel.CHEF_SECTION:
-            # Les équipiers ne voient que leur propre fiche
-            return qs.filter(id=self.request.user.id)
+        # Périmètre par défaut : seul MASTER_ADMIN (ou un superutilisateur) voit
+        # la flotte entière. L'accès à cette vue est déjà réservé à COMMANDANT
+        # et au-dessus (cf. dispatch() ci-dessus) ; tous les rôles restants
+        # (ADMIN_NAVIRE et COMMANDANT) sont rattachés à un navire précis (cf.
+        # matrix/core/scopes.py::is_master_admin) et ne doivent voir que le
+        # personnel de LEUR navire, à n'importe quel niveau de rattachement
+        # (navire/service/secteur/section — perimetre_navire_q, contrairement
+        # à build_scope_q, couvre aussi les profils dont seul le secteur ou la
+        # section est renseigné, sans le champ "Unité" lui-même). Appliqué
+        # avant le filtre ?ship= ci-dessous pour qu'il ne puisse jamais
+        # élargir la vue au-delà de ce périmètre (bug sécurité corrigé : un
+        # COMMANDANT pouvait consulter le personnel d'un autre navire via ce
+        # paramètre d'URL).
+        if not is_master_admin(self.request.user):
+            qs = qs.filter(perimetre_navire_q(self.request.user, "profile__"))
         ship_id = self.request.GET.get("ship")
         if ship_id:
-            return qs.filter(profile__ship_id=ship_id)
-        # Export Excel
-        if self.request.GET.get("export") == "xlsx":
-            return qs
+            qs = qs.filter(profile__ship_id=ship_id)
         return qs
 
     def get_context_data(self, **kwargs):
-        from accounts.models import Roles, RoleAvailability
+        from accounts.models import RoleAvailability
         from org.models import Ship, Service, Sector, Section
         ctx = super().get_context_data(**kwargs)
         # Roles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
         all_roles = [c for c in Roles.choices if c[0] != 'MASTER_ADMIN']
         opts = {o.code: o.active for o in RoleAvailability.objects.all()}
         ctx["roles"] = [{"code": code, "label": label} for code, label in all_roles if opts.get(code, True)]
-        # Hiérarchie pour sélection
-        ctx["ships"] = Ship.objects.order_by("name")
-        ctx["services"] = Service.objects.select_related("ship").order_by("name")
-        ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
-        ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+        # Hiérarchie pour sélection (filtre "Unité" et formulaires de création/
+        # édition) : un utilisateur limité à son navire (non MASTER_ADMIN) ne
+        # doit se voir proposer que son propre navire — lui montrer les autres
+        # navires de la flotte n'aurait aucun sens (l'annuaire ne renverra de
+        # toute façon aucun résultat pour eux) et fuiterait leurs noms.
+        if is_master_admin(self.request.user):
+            ctx["ships"] = Ship.objects.order_by("name")
+            ctx["services"] = Service.objects.select_related("ship").order_by("name")
+            ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
+            ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+        else:
+            mon_navire_id = ship_id_for_user(self.request.user)
+            ctx["ships"] = Ship.objects.filter(pk=mon_navire_id).order_by("name")
+            ctx["services"] = Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name")
+            ctx["sectors"] = Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name")
+            ctx["sections"] = Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name")
         # Choix pour fonction, grade et spécialité
         ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
         ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
@@ -58,7 +138,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 ws.title = "Utilisateurs"
                 headers = [
                     "Identifiant", "Prénom", "Nom", "Rôle", "Grade", "Spécialité", "Matricule",
-                    "Navire", "Service", "Secteur", "Section", "Fonction", "Date de naissance", "Âge"
+                    "Unité", "Service", "Secteur", "Section", "Fonction", "Date de naissance", "Âge"
                 ]
                 ws.append(headers)
                 for u in qs:
@@ -98,17 +178,28 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         from django.shortcuts import redirect
-        from org.models import Ship, Service, Sector, Section
         from django.utils.text import slugify
+        # Seuil minimum pour toute action d'écriture sur l'annuaire des comptes : la
+        # gestion des comptes utilisateurs (création, rôle, mot de passe, suppression,
+        # rattachement) relève du périmètre COMMANDANT et au-dessus. Corrige la faille
+        # permettant à n'importe quel utilisateur connecté (y compris un EQUIPIER) de
+        # s'auto-promouvoir ou d'agir sur les comptes d'autrui via un POST direct.
+        if user_role_level(request.user) < RoleLevel.COMMANDANT:
+            raise PermissionDenied
         action = request.POST.get("action")
         # Actions groupées
         if action in ("bulk_update_role", "bulk_update_ship", "bulk_update_fonction", "bulk_update_service", "bulk_update_sector", "bulk_update_section", "bulk_update_grade", "bulk_update_specialite", "bulk_delete_users", "bulk_reset_passwords"):
             ids = request.POST.getlist("selected_ids")
-            User = get_user_model()
-            users = User.objects.filter(id__in=ids)
+            # Périmètre navire appliqué avant toute exécution : un id hors du
+            # navire de l'appelant (COMMANDANT/ADMIN_NAVIRE) est ignoré, comme
+            # s'il n'existait pas (cf. _utilisateurs_gerables_par ci-dessus).
+            users = _utilisateurs_gerables_par(request.user).filter(id__in=ids)
             count = users.count()
             if action == "bulk_update_role":
                 role = request.POST.get("role")
+                if not _role_attribution_autorisee(request.user, role):
+                    messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.role = role
@@ -117,17 +208,20 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Rôle mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_ship":
                 ship_id = request.POST.get("ship_id")
-                ship = None
-                try:
-                    ship = Ship.objects.get(pk=ship_id)
-                except Ship.DoesNotExist:
-                    ship = None
+                # Valeur de destination validée contre le périmètre de l'appelant :
+                # un COMMANDANT/ADMIN_NAVIRE ne peut affecter ses utilisateurs qu'à
+                # son propre navire, jamais à un navire tiers (cf.
+                # resoudre_affectation_dans_perimetre).
+                ok, ship, _, _, _ = resoudre_affectation_dans_perimetre(request.user, ship_id=ship_id)
+                if not ok:
+                    messages.error(request, "Unité invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.ship = ship
                     profile.save(update_fields=["ship"])
                     AuditLog.objects.create(actor=request.user, action="bulk_update_ship", target_user=user, details=f"ship_id={ship_id}")
-                messages.success(request, f"Navire mis à jour pour {count} utilisateur(s).")
+                messages.success(request, f"Unité mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_fonction":
                 fonction = request.POST.get("fonction_service", "")
                 for user in users:
@@ -138,11 +232,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Fonction mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_service":
                 service_id = request.POST.get("service_id")
-                service = None
-                try:
-                    service = Service.objects.get(pk=service_id)
-                except Service.DoesNotExist:
-                    service = None
+                # Valeur de destination validée contre le périmètre de l'appelant
+                # (cf. resoudre_affectation_dans_perimetre) : le service ciblé doit
+                # dépendre du navire de l'appelant.
+                ok, _, service, _, _ = resoudre_affectation_dans_perimetre(request.user, service_id=service_id)
+                if not ok:
+                    messages.error(request, "Service invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.service = service
@@ -151,11 +247,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Service mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_sector":
                 sector_id = request.POST.get("sector_id")
-                sector = None
-                try:
-                    sector = Sector.objects.get(pk=sector_id)
-                except Sector.DoesNotExist:
-                    sector = None
+                # Valeur de destination validée contre le périmètre de l'appelant
+                # (cf. resoudre_affectation_dans_perimetre) : le secteur ciblé doit
+                # dépendre du navire de l'appelant.
+                ok, _, _, sector, _ = resoudre_affectation_dans_perimetre(request.user, sector_id=sector_id)
+                if not ok:
+                    messages.error(request, "Secteur invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.sector = sector
@@ -164,11 +262,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 messages.success(request, f"Secteur mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_section":
                 section_id = request.POST.get("section_id")
-                section = None
-                try:
-                    section = Section.objects.get(pk=section_id)
-                except Section.DoesNotExist:
-                    section = None
+                # Valeur de destination validée contre le périmètre de l'appelant
+                # (cf. resoudre_affectation_dans_perimetre) : la section ciblée doit
+                # dépendre du navire de l'appelant.
+                ok, _, _, _, section = resoudre_affectation_dans_perimetre(request.user, section_id=section_id)
+                if not ok:
+                    messages.error(request, "Section invalide ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.section = section
@@ -225,6 +325,21 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             service_id = request.POST.get("service_id")
             sector_id = request.POST.get("sector_id")
             section_id = request.POST.get("section_id")
+            if role and not _role_attribution_autorisee(request.user, role):
+                messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
+                return redirect("user-directory")
+            # Valeurs de destination (navire/service/secteur/section) validées
+            # contre le périmètre de l'appelant AVANT toute création de compte
+            # (cf. resoudre_affectation_dans_perimetre), pour ne jamais créer un
+            # utilisateur rattaché à un navire hors du périmètre du COMMANDANT/
+            # ADMIN_NAVIRE appelant, et pour ne pas laisser un compte créé dans un
+            # état partiel si la valeur demandée est refusée.
+            ok, ship, service, sector, section = resoudre_affectation_dans_perimetre(
+                request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id
+            )
+            if not ok:
+                messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
+                return redirect("user-directory")
             if role:
                 User = get_user_model()
                 # Identifiant = prenom.nom (slugifié), avec suffixe numérique si collision
@@ -261,41 +376,65 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                         profile.date_naissance = datetime.strptime(date_naissance, "%Y-%m-%d").date()
                     except Exception:
                         profile.date_naissance = None
-                try:
-                    if ship_id:
-                        profile.ship = Ship.objects.get(pk=ship_id)
-                    if service_id:
-                        profile.service = Service.objects.get(pk=service_id)
-                    if sector_id:
-                        profile.sector = Sector.objects.get(pk=sector_id)
-                    if section_id:
-                        profile.section = Section.objects.get(pk=section_id)
-                except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
-                    pass
+                # Objets déjà résolus et validés contre le périmètre de l'appelant
+                # ci-dessus (cf. resoudre_affectation_dans_perimetre).
+                profile.ship = ship
+                profile.service = service
+                profile.sector = sector
+                profile.section = section
                 profile.save()
                 AuditLog.objects.create(actor=request.user, action="create_user", target_user=user, details=f"role={role}; ship_id={ship_id}")
                 messages.success(request, f"Utilisateur {user.username} créé avec succès.")
         elif action == "delete_user":
             pk = request.POST.get("pk")
             User = get_user_model()
+            # Résolution de la cible bornée au périmètre navire de l'appelant
+            # (cf. _utilisateurs_gerables_par) : un id hors périmètre lève
+            # User.DoesNotExist, exactement comme si le compte n'existait pas.
             try:
-                user = User.objects.get(pk=pk)
+                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
                 AuditLog.objects.create(actor=request.user, action="delete_user", target_user=user, details=f"username={user.username}")
+                user.delete()
             except User.DoesNotExist:
                 pass
-            User.objects.filter(pk=pk).delete()
         elif action == "edit_user":
             pk = request.POST.get("pk")
+            role = request.POST.get("role")
+            if role and not _role_attribution_autorisee(request.user, role):
+                messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
+                return redirect("user-directory")
             User = get_user_model()
+            # Résolution de la cible bornée au périmètre navire de l'appelant
+            # (cf. _utilisateurs_gerables_par).
             try:
-                user = User.objects.get(pk=pk)
+                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
+                # Valeurs de destination (navire/service/secteur/section) validées
+                # contre le périmètre de l'appelant AVANT toute modification du
+                # compte (cf. resoudre_affectation_dans_perimetre), exactement
+                # comme pour create_user et les actions bulk_update_*. Fait
+                # AVANT le moindre .save() pour ne jamais laisser l'utilisateur
+                # dans un état partiellement modifié si l'affectation demandée
+                # est hors périmètre (faille corrigée : edit_user résolvait
+                # auparavant ship_id/service_id/sector_id/section_id par un
+                # simple id sans aucune vérification de périmètre, permettant de
+                # contourner le correctif de create_user/bulk_* en passant par
+                # "Modifier" un utilisateur de son propre périmètre).
+                ship_id = request.POST.get("ship_id")
+                service_id = request.POST.get("service_id")
+                sector_id = request.POST.get("sector_id")
+                section_id = request.POST.get("section_id")
+                ok, ship, service, sector, section = resoudre_affectation_dans_perimetre(
+                    request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id
+                )
+                if not ok:
+                    messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
+                    return redirect("user-directory")
                 user.username = request.POST.get("username", user.username).strip() or user.username
                 user.email = request.POST.get("email", user.email).strip()
                 user.first_name = request.POST.get("first_name", user.first_name).strip()
                 user.last_name = request.POST.get("last_name", user.last_name).strip()
                 user.save()
                 profile, _ = UserProfile.objects.get_or_create(user=user)
-                role = request.POST.get("role")
                 if role:
                     profile.role = role
                 fonction_service = request.POST.get("fonction_service", "")
@@ -314,20 +453,12 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                         pass
                 else:
                     profile.date_naissance = None
-                # Update relations
-                ship_id = request.POST.get("ship_id")
-                service_id = request.POST.get("service_id")
-                sector_id = request.POST.get("sector_id")
-                section_id = request.POST.get("section_id")
-                def get_or_none(model, pk):
-                    try:
-                        return model.objects.get(pk=pk)
-                    except model.DoesNotExist:
-                        return None
-                profile.ship = get_or_none(Ship, ship_id) if ship_id else None
-                profile.service = get_or_none(Service, service_id) if service_id else None
-                profile.sector = get_or_none(Sector, sector_id) if sector_id else None
-                profile.section = get_or_none(Section, section_id) if section_id else None
+                # Relations déjà résolues et validées contre le périmètre de
+                # l'appelant ci-dessus (cf. resoudre_affectation_dans_perimetre).
+                profile.ship = ship
+                profile.service = service
+                profile.sector = sector
+                profile.section = section
                 profile.save()
                 AuditLog.objects.create(actor=request.user, action="edit_user", target_user=user, details="profil mis à jour")
                 messages.success(request, f"Utilisateur {user.username} mis à jour.")
@@ -338,8 +469,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             password = request.POST.get("password", "").strip()
             # pas d'envoi d'email
             User = get_user_model()
+            # Résolution de la cible bornée au périmètre navire de l'appelant
+            # (cf. _utilisateurs_gerables_par).
             try:
-                user = User.objects.get(pk=pk)
+                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
                 # Génère un mot de passe si vide
                 if not password:
                     import secrets, string
@@ -359,7 +492,32 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         return redirect("user-directory")
 
 
-# Vue Mon Profil supprimée: les informations sont gérées par l'ADMIN_NAVIRE
+class MonProfilView(LoginRequiredMixin, TemplateView):
+    """« Mon profil » : fiche personnelle du marin connecté, en lecture seule.
+
+    Le rattachement organisationnel (rôle, unité, service, secteur, section,
+    grade, spécialité, matricule) n'est pas modifiable ici : sa gestion a été
+    volontairement centralisée dans l'annuaire (UserDirectoryView, POST
+    /users/), réservé à COMMANDANT et au-dessus depuis la correction de
+    sécurité ci-dessus (cf. _role_attribution_autorisee) — rouvrir une
+    édition en self-service sur ces champs reviendrait à recréer la faille
+    corrigée. Cette page se contente donc d'afficher ces informations, et y
+    ajoute la liste des qualifications (formations) déjà validées du marin,
+    en réutilisant telle quelle la requête de la carte « Mes qualifications »
+    du tableau de bord (training/services.py::qualifications_validees_de),
+    ainsi que le suivi de ses candidatures individuelles à un stage (Circuit
+    B — training/models.py::CandidatureFormation) en cours de traitement."""
+
+    template_name = "accounts/profile.html"
+
+    def get_context_data(self, **kwargs):
+        contexte = super().get_context_data(**kwargs)
+        contexte["profil"] = getattr(self.request.user, "profile", None)
+        contexte["mes_qualifications"] = qualifications_validees_de(self.request.user)
+        contexte["mes_candidatures"] = list(
+            CandidatureFormation.objects.filter(marin=self.request.user).select_related("course")
+        )
+        return contexte
 
 
 class UserSettingsView(LoginRequiredMixin, ListView):

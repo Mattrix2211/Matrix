@@ -3,6 +3,7 @@
 Vérifie l'accès selon le rôle, le périmètre automatique (pas de drill-down),
 la génération du PDF en téléchargement et la gestion de PerimetreNonAutorise.
 """
+import unittest
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -13,7 +14,7 @@ from django.utils import timezone
 
 from accounts.models import UserProfile
 from org.models import Sector, Service, Ship
-from reports.services import PerimetreNonAutorise
+from reports.services import PerimetreNonAutorise, pdf_disponible
 
 
 class GenererBilanViewTests(TestCase):
@@ -58,6 +59,7 @@ class GenererBilanViewTests(TestCase):
         messages = [str(m) for m in response.context["messages"]]
         self.assertTrue(any("périmètre" in m for m in messages))
 
+    @unittest.skipUnless(pdf_disponible(), "WeasyPrint indisponible sur cette machine")
     def test_mode_instantane_renvoie_un_pdf_en_telechargement(self):
         self.client.login(username="chef", password="pass")
         response = self.client.get(self.url)
@@ -66,6 +68,7 @@ class GenererBilanViewTests(TestCase):
         self.assertIn("attachment; filename=", response["Content-Disposition"])
         self.assertTrue(response.content.startswith(b"%PDF"))
 
+    @unittest.skipUnless(pdf_disponible(), "WeasyPrint indisponible sur cette machine")
     def test_mode_periode_avec_dates_renvoie_un_pdf(self):
         self.client.login(username="chef", password="pass")
         aujourdhui = timezone.localdate()

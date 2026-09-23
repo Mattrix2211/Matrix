@@ -214,7 +214,7 @@
         <tbody>
             {% for ticket in tickets_encore_ouverts_fin_periode %}
             <tr>
-                <td>{{ ticket.asset }}</td>
+                <td>{{ ticket.equipement }}</td>
                 <td>{{ ticket.description }}</td>
                 <td>{{ ticket.get_status_display }}</td>
                 <td class="mono">{{ ticket.reported_at|date:"d/m/Y" }}</td>
@@ -314,7 +314,7 @@
                 <td class="mono">{{ piece.reference }}</td>
                 <td>{{ piece.description }}</td>
                 <td class="mono">{{ piece.qty }}</td>
-                <td>{{ piece.part_request.ticket.asset }}</td>
+                <td>{{ piece.part_request.ticket.equipement }}</td>
                 <td class="mono">{{ piece.received_at|date:"d/m/Y" }}</td>
             </tr>
             {% endfor %}

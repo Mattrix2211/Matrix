@@ -1,8 +1,15 @@
 from rest_framework.routers import DefaultRouter
-from .views import TrainingCourseViewSet, TrainingRequirementViewSet, TrainingSessionViewSet, TrainingRecordViewSet
+from .views import (
+    ReferentFormationViewSet,
+    TrainingCourseViewSet,
+    TrainingRequirementViewSet,
+    TrainingSessionViewSet,
+    TrainingRecordViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'courses', TrainingCourseViewSet)
+router.register(r'referents', ReferentFormationViewSet)
 router.register(r'requirements', TrainingRequirementViewSet)
 router.register(r'sessions', TrainingSessionViewSet)
 router.register(r'records', TrainingRecordViewSet)

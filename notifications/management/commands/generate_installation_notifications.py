@@ -2,10 +2,10 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from accounts.models import UserProfile
 from django.contrib.contenttypes.models import ContentType
 from assets.models import Installation
-from notifications.models import Notification
+from notifications.models import Notification, NotificationLevel
+from notifications.utils import human_delta
 
 User = get_user_model()
 
@@ -21,7 +21,9 @@ class Command(BaseCommand):
         now = timezone.now()
         start_of_day = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
 
-        users = list(User.objects.filter(is_active=True))
+        # select_related("profile") évite une requête par utilisateur pour lire sa
+        # préférence d'heure de notification.
+        users = list(User.objects.filter(is_active=True).select_related("profile"))
         if not users:
             self.stdout.write("Aucun utilisateur actif. Abort.")
             return
@@ -29,15 +31,34 @@ class Command(BaseCommand):
         inst_ct = ContentType.objects.get_for_model(Installation)
         created = 0
 
-        def human_delta(days: int) -> str:
-            if days == 0:
-                return "aujourd’hui"
-            if days > 0:
-                return f"dans {days} j"
-            return f"depuis {-days} j"
-
         # Heure courante (HH:MM) pour comparer aux préférences utilisateur
         now_local = timezone.localtime(now).time().replace(second=0, microsecond=0)
+
+        # Notifications déjà envoyées aujourd'hui, chargées en une seule requête et
+        # utilisées ensuite en mémoire : évite un .exists() par combinaison
+        # installation x utilisateur (N x M requêtes), inoffensif tant que la commande
+        # n'est jamais planifiée, problématique une fois exécutée chaque jour.
+        deja_notifies = set(
+            Notification.objects.filter(content_type=inst_ct, created_at__gte=start_of_day)
+            .values_list("user_id", "object_id", "verb")
+        )
+
+        def notifier(inst, verb, level):
+            nonlocal created
+            for u in users:
+                pref = getattr(getattr(u, 'profile', None), 'notification_time', None)
+                # défaut 08:00 si non défini
+                target_time = pref or timezone.datetime.strptime('08:00', '%H:%M').time()
+                if (now_local.hour, now_local.minute) != (target_time.hour, target_time.minute):
+                    continue
+                cle = (u.id, str(inst.id), verb)
+                if cle in deja_notifies:
+                    continue
+                Notification.objects.create(
+                    user=u, verb=verb, level=level, content_type=inst_ct, object_id=str(inst.id)
+                )
+                deja_notifies.add(cle)
+                created += 1
 
         for inst in Installation.objects.all().prefetch_related("vibration_readings", "isolation_readings"):
             # Vibration
@@ -48,17 +69,10 @@ class Command(BaseCommand):
                 next_date = vib.date + timedelta(days=delta)
                 days = (next_date - today).days
                 if days <= window:
+                    # Échéance déjà dépassée = critique (DANGER), à venir = simple attention (WARNING).
+                    level = NotificationLevel.DANGER if days <= 0 else NotificationLevel.WARNING
                     verb = f"Vibration — {inst.designation}: échéance le {next_date.strftime('%d/%m/%Y')} ({human_delta(days)})"
-                    for u in users:
-                        pref = getattr(getattr(u, 'profile', None), 'notification_time', None)
-                        # défaut 08:00 si non défini
-                        target_time = pref or timezone.datetime.strptime('08:00', '%H:%M').time()
-                        if (now_local.hour, now_local.minute) != (target_time.hour, target_time.minute):
-                            continue
-                        if Notification.objects.filter(user=u, content_type=inst_ct, object_id=str(inst.id), verb=verb, created_at__gte=start_of_day).exists():
-                            continue
-                        Notification.objects.create(user=u, verb=verb, content_type=inst_ct, object_id=str(inst.id))
-                        created += 1
+                    notifier(inst, verb, level)
             # Isolement
             iso = inst.isolation_readings.order_by("-date").first()
             if iso:
@@ -71,15 +85,8 @@ class Command(BaseCommand):
                 next_date = timezone.localdate(timezone.datetime(y, m, d))
                 days = (next_date - today).days
                 if days <= window:
+                    level = NotificationLevel.DANGER if days <= 0 else NotificationLevel.WARNING
                     verb = f"Isolement — {inst.designation}: échéance le {next_date.strftime('%d/%m/%Y')} ({human_delta(days)})"
-                    for u in users:
-                        pref = getattr(getattr(u, 'profile', None), 'notification_time', None)
-                        target_time = pref or timezone.datetime.strptime('08:00', '%H:%M').time()
-                        if (now_local.hour, now_local.minute) != (target_time.hour, target_time.minute):
-                            continue
-                        if Notification.objects.filter(user=u, content_type=inst_ct, object_id=str(inst.id), verb=verb, created_at__gte=start_of_day).exists():
-                            continue
-                        Notification.objects.create(user=u, verb=verb, content_type=inst_ct, object_id=str(inst.id))
-                        created += 1
+                    notifier(inst, verb, level)
 
         self.stdout.write(self.style.SUCCESS(f"Notifications créées: {created}"))

@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load asset_extras %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <a href="{% url 'plan-navire-list' %}?navire={{ pont.ship_id }}" class="text-decoration-none small text-muted">
+      <span class="bi bi-arrow-left"></span> Retour aux ponts
+    </a>
+    <h1 class="h3 mb-0"><span class="bi bi-map me-2"></span>{{ pont.name }} <span class="text-muted fs-6">({{ pont.ship.name }})</span></h1>
+  </div>
+  <div class="d-flex gap-2">
+    {% if pont_precedent %}
+      <a href="{% url 'plan-navire-deck' pk=pont_precedent.id %}" class="btn btn-outline-secondary btn-sm" title="Pont précédent">
+        <span class="bi bi-chevron-left"></span> {{ pont_precedent.name }}
+      </a>
+    {% endif %}
+    {% if pont_suivant %}
+      <a href="{% url 'plan-navire-deck' pk=pont_suivant.id %}" class="btn btn-outline-secondary btn-sm" title="Pont suivant">
+        {{ pont_suivant.name }} <span class="bi bi-chevron-right"></span>
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body d-flex align-items-center gap-3">
+    <form method="post" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-grow-1">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload_image" />
+      <label class="form-label mb-0 text-nowrap">Image du plan</label>
+      <input type="file" name="image" accept="image/*" class="form-control" required />
+      <button type="submit" class="btn btn-primary text-nowrap"><span class="bi bi-upload"></span> {% if pont.image %}Remplacer{% else %}Téléverser{% endif %}</button>
+    </form>
+  </div>
+</div>
+
+{% if pont.image %}
+<div class="card mb-3">
+  <div class="card-body d-flex flex-wrap align-items-center gap-2">
+    <label class="form-label mb-0 text-nowrap">Matériel à positionner</label>
+    <select id="materielSelect" class="form-select" style="max-width:420px;">
+      <option value="">— Choisir un matériel —</option>
+      {% for m in materiels_options %}
+        <option value="{{ m.id }}">{{ m.label }}</option>
+      {% endfor %}
+    </select>
+    <button type="button" id="btnPositionner" class="btn btn-sm btn-outline-primary" disabled>
+      <span class="bi bi-geo-alt"></span> Positionner sur le plan
+    </button>
+    <span id="modeIndication" class="small text-primary fw-semibold ms-2"></span>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="card">
+      <div class="card-header">Plan du pont</div>
+      <div class="card-body">
+        <div id="planContainer" class="position-relative" style="user-select:none;">
+          <img id="planImage" src="{{ pont.image.url }}" class="img-fluid w-100 d-block rounded" draggable="false" alt="Plan du pont {{ pont.name }}" />
+          <div id="pinsOverlay"></div>
+        </div>
+        <p class="small text-muted mt-2 mb-0">Astuce : choisissez un matériel dans la liste, cliquez sur « Positionner sur le plan », puis cliquez à l'endroit voulu. Pour déplacer un matériel déjà positionné, cliquez sur « Repositionner » dans la liste à droite.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card">
+      <div class="card-header">Matériel positionné ({{ positionnes|length }})</div>
+      <ul class="list-group list-group-flush">
+        {% for m in positionnes %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold">{{ m }}</div>
+            <div class="small text-muted">{{ m.asset_type.name }}</div>
+          </div>
+          <div class="d-flex gap-1">
+            <a href="{% url 'asset-detail' pk=m.id %}" class="btn btn-sm btn-outline-secondary" title="Voir la fiche"><span class="bi bi-eye"></span></a>
+            <button type="button" class="btn btn-sm btn-outline-primary btn-repositionner" data-asset-id="{{ m.id }}" data-asset-label="{{ m }}" title="Repositionner"><span class="bi bi-arrows-move"></span></button>
+            <form method="post" onsubmit="return confirm('Retirer « {{ m }} » du plan ?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="remove_pin" />
+              <input type="hidden" name="asset_id" value="{{ m.id }}" />
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirer du plan"><span class="bi bi-trash"></span></button>
+            </form>
+          </div>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">Aucun matériel positionné pour l'instant.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# Formulaire caché soumis en JS au clic sur le plan, une fois un matériel armé pour positionnement #}
+<form method="post" id="placePinForm" class="d-none">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="place_pin" />
+  <input type="hidden" name="asset_id" id="placePinAssetId" />
+  <input type="hidden" name="x" id="placePinX" />
+  <input type="hidden" name="y" id="placePinY" />
+</form>
+
+<script>
+(function(){
+  var pins = {{ pins_json|safe }};
+  var container = document.getElementById('planContainer');
+  var img = document.getElementById('planImage');
+  var overlay = document.getElementById('pinsOverlay');
+  var selectMateriel = document.getElementById('materielSelect');
+  var btnPositionner = document.getElementById('btnPositionner');
+  var modeIndication = document.getElementById('modeIndication');
+  var form = document.getElementById('placePinForm');
+
+  // Matériel actuellement « armé » pour placement (id + libellé), ou null si
+  // aucun clic sur le plan n'est attendu pour l'instant.
+  var materielArme = null;
+
+  function arrondi(v){ return Math.round(v * 100) / 100; }
+
+  // Coordonnées en pourcentage (0-100) de l'image, à partir d'un évènement souris.
+  function pourcentDepuisEvenement(e){
+    var rect = img.getBoundingClientRect();
+    var x = ((e.clientX - rect.left) / rect.width) * 100;
+    var y = ((e.clientY - rect.top) / rect.height) * 100;
+    return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+  }
+
+  function activerMode(id, label){
+    materielArme = { id: id, label: label };
+    img.style.cursor = 'crosshair';
+    modeIndication.textContent = 'Cliquez sur le plan pour positionner « ' + label + ' »';
+  }
+
+  function desactiverMode(){
+    materielArme = null;
+    img.style.cursor = '';
+    modeIndication.textContent = '';
+  }
+
+  function dessinerEpingles(){
+    overlay.innerHTML = '';
+    pins.forEach(function(pin){
+      if (pin.x === null || pin.y === null) return;
+      var bouton = document.createElement('button');
+      bouton.type = 'button';
+      bouton.className = 'pin-plan';
+      bouton.style.left = pin.x + '%';
+      bouton.style.top = pin.y + '%';
+      bouton.title = pin.label;
+      bouton.innerHTML = '<span class="bi bi-geo-alt-fill"></span>';
+      bouton.addEventListener('click', function(){ activerMode(pin.id, pin.label); selectMateriel.value = pin.id; });
+      overlay.appendChild(bouton);
+    });
+  }
+
+  selectMateriel && selectMateriel.addEventListener('change', function(){
+    btnPositionner.disabled = !selectMateriel.value;
+    desactiverMode();
+  });
+
+  btnPositionner && btnPositionner.addEventListener('click', function(){
+    if (!selectMateriel.value) return;
+    var label = selectMateriel.options[selectMateriel.selectedIndex].text;
+    activerMode(selectMateriel.value, label);
+  });
+
+  document.querySelectorAll('.btn-repositionner').forEach(function(bouton){
+    bouton.addEventListener('click', function(){
+      var id = bouton.getAttribute('data-asset-id');
+      var label = bouton.getAttribute('data-asset-label');
+      selectMateriel.value = id;
+      btnPositionner.disabled = false;
+      activerMode(id, label);
+    });
+  });
+
+  if (img && container) {
+    img.addEventListener('click', function(e){
+      if (!materielArme) return;
+      var pos = pourcentDepuisEvenement(e);
+      document.getElementById('placePinAssetId').value = materielArme.id;
+      document.getElementById('placePinX').value = arrondi(pos.x);
+      document.getElementById('placePinY').value = arrondi(pos.y);
+      form.submit();
+    });
+  }
+
+  dessinerEpingles();
+})();
+</script>
+{% else %}
+  <div class="alert alert-info">Téléversez d'abord une image de plan pour ce pont afin de pouvoir y positionner du matériel.</div>
+{% endif %}
+{% endblock %}

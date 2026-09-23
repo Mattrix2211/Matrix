@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h1 class="h4 mb-0">{{ anomalie.titre }} {% include 'logistics/_anomalie_badge.html' %}</h1>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'anomalie-list' %}">Retour</a>
+</div>
+<div class="text-muted small mb-3 font-mono">
+  Signalée le {{ anomalie.created_at|date:"d/m/Y H:i" }} par {{ anomalie.created_by.get_full_name|default:anomalie.created_by.username|default:"—" }} · gravité {{ anomalie.gravite }}/5
+</div>
+
+{# Frise des statuts : étape courante mise en avant #}
+<div class="d-flex gap-1 mb-3">
+  {% for code, libelle in statuts %}
+  <div class="flex-fill text-center small py-1 rounded {% if code == anomalie.statut %}bg-primary text-white fw-bold{% else %}bg-light text-muted{% endif %}">{{ libelle }}</div>
+  {% endfor %}
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    {% if anomalie.description %}<p style="white-space: pre-line;">{{ anomalie.description }}</p>{% endif %}
+    <dl class="row mb-0">
+      {% if anomalie.localisation %}<dt class="col-sm-3">Lieu</dt><dd class="col-sm-9">{{ anomalie.localisation }}</dd>{% endif %}
+      {% if anomalie.installation %}<dt class="col-sm-3">Installation</dt><dd class="col-sm-9"><a href="/installations/{{ anomalie.installation.id }}/">{{ anomalie.installation.designation }}</a></dd>{% endif %}
+      {% if anomalie.asset %}<dt class="col-sm-3">Matériel</dt><dd class="col-sm-9"><a href="/assets/{{ anomalie.asset.id }}/">{{ anomalie.asset }}</a></dd>{% endif %}
+      {% if anomalie.ticket %}<dt class="col-sm-3">Ticket correctif</dt><dd class="col-sm-9"><a href="{% url 'ticket-detail' anomalie.ticket.pk %}">Voir le ticket</a></dd>{% endif %}
+    </dl>
+    {% if anomalie.photo %}<img src="{{ anomalie.photo.url }}" class="img-fluid rounded mt-3" style="max-height:320px;" alt="Photo de l'anomalie">{% endif %}
+  </div>
+</div>
+
+{% if peut_traiter %}
+<div class="card mb-3">
+  <div class="card-header">Traitement</div>
+  <div class="card-body d-flex flex-wrap gap-2 align-items-end">
+    <form method="post" action="{% url 'anomalie-transition' anomalie.pk %}" class="d-flex flex-wrap gap-2 align-items-end">
+      {% csrf_token %}
+      <div>
+        <label class="form-label small mb-1" for="statut">Statut</label>
+        <select class="form-select form-select-sm" id="statut" name="statut">
+          {% for code, libelle in statuts %}<option value="{{ code }}" {% if code == anomalie.statut %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label small mb-1" for="note">Note (facultatif)</label>
+        <input class="form-control form-control-sm" id="note" name="note" style="min-width: 240px;">
+      </div>
+      <button class="btn btn-sm btn-primary" type="submit">Mettre à jour</button>
+    </form>
+    {% if not anomalie.ticket and anomalie.equipement_lie %}
+    <form method="post" action="{% url 'anomalie-convertir' anomalie.pk %}">
+      {% csrf_token %}
+      <button class="btn btn-sm btn-outline-danger" type="submit">Convertir en ticket correctif</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-header">Historique</div>
+  <ul class="list-group list-group-flush">
+    {% for log in historique %}
+    <li class="list-group-item small">
+      <span class="font-mono">{{ log.created_at|date:"d/m/Y H:i" }}</span> —
+      {{ log.user.get_full_name|default:log.user.username|default:"—" }} :
+      {{ log.ancien_libelle }} → {{ log.nouveau_libelle }}{% if log.note %} ({{ log.note }}){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="card">
+  <div class="card-header">Suivi</div>
+  <div class="card-body">
+    {% for c in commentaires %}
+    <div class="mb-2"><strong>{{ c.author.get_full_name|default:c.author.username }}</strong> <span class="text-muted small font-mono">{{ c.created_at|date:"d/m/Y H:i" }}</span><br>{{ c.body }}</div>
+    {% empty %}
+    <p class="text-muted">Aucun commentaire.</p>
+    {% endfor %}
+    <form method="post" action="{% url 'anomalie-comment' anomalie.pk %}" class="d-flex gap-2 mt-2">
+      {% csrf_token %}
+      <input class="form-control form-control-sm" name="body" placeholder="Ajouter un commentaire…">
+      <button class="btn btn-sm btn-outline-primary" type="submit">Envoyer</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

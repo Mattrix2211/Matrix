@@ -1,0 +1,878 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Formations</h1>
+  <div class="d-flex gap-2">
+    {% if peut_valider %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#validerFormationModal">
+        <i class="bi bi-check2-circle"></i> Valider une formation
+      </button>
+    {% endif %}
+    {% if peut_creer_formation %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createCourseModal">
+        <i class="bi bi-plus-lg"></i> Nouvelle formation
+      </button>
+    {% endif %}
+    {% if peut_proposer_formation_bord %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
+              data-pk="" data-title="" data-description="" data-category="" data-validity="365">
+        <i class="bi bi-send-plus"></i> Proposer une formation (bord)
+      </button>
+    {% endif %}
+    <a class="btn btn-primary" href="{% url 'formation-arbre-competences' %}">
+      <i class="bi bi-diagram-3"></i> Arbre de compétences
+    </a>
+  </div>
+</div>
+<p class="small text-muted">Catalogue commun à toutes les unités : une formation validée reste acquise même après une mutation.</p>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="category" class="form-select" onchange="this.form.submit()">
+      <option value="">Toutes les catégories</option>
+      {% for cat in categories_existantes %}
+        <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if peut_gerer_referent_navire and navire_courant %}
+<div class="card mb-3">
+  <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <span class="fw-semibold small">Référent formation de l'unité {{ navire_courant.name }} :</span>
+      {% if referent_formation_navire %}
+        <span class="badge text-bg-info">{{ referent_formation_navire.user.get_full_name|default:referent_formation_navire.user.username }}</span>
+      {% else %}
+        <span class="small text-muted">Aucun désigné</span>
+      {% endif %}
+      <div class="form-text mb-0">Autorité de validation sur toutes les formations de l'unité — distinct des référents propres à chaque formation.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="set_referent_navire">
+        <select name="referent_navire_id" class="form-select form-select-sm" required>
+          <option value="">Choisir un marin...</option>
+          {% for u in candidats_referent_navire %}
+            <option value="{{ u.id }}" {% if referent_formation_navire and referent_formation_navire.user_id == u.id %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-outline-primary btn-sm">Désigner</button>
+      </form>
+      {% if referent_formation_navire %}
+      <form method="post" action="{% url 'formation-list' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="retirer_referent_navire">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Retirer</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if peut_gerer_brh and navire_courant %}
+<div class="card mb-3">
+  <div class="card-body">
+    <span class="fw-semibold small">Personnel BRH de l'unité {{ navire_courant.name }} :</span>
+    <div class="form-text mb-2">Valide, aux côtés de la hiérarchie, les candidatures individuelles à un stage (Circuit B) — plusieurs personnes possibles.</div>
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+      {% for brh in personnels_brh %}
+        <span class="badge text-bg-info d-inline-flex align-items-center gap-1">
+          {{ brh.user.get_full_name|default:brh.user.username }}
+          <form method="post" action="{% url 'formation-list' %}" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="retirer_brh">
+            <input type="hidden" name="brh_id" value="{{ brh.id }}">
+            <button type="submit" class="btn-close btn-close-white" style="font-size:0.55rem;" aria-label="Retirer"></button>
+          </form>
+        </span>
+      {% empty %}
+        <span class="small text-muted">Aucun personnel BRH désigné.</span>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-2">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="set_brh">
+      <select name="brh_id" class="form-select form-select-sm" required>
+        <option value="">Choisir un marin...</option>
+        {% for u in candidats_brh %}
+          <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline-primary btn-sm">Désigner</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if candidatures_hierarchie_a_traiter %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-person-check"></i> Candidatures à valider (hiérarchie)</h6>
+    {% for c in candidatures_hierarchie_a_traiter %}
+      <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ c.marin.get_full_name|default:c.marin.username }}</span>
+          <span class="small text-muted">— candidature à « {{ c.course.title }} » déposée le {{ c.created_at|date:"d/m/Y" }}</span>
+        </div>
+        <div class="d-flex gap-1">
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="valider_candidature_hierarchie">
+            <input type="hidden" name="candidature_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-primary btn-sm">Valider</button>
+          </form>
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="refuser_candidature_hierarchie">
+            <input type="hidden" name="candidature_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Refuser</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if candidatures_brh_a_traiter %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-person-badge"></i> Candidatures à valider (BRH)</h6>
+    {% for c in candidatures_brh_a_traiter %}
+      <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ c.marin.get_full_name|default:c.marin.username }}</span>
+          <span class="small text-muted">— candidature à « {{ c.course.title }} » déposée le {{ c.created_at|date:"d/m/Y" }}</span>
+        </div>
+        <div class="d-flex gap-1">
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="valider_candidature_brh">
+            <input type="hidden" name="candidature_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-primary btn-sm">Valider</button>
+          </form>
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="refuser_candidature_brh">
+            <input type="hidden" name="candidature_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Refuser</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if candidatures_organisme_a_traiter %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-mortarboard"></i> Candidatures transmises — sélection de l'organisme</h6>
+    {% for c in candidatures_organisme_a_traiter %}
+      <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ c.marin.get_full_name|default:c.marin.username }}</span>
+          <span class="small text-muted">— candidature à « {{ c.course.title }} »</span>
+          <span class="badge text-bg-info ms-1">Transmise à l'organisme</span>
+        </div>
+        <div class="d-flex gap-1">
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="selectionner_candidature">
+            <input type="hidden" name="candidature_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-primary btn-sm">Sélectionner</button>
+          </form>
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="refuser_candidature_organisme">
+            <input type="hidden" name="candidature_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Refuser</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if demandes_a_traiter %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-inbox"></i> Demandes de places à traiter</h6>
+    {% for d in demandes_a_traiter %}
+      <div class="border rounded p-2 mb-2">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <span class="fw-semibold">{{ d.course.title }}</span>
+            <span class="small text-muted">— demandée par {{ d.ship.name }} le {{ d.created_at|date:"d/m/Y" }}</span>
+            <div class="small">{{ d.nb_places_demandees }} place(s) demandée(s)</div>
+          </div>
+          <span class="badge text-bg-secondary">Demandée</span>
+        </div>
+        <form method="post" action="{% url 'formation-list' %}" class="row g-2 align-items-end mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="attribuer_places">
+          <input type="hidden" name="demande_id" value="{{ d.id }}">
+          <div class="col-auto">
+            <label class="form-label small mb-0">Places attribuées</label>
+            <input type="number" min="1" class="form-control form-control-sm" name="nb_places_attribuees" required style="width:6rem;">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Session existante</label>
+            <select class="form-select form-select-sm" name="session_id" style="min-width:14rem;">
+              <option value="">— Nouvelle session ci-dessous —</option>
+              {% for s in d.sessions_disponibles %}
+                <option value="{{ s.id }}">{{ s.scheduled_at|date:"d/m/Y H:i" }}{% if s.location %} — {{ s.location }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Ou nouvelle session : date/heure</label>
+            <input type="datetime-local" class="form-control form-control-sm" name="nouvelle_session_date">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Lieu</label>
+            <input type="text" class="form-control form-control-sm" name="nouvelle_session_lieu" style="width:9rem;">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0">Capacité totale</label>
+            <input type="number" min="1" class="form-control form-control-sm" name="nouvelle_session_capacite" style="width:7rem;">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm">Attribuer</button>
+          </div>
+        </form>
+        <form method="post" action="{% url 'formation-list' %}" class="mt-1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="refuser_demande_place">
+          <input type="hidden" name="demande_id" value="{{ d.id }}">
+          <button type="submit" class="btn btn-outline-danger btn-sm">Refuser</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if formations_bord_a_valider %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-anchor"></i> Formations gérées par un bord à valider</h6>
+    {% for f in formations_bord_a_valider %}
+      <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ f.title }}</span>
+          <span class="small text-muted">
+            — proposée par {{ f.updated_by.get_full_name|default:f.updated_by.username }}
+            {% if f.category %}, catégorie « {{ f.category }} »{% endif %}
+          </span>
+          {% if f.description %}<div class="small">{{ f.description }}</div>{% endif %}
+        </div>
+        <div class="d-flex gap-1">
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="valider_formation_bord">
+            <input type="hidden" name="pk" value="{{ f.id }}">
+            <button type="submit" class="btn btn-primary btn-sm">Valider</button>
+          </form>
+          <form method="post" action="{% url 'formation-list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="refuser_formation_bord">
+            <input type="hidden" name="pk" value="{{ f.id }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Refuser</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if peut_proposer_formation_bord and mes_propositions_bord %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-send-plus"></i> Mes propositions de formation (bord)</h6>
+    {% for f in mes_propositions_bord %}
+      <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ f.title }}</span>
+          {% if f.category %}<span class="small text-muted">— {{ f.category }}</span>{% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          {% if f.statut_validation == "WAITING_VALIDATION" %}
+            <span class="badge text-bg-secondary">En attente de validation</span>
+          {% else %}
+            <span class="badge text-bg-danger">Refusée</span>
+          {% endif %}
+          <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
+                  data-pk="{{ f.id }}" data-title="{{ f.title }}" data-description="{{ f.description }}"
+                  data-category="{{ f.category }}" data-validity="{{ f.validity_days }}">
+            <i class="bi bi-pencil"></i> Modifier et proposer à nouveau
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if peut_demander_places %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-send"></i> Mes demandes de places</h6>
+    {% if mes_demandes_places %}
+      {% for d in mes_demandes_places %}
+        <div class="border rounded p-2 mb-2">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+              <span class="fw-semibold">{{ d.course.title }}</span>
+              <span class="small text-muted">— {{ d.nb_places_demandees }} place(s) demandée(s) le {{ d.created_at|date:"d/m/Y" }}</span>
+              {% if d.session %}
+                <div class="small font-mono">Session : {{ d.session.scheduled_at|date:"d/m/Y H:i" }}</div>
+              {% endif %}
+            </div>
+            {% if d.statut == "REQUESTED" %}
+              <span class="badge text-bg-secondary">Demandée</span>
+            {% elif d.statut == "GRANTED" %}
+              <span class="badge badge-conforme">{{ d.nb_places_attribuees }} place(s) attribuée(s)</span>
+            {% elif d.statut == "REFUSED" %}
+              <span class="badge text-bg-danger">Refusée</span>
+            {% else %}
+              <span class="badge text-bg-light border text-muted">Annulée</span>
+            {% endif %}
+          </div>
+          {% if d.statut == "REQUESTED" %}
+            <form method="post" action="{% url 'formation-list' %}" class="mt-1">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="annuler_demande_place">
+              <input type="hidden" name="demande_id" value="{{ d.id }}">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Annuler ma demande</button>
+            </form>
+          {% elif d.statut == "GRANTED" and d.session %}
+            <div class="small text-muted mt-1">
+              {{ d.places_consommees }} / {{ d.nb_places_attribuees }} place(s) affectée(s) à un marin
+            </div>
+            <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1 mt-1">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="affecter_place_demandee">
+              <input type="hidden" name="demande_id" value="{{ d.id }}">
+              <select name="marin_id" class="form-select form-select-sm" required>
+                <option value="">Affecter un marin de mon secteur...</option>
+                {% for m in marins_demande %}
+                  <option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-outline-primary btn-sm flex-shrink-0"
+                      {% if d.places_consommees >= d.nb_places_attribuees %}disabled{% endif %}>
+                Affecter
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="small text-muted mb-0">Aucune demande de places pour l'instant — utilisez le bouton « Demander des places » sur une formation ci-dessous.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if formations %}
+<div class="g3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--s3);">
+  {% for f in formations %}
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title fw-bold">{{ f.title }}</h6>
+        <div class="small text-muted mb-2">Validité {{ f.validity_days }} jour(s)</div>
+        <div class="mb-2">
+          {% if f.category %}
+            <span class="badge text-bg-light border">{{ f.category }}</span>
+          {% else %}
+            <span class="badge text-bg-light border text-muted">Non catégorisée</span>
+          {% endif %}
+          {% if f.gere_par_le_bord %}<span class="badge text-bg-info"><i class="bi bi-anchor"></i> Géré par le bord</span>{% endif %}
+          <span class="badge badge-conforme">{{ f.nb_a_jour }} à jour</span>
+          {% if f.nb_expires %}<span class="badge text-bg-danger">{{ f.nb_expires }} à renouveler</span>{% endif %}
+        </div>
+        {% if f.description %}<p class="small mb-2">{{ f.description }}</p>{% endif %}
+        <div class="mb-2">
+          <span class="fw-semibold small">Barème :</span>
+          {% if f.bareme %}
+            <a href="{{ f.bareme.url }}" target="_blank" class="badge rounded-pill text-decoration-none text-bg-light border">
+              <i class="bi bi-paperclip me-1"></i>Voir le barème
+            </a>
+          {% else %}
+            <span class="small text-muted">Aucun</span>
+          {% endif %}
+        </div>
+        <div class="mb-2">
+          <span class="fw-semibold small">Prérequis :</span>
+          {% for p in f.prerequisites.all %}
+            <span class="badge text-bg-secondary">{{ p.title }}</span>
+          {% empty %}
+            <span class="small text-muted">Aucun</span>
+          {% endfor %}
+        </div>
+        <div class="mb-2">
+          <span class="fw-semibold small">Référents (votre unité) :</span>
+          {% for r in f.mes_referents %}
+            <span class="badge text-bg-info">{{ r.get_full_name|default:r.username }}</span>
+          {% empty %}
+            <span class="small text-muted">Aucun désigné</span>
+          {% endfor %}
+        </div>
+        <div class="mb-2">
+          <span class="fw-semibold small">Sessions à venir :</span>
+          {% if f.sessions_a_venir %}
+          <ul class="list-group list-group-flush mt-1">
+            {% for s in f.sessions_a_venir %}
+              <li class="list-group-item px-0 py-2">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <div class="small font-mono">{{ s.scheduled_at|date:"d/m/Y à H:i" }}{% if s.location %} — {{ s.location }}{% endif %}</div>
+                    {% if s.capacite_max %}
+                      {% with restantes=s.places_restantes %}
+                        {% if restantes > 0 %}
+                          <div class="small text-muted">{{ restantes }} place(s) restante(s) sur {{ s.capacite_max }}</div>
+                        {% else %}
+                          <div class="small text-danger">Session complète ({{ s.capacite_max }} place(s))</div>
+                        {% endif %}
+                      {% endwith %}
+                      {% if s.nb_en_attente %}
+                        <div class="small text-muted font-mono">{{ s.nb_en_attente }} en liste d'attente</div>
+                      {% endif %}
+                      {% if s.mon_entree_attente %}
+                        <span class="badge text-bg-warning mt-1">Vous êtes en position {{ s.ma_position_attente }} sur liste d'attente</span>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                  <form method="post" action="{% url 'formation-list' %}" class="flex-shrink-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="session_id" value="{{ s.id }}">
+                    {% if s.deja_reserve %}
+                      <input type="hidden" name="action" value="annuler_reservation">
+                      <button type="submit" class="btn btn-outline-danger btn-sm">Annuler ma réservation</button>
+                    {% elif s.mon_entree_attente and s.places_restantes > 0 %}
+                      {% comment %}
+                      Une place s'est libérée pendant que le marin était en liste d'attente
+                      (une entrée en liste d'attente n'existe que si capacite_max est renseignée,
+                      cf. _reserver_session). Le retrait de sa place dans la file est automatique
+                      dès la réservation confirmée (training\models.py::_controler_reservation),
+                      donc l'action prioritaire est de réserver — « Quitter » reste possible mais
+                      devient secondaire.
+                      {% endcomment %}
+                      <div class="d-flex flex-column align-items-end gap-1">
+                        <button type="submit" name="action" value="reserver_session" class="btn btn-outline-primary btn-sm">Réserver ma place</button>
+                        <button type="submit" name="action" value="quitter_liste_attente" class="btn btn-link btn-sm text-muted p-0">Quitter la liste d'attente</button>
+                      </div>
+                    {% elif s.mon_entree_attente %}
+                      <input type="hidden" name="action" value="quitter_liste_attente">
+                      <button type="submit" class="btn btn-outline-secondary btn-sm">Quitter la liste d'attente</button>
+                    {% else %}
+                      <input type="hidden" name="action" value="reserver_session">
+                      <button type="submit" class="btn btn-outline-primary btn-sm">
+                        {% if s.capacite_max and s.places_restantes == 0 %}Rejoindre la liste d'attente{% else %}Réserver ma place{% endif %}
+                      </button>
+                    {% endif %}
+                  </form>
+                </div>
+                {% if peut_valider %}
+                <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1 mt-2">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="affecter_session">
+                  <input type="hidden" name="session_id" value="{{ s.id }}">
+                  <select name="marin_id" class="form-select form-select-sm" required>
+                    <option value="">Affecter un marin...</option>
+                    {% for m in marins %}
+                      <option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-outline-secondary btn-sm flex-shrink-0" {% if s.capacite_max and s.places_restantes == 0 %}disabled{% endif %}>
+                    Affecter
+                  </button>
+                </form>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="small text-muted mt-1">Aucune session prévue pour l'instant.</div>
+          {% endif %}
+        </div>
+        {% if f.dernieres_validations %}
+        <div class="mb-2">
+          <button type="button" class="btn btn-link btn-sm px-0" data-bs-toggle="collapse" data-bs-target="#validations-{{ f.id }}">
+            Dernières validations <i class="bi bi-chevron-down"></i>
+          </button>
+          <div class="collapse" id="validations-{{ f.id }}">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Marin</th>
+                  <th>Validée le</th>
+                  <th>Expire le</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in f.dernieres_validations %}
+                <tr>
+                  <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+                  <td class="font-mono">{{ r.completed_at|date:"d/m/Y" }}</td>
+                  <td class="font-mono">{{ r.expires_at|date:"d/m/Y" }}</td>
+                  <td>
+                    {% if r.expires_at >= aujourdhui %}
+                      <span class="badge badge-conforme">À jour</span>
+                    {% else %}
+                      <span class="badge text-bg-danger">Expirée</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+        {% if peut_demander_places %}
+        <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1 mb-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="demander_places">
+          <input type="hidden" name="course_id" value="{{ f.id }}">
+          <input type="number" min="1" name="nb_places_demandees" class="form-control form-control-sm" placeholder="Nb places" style="width:6rem;" required>
+          <button type="submit" class="btn btn-outline-primary btn-sm flex-shrink-0">Demander des places</button>
+        </form>
+        {% endif %}
+        <div class="mb-2">
+          {% if f.ma_candidature %}
+            <span class="small fw-semibold">Ma candidature :</span>
+            {% if f.ma_candidature.statut == "PENDING_APPROVAL" %}
+              <span class="badge text-bg-secondary">En attente de validation</span>
+            {% elif f.ma_candidature.statut == "TRANSMITTED" %}
+              <span class="badge text-bg-info">Transmise à l'organisme</span>
+            {% elif f.ma_candidature.statut == "SELECTED" %}
+              <span class="badge badge-conforme">Sélectionnée</span>
+            {% else %}
+              <span class="badge text-bg-danger">{{ f.ma_candidature.get_statut_display }}</span>
+            {% endif %}
+          {% else %}
+            <form method="post" action="{% url 'formation-list' %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="candidater_formation">
+              <input type="hidden" name="course_id" value="{{ f.id }}">
+              <button type="submit" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-send-check"></i> Candidater à ce stage
+              </button>
+            </form>
+          {% endif %}
+        </div>
+        {% if peut_gerer_prerequis %}
+          <button type="button" class="btn btn-outline-primary btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#prerequisitesModal"
+                  data-pk="{{ f.id }}" data-title="{{ f.title }}"
+                  data-category="{{ f.category }}"
+                  data-has-bareme="{% if f.bareme %}1{% else %}0{% endif %}"
+                  data-selected="{% for p in f.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                  data-referents-selected="{% for r in f.mes_referents %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+            <i class="bi bi-pencil"></i> Modifier
+          </button>
+        {% endif %}
+        {% if f.gere_par_le_bord and peut_proposer_formation_bord %}
+          <button type="button" class="btn btn-outline-primary btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
+                  data-pk="{{ f.id }}" data-title="{{ f.title }}" data-description="{{ f.description }}"
+                  data-category="{{ f.category }}" data-validity="{{ f.validity_days }}"
+                  data-has-bareme="{% if f.bareme %}1{% else %}0{% endif %}">
+            <i class="bi bi-anchor"></i> Modifier (bord)
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+  <p class="text-muted">Aucune formation dans le catalogue pour l'instant.</p>
+{% endif %}
+
+{% if peut_gerer_prerequis %}
+<div class="modal fade" id="prerequisitesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'formation-list' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_prerequisites">
+      <input type="hidden" name="pk" id="prereqPk">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Modifier <span id="prereqTitle"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="prereqCategory" class="form-label">Catégorie (domaine métier)</label>
+            <input type="text" class="form-control" name="category" id="prereqCategory" list="categoriesToutes"
+                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
+            <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
+          </div>
+          <datalist id="categoriesToutes">
+            {% for cat in categories_existantes %}<option value="{{ cat }}"></option>{% endfor %}
+          </datalist>
+          <div class="mb-3">
+            <label for="prereqBareme" class="form-label">Barème (fiche de notation, facultatif)</label>
+            <input type="file" class="form-control" name="bareme" id="prereqBareme">
+            <div class="form-check mt-1" id="prereqRetirerBaremeWrap" style="display:none;">
+              <input class="form-check-input" type="checkbox" name="retirer_bareme" id="prereqRetirerBareme">
+              <label class="form-check-label small" for="prereqRetirerBareme">Retirer le barème actuellement associé</label>
+            </div>
+          </div>
+          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à toutes les unités).</p>
+          <div class="prereq-group">
+            {% for c in candidats_prerequis %}
+              <div class="form-check prereq-item" data-course="{{ c.id }}">
+                <input class="form-check-input prereq-checkbox" type="checkbox" name="prerequisites" value="{{ c.id }}" id="prereq-{{ c.id }}">
+                <label class="form-check-label" for="prereq-{{ c.id }}">{{ c.title }}</label>
+              </div>
+            {% endfor %}
+          </div>
+          <hr>
+          <p class="small text-muted">
+            Référents habilités à valider cette formation, POUR VOTRE UNITÉ
+            {% if navire_courant %}({{ navire_courant.name }}){% endif %} — une autre unité peut désigner
+            d'autres référents pour la même formation.
+          </p>
+          <div class="referent-group">
+            {% for u in candidats_referents %}
+              <div class="form-check">
+                <input class="form-check-input referent-checkbox" type="checkbox" name="referents" value="{{ u.id }}" id="referent-{{ u.id }}">
+                <label class="form-check-label" for="referent-{{ u.id }}">{{ u.get_full_name|default:u.username }}</label>
+              </div>
+            {% empty %}
+              <span class="small text-muted">Aucun utilisateur trouvé sur votre unité.</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var modal = document.getElementById('prerequisitesModal');
+  if (!modal) return;
+  modal.addEventListener('show.bs.modal', function(event){
+    var b = event.relatedTarget;
+    var pk = b.getAttribute('data-pk');
+    var selected = (b.getAttribute('data-selected') || '').split(',').filter(Boolean);
+    var referentsSelectionnes = (b.getAttribute('data-referents-selected') || '').split(',').filter(Boolean);
+    document.getElementById('prereqPk').value = pk;
+    document.getElementById('prereqTitle').textContent = b.getAttribute('data-title');
+    document.getElementById('prereqCategory').value = b.getAttribute('data-category') || '';
+    document.getElementById('prereqBareme').value = '';
+    var retirerCase = document.getElementById('prereqRetirerBareme');
+    retirerCase.checked = false;
+    document.getElementById('prereqRetirerBaremeWrap').style.display =
+      (b.getAttribute('data-has-bareme') === '1') ? '' : 'none';
+    // Catalogue global : on exclut uniquement la formation éditée elle-même
+    // (impossible de se choisir comme son propre prérequis), toutes les
+    // autres restent proposées.
+    document.querySelectorAll('.prereq-item').forEach(function(item){
+      item.style.display = (item.getAttribute('data-course') === pk) ? 'none' : '';
+    });
+    document.querySelectorAll('.prereq-checkbox').forEach(function(cb){
+      cb.checked = selected.indexOf(cb.value) !== -1;
+    });
+    document.querySelectorAll('.referent-checkbox').forEach(function(cb){
+      cb.checked = referentsSelectionnes.indexOf(cb.value) !== -1;
+    });
+  });
+})();
+</script>
+{% endif %}
+
+{% if peut_creer_formation %}
+<div class="modal fade" id="createCourseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'formation-list' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_course">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Nouvelle formation</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="createTitle" class="form-label">Titre</label>
+            <input type="text" class="form-control" name="title" id="createTitle" required>
+          </div>
+          <div class="mb-3">
+            <label for="createDescription" class="form-label">Description</label>
+            <textarea class="form-control" name="description" id="createDescription" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="createValidityDays" class="form-label">Durée de validité (jours)</label>
+            <input type="number" class="form-control" name="validity_days" id="createValidityDays" min="1" value="365">
+          </div>
+          <div class="mb-3">
+            <label for="createCategory" class="form-label">Catégorie (domaine métier)</label>
+            <input type="text" class="form-control" name="category" id="createCategory" list="categoriesToutes"
+                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
+            <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
+          </div>
+          <div class="mb-3">
+            <label for="createBareme" class="form-label">Barème (fiche de notation, facultatif)</label>
+            <input type="file" class="form-control" name="bareme" id="createBareme">
+          </div>
+          <p class="small text-muted">Formations à valider avant de pouvoir suivre celle-ci (catalogue commun à toutes les unités).</p>
+          {% for c in candidats_prerequis %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="prerequisites" value="{{ c.id }}" id="create-prereq-{{ c.id }}">
+              <label class="form-check-label" for="create-prereq-{{ c.id }}">{{ c.title }}</label>
+            </div>
+          {% empty %}
+            <span class="small text-muted">Aucune formation existante pouvant servir de prérequis.</span>
+          {% endfor %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if peut_proposer_formation_bord %}
+{% comment %}
+Circuit C — Circuit d'approbation chef de secteur -> chef de service :
+une seule modale sert à la fois à la création (pk vide) et à la
+modification (pk pré-rempli) d'une formation « gérée par le bord ».
+{% endcomment %}
+<div class="modal fade" id="proposerFormationBordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'formation-list' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="proposer_formation_bord">
+      <input type="hidden" name="pk" id="proposerBordPk">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Proposer une formation gérée par le bord</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">
+            Une formation « bord » reste invisible du catalogue tant qu'un chef de service de votre
+            périmètre ne l'a pas validée — vous retrouvez son état dans « Mes propositions de formation ».
+          </p>
+          <div class="mb-3">
+            <label for="proposerBordTitle" class="form-label">Titre</label>
+            <input type="text" class="form-control" name="title" id="proposerBordTitle" required>
+          </div>
+          <div class="mb-3">
+            <label for="proposerBordDescription" class="form-label">Description</label>
+            <textarea class="form-control" name="description" id="proposerBordDescription" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="proposerBordValidityDays" class="form-label">Durée de validité (jours)</label>
+            <input type="number" class="form-control" name="validity_days" id="proposerBordValidityDays" min="1" value="365">
+          </div>
+          <div class="mb-3">
+            <label for="proposerBordCategory" class="form-label">Catégorie (domaine métier)</label>
+            <input type="text" class="form-control" name="category" id="proposerBordCategory" list="categoriesToutes"
+                   placeholder="Ex. Sécurité/Incendie, Habilitation électrique, Levage...">
+            <div class="form-text">Laisser vide si la formation n'est rattachée à aucun domaine métier.</div>
+          </div>
+          <div class="mb-3">
+            <label for="proposerBordBareme" class="form-label">Barème (fiche de notation, facultatif)</label>
+            <input type="file" class="form-control" name="bareme" id="proposerBordBareme">
+            <div class="form-check mt-1" id="proposerBordRetirerBaremeWrap" style="display:none;">
+              <input class="form-check-input" type="checkbox" name="retirer_bareme" id="proposerBordRetirerBareme">
+              <label class="form-check-label small" for="proposerBordRetirerBareme">Retirer le barème actuellement associé</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Proposer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var modal = document.getElementById('proposerFormationBordModal');
+  if (!modal) return;
+  modal.addEventListener('show.bs.modal', function(event){
+    var b = event.relatedTarget;
+    document.getElementById('proposerBordPk').value = b.getAttribute('data-pk') || '';
+    document.getElementById('proposerBordTitle').value = b.getAttribute('data-title') || '';
+    document.getElementById('proposerBordDescription').value = b.getAttribute('data-description') || '';
+    document.getElementById('proposerBordCategory').value = b.getAttribute('data-category') || '';
+    document.getElementById('proposerBordValidityDays').value = b.getAttribute('data-validity') || '365';
+    document.getElementById('proposerBordBareme').value = '';
+    var retirerCase = document.getElementById('proposerBordRetirerBareme');
+    retirerCase.checked = false;
+    document.getElementById('proposerBordRetirerBaremeWrap').style.display =
+      (b.getAttribute('data-has-bareme') === '1') ? '' : 'none';
+  });
+})();
+</script>
+{% endif %}
+
+{% if peut_valider %}
+{# Modale de validation d'une formation pour un marin #}
+<div class="modal fade" id="validerFormationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Valider une formation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="post" action="{% url 'formation-valider' %}">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Marin</label>
+            <select class="form-select" name="marin_id" required>
+              <option value="">—</option>
+              {% for m in marins %}
+              <option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}{% if m.profile.role %} — {{ m.profile.get_role_display }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Formation</label>
+            <select class="form-select" name="course_id" required>
+              <option value="">—</option>
+              {% for c in formations_validables %}
+              <option value="{{ c.id }}">{{ c.title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Date de complétion</label>
+            <input type="date" class="form-control font-mono" name="completed_at" value="{{ aujourdhui }}" required>
+            <div class="form-text">La date d'expiration est calculée automatiquement selon la durée de validité de la formation.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          {# Bouton de validation du formulaire : dans un <form>, un <button> sans #}
+          {# attribut "type" déclenche l'envoi par défaut (comportement HTML natif). #}
+          <button class="btn btn-primary">Valider</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

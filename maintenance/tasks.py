@@ -1,4 +1,5 @@
 from celery import shared_task
+from django.core.management import call_command
 from django.utils import timezone
 from datetime import timedelta
 from .models import MaintenancePlan, MaintenanceOccurrence
@@ -30,3 +31,14 @@ def compute_overdue():
     today = timezone.localdate()
     qs = MaintenanceOccurrence.objects.filter(status__in=["PLANNED", "ASSIGNED"], scheduled_for__lt=today)
     return qs.update(status="OVERDUE")
+
+@shared_task
+def generate_installation_occurrences(days_ahead: int = 90):
+    """Génère les occurrences de maintenance (calendrier et/ou compteur) pour les
+    installations fixes, équivalent de generate_occurrences pour le matériel mobile.
+
+    Enveloppe la commande de gestion du même nom (qui porte toute la logique métier
+    et ses tests) afin de la rendre planifiable quotidiennement via Celery Beat.
+    """
+    call_command("generate_installation_occurrences", days_ahead=days_ahead)
+    return {"status": "ok"}

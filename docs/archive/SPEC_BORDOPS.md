@@ -1,3 +1,5 @@
+> **Document historique (août 2026), archivé le 23/09/2026.** Ce plan a été réalisé (tâches T1 à T20). Ne pas le suivre comme consigne actuelle : voir `CLAUDE.md` et les pages Notion de référence.
+
 # BordOps — Plan d'amélioration basé sur l'analyse d'Atlas CMMS
 
 > Document de travail pour Claude Code. Analyse comparative entre le projet Matrix/BordOps existant (github.com/Mattrix2211/Matrix) et Atlas CMMS (github.com/Grashjs/cmms), aboutissant à 4 chantiers concrets.
@@ -22,7 +24,6 @@ Le projet Matrix/BordOps **est déjà largement développé**, pas un projet à 
 | Fonctionnement hors-ligne (LAN uniquement) | Déjà un principe non-négociable inscrit dans `CLAUDE.md` (§ Principes fondamentaux, point 4) | `CLAUDE.md` |
 | Workflow correctif | `CorrectiveTicket` (10 états : REPORTED→DIAGNOSED→WAITING_PARTS→...→CLOSED) | `logistics/models.py` |
 | Checklists avec surcharge par équipement | `ChecklistTemplate`/`ChecklistItemTemplate` + `AssetChecklistOverride` | `assets/models.py` |
-| Champs personnalisés | `DynamicFieldDefinition` par secteur | `org/models.py` |
 
 **Rappel important pour Claude Code :** ne jamais inventer un nouveau système de permissions, de scope, ou de notification en parallèle de ceux listés ci-dessus — toujours étendre l'existant.
 

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Chefs de liste</h1>
+<p class="text-muted">Un chef de liste est habilité à créer, affecter et publier les listes de quarts et de services de garde pour le périmètre pour lequel il est désigné — indépendamment de son grade ou de son rôle hiérarchique.</p>
+
+<div class="row g-4">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Marin</th>
+              <th>Périmètre</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cdl in chefs_de_liste %}
+            <tr>
+              <td>{{ cdl.user.get_full_name|default:cdl.user.username }}</td>
+              <td class="small text-muted">{{ cdl.perimetre }}</td>
+              <td>
+                <form method="post" onsubmit="return confirm('Retirer cette désignation ?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="retirer">
+                  <input type="hidden" name="pk" value="{{ cdl.pk }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirer"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-4">Aucun chef de liste désigné.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <h2 class="h5">Désigner un chef de liste</h2>
+    <div class="card card-body">
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="designer">
+        <div class="col-12">
+          <label class="form-label">Marin</label>
+          <select name="user_id" class="form-select" required>
+            {% for u in utilisateurs %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Périmètre</label>
+          <select name="perimetre" class="form-select" required>
+            {% for p in perimetres_disponibles %}
+            <option value="{{ p.valeur }}">{{ p.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> Désigner</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

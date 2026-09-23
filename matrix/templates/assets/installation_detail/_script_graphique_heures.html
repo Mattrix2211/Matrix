@@ -1,0 +1,113 @@
+<script>
+(function(){
+  function renderHoursChart(){
+    var el = document.getElementById('hoursPerMonthChart');
+    if (!el || !window.Chart) return;
+    // si l'onglet est caché, attendre son affichage
+    if (el.offsetParent === null) return;
+    var labels = {{ hours_month_labels_json|safe }};
+    var values = {{ hours_month_values_json|safe }};
+    var visitLabel = "{{ hours_visit_label }}";
+    // Plugin pour dessiner une ligne verticale au mois de la dernière visite
+    var visitLinePlugin = {
+      id: 'visitLine',
+      afterDatasetsDraw(chart, args, opts){
+        var label = (opts && opts.label) || '';
+        if (!label) return;
+        var idx = chart.data.labels.indexOf(label);
+        if (idx === -1) return;
+        var xScale = chart.scales.x; if (!xScale) return;
+        var x = xScale.getPixelForValue(idx);
+        var ca = chart.chartArea; var ctx = chart.ctx; if (!ca) return;
+        ctx.save();
+        ctx.strokeStyle = (opts && opts.color) || '#0dcaf0';
+        ctx.setLineDash([4,3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, ca.top);
+        ctx.lineTo(x, ca.bottom);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+    var ctx = el.getContext('2d');
+    // Détruire l’ancien graphique si recréé
+    if (el._chart) { el._chart.destroy(); }
+    el._chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Heures/mois',
+          data: values,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.12)',
+          tension: 0,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx){
+                var v = ctx.parsed.y || 0; return (Math.round(v*100)/100) + ' h';
+              }
+            }
+          },
+          visitLine: { label: visitLabel, color: '#0dcaf0' }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.08)' },
+            ticks: {
+              callback: function(value){ return value + ' h'; }
+            }
+          }
+        }
+      },
+      plugins: [visitLinePlugin]
+    });
+  }
+  // Planificateur de rendu fiable (gère transitions/ordre des scripts)
+  function scheduleHoursRender(retries){
+    var attempts = typeof retries === 'number' ? retries : 10;
+    var el = document.getElementById('hoursPerMonthChart');
+    if (!el || !window.Chart) {
+      if (attempts > 0) return setTimeout(function(){ scheduleHoursRender(attempts-1); }, 100);
+      return;
+    }
+    if (el.offsetParent === null) {
+      if (attempts > 0) return setTimeout(function(){ scheduleHoursRender(attempts-1); }, 150);
+      return;
+    }
+    renderHoursChart();
+  }
+  // Rendre si l'onglet est déjà actif à l'arrivée sur la page
+  try {
+    var hoursTabBtn = document.querySelector('#tab-hours');
+    if (hoursTabBtn && hoursTabBtn.classList.contains('active')) {
+      scheduleHoursRender();
+    }
+  } catch(_){}
+  // Et re-rendre lors de l'affichage de l'onglet
+  document.addEventListener('shown.bs.tab', function(e){
+    if (e.target && e.target.id === 'tab-hours') scheduleHoursRender();
+  });
+  // File d’attente supplémentaire: après DOM prêt, après onload, et à la visibilité
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ scheduleHoursRender(); });
+  } else {
+    scheduleHoursRender();
+  }
+  window.addEventListener('load', function(){ scheduleHoursRender(); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) scheduleHoursRender(); });
+})();
+</script>

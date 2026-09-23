@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Modèles de ronde</h1>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'rondes-index' %}">Retour</a>
+    {% if peut_gerer %}<a class="btn btn-primary" href="{% url 'ronde-modele-nouveau' %}">Nouveau modèle</a>{% endif %}
+  </div>
+</div>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Ronde</th><th>Périmètre</th><th>Périodicité</th><th>Points</th><th></th></tr></thead>
+      <tbody>
+        {% for modele in modeles %}
+        <tr>
+          <td><a href="{% url 'ronde-modele' modele.pk %}">{{ modele.nom }}</a>{% if not modele.actif %} <span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+          <td>{{ modele.libelle_perimetre }}</td>
+          <td class="font-mono">tous les {{ modele.periodicite_jours }} j</td>
+          <td class="font-mono">{{ modele.points.all|length }}</td>
+          <td class="text-end">{% if modele.actif %}<form method="post" action="{% url 'ronde-lancer' modele.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary" type="submit">Faire la ronde</button></form>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-4">Aucun modèle de ronde.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+<h2 class="h5 mt-4">{{ titre }}</h2>
+{% for e in liste_echanges %}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+      <div>
+        <div class="fw-semibold">
+          {{ e.demandeur.get_full_name|default:e.demandeur.username }}
+          <i class="bi bi-arrow-left-right mx-1"></i>
+          {{ e.cible.get_full_name|default:e.cible.username }}
+        </div>
+        <div class="small text-muted font-mono">{{ e.libelle_creneau_demandeur }} contre {{ e.libelle_creneau_cible }}</div>
+        {% if e.motif %}<div class="small mt-1">Motif : {{ e.motif }}</div>{% endif %}
+      </div>
+      <span class="badge {% if e.statut == 'VALIDE' %}text-bg-success{% elif e.statut == 'REFUSE' or e.statut == 'REJETE' %}text-bg-danger{% elif e.statut == 'ANNULE' %}text-bg-secondary{% else %}text-bg-info{% endif %}">{{ e.get_statut_display }}</span>
+    </div>
+
+    <div class="frise-echange mb-2">
+      {% for etape in e.etapes %}<div class="etape {{ etape.etat }}">{{ etape.libelle }}</div>{% endfor %}
+    </div>
+
+    {% if e.peut_repondre %}
+    <form method="post" action="{% url 'echange-action' e.pk 'accepter' %}" class="d-inline">
+      {% csrf_token %}<button class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Accepter</button>
+    </form>
+    {% endif %}
+    {% if e.peut_trancher %}
+    <form method="post" action="{% url 'echange-action' e.pk 'valider' %}" class="d-inline">
+      {% csrf_token %}<button class="btn btn-sm btn-success"><i class="bi bi-check2-all"></i> Valider l'échange</button>
+    </form>
+    {% endif %}
+    {% if e.peut_repondre or e.peut_trancher or e.peut_annuler %}
+    <form method="post" class="d-inline-flex gap-1 ms-1">
+      {% csrf_token %}
+      <input type="text" name="motif" class="form-control form-control-sm" placeholder="Motif (facultatif)" style="width: 14rem">
+      {% if e.peut_repondre %}<button class="btn btn-sm btn-outline-danger" formaction="{% url 'echange-action' e.pk 'refuser' %}">Refuser</button>{% endif %}
+      {% if e.peut_trancher %}<button class="btn btn-sm btn-outline-danger" formaction="{% url 'echange-action' e.pk 'rejeter' %}">Refuser l'échange</button>{% endif %}
+      {% if e.peut_annuler %}<button class="btn btn-sm btn-outline-secondary" formaction="{% url 'echange-action' e.pk 'annuler' %}">Annuler ma demande</button>{% endif %}
+    </form>
+    {% endif %}
+
+    <details class="mt-2">
+      <summary class="small text-muted">Historique ({{ e.evenements.all|length }})</summary>
+      <ul class="small mb-0 mt-1">
+        {% for ev in e.evenements.all %}
+        <li><span class="font-mono">{{ ev.created_at|date:"d/m/Y H:i" }}</span> — {{ ev.get_action_libelle }}{% if ev.acteur %} par {{ ev.acteur.get_full_name|default:ev.acteur.username }}{% endif %}{% if ev.detail %} ({{ ev.detail }}){% endif %}</li>
+        {% endfor %}
+      </ul>
+    </details>
+  </div>
+</div>
+{% empty %}
+<p class="text-muted">{{ vide }}</p>
+{% endfor %}

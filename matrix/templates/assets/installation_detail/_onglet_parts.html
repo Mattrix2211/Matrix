@@ -1,0 +1,46 @@
+      <div class="tab-pane fade" id="pane-parts" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Pièces</h6>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPartModal">Ajouter</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Désignation</th><th>NNO</th><th>Référence</th><th>Marque</th></tr></thead>
+            <tbody>
+              {% for p in parts %}
+              <tr data-bs-toggle="modal" data-bs-target="#partDetailModal-{{ p.id }}" style="cursor:pointer;"><td>{{ p.name }}</td><td class="font-mono">{{ p.nno|default:"" }}</td><td class="font-mono">{{ p.reference|default:"" }}</td><td>{{ p.marque|default:"" }}</td></tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted">Aucune pièce</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% comment %}
+        Pièces de stock affiliées (T-FEAT stock détaillé) : lien optionnel défini
+        depuis /logistics/stock/, affiché ici en lecture seule (la gestion du stock
+        se fait sur sa propre page, pas de doublon d'écran).
+        {% endcomment %}
+        <h6 class="mt-4 mb-2">Pièces en stock liées</h6>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead><tr><th>Référence</th><th>Désignation</th><th class="text-end">Quantité</th><th>État</th></tr></thead>
+            <tbody>
+              {% for ps in pieces_stock %}
+              <tr onclick="window.location='/logistics/stock/'" style="cursor:pointer;">
+                <td class="font-mono">{{ ps.reference }}</td>
+                <td>{{ ps.designation }}</td>
+                <td class="text-end font-mono">{{ ps.quantite }}</td>
+                <td>
+                  {% if ps.est_critique %}<span class="badge text-bg-danger">Stock critique</span>
+                  {% elif ps.est_bas %}<span class="badge text-bg-warning">Stock bas</span>
+                  {% else %}<span class="badge badge-conforme">Conforme</span>{% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted">Aucune pièce en stock liée à cette installation</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
