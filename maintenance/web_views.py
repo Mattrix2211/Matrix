@@ -19,6 +19,7 @@ from threads.utils import ajouter_commentaire, commentaires_de
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.roles import user_role_level
 from matrix.core.role_thresholds import niveau_requis_pour
+from matrix.core.validators import valider_document, message_erreur_fichier
 from accounts.models import AuditLog
 
 
@@ -133,6 +134,10 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(occ.pk))
         msg = Message.objects.create(thread=thread, author=request.user if request.user.is_authenticated else None, body=f"Exécution: {conformity}", is_system=False)
         for f in request.FILES.getlist('photos'):
+            erreur_fichier = message_erreur_fichier(f, valider_document)
+            if erreur_fichier:
+                messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
+                continue
             Attachment.objects.create(message=msg, file=f, name=f.name)
 
         # Réponse HTMX ou redirection

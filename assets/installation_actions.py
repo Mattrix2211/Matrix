@@ -46,6 +46,7 @@ from .models import (
     InstallationVibrationReading,
     ModeDeclenchement,
 )
+from matrix.core.validators import valider_photo, valider_document, message_erreur_fichier
 from .web_views import _afficher_erreur_validation, _org_dans_perimetre, _resoudre_emplacement, _resoudre_parent_valide
 
 
@@ -186,6 +187,10 @@ def _action_add_event(view, request, inst, qs):
         updated_by=request.user,
     )
     for f in request.FILES.getlist('attachments'):
+        erreur_fichier = message_erreur_fichier(f, valider_document)
+        if erreur_fichier:
+            messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
+            continue
         InstallationEventAttachment.objects.create(event=ev, file=f, created_by=request.user, updated_by=request.user)
     AuditLog.objects.create(actor=request.user, action='add_installation_event', details=f'installation_id={inst.id}, event_id={ev.id}')
     messages.success(request, 'Événement ajouté.')
@@ -207,6 +212,10 @@ def _action_edit_event(view, request, inst, qs):
     ev.updated_by = request.user
     ev.save()
     for f in request.FILES.getlist('attachments'):
+        erreur_fichier = message_erreur_fichier(f, valider_document)
+        if erreur_fichier:
+            messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
+            continue
         InstallationEventAttachment.objects.create(event=ev, file=f, created_by=request.user, updated_by=request.user)
     AuditLog.objects.create(actor=request.user, action='edit_installation_event', details=f'event_id={ev.id}')
     messages.success(request, "Événement mis à jour.")
@@ -274,6 +283,10 @@ def _action_add_maintenance(view, request, inst, qs):
         updated_by=request.user,
     )
     for f in request.FILES.getlist('attachments'):
+        erreur_fichier = message_erreur_fichier(f, valider_document)
+        if erreur_fichier:
+            messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
+            continue
         InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
     AuditLog.objects.create(actor=request.user, action='add_installation_maintenance', details=f'maintenance_id={m.id}')
     messages.success(request, "Entretien ajouté.")
@@ -289,6 +302,10 @@ def _action_add_maintenance_attachment(view, request, inst, qs):
         return redirect(f"/installations/{inst.id}/{qs}")
     count = 0
     for f in request.FILES.getlist('attachments'):
+        erreur_fichier = message_erreur_fichier(f, valider_document)
+        if erreur_fichier:
+            messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
+            continue
         InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
         count += 1
     AuditLog.objects.create(actor=request.user, action='add_installation_maintenance_attachment', details=f'maintenance_id={m.id}; files={count}')
@@ -389,6 +406,10 @@ def _action_edit_maintenance(view, request, inst, qs):
         )
     # Ajout de nouvelles pièces jointes lors de la modification
     for f in request.FILES.getlist('attachments'):
+        erreur_fichier = message_erreur_fichier(f, valider_document)
+        if erreur_fichier:
+            messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
+            continue
         InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
     AuditLog.objects.create(actor=request.user, action='edit_installation_maintenance', details=f'maintenance_id={m.id}')
     messages.success(request, "Entretien mis à jour.")
@@ -405,6 +426,11 @@ def _action_add_part(view, request, inst, qs):
     if not name:
         messages.error(request, "La désignation de la pièce est requise.")
         return redirect(f"/installations/{inst.id}/{qs}")
+    photo = request.FILES.get('photo')
+    erreur_photo = message_erreur_fichier(photo, valider_photo)
+    if erreur_photo:
+        messages.error(request, erreur_photo)
+        return redirect(f"/installations/{inst.id}/{qs}")
     p = InstallationPart.objects.create(
         installation=inst,
         name=name,
@@ -414,7 +440,6 @@ def _action_add_part(view, request, inst, qs):
         created_by=request.user,
         updated_by=request.user,
     )
-    photo = request.FILES.get('photo')
     if photo:
         p.photo = photo
         p.save(update_fields=['photo'])
@@ -435,6 +460,10 @@ def _action_edit_part(view, request, inst, qs):
     p.reference = request.POST.get('reference', p.reference or '').strip()
     p.marque = request.POST.get('marque', p.marque or '').strip()
     photo = request.FILES.get('photo')
+    erreur_photo = message_erreur_fichier(photo, valider_photo)
+    if erreur_photo:
+        messages.error(request, erreur_photo)
+        return redirect(f"/installations/{inst.id}/{qs}")
     if photo:
         p.photo = photo
     p.updated_by = request.user

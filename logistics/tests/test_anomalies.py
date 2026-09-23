@@ -1,13 +1,24 @@
+import io
+
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image as PILImage
 
 from accounts.models import AuditLog, UserProfile
 from assets.models import Asset, AssetType, Installation
 from logistics.models import Anomalie, AnomalieStatutLog, CorrectiveTicket
 from notifications.models import Notification
 from org.models import Section, Sector, Service, Ship
+
+
+def _png_1x1():
+    # PNG 1x1 généré à la volée par Pillow : doit décoder réellement
+    # (Image.open().verify()), même fixture que test_plan_navire_web.py.
+    tampon = io.BytesIO()
+    PILImage.new("RGB", (1, 1), color=(128, 128, 128)).save(tampon, format="PNG")
+    return tampon.getvalue()
 
 
 @override_settings(MEDIA_ROOT="/tmp/matrix_tests_media")
@@ -70,7 +81,10 @@ class AnomalieTests(TestCase):
         self.assertFalse(Anomalie.objects.exists())
 
     def test_photo_et_localisation_enregistrees(self):
-        photo = SimpleUploadedFile("p.png", b"\x89PNG\r\n", content_type="image/png")
+        # Depuis la validation serveur des fichiers téléversés (tâche [SEC]),
+        # un contenu factice comme b"\x89PNG\r\n" est refusé par Pillow
+        # (Image.open().verify()) : il faut un vrai PNG décodable.
+        photo = SimpleUploadedFile("p.png", _png_1x1(), content_type="image/png")
         self._signaler(self.marin, localisation="Coursive bâbord", photo=photo)
         anomalie = Anomalie.objects.get()
         self.assertEqual(anomalie.localisation, "Coursive bâbord")

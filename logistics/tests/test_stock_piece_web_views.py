@@ -4,15 +4,27 @@ Vérifie le scope par périmètre (scope_filters_for_user, T12), le seuil de rô
 pour l'écriture (CHEF_SECTION, même seuil que les autres actions d'écriture du
 module logistics), et la création/modification via la vue liste.
 """
+import io
+
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from PIL import Image as PILImage
 
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Installation
 from org.models import Sector, Section, Service, Ship
 from logistics.models import StockPiece
+
+
+def _photo_valide(nom="photo.jpg"):
+    # PNG 1x1 généré à la volée par Pillow : depuis la validation serveur des
+    # fichiers téléversés (tâche [SEC]), un contenu factice est refusé par
+    # Pillow (Image.open().verify()), même avec une extension d'image.
+    tampon = io.BytesIO()
+    PILImage.new("RGB", (1, 1), color=(128, 128, 128)).save(tampon, format="PNG")
+    return SimpleUploadedFile(nom, tampon.getvalue(), content_type="image/jpeg")
 
 
 class StockPieceListViewTests(TestCase):
@@ -249,7 +261,7 @@ class StockPieceListViewTests(TestCase):
         self.assertFalse(StockPiece.objects.filter(reference="REF-023").exists())
 
     def test_creation_piece_avec_seuil_critique_photo_et_note(self):
-        photo = SimpleUploadedFile("photo.jpg", b"contenu-fictif", content_type="image/jpeg")
+        photo = _photo_valide()
         self.client.login(username="chef", password="pass")
         self.client.post(self.url, {
             "action": "create_piece", "reference": "REF-024", "designation": "Pièce complète",
@@ -263,7 +275,7 @@ class StockPieceListViewTests(TestCase):
         self.assertTrue(piece.photo)
 
     def test_modification_piece_conserve_la_photo_si_aucune_nouvelle_fournie(self):
-        photo = SimpleUploadedFile("photo.jpg", b"contenu-fictif", content_type="image/jpeg")
+        photo = _photo_valide()
         self.piece_dans_perimetre.photo = photo
         self.piece_dans_perimetre.save()
 

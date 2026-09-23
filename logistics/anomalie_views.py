@@ -13,6 +13,7 @@ from assets.models import Asset, Installation
 from matrix.core.mixins import build_scope_q
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import scope_filters_for_user
+from matrix.core.validators import valider_photo, message_erreur_fichier
 from notifications.models import Notification
 from threads.utils import ajouter_commentaire, commentaires_de
 
@@ -167,10 +168,15 @@ class AnomalieCreateView(LoginRequiredMixin, View):
             except (Sector.DoesNotExist, ValueError):
                 return self._erreur(request, "Secteur introuvable ou hors de votre unité.")
 
+        photo = request.FILES.get('photo')
+        erreur_photo = message_erreur_fichier(photo, valider_photo)
+        if erreur_photo:
+            return self._erreur(request, erreur_photo)
+
         anomalie = Anomalie(
             titre=titre, description=donnees.get('description', '').strip(), gravite=gravite,
             localisation=donnees.get('localisation', '').strip(),
-            installation=installation, asset=materiel, photo=request.FILES.get('photo'),
+            installation=installation, asset=materiel, photo=photo,
             created_by=request.user, updated_by=request.user,
         )
         anomalie.rattacher_a(getattr(request.user, 'profile', None), secteur)

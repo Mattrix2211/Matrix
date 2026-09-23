@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.validators import valider_document
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Ship, Service, Section
 
@@ -86,6 +87,7 @@ class TrainingCourse(TimeStampedModel, OwnedModel):
     # plusieurs documents doivent être attachés au même objet.
     bareme = models.FileField(
         upload_to="training_baremes/", null=True, blank=True, verbose_name="Barème",
+        validators=[valider_document],
     )
 
     def __str__(self):
@@ -635,7 +637,7 @@ class TrainingRecord(TimeStampedModel, OwnedModel):
     completed_at = models.DateField()
     expires_at = models.DateField()
     validated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="validated_training_records")
-    attachment = models.FileField(upload_to="training_certificates/", null=True, blank=True)
+    attachment = models.FileField(upload_to="training_certificates/", null=True, blank=True, validators=[valider_document])
 
     def clean(self):
         super().clean()

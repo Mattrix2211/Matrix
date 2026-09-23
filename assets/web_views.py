@@ -25,6 +25,7 @@ from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.validators import valider_photo, valider_document, message_erreur_fichier
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -295,11 +296,17 @@ def _org_dans_perimetre(user, model, cible_id):
 
 
 def _afficher_erreur_validation(request, erreur):
-    """Affiche en français le message d'une ValidationError levée par full_clean()
-    (notamment la protection anti-cycle sur le rattachement parent), plutôt que de
-    laisser remonter une erreur serveur non traitée."""
-    if hasattr(erreur, "message_dict") and "parent" in erreur.message_dict:
-        messages.error(request, erreur.message_dict["parent"][0])
+    """Affiche en français le(s) message(s) d'une ValidationError levée par
+    full_clean() : protection anti-cycle sur le rattachement parent, fichier
+    téléversé invalide (validators.py)... plutôt que de laisser remonter une
+    erreur serveur non traitée."""
+    if hasattr(erreur, "message_dict"):
+        if "parent" in erreur.message_dict:
+            messages.error(request, erreur.message_dict["parent"][0])
+        else:
+            for messages_champ in erreur.message_dict.values():
+                for message in messages_champ:
+                    messages.error(request, message)
     else:
         messages.error(request, "Rattachement invalide : " + " ".join(erreur.messages))
 
@@ -792,8 +799,12 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             parent_id = request.POST.get('parent_id')
             parent = AssetFolder.objects.filter(pk=parent_id).first() if parent_id else None
             if name:
-                fld = AssetFolder.objects.create(name=name)
                 photo = request.FILES.get('photo')
+                erreur_photo = message_erreur_fichier(photo, valider_photo)
+                if erreur_photo:
+                    messages.error(request, erreur_photo)
+                    return _redirect_liste_materiel(request)
+                fld = AssetFolder.objects.create(name=name)
                 if photo:
                     fld.photo = photo
                     fld.save(update_fields=['photo'])
@@ -929,11 +940,12 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                     except Exception:
                         pass
                 # Documents ajoutés lors de la création
-                try:
-                    for f in request.FILES.getlist('documents'):
-                        AssetDocument.objects.create(asset=asset, file=f, name=getattr(f, 'name', '') or '')
-                except Exception:
-                    pass
+                for f in request.FILES.getlist('documents'):
+                    erreur_document = message_erreur_fichier(f, valider_document)
+                    if erreur_document:
+                        messages.error(request, f"{getattr(f, 'name', 'document')} : {erreur_document}")
+                        continue
+                    AssetDocument.objects.create(asset=asset, file=f, name=getattr(f, 'name', '') or '')
                 AuditLog.objects.create(actor=request.user, action='create_asset', details=f'type_id={type_id}; internal_id={internal_id}')
                 messages.success(request, 'Matériel créé.')
             except AssetType.DoesNotExist:
@@ -998,11 +1010,12 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                     return _redirect_liste_materiel(request)
                 asset.save()
                 # Ajout de nouveaux documents pendant la modification
-                try:
-                    for f in request.FILES.getlist('documents'):
-                        AssetDocument.objects.create(asset=asset, file=f, name=getattr(f, 'name', '') or '')
-                except Exception:
-                    pass
+                for f in request.FILES.getlist('documents'):
+                    erreur_document = message_erreur_fichier(f, valider_document)
+                    if erreur_document:
+                        messages.error(request, f"{getattr(f, 'name', 'document')} : {erreur_document}")
+                        continue
+                    AssetDocument.objects.create(asset=asset, file=f, name=getattr(f, 'name', '') or '')
                 AuditLog.objects.create(actor=request.user, action='edit_asset', details=f'id={asset.id}')
                 messages.success(request, 'Matériel mis à jour.')
             except Asset.DoesNotExist:
@@ -1791,7 +1804,10 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
 
         if action == 'upload_image':
             image = request.FILES.get('image')
-            if image:
+            erreur_image = message_erreur_fichier(image, valider_photo)
+            if erreur_image:
+                messages.error(request, erreur_image)
+            elif image:
                 pont.image = image
                 pont.save(update_fields=['image'])
                 messages.success(request, "Image du plan mise à jour.")

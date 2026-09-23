@@ -18,13 +18,16 @@ from org.models import Sector, Service, Ship
 
 
 def _image_1x1_png():
-    # PNG 1x1 minimal valide, suffisant pour valider le champ FileField (aucune
-    # dépendance à une vraie bibliothèque d'images côté test).
-    contenu = bytes.fromhex(
-        "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753"
-        "de0000000c4944415478da6360606060000000050001a5f645400000000049454e44ae426082"
-    )
-    return SimpleUploadedFile("plan.png", contenu, content_type="image/png")
+    # PNG 1x1 valide généré à la volée par Pillow (et non plus un octet figé
+    # à la main) : nécessaire depuis la validation serveur des fichiers
+    # téléversés (tâche [SEC]), qui décode réellement l'image avec
+    # Image.open().verify() — un octet approximatif y échoue (CRC invalide)
+    # même s'il suffisait auparavant à remplir un simple FileField.
+    import io
+    from PIL import Image as PILImage
+    tampon = io.BytesIO()
+    PILImage.new("RGB", (1, 1), color=(128, 128, 128)).save(tampon, format="PNG")
+    return SimpleUploadedFile("plan.png", tampon.getvalue(), content_type="image/png")
 
 
 class PlanNavireRBACTests(TestCase):

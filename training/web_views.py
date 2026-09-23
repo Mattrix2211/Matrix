@@ -13,6 +13,7 @@ from django.views.generic import ListView, View
 
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import scope_filters_for_user, ship_id_for_user
+from matrix.core.validators import valider_document, message_erreur_fichier
 from notifications.models import Notification
 from org.models import Ship
 from accounts.models import AuditLog
@@ -766,12 +767,17 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 except ValueError:
                     messages.error(request, "La durée de validité doit être un nombre de jours positif.")
                     return redirect("formation-list")
+            bareme = request.FILES.get("bareme")
+            erreur_bareme = message_erreur_fichier(bareme, valider_document)
+            if erreur_bareme:
+                messages.error(request, erreur_bareme)
+                return redirect("formation-list")
             course = TrainingCourse.objects.create(
                 title=titre,
                 description=request.POST.get("description", "").strip(),
                 category=request.POST.get("category", "").strip(),
                 validity_days=validity_days,
-                bareme=request.FILES.get("bareme"),
+                bareme=bareme,
             )
             # Prérequis facultatifs dès la création, parmi le catalogue global
             # existant (revalidation côté serveur, même principe que pour
@@ -823,6 +829,10 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             # soit on coche « retirer_bareme » pour l'enlever sans le remplacer —
             # les deux ne sont jamais combinés dans un même envoi de formulaire.
             nouveau_bareme = request.FILES.get("bareme")
+            erreur_bareme = message_erreur_fichier(nouveau_bareme, valider_document)
+            if erreur_bareme:
+                messages.error(request, erreur_bareme)
+                return redirect("formation-list")
             if nouveau_bareme:
                 course.bareme = nouveau_bareme
                 course.save(update_fields=["bareme"])
@@ -1743,6 +1753,10 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         # update_prerequisites ci-dessus : un nouveau fichier remplace
         # l'ancien, sinon « retirer_bareme » l'enlève sans le remplacer.
         nouveau_bareme = request.FILES.get("bareme")
+        erreur_bareme = message_erreur_fichier(nouveau_bareme, valider_document)
+        if erreur_bareme:
+            messages.error(request, erreur_bareme)
+            return redirect("formation-list")
         if nouveau_bareme:
             course.bareme = nouveau_bareme
         elif "retirer_bareme" in request.POST and course.pk:

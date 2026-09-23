@@ -18,6 +18,7 @@ from .models import (
 from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.validators import valider_photo, message_erreur_fichier
 from matrix.core.scopes import scope_filters_for_user
 from notifications.models import Notification
 from matrix.core.export import (
@@ -728,6 +729,10 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             "asset": asset,
         }
         photo = request.FILES.get('photo')
+        erreur_photo = message_erreur_fichier(photo, valider_photo)
+        if erreur_photo:
+            messages.error(request, erreur_photo)
+            return redirect('stock-piece-list')
 
         if action == 'create_piece':
             piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
