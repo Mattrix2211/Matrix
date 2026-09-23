@@ -110,6 +110,26 @@ class FonctionQuartChoice(models.Model):
         return self.name
 
 
+class TypeAbsence(models.Model):
+    """Référentiel configurable des types d'absence/indisponibilité (ex.
+    permission, mission, maladie, congé...) — même pattern que
+    ServiceFunctionChoice/FonctionQuartChoice ci-dessus : la nomenclature
+    exacte des motifs d'absence n'est pas figée dans le code (CLAUDE.md §6).
+    Utilisé par absences.models.Absence (app dédiée, cf. tâche Notion
+    « Absences et indisponibilités »)."""
+
+    name = models.CharField(max_length=128, unique=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Type d'absence"
+        verbose_name_plural = "Types d'absence"
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
 class RoleAvailability(models.Model):
     code = models.CharField(max_length=64, choices=Roles.choices, unique=True)
     active = models.BooleanField(default=True)

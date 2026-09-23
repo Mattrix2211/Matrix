@@ -57,6 +57,7 @@ from .echanges import (
     rejeter_echange,
     valider_echange,
 )
+from .generation import proposer_repartition
 from .services import compteurs_equite_perimetre
 
 User = get_user_model()
@@ -362,6 +363,13 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         peut_gerer = peut_gerer_liste(request.user, liste)
         if not peut_gerer and not _peut_lire_liste(request.user, liste):
             return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
+        return render(request, self.template_name, self._contexte(request, liste, peut_gerer))
+
+    def _contexte(self, request, liste, peut_gerer, proposition=None):
+        """Contexte de la fiche détail — factorisé pour être réutilisé tel
+        quel par le GET normal et par l'action « Proposer une répartition »
+        (rendue directement, sans redirection, pour ne pas perdre le calcul
+        en mémoire — cf. _generer_proposition ci-dessous)."""
         contexte = {
             "liste": liste,
             "creneaux": liste.creneaux.select_related("marin").all(),
@@ -381,6 +389,15 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             "compteurs_equite": (
                 compteurs_equite_perimetre(liste) if peut_gerer and isinstance(liste, ServiceGarde) else None
             ),
+            # Génération intelligente de répartition (Phase 2, tâche Notion
+            # « Génération intelligente des listes de service ») : bouton
+            # visible uniquement sur un brouillon comportant au moins un
+            # créneau non affecté, réservé au chef de liste gérant.
+            "peut_generer_proposition": (
+                peut_gerer and liste.statut == liste.STATUT_BROUILLON
+                and liste.creneaux.filter(marin__isnull=True).exists()
+            ),
+            "proposition": proposition,
         }
         if isinstance(liste, ServiceGarde) and liste.statut == liste.STATUT_PUBLIEE:
             # Bouton « Proposer un échange » : tours futurs des autres marins
@@ -401,7 +418,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 )
         if isinstance(liste, ServiceGarde) and peut_gerer:
             contexte["formations_disponibles"] = TrainingCourse.objects.order_by("title")
-        return render(request, self.template_name, contexte)
+        return contexte
 
     def post(self, request, pk):
         liste = self._liste(pk)
@@ -411,7 +428,16 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
 
         action = request.POST.get("action")
-        if action == "ajouter_creneau":
+        if action == "generer_proposition":
+            # Rendu direct (pas de redirection) : la proposition n'est jamais
+            # écrite en base, elle ne survivrait donc pas à un aller-retour
+            # navigateur — cf. docstring de _contexte et quarts/generation.py.
+            return self._generer_proposition(request, liste)
+        if action == "appliquer_proposition":
+            self._appliquer_proposition(request, liste)
+        elif action == "rejeter_proposition":
+            messages.info(request, "Proposition de répartition ignorée : aucun créneau n'a été modifié.")
+        elif action == "ajouter_creneau":
             self._ajouter_creneau(request, liste)
         elif action == "supprimer_creneau":
             self._supprimer_creneau(request, liste)
@@ -423,6 +449,55 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         else:
             return HttpResponseBadRequest("Action inconnue.")
         return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
+
+    def _generer_proposition(self, request, liste):
+        """Calcule une proposition de répartition (quarts.generation) et la
+        réaffiche immédiatement sur la fiche détail, pour acceptation,
+        modification créneau par créneau ou refus par le chef de liste."""
+        if liste.statut != liste.STATUT_BROUILLON:
+            messages.error(request, "La répartition ne peut être proposée que sur une liste en brouillon.")
+            return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
+        proposition = proposer_repartition(liste)
+        if not proposition:
+            messages.info(request, "Aucun créneau non affecté sur cette liste : rien à proposer.")
+            return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
+        contexte = self._contexte(request, liste, peut_gerer=True, proposition=proposition)
+        return render(request, self.template_name, contexte)
+
+    def _appliquer_proposition(self, request, liste):
+        """Applique la proposition telle que le chef de liste l'a éventuellement
+        modifiée dans le formulaire (un champ `creneau_<id>` par créneau
+        proposé, valant l'identifiant du marin choisi ou vide pour ne pas
+        affecter ce créneau) — une affectation réelle, comme une affectation
+        manuelle aujourd'hui (même validation minimale : marin du périmètre
+        de la liste)."""
+        if liste.statut != liste.STATUT_BROUILLON:
+            messages.error(request, "La répartition ne peut être appliquée que sur une liste en brouillon.")
+            return
+        creneaux_non_affectes = {c.pk: c for c in liste.creneaux.filter(marin__isnull=True)}
+        marins_du_perimetre_liste = {
+            m.pk: m for m in User.objects.filter(marins_du_perimetre(liste)).distinct()
+        }
+        nb_affectes = 0
+        for cle, valeur in request.POST.items():
+            if not cle.startswith("creneau_") or not valeur:
+                continue
+            try:
+                creneau = creneaux_non_affectes[int(cle.removeprefix("creneau_"))]
+                marin = marins_du_perimetre_liste[int(valeur)]
+            except (KeyError, ValueError):
+                continue
+            creneau.marin = marin
+            creneau.save(update_fields=["marin", "updated_at"])
+            nb_affectes += 1
+        if nb_affectes:
+            messages.success(
+                request,
+                f"{nb_affectes} créneau(x) affecté(s) d'après la proposition. "
+                "Pensez à publier la liste pour notifier les marins concernés.",
+            )
+        else:
+            messages.info(request, "Aucun créneau n'a été affecté (proposition vide ou entièrement laissée de côté).")
 
     def _ajouter_creneau(self, request, liste):
         poste = request.POST.get("poste", "").strip()

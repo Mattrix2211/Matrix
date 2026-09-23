@@ -15,6 +15,7 @@ from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
 from rondes.models import Ronde
 from rondes.services import rondes_visibles
+from absences.models import Absence
 from .models import PersonalEvent
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.scopes import scope_filters_for_user
@@ -110,6 +111,19 @@ def _creneaux_garde_assignes(start, end, user=None):
     return qs
 
 
+def _absences_periode(start, end, user=None):
+    """Absences (déclarées ou validées) chevauchant la période [start, end],
+    même principe que _creneaux_quart_assignes/_creneaux_garde_assignes
+    ci-dessus : `user` restreint à un seul marin (vue personnelle), laissé à
+    None pour la vue globale (cf. absences/models.py::Absence)."""
+    qs = Absence.objects.select_related("marin", "type_absence").filter(
+        date_debut__lte=end, date_fin__gte=start
+    )
+    if user is not None:
+        qs = qs.filter(marin=user)
+    return qs
+
+
 def _rondes_a_faire(user, start, end):
     """Rondes ouvertes du marin (assignées à lui, ou non assignées et dans son
     périmètre) prévues sur la période — même principe que les autres
@@ -158,9 +172,10 @@ def evenements_utilisateur_jour(user, day):
     # système parallèle.
     creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user))
     rondes = list(_rondes_a_faire(user, day, day))
+    absences = list(_absences_periode(day, day, user))
     return {
         "maintenances": maintenances, "formations": formations, "personnels": personnels,
-        "creneaux": creneaux, "rondes": rondes,
+        "creneaux": creneaux, "rondes": rondes, "absences": absences,
     }
 
 
@@ -384,6 +399,19 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                     "url": f"/quarts/garde/{c.service_garde_id}/",
                     "status": None,
                 })
+        # Absences/indisponibilités : même principe que les créneaux de
+        # quart/garde ci-dessus (affectation personnelle plutôt que
+        # périmètre organisationnel, cf. absences/models.py::Absence).
+        if not filters.get("type") or filters["type"] == "absence":
+            for a in _absences_periode(start, end, filters.get("user") or None):
+                events.append({
+                    "type": "absence",
+                    "title": f"Absence - {a.type_absence}",
+                    "start": a.date_debut.isoformat(),
+                    "end": (a.date_fin + timedelta(days=1)).isoformat(),
+                    "url": "/absences/",
+                    "status": a.statut,
+                })
         return events
 
 
@@ -457,6 +485,7 @@ _COULEUR_PAR_TYPE = {
     "quart":         {"backgroundColor": "#0b7285", "borderColor": "#095c6b", "textColor": "#fff"},
     "service_garde": {"backgroundColor": "#a61e4d", "borderColor": "#84173d", "textColor": "#fff"},
     "ronde":         {"backgroundColor": "#5f3dc4", "borderColor": "#4c2fa0", "textColor": "#fff"},
+    "absence":       {"backgroundColor": "#7c4a03", "borderColor": "#5c3702", "textColor": "#fff"},
 }
 
 def _couleur_evenement(ev_type, status=None):
@@ -614,6 +643,22 @@ def calendar_events(request):
                 "url": f"/quarts/garde/{c.service_garde_id}/",
                 "editable": False,
                 "extendedProps": {"type": "service_garde", "status": None, "peut_agir": False},
+                **couleur,
+            })
+    # Absences/indisponibilités : même principe que les créneaux de quart/
+    # garde ci-dessus (affectation personnelle, cf. _absences_periode).
+    if not filters.get("type") or filters["type"] == "absence":
+        absence_qs = _absences_periode(start, end, filters.get("user") or None)
+        for a in absence_qs:
+            couleur = _couleur_evenement("absence")
+            events.append({
+                "id": f"abs-{a.id}",
+                "title": f"🚫 {a.type_absence}",
+                "start": a.date_debut.isoformat(),
+                "end": (a.date_fin + timedelta(days=1)).isoformat(),
+                "url": "/absences/",
+                "editable": False,
+                "extendedProps": {"type": "absence", "status": a.statut, "peut_agir": False},
                 **couleur,
             })
     # Rondes à faire : affectation personnelle (ou périmètre du marin).
