@@ -44,6 +44,7 @@ from .models import (
     ServiceGarde,
     marins_du_perimetre,
     peut_gerer_liste,
+    peut_publier_liste,
     utilisateur_autorise_pour_perimetre,
 )
 from .echanges import (
@@ -361,7 +362,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if liste is None:
             return HttpResponseBadRequest("Liste introuvable.")
         peut_gerer = peut_gerer_liste(request.user, liste)
-        if not peut_gerer and not _peut_lire_liste(request.user, liste):
+        # Un publicateur habilité (peut_publier_liste) doit pouvoir consulter
+        # une liste PROPOSEE pour décider de la publier, même s'il n'est pas
+        # le chef de liste qui la gère (rôle distinct, cf. docstring de
+        # module de quarts/models.py).
+        if not peut_gerer and not peut_publier_liste(request.user, liste) and not _peut_lire_liste(request.user, liste):
             return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
         return render(request, self.template_name, self._contexte(request, liste, peut_gerer))
 
@@ -370,10 +375,12 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         quel par le GET normal et par l'action « Proposer une répartition »
         (rendue directement, sans redirection, pour ne pas perdre le calcul
         en mémoire — cf. _generer_proposition ci-dessous)."""
+        peut_publier = peut_publier_liste(request.user, liste)
         contexte = {
             "liste": liste,
             "creneaux": liste.creneaux.select_related("marin").all(),
             "peut_gerer": peut_gerer,
+            "peut_publier": peut_publier,
             "url_prefix": self.url_prefix,
             "marins_perimetre": (
                 User.objects.filter(marins_du_perimetre(liste)).select_related("profile")
@@ -398,7 +405,16 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 and liste.creneaux.filter(marin__isnull=True).exists()
             ),
             "proposition": proposition,
+            # Historique des versions (cf. quarts/models.py::creer_version) :
+            # réservé à qui gère ou peut publier la liste, pas ouvert à tout
+            # marin lecteur d'une liste publiée (hypothèse de cadrage, cf.
+            # docstring de module de quarts/models.py).
+            "versions": liste.versions.all() if (peut_gerer or peut_publier) else None,
         }
+        date_consultee = parse_date(request.GET.get("le", ""))
+        if date_consultee and (peut_gerer or peut_publier):
+            contexte["date_consultee"] = date_consultee
+            contexte["version_consultee"] = liste.version_a_la_date(date_consultee)
         if isinstance(liste, ServiceGarde) and liste.statut == liste.STATUT_PUBLIEE:
             # Bouton « Proposer un échange » : tours futurs des autres marins
             # de la même liste, et tours déjà engagés dans un échange en cours.
@@ -424,10 +440,29 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         liste = self._liste(pk)
         if liste is None:
             return HttpResponseBadRequest("Liste introuvable.")
-        if not peut_gerer_liste(request.user, liste):
+        peut_gerer = peut_gerer_liste(request.user, liste)
+        peut_publier = peut_publier_liste(request.user, liste)
+        if not peut_gerer and not peut_publier:
             return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
 
         action = request.POST.get("action")
+
+        # Publier exige un rôle DISTINCT de celui qui gère/propose la liste
+        # (workflow proposer -> valider/publier, cahier des charges §34) :
+        # contrôlé séparément, avant la vérification générique peut_gerer
+        # ci-dessous, pour qu'un publicateur habilité non désigné chef de
+        # liste puisse tout de même publier.
+        if action == "publier":
+            if not peut_publier:
+                return HttpResponseBadRequest(
+                    "Vous n'êtes pas habilité à publier cette liste : rôle de publication requis "
+                    "(distinct de celui de chef de liste), cf. réglages de sécurité du navire."
+                )
+            self._publier(request, liste)
+            return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
+
+        if not peut_gerer:
+            return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
         if action == "generer_proposition":
             # Rendu direct (pas de redirection) : la proposition n'est jamais
             # écrite en base, elle ne survivrait donc pas à un aller-retour
@@ -443,12 +478,33 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             self._supprimer_creneau(request, liste)
         elif action == "regler_echanges" and isinstance(liste, ServiceGarde):
             self._regler_echanges(request, liste)
-        elif action == "publier":
-            liste.publier(request.user)
-            messages.success(request, "Liste publiée : les marins affectés ont été notifiés.")
+        elif action == "proposer":
+            self._proposer(request, liste)
         else:
             return HttpResponseBadRequest("Action inconnue.")
         return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
+
+    def _proposer(self, request, liste):
+        """BROUILLON -> PROPOSEE : réservé au chef de liste (peut_gerer),
+        cf. docstring de module de quarts/models.py."""
+        if liste.statut != liste.STATUT_BROUILLON:
+            messages.error(request, "Seul un brouillon peut être proposé à la publication.")
+            return
+        liste.proposer(request.user)
+        messages.success(
+            request, "Liste proposée à la publication : un publicateur habilité doit maintenant la valider."
+        )
+
+    def _publier(self, request, liste):
+        """PROPOSEE (ou déjà PUBLIEE, pour une republication après
+        correction) -> PUBLIEE. La toute première publication doit
+        obligatoirement transiter par l'étape Proposée (CLAUDE.md §2 : ne
+        pas imposer ce détour pour une simple correction ultérieure)."""
+        if liste.statut == liste.STATUT_BROUILLON:
+            messages.error(request, "Proposez d'abord la liste avant de pouvoir la publier.")
+            return
+        liste.publier(request.user)
+        messages.success(request, "Liste publiée : les marins affectés ont été notifiés.")
 
     def _generer_proposition(self, request, liste):
         """Calcule une proposition de répartition (quarts.generation) et la

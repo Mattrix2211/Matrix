@@ -36,7 +36,7 @@
             <span class="fw-semibold">{{ q.nom|default:"Liste de quarts" }}</span>
             <span class="d-block small text-muted font-mono">{{ q.fonction }} — {{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
           </span>
-          <span class="badge {% if q.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ q.get_statut_display }}</span>
+          <span class="badge {% if q.statut == 'PUBLIEE' %}text-bg-success{% elif q.statut == 'PROPOSEE' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ q.get_statut_display }}</span>
         </a>
         {% empty %}
         <div class="list-group-item text-muted text-center py-4">Aucune liste de quarts pour l'instant.</div>
@@ -55,7 +55,7 @@
             <span class="fw-semibold">{{ g.nom|default:g.type_service|default:"Liste de services de garde" }}</span>
             <span class="d-block small text-muted font-mono">{{ g.fonction }} — {{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
           </span>
-          <span class="badge {% if g.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ g.get_statut_display }}</span>
+          <span class="badge {% if g.statut == 'PUBLIEE' %}text-bg-success{% elif g.statut == 'PROPOSEE' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ g.get_statut_display }}</span>
         </a>
         {% empty %}
         <div class="list-group-item text-muted text-center py-4">Aucune liste de services de garde pour l'instant.</div>

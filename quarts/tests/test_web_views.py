@@ -101,6 +101,16 @@ class GestionCreneauxEtPublicationTests(TestCase):
         self.marin_hors_perimetre = User.objects.create_user(username="marin_hors_gestion", password="pass")
         UserProfile.objects.update_or_create(user=self.marin_hors_perimetre, defaults={"role": "EQUIPIER"})
 
+        # Publicateur habilité (rôle distinct du chef de liste, cf. workflow
+        # proposer -> valider/publier) : CHEF_SERVICE atteint le seuil
+        # configurable par défaut (matrix/core/role_thresholds.py, action
+        # "liste_service_publication"), et son périmètre personnel couvre
+        # exactement celui de la liste.
+        self.publicateur = User.objects.create_user(username="publicateur_gestion", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.publicateur, defaults={"role": "CHEF_SERVICE", "sector": self.sector}
+        )
+
         self.quart = Quart.objects.create(
             sector=self.sector, date_debut=timezone.localdate(), date_fin=timezone.localdate() + timedelta(days=6),
         )
@@ -135,15 +145,51 @@ class GestionCreneauxEtPublicationTests(TestCase):
         self.quart.refresh_from_db()
         self.assertEqual(self.quart.statut, Quart.STATUT_BROUILLON)
 
+    def test_chef_de_liste_peut_proposer_une_liste(self):
+        self.client.login(username="cdl_gestion", password="pass")
+        r = self.client.post(f"/quarts/quart/{self.quart.pk}/", {"action": "proposer"})
+        self.assertEqual(r.status_code, 302, r.content)
+        self.quart.refresh_from_db()
+        self.assertEqual(self.quart.statut, Quart.STATUT_PROPOSEE)
+        self.assertEqual(self.quart.proposee_par, self.cdl)
+        # Le publicateur habilité est notifié qu'une validation est attendue.
+        self.assertTrue(Notification.objects.filter(user=self.publicateur, verb__icontains="à valider").exists())
+
+    def test_chef_de_liste_seul_ne_peut_pas_publier_lui_meme(self):
+        # Workflow proposer -> valider/publier (cahier des charges §34) : un
+        # chef de liste qui n'a que le droit de proposer (ici rôle EQUIPIER)
+        # ne peut pas publier lui-même, même désigné ChefDeListe.
+        self.quart.proposer(self.cdl)
+        self.client.login(username="cdl_gestion", password="pass")
+        r = self.client.post(f"/quarts/quart/{self.quart.pk}/", {"action": "publier"})
+        self.assertEqual(r.status_code, 400)
+        self.quart.refresh_from_db()
+        self.assertEqual(self.quart.statut, Quart.STATUT_PROPOSEE)
+
+    def test_publication_refusee_avant_l_etape_proposee(self):
+        # Même un publicateur habilité ne peut pas publier un brouillon
+        # directement : il doit d'abord être proposé.
+        self.client.login(username="publicateur_gestion", password="pass")
+        r = self.client.post(f"/quarts/quart/{self.quart.pk}/", {"action": "publier"})
+        self.assertEqual(r.status_code, 302, r.content)
+        self.quart.refresh_from_db()
+        self.assertEqual(self.quart.statut, Quart.STATUT_BROUILLON)
+
     def test_publication_via_le_web_notifie_le_marin_affecte(self):
         debut = timezone.now() + timedelta(hours=3)
         CreneauQuart.objects.create(quart=self.quart, poste="Passerelle", debut=debut, fin=debut + timedelta(hours=4), marin=self.marin)
-        self.client.login(username="cdl_gestion", password="pass")
+        self.quart.proposer(self.cdl)
+        self.client.login(username="publicateur_gestion", password="pass")
         r = self.client.post(f"/quarts/quart/{self.quart.pk}/", {"action": "publier"})
         self.assertEqual(r.status_code, 302)
         self.quart.refresh_from_db()
         self.assertEqual(self.quart.statut, Quart.STATUT_PUBLIEE)
+        self.assertEqual(self.quart.publiee_par, self.publicateur)
         self.assertTrue(Notification.objects.filter(user=self.marin).exists())
+        # Une version horodatée est figée à la publication (cahier des
+        # charges §31).
+        self.assertEqual(self.quart.versions.count(), 1)
+        self.assertEqual(self.quart.versions.first().numero, 1)
 
     def test_marin_du_perimetre_peut_lire_une_liste_publiee(self):
         self.quart.publier(self.cdl)

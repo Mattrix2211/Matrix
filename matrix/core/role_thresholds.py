@@ -100,6 +100,11 @@ REGISTRE_ACTIONS = [
         "Discussions", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "liste_service_publication",
+        "Publier (valider) une liste de quarts ou de services de garde proposée par un chef de liste",
+        "Quarts / Services de garde", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
         "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,

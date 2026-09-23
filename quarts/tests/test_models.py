@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
-from accounts.models import FonctionQuartChoice, ServiceFunctionChoice, UserProfile
+from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice, UserProfile
 from notifications.models import Notification
 from org.models import Sector, Section, Service, Ship
 from quarts.models import (
@@ -16,6 +16,7 @@ from quarts.models import (
     Quart,
     ServiceGarde,
     peut_gerer_liste,
+    peut_publier_liste,
     perimetre_correspond,
     utilisateur_autorise_pour_perimetre,
 )
@@ -198,6 +199,106 @@ class PublicationTests(TestCase):
         CreneauServiceGarde.objects.create(service_garde=garde, poste="Garde 24h", debut=debut, fin=debut + timedelta(hours=24), marin=self.marin)
         garde.publier(self.chef)
         self.assertTrue(Notification.objects.filter(user=self.marin, verb__icontains="service de garde").exists())
+
+    def test_publication_journalisee_dans_l_audit(self):
+        self.quart.publier(self.chef)
+        self.assertTrue(AuditLog.objects.filter(actor=self.chef, action="liste_service_publiee").exists())
+
+
+class VersionnageTests(TestCase):
+    """Chaque publication fige une nouvelle version horodatée (cahier des
+    charges §31), sans jamais réécrire les précédentes."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Versionnage", code="VER")
+        self.chef = User.objects.create_user(username="chef_versionnage", password="pass")
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "COMMANDANT"})
+        self.marin = User.objects.create_user(username="marin_versionnage", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
+
+        self.quart = Quart.objects.create(
+            ship=self.ship, date_debut=timezone.localdate(), date_fin=timezone.localdate() + timedelta(days=6),
+        )
+        debut = timezone.now() + timedelta(hours=2)
+        self.creneau = CreneauQuart.objects.create(
+            quart=self.quart, poste="Passerelle", debut=debut, fin=debut + timedelta(hours=4), marin=self.marin,
+        )
+
+    def test_chaque_publication_cree_une_nouvelle_version(self):
+        self.quart.publier(self.chef)
+        self.quart.publier(self.chef)
+        self.assertEqual(self.quart.versions.count(), 2)
+        self.assertEqual(sorted(self.quart.versions.values_list("numero", flat=True)), [1, 2])
+
+    def test_version_figee_conserve_l_affectation_meme_apres_correction(self):
+        self.quart.publier(self.chef)
+        # Correction après publication : le marin est retiré du créneau.
+        self.creneau.marin = None
+        self.creneau.save(update_fields=["marin"])
+        self.quart.publier(self.chef)
+        v1 = self.quart.versions.get(numero=1)
+        v2 = self.quart.versions.get(numero=2)
+        self.assertEqual(v1.creneaux_fige[0]["marin_nom"], self.marin.get_full_name() or self.marin.username)
+        self.assertEqual(v2.creneaux_fige[0]["marin_nom"], "")
+
+    def test_version_active_a_une_date_donnee(self):
+        hier = timezone.localdate() - timedelta(days=1)
+        self.quart.publier(self.chef)
+        self.assertIsNone(self.quart.version_a_la_date(hier))
+        self.assertEqual(self.quart.version_a_la_date(timezone.localdate()).numero, 1)
+
+
+class WorkflowPropositionPublicationTests(TestCase):
+    """Statut intermédiaire Proposée entre Brouillon et Publiée, avec un rôle
+    distinct habilité à publier (cahier des charges §34)."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Workflow", code="WKF")
+        self.sector = Sector.objects.create(
+            service=Service.objects.create(ship=self.ship, name="Pont"), name="Manœuvre"
+        )
+        self.chef_de_liste = User.objects.create_user(username="chef_liste_workflow", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.chef_de_liste, defaults={"role": "EQUIPIER", "sector": self.sector}
+        )
+        # Recharge : la relation .profile mise en cache par le signal de
+        # création (accounts/models.py::create_user_profile, rôle EQUIPIER
+        # par défaut) reste sinon périmée après update_or_create ci-dessus.
+        self.chef_de_liste.refresh_from_db()
+        ChefDeListe.objects.create(user=self.chef_de_liste, sector=self.sector)
+
+        self.publicateur = User.objects.create_user(username="publicateur_workflow", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.publicateur, defaults={"role": "CHEF_SERVICE", "sector": self.sector}
+        )
+        self.publicateur.refresh_from_db()
+
+        self.quart = Quart.objects.create(
+            sector=self.sector, date_debut=timezone.localdate(), date_fin=timezone.localdate() + timedelta(days=6),
+        )
+
+    def test_chef_de_liste_seul_ne_peut_pas_publier(self):
+        self.assertFalse(peut_publier_liste(self.chef_de_liste, self.quart))
+
+    def test_publicateur_habilite_peut_publier(self):
+        self.assertTrue(peut_publier_liste(self.publicateur, self.quart))
+
+    def test_proposer_passe_le_statut_a_proposee_et_journalise(self):
+        self.quart.proposer(self.chef_de_liste)
+        self.quart.refresh_from_db()
+        self.assertEqual(self.quart.statut, Quart.STATUT_PROPOSEE)
+        self.assertEqual(self.quart.proposee_par, self.chef_de_liste)
+        self.assertIsNotNone(self.quart.proposee_le)
+        self.assertTrue(AuditLog.objects.filter(actor=self.chef_de_liste, action="liste_service_proposee").exists())
+
+    def test_proposer_notifie_le_publicateur_habilite(self):
+        self.quart.proposer(self.chef_de_liste)
+        self.assertTrue(
+            Notification.objects.filter(user=self.publicateur, verb__icontains="à valider").exists()
+        )
+        # Le chef de liste, qui n'est pas habilité à publier, n'est pas
+        # notifié lui-même (il est déjà à l'origine de la proposition).
+        self.assertFalse(Notification.objects.filter(user=self.chef_de_liste).exists())
 
 
 class CreneauValidationTests(TestCase):

@@ -9,8 +9,10 @@
     </div>
   </div>
   <div class="text-end">
-    <span class="badge fs-6 {% if liste.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ liste.get_statut_display }}</span>
-    {% if liste.statut == 'PUBLIEE' %}
+    <span class="badge fs-6 {% if liste.statut == 'PUBLIEE' %}text-bg-success{% elif liste.statut == 'PROPOSEE' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ liste.get_statut_display }}</span>
+    {% if liste.statut == 'PROPOSEE' %}
+      <div class="small text-muted mt-1">Proposée le {{ liste.proposee_le|date:"d/m/Y à H:i" }}{% if liste.proposee_par %} par {{ liste.proposee_par }}{% endif %}</div>
+    {% elif liste.statut == 'PUBLIEE' %}
       <div class="small text-muted mt-1">Publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}</div>
     {% endif %}
   </div>
@@ -80,7 +82,6 @@
   </div>
 </div>
 
-{% if peut_gerer %}
 {% if peut_generer_proposition or proposition %}
 <div class="card card-body mt-3 border-primary">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -151,7 +152,9 @@
 </div>
 {% endif %}
 
+{% if peut_gerer or peut_publier %}
 <div class="row g-4 mt-1">
+  {% if peut_gerer %}
   <div class="col-md-7">
     <h2 class="h5">Ajouter un créneau</h2>
     <div class="card card-body">
@@ -189,23 +192,50 @@
       </form>
     </div>
   </div>
+  {% endif %}
 
   <div class="col-md-5">
     <h2 class="h5">Publication</h2>
     <div class="card card-body">
-      {% if liste.statut == 'PUBLIEE' %}
-        <p class="mb-0 text-success"><i class="bi bi-check-circle"></i> Liste déjà publiée. Vous pouvez continuer à corriger les créneaux ci-dessus si nécessaire.</p>
-      {% else %}
-        <p class="text-muted">Une fois publiée, chaque marin affecté sur un créneau reçoit une notification.</p>
+      {% if liste.statut == 'BROUILLON' %}
+        {% if peut_gerer %}
+        <p class="text-muted">Une fois proposée, un publicateur habilité (rôle distinct du chef de liste) devra valider la liste avant que les marins affectés soient notifiés.</p>
+        <form method="post" onsubmit="return confirm('Proposer cette liste pour publication ?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="proposer">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-send-check"></i> Proposer la publication</button>
+        </form>
+        {% else %}
+        <p class="text-muted mb-0">Liste encore en brouillon : en attente d'une proposition du chef de liste.</p>
+        {% endif %}
+      {% elif liste.statut == 'PROPOSEE' %}
+        <p class="mb-2"><i class="bi bi-hourglass-split text-warning"></i> Proposée le {{ liste.proposee_le|date:"d/m/Y à H:i" }}{% if liste.proposee_par %} par {{ liste.proposee_par }}{% endif %} — en attente de validation.</p>
+        {% if peut_publier %}
         <form method="post" onsubmit="return confirm('Publier cette liste ? Les marins affectés seront notifiés.');">
           {% csrf_token %}
           <input type="hidden" name="action" value="publier">
           <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Publier la liste</button>
         </form>
+        {% else %}
+        <p class="text-muted small mb-0">Vous n'êtes pas habilité(e) à publier cette liste : en attente d'un publicateur (rôle distinct du chef de liste).</p>
+        {% endif %}
+      {% else %}
+        <p class="mb-2 text-success">
+          <i class="bi bi-check-circle"></i> Liste publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}.
+          {% if peut_gerer %}Vous pouvez continuer à corriger les créneaux ci-dessus si nécessaire.{% endif %}
+        </p>
+        {% if peut_publier %}
+        <form method="post" onsubmit="return confirm('Republier cette liste avec les corrections ? Une nouvelle version sera créée, sans effacer l&#39;historique.');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="publier">
+          <button type="submit" class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-repeat"></i> Republier (nouvelle version)</button>
+        </form>
+        {% endif %}
       {% endif %}
     </div>
   </div>
 </div>
+{% endif %}
 {% if formations_disponibles is not None %}
 <div class="card card-body mt-3">
   <h2 class="h5">Règles des échanges de tour</h2>
@@ -228,6 +258,59 @@
   </form>
 </div>
 {% endif %}
+
+{% if versions is not None %}
+<div class="mt-4">
+  <h2 class="h5"><i class="bi bi-clock-history"></i> Historique des versions</h2>
+  <p class="text-muted small mb-2">Chaque publication fige une nouvelle version : les précédentes restent consultables, jamais écrasées.</p>
+  <form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+      <label class="form-label small mb-0">Version active à une date donnée</label>
+      <input type="date" name="le" value="{{ date_consultee|date:'Y-m-d' }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Consulter</button>
+    </div>
+  </form>
+  {% if date_consultee %}
+    {% if version_consultee %}
+    <div class="alert alert-info py-2">
+      Au {{ date_consultee|date:"d/m/Y" }}, la version active était la <strong>version {{ version_consultee.numero }}</strong>
+      (publiée le {{ version_consultee.publiee_le|date:"d/m/Y à H:i" }}{% if version_consultee.publiee_par %} par {{ version_consultee.publiee_par }}{% endif %})
+      — {{ version_consultee.creneaux_fige|length }} créneau(x).
+    </div>
+    {% else %}
+    <div class="alert alert-secondary py-2">La liste n'était pas encore publiée au {{ date_consultee|date:"d/m/Y" }}.</div>
+    {% endif %}
+  {% endif %}
+  {% if versions %}
+  {% for v in versions %}
+  <details class="border rounded mb-2 p-2">
+    <summary class="fw-semibold">
+      Version {{ v.numero }} — {{ v.publiee_le|date:"d/m/Y à H:i" }}{% if v.publiee_par %} par {{ v.publiee_par }}{% endif %}
+      ({{ v.creneaux_fige|length }} créneau(x))
+    </summary>
+    <div class="table-responsive mt-2">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Poste</th><th>Début</th><th>Fin</th><th>Marin</th></tr></thead>
+        <tbody>
+          {% for c in v.creneaux_fige %}
+          <tr>
+            <td>{{ c.poste }}</td>
+            <td class="font-mono">{{ c.debut }}</td>
+            <td class="font-mono">{{ c.fin }}</td>
+            <td>{{ c.marin_nom|default:"Non affecté" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endfor %}
+  {% else %}
+  <p class="text-muted small">Aucune version publiée pour l'instant.</p>
+  {% endif %}
+</div>
 {% endif %}
 
 {% if compteurs_equite is not None %}

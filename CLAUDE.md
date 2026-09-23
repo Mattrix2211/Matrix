@@ -2,6 +2,8 @@
 
 Ce fichier est la référence absolue pour Claude Code. Lis-le intégralement à chaque session.
 
+**Vision stratégique :** voir `VISION_MATRIX_2_0.md` (racine du dépôt) avant toute décision d'architecture ou tout nouveau module — ce document cadre où le projet va (plateforme quotidienne du marin, pas seulement une GMAO) ; ce fichier-ci reste la référence du quotidien.
+
 ## Identité du projet
 
 **Matrix** — application de gestion opérationnelle pour la **Marine Nationale française**.
@@ -22,6 +24,8 @@ Le package Django s'appelle `matrix`, le projet s'appelle **Matrix**.
 3. **Espace personnel par marin** — chaque marin voit SES tâches, SES formations, SES maintenances assignées
 4. **Fonctionne hors-ligne** — le navire n'a pas toujours internet, aucune dépendance CDN critique
 5. **Priorité au visuel** — dès qu'un schéma, un graphique, une jauge, une timeline ou toute autre visualisation peut remplacer ou compléter du texte/tableau brut, elle doit être utilisée (tendances de mesures techniques, bilans, tableaux de bord, arbres de compétences...). Cohérent avec le principe n°2 : un graphique se lit plus vite qu'une colonne de chiffres. S'applique aussi bien aux nouvelles fonctionnalités qu'à l'audit régulier des écrans existants pour repérer ce qui pourrait encore être rendu plus visuel
+6. **Configuration plutôt que code en dur** — toute règle susceptible de varier selon le bâtiment, le service ou l'organisation (durée d'un quart, durée d'une garde, nombre de services par bâtiment, droits d'un rôle...) doit être configurable par les utilisateurs habilités, jamais figée dans le code. Voir `VISION_MATRIX_2_0.md` §16
+7. **Aucune fonctionnalité en silo** — avant tout développement, identifier les objets métier concernés, les rôles/périmètres impactés, le workflow complet déclenché (pas seulement l'action demandée), les notifications à envoyer et l'historique à conserver. Une tâche n'est "faite" que si elle respecte les permissions, ne casse rien d'existant, est testée, et reste cohérente avec la contrainte hors-ligne — pas seulement si l'action demandée s'affiche à l'écran. Voir `VISION_MATRIX_2_0.md` §21
 
 ## Direction artistique
 
@@ -171,11 +175,15 @@ Maximum 3 boucles de correction par tâche (cette limite est appliquée par l'ag
 
 ## Phases du projet
 
+**Feuille de route mise à jour le 06/09/2026** (voir `VISION_MATRIX_2_0.md` §22) — remplace l'ancien découpage en 6 phases. Correspondance avec les anciennes valeurs déjà utilisées dans Notion : ancienne Phase 1 (Fondation) ≈ nouvelle Phase 0 ; ancienne Phase 2 (Calendrier central) ⊂ nouvelle Phase 2 ; anciennes Phases 3/4/6 (Maintenance préventive/corrective, Matériel mobile) ⊂ nouvelle Phase 4 ; ancienne Phase 5 (Formations) ⊂ nouvelle Phase 5. Les tâches Notion déjà closes gardent leur ancien libellé de Phase tel quel — ne pas les réétiqueter rétroactivement.
+
 | Phase | Objectif |
 |-------|----------|
-| Phase 1 — Fondation | Comprendre le code, nettoyer, franciser |
-| Phase 2 — Calendrier central | Vue globale maintenance + formations + alertes |
-| Phase 3 — Maintenance préventive | Fiches guidées, checklists opérateur |
-| Phase 4 — Maintenance corrective | Retours d'expérience, base de pannes |
-| Phase 5 — Formations | Suivi qualifications, portabilité entre bâtiments |
-| Phase 6 — Matériel mobile | Extincteurs, EPI, suivi par catégorie + fiches individuelles |
+| Phase 0 — Assainissement | Sécurité (config prod, scoping), permissions, tests, audit de l'existant — avant tout nouveau module |
+| Phase 1 — Socle | Organisation, utilisateurs, permissions, configuration, notifications, recherche, audit |
+| Phase 2 — Vie quotidienne | Mon espace, calendrier, tâches, **quarts, services à quai/gardes, chefs de liste, échanges de service** |
+| Phase 3 — Communication | Discussions contextuelles (sur `threads`), annonces, notifications |
+| Phase 4 — Opérationnel | Équipements, maintenance préventive/corrective, anomalies, rondes, logistique/stocks |
+| Phase 5 — Connaissance | Documentation, procédures, formations, qualifications, RETEX |
+| Phase 6 — Pilotage | Dashboards par niveau hiérarchique, KPI, rapports, vue commandement |
+| Phase 7 — Écosystème | Synchronisation bâtiment ↔ infrastructure à terre, API, déploiement multi-bâtiments |
