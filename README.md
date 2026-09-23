@@ -2,7 +2,7 @@
 
 Plateforme numérique opérationnelle quotidienne pour la Marine nationale française — quarts, services à quai et échanges, calendrier, maintenance préventive et corrective, matériel mobile, rondes, anomalies, formations, logistique, notifications, tableaux de bord. La maintenance (GMAO) est un module de Matrix, pas sa finalité : l'objectif est que chaque marin ouvre Matrix tous les jours, pas seulement quand il touche à un équipement.
 
-**Vision, cahier des charges et feuille de route : page Notion « Cahier des charges » du projet Matrix** (il n'existe pas de fichier de vision dans ce dépôt). `CLAUDE.md` contient les règles techniques pour Claude Code et renvoie vers les pages Notion de référence. `docs/archive/` ne contient que des documents historiques.
+**Vision, cahier des charges et feuille de route : page Notion « Cahier des charges » du projet Matrix** (`docs/archive/VISION_MATRIX_2_0.md` n'en est qu'un ancien condensé). `CLAUDE.md` contient les règles techniques pour Claude Code et renvoie vers les pages Notion de référence. `docs/archive/` ne contient que des documents historiques.
 
 ## Stack
 - Python 3.12+, Django 5, DRF, Bootstrap 5 + HTMX
@@ -97,7 +97,8 @@ Les tests nécessitent un fichier `.env` local contenant au minimum `DJANGO_DEBU
 - `maintenance` — plans préventifs, occurrences, exécutions guidées, signature de validation (mot de passe) sur les transitions critiques
 - `logistics` — tickets correctifs, demandes de pièces, stock, retours d'expérience (REX)
 - `training` — formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation, réservation self-service de sessions
-- `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, absences, compteur d'équité, génération assistée des listes
+- `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, compteur d'équité, génération assistée des listes
+- `absences` — absences et indisponibilités, prises en compte dans les échanges, la génération des listes et le calendrier
 - `rondes` — rondes de contrôle avec points de contrôle configurables et anomalies automatiques
 - `threads` — discussions génériques attachées à n'importe quel objet
 - `notifications` — alertes in-app (info/warning/danger) + Web Push pour le niveau danger

@@ -16,7 +16,7 @@ Ce fichier est la référence technique pour Claude Code. Lis-le intégralement 
 | Installation et lancement de l'application | `README.md` | — |
 | Direction artistique | `design/DESIGN_SYSTEM.md` (submodule) | — |
 
-Quand une tâche Notion cite « le cahier des charges §N », il s'agit de la page Notion « Cahier des charges ». **Il n'existe pas de fichier `VISION_MATRIX_2_0.md`** : les anciennes références à ce fichier désignent cette page. `docs/archive/` contient des documents historiques, à ne pas suivre comme consignes actuelles.
+Quand une tâche Notion cite « le cahier des charges §N », il s'agit de la page Notion « Cahier des charges ». Les anciennes références à « `VISION_MATRIX_2_0.md` §N » désignent un condensé de cette page rédigé par l'agent le 06/09/2026, désormais archivé dans `docs/archive/VISION_MATRIX_2_0.md` : sa numérotation diffère de celle de Notion, une table de correspondance figure en tête du fichier. `docs/archive/` contient des documents historiques, à ne pas suivre comme consignes actuelles : en cas de différence, la page Notion fait foi.
 
 Avant toute décision sur les rôles, les droits, les périmètres ou un circuit de validation, lis la page « Organigramme et rôles ». Si le code et cette page divergent, c'est la page qui fait foi : signale l'écart à l'utilisateur.
 
@@ -49,6 +49,7 @@ Avant toute décision sur les rôles, les droits, les périmètres ou un circuit
 8. **Tout est traçable** (§30, §41) — qui a fait quoi, quand, sur quelle donnée, quelle était la valeur précédente. Une modification n'écrase jamais silencieusement l'ancienne valeur : s'appuyer sur l'`AuditLog` unifié existant.
 9. **Le dialogue est une fonction métier** (§16) — la communication est attachée aux objets de travail (tâche, équipement, anomalie, ticket), via l'app `threads` existante.
 10. **Administration distribuée** (§5) — distinguer permission (que puis-je faire ?), périmètre (sur quoi ?), responsabilité (que dois-je gérer ?) et configuration (que puis-je adapter ?). Les chefs gèrent leur périmètre ; l'administrateur technique gère la plateforme, pas le fonctionnement métier.
+11. **Aucune fonctionnalité en silo** (§41) — avant tout développement, identifier les objets métier concernés, les rôles et périmètres impactés, le workflow complet déclenché (pas seulement l'action demandée), les notifications à envoyer, l'historique à conserver et les modules existants à réutiliser plutôt qu'à dupliquer. Exemple : une « demande de matériel » implique la demande, la notification du chef, la validation, la vérification du stock, le mouvement de stock, la notification du marin et l'historique. Une tâche n'est faite que si elle respecte les permissions, ne casse rien d'existant, est testée et reste utilisable hors ligne.
 
 ## Direction artistique
 
@@ -86,7 +87,7 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 - **Fiches de maintenance** : une fiche par gamme (calendaire ou heures de marche, gammes non cumulatives), contenant checklist et/ou relevés. Matériel : une fiche par catégorie du catalogue, toujours flotte, publiée par le responsable de spécialité (le bord peut seulement proposer). Installations : fiches bord, validées par le chef de service puis le commandant adjoint du service.
 - **Comptes rendus d'intervention** : générés depuis les fiches, saisie en série façon tableur pour le matériel, historique et suivi des relevés automatiques, notifiés au chef de secteur (modification possible et tracée).
 
-## Architecture Django — 13 modules
+## Architecture Django — 14 modules
 
 | App | Rôle |
 |-----|------|
@@ -96,7 +97,8 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 | `maintenance` | Plans préventifs, occurrences, exécutions, checklists guidées, signature de validation sur transitions critiques |
 | `logistics` | Tickets correctifs, anomalies, demandes de pièces, stock, retours d'expérience (REX) |
 | `training` | Formations, prérequis, catégories, arbre de compétences, référents, sessions, circuits de candidature |
-| `quarts` | Quarts, services à quai et gardes, listes (chef de liste), échanges, absences, équité, génération assistée |
+| `quarts` | Quarts, services à quai et gardes, listes (chef de liste), échanges, équité, génération assistée |
+| `absences` | Absences et indisponibilités des marins, prises en compte par les échanges, la génération des listes et le calendrier |
 | `rondes` | Rondes de contrôle : modèles, points de contrôle configurables, exécutions |
 | `threads` | Discussions génériques (attachées à n'importe quel objet) |
 | `notifications` | Alertes in-app (info/warning/danger), Web Push pour le niveau danger |

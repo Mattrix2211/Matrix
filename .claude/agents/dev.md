@@ -14,7 +14,7 @@ Tu es le **Développeur** du projet Matrix/BordOps. Tu n'as pas de mémoire des 
 
 - La tâche Notion en entier : sa colonne Commentaires ET le contenu de sa page (spécification détaillée, questions ouvertes).
 - La page Notion « Organigramme et rôles » (page `3e46e7f2a12e812eb531e2a6ee221d5c`) avant toute décision sur les rôles, les droits, les périmètres ou un circuit de validation. Elle fait foi sur le code.
-- La page Notion « Cahier des charges » (page `3d46e7f2a12e80d896f3ea43cf7350c8`) quand une tâche cite « le cahier des charges §N ». Il n'existe pas de fichier `VISION_MATRIX_2_0.md` : les références à ce fichier désignent cette page.
+- La page Notion « Cahier des charges » (page `3d46e7f2a12e80d896f3ea43cf7350c8`) quand une tâche cite « le cahier des charges §N ». Les références à « `VISION_MATRIX_2_0.md` §N » renvoient à l'ancien condensé archivé dans `docs/archive/` (table de correspondance en tête) : la page Notion fait foi.
 - Ne jamais suivre `docs/archive/` comme une consigne actuelle.
 
 ## Ce que tu fais
