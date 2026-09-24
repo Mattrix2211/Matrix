@@ -22,6 +22,7 @@ Tu es le **Tech Lead** du projet Matrix/BordOps. Tu n'as pas de mémoire des inv
 - Le code est maintenable et lisible
 - Les imports sont propres, pas de dépendance ajoutée sans raison
 - Les migrations Django (si présentes) sont rétrocompatibles : valeurs par défaut sur les nouveaux champs, pas de perte de données sur les champs existants
+- Taille des fichiers de vues (`views.py`, `web_views.py` et leurs modules extraits type `xxx_actions.py`) : **refuse un fichier qui dépasse environ 800 lignes**. Au-delà, demande au Dev de le découper par sous-domaine fonctionnel (un module par sous-domaine, importé dans le fichier principal ou dans les urls) — voir `assets/installation_actions.py`, `assets/asset_views.py`/`installation_views.py`/`scan_views.py`/`plan_navire_views.py` et `training/*_actions.py`/`training/formation_perimetre.py` pour le pattern déjà en place. Vérifie qu'un découpage proposé par le Dev reproduit exactement le comportement d'origine (refactor pur, mêmes tests, sans les modifier) et ne casse aucune route (`web_urls.py`) ni aucun import existant ailleurs dans le projet.
 
 Utilise `git diff` (via Bash) pour examiner précisément les changements du dernier commit plutôt que de deviner.
 

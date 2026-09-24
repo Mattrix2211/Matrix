@@ -23,15 +23,17 @@ from .serializers import (
 # Réutilise le contrôle de périmètre du Circuit C (chef de secteur -> chef de
 # service), déjà correct côté web — jamais recréé ici (cf. CLAUDE.md,
 # principe « ne jamais recréer un système déjà existant »). Import direct de
-# training.web_views : aucun cycle, web_views.py n'importe jamais views.py.
-# peut_modifier_formation_bord/formation_bord_en_service/
+# training.formation_perimetre (module de seuils/périmètre partagé, extrait de
+# training/web_views.py lors du re-découpage du fichier, tâche Notion « [ARCH]
+# Découper training/web_views.py... ») : aucun cycle, ce module n'importe
+# jamais views.py. peut_modifier_formation_bord/formation_bord_en_service/
 # NIVEAU_REQUIS_VALIDATION_FORMATION_BORD : mêmes garde-fous que
-# TrainingCourseListView._proposer_formation_bord, appliqués ici à
+# formation_bord_actions.py::_action_proposer_formation_bord, appliqués ici à
 # TrainingCourseViewSet.perform_update/perform_destroy suite au deuxième
 # refus du Tech Lead (tâche Notion Circuit C) — un PATCH/PUT/DELETE sur une
 # formation « bord » via l'API contournait jusqu'ici totalement ces
 # contrôles, pourtant déjà corrects côté web.
-from .web_views import (
+from .formation_perimetre import (
     formation_bord_en_service,
     NIVEAU_REQUIS_VALIDATION_FORMATION_BORD,
     peut_modifier_formation_bord,
