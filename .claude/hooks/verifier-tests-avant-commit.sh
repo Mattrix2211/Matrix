@@ -8,7 +8,10 @@ command=$(echo "$input" | python -c "import json,sys; print(json.load(sys.stdin)
 
 if [[ "$command" == *"git commit"* ]]; then
     cd "$CLAUDE_PROJECT_DIR" || exit 1
-    if ! python manage.py test > /tmp/matrix_test_output.log 2>&1; then
+    # --parallel auto répartit la suite complète sur tous les cœurs CPU disponibles
+    # (nécessite tblib, dans requirements.txt, sinon une erreur de test dans un
+    # processus non principal fait planter la remontée du résultat).
+    if ! python manage.py test --parallel auto > /tmp/matrix_test_output.log 2>&1; then
         echo "❌ Commit bloqué : les tests Django échouent." >&2
         echo "Voir le détail : /tmp/matrix_test_output.log" >&2
         exit 2

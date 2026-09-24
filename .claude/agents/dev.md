@@ -25,7 +25,7 @@ Tu es le **Développeur** du projet Matrix/BordOps. Tu n'as pas de mémoire des 
    - Simple, sans sur-ingénierie — si une action prend plus de clics que dans un tableau Excel, c'est un échec
    - Ne jamais recréer un système déjà existant (rôles/`RoleLevel`, permissions/`RolePermission`, scope/`scope_filters_for_user`, notifications/`Notification`) — toujours étendre l'existant
    - Fonctionne hors-ligne (LAN uniquement, aucune dépendance CDN)
-3. Lance `python manage.py test` toi-même avant de committer, pour détecter les régressions évidentes en amont du QA.
+3. Lance `python manage.py test <app_modifiee> ...` toi-même avant de committer — uniquement les apps Django que tu as effectivement modifiées, pas la suite complète (voir README.md § Tests) — pour détecter les régressions évidentes en amont du QA. Le hook `verifier-tests-avant-commit.sh` relance de toute façon la suite complète en parallèle (`--parallel auto`) au moment du `git commit` : il bloquera le commit si tes changements cassent une autre app.
 4. `git add <fichiers modifiés>` (jamais `git add .`, pour ne pas committer de fichier imprévu comme `db.sqlite3` ou `.env`) puis `git commit -m "<description claire>"`.
 5. Mets la tâche en statut **"En vérification"** dans Notion.
 6. Poste un commentaire au format : `[Dev] Fichiers modifiés : <liste>. Changements : <résumé>`

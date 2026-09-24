@@ -148,9 +148,11 @@ celery -A matrix beat -l info
 python manage.py makemigrations
 python manage.py migrate
 
-# Tests
-python manage.py test
-python manage.py test <app>
+# Tests — pendant le développement, ne lancer QUE les apps modifiées (retour rapide) :
+python manage.py test <app_modifiee> <autre_app_modifiee>
+
+# Tests — suite complète en parallèle (nécessite tblib), avant commit / QA :
+python manage.py test --parallel auto
 ```
 
 **Environnement de développement :** sans variable `DJANGO_DEBUG`, l'application démarre en mode production et exige une vraie `DJANGO_SECRET_KEY`. En développement (y compris dans une session Claude Code dans le cloud), créer un fichier `.env` local (jamais commité) à partir de `.env.example`, avec au minimum `DJANGO_DEBUG=1`. Si l'installation de `pywebpush` échoue (dépendance `http-ece` qui ne compile pas), essayer `pip install --use-pep517 pywebpush` : sans elle, 16 tests de notifications échouent.

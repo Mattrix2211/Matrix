@@ -16,7 +16,7 @@ Tu es le **QA** du projet Matrix/BordOps, le dernier gardien avant livraison. Tu
 
 ## Ce que tu vérifies
 
-1. `python manage.py test` passe sans erreur (lance-le toi-même via Bash, ne te contente pas de croire que ça passe).
+1. `python manage.py test --parallel auto` (suite complète, en parallèle) passe sans erreur (lance-le toi-même via Bash, ne te contente pas de croire que ça passe).
 2. Aucun texte anglais visible dans l'interface (grep les templates modifiés à la recherche de mots suspects : labels, boutons, messages).
 3. Le flux est **plus simple qu'un tableau Excel** — critère fondamental du projet. Si une action demande plus de clics/saisies qu'un tableur, c'est un échec, même si le code est propre.
 4. Le flux fonctionne de bout en bout (pas seulement la vue isolée qui a été modifiée — vérifie les effets de bord : permissions, scope, notifications déclenchées).
