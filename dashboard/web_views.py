@@ -29,7 +29,7 @@ from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
-from quarts.services import compteur_equite_marin
+from quarts.services import compteur_equite_marin, feuille_service_du_jour_pour
 from rondes.services import rondes_du_marin
 from training.models import TrainingSession
 from training.services import qualifications_validees_de
@@ -123,6 +123,12 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
         # entier restent réservés au chef de liste, sur la fiche de la liste
         # (quarts/web_views.py::_DetailListeViewBase).
         contexte["mes_compteurs_equite_garde"] = compteur_equite_marin(self.request.user, aujourdhui=aujourdhui)
+
+        # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
+        # service quotidienne — personnel de service et en-tête (à quai) ») :
+        # affichée sur l'accueil uniquement si publiée, avec mise en évidence
+        # si le marin connecté est lui-même de service ce jour-là.
+        contexte["feuille_service_du_jour"] = feuille_service_du_jour_pour(self.request.user, aujourdhui)
 
         # Rondes à faire aujourd'hui (ou en retard) : assignées au marin ou de son périmètre.
         contexte["mes_rondes"] = list(rondes_du_marin(self.request.user, aujourdhui)[:10])

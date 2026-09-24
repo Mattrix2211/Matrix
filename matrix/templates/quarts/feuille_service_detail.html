@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">Feuille de service — {{ ship.name }}</h1>
+    <div class="text-muted font-mono">{{ date|date:"l d/m/Y"|capfirst }}</div>
+  </div>
+  <div class="text-end">
+    {% if feuille %}
+    <span class="badge fs-6 {% if feuille.statut == 'PUBLIEE' %}text-bg-success{% elif feuille.statut == 'BROUILLON' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">
+      {{ feuille.get_statut_display }}
+    </span>
+    {% if feuille.statut == 'PUBLIEE' %}
+    <div class="small text-muted mt-1">Publiée le {{ feuille.publiee_le|date:"d/m/Y à H:i" }}{% if feuille.publiee_par %} par {{ feuille.publiee_par }}{% endif %}</div>
+    {% endif %}
+    {% else %}
+    <span class="badge fs-6 text-bg-light text-muted border">Aucune feuille</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div class="btn-group">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk veille|date:'Y-m-d' %}"><i class="bi bi-chevron-left"></i> Veille</a>
+    <a class="btn btn-outline-secondary btn-sm {% if date == aujourdhui %}active{% endif %}" href="{% url 'feuille-service-detail' ship.pk aujourdhui|date:'Y-m-d' %}">Aujourd'hui</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk lendemain|date:'Y-m-d' %}">Lendemain <i class="bi bi-chevron-right"></i></a>
+  </div>
+  {% if peut_configurer %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-reglages' %}?ship={{ ship.pk }}"><i class="bi bi-gear"></i> Réglages</a>
+  {% endif %}
+</div>
+
+{% if je_suis_de_service %}
+<div class="alert alert-success"><i class="bi bi-star-fill"></i> Vous êtes de service ce jour-là — votre fonction est mise en évidence ci-dessous.</div>
+{% endif %}
+
+{% if not feuille %}
+<div class="card card-body">
+  <p class="text-muted mb-2">Aucune feuille de service n'a encore été rédigée pour cette date. Le personnel de service ci-dessous est déjà calculé automatiquement depuis les tours publiés.</p>
+  {% if peut_rediger %}
+  <form method="post" class="d-inline">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="creer">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-file-earmark-plus"></i> Créer le brouillon</button>
+  </form>
+  {% endif %}
+</div>
+{% elif feuille.motif_retour and feuille.statut == 'BROUILLON' %}
+<div class="alert alert-warning"><i class="bi bi-arrow-counterclockwise"></i> Renvoyée pour correction : {{ feuille.motif_retour }}</div>
+{% endif %}
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-6">
+    <h2 class="h5">En-tête</h2>
+    <div class="card">
+      {% if feuille and peut_gerer_brouillon %}
+      <form method="post" class="card-body">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="enregistrer_entete">
+        {% for e in rubriques %}
+        <div class="mb-2">
+          <label class="form-label small mb-0">{{ e.rubrique.libelle }}</label>
+          {% if e.rubrique.type_saisie == 'FIXE' %}
+          <div class="font-mono">{{ e.valeur|default:"—" }} <span class="text-muted small">(valeur fixe du navire)</span></div>
+          {% else %}
+          <input type="text" name="rubrique_{{ e.rubrique.pk }}" value="{{ e.valeur }}" class="form-control form-control-sm">
+          {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-muted small mb-0">Aucune rubrique configurée pour ce navire.</p>
+        {% endfor %}
+        {% if rubriques %}<button type="submit" class="btn btn-outline-primary btn-sm mt-2">Enregistrer l'en-tête</button>{% endif %}
+      </form>
+      {% else %}
+      <ul class="list-group list-group-flush">
+        {% for e in rubriques %}
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">{{ e.rubrique.libelle }}</span>
+          <span class="font-mono">{{ e.valeur|default:"—" }}</span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">Aucune rubrique configurée pour ce navire.</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <h2 class="h5">Personnel de service</h2>
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Fonction</th><th>Titulaire</th></tr></thead>
+          <tbody>
+            {% for e in personnel %}
+            <tr {% if e.creneau.marin_id == request.user.pk %}class="table-success"{% endif %}>
+              <td>{{ e.fonction.libelle }}</td>
+              <td>
+                {% if e.creneau and e.creneau.marin %}
+                  {{ e.creneau.marin.profile.grade }} {{ e.creneau.marin.get_full_name|default:e.creneau.marin.username }}
+                  {% if e.creneau.marin_id == request.user.pk %}<span class="badge text-bg-success ms-1">Vous</span>{% endif %}
+                {% else %}
+                  <span class="text-muted">À définir</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-center text-muted py-4">Aucune fonction de service configurée pour ce navire.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if feuille %}
+<div class="mt-4">
+  <h2 class="h5">Circuit de validation</h2>
+  <div class="card card-body">
+    <div class="d-flex flex-wrap gap-3 mb-3 font-mono small">
+      <span class="{% if feuille.statut == 'BROUILLON' %}fw-bold text-primary{% else %}text-muted{% endif %}"><i class="bi bi-1-circle"></i> Rédaction</span>
+      <span>→</span>
+      <span class="{% if feuille.statut == 'VISA_SECTEUR' %}fw-bold text-primary{% elif feuille.visa_secteur_le %}text-success{% else %}text-muted{% endif %}"><i class="bi bi-2-circle"></i> Visa secteur</span>
+      <span>→</span>
+      <span class="{% if feuille.statut == 'VISA_SERVICE' %}fw-bold text-primary{% elif feuille.visa_service_le %}text-success{% else %}text-muted{% endif %}"><i class="bi bi-3-circle"></i> Visa service</span>
+      <span>→</span>
+      <span class="{% if feuille.statut == 'VISA_COMAEQ' %}fw-bold text-primary{% elif feuille.visa_comaeq_le %}text-success{% else %}text-muted{% endif %}"><i class="bi bi-4-circle"></i> Visa COMAEQ</span>
+      <span>→</span>
+      <span class="{% if feuille.statut == 'PUBLIEE' %}fw-bold text-success{% else %}text-muted{% endif %}"><i class="bi bi-5-circle"></i> Publication</span>
+    </div>
+
+    {% if feuille.statut == 'BROUILLON' and peut_gerer_brouillon %}
+    <form method="post" onsubmit="return confirm('Proposer cette feuille au premier visa ?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="proposer">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-send-check"></i> Proposer à la validation</button>
+    </form>
+    {% endif %}
+
+    {% if peut_viser_secteur %}
+    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de secteur ?');">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_secteur">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de secteur)</button>
+    </form>
+    {% endif %}
+    {% if peut_viser_service %}
+    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de service ?');">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_service">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de service)</button>
+    </form>
+    {% endif %}
+    {% if peut_viser_comaeq %}
+    <form method="post" class="d-inline" onsubmit="return confirm('Viser en tant que COMAEQ et publier la feuille ? La fraction de service sera notifiée.');">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq">
+      <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Viser et publier (COMAEQ)</button>
+    </form>
+    {% endif %}
+
+    {% if feuille.statut == 'VISA_SECTEUR' or feuille.statut == 'VISA_SERVICE' or feuille.statut == 'VISA_COMAEQ' %}
+      {% if peut_viser_secteur or peut_viser_service or peut_viser_comaeq %}
+      <details class="mt-3">
+        <summary class="text-danger">Renvoyer en brouillon pour correction</summary>
+        <form method="post" class="row g-2 mt-1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="renvoyer">
+          <div class="col-md-8">
+            <input type="text" name="motif" class="form-control form-control-sm" placeholder="Motif du renvoi (obligatoire)" required>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Renvoyer</button>
+          </div>
+        </form>
+      </details>
+      {% endif %}
+    {% endif %}
+
+    {% if not peut_gerer_brouillon and not peut_viser_secteur and not peut_viser_service and not peut_viser_comaeq %}
+    <p class="text-muted small mb-0">En attente : {{ feuille.get_statut_display|lower }}.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if versions %}
+<div class="mt-4">
+  <h2 class="h5"><i class="bi bi-clock-history"></i> Historique des versions</h2>
+  {% for v in versions %}
+  <details class="border rounded mb-2 p-2">
+    <summary class="fw-semibold">Version {{ v.numero }} — {{ v.publiee_le|date:"d/m/Y à H:i" }}{% if v.publiee_par %} par {{ v.publiee_par }}{% endif %}</summary>
+    <div class="row mt-2">
+      <div class="col-md-6">
+        <strong class="small">En-tête</strong>
+        <ul class="list-unstyled small">
+          {% for e in v.contenu_fige.entete %}<li>{{ e.libelle }} : {{ e.valeur|default:"—" }}</li>{% endfor %}
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <strong class="small">Personnel</strong>
+        <ul class="list-unstyled small">
+          {% for e in v.contenu_fige.personnel %}<li>{{ e.fonction }} : {{ e.marin|default:"à définir" }}</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

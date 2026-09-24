@@ -25,7 +25,7 @@ from datetime import datetime, time
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from .models import CreneauServiceGarde, ServiceGarde, marins_du_perimetre
+from .models import CreneauServiceGarde, FeuilleService, ServiceGarde, marins_du_perimetre
 
 User = get_user_model()
 
@@ -154,6 +154,30 @@ def _ajouter_visuels(resultat, periode):
             }
             for categorie, valeur in item[periode].items()
         }
+
+
+def feuille_service_du_jour_pour(user, date_=None):
+    """Feuille de service PUBLIÉE du navire de `user` pour `date_` (par
+    défaut aujourd'hui), avec le drapeau `je_suis_de_service` calculé — pour
+    l'intégration sur l'accueil (dashboard) et dans « Ma journée »
+    (calendar_app), cf. tâche Notion « Feuille de service quotidienne ».
+    None si l'utilisateur n'a pas de navire rattaché ou qu'aucune feuille
+    n'est publiée pour ce jour (une feuille en brouillon ou en cours de visa
+    n'est jamais montrée ici : seule une feuille publiée concerne tout
+    l'équipage)."""
+    profile = getattr(user, "profile", None)
+    if not profile or not profile.ship_id:
+        return None
+    date_ = date_ or timezone.localdate()
+    feuille = FeuilleService.objects.filter(
+        ship_id=profile.ship_id, date=date_, statut=FeuilleService.STATUT_PUBLIEE
+    ).first()
+    if feuille is None:
+        return None
+    je_suis_de_service = any(
+        e["creneau"] and e["creneau"].marin_id == user.pk for e in feuille.personnel
+    )
+    return {"feuille": feuille, "je_suis_de_service": je_suis_de_service}
 
 
 def compteurs_equite_perimetre(liste, aujourdhui=None):

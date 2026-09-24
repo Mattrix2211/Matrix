@@ -121,7 +121,7 @@ from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Section, Service, Ship
 
@@ -728,3 +728,523 @@ class EchangeServiceEvenement(TimeStampedModel):
 
     def get_action_libelle(self):
         return self.LIBELLES.get(self.action, self.action)
+
+
+# ---------------------------------------------------------------------------
+# Feuille de service quotidienne (tâche Notion « Feuille de service
+# quotidienne — personnel de service et en-tête (à quai) »), périmètre V1
+# limité au navire à quai (pas de version « en mer », cf. tâche de suivi).
+#
+# Pourquoi dans l'app `quarts` plutôt qu'une nouvelle app : la feuille de
+# service n'a de sens que parce qu'elle recopie AUTOMATIQUEMENT le personnel
+# de service du jour depuis les tours déjà publiés (ServiceGarde/
+# CreneauServiceGarde, cf. correspondance ci-dessous) — elle est
+# structurellement un CONSOMMATEUR de `quarts`, pas un domaine métier séparé.
+# Une nouvelle app aurait imposé soit un import circulaire, soit une
+# duplication du référentiel/de la logique de correspondance poste <->
+# fonction. Rester ici permet de réutiliser tel quel `RoleThresholdConfig`/
+# role_thresholds.py (seuils de visa) et `AuditLog`/`Notification` déjà
+# importés dans ce module.
+#
+# Correspondance fonction de service <-> tour de service publié :
+# `ServiceGarde.fonction` (FK ServiceFunctionChoice) porte une fonction pour
+# TOUTE une liste (ex. « Gradé coupé »), tandis que `CreneauAbstract.poste`
+# (texte libre) distingue les titulaires SIMULTANÉS d'une même fonction un
+# jour donné (ex. « Gradé coupé 1 », « Gradé coupé 2 », cf. docstring de
+# CreneauAbstract : « une ligne par marin »). La feuille de service a besoin
+# de CETTE granularité fine (chaque ligne de la feuille = un poste précis) :
+# la correspondance se fait donc sur `poste` (FonctionFeuilleService.
+# poste_recherche, comparé sans casse), pas sur `ServiceGarde.fonction`.
+# Seuls les créneaux d'une liste PUBLIÉE comptent, et le calcul est fait EN
+# DIRECT à chaque affichage (jamais figé sur la feuille elle-même) : si un
+# échange de service est validé après publication de la feuille, la page
+# reflète immédiatement le nouveau titulaire sans action sur la feuille — la
+# trace de l'échange reste dans EchangeServiceEvenement (quarts/echanges.py),
+# pas dupliquée ici (CLAUDE.md §2 : pas de sur-ingénierie pour une simple
+# lecture). Seul l'INSTANTANÉ figé à la publication (VersionFeuilleService)
+# ne bouge plus après coup, comme n'importe quel historique.
+#
+# Circuit de validation (décision de Matthis du 24/09/2026, même esprit que
+# la fiche d'installation — page Notion « Organigramme et rôles », section 4
+# — avec un palier de plus car le rédacteur, le BSC, n'est en général qu'un
+# opérateur de secteur) :
+#
+#   BROUILLON --(proposer)--> [VISA_SECTEUR, sauté si le rédacteur est déjà
+#   CHEF_SECTEUR ou plus] --> VISA_SERVICE --> VISA_COMAEQ --(le visa COMAEQ
+#   vaut publication, un seul clic)--> PUBLIEE
+#
+# Hypothèse de cadrage à signaler explicitement (reprise dans le
+# compte-rendu [Dev] de la tâche) : le rôle COMAEQ (commandant adjoint
+# équipage) n'a PAS de modélisation dédiée dans l'application (page Notion
+# « Organigramme et rôles », section 3 : ligne « Commandants adjoints »
+# marquée 🆕 ; tâche Notion « [CADRAGE @po] Ajouter le niveau des
+# commandants adjoints » encore À faire, avec la mention explicite
+# « Prérequis du circuit de validation des fiches de maintenance » — cette
+# feuille de service a EXACTEMENT le même prérequis manquant). En son
+# absence, le visa « COMAEQ » est ici approximé par le seuil de rôle
+# ETAT_MAJOR sur le NAVIRE de la feuille (n'importe quel membre de
+# l'état-major du bord, pas seulement celui en charge de l'équipage) —
+# seuil configurable comme les deux autres visas (matrix/core/
+# role_thresholds.py, catégorie « Feuille de service »). À corriger pour
+# router précisément vers le COMAEQ le jour où ce niveau existera.
+#
+# Comme pour ListeServiceAbstract, la publication fige un instantané
+# horodaté (VersionFeuilleService) sans jamais réécrire les précédents —
+# volontairement PAS une sous-classe de VersionListeAbstract : son champ
+# `creneaux_fige` est nommé et documenté pour un instantané de créneaux,
+# alors qu'une feuille de service fige un en-tête ET une liste de personnel,
+# de forme différente. Dupliquer 4 champs triviaux (numero, publiee_le,
+# publiee_par, contenu figé) est plus lisible que de détourner un nom de
+# champ qui ne correspond pas au domaine — même PRINCIPE de versionnage par
+# instantané (cahier des charges §31), pas la même classe.
+
+NIVEAU_SUPERVISION_GLOBALE_FEUILLE_SERVICE = RoleLevel.COMMANDANT
+
+
+class RubriqueEnTeteFeuilleService(TimeStampedModel):
+    """Rubrique configurable de l'en-tête d'une feuille de service, par
+    navire (CLAUDE.md §6 : aucune liste de rubriques codée en dur, la
+    répartition fixe/variable dépend du navire et de sa situation). Une
+    rubrique FIXE porte une valeur commune à toutes les feuilles du navire
+    (ex. mesures de sécurité en vigueur, rarement modifiées) ; une rubrique
+    QUOTIDIENNE est ressaisie à chaque feuille (ex. saint du jour)."""
+
+    TYPE_FIXE = "FIXE"
+    TYPE_QUOTIDIENNE = "QUOTIDIENNE"
+    TYPE_CHOICES = (
+        (TYPE_FIXE, "Fixe (valeur du navire)"),
+        (TYPE_QUOTIDIENNE, "Saisie chaque jour"),
+    )
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="rubriques_feuille_service")
+    ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
+    libelle = models.CharField(max_length=128, verbose_name="Libellé")
+    type_saisie = models.CharField(max_length=16, choices=TYPE_CHOICES, default=TYPE_QUOTIDIENNE)
+    valeur_fixe = models.CharField(max_length=255, blank=True, default="", verbose_name="Valeur (rubrique fixe)")
+    actif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("ordre", "pk")
+        unique_together = ("ship", "libelle")
+        verbose_name = "Rubrique d'en-tête (feuille de service)"
+        verbose_name_plural = "Rubriques d'en-tête (feuille de service)"
+
+    def __str__(self):
+        return f"{self.libelle} ({self.ship})"
+
+
+class FonctionFeuilleService(TimeStampedModel):
+    """Fonction de service configurable affichée sur la feuille, par navire
+    et dans un ordre configurable (ex. officier de garde, gradé coupé 1,
+    gradé coupé 2...). `poste_recherche` est le texte à retrouver dans
+    `CreneauServiceGarde.poste` pour ce jour (comparaison insensible à la
+    casse) — laissé vide, il vaut `libelle` (cas le plus courant où le
+    libellé affiché et le poste saisi dans les tours coïncident)."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="fonctions_feuille_service")
+    ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
+    libelle = models.CharField(max_length=128, verbose_name="Fonction")
+    poste_recherche = models.CharField(
+        max_length=255, blank=True, default="",
+        verbose_name="Poste correspondant dans les tours de service",
+        help_text=(
+            "Doit correspondre exactement au champ « Poste » saisi sur le créneau de service de garde "
+            "(insensible à la casse). Laisser vide si identique au libellé ci-dessus."
+        ),
+    )
+    actif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("ordre", "pk")
+        unique_together = ("ship", "libelle")
+        verbose_name = "Fonction de service (feuille de service)"
+        verbose_name_plural = "Fonctions de service (feuille de service)"
+
+    def poste_a_rechercher(self):
+        return (self.poste_recherche or self.libelle).strip()
+
+    def __str__(self):
+        return f"{self.libelle} ({self.ship})"
+
+
+def titulaire_du_jour(fonction, date_):
+    """Créneau de service de garde correspondant à `fonction`
+    (FonctionFeuilleService) le jour `date_`, trouvé EN DIRECT parmi les
+    créneaux déjà PUBLIÉS du navire (cf. commentaire de section :
+    correspondance sur le champ `poste`, jamais figée). Un créneau
+    chevauchant minuit (garde 24h) couvre le jour dès lors qu'il commence
+    avant la fin de journée ET finit après son début. None si aucun créneau
+    ne correspond (la feuille affiche alors « à définir » plutôt qu'une
+    valeur erronée)."""
+    poste = fonction.poste_a_rechercher()
+    if not poste:
+        return None
+    debut_jour = timezone.make_aware(datetime.combine(date_, heure_du_jour.min))
+    fin_jour = timezone.make_aware(datetime.combine(date_, heure_du_jour.max))
+    return (
+        CreneauServiceGarde.objects.select_related("marin", "marin__profile", "service_garde")
+        .filter(
+            Q(service_garde__ship_id=fonction.ship_id)
+            | Q(service_garde__service__ship_id=fonction.ship_id)
+            | Q(service_garde__sector__service__ship_id=fonction.ship_id)
+            | Q(service_garde__section__sector__service__ship_id=fonction.ship_id),
+            service_garde__statut=ServiceGarde.STATUT_PUBLIEE,
+            poste__iexact=poste,
+            debut__lte=fin_jour, fin__gte=debut_jour,
+        )
+        .order_by("debut")
+        .first()
+    )
+
+
+def personnel_du_jour(ship, date_):
+    """Liste ordonnée (cf. FonctionFeuilleService.Meta.ordering) du personnel
+    de service du navire pour `date_` : une entrée par fonction active,
+    chacune avec le créneau trouvé (ou None) — cf. titulaire_du_jour."""
+    return [
+        {"fonction": fonction, "creneau": titulaire_du_jour(fonction, date_)}
+        for fonction in FonctionFeuilleService.objects.filter(ship=ship, actif=True)
+    ]
+
+
+class FeuilleService(TimeStampedModel, OwnedModel):
+    """Feuille de service quotidienne d'un navire (rubriques d'en-tête +
+    personnel de service), à quai (V1). Une par (navire, date) : publiée la
+    veille pour le lendemain, lue par tout l'équipage."""
+
+    STATUT_BROUILLON = "BROUILLON"
+    STATUT_VISA_SECTEUR = "VISA_SECTEUR"
+    STATUT_VISA_SERVICE = "VISA_SERVICE"
+    STATUT_VISA_COMAEQ = "VISA_COMAEQ"
+    STATUT_PUBLIEE = "PUBLIEE"
+    STATUT_CHOICES = (
+        (STATUT_BROUILLON, "Brouillon"),
+        (STATUT_VISA_SECTEUR, "En attente du visa du chef de secteur"),
+        (STATUT_VISA_SERVICE, "En attente du visa du chef de service"),
+        (STATUT_VISA_COMAEQ, "En attente du visa du COMAEQ"),
+        (STATUT_PUBLIEE, "Publiée"),
+    )
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="feuilles_service")
+    date = models.DateField(verbose_name="Date concernée")
+    statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_BROUILLON)
+    valeurs_entete = models.JSONField(
+        default=dict, blank=True, verbose_name="Valeurs des rubriques d'en-tête",
+        help_text="Dictionnaire {id de la rubrique : valeur saisie} pour les rubriques « saisie chaque jour ».",
+    )
+    # Périmètre du rédacteur au moment de la proposition (snapshot) : détermine
+    # qui doit viser en secteur/service — cf. commentaire de section.
+    secteur_redacteur = models.ForeignKey(
+        Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Secteur du rédacteur",
+    )
+    service_redacteur = models.ForeignKey(
+        Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Service du rédacteur",
+    )
+    proposee_le = models.DateTimeField(null=True, blank=True, verbose_name="Proposée le")
+    proposee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Proposée par",
+    )
+    visa_secteur_le = models.DateTimeField(null=True, blank=True, verbose_name="Visa secteur le")
+    visa_secteur_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Visa secteur par",
+    )
+    visa_service_le = models.DateTimeField(null=True, blank=True, verbose_name="Visa service le")
+    visa_service_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Visa service par",
+    )
+    visa_comaeq_le = models.DateTimeField(null=True, blank=True, verbose_name="Visa COMAEQ le")
+    visa_comaeq_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Visa COMAEQ par",
+    )
+    publiee_le = models.DateTimeField(null=True, blank=True, verbose_name="Publiée le")
+    publiee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Publiée par",
+    )
+    motif_retour = models.TextField(blank=True, default="", verbose_name="Motif du dernier renvoi en brouillon")
+
+    class Meta:
+        unique_together = ("ship", "date")
+        ordering = ("-date",)
+        verbose_name = "Feuille de service"
+        verbose_name_plural = "Feuilles de service"
+
+    def __str__(self):
+        return f"Feuille de service du {self.date:%d/%m/%Y} — {self.ship}"
+
+    @property
+    def rubriques_affichees(self):
+        """Rubriques actives du navire avec leur valeur pour CETTE feuille :
+        la valeur fixe du navire pour une rubrique FIXE (toujours à jour,
+        jamais figée par feuille), la valeur saisie pour une rubrique
+        QUOTIDIENNE."""
+        resultat = []
+        for rubrique in RubriqueEnTeteFeuilleService.objects.filter(ship_id=self.ship_id, actif=True):
+            valeur = (
+                rubrique.valeur_fixe if rubrique.type_saisie == rubrique.TYPE_FIXE
+                else self.valeurs_entete.get(str(rubrique.pk), "")
+            )
+            resultat.append({"rubrique": rubrique, "valeur": valeur})
+        return resultat
+
+    @property
+    def personnel(self):
+        return personnel_du_jour(self.ship, self.date)
+
+    def marins_de_la_fraction(self):
+        """Marins de la fraction de service du jour (titulaires trouvés dans
+        le personnel de service), sans doublon — jamais tout l'équipage
+        (cf. tâche Notion)."""
+        ids, marins = set(), []
+        for entree in self.personnel:
+            creneau = entree["creneau"]
+            if creneau and creneau.marin_id and creneau.marin_id not in ids:
+                ids.add(creneau.marin_id)
+                marins.append(creneau.marin)
+        return marins
+
+    def validateurs_a_notifier(self):
+        """Marins habilités à donner le prochain visa attendu — repli sur le
+        rédacteur si personne n'est identifié (même filet de sécurité que
+        publicateurs_a_notifier ci-dessus pour Quart/ServiceGarde)."""
+        verificateur = {
+            self.STATUT_VISA_SECTEUR: peut_viser_secteur,
+            self.STATUT_VISA_SERVICE: peut_viser_service,
+            self.STATUT_VISA_COMAEQ: peut_viser_comaeq,
+        }.get(self.statut)
+        if verificateur is None:
+            return []
+        destinataires = [
+            u for u in User.objects.filter(is_active=True, profile__ship_id=self.ship_id).select_related("profile")
+            if verificateur(u, self)
+        ]
+        if not destinataires and self.created_by_id:
+            destinataires = [self.created_by]
+        return destinataires
+
+    def _notifier_prochain_visa(self):
+        for destinataire in self.validateurs_a_notifier():
+            Notification.objects.create(
+                user=destinataire,
+                verb=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) attend votre visa.",
+                level=NotificationLevel.WARNING,
+            )
+
+    def proposer(self, user):
+        """BROUILLON -> premier palier de visa : secteur du rédacteur, SAUF
+        si le rédacteur est déjà chef de secteur ou plus, auquel cas le visa
+        secteur est sauté (cf. commentaire de section)."""
+        profile = user.profile
+        self.secteur_redacteur = profile.sector or (profile.section.sector if profile.section_id else None)
+        self.service_redacteur = self.secteur_redacteur.service if self.secteur_redacteur else profile.service
+        saute_visa_secteur = user_role_level(user) >= RoleLevel.CHEF_SECTEUR
+        self.statut = self.STATUT_VISA_SERVICE if saute_visa_secteur else self.STATUT_VISA_SECTEUR
+        self.proposee_le = timezone.now()
+        self.proposee_par = user
+        self.save(update_fields=[
+            "secteur_redacteur", "service_redacteur", "statut", "proposee_le", "proposee_par", "updated_at",
+        ])
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_proposee",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) proposée à la validation.",
+        )
+        self._notifier_prochain_visa()
+
+    def viser_secteur(self, user):
+        self.visa_secteur_le = timezone.now()
+        self.visa_secteur_par = user
+        self.statut = self.STATUT_VISA_SERVICE
+        self.save(update_fields=["visa_secteur_le", "visa_secteur_par", "statut", "updated_at"])
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_visa_secteur",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de secteur.",
+        )
+        self._notifier_prochain_visa()
+
+    def viser_service(self, user):
+        self.visa_service_le = timezone.now()
+        self.visa_service_par = user
+        self.statut = self.STATUT_VISA_COMAEQ
+        self.save(update_fields=["visa_service_le", "visa_service_par", "statut", "updated_at"])
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_visa_service",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de service.",
+        )
+        self._notifier_prochain_visa()
+
+    def viser_comaeq(self, user):
+        """Dernier visa : vaut publication immédiate, un seul clic — aucun
+        acteur distinct n'intervient entre le visa COMAEQ et la publication
+        d'après le circuit décrit par Matthis (CLAUDE.md §2)."""
+        self.visa_comaeq_le = timezone.now()
+        self.visa_comaeq_par = user
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_visa_comaeq",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le COMAEQ.",
+        )
+        self._publier(user)
+
+    def _publier(self, user):
+        self.statut = self.STATUT_PUBLIEE
+        self.publiee_le = timezone.now()
+        self.publiee_par = user
+        self.save(update_fields=[
+            "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par", "updated_at",
+        ])
+        version = self.creer_version(user)
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_publiee",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) publiée, version {version.numero}.",
+        )
+        for marin in self.marins_de_la_fraction():
+            Notification.objects.create(
+                user=marin,
+                verb=f"Feuille de service du {self.date:%d/%m/%Y} publiée : vous êtes de service.",
+                level=NotificationLevel.INFO,
+            )
+
+    def renvoyer(self, user, motif):
+        """Renvoie la feuille en BROUILLON depuis n'importe quel palier de
+        visa en cours, avec un motif obligatoire, pour que le rédacteur
+        corrige avant de reproposer — le circuit recommence entièrement
+        (aucun visa déjà donné n'est conservé), plus simple à suivre qu'un
+        redémarrage partiel (CLAUDE.md §2)."""
+        self.statut = self.STATUT_BROUILLON
+        self.visa_secteur_le = self.visa_secteur_par = None
+        self.visa_service_le = self.visa_service_par = None
+        self.visa_comaeq_le = self.visa_comaeq_par = None
+        self.proposee_le = self.proposee_par = None
+        self.motif_retour = motif
+        self.save(update_fields=[
+            "statut", "visa_secteur_le", "visa_secteur_par", "visa_service_le", "visa_service_par",
+            "visa_comaeq_le", "visa_comaeq_par", "proposee_le", "proposee_par", "motif_retour", "updated_at",
+        ])
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_renvoyee",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) renvoyée en brouillon : {motif}",
+        )
+        if self.created_by_id:
+            Notification.objects.create(
+                user=self.created_by,
+                verb=f"Feuille de service du {self.date:%d/%m/%Y} renvoyée pour correction : {motif}",
+                level=NotificationLevel.WARNING,
+            )
+
+    def creer_version(self, user):
+        """Fige un instantané horodaté de l'en-tête ET du personnel de
+        service au moment de la publication (cahier des charges §31) — cf.
+        commentaire de section sur le choix de ne pas réutiliser
+        VersionListeAbstract tel quel."""
+        dernier_numero = self.versions.aggregate(models.Max("numero"))["numero__max"] or 0
+        contenu = {
+            "entete": [{"libelle": e["rubrique"].libelle, "valeur": e["valeur"]} for e in self.rubriques_affichees],
+            "personnel": [
+                {
+                    "fonction": e["fonction"].libelle,
+                    "marin": (
+                        f"{e['creneau'].marin.profile.grade} "
+                        f"{e['creneau'].marin.get_full_name() or e['creneau'].marin.username}".strip()
+                        if e["creneau"] and e["creneau"].marin_id else ""
+                    ),
+                }
+                for e in self.personnel
+            ],
+        }
+        return self.versions.create(
+            numero=dernier_numero + 1, publiee_le=timezone.now(), publiee_par=user, contenu_fige=contenu,
+        )
+
+    def version_a_la_date(self, date_):
+        """Dernière version publiée au plus tard le `date_` donné — même
+        principe que ListeServiceAbstract.version_a_la_date."""
+        limite = timezone.make_aware(datetime.combine(date_, heure_du_jour.max))
+        return self.versions.filter(publiee_le__lte=limite).order_by("-numero").first()
+
+
+class VersionFeuilleService(TimeStampedModel):
+    """Instantané figé d'une feuille de service au moment de sa publication
+    — même PRINCIPE de versionnage que VersionListeAbstract (cf. commentaire
+    de section), pas la même classe : la forme du contenu figé diffère
+    (en-tête + personnel, pas des créneaux)."""
+
+    feuille = models.ForeignKey(FeuilleService, on_delete=models.CASCADE, related_name="versions")
+    numero = models.PositiveIntegerField(verbose_name="Numéro de version")
+    publiee_le = models.DateTimeField(verbose_name="Publiée le")
+    publiee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Publiée par",
+    )
+    contenu_fige = models.JSONField(default=dict, verbose_name="Contenu figé (en-tête + personnel)")
+
+    class Meta:
+        ordering = ("-numero",)
+        unique_together = ("feuille", "numero")
+        verbose_name = "Version de feuille de service"
+        verbose_name_plural = "Versions de feuille de service"
+
+    def __str__(self):
+        return f"Version {self.numero} du {self.publiee_le:%d/%m/%Y %H:%M}"
+
+
+def _est_supervision_globale_feuille(user):
+    return user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FEUILLE_SERVICE
+
+
+def peut_rediger_feuille_service(user, ship):
+    """Quiconque appartient au navire peut créer/modifier le brouillon de la
+    feuille de service. Hypothèse de cadrage à signaler : en réalité seul le
+    BSC (une astreinte organisationnelle, pas un rôle applicatif) rédige la
+    feuille — l'application ne restreint pas la rédaction à cette astreinte,
+    qu'elle ne modélise pas ; le circuit de visa (secteur/service/COMAEQ)
+    garantit de toute façon qu'une feuille mal rédigée ne peut pas être
+    publiée sans contrôle."""
+    return _est_supervision_globale_feuille(user) or ship_id_for_user(user) == ship.pk
+
+
+def peut_gerer_brouillon_feuille(user, feuille):
+    """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la
+    reproposer après un renvoi : réservé à son rédacteur d'origine ou à la
+    supervision globale."""
+    if feuille.statut != FeuilleService.STATUT_BROUILLON:
+        return False
+    return _est_supervision_globale_feuille(user) or feuille.created_by_id == user.pk
+
+
+def peut_viser_secteur(user, feuille):
+    if _est_supervision_globale_feuille(user):
+        return True
+    if feuille.secteur_redacteur_id is None:
+        return False
+    seuil = niveau_requis_pour(user, "feuille_service_visa_secteur")
+    return _perimetre_dans_scope_utilisateur(user, None, None, feuille.secteur_redacteur, None, seuil)
+
+
+def peut_viser_service(user, feuille):
+    if _est_supervision_globale_feuille(user):
+        return True
+    if feuille.service_redacteur_id is None:
+        return False
+    seuil = niveau_requis_pour(user, "feuille_service_visa_service")
+    return _perimetre_dans_scope_utilisateur(user, None, feuille.service_redacteur, None, None, seuil)
+
+
+def peut_viser_comaeq(user, feuille):
+    """Approximation du visa COMAEQ (cf. commentaire de section) : n'importe
+    quel membre de l'état-major du navire, en l'absence d'un niveau
+    commandant adjoint dédié dans l'application."""
+    if _est_supervision_globale_feuille(user):
+        return True
+    seuil = niveau_requis_pour(user, "feuille_service_visa_comaeq")
+    return _perimetre_dans_scope_utilisateur(user, feuille.ship, None, None, None, seuil)
+
+
+def peut_lire_feuille_service(user, feuille):
+    """Lecture : ouverte à tout marin du navire une fois PUBLIÉE (« tous les
+    marins la lisent », cf. tâche Notion) ; réservée aux acteurs du circuit
+    tant qu'elle est en brouillon ou en cours de visa."""
+    if feuille.statut == FeuilleService.STATUT_PUBLIEE:
+        return _est_supervision_globale_feuille(user) or ship_id_for_user(user) == feuille.ship_id
+    return (
+        peut_gerer_brouillon_feuille(user, feuille)
+        or peut_viser_secteur(user, feuille)
+        or peut_viser_service(user, feuille)
+        or peut_viser_comaeq(user, feuille)
+    )

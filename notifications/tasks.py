@@ -293,10 +293,16 @@ def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
         nb_creneaux = len(evenements["creneaux"])
         nb_rondes = len(evenements["rondes"])
         nb_absences = len(evenements["absences"])
-        if not (nb_maintenances or nb_formations or nb_personnels or nb_creneaux or nb_rondes or nb_absences):
+        # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
+        # service quotidienne ») : mise en avant dans le digest si le marin
+        # est lui-même de service ce jour-là, cf. quarts/services.py.
+        de_service = bool(evenements["feuille_service"] and evenements["feuille_service"]["je_suis_de_service"])
+        if not (nb_maintenances or nb_formations or nb_personnels or nb_creneaux or nb_rondes or nb_absences or de_service):
             continue
 
         parts = []
+        if de_service:
+            parts.append("vous êtes de service")
         if nb_maintenances:
             parts.append(f"{nb_maintenances} maintenance(s)")
         if nb_formations:

@@ -13,6 +13,7 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from quarts.services import feuille_service_du_jour_pour
 from rondes.models import Ronde
 from rondes.services import rondes_visibles
 from absences.models import Absence
@@ -173,9 +174,13 @@ def evenements_utilisateur_jour(user, day):
     creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user))
     rondes = list(_rondes_a_faire(user, day, day))
     absences = list(_absences_periode(day, day, user))
+    # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
+    # service quotidienne ») : mise en évidence dans « Ma journée » si le
+    # marin est lui-même de service ce jour-là — cf. quarts/services.py.
+    feuille_service = feuille_service_du_jour_pour(user, day)
     return {
         "maintenances": maintenances, "formations": formations, "personnels": personnels,
-        "creneaux": creneaux, "rondes": rondes, "absences": absences,
+        "creneaux": creneaux, "rondes": rondes, "absences": absences, "feuille_service": feuille_service,
     }
 
 

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h1 class="h3 mb-0">Réglages — Feuille de service</h1>
+  <form method="get" class="d-flex gap-2">
+    <select name="ship" class="form-select form-select-sm" onchange="this.form.submit()">
+      {% for n in navires %}
+      <option value="{{ n.pk }}" {% if n.pk == ship.pk %}selected{% endif %}>{{ n.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+<p class="text-muted">Aucune liste n'est imposée par l'application : configurez les rubriques d'en-tête et les fonctions de service propres à {{ ship.name }} (CLAUDE.md §6).</p>
+
+<h2 class="h5 mt-4">Rubriques d'en-tête</h2>
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="enregistrer_rubriques">
+      <input type="hidden" name="ship" value="{{ ship.pk }}">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Ordre</th><th>Libellé</th><th>Saisie</th><th>Valeur fixe</th><th>Active</th><th></th></tr></thead>
+          <tbody>
+            {% for r in rubriques %}
+            <tr>
+              <td style="width:5rem"><input type="number" min="0" name="rubrique_{{ r.pk }}_ordre" value="{{ r.ordre }}" class="form-control form-control-sm"></td>
+              <td><input type="text" name="rubrique_{{ r.pk }}_libelle" value="{{ r.libelle }}" class="form-control form-control-sm" required></td>
+              <td style="width:12rem">
+                <select name="rubrique_{{ r.pk }}_type_saisie" class="form-select form-select-sm">
+                  <option value="QUOTIDIENNE" {% if r.type_saisie == "QUOTIDIENNE" %}selected{% endif %}>Saisie chaque jour</option>
+                  <option value="FIXE" {% if r.type_saisie == "FIXE" %}selected{% endif %}>Fixe (valeur du navire)</option>
+                </select>
+              </td>
+              <td><input type="text" name="rubrique_{{ r.pk }}_valeur_fixe" value="{{ r.valeur_fixe }}" class="form-control form-control-sm" placeholder="Si rubrique fixe"></td>
+              <td class="text-center"><input type="checkbox" name="rubrique_{{ r.pk }}_actif" {% if r.actif %}checked{% endif %} class="form-check-input"></td>
+              <td>
+                <button type="submit" form="supprimer-rubrique-{{ r.pk }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="table-light">
+              <td><input type="number" min="0" name="nouvelle_rubrique_ordre" value="{{ rubriques|length }}" class="form-control form-control-sm"></td>
+              <td><input type="text" name="nouvelle_rubrique_libelle" class="form-control form-control-sm" placeholder="Nouvelle rubrique"></td>
+              <td>
+                <select name="nouvelle_rubrique_type_saisie" class="form-select form-select-sm">
+                  <option value="QUOTIDIENNE">Saisie chaque jour</option>
+                  <option value="FIXE">Fixe (valeur du navire)</option>
+                </select>
+              </td>
+              <td><input type="text" name="nouvelle_rubrique_valeur_fixe" class="form-control form-control-sm" placeholder="Si rubrique fixe"></td>
+              <td></td><td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save"></i> Enregistrer les rubriques</button>
+    </form>
+  </div>
+</div>
+{% for r in rubriques %}
+<form id="supprimer-rubrique-{{ r.pk }}" method="post" class="d-none" onsubmit="return confirm('Supprimer la rubrique « {{ r.libelle }} » ?');">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="supprimer_rubrique">
+  <input type="hidden" name="ship" value="{{ ship.pk }}">
+  <input type="hidden" name="pk" value="{{ r.pk }}">
+</form>
+{% endfor %}
+
+<h2 class="h5 mt-4">Fonctions de service</h2>
+<p class="text-muted small">Le « poste correspondant » doit reprendre exactement le texte saisi dans le champ Poste des créneaux de service de garde publiés (insensible à la casse).</p>
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="enregistrer_fonctions">
+      <input type="hidden" name="ship" value="{{ ship.pk }}">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Ordre</th><th>Fonction affichée</th><th>Poste correspondant</th><th>Active</th><th></th></tr></thead>
+          <tbody>
+            {% for f in fonctions %}
+            <tr>
+              <td style="width:5rem"><input type="number" min="0" name="fonction_{{ f.pk }}_ordre" value="{{ f.ordre }}" class="form-control form-control-sm"></td>
+              <td><input type="text" name="fonction_{{ f.pk }}_libelle" value="{{ f.libelle }}" class="form-control form-control-sm" required></td>
+              <td><input type="text" name="fonction_{{ f.pk }}_poste_recherche" value="{{ f.poste_recherche }}" class="form-control form-control-sm" placeholder="Identique au libellé si vide"></td>
+              <td class="text-center"><input type="checkbox" name="fonction_{{ f.pk }}_actif" {% if f.actif %}checked{% endif %} class="form-check-input"></td>
+              <td><button type="submit" form="supprimer-fonction-{{ f.pk }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
+            </tr>
+            {% endfor %}
+            <tr class="table-light">
+              <td><input type="number" min="0" name="nouvelle_fonction_ordre" value="{{ fonctions|length }}" class="form-control form-control-sm"></td>
+              <td><input type="text" name="nouvelle_fonction_libelle" class="form-control form-control-sm" placeholder="Ex. Gradé coupé 1"></td>
+              <td><input type="text" name="nouvelle_fonction_poste_recherche" class="form-control form-control-sm" placeholder="Identique au libellé si vide"></td>
+              <td></td><td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save"></i> Enregistrer les fonctions</button>
+    </form>
+  </div>
+</div>
+{% for f in fonctions %}
+<form id="supprimer-fonction-{{ f.pk }}" method="post" class="d-none" onsubmit="return confirm('Supprimer la fonction « {{ f.libelle }} » ?');">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="supprimer_fonction">
+  <input type="hidden" name="ship" value="{{ ship.pk }}">
+  <input type="hidden" name="pk" value="{{ f.pk }}">
+</form>
+{% endfor %}
+{% endblock %}

@@ -105,6 +105,27 @@ REGISTRE_ACTIONS = [
         "Quarts / Services de garde", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
+        "feuille_service_configuration",
+        "Configurer les rubriques d'en-tête et les fonctions de service de la feuille de service quotidienne",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "feuille_service_visa_secteur",
+        "Viser une feuille de service en tant que chef du secteur rédacteur",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
+    ),
+    ActionSeuil(
+        "feuille_service_visa_service",
+        "Viser une feuille de service en tant que chef du service rédacteur (ex. Pont)",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "feuille_service_visa_comaeq",
+        "Viser et publier une feuille de service en tant que COMAEQ (approximé par l'état-major du navire "
+        "tant que le niveau commandant adjoint n'existe pas dans l'application, cf. quarts/models.py)",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.ETAT_MAJOR,
+    ),
+    ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
         "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,

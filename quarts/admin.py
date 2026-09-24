@@ -7,8 +7,12 @@ from .models import (
     CreneauQuart,
     CreneauServiceGarde,
     EchangeService,
+    FeuilleService,
+    FonctionFeuilleService,
     Quart,
+    RubriqueEnTeteFeuilleService,
     ServiceGarde,
+    VersionFeuilleService,
     VersionQuart,
     VersionServiceGarde,
 )
@@ -76,3 +80,36 @@ class ServiceGardeAdmin(AdminScopedMixin, admin.ModelAdmin):
 class EchangeServiceAdmin(admin.ModelAdmin):
     list_display = ("demandeur", "cible", "statut", "created_at")
     list_filter = ("statut",)
+
+
+@admin.register(RubriqueEnTeteFeuilleService)
+class RubriqueEnTeteFeuilleServiceAdmin(AdminScopedMixin, admin.ModelAdmin):
+    list_display = ("libelle", "ship", "type_saisie", "ordre", "actif")
+    list_filter = ("ship", "type_saisie", "actif")
+
+
+@admin.register(FonctionFeuilleService)
+class FonctionFeuilleServiceAdmin(AdminScopedMixin, admin.ModelAdmin):
+    list_display = ("libelle", "ship", "poste_recherche", "ordre", "actif")
+    list_filter = ("ship", "actif")
+
+
+class VersionFeuilleServiceInline(admin.TabularInline):
+    """Historique des versions (cf. quarts/models.py::FeuilleService.
+    creer_version) : lecture seule, même principe que VersionQuartInline
+    ci-dessus."""
+    model = VersionFeuilleService
+    extra = 0
+    fields = ("numero", "publiee_le", "publiee_par", "contenu_fige")
+    readonly_fields = fields
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(FeuilleService)
+class FeuilleServiceAdmin(AdminScopedMixin, admin.ModelAdmin):
+    list_display = ("date", "ship", "statut", "secteur_redacteur", "service_redacteur")
+    list_filter = ("statut", "ship")
+    inlines = [VersionFeuilleServiceInline]

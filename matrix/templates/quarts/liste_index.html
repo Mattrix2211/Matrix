@@ -6,6 +6,9 @@
     <a href="{% url 'echanges-index' %}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left-right"></i> Mes échanges
     </a>
+    <a href="{% url 'feuille-service-index' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-journal-text"></i> Feuille de service
+    </a>
     {% if peut_designer_chef_de_liste %}
     <a href="{% url 'quarts-reglages' %}" class="btn btn-outline-secondary">
       <i class="bi bi-person-badge"></i> Chefs de liste

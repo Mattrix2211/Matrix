@@ -148,6 +148,12 @@
                 <span class="visually-hidden">Quarts et gardes</span>
               </a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'feuille-service-index' %}" title="Feuille de service" aria-label="Feuille de service">
+                <span class="bi bi-journal-text nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Feuille de service</span>
+              </a>
+            </li>
             {% endif %}
             {% if user|module_actif:"absences" %}
             <li class="nav-item">
