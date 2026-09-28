@@ -1,4 +1,4 @@
-"""Tests de la Vue flotte (dashboard/web_views.py::VueFlotteView) : vue agrégée
+"""Tests de la Vue flotte (dashboard/vue_flotte_views.py::VueFlotteView) : vue agrégée
 réservée à CHEF_SECTION et aux rôles supérieurs, scopée au périmètre effectif
 du chef connecté — navire pour CHEF_SERVICE+, secteur pour CHEF_SECTEUR,
 section pour CHEF_SECTION (cf. tâche [FEAT] Vue d'équipe pour CHEF_SECTEUR et

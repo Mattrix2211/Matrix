@@ -153,7 +153,7 @@ class ResponsableClasseNavire(TimeStampedModel):
     nomenclature Marine non fermée) : la responsabilité porte sur la VALEUR
     de classe, pas sur un navire précis — elle couvre donc tout navire
     existant ou futur portant cette classe. Donne accès en LECTURE SEULE au
-    dashboard classe de navire (dashboard/web_views.py::DashboardClasseNavireView),
+    dashboard classe de navire (dashboard/dashboards_transverses_views.py::DashboardClasseNavireView),
     aucun droit d'écriture supplémentaire.
 
     Désignation réservée à MASTER_ADMIN, même seuil configurable que

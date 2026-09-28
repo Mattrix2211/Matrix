@@ -154,7 +154,7 @@ class ResponsableSpecialite(TimeStampedModel):
     Navire → Service → Secteur → Section et du rôle hiérarchique du marin
     (CLAUDE.md), au même titre que training.ReferentFormation est
     indépendant du rang. Donne accès en LECTURE SEULE au dashboard
-    spécialité (dashboard/web_views.py::DashboardSpecialiteView) : aucun
+    spécialité (dashboard/dashboards_transverses_views.py::DashboardSpecialiteView) : aucun
     droit d'écriture supplémentaire sur les fiches des marins concernés.
 
     Désignation réservée à MASTER_ADMIN (référentiel commun à toute la

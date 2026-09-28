@@ -117,7 +117,7 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # écriture (création/modification) alignée sur asset_ecriture_simple,
     # suppression remontée à asset_gestion_avancee — même clé que
     # AssetListView.ACTION_VERS_SEUIL['delete_asset'] côté web
-    # (assets/web_views.py) — décision métier par défaut : un chef de
+    # (assets/asset_views.py) — décision métier par défaut : un chef de
     # section ne doit jamais pouvoir supprimer un matériel.
     role_threshold_action_write = "asset_ecriture_simple"
     role_threshold_action_delete = "asset_gestion_avancee"

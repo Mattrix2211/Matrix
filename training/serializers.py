@@ -8,7 +8,7 @@ class TrainingCourseSerializer(serializers.ModelSerializer):
         fields = "__all__"
         # `gere_par_le_bord` et `statut_validation` sont exclusivement
         # pilotés par le Circuit C (chef de secteur -> chef de service,
-        # training/web_views.py::TrainingCourseListView._proposer_formation_bord
+        # training/formation_bord_actions.py::_action_proposer_formation_bord
         # et suivants), qui applique un contrôle de périmètre organisationnel
         # que l'API ne reproduit pas ici — les rendre en lecture seule évite
         # qu'un utilisateur autorisé à écrire sur ce ViewSet (CHEF_SECTION+,

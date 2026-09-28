@@ -29,7 +29,7 @@ def _dernier_par_installation(queryset, champ_installation="installation_id"):
     relevés d'installation) — une seule requête groupée quel que soit le nombre
     d'installations, au lieu d'une requête par installation (même pattern que
     reports/services.py::_dernier_par_installation et
-    assets/web_views.py::InstallationListView.get_context_data)."""
+    assets/installation_views.py::InstallationListView.get_context_data)."""
     resultat = {}
     for obj in queryset:
         cle = getattr(obj, champ_installation)

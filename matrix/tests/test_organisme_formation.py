@@ -125,7 +125,7 @@ class EcoleSansInstallationNiMaterielTests(TestCase):
 class CreationFormationParAdminEcoleTests(TestCase):
     """Un ADMIN_NAVIRE rattaché à une école crée une formation par le
     mécanisme de permission déjà existant (RoleLevel.ADMIN_NAVIRE+, cf.
-    training/web_views.py::NIVEAU_REQUIS_CREATION_FORMATION) — aucune règle
+    training/formation_perimetre.py::NIVEAU_REQUIS_CREATION_FORMATION) — aucune règle
     propre au type d'unité n'a été ajoutée ni n'est nécessaire."""
 
     def setUp(self):

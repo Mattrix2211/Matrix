@@ -670,11 +670,11 @@ class FuiteStatutValidationValidationRecordTests(TestCase):
 class FuiteStatutValidationUpdatePrerequisitesTests(TestCase):
     """Gap supplémentaire trouvé dans le même esprit que les 4 signalés par le
     QA (action=update_prerequisites, réservée à CHEF_SECTION+ pour n'importe
-    quelle formation du catalogue global, cf. training/web_views.py) : un chef
+    quelle formation du catalogue global, cf. training/catalogue_actions.py) : un chef
     de section d'un autre navire, sans lien avec la proposition, ne peut pas
     éditer les prérequis/catégorie/référents d'une formation « bord » encore
     en attente de validation ou refusée — hors du circuit dédié
-    (_proposer_formation_bord)."""
+    (_action_proposer_formation_bord)."""
 
     def setUp(self):
         self.ship_a, self.service_a, self.sector_a, self.section_a = _construire_bord("GAPPRE_A")

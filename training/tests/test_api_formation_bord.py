@@ -161,7 +161,7 @@ class PermissionEcritureCircuitBordAPITests(TestCase):
     description, category...) d'une formation « bord » ACTIVE et déjà en
     service (TrainingRecord associé) d'un navire A, sans aucun rapport avec
     ce navire A. La correction réutilise peut_modifier_formation_bord et
-    formation_bord_en_service (training/web_views.py) dans
+    formation_bord_en_service (training/formation_perimetre.py) dans
     TrainingCourseViewSet.perform_update/perform_destroy — mêmes fonctions
     que le circuit web, aucune règle dupliquée."""
 

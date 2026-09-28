@@ -123,7 +123,7 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
             )
         # Formation déjà en service (validations, sessions, ou prérequis
         # d'une autre formation) : pas de mutation en place, même règle que
-        # TrainingCourseListView._proposer_formation_bord.
+        # formation_bord_actions._action_proposer_formation_bord.
         if instance.statut_validation == "ACTIVE" and formation_bord_en_service(instance):
             raise ApiPermissionDenied(
                 f"« {instance.title} » est déjà active et utilisée (validations, sessions ou "
@@ -165,7 +165,7 @@ class ReferentFormationPermission(RolePermission):
     supervision globale (COMMANDANT et au-dessus, cf.
     training.models.NIVEAU_SUPERVISION_GLOBALE_FORMATION) peuvent agir sur
     n'importe quel navire. Reproduit exactement la même logique que
-    training/web_views.py::update_prerequisites (déjà correcte côté web) —
+    training/catalogue_actions.py::_action_update_prerequisites (déjà correcte côté web) —
     voir aussi ReferentFormationNavire (training/models.py), volontairement
     sans route API et gérée uniquement côté web scopé, pour la même
     raison."""

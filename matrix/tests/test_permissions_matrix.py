@@ -97,7 +97,7 @@ class MatricePermissionsTestCase(TestCase):
 class AssetMatriceTests(MatricePermissionsTestCase):
     """Matériel mobile (Asset) : création/modification réservées à
     CHEF_SECTION+, suppression réservée à CHEF_SERVICE+ par défaut —
-    seuils configurables par navire (assets/web_views.py
+    seuils configurables par navire (assets/asset_views.py
     ::AssetListView.ACTION_VERS_SEUIL, matrix/core/role_thresholds.py)."""
 
     @classmethod
@@ -202,7 +202,7 @@ class AssetMatriceTests(MatricePermissionsTestCase):
 class InstallationMatriceTests(MatricePermissionsTestCase):
     """Installation fixe : création/modification réservées à CHEF_SECTION+,
     suppression réservée à CHEF_SERVICE+ par défaut — seuils configurables
-    par navire (assets/web_views.py::InstallationListView.ACTION_VERS_SEUIL,
+    par navire (assets/installation_views.py::InstallationListView.ACTION_VERS_SEUIL,
     matrix/core/role_thresholds.py)."""
 
     @classmethod
@@ -279,7 +279,7 @@ class InstallationMatriceTests(MatricePermissionsTestCase):
 
 class InstallationMaintenanceMatriceTests(MatricePermissionsTestCase):
     """Tâche d'entretien d'une installation : écriture réservée à CHEF_SERVICE+
-    (assets/web_views.py::InstallationDetailView.MAINTENANCE_WRITE_ACTIONS),
+    (assets/installation_views.py::InstallationDetailView.MAINTENANCE_WRITE_ACTIONS),
     seuil plus élevé que la fiche d'installation elle-même — création,
     modification et suppression testées, aux trois mêmes seuil (l'action
     métier « sensible » de ce sous-domaine, la remise en service protégée par
@@ -494,8 +494,8 @@ class StockPieceMatriceTests(MatricePermissionsTestCase):
 class PlanNaviePositionMatriceTests(MatricePermissionsTestCase):
     """Positionnement précis du matériel sur le plan visuel du navire
     (épingle x/y, cf. Asset.plan_deck/position_x/position_y) : configuration
-    (placement, repositionnement, retrait) réservée à CHEF_SERVICE+ (assets/
-    web_views.py::_peut_configurer_plan_navire), au même seuil que
+    (placement, repositionnement, retrait) réservée à CHEF_SERVICE+ (assets/plan_navire_views.py::
+    _peut_configurer_plan_navire), au même seuil que
     l'ancien système de zones qu'elle remplace. La consultation
     (PlanNavireVueDeckView) est en revanche ouverte à tous les rôles, seul le
     périmètre navire est vérifié."""
@@ -749,7 +749,7 @@ class SeuilRoleConfigurableTests(MatricePermissionsTestCase):
 
     def test_seuil_navire_web_asset_ecriture_simple_abaisse_a_equipier(self):
         """Régression du refus du Tech Lead : create_folder/create_asset dans
-        AssetListView.post() (assets/web_views.py) appelaient en plus, de façon
+        AssetListView.post() (assets/asset_views.py) appelaient en plus, de façon
         redondante, l'ancienne fonction _peut_gerer_materiel codée en dur sur
         CHEF_SECTION — si bien qu'abaisser asset_ecriture_simple sous ce seuil
         via RoleThresholdConfig restait sans effet réel : le contrôle en tête

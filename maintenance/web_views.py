@@ -185,7 +185,7 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
 # ---------------------------------------------------------------------------
 
 # Classe de badge Bootstrap par statut d'occurrence — même principe que
-# dashboard/web_views.py::_BADGE_STATUT_MAINTENANCE, complété ici pour les 7
+# dashboard/tableau_bord_views.py::_BADGE_STATUT_MAINTENANCE, complété ici pour les 7
 # statuts (le tableau de bord n'affichait que les statuts utiles à "mes
 # maintenances", ce tableau de pilotage les affiche tous).
 _BADGE_STATUT_OCCURRENCE = {

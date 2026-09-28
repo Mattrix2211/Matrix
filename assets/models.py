@@ -160,7 +160,7 @@ class Asset(TimeStampedModel, OwnedModel):
     position_y = models.FloatField(null=True, blank=True, verbose_name="Position Y (%)")
 
     # États possibles pour le code couleur de l'épingle sur le plan interactif
-    # (cf. assets/web_views.py::PlanNavireVueDeckView), repris à l'identique de
+    # (cf. assets/plan_navire_views.py::PlanNavireVueDeckView), repris à l'identique de
     # l'ancien Zone.etat_materiel mais calculé pour CE matériel uniquement
     # (une épingle = un seul matériel, plus de regroupement par zone).
     ETAT_OK = "OK"

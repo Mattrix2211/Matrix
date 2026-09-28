@@ -302,7 +302,7 @@ class BoutonReservationApresLiberationTests(TestCase):
     """Régression (refus QA) : quand une place se libère pendant qu'un marin
     est en liste d'attente, le bouton « Réserver ma place » doit apparaître
     sur /formations/ sans qu'il ait d'abord besoin de quitter la liste
-    d'attente — le backend (_reserver_session) gère déjà ce cas, seul le
+    d'attente — le backend (_action_reserver_session) gère déjà ce cas, seul le
     rendu du template était en cause. Scénario exact du QA : session
     capacite_max=1, marin A réserve, marin B est mis en liste d'attente, A
     annule -> B doit voir le bouton de réservation en un clic."""

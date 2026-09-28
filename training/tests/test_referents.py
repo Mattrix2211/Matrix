@@ -277,7 +277,7 @@ class APIReferentFormationScopingTests(TestCase):
     `ship` posté n'était auparavant pas confronté au navire de l'appelant).
     Seul un rôle de supervision globale (COMMANDANT et au-dessus) peut agir
     sur n'importe quel navire, même logique que
-    training/web_views.py::update_prerequisites."""
+    training/catalogue_actions.py::_action_update_prerequisites."""
 
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire Chef A", code="CHA")

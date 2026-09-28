@@ -1,5 +1,5 @@
 """Tests du dashboard transverse par spécialité
-(dashboard/web_views.py::DashboardSpecialiteView / Choix) — tâche Notion
+(dashboard/dashboards_transverses_views.py::DashboardSpecialiteView / Choix) — tâche Notion
 « Dashboards transverses par spécialité et par classe de navire »."""
 from datetime import date
 

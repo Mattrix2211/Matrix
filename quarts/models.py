@@ -139,7 +139,7 @@ NIVEAU_SUPERVISION_GLOBALE_LISTE = RoleLevel.COMMANDANT
 # Seuil générique requis pour accéder à l'écran de désignation d'un chef de
 # liste : CHEF_SERVICE et au-dessus, comme d'autres désignations de
 # responsabilité déjà existantes dans le projet (ex. validation d'une
-# formation « gérée par le bord », training.web_views.NIVEAU_REQUIS_VALIDATION_
+# formation « gérée par le bord », training.formation_perimetre.NIVEAU_REQUIS_VALIDATION_
 # FORMATION_BORD). Le périmètre réellement autorisé (uniquement le sien,
 # sauf supervision globale) est contrôlé séparément côté vue
 # (quarts/listes_views.py::_perimetre_autorise_pour_designation), même principe

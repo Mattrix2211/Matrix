@@ -369,7 +369,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             # garde (pas les quarts, cf. docstring de quarts/services.py), et
             # réservé au chef de liste gérant cette liste — un marin lambda
             # consulte son propre total depuis son tableau de bord personnel
-            # (dashboard/web_views.py), pas ici.
+            # (dashboard/tableau_bord_views.py), pas ici.
             "compteurs_equite": (
                 compteurs_equite_perimetre(liste) if peut_gerer and isinstance(liste, ServiceGarde) else None
             ),

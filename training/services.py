@@ -211,7 +211,7 @@ def qualifications_validees_de(user, reference_date=None):
     bord).
 
     Factorisé ici pour être appelé à l'identique par la carte « Mes
-    qualifications » du tableau de bord (dashboard/web_views.py) ET la
+    qualifications » du tableau de bord (dashboard/tableau_bord_views.py) ET la
     section qualifications de « Mon profil » (accounts/web_views.py), sans
     dupliquer ni la requête ni la règle de badge."""
     # Import différé : notifications.tasks importe training.models, un import

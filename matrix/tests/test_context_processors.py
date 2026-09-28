@@ -9,7 +9,7 @@ il s'exécutait ainsi sur CHAQUE page du site, pas seulement /installations/.
 
 Le correctif utilise des requêtes groupées (installation_id__in=) — même pattern
 que reports/services.py::_dernier_par_installation et le correctif déjà appliqué
-sur assets/web_views.py::InstallationListView.get_context_data.
+sur assets/installation_views.py::InstallationListView.get_context_data.
 """
 from datetime import timedelta
 
