@@ -57,7 +57,8 @@ transversale à tous les secteurs/services du navire pour une fonction donnée
 « Navire » du périmètre) mais n'avait jusqu'ici aucune façon de distinguer les
 fonctions entre elles, ni n'était réellement exploitable puisque seule la
 supervision globale (COMMANDANT+) peut être désignée chef de liste au niveau
-Navire (cf. `_perimetre_autorise_pour_designation`, inchangé). Le seuil de
+Navire (cf. `_perimetre_autorise_pour_designation`, quarts/listes_views.py,
+inchangé). Le seuil de
 désignation (CHEF_SERVICE+ borné à son propre périmètre, COMMANDANT+ libre)
 n'a donc pas été modifié : il reste cohérent tel quel, un CHEF_SERVICE ne
 devant de toute façon pas pouvoir constituer une liste dépassant son propre
@@ -92,7 +93,8 @@ tâche) :
    suffit plus) : seuil configurable par navire (matrix/core/role_thresholds.
    py, action "liste_service_publication", défaut CHEF_SERVICE) ET périmètre
    organisationnel personnel couvrant celui de la liste (même construction
-   que _perimetre_autorise_pour_designation, web_views.py) — ou supervision
+   que _perimetre_autorise_pour_designation, quarts/listes_views.py) — ou
+   supervision
    globale (COMMANDANT+), qui passe toujours outre. Un chef de liste qui
    n'a que le droit de proposer (ex. rôle EQUIPIER désigné ChefDeListe) ne
    peut donc pas publier lui-même. Par souci de ne pas complexifier une
@@ -140,7 +142,7 @@ NIVEAU_SUPERVISION_GLOBALE_LISTE = RoleLevel.COMMANDANT
 # formation « gérée par le bord », training.web_views.NIVEAU_REQUIS_VALIDATION_
 # FORMATION_BORD). Le périmètre réellement autorisé (uniquement le sien,
 # sauf supervision globale) est contrôlé séparément côté vue
-# (quarts/web_views.py::_perimetre_autorise_pour_designation), même principe
+# (quarts/listes_views.py::_perimetre_autorise_pour_designation), même principe
 # que logistics/web_views.py::_secteur_dans_perimetre.
 NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE = RoleLevel.CHEF_SERVICE
 
