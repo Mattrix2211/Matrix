@@ -7,7 +7,7 @@ PROPOSITION (pour chaque créneau non affecté d'une liste en brouillon, les
 marins éligibles et celui recommandé) affichée au chef de liste, qui
 accepte, modifie créneau par créneau (en choisissant un autre marin dans la
 liste déroulante) ou refuse intégralement, puis applique explicitement —
-cf. quarts/web_views.py::_generer_proposition / _appliquer_proposition.
+cf. quarts/listes_views.py::_generer_proposition / _appliquer_proposition.
 Rien n'est écrit tant que le chef ne clique pas sur « Appliquer la
 proposition » (principe VISION §7.3 : « Matrix ne doit jamais imposer
 aveuglément une affectation »).

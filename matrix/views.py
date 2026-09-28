@@ -139,7 +139,7 @@ def global_search(request):
         rondes = rondes_visibles(request.user).filter(Q(nom__icontains=q))[:20]
         # Échanges de service : aucun périmètre géographique simple — visible
         # seulement du demandeur, de la cible, ou du chef de liste habilité à
-        # trancher (même règle que _echanges_visibles, quarts/web_views.py).
+        # trancher (même règle que _echanges_visibles, quarts/echanges_views.py).
         # Filtrage en Python après un premier filtre texte en base, faute de
         # traduire cette règle en un Q() unique.
         candidats_echanges = EchangeService.objects.select_related(

@@ -234,7 +234,7 @@ def _perimetre_dans_scope_utilisateur(user, ship, service, sector, section, nive
     """Vrai si `user` atteint `niveau_requis` ET si son propre périmètre
     organisationnel personnel (scope_filters_for_user) couvre EXACTEMENT le
     périmètre donné (ship/service/sector/section) — brique commune à la
-    désignation d'un chef de liste (web_views.py::
+    désignation d'un chef de liste (listes_views.py::
     _perimetre_autorise_pour_designation) et à la publication d'une liste
     (peut_publier_liste ci-dessous), pour ne jamais faire diverger ces deux
     contrôles de seuil + périmètre."""
@@ -311,7 +311,7 @@ def marins_du_perimetre(liste):
     secteur couvre n'importe quel marin d'une section de ce secteur) — à ne
     pas confondre avec la règle de gestion de la liste elle-même
     (peut_gerer_liste), qui ne tolère aucune cascade. Utilisé à la fois pour
-    l'affectation d'un créneau (quarts/web_views.py) et pour le compteur
+    l'affectation d'un créneau (quarts/listes_views.py) et pour le compteur
     d'équité par marin (quarts/services.py), qui doit couvrir exactement les
     mêmes marins que ceux affectables sur la liste."""
     if liste.section_id:
@@ -395,7 +395,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
         valider/publier, cahier des charges §34) et notifie les
         publicateurs habilités (cf. peut_publier_liste) qu'une validation
         est attendue. Ne modifie jamais le statut d'une liste qui n'est pas
-        en brouillon (contrôlé côté vue, quarts/web_views.py::_proposer)."""
+        en brouillon (contrôlé côté vue, quarts/listes_views.py::_proposer)."""
         self.statut = self.STATUT_PROPOSEE
         self.proposee_le = timezone.now()
         self.proposee_par = user

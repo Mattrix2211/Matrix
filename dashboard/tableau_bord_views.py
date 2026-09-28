@@ -105,7 +105,7 @@ class TableauDeBordView(LoginRequiredMixin, TemplateView):
         # marin sur SA propre situation (mois en cours + année en cours),
         # jamais celle des autres — les compteurs détaillés du périmètre
         # entier restent réservés au chef de liste, sur la fiche de la liste
-        # (quarts/web_views.py::_DetailListeViewBase).
+        # (quarts/listes_views.py::_DetailListeViewBase).
         contexte["mes_compteurs_equite_garde"] = compteur_equite_marin(self.request.user, aujourdhui=aujourdhui)
 
         # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
