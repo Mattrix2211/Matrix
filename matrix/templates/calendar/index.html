@@ -159,7 +159,7 @@
               Deux champs côte à côte (début/fin), comme le formulaire de
               création rapide du calendrier Apple : la fin est facultative
               (une durée par défaut d'une heure est appliquée côté serveur
-              si elle est laissée vide, cf. calendar_app/views.py) et se
+              si elle est laissée vide, cf. calendar_app/evenements_personnels_views.py) et se
               recale automatiquement en JS si le début est avancé au-delà
               d'elle (voir ajusterFinSiNecessaire plus bas).
               {% endcomment %}
@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // Actions rapides : uniquement pour un événement personnel dont
     // l'utilisateur connecté est propriétaire (peut_agir calculé côté
-    // serveur, calendar_app/views.py::calendar_events — jamais recalculé
+    // serveur, calendar_app/api_views.py::calendar_events — jamais recalculé
     // ici). Pour la maintenance/les tickets, la fiche complète reste le
     // seul point d'entrée : les transitions de statut y exigent des
     // vérifications (checklist, signature, REX...) qu'un popover ne doit
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', function () {
       boutonModifier.addEventListener('click', function () {
         const idBrut = event.id.replace(/^per-/, '');
         // Le titre affiché porte le préfixe "📌 " ajouté côté serveur
-        // (calendar_app/views.py) : on ne garde que la partie après le
+        // (calendar_app/api_views.py) : on ne garde que la partie après le
         // premier espace pour ré-alimenter le formulaire d'origine.
         champId.value = idBrut;
         champTitre.value = event.title.slice(event.title.indexOf(' ') + 1);
@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // La source d'événements dépend à la fois de la vue (période demandée,
-  // cf. calendar_app/views.py::_parse_common_period) et des filtres actifs :
+  // cf. calendar_app/api_views.py::_parse_common_period) et des filtres actifs :
   // on la reconstruit entièrement avant de rafraîchir le calendrier.
   function actualiserSourceEvenements() {
     calendar.getEventSources().forEach(function (source) { source.remove(); });
@@ -703,7 +703,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // au-delà (ou dessus) d'elle, on recale automatiquement la fin une heure
   // après le nouveau début, pour ne jamais soumettre une fin antérieure au
   // début. Simple confort JS — le serveur revalide de toute façon cette
-  // règle (calendar_app/views.py::personal_event_save) et ne fait jamais
+  // règle (calendar_app/evenements_personnels_views.py::personal_event_save) et ne fait jamais
   // confiance à cet ajustement seul.
   function ajusterFinSiNecessaire() {
     if (!champFin.value || !champDate.value) return;

@@ -401,7 +401,7 @@ def _identifiants_valides(valeurs):
 def _parse_datetime_local(date_str):
     """Convertit la valeur d'un champ <input type="datetime-local"> en
     date/heure « aware », en tenant compte du fuseau horaire local du bord —
-    même principe que calendar_app/views.py::_parse_personal_event_datetime,
+    même principe que calendar_app/evenements_personnels_views.py::_parse_personal_event_datetime,
     réutilisé ici pour la création d'une nouvelle TrainingSession à
     l'attribution d'une DemandePlace (peut lever ValueError si la chaîne
     postée n'est pas une date/heure valide, laissé à l'appelant à attraper)."""

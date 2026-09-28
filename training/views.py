@@ -440,7 +440,7 @@ class TrainingSessionPermission(RolePermission):
 # TrainingRecordViewSet ci-dessous) : une session de formation n'est plus
 # rattachée à un périmètre organisationnel précis depuis que TrainingCourse
 # est une fiche globale partagée par tous les navires (portabilité des
-# qualifications), et CalendarView (calendar_app/views.py) affiche
+# qualifications), et CalendarView (calendar_app/index_views.py) affiche
 # volontairement TOUTES les sessions à tout utilisateur pour que la
 # planification (disponibilité salles/formateurs) reste visible flotte
 # entière. Seule l'ÉCRITURE reste contrôlée finement (TrainingSessionPermission

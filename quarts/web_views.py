@@ -9,7 +9,7 @@ service quotidienne (en-tête + personnel, circuit de visa).
 L'affichage des créneaux assignés dans le calendrier personnel du marin (cf.
 tâche Notion « Quarts/services : afficher les créneaux assignés dans le
 calendrier personnel du marin ») est désormais fait — mais PAS ici : il vit
-dans calendar_app (calendar_app/views.py::_creneaux_quart_assignes/
+dans calendar_app (calendar_app/evenements_sources.py::_creneaux_quart_assignes/
 _creneaux_garde_assignes, calendar_events, ical_views.py), qui agrège déjà
 toutes les sources d'événements du calendrier central, pour ne pas dupliquer
 cette mécanique. La visibilité en lecture ci-dessous reste volontairement

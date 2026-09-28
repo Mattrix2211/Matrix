@@ -4,7 +4,7 @@ affectations sont permutées. Chaque étape est tracée (EchangeServiceEvenement
 + AuditLog) et notifie les personnes concernées.
 
 Le calendrier personnel n'a rien à mettre à jour lui-même : il lit directement
-CreneauServiceGarde.marin (calendar_app/views.py), donc la permutation des deux
+CreneauServiceGarde.marin (calendar_app/evenements_sources.py), donc la permutation des deux
 créneaux suffit à le refléter pour A comme pour B.
 
 Périmètre : échanges entre deux créneaux d'UNE MÊME liste de gardes (même chef

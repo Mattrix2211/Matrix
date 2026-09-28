@@ -1,5 +1,5 @@
 """Vérifie le booléen `peut_agir` exposé par calendar_events dans les
-extendedProps de chaque événement (calendar_app/views.py) : il doit
+extendedProps de chaque événement (calendar_app/api_views.py) : il doit
 reproduire EXACTEMENT la même règle de permission/périmètre que la vue cible
 (OccurrenceExecuteView pour la maintenance, TicketTransitionView pour les
 tickets), pour que le popover de détail rapide du calendrier (calendar/

@@ -617,7 +617,7 @@ class PersonalEventMatriceTests(MatricePermissionsTestCase):
     """Événement personnel du calendrier : espace personnel (principe n°3
     CLAUDE.md), l'accès en écriture ne dépend jamais du rôle mais uniquement
     de la propriété de l'objet — même un MASTER_ADMIN ne peut pas modifier
-    l'agenda personnel d'un autre marin (calendar_app/views.py, filtre
+    l'agenda personnel d'un autre marin (calendar_app/api_views.py, filtre
     `owner=request.user` sans dérogation de rôle)."""
 
     def test_lecture_calendrier_ouverte_a_tout_role(self):
