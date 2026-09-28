@@ -40,7 +40,7 @@ class ValidationBaremeFormationTests(TestCase):
         self.assertFalse(TrainingCourse.objects.filter(title="Habilitation électrique").exists())
 
     def test_bareme_document_valide_accepte(self):
-        bareme = SimpleUploadedFile("bareme.pdf", b"contenu du bareme", content_type="application/pdf")
+        bareme = SimpleUploadedFile("bareme.pdf", b"%PDF-1.4 contenu du bareme", content_type="application/pdf")
         self._creer(bareme)
         course = TrainingCourse.objects.get(title="Habilitation électrique")
         self.assertTrue(course.bareme)

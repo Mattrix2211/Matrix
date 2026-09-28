@@ -41,6 +41,48 @@ EXTENSIONS_DOCUMENTS = EXTENSIONS_IMAGES + (
 TAILLE_MAX_IMAGE = 10 * 1024 * 1024  # 10 Mo
 TAILLE_MAX_DOCUMENT = 20 * 1024 * 1024  # 20 Mo
 
+# Signatures d'en-tête (« magic bytes ») des documents non-image. Implémentées
+# ici plutôt que via python-magic/libmagic : aucune dépendance système à
+# installer hors ligne sur les postes du bâtiment. Le format Office récent
+# (docx/xlsx) et OpenDocument (odt/ods) sont des archives ZIP.
+_SIGNATURE_ZIP = (b"PK\x03\x04",)
+_SIGNATURE_OLE2 = (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",)  # doc, xls anciens
+SIGNATURES_DOCUMENTS = {
+    "pdf": (b"%PDF-",),
+    "doc": _SIGNATURE_OLE2,
+    "xls": _SIGNATURE_OLE2,
+    "docx": _SIGNATURE_ZIP,
+    "xlsx": _SIGNATURE_ZIP,
+    "odt": _SIGNATURE_ZIP,
+    "ods": _SIGNATURE_ZIP,
+}
+# Les fichiers texte (txt, csv) n'ont pas de signature : on refuse seulement
+# ceux qui commencent par l'en-tête d'un exécutable (PE, ELF) ou d'une archive.
+SIGNATURES_INTERDITES_TEXTE = (b"\x7fELF", b"PK\x03\x04", b"%PDF-", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1")
+EXTENSIONS_TEXTE = ("txt", "csv")
+_OCTETS_CONTROLE_MZ = 64
+_OCTETS_TEXTE_COURANTS = frozenset(b"\t\n\r")
+
+
+def _ressemble_a_un_executable_windows(entete):
+    """« MZ » seul ne suffit pas (un code « MZ-001 » est un texte légitime) :
+    il faut une vraie signature PE à l'offset e_lfanew (octets 0x3C-0x3F) ou,
+    à défaut, des octets de contrôle dans les premiers octets."""
+    if not entete.startswith(b"MZ"):
+        return False
+    if len(entete) >= 0x40:
+        decalage = int.from_bytes(entete[0x3C:0x40], "little")
+        if entete[decalage:decalage + 4] == b"PE\x00\x00":
+            return True
+    return any(
+        octet < 0x20 and octet not in _OCTETS_TEXTE_COURANTS
+        for octet in entete[:_OCTETS_CONTROLE_MZ]
+    )
+
+
+# Le PDF tolère quelques octets avant « %PDF- » : on cherche dans le début.
+_OCTETS_LUS_ENTETE = 1024
+
 
 @deconstructible
 class ValidateurFichierTeleverse:
@@ -99,6 +141,39 @@ class ValidateurFichierTeleverse:
                     fichier.seek(position or 0)
                 except Exception:
                     pass
+        elif self.verifier_image:
+            self._verifier_entete_document(fichier, extension)
+
+    def _verifier_entete_document(self, fichier, extension):
+        """Vérifie que l'en-tête du document correspond à son extension."""
+        position = fichier.tell() if hasattr(fichier, "tell") else 0
+        try:
+            fichier.seek(0)
+            entete = fichier.read(_OCTETS_LUS_ENTETE)
+        finally:
+            try:
+                fichier.seek(position or 0)
+            except Exception:
+                pass
+        if not entete:
+            raise ValidationError("Ce fichier est vide.", code=self.code)
+        if extension in EXTENSIONS_TEXTE:
+            conforme = not (
+                entete.startswith(SIGNATURES_INTERDITES_TEXTE)
+                or _ressemble_a_un_executable_windows(entete)
+            )
+        elif extension == "pdf":
+            conforme = any(s in entete for s in SIGNATURES_DOCUMENTS["pdf"])
+        elif extension in SIGNATURES_DOCUMENTS:
+            conforme = entete.startswith(SIGNATURES_DOCUMENTS[extension])
+        else:
+            conforme = True
+        if not conforme:
+            raise ValidationError(
+                "Ce fichier n'est pas un document « .%(extension)s » valide : son contenu ne correspond pas à son extension."
+                % {"extension": extension},
+                code=self.code,
+            )
 
     def __eq__(self, other):
         return (

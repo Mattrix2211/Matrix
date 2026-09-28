@@ -14,7 +14,7 @@ from training.models import TrainingCourse
 
 
 def _fichier(nom="bareme.pdf"):
-    return SimpleUploadedFile(nom, b"contenu factice du bareme", content_type="application/pdf")
+    return SimpleUploadedFile(nom, b"%PDF-1.4 contenu factice du bareme", content_type="application/pdf")
 
 
 class BaremeCreationFormationTests(TestCase):

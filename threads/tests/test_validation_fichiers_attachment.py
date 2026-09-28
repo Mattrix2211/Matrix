@@ -55,7 +55,7 @@ class ValidationFichierAttachmentTests(TestCase):
         self.assertFalse(Attachment.objects.filter(message=self.message).exists())
 
     def test_document_valide_accepte_par_l_api(self):
-        document = SimpleUploadedFile("notice.pdf", b"contenu du document", content_type="application/pdf")
+        document = SimpleUploadedFile("notice.pdf", b"%PDF-1.4 contenu du document", content_type="application/pdf")
         reponse = self.client_api.post(
             "/api/threads/attachments/",
             {"message": self.message.id, "file": document, "name": "notice.pdf"},
