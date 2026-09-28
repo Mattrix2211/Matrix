@@ -98,7 +98,7 @@ class MaJourneeTests(TestCase):
         """Le formateur d'une session doit voir sa journée de formation dans
         son digest même s'il n'est ni présent (attendees) ni inscrit en
         libre-service (reservations) — seul le champ instructor le rattache
-        à la session (cf. calendar_app.views._perimetre_session et tâche
+        à la session (cf. calendar_app.deplacement_views._perimetre_session et tâche
         Notion « Calendrier de formation piloté par l'affectation
         personnelle »)."""
         course = TrainingCourse.objects.create(title="Sécurité incendie")
