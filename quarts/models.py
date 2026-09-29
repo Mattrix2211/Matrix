@@ -123,7 +123,7 @@ from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import scope_filters_for_user, ship_id_for_user
+from matrix.core.scopes import equipage_agissant, scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Section, Service, Ship
 
@@ -202,11 +202,66 @@ def perimetre_correspond(a, b):
     )
 
 
+def equipage_du_perimetre(ship=None, service=None, sector=None, section=None, createur=None):
+    """Équipage propriétaire d'une liste visant ce périmètre, sur un bâtiment à
+    double équipage (None sur un navire à équipage unique). Un service, un
+    secteur ou une section portent leur équipage (organisation en miroir) ; une
+    liste au niveau de l'unité appartient à l'équipage de son créateur, à défaut
+    à l'équipage à bord. Aucune colonne ajoutée : l'équipage se déduit de
+    l'organisation et des personnes concernées."""
+    hierarchie = service or sector or section
+    if hierarchie is not None:
+        # Après une désactivation du double équipage, les rattachements sont
+        # conservés mais n'ont plus d'effet.
+        equipage = hierarchie.equipage
+        return equipage if equipage is not None and equipage.ship.double_equipage else None
+    if ship is None or not ship.double_equipage:
+        return None
+    from org.equipages import equipage_a_bord
+    profil = getattr(createur, "profile", None)
+    if profil is not None and profil.equipage_id and profil.equipage.ship_id == ship.pk:
+        return profil.equipage
+    return equipage_a_bord(ship)
+
+
+def equipage_de_la_liste(liste):
+    """Équipage propriétaire d'une liste existante (voir equipage_du_perimetre)."""
+    return equipage_du_perimetre(liste.ship, liste.service, liste.sector, liste.section, liste.created_by)
+
+
+def listes_de_l_equipage_q(user):
+    """Filtre Q limitant des listes (Quart, ServiceGarde) à l'équipage de
+    `user` ; sans effet sur un navire à équipage unique. Pendant du calcul de
+    equipage_de_la_liste, exprimé en requête."""
+    equipage = equipage_agissant(user)
+    if equipage is None:
+        return Q()
+    q = (
+        Q(service__equipage=equipage) | Q(sector__equipage=equipage) | Q(section__equipage=equipage)
+        | Q(ship__isnull=False, created_by__profile__equipage=equipage)
+    )
+    from org.equipages import equipage_a_bord
+    if equipage_a_bord(equipage.ship) == equipage:
+        q |= Q(ship__isnull=False, created_by__profile__equipage__isnull=True)
+    return q
+
+
+def perimetre_de_mon_equipage(user, equipage):
+    """Faux si `equipage` (celui d'une liste) n'est pas celui de `user` sur un
+    bâtiment à double équipage : un chef ne gère, ne publie ni ne désigne rien
+    dans l'organisation de l'autre équipage."""
+    agissant = equipage_agissant(user)
+    return agissant is None or equipage is None or agissant.pk == equipage.pk
+
+
 def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=None, section=None):
     """Vrai si `user` peut créer/modifier/publier une liste (Quart ou
     ServiceGarde) pour le périmètre donné (exactement un des quatre non
     nul) : désigné chef de liste pour EXACTEMENT ce périmètre (ChefDeListe),
-    ou supervision globale (COMMANDANT et au-dessus)."""
+    ou supervision globale (COMMANDANT et au-dessus). Sur un bâtiment à double
+    équipage, toujours dans SON équipage."""
+    if not perimetre_de_mon_equipage(user, equipage_du_perimetre(ship, service, sector, section, user)):
+        return False
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
         return True
     cible = (
@@ -227,6 +282,8 @@ def peut_gerer_liste(user, liste):
     cf. utilisateur_autorise_pour_perimetre. Ne couvre PLUS le droit de
     publier depuis le 22/09/2026 (workflow proposer -> valider/publier,
     cf. peut_publier_liste ci-dessous, qui exige un rôle distinct)."""
+    if not perimetre_de_mon_equipage(user, equipage_de_la_liste(liste)):
+        return False
     return utilisateur_autorise_pour_perimetre(user, liste.ship, liste.service, liste.sector, liste.section)
 
 
@@ -284,6 +341,8 @@ def peut_publier_liste(user, liste):
     au-dessus) toujours autorisée, sinon rôle atteignant le seuil ET
     périmètre organisationnel personnel couvrant celui de la liste (aucune
     cascade implicite, même principe que peut_gerer_liste)."""
+    if not perimetre_de_mon_equipage(user, equipage_de_la_liste(liste)):
+        return False
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
         return True
     seuil = niveau_requis_pour(user, "liste_service_publication")
@@ -313,25 +372,31 @@ def marins_du_perimetre(liste):
     (peut_gerer_liste), qui ne tolère aucune cascade. Utilisé à la fois pour
     l'affectation d'un créneau (quarts/listes_views.py) et pour le compteur
     d'équité par marin (quarts/services.py), qui doit couvrir exactement les
-    mêmes marins que ceux affectables sur la liste."""
+    mêmes marins que ceux affectables sur la liste. Sur un bâtiment à double
+    équipage, seuls les marins de l'équipage propriétaire de la liste sont
+    retenus : c'est ce filtre unique qui empêche l'affectation, la génération
+    assistée, l'équité et la lecture de mélanger les deux équipages."""
     if liste.section_id:
-        return Q(profile__section_id=liste.section_id)
-    if liste.sector_id:
-        return Q(profile__sector_id=liste.sector_id) | Q(profile__section__sector_id=liste.sector_id)
-    if liste.service_id:
-        return (
+        q = Q(profile__section_id=liste.section_id)
+    elif liste.sector_id:
+        q = Q(profile__sector_id=liste.sector_id) | Q(profile__section__sector_id=liste.sector_id)
+    elif liste.service_id:
+        q = (
             Q(profile__service_id=liste.service_id)
             | Q(profile__sector__service_id=liste.service_id)
             | Q(profile__section__sector__service_id=liste.service_id)
         )
-    if liste.ship_id:
-        return (
+    elif liste.ship_id:
+        q = (
             Q(profile__ship_id=liste.ship_id)
             | Q(profile__service__ship_id=liste.ship_id)
             | Q(profile__sector__service__ship_id=liste.ship_id)
             | Q(profile__section__sector__service__ship_id=liste.ship_id)
         )
-    return Q(pk__in=[])
+    else:
+        return Q(pk__in=[])
+    equipage = equipage_de_la_liste(liste)
+    return q if equipage is None else q & Q(profile__equipage=equipage)
 
 
 class ListeServiceAbstract(TimeStampedModel, OwnedModel):

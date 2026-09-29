@@ -8,7 +8,10 @@ commentaire Notion de la tâche) : un marin déclare toujours SA PROPRE absence
 (statut « Déclarée », à valider ensuite) ; un chef CHEF_SECTION et au-dessus,
 pour un marin de son périmètre organisationnel, peut soit déclarer une
 absence pour lui (immédiatement « Validée », puisque le chef fait foi), soit
-valider une absence déjà déclarée par le marin lui-même. Même seuil
+valider une absence déjà déclarée par le marin lui-même. Sur un
+bâtiment à double équipage, le périmètre est borné à l'équipage du chef
+(équipage_marin_q) : jamais d'absence gérée ni validée d'un marin de l'autre
+équipage. Même seuil
 (CHEF_SECTION) que la gestion d'équipe déjà appliquée ailleurs dans le projet
 (ex. calendar_app::_peut_agir_occurrence/_peut_agir_ticket)."""
 from django.contrib.auth import get_user_model
@@ -18,6 +21,7 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.scopes import equipage_marin_q
 from notifications.models import Notification
 
 from .models import Absence
@@ -43,7 +47,7 @@ def marin_dans_perimetre(user, marin):
     volontairement simple, aligné sur la majorité des usages de build_scope_q
     dans le projet — à revoir si un besoin de cascade est confirmé côté
     métier (cf. commentaire Notion de la tâche)."""
-    return User.objects.filter(build_scope_q(user, "profile__"), pk=marin.pk).exists()
+    return User.objects.filter(build_scope_q(user, "profile__"), equipage_marin_q(user), pk=marin.pk).exists()
 
 
 def peut_gerer_absence_de(user, marin):
@@ -69,7 +73,9 @@ def marins_de_mon_perimetre(user):
     utilisé pour peupler le sélecteur « déclarer pour un marin » d'un chef.
     Même logique que marin_dans_perimetre, en sens inverse (queryset plutôt
     que test unitaire)."""
-    return User.objects.filter(build_scope_q(user, "profile__")).exclude(pk=user.pk).order_by("username")
+    return User.objects.filter(
+        build_scope_q(user, "profile__"), equipage_marin_q(user)
+    ).exclude(pk=user.pk).order_by("username")
 
 
 def absences_visibles(user):
@@ -77,7 +83,8 @@ def absences_visibles(user):
     son périmètre organisationnel s'il est CHEF_SECTION et au-dessus (même
     principe de visibilité par périmètre que le reste du projet)."""
     if user_role_level(user) >= NIVEAU_REQUIS_GESTION_ABSENCE:
-        return Absence.objects.filter(Q(marin=user) | build_scope_q(user, "marin__profile__")).distinct()
+        perimetre = build_scope_q(user, "marin__profile__") & equipage_marin_q(user, "marin__profile__")
+        return Absence.objects.filter(Q(marin=user) | perimetre).distinct()
     return Absence.objects.filter(marin=user)
 
 
@@ -116,7 +123,9 @@ def declarer_absence(auteur, marin, type_absence, date_debut, date_fin, motif=""
         # Le marin s'est déclaré lui-même : les chefs de son périmètre direct
         # (même niveau que marin_dans_perimetre) sont prévenus pour validation.
         chefs = [
-            c for c in User.objects.filter(build_scope_q(marin, "profile__")).exclude(pk=marin.pk)
+            c for c in User.objects.filter(
+                build_scope_q(marin, "profile__"), equipage_marin_q(marin)
+            ).exclude(pk=marin.pk)
             if user_role_level(c) >= NIVEAU_REQUIS_GESTION_ABSENCE
         ]
         for chef in chefs:

@@ -19,7 +19,7 @@ from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.validators import valider_photo, message_erreur_fichier
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import equipage_marin_q, scope_filters_for_user
 from notifications.models import Notification
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
@@ -187,7 +187,7 @@ class TicketDetailView(LoginRequiredMixin, View):
             # ou déduit de son périmètre plus fin (service/secteur/section), un
             # profil scopé au secteur n'ayant jamais ship renseigné directement.
             contexte["utilisateurs_assignables"] = User.objects.filter(
-                _ship_du_profil_q(ticket.equipement.ship_id)
+                _ship_du_profil_q(ticket.equipement.ship_id), equipage_marin_q(request.user)
             ).select_related("profile").order_by("username").distinct()
         return render(request, self.template_name, contexte)
 
@@ -282,7 +282,10 @@ class TicketAssignView(LoginRequiredMixin, View):
         ids = request.POST.getlist('assignees')
         # On ne retient que des utilisateurs de l'équipage du navire de l'actif
         # concerné, même filtre que le formulaire (contournement d'un POST direct).
-        utilisateurs = list(User.objects.filter(_ship_du_profil_q(ticket.equipement.ship_id), pk__in=ids))
+        # Double équipage : uniquement des marins de l'équipage de l'appelant.
+        utilisateurs = list(User.objects.filter(
+            _ship_du_profil_q(ticket.equipement.ship_id), equipage_marin_q(request.user), pk__in=ids
+        ))
         ticket.assignees.set(utilisateurs)
 
         # Notifie uniquement les marins nouvellement assignés (pas ceux déjà

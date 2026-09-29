@@ -25,7 +25,7 @@ from django.views import View
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import equipage_agissant, equipage_marin_q, scope_filters_for_user
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
@@ -40,7 +40,10 @@ from .models import (
     NIVEAU_SUPERVISION_GLOBALE_LISTE,
     Quart,
     ServiceGarde,
+    equipage_du_perimetre,
+    listes_de_l_equipage_q,
     marins_du_perimetre,
+    perimetre_de_mon_equipage,
     peut_gerer_liste,
     peut_publier_liste,
     utilisateur_autorise_pour_perimetre,
@@ -131,6 +134,12 @@ def _perimetres_org_disponibles(user, borne_par_scope=True):
             services = Service.objects.none()
             sectors = Sector.objects.none()
             sections = sections.filter(pk=valeur)
+    equipage = equipage_agissant(user)
+    if equipage is not None:
+        # Double équipage : uniquement l'organisation de SON équipage.
+        services = services.filter(equipage=equipage)
+        sectors = sectors.filter(equipage=equipage)
+        sections = sections.filter(equipage=equipage)
     tous = list(ships) + list(services) + list(sectors) + list(sections)
     return [{"valeur": _encoder_perimetre(o), "label": _libelle_perimetre(o)} for o in tous]
 
@@ -144,6 +153,8 @@ def _perimetre_autorise_pour_designation(user, ship, service, sector, section):
     tâche Notion « Quarts/services », point (c) du cadrage : seuil laissé au
     choix du dev, tranché ici en cohérence avec
     logistics/web_views.py::_secteur_dans_perimetre)."""
+    if not perimetre_de_mon_equipage(user, equipage_du_perimetre(ship, service, sector, section, user)):
+        return False
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
         return True
     if user_role_level(user) < NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE:
@@ -189,7 +200,8 @@ def _listes_visibles(model, user):
     liste."""
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
         filtres = scope_filters_for_user(user)
-        return model.objects.filter(**filtres) if filtres else model.objects.all()
+        visibles = model.objects.filter(**filtres) if filtres else model.objects.all()
+        return visibles.filter(listes_de_l_equipage_q(user))
     q = Q(pk__in=[])
     trouve = False
     for cdl in ChefDeListe.objects.filter(user=user):
@@ -202,7 +214,7 @@ def _listes_visibles(model, user):
         if filtres:
             q |= Q(**filtres)
             trouve = True
-    return model.objects.filter(q) if trouve else model.objects.none()
+    return model.objects.filter(q).filter(listes_de_l_equipage_q(user)) if trouve else model.objects.none()
 
 
 def _listes_publiees_me_concernant(model, user):
@@ -231,7 +243,7 @@ def _listes_publiees_me_concernant(model, user):
         q |= Q(ship_id=profile.ship_id)
     else:
         return model.objects.none()
-    return model.objects.filter(q, statut=model.STATUT_PUBLIEE)
+    return model.objects.filter(q, statut=model.STATUT_PUBLIEE).filter(listes_de_l_equipage_q(user))
 
 
 class ListeIndexView(LoginRequiredMixin, View):
@@ -628,11 +640,11 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         contexte = {
             "chefs_de_liste": ChefDeListe.objects.select_related(
                 "user", "ship", "service", "sector", "section"
-            ).order_by("user__username"),
+            ).filter(equipage_marin_q(request.user, "user__profile__")).order_by("user__username"),
             "perimetres_disponibles": _perimetres_org_disponibles(
                 request.user, borne_par_scope=user_role_level(request.user) < NIVEAU_SUPERVISION_GLOBALE_LISTE
             ),
-            "utilisateurs": User.objects.filter(is_active=True).order_by("username"),
+            "utilisateurs": User.objects.filter(equipage_marin_q(request.user), is_active=True).order_by("username"),
         }
         return render(request, self.template_name, contexte)
 
@@ -648,7 +660,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, ship, service, sector, section):
                 raise PermissionDenied
-            candidat = User.objects.filter(pk=request.POST.get("user_id")).first()
+            candidat = User.objects.filter(equipage_marin_q(request.user), pk=request.POST.get("user_id")).first()
             if candidat is None:
                 messages.error(request, "Marin introuvable.")
                 return redirect("quarts-reglages")
@@ -660,7 +672,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             else:
                 messages.info(request, "Cette désignation existe déjà.")
         elif action == "retirer":
-            cdl = ChefDeListe.objects.filter(pk=request.POST.get("pk")).first()
+            cdl = ChefDeListe.objects.filter(equipage_marin_q(request.user, "user__profile__"), pk=request.POST.get("pk")).first()
             if cdl is None:
                 messages.error(request, "Désignation introuvable.")
                 return redirect("quarts-reglages")

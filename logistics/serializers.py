@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from matrix.core.scopes import marins_hors_equipage
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 
 class CorrectiveTicketSerializer(serializers.ModelSerializer):
@@ -23,6 +25,13 @@ class CorrectiveTicketSerializer(serializers.ModelSerializer):
             "id", "status", "valide_par", "date_validation",
             "created_by", "updated_by", "created_at", "updated_at",
         ]
+
+    def validate_assignees(self, assignees):
+        # Double équipage : on n'assigne un ticket qu'à des marins de son équipage.
+        request = self.context.get("request")
+        if request is not None and marins_hors_equipage(request.user, assignees):
+            raise serializers.ValidationError("Un ticket ne peut être assigné qu'à des marins de votre équipage.")
+        return assignees
 
     def validate(self, attrs):
         # Règle « un matériel OU une installation » (CorrectiveTicket.clean) :

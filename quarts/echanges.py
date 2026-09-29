@@ -9,7 +9,8 @@ créneaux suffit à le refléter pour A comme pour B.
 
 Périmètre : échanges entre deux créneaux d'UNE MÊME liste de gardes (même chef
 de liste, mêmes habilitations) — hypothèse de cadrage, non étendue aux quarts.
-La détection couvre les conflits d'affectation (autre garde ou quart au même
+Sur un bâtiment à double équipage, l'échange reste interne à l'équipage
+(tranche 4 : les deux marins doivent être du même équipage). La détection couvre les conflits d'affectation (autre garde ou quart au même
 moment), les habilitations manquantes, et — depuis la tâche Notion « Absences
 et indisponibilités » — les absences déclarées (`absences.models.Absence`)
 qui chevauchent le tour repris par le marin (cf. `absences_marin` ci-dessous)."""
@@ -19,6 +20,7 @@ from django.utils import timezone
 
 from absences.models import Absence
 from accounts.models import AuditLog
+from matrix.core.scopes import meme_equipage
 from notifications.models import Notification, NotificationLevel
 from training.models import TrainingRecord
 
@@ -101,6 +103,8 @@ def analyser_echange(echange, verifier_delai=False):
         problemes.append("Les deux tours doivent appartenir à la même liste de services.")
     if a.service_garde.statut != "PUBLIEE":
         problemes.append("La liste n'est pas publiée : les tours ne sont pas encore définitifs.")
+    if echange.demandeur and echange.cible and not meme_equipage(echange.demandeur, echange.cible):
+        problemes.append("Un échange de service ne peut se faire qu'entre marins d'un même équipage.")
     if a.marin_id != echange.demandeur_id:
         problemes.append(
             f"Le tour {_libelle_creneau(a)} n'est plus affecté à {_nom(echange.demandeur)} : "

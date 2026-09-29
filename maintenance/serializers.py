@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from matrix.core.scopes import marins_hors_equipage
 from .models import MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, OccurrenceStatusLog
 
 class MaintenancePlanSerializer(serializers.ModelSerializer):
@@ -25,6 +27,14 @@ class MaintenanceOccurrenceSerializer(serializers.ModelSerializer):
         # PATCH direct sur "status" contournait totalement le contrôle mot de passe
         # de MaintenanceOccurrenceViewSet.complete() (cf. perform_update ci-contre).
         read_only_fields = ["id", "status", "created_by", "updated_by", "created_at", "updated_at"]
+
+    def validate_assignees(self, assignees):
+        # Double équipage : l'occurrence appartient au bâtiment, mais on ne
+        # l'assigne qu'à des marins de son propre équipage.
+        request = self.context.get("request")
+        if request is not None and marins_hors_equipage(request.user, assignees):
+            raise serializers.ValidationError("Une occurrence ne peut être assignée qu'à des marins de votre équipage.")
+        return assignees
 
 class OccurrenceStatusLogSerializer(serializers.ModelSerializer):
     class Meta:
