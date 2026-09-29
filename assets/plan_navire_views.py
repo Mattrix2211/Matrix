@@ -60,7 +60,7 @@ def _navire_selectionne(request):
     configurer que celui-ci. Un utilisateur à accès flotte entière
     (is_master_admin, cf. matrix/core/scopes.py) choisit le navire via le
     sélecteur ?navire=, même principe que le sélecteur de navire de
-    SettingsView (matrix/views.py). Renvoie (navire, liste_des_navires ou None
+    SettingsView (matrix/settings_views.py). Renvoie (navire, liste_des_navires ou None
     si l'utilisateur n'a pas de sélecteur à afficher)."""
     if is_master_admin(request.user):
         navires = list(Ship.objects.order_by('name'))

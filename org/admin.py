@@ -44,7 +44,7 @@ class SectorConfigAdmin(admin.ModelAdmin):
 class RoleThresholdConfigAdmin(admin.ModelAdmin):
     # Interface de gestion réservée aux administrateurs techniques (superusers
     # Django) : l'interface destinée aux ADMIN_NAVIRE/MASTER_ADMIN au quotidien
-    # est l'onglet « Sécurité » de /parametre/ (matrix/views.py::SettingsView),
+    # est l'onglet « Sécurité » de /parametre/ (matrix/settings_views.py::SettingsView),
     # pas ce Django admin brut (principe n°2 CLAUDE.md).
     list_display = ("ship", "updated_at")
 
@@ -52,6 +52,6 @@ class RoleThresholdConfigAdmin(admin.ModelAdmin):
 class ModuleActivationAdmin(admin.ModelAdmin):
     # Même principe que RoleThresholdConfigAdmin ci-dessus : interface de
     # secours technique, l'interface quotidienne est l'onglet « Modules » de
-    # /parametre/ (matrix/views.py::SettingsView).
+    # /parametre/ (matrix/settings_views.py::SettingsView).
     list_display = ("ship", "module", "active", "updated_at")
     list_filter = ("ship", "module", "active")
