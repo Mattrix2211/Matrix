@@ -26,7 +26,8 @@ from matrix.core.role_thresholds import (
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from org import commandants_adjoints as coma
-from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, CommandantAdjoint
+from org.miroir import copier_organisation
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, Equipage
 
 # Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
 # les 8 rôles, du plus bas (Équipier) au plus haut (Administrateur général) —
@@ -251,7 +252,7 @@ class SettingsView(LoginRequiredMixin, View):
         if not selected_ship:
             selected_ship = ships_qs.first()
 
-        services_qs = Service.objects.select_related('ship')
+        services_qs = Service.objects.select_related('ship', 'equipage')
         sectors_qs = Sector.objects.select_related('service','service__ship')
         sections_qs = Section.objects.select_related('sector','sector__service','sector__service__ship')
         if selected_ship:
@@ -406,33 +407,19 @@ class SettingsView(LoginRequiredMixin, View):
                 # ship » de même classe).
                 new_ship = Ship.objects.create(
                     name=name, code=code, type_unite=src_ship.type_unite, classe_navire=src_ship.classe_navire,
-                    capacite_aviation=src_ship.capacite_aviation,
+                    capacite_aviation=src_ship.capacite_aviation, double_equipage=src_ship.double_equipage,
                 )
-                # Duplique les commandants adjoints (sans leurs titulaires)
-                coma_map = {
-                    c.id: CommandantAdjoint.objects.create(ship=new_ship, sigle=c.sigle)
-                    for c in CommandantAdjoint.objects.filter(ship=src_ship)
-                }
-                # Map des services et secteurs pour rattacher correctement
-                service_map = {}
-                sector_map = {}
-                # Duplique les services
-                for sv in Service.objects.filter(ship=src_ship).order_by('id'):
-                    new_sv = Service.objects.create(
-                        ship=new_ship, name=sv.name, commandant_adjoint=coma_map.get(sv.commandant_adjoint_id),
-                    )
-                    service_map[sv.id] = new_sv
-                # Duplique les secteurs
-                for sc in Sector.objects.filter(service__ship=src_ship).select_related('service').order_by('id'):
-                    parent_new_sv = service_map.get(sc.service_id)
-                    if parent_new_sv:
-                        new_sc = Sector.objects.create(service=parent_new_sv, name=sc.name, color=sc.color)
-                        sector_map[sc.id] = new_sc
-                # Duplique les sections
-                for se in Section.objects.filter(sector__service__ship=src_ship).select_related('sector').order_by('id'):
-                    parent_new_sc = sector_map.get(se.sector_id)
-                    if parent_new_sc:
-                        Section.objects.create(sector=parent_new_sc, name=se.name)
+                # Reprend les équipages (double équipage) puis l'organisation de
+                # chacun, sans titulaires ni marins ; un navire à équipage unique
+                # n'a que l'organisation sans équipage (clé None).
+                equipages_copies = {None: None}
+                for eq in src_ship.equipages.all():
+                    equipages_copies[eq] = Equipage.objects.create(ship=new_ship, nom=eq.nom)
+                if src_ship.equipage_a_bord_id:
+                    new_ship.equipage_a_bord = equipages_copies[src_ship.equipage_a_bord]
+                    new_ship.save(update_fields=["equipage_a_bord", "updated_at"])
+                for eq_source, eq_copie in equipages_copies.items():
+                    copier_organisation(src_ship, eq_source, new_ship, eq_copie)
                 messages.success(request, "Unité dupliquée.")
                 AuditLog.objects.create(actor=request.user, action='duplicate_ship', details=f'source={src_pk}; name={name}; code={code}')
             except (Ship.DoesNotExist, ValueError):
@@ -443,9 +430,14 @@ class SettingsView(LoginRequiredMixin, View):
             if name and ship_id:
                 try:
                     ship = Ship.objects.get(pk=ship_id)
-                    Service.objects.get_or_create(name=name, ship=ship)
-                    messages.success(request, "Service ajouté.")
-                    AuditLog.objects.create(actor=request.user, action='add_service', details=f'name={name}; ship_id={ship_id}')
+                    # Double équipage : le service est créé pour l'équipage choisi.
+                    equipage = ship.equipages.filter(pk=request.POST.get('equipage_id') or 0).first()
+                    if ship.double_equipage and equipage is None:
+                        messages.error(request, "Choisissez l'équipage du service.")
+                    else:
+                        Service.objects.get_or_create(name=name, ship=ship, equipage=equipage)
+                        messages.success(request, "Service ajouté.")
+                        AuditLog.objects.create(actor=request.user, action='add_service', details=f'name={name}; ship_id={ship_id}')
                 except Ship.DoesNotExist:
                     pass
         elif action == 'delete_service':
@@ -458,7 +450,7 @@ class SettingsView(LoginRequiredMixin, View):
             if name and service_id:
                 try:
                     service = Service.objects.get(pk=service_id)
-                    Sector.objects.get_or_create(name=name, service=service)
+                    Sector.objects.get_or_create(name=name, service=service, defaults={'equipage': service.equipage})
                     messages.success(request, "Secteur ajouté.")
                     AuditLog.objects.create(actor=request.user, action='add_sector', details=f'name={name}; service_id={service_id}')
                 except Service.DoesNotExist:
@@ -473,7 +465,7 @@ class SettingsView(LoginRequiredMixin, View):
             if name and sector_id:
                 try:
                     sector = Sector.objects.get(pk=sector_id)
-                    Section.objects.get_or_create(name=name, sector=sector)
+                    Section.objects.get_or_create(name=name, sector=sector, defaults={'equipage': sector.equipage})
                     messages.success(request, "Section ajoutée.")
                     AuditLog.objects.create(actor=request.user, action='add_section', details=f'name={name}; sector_id={sector_id}')
                 except Sector.DoesNotExist:

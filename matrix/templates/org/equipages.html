@@ -49,7 +49,7 @@
             <div class="d-flex justify-content-between align-items-start">
               <div>
                 <h2 class="h5 mb-1">Équipage {{ ligne.equipage.nom }}</h2>
-                <span class="text-muted small">{{ ligne.nb_marins }} marin{{ ligne.nb_marins|pluralize }}</span>
+                <span class="text-muted small">{{ ligne.nb_marins }} marin{{ ligne.nb_marins|pluralize }} · {{ ligne.nb_services }} service{{ ligne.nb_services|pluralize }}</span>
               </div>
               {% if ligne.a_bord %}
                 <span class="badge bg-success"><span class="bi bi-water me-1" aria-hidden="true"></span>À bord</span>
@@ -118,6 +118,33 @@
           {% endfor %}
         </ul>
         {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Organisation en miroir — <strong>{{ eq_ship.name }}</strong></div>
+      <div class="card-body">
+        <p class="text-muted small">Recopie les COMAEQ / COMOPS / COMANAV, services, secteurs et sections d'un équipage vers l'autre. Les titulaires et les marins ne sont pas copiés ; ce qui existe déjà chez la destination est conservé.</p>
+        <form method="post" class="row g-2 align-items-end mb-0">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="dupliquer_organisation" />
+          <input type="hidden" name="ship_id" value="{{ eq_ship.id }}" />
+          <div class="col-auto">
+            <label class="form-label small mb-0" for="miroir-source">De l'équipage</label>
+            <select id="miroir-source" name="source_id" class="form-select form-select-sm">
+              {% for ligne in eq_equipages %}<option value="{{ ligne.equipage.id }}" {% if ligne.a_bord %}selected{% endif %}>{{ ligne.equipage.nom }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-0" for="miroir-destination">Vers l'équipage</label>
+            <select id="miroir-destination" name="destination_id" class="form-select form-select-sm">
+              {% for ligne in eq_equipages %}<option value="{{ ligne.equipage.id }}" {% if not ligne.a_bord %}selected{% endif %}>{{ ligne.equipage.nom }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-auto"><button class="btn btn-sm btn-primary" type="submit">Dupliquer l'organisation</button></div>
+        </form>
       </div>
     </div>
   </div>

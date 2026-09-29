@@ -38,7 +38,7 @@
           <tbody>
           {% for poste in coma_postes %}
             <tr>
-              <td><span class="badge bg-primary" title="{{ poste.signification }}">{{ poste.sigle }}</span><div class="small text-muted">{{ poste.signification }}</div></td>
+              <td><span class="badge bg-primary" title="{{ poste.signification }}">{{ poste.sigle }}</span>{% if poste.equipage %} <span class="badge bg-info text-dark">Équipage {{ poste.equipage.nom }}</span>{% endif %}<div class="small text-muted">{{ poste.signification }}</div></td>
               <td>
                 <form method="post" class="d-flex gap-2 mb-0">
                   {% csrf_token %}
@@ -74,6 +74,11 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="add_commandant_adjoint" />
           <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+          {% if coma_equipages %}
+          <select name="equipage_id" class="form-select form-select-sm w-auto" aria-label="Équipage du poste">
+            {% for eq in coma_equipages %}<option value="{{ eq.id }}">Équipage {{ eq.nom }}</option>{% endfor %}
+          </select>
+          {% endif %}
           <select name="sigle" class="form-select form-select-sm w-auto">
             {% for valeur, libelle, signification in coma_sigles_ajoutables %}
               <option value="{{ valeur }}">{{ libelle }} — {{ signification }}</option>
@@ -94,7 +99,7 @@
           <tbody>
           {% for sv in coma_services %}
             <tr>
-              <td>{{ sv.name }}</td>
+              <td>{{ sv.name }}{% if sv.equipage %} <span class="badge bg-info text-dark">Équipage {{ sv.equipage.nom }}</span>{% endif %}</td>
               <td>
                 <form method="post" class="mb-0">
                   {% csrf_token %}
@@ -103,9 +108,9 @@
                   <input type="hidden" name="service_id" value="{{ sv.id }}" />
                   <select name="coma_id" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">— Non rattaché —</option>
-                    {% for poste in coma_postes %}
+                    {% for poste in coma_postes %}{% if poste.equipage_id == sv.equipage_id %}
                       <option value="{{ poste.id }}" {% if sv.commandant_adjoint_id == poste.id %}selected{% endif %}>{{ poste.sigle }}</option>
-                    {% endfor %}
+                    {% endif %}{% endfor %}
                   </select>
                 </form>
               </td>

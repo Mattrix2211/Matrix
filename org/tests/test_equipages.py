@@ -214,7 +214,7 @@ class LectureSeuleTests(TestCase):
         self.rouge = Equipage.objects.create(ship=self.navire, nom="Rouge")
         self.navire.equipage_a_bord = self.bleu
         self.navire.save()
-        self.payload = {"ship": self.navire.pk, "name": "Machine"}
+        self.payload = {"ship": self.navire.pk, "name": "Machine", "equipage": self.bleu.pk}
 
     def test_equipage_a_terre_ne_peut_pas_ecrire_via_l_api(self):
         creer_marin("terre", "COMMANDANT", self.navire, self.rouge)

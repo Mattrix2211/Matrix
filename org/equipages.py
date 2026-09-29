@@ -3,7 +3,7 @@ bâtiment (page Notion « Organigramme et rôles » §9 et §11).
 
 Règle de partage : installations, matériel, fiches, historique, relevés, stock
 et plan du navire appartiennent au BÂTIMENT ; les personnes (et, dans les
-tranches suivantes, l'organisation, les quarts, les assignations et les
+tranches suivantes, l'organisation (org/miroir.py), les quarts, les assignations et les
 notifications) dépendent de l'ÉQUIPAGE. L'équipage à terre garde l'accès en
 LECTURE SEULE : `est_en_lecture_seule()` est le point d'entrée unique, appliqué
 par le middleware `LectureSeuleEquipageMiddleware` et par `RolePermission`.
@@ -22,6 +22,7 @@ from matrix.core.roles import user_role_level
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 
+from . import miroir
 from .models import Equipage, Ship
 
 User = get_user_model()
@@ -38,6 +39,7 @@ ACTIONS = (
     "affecter_equipage_marin",
     "planifier_releve",
     "annuler_releve",
+    "dupliquer_organisation",
 )
 
 
@@ -131,6 +133,7 @@ def contexte_page(ship):
                 "equipage": e,
                 "a_bord": a_bord is not None and e.pk == a_bord.pk,
                 "nb_marins": sum(1 for m in marins if m.profile.equipage_id == e.pk),
+                "nb_services": e.services.count(),
             }
             for e in ship.equipages.all()
         ],
@@ -183,6 +186,8 @@ def traiter_action(request, action):
         _planifier_releve(request, ship)
     elif action == "annuler_releve":
         _annuler_releve(request, ship)
+    elif action == "dupliquer_organisation":
+        miroir.dupliquer_vers_l_autre_equipage(request, ship)
 
 
 def _activer(request, ship):
@@ -200,6 +205,7 @@ def _activer(request, ship):
     if ship.equipage_a_bord_id is None:
         ship.equipage_a_bord = ship.equipages.order_by("nom").first()
     ship.save(update_fields=["double_equipage", "equipage_a_bord", "updated_at"])
+    miroir.rattacher_organisation_existante(ship, ship.equipage_a_bord)
     _tracer(request, "activer_double_equipage", ship, f"equipage_a_bord={ship.equipage_a_bord.nom}")
     messages.success(request, f"Double équipage activé sur {ship.name}.")
 

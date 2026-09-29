@@ -776,7 +776,16 @@
                 <input type="hidden" name="action" value="add_service" />
                 <input type="hidden" name="next_tab" value="hierarchie" />
                 <input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" />
+                {% if selected_ship.double_equipage %}
+                <div class="col-md-5"><input class="form-control" name="name" placeholder="Ajouter un service" /></div>
+                <div class="col-md-3">
+                  <select name="equipage_id" class="form-select" aria-label="Équipage du service">
+                    {% for eq in selected_ship.equipages.all %}<option value="{{ eq.id }}">Équipage {{ eq.nom }}</option>{% endfor %}
+                  </select>
+                </div>
+                {% else %}
                 <div class="col-md-8"><input class="form-control" name="name" placeholder="Ajouter un service" /></div>
+                {% endif %}
                 <div class="col-md-4"><button class="btn btn-primary w-100" type="submit">Ajouter</button></div>
               </form>
             </div>
@@ -784,7 +793,7 @@
               {% for sv in services %}
                 <li class="mb-3">
                   <div class="d-flex align-items-center justify-content-between">
-                    <strong>{{ sv.name }}</strong>
+                    <strong>{{ sv.name }}{% if sv.equipage %} <span class="badge bg-info text-dark">Équipage {{ sv.equipage.nom }}</span>{% endif %}</strong>
                     <div>
                       <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_service" data-pk="{{ sv.id }}" data-label="Supprimer le service {{ sv.name }}">Supprimer</button>
                     </div>

@@ -40,17 +40,23 @@ def contexte_onglet(ship):
     """Données affichées par l'onglet, pour le navire donné (ou None)."""
     if ship is None:
         return {"coma_ship": None}
-    postes = list(ship.commandants_adjoints.select_related("titulaire"))
-    sigles_pris = {p.sigle for p in postes}
+    postes = list(ship.commandants_adjoints.select_related("titulaire", "equipage"))
+    # Double équipage : un sigle reste ajoutable tant qu'un des équipages ne l'a pas.
+    equipages = list(ship.equipages.all()) if ship.double_equipage else [None]
+    sigles_pris = {
+        p.sigle for p in postes
+        if all(any(q.sigle == p.sigle and q.equipage == e for q in postes) for e in equipages)
+    }
     return {
         "coma_ship": ship,
         "coma_postes": postes,
+        "coma_equipages": equipages if ship.double_equipage else [],
         "coma_sigles_ajoutables": [
             (valeur, libelle, CommandantAdjoint.SIGNIFICATIONS[valeur])
             for valeur, libelle in CommandantAdjoint.Sigle.choices
             if valeur not in sigles_pris and (valeur != "COMAVIA" or ship.capacite_aviation)
         ],
-        "coma_services": ship.services.select_related("commandant_adjoint").order_by("name"),
+        "coma_services": ship.services.select_related("commandant_adjoint", "equipage").order_by("name"),
         "coma_titulaires_possibles": titulaires_possibles(ship),
     }
 
@@ -100,9 +106,13 @@ def traiter_action(request, action):
         elif sigle == "COMAVIA" and not ship.capacite_aviation:
             messages.error(request, "Le COMAVIA n'est possible que sur un bâtiment à capacité aviation.")
         else:
-            _, cree = CommandantAdjoint.objects.get_or_create(ship=ship, sigle=sigle)
+            equipage = ship.equipages.filter(pk=request.POST.get("equipage_id") or 0).first()
+            if ship.double_equipage and equipage is None:
+                messages.error(request, "Choisissez l'équipage du poste.")
+                return
+            _, cree = CommandantAdjoint.objects.get_or_create(ship=ship, sigle=sigle, equipage=equipage)
             if cree:
-                _tracer(request, action, ship, f"sigle={sigle}")
+                _tracer(request, action, ship, f"sigle={sigle}" + (f"; equipage={equipage.nom}" if equipage else ""))
                 messages.success(request, f"{sigle} ajouté.")
             else:
                 messages.warning(request, f"Le {sigle} existe déjà sur cette unité.")
@@ -119,6 +129,9 @@ def traiter_action(request, action):
             if titulaire is None:
                 messages.error(request, "Le titulaire doit être un membre de l'état-major de cette unité.")
                 return
+        if titulaire is not None and poste.equipage_id and titulaire.profile.equipage_id not in (None, poste.equipage_id):
+            messages.error(request, f"Ce marin appartient à l'autre équipage : le {poste.sigle} doit être de l'équipage {poste.equipage.nom}.")
+            return
         ancien = poste.titulaire.username if poste.titulaire else "aucun"
         poste.titulaire = titulaire
         poste.save(update_fields=["titulaire", "updated_at"])
@@ -130,6 +143,9 @@ def traiter_action(request, action):
         coma = _poste_du_navire(ship, coma_id) if coma_id else None
         if service is None or (coma_id and coma is None):
             messages.error(request, "Service ou poste introuvable sur cette unité.")
+            return
+        if coma is not None and coma.equipage_id != service.equipage_id:
+            messages.error(request, "Le service et le poste doivent appartenir au même équipage.")
             return
         ancien = service.commandant_adjoint.sigle if service.commandant_adjoint else "aucun"
         service.commandant_adjoint = coma

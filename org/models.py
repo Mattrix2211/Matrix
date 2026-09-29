@@ -108,9 +108,25 @@ class CommandantAdjoint(TimeStampedModel):
         User, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="commandants_adjoints_titulaire", verbose_name="Titulaire",
     )
+    # Équipage porteur du poste (double équipage : organisation en miroir, voir
+    # org/miroir.py). Nul = équipage unique implicite (comportement historique).
+    equipage = models.ForeignKey(
+        "Equipage", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="commandants_adjoints", verbose_name="Équipage",
+    )
 
     class Meta:
-        unique_together = ("ship", "sigle")
+        # Un sigle par équipage (et un seul sans équipage) : la contrainte
+        # conditionnelle couvre le cas NULL, non comparé par SQL.
+        constraints = [
+            models.UniqueConstraint(
+                fields=("ship", "equipage", "sigle"), name="coma_unique_sigle_par_equipage"
+            ),
+            models.UniqueConstraint(
+                fields=("ship", "sigle"), condition=models.Q(equipage__isnull=True),
+                name="coma_unique_sigle_sans_equipage",
+            ),
+        ]
         ordering = ("ship__name", "sigle")
         verbose_name = "Poste de commandant adjoint (COMA)"
         verbose_name_plural = "Postes de commandant adjoint (COMA)"
@@ -120,7 +136,7 @@ class CommandantAdjoint(TimeStampedModel):
         return self.SIGNIFICATIONS[self.sigle]
 
     def __str__(self):
-        return f"{self.ship} / {self.sigle}"
+        return f"{self.ship} / {self.sigle}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
 
 
 class Service(TimeStampedModel):
@@ -132,10 +148,21 @@ class Service(TimeStampedModel):
         CommandantAdjoint, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="services", verbose_name="Poste de commandant adjoint (COMA)",
     )
+    # Équipage dont dépend le service (double équipage) ; nul = équipage unique.
+    equipage = models.ForeignKey(
+        Equipage, null=True, blank=True, on_delete=models.CASCADE,
+        related_name="services", verbose_name="Équipage",
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ("ship", "name")
+        constraints = [
+            models.UniqueConstraint(fields=("ship", "equipage", "name"), name="service_unique_nom_par_equipage"),
+            models.UniqueConstraint(
+                fields=("ship", "name"), condition=models.Q(equipage__isnull=True),
+                name="service_unique_nom_sans_equipage",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.ship} / {self.name}"
@@ -144,6 +171,11 @@ class Sector(TimeStampedModel):
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="sectors")
     name = models.CharField(max_length=255)
     color = models.CharField(max_length=7, default="#0d6efd")
+    # Copie de l'équipage du service (renseignée à la création et à la duplication).
+    equipage = models.ForeignKey(
+        Equipage, null=True, blank=True, on_delete=models.CASCADE,
+        related_name="secteurs", verbose_name="Équipage",
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -155,6 +187,11 @@ class Sector(TimeStampedModel):
 class Section(TimeStampedModel):
     sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="sections")
     name = models.CharField(max_length=255)
+    # Copie de l'équipage du secteur (renseignée à la création et à la duplication).
+    equipage = models.ForeignKey(
+        Equipage, null=True, blank=True, on_delete=models.CASCADE,
+        related_name="sections", verbose_name="Équipage",
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:
