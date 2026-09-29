@@ -11,6 +11,16 @@ class ServiceSerializer(serializers.ModelSerializer):
         model = Service
         fields = "__all__"
 
+    def validate(self, attrs):
+        # Le commandant adjoint d'un service doit appartenir au même navire.
+        coma = attrs.get("commandant_adjoint")
+        ship = attrs.get("ship") or getattr(self.instance, "ship", None)
+        if coma and ship and coma.ship_id != ship.id:
+            raise serializers.ValidationError(
+                {"commandant_adjoint": "Ce poste (COMAEQ, COMOPS, COMANAV, COMAVIA) n'appartient pas à l'unité du service."}
+            )
+        return attrs
+
 class SectorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sector

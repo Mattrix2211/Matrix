@@ -18,13 +18,14 @@ from training.models import TrainingCourse
 from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
-from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, CommandantAdjoint
 from django.contrib import messages
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
 )
+from org import commandants_adjoints as coma
 from matrix.core.modules import (
     REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif,
     invalidate_cache as invalidate_modules_cache,
@@ -187,6 +188,12 @@ class SettingsView(LoginRequiredMixin, View):
         # navire comme n'importe quel autre seuil de l'onglet Sécurité.
         return user_role_level(user) >= niveau_requis_pour(user, 'module_gestion')
 
+    @staticmethod
+    def _peut_gerer_coma(user):
+        # Seuil configurable « commandant_adjoint_gestion » (COMMANDANT par
+        # défaut, donc ADMIN_NAVIRE aussi), limité à SON navire.
+        return user_role_level(user) >= niveau_requis_pour(user, 'commandant_adjoint_gestion')
+
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             # Seules les sections "Notification quotidienne" (réglage personnel
@@ -205,9 +212,11 @@ class SettingsView(LoginRequiredMixin, View):
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
+            peut_gerer_coma = self._peut_gerer_coma(request.user)
             tab = request.GET.get('tab', 'generale')
             tab_ok = request.method == 'GET' and (
                 tab == 'notifications'
+                or (tab == 'commandants_adjoints' and peut_gerer_coma)
                 or (tab == 'seuils_role' and est_admin_navire)
                 or (tab == 'utilisateurs' and peut_gerer_responsables)
                 or (tab == 'modules' and peut_gerer_modules)
@@ -230,7 +239,11 @@ class SettingsView(LoginRequiredMixin, View):
             action_module_ok = (
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
-            if not (tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok):
+            action_coma_ok = request.method == 'POST' and action in coma.ACTIONS and peut_gerer_coma
+            if not (
+                tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
+                or action_coma_ok
+            ):
                 return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
 
@@ -254,6 +267,7 @@ class SettingsView(LoginRequiredMixin, View):
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
+            peut_gerer_coma = self._peut_gerer_coma(request.user)
             active_tab = 'notifications'
             if tab == 'seuils_role' and est_admin_navire:
                 active_tab = 'seuils_role'
@@ -261,6 +275,8 @@ class SettingsView(LoginRequiredMixin, View):
                 active_tab = 'utilisateurs'
             elif tab == 'modules' and peut_gerer_modules:
                 active_tab = 'modules'
+            elif tab == 'commandants_adjoints' and peut_gerer_coma:
+                active_tab = 'commandants_adjoints'
             context = {
                 'active_tab': active_tab,
                 'user_notification_time': fmt_time(getattr(profile, 'notification_time', None)),
@@ -268,7 +284,10 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_gerer_seuils': est_admin_navire,
                 'peut_gerer_responsables': peut_gerer_responsables,
                 'peut_gerer_modules': peut_gerer_modules,
+                'peut_gerer_coma': peut_gerer_coma,
             }
+            if active_tab == 'commandants_adjoints':
+                context.update(coma.contexte_onglet(Ship.objects.filter(pk=ship_id_for_user(request.user)).first()))
             if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
                 context.update({
@@ -369,6 +388,7 @@ class SettingsView(LoginRequiredMixin, View):
             'peut_gerer_seuils': True,
             'peut_gerer_responsables': True,
             'peut_gerer_modules': True,
+            'peut_gerer_coma': True,
             # Responsables transverses (dashboards par spécialité / par classe de
             # navire, tâche Notion « Dashboards transverses par spécialité et par
             # classe de navire ») : rôle indépendant de la hiérarchie Navire →
@@ -398,6 +418,8 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
             })
+        if tab == 'commandants_adjoints':
+            context.update(coma.contexte_onglet(selected_ship))
         if tab == 'modules':
             # MASTER_ADMIN choisit le navire à configurer, même sélecteur que
             # l'onglet Sécurité ci-dessus (selected_ship).
@@ -480,13 +502,21 @@ class SettingsView(LoginRequiredMixin, View):
                 # ship » de même classe).
                 new_ship = Ship.objects.create(
                     name=name, code=code, type_unite=src_ship.type_unite, classe_navire=src_ship.classe_navire,
+                    capacite_aviation=src_ship.capacite_aviation,
                 )
+                # Duplique les commandants adjoints (sans leurs titulaires)
+                coma_map = {
+                    c.id: CommandantAdjoint.objects.create(ship=new_ship, sigle=c.sigle)
+                    for c in CommandantAdjoint.objects.filter(ship=src_ship)
+                }
                 # Map des services et secteurs pour rattacher correctement
                 service_map = {}
                 sector_map = {}
                 # Duplique les services
                 for sv in Service.objects.filter(ship=src_ship).order_by('id'):
-                    new_sv = Service.objects.create(ship=new_ship, name=sv.name)
+                    new_sv = Service.objects.create(
+                        ship=new_ship, name=sv.name, commandant_adjoint=coma_map.get(sv.commandant_adjoint_id),
+                    )
                     service_map[sv.id] = new_sv
                 # Duplique les secteurs
                 for sc in Sector.objects.filter(service__ship=src_ship).select_related('service').order_by('id'):
@@ -715,6 +745,9 @@ class SettingsView(LoginRequiredMixin, View):
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> défaut ({action_seuil.defaut.name})",
                             )
                         messages.success(request, "Seuil de rôle réinitialisé à sa valeur par défaut.")
+        elif action in coma.ACTIONS:
+            next_tab = 'commandants_adjoints'
+            coma.traiter_action(request, action)
         elif action == 'toggle_module':
             # Onglet Modules : bascule activé/désactivé d'un module applicatif
             # pour un navire. Accessible à un rôle habilité par le seuil

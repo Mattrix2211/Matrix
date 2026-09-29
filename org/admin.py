@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation
+from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation, CommandantAdjoint
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
@@ -7,9 +7,16 @@ class ShipAdmin(admin.ModelAdmin):
     search_fields = ("name", "code")
     list_filter = ("archived",)
 
+@admin.register(CommandantAdjoint)
+class CommandantAdjointAdmin(admin.ModelAdmin):
+    # Interface de secours technique : l'interface quotidienne est l'onglet
+    # « Commandants adjoints » de /parametre/.
+    list_display = ("sigle", "ship", "titulaire")
+    list_filter = ("ship", "sigle")
+
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ("name", "ship", "archived")
+    list_display = ("name", "ship", "commandant_adjoint", "archived")
     list_filter = ("ship", "archived")
 
 @admin.register(Sector)

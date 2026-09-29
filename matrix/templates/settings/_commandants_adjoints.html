@@ -1,0 +1,124 @@
+<div class="row g-3">
+  {% if user.is_superuser %}
+  <div class="col-12">
+    <form method="get" class="row g-2 align-items-center">
+      <input type="hidden" name="tab" value="commandants_adjoints" />
+      <div class="col-auto"><label class="col-form-label">Unité :</label></div>
+      <div class="col-auto">
+        <select name="ship" class="form-select" onchange="this.form.submit()">
+          {% for sh in ships %}
+            <option value="{{ sh.id }}" {% if coma_ship and coma_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  {% if coma_ship %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Postes COMAEQ / COMOPS / COMANAV — <strong>{{ coma_ship.name }}</strong>
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Postes COMAEQ / COMOPS / COMANAV" data-bs-content="Niveau de l'état-major entre le commandant et les services : chaque service dépend d'un poste de commandant adjoint (COMAEQ, COMOPS, COMANAV, et COMAVIA sur les bâtiments à capacité aviation). Le titulaire est un membre de l'état-major de l'unité.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <span>Capacité aviation :</span>
+          {% if coma_ship.capacite_aviation %}<span class="badge bg-success">Oui</span>{% else %}<span class="badge bg-secondary">Non</span>{% endif %}
+          <form method="post" class="mb-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="toggle_capacite_aviation" />
+            <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+            <button class="btn btn-sm btn-outline-secondary" type="submit">{% if coma_ship.capacite_aviation %}Retirer{% else %}Activer{% endif %}</button>
+          </form>
+        </div>
+        <table class="table table-sm align-middle">
+          <thead><tr><th style="width:120px">Sigle</th><th>Titulaire (état-major)</th><th>Services rattachés</th><th style="width:60px"></th></tr></thead>
+          <tbody>
+          {% for poste in coma_postes %}
+            <tr>
+              <td><span class="badge bg-primary" title="{{ poste.signification }}">{{ poste.sigle }}</span><div class="small text-muted">{{ poste.signification }}</div></td>
+              <td>
+                <form method="post" class="d-flex gap-2 mb-0">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="set_titulaire_commandant_adjoint" />
+                  <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+                  <input type="hidden" name="pk" value="{{ poste.id }}" />
+                  <select name="user_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">— Poste vacant —</option>
+                    {% for u in coma_titulaires_possibles %}
+                      <option value="{{ u.id }}" {% if poste.titulaire_id == u.id %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+              </td>
+              <td>{% for sv in poste.services.all %}<span class="badge bg-light text-dark border">{{ sv.name }}</span> {% empty %}<span class="text-muted small">Aucun service</span>{% endfor %}</td>
+              <td>
+                <form method="post" class="mb-0" onsubmit="return confirm('Supprimer le {{ poste.sigle }} ? Ses services seront détachés.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_commandant_adjoint" />
+                  <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+                  <input type="hidden" name="pk" value="{{ poste.id }}" />
+                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Supprimer"><span class="bi bi-trash"></span></button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-muted">Aucun poste (COMAEQ, COMOPS, COMANAV) configuré sur cette unité.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% if coma_sigles_ajoutables %}
+        <form method="post" class="d-flex gap-2 align-items-center">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_commandant_adjoint" />
+          <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+          <select name="sigle" class="form-select form-select-sm w-auto">
+            {% for valeur, libelle, signification in coma_sigles_ajoutables %}
+              <option value="{{ valeur }}">{{ libelle }} — {{ signification }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-sm btn-primary" type="submit">Ajouter</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">COMAEQ / COMOPS / COMANAV de chaque service</div>
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Service</th><th style="width:260px">Dépend de</th></tr></thead>
+          <tbody>
+          {% for sv in coma_services %}
+            <tr>
+              <td>{{ sv.name }}</td>
+              <td>
+                <form method="post" class="mb-0">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="set_service_commandant_adjoint" />
+                  <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+                  <input type="hidden" name="service_id" value="{{ sv.id }}" />
+                  <select name="coma_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">— Non rattaché —</option>
+                    {% for poste in coma_postes %}
+                      <option value="{{ poste.id }}" {% if sv.commandant_adjoint_id == poste.id %}selected{% endif %}>{{ poste.sigle }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="text-muted">Aucun service sur cette unité.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12"><p class="text-muted mb-0">Aucune unité sélectionnée.</p></div>
+  {% endif %}
+</div>

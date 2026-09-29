@@ -131,6 +131,11 @@ REGISTRE_ACTIONS = [
         "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
     ),
     ActionSeuil(
+        "commandant_adjoint_gestion",
+        "Configurer les postes COMAEQ, COMOPS, COMANAV et COMAVIA, leurs titulaires et les services qui en dépendent",
+        "Organisation", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,

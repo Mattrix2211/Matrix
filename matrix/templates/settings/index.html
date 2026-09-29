@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load org_extras %}
 {% block content %}
-<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules %}Paramètres{% else %}Mes notifications{% endif %}</h1>
+<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules or peut_gerer_coma %}Paramètres{% else %}Mes notifications{% endif %}</h1>
 <ul class="nav nav-tabs mb-3">
   {% if user.is_superuser %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
@@ -16,6 +16,9 @@
   {% endif %}
   {% if peut_gerer_seuils %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'seuils_role' %}active{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Sécurité</a></li>
+  {% endif %}
+  {% if peut_gerer_coma %}
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'commandants_adjoints' %}active{% endif %}" href="/parametre/?tab=commandants_adjoints{% if coma_ship %}&ship={{ coma_ship.id }}{% endif %}">COMAEQ / COMOPS / COMANAV</a></li>
   {% endif %}
   {% if peut_gerer_modules %}
   <li class="nav-item"><a class="nav-link {% if active_tab == 'modules' %}active{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a></li>
@@ -536,6 +539,10 @@
     <p class="text-muted">Chaque modification est historisée (auteur, date, ancienne et nouvelle valeur){% if user.is_superuser %} — consultable dans l'onglet Journal{% endif %}.</p>
   </div>
 </div>
+{% endif %}
+
+{% if active_tab == 'commandants_adjoints' %}
+{% include "settings/_commandants_adjoints.html" %}
 {% endif %}
 
 {% if active_tab == 'modules' %}

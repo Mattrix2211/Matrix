@@ -29,6 +29,9 @@ class Ship(TimeStampedModel):
     # Optionnel et sans valeur par défaut arbitraire : reste rétrocompatible
     # avec les unités déjà existantes, non concernées par les unités non-navires.
     classe_navire = models.CharField(max_length=100, blank=True, default="", verbose_name="Classe de navire")
+    # Capacité aviation réelle du bâtiment : conditionne la possibilité de créer
+    # un COMAVIA (org.CommandantAdjoint). Faux par défaut : rétrocompatible.
+    capacite_aviation = models.BooleanField(default=False, verbose_name="Capacité aviation")
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -38,9 +41,60 @@ class Ship(TimeStampedModel):
     def __str__(self):
         return self.name
 
+class CommandantAdjoint(TimeStampedModel):
+    """Niveau « commandant adjoint » de l'état-major, entre le navire et les
+    services (page Notion « Organigramme et rôles » §2 et §11). Configurable
+    PAR NAVIRE : un navire ne porte que les postes qu'il a créés, COMAVIA
+    n'étant possible que sur un bâtiment à capacité aviation. Chaque service
+    peut en dépendre (Service.commandant_adjoint). Dans l'interface on affiche
+    toujours le sigle, jamais « chef de groupement » ni « CAN »."""
+
+    class Sigle(models.TextChoices):
+        COMAEQ = "COMAEQ", "COMAEQ"
+        COMOPS = "COMOPS", "COMOPS"
+        COMANAV = "COMANAV", "COMANAV"
+        COMAVIA = "COMAVIA", "COMAVIA"
+
+    # Signification en clair, affichée en complément du sigle (info-bulle).
+    SIGNIFICATIONS = {
+        "COMAEQ": "Commandant adjoint équipage",
+        "COMOPS": "Commandant adjoint opérations",
+        "COMANAV": "Commandant adjoint navire",
+        "COMAVIA": "Commandant adjoint aviation",
+    }
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="commandants_adjoints")
+    sigle = models.CharField(max_length=10, choices=Sigle.choices, verbose_name="Sigle")
+    # Titulaire du poste : un utilisateur de rôle ETAT_MAJOR du navire. Poste
+    # vacant toléré (null), et conservé si le titulaire est supprimé.
+    titulaire = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="commandants_adjoints_titulaire", verbose_name="Titulaire",
+    )
+
+    class Meta:
+        unique_together = ("ship", "sigle")
+        ordering = ("ship__name", "sigle")
+        verbose_name = "Poste de commandant adjoint (COMA)"
+        verbose_name_plural = "Postes de commandant adjoint (COMA)"
+
+    @property
+    def signification(self):
+        return self.SIGNIFICATIONS[self.sigle]
+
+    def __str__(self):
+        return f"{self.ship} / {self.sigle}"
+
+
 class Service(TimeStampedModel):
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="services")
     name = models.CharField(max_length=255)
+    # Commandant adjoint dont dépend le service (nullable : services existants
+    # sans rattachement tolérés). Doit appartenir au même navire.
+    commandant_adjoint = models.ForeignKey(
+        CommandantAdjoint, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="services", verbose_name="Poste de commandant adjoint (COMA)",
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:
