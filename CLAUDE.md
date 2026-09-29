@@ -9,7 +9,7 @@ Ce fichier est la référence technique pour Claude Code. Lis-le intégralement 
 | Sujet | Où | Référence |
 |---|---|---|
 | Vision, modules cibles, principes, feuille de route (Phases 0 à 7) | Notion — page **« Cahier des charges »** (Matrix 2.0) | page `3d46e7f2a12e80d896f3ea43cf7350c8` |
-| Hiérarchie à bord et à terre, rôles, circuits de validation, vocabulaire Marine | Notion — page **« Organigramme et rôles »**, tenue par l'utilisateur | page `3e46e7f2a12e812eb531e2a6ee221d5c` |
+| Hiérarchie à bord et à terre, rôles, circuits de validation, vocabulaire Marine | Notion — page **« Organigramme et rôles »**, tenue par l'utilisateur. Elle est devenue le hub de référence fonctionnel : 12 sous-pages de cartographie (organisation de la Marine, RH, formation, maintenance/SSF, opérations, service courant, SIC, planification, ALFAN, CEPN, modèle de données cible, glossaire) et la sous-page **« 13 — Décisions Matrix et gouvernance fonctionnelle »**, qui liste les décisions validées | page `3e46e7f2a12e812eb531e2a6ee221d5c` (décisions : `3ea6e7f2a12e819398f0fcbd26ad7788`) |
 | Tâches, statuts, commentaires des agents | Notion — base **« Tâches en cours »** | data source `92a61c09-e409-42a7-aefd-b65855b33b64` |
 | État d'avancement des phases | Notion — page **« Feuille de route »** | page `3376e7f2a12e81f19f5dfc737d19cb9f` |
 | Règles techniques, conventions de code, architecture | Ce fichier (`CLAUDE.md`) | — |
@@ -68,13 +68,29 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 
 ## Organisation et rôles (résumé — la page Notion « Organigramme et rôles » fait foi)
 
-**À bord** (organisation configurable par navire) : Commandant → Commandant en second (même vision globale que le commandant) → commandants adjoints **COMAEQ** (équipage), **COMOPS** (opérations), **COMANAV** (navire), et **COMAVIA** (aviation, seulement sur les bâtiments avec une capacité aviation) → chefs de service → chefs de secteur → chefs de section → opérateurs. Chaque service dépend d'un commandant adjoint. Dans l'interface, afficher le sigle, jamais « chef de groupement ».
+**À bord** (organisation configurable par navire) : Commandant → Commandant en second (même vision globale que le commandant) → commandants adjoints **COMAEQ** (équipage), **COMOPS** (opérations), **COMANAV** (navire), et **COMAVIA** (aviation, seulement sur les bâtiments avec une capacité aviation) → chefs de service → chefs de secteur → chefs de section → opérateurs. Chaque service dépend d'un commandant adjoint. Dans l'interface, afficher le sigle, jamais « chef de groupement », « CAN » ni « commandant adjoint » employé seul. Dire « commandant en second » (officier supérieur) ou « officier en second » (officier subalterne). Le commandant en second a la même vision globale que le commandant.
 
 **Double équipage** (FREMM, PSP, BSAM uniquement) : deux équipages à l'organisation en miroir sur le même bâtiment ; l'équipage à terre garde un accès en lecture seule. Le bâtiment porte installations, matériel, fiches, historique et stock ; l'équipage porte les personnes, quarts, services, assignations et l'espace personnel.
 
 **À terre** : ALFAN → division Exploitation → spécialités (Mécan, Sécu, Élec, SIC, Artilleur). Chaque spécialité a un **responsable de spécialité** (`accounts.ResponsableSpecialite`) ; au-dessus, un **chef du responsable de spécialité**, qui peut encadrer plusieurs responsables mais pas tous. Le **SSF** suit une classe entière ou une liste de bâtiments et peut agir (commenter un ticket…).
 
 **Codes techniques des rôles** (inchangés dans le code) : `MASTER_ADMIN → ADMIN_NAVIRE → COMMANDANT → ETAT_MAJOR → CHEF_SERVICE → CHEF_SECTEUR → CHEF_SECTION → EQUIPIER`. Chaque rôle ne voit que ce qui le concerne. Ne jamais inventer un système de rôles, de permissions, de périmètre ou de notification parallèle : étendre `RoleLevel`, `RolePermission`, `scope_filters_for_user`, `Notification`.
+
+## Comprendre le métier — repères de conception (résumé des sous-pages 01 à 12 de « Organigramme et rôles »)
+
+Les sous-pages Notion décrivent comment la Marine travaille (CEMM/CEMA, ALFAN, SSF/ERO/ERDT/SLM, CFPES/FPS/DIVENT, BSC, CEPN…) et donnent le glossaire des organismes (sous-page 12). Lis la sous-page concernée avant de concevoir un module ; ne recopie pas son contenu ici. Ce qu'il faut garder en tête à chaque décision :
+
+- **Question centrale du produit** : « pour la mission et la date considérées, ai-je les personnes, compétences, installations, soutiens, autorisations et l'endurance nécessaires ? » La valeur de Matrix vient des **dépendances croisées** entre modules (poste → qualifications → formation ; installation → capacité → mission ; défaut → impact), jamais de silos.
+- **Dimensions séparées qui se croisent** : grade, spécialité, fonction/poste, position dans l'organisation, rôle de quart, rôle sécurité/protection, qualification. Ne jamais les fusionner dans un seul champ.
+- **Couverture de fonctions, pas effectif** : effectif présent ≠ capacité disponible. Une absence peut supprimer une qualification rare, une supervision ou une relève.
+- **États techniques nuancés** (au-delà d'OK/HS) : nominal, disponible avec réserve, dégradé, indisponible, volontairement hors service. **Utilisable = fonctionne + conforme + contrôlé + autorisé** ; « travail terminé » ≠ « matériel disponible » (contrôle et essais avant retour en service).
+- **Configuration réelle du navire** : même classe ≠ configuration identique ; la configuration détermine documents, pièces, maintenance et compétences applicables. Une modification technique entraîne configuration, documentation, maintenance, rechanges, outillage, formation et qualification.
+- **Dossier métier vivant** (sous-page 03, décision d'architecture) : une demande ou candidature n'est pas qu'un statut ; elle réunit données structurées, acteurs, workflow, échéances, pièces jointes, thread `threads`, timeline, notifications et historique. « La conversation accompagne le dossier, elle ne le constitue pas. » Le module `training` (`DemandePlace`, `CandidatureFormation`, `TrainingSession`, `TrainingRecord`, référents) est le **cas pilote** du futur moteur de dossiers : on le prolonge, on ne le remplace pas, et on ne bâtit pas de modèle générique massif d'un coup.
+- **Saisir une fois, propager les conséquences** (ex. session réalisée → validation → qualification → couverture du poste recalculée). Le message libre doit devenir l'exception.
+- **Service courant** : le tableau de service est le cadre permanent, la **feuille de service** est la vue consolidée du jour J (personnel, fonctions, mouvements, consignes), reliée aux RH, absences, activités, formations, maintenance et listes de service.
+- **Sécurité ≠ protection-défense** (sinistre/accident vs menace malveillante). **Disponibilité technique ≠ conformité ≠ capacité opérationnelle.**
+- **RETEX** : boucle problème bord → RETEX → évolution de fiche, référentiel, formation, maintenance ou configuration. Matrix ne remplace ni les outils du SSF, ni ceux du CEPN ou de la DGA : il est la source structurée côté bord.
+- **Planification** : couche d'orchestration multi-domaines (bord, ALFAN, état-major), à trois horizons : quotidien (feuille de service), moyen terme, projection (mission, arrêt technique, relèves). Elle doit détecter les conflits avant qu'ils bloquent.
 
 ## Deux types d'équipements
 
@@ -84,7 +100,11 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 
 **Décisions métier en cours de cadrage** (détail et questions ouvertes dans les tâches Notion « [CADRAGE @po] … ») :
 - **Catalogue de matériel flotte** : géré à terre par les responsables de spécialité ; le bord choisit un article et une quantité, puis complète le suivi de chaque exemplaire.
-- **Fiches de maintenance** : une fiche par gamme (calendaire ou heures de marche, gammes non cumulatives), contenant checklist et/ou relevés. Matériel : une fiche par catégorie du catalogue, toujours flotte, publiée par le responsable de spécialité (le bord peut seulement proposer). Installations : fiches bord, validées par le chef de service puis le commandant adjoint du service.
+- **Fiches de maintenance** : une fiche par gamme (calendaire ou heures de marche, gammes non cumulatives), contenant checklist et/ou relevés. Matériel : une fiche par catégorie du catalogue, toujours flotte ; un bord ne peut jamais la publier seul, il peut seulement proposer. Installations : fiches bord (adaptables au bord), circuit rédaction section/secteur → chef de service → commandant adjoint compétent.
+- **Circuit de validation d'une fiche matériel flotte** (page Notion « 13 — Décisions Matrix », qui fait foi, valable aussi pour un **nouvel article du catalogue**) : 1) rédaction par un chef de section ou un chef de secteur ; 2) visa du chef de secteur si le rédacteur est chef de section ; 3) chef de service ; 4) commandant adjoint compétent (COMAEQ/COMOPS/COMANAV/COMAVIA) ; 5) responsable de spécialité ALFAN/Exploitation (peut corriger ou renvoyer) ; 6) chef du responsable de spécialité ; 7) publication au catalogue flotte. Chaque étape notifie la suivante ; un refus revient au rédacteur avec un motif. C'est un cas d'application du principe « proposer → valider → publier » : le circuit doit être modélisé comme une donnée configurable, pas codé en dur.
+- **Rôles transverses déjà présents dans l'application** (à réutiliser, pas à réinventer) : `MASTER_ADMIN` (administration générale), `ADMIN_NAVIRE` (administration d'un bâtiment), référent formation (validation et suivi à bord), personnel BRH (traitement des candidatures de formation), chef de liste (création et publication des listes de service et des gardes).
+- **Organisations différentes selon les bâtiments** : FREMM, FDA, FLF, BRF et autres unités n'ont pas la même organisation. Ne jamais coder en dur une organisation unique pour tous les navires.
+- **Source de vérité métier** : quand une pratique interne n'est pas documentée publiquement, les décisions validées par l'utilisateur priment pour le produit. Les schémas d'architecture fonctionnelle de Notion sont des modélisations pour Matrix, pas des textes officiels.
 - **Comptes rendus d'intervention** : générés depuis les fiches, saisie en série façon tableur pour le matériel, historique et suivi des relevés automatiques, notifiés au chef de secteur (modification possible et tracée).
 
 ## Architecture Django — 14 modules
@@ -92,7 +112,7 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 | App | Rôle |
 |-----|------|
 | `accounts` | Utilisateurs, profils, rôles, grades, spécialités, responsables de spécialité |
-| `org` | Unités (typées : navire, école, centre de formation, bureau) → Service → Secteur → Section ; classes de navire, seuils de rôle et modules activables par bâtiment |
+| `org` | Unités (typées : navire, école, centre de formation, bureau) → Service → Secteur → Section ; commandants adjoints (`CommandantAdjoint`), équipages (`Equipage`, double équipage : `org/equipages.py`, page `/equipages/`, lecture seule de l'équipage à terre), classes de navire, seuils de rôle et modules activables par bâtiment |
 | `assets` | Installations fixes + matériel mobile, checklists, documents, mesures techniques, détection de dérive, plan du navire |
 | `maintenance` | Plans préventifs, occurrences, exécutions, checklists guidées, signature de validation sur transitions critiques |
 | `logistics` | Tickets correctifs, anomalies, demandes de pièces, stock, retours d'expérience (REX) |
@@ -211,7 +231,7 @@ Maximum 3 boucles de correction par tâche (cette limite est appliquée par l'ag
 1. **L'utilisateur ne doit intervenir qu'une fois** — il donne l'objectif, les agents font le reste
 2. **Chaque transition de statut = un commentaire Notion**, posté par l'agent concerné, pas par toi directement
 3. **Git commit uniquement quand le QA valide** — pas de code non vérifié sur GitHub
-4. **Enchaîner les tâches** — quand une tâche est terminée, invoque `@dev` sur la suivante si la même phase en contient d'autres à faire
+4. **Enchaîner les tâches sans demander d'approbation** — quand une tâche est terminée (validée par le QA et commitée), passe directement à la suivante, sans attendre l'accord de l'utilisateur. Ordre : Phase croissante d'abord (Phase 0, puis 1, puis 2…), Priorité (Haute, Moyenne, Basse) seulement pour départager dans une même phase. Ne t'arrête que pour l'une des raisons de la règle 6 (choix métier ambigu), une boucle de correction épuisée (3 maximum), ou une tâche « [CADRAGE @po] » qui contient des questions ouvertes pour l'utilisateur : dans ce cas, passe à la tâche suivante réalisable et regroupe les questions dans ton prochain compte rendu
 5. **Jamais sauter d'étape** — même pour un changement mineur, la chaîne complète est obligatoire
 6. **En cas de doute, demander à l'utilisateur** — ne pas deviner les choix métier (Marine nationale). Si un agent signale une ambiguïté dans son résumé, relaie-la à l'utilisateur au lieu de trancher à sa place
 7. **Consigner toute dette technique** — quand le Tech Lead ou le QA signale une dette ou un point hors périmètre, crée immédiatement une tâche Notion « À faire » qui la décrit, avec un renvoi vers la tâche d'origine
