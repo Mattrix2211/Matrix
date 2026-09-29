@@ -1,10 +1,8 @@
 import io
-import shutil
-import tempfile
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 from PIL import Image as PILImage
 
@@ -13,6 +11,7 @@ from assets.models import Asset, AssetType, Installation
 from logistics.models import Anomalie, AnomalieStatutLog, CorrectiveTicket
 from notifications.models import Notification
 from org.models import Section, Sector, Service, Ship
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
 def _png_1x1():
@@ -23,16 +22,8 @@ def _png_1x1():
     return tampon.getvalue()
 
 
-class AnomalieTests(TestCase):
+class AnomalieTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
-        # Répertoire temporaire unique par test (et non un chemin fixe partagé),
-        # pour rester sûr en exécution parallèle (--parallel auto) ; nettoyé après le test.
-        media_root = tempfile.mkdtemp(prefix="matrix_tests_media_")
-        self.addCleanup(shutil.rmtree, media_root, ignore_errors=True)
-        override = override_settings(MEDIA_ROOT=media_root)
-        override.enable()
-        self.addCleanup(override.disable)
-
         self.ship = Ship.objects.create(name="Navire A", code="NA")
         self.service = Service.objects.create(ship=self.ship, name="Service A")
         self.sector = Sector.objects.create(service=self.service, name="Secteur A")

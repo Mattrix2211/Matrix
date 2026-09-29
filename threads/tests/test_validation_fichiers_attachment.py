@@ -16,9 +16,10 @@ from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket
 from org.models import Sector, Service, Ship
 from threads.models import Attachment, Message, Thread
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
-class ValidationFichierAttachmentTests(TestCase):
+class ValidationFichierAttachmentTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire T-SEC-FILE-3", code="TSF3")
         self.service = Service.objects.create(ship=self.ship, name="Service")

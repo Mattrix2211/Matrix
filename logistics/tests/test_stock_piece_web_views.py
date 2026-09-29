@@ -16,6 +16,7 @@ from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Installation
 from org.models import Sector, Section, Service, Ship
 from logistics.models import StockPiece
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
 def _photo_valide(nom="photo.jpg"):
@@ -27,7 +28,7 @@ def _photo_valide(nom="photo.jpg"):
     return SimpleUploadedFile(nom, tampon.getvalue(), content_type="image/jpeg")
 
 
-class StockPieceListViewTests(TestCase):
+class StockPieceListViewTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         self.navire = Ship.objects.create(name="Navire T14", code="T14")
         self.service = Service.objects.create(ship=self.navire, name="Service T14")

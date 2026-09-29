@@ -6,16 +6,15 @@ concernés : création d'installation, édition d'installation (fiche détail) e
 édition de matériel. Le validateur lui-même est testé dans
 matrix/core/tests/test_validators.py."""
 import io
-import shutil
-import tempfile
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from PIL import Image as PILImage
 
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Installation
+from matrix.core.testing import MediaRootTemporaireMixin
 from org.models import Sector, Service, Ship
 
 
@@ -28,22 +27,7 @@ def _png():
 _FAUX_EXE = b"MZ\x90\x00\x03\x00\x00\x00" + b"\x00" * 64
 
 
-class PhotosAffecteesDirectementTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # MEDIA_ROOT temporaire unique : les tests « photo valide » ne doivent
-        # pas écrire dans le vrai dossier media/ (sûr aussi en parallèle).
-        cls._media_root = tempfile.mkdtemp(prefix="matrix_tests_media_")
-        cls._override_media = override_settings(MEDIA_ROOT=cls._media_root)
-        cls._override_media.enable()
-        super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        cls._override_media.disable()
-        shutil.rmtree(cls._media_root, ignore_errors=True)
-
+class PhotosAffecteesDirectementTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire Photos")
         self.service = Service.objects.create(name="Srv", ship=self.ship)

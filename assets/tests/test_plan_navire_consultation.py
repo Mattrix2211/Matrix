@@ -18,6 +18,7 @@ from assets.models import Asset, AssetType, Deck
 from logistics.models import CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from org.models import Sector, Service, Ship
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
 def _image_1x1_png():
@@ -31,7 +32,7 @@ def _image_1x1_png():
     return SimpleUploadedFile("plan.png", tampon.getvalue(), content_type="image/png")
 
 
-class AssetEtatPlanTests(TestCase):
+class AssetEtatPlanTests(MediaRootTemporaireMixin, TestCase):
     """Calcul de l'état d'un matériel pour l'affichage de son épingle
     (Asset.etat_plan)."""
 
@@ -95,7 +96,7 @@ class AssetEtatPlanTests(TestCase):
         self.assertEqual(materiel.etat_plan, Asset.ETAT_DANGER)
 
 
-class PlanNavireConsultationAccesTests(TestCase):
+class PlanNavireConsultationAccesTests(MediaRootTemporaireMixin, TestCase):
     """La page de consultation est ouverte à tous les rôles (contrairement à
     l'éditeur, réservé CHEF_SERVICE+), mais reste bornée au navire de
     l'utilisateur."""
@@ -140,7 +141,7 @@ class PlanNavireConsultationAccesTests(TestCase):
         self.assertContains(r, "Aucun pont n'est encore configuré")
 
 
-class PlanNavireConsultationRenduTests(TestCase):
+class PlanNavireConsultationRenduTests(MediaRootTemporaireMixin, TestCase):
     """Rendu de la page : navigation par onglets, épingle affichée, lien
     direct vers la fiche du matériel."""
 

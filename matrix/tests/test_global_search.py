@@ -24,9 +24,10 @@ from org.models import Sector, Section, Service, Ship
 from quarts.models import ChefDeListe, CreneauServiceGarde, EchangeService, ServiceGarde
 from rondes.models import Ronde, RondeModele
 from training.models import TrainingCourse
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
-class GlobalSearchViewTests(TestCase):
+class GlobalSearchViewTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         # Périmètre A : le navire dont dépend l'utilisateur testé
         self.navire_a = Ship.objects.create(name="Navire A", code="NAVA")

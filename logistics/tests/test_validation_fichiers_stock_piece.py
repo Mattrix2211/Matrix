@@ -16,6 +16,7 @@ from PIL import Image as PILImage
 from accounts.models import UserProfile
 from logistics.models import StockPiece
 from org.models import Sector, Service, Ship
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
 def _png_1x1():
@@ -29,7 +30,7 @@ def _png_1x1():
 _PNG_1X1 = _png_1x1()
 
 
-class ValidationPhotoStockPieceTests(TestCase):
+class ValidationPhotoStockPieceTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         self.navire = Ship.objects.create(name="Navire T-SEC-FILE-2")
         self.service = Service.objects.create(ship=self.navire, name="Srv")

@@ -12,9 +12,10 @@ from django.test import TestCase
 from accounts.models import Roles, UserProfile
 from org.models import Ship
 from training.models import TrainingCourse
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
-class ValidationBaremeFormationTests(TestCase):
+class ValidationBaremeFormationTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire T-SEC-FILE-4", code="TSF4")
         self.admin = User.objects.create_user(username="admin_formation_sec", password="pass")

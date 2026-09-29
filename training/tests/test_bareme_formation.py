@@ -11,13 +11,14 @@ from django.test import TestCase
 from accounts.models import UserProfile
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
 def _fichier(nom="bareme.pdf"):
     return SimpleUploadedFile(nom, b"%PDF-1.4 contenu factice du bareme", content_type="application/pdf")
 
 
-class BaremeCreationFormationTests(TestCase):
+class BaremeCreationFormationTests(MediaRootTemporaireMixin, TestCase):
     """Un ADMIN_NAVIRE peut associer un barème dès la création d'une
     formation (formulaire « Nouvelle formation »)."""
 
@@ -64,7 +65,7 @@ class BaremeCreationFormationTests(TestCase):
         self.assertNotContains(r, "Voir le barème")
 
 
-class BaremeEditionFormationTests(TestCase):
+class BaremeEditionFormationTests(MediaRootTemporaireMixin, TestCase):
     """Un CHEF_SECTION+ peut remplacer ou retirer le barème d'une formation
     existante depuis le formulaire d'édition (action update_prerequisites,
     même modale que la catégorie/les prérequis/les référents)."""
@@ -118,7 +119,7 @@ class BaremeEditionFormationTests(TestCase):
         self.assertIn("ancien", self.formation.bareme.name)
 
 
-class BaremeFormationBordTests(TestCase):
+class BaremeFormationBordTests(MediaRootTemporaireMixin, TestCase):
     """Le barème peut aussi être associé lors de la proposition d'une
     formation « gérée par le bord » (Circuit C)."""
 
