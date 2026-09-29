@@ -36,6 +36,7 @@ urlpatterns = [
     path("calendar/", include("calendar_app.urls")),
     path("users/", include("accounts.web_urls")),
     path("parametre/", SettingsView.as_view(), name="settings"),
+    path("equipages/", include("org.web_urls")),
     path("maintenance/", include("maintenance.web_urls")),
     path("logistics/", include("logistics.web_urls")),
     path("formations/", include("training.web_urls")),

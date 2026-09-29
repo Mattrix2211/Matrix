@@ -100,6 +100,8 @@ MIDDLEWARE = [
     # vues web d'un module désactivé sur le navire du marin connecté (voir
     # matrix/core/middleware.py et matrix/core/modules.py).
     "matrix.core.middleware.ModuleActivationMiddleware",
+    # Double équipage : lecture seule pour l'équipage à terre (org/equipages.py).
+    "matrix.core.middleware.LectureSeuleEquipageMiddleware",
 ]
 
 # Correspondance entre les niveaux de messages Django et les classes Bootstrap 5
@@ -184,8 +186,9 @@ LOGOUT_REDIRECT_URL = "/login/"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
+        # Variantes qui refusent l'écriture à l'équipage à terre (double équipage).
+        "matrix.core.authentication.SessionAuthentificationLectureSeule",
+        "matrix.core.authentication.BasicAuthentificationLectureSeule",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",

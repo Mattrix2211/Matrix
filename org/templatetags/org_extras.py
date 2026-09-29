@@ -40,6 +40,31 @@ def module_actif(user, cle_module):
 
 
 @register.filter
+def equipage_a_terre(user):
+    """Vrai si l'équipage du marin est à terre (double équipage) : bandeau
+    « lecture seule » du gabarit de base."""
+    from org.equipages import est_en_lecture_seule
+    return est_en_lecture_seule(user)
+
+
+@register.filter
+def peut_gerer_equipages_du_navire(user):
+    """Vrai si l'entrée de menu « Équipages » doit s'afficher : rôle habilité
+    (seuil « equipage_gestion ») ET bâtiment concerné (déjà à double équipage,
+    ou de classe FREMM/PSP/BSAM). L'administrateur général la voit toujours."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    from org.equipages import navire_eligible, peut_gerer_equipages
+    from matrix.core.scopes import is_master_admin
+    if not peut_gerer_equipages(user):
+        return False
+    if is_master_admin(user):
+        return True
+    ship = getattr(getattr(user, "profile", None), "ship", None)
+    return bool(ship and (ship.double_equipage or navire_eligible(ship)))
+
+
+@register.filter
 def badge_type_unite(unite):
     """Badge Bootstrap (icône + libellé) selon le type de l'unité fournie."""
     if not unite:

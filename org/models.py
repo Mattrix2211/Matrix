@@ -32,6 +32,22 @@ class Ship(TimeStampedModel):
     # Capacité aviation réelle du bâtiment : conditionne la possibilité de créer
     # un COMAVIA (org.CommandantAdjoint). Faux par défaut : rétrocompatible.
     capacite_aviation = models.BooleanField(default=False, verbose_name="Capacité aviation")
+    # Double équipage (FREMM, PSP, BSAM uniquement — voir org/equipages.py) :
+    # activable par navire, faux par défaut donc sans effet sur les autres
+    # bâtiments. `equipage_a_bord` est l'équipage actuellement à bord ; une
+    # relève peut être planifiée (`equipage_releve` à partir de `date_releve`) :
+    # toujours passer par org.equipages.equipage_a_bord() pour connaître
+    # l'équipage à bord réel à une date donnée.
+    double_equipage = models.BooleanField(default=False, verbose_name="Double équipage")
+    equipage_a_bord = models.ForeignKey(
+        "Equipage", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Équipage à bord",
+    )
+    equipage_releve = models.ForeignKey(
+        "Equipage", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Équipage montant (relève planifiée)",
+    )
+    date_releve = models.DateField(null=True, blank=True, verbose_name="Date de la relève")
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -40,6 +56,27 @@ class Ship(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+class Equipage(TimeStampedModel):
+    """Équipage d'un bâtiment à double équipage (page Notion « Organigramme et
+    rôles » §9 et §11). Le bâtiment porte installations, matériel, fiches,
+    historique et stock ; l'équipage porte les personnes (UserProfile.equipage),
+    et, dans les tranches suivantes, l'organisation, les quarts, les
+    assignations et les notifications. Un navire à équipage unique n'a aucun
+    Equipage : ses marins restent rattachés au seul navire."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="equipages")
+    nom = models.CharField(max_length=50, verbose_name="Nom")
+
+    class Meta:
+        unique_together = ("ship", "nom")
+        ordering = ("ship__name", "nom")
+        verbose_name = "Équipage"
+        verbose_name_plural = "Équipages"
+
+    def __str__(self):
+        return f"{self.ship} / équipage {self.nom}"
+
 
 class CommandantAdjoint(TimeStampedModel):
     """Niveau « commandant adjoint » de l'état-major, entre le navire et les

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation, CommandantAdjoint
+from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation, CommandantAdjoint, Equipage
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
@@ -13,6 +13,13 @@ class CommandantAdjointAdmin(admin.ModelAdmin):
     # « Commandants adjoints » de /parametre/.
     list_display = ("sigle", "ship", "titulaire")
     list_filter = ("ship", "sigle")
+
+@admin.register(Equipage)
+class EquipageAdmin(admin.ModelAdmin):
+    # Interface de secours technique : l'interface quotidienne est la page
+    # « Équipages » (/equipages/).
+    list_display = ("nom", "ship")
+    list_filter = ("ship",)
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):

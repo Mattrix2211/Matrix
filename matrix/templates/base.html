@@ -201,6 +201,14 @@
               </a>
             </li>
             {% endif %}
+            {% if user|peut_gerer_equipages_du_navire %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'equipages' %}" title="Équipages" aria-label="Équipages">
+                <span class="bi bi-people nav-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Équipages</span>
+              </a>
+            </li>
+            {% endif %}
             {% if user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link" href="{% if user.is_superuser %}/parametre/{% else %}/parametre/?tab=notifications{% endif %}" title="Paramètres" aria-label="Paramètres">
@@ -287,6 +295,12 @@
       </div>
     </nav>
     <main class="container py-4">
+      {% if user|equipage_a_terre %}
+      <div class="alert alert-info d-flex align-items-center gap-2" role="status">
+        <span class="bi bi-eye" aria-hidden="true"></span>
+        <span>Votre équipage est à terre : vous consultez le bâtiment en <strong>lecture seule</strong>.</span>
+      </div>
+      {% endif %}
       {% block content %}{% endblock %}
     </main>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>

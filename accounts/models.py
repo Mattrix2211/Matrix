@@ -37,11 +37,42 @@ class UserProfile(TimeStampedModel):
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
+    # Équipage du marin sur un bâtiment à double équipage (org.Equipage) ;
+    # vide pour tous les marins des bâtiments à équipage unique.
+    equipage = models.ForeignKey(
+        "org.Equipage", null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles",
+        verbose_name="Équipage",
+    )
 
     allowed_sectors = models.ManyToManyField(Sector, blank=True, related_name="authorized_profiles")
 
     def __str__(self):
         return f"{self.user} ({self.role})"
+
+    @property
+    def navire_id_effectif(self):
+        """Navire du marin, y compris quand il n'est rattaché que par son
+        service, son secteur ou sa section (champ `ship` laissé vide)."""
+        if self.ship_id:
+            return self.ship_id
+        if self.service_id:
+            return self.service.ship_id
+        if self.sector_id:
+            return self.sector.service.ship_id
+        if self.section_id:
+            return self.section.sector.service.ship_id
+        return None
+
+    def save(self, *args, **kwargs):
+        # Un équipage n'a de sens que sur son propre bâtiment : si le marin
+        # change de navire, il est détaché de son ancien équipage (double
+        # équipage, org/equipages.py) au lieu de garder un équipage résiduel.
+        if self.equipage_id and self.equipage.ship_id != self.navire_id_effectif:
+            self.equipage = None
+            champs = kwargs.get("update_fields")
+            if champs is not None:
+                kwargs["update_fields"] = set(champs) | {"equipage"}
+        super().save(*args, **kwargs)
 
     @property
     def scope(self):

@@ -1,6 +1,9 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
+
+from matrix.core.authentication import MESSAGE_LECTURE_SEULE
 
 
 class ModuleActivationMiddleware:
@@ -58,3 +61,34 @@ class ModuleActivationMiddleware:
             "(Paramètres > Modules).",
         )
         return redirect("home")
+
+
+class LectureSeuleEquipageMiddleware:
+    """Double équipage : l'équipage à terre garde l'accès au bâtiment en
+    LECTURE SEULE. Ce middleware couvre les pages web et l'API en session
+    (org/equipages.py::est_en_lecture_seule). Il ne voit PAS l'utilisateur d'une
+    requête API en authentification Basic (DRF authentifie après les
+    middlewares) : celle-ci est couverte, ainsi que la session, par les classes
+    d'authentification de matrix/core/authentication.py, qui s'appliquent à
+    toutes les vues DRF. Écritures restant permises : voir
+    org/equipages.py::ECRITURES_AUTORISEES. Sans effet sur un bâtiment à
+    équipage unique."""
+
+    METHODES_LECTURE = ("GET", "HEAD", "OPTIONS", "TRACE")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.method in self.METHODES_LECTURE:
+            return self.get_response(request)
+        from org.equipages import ecriture_autorisee_a_terre, est_en_lecture_seule
+
+        if ecriture_autorisee_a_terre(request.method, request.path) or not est_en_lecture_seule(request.user):
+            return self.get_response(request)
+        if request.path.startswith("/api/"):
+            return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
+        if request.headers.get("HX-Request"):
+            return HttpResponseForbidden(MESSAGE_LECTURE_SEULE)
+        messages.warning(request, MESSAGE_LECTURE_SEULE)
+        return redirect(request.META.get("HTTP_REFERER") or "home")

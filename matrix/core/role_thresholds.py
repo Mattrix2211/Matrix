@@ -136,6 +136,11 @@ REGISTRE_ACTIONS = [
         "Organisation", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
     ),
     ActionSeuil(
+        "equipage_gestion",
+        "Gérer le double équipage : activation, rattachement des marins à leur équipage, relève à bord / à terre",
+        "Organisation", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,
