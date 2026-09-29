@@ -122,6 +122,12 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     role_threshold_action_write = "asset_ecriture_simple"
     role_threshold_action_delete = "asset_gestion_avancee"
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
     @decorators.action(detail=True, methods=["get"], url_path="qr")
     def qr_code(self, request, pk=None):
         # Le QR pointe vers la vue web /scan/<uuid>/ (checklist du jour ou fiche

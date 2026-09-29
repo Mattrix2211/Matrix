@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
+from .models import Roles, UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from django.contrib.auth.models import User
 from matrix.core.scopes import is_master_admin, resoudre_affectation_dans_perimetre
 
@@ -9,11 +9,20 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "first_name", "last_name", "email"]
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    # Le compte lié n'est jamais modifiable ni réassignable via le profil.
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = UserProfile
-        fields = "__all__"
+        fields = (
+            "id", "user", "role", "grade", "specialite", "fonction_service", "matricule",
+            "date_naissance", "notification_time", "notification_time_soir",
+            "ship", "service", "sector", "section", "equipage", "allowed_sectors",
+            "created_at", "updated_at",
+        )
+        # `allowed_sectors` (accès à d'autres secteurs) se gère uniquement
+        # depuis l'annuaire web, avec ses contrôles de périmètre.
+        read_only_fields = ("id", "allowed_sectors", "created_at", "updated_at")
 
     def validate(self, attrs):
         """Valide que le navire/service/secteur/section de destination
@@ -33,6 +42,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
         acting_user = getattr(request, "user", None)
         if acting_user is None or is_master_admin(acting_user):
             return attrs
+        # Seule la gestion de la flotte entière peut créer un MASTER_ADMIN :
+        # sinon un administrateur de bord pourrait s'élever lui-même.
+        if attrs.get("role") == Roles.MASTER_ADMIN:
+            raise serializers.ValidationError({"role": "Vous ne pouvez pas attribuer ce rôle."})
+        equipage = attrs.get("equipage")
+        if equipage is not None:
+            navire_cible = attrs.get("ship") or getattr(self.instance, "ship", None)
+            if navire_cible is None or equipage.ship_id != navire_cible.id:
+                raise serializers.ValidationError(
+                    {"equipage": "Cet équipage n'appartient pas à l'unité du marin."}
+                )
+            ok, *_ = resoudre_affectation_dans_perimetre(acting_user, ship_id=equipage.ship_id)
+            if not ok:
+                raise serializers.ValidationError({"equipage": "Équipage hors de votre périmètre."})
         ship = attrs.get("ship")
         service = attrs.get("service")
         sector = attrs.get("sector")

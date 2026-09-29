@@ -1,6 +1,8 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
+from django.db import transaction
 from rest_framework import viewsets, permissions
+from rest_framework.exceptions import PermissionDenied
 from .models import Thread, Message, Attachment
 from .serializers import ThreadSerializer, MessageSerializer, AttachmentSerializer
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
@@ -73,6 +75,16 @@ class ThreadViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user)
 
+    def perform_create(self, serializer):
+        # Le fil ne doit viser qu'un objet du périmètre de l'appelant : on
+        # crée puis on revérifie avec le même filtre que la lecture ; en cas
+        # de refus, la transaction est annulée.
+        with transaction.atomic():
+            fil = serializer.save()
+            filtre = _filtre_perimetre_threads(self.request.user)
+            if filtre is not None and not Thread.objects.filter(filtre, pk=fil.pk).exists():
+                raise PermissionDenied("Cet objet est hors de votre périmètre.")
+
     def perform_destroy(self, instance):
         # Suppression d'un fil de discussion entier (cascade sur tous ses
         # messages) : action sensible, tracée dans le journal transverse
@@ -93,6 +105,18 @@ class MessageViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user, prefix="thread__")
 
+    def perform_create(self, serializer):
+        # L'auteur est toujours l'utilisateur connecté, et le fil doit être
+        # dans son périmètre (même filtre que la lecture).
+        filtre = _filtre_perimetre_threads(self.request.user)
+        fil = serializer.validated_data["thread"]
+        if filtre is not None and not Thread.objects.filter(filtre, pk=fil.pk).exists():
+            raise PermissionDenied("Ce fil de discussion est hors de votre périmètre.")
+        serializer.save(author=self.request.user, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
     def perform_destroy(self, instance):
         # Suppression d'un message d'une discussion : action sensible (un
         # message peut porter une décision ou une consigne), tracée dans le
@@ -111,3 +135,13 @@ class AttachmentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
 
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user, prefix="message__thread__")
+
+    def perform_create(self, serializer):
+        # Une pièce jointe ne peut être ajoutée qu'à un message dont on est
+        # l'auteur (donc dans un fil de son périmètre).
+        if serializer.validated_data["message"].author_id != self.request.user.pk:
+            raise PermissionDenied("Vous ne pouvez joindre un fichier qu'à l'un de vos messages.")
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)

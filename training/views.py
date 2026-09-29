@@ -454,3 +454,9 @@ class TrainingRecordViewSet(viewsets.ModelViewSet):
     queryset = TrainingRecord.objects.select_related("course", "user").all()
     serializer_class = TrainingRecordSerializer
     permission_classes = [TrainingRecordPermission]
+
+    def perform_create(self, serializer):
+        serializer.save(validated_by=self.request.user, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)

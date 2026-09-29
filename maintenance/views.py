@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, decorators, response, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
+from assets.models import Asset, InstallationMaintenance
 from .models import (
     MaintenancePlan,
     MaintenanceOccurrence,
@@ -15,6 +16,18 @@ from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
+
+
+def _verifier_cibles_dans_perimetre(user, asset=None, installation_maintenance=None):
+    """Refuse qu'un objet de maintenance vise un matériel ou une maintenance
+    d'installation hors du périmètre de l'appelant (même filtre que la
+    lecture)."""
+    if asset is not None and not Asset.objects.filter(build_scope_q(user, ""), pk=asset.pk).exists():
+        raise PermissionDenied("Ce matériel est hors de votre périmètre.")
+    if installation_maintenance is not None and not InstallationMaintenance.objects.filter(
+        build_scope_q(user, "installation__"), pk=installation_maintenance.pk
+    ).exists():
+        raise PermissionDenied("Cette installation est hors de votre périmètre.")
 
 class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = MaintenancePlan.objects.select_related("asset", "asset_type", "checklist_template").all()
@@ -41,6 +54,15 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
                 "sector_id": "asset_type__sector_id",
             },
         )
+
+    def perform_create(self, serializer):
+        _verifier_cibles_dans_perimetre(self.request.user, asset=serializer.validated_data.get("asset"))
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        _verifier_cibles_dans_perimetre(self.request.user, asset=serializer.validated_data.get("asset"))
+        serializer.save(updated_by=self.request.user)
+
 
 class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin), même raisonnement que
@@ -69,6 +91,13 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
             "installation_maintenance__installation__",
         )
 
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        _verifier_cibles_dans_perimetre(
+            self.request.user, asset=data.get("asset"), installation_maintenance=data.get("installation_maintenance"),
+        )
+        serializer.save(created_by=self.request.user)
+
     def perform_update(self, serializer):
         # "status" est en lecture seule côté serializer (MaintenanceOccurrenceSerializer.
         # Meta.read_only_fields) : un PATCH/PUT générique qui tente malgré tout de le
@@ -87,7 +116,11 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
                     )
                 }
             )
-        serializer.save()
+        data = serializer.validated_data
+        _verifier_cibles_dans_perimetre(
+            self.request.user, asset=data.get("asset"), installation_maintenance=data.get("installation_maintenance"),
+        )
+        serializer.save(updated_by=self.request.user)
 
     @decorators.action(detail=True, methods=["post"])
     def start(self, request, pk=None):
@@ -181,3 +214,13 @@ class MaintenanceExecutionViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin
             "occurrence__asset__",
             "occurrence__installation_maintenance__installation__",
         )
+
+    def perform_create(self, serializer):
+        occ = serializer.validated_data["occurrence"]
+        _verifier_cibles_dans_perimetre(
+            self.request.user, asset=occ.asset, installation_maintenance=occ.installation_maintenance,
+        )
+        serializer.save(executed_by=self.request.user, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)

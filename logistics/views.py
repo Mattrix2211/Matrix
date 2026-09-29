@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, decorators, response
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
+from assets.models import Asset, Installation
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
 from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
@@ -11,6 +12,20 @@ from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
+
+
+def _verifier_equipement_dans_perimetre(user, asset, installation):
+    """Refuse qu'un ticket vise un matériel ou une installation hors du
+    périmètre de l'appelant (même filtre que la lecture)."""
+    if asset is not None and not Asset.objects.filter(build_scope_q(user, ""), pk=asset.pk).exists():
+        raise PermissionDenied("Ce matériel est hors de votre périmètre.")
+    if installation is not None and not Installation.objects.filter(build_scope_q(user, ""), pk=installation.pk).exists():
+        raise PermissionDenied("Cette installation est hors de votre périmètre.")
+
+
+def _verifier_ticket_dans_perimetre(user, ticket):
+    if not CorrectiveTicket.objects.filter(build_scope_q(user, "asset__", "installation__"), pk=ticket.pk).exists():
+        raise PermissionDenied("Ce ticket est hors de votre périmètre.")
 
 class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin) : un ticket correctif
@@ -29,6 +44,11 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
         # Un ticket correctif porte sur un matériel mobile (asset), qui
         # porte lui-même les 4 champs de périmètre.
         return build_scope_q(self.request.user, "asset__", "installation__")
+
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        _verifier_equipement_dans_perimetre(self.request.user, data.get("asset"), data.get("installation"))
+        serializer.save(created_by=self.request.user)
 
     def perform_update(self, serializer):
         # "status" est en lecture seule côté serializer (CorrectiveTicketSerializer.
@@ -49,7 +69,9 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
                     )
                 }
             )
-        serializer.save()
+        data = serializer.validated_data
+        _verifier_equipement_dans_perimetre(self.request.user, data.get("asset"), data.get("installation"))
+        serializer.save(updated_by=self.request.user)
 
     @decorators.action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
@@ -116,6 +138,15 @@ class PartRequestViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         # matériel mobile (asset).
         return build_scope_q(self.request.user, "ticket__asset__", "ticket__installation__")
 
+    def perform_create(self, serializer):
+        _verifier_ticket_dans_perimetre(self.request.user, serializer.validated_data["ticket"])
+        serializer.save(requested_by=self.request.user, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        if "ticket" in serializer.validated_data and serializer.validated_data["ticket"] != serializer.instance.ticket:
+            raise ValidationError({"ticket": "Une demande de pièces ne peut pas être déplacée vers un autre ticket."})
+        serializer.save(updated_by=self.request.user)
+
 class PartLineItemViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = PartLineItem.objects.select_related("part_request").all()
     serializer_class = PartLineItemSerializer
@@ -125,3 +156,12 @@ class PartLineItemViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         # Une ligne de pièce porte sur une demande, elle-même rattachée à
         # un ticket, lui-même rattaché à un matériel mobile (asset).
         return build_scope_q(self.request.user, "part_request__ticket__asset__", "part_request__ticket__installation__")
+
+    def perform_create(self, serializer):
+        _verifier_ticket_dans_perimetre(self.request.user, serializer.validated_data["part_request"].ticket)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if "part_request" in serializer.validated_data and serializer.validated_data["part_request"] != serializer.instance.part_request:
+            raise ValidationError({"part_request": "Une ligne ne peut pas être déplacée vers une autre demande."})
+        serializer.save()

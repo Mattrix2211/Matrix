@@ -22,7 +22,8 @@ class TrainingCourseSerializer(serializers.ModelSerializer):
 class ReferentFormationSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReferentFormation
-        fields = "__all__"
+        fields = ("id", "course", "ship", "user", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
 
 class TrainingRequirementSerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,14 +33,33 @@ class TrainingRequirementSerializer(serializers.ModelSerializer):
 class TrainingSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingSession
-        fields = "__all__"
+        fields = (
+            "id", "course", "scheduled_at", "instructor", "attendees", "capacite_max",
+            "reservations", "location", "status", "created_at", "updated_at",
+        )
+        # Les réservations sont libre-service (training/session_actions.py :
+        # un marin ne réserve que pour lui-même, avec contrôle de capacité,
+        # de prérequis...) : jamais modifiables via ce endpoint générique.
+        read_only_fields = ("id", "reservations", "created_at", "updated_at")
 
 class TrainingRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRecord
-        fields = "__all__"
+        fields = (
+            "id", "user", "course", "completed_at", "expires_at", "validated_by", "attachment",
+            "created_by", "updated_by", "created_at", "updated_at",
+        )
+        # Le valideur est toujours l'utilisateur connecté (TrainingRecordViewSet).
+        read_only_fields = ("id", "validated_by", "created_by", "updated_by", "created_at", "updated_at")
 
     def validate(self, attrs):
+        # Le marin d'un enregistrement ne change jamais : la permission ne
+        # contrôle que le marin d'origine, réaffecter le dossier à un autre
+        # marin certifierait sa formation sans contrôle de son navire.
+        if self.instance is not None and "user" in attrs and attrs["user"] != self.instance.user:
+            raise serializers.ValidationError(
+                {"user": "Un enregistrement de formation ne peut pas être réaffecté à un autre marin."}
+            )
         # Reproduit ici la règle métier de TrainingRecord.clean() (formations
         # prérequises non validées) : le ViewSet DRF n'appelle pas full_clean()
         # automatiquement, il faut donc revalider explicitement à ce niveau pour
