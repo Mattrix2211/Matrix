@@ -225,6 +225,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "rondes.tasks.marquer_rondes_en_retard",
         "schedule": 60 * 60,
     },
+    # Double équipage : relèves planifiées arrivées à échéance + synthèse de passation.
+    "appliquer_releves_planifiees_daily": {
+        "task": "org.tasks.appliquer_releves_planifiees",
+        "schedule": 60 * 60 * 24,
+    },
     "notify_expiring_training_daily": {
         "task": "notifications.tasks.notify_expiring_training",
         "schedule": 60 * 60 * 24,

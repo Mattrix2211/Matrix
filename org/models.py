@@ -78,6 +78,38 @@ class Equipage(TimeStampedModel):
         return f"{self.ship} / équipage {self.nom}"
 
 
+class SynthesePassation(TimeStampedModel):
+    """Synthèse de passation produite à la relève d'un bâtiment à double
+    équipage (voir org/passation.py) : état du BÂTIMENT (maintenances en cours
+    ou en retard, anomalies et tickets ouverts, stock sous seuil) figé à la date
+    de relève, pour l'équipage montant. Une seule synthèse par relève : la
+    contrainte d'unicité garantit l'idempotence du déclencheur quotidien."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="syntheses_passation")
+    equipage_montant = models.ForeignKey(
+        Equipage, on_delete=models.CASCADE, related_name="syntheses_recues", verbose_name="Équipage montant",
+    )
+    equipage_descendant = models.ForeignKey(
+        Equipage, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Équipage descendant",
+    )
+    date_releve = models.DateField(verbose_name="Date de la relève")
+    contenu = JSONField(default=dict, blank=True, verbose_name="Contenu figé")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("ship", "equipage_montant", "date_releve"), name="passation_unique_par_releve"
+            ),
+        ]
+        ordering = ("-date_releve", "-created_at")
+        verbose_name = "Synthèse de passation"
+        verbose_name_plural = "Synthèses de passation"
+
+    def __str__(self):
+        return f"Passation {self.ship} du {self.date_releve:%d/%m/%Y} vers l'équipage {self.equipage_montant.nom}"
+
+
 class CommandantAdjoint(TimeStampedModel):
     """Niveau « commandant adjoint » de l'état-major, entre le navire et les
     services (page Notion « Organigramme et rôles » §2 et §11). Configurable

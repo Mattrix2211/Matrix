@@ -15,14 +15,16 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from accounts.models import AuditLog
 from matrix.core.roles import user_role_level
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 
-from . import miroir
+from . import miroir, passation
 from .models import Equipage, Ship
 
 User = get_user_model()
@@ -77,7 +79,7 @@ def equipage_a_bord(ship, jour=None):
     navire à équipage unique."""
     if not ship.double_equipage:
         return None
-    jour = jour or date.today()
+    jour = jour or timezone.localdate()
     if ship.equipage_releve_id and ship.date_releve and ship.date_releve <= jour:
         return ship.equipage_releve
     return ship.equipage_a_bord
@@ -145,7 +147,8 @@ def contexte_page(ship):
             action__in=("equipage_releve", "equipage_releve_planifiee"),
             details__startswith=f"navire={ship.name};",
         ).select_related("actor").order_by("-created_at")[:10],
-        "eq_aujourdhui": date.today(),
+        "eq_aujourdhui": timezone.localdate(),
+        "eq_passations": ship.syntheses_passation.select_related("equipage_montant", "equipage_descendant")[:5],
     })
     return contexte
 
@@ -261,7 +264,7 @@ def _affecter(request, ship):
 def _planifier_releve(request, ship):
     equipage = _equipage_du_navire(ship, request.POST.get("equipage_id"))
     try:
-        jour = date.fromisoformat(request.POST.get("date") or date.today().isoformat())
+        jour = date.fromisoformat(request.POST.get("date") or timezone.localdate().isoformat())
     except ValueError:
         messages.error(request, "Date de relève invalide.")
         return
@@ -269,21 +272,21 @@ def _planifier_releve(request, ship):
         messages.error(request, "Équipage introuvable sur cette unité.")
         return
     ancien = equipage_a_bord(ship)
-    if ancien == equipage and jour <= date.today():
+    if ancien == equipage and jour <= timezone.localdate():
         messages.warning(request, f"L'équipage {equipage.nom} est déjà à bord.")
         return
     nom_ancien = ancien.nom if ancien else "aucun"
     propre = request.user.profile.equipage
     se_verrouille = propre is not None and propre != equipage and _peut_se_verrouiller(request.user)
-    if jour <= date.today() and se_verrouille:
+    if jour <= timezone.localdate() and se_verrouille:
         messages.error(
             request, "Cette relève mettrait votre propre équipage à terre : vous perdriez vos droits d'écriture. "
             "Demandez-la à un membre de l'équipage montant ou à l'administrateur d'unité.",
         )
         return
-    if jour > date.today() and se_verrouille:
+    if jour > timezone.localdate() and se_verrouille:
         messages.warning(request, f"Attention : à partir du {jour:%d/%m/%Y}, votre équipage sera à terre (lecture seule).")
-    if jour <= date.today():
+    if jour <= timezone.localdate():
         # Relève immédiate : l'équipage montant devient l'équipage à bord.
         ship.equipage_a_bord, ship.equipage_releve, ship.date_releve = equipage, None, jour
         action = "equipage_releve"
@@ -298,8 +301,14 @@ def _planifier_releve(request, ship):
         ship.equipage_releve, ship.date_releve = equipage, jour
         action = "equipage_releve_planifiee"
         message = f"Relève planifiée au {jour:%d/%m/%Y} : l'équipage {equipage.nom} montera à bord."
-    ship.save(update_fields=["equipage_a_bord", "equipage_releve", "date_releve", "updated_at"])
-    _tracer(request, action, ship, f"{nom_ancien} -> {equipage.nom} au {jour.isoformat()}")
+    with transaction.atomic():
+        # Bascule, trace et synthèse de passation : tout ou rien.
+        ship.save(update_fields=["equipage_a_bord", "equipage_releve", "date_releve", "updated_at"])
+        _tracer(request, action, ship, f"{nom_ancien} -> {equipage.nom} au {jour.isoformat()}")
+        if action == "equipage_releve":
+            passation.generer_synthese(ship, equipage, ancien, jour)
+    if action == "equipage_releve":
+        message += " Synthèse de passation envoyée à l'équipage montant."
     messages.success(request, message)
 
 

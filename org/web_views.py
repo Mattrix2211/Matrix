@@ -3,14 +3,36 @@
 « equipage_gestion » (COMMANDANT et ADMIN_NAVIRE par défaut)."""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseForbidden
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 
 from . import equipages
 from .equipages import peut_gerer_equipages
-from .models import Ship
+from .models import Ship, SynthesePassation
+
+
+def _syntheses_visibles(user):
+    """Synthèses des bâtiments dont l'utilisateur est membre (tous les membres,
+    équipage à bord ou à terre) ; toutes pour l'administrateur général."""
+    syntheses = SynthesePassation.objects.select_related("ship", "equipage_montant", "equipage_descendant")
+    if is_master_admin(user):
+        return syntheses
+    return syntheses.filter(ship_id=ship_id_for_user(user))
+
+
+class PassationsView(LoginRequiredMixin, View):
+    """Liste des synthèses de passation, ouverte à tous les membres du navire."""
+
+    def get(self, request):
+        return render(request, "org/passations.html", {"syntheses": _syntheses_visibles(request.user)})
+
+
+class PassationDetailView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        synthese = get_object_or_404(_syntheses_visibles(request.user), pk=pk)
+        return render(request, "org/passation_detail.html", {"synthese": synthese, "c": synthese.contenu})
 
 
 class EquipagesView(LoginRequiredMixin, View):

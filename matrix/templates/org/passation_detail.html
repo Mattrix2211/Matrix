@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">Passation — {{ synthese.ship.name }}</h1>
+    <p class="text-muted mb-0">
+      Relève du {{ synthese.date_releve|date:"d/m/Y" }} :
+      {% if synthese.equipage_descendant %}équipage {{ synthese.equipage_descendant.nom }} → {% endif %}
+      <strong>équipage {{ synthese.equipage_montant.nom }}</strong> monte à bord.
+      État du bâtiment figé le {{ synthese.created_at|date:"d/m/Y à H:i" }}.
+    </p>
+  </div>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'passations' %}">Toutes les passations</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3">
+    <div class="card h-100 {% if c.maintenances.en_retard %}border-danger{% endif %}"><div class="card-body text-center">
+      <div class="display-6">{{ c.maintenances.total }}</div>
+      <div>Maintenance{{ c.maintenances.total|pluralize }} en cours ou en retard</div>
+      {% if c.maintenances.en_retard %}<span class="badge bg-danger mt-1">{{ c.maintenances.en_retard }} en retard</span>{% endif %}
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card h-100"><div class="card-body text-center">
+      <div class="display-6">{{ c.anomalies.total }}</div>
+      <div>Anomalie{{ c.anomalies.total|pluralize }} ouverte{{ c.anomalies.total|pluralize }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card h-100"><div class="card-body text-center">
+      <div class="display-6">{{ c.tickets.total }}</div>
+      <div>Ticket{{ c.tickets.total|pluralize }} correctif{{ c.tickets.total|pluralize }} ouvert{{ c.tickets.total|pluralize }}</div>
+    </div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card h-100 {% if c.stock.critiques %}border-danger{% endif %}"><div class="card-body text-center">
+      <div class="display-6">{{ c.stock.total }}</div>
+      <div>Pièce{{ c.stock.total|pluralize }} sous le seuil</div>
+      {% if c.stock.critiques %}<span class="badge bg-danger mt-1">{{ c.stock.critiques }} critique{{ c.stock.critiques|pluralize }}</span>{% endif %}
+    </div></div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Maintenances à reprendre</div>
+      <ul class="list-group list-group-flush">
+        {% for m in c.maintenances.elements %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ m.libelle }} <span class="text-muted small">échéance {{ m.echeance }}</span></span>
+          <span class="badge {% if m.en_retard %}bg-danger{% else %}bg-info text-dark{% endif %}">{{ m.statut_libelle }}</span>
+        </li>
+        {% empty %}<li class="list-group-item text-muted">Rien à signaler.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Anomalies ouvertes</div>
+      <ul class="list-group list-group-flush">
+        {% for a in c.anomalies.elements %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ a.libelle }} <span class="text-muted small">gravité {{ a.gravite }}/5</span></span>
+          <span class="badge bg-secondary">{{ a.statut_libelle }}</span>
+        </li>
+        {% empty %}<li class="list-group-item text-muted">Rien à signaler.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Tickets correctifs ouverts</div>
+      <ul class="list-group list-group-flush">
+        {% for t in c.tickets.elements %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ t.libelle }} <span class="text-muted small">gravité {{ t.gravite }}/5</span></span>
+          <span class="badge bg-secondary">{{ t.statut_libelle }}</span>
+        </li>
+        {% empty %}<li class="list-group-item text-muted">Rien à signaler.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Stock sous le seuil</div>
+      <ul class="list-group list-group-flush">
+        {% for p in c.stock.elements %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ p.libelle }}</span>
+          <span class="badge {% if p.critique %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ p.quantite }} / {{ p.minimum }}</span>
+        </li>
+        {% empty %}<li class="list-group-item text-muted">Rien à signaler.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

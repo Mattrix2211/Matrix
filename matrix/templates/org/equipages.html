@@ -124,6 +124,30 @@
 
   <div class="col-12">
     <div class="card">
+      <div class="card-header d-flex justify-content-between">
+        <span>Passations de relève</span>
+        <a href="{% url 'passations' %}" class="small">Toutes les passations</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for s in eq_passations %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <a href="{% url 'passation_detail' s.pk %}">Relève du {{ s.date_releve|date:"d/m/Y" }} — équipage {{ s.equipage_montant.nom }} à bord</a>
+          <span>
+            <span class="badge bg-info text-dark">{{ s.contenu.maintenances.total }} maint.</span>
+            <span class="badge bg-secondary">{{ s.contenu.anomalies.total }} anom.</span>
+            <span class="badge bg-secondary">{{ s.contenu.tickets.total }} tickets</span>
+            <span class="badge {% if s.contenu.stock.critiques %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ s.contenu.stock.total }} stock</span>
+          </span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">Aucune passation : une synthèse est produite à chaque relève.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
       <div class="card-header">Organisation en miroir — <strong>{{ eq_ship.name }}</strong></div>
       <div class="card-body">
         <p class="text-muted small">Recopie les COMAEQ / COMOPS / COMANAV, services, secteurs et sections d'un équipage vers l'autre. Les titulaires et les marins ne sont pas copiés ; ce qui existe déjà chez la destination est conservé.</p>
