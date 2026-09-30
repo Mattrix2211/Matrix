@@ -13,6 +13,7 @@ from matrix.core.scopes import (
     perimetre_navire_q,
     resoudre_affectation_dans_perimetre,
 )
+from org.commandant_en_second import niveau_lecture, perimetre_lecture_q
 from training.models import CandidatureFormation
 from training.services import qualifications_validees_de
 
@@ -68,7 +69,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # Le test d'authentification (redirection vers /login/) reste géré par
         # LoginRequiredMixin ci-dessous ; on ne bloque en 403 qu'un utilisateur
         # déjà connecté mais dont le rôle est insuffisant.
-        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
+        # Le commandant en second a la vision du commandant en LECTURE : il
+        # consulte l'annuaire, mais tout POST reste refusé (cf. post()).
+        if request.user.is_authenticated and niveau_lecture(request.user) < RoleLevel.COMMANDANT:
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
@@ -90,7 +93,12 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # COMMANDANT pouvait consulter le personnel d'un autre navire via ce
         # paramètre d'URL).
         if not is_master_admin(self.request.user):
-            qs = qs.filter(perimetre_navire_q(self.request.user, "profile__"))
+            if user_role_level(self.request.user) >= RoleLevel.COMMANDANT:
+                qs = qs.filter(perimetre_navire_q(self.request.user, "profile__"))
+            else:
+                # Commandant en second : tout son navire, son équipage seulement
+                # en double équipage.
+                qs = qs.filter(perimetre_lecture_q(self.request.user, "profile__"))
         ship_id = self.request.GET.get("ship")
         if ship_id:
             qs = qs.filter(profile__ship_id=ship_id)
@@ -100,6 +108,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         from accounts.models import RoleAvailability
         from org.models import Ship, Service, Sector, Section
         ctx = super().get_context_data(**kwargs)
+        ctx["lecture_seule"] = user_role_level(self.request.user) < RoleLevel.COMMANDANT
         # Roles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
         all_roles = [c for c in Roles.choices if c[0] != 'MASTER_ADMIN']
         opts = {o.code: o.active for o in RoleAvailability.objects.all()}

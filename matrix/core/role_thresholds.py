@@ -155,6 +155,22 @@ REGISTRE_ACTIONS = [
 REGISTRE_PAR_CLE = {a.cle: a for a in REGISTRE_ACTIONS}
 
 
+@dataclass(frozen=True)
+class DroitEnSecond:
+    cle: str
+    libelle: str
+    categorie: str
+
+
+# Actions d'écriture métier (sécurité, protection, coordination) que le
+# commandant en second peut exercer PAR SA FONCTION, sans suppléance : chaque
+# navire choisit lesquelles lui confier (RoleThresholdConfig.droits_en_second,
+# vide par défaut). Registre volontairement vide tant que la liste des actions
+# n'est pas arrêtée avec les utilisateurs métier ; on ne l'alimente qu'ici.
+REGISTRE_DROITS_EN_SECOND = []
+REGISTRE_DROITS_EN_SECOND_PAR_CLE = {d.cle: d for d in REGISTRE_DROITS_EN_SECOND}
+
+
 def _cache_key(ship_id):
     return f"seuils_role:{ship_id if ship_id is not None else 'global'}"
 

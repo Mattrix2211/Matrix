@@ -72,6 +72,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             return qs
         if user_role_level(self.request.user) >= RoleLevel.COMMANDANT:
             return qs.filter(perimetre_navire_q(self.request.user, ""))
+        if a_vision_commandant(self.request.user):
+            return qs.filter(perimetre_lecture_q(self.request.user, ""))
         return qs.filter(build_scope_q(self.request.user, ""))
 
 

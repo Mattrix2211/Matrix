@@ -131,6 +131,61 @@
   </div>
   <div class="col-12">
     <div class="card">
+      <div class="card-header">Suppléance du commandant</div>
+      <div class="card-body">
+        <p class="text-muted small">Le commandant en second n'exerce les droits du commandant que pendant une période désignée ici. Hors période, il garde uniquement sa vision en lecture. Chaque désignation, début, fin et annulation est tracé et notifié.</p>
+        {% if suppleants_possibles %}
+        <form method="post" class="row g-2 align-items-end mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="designer_suppleance" />
+          <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+          <div class="col-md-3">
+            <label class="form-label">Suppléant</label>
+            <select name="poste_id" class="form-select form-select-sm" required>
+              {% for poste in suppleants_possibles %}
+                <option value="{{ poste.id }}">{{ poste.titulaire.username }} ({{ poste.get_libelle_display }}{% if poste.equipage %}, {{ poste.equipage.nom }}{% endif %})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2"><label class="form-label">Début</label><input type="datetime-local" name="debut" class="form-control form-control-sm" required /></div>
+          <div class="col-md-2"><label class="form-label">Fin</label><input type="datetime-local" name="fin" class="form-control form-control-sm" required /></div>
+          <div class="col-md-3"><label class="form-label">Motif</label><input type="text" name="motif" maxlength="200" class="form-control form-control-sm" placeholder="Permission, mission…" /></div>
+          <div class="col-md-2"><button class="btn btn-sm btn-primary" type="submit">Désigner</button></div>
+        </form>
+        {% else %}
+        <p class="text-muted">Désignez d'abord un titulaire au poste de commandant en second.</p>
+        {% endif %}
+        {% if suppleances %}
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Suppléant</th><th>Période</th><th>Motif</th><th>État</th><th></th></tr></thead>
+          <tbody>
+          {% for sp in suppleances %}
+            <tr>
+              <td>{{ sp.suppleant.username }}{% if sp.equipage %} <span class="badge bg-info text-dark">{{ sp.equipage.nom }}</span>{% endif %}</td>
+              <td class="font-mono">{{ sp.debut|date:"d/m/Y H:i" }} → {{ sp.fin|date:"d/m/Y H:i" }}</td>
+              <td>{{ sp.motif|default:"—" }}</td>
+              <td>{{ sp.statut }}</td>
+              <td>
+                {% if sp.statut == "Programmée" or sp.statut == "En cours" %}
+                <form method="post" class="mb-0">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="annuler_suppleance" />
+                  <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+                  <input type="hidden" name="suppleance_id" value="{{ sp.id }}" />
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Annuler</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
       <div class="card-header">COMAEQ / COMOPS / COMANAV de chaque service</div>
       <div class="card-body">
         <table class="table table-sm align-middle">

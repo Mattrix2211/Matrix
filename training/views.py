@@ -3,6 +3,8 @@ from django.db.models import Q
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied
 from rest_framework.permissions import SAFE_METHODS
+
+from org.commandant_en_second import niveau_lecture
 from .models import (
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
     ReferentFormation,
@@ -79,7 +81,7 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return TrainingCourse.objects.none()
         base = TrainingCourse.objects.all()
-        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if niveau_lecture(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
             return base
         # Mêmes deux ensembles complémentaires que
         # TrainingCourseListView.get_context_data (mes_propositions_bord /

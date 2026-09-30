@@ -18,16 +18,21 @@
         {% endfor %}
       </select>
     </form>
+    {% if lecture_seule %}
+    <span class="badge text-bg-secondary" title="Votre poste vous donne la vision du commandant en lecture seule">Lecture seule</span>
+    {% else %}
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal" title="Nouvel utilisateur">
       ➕
     </button>
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Utilisateurs" data-bs-content="Créez des utilisateurs et assignez leur rôle et rattachements. Les règles d'autorisation hiérarchiques s'appliqueront côté API.">
       <span class="bi bi-info-circle"></span>
     </button>
+    {% endif %}
   </div>
   <div class="d-flex align-items-center gap-2">
     <input type="text" id="userTableSearch" class="form-control" placeholder="Rechercher..." style="max-width: 260px;" />
     <a class="btn btn-outline-success" href="{{ export_url }}" title="Exporter en Excel">Exporter</a>
+    {% if not lecture_seule %}
     <div class="dropdown">
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
       <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
@@ -44,6 +49,7 @@
         <li><button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_delete_users">Supprimer…</button></li>
       </ul>
     </div>
+    {% endif %}
   </div>
 </div>
 <style>
@@ -86,6 +92,7 @@
         <td class="font-mono">{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:"d/m/Y" }}{% else %}—{% endif %}</td>
         <td>{{ u.profile.age|default:"—" }}</td>
         <td>
+          {% if not lecture_seule %}
             <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editUserModal" title="Modifier"
                   data-pk="{{ u.id }}" data-username="{{ u.username }}" data-email="{{ u.email }}"
                   data-first-name="{{ u.first_name }}" data-last-name="{{ u.last_name }}"
@@ -108,6 +115,7 @@
                   data-pk="{{ u.id }}" data-username="{{ u.username }}" data-email="{{ u.email }}">
             🔑
           </button>
+          {% endif %}
         </td>
       </tr>
     {% empty %}
@@ -962,6 +970,7 @@
     function countSelected(){
       var rows = document.querySelectorAll('.row-select:checked');
       var n = rows.length;
+      if (!bulkBtn) return;
       bulkBtn.disabled = n === 0;
       bulkBtn.textContent = n > 0 ? ('Actions groupées (' + n + ')') : 'Actions groupées';
     }

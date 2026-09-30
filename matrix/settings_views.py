@@ -27,6 +27,7 @@ from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from accounts import chefs_responsables
 from org import commandant_en_second as en_second
+from org import suppleance
 from org import commandants_adjoints as coma
 from org.miroir import copier_organisation
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, Equipage
@@ -148,7 +149,7 @@ class SettingsView(LoginRequiredMixin, View):
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
             action_coma_ok = (
-                request.method == 'POST' and action in (*coma.ACTIONS, *en_second.ACTIONS) and peut_gerer_coma
+                request.method == 'POST' and action in (*coma.ACTIONS, *en_second.ACTIONS, *suppleance.ACTIONS) and peut_gerer_coma
             )
             if not (
                 tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
@@ -200,6 +201,7 @@ class SettingsView(LoginRequiredMixin, View):
                 mon_ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
                 context.update(coma.contexte_onglet(mon_ship))
                 context.update(en_second.contexte_onglet(mon_ship))
+                context.update(suppleance.contexte_onglet(mon_ship))
             if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
                 context.update({
@@ -335,6 +337,7 @@ class SettingsView(LoginRequiredMixin, View):
         if tab == 'commandants_adjoints':
             context.update(coma.contexte_onglet(selected_ship))
             context.update(en_second.contexte_onglet(selected_ship))
+            context.update(suppleance.contexte_onglet(selected_ship))
         if tab == 'modules':
             # MASTER_ADMIN choisit le navire à configurer, même sélecteur que
             # l'onglet Sécurité ci-dessus (selected_ship).
@@ -666,6 +669,9 @@ class SettingsView(LoginRequiredMixin, View):
         elif action in en_second.ACTIONS:
             next_tab = 'commandants_adjoints'
             en_second.traiter_action(request, action)
+        elif action in suppleance.ACTIONS:
+            next_tab = 'commandants_adjoints'
+            suppleance.traiter_action(request, action)
         elif action in chefs_responsables.ACTIONS:
             chefs_responsables.traiter_action(request, action)
         elif action == 'toggle_module':

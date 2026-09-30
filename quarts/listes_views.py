@@ -25,7 +25,8 @@ from django.views import View
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
-from matrix.core.scopes import equipage_agissant, equipage_marin_q, scope_filters_for_user
+from matrix.core.scopes import equipage_agissant, equipage_marin_q, perimetre_navire_q, scope_filters_for_user
+from org.commandant_en_second import a_vision_commandant
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
@@ -202,6 +203,10 @@ def _listes_visibles(model, user):
         filtres = scope_filters_for_user(user)
         visibles = model.objects.filter(**filtres) if filtres else model.objects.all()
         return visibles.filter(listes_de_l_equipage_q(user))
+    if a_vision_commandant(user):
+        # Commandant en second : toutes les listes de son navire (son équipage),
+        # en lecture — gérer ou publier reste réservé aux chefs de liste.
+        return model.objects.filter(perimetre_navire_q(user, "")).filter(listes_de_l_equipage_q(user))
     q = Q(pk__in=[])
     trouve = False
     for cdl in ChefDeListe.objects.filter(user=user):

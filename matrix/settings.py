@@ -230,6 +230,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "org.tasks.appliquer_releves_planifiees",
         "schedule": 60 * 60 * 24,
     },
+    # Suppléance du commandant : trace et notifie le début et la fin des périodes.
+    "traiter_suppleances_5min": {
+        "task": "org.tasks.traiter_suppleances",
+        "schedule": 60 * 5,
+    },
     "notify_expiring_training_daily": {
         "task": "notifications.tasks.notify_expiring_training",
         "schedule": 60 * 60 * 24,

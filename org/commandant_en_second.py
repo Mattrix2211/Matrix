@@ -2,15 +2,17 @@
 globale en lecture et actions de configuration (onglet « Commandants adjoints »
 des Réglages). Le titulaire garde son rôle (ETAT_MAJOR) : le poste lui ouvre en
 LECTURE la vision du commandant sur son navire (sur son équipage en double
-équipage), sans droit d'écriture supplémentaire. Modifications tracées dans
+équipage), sans droit d'écriture supplémentaire (sauf suppléance explicite, org/suppleance.py,
+ou droit métier configuré, droit_metier_en_second). Modifications tracées dans
 l'AuditLog unifié."""
 from django.contrib import messages
 from django.db.models import Q
 
+from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import equipage_marin_q, perimetre_navire_q
 
 from .commandants_adjoints import _navire_cible, _tracer, titulaire_sans_equipage, titulaires_possibles
-from .models import CommandantEnSecond
+from .models import CommandantEnSecond, RoleThresholdConfig
 
 ACTIONS = ("set_commandant_en_second", "delete_commandant_en_second")
 
@@ -30,6 +32,30 @@ def poste_en_second_de(user):
 def a_vision_commandant(user):
     """Vrai si `user` est commandant/officier en second de son navire."""
     return poste_en_second_de(user) is not None
+
+
+def niveau_lecture(user):
+    """Niveau de rôle à comparer aux seuils de SUPERVISION (lecture transverse) :
+    celui du commandant pour le titulaire du poste de commandant en second,
+    sinon son niveau réel. Ne sert qu'à ouvrir des surfaces de lecture : les
+    écritures continuent de comparer `user_role_level`."""
+    niveau = user_role_level(user)
+    if niveau < RoleLevel.COMMANDANT and a_vision_commandant(user):
+        return RoleLevel.COMMANDANT
+    return niveau
+
+
+def droit_metier_en_second(user, cle_action):
+    """Vrai si `user` est commandant/officier en second ET si son navire lui a
+    confié l'action d'écriture métier `cle_action` (REGISTRE_DROITS_EN_SECOND).
+    Faux par défaut : aucune écriture n'est ouverte tant qu'un navire ne l'a
+    pas explicitement configurée."""
+    from matrix.core.role_thresholds import REGISTRE_DROITS_EN_SECOND_PAR_CLE
+    poste = poste_en_second_de(user)
+    if poste is None or cle_action not in REGISTRE_DROITS_EN_SECOND_PAR_CLE:
+        return False
+    config = RoleThresholdConfig.objects.filter(ship_id=poste.ship_id).first()
+    return bool(config and cle_action in config.droits_en_second)
 
 
 def perimetre_lecture_q(user, prefix="profile__"):

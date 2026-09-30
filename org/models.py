@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator
 from django.conf import settings
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel
@@ -211,6 +212,58 @@ class CommandantEnSecond(TimeStampedModel):
         return f"{self.ship} / {self.get_libelle_display()}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
 
 
+class SuppleanceCommandant(TimeStampedModel):
+    """Suppléance EXPLICITE du commandant par le commandant en second, sur une
+    période donnée : pendant cette période seulement, le suppléant exerce les
+    droits du commandant sur son navire (son équipage en double équipage).
+    Jamais implicite : hors période, ou après annulation, le poste de commandant
+    en second ne donne aucune écriture supplémentaire. Désignée par le
+    commandant ou l'administrateur d'unité ; désignation, début, fin et
+    annulation sont tracés dans l'AuditLog et notifiés."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="suppleances_commandant")
+    equipage = models.ForeignKey(
+        "Equipage", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="suppleances_commandant", verbose_name="Équipage",
+    )
+    suppleant = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="suppleances_commandant", verbose_name="Suppléant"
+    )
+    debut = models.DateTimeField(verbose_name="Début de la suppléance")
+    fin = models.DateTimeField(verbose_name="Fin de la suppléance")
+    motif = models.CharField(max_length=200, blank=True, default="", verbose_name="Motif")
+    designe_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="suppleances_designees"
+    )
+    annulee_le = models.DateTimeField(null=True, blank=True, verbose_name="Annulée le")
+    annulee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="suppleances_annulees"
+    )
+    debut_trace = models.BooleanField(default=False)
+    fin_tracee = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ("-debut",)
+        verbose_name = "Suppléance du commandant"
+        verbose_name_plural = "Suppléances du commandant"
+
+    def est_active(self, maintenant=None):
+        maintenant = maintenant or timezone.now()
+        return self.annulee_le is None and self.debut <= maintenant < self.fin
+
+    @property
+    def statut(self):
+        maintenant = timezone.now()
+        if self.annulee_le is not None:
+            return "Annulée"
+        if maintenant < self.debut:
+            return "Programmée"
+        return "En cours" if maintenant < self.fin else "Terminée"
+
+    def __str__(self):
+        return f"Suppléance {self.suppleant} ({self.ship}) du {self.debut:%d/%m/%Y %H:%M} au {self.fin:%d/%m/%Y %H:%M}"
+
+
 class Service(TimeStampedModel):
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="services")
     name = models.CharField(max_length=255)
@@ -307,6 +360,10 @@ class RoleThresholdConfig(TimeStampedModel):
         Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="role_threshold_config"
     )
     thresholds = JSONField(default=dict, blank=True)
+    # Actions d'écriture métier confiées au commandant en second de ce navire
+    # (clés de REGISTRE_DROITS_EN_SECOND, matrix/core/role_thresholds.py) ;
+    # vide par défaut : le poste ne donne alors aucune écriture.
+    droits_en_second = JSONField(default=list, blank=True)
 
     class Meta:
         verbose_name = "Configuration des seuils de rôle"

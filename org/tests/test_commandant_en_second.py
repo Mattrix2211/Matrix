@@ -56,7 +56,9 @@ class VisionCommandantEnSecondTests(TestCase):
         self.client.force_login(self.second)
         reponse = self.client.post(reverse("settings"), {"action": "add_commandant_adjoint", "sigle": "COMAEQ"})
         self.assertEqual(reponse.status_code, 403)
-        self.assertEqual(self.client.get(reverse("user-directory")).status_code, 403)
+        # Lecture seule : l'annuaire s'ouvre, mais aucune écriture n'est acceptée.
+        self.assertEqual(self.client.get(reverse("user-directory")).status_code, 200)
+        self.assertEqual(self.client.post(reverse("user-directory"), {"action": "bulk_delete_users"}).status_code, 403)
 
     def test_double_equipage_limite_a_son_equipage(self):
         ship = Ship.objects.create(name="FREMM S", code="FR-S", double_equipage=True)

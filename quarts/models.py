@@ -1378,6 +1378,9 @@ def peut_lire_feuille_service(user, feuille):
         return False
     if feuille.statut == FeuilleService.STATUT_PUBLIEE:
         return _est_supervision_globale_feuille(user) or ship_id_for_user(user) == feuille.ship_id
+    from org.commandant_en_second import a_vision_commandant
+    if a_vision_commandant(user) and ship_id_for_user(user) == feuille.ship_id:
+        return True  # commandant en second : lecture des feuilles en cours de circuit
     return (
         peut_gerer_brouillon_feuille(user, feuille)
         or peut_viser_secteur(user, feuille)

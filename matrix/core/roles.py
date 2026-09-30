@@ -36,4 +36,11 @@ def user_role_level(user) -> RoleLevel:
     profile = getattr(user, "profile", None)
     if not profile or not profile.role:
         return RoleLevel.EQUIPIER
-    return ROLE_TO_LEVEL.get(profile.role, RoleLevel.EQUIPIER)
+    niveau = ROLE_TO_LEVEL.get(profile.role, RoleLevel.EQUIPIER)
+    if niveau == RoleLevel.ETAT_MAJOR:
+        # Suppléance explicite du commandant par le commandant en second, sur
+        # une période désignée (org/suppleance.py) : jamais implicite.
+        from org.suppleance import suppleance_en_cours
+        if suppleance_en_cours(user) is not None:
+            return RoleLevel.COMMANDANT
+    return niveau
