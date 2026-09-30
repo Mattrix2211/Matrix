@@ -56,10 +56,32 @@ ECRITURES_AUTORISEES = (
     ("POST", re.compile(r"^/accounts/")),
 )
 
+# Préférences de notification (heures du digest quotidien) : elles passent par
+# la page /parametre/, dont toutes les autres actions restent en lecture seule.
+# On n'autorise donc que cette action précise, jamais la page entière.
+ACTIONS_PARAMETRE_AUTORISEES = ("update_notification_time",)
 
-def ecriture_autorisee_a_terre(methode, chemin):
-    """Vrai si cette requête d'écriture reste permise à l'équipage à terre."""
+
+def ecriture_autorisee_a_terre(methode, chemin, action=None):
+    """Vrai si cette requête d'écriture reste permise à l'équipage à terre.
+    `action` : champ « action » du formulaire, utile pour /parametre/."""
+    if methode == "POST" and chemin == "/parametre/" and action in ACTIONS_PARAMETRE_AUTORISEES:
+        return True
     return any(m == methode and motif.match(chemin) for m, motif in ECRITURES_AUTORISEES)
+
+
+def marin_hors_equipage_a_bord(user, ship):
+    """Vrai si `user` est rattaché à `ship`, bâtiment à double équipage, sans
+    être de l'équipage à bord : une alerte sur le matériel du bâtiment ne le
+    concerne pas (il est à terre). Toujours faux sur un bâtiment à équipage
+    unique, pour un marin d'un autre bâtiment ou sans équipage renseigné."""
+    if ship is None or not ship.double_equipage:
+        return False
+    profil = getattr(user, "profile", None)
+    if profil is None or not profil.equipage_id or profil.navire_id_effectif != ship.pk:
+        return False
+    a_bord = equipage_a_bord(ship)
+    return a_bord is not None and a_bord.pk != profil.equipage_id
 
 
 def peut_gerer_equipages(user):

@@ -84,7 +84,8 @@ class LectureSeuleEquipageMiddleware:
             return self.get_response(request)
         from org.equipages import ecriture_autorisee_a_terre, est_en_lecture_seule
 
-        if ecriture_autorisee_a_terre(request.method, request.path) or not est_en_lecture_seule(request.user):
+        action = request.POST.get("action") if request.path == "/parametre/" else None
+        if ecriture_autorisee_a_terre(request.method, request.path, action) or not est_en_lecture_seule(request.user):
             return self.get_response(request)
         if request.path.startswith("/api/"):
             return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)

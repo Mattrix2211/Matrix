@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import TemplateView
 
+from matrix.core.scopes import equipage_marin_q
 from org.models import Ship, Service, Sector
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
@@ -87,7 +88,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "ships": Ship.objects.all(),
             "services": Service.objects.select_related("ship").all(),
             "sectors": Sector.objects.select_related("service", "service__ship").all(),
-            "users": User.objects.order_by("username").all(),
+            "users": User.objects.filter(equipage_marin_q(request.user)).order_by("username"),
             "active_filters": filters,
             "mes_evenements_personnels": PersonalEvent.objects.filter(
                 owner=request.user, starts_at__gte=timezone.now()
@@ -186,7 +187,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         # même principe que les sessions de formation : affectation
         # personnelle (marin) plutôt que périmètre organisationnel.
         if not filters.get("type") or filters["type"] == "quart":
-            quart_qs = _creneaux_quart_assignes(start, end, filters.get("user") or None)
+            quart_qs = _creneaux_quart_assignes(start, end, filters.get("user") or None, request.user)
             for c in quart_qs:
                 events.append({
                     "type": "quart",
@@ -197,7 +198,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                     "status": None,
                 })
         if not filters.get("type") or filters["type"] == "service_garde":
-            garde_qs = _creneaux_garde_assignes(start, end, filters.get("user") or None)
+            garde_qs = _creneaux_garde_assignes(start, end, filters.get("user") or None, request.user)
             for c in garde_qs:
                 events.append({
                     "type": "service_garde",
@@ -211,7 +212,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         # quart/garde ci-dessus (affectation personnelle plutôt que
         # périmètre organisationnel, cf. absences/models.py::Absence).
         if not filters.get("type") or filters["type"] == "absence":
-            for a in _absences_periode(start, end, filters.get("user") or None):
+            for a in _absences_periode(start, end, filters.get("user") or None, request.user):
                 events.append({
                     "type": "absence",
                     "title": f"Absence - {a.type_absence}",

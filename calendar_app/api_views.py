@@ -225,7 +225,7 @@ def calendar_events(request):
     # depuis le calendrier pour cette V1 (l'échange de service est une tâche
     # séparée à venir, cf. quarts/models.py) : "editable" toujours faux.
     if not filters.get("type") or filters["type"] == "quart":
-        quart_qs = _creneaux_quart_assignes(start, end, filters.get("user") or None)
+        quart_qs = _creneaux_quart_assignes(start, end, filters.get("user") or None, request.user)
         for c in quart_qs:
             couleur = _couleur_evenement("quart")
             events.append({
@@ -241,7 +241,7 @@ def calendar_events(request):
     # Créneaux de service de garde : même principe que les créneaux de quart
     # ci-dessus (cf. _creneaux_garde_assignes).
     if not filters.get("type") or filters["type"] == "service_garde":
-        garde_qs = _creneaux_garde_assignes(start, end, filters.get("user") or None)
+        garde_qs = _creneaux_garde_assignes(start, end, filters.get("user") or None, request.user)
         for c in garde_qs:
             couleur = _couleur_evenement("service_garde")
             events.append({
@@ -257,7 +257,7 @@ def calendar_events(request):
     # Absences/indisponibilités : même principe que les créneaux de quart/
     # garde ci-dessus (affectation personnelle, cf. _absences_periode).
     if not filters.get("type") or filters["type"] == "absence":
-        absence_qs = _absences_periode(start, end, filters.get("user") or None)
+        absence_qs = _absences_periode(start, end, filters.get("user") or None, request.user)
         for a in absence_qs:
             couleur = _couleur_evenement("absence")
             events.append({

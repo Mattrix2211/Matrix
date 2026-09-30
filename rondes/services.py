@@ -15,6 +15,7 @@ from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin
 from notifications.models import Notification, NotificationLevel
 
+from org.equipages import est_en_lecture_seule
 from org.models import Sector, Service, Ship
 
 from .models import Ronde, ResultatPoint, RondeModele, destinataires_ronde
@@ -111,15 +112,20 @@ def peut_gerer_modeles(user):
     return user_role_level(user) >= niveau_requis_pour(user, CLE_SEUIL_GESTION)
 
 
+def rondes_ouvertes_du_marin(user):
+    """Rondes ouvertes que le marin peut faire : celles qui lui sont assignées,
+    ou non assignées et visibles. Double équipage : une ronde non assignée
+    revient à l'équipage à bord, pas à l'équipage à terre (lecture seule)."""
+    a_faire = Q(assigne_a=user)
+    if not est_en_lecture_seule(user):
+        a_faire |= Q(assigne_a=None)
+    return rondes_visibles(user).filter(statut__in=Ronde.STATUTS_OUVERTS).filter(a_faire)
+
+
 def rondes_du_marin(user, jusqu_au=None):
-    """Rondes ouvertes que le marin peut faire, échues à `jusqu_au` (aujourd'hui
-    par défaut) : celles qui lui sont assignées, ou non assignées et visibles."""
+    """Rondes ouvertes du marin échues à `jusqu_au` (aujourd'hui par défaut)."""
     jusqu_au = jusqu_au or timezone.localdate()
-    return (
-        rondes_visibles(user)
-        .filter(statut__in=Ronde.STATUTS_OUVERTS, date_prevue__lte=jusqu_au)
-        .filter(Q(assigne_a=user) | Q(assigne_a=None))
-    )
+    return rondes_ouvertes_du_marin(user).filter(date_prevue__lte=jusqu_au)
 
 
 def progression(ronde):
