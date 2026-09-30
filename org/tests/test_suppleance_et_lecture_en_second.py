@@ -6,7 +6,9 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import connection, transaction
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -206,6 +208,50 @@ class SuppleanceTests(Base):
         self.assertEqual(traiter_suppleances_echues(), 1)
         self.assertTrue(AuditLog.objects.filter(action="fin_suppleance_commandant", target_user=self.second).exists())
         self.assertEqual(Notification.objects.filter(user=self.second).count(), 2)
+
+    def test_suppleance_echue_traitee_une_seule_fois_meme_appelee_deux_fois(self):
+        maintenant = timezone.now()
+        self.suppleance(debut=maintenant - timedelta(days=2), fin=maintenant - timedelta(days=1))
+        self.assertEqual(traiter_suppleances_echues(), 2)
+        self.assertEqual(traiter_suppleances_echues(), 0)
+        self.assertEqual(AuditLog.objects.filter(action="debut_suppleance_commandant").count(), 1)
+        self.assertEqual(AuditLog.objects.filter(action="fin_suppleance_commandant").count(), 1)
+        self.assertEqual(Notification.objects.filter(user=self.second).count(), 2)
+
+    def test_course_entre_deux_traitements_ne_cree_aucun_doublon(self):
+        maintenant = timezone.now()
+        suppleance = self.suppleance(debut=maintenant - timedelta(days=2), fin=maintenant - timedelta(days=1))
+        vrai_atomic = transaction.atomic
+
+        def concurrent(*args, **kwargs):
+            # Un autre processus traite les mêmes événements avant nous.
+            SuppleanceCommandant.objects.filter(pk=suppleance.pk).update(debut_trace=True, fin_tracee=True)
+            return vrai_atomic(*args, **kwargs)
+
+        with mock.patch("org.suppleance.transaction.atomic", side_effect=concurrent):
+            self.assertEqual(traiter_suppleances_echues(), 0)
+        self.assertFalse(AuditLog.objects.filter(action__endswith="_suppleance_commandant").exists())
+        self.assertFalse(Notification.objects.filter(user=self.second).exists())
+
+    def test_affichage_de_l_onglet_n_ecrit_rien(self):
+        maintenant = timezone.now()
+        self.suppleance(debut=maintenant - timedelta(days=2), fin=maintenant - timedelta(days=1))
+        self.client.force_login(self.commandant)
+        avant = (AuditLog.objects.count(), Notification.objects.count())
+        reponse = self.client.get(reverse("settings"), {"tab": "commandants_adjoints"})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual((AuditLog.objects.count(), Notification.objects.count()), avant)
+        self.assertFalse(SuppleanceCommandant.objects.filter(debut_trace=True).exists())
+        self.assertContains(reponse, "Terminée")
+
+    def test_cout_de_user_role_level_borne_pour_l_etat_major(self):
+        user_role_level(self.second)  # charge le profil une fois
+        with CaptureQueriesContext(connection) as une_fois:
+            user_role_level(self.second)
+        self.assertLessEqual(len(une_fois), 2)
+        with self.assertNumQueries(len(une_fois) * 5):
+            for _ in range(5):
+                user_role_level(self.second)
 
     def _designer(self, acteur, **extra):
         self.client.force_login(acteur)

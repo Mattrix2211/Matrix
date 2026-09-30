@@ -3,6 +3,7 @@ d'une période, suivi (début, fin, annulation) tracé dans l'AuditLog et notifi
 Pendant la période, `matrix.core.roles.user_role_level` donne au suppléant le
 niveau du commandant ; hors période, aucun droit supplémentaire."""
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -53,32 +54,43 @@ def traiter_suppleances_echues():
     """Trace (AuditLog) et notifie le début et la fin de chaque suppléance ;
     appelée régulièrement par Celery. La période s'applique d'elle-même à
     l'échéance (`suppleance_en_cours` compare aux dates) : ce passage ne fait
-    que tenir l'historique à jour. Retourne le nombre d'événements traités."""
+    que tenir l'historique à jour. Idempotent et atomique : chaque événement est
+    « réservé » par un UPDATE conditionnel (état non traité) dans la même
+    transaction que sa trace ; deux traitements concurrents ne créent jamais de
+    doublon. Retourne le nombre d'événements traités par cet appel."""
     maintenant = timezone.now()
     nombre = 0
     a_demarrer = SuppleanceCommandant.objects.filter(
         debut_trace=False, annulee_le__isnull=True, debut__lte=maintenant
     ).select_related("ship", "suppleant", "equipage", "designe_par")
     for suppleance in a_demarrer:
-        AuditLog.objects.create(
-            actor=suppleance.designe_par, action="debut_suppleance_commandant",
-            target_user=suppleance.suppleant, details=f"navire={suppleance.ship.name}; {_description(suppleance)}",
-        )
-        _notifier(suppleance, "Votre suppléance du commandant commence : vous exercez ses droits jusqu'à son terme.")
-        suppleance.debut_trace = True
-        suppleance.save(update_fields=["debut_trace", "updated_at"])
+        with transaction.atomic():
+            reservee = SuppleanceCommandant.objects.filter(
+                pk=suppleance.pk, debut_trace=False, annulee_le__isnull=True
+            ).update(debut_trace=True, updated_at=timezone.now())
+            if not reservee:
+                continue
+            AuditLog.objects.create(
+                actor=suppleance.designe_par, action="debut_suppleance_commandant",
+                target_user=suppleance.suppleant, details=f"navire={suppleance.ship.name}; {_description(suppleance)}",
+            )
+            _notifier(suppleance, "Votre suppléance du commandant commence : vous exercez ses droits jusqu'à son terme.")
         nombre += 1
     a_terminer = SuppleanceCommandant.objects.filter(
         fin_tracee=False, annulee_le__isnull=True, debut_trace=True, fin__lte=maintenant
     ).select_related("ship", "suppleant", "equipage", "designe_par")
     for suppleance in a_terminer:
-        AuditLog.objects.create(
-            actor=None, action="fin_suppleance_commandant", target_user=suppleance.suppleant,
-            details=f"navire={suppleance.ship.name}; {_description(suppleance)}",
-        )
-        _notifier(suppleance, "Votre suppléance du commandant est terminée : vos droits reviennent à ceux de votre poste.")
-        suppleance.fin_tracee = True
-        suppleance.save(update_fields=["fin_tracee", "updated_at"])
+        with transaction.atomic():
+            reservee = SuppleanceCommandant.objects.filter(
+                pk=suppleance.pk, fin_tracee=False, annulee_le__isnull=True
+            ).update(fin_tracee=True, updated_at=timezone.now())
+            if not reservee:
+                continue
+            AuditLog.objects.create(
+                actor=None, action="fin_suppleance_commandant", target_user=suppleance.suppleant,
+                details=f"navire={suppleance.ship.name}; {_description(suppleance)}",
+            )
+            _notifier(suppleance, "Votre suppléance du commandant est terminée : vos droits reviennent à ceux de votre poste.")
         nombre += 1
     return nombre
 
@@ -96,7 +108,9 @@ def peut_designer(user):
 def contexte_onglet(ship):
     if ship is None:
         return {}
-    traiter_suppleances_echues()
+    # Lecture seule : une suppléance échue s'affiche « Terminée » par simple
+    # comparaison de dates ; la trace et la notification sont écrites par la
+    # tâche Celery, jamais lors d'un affichage.
     return {
         "suppleances": list(ship.suppleances_commandant.select_related("suppleant", "equipage")[:20]),
         "suppleants_possibles": [

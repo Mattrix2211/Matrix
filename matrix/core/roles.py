@@ -40,6 +40,10 @@ def user_role_level(user) -> RoleLevel:
     if niveau == RoleLevel.ETAT_MAJOR:
         # Suppléance explicite du commandant par le commandant en second, sur
         # une période désignée (org/suppleance.py) : jamais implicite.
+        # Coût : au plus 2 requêtes par appel pour ces comptes. Volontairement
+        # ni cache inter-requêtes (il prolongerait l'élévation après l'échéance
+        # ou l'annulation) ni mémorisation sur l'objet utilisateur (objet
+        # réutilisable hors requête, résultat qui pourrait devenir périmé).
         from org.suppleance import suppleance_en_cours
         if suppleance_en_cours(user) is not None:
             return RoleLevel.COMMANDANT
