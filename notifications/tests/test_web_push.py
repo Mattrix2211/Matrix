@@ -196,3 +196,21 @@ class NettoyageAbonnementsInvalidesTests(TestCase):
             envoyer_notification_push(notif)
         except Exception as exc:  # pragma: no cover
             self.fail(f"L'envoi push ne doit jamais lever d'exception non gérée : {exc}")
+
+    @patch("notifications.push.webpush")
+    def test_logs_ne_contiennent_jamais_lendpoint_complet(self, mock_webpush):
+        """L'endpoint est un secret d'abonnement : absent des logs, y compris
+        quand le message de l'exception le contient."""
+        endpoint = "https://push.example.com/secret-abonnement-xyz"
+        PushSubscription.objects.create(user=self.user, endpoint=endpoint, p256dh="p", auth="a")
+        notif = Notification(user=self.user, verb="Alerte", level=NotificationLevel.DANGER)
+        for erreur in (
+            WebPushException(f"Échec {endpoint}", response=ReponsePushFactice(503)),
+            RuntimeError(f"connexion refusée vers {endpoint}"),
+        ):
+            mock_webpush.side_effect = erreur
+            with self.assertLogs("notifications.push", level="WARNING") as logs:
+                envoyer_notification_push(notif)
+            sortie = " ".join(logs.output)
+            self.assertNotIn(endpoint, sortie)
+            self.assertNotIn("secret-abonnement-xyz", sortie)

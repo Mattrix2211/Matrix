@@ -91,8 +91,18 @@ def envoyer_notification_push(notification):
                 # abonnement mort.
                 abonnement.delete()
             else:
+                # L'endpoint est un secret d'abonnement (il permet d'envoyer
+                # des notifications au navigateur du marin) : on ne logue que
+                # l'identifiant de l'abonnement et le statut, jamais l'endpoint
+                # ni le message de l'exception, qui peut le contenir.
                 logger.warning(
-                    "Échec d'envoi Web Push vers %s : %s", abonnement.endpoint, exc
+                    "Échec d'envoi Web Push (abonnement %s, statut %s)", abonnement.pk, statut
                 )
-        except Exception:  # défense en profondeur : un envoi push ne doit jamais planter l'appelant
-            logger.exception("Erreur inattendue lors de l'envoi Web Push vers %s", abonnement.endpoint)
+        except Exception as exc:  # défense en profondeur : un envoi push ne doit jamais planter l'appelant
+            # Pas de trace complète : le message d'une erreur réseau peut
+            # contenir l'endpoint de l'abonnement.
+            logger.error(
+                "Erreur inattendue lors de l'envoi Web Push (abonnement %s) : %s",
+                abonnement.pk,
+                type(exc).__name__,
+            )
