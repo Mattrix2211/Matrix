@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from accounts.models import AuditLog
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 
@@ -236,7 +237,8 @@ def _activer(request, ship):
 
 
 def _equipage_du_navire(ship, pk):
-    return ship.equipages.filter(pk=pk).first() if pk and str(pk).isdigit() else None
+    numero = entier_ou_none(pk)
+    return ship.equipages.filter(pk=numero).first() if numero is not None else None
 
 
 def _renommer(request, ship):
@@ -260,8 +262,8 @@ def _peut_se_verrouiller(user):
 
 
 def _affecter(request, ship):
-    user_id = request.POST.get("user_id") or ""
-    cible = _marins_du_navire(ship).filter(pk=user_id).first() if user_id.isdigit() else None
+    user_id = entier_ou_none(request.POST.get("user_id"))
+    cible = _marins_du_navire(ship).filter(pk=user_id).first() if user_id is not None else None
     equipage_id = request.POST.get("equipage_id") or ""
     equipage = _equipage_du_navire(ship, equipage_id) if equipage_id else None
     if cible is None or (equipage_id and equipage is None):

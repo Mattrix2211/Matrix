@@ -8,7 +8,10 @@ from django.contrib.auth import get_user_model
 from accounts.models import AuditLog
 from matrix.core.scopes import ship_id_for_user
 
+from matrix.core.saisie import entier_ou_none
+
 from .models import CommandantAdjoint, Service, Ship
+from .regles_equipage import erreur_poste_du_service, erreur_titulaire_equipage, titulaire_sans_equipage
 
 User = get_user_model()
 
@@ -33,16 +36,6 @@ def titulaires_possibles(ship):
     """Utilisateurs de rôle ETAT_MAJOR rattachés à ce navire."""
     return User.objects.filter(profile__role="ETAT_MAJOR", profile__ship=ship).order_by(
         "last_name", "first_name", "username"
-    )
-
-
-def titulaire_sans_equipage(ship, poste, titulaire):
-    """Vrai si `titulaire` n'a aucun équipage alors que `poste` est un poste
-    d'équipage d'un bâtiment à double équipage : on ne peut pas savoir de quel
-    équipage il est (page Notion « Organigramme et rôles » §9)."""
-    return (
-        ship.double_equipage and poste.equipage_id is not None
-        and titulaire is not None and titulaire.profile.equipage_id is None
     )
 
 
@@ -89,7 +82,8 @@ def _tracer(request, action, ship, detail):
 
 
 def _poste_du_navire(ship, pk):
-    return ship.commandants_adjoints.filter(pk=pk).first() if pk and pk.isdigit() else None
+    numero = entier_ou_none(pk)
+    return ship.commandants_adjoints.filter(pk=numero).first() if numero is not None else None
 
 
 def traiter_action(request, action):
@@ -142,19 +136,13 @@ def traiter_action(request, action):
         user_id = request.POST.get("user_id")
         titulaire = None
         if user_id:
-            titulaire = titulaires_possibles(ship).filter(pk=user_id if user_id.isdigit() else 0).first()
+            titulaire = titulaires_possibles(ship).filter(pk=entier_ou_none(user_id) or 0).first()
             if titulaire is None:
                 messages.error(request, "Le titulaire doit être un membre de l'état-major de cette unité.")
                 return
-        if titulaire_sans_equipage(ship, poste, titulaire):
-            messages.error(
-                request,
-                f"Ce marin n'est rattaché à aucun équipage : rattachez-le d'abord à l'équipage "
-                f"{poste.equipage.nom} (page « Équipages »), puis désignez-le {poste.sigle}.",
-            )
-            return
-        if titulaire is not None and poste.equipage_id and titulaire.profile.equipage_id not in (None, poste.equipage_id):
-            messages.error(request, f"Ce marin appartient à l'autre équipage : le {poste.sigle} doit être de l'équipage {poste.equipage.nom}.")
+        message = erreur_titulaire_equipage(ship, poste.equipage, titulaire, poste.sigle)
+        if message:
+            messages.error(request, message)
             return
         ancien = poste.titulaire.username if poste.titulaire else "aucun"
         poste.titulaire = titulaire
@@ -162,14 +150,15 @@ def traiter_action(request, action):
         _tracer(request, action, ship, f"sigle={poste.sigle}; {ancien} -> {titulaire.username if titulaire else 'aucun'}")
         messages.success(request, f"Titulaire du {poste.sigle} mis à jour.")
     elif action == "set_service_commandant_adjoint":
-        service = Service.objects.filter(pk=request.POST.get("service_id"), ship=ship).first()
+        service = Service.objects.filter(pk=entier_ou_none(request.POST.get("service_id")) or 0, ship=ship).first()
         coma_id = request.POST.get("coma_id")
         coma = _poste_du_navire(ship, coma_id) if coma_id else None
         if service is None or (coma_id and coma is None):
             messages.error(request, "Service ou poste introuvable sur cette unité.")
             return
-        if coma is not None and coma.equipage_id != service.equipage_id:
-            messages.error(request, "Le service et le poste doivent appartenir au même équipage.")
+        message = erreur_poste_du_service(service, coma)
+        if message:
+            messages.error(request, message)
             return
         ancien = service.commandant_adjoint.sigle if service.commandant_adjoint else "aucun"
         service.commandant_adjoint = coma

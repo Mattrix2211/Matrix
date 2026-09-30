@@ -20,8 +20,10 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views import View
 
+from accounts.models import AuditLog
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import ship_id_for_user
 from org.models import Ship
 
@@ -104,7 +106,48 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             raise PermissionDenied
         return render(request, self.template_name, self._contexte(request, ship, date_, feuille, equipage))
 
+    def _peut_configurer(self, request):
+        return user_role_level(request.user) >= niveau_requis_pour(request.user, "feuille_service_configuration")
+
+    def _rattacher_feuille(self, request, ship):
+        """Rattache une feuille historique sans équipage à un équipage du
+        bâtiment (double équipage), pour qu'elle reste retrouvable ; tracé dans l'AuditLog."""
+        if not self._peut_configurer(request):
+            raise PermissionDenied
+        feuille = FeuilleService.objects.filter(
+            pk=entier_ou_none(request.POST.get("feuille_id")) or 0, ship=ship, equipage__isnull=True
+        ).first()
+        equipage = ship.equipages.filter(pk=entier_ou_none(request.POST.get("equipage_id")) or 0).first()
+        if not ship.double_equipage or feuille is None or equipage is None:
+            messages.error(request, "Feuille sans équipage ou équipage introuvable sur cette unité.")
+        elif FeuilleService.objects.filter(ship=ship, equipage=equipage, date=feuille.date).exists():
+            messages.error(
+                request,
+                f"L'équipage {equipage.nom} a déjà une feuille de service au {feuille.date:%d/%m/%Y} : "
+                "rattachez cette feuille à l'autre équipage.",
+            )
+        else:
+            feuille.equipage = equipage
+            feuille.save(update_fields=["equipage", "updated_at"])
+            AuditLog.objects.create(
+                actor=request.user, action="rattacher_feuille_service",
+                details=f"navire={ship.name}; feuille du {feuille.date.isoformat()} (pk={feuille.pk}); "
+                        f"sans équipage -> {equipage.nom}",
+            )
+            messages.success(request, f"Feuille du {feuille.date:%d/%m/%Y} rattachée à l'équipage {equipage.nom}.")
+
     def _contexte(self, request, ship, date_, feuille, equipage):
+        peut_configurer = self._peut_configurer(request)
+        # Feuilles à ne pas perdre de vue : sans équipage sur un double équipage
+        # (à rattacher), ou d'un autre équipage le même jour sur un équipage unique.
+        if ship.double_equipage:
+            feuilles_sans_equipage = FeuilleService.objects.filter(ship=ship, equipage__isnull=True).order_by("-date")[:30]
+            autres_feuilles = []
+        else:
+            feuilles_sans_equipage = []
+            autres_feuilles = FeuilleService.objects.filter(
+                ship=ship, date=date_, equipage__isnull=False
+            ).exclude(pk=feuille.pk if feuille else 0).select_related("equipage")
         if feuille is not None:
             rubriques = feuille.rubriques_affichees
             personnel = feuille.personnel
@@ -143,9 +186,13 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 and peut_viser_comaeq(request.user, feuille)
             ),
             "versions": feuille.versions.all() if feuille is not None else None,
-            "peut_configurer": user_role_level(request.user) >= niveau_requis_pour(
-                request.user, "feuille_service_configuration"
-            ),
+            "peut_configurer": peut_configurer,
+            # Double équipage sans équipage à bord défini : rien n'est affiché
+            # au hasard, l'écran demande de corriger la configuration.
+            "etat_incoherent": ship.double_equipage and equipage is None,
+            "feuilles_sans_equipage": feuilles_sans_equipage,
+            "equipages_rattachement": ship.equipages.all() if ship.double_equipage else [],
+            "autres_feuilles": autres_feuilles,
         }
 
     def post(self, request, ship_id, date_str):
@@ -154,12 +201,22 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             return HttpResponseBadRequest("Date invalide.")
         action = request.POST.get("action")
 
+        if action == "rattacher_feuille":
+            self._rattacher_feuille(request, ship)
+            return _redirection_detail(ship, date_, equipage)
+        if ship.double_equipage and equipage is None:
+            messages.error(
+                request, "Aucun équipage à bord n'est défini : corrigez-le d'abord dans la page « Équipages »."
+            )
+            return _redirection_detail(ship, date_, equipage)
+
         if action == "creer":
             if not peut_rediger_feuille_service(request.user, ship):
                 raise PermissionDenied
             if feuille is None:
                 FeuilleService.objects.create(
-                    ship=ship, equipage=equipage, date=date_, created_by=request.user, updated_by=request.user,
+                    ship=ship, equipage=equipage if ship.double_equipage else None, date=date_,
+                    created_by=request.user, updated_by=request.user,
                 )
                 messages.success(
                     request, "Brouillon créé : complétez l'en-tête puis proposez-le à la validation."

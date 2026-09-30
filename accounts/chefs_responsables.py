@@ -6,6 +6,8 @@ Toute modification est tracée dans l'AuditLog unifié."""
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 
+from matrix.core.saisie import entier_ou_none
+
 from .models import AuditLog, ChefResponsableSpecialite, ResponsableSpecialite
 
 User = get_user_model()
@@ -73,8 +75,8 @@ def contexte_ecran():
 def traiter_action(request, action):
     """Exécute une action de l'écran (déjà autorisée par la vue)."""
     if action == "definir_chef_responsable":
-        marin = User.objects.filter(pk=request.POST.get("user_id") or 0).first()
-        ids = [i for i in request.POST.getlist("responsable_ids") if i.isdigit()]
+        marin = User.objects.filter(pk=entier_ou_none(request.POST.get("user_id")) or 0).first()
+        ids = [i for i in map(entier_ou_none, request.POST.getlist("responsable_ids")) if i is not None]
         if marin is None:
             messages.error(request, "Marin introuvable.")
             return

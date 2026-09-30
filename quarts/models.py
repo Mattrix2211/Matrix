@@ -123,6 +123,7 @@ from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_agissant, scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
 from org.models import Equipage, Sector, Section, Service, Ship
@@ -1284,26 +1285,41 @@ def _est_supervision_globale_feuille(user):
 
 
 def equipage_de_feuille_pour(user, ship, equipage_id=None):
-    """Équipage dont `user` consulte ou rédige la feuille de service sur `ship`
-    : None sur un bâtiment à équipage unique ; sinon son propre équipage
-    (`equipage_agissant`). Un administrateur général, qui n'a pas d'équipage,
-    choisit l'équipage par `equipage_id` (à défaut, celui à bord)."""
+    """Équipage dont `user` consulte ou rédige la feuille de service sur `ship`.
+    Bâtiment à équipage unique : None, sauf demande explicite d'une feuille
+    historique d'un équipage (`equipage_id`, voir feuille_du_jour). Double
+    équipage : son propre équipage (`equipage_agissant`) ; un administrateur
+    général, qui n'a pas d'équipage, choisit par `equipage_id`, à défaut
+    l'équipage à bord. None si aucun équipage à bord n'est défini : c'est un
+    état incohérent que la vue signale, jamais un choix arbitraire."""
+    numero = entier_ou_none(equipage_id)
+    demande = ship.equipages.filter(pk=numero).first() if numero is not None else None
     if not ship.double_equipage:
-        return None
+        return demande
     equipage = equipage_agissant(user)
     if equipage is not None and equipage.ship_id == ship.pk:
         return equipage
     from org.equipages import equipage_a_bord
-    choisi = ship.equipages.filter(pk=equipage_id).first() if str(equipage_id or "").isdigit() else None
-    return choisi or equipage_a_bord(ship)
+    return demande or equipage_a_bord(ship)
 
 
 def feuille_du_jour(ship, date_, equipage):
-    """Feuille de service du jour d'un équipage (`equipage` ignoré sur un
-    bâtiment à équipage unique, y compris après désactivation du double
-    équipage : les feuilles existantes restent visibles)."""
+    """Feuille de service du jour, choix DÉTERMINISTE.
+
+    Double équipage : celle de l'équipage donné, aucune si `equipage` est None
+    (état incohérent signalé par la vue). Équipage unique, y compris après
+    désactivation du double équipage (les feuilles historiques restent
+    visibles) : celle de l'équipage demandé s'il y en a un ; sinon la feuille
+    sans équipage, puis celle du dernier équipage à bord, puis la plus ancienne."""
     feuilles = FeuilleService.objects.filter(ship=ship, date=date_)
-    return (feuilles.filter(equipage=equipage) if ship.double_equipage else feuilles).first()
+    if ship.double_equipage:
+        return feuilles.filter(equipage=equipage).first() if equipage is not None else None
+    if equipage is not None:
+        return feuilles.filter(equipage=equipage).first()
+    return sorted(
+        feuilles,
+        key=lambda f: (f.equipage_id is not None, f.equipage_id != ship.equipage_a_bord_id, f.pk),
+    )[0] if feuilles else None
 
 
 def _dans_mon_equipage(user, feuille):

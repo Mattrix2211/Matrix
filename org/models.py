@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator
@@ -6,6 +7,8 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel
+
+from . import changement_equipage, regles_equipage
 
 User = get_user_model()
 
@@ -168,6 +171,28 @@ class CommandantAdjoint(TimeStampedModel):
     def signification(self):
         return self.SIGNIFICATIONS[self.sigle]
 
+    def clean(self):
+        """Règle du double équipage : le titulaire appartient à l'équipage du
+        poste (voir org/regles_equipage.py). Appelée par l'administration et
+        les formulaires ; `save()` la rejoue pour les autres chemins."""
+        super().clean()
+        if not self.ship_id:
+            return
+        if self.equipage_id and self.equipage.ship_id != self.ship_id:
+            raise ValidationError({"equipage": "Cet équipage n'appartient pas à l'unité du poste."})
+        message = regles_equipage.erreur_titulaire_equipage(self.ship, self.equipage, self.titulaire, self.sigle)
+        if message:
+            raise ValidationError({"titulaire": message})
+
+    def save(self, *args, **kwargs):
+        # Un enregistrement partiel qui ne touche ni le titulaire ni l'équipage
+        # (ex. mise à jour de la date) ne rejoue pas la règle : les titulaires
+        # déjà en place sans équipage restent signalés, jamais modifiés.
+        champs = kwargs.get("update_fields")
+        if champs is None or {"titulaire", "equipage"} & set(champs):
+            self.clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.ship} / {self.sigle}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
 
@@ -288,6 +313,30 @@ class Service(TimeStampedModel):
                 name="service_unique_nom_sans_equipage",
             ),
         ]
+
+    def clean(self):
+        """Poste du même équipage et changement d'équipage sans conflit (voir
+        org/changement_equipage.py). Appelée par l'administration et les formulaires."""
+        super().clean()
+        if not self.ship_id:
+            return
+        if self.equipage_id and self.equipage.ship_id != self.ship_id:
+            raise ValidationError({"equipage": "Cet équipage n'appartient pas à l'unité du service."})
+        if changement_equipage.equipage_a_change(self):
+            # Le contrôle du changement couvre aussi le poste de commandant adjoint.
+            changement_equipage.verifier_changement(self, self.equipage)
+            return
+        message = regles_equipage.erreur_poste_du_service(self, self.commandant_adjoint)
+        if message:
+            raise ValidationError({"commandant_adjoint": message})
+
+    def save(self, *args, **kwargs):
+        # Le changement d'équipage est atomique sur Service -> Secteurs -> Sections.
+        champs = kwargs.get("update_fields")
+        if champs is not None and "equipage" not in champs:
+            super().save(*args, **kwargs)
+            return
+        changement_equipage.enregistrer_service(self, lambda: super(Service, self).save(*args, **kwargs))
 
     def __str__(self):
         return f"{self.ship} / {self.name}"

@@ -30,6 +30,14 @@
   {% endif %}
 </div>
 
+{% if etat_incoherent %}
+<div class="alert alert-danger">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  <strong>Configuration à corriger.</strong> Cette unité est en double équipage mais aucun équipage à bord n'est défini :
+  la feuille de service ne peut pas être affichée sans risque de confusion entre les deux équipages.
+  <a class="alert-link" href="/equipages/">Définir l'équipage à bord (page « Équipages »)</a>.
+</div>
+{% else %}
 {% if je_suis_de_service %}
 <div class="alert alert-success"><i class="bi bi-star-fill"></i> Vous êtes de service ce jour-là — votre fonction est mise en évidence ci-dessous.</div>
 {% endif %}
@@ -205,6 +213,44 @@
     </div>
   </details>
   {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+
+{% if autres_feuilles %}
+<div class="alert alert-info mt-4">
+  <i class="bi bi-archive"></i> Autres feuilles de cette date (historique de double équipage) :
+  {% for f in autres_feuilles %}
+  <a class="alert-link" href="{% url 'feuille-service-detail' ship.pk date|date:'Y-m-d' %}?equipage={{ f.equipage.pk }}">équipage {{ f.equipage.nom }}</a>{% if not forloop.last %}, {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if peut_configurer and feuilles_sans_equipage %}
+<div class="mt-4">
+  <h2 class="h5"><i class="bi bi-archive"></i> Feuilles historiques sans équipage</h2>
+  <p class="text-muted small">Ces feuilles datent d'avant le double équipage : rattachez chacune à l'équipage qui l'a rédigée pour la retrouver dans sa feuille du jour.</p>
+  <div class="card">
+    <ul class="list-group list-group-flush">
+      {% for f in feuilles_sans_equipage %}
+      <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>
+          <a href="{% url 'feuille-service-detail' ship.pk f.date|date:'Y-m-d' %}">{{ f.date|date:"d/m/Y" }}</a>
+          <span class="badge text-bg-secondary ms-1">{{ f.get_statut_display }}</span>
+        </span>
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="rattacher_feuille">
+          <input type="hidden" name="feuille_id" value="{{ f.pk }}">
+          <select name="equipage_id" class="form-select form-select-sm" required aria-label="Équipage">
+            {% for e in equipages_rattachement %}<option value="{{ e.pk }}">{{ e.nom }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="btn btn-outline-primary btn-sm">Rattacher</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
 </div>
 {% endif %}
 {% endblock %}

@@ -68,9 +68,11 @@ class TitulaireSansEquipageTests(TestCase):
 
     def test_titulaire_deja_en_place_signale_sans_etre_modifie(self):
         sans_equipage = _marin("ancien", "ETAT_MAJOR", self.ship)
-        poste = CommandantAdjoint.objects.create(
-            ship=self.ship, equipage=self.bleu, sigle="COMOPS", titulaire=sans_equipage,
-        )
+        # Donnée antérieure à la règle : posée par mise à jour directe, car
+        # save() refuse désormais un titulaire sans équipage.
+        poste = CommandantAdjoint.objects.create(ship=self.ship, equipage=self.bleu, sigle="COMOPS")
+        CommandantAdjoint.objects.filter(pk=poste.pk).update(titulaire=sans_equipage)
+        poste.refresh_from_db()
         reponse = self.client.get(self.url, {"tab": "commandants_adjoints"})
         self.assertContains(reponse, "rattaché à aucun équipage")
         poste.refresh_from_db()

@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.db.models import Q
 
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_marin_q, perimetre_navire_q
 
 from .commandants_adjoints import _navire_cible, _tracer, titulaire_sans_equipage, titulaires_possibles
@@ -110,7 +111,7 @@ def traiter_action(request, action):
     user_id = request.POST.get("user_id")
     titulaire = None
     if user_id:
-        titulaire = titulaires_possibles(ship).filter(pk=user_id if user_id.isdigit() else 0).first()
+        titulaire = titulaires_possibles(ship).filter(pk=entier_ou_none(user_id) or 0).first()
         if titulaire is None:
             messages.error(request, "Le titulaire doit être un membre de l'état-major de cette unité.")
             return
