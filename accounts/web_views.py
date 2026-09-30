@@ -3,7 +3,7 @@ from django.views.generic import ListView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
@@ -34,6 +34,21 @@ def _role_attribution_autorisee(acting_user, role_cible):
         return True
     allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
     return role_cible in allowed
+
+
+def _enregistrer_profil(request, profile, champs=None):
+    """Enregistre le profil ; si la règle du double équipage refuse le
+    changement (titulaire d'un poste COMA ou de commandant en second), affiche
+    le message et renvoie False pour que l'appelant passe au marin suivant."""
+    try:
+        if champs is None:
+            profile.save()
+        else:
+            profile.save(update_fields=champs)
+    except ValidationError as erreur:
+        messages.error(request, " ".join(erreur.messages))
+        return False
+    return True
 
 
 def _utilisateurs_gerables_par(acting_user):
@@ -228,7 +243,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.ship = ship
-                    profile.save(update_fields=["ship"])
+                    if not _enregistrer_profil(request, profile, ["ship"]):
+                        count -= 1
+                        continue
                     AuditLog.objects.create(actor=request.user, action="bulk_update_ship", target_user=user, details=f"ship_id={ship_id}")
                 messages.success(request, f"Unité mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_fonction":
@@ -251,7 +268,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.service = service
-                    profile.save(update_fields=["service"])
+                    if not _enregistrer_profil(request, profile, ["service"]):
+                        count -= 1
+                        continue
                     AuditLog.objects.create(actor=request.user, action="bulk_update_service", target_user=user, details=f"service_id={service_id}")
                 messages.success(request, f"Service mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_sector":
@@ -266,7 +285,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.sector = sector
-                    profile.save(update_fields=["sector"])
+                    if not _enregistrer_profil(request, profile, ["sector"]):
+                        count -= 1
+                        continue
                     AuditLog.objects.create(actor=request.user, action="bulk_update_sector", target_user=user, details=f"sector_id={sector_id}")
                 messages.success(request, f"Secteur mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_section":
@@ -281,7 +302,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
                     profile.section = section
-                    profile.save(update_fields=["section"])
+                    if not _enregistrer_profil(request, profile, ["section"]):
+                        count -= 1
+                        continue
                     AuditLog.objects.create(actor=request.user, action="bulk_update_section", target_user=user, details=f"section_id={section_id}")
                 messages.success(request, f"Section mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_grade":
@@ -468,7 +491,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 profile.service = service
                 profile.sector = sector
                 profile.section = section
-                profile.save()
+                if not _enregistrer_profil(request, profile):
+                    return redirect("user-directory")
                 AuditLog.objects.create(actor=request.user, action="edit_user", target_user=user, details="profil mis à jour")
                 messages.success(request, f"Utilisateur {user.username} mis à jour.")
             except User.DoesNotExist:

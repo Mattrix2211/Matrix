@@ -6,13 +6,14 @@ LECTURE la vision du commandant sur son navire (sur son équipage en double
 ou droit métier configuré, droit_metier_en_second). Modifications tracées dans
 l'AuditLog unifié."""
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_marin_q, perimetre_navire_q
 
-from .commandants_adjoints import _navire_cible, _tracer, titulaire_sans_equipage, titulaires_possibles
+from .commandants_adjoints import _navire_cible, _tracer, titulaires_possibles
 from .models import CommandantEnSecond, RoleThresholdConfig
 
 ACTIONS = ("set_commandant_en_second", "delete_commandant_en_second")
@@ -115,17 +116,15 @@ def traiter_action(request, action):
         if titulaire is None:
             messages.error(request, "Le titulaire doit être un membre de l'état-major de cette unité.")
             return
-        if titulaire_sans_equipage(ship, CommandantEnSecond(ship=ship, equipage=equipage), titulaire):
-            messages.error(request, "Ce marin n'est rattaché à aucun équipage : rattachez-le d'abord à l'équipage (page « Équipages »).")
-            return
-        if equipage and titulaire.profile.equipage_id not in (None, equipage.id):
-            messages.error(request, f"Ce marin appartient à l'autre équipage : le poste doit être de l'équipage {equipage.nom}.")
-            return
     if poste is None:
         poste = CommandantEnSecond(ship=ship, equipage=equipage)
     ancien = (poste.titulaire.username if poste.titulaire else "aucun") if poste.pk else "création"
     poste.libelle, poste.titulaire = libelle, titulaire
-    poste.save()
+    try:
+        poste.save()
+    except ValidationError as erreur:
+        messages.error(request, " ".join(erreur.messages))
+        return
     _tracer(
         request, action, ship,
         f"poste={poste.get_libelle_display()}; {ancien} -> {titulaire.username if titulaire else 'aucun'}"

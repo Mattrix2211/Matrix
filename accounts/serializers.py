@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import Roles, UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from django.contrib.auth.models import User
@@ -23,6 +24,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
         # `allowed_sectors` (accès à d'autres secteurs) se gère uniquement
         # depuis l'annuaire web, avec ses contrôles de périmètre.
         read_only_fields = ("id", "allowed_sectors", "created_at", "updated_at")
+
+    def update(self, instance, validated_data):
+        """Traduit le refus « titulaire de poste COMA / commandant en second »
+        (levé par UserProfile.save) en erreur 400 avec son message français,
+        au lieu d'une erreur serveur 500."""
+        try:
+            return super().update(instance, validated_data)
+        except DjangoValidationError as erreur:
+            raise serializers.ValidationError({"equipage": erreur.messages})
 
     def validate(self, attrs):
         """Valide que le navire/service/secteur/section de destination

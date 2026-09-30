@@ -25,7 +25,8 @@ def conflits_changement(service, nouvel_equipage):
     à `nouvel_equipage` (None = équipage unique). Liste vide : changement possible.
 
     Contrôlés : poste de commandant adjoint du service, service homonyme dans
-    l'équipage d'arrivée, marins d'un AUTRE équipage affectés au service, à un
+    l'équipage d'arrivée, listes de quarts et de gardes du service, de ses
+    secteurs ou de ses sections, marins d'un AUTRE équipage affectés au service, à un
     de ses secteurs ou à une de ses sections (chefs compris). Les marins sans
     équipage ne bloquent pas : ils suivront leur rattachement à la page « Équipages »."""
     from accounts.models import UserProfile
@@ -64,6 +65,37 @@ def conflits_changement(service, nouvel_equipage):
                 f"{_nom_marin(profil.user)} (équipage {profil.equipage.nom}, rôle {profil.role}) est affecté à {lieu} : "
                 f"rattachez-le à {_nom_equipage(nouvel_equipage)} ou changez son affectation."
             )
+    conflits.extend(_conflits_listes(service, nouvel_equipage))
+    return conflits
+
+
+def _conflits_listes(service, nouvel_equipage):
+    """Listes de quarts et de services de garde rattachées au service, à un de
+    ses secteurs ou à une de ses sections : leur équipage découle de celui de
+    l'organisation, elles ne peuvent donc pas suivre le service sans être
+    reprises. Chacune est nommée ; à l'utilisateur de les supprimer ou de les
+    recréer pour le nouvel équipage."""
+    from django.db.models import Q
+
+    from quarts.models import Quart, ServiceGarde
+
+    conflits = []
+    for modele in (Quart, ServiceGarde):
+        listes = modele.objects.filter(
+            Q(service=service) | Q(sector__service=service) | Q(section__sector__service=service)
+        ).select_related("service", "sector", "section")
+        for liste in listes:
+            lieu = (
+                f"la section « {liste.section.name} »" if liste.section_id
+                else f"le secteur « {liste.sector.name} »" if liste.sector_id
+                else f"le service « {liste.service.name} »"
+            )
+            nom = f" « {liste.nom} »" if liste.nom else ""
+            conflits.append(
+                f"La {modele._meta.verbose_name.lower()}{nom} du {liste.date_debut:%d/%m/%Y} au {liste.date_fin:%d/%m/%Y} "
+                f"est rattachée à {lieu} : supprimez-la ou recréez-la pour {_nom_equipage(nouvel_equipage)} "
+                f"avant de changer l'équipage du service."
+            )
     return conflits
 
 
@@ -100,7 +132,11 @@ def enregistrer_service(service, enregistrer):
     if not equipage_a_change(service):
         enregistrer()
         return
+    from .models import Service
+
     with transaction.atomic():
+        # Verrou de ligne : deux changements simultanés du même service se suivent.
+        Service.objects.select_for_update().filter(pk=service.pk).first()
         verifier_changement(service, service.equipage)
         enregistrer()
         propager_aux_secteurs_et_sections(service)

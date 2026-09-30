@@ -1,9 +1,6 @@
-"""QA 30/09/2026 : dette connue, la page « Équipages » ne contrôle pas le
-changement d'équipage d'un marin qui est titulaire d'un poste COMA."""
-import unittest
-
+"""Règle du 30/09/2026 : la page « Équipages » refuse de rattacher à un autre
+équipage un marin titulaire d'un poste COMA (le poste doit être libéré d'abord)."""
 from django.core.cache import cache
-from django.test import TestCase
 
 from org.models import CommandantAdjoint
 from org.tests.test_coherence_equipage import BaseDoubleEquipage, creer_marin
@@ -19,8 +16,7 @@ class AffectationTitulaireComaTests(BaseDoubleEquipage):
         self.poste = CommandantAdjoint.objects.create(
             ship=self.ship, equipage=self.bleu, sigle="COMAEQ", titulaire=self.titulaire)
 
-    @unittest.expectedFailure
-    def test_rattacher_un_titulaire_coma_a_l_autre_equipage_devrait_etre_refuse(self):
+    def test_rattacher_un_titulaire_coma_a_l_autre_equipage_est_refuse(self):
         self.client.post("/equipages/", {
             "action": "affecter_equipage_marin", "user_id": self.titulaire.pk, "equipage_id": self.rouge.pk,
         })

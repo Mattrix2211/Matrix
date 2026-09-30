@@ -15,6 +15,7 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -277,7 +278,11 @@ def _affecter(request, ship):
     profil = cible.profile
     ancien = profil.equipage.nom if profil.equipage else "aucun"
     profil.equipage = equipage
-    profil.save(update_fields=["equipage", "updated_at"])
+    try:
+        profil.save(update_fields=["equipage", "updated_at"])
+    except ValidationError as erreur:
+        messages.error(request, " ".join(erreur.messages))
+        return
     AuditLog.objects.create(
         actor=request.user, target_user=cible, action="affecter_equipage_marin",
         details=f"navire={ship.name}; {ancien} -> {equipage.nom if equipage else 'aucun'}",

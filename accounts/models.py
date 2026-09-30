@@ -1,8 +1,10 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from datetime import date, time
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from org import regles_equipage
 from org.models import Ship, Service, Sector, Section
 from matrix.core.models import TimeStampedModel
 
@@ -63,13 +65,40 @@ class UserProfile(TimeStampedModel):
             return self.section.sector.service.ship_id
         return None
 
+    def _equipage_apres_enregistrement(self):
+        """Équipage que le marin aura une fois enregistré : un équipage n'a de
+        sens que sur son propre bâtiment, donc None si le navire a changé."""
+        if self.equipage_id and self.equipage.ship_id != self.navire_id_effectif:
+            return None
+        return self.equipage
+
+    def verifier_postes_coma(self):
+        """Règle du double équipage (décision du 30/09/2026) : un titulaire de
+        poste COMA ou de commandant en second ne change pas d'équipage (ni de
+        bâtiment) tant que son poste n'est pas libéré (org/regles_equipage.py)."""
+        if not self.pk:
+            return
+        avant = type(self).objects.filter(pk=self.pk).values_list("equipage_id", flat=True).first()
+        apres = self._equipage_apres_enregistrement()
+        if avant == (apres.pk if apres else None):
+            return
+        message = regles_equipage.erreur_postes_du_titulaire(self.user, apres)
+        if message:
+            raise ValidationError({"equipage": message})
+
+    def clean(self):
+        super().clean()
+        self.verifier_postes_coma()
+
     def save(self, *args, **kwargs):
+        champs = kwargs.get("update_fields")
+        if champs is None or {"equipage", "ship", "service", "sector", "section"} & set(champs):
+            self.verifier_postes_coma()
         # Un équipage n'a de sens que sur son propre bâtiment : si le marin
         # change de navire, il est détaché de son ancien équipage (double
         # équipage, org/equipages.py) au lieu de garder un équipage résiduel.
         if self.equipage_id and self.equipage.ship_id != self.navire_id_effectif:
             self.equipage = None
-            champs = kwargs.get("update_fields")
             if champs is not None:
                 kwargs["update_fields"] = set(champs) | {"equipage"}
         super().save(*args, **kwargs)

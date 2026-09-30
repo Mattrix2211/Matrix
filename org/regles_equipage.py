@@ -34,6 +34,36 @@ def erreur_titulaire_equipage(ship, equipage, titulaire, sigle):
     return None
 
 
+def erreur_postes_du_titulaire(user, equipage_apres):
+    """Message d'erreur français si `user`, titulaire d'un poste COMAEQ, COMOPS,
+    COMANAV, COMAVIA ou de commandant en second d'un bâtiment à double équipage,
+    ne peut pas passer à `equipage_apres` (None = aucun équipage, cas d'un
+    changement de bâtiment) sans que le poste soit d'abord libéré, sinon None.
+
+    Les postes de bâtiments à équipage unique ne sont pas concernés."""
+    postes = [
+        (poste.sigle, poste)
+        for poste in user.commandants_adjoints_titulaire.select_related("ship", "equipage")
+    ] + [
+        (poste.get_libelle_display(), poste)
+        for poste in user.postes_en_second.select_related("ship", "equipage")
+    ]
+    cible_id = equipage_apres.pk if equipage_apres is not None else None
+    bloquants = [
+        f"{nom} de l'équipage {poste.equipage.nom}"
+        for nom, poste in postes
+        if poste.equipage_id is not None and poste.ship.double_equipage and poste.equipage_id != cible_id
+    ]
+    if not bloquants:
+        return None
+    destination = f"l'équipage {equipage_apres.nom}" if equipage_apres is not None else "aucun équipage"
+    return (
+        f"{user.get_full_name() or user.username} est titulaire du poste {' et du poste '.join(bloquants)} : "
+        f"libérez d'abord ce poste (Réglages, commandants adjoints ou commandant en second) avant de le "
+        f"rattacher à {destination}."
+    )
+
+
 def erreur_poste_du_service(service, poste):
     """Message d'erreur si le poste de commandant adjoint `poste` ne peut pas
     porter `service` (autre unité ou autre équipage), sinon None."""

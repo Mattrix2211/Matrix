@@ -233,6 +233,26 @@ class CommandantEnSecond(TimeStampedModel):
         verbose_name = "Poste de commandant en second"
         verbose_name_plural = "Postes de commandant en second"
 
+    def clean(self):
+        """Même règle que CommandantAdjoint : en double équipage, le titulaire
+        appartient à l'équipage du poste (org/regles_equipage.py)."""
+        super().clean()
+        if not self.ship_id:
+            return
+        if self.equipage_id and self.equipage.ship_id != self.ship_id:
+            raise ValidationError({"equipage": "Cet équipage n'appartient pas à l'unité du poste."})
+        message = regles_equipage.erreur_titulaire_equipage(
+            self.ship, self.equipage, self.titulaire, self.get_libelle_display()
+        )
+        if message:
+            raise ValidationError({"titulaire": message})
+
+    def save(self, *args, **kwargs):
+        champs = kwargs.get("update_fields")
+        if champs is None or {"titulaire", "equipage"} & set(champs):
+            self.clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.ship} / {self.get_libelle_display()}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
 
