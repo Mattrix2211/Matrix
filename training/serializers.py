@@ -5,7 +5,10 @@ from .models import ReferentFormation, TrainingCourse, TrainingRequirement, Trai
 class TrainingCourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingCourse
-        fields = "__all__"
+        fields = (
+            "id", "title", "category", "description", "validity_days", "gere_par_le_bord",
+            "statut_validation", "bareme", "created_by", "updated_by", "created_at", "updated_at",
+        )
         # `gere_par_le_bord` et `statut_validation` sont exclusivement
         # pilotés par le Circuit C (chef de secteur -> chef de service,
         # training/formation_bord_actions.py::_action_proposer_formation_bord
@@ -17,7 +20,14 @@ class TrainingCourseSerializer(serializers.ModelSerializer):
         # signalée par le Tech Lead, tâche Notion Circuit C). Une formation
         # créée via l'API reste donc toujours « organisme » (valeurs par
         # défaut du modèle : gere_par_le_bord=False, statut_validation=ACTIVE).
-        read_only_fields = ["gere_par_le_bord", "statut_validation"]
+        #
+        # `created_by`/`updated_by` sont posés côté serveur (TrainingCourseViewSet) :
+        # `updated_by` désigne le proposeur d'une formation bord, il ne doit
+        # jamais être forgeable.
+        read_only_fields = [
+            "id", "gere_par_le_bord", "statut_validation", "created_by", "updated_by",
+            "created_at", "updated_at",
+        ]
 
 class ReferentFormationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -28,7 +38,11 @@ class ReferentFormationSerializer(serializers.ModelSerializer):
 class TrainingRequirementSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRequirement
-        fields = "__all__"
+        fields = (
+            "id", "applies_to_role", "applies_to_ship", "applies_to_service", "applies_to_sector",
+            "applies_to_section", "course", "required", "created_at", "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
 
 class TrainingSessionSerializer(serializers.ModelSerializer):
     class Meta:

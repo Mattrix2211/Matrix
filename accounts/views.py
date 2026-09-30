@@ -62,6 +62,10 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.select_related("user", "ship", "service", "sector", "section").all()
     serializer_class = UserProfileSerializer
     permission_classes = [ManageUsersPermission]
+    # Pas de création par l'API : le compte lié est en lecture seule, un profil
+    # naît avec son compte (annuaire web). Seules la lecture et la modification
+    # (avec contrôle de périmètre) sont exposées.
+    http_method_names = ["get", "put", "patch", "delete", "head", "options", "trace"]
 
     def get_queryset(self):
         # Même périmètre de lecture que UserViewSet ci-dessus, traduit sur

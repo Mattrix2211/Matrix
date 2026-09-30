@@ -151,6 +151,12 @@ class AssetDocumentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # côté web.
     role_threshold_action_delete = "asset_gestion_avancee"
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
     def get_scoped_filters(self):
         # Un document n'est rattaché qu'indirectement à un navire/service/
         # secteur/section, via le matériel mobile auquel il appartient (le

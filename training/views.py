@@ -106,12 +106,15 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
             Q(statut_validation="ACTIVE") | Q(pk__in=mes_propositions_ids) | Q(pk__in=a_valider_ids)
         )
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
     def perform_update(self, serializer):
         instance = serializer.instance
         if not instance.gere_par_le_bord:
             # Formation « organisme » classique : aucun garde-fou du Circuit C
             # ne s'applique, seul le seuil générique RolePermission compte.
-            serializer.save()
+            serializer.save(updated_by=self.request.user)
             return
         # Périmètre organisationnel du proposeur d'origine (deuxième refus du
         # Tech Lead, tâche Notion Circuit C) : un CHEF_SECTION satisfait le

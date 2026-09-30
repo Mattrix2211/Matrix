@@ -89,16 +89,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class GradeChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = GradeChoice
-        fields = "__all__"
+        fields = ("id", "name", "active")
 
 
 class SpecialityChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = SpecialityChoice
-        fields = "__all__"
+        fields = ("id", "name", "active")
 
 
 class RoleAvailabilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = RoleAvailability
-        fields = "__all__"
+        fields = ("id", "code", "active")

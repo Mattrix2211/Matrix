@@ -166,6 +166,7 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
             )
 
         exec, _ = MaintenanceExecution.objects.get_or_create(occurrence=occ)
+        exec.executed_by = request.user
         exec.completed_at = timezone.now()
         exec.conformity = conformity
         exec.notes = request.data.get("notes", "")

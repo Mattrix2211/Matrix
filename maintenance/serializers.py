@@ -1,9 +1,29 @@
 from rest_framework import serializers
 
 from matrix.core.scopes import marins_hors_equipage
+from matrix.core.serializers import ReferencesDansPerimetreMixin
 from .models import MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, OccurrenceStatusLog
 
-class MaintenancePlanSerializer(serializers.ModelSerializer):
+# Périmètre d'un plan, d'un type d'actif et d'un modèle de checklist : mêmes
+# chemins que MaintenancePlanViewSet et les ViewSets d'assets.
+_PERIMETRE_PAR_SECTEUR = {
+    "ship_id": "sector__service__ship_id", "service_id": "sector__service_id", "sector_id": "sector_id",
+}
+_PERIMETRE_PLAN = (
+    "asset__",
+    {
+        "ship_id": "asset_type__sector__service__ship_id",
+        "service_id": "asset_type__sector__service_id",
+        "sector_id": "asset_type__sector_id",
+    },
+)
+
+
+class MaintenancePlanSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
+    references_perimetre = {
+        "asset_type": (_PERIMETRE_PAR_SECTEUR,), "checklist_template": (_PERIMETRE_PAR_SECTEUR,),
+    }
+
     class Meta:
         model = MaintenancePlan
         fields = (
@@ -13,7 +33,9 @@ class MaintenancePlanSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "created_by", "updated_by", "created_at", "updated_at")
 
-class MaintenanceOccurrenceSerializer(serializers.ModelSerializer):
+class MaintenanceOccurrenceSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
+    references_perimetre = {"plan": _PERIMETRE_PLAN}
+
     class Meta:
         model = MaintenanceOccurrence
         fields = (

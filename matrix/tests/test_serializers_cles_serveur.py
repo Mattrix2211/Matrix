@@ -234,7 +234,8 @@ class MaintenanceCleServeurTests(BaseApi):
             {"plan": self.plan_b.pk, "asset": str(self.asset_b.pk), "scheduled_for": str(timezone.localdate())},
             format="json",
         )
-        self.assertEqual(r.status_code, 403)
+        # Plan et matériel hors périmètre : refus de validation (400) ou de permission (403).
+        self.assertIn(r.status_code, (400, 403))
 
     def test_plan_sur_materiel_hors_perimetre_refuse(self):
         r = self.client_a.post(
@@ -378,3 +379,87 @@ class AssetCleServeurTests(BaseApi):
         self.assertEqual(r.status_code, 400)
         self.asset_a.refresh_from_db()
         self.assertEqual(self.asset_a.ship, self.ship_a)
+
+
+class ReferencesHorsPerimetreTests(BaseApi):
+    """Suite de l'audit : références croisées vers un autre bâtiment, auteurs
+    forgeables sur les serializers restants, profil sans création par l'API."""
+
+    def setUp(self):
+        super().setUp()
+        self.chef_section = _utilisateur("cs_ref_sec", Roles.CHEF_SECTION, ship=self.ship_a, sector=self.sector_a)
+        self.client_cs = self._client("cs_ref_sec")
+
+    def test_document_sur_materiel_hors_perimetre_refuse_et_auteur_impose(self):
+        fichier = lambda: SimpleUploadedFile("d.pdf", b"%PDF-1.4 x", content_type="application/pdf")
+        r = self.client_cs.post("/api/assets/asset-docs/", {"asset": str(self.asset_b.pk), "name": "d", "file": fichier()})
+        self.assertIn(r.status_code, (400, 403), r.content)
+        r = self.client_cs.post(
+            "/api/assets/asset-docs/",
+            {"asset": str(self.asset_a.pk), "name": "d", "file": fichier(), "created_by": self.autre.pk},
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(self.asset_a.documents.get().created_by, self.chef_section)
+
+    def test_personnalisation_de_checklist_hors_perimetre_refusee(self):
+        from assets.models import ChecklistTemplate
+        modele_a = ChecklistTemplate.objects.create(name="M", sector=self.sector_a)
+        modele_b = ChecklistTemplate.objects.create(name="M", sector=self.sector_b)
+        url = "/api/assets/asset-checklist-overrides/"
+        r = self.client_cs.post(url, {"asset": str(self.asset_b.pk), "template": modele_a.pk}, format="json")
+        self.assertIn(r.status_code, (400, 403))
+        r = self.client_cs.post(url, {"asset": str(self.asset_a.pk), "template": modele_b.pk}, format="json")
+        self.assertEqual(r.status_code, 400)
+        r = self.client_cs.post(url, {"asset": str(self.asset_a.pk), "template": modele_a.pk}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+
+    def test_parent_d_un_materiel_hors_perimetre_refuse(self):
+        r = self.client_cs.patch(
+            f"/api/assets/assets/{self.asset_a.pk}/", {"parent": str(self.asset_b.pk)}, format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        self.asset_a.refresh_from_db()
+        self.assertIsNone(self.asset_a.parent)
+
+    def test_type_d_un_plan_hors_perimetre_refuse(self):
+        r = self.client_cs.post(
+            "/api/maintenance/plans/", {"scope": "TYPE", "asset_type": self.type_b.pk, "name": "X"}, format="json",
+        )
+        self.assertIn(r.status_code, (400, 403), r.content)
+        self.assertFalse(MaintenancePlan.objects.exists())
+
+    def test_plan_d_une_occurrence_hors_perimetre_refuse(self):
+        plan_b = MaintenancePlan.objects.create(scope="ASSET", asset=self.asset_b, name="Plan B")
+        r = self.client_cs.post(
+            "/api/maintenance/occurrences/",
+            {"plan": plan_b.pk, "asset": str(self.asset_a.pk), "scheduled_for": str(timezone.localdate())},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertFalse(MaintenanceOccurrence.objects.exists())
+
+    def test_terminer_une_occurrence_renseigne_l_executant(self):
+        plan = MaintenancePlan.objects.create(scope="ASSET", asset=self.asset_a, name="Plan A")
+        occ = MaintenanceOccurrence.objects.create(plan=plan, asset=self.asset_a, scheduled_for=timezone.localdate())
+        r = self.client_cs.post(f"/api/maintenance/occurrences/{occ.pk}/complete/", {"conformity": "CONFORME"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(occ.execution.executed_by, self.chef_section)
+
+    def test_formation_created_by_et_updated_by_non_forgeables(self):
+        r = self._client_chef_formation().post(
+            "/api/training/courses/", {"title": "F", "created_by": self.autre.pk, "updated_by": self.autre.pk},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        cours = TrainingCourse.objects.get(pk=r.data["id"])
+        self.assertEqual((cours.created_by, cours.updated_by), (self.chef_section_form, self.chef_section_form))
+
+    def _client_chef_formation(self):
+        self.chef_section_form = _utilisateur("cs_form_sec", Roles.CHEF_SECTION, ship=self.ship_a, sector=self.sector_a)
+        return self._client("cs_form_sec")
+
+    def test_profil_non_creable_par_l_api(self):
+        admin = _utilisateur("admin_ref_sec", Roles.ADMIN_NAVIRE, ship=self.ship_a)
+        r = self._client("admin_ref_sec").post("/api/accounts/profiles/", {"role": Roles.EQUIPIER}, format="json")
+        self.assertEqual(r.status_code, 405)
+        self.assertIsNotNone(admin.profile)
