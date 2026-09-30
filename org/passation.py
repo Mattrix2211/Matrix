@@ -93,6 +93,7 @@ def _niveau(contenu):
 def _notifier(synthese):
     from accounts.models import UserProfile
     from notifications.models import Notification
+    from notifications.services import creer_notifications_en_masse
 
     contenu = synthese.contenu
     verb = (
@@ -103,7 +104,7 @@ def _notifier(synthese):
     type_synthese = ContentType.objects.get_for_model(SynthesePassation)
     niveau = _niveau(contenu)
     profils = UserProfile.objects.filter(equipage=synthese.equipage_montant, user__is_active=True)
-    Notification.objects.bulk_create([
+    creer_notifications_en_masse([
         Notification(
             user_id=p.user_id, verb=verb, level=niveau,
             content_type=type_synthese, object_id=str(synthese.pk),
