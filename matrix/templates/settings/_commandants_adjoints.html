@@ -23,6 +23,9 @@
         </button>
       </div>
       <div class="card-body">
+        {% for alerte in coma_alertes %}
+        <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle"></i> {{ alerte }}</div>
+        {% endfor %}
         <div class="d-flex align-items-center gap-3 mb-3">
           <span>Capacité aviation :</span>
           {% if coma_ship.capacite_aviation %}<span class="badge bg-success">Oui</span>{% else %}<span class="badge bg-secondary">Non</span>{% endif %}

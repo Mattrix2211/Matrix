@@ -110,6 +110,6 @@ class VersionFeuilleServiceInline(admin.TabularInline):
 
 @admin.register(FeuilleService)
 class FeuilleServiceAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("date", "ship", "statut", "secteur_redacteur", "service_redacteur")
+    list_display = ("date", "ship", "equipage", "statut", "secteur_redacteur", "service_redacteur")
     list_filter = ("statut", "ship")
     inlines = [VersionFeuilleServiceInline]

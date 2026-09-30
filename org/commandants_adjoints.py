@@ -36,6 +36,16 @@ def titulaires_possibles(ship):
     )
 
 
+def titulaire_sans_equipage(ship, poste, titulaire):
+    """Vrai si `titulaire` n'a aucun équipage alors que `poste` est un poste
+    d'équipage d'un bâtiment à double équipage : on ne peut pas savoir de quel
+    équipage il est (page Notion « Organigramme et rôles » §9)."""
+    return (
+        ship.double_equipage and poste.equipage_id is not None
+        and titulaire is not None and titulaire.profile.equipage_id is None
+    )
+
+
 def contexte_onglet(ship):
     """Données affichées par l'onglet, pour le navire donné (ou None)."""
     if ship is None:
@@ -50,6 +60,13 @@ def contexte_onglet(ship):
     return {
         "coma_ship": ship,
         "coma_postes": postes,
+        # Titulaires déjà en place sans équipage : signalés, jamais modifiés.
+        "coma_alertes": [
+            f"Le {p.sigle} de l'équipage {p.equipage.nom} a pour titulaire "
+            f"{p.titulaire.get_full_name() or p.titulaire.username}, qui n'est rattaché à aucun équipage : "
+            "rattachez-le d'abord à l'équipage dans la page « Équipages »."
+            for p in postes if titulaire_sans_equipage(ship, p, p.titulaire)
+        ],
         "coma_equipages": equipages if ship.double_equipage else [],
         "coma_sigles_ajoutables": [
             (valeur, libelle, CommandantAdjoint.SIGNIFICATIONS[valeur])
@@ -129,6 +146,13 @@ def traiter_action(request, action):
             if titulaire is None:
                 messages.error(request, "Le titulaire doit être un membre de l'état-major de cette unité.")
                 return
+        if titulaire_sans_equipage(ship, poste, titulaire):
+            messages.error(
+                request,
+                f"Ce marin n'est rattaché à aucun équipage : rattachez-le d'abord à l'équipage "
+                f"{poste.equipage.nom} (page « Équipages »), puis désignez-le {poste.sigle}.",
+            )
+            return
         if titulaire is not None and poste.equipage_id and titulaire.profile.equipage_id not in (None, poste.equipage_id):
             messages.error(request, f"Ce marin appartient à l'autre équipage : le {poste.sigle} doit être de l'équipage {poste.equipage.nom}.")
             return

@@ -125,7 +125,7 @@ from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import equipage_agissant, scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
-from org.models import Sector, Section, Service, Ship
+from org.models import Equipage, Sector, Section, Service, Ship
 
 User = get_user_model()
 
@@ -934,7 +934,7 @@ class FonctionFeuilleService(TimeStampedModel):
         return f"{self.libelle} ({self.ship})"
 
 
-def titulaire_du_jour(fonction, date_):
+def titulaire_du_jour(fonction, date_, equipage=None):
     """Créneau de service de garde correspondant à `fonction`
     (FonctionFeuilleService) le jour `date_`, trouvé EN DIRECT parmi les
     créneaux déjà PUBLIÉS du navire (cf. commentaire de section :
@@ -942,14 +942,19 @@ def titulaire_du_jour(fonction, date_):
     chevauchant minuit (garde 24h) couvre le jour dès lors qu'il commence
     avant la fin de journée ET finit après son début. None si aucun créneau
     ne correspond (la feuille affiche alors « à définir » plutôt qu'une
-    valeur erronée)."""
+    valeur erronée). Sur un bâtiment à double équipage, `equipage` borne la
+    recherche aux marins de cet équipage : la feuille d'un équipage ne montre
+    jamais le personnel de l'autre."""
     poste = fonction.poste_a_rechercher()
     if not poste:
         return None
     debut_jour = timezone.make_aware(datetime.combine(date_, heure_du_jour.min))
     fin_jour = timezone.make_aware(datetime.combine(date_, heure_du_jour.max))
+    creneaux = CreneauServiceGarde.objects.select_related("marin", "marin__profile", "service_garde")
+    if equipage is not None:
+        creneaux = creneaux.filter(marin__profile__equipage=equipage)
     return (
-        CreneauServiceGarde.objects.select_related("marin", "marin__profile", "service_garde")
+        creneaux
         .filter(
             Q(service_garde__ship_id=fonction.ship_id)
             | Q(service_garde__service__ship_id=fonction.ship_id)
@@ -964,12 +969,12 @@ def titulaire_du_jour(fonction, date_):
     )
 
 
-def personnel_du_jour(ship, date_):
+def personnel_du_jour(ship, date_, equipage=None):
     """Liste ordonnée (cf. FonctionFeuilleService.Meta.ordering) du personnel
     de service du navire pour `date_` : une entrée par fonction active,
     chacune avec le créneau trouvé (ou None) — cf. titulaire_du_jour."""
     return [
-        {"fonction": fonction, "creneau": titulaire_du_jour(fonction, date_)}
+        {"fonction": fonction, "creneau": titulaire_du_jour(fonction, date_, equipage)}
         for fonction in FonctionFeuilleService.objects.filter(ship=ship, actif=True)
     ]
 
@@ -977,7 +982,10 @@ def personnel_du_jour(ship, date_):
 class FeuilleService(TimeStampedModel, OwnedModel):
     """Feuille de service quotidienne d'un navire (rubriques d'en-tête +
     personnel de service), à quai (V1). Une par (navire, date) : publiée la
-    veille pour le lendemain, lue par tout l'équipage."""
+    veille pour le lendemain, lue par tout l'équipage. Sur un bâtiment à
+    double équipage (décision du 30/09/2026), chaque équipage a SA feuille :
+    une par (navire, équipage, date). L'équipage est nul sur un bâtiment à
+    équipage unique (comportement inchangé)."""
 
     STATUT_BROUILLON = "BROUILLON"
     STATUT_VISA_SECTEUR = "VISA_SECTEUR"
@@ -993,6 +1001,11 @@ class FeuilleService(TimeStampedModel, OwnedModel):
     )
 
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="feuilles_service")
+    equipage = models.ForeignKey(
+        Equipage, null=True, blank=True, on_delete=models.CASCADE, related_name="feuilles_service",
+        verbose_name="Équipage",
+        help_text="Renseigné uniquement sur un bâtiment à double équipage.",
+    )
     date = models.DateField(verbose_name="Date concernée")
     statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_BROUILLON)
     valeurs_entete = models.JSONField(
@@ -1030,13 +1043,26 @@ class FeuilleService(TimeStampedModel, OwnedModel):
     motif_retour = models.TextField(blank=True, default="", verbose_name="Motif du dernier renvoi en brouillon")
 
     class Meta:
-        unique_together = ("ship", "date")
+        # Deux contraintes, car un équipage nul n'est jamais « égal » à un autre
+        # en base : une feuille par (navire, date) sans équipage, une par
+        # (navire, équipage, date) avec équipage.
+        constraints = [
+            models.UniqueConstraint(
+                fields=("ship", "date"), condition=Q(equipage__isnull=True),
+                name="feuille_service_unique_navire_date",
+            ),
+            models.UniqueConstraint(
+                fields=("ship", "equipage", "date"), condition=Q(equipage__isnull=False),
+                name="feuille_service_unique_equipage_date",
+            ),
+        ]
         ordering = ("-date",)
         verbose_name = "Feuille de service"
         verbose_name_plural = "Feuilles de service"
 
     def __str__(self):
-        return f"Feuille de service du {self.date:%d/%m/%Y} — {self.ship}"
+        equipage = f" (équipage {self.equipage.nom})" if self.equipage_id else ""
+        return f"Feuille de service du {self.date:%d/%m/%Y} — {self.ship}{equipage}"
 
     @property
     def rubriques_affichees(self):
@@ -1055,7 +1081,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
 
     @property
     def personnel(self):
-        return personnel_du_jour(self.ship, self.date)
+        return personnel_du_jour(self.ship, self.date, self.equipage)
 
     def marins_de_la_fraction(self):
         """Marins de la fraction de service du jour (titulaires trouvés dans
@@ -1081,7 +1107,9 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         if verificateur is None:
             return []
         destinataires = [
-            u for u in User.objects.filter(is_active=True, profile__ship_id=self.ship_id).select_related("profile")
+            u for u in User.objects.filter(is_active=True, profile__ship_id=self.ship_id)
+            .filter(Q() if self.equipage_id is None else Q(profile__equipage_id=self.equipage_id))
+            .select_related("profile")
             if verificateur(u, self)
         ]
         if not destinataires and self.created_by_id:
@@ -1255,6 +1283,38 @@ def _est_supervision_globale_feuille(user):
     return user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FEUILLE_SERVICE
 
 
+def equipage_de_feuille_pour(user, ship, equipage_id=None):
+    """Équipage dont `user` consulte ou rédige la feuille de service sur `ship`
+    : None sur un bâtiment à équipage unique ; sinon son propre équipage
+    (`equipage_agissant`). Un administrateur général, qui n'a pas d'équipage,
+    choisit l'équipage par `equipage_id` (à défaut, celui à bord)."""
+    if not ship.double_equipage:
+        return None
+    equipage = equipage_agissant(user)
+    if equipage is not None and equipage.ship_id == ship.pk:
+        return equipage
+    from org.equipages import equipage_a_bord
+    choisi = ship.equipages.filter(pk=equipage_id).first() if str(equipage_id or "").isdigit() else None
+    return choisi or equipage_a_bord(ship)
+
+
+def feuille_du_jour(ship, date_, equipage):
+    """Feuille de service du jour d'un équipage (`equipage` ignoré sur un
+    bâtiment à équipage unique, y compris après désactivation du double
+    équipage : les feuilles existantes restent visibles)."""
+    feuilles = FeuilleService.objects.filter(ship=ship, date=date_)
+    return (feuilles.filter(equipage=equipage) if ship.double_equipage else feuilles).first()
+
+
+def _dans_mon_equipage(user, feuille):
+    """Faux si la feuille est celle de l'autre équipage d'un bâtiment à double
+    équipage : chaque équipage gère et vise sa propre feuille."""
+    if feuille.equipage_id is None:
+        return True
+    agissant = equipage_agissant(user)
+    return agissant is None or agissant.pk == feuille.equipage_id
+
+
 def peut_rediger_feuille_service(user, ship):
     """Quiconque appartient au navire peut créer/modifier le brouillon de la
     feuille de service. Hypothèse de cadrage à signaler : en réalité seul le
@@ -1270,12 +1330,14 @@ def peut_gerer_brouillon_feuille(user, feuille):
     """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la
     reproposer après un renvoi : réservé à son rédacteur d'origine ou à la
     supervision globale."""
-    if feuille.statut != FeuilleService.STATUT_BROUILLON:
+    if feuille.statut != FeuilleService.STATUT_BROUILLON or not _dans_mon_equipage(user, feuille):
         return False
     return _est_supervision_globale_feuille(user) or feuille.created_by_id == user.pk
 
 
 def peut_viser_secteur(user, feuille):
+    if not _dans_mon_equipage(user, feuille):
+        return False
     if _est_supervision_globale_feuille(user):
         return True
     if feuille.secteur_redacteur_id is None:
@@ -1285,6 +1347,8 @@ def peut_viser_secteur(user, feuille):
 
 
 def peut_viser_service(user, feuille):
+    if not _dans_mon_equipage(user, feuille):
+        return False
     if _est_supervision_globale_feuille(user):
         return True
     if feuille.service_redacteur_id is None:
@@ -1296,7 +1360,10 @@ def peut_viser_service(user, feuille):
 def peut_viser_comaeq(user, feuille):
     """Approximation du visa COMAEQ (cf. commentaire de section) : n'importe
     quel membre de l'état-major du navire, en l'absence d'un niveau
-    commandant adjoint dédié dans l'application."""
+    commandant adjoint dédié dans l'application. Sur un bâtiment à double
+    équipage, seul l'état-major de l'équipage de la feuille peut la viser."""
+    if not _dans_mon_equipage(user, feuille):
+        return False
     if _est_supervision_globale_feuille(user):
         return True
     seuil = niveau_requis_pour(user, "feuille_service_visa_comaeq")
@@ -1307,6 +1374,8 @@ def peut_lire_feuille_service(user, feuille):
     """Lecture : ouverte à tout marin du navire une fois PUBLIÉE (« tous les
     marins la lisent », cf. tâche Notion) ; réservée aux acteurs du circuit
     tant qu'elle est en brouillon ou en cours de visa."""
+    if not _dans_mon_equipage(user, feuille):
+        return False
     if feuille.statut == FeuilleService.STATUT_PUBLIEE:
         return _est_supervision_globale_feuille(user) or ship_id_for_user(user) == feuille.ship_id
     return (

@@ -2,7 +2,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
   <div>
-    <h1 class="h3 mb-0">Feuille de service — {{ ship.name }}</h1>
+    <h1 class="h3 mb-0">Feuille de service — {{ ship.name }}{% if equipage %} · équipage {{ equipage.nom }}{% endif %}</h1>
     <div class="text-muted font-mono">{{ date|date:"l d/m/Y"|capfirst }}</div>
   </div>
   <div class="text-end">
@@ -21,9 +21,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div class="btn-group">
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk veille|date:'Y-m-d' %}"><i class="bi bi-chevron-left"></i> Veille</a>
-    <a class="btn btn-outline-secondary btn-sm {% if date == aujourdhui %}active{% endif %}" href="{% url 'feuille-service-detail' ship.pk aujourdhui|date:'Y-m-d' %}">Aujourd'hui</a>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk lendemain|date:'Y-m-d' %}">Lendemain <i class="bi bi-chevron-right"></i></a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk veille|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}"><i class="bi bi-chevron-left"></i> Veille</a>
+    <a class="btn btn-outline-secondary btn-sm {% if date == aujourdhui %}active{% endif %}" href="{% url 'feuille-service-detail' ship.pk aujourdhui|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}">Aujourd'hui</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk lendemain|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}">Lendemain <i class="bi bi-chevron-right"></i></a>
   </div>
   {% if peut_configurer %}
   <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-reglages' %}?ship={{ ship.pk }}"><i class="bi bi-gear"></i> Réglages</a>

@@ -30,6 +30,8 @@ from .models import (
     FonctionFeuilleService,
     NIVEAU_SUPERVISION_GLOBALE_LISTE,
     RubriqueEnTeteFeuilleService,
+    equipage_de_feuille_pour,
+    feuille_du_jour,
     peut_gerer_brouillon_feuille,
     peut_lire_feuille_service,
     peut_rediger_feuille_service,
@@ -49,6 +51,13 @@ def _navires_disponibles_feuille_service(user):
         return Ship.objects.all()
     ship_id = ship_id_for_user(user)
     return Ship.objects.filter(pk=ship_id) if ship_id else Ship.objects.none()
+
+
+def _redirection_detail(ship, date_, equipage):
+    """Retour sur la feuille du jour ; l'équipage n'est passé dans l'adresse que
+    s'il y en a un (administrateur général choisissant l'équipage à consulter)."""
+    adresse = reverse("feuille-service-detail", kwargs={"ship_id": ship.pk, "date_str": date_.isoformat()})
+    return redirect(f"{adresse}?equipage={equipage.pk}" if equipage else adresse)
 
 
 class FeuilleServiceIndexView(LoginRequiredMixin, View):
@@ -73,25 +82,29 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
 
     template_name = "quarts/feuille_service_detail.html"
 
-    def _charger(self, ship_id, date_str):
+    def _charger(self, request, ship_id, date_str):
         ship = get_object_or_404(Ship, pk=ship_id)
         date_ = parse_date(date_str)
+        # Double équipage : une feuille par équipage, celle de l'équipage de l'appelant.
+        equipage = equipage_de_feuille_pour(request.user, ship, request.GET.get("equipage"))
         feuille = None
         if date_ is not None:
-            feuille = FeuilleService.objects.filter(ship=ship, date=date_).select_related(
-                "secteur_redacteur", "service_redacteur", "created_by",
-            ).first()
-        return ship, date_, feuille
+            feuille = feuille_du_jour(ship, date_, equipage)
+            if feuille is not None:
+                feuille = FeuilleService.objects.select_related(
+                    "secteur_redacteur", "service_redacteur", "created_by", "equipage",
+                ).get(pk=feuille.pk)
+        return ship, date_, feuille, equipage
 
     def get(self, request, ship_id, date_str):
-        ship, date_, feuille = self._charger(ship_id, date_str)
+        ship, date_, feuille, equipage = self._charger(request, ship_id, date_str)
         if date_ is None:
             return HttpResponseBadRequest("Date invalide.")
         if feuille is not None and not peut_lire_feuille_service(request.user, feuille):
             raise PermissionDenied
-        return render(request, self.template_name, self._contexte(request, ship, date_, feuille))
+        return render(request, self.template_name, self._contexte(request, ship, date_, feuille, equipage))
 
-    def _contexte(self, request, ship, date_, feuille):
+    def _contexte(self, request, ship, date_, feuille, equipage):
         if feuille is not None:
             rubriques = feuille.rubriques_affichees
             personnel = feuille.personnel
@@ -100,12 +113,13 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 {"rubrique": r, "valeur": r.valeur_fixe if r.type_saisie == r.TYPE_FIXE else ""}
                 for r in RubriqueEnTeteFeuilleService.objects.filter(ship=ship, actif=True)
             ]
-            personnel = personnel_du_jour(ship, date_)
+            personnel = personnel_du_jour(ship, date_, equipage)
         je_suis_de_service = any(
             e["creneau"] and e["creneau"].marin_id == request.user.pk for e in personnel
         )
         return {
             "ship": ship,
+            "equipage": equipage,
             "date": date_,
             "veille": date_ - timezone.timedelta(days=1),
             "lendemain": date_ + timezone.timedelta(days=1),
@@ -135,7 +149,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         }
 
     def post(self, request, ship_id, date_str):
-        ship, date_, feuille = self._charger(ship_id, date_str)
+        ship, date_, feuille, equipage = self._charger(request, ship_id, date_str)
         if date_ is None:
             return HttpResponseBadRequest("Date invalide.")
         action = request.POST.get("action")
@@ -145,12 +159,12 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 raise PermissionDenied
             if feuille is None:
                 FeuilleService.objects.create(
-                    ship=ship, date=date_, created_by=request.user, updated_by=request.user,
+                    ship=ship, equipage=equipage, date=date_, created_by=request.user, updated_by=request.user,
                 )
                 messages.success(
                     request, "Brouillon créé : complétez l'en-tête puis proposez-le à la validation."
                 )
-            return redirect("feuille-service-detail", ship_id=ship.pk, date_str=date_.isoformat())
+            return _redirection_detail(ship, date_, equipage)
 
         if feuille is None:
             return HttpResponseBadRequest("Feuille introuvable : créez-la d'abord.")
@@ -204,12 +218,12 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             motif = request.POST.get("motif", "").strip()
             if not motif:
                 messages.error(request, "Un motif est obligatoire pour renvoyer la feuille en brouillon.")
-                return redirect("feuille-service-detail", ship_id=ship.pk, date_str=date_.isoformat())
+                return _redirection_detail(ship, date_, equipage)
             feuille.renvoyer(request.user, motif)
             messages.info(request, "Feuille renvoyée en brouillon pour correction.")
         else:
             return HttpResponseBadRequest("Action inconnue.")
-        return redirect("feuille-service-detail", ship_id=ship.pk, date_str=date_.isoformat())
+        return _redirection_detail(ship, date_, equipage)
 
 
 class FeuilleServiceReglagesView(LoginRequiredMixin, View):

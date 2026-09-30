@@ -25,7 +25,9 @@ from datetime import datetime, time
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from .models import CreneauServiceGarde, FeuilleService, ServiceGarde, marins_du_perimetre
+from matrix.core.scopes import equipage_agissant
+
+from .models import CreneauServiceGarde, FeuilleService, ServiceGarde, feuille_du_jour, marins_du_perimetre
 
 User = get_user_model()
 
@@ -169,9 +171,10 @@ def feuille_service_du_jour_pour(user, date_=None):
     if not profile or not profile.ship_id:
         return None
     date_ = date_ or timezone.localdate()
-    feuille = FeuilleService.objects.filter(
-        ship_id=profile.ship_id, date=date_, statut=FeuilleService.STATUT_PUBLIEE
-    ).first()
+    # Double équipage : la feuille de l'équipage de l'utilisateur, jamais celle de l'autre.
+    feuille = feuille_du_jour(profile.ship, date_, equipage_agissant(user))
+    if feuille is not None and feuille.statut != FeuilleService.STATUT_PUBLIEE:
+        feuille = None
     if feuille is None:
         return None
     je_suis_de_service = any(
