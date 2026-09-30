@@ -25,6 +25,8 @@ from matrix.core.role_thresholds import (
 )
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, ship_id_for_user
+from accounts import chefs_responsables
+from org import commandant_en_second as en_second
 from org import commandants_adjoints as coma
 from org.miroir import copier_organisation
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, Equipage
@@ -137,6 +139,7 @@ class SettingsView(LoginRequiredMixin, View):
                 request.method == 'POST'
                 and action in (
                     'add_responsable_specialite', 'retirer_responsable_specialite',
+                    *chefs_responsables.ACTIONS,
                     'add_responsable_classe', 'retirer_responsable_classe',
                 )
                 and peut_gerer_responsables
@@ -144,7 +147,9 @@ class SettingsView(LoginRequiredMixin, View):
             action_module_ok = (
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
-            action_coma_ok = request.method == 'POST' and action in coma.ACTIONS and peut_gerer_coma
+            action_coma_ok = (
+                request.method == 'POST' and action in (*coma.ACTIONS, *en_second.ACTIONS) and peut_gerer_coma
+            )
             if not (
                 tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
                 or action_coma_ok
@@ -192,7 +197,9 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_gerer_coma': peut_gerer_coma,
             }
             if active_tab == 'commandants_adjoints':
-                context.update(coma.contexte_onglet(Ship.objects.filter(pk=ship_id_for_user(request.user)).first()))
+                mon_ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
+                context.update(coma.contexte_onglet(mon_ship))
+                context.update(en_second.contexte_onglet(mon_ship))
             if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
                 context.update({
@@ -228,6 +235,7 @@ class SettingsView(LoginRequiredMixin, View):
                         ).distinct().order_by('classe_navire')
                     ),
                     'marins_disponibles': User.objects.order_by('last_name', 'first_name', 'username'),
+                    **chefs_responsables.contexte_ecran(),
                 })
             return render(request, self.template_name, context)
 
@@ -309,6 +317,7 @@ class SettingsView(LoginRequiredMixin, View):
                 Ship.objects.exclude(classe_navire='').values_list('classe_navire', flat=True).distinct().order_by('classe_navire')
             ),
             'marins_disponibles': User.objects.order_by('last_name', 'first_name', 'username'),
+            **chefs_responsables.contexte_ecran(),
         }
         if tab == 'journal':
             context['logs'] = AuditLog.objects.select_related('actor','target_user').order_by('-created_at')[:200]
@@ -325,6 +334,7 @@ class SettingsView(LoginRequiredMixin, View):
             })
         if tab == 'commandants_adjoints':
             context.update(coma.contexte_onglet(selected_ship))
+            context.update(en_second.contexte_onglet(selected_ship))
         if tab == 'modules':
             # MASTER_ADMIN choisit le navire à configurer, même sélecteur que
             # l'onglet Sécurité ci-dessus (selected_ship).
@@ -515,9 +525,18 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.error(request, "Spécialité ou marin introuvable.")
         elif action == 'retirer_responsable_specialite':
             pk = request.POST.get('pk')
-            ResponsableSpecialite.objects.filter(pk=pk).delete()
-            messages.success(request, "Responsable de spécialité retiré.")
-            AuditLog.objects.create(actor=request.user, action='retirer_responsable_specialite', details=f'pk={pk}')
+            chefs_a_corriger = chefs_responsables.chefs_qui_encadreraient_tous(exclus_pk=pk)
+            if chefs_a_corriger:
+                noms = ', '.join(c.user.get_full_name() or c.user.username for c in chefs_a_corriger)
+                messages.error(
+                    request,
+                    f"Retrait refusé : {noms} encadrerait alors tous les responsables de spécialité restants. "
+                    "Modifiez d'abord sa sélection de responsables, puis retirez ce responsable.",
+                )
+            else:
+                ResponsableSpecialite.objects.filter(pk=pk).delete()
+                messages.success(request, "Responsable de spécialité retiré.")
+                AuditLog.objects.create(actor=request.user, action='retirer_responsable_specialite', details=f'pk={pk}')
         elif action == 'add_responsable_classe' and name:
             user_id = request.POST.get('user_id')
             try:
@@ -644,6 +663,11 @@ class SettingsView(LoginRequiredMixin, View):
         elif action in coma.ACTIONS:
             next_tab = 'commandants_adjoints'
             coma.traiter_action(request, action)
+        elif action in en_second.ACTIONS:
+            next_tab = 'commandants_adjoints'
+            en_second.traiter_action(request, action)
+        elif action in chefs_responsables.ACTIONS:
+            chefs_responsables.traiter_action(request, action)
         elif action == 'toggle_module':
             # Onglet Modules : bascule activé/désactivé d'un module applicatif
             # pour un navire. Accessible à un rôle habilité par le seuil

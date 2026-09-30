@@ -95,6 +95,42 @@
   </div>
   <div class="col-12">
     <div class="card">
+      <div class="card-header">Commandant en second — <strong>{{ coma_ship.name }}</strong>
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Commandant en second" data-bs-content="Le titulaire a en lecture la même vision globale que le commandant sur son unité (sur son équipage en double équipage), sans droit d'écriture supplémentaire. Le libellé s'adapte au bâtiment.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        {% for emp in second_emplacements %}
+        <form method="post" class="d-flex gap-2 align-items-center mb-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="set_commandant_en_second" />
+          <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+          {% if emp.equipage %}<input type="hidden" name="equipage_id" value="{{ emp.equipage.id }}" /><span class="badge bg-info text-dark">Équipage {{ emp.equipage.nom }}</span>{% endif %}
+          <select name="libelle" class="form-select form-select-sm w-auto" aria-label="Libellé du poste">
+            {% for valeur, libelle in second_libelles %}<option value="{{ valeur }}" {% if emp.poste.libelle == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+          </select>
+          <select name="user_id" class="form-select form-select-sm w-auto" aria-label="Titulaire">
+            <option value="">— Poste vacant —</option>
+            {% for u in second_titulaires_possibles %}<option value="{{ u.id }}" {% if emp.poste.titulaire_id == u.id %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-sm btn-primary" type="submit">Enregistrer</button>
+        </form>
+        {% if emp.poste %}
+        <form method="post" class="mb-2" onsubmit="return confirm('Supprimer ce poste ?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_commandant_en_second" />
+          <input type="hidden" name="ship_id" value="{{ coma_ship.id }}" />
+          {% if emp.equipage %}<input type="hidden" name="equipage_id" value="{{ emp.equipage.id }}" />{% endif %}
+          <button class="btn btn-sm btn-outline-danger" type="submit">Supprimer le poste{% if emp.equipage %} ({{ emp.equipage.nom }}){% endif %}</button>
+        </form>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
       <div class="card-header">COMAEQ / COMOPS / COMANAV de chaque service</div>
       <div class="card-body">
         <table class="table table-sm align-middle">

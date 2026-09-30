@@ -11,6 +11,7 @@ from .serializers import (
 from matrix.core.mixins import build_scope_q
 from matrix.core.permissions import RolePermission, ManageUsersPermission
 from matrix.core.roles import RoleLevel, user_role_level
+from org.commandant_en_second import a_vision_commandant, perimetre_lecture_q
 from matrix.core.scopes import is_master_admin, perimetre_navire_q
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -38,6 +39,9 @@ def _utilisateurs_visibles_par(user):
         return User.objects.all()
     if user_role_level(user) >= RoleLevel.COMMANDANT:
         return User.objects.filter(perimetre_navire_q(user, "profile__"))
+    if a_vision_commandant(user):
+        # Commandant / officier en second : vision du commandant en lecture.
+        return User.objects.filter(perimetre_lecture_q(user, "profile__"))
     return User.objects.filter(build_scope_q(user, "profile__"))
 
 

@@ -208,6 +208,28 @@ class ResponsableSpecialite(TimeStampedModel):
         return f"{self.user} — responsable spécialité ({self.specialite})"
 
 
+class ChefResponsableSpecialite(TimeStampedModel):
+    """Chef du responsable de spécialité (page Notion « Organigramme et
+    rôles », circuit des fiches matériel flotte, étape 6). Un chef encadre
+    PLUSIEURS responsables de spécialité mais pas forcément tous : la liste
+    est configurée par les utilisateurs habilités (même seuil que la
+    désignation des responsables, "responsabilite_transverse_gestion").
+    C'est le chef DU responsable concerné qui vise, avant publication au
+    catalogue flotte — cf. accounts/chefs_responsables.py."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="encadrement_responsables_specialite")
+    responsables = models.ManyToManyField(
+        ResponsableSpecialite, blank=True, related_name="chefs", verbose_name="Responsables encadrés"
+    )
+
+    class Meta:
+        verbose_name = "Chef de responsable de spécialité"
+        verbose_name_plural = "Chefs de responsable de spécialité"
+
+    def __str__(self):
+        return f"{self.user} — chef de responsable(s) de spécialité"
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     # Crée automatiquement un profil pour tout nouvel utilisateur

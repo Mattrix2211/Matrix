@@ -171,6 +171,46 @@ class CommandantAdjoint(TimeStampedModel):
         return f"{self.ship} / {self.sigle}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
 
 
+class CommandantEnSecond(TimeStampedModel):
+    """Poste de commandant en second (ou d'officier en second sur un bâtiment
+    commandé par un officier subalterne) : le titulaire a, en LECTURE, la même
+    vision globale que le commandant (page Notion « Organigramme et rôles »,
+    décisions Matrix), sans aucun droit d'écriture supplémentaire et sans
+    nouveau code de rôle. Un poste par navire (par équipage en double
+    équipage). Le libellé est configurable par navire ; jamais « commandant
+    adjoint » seul, « CAN » ni « chef de groupement »."""
+
+    class Libelle(models.TextChoices):
+        COMMANDANT_EN_SECOND = "COMMANDANT_EN_SECOND", "Commandant en second"
+        OFFICIER_EN_SECOND = "OFFICIER_EN_SECOND", "Officier en second"
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="commandants_en_second")
+    equipage = models.ForeignKey(
+        "Equipage", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="commandants_en_second", verbose_name="Équipage",
+    )
+    titulaire = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="postes_en_second", verbose_name="Titulaire",
+    )
+    libelle = models.CharField(
+        max_length=30, choices=Libelle.choices, default=Libelle.COMMANDANT_EN_SECOND, verbose_name="Libellé du poste"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("ship", "equipage"), name="en_second_unique_par_equipage"),
+            models.UniqueConstraint(
+                fields=("ship",), condition=models.Q(equipage__isnull=True), name="en_second_unique_sans_equipage"
+            ),
+        ]
+        verbose_name = "Poste de commandant en second"
+        verbose_name_plural = "Postes de commandant en second"
+
+    def __str__(self):
+        return f"{self.ship} / {self.get_libelle_display()}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
+
+
 class Service(TimeStampedModel):
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="services")
     name = models.CharField(max_length=255)

@@ -324,6 +324,56 @@
       </div>
     </div>
   </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Chefs des responsables de spécialité
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Chefs des responsables de spécialité" data-bs-content="Un chef encadre plusieurs responsables de spécialité, mais pas forcément tous. C'est le chef du responsable concerné qui vise une fiche de maintenance matériel avant sa publication au catalogue flotte.">
+          <span class="bi bi-info-circle"></span>
+        </button>
+      </div>
+      <div class="card-body">
+        {% for alerte in alertes_chefs %}
+        <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle"></i> {{ alerte }}</div>
+        {% endfor %}
+        <form method="post" class="row g-2 mb-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="definir_chef_responsable" />
+          <div class="col-md-4">
+            <select name="user_id" class="form-select form-select-sm" required>
+              <option value="">Chef...</option>
+              {% for m in marins_disponibles %}<option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <select name="responsable_ids" class="form-select form-select-sm" multiple size="4" required aria-label="Responsables encadrés">
+              {% for r in responsables_pour_chefs %}<option value="{{ r.id }}">{{ r.specialite.name }} — {{ r.user.get_full_name|default:r.user.username }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2"><button class="btn btn-primary btn-sm w-100" type="submit">Enregistrer</button></div>
+        </form>
+        <table class="table table-sm">
+          <thead><tr><th>Chef</th><th>Responsables encadrés</th><th></th></tr></thead>
+          <tbody>
+          {% for c in chefs_responsables %}
+            <tr>
+              <td>{{ c.user.get_full_name|default:c.user.username }}</td>
+              <td>{% for r in c.responsables.all %}<span class="badge bg-light text-dark border">{{ r.specialite.name }} — {{ r.user.get_full_name|default:r.user.username }}</span> {% endfor %}</td>
+              <td>
+                <form method="post" style="display:inline">{% csrf_token %}
+                  <input type="hidden" name="action" value="retirer_chef_responsable" />
+                  <input type="hidden" name="pk" value="{{ c.id }}" />
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Retirer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">Aucun chef désigné</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
   {% endif %}
 </div>
 {% endif %}
