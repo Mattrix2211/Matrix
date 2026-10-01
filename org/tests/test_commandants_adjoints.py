@@ -30,6 +30,20 @@ class ModeleCommandantAdjointTests(TestCase):
         self.assertEqual(str(comops), "BRF Test / COMOPS")
         self.assertEqual(comops.signification, "Commandant adjoint opérations")
 
+    def test_responsabilites_de_chaque_sigle(self):
+        comops = CommandantAdjoint.objects.create(ship=self.navire, sigle="COMOPS")
+        comanav = CommandantAdjoint.objects.create(ship=self.navire, sigle="COMANAV")
+        self.assertIn("activité à la mer", comops.responsabilites)
+        self.assertIn("conservation du bâtiment", comanav.responsabilites.lower())
+        self.assertEqual(set(CommandantAdjoint.RESPONSABILITES), set(CommandantAdjoint.Sigle.values))
+
+    def test_filtre_coma_du_service(self):
+        from org.templatetags.org_extras import coma_du_service
+        comanav = CommandantAdjoint.objects.create(ship=self.navire, sigle="COMANAV")
+        service = Service.objects.create(ship=self.navire, name="Flotteur", commandant_adjoint=comanav)
+        self.assertEqual(coma_du_service(service), comanav)
+        self.assertIsNone(coma_du_service(None))
+
     def test_suppression_du_poste_detache_les_services(self):
         comaeq = CommandantAdjoint.objects.create(ship=self.navire, sigle="COMAEQ")
         service = Service.objects.create(ship=self.navire, name="Vie", commandant_adjoint=comaeq)

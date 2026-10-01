@@ -62,7 +62,7 @@ def contexte_onglet(ship):
         ],
         "coma_equipages": equipages if ship.double_equipage else [],
         "coma_sigles_ajoutables": [
-            (valeur, libelle, CommandantAdjoint.SIGNIFICATIONS[valeur])
+            (valeur, libelle, CommandantAdjoint.SIGNIFICATIONS[valeur], CommandantAdjoint.RESPONSABILITES[valeur])
             for valeur, libelle in CommandantAdjoint.Sigle.choices
             if valeur not in sigles_pris and (valeur != "COMAVIA" or ship.capacite_aviation)
         ],

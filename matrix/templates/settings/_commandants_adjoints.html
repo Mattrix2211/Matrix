@@ -18,7 +18,7 @@
   <div class="col-12">
     <div class="card">
       <div class="card-header">Postes COMAEQ / COMOPS / COMANAV — <strong>{{ coma_ship.name }}</strong>
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Postes COMAEQ / COMOPS / COMANAV" data-bs-content="Niveau de l'état-major entre le commandant et les services : chaque service dépend d'un poste de commandant adjoint (COMAEQ, COMOPS, COMANAV, et COMAVIA sur les bâtiments à capacité aviation). Le titulaire est un membre de l'état-major de l'unité.">
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Postes COMAEQ / COMOPS / COMANAV" data-bs-content="Niveau de l'état-major entre le commandant et les services : chaque service dépend d'un poste de commandant adjoint (COMAEQ : vie à bord et service courant ; COMOPS : opérations et activité à la mer ; COMANAV : conservation du bâtiment, sécurité et matériels ; COMAVIA : aviation, sur les bâtiments à capacité aviation). Le titulaire est un membre de l'état-major de l'unité.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>
@@ -41,7 +41,7 @@
           <tbody>
           {% for poste in coma_postes %}
             <tr>
-              <td><span class="badge bg-primary" title="{{ poste.signification }}">{{ poste.sigle }}</span>{% if poste.equipage %} <span class="badge bg-info text-dark">Équipage {{ poste.equipage.nom }}</span>{% endif %}<div class="small text-muted">{{ poste.signification }}</div></td>
+              <td><span class="badge bg-primary" title="{{ poste.signification }}">{{ poste.sigle }}</span>{% if poste.equipage %} <span class="badge bg-info text-dark">Équipage {{ poste.equipage.nom }}</span>{% endif %}<div class="small text-muted">{{ poste.signification }}</div><div class="small text-muted fst-italic">{{ poste.responsabilites }}</div></td>
               <td>
                 <form method="post" class="d-flex gap-2 mb-0">
                   {% csrf_token %}
@@ -83,8 +83,8 @@
           </select>
           {% endif %}
           <select name="sigle" class="form-select form-select-sm w-auto">
-            {% for valeur, libelle, signification in coma_sigles_ajoutables %}
-              <option value="{{ valeur }}">{{ libelle }} — {{ signification }}</option>
+            {% for valeur, libelle, signification, responsabilites in coma_sigles_ajoutables %}
+              <option value="{{ valeur }}" title="{{ responsabilites }}">{{ libelle }} — {{ signification }}</option>
             {% endfor %}
           </select>
           <button class="btn btn-sm btn-primary" type="submit">Ajouter</button>
@@ -96,7 +96,7 @@
   <div class="col-12">
     <div class="card">
       <div class="card-header">Commandant en second — <strong>{{ coma_ship.name }}</strong>
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Commandant en second" data-bs-content="Le titulaire a en lecture la même vision globale que le commandant sur son unité (sur son équipage en double équipage), sans droit d'écriture supplémentaire. Le libellé s'adapte au bâtiment.">
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Commandant en second" data-bs-content="Remplaçant désigné du commandant, il coordonne les COMAEQ, COMOPS, COMANAV (et COMAVIA) ainsi que les services, et est chef des organisations sécurité et protection. Il a en lecture la même vision globale que le commandant sur son unité (sur son équipage en double équipage), sans droit d'écriture supplémentaire hors suppléance. Le libellé s'adapte au bâtiment.">
           <span class="bi bi-info-circle"></span>
         </button>
       </div>

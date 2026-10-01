@@ -121,8 +121,8 @@ REGISTRE_ACTIONS = [
     ),
     ActionSeuil(
         "feuille_service_visa_comaeq",
-        "Viser et publier une feuille de service en tant que COMAEQ (approximé par l'état-major du navire "
-        "tant que le niveau commandant adjoint n'existe pas dans l'application, cf. quarts/models.py)",
+        "Viser et publier une feuille de service en tant que COMAEQ (vie à bord, service courant ; approximé "
+        "par l'état-major du navire, cf. quarts/models.py)",
         "Feuille de service", PORTEE_NAVIRE, RoleLevel.ETAT_MAJOR,
     ),
     ActionSeuil(

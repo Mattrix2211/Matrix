@@ -167,9 +167,23 @@ class CommandantAdjoint(TimeStampedModel):
         verbose_name = "Poste de commandant adjoint (COMA)"
         verbose_name_plural = "Postes de commandant adjoint (COMA)"
 
+    # Domaine de responsabilité en clair (relecture métier du 30/09/2026),
+    # affiché avec le sigle pour que l'écran reflète le rôle réel du poste.
+    RESPONSABILITES = {
+        "COMAEQ": "Vie à bord, service courant, coordination du personnel à quai, adjoint protection, conduite nautique",
+        "COMOPS": "Opérations, conduite des opérations, activité à la mer",
+        "COMANAV": "Conservation du bâtiment et des équipements, adjoint sécurité, gestion technique des matériels, "
+                   "logistique opérationnelle",
+        "COMAVIA": "Expertise aviation et sécurité aérienne sur les unités concernées",
+    }
+
     @property
     def signification(self):
         return self.SIGNIFICATIONS[self.sigle]
+
+    @property
+    def responsabilites(self):
+        return self.RESPONSABILITES[self.sigle]
 
     def clean(self):
         """Règle du double équipage : le titulaire appartient à l'équipage du

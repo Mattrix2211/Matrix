@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load org_extras %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
   <div>
@@ -138,6 +139,12 @@
       <span>→</span>
       <span class="{% if feuille.statut == 'PUBLIEE' %}fw-bold text-success{% else %}text-muted{% endif %}"><i class="bi bi-5-circle"></i> Publication</span>
     </div>
+
+    {% with coma=feuille.service_redacteur|coma_du_service %}
+    {% if coma %}
+    <p class="small text-muted mb-3">Le service « {{ feuille.service_redacteur.name }} » dépend du <strong>{{ coma.sigle }}</strong> ({{ coma.signification }}) : {{ coma.titulaire.get_full_name|default:coma.titulaire.username|default:"poste vacant" }}.</p>
+    {% endif %}
+    {% endwith %}
 
     {% if feuille.statut == 'BROUILLON' and peut_gerer_brouillon %}
     <form method="post" onsubmit="return confirm('Proposer cette feuille au premier visa ?');">

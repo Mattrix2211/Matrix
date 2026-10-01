@@ -76,6 +76,17 @@ def badge_type_unite(unite):
     )
 
 
+@register.filter
+def coma_du_service(service):
+    """Poste de commandant adjoint (COMAEQ, COMOPS, COMANAV, COMAVIA) dont
+    dépend le service, avec son titulaire : à afficher dans les écrans de
+    circuit de validation. Vide si le service n'est rattaché à aucun poste."""
+    if service is None:
+        return None
+    from org.commandants_adjoints import commandant_adjoint_du_service
+    return commandant_adjoint_du_service(service)
+
+
 @register.simple_tag
 def unites_groupees_par_type(unites):
     """Regroupe une liste/queryset d'unités par type_unite, dans l'ordre
