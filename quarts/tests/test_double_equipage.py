@@ -1,5 +1,5 @@
-"""Double équipage, tranche 4 : les quarts, listes de service, échanges et
-propositions de répartition restent propres à chaque équipage ; un navire à
+"""Double équipage, tranche 4 : les quarts, listes de service, échanges
+restent propres à chaque équipage ; un navire à
 équipage unique se comporte exactement comme avant."""
 from datetime import timedelta
 
@@ -10,7 +10,6 @@ from django.utils import timezone
 from accounts.models import ServiceFunctionChoice, UserProfile
 from org.models import Equipage, Sector, Service, Ship
 from quarts.echanges import analyser_echange
-from quarts.generation import proposer_repartition
 from quarts.web_views import _peut_lire_liste  # noqa: F401  (ordre d'import circulaire)
 from quarts.listes_views import _listes_visibles, _perimetres_org_disponibles
 from quarts.models import (
@@ -82,16 +81,6 @@ class ListesParEquipageTests(DoubleEquipageBase):
         marins = set(User.objects.filter(marins_du_perimetre(liste)))
         self.assertEqual(marins, {self.a_bleu, self.b_bleu})
         self.assertNotIn(intrus, marins)
-
-    def test_proposition_de_repartition_sans_melange(self):
-        liste = self.garde(self.cdt_bleu, ship=self.ship)
-        liste.statut = ServiceGarde.STATUT_BROUILLON
-        liste.save()
-        self.creneau(liste, None)
-        proposition = proposer_repartition(liste)
-        propose = {u for ligne in proposition for u in ligne["eligibles"]}
-        self.assertNotIn(self.a_rouge, propose)
-        self.assertIn(self.a_bleu, propose)
 
     def test_equite_sans_melange(self):
         liste = self.garde(self.cdt_bleu, ship=self.ship)

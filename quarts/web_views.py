@@ -3,8 +3,7 @@
 Périmètre de ce module (cf. tâche Notion « Quarts/services ») : un chef de
 liste désigné crée une liste (Quart ou ServiceGarde) sur une période, y
 affecte des marins sur des créneaux, et la publie. S'y ajoutent les échanges
-de tour entre marins, la génération assistée de répartition et la feuille de
-service quotidienne (en-tête + personnel, circuit de visa).
+de tour entre marins, la feuille de service quotidienne (en-tête + personnel, circuit de visa).
 
 L'affichage des créneaux assignés dans le calendrier personnel du marin (cf.
 tâche Notion « Quarts/services : afficher les créneaux assignés dans le

@@ -53,9 +53,7 @@ def _libelle_creneau(creneau):
 
 
 def conflits_marin(marin, creneau, ignorer_ids):
-    """Autres gardes ou quarts publiés de `marin` chevauchant `creneau`. Non
-    préfixée (partagée avec quarts/generation.py::proposer_repartition, qui
-    réutilise cette même détection de conflit plutôt que de la dupliquer)."""
+    """Autres gardes ou quarts publiés de `marin` chevauchant `creneau`."""
     filtres = dict(marin=marin, debut__lt=creneau.fin, fin__gt=creneau.debut)
     gardes = CreneauServiceGarde.objects.filter(
         service_garde__statut="PUBLIEE", **filtres
@@ -67,9 +65,7 @@ def conflits_marin(marin, creneau, ignorer_ids):
 def habilitations_manquantes(marin, creneau):
     """Habilitations exigées par la liste de garde de `creneau` que `marin` ne
     possède pas (validation en cours le jour du créneau). Ne s'applique qu'à
-    un CreneauServiceGarde (le seul à porter `formations_requises`) — non
-    préfixée, réutilisée par quarts/generation.py pour les créneaux de garde
-    uniquement."""
+    un CreneauServiceGarde (le seul à porter `formations_requises`)."""
     jour = timezone.localtime(creneau.debut).date()
     manquantes = []
     for formation in creneau.service_garde.formations_requises.all():
@@ -84,8 +80,7 @@ def habilitations_manquantes(marin, creneau):
 def absences_marin(marin, creneau):
     """Absences déclarées de `marin` (validées ou en attente de validation)
     qui chevauchent `creneau`, même principe que conflits_marin/
-    habilitations_manquantes ci-dessus — cf. absences/models.py::Absence. Non
-    préfixée, réutilisée par quarts/generation.py."""
+    habilitations_manquantes ci-dessus — cf. absences/models.py::Absence."""
     jour_debut = timezone.localtime(creneau.debut).date()
     jour_fin = timezone.localtime(creneau.fin).date()
     candidates = Absence.objects.filter(marin=marin, date_debut__lte=jour_fin, date_fin__gte=jour_debut)

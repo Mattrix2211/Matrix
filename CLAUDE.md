@@ -117,7 +117,7 @@ Les sous-pages Notion décrivent comment la Marine travaille (CEMM/CEMA, ALFAN, 
 | `maintenance` | Plans préventifs, occurrences, exécutions, checklists guidées, signature de validation sur transitions critiques |
 | `logistics` | Tickets correctifs, anomalies, demandes de pièces, stock, retours d'expérience (REX) |
 | `training` | Formations, prérequis, catégories, arbre de compétences, référents, sessions, circuits de candidature |
-| `quarts` | Quarts, services à quai et gardes, listes (chef de liste), échanges, équité, génération assistée |
+| `quarts` | Quarts, services à quai et gardes, listes (chef de liste), échanges, équité |
 | `absences` | Absences et indisponibilités des marins, prises en compte par les échanges, la génération des listes et le calendrier |
 | `rondes` | Rondes de contrôle : modèles, points de contrôle configurables, exécutions |
 | `threads` | Discussions génériques (attachées à n'importe quel objet) |
