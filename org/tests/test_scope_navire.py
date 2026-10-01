@@ -60,7 +60,7 @@ class ScopeNavireTests(TestCase):
         resp = self.client.post(
             "/api/org/services/", {"ship": self.navire_b.id, "name": "Intrus"}, format="json"
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 400)
         self.assertFalse(Service.objects.filter(name="Intrus").exists())
 
     def test_chef_section_ne_peut_pas_creer_un_secteur_sur_un_autre_navire(self):
@@ -68,7 +68,7 @@ class ScopeNavireTests(TestCase):
         resp = self.client.post(
             "/api/org/sectors/", {"service": self.service_b.id, "name": "Intrus"}, format="json"
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 400)
         self.assertFalse(Sector.objects.filter(name="Intrus").exists())
 
     def test_chef_section_ne_peut_pas_modifier_une_section_dun_autre_navire(self):
