@@ -26,9 +26,14 @@
     <a class="btn btn-outline-secondary btn-sm {% if date == aujourdhui %}active{% endif %}" href="{% url 'feuille-service-detail' ship.pk aujourdhui|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}">Aujourd'hui</a>
     <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk lendemain|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}">Lendemain <i class="bi bi-chevron-right"></i></a>
   </div>
-  {% if peut_configurer %}
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-reglages' %}?ship={{ ship.pk }}"><i class="bi bi-gear"></i> Réglages</a>
-  {% endif %}
+  <div class="d-flex gap-2">
+    {% if peut_gerer_alertes %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-alertes' %}?ship={{ ship.pk }}"><i class="bi bi-shield-exclamation"></i> Organisation d'alerte</a>
+    {% endif %}
+    {% if peut_configurer %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-reglages' %}?ship={{ ship.pk }}"><i class="bi bi-gear"></i> Réglages</a>
+    {% endif %}
+  </div>
 </div>
 
 {% if etat_incoherent %}
@@ -124,6 +129,46 @@
   </div>
 </div>
 
+{% if alertes %}
+<div class="mt-4">
+  <h2 class="h5"><i class="bi bi-shield-exclamation"></i> Organisation d'alerte du jour</h2>
+  <div class="row g-3">
+    {% for a in alertes %}
+    <div class="col-lg-6">
+      <div class="card h-100 {% if a.non_armes %}border-danger{% endif %}">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>{{ a.scenario.libelle }}</strong>
+          <span class="small text-muted">{{ a.scenario.get_famille_display }} · {{ a.scenario.adjoint_responsable }}</span>
+        </div>
+        {% if a.non_armes %}
+        <div class="alert alert-danger rounded-0 mb-0 py-1 small"><i class="bi bi-exclamation-triangle-fill"></i> {{ a.non_armes|length }} poste{{ a.non_armes|length|pluralize }} obligatoire{{ a.non_armes|length|pluralize }} non armé{{ a.non_armes|length|pluralize }} : personne n'est désigné, aucune réaffectation automatique.</div>
+        {% endif %}
+        <table class="table table-sm align-middle mb-0">
+          <tbody>
+            {% for p in a.postes %}
+            <tr {% if p.creneau.marin_id == request.user.pk %}class="table-success"{% endif %}>
+              <td>{{ p.poste.libelle }}{% if not p.poste.obligatoire %} <span class="text-muted small">(facultatif)</span>{% endif %}</td>
+              <td>
+                {% if p.arme %}
+                  {{ p.creneau.marin.profile.grade }} {{ p.creneau.marin.get_full_name|default:p.creneau.marin.username }}
+                  {% if p.creneau.marin_id == request.user.pk %}<span class="badge text-bg-success ms-1">Vous</span>{% endif %}
+                {% elif p.poste.obligatoire %}
+                  <span class="badge text-bg-danger">Non armé</span>
+                {% else %}
+                  <span class="text-muted">À définir</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if feuille %}
 <div class="mt-4">
   <h2 class="h5">Circuit de validation</h2>
@@ -217,6 +262,14 @@
           {% for e in v.contenu_fige.personnel %}<li>{{ e.fonction }} : {{ e.marin|default:"à définir" }}</li>{% endfor %}
         </ul>
       </div>
+      {% for s in v.contenu_fige.alertes %}
+      <div class="col-12 mt-2">
+        <strong class="small">{{ s.scenario }} ({{ s.famille }})</strong>
+        <ul class="list-unstyled small">
+          {% for p in s.postes %}<li>{{ p.role }} : {{ p.marin|default:"non armé" }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
     </div>
   </details>
   {% endfor %}

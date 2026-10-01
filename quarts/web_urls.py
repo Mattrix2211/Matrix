@@ -8,6 +8,7 @@ from .web_views import (
     FeuilleServiceIndexView,
     FeuilleServiceReglagesView,
     ListeIndexView,
+    OrganisationAlerteView,
     ProposerEchangeView,
     QuartDetailView,
     ServiceGardeDetailView,
@@ -23,6 +24,7 @@ urlpatterns = [
     path("echanges/<int:pk>/<str:action>/", EchangeActionView.as_view(), name="echange-action"),
     path("feuille-service/", FeuilleServiceIndexView.as_view(), name="feuille-service-index"),
     path("feuille-service/reglages/", FeuilleServiceReglagesView.as_view(), name="feuille-service-reglages"),
+    path("feuille-service/alertes/", OrganisationAlerteView.as_view(), name="feuille-service-alertes"),
     path(
         "feuille-service/<int:ship_id>/<str:date_str>/",
         FeuilleServiceDetailView.as_view(),

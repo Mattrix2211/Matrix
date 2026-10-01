@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h1 class="h3 mb-0">Organisation d'alerte — {{ ship.name }}</h1>
+  <form method="get" class="d-flex gap-2">
+    <select name="ship" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Unité">
+      {% for n in navires %}
+      <option value="{{ n.pk }}" {% if n.pk == ship.pk %}selected{% endif %}>{{ n.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+<p class="text-muted">
+  Scénarios d'alerte propres à {{ ship.name }}, avec les rôles à tenir exprimés en fonctions de service : à la publication de la feuille, chaque fonction est remplacée par le titulaire du jour.
+  La sécurité (incendie, voie d'eau, sinistre) relève par défaut du COMANAV, la protection-défense (menace extérieure ou malveillante) du COMAEQ ; le commandant en second est le chef des deux organisations.
+  {% if not peut_valider %}Toute modification est proposée puis appliquée une fois validée par l'autorité du bord.{% endif %}
+</p>
+
+{% if en_attente %}
+<h2 class="h5 mt-4">Modifications en attente de validation</h2>
+<div class="card mb-3">
+  <ul class="list-group list-group-flush">
+    {% for m in en_attente %}
+    <li class="list-group-item">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <strong>{{ m.get_action_display }}</strong> — {{ m.libelle_scenario }}
+          <div class="small text-muted">Proposée par {{ m.proposee_par|default:"—" }} le {{ m.created_at|date:"d/m/Y à H:i" }}</div>
+          {% if m.action != 'SUPPRIMER' %}
+          <ul class="small mb-0">
+            {% for p in m.donnees.postes %}<li>{{ p.libelle }}{% if not p.obligatoire %} (facultatif){% endif %}</li>{% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+        {% if peut_valider %}
+        <div class="d-flex gap-2 align-items-start">
+          <form method="post" onsubmit="return confirm('Valider et appliquer cette modification ?');">
+            {% csrf_token %}
+            <input type="hidden" name="ship" value="{{ ship.pk }}"><input type="hidden" name="pk" value="{{ m.pk }}">
+            <button type="submit" name="action" value="valider" class="btn btn-success btn-sm"><i class="bi bi-check2"></i> Valider</button>
+          </form>
+          <form method="post" class="d-flex gap-1">
+            {% csrf_token %}
+            <input type="hidden" name="ship" value="{{ ship.pk }}"><input type="hidden" name="pk" value="{{ m.pk }}">
+            <input type="text" name="motif" class="form-control form-control-sm" placeholder="Motif du refus" required>
+            <button type="submit" name="action" value="refuser" class="btn btn-outline-danger btn-sm">Refuser</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<h2 class="h5 mt-4">Scénarios</h2>
+{% for s in scenarios %}
+<details class="card mb-2">
+  <summary class="card-body py-2">
+    <strong>{{ s.libelle }}</strong>
+    <span class="badge text-bg-{% if s.famille == 'SECURITE' %}warning{% else %}info{% endif %} ms-2">{{ s.get_famille_display }}</span>
+    <span class="text-muted small ms-2">{{ s.adjoint_responsable }}{% if not s.actif %} · inactif{% endif %}</span>
+  </summary>
+  {% if peut_proposer %}
+  <div class="card-body border-top">
+    {% include 'quarts/_organisation_alerte_formulaire.html' with scenario=s %}
+    <form method="post" class="mt-2" onsubmit="return confirm('Supprimer le scénario « {{ s.libelle|escapejs }} » ?');">
+      {% csrf_token %}
+      <input type="hidden" name="ship" value="{{ ship.pk }}"><input type="hidden" name="scenario_id" value="{{ s.pk }}">
+      <button type="submit" name="action" value="supprimer" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Supprimer le scénario</button>
+    </form>
+  </div>
+  {% else %}
+  <ul class="list-group list-group-flush">
+    {% for p in s.postes.all %}<li class="list-group-item">{{ p.libelle }} — {{ p.fonction.libelle|default:"aucune fonction" }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</details>
+{% empty %}
+<p class="text-muted">Aucun scénario d'alerte configuré pour cette unité.</p>
+{% endfor %}
+
+{% if peut_proposer %}
+<h2 class="h5 mt-4">Nouveau scénario</h2>
+<div class="card"><div class="card-body">
+  {% include 'quarts/_organisation_alerte_formulaire.html' with scenario=None %}
+</div></div>
+{% endif %}
+
+{% if historique %}
+<h2 class="h5 mt-4"><i class="bi bi-clock-history"></i> Historique des modifications</h2>
+<div class="card">
+  <ul class="list-group list-group-flush small">
+    {% for m in historique %}
+    <li class="list-group-item">
+      <span class="badge text-bg-{% if m.statut == 'VALIDEE' %}success{% else %}danger{% endif %}">{{ m.get_statut_display }}</span>
+      {{ m.get_action_display }} — {{ m.libelle_scenario }} · proposée par {{ m.proposee_par|default:"—" }}, décidée par {{ m.decidee_par|default:"—" }} le {{ m.decidee_le|date:"d/m/Y" }}
+      {% if m.motif_refus %}· motif : {{ m.motif_refus }}{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

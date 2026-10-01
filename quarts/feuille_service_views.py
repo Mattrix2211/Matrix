@@ -27,6 +27,7 @@ from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import ship_id_for_user
 from org.models import Ship
 
+from .alertes import etat_alertes, peut_proposer_organisation_alerte, peut_valider_organisation_alerte
 from .models import (
     FeuilleService,
     FonctionFeuilleService,
@@ -184,6 +185,11 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             "peut_viser_comaeq": (
                 feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
                 and peut_viser_comaeq(request.user, feuille)
+            ),
+            "alertes": etat_alertes(ship, date_, equipage),
+            "peut_gerer_alertes": (
+                peut_proposer_organisation_alerte(request.user, ship)
+                or peut_valider_organisation_alerte(request.user, ship)
             ),
             "versions": feuille.versions.all() if feuille is not None else None,
             "peut_configurer": peut_configurer,

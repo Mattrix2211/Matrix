@@ -1197,6 +1197,8 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 verb=f"Feuille de service du {self.date:%d/%m/%Y} publiée : vous êtes de service.",
                 level=NotificationLevel.INFO,
             )
+        from .alertes import signaler_postes_non_armes
+        signaler_postes_non_armes(self, user)
 
     def renvoyer(self, user, motif):
         """Renvoie la feuille en BROUILLON depuis n'importe quel palier de
@@ -1230,6 +1232,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         service au moment de la publication (cahier des charges §31) — cf.
         commentaire de section sur le choix de ne pas réutiliser
         VersionListeAbstract tel quel."""
+        from .alertes import etat_alertes, figer_alertes
         dernier_numero = self.versions.aggregate(models.Max("numero"))["numero__max"] or 0
         contenu = {
             "entete": [{"libelle": e["rubrique"].libelle, "valeur": e["valeur"]} for e in self.rubriques_affichees],
@@ -1244,6 +1247,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 }
                 for e in self.personnel
             ],
+            "alertes": figer_alertes(etat_alertes(self.ship, self.date, self.equipage)),
         }
         return self.versions.create(
             numero=dernier_numero + 1, publiee_le=timezone.now(), publiee_par=user, contenu_fige=contenu,
@@ -1278,6 +1282,127 @@ class VersionFeuilleService(TimeStampedModel):
 
     def __str__(self):
         return f"Version {self.numero} du {self.publiee_le:%d/%m/%Y %H:%M}"
+
+
+# Organisation d'alerte (tâche Notion « Feuille de service quotidienne — rôles et
+# scénarios d'alerte (protection-défense) »). Sécurité (sinistre, accident :
+# incendie, voie d'eau...) et protection (menace extérieure ou malveillante)
+# sont deux familles DISTINCTES, avec chacune son commandant adjoint
+# responsable par défaut (décision du 30/09/2026 : COMANAV adjoint sécurité,
+# COMAEQ adjoint protection ; le commandant en second est le chef des deux).
+# Les postes sont exprimés en FONCTIONS de service (FonctionFeuilleService),
+# jamais en noms : le titulaire du jour est résolu par titulaire_du_jour, le
+# même mécanisme que le personnel de service. Aucune réaffectation automatique.
+
+class ScenarioAlerte(TimeStampedModel):
+    """Scénario d'alerte configuré par navire (ex. alerte à la bombe, alerte
+    intrus, organisation incendie) : une liste de postes à tenir."""
+
+    FAMILLE_SECURITE = "SECURITE"
+    FAMILLE_PROTECTION = "PROTECTION"
+    FAMILLE_CHOICES = (
+        (FAMILLE_SECURITE, "Sécurité (incendie, voie d'eau, sinistre)"),
+        (FAMILLE_PROTECTION, "Protection-défense (menace extérieure ou malveillante)"),
+    )
+    # Commandant adjoint responsable quand le scénario n'en précise pas.
+    ADJOINT_PAR_DEFAUT = {FAMILLE_SECURITE: "COMANAV", FAMILLE_PROTECTION: "COMAEQ"}
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="scenarios_alerte")
+    ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
+    libelle = models.CharField(max_length=128, verbose_name="Scénario")
+    famille = models.CharField(max_length=16, choices=FAMILLE_CHOICES, default=FAMILLE_SECURITE)
+    adjoint_sigle = models.CharField(
+        max_length=10, blank=True, default="", verbose_name="COMA responsable",
+        help_text="Vide : COMANAV pour la sécurité, COMAEQ pour la protection-défense.",
+    )
+    actif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("ordre", "pk")
+        unique_together = ("ship", "libelle")
+        verbose_name = "Scénario d'alerte"
+        verbose_name_plural = "Scénarios d'alerte"
+
+    @property
+    def adjoint_responsable(self):
+        return self.adjoint_sigle or self.ADJOINT_PAR_DEFAUT[self.famille]
+
+    def __str__(self):
+        return f"{self.libelle} ({self.ship})"
+
+
+class PosteAlerte(TimeStampedModel):
+    """Rôle à tenir dans un scénario (point d'accueil, PC sécu, directeur de
+    lutte...), exprimé en fonction de service. Fonction supprimée : le poste
+    reste, mais sans fonction il apparaît toujours « non armé »."""
+
+    scenario = models.ForeignKey(ScenarioAlerte, on_delete=models.CASCADE, related_name="postes")
+    ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
+    libelle = models.CharField(max_length=128, verbose_name="Rôle à tenir")
+    fonction = models.ForeignKey(
+        FonctionFeuilleService, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Fonction de service",
+    )
+    obligatoire = models.BooleanField(default=True, verbose_name="Poste obligatoire")
+
+    class Meta:
+        ordering = ("ordre", "pk")
+        verbose_name = "Poste d'un scénario d'alerte"
+        verbose_name_plural = "Postes des scénarios d'alerte"
+
+    def __str__(self):
+        return f"{self.libelle} ({self.scenario.libelle})"
+
+
+class ModificationOrganisationAlerte(TimeStampedModel):
+    """Modification structurelle de l'organisation d'alerte d'un navire,
+    proposée puis validée par l'autorité configurée (principe « proposer →
+    valider → publier »). Le scénario en vigueur ne change qu'à la validation ;
+    chaque demande reste conservée avec son auteur, son décideur et son motif."""
+
+    ACTION_CREER = "CREER"
+    ACTION_MODIFIER = "MODIFIER"
+    ACTION_SUPPRIMER = "SUPPRIMER"
+    ACTION_CHOICES = (
+        (ACTION_CREER, "Création"), (ACTION_MODIFIER, "Modification"), (ACTION_SUPPRIMER, "Suppression"),
+    )
+    STATUT_EN_ATTENTE = "EN_ATTENTE"
+    STATUT_VALIDEE = "VALIDEE"
+    STATUT_REFUSEE = "REFUSEE"
+    STATUT_CHOICES = (
+        (STATUT_EN_ATTENTE, "En attente de validation"), (STATUT_VALIDEE, "Validée"), (STATUT_REFUSEE, "Refusée"),
+    )
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="modifications_alerte")
+    scenario = models.ForeignKey(
+        ScenarioAlerte, null=True, blank=True, on_delete=models.SET_NULL, related_name="modifications",
+    )
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    statut = models.CharField(max_length=12, choices=STATUT_CHOICES, default=STATUT_EN_ATTENTE)
+    donnees = models.JSONField(
+        default=dict, blank=True,
+        help_text="Définition proposée du scénario : libellé, famille, COMA, ordre, état et postes.",
+    )
+    proposee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Proposée par",
+    )
+    decidee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Décidée par",
+    )
+    decidee_le = models.DateTimeField(null=True, blank=True)
+    motif_refus = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Modification de l'organisation d'alerte"
+        verbose_name_plural = "Modifications de l'organisation d'alerte"
+
+    @property
+    def libelle_scenario(self):
+        return self.donnees.get("libelle") or (self.scenario.libelle if self.scenario_id else "")
+
+    def __str__(self):
+        return f"{self.get_action_display()} « {self.libelle_scenario} » ({self.ship})"
 
 
 def _est_supervision_globale_feuille(user):

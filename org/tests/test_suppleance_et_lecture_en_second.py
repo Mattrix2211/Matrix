@@ -326,9 +326,9 @@ class SuppleanceTests(Base):
 
 
 class DroitsMetierEnSecondTests(Base):
-    def test_vide_par_defaut(self):
-        self.assertEqual(role_thresholds.REGISTRE_DROITS_EN_SECOND, [])
+    def test_aucun_droit_ouvert_par_defaut(self):
         self.assertFalse(droit_metier_en_second(self.second, "alerte_securite"))
+        self.assertFalse(droit_metier_en_second(self.second, "alerte_organisation_validation"))
 
     def test_droit_configure_par_navire_pour_le_seul_titulaire(self):
         droit = role_thresholds.DroitEnSecond("alerte_securite", "Déclencher une alerte sécurité", "Sécurité")

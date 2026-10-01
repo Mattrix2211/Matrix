@@ -126,6 +126,11 @@ REGISTRE_ACTIONS = [
         "Feuille de service", PORTEE_NAVIRE, RoleLevel.ETAT_MAJOR,
     ),
     ActionSeuil(
+        "alerte_organisation_validation",
+        "Valider une modification de l'organisation sécurité / protection-défense (scénarios d'alerte et postes)",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+    ),
+    ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
         "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
@@ -165,9 +170,15 @@ class DroitEnSecond:
 # Actions d'écriture métier (sécurité, protection, coordination) que le
 # commandant en second peut exercer PAR SA FONCTION, sans suppléance : chaque
 # navire choisit lesquelles lui confier (RoleThresholdConfig.droits_en_second,
-# vide par défaut). Registre volontairement vide tant que la liste des actions
-# n'est pas arrêtée avec les utilisateurs métier ; on ne l'alimente qu'ici.
-REGISTRE_DROITS_EN_SECOND = []
+# vide par défaut). Registre alimenté au fur et à mesure que la liste des actions
+# est arrêtée avec les utilisateurs métier ; on ne l'alimente qu'ici.
+REGISTRE_DROITS_EN_SECOND = [
+    DroitEnSecond(
+        "alerte_organisation_validation",
+        "Valider une modification de l'organisation sécurité / protection-défense (il en est le chef)",
+        "Feuille de service",
+    ),
+]
 REGISTRE_DROITS_EN_SECOND_PAR_CLE = {d.cle: d for d in REGISTRE_DROITS_EN_SECOND}
 
 

@@ -78,6 +78,7 @@ from .echanges_views import (  # noqa: E402,F401
     EchangesIndexView,
     ProposerEchangeView,
 )
+from .alertes_views import OrganisationAlerteView  # noqa: E402,F401
 from .feuille_service_views import (  # noqa: E402,F401
     FeuilleServiceDetailView,
     FeuilleServiceIndexView,
