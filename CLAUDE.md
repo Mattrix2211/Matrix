@@ -15,6 +15,7 @@ Ce fichier est la référence technique pour Claude Code. Lis-le intégralement 
 | Règles techniques, conventions de code, architecture | Ce fichier (`CLAUDE.md`) | — |
 | Installation et lancement de l'application | `README.md` | — |
 | Direction artistique | `design/DESIGN_SYSTEM.md` (submodule) | — |
+| Règles UX/UI (contexte d'utilisation, interactions, composants, feuille de route UX-0 à UX-9) | `docs/UX.md` | — |
 
 Quand une tâche Notion cite « le cahier des charges §N », il s'agit de la page Notion « Cahier des charges ». **Il n'existe pas de fichier `VISION_MATRIX_2_0.md`** : les anciennes références à ce fichier désignent cette page. `docs/archive/` contient des documents historiques, à ne pas suivre comme consignes actuelles.
 
@@ -43,7 +44,7 @@ Avant toute décision sur les rôles, les droits, les périmètres ou un circuit
 2. **Plus rapide qu'Excel** — si une action prend plus de clics que dans un tableau Excel, c'est un échec. Formulaires pré-remplis, actions en un clic, saisie en grille façon tableur (recopie vers le bas, « tout conforme », navigation au clavier), zéro jargon informatique.
 3. **Espace personnel par marin** — chaque marin voit SES tâches, SES formations, SES maintenances, SES quarts et services.
 4. **Internet n'existe pas** — Matrix fonctionne sur le réseau du bâtiment (et l'intranet Défense), jamais sur Internet : aucun CDN, aucune police distante, aucune API ou service cloud obligatoire, aucune télémétrie. Une coupure avec la terre ne doit pas rendre le bâtiment inutilisable.
-5. **Priorité au visuel et envie de s'en servir** — dès qu'un schéma, un graphique, une jauge, une frise ou une carte peut remplacer du texte ou un tableau brut, l'utiliser. Les écrans doivent être beaux et donner envie aux marins de les ouvrir (cartes avec photos, badges d'état colorés), sans jamais surcharger l'écran : le marin voit ce qui lui est utile maintenant.
+5. **Priorité au visuel et envie de s'en servir** (règles détaillées : `docs/UX.md`) — dès qu'un schéma, un graphique, une jauge, une frise ou une carte peut remplacer du texte ou un tableau brut, l'utiliser. Les écrans doivent être beaux et donner envie aux marins de les ouvrir (cartes avec photos, badges d'état colorés), sans jamais surcharger l'écran : le marin voit ce qui lui est utile maintenant.
 6. **Configuration plutôt que code** (cahier des charges §4 et §33) — ne jamais coder en dur une règle susceptible d'évoluer selon le bâtiment, le service, la Marine ou l'organisation (durée d'un quart, nombre de services, droits d'un chef, types de garde…). Ces règles sont des données configurables par les utilisateurs habilités.
 7. **Proposer → valider → publier** (§34) — pour les modifications sensibles (fiches de maintenance, catalogue de matériel, listes de service…), un utilisateur peut avoir le droit de proposer sans avoir le droit de publier. La version publiée précédente reste active tant que la nouvelle n'est pas validée, et chaque version est conservée.
 8. **Tout est traçable** (§30, §41) — qui a fait quoi, quand, sur quelle donnée, quelle était la valeur précédente. Une modification n'écrase jamais silencieusement l'ancienne valeur : s'appuyer sur l'`AuditLog` unifié existant.
@@ -52,10 +53,12 @@ Avant toute décision sur les rôles, les droits, les périmètres ou un circuit
 
 ## Direction artistique
 
+**Contexte d'utilisation (voir `docs/UX.md` §2) :** Matrix est utilisé d'abord sur des **PC fixes partagés** du réseau du bord, au clavier et à la souris, sur des postes parfois anciens (résolution de référence 1366×768). La **tablette et le scan de QR code sont des options** : aucun parcours ne doit en dépendre. La maintenance suit le parcours **« fiche papier imprimée, puis saisie du compte rendu sur PC »**, en grille façon tableur pour les séries.
+
 La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vérité : `design/DESIGN_SYSTEM.md`). Lis ce fichier en entier avant toute décision visuelle ou tout template.
 
 **Config Matrix / Naval** (voir tableau "Contextes par projet" du design system) :
-- **Mode Light** — pas de dark mode ici (le light est réservé aux contextes naval/pro)
+- **Mode Light** par défaut, **plus un mode sombre** activé manuellement par chaque marin (usage de nuit) — dérogation au design system validée par l'utilisateur, voir `docs/UX.md` §17. Toutes les couleurs passent par des variables CSS
 - Typo : `Space Grotesk` (titres de section, cards, nav) + `Inter` (corps de texte) + `JetBrains Mono` (données techniques, dates, codes, labels) — **jamais `Syncopate`** (réservé hero/sport)
 - **Pas d'Ember** (`--ember` réservé au sport)
 - Vert unique : `--green-tech` (statuts systèmes/validations navales) — jamais `--green-sport`
@@ -63,7 +66,7 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 - Logo : `design/assets/IMG_5292.PNG` (requin marteau), pictogramme ancre en overlay bas-droite pour Matrix
 - Espacement base 4px strict, radius/shadows/composants (cards, badges, progress bars) : voir `design/DESIGN_SYSTEM.md` §4 à §8
 
-**Conflit avec le principe hors-ligne (à respecter) :** le design system référence les polices via Google Fonts CDN — **auto-héberger** `Space Grotesk`, `Inter` et `JetBrains Mono` dans `static/fonts/` plutôt que d'utiliser le lien CDN, conformément au principe fondamental n°4.
+**Conflit avec le principe hors-ligne (à respecter) :** le design system référence les polices via Google Fonts CDN — **auto-héberger** `Space Grotesk`, `Inter` et `JetBrains Mono` dans `static/fonts/` plutôt que d'utiliser le lien CDN, conformément au principe fondamental n°4. Même règle pour **Bootstrap Icons** (seule bibliothèque d'icônes autorisée, aucun emoji dans l'interface).
 
 ## Organisation et rôles (résumé — la page Notion « Organigramme et rôles » fait foi)
 
@@ -117,8 +120,9 @@ La DA de Matrix suit le **MK Design System** (submodule `design/`, source de vé
 - `compute_overdue` horaire : marque les retards
 - Cycle : `PLANNED → ASSIGNED → IN_PROGRESS → WAITING_VALIDATION → DONE`
 
-### Inspection QR → ticket correctif
-1. Scan QR → occurrence du jour
+### Inspection → ticket correctif
+Le parcours de référence est la saisie sur PC du compte rendu après l'entretien sur fiche papier. Le scan de QR code est une **option** (tablette non garantie), jamais un prérequis.
+1. Occurrence du jour (depuis « Aujourd'hui », la fiche, ou en option un scan QR)
 2. Checklist remplie → `MaintenanceExecution`
 3. Si `NON_CONFORME` → création auto d'un `CorrectiveTicket`
 
@@ -226,4 +230,4 @@ Maximum 3 boucles de correction par tâche (cette limite est appliquée par l'ag
 | Phase 6 — Pilotage | Tableaux de bord par niveau, indicateurs, rapports, vue SSF |
 | Phase 7 — Écosystème | Synchronisation bâtiment ↔ terre, API (dont SSF), interopérabilité, déploiement multi-bâtiments |
 
-Dans la base Notion, les étiquettes à utiliser sont exactement : `Phase 0 - Assainissement`, `Phase 1 - Socle`, `Phase 2 - Vie Quotidienne`, `Phase 3 - Communication`, `Phase 4 - Opérationnel`, `Phase 5 - Connaissance`, `Phase 6 - Pilotage`, `Phase 7 - Écosystème`. Les anciennes étiquettes (« Phase 1 - Fondation », « Phase 2 - Calendrier Central », « Phase 3 - Maintenance Préventive », « Phase 4 - Maintenance Corrective », « Phase 5 - Formation », « Phase 6 - Matériel ») correspondent à l'ancien découpage et ne restent que sur les tâches terminées : ne jamais les utiliser pour une nouvelle tâche.
+Dans la base Notion, les étiquettes à utiliser sont exactement : `Phase 0 - Assainissement`, `Phase 1 - Socle`, `Phase 2 - Vie Quotidienne`, `Phase 3 - Communication`, `Phase 4 - Opérationnel`, `Phase 5 - Connaissance`, `Phase 6 - Pilotage`, `Phase 7 - Écosystème`. La refonte UX suit un parcours séparé, avec les étiquettes `UX-0 - Fondations`, `UX-1 - Navigation`, `UX-2 - Aujourd'hui`, `UX-3 - Maintenance et installations`, `UX-4 - Correctif`, `UX-5 - Planning`, `UX-6 - Équipements`, `UX-7 - Formation`, `UX-8 - Administration`, `UX-9 - Passe finale` (contenu de chaque phase : `docs/UX.md` §27). Les anciennes étiquettes (« Phase 1 - Fondation », « Phase 2 - Calendrier Central », « Phase 3 - Maintenance Préventive », « Phase 4 - Maintenance Corrective », « Phase 5 - Formation », « Phase 6 - Matériel ») correspondent à l'ancien découpage et ne restent que sur les tâches terminées : ne jamais les utiliser pour une nouvelle tâche.
