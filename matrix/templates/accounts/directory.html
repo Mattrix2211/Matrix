@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load org_extras %}
+{% load org_extras icones %}
 {% block content %}
 <h1 class="h3 mb-3">Annuaire des utilisateurs</h1>
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -18,8 +18,8 @@
         {% endfor %}
       </select>
     </form>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal" title="Nouvel utilisateur">
-      ➕
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal" title="Nouvel utilisateur" aria-label="Nouvel utilisateur">
+      {% icone "ajout" %} Nouvel utilisateur
     </button>
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Utilisateurs" data-bs-content="Créez des utilisateurs et assignez leur rôle et rattachements. Les règles d'autorisation hiérarchiques s'appliqueront côté API.">
       <span class="bi bi-info-circle"></span>
@@ -86,7 +86,7 @@
         <td class="font-mono">{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:"d/m/Y" }}{% else %}—{% endif %}</td>
         <td>{{ u.profile.age|default:"—" }}</td>
         <td>
-            <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editUserModal" title="Modifier"
+            <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editUserModal" title="Modifier" aria-label="Modifier"
                   data-pk="{{ u.id }}" data-username="{{ u.username }}" data-email="{{ u.email }}"
                   data-first-name="{{ u.first_name }}" data-last-name="{{ u.last_name }}"
               data-role="{{ u.profile.role }}" data-ship-id="{% if u.profile.ship %}{{ u.profile.ship.id }}{% endif %}"
@@ -98,15 +98,15 @@
               data-specialite="{{ u.profile.specialite }}"
               data-matricule="{{ u.profile.matricule }}"
               data-date-naissance="{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:'Y-m-d' }}{% endif %}">
-            ✏️
+            {% icone "modification" %}
           </button>
-          <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" title="Supprimer"
+          <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" title="Supprimer" aria-label="Supprimer"
                   data-action="delete_user" data-pk="{{ u.id }}" data-label="Supprimer l'utilisateur {{ u.username }}">
-            🗑️
+            {% icone "suppression" %}
           </button>
-          <button class="btn btn-outline-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" title="Définir le mot de passe"
+          <button class="btn btn-outline-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" title="Définir le mot de passe" aria-label="Définir le mot de passe"
                   data-pk="{{ u.id }}" data-username="{{ u.username }}" data-email="{{ u.email }}">
-            🔑
+            {% icone "mot_de_passe" %}
           </button>
         </td>
       </tr>
@@ -212,7 +212,7 @@
               </select>
             </div>
           </div>
-          <p class="text-muted mt-2">L’identifiant est généré automatiquement au format <strong>prenom.nom</strong> (suffixe ajouté en cas de doublon). Le mot de passe se crée via la clé 🔑 dans l’annuaire.</p>
+          <p class="text-muted mt-2">L’identifiant est généré automatiquement au format <strong>prenom.nom</strong> (suffixe ajouté en cas de doublon). Le mot de passe se crée via le bouton « clé » dans l’annuaire.</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -352,7 +352,7 @@
             <label class="form-label">Nouveau mot de passe</label>
             <div class="input-group">
               <input class="form-control" name="password" id="resetPassword" placeholder="Saisir ou générer automatiquement" />
-              <button type="button" class="btn btn-outline-secondary" id="generatePasswordBtn" title="Générer">🎲</button>
+              <button type="button" class="btn btn-outline-secondary" id="generatePasswordBtn" title="Générer" aria-label="Générer un mot de passe">{% icone "generer" %}</button>
             </div>
             <small class="text-muted">Doit contenir des majuscules, minuscules, chiffres et symboles.</small>
           </div>

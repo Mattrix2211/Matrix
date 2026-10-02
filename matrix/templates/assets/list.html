@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load icones %}
 {% block content %}
 <h1 class="h3 mb-3">Matériels</h1>
 {% if filtre_location %}
@@ -129,8 +130,8 @@
                           <button class="btn btn-outline-secondary btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#editAssetModal"
                             data-pk="{{ a.id }}" data-type-id="{{ a.asset_type.id }}" data-designation="{{ a.designation }}" data-nno="{{ a.nno }}" data-reference="{{ a.reference }}" data-marque="{{ a.marque }}" data-gisement="{{ a.gisement }}" data-local="{{ a.local }}"
                       data-internal-id="{{ a.internal_id }}" data-serial-number="{{ a.serial_number }}"
-                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}" data-location-id="{% if a.location_id %}{{ a.location_id }}{% endif %}">✏️</button>
-              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="delete_asset" data-pk="{{ a.id }}" data-label="Supprimer le matériel {{ a.designation|default:a.serial_number }}">🗑️</button>
+                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}" data-location-id="{% if a.location_id %}{{ a.location_id }}{% endif %}" title="Modifier" aria-label="Modifier">{% icone "modification" %}</button>
+              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="delete_asset" data-pk="{{ a.id }}" data-label="Supprimer le matériel {{ a.designation|default:a.serial_number }}" title="Supprimer" aria-label="Supprimer">{% icone "suppression" %}</button>
             </div>
           </div>
         </div>

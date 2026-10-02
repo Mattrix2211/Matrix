@@ -57,7 +57,9 @@ class CreneauxCalendrierPersonnelTests(TestCase):
         events = resp.json()
         quart_events = [e for e in events if e["extendedProps"]["type"] == "quart"]
         self.assertEqual(len(quart_events), 1)
-        self.assertIn("Barre", quart_events[0]["title"])
+        self.assertEqual(quart_events[0]["title"], "Barre")
+        # Aucun emoji dans le titre : l'icône est fournie à part (Bootstrap Icons).
+        self.assertEqual(quart_events[0]["extendedProps"]["icone"], "bi-clock")
         self.assertEqual(quart_events[0]["id"], f"qrt-{self.creneau_quart.pk}")
         self.assertEqual(quart_events[0]["url"], f"/quarts/quart/{self.quart_publie.pk}/")
         self.assertFalse(quart_events[0]["editable"])
@@ -161,7 +163,7 @@ class CreneauxCalendrierPersonnelTests(TestCase):
         resp = self.client.get(url)
         events = resp.json()
         titres = [e["title"] for e in events if e["extendedProps"]["type"] == "quart"]
-        self.assertNotIn("⏱ Passerelle", titres)
+        self.assertNotIn("Passerelle", titres)
 
     # --- Digest quotidien « Ma journée » : mêmes créneaux, même agrégation --
 

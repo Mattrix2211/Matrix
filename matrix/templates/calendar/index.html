@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static icones %}
 {% block content %}
 <div class="container-fluid py-3">
   <div class="d-flex justify-content-between align-items-center mb-3">
@@ -73,13 +73,13 @@
       <label class="form-label mb-1">Type</label>
       <select name="type" class="form-select form-select-sm">
         <option value="">Tous</option>
-        <option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>🔧 Maintenance</option>
-        <option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>🛠 Ticket</option>
-        <option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>📚 Formation</option>
-        <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>⏱ Quart</option>
-        <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>🧭 Ronde</option>
-        <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>🛡 Garde</option>
-        <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>📌 Personnel</option>
+        <option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>Maintenance</option>
+        <option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>Ticket</option>
+        <option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>Formation</option>
+        <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>Quart</option>
+        <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>Ronde</option>
+        <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>Garde</option>
+        <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>Personnel</option>
       </select>
     </div>
     <div class="col-auto">
@@ -113,15 +113,15 @@
 
   {# Légende #}
   <div class="d-flex gap-3 mb-2 small">
-    <span><span class="badge" style="background:#0d6efd">🔧 Maintenance</span></span>
-    <span><span class="badge" style="background:#dc3545">⚠ En retard</span></span>
-    <span><span class="badge" style="background:#6c757d">✓ Terminée</span></span>
-    <span><span class="badge" style="background:#fd7e14">🛠 Ticket</span></span>
-    <span><span class="badge" style="background:#198754">📚 Formation</span></span>
-    <span><span class="badge" style="background:#0b7285">⏱ Quart</span></span>
-    <span><span class="badge" style="background:#a61e4d">🛡 Garde</span></span>
-    <span><span class="badge" style="background:#5f3dc4">🧭 Ronde</span></span>
-    <span><span class="badge" style="background:#6f42c1">📌 Personnel</span></span>
+    <span><span class="badge" style="background:#0d6efd">{% icone "maintenance" %} Maintenance</span></span>
+    <span><span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span></span>
+    <span><span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span></span>
+    <span><span class="badge" style="background:#fd7e14">{% icone "ticket" %} Ticket</span></span>
+    <span><span class="badge" style="background:#198754">{% icone "formation" %} Formation</span></span>
+    <span><span class="badge" style="background:#0b7285">{% icone "quart" %} Quart</span></span>
+    <span><span class="badge" style="background:#a61e4d">{% icone "garde" %} Garde</span></span>
+    <span><span class="badge" style="background:#5f3dc4">{% icone "ronde" %} Ronde</span></span>
+    <span><span class="badge" style="background:#6f42c1">{% icone "personnel" %} Personnel</span></span>
   </div>
 
   {# Alerte chargement #}
@@ -343,6 +343,15 @@ document.addEventListener('DOMContentLoaded', function () {
       if (props && props.status) {
         info.el.setAttribute('title', props.status);
       }
+      // Icône du type d'événement (classe Bootstrap Icons fournie par le
+      // serveur, table centrale matrix/core/icones.py).
+      const titre = info.el.querySelector('.fc-event-title');
+      if (props && props.icone && titre) {
+        const icone = document.createElement('i');
+        icone.className = 'bi ' + props.icone + ' me-1';
+        icone.setAttribute('aria-hidden', 'true');
+        titre.prepend(icone);
+      }
     },
     eventDrop: function (info) {
       const id = info.event.id;
@@ -533,11 +542,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (boutonModifier) {
       boutonModifier.addEventListener('click', function () {
         const idBrut = event.id.replace(/^per-/, '');
-        // Le titre affiché porte le préfixe "📌 " ajouté côté serveur
-        // (calendar_app/views.py) : on ne garde que la partie après le
-        // premier espace pour ré-alimenter le formulaire d'origine.
         champId.value = idBrut;
-        champTitre.value = event.title.slice(event.title.indexOf(' ') + 1);
+        champTitre.value = event.title;
         champDate.value = versDatetimeLocal(event.start);
         // Champ de fin laissé vide : la modification ne le propose pas
         // encore, la durée existante est conservée côté serveur (décalée du

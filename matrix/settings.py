@@ -130,6 +130,9 @@ TEMPLATES = [
                 "matrix.context_processors.installations_notifications",
                 "matrix.context_processors.theme_utilisateur",
             ],
+            "libraries": {
+                "icones": "matrix.core.balises_icones",
+            },
         },
     },
 ]
