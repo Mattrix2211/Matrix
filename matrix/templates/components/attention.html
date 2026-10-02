@@ -1,0 +1,17 @@
+{% comment %}
+Attention : vraie anomalie, retard ou danger, sans survol (docs/UX.md §14).
+Le niveau est dit par l'icône et le libellé, jamais par la couleur seule (§15.1).
+Balise : {% load composants %}{% attention niveau="danger" titre="..." %}...{% fin_attention %}
+Paramètres :
+  titre   : message court (obligatoire)
+  niveau  : "attention" (ambre, par défaut) ou "danger" (rouge)
+  icone   : concept d'icône (par défaut « anomalie » ; « retard » pour un retard)
+  contenu : HTML de détail (facultatif)
+  classes : classes CSS supplémentaires
+{% endcomment %}{% load icones %}<div class="mx-attention mx-attention--{% if niveau == 'danger' %}danger{% else %}attention{% endif %} {{ classes }}" role="{% if niveau == 'danger' %}alert{% else %}status{% endif %}">
+  <span class="mx-attention__icone">{% if icone %}{% icone icone %}{% else %}{% icone "anomalie" %}{% endif %}</span>
+  <div class="mx-attention__texte">
+    <strong class="mx-attention__titre"><span class="mx-attention__niveau">{% if niveau == 'danger' %}Danger{% else %}Attention{% endif %} :</span> {{ titre }}</strong>
+    {% if contenu %}<div class="mx-attention__contenu">{{ contenu }}</div>{% endif %}
+  </div>
+</div>

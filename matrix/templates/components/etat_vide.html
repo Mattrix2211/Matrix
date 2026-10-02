@@ -1,0 +1,14 @@
+{% comment %}
+EmptyState : écran ou liste sans donnée, avec la suite logique (docs/UX.md §22).
+Usage : {% include "components/etat_vide.html" with icone="maintenance" titre="Aucune maintenance à faire" %}
+Paramètres :
+  titre   : phrase principale (obligatoire)
+  texte   : explication courte (facultatif)
+  icone   : concept d'icône (facultatif)
+  url, libelle : bouton de la suite logique (facultatifs, ensemble)
+{% endcomment %}{% load icones %}<div class="mx-vide">
+  {% if icone %}<span class="mx-vide__icone">{% icone icone %}</span>{% endif %}
+  <p class="mx-vide__titre">{{ titre }}</p>
+  {% if texte %}<p class="mx-vide__texte">{{ texte }}</p>{% endif %}
+  {% if url and libelle %}<a href="{{ url }}" class="btn btn-sm btn-outline-primary">{{ libelle }}</a>{% endif %}
+</div>

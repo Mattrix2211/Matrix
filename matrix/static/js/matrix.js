@@ -19,3 +19,16 @@
     }
   });
 })();
+
+// Popovers des indicateurs (composant « Metric », docs/UX.md §12) : activés
+// par l'attribut data-bs-toggle="popover", y compris après un échange htmx.
+(function () {
+  function activerPopovers(racine) {
+    if (!window.bootstrap) return;
+    racine.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+      bootstrap.Popover.getOrCreateInstance(el);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function () { activerPopovers(document); });
+  document.body.addEventListener('htmx:afterSwap', function (evt) { activerPopovers(evt.target); });
+})();

@@ -1,0 +1,11 @@
+{% comment %}
+Jauge : progression ou taux, avec la valeur écrite (docs/UX.md §15.2).
+Usage : {% include "components/jauge.html" with libelle="Stock" valeur=72 %}
+Paramètres :
+  libelle : nom de la jauge (obligatoire)
+  valeur  : nombre de 0 à 100 (obligatoire ; borné, une valeur invalide donne 0)
+  etat    : "ok", "attention" ou "danger" (facultatif ; sinon couleur neutre --signal-ui)
+{% endcomment %}{% load l10n composants %}{% with pct=valeur|pourcentage %}<div class="mx-jauge{% if etat %} mx-jauge--{{ etat }}{% endif %}">
+  <div class="mx-jauge__entete"><span>{{ libelle }}</span><span class="mx-jauge__valeur">{{ pct|unlocalize }} %</span></div>
+  <div class="mx-jauge__piste" role="progressbar" aria-label="{{ libelle }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct|unlocalize }}"><div class="mx-jauge__barre" style="width: {{ pct|unlocalize }}%"></div></div>
+</div>{% endwith %}

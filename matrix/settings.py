@@ -132,6 +132,7 @@ TEMPLATES = [
             ],
             "libraries": {
                 "icones": "matrix.core.balises_icones",
+                "composants": "matrix.core.balises_composants",
             },
         },
     },

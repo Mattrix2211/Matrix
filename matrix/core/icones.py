@@ -23,6 +23,7 @@ ICONES = {
     "ajout": "bi-plus-lg",
     "mot_de_passe": "bi-key",
     "generer": "bi-dice-5",
+    "suite": "bi-chevron-right",
     # Types d'événements du calendrier
     "ticket": "bi-wrench",
     "formation": "bi-mortarboard",

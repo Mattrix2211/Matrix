@@ -1,0 +1,19 @@
+{% comment %}
+ActionCard : une action est attendue de l'utilisateur (docs/UX.md §14).
+Balise : {% load composants %}{% carte_action titre="..." libelle="..." url="/..." %}...{% fin_carte_action %}
+Paramètres :
+  titre     : ce qui est attendu (obligatoire)
+  libelle   : texte du bouton (obligatoire)
+  url       : destination du bouton (obligatoire)
+  icone     : concept d'icône du titre et du bouton (facultatif)
+  principale: si vrai, le bouton est l'action principale de la vue (--signal) ;
+              une seule par vue, sinon bouton secondaire
+  contenu   : HTML de précision (facultatif)
+  classes   : classes CSS supplémentaires
+{% endcomment %}{% load icones %}<div class="mx-carte mx-carte--action {{ classes }}">
+  <div class="mx-carte__texte">
+    <span class="mx-carte__titre">{% if icone %}{% icone icone %} {% endif %}{{ titre }}</span>
+    {% if contenu %}<span class="mx-carte__contenu">{{ contenu }}</span>{% endif %}
+  </div>
+  <a href="{{ url }}" class="btn btn-sm {% if principale %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ libelle }}</a>
+</div>
