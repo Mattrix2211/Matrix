@@ -20,7 +20,7 @@
         var x = xScale.getPixelForValue(idx);
         var ca = chart.chartArea; var ctx = chart.ctx; if (!ca) return;
         ctx.save();
-        ctx.strokeStyle = (opts && opts.color) || '#0dcaf0';
+        ctx.strokeStyle = (opts && opts.color) || matrixCouleur('--signal');
         ctx.setLineDash([4,3]);
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -40,8 +40,8 @@
         datasets: [{
           label: 'Heures/mois',
           data: values,
-          borderColor: '#0d6efd',
-          backgroundColor: 'rgba(13,110,253,0.12)',
+          borderColor: matrixCouleur('--signal-ui'),
+          backgroundColor: matrixCouleur('--signal') + '1F',
           tension: 0,
           pointRadius: 3,
           pointHoverRadius: 5,
@@ -60,13 +60,13 @@
               }
             }
           },
-          visitLine: { label: visitLabel, color: '#0dcaf0' }
+          visitLine: { label: visitLabel, color: matrixCouleur('--signal') }
         },
         scales: {
           x: { grid: { display: false } },
           y: {
             beginAtZero: true,
-            grid: { color: 'rgba(0,0,0,0.08)' },
+            grid: { color: matrixCouleur('--border') },
             ticks: {
               callback: function(value){ return value + ' h'; }
             }

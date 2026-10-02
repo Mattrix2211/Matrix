@@ -145,3 +145,10 @@ def installations_notifications(request):
         "notifications_count": len(dedup),
         "notifications_unread_count": unread_count,
     }
+
+
+def theme_utilisateur(request):
+    """Thème d'affichage du marin connecté (« clair » par défaut, « sombre » sur choix manuel)."""
+    utilisateur = getattr(request, "user", None)
+    profil = getattr(utilisateur, "profile", None) if utilisateur and utilisateur.is_authenticated else None
+    return {"theme_utilisateur": profil.theme if profil else "clair"}

@@ -1,10 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import redirect
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views import View
 from django.views.generic import ListView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
+from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
@@ -518,6 +521,23 @@ class MonProfilView(LoginRequiredMixin, TemplateView):
             CandidatureFormation.objects.filter(marin=self.request.user).select_related("course")
         )
         return contexte
+
+
+class BasculerThemeView(LoginRequiredMixin, View):
+    """Bascule en un clic entre le mode clair et le mode sombre ; le choix est
+    mémorisé dans le profil du marin (docs/UX.md §17). Ne modifie que le thème
+    de l'utilisateur connecté."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        profil, _ = UserProfile.objects.get_or_create(user=request.user)
+        profil.theme = Themes.CLAIR if profil.theme == Themes.SOMBRE else Themes.SOMBRE
+        profil.save(update_fields=["theme", "updated_at"])
+        retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        return redirect(retour)
 
 
 class UserSettingsView(LoginRequiredMixin, ListView):

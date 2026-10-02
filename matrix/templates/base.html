@@ -3,7 +3,7 @@
 {% load asset_extras %}
 {% load org_extras %}
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="{{ theme_utilisateur|default:'clair' }}"{% if theme_utilisateur == 'sombre' %} data-bs-theme="dark"{% endif %}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,8 +22,9 @@
     <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
     <script src="{% static 'vendor/htmx/htmx.min.js' %}"></script>
     <script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
+    <script src="{% static 'js/theme.js' %}"></script>
   </head>
-  <body class="bg-light text-dark">
+  <body>
     {# Conteneur global de toasts #}
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
       {% if messages %}
@@ -251,6 +252,14 @@
                 </a>
               </li>
               {% endif %}
+              <li class="nav-item">
+                <form method="post" action="{% url 'basculer-theme' %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="nav-link theme-toggle" {% if theme_utilisateur == 'sombre' %}title="Passer en mode clair" aria-label="Passer en mode clair"{% else %}title="Passer en mode sombre" aria-label="Passer en mode sombre"{% endif %}>
+                    <span class="bi {% if theme_utilisateur == 'sombre' %}bi-sun{% else %}bi-moon-stars{% endif %} nav-icon" aria-hidden="true"></span>
+                  </button>
+                </form>
+              </li>
               <li class="nav-item">
                 <a class="nav-link navbar-text me-2" href="{% url 'mon-profil' %}" title="Mon profil" aria-label="Mon profil">{{ user.username }}</a>
               </li>

@@ -11,7 +11,7 @@
 
 {# Frise : une pastille par point, verte / rouge / grise #}
 <div class="d-flex gap-1 mb-3" aria-label="Frise des points">
-  {% for r in resultats %}<div class="flex-fill rounded" style="height:8px; background: {% if r.resultat == 'CONFORME' %}var(--green-tech){% elif r.resultat == 'NON_CONFORME' %}var(--red){% else %}#dee2e6{% endif %};" title="{{ r.libelle }}"></div>{% endfor %}
+  {% for r in resultats %}<div class="flex-fill rounded" style="height:8px; background: {% if r.resultat == 'CONFORME' %}var(--green-tech){% elif r.resultat == 'NON_CONFORME' %}var(--red){% else %}var(--border){% endif %};" title="{{ r.libelle }}"></div>{% endfor %}
 </div>
 
 {% for r in resultats %}{% include 'rondes/_point.html' %}{% endfor %}

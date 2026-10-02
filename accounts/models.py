@@ -18,6 +18,11 @@ class Roles(models.TextChoices):
     CHEF_SECTION = "CHEF_SECTION", "Chef de section"
     EQUIPIER = "EQUIPIER", "Équipier"
 
+class Themes(models.TextChoices):
+    CLAIR = "clair", "Clair"
+    SOMBRE = "sombre", "Sombre"
+
+
 class UserProfile(TimeStampedModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     role = models.CharField(max_length=32, choices=Roles.choices)
@@ -32,6 +37,10 @@ class UserProfile(TimeStampedModel):
     # avant de quitter son poste) — distincte de notification_time car elle
     # sert un besoin différent (fin de journée, pas le matin).
     notification_time_soir = models.TimeField(default=time(18,0))
+
+    # Thème d'affichage choisi manuellement par le marin (mode sombre pour l'usage
+    # de nuit, docs/UX.md §17). Clair par défaut.
+    theme = models.CharField(max_length=8, choices=Themes.choices, default=Themes.CLAIR)
 
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")

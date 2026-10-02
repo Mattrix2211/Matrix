@@ -1,12 +1,14 @@
 /*
  * Matrix — feuille de style applicative.
  * Variables et composants du MK Design System (voir design/DESIGN_SYSTEM.md),
- * adaptés au mode Light exclusif de Matrix (contexte naval/pro, cf. §10).
+ * adaptés à Matrix : mode clair par défaut, mode sombre activé manuellement par
+ * chaque marin (docs/UX.md §17). Toutes les couleurs passent par des variables
+ * CSS : les valeurs du mode sombre sont dans le bloc [data-theme="sombre"].
  * Cette feuille se superpose à Bootstrap 5, elle ne le remplace pas.
  */
 
 :root {
-  /* Palette MK Design System (§2) — mode Light uniquement pour Matrix */
+  /* Palette MK Design System (§2) — valeurs du mode clair (défaut) */
   --navy:        #0B1929;
   --ocean:       #0F2942;
   --slate:       #1A3A52;
@@ -60,6 +62,32 @@
   --shadow-sm:   0 1px 3px rgba(11, 25, 41, .08);
   --shadow-md:   0 4px 16px rgba(11, 25, 41, .12);
   --shadow-glow: 0 0 24px rgba(0, 180, 216, .18);
+
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Mode sombre (docs/UX.md §17) : seules les variables sémantiques de fond, */
+/* texte, bordure et ombre changent. Les couleurs d'état (--green-tech,    */
+/* --amber, --red) et l'accent --signal gardent leur sens ; --ink reste la */
+/* couleur de texte posée SUR un fond --signal / --green-tech (boutons).   */
+/* L'attribut data-bs-theme="dark" (posé avec data-theme dans base.html)   */
+/* adapte en plus les composants natifs de Bootstrap 5.3.                  */
+/* ---------------------------------------------------------------------- */
+[data-theme="sombre"] {
+  --bg:        #0B1929;
+  --surface:   #12263A;
+  --border:    #2A4760;
+  --text:      #E6EEF5;
+  --text-sec:  #A3BBCE;
+  --text-ter:  #6B8BA4;
+
+  --shadow-sm:   0 1px 3px rgba(0, 0, 0, .45);
+  --shadow-md:   0 4px 16px rgba(0, 0, 0, .55);
+  --shadow-glow: 0 0 24px rgba(0, 180, 216, .25);
+
+  --bs-link-hover-color: var(--wake);
+  color-scheme: dark;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -78,6 +106,7 @@
   --bs-link-color: var(--signal);
   --bs-link-color-rgb: 0, 180, 216;
   --bs-link-hover-color: var(--horizon);
+  --bs-border-color: var(--border);
   --bs-border-radius: var(--r-md);
   --bs-border-radius-sm: var(--r-sm);
   --bs-border-radius-lg: var(--r-lg);
@@ -163,7 +192,6 @@ input[type="date"],
 input[type="datetime-local"],
 input[type="time"] {
   font-family: var(--f-mono);
-  color-scheme: light;
 }
 input[type="date"]:focus,
 input[type="datetime-local"]:focus,
@@ -304,7 +332,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
   min-height: 440px;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  background: var(--paper);
+  background: var(--surface);
   cursor: grab;
 }
 /* Pendant le glisser : curseur « attrapé » et texte non sélectionnable
@@ -347,7 +375,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
   font-family: var(--f-display);
   font-weight: 700;
   font-size: 1.1rem;
-  color: var(--ink);
+  color: var(--text);
   padding-bottom: var(--s2);
   margin-bottom: var(--s4);
   border-bottom: 2px solid var(--border);
@@ -450,7 +478,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 .formation-card--valide::before { background: linear-gradient(90deg, var(--green-tech), transparent); }
 .formation-card--disponible { border-color: var(--signal-ui); }
 .formation-card--disponible::before { background: linear-gradient(90deg, var(--signal), transparent); }
-.formation-card--verrouille { border-color: var(--border); background: var(--chalk); opacity: .85; }
+.formation-card--verrouille { border-color: var(--border); background: var(--bg); opacity: .85; }
 .formation-card--verrouille::before { background: var(--text-ter); opacity: .3; }
 
 .badge-etat--valide { background: var(--green-tech); color: var(--ink); }
@@ -500,7 +528,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid var(--paper);
+  border: 2px solid var(--surface);
   box-shadow: 0 0 0 1px var(--border);
   z-index: 1;
 }
@@ -542,3 +570,28 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
    (l'éditeur sert au positionnement, pas au diagnostic) : accent unique du
    design system. */
 .pin-plan:not([class*="pin-plan--"]) { color: var(--signal-ui); }
+
+/* Mode sombre — utilitaires Bootstrap dont la couleur est figée « clair » */
+[data-theme="sombre"] .bg-light,
+[data-theme="sombre"] .bg-white,
+[data-theme="sombre"] .text-bg-light,
+[data-theme="sombre"] .table-light {
+  background-color: var(--surface) !important;
+  color: var(--text);
+}
+[data-theme="sombre"] .card:hover { border-color: var(--signal-ui); }
+[data-theme="sombre"] .text-dark,
+[data-theme="sombre"] .text-bg-light { color: var(--text) !important; }
+[data-theme="sombre"] .badge.bg-warning,
+[data-theme="sombre"] .badge.bg-info,
+[data-theme="sombre"] .text-bg-warning,
+[data-theme="sombre"] .text-bg-info { color: var(--ink) !important; }
+
+/* Bouton de bascule clair / sombre (barre supérieure) : un seul clic */
+.theme-toggle {
+  background: none;
+  border: 0;
+  padding: var(--s2);
+  color: inherit;
+  cursor: pointer;
+}
