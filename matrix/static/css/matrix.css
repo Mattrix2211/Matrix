@@ -792,3 +792,21 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 .mx-assistant__etape--actuelle { color: var(--text); border-color: var(--signal-ui); border-width: 2px; font-weight: 600; }
 .mx-assistant__progression { color: var(--text-sec); font-size: .8125rem; margin: 0 0 var(--s3); }
 .mx-assistant__pied { display: flex; flex-direction: row-reverse; justify-content: space-between; gap: var(--s3); margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--border); }
+
+/* Grille de saisie façon tableur (UX-0.5) : dense pour tenir en 1366×768 */
+.mx-grille__barre { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+.mx-grille__barre[hidden] { display: none; }
+.mx-grille__aide { color: var(--text-sec); font-size: .75rem; margin-left: auto; }
+.mx-grille__defilement { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
+.mx-grille__table { width: 100%; border-collapse: collapse; font-size: .875rem; color: var(--text); }
+.mx-grille__entete { position: sticky; top: 0; padding: var(--s1) var(--s2); background: var(--bg); border-bottom: 2px solid var(--border); font-family: var(--f-mono); font-size: .75rem; font-weight: 600; text-align: left; white-space: nowrap; }
+.mx-grille__ligne-titre { padding: var(--s1) var(--s2); font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--bg); text-align: left; }
+.mx-grille__cellule { padding: 0; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); vertical-align: top; min-width: 8rem; }
+.mx-grille__table tbody tr:last-child > * { border-bottom: 0; }
+.mx-grille__champ { display: block; width: 100%; padding: var(--s1) var(--s2); border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; }
+.mx-grille__champ:focus { outline: 2px solid var(--signal); outline-offset: -2px; background: var(--surface); }
+.mx-grille__cellule--modifiee { box-shadow: inset 4px 0 0 var(--signal-ui); background: var(--bg); }
+.mx-grille__cellule--erreur { box-shadow: inset 0 -3px 0 var(--red-texte); }
+.mx-grille__erreur { display: block; padding: 0 var(--s2) var(--s1); color: var(--red-texte); font-size: .75rem; }
+.mx-grille__pied { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); }
+.mx-grille__compteur { color: var(--text-sec); font-size: .8125rem; }

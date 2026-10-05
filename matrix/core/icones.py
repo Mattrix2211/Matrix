@@ -25,6 +25,7 @@ ICONES = {
     "generer": "bi-dice-5",
     "suite": "bi-chevron-right",
     "precedent": "bi-chevron-left",
+    "recopie_bas": "bi-arrow-down-square",
     "menu_actions": "bi-three-dots",
     "information": "bi-info-circle",
     # Types d'événements du calendrier
