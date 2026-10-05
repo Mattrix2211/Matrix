@@ -29,6 +29,13 @@
   /* Alertes */
   --amber:       #F4A261;
   --red:         #E63946;
+  /* Rouge de remplissage des pastilles pleines : --ink sur --red n'atteint que
+     4,25:1 et le blanc sur --red 4,17:1 (sous AA 4,5:1). Ce rouge légèrement
+     assombri porte du texte blanc (--paper) à ≈4,97:1, dans les deux thèmes. */
+  --red-plein:   #D62839;
+  /* Rouge de TEXTE (actions destructives) : ≥ 4,5:1 sur --surface et --bg ;
+     plus foncé en clair, plus clair en sombre. */
+  --red-texte:   #C1121F;
 
   /* Fondations Light (§2, bloc [data-theme="light"] appliqué en :root unique) */
   --chalk:       #F0F4F8;  /* Background */
@@ -85,6 +92,8 @@
   --shadow-sm:   0 1px 3px rgba(0, 0, 0, .45);
   --shadow-md:   0 4px 16px rgba(0, 0, 0, .55);
   --shadow-glow: 0 0 24px rgba(0, 180, 216, .25);
+
+  --red-texte: #FF7F8A;
 
   --bs-link-hover-color: var(--wake);
   color-scheme: dark;
@@ -220,7 +229,10 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 }
 .text-success { color: var(--green-tech) !important; }
 .badge.bg-warning, .text-bg-warning { background-color: var(--amber) !important; }
-.badge.bg-danger, .text-bg-danger { background-color: var(--red) !important; }
+.badge.bg-danger, .text-bg-danger {
+  background-color: var(--red-plein) !important;
+  color: var(--paper) !important;
+}
 /* Bouton de validation (ex. "Valider l'exécution") : même vert que les badges de
    statut --green-tech, jamais le vert Bootstrap brut. Texte --ink (et non blanc) :
    blanc sur --green-tech ne donne que ≈2,62:1 (< seuil WCAG AA 4,5:1) alors que
@@ -603,7 +615,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
    Couleurs uniquement par variables (clair et [data-theme="sombre"]). Aucun
    accent cyan permanent, aucune lueur : le survol n'existe que sur les
    éléments réellement cliquables. Les teintes d'état ne servent que de
-   bordure/pastille ; le texte reste en --text (ou --ink sur pastille pleine).
+   bordure/pastille ; le texte reste en --text (ou --ink sur pastille pleine, blanc sur le rouge).
    ========================================================================== */
 .mx-surface,
 .mx-carte,
@@ -706,7 +718,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 }
 .mx-badge--ok { background: var(--green-tech); color: var(--ink); }
 .mx-badge--attention { background: var(--amber); color: var(--ink); }
-.mx-badge--danger { background: var(--red); color: var(--ink); }
+.mx-badge--danger { background: var(--red-plein); color: var(--paper); }
 
 /* Jauge : barre --signal-ui neutre, teinte d'état sinon ; valeur toujours écrite */
 .mx-jauge__entete { display: flex; justify-content: space-between; font-size: .8125rem; margin-bottom: var(--s1); }
@@ -722,3 +734,61 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 .mx-vide__icone { font-size: 2rem; display: block; margin-bottom: var(--s2); }
 .mx-vide__titre { font-family: var(--f-display); color: var(--text); margin: 0 0 var(--s1); }
 .mx-vide__texte { margin: 0 0 var(--s3); font-size: .875rem; }
+
+/* ==========================================================================
+   Niveaux d'interaction (docs/UX.md §5.1) — UX-0.4
+   Popover · Menu contextuel · Modale · Panneau latéral · Assistant.
+   Gabarits : matrix/templates/components/. Variables Bootstrap rebranchées sur
+   les variables sémantiques : clair et [data-theme="sombre"] suivent seuls.
+   ========================================================================== */
+.mx-modale,
+.mx-panneau,
+.mx-menu,
+.popover {
+  --bs-modal-bg: var(--surface);
+  --bs-modal-color: var(--text);
+  --bs-modal-border-color: var(--border);
+  --bs-modal-header-border-color: var(--border);
+  --bs-modal-footer-border-color: var(--border);
+  --bs-modal-border-radius: var(--r-xl);
+  --bs-offcanvas-bg: var(--surface);
+  --bs-offcanvas-color: var(--text);
+  --bs-offcanvas-border-color: var(--border);
+  --bs-dropdown-bg: var(--surface);
+  --bs-dropdown-color: var(--text);
+  --bs-dropdown-border-color: var(--border);
+  --bs-dropdown-link-color: var(--text);
+  --bs-dropdown-link-hover-bg: var(--bg);
+  --bs-dropdown-link-hover-color: var(--text);
+  --bs-popover-bg: var(--surface);
+  --bs-popover-border-color: var(--border);
+  --bs-popover-header-bg: var(--bg);
+  --bs-popover-header-color: var(--text);
+  --bs-popover-body-color: var(--text);
+}
+.mx-modale__titre,
+.mx-panneau__titre,
+.mx-assistant__titre { font-family: var(--f-display); font-size: 1.125rem; margin: 0; }
+.mx-modale .modal-content,
+.mx-panneau { box-shadow: var(--shadow-md); }
+
+/* Menu contextuel « ⋯ » : actions secondaires, jamais l'action principale */
+.mx-menu__declencheur { color: var(--text-sec); border-color: var(--border); }
+.mx-menu__declencheur:hover,
+.mx-menu__declencheur:focus-visible { color: var(--text); border-color: var(--signal-ui); background: var(--surface); }
+.mx-menu__item { display: flex; align-items: center; gap: var(--s2); font-size: .875rem; }
+.mx-menu__item--danger,
+.mx-menu__item--danger:hover { color: var(--red-texte); }
+
+/* Popover : déclencheur discret (texte souligné en pointillé) */
+.mx-popover__declencheur { padding: 0; border: 0; background: none; font: inherit; color: var(--text); text-decoration: underline dotted var(--text-sec); text-underline-offset: 3px; cursor: pointer; }
+.mx-popover__declencheur:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+/* Assistant : étapes faites, actuelle, restantes (état dit aussi par le texte) */
+.mx-assistant__etapes { display: flex; flex-wrap: wrap; gap: var(--s2); list-style: none; margin: 0 0 var(--s4); padding: 0; }
+.mx-assistant__etape { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) var(--s3); border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text-sec); font-size: .875rem; }
+.mx-assistant__numero { font-family: var(--f-mono); font-weight: 600; }
+.mx-assistant__etape--faite { color: var(--text); border-color: var(--green-tech); }
+.mx-assistant__etape--actuelle { color: var(--text); border-color: var(--signal-ui); border-width: 2px; font-weight: 600; }
+.mx-assistant__progression { color: var(--text-sec); font-size: .8125rem; margin: 0 0 var(--s3); }
+.mx-assistant__pied { display: flex; flex-direction: row-reverse; justify-content: space-between; gap: var(--s3); margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--border); }

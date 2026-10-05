@@ -1,0 +1,31 @@
+{% comment %}
+Assistant multi-étapes : création d'un objet isolé complexe (docs/UX.md §5.1,
+§5.3). Jamais pour une saisie en série (utiliser la grille). Ce gabarit affiche
+la frise des étapes, le contenu de l'étape et les boutons ; la vue garde les
+données saisies (revenir en arrière n'en perd aucune) et propose une synthèse
+métier à la dernière étape. À placer DANS le <form method="post"> de la vue ;
+la vue lit le champ « action » (« precedent » ou « suivant »).
+Balise : {% load composants %}{% assistant titre="Ajout de matériel" etapes=etapes etape=2 %}...{% fin_assistant %}
+Paramètres :
+  titre   : titre de l'assistant (obligatoire)
+  id      : identifiant du titre (« assistant-titre » par défaut), à fournir si la page porte plusieurs assistants
+  etapes  : liste des libellés d'étapes, sans les étapes déjà connues (obligatoire)
+  etape   : numéro de l'étape actuelle, à partir de 1 (1 par défaut)
+  libelle_final : texte du bouton de la dernière étape (« Valider » par défaut)
+  contenu : HTML de l'étape (fourni par le bloc de la balise)
+  classes : classes CSS supplémentaires
+Le seul bouton --signal est « Suivant » (ou « Valider » à la dernière étape).
+Dans le DOM, « Suivant » précède « Précédent » (Entrée dans un champ valide la
+suite, jamais un retour) ; l'ordre visuel est rétabli par CSS (row-reverse).
+{% endcomment %}{% load icones %}<section class="mx-assistant {{ classes }}" aria-labelledby="{{ id|default:'assistant-titre' }}">
+  <h2 class="mx-assistant__titre" id="{{ id|default:'assistant-titre' }}">{{ titre }}</h2>
+  <p class="mx-assistant__progression">Étape {{ etape|default:1 }} sur {{ etapes|length }}</p>
+  <ol class="mx-assistant__etapes" aria-label="Étapes">
+    {% for libelle in etapes %}<li class="mx-assistant__etape{% if forloop.counter == etape|default:1 %} mx-assistant__etape--actuelle{% elif forloop.counter < etape|default:1 %} mx-assistant__etape--faite{% endif %}"{% if forloop.counter == etape|default:1 %} aria-current="step"{% endif %}><span class="mx-assistant__numero">{% if forloop.counter < etape|default:1 %}{% icone "terminee" %}<span class="visually-hidden">Terminée : </span>{% else %}{{ forloop.counter }}{% endif %}</span> {{ libelle }}</li>{% endfor %}
+  </ol>
+  <div class="mx-assistant__corps">{{ contenu }}</div>
+  <div class="mx-assistant__pied">
+    <button type="submit" name="action" value="suivant" class="btn btn-primary">{% if etape|default:1 == etapes|length %}{{ libelle_final|default:"Valider" }}{% else %}Suivant {% icone "suite" %}{% endif %}</button>
+    {% if etape|default:1 > 1 %}<button type="submit" name="action" value="precedent" class="btn btn-outline-secondary" formnovalidate>{% icone "precedent" %} Précédent</button>{% endif %}
+  </div>
+</section>

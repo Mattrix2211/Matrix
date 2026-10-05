@@ -1,11 +1,12 @@
-"""Balises de bloc des composants « cards » (docs/UX.md §14 et §26).
+"""Balises de bloc des composants (docs/UX.md §5.1, §14 et §26).
 
 Syntaxe : ``{% surface titre="Titre" icone="maintenance" %}...{% fin_surface %}``.
 Le contenu du bloc est transmis au gabarit ``components/<nom>.html`` sous le
 nom ``contenu``. Les mêmes gabarits restent utilisables avec
 ``{% include "components/surface.html" with titre="..." contenu=... %}``.
-Les composants sans contenu libre (metric, badge_etat, jauge, etat_vide) se
-règlent uniquement par ``{% include %}``.
+Niveaux d'interaction : ``modale``, ``panneau_lateral``, ``menu_contextuel``
+et ``assistant``. Les composants sans contenu libre (metric, badge_etat, jauge,
+etat_vide, popover, menu_item) se règlent uniquement par ``{% include %}``.
 """
 from django import template
 from django.template.base import token_kwargs
@@ -51,5 +52,5 @@ def _declarer(nom):
     return compiler
 
 
-for _nom in ("surface", "carte_interactive", "carte_action", "attention"):
+for _nom in ("surface", "carte_interactive", "carte_action", "attention", "modale", "panneau_lateral", "menu_contextuel", "assistant"):
     _declarer(_nom)

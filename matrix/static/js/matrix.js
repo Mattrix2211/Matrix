@@ -32,3 +32,13 @@
   document.addEventListener('DOMContentLoaded', function () { activerPopovers(document); });
   document.body.addEventListener('htmx:afterSwap', function (evt) { activerPopovers(evt.target); });
 })();
+
+// Échap ferme les popovers ouverts (la modale, le panneau latéral et le menu
+// « ⋯ » se ferment déjà seuls avec Échap grâce à Bootstrap).
+document.addEventListener('keydown', function (evt) {
+  if (evt.key !== 'Escape' || !window.bootstrap) return;
+  document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+    var popover = bootstrap.Popover.getInstance(el);
+    if (popover) popover.hide();
+  });
+});

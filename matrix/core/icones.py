@@ -24,6 +24,9 @@ ICONES = {
     "mot_de_passe": "bi-key",
     "generer": "bi-dice-5",
     "suite": "bi-chevron-right",
+    "precedent": "bi-chevron-left",
+    "menu_actions": "bi-three-dots",
+    "information": "bi-info-circle",
     # Types d'événements du calendrier
     "ticket": "bi-wrench",
     "formation": "bi-mortarboard",

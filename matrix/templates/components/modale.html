@@ -1,0 +1,30 @@
+{% comment %}
+Modale : action courte demandant une concentration temporaire — confirmation,
+mot de passe, signalement rapide (docs/UX.md §5.1). Jamais un grand formulaire
+métier (utiliser un panneau latéral, un assistant ou une page).
+Bootstrap gère le focus (piégé dans la modale, rendu au déclencheur) et la
+fermeture par Échap. Une seule action principale (bouton --signal) dans le contenu.
+Balise : {% load composants %}{% modale id="confirmer-archivage" titre="Archiver la fiche ?" %}...{% fin_modale %}
+Déclencheur : <button data-bs-toggle="modal" data-bs-target="#confirmer-archivage">
+Chargement HTMX : avec url="/x/", le corps est chargé par hx-get à chaque ouverture.
+Paramètres :
+  id      : identifiant unique dans la page (obligatoire)
+  titre   : titre de la modale (obligatoire, relié par aria-labelledby)
+  url     : URL du contenu chargé à l'ouverture (facultatif)
+  libelle_fermer : texte du bouton de fermeture (« Annuler » par défaut)
+  contenu : HTML du corps (fourni par le bloc de la balise)
+  classes : classes CSS supplémentaires
+{% endcomment %}<div class="modal fade mx-modale {{ classes }}" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}-titre" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title mx-modale__titre" id="{{ id }}-titre">{{ titre }}</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body"{% if url %} hx-get="{{ url }}" hx-trigger="show.bs.modal from:#{{ id }}" hx-swap="innerHTML"{% endif %}>{% if url %}<p class="text-secondary mb-0">Chargement…</p>{% else %}{{ contenu }}{% endif %}</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ libelle_fermer|default:"Annuler" }}</button>
+      </div>
+    </div>
+  </div>
+</div>
