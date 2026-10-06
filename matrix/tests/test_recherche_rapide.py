@@ -132,6 +132,23 @@ class PerimetreTests(RechercheRapideTestCase):
         self.client.force_login(self.equipier)
         self.assertEqual(self.client.get(reverse("user-directory")).status_code, 403)
 
+    def test_identifiant_de_connexion_non_cherchable(self):
+        self._marin("zorglub_login", "EQUIPIER", ship=self.navire, last_name="Martin")
+        self.assertNotContains(self.chercher(self.equipier, "zorglub"), "Marin")
+        self.assertContains(self.chercher(self.equipier, "Martin"), "Martin")
+
+    def test_marin_sans_nom_ne_devoile_pas_son_identifiant(self):
+        self._marin("anonyme_login", "EQUIPIER", ship=self.navire)
+        self.assertNotContains(self.chercher(self.equipier, "anonyme"), "anonyme_login")
+        User.objects.filter(username="anonyme_login").update(first_name="Zed")
+        self.assertContains(self.chercher(self.equipier, "Zed"), "Zed")
+
+    def test_compte_desactive_absent(self):
+        parti = self._marin("parti", "EQUIPIER", ship=self.navire, last_name="Partivite")
+        User.objects.filter(pk=parti.pk).update(is_active=False)
+        self.assertNotContains(self.chercher(self.equipier, "Partivite"), "Partivite")
+        self.assertNotContains(self.chercher(self.commandant, "Partivite"), "Partivite")
+
     def test_email_absent_des_resultats(self):
         User.objects.filter(pk=self.commandant.pk).update(email="secret.cdt@navy.fr")
         self.assertNotContains(self.chercher(self.equipier, "Zebrowski"), "secret.cdt")
@@ -180,6 +197,12 @@ class SaisieTests(RechercheRapideTestCase):
     def test_caracteres_de_controle_retires(self):
         self.assertEqual(recherche.normaliser("ZE\x00BRE\x1f"), "ZEBRE")
         self.assertContains(self.chercher(self.chef, "ZE\x00BRE"), "Installations")
+
+    def test_terme_vide_apres_nettoyage(self):
+        for terme in ("\x00\x00", "   "):
+            reponse = self.chercher(self.chef, terme)
+            self.assertEqual(reponse.status_code, 200)
+            self.assertEqual(reponse.context["groupes"], [])
 
     def test_longueur_maximale(self):
         self.assertEqual(len(recherche.normaliser("a" * 500)), recherche.MAX_CARACTERES)

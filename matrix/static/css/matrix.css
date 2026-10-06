@@ -1079,7 +1079,7 @@ div.mx-recherche__resultat { cursor: default; }
 .mx-recherche__sous-titre { font-size: .8rem; color: var(--text-sec); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mx-recherche__voir { font-size: .8rem; color: var(--text-sec); padding: 0 var(--s1); border-radius: var(--r-sm, 4px); }
 .mx-recherche__pied { display: block; padding: var(--s2) var(--s3); border-top: 1px solid var(--border); font-size: .85rem; color: var(--text-sec); }
-.mx-recherche__resultat:hover,
+a.mx-recherche__resultat:hover,
 .mx-recherche__resultat.is-actif,
 .mx-recherche__voir:hover,
 .mx-recherche__voir.is-actif,

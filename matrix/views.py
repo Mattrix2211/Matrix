@@ -106,9 +106,11 @@ def global_search(request):
         installations = recherche.installations(request.user, q)[:20]
         formations = recherche.formations(request.user, q)[:20]
         anomalies = recherche.anomalies(request.user, q)[:20]
-        users = User.objects.filter(**perimetre_users).filter(
-            Q(username__icontains=q) | Q(email__icontains=q)
-        )[:20]
+        # Sans périmètre, seul un maître voit tout : jamais toute la flotte par défaut.
+        if perimetre_users or is_master_admin(request.user):
+            users = User.objects.filter(**perimetre_users, is_active=True).filter(
+                Q(username__icontains=q) | Q(email__icontains=q)
+            )[:20]
         documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
             Q(name__icontains=q)
         )[:20]

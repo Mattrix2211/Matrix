@@ -84,7 +84,8 @@ def marins(user, terme):
     # Tout marin cherche dans son navire ; sans navire rattaché, aucun résultat
     # (jamais toute la flotte), sauf maître ou superutilisateur.
     qs = get_user_model().objects.select_related("profile").filter(
-        _ou(terme, "username", "first_name", "last_name")
+        # Jamais l'identifiant de connexion : il ne s'affiche pas et servirait d'oracle.
+        _ou(terme, "first_name", "last_name"), is_active=True,
     ).order_by("last_name", "username")
     if not is_master_admin(user):
         qs = qs.filter(perimetre_navire_q(user, "profile__"))
@@ -123,7 +124,7 @@ def _ligne_marin(u, user):
     # Pas de fiche marin : le résultat n'est un lien que pour qui peut ouvrir l'annuaire.
     url = reverse("user-directory") + "?" + urlencode({"q": u.username}) if _commandant_ou_plus(user) else ""
     return (
-        u.get_full_name() or u.username,
+        u.get_full_name() or (u.username if _commandant_ou_plus(user) else "Marin sans nom"),
         _sous_titre(
             getattr(profil, "grade", ""),
             profil.get_role_display() if profil and profil.role else "",

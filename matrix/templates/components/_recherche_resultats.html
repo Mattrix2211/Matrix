@@ -10,7 +10,7 @@
           {% if groupe.url_liste %}<a role="option" tabindex="-1" class="mx-recherche__voir" href="{{ groupe.url_liste }}" aria-label="Tout voir : {{ groupe.libelle }}">Tout voir {% icone "suite" %}</a>{% endif %}
         </div>
         {% for resultat in groupe.resultats %}
-          <{% if resultat.url %}a href="{{ resultat.url }}"{% else %}div{% endif %} role="option" tabindex="-1" class="mx-recherche__resultat">
+          <{% if resultat.url %}a href="{{ resultat.url }}"{% else %}div aria-disabled="true"{% endif %} role="option" tabindex="-1" class="mx-recherche__resultat">
             <span class="mx-recherche__libelle">{{ resultat.libelle }}</span>
             {% if resultat.sous_titre %}<span class="mx-recherche__sous-titre">{{ resultat.sous_titre }}</span>{% endif %}
           </{% if resultat.url %}a{% else %}div{% endif %}>
