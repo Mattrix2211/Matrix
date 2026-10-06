@@ -20,6 +20,7 @@ from django.views.generic import TemplateView
 from accounts.models import ResponsableSpecialite, SpecialityChoice
 from assets.models import Asset, Installation, InstallationMaintenance
 from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee, supervision
+from dashboard.aujourdhui_terre import a_faire_terre, batiments_suivis, cartes_batiments
 from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
@@ -45,6 +46,16 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
 
         utilisateur = self.request.user
         aujourdhui = timezone.localdate()
+        # Utilisateur à terre : vue flotte à la place de l'espace personnel de bord.
+        batiments = batiments_suivis(utilisateur)
+        if batiments:
+            self.template_name = "dashboard/aujourdhui_terre.html"
+            contexte["aujourdhui"] = aujourdhui
+            contexte["a_faire"] = a_faire_terre(batiments)
+            contexte["cartes"] = cartes_batiments(batiments, aujourdhui)
+            contexte["choix_possible"] = len(batiments) > 1
+            contexte["salutation"] = utilisateur.last_name or utilisateur.get_username()
+            return contexte
         # Prochaines formations : inscrit, réservation libre-service ou formateur.
         mes_formations = list(formations_du_marin(utilisateur))
         for session in mes_formations:
