@@ -815,3 +815,71 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 .mx-brouillon__statut { min-height: 1.25rem; margin-bottom: var(--s2); color: var(--text-sec); font-size: .8125rem; }
 .mx-brouillon__statut--erreur { color: var(--red-texte); }
 .mx-brouillon__reprise { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-bottom: var(--s2); padding: var(--s2) var(--s3); background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--signal); border-radius: var(--r-md); font-size: .875rem; }
+
+/* ---------------------------------------------------------------------- */
+/* Styleguide des composants (docs/UX.md §26.1) — réservé aux administrateurs */
+/* ---------------------------------------------------------------------- */
+.mx-styleguide__theme { display: flex; align-items: center; gap: var(--s3); }
+.mx-styleguide__sommaire {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.mx-styleguide__sommaire a {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  padding: var(--s1) var(--s2);
+  font-size: .875rem;
+  text-decoration: none;
+}
+.mx-styleguide__composant { margin-top: var(--s4); scroll-margin-top: var(--s4); }
+.mx-styleguide__nom { font-family: var(--f-mono); font-size: .75rem; color: var(--text-sec); }
+.mx-styleguide__exemple { border-top: 1px solid var(--border); padding: var(--s3) 0; }
+.mx-styleguide__etat { font-size: .875rem; font-family: var(--f-display); margin: 0 0 var(--s2); }
+.mx-styleguide__rendu {
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s4);
+  margin-bottom: var(--s2);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s3);
+}
+.mx-styleguide__rendu > form { width: 100%; }
+.mx-styleguide__code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--f-mono);
+  font-size: .75rem;
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: all;
+}
+.mx-styleguide__parametres { border-top: 1px solid var(--border); padding-top: var(--s3); }
+.mx-styleguide__parametres summary { cursor: pointer; font-weight: 600; margin-bottom: var(--s2); }
+.mx-styleguide__couleurs, .mx-styleguide__icones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s3);
+}
+.mx-styleguide__couleur, .mx-styleguide__icone { display: flex; align-items: center; gap: var(--s3); }
+.mx-styleguide__pastille {
+  flex: none;
+  width: var(--s10);
+  height: var(--s10);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.mx-styleguide__icone .bi { font-size: 1.5rem; color: var(--text); }
+.mx-styleguide__echantillon { font-size: 1.25rem; margin: 0 0 var(--s3); }
+.mx-styleguide__espacement { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
+.mx-styleguide__espacement code { width: var(--s16); }
+.mx-styleguide__espacement .small { width: var(--s12); }
+.mx-styleguide__barre { height: var(--s3); background: var(--signal-ui); border-radius: var(--r-sm); }

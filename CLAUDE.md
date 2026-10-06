@@ -40,7 +40,7 @@ Avant toute décision sur les rôles, les droits, les périmètres ou un circuit
 
 ## Principes fondamentaux — NON NÉGOCIABLES
 
-1. **100 % français** — tout ce que voit l'utilisateur : labels, boutons, messages, statuts, placeholders, tooltips, titres, commentaires dans le code. Utiliser le **vocabulaire de la Marine** (sigles COMAEQ, COMOPS, COMANAV, COMAVIA, « commandant en second »…) : voir la section Vocabulaire de la page « Organigramme et rôles ».
+1. **Interface 100 % française** — tout ce que voit l'utilisateur de l'application : labels, boutons, messages, statuts, placeholders, tooltips, titres, aide, e-mails et notifications. Le code lui-même (noms de variables, de fonctions, de classes, commentaires, docstrings, messages de commit) n'a pas l'obligation d'être en français : l'anglais y est accepté (ex. `def delete(...)`, noms de verbes HTTP), le français reste préféré pour les commentaires qui expliquent une règle métier. Utiliser le **vocabulaire de la Marine** (sigles COMAEQ, COMOPS, COMANAV, COMAVIA, « commandant en second »…) : voir la section Vocabulaire de la page « Organigramme et rôles ».
 2. **Plus rapide qu'Excel** — si une action prend plus de clics que dans un tableau Excel, c'est un échec. Formulaires pré-remplis, actions en un clic, saisie en grille façon tableur (recopie vers le bas, « tout conforme », navigation au clavier), zéro jargon informatique.
 3. **Espace personnel par marin** — chaque marin voit SES tâches, SES formations, SES maintenances, SES quarts et services.
 4. **Internet n'existe pas** — Matrix fonctionne sur le réseau du bâtiment (et l'intranet Défense), jamais sur Internet : aucun CDN, aucune police distante, aucune API ou service cloud obligatoire, aucune télémétrie. Une coupure avec la terre ne doit pas rendre le bâtiment inutilisable.
@@ -192,7 +192,7 @@ Invoque chaque agent explicitement (`@po`, `@dev`, `@tech-lead`, `@qa`) selon le
 
 En plus de ce que chaque agent vérifie lui-même, quatre hooks (`.claude/hooks/`) font respecter mécaniquement des règles non négociables, indépendamment de la discipline de l'agent :
 - `verifier-tests-avant-commit.sh` — bloque tout `git commit` si `python manage.py test` échoue
-- `verifier-francais-avant-commit.sh` — bloque tout `git commit` si du texte anglais suspect apparaît dans le diff
+- `verifier-francais-avant-commit.sh` — bloque tout `git commit` si du texte anglais suspect, visible par l'utilisateur de l'application, apparaît dans le diff (le code et ses commentaires ne sont pas concernés ; en cas de faux positif sur du code, assouplir le hook plutôt que reformuler le code)
 - `verifier-migration-retrocompatible.sh` — alerte si une migration ajoute un champ sans valeur par défaut (rétrocompatibilité du schéma)
 - `verifier-migrations-appliquees-avant-commit.sh` — bloque tout `git commit` si des migrations Django ne sont pas appliquées à la base de développement locale (`db.sqlite3`), distinct du précédent qui contrôle le schéma et non l'application effective. Un garde-fou complémentaire (`matrix/core/checks.py`, système de checks Django) avertit aussi au démarrage de `python manage.py runserver` si des migrations restent en attente, pour couvrir le cas d'un poste qui récupère du code déjà commité par quelqu'un d'autre
 

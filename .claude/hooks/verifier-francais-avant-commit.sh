@@ -2,7 +2,8 @@
 # Hook PreToolUse — alerte (et bloque) si du texte visible potentiellement anglais
 # est ajouté dans un template ou une vue. Best-effort : liste de mots suspects,
 # pas une vérification linguistique complète, mais rattrape les oublis évidents.
-# Applique la règle n°1 de CLAUDE.md : "100% français".
+# Applique la règle n°1 de CLAUDE.md : interface 100 % française (le code et ses
+# commentaires peuvent être en anglais ; seul le texte affiché aux utilisateurs compte).
 
 input=$(cat)
 command=$(echo "$input" | jq -r '.tool_input.command // empty')
@@ -22,7 +23,7 @@ if [[ "$command" == *"git commit"* ]]; then
     trouve=$(echo "$lignes_ajoutees" | grep -i -P "(?<![.\-])($mots_suspects)")
 
     if [[ -n "$trouve" ]]; then
-        echo "⚠️  Commit bloqué : texte potentiellement anglais détecté (règle CLAUDE.md : 100% français)." >&2
+        echo "⚠️  Commit bloqué : texte potentiellement anglais détecté (règle CLAUDE.md : interface 100 % française)." >&2
         echo "$trouve" >&2
         echo "Si c'est un faux positif (ex: nom de variable technique), committer avec --no-verify n'est pas possible ici : corriger le texte visible avant de recommittez." >&2
         exit 2

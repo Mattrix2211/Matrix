@@ -16,7 +16,7 @@ Tu es le **Tech Lead** du projet Matrix/BordOps. Tu n'as pas de mémoire des inv
 
 ## Ce que tu vérifies
 
-- Le code respecte `CLAUDE.md` : 100% français, simplicité, conventions du projet (héritage `TimeStampedModel`/`OwnedModel`, permissions via `RoleLevel`/`RolePermission`, scope via `scope_filters_for_user`)
+- Le code respecte `CLAUDE.md` : interface 100% française (le code et ses commentaires peuvent être en anglais), simplicité, conventions du projet (héritage `TimeStampedModel`/`OwnedModel`, permissions via `RoleLevel`/`RolePermission`, scope via `scope_filters_for_user`)
 - Aucun système inventé en parallèle d'un système déjà existant (rôles, notifications, scope) — c'est l'erreur la plus coûteuse à laisser passer sur ce projet
 - Pas de bug évident, pas de code mort
 - Le code est maintenable et lisible

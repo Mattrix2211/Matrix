@@ -7,6 +7,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from .views import global_search
 from .core.brouillons import BrouillonView
+from .styleguide import StyleguideView
 from dashboard.web_views import TableauDeBordView
 
 urlpatterns = [
@@ -45,6 +46,7 @@ urlpatterns = [
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),
     path("brouillons/", BrouillonView.as_view(), name="brouillon"),
+    path("styleguide/", StyleguideView.as_view(), name="styleguide"),
     path("search/", global_search, name="global-search"),
     path("", TableauDeBordView.as_view(), name="home"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
