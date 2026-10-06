@@ -38,7 +38,7 @@ class TableauDeBordMesTicketsTests(TestCase):
         self.client.login(username="marin_tk", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_tickets"]), [ticket])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [ticket])
 
     def test_ticket_dun_autre_marin_est_absent_du_contexte(self):
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Fuite hydraulique")
@@ -47,7 +47,7 @@ class TableauDeBordMesTicketsTests(TestCase):
         self.client.login(username="marin_tk", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_tickets"]), [])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [])
 
     def test_ticket_ferme_ou_annule_est_exclu(self):
         ticket_ferme = CorrectiveTicket.objects.create(asset=self.asset, description="Fermé", status="CLOSED")
@@ -58,7 +58,7 @@ class TableauDeBordMesTicketsTests(TestCase):
         self.client.login(username="marin_tk", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_tickets"]), [])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [])
 
 
 class TicketListViewTests(TestCase):

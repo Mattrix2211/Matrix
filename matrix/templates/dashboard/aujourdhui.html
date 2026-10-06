@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load composants icones %}
+{% block content %}
+<header class="mx-aujourdhui__entete">
+  <h1 class="h3 mb-1">Bonjour {{ salutation }}</h1>
+  <p class="text-muted mb-0">
+    {{ aujourdhui|date:"l j F" }}
+    {% if profil.ship %} · {{ profil.ship.name }}{% endif %}
+    {% if profil.service %} · {{ profil.service.name }}{% endif %}
+  </p>
+</header>
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-7">
+    {% surface titre="À faire" icone="maintenance" %}
+      {% if a_faire %}
+      <div class="mx-aujourdhui__liste">
+        {% for tache in a_faire %}
+          {% carte_action titre=tache.titre libelle="Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
+        {% endfor %}
+      </div>
+      {% else %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Rien à faire pour le moment" texte="Aucune tâche ne vous attend." %}
+      {% endif %}
+    {% fin_surface %}
+
+    {% if brouillons %}
+    <div class="mt-4">
+    {% surface titre="Brouillons à reprendre" icone="modification" %}
+      <div class="mx-aujourdhui__liste">
+        {% for brouillon in brouillons %}
+          {% carte_action titre=brouillon.libelle|default:"Saisie non terminée" libelle="Reprendre" url=brouillon.url %}Modifié le {{ brouillon.updated_at|date:"d/m à H:i" }}{% fin_carte_action %}
+        {% endfor %}
+      </div>
+    {% fin_surface %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    {% surface titre="Ma journée" icone="calendrier" %}
+      {% if journee %}
+      <ol class="mx-frise">
+        {% for point in journee %}
+        <li class="mx-frise__point">
+          <span class="mx-frise__heure">{% if point.heure %}{{ point.heure|date:"H:i" }}{% else %}Journée{% endif %}</span>
+          <a href="{{ point.url }}" class="mx-frise__libelle">{% icone point.icone %} {{ point.libelle }}</a>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+        {% include "components/etat_vide.html" with icone="calendrier" titre="Rien de prévu aujourd'hui" %}
+      {% endif %}
+    {% fin_surface %}
+  </div>
+</div>
+
+<h2 class="h5 mt-5 mb-3">Informations</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    {% surface titre="Prochaines formations" icone="formation" %}
+      {% for session in mes_formations|slice:":5" %}
+        <div class="mx-aujourdhui__ligne">
+          <span>{{ session.course.title }}{% if session.est_formateur %} <span class="badge bg-info">Formateur</span>{% endif %}</span>
+          <span class="text-muted small font-mono">{{ session.scheduled_at|date:"d/m H:i" }}</span>
+        </div>
+      {% empty %}
+        <p class="text-muted mb-0">Aucune formation programmée.</p>
+      {% endfor %}
+    {% fin_surface %}
+  </div>
+  <div class="col-md-4">
+    {% surface titre="Mes qualifications" icone="formation" %}
+      {% for qualification in mes_qualifications %}
+        <div class="mx-aujourdhui__ligne">
+          <span>{{ qualification.course.title }}</span>
+          <span class="badge {{ qualification.badge_classe }}">{{ qualification.badge_libelle }}</span>
+        </div>
+      {% empty %}
+        <p class="text-muted mb-0">Aucune formation validée enregistrée à votre nom.</p>
+      {% endfor %}
+    {% fin_surface %}
+  </div>
+  <div class="col-md-4">
+    {% surface titre="Mes services de garde" icone="garde" %}
+      <p class="small text-muted mb-2">Listes publiées uniquement : votre situation, en toute transparence.</p>
+      <div class="mx-aujourdhui__ligne"><span>Ce mois-ci</span>
+        <span class="small">{{ mes_compteurs_equite_garde.mois.semaine }} semaine · {{ mes_compteurs_equite_garde.mois.vendredi }} vendredi · {{ mes_compteurs_equite_garde.mois.weekend }} week-end</span></div>
+      <div class="mx-aujourdhui__ligne"><span>Cette année</span>
+        <span class="small">{{ mes_compteurs_equite_garde.annee.semaine }} semaine · {{ mes_compteurs_equite_garde.annee.vendredi }} vendredi · {{ mes_compteurs_equite_garde.annee.weekend }} week-end</span></div>
+    {% fin_surface %}
+  </div>
+</div>
+
+{% include "dashboard/_pilotage.html" %}
+{% endblock %}

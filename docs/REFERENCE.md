@@ -42,7 +42,7 @@ Source de vérité : `design/DESIGN_SYSTEM.md` (submodule), à lire avant tout t
 | `rondes` | Modèles de rondes, points de contrôle, exécutions |
 | `threads` | Discussions attachées à n'importe quel objet |
 | `notifications` | Alertes in-app + Web Push (niveau danger) |
-| `dashboard` | Tableau de bord personnel et par périmètre |
+| `dashboard` | Page « Aujourd'hui » (espace personnel) et tableaux par périmètre |
 | `calendar_app` | Calendrier central, vue globale et personnelle, export iCal |
 | `reports` | Bilans instantané/période, PDF / CSV / Excel |
 

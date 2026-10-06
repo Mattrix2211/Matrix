@@ -1095,3 +1095,14 @@ a.mx-recherche__resultat:hover,
 .mx-recherche__voir.is-actif { outline: 2px solid var(--signal-ui); }
 .mx-recherche__aide { margin: 0; padding: var(--s3); font-size: .85rem; color: var(--text-sec); }
 .mx-recherche .mx-vide { padding: var(--s4); }
+
+/* Page « Aujourd'hui » */
+.mx-aujourdhui__liste { display: flex; flex-direction: column; gap: var(--s2); }
+.mx-aujourdhui__tache--attention { border-left: 4px solid var(--amber); }
+.mx-aujourdhui__tache--danger { border-left: 4px solid var(--red); }
+.mx-aujourdhui__ligne { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); padding: var(--s1) 0; }
+.mx-frise { list-style: none; margin: 0; padding: 0 0 0 var(--s3); border-left: 2px solid var(--border); }
+.mx-frise__point { display: flex; gap: var(--s3); align-items: baseline; padding: var(--s2) 0; }
+.mx-frise__heure { min-width: 3.5rem; font-family: var(--f-mono); color: var(--text-sec); }
+.mx-frise__libelle { color: var(--text); text-decoration: none; }
+.mx-frise__libelle:hover { color: var(--signal-ui); }

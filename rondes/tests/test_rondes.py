@@ -250,7 +250,7 @@ class VuesTests(BaseRondes):
         services.creer_ronde(self.modele)
         self._connecter(self.marin)
         self.assertContains(self.client.get(reverse("rondes-index")), "Ronde coursives")
-        self.assertContains(self.client.get("/"), "Mes rondes du jour")
+        self.assertContains(self.client.get("/"), "Ronde coursives")
         self.assertContains(self.client.get(reverse("ronde-modeles")), "Ronde coursives")
 
 

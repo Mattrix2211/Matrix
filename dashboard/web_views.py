@@ -1,10 +1,7 @@
-"""Vue web de la page d'accueil — tableau de bord + espace personnel du marin.
+"""Vues web de l'accueil « Aujourd'hui » (espace personnel du marin) et des tableaux de pilotage.
 
 Principe fondamental n°3 (CLAUDE.md) : chaque marin voit SES tâches, SES
-formations, SES maintenances assignées, dès la connexion, sans avoir à
-chercher. Cette vue construit le contexte de l'accueil pour ça, en plus
-des graphiques Chart.js déjà en place (T5) et du bouton "Générer le bilan"
-(T10), qui restent inchangés.
+formations, SES maintenances assignées, dès la connexion.
 """
 import json
 
@@ -22,115 +19,50 @@ from django.views.generic import TemplateView
 
 from accounts.models import ResponsableSpecialite, SpecialityChoice
 from assets.models import Asset, Installation, InstallationMaintenance
+from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee
 from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
+from matrix.core.brouillons import brouillons_a_reprendre
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
 from quarts.services import compteur_equite_marin
-from rondes.services import rondes_du_marin
 from training.models import TrainingSession
 from training.services import qualifications_validees_de
 
 User = get_user_model()
 
-# Occurrences considérées comme terminées : on ne les affiche pas dans "Mes
-# maintenances", seules celles qui restent à faire intéressent le marin.
-_STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
 
-# Tickets correctifs considérés comme clos : on ne les affiche pas dans "Mes
-# tickets", même logique que _STATUTS_MAINTENANCE_TERMINES ci-dessus.
-_STATUTS_TICKET_TERMINES = ["CLOSED", "CANCELLED"]
+class AujourdhuiView(LoginRequiredMixin, TemplateView):
+    """Page d'accueil « Aujourd'hui » : cockpit personnel du marin connecté (docs/UX.md §9.1)."""
 
-# Classe de badge Bootstrap par statut d'occurrence — surchargée par
-# matrix.css pour respecter la palette du design system (--red, --amber...).
-_BADGE_STATUT_MAINTENANCE = {
-    "OVERDUE": "bg-danger",
-    "WAITING_VALIDATION": "bg-warning",
-}
-
-
-class TableauDeBordView(LoginRequiredMixin, TemplateView):
-    """Page d'accueil : graphiques du service + espace personnel du marin connecté."""
-
-    template_name = "dashboard/index.html"
+    template_name = "dashboard/aujourdhui.html"
 
     def get_context_data(self, **kwargs):
         contexte = super().get_context_data(**kwargs)
 
-        mes_maintenances = list(
-            MaintenanceOccurrence.objects.select_related(
-                "asset",
-                "installation_maintenance",
-                "installation_maintenance__installation",
-            )
-            .filter(assignees=self.request.user)
-            .exclude(status__in=_STATUTS_MAINTENANCE_TERMINES)
-            .order_by("scheduled_for")
-        )
-        for occurrence in mes_maintenances:
-            occurrence.badge_classe = _BADGE_STATUT_MAINTENANCE.get(
-                occurrence.status, "bg-secondary"
-            )
-
-        # Formations où le marin est inscrit par un référent (attendees), où il
-        # a réservé sa place lui-même en libre-service (reservations, cf.
-        # T-FORM réservation), OU où il est le formateur (instructor) de la
-        # session — les trois cas doivent apparaître dans son espace
-        # personnel : un formateur doit voir dans SON tableau de bord les
-        # sessions qu'il anime, même s'il n'y est pas lui-même stagiaire
-        # (cf. tâche Notion « Calendrier de formation piloté par l'affectation
-        # personnelle »). D'où le OU plutôt qu'un simple filtre.
-        mes_formations = list(
-            TrainingSession.objects.select_related("course")
-            .filter(
-                Q(attendees=self.request.user)
-                | Q(reservations=self.request.user)
-                | Q(instructor=self.request.user),
-                status="PLANNED",
-            )
-            .distinct()
-            .order_by("scheduled_at")
-        )
-        for session in mes_formations:
-            session.est_formateur = session.instructor_id == self.request.user.id
-
-        mes_tickets = list(
-            CorrectiveTicket.objects.select_related("asset", "installation")
-            .filter(assignees=self.request.user)
-            .exclude(status__in=_STATUTS_TICKET_TERMINES)
-            .order_by("-severity", "reported_at")
-        )
-
+        utilisateur = self.request.user
         aujourdhui = timezone.localdate()
+        # Prochaines formations : inscrit, réservation libre-service ou formateur.
+        mes_formations = list(formations_du_marin(utilisateur))
+        for session in mes_formations:
+            session.est_formateur = session.instructor_id == utilisateur.id
+        # Compteur d'équité : uniquement la situation du marin lui-même.
+        contexte["mes_compteurs_equite_garde"] = compteur_equite_marin(utilisateur, aujourdhui=aujourdhui)
+        mes_qualifications = qualifications_validees_de(utilisateur, aujourdhui)
 
-        # Formations déjà validées par le marin (TrainingRecord), avec leur
-        # date d'expiration et leur badge de statut — jusqu'ici cette
-        # information n'apparaissait que sous forme de notification
-        # ponctuelle (notify_expiring_training, notifications/tasks.py) qui
-        # disparaît une fois passée, sans vue d'ensemble permanente dans
-        # l'espace personnel du marin. Requête factorisée dans
-        # training/services.py (réutilisée à l'identique par « Mon profil »,
-        # accounts/web_views.py).
-        mes_qualifications = qualifications_validees_de(self.request.user, aujourdhui)
-
-        # Compteur d'équité des services de garde (Phase 2, tâche Notion
-        # « Services/gardes : compteur d'équité par marin ») : transparence du
-        # marin sur SA propre situation (mois en cours + année en cours),
-        # jamais celle des autres — les compteurs détaillés du périmètre
-        # entier restent réservés au chef de liste, sur la fiche de la liste
-        # (quarts/web_views.py::_DetailListeViewBase).
-        contexte["mes_compteurs_equite_garde"] = compteur_equite_marin(self.request.user, aujourdhui=aujourdhui)
-
-        # Rondes à faire aujourd'hui (ou en retard) : assignées au marin ou de son périmètre.
-        contexte["mes_rondes"] = list(rondes_du_marin(self.request.user, aujourdhui)[:10])
-        contexte["mes_maintenances"] = mes_maintenances
         contexte["mes_formations"] = mes_formations
-        contexte["mes_tickets"] = mes_tickets
         contexte["mes_qualifications"] = mes_qualifications
         contexte["aujourdhui"] = aujourdhui
+        profil = getattr(self.request.user, "profile", None)
+        nom = self.request.user.last_name or self.request.user.get_username()
+        contexte["salutation"] = f"{profil.grade} {nom}".strip() if profil and profil.grade else nom
+        contexte["profil"] = profil
+        contexte["a_faire"] = a_faire(self.request.user, aujourdhui)
+        contexte["journee"] = journee(self.request.user, aujourdhui, contexte["a_faire"])
+        contexte["brouillons"] = brouillons_a_reprendre(self.request.user).exclude(url="")
         return contexte
 
 
@@ -205,7 +137,7 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
     """Vue agrégée du périmètre du chef connecté — réservée à CHEF_SECTION et
     aux rôles supérieurs.
 
-    Contrairement à TableauDeBordView (espace personnel du marin, principe
+    Contrairement à AujourdhuiView (espace personnel du marin, principe
     fondamental n°3 de CLAUDE.md), cette vue donne aux chefs une photo
     d'ensemble de leur périmètre : maintenances en retard, tickets correctifs
     ouverts par statut, pièces de stock sous seuil. Aucune donnée nouvelle,
@@ -298,7 +230,7 @@ def _agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_st
         filtre_occurrence, status="OVERDUE"
     ).count()
     # Jauge (principe n°5 CLAUDE.md) : proportion de retard parmi les
-    # maintenances encore actives (mêmes statuts exclus que TableauDeBordView),
+    # maintenances encore actives (mêmes statuts exclus que AujourdhuiView),
     # plus parlante pour un chef qu'un chiffre brut sans dénominateur.
     total_maintenances_actives = MaintenanceOccurrence.objects.filter(
         filtre_occurrence
@@ -329,7 +261,7 @@ def _agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_st
     contexte["tickets_par_statut"] = tickets_par_statut
     contexte["total_tickets_ouverts"] = sum(t["total"] for t in tickets_par_statut)
     # Données du doughnut Chart.js (principe n°5 CLAUDE.md) : même composant que
-    # dashboard/index.html (chartCorrective), mais alimenté directement par le
+    # dashboard/aujourdhui.html (chartCorrective), mais alimenté directement par le
     # contexte déjà scopé au navire plutôt qu'un appel à l'API globale
     # /api/dashboard/corrective_open/ (non scopée navire, incohérente ici).
     contexte["tickets_chart_labels_json"] = json.dumps(
@@ -825,7 +757,7 @@ def _agrege_technique_marins(marins_ids):
     (accounts.SpecialityChoice) et une installation/un matériel : le seul lien
     disponible est la PERSONNE assignée (MaintenanceOccurrence.assignees /
     CorrectiveTicket.assignees), déjà utilisée par « Mes maintenances »/« Mes
-    tickets » sur le tableau de bord personnel (TableauDeBordView ci-dessus).
+    tickets » sur le tableau de bord personnel (AujourdhuiView ci-dessus).
 
     Le stock (StockPiece) n'a pas de notion d'assigné : il n'entre pas dans
     cette vue par spécialité, à la différence de la Vue flotte et du dashboard

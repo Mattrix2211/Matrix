@@ -9,7 +9,7 @@ from .views import global_search, recherche_rapide
 from .core.brouillons import BrouillonView
 from .core.inactivite import SessionInactiviteView
 from .styleguide import StyleguideView
-from dashboard.web_views import TableauDeBordView
+from dashboard.web_views import AujourdhuiView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -52,7 +52,7 @@ urlpatterns = [
     path("styleguide/", StyleguideView.as_view(), name="styleguide"),
     path("search/", global_search, name="global-search"),
     path("search/rapide/", recherche_rapide, name="recherche-rapide"),
-    path("", TableauDeBordView.as_view(), name="home"),
+    path("", AujourdhuiView.as_view(), name="home"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.site_header = "Matrix Administration"
