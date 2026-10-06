@@ -619,6 +619,9 @@
           row.style.display = q ? (text.indexOf(q) !== -1 ? '' : 'none') : '';
         });
       });
+      // Arrivée depuis la recherche rapide : filtre déjà appliqué (?q=).
+      var terme = new URLSearchParams(window.location.search).get('q');
+      if (terme) { searchInput.value = terme; searchInput.dispatchEvent(new Event('input')); }
     }
 
     // Sélection globale

@@ -1,7 +1,7 @@
 {% load static %}
 {% load icones %}
 {# Barre supérieure (docs/UX.md §8) : une seule ligne, hauteur fixe --mx-hauteur-navbar. #}
-{# Emplacements réservés, non implémentés ici : recherche globale (UX-1.4) entre le contexte et l'utilisateur ; déconnexion automatique (UX-1.5) sans élément visible. #}
+{# Emplacement réservé, non implémenté ici : déconnexion automatique (UX-1.5), sans élément visible. #}
 <header class="navbar navbar-expand navbar-dark bg-dark mx-barre">
   <div class="container-fluid flex-nowrap">
     <a class="navbar-brand matrix-logo" href="/" aria-label="Matrix — accueil">
@@ -42,6 +42,22 @@
           <span class="mx-barre__texte-coupe">{{ batiment_courant.name }}</span>
         </span>
       {% endif %}
+    {% endif %}
+    {% if user.is_authenticated %}
+      {# Recherche rapide : résultats par catégorie chargés par htmx, clavier géré par js/recherche.js. #}
+      <div class="mx-recherche" data-recherche>
+        <form action="{% url 'global-search' %}" method="get" role="search" class="mx-recherche__form">
+          <label for="recherche-champ" class="visually-hidden">Rechercher dans Matrix</label>
+          {% icone "recherche" "mx-recherche__icone" %}
+          <input id="recherche-champ" name="q" type="text" class="mx-recherche__champ" maxlength="80" autocomplete="off"
+                 placeholder="Rechercher… (/ ou Ctrl+K)" aria-keyshortcuts="/ Control+K"
+                 role="combobox" aria-expanded="false" aria-controls="recherche-panneau" aria-autocomplete="list"
+                 hx-get="{% url 'recherche-rapide' %}" hx-trigger="input changed delay:250ms" hx-target="#recherche-panneau"
+                 hx-swap="innerHTML" hx-sync="this:replace">
+        </form>
+        <div id="recherche-panneau" class="mx-recherche__panneau" hidden></div>
+        <p class="visually-hidden" role="status" aria-live="polite" data-recherche-annonce></p>
+      </div>
     {% endif %}
     <ul class="navbar-nav flex-row ms-auto align-items-center mx-barre__outils">
       {% if user.is_authenticated %}

@@ -1,11 +1,11 @@
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
+from django.template.loader import render_to_string
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from assets.models import Asset, AssetDocument
-from logistics.models import CorrectiveTicket
-from logistics.anomalie_views import anomalies_visibles
+from django.views.decorators.http import require_GET, require_POST
+from assets.models import AssetDocument
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
@@ -15,12 +15,12 @@ from accounts.models import (
     AuditLog, ResponsableSpecialite,
 )
 from assets.models import InstallationBigrameChoice, Installation
-from training.models import TrainingCourse
 from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
+from matrix.core import recherche
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
@@ -94,42 +94,23 @@ def global_search(request):
     # quotidien en premier.
     q = request.GET.get('q', '').strip()
     perimetre = scope_filters_for_user(request.user)
-    perimetre_tickets = Q()
-    for cle, valeur in perimetre.items():
-        perimetre_tickets |= Q(**{f"asset__{cle}": valeur}) | Q(**{f"installation__{cle}": valeur})
     perimetre_documents = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
     perimetre_users = {f"profile__{cle}": valeur for cle, valeur in perimetre.items()}
     assets = tickets = users = installations = formations = documents = []
     anomalies = ronde_modeles = rondes = echanges = []
     if q:
-        assets = Asset.objects.filter(**perimetre).filter(
-            Q(internal_id__icontains=q) | Q(serial_number__icontains=q)
-        )[:20]
-        tickets = CorrectiveTicket.objects.filter(perimetre_tickets).filter(
-            Q(description__icontains=q) | Q(id__icontains=q)
-        )[:20]
+        # Matériels, installations, tickets, anomalies, formations : mêmes
+        # requêtes que la recherche rapide de la barre supérieure.
+        assets = recherche.materiels(request.user, q)[:20]
+        tickets = recherche.tickets(request.user, q)[:20]
+        installations = recherche.installations(request.user, q)[:20]
+        formations = recherche.formations(request.user, q)[:20]
+        anomalies = recherche.anomalies(request.user, q)[:20]
         users = User.objects.filter(**perimetre_users).filter(
             Q(username__icontains=q) | Q(email__icontains=q)
         )[:20]
-        installations = Installation.objects.select_related('ship', 'service', 'sector').filter(**perimetre).filter(
-            Q(designation__icontains=q) | Q(reference__icontains=q)
-        )[:20]
-        # Formation : fiche UNIQUE et globale (pas de rattachement navire, cf.
-        # TrainingCourse et TrainingCourseListView) — même filtre "catalogue
-        # actif" que la liste des formations, aucun périmètre supplémentaire à
-        # appliquer puisque le référentiel est déjà commun à toute la flotte.
-        formations = TrainingCourse.objects.filter(statut_validation="ACTIVE").filter(
-            Q(title__icontains=q) | Q(category__icontains=q)
-        )[:20]
         documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
             Q(name__icontains=q)
-        )[:20]
-        # Anomalies : périmètre propre à l'app logistics (pas
-        # scope_filters_for_user) — un équipier voit ses signalements +ceux de
-        # sa section, un chef voit tout son périmètre + les siens — même
-        # fonction que la liste des anomalies (AnomalieListView).
-        anomalies = anomalies_visibles(request.user).filter(
-            Q(titre__icontains=q) | Q(description__icontains=q) | Q(localisation__icontains=q)
         )[:20]
         # Rondes : périmètre "couvrant" propre à l'app rondes (un chef de
         # secteur/service/navire voit aussi ce qui est en dessous de lui) —
@@ -157,6 +138,20 @@ def global_search(request):
         "installations": installations, "formations": formations, "documents": documents,
         "anomalies": anomalies, "ronde_modeles": ronde_modeles, "rondes": rondes, "echanges": echanges,
     })
+
+
+@login_required
+@require_GET
+def recherche_rapide(request):
+    """Résultats de la recherche rapide de la barre supérieure (fragment htmx)."""
+    terme = recherche.normaliser(request.GET.get('q'))
+    groupes = recherche.rechercher(request.user, terme) if terme else []
+    # Sans la requête : le fragment n'a pas besoin des processeurs de contexte (requêtes en moins).
+    return HttpResponse(render_to_string('components/_recherche_resultats.html', {
+        "terme": terme, "groupes": groupes,
+        "nombre": sum(len(g["resultats"]) for g in groupes),
+        "trop_court": not terme,
+    }))
 
 
 @require_POST
