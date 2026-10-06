@@ -599,6 +599,50 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 [data-theme="sombre"] .text-bg-warning,
 [data-theme="sombre"] .text-bg-info { color: var(--ink) !important; }
 
+/* Barre supérieure (docs/UX.md §8) — UX-1.2. Une seule ligne, hauteur fixe lue
+   aussi par la barre latérale (--mx-hauteur-navbar). */
+:root { --mx-hauteur-navbar: 60px; }
+.mx-barre { height: var(--mx-hauteur-navbar); padding: 0; flex-wrap: nowrap; }
+.mx-barre .container-fluid { gap: var(--s3); }
+.mx-barre__outils { gap: var(--s2); flex-wrap: nowrap; }
+.mx-barre .dropdown-menu { position: absolute; }
+.mx-barre__bouton,
+.mx-barre__utilisateur,
+.mx-barre__batiment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--mist);
+  font: 500 .875rem/1.2 var(--f-body);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mx-barre__bouton:hover,
+.mx-barre__utilisateur:hover { background: var(--horizon); color: var(--chalk); }
+.mx-barre__bouton:focus-visible,
+.mx-barre__utilisateur:focus-visible,
+.theme-toggle:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
+.mx-barre__contexte { flex: 0 1 18rem; min-width: 0; }
+.mx-barre__contexte .mx-barre__batiment { max-width: 100%; border-color: var(--slate); }
+.mx-barre__texte-coupe { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-barre__utilisateur { max-width: 22rem; }
+.mx-barre__avatar { font-size: 1.35rem; flex: 0 0 auto; }
+.mx-barre__identite { display: flex; flex-direction: column; min-width: 0; }
+.mx-barre__nom,
+.mx-barre__role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-barre__nom { color: var(--chalk); font-weight: 600; }
+.mx-barre__role { font: 500 .7rem/1.3 var(--f-mono); color: var(--mist); }
+.mx-barre__deconnexion { border-color: var(--slate); }
+.mx-barre__classe { font: 500 .7rem var(--f-mono); color: var(--text-sec); margin-left: var(--s2); }
+.mx-barre__liste-batiments { min-width: 16rem; }
+.mx-barre .dropdown-item.active { background: var(--signal-ui); color: var(--paper); }
+
 /* Bouton de bascule clair / sombre (barre supérieure) : un seul clic */
 .theme-toggle {
   background: none;
@@ -888,7 +932,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
    Barre latérale rétractable (docs/UX.md §7) — UX-1.1
    Couleurs uniquement par variables (clair et [data-theme="sombre"]).
    ========================================================================== */
-.mx-coque { --mx-hauteur-navbar: 66px; /* hauteur mesurée de la barre supérieure à 1366×768 */ display: flex; align-items: flex-start; }
+.mx-coque { display: flex; align-items: flex-start; }
 .mx-coque__contenu { flex: 1 1 0; min-width: 0; }
 
 .mx-lateral {

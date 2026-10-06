@@ -1,0 +1,129 @@
+{% load static %}
+{% load icones %}
+{# Barre supérieure (docs/UX.md §8) : une seule ligne, hauteur fixe --mx-hauteur-navbar. #}
+{# Emplacements réservés, non implémentés ici : recherche globale (UX-1.4) entre le contexte et l'utilisateur ; centre de notifications (UX-1.3) à la place de la cloche actuelle ; déconnexion automatique (UX-1.5) sans élément visible. #}
+<header class="navbar navbar-expand navbar-dark bg-dark mx-barre">
+  <div class="container-fluid flex-nowrap">
+    <a class="navbar-brand matrix-logo" href="/" aria-label="Matrix — accueil">
+      <img class="matrix-logo__img" src="{% static 'img/IMG_5292.PNG' %}" alt="Matrix">
+      <svg class="matrix-logo__badge" viewBox="0 0 28 28" aria-hidden="true">
+        {# Pictogramme ancre — MK Design System §9 : flat, --signal, trait ~2px, stroke-linecap round #}
+        <circle cx="14" cy="14" r="14" fill="var(--paper)"></circle>
+        <g fill="none" stroke="var(--signal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="14" cy="7" r="2.2"></circle>
+          <line x1="14" y1="9.2" x2="14" y2="22"></line>
+          <line x1="9" y1="12" x2="19" y2="12"></line>
+          <path d="M7 15c0 4 3 7 7 7s7-3 7-7"></path>
+        </g>
+      </svg>
+    </a>
+    {% if user.is_authenticated %}
+      {% if batiments_selectionnables %}
+        <div class="dropdown mx-barre__contexte">
+          <button class="mx-barre__bouton mx-barre__batiment" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Bâtiment consulté : {% if batiment_courant %}{{ batiment_courant.name }}{% else %}aucun{% endif %}. Changer de bâtiment" title="Changer de bâtiment">
+            {% icone "navire" %}
+            <span class="mx-barre__texte-coupe">{% if batiment_courant %}{{ batiment_courant.name }}{% else %}Choisir un bâtiment{% endif %}</span>
+            {% icone "deplier_liste" %}
+          </button>
+          <form method="post" action="{% url 'choisir-batiment' %}" class="dropdown-menu mx-barre__liste-batiments">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <h2 class="dropdown-header">Bâtiment consulté</h2>
+            {% for batiment in batiments_selectionnables %}
+              <button type="submit" name="batiment" value="{{ batiment.pk }}" class="dropdown-item{% if batiment == batiment_courant %} active{% endif %}"{% if batiment == batiment_courant %} aria-current="true"{% endif %}>
+                {{ batiment.name }}{% if batiment.classe_navire %} <span class="mx-barre__classe">{{ batiment.classe_navire }}</span>{% endif %}
+              </button>
+            {% endfor %}
+          </form>
+        </div>
+      {% elif batiment_courant %}
+        <span class="mx-barre__contexte mx-barre__batiment" title="Bâtiment de rattachement">
+          {% icone "navire" %}
+          <span class="mx-barre__texte-coupe">{{ batiment_courant.name }}</span>
+        </span>
+      {% endif %}
+    {% endif %}
+    <ul class="navbar-nav flex-row ms-auto align-items-center mx-barre__outils">
+      {% if user.is_authenticated %}
+              <li class="nav-item dropdown me-2">
+                  <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                    <span class="bi bi-bell"></span>
+                    {% if notifications_unread_count %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ notifications_unread_count }}</span>
+                    {% endif %}
+                  </a>
+                  <ul class="dropdown-menu dropdown-menu-end" style="min-width: 360px; max-height: 60vh; overflow:auto;">
+                    <li class="dropdown-header d-flex justify-content-between align-items-center">
+                      <span><span class="bi bi-bell me-1"></span>Notifications</span>
+                      <button class="btn btn-sm btn-outline-secondary" id="notif-mark-all" title="Marquer tout comme lu"><span class="bi bi-check2-all"></span></button>
+                    </li>
+                    <li class="dropdown-item-text d-flex align-items-center justify-content-between border-bottom pb-2 mb-1">
+                      <label class="form-check-label small mb-0" for="push-toggle">Alertes critiques sur cet appareil</label>
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="push-toggle" onclick="event.stopPropagation()">
+                      </div>
+                    </li>
+                    <li id="push-indisponible" class="dropdown-item-text small text-muted d-none">Non disponible sur cet appareil/navigateur.</li>
+                    {% if notifications %}
+                      {% for n in notifications %}
+                        <li>
+                          <div class="dropdown-item d-flex align-items-start gap-2 {% if n.persisted and not n.is_read %}bg-light{% endif %}">
+                            <span class="bi {% if n.level == 'danger' %}bi-exclamation-octagon text-danger{% elif n.level == 'warning' %}bi-exclamation-triangle text-warning{% else %}bi-info-circle text-muted{% endif %}"></span>
+                            <div class="flex-grow-1">
+                              <a class="text-decoration-none" href="{{ n.url }}">
+                                <div class="fw-semibold">{{ n.title }}</div>
+                                <div class="small text-muted">{{ n.subtitle }}</div>
+                              </a>
+                            </div>
+                            {% if n.persisted %}
+                              {% if not n.is_read %}
+                                <button class="btn btn-sm btn-outline-success" data-notif-id="{{ n.id }}" data-action="read" title="Marquer comme lu"><span class="bi bi-check2"></span></button>
+                              {% else %}
+                                <button class="btn btn-sm btn-outline-secondary" data-notif-id="{{ n.id }}" data-action="unread" title="Marquer comme non lu"><span class="bi bi-arrow-counterclockwise"></span></button>
+                              {% endif %}
+                            {% endif %}
+                          </div>
+                        </li>
+                      {% endfor %}
+                    {% else %}
+                      <li><div class="dropdown-item text-muted">Aucune notification</div></li>
+                    {% endif %}
+                  </ul>
+                </li>
+        <li class="nav-item">
+          <form method="post" action="{% url 'basculer-theme' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="nav-link theme-toggle" {% if theme_utilisateur == 'sombre' %}title="Passer en mode clair" aria-label="Passer en mode clair"{% else %}title="Passer en mode sombre" aria-label="Passer en mode sombre"{% endif %}>
+              <span class="bi {% if theme_utilisateur == 'sombre' %}bi-sun{% else %}bi-moon-stars{% endif %} nav-icon" aria-hidden="true"></span>
+            </button>
+          </form>
+        </li>
+        <li class="nav-item">
+          <a class="mx-barre__utilisateur" href="{% url 'mon-profil' %}" title="Mon profil — {{ identite_utilisateur.grade }} {{ identite_utilisateur.nom }}, {{ identite_utilisateur.role }}{% if identite_utilisateur.fonction %}, {{ identite_utilisateur.fonction }}{% endif %}" aria-label="Mon profil : {{ identite_utilisateur.grade }} {{ identite_utilisateur.nom }}, {{ identite_utilisateur.role }}">
+            {% icone "utilisateur" "mx-barre__avatar" %}
+            <span class="mx-barre__identite">
+              <span class="mx-barre__nom">{% if identite_utilisateur.grade %}{{ identite_utilisateur.grade }} {% endif %}{{ identite_utilisateur.nom }}</span>
+              <span class="mx-barre__role">{{ identite_utilisateur.role }}{% if identite_utilisateur.fonction %} · {{ identite_utilisateur.fonction }}{% endif %}</span>
+            </span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <form method="post" action="{% url 'logout' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="mx-barre__bouton mx-barre__deconnexion" title="Se déconnecter" aria-label="Se déconnecter">
+              {% icone "deconnexion" %}
+              <span>Déconnexion</span>
+            </button>
+          </form>
+        </li>
+      {% else %}
+        <li class="nav-item">
+          <a class="nav-link" href="/login/" title="Se connecter" aria-label="Se connecter">
+            <span class="bi bi-box-arrow-in-right nav-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Se connecter</span>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+</header>

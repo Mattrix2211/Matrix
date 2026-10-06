@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
+from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
@@ -535,6 +536,28 @@ class BasculerThemeView(LoginRequiredMixin, View):
         profil, _ = UserProfile.objects.get_or_create(user=request.user)
         profil.theme = Themes.CLAIR if profil.theme == Themes.SOMBRE else Themes.SOMBRE
         profil.save(update_fields=["theme", "updated_at"])
+        retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        return redirect(retour)
+
+
+class ChoisirBatimentView(LoginRequiredMixin, View):
+    """Mémorise en session le bâtiment consulté par un utilisateur à terre qui en
+    suit plusieurs (barre supérieure, docs/UX.md §8). Le bâtiment demandé est
+    TOUJOURS validé côté serveur contre le périmètre de l'utilisateur : un
+    identifiant hors périmètre (ou un utilisateur de bord) est refusé."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        try:
+            identifiant = int(request.POST.get("batiment", ""))
+        except ValueError:
+            raise PermissionDenied
+        if identifiant not in {b.pk for b in selecteur_batiment(request.user)}:
+            raise PermissionDenied
+        request.session[CLE_SESSION] = identifiant
         retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
         if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
             retour = "/"

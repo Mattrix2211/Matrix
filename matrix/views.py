@@ -2,6 +2,7 @@ from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from assets.models import Asset, AssetDocument
 from logistics.models import CorrectiveTicket
 from logistics.anomalie_views import anomalies_visibles
@@ -158,8 +159,11 @@ def global_search(request):
     })
 
 
+@require_POST
 def logout_then_login(request):
-    # Déconnexion simple puis redirection immédiate vers la page de connexion
+    # Déconnexion en un clic (POST + CSRF : un simple lien ne peut pas déconnecter
+    # quelqu'un à son insu), puis redirection vers la page de connexion. La session
+    # est vidée, y compris le bâtiment courant : poste partagé.
     logout(request)
     return redirect('/login/')
 

@@ -1,7 +1,9 @@
 from datetime import timedelta, date
 from django.utils import timezone
 from django.urls import reverse
+from accounts.models import Roles
 from assets.models import Installation, InstallationIsolationReading, InstallationVibrationReading
+from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
 from matrix.core.navigation import construire_navigation
 from notifications.models import Notification
 
@@ -165,4 +167,29 @@ def navigation_laterale(request):
     return {
         "navigation_laterale": construire_navigation(utilisateur, request.path),
         "barre_laterale_repliee": bool(profil and profil.barre_laterale_repliee),
+    }
+
+
+def barre_superieure(request):
+    """Identité et contexte de la barre supérieure (docs/UX.md §8) : nom, grade et
+    rôle du marin connecté, bâtiment courant et, pour un utilisateur à terre qui
+    suit plusieurs bâtiments, la liste des bâtiments de son périmètre."""
+    utilisateur = getattr(request, "user", None)
+    if not utilisateur or not utilisateur.is_authenticated:
+        return {}
+    profil = getattr(utilisateur, "profile", None)
+    if utilisateur.is_superuser:
+        role = Roles.MASTER_ADMIN.label
+    else:
+        role = profil.get_role_display() if profil and profil.role else Roles.EQUIPIER.label
+    batiments = selecteur_batiment(utilisateur)
+    return {
+        "identite_utilisateur": {
+            "nom": utilisateur.get_full_name() or utilisateur.username,
+            "grade": profil.grade if profil else "",
+            "role": role,
+            "fonction": profil.fonction_service if profil else "",
+        },
+        "batiment_courant": batiment_courant(request, batiments),
+        "batiments_selectionnables": batiments,
     }

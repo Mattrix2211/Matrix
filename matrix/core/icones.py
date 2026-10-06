@@ -49,6 +49,10 @@ ICONES = {
     "annuaire": "bi-people",
     "replier_menu": "bi-chevron-bar-left",
     "deplier_menu": "bi-chevron-bar-right",
+    # Barre supérieure (§8)
+    "navire": "bi-water",
+    "deconnexion": "bi-box-arrow-right",
+    "deplier_liste": "bi-chevron-down",
     # États
     "retard": "bi-alarm",
     "terminee": "bi-check-circle",
