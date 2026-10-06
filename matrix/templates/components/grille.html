@@ -19,6 +19,13 @@ Paramètres :
   libelle_ligne : en-tête de la première colonne (« Élément » par défaut)
   lecture_seule : vrai = consultation seule (équipage à terre) : aucune saisie, aucun bouton
   libelle_final : texte du bouton principal (« Enregistrer » par défaut)
+  brouillon     : clé stable « formulaire:objet » (ex. « cr-extincteurs:12 ») : active l'enregistrement
+                  automatique d'un brouillon côté serveur (static/js/brouillon.js, docs/UX.md §5.4) :
+                  enregistrement 2 s après la dernière frappe, « Brouillon enregistré à HH:MM »,
+                  « Reprendre le brouillon du … / Abandonner » à la réouverture, suppression après
+                  l'envoi réussi. Un seul brouillon par utilisateur et par clé ; mots de passe jamais
+                  conservés. Seuls les champs DE LA GRILLE (et de « contenu ») sont conservés.
+  libelle_brouillon : texte affiché dans « Mes brouillons à reprendre » (libellé de la grille par défaut)
   classes       : classes CSS supplémentaires
   contenu       : HTML libre placé sous la grille (champs cachés, observations), fourni par le bloc
 Champs envoyés : « <cle de ligne>__<nom de colonne> » (ex. « 12__etat »), une valeur vide si non saisi.
@@ -28,7 +35,7 @@ le bas (même action que le bouton « Recopier vers le bas »), Ctrl+V = collage
 « Tout conforme » : ne touche que les cellules de conformité VIDES ; les « non conforme » et « non
 applicable » déjà saisis sont conservés. Cellule modifiée = bordure gauche épaisse, comptée dans le
 pied. La barre d'outils est masquée tant que le JS ne l'a pas affichée. Le seul bouton --signal est le bouton principal ; la logique est dans static/js/grille.js.
-{% endcomment %}{% load composants icones %}<section class="mx-grille {{ classes }}" data-grille{% if lecture_seule %} data-grille-lecture-seule{% endif %}>
+{% endcomment %}{% load composants icones %}<section class="mx-grille {{ classes }}" data-grille{% if brouillon and not lecture_seule %} data-brouillon="{{ brouillon }}" data-brouillon-libelle="{{ libelle_brouillon|default:libelle }}"{% endif %}{% if lecture_seule %} data-grille-lecture-seule{% endif %}>
   {% if not lecture_seule %}<div class="mx-grille__barre" data-grille-barre hidden role="group" aria-label="Actions de la grille {{ libelle }}">
     <button type="button" class="btn btn-sm btn-outline-secondary" data-grille-action="tout-conforme">{% icone "terminee" %} Tout conforme</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" data-grille-action="recopier" title="Raccourci : Ctrl+D">{% icone "recopie_bas" %} Recopier vers le bas</button>

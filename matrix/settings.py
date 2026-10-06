@@ -82,6 +82,8 @@ INSTALLED_APPS = [
     "dashboard.apps.DashboardConfig",
     "calendar_app.apps.CalendarAppConfig",
     "reports.apps.ReportsConfig",
+    # Socle transverse (brouillons enregistrés côté serveur, UX-0.6)
+    "matrix.core.apps.CoreConfig",
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -206,7 +208,18 @@ from celery.schedules import crontab
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+# Brouillons enregistrés automatiquement côté serveur (matrix/core/brouillons.py) :
+# durée de conservation d'un brouillon non repris (en jours, 0 = jamais purgé) et
+# taille maximale du contenu d'un brouillon (en octets). Réglables par variable
+# d'environnement, sans toucher au code.
+BROUILLONS_CONSERVATION_JOURS = int(os.getenv("BROUILLONS_CONSERVATION_JOURS", "30"))
+BROUILLONS_TAILLE_MAX = int(os.getenv("BROUILLONS_TAILLE_MAX", str(256 * 1024)))
+
 CELERY_BEAT_SCHEDULE = {
+    "purger_brouillons_daily": {
+        "task": "matrix.core.tasks.purger_brouillons",
+        "schedule": 60 * 60 * 24,
+    },
     "generate_occurrences_daily": {
         "task": "maintenance.tasks.generate_occurrences",
         "schedule": 60 * 60 * 24,

@@ -6,6 +6,7 @@ from .views import logout_then_login, SettingsView
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import global_search
+from .core.brouillons import BrouillonView
 from dashboard.web_views import TableauDeBordView
 
 urlpatterns = [
@@ -43,6 +44,7 @@ urlpatterns = [
     path("rondes/", include("rondes.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),
+    path("brouillons/", BrouillonView.as_view(), name="brouillon"),
     path("search/", global_search, name="global-search"),
     path("", TableauDeBordView.as_view(), name="home"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

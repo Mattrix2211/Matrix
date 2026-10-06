@@ -11,7 +11,9 @@ if [[ "$command" == *"git commit"* ]]; then
     cd "$CLAUDE_PROJECT_DIR" || exit 1
 
     mots_suspects="\bSubmit\b|\bCancel\b|\bLoading\b|\bSave\b|\bDelete\b|\bError:|\bWarning:|\bSuccess\b|\bPlease\b|\bClick here\b"
-    lignes_ajoutees=$(git diff --cached -- '*.html' '*.py' | grep -E '^\+' | grep -vE '^\+\+\+')
+    # Exclut aussi les déclarations de méthodes HTTP d'une vue Django (def delete(self, ...)),
+    # qui portent le nom du verbe HTTP et ne sont jamais du texte visible par l'utilisateur.
+    lignes_ajoutees=$(git diff --cached -- '*.html' '*.py' | grep -E '^\+' | grep -vE '^\+\+\+' | grep -vE '^\+\s*def (delete|save)\(')
     # Exclut les faux positifs de code légitime, qui ne sont jamais du texte visible
     # par l'utilisateur : appel de méthode (ex. classeur.save(...), ticket.delete())
     # précédé d'un point, et classe CSS Bootstrap en kebab-case (ex. btn-outline-success,

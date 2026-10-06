@@ -810,3 +810,8 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 .mx-grille__erreur { display: block; padding: 0 var(--s2) var(--s1); color: var(--red-texte); font-size: .75rem; }
 .mx-grille__pied { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); }
 .mx-grille__compteur { color: var(--text-sec); font-size: .8125rem; }
+
+/* Brouillons enregistrés automatiquement (static/js/brouillon.js, docs/UX.md §5.4) */
+.mx-brouillon__statut { min-height: 1.25rem; margin-bottom: var(--s2); color: var(--text-sec); font-size: .8125rem; }
+.mx-brouillon__statut--erreur { color: var(--red-texte); }
+.mx-brouillon__reprise { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-bottom: var(--s2); padding: var(--s2) var(--s3); background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--signal); border-radius: var(--r-md); font-size: .875rem; }

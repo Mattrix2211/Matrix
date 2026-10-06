@@ -287,6 +287,7 @@
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/matrix.js' %}"></script>
     <script src="{% static 'js/grille.js' %}"></script>
+    {% if user.is_authenticated %}<script src="{% static 'js/brouillon.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/push.js' %}"></script>{% endif %}
     <script>
       // Afficher automatiquement les toasts globaux si présents
