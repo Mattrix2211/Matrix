@@ -1,12 +1,12 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from rest_framework import viewsets, permissions
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import Thread, Message, Attachment
 from .serializers import ThreadSerializer, MessageSerializer, AttachmentSerializer
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import IsAuthorOrReadOnly, RolePermission
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -41,11 +41,10 @@ def _filtre_perimetre_threads(user, prefix=""):
     Attachment ("message__thread__"), qui ne portent pas eux-mêmes le
     content_type/object_id mais y accèdent via leur fil.
 
-    Si l'utilisateur n'a pas de périmètre défini (ex. administrateur
-    général), renvoie None : aucun filtre à appliquer, même convention que
-    scope_filters_for_user()."""
+    Sans périmètre défini : None (aucun filtre) pour un MASTER_ADMIN, aucun
+    résultat pour les autres."""
     if not scope_filters_for_user(user):
-        return None
+        return None if is_master_admin(user) else Q(pk__in=[])
     # Import différé : évite tout risque de cycle d'import au chargement du
     # module (logistics/maintenance n'importent jamais threads.views).
     from logistics.models import CorrectiveTicket
@@ -108,6 +107,9 @@ class MessageViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         serializer.save(updated_by=self.request.user)
 
     def perform_destroy(self, instance):
+        # Un message système est une trace automatique : jamais supprimable.
+        if instance.is_system:
+            raise PermissionDenied("Un message système ne peut pas être supprimé.")
         # Suppression d'un message d'une discussion : action sensible (un
         # message peut porter une décision ou une consigne), tracée dans le
         # journal transverse — cf. tâche Notion « Unifier les modèles

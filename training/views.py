@@ -37,6 +37,7 @@ from .web_views import (
     peut_modifier_formation_bord,
     peut_valider_proposition_bord,
 )
+from matrix.core.mixins import EcritureDansLePerimetreMixin
 from matrix.core.permissions import RolePermission
 from matrix.core.roles import user_role_level
 from matrix.core.scopes import perimetre_navire_q, resoudre_affectation_dans_perimetre, ship_id_for_user
@@ -102,12 +103,15 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
             Q(statut_validation="ACTIVE") | Q(pk__in=mes_propositions_ids) | Q(pk__in=a_valider_ids)
         )
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
     def perform_update(self, serializer):
         instance = serializer.instance
         if not instance.gere_par_le_bord:
             # Formation « organisme » classique : aucun garde-fou du Circuit C
             # ne s'applique, seul le seuil générique RolePermission compte.
-            serializer.save()
+            serializer.save(updated_by=self.request.user)
             return
         # Périmètre organisationnel du proposeur d'origine (deuxième refus du
         # Tech Lead, tâche Notion Circuit C) : un CHEF_SECTION satisfait le
@@ -443,15 +447,26 @@ class TrainingSessionPermission(RolePermission):
 # planification (disponibilité salles/formateurs) reste visible flotte
 # entière. Seule l'ÉCRITURE reste contrôlée finement (TrainingSessionPermission
 # ci-dessus, par affectation personnelle des marins concernés).
-class TrainingSessionViewSet(viewsets.ModelViewSet):
+class TrainingSessionViewSet(EcritureDansLePerimetreMixin, viewsets.ModelViewSet):
     queryset = TrainingSession.objects.select_related("course", "instructor").all()
     serializer_class = TrainingSessionSerializer
     permission_classes = [TrainingSessionPermission]
+    # Les présences (attendees) relèvent des référents (TrainingSessionPermission),
+    # désignés pour un navire précis : elles ne sont donc pas limitées ici.
+    champs_utilisateurs_perimetre = ("instructor", "reservations")
 
 class TrainingRecordViewSet(viewsets.ModelViewSet):
     queryset = TrainingRecord.objects.select_related("course", "user").all()
     serializer_class = TrainingRecordSerializer
     permission_classes = [TrainingRecordPermission]
+
+    def get_queryset(self):
+        # Supervision globale : tout. Sinon son propre dossier et celui de l'équipage de son navire.
+        user = self.request.user
+        qs = super().get_queryset()
+        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+            return qs
+        return qs.filter(Q(user=user) | perimetre_navire_q(user, "user__profile__"))
 
     def perform_create(self, serializer):
         serializer.save(validated_by=self.request.user, created_by=self.request.user)

@@ -18,7 +18,7 @@ class SyntheseFicheInstallationTests(TestCase):
         service = Service.objects.create(name="Srv S", ship=ship)
         sector = Sector.objects.create(name="Sec S", service=service)
         user = User.objects.create_user(username="chef_synthese", password="pass")
-        UserProfile.objects.update_or_create(user=user, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=user, defaults={"role": "CHEF_SERVICE", "ship": ship})
         self.installation = Installation.objects.create(
             designation="Pompe", ship=ship, service=service, sector=sector, critique=True,
         )

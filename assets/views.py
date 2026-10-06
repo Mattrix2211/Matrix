@@ -7,7 +7,7 @@ from .serializers import (
     LocationSerializer, AssetTypeSerializer, ChecklistTemplateSerializer, ChecklistItemTemplateSerializer,
     AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer
 )
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from matrix.core.scopes import scope_filters_for_user
 
@@ -107,7 +107,7 @@ class ChecklistItemTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class AssetViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Asset.objects.select_related("asset_type", "ship", "service", "sector", "section", "location").all()
     serializer_class = AssetSerializer
     permission_classes = [RolePermission]
@@ -121,6 +121,12 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # section ne doit jamais pouvoir supprimer un matériel.
     role_threshold_action_write = "asset_ecriture_simple"
     role_threshold_action_delete = "asset_gestion_avancee"
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     @decorators.action(detail=True, methods=["get"], url_path="qr")
     def qr_code(self, request, pk=None):
@@ -136,7 +142,7 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         url = request.build_absolute_uri(f"/scan/{asset.pk}/")
         return HttpResponse(_construire_qr_png(url), content_type="image/png")
 
-class AssetDocumentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class AssetDocumentViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetDocument.objects.select_related("asset").all()
     serializer_class = AssetDocumentSerializer
     permission_classes = [RolePermission]
@@ -144,6 +150,12 @@ class AssetDocumentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # aligné avec AssetListView.ACTION_VERS_SEUIL['delete_asset_document']
     # côté web.
     role_threshold_action_delete = "asset_gestion_avancee"
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Un document n'est rattaché qu'indirectement à un navire/service/

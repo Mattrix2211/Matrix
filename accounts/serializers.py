@@ -37,6 +37,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
             ok, *_ = resoudre_affectation_dans_perimetre(acting_user, sector_id=secteur.id)
             if not ok:
                 raise serializers.ValidationError("Secteur autorisé hors de votre périmètre.")
+        champs = ("ship", "service", "sector", "section")
+        # Retirer tout rattachement sortirait le profil du périmètre de l'appelant.
+        if any(c in attrs for c in champs) and not any(
+            attrs[c] if c in attrs else getattr(self.instance, c, None) for c in champs
+        ):
+            raise serializers.ValidationError("Un rattachement (unité, service, secteur ou section) est obligatoire.")
         ship = attrs.get("ship")
         service = attrs.get("service")
         sector = attrs.get("sector")

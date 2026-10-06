@@ -64,3 +64,55 @@ class ApiValidationsChampsProprietaireTests(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.record.refresh_from_db()
         self.assertNotEqual(self.record.validated_by, self.marin)
+
+    def test_dossier_d_un_autre_navire_invisible_pour_un_referent(self):
+        autre = TrainingRecord.objects.create(
+            user=self.marin_autre_navire, course=self.cours,
+            completed_at=timezone.localdate(), expires_at=timezone.localdate() + timezone.timedelta(days=365),
+        )
+        r = self.client.get("/api/training/records/")
+        ids = {e["id"] for e in r.data}
+        self.assertIn(self.record.pk, ids)
+        self.assertNotIn(autre.pk, ids)
+        self.assertEqual(self.client.get(f"/api/training/records/{autre.pk}/").status_code, 404)
+
+
+class ApiSessionsEtFormationsChampsTests(TestCase):
+    def setUp(self):
+        self.navire = Ship.objects.create(name="Navire A trs", code="A-TRS")
+        self.autre_navire = Ship.objects.create(name="Navire B trs", code="B-TRS")
+        self.cours = TrainingCourse.objects.create(title="Cours trs", validity_days=365)
+        self.chef = self._marin("chef_trs", "CHEF_SECTION", self.navire)
+        self.equipier = self._marin("equipier_trs", "EQUIPIER", self.navire)
+        self.etranger = self._marin("etranger_trs", "EQUIPIER", self.autre_navire)
+        self.client = APIClient()
+        self.client.login(username="chef_trs", password="pass")
+
+    def _marin(self, username, role, navire):
+        user = User.objects.create_user(username=username, password="pass")
+        UserProfile.objects.update_or_create(user=user, defaults={"role": role, "ship": navire})
+        return user
+
+    def _session(self, **extra):
+        return {"course": self.cours.pk, "scheduled_at": timezone.now().isoformat(), **extra}
+
+    def test_instructeur_hors_perimetre_refuse(self):
+        r = self.client.post("/api/training/sessions/", self._session(instructor=self.etranger.pk), format="json")
+        self.assertEqual(r.status_code, 400, r.content)
+
+    def test_reservation_hors_perimetre_refusee(self):
+        r = self.client.post("/api/training/sessions/", self._session(reservations=[self.etranger.pk]), format="json")
+        self.assertEqual(r.status_code, 400, r.content)
+
+    def test_instructeur_du_perimetre_accepte(self):
+        r = self.client.post("/api/training/sessions/", self._session(instructor=self.equipier.pk), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+
+    def test_auteur_de_la_formation_pose_par_le_serveur(self):
+        r = self.client.post(
+            "/api/training/courses/",
+            {"title": "Nouvelle", "validity_days": 100, "created_by": self.etranger.pk},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(TrainingCourse.objects.get(pk=r.data["id"]).created_by, self.chef)

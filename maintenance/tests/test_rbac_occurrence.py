@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 from django.utils import timezone
+from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
 from assets.models import Asset, AssetType
 from maintenance.models import MaintenancePlan, MaintenanceOccurrence
@@ -25,9 +26,11 @@ class MaintenanceRBACTests(TestCase):
         )
 
         assignee = User.objects.create_user(username="tech", password="pass")
+        UserProfile.objects.update_or_create(user=assignee, defaults={"ship": ship})
         occ.assignees.add(assignee)
 
         other = User.objects.create_user(username="other", password="pass")
+        UserProfile.objects.update_or_create(user=other, defaults={"ship": ship})
 
         client = APIClient()
         # un utilisateur non assigné ne peut pas démarrer l'occurrence

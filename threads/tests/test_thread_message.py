@@ -26,11 +26,11 @@ class ThreadMessageBasicsTests(TestCase):
         self.ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Fuite constatée")
 
         self.equipier = User.objects.create_user(username="equip_thread", password="pass")
-        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": Roles.EQUIPIER})
+        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": Roles.EQUIPIER, "ship": self.ship})
         self.equipier.refresh_from_db()
 
         self.chef_section = User.objects.create_user(username="chef_thread", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef_section, defaults={"role": Roles.CHEF_SECTION})
+        UserProfile.objects.update_or_create(user=self.chef_section, defaults={"role": Roles.CHEF_SECTION, "ship": self.ship})
         self.chef_section.refresh_from_db()
 
     def test_un_fil_peut_etre_rattache_a_nimporte_quel_objet_via_la_generic_fk(self):

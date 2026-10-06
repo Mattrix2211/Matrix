@@ -8,6 +8,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
 from matrix.core.roles import user_role_level, RoleLevel
@@ -30,12 +31,10 @@ def _role_attribution_autorisee(acting_user, role_cible):
     même règle. Empêche par exemple un COMMANDANT de s'auto-attribuer (ou d'attribuer
     à un tiers) le rôle ADMIN_NAVIRE ou MASTER_ADMIN.
     """
-    if getattr(acting_user, "is_superuser", False):
+    if is_master_admin(acting_user):
         return True
     profile = getattr(acting_user, "profile", None)
     acting_role = profile.role if profile else None
-    if acting_role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
-        return True
     allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
     return role_cible in allowed
 
@@ -57,7 +56,10 @@ def _utilisateurs_gerables_par(acting_user):
     User = get_user_model()
     qs = User.objects.all()
     if not is_master_admin(acting_user):
-        qs = qs.filter(perimetre_navire_q(acting_user, "profile__"))
+        # Un profil MASTER_ADMIN n'est jamais modifiable par un administrateur de bord.
+        qs = qs.filter(perimetre_navire_q(acting_user, "profile__")).exclude(
+            Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True)
+        )
     return qs
 
 

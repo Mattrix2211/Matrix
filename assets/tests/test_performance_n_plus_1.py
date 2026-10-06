@@ -37,6 +37,8 @@ class InstallationListNPlusUnTests(TestCase):
         self.service = Service.objects.create(name="Srv", ship=self.ship)
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.user = User.objects.create_user(username="u1", password="pass")
+        self.user.profile.ship = self.ship
+        self.user.profile.save()
         self.factory = RequestFactory()
 
     def _creer_installations_avec_releves(self, n):
@@ -66,6 +68,7 @@ class InstallationListNPlusUnTests(TestCase):
 
     def test_nombre_de_requetes_ne_depend_pas_du_nombre_dinstallations(self):
         self._creer_installations_avec_releves(2)
+        self._construire_contexte()  # amorçage des caches (réglages du navire)
         with CaptureQueriesContext(connection) as petit_lot:
             self._construire_contexte()
 
@@ -106,6 +109,8 @@ class AssetListNPlusUnTests(TestCase):
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.asset_type = AssetType.objects.create(name="Extincteur", category="EPI", sector=self.sector)
         self.user = User.objects.create_user(username="u2", password="pass")
+        self.user.profile.ship = self.ship
+        self.user.profile.save()
         self.factory = RequestFactory()
 
     def _creer_materiels_avec_documents(self, n):
@@ -126,6 +131,7 @@ class AssetListNPlusUnTests(TestCase):
 
     def test_nombre_de_requetes_ne_depend_pas_du_nombre_de_materiels(self):
         self._creer_materiels_avec_documents(2)
+        list(self._obtenir_queryset())  # amorçage des caches (réglages du navire)
         with CaptureQueriesContext(connection) as petit_lot:
             for a in self._obtenir_queryset():
                 list(a.documents.all())

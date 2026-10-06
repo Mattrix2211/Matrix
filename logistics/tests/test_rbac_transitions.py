@@ -24,8 +24,8 @@ class LogisticsRBACTests(TestCase):
         # Un profil est déjà auto-créé par le signal post_save sur User (rôle EQUIPIER
         # par défaut) : on met à jour le rôle plutôt que de recréer un profil.
         from accounts.models import UserProfile
-        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER"})
-        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION"})
+        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER", "ship": ship})
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION", "ship": ship})
 
         client = APIClient()
         # L'équipier ne peut pas faire transiter le ticket
@@ -54,7 +54,7 @@ class LogisticsRBACTests(TestCase):
 
         from accounts.models import UserProfile
         chef = User.objects.create_user(username="chef_rex_api", password="pass")
-        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION"})
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION", "ship": ship})
 
         client = APIClient()
         client.login(username="chef_rex_api", password="pass")

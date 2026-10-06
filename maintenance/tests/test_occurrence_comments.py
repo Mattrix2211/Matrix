@@ -32,12 +32,14 @@ class OccurrenceCommentsTests(TestCase):
         )
 
         self.assigne = User.objects.create_user(username="assigne_noc", password="pass")
+        UserProfile.objects.filter(user=self.assigne).update(ship=self.navire)
         self.occurrence.assignees.add(self.assigne)
 
         self.chef = User.objects.create_user(username="chef_noc", password="pass")
-        UserProfile.objects.filter(user=self.chef).update(role="CHEF_SECTION", sector=self.secteur)
+        UserProfile.objects.filter(user=self.chef).update(role="CHEF_SECTION", sector=self.secteur, ship=self.navire)
 
         self.tiers = User.objects.create_user(username="tiers_noc", password="pass")
+        UserProfile.objects.filter(user=self.tiers).update(ship=self.navire)
 
         self.url_detail = reverse("occurrence-execute", args=[self.occurrence.id])
         self.url_commentaire = reverse("occurrence-comment-create", args=[self.occurrence.id])

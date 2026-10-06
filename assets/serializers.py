@@ -28,11 +28,13 @@ class AssetDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = AssetDocument
         fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
 
 class AssetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Asset
         fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
 
     def validate(self, attrs):
         # Reproduit ici la règle métier de Asset.clean() (protection anti-cycle

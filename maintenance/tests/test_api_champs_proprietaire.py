@@ -63,3 +63,58 @@ class ApiExecutionsChampsProprietaireTests(TestCase):
         r = self.client.post("/api/maintenance/executions/", {"occurrence": self.occ_b.pk}, format="json")
         self.assertEqual(r.status_code, 400)
         self.assertFalse(MaintenanceExecution.objects.exists())
+
+
+class ApiMaintenanceAssignationTests(TestCase):
+    _occurrence = ApiExecutionsChampsProprietaireTests._occurrence
+
+    def setUp(self):
+        self.occ_a, self.occ_b = (self._occurrence(n) for n in ("A", "B"))
+        self.chef_a = User.objects.create_user(username="chef_a_mex", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.chef_a, defaults={"role": "CHEF_SECTION", "ship": self.occ_a.asset.ship}
+        )
+        self.client = APIClient()
+        self.client.login(username="chef_a_mex", password="pass")
+        self.equipier_a = User.objects.create_user(username="equipier_a_mex", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.equipier_a, defaults={"role": "EQUIPIER", "ship": self.occ_a.asset.ship}
+        )
+        self.equipier_b = User.objects.create_user(username="equipier_b_mex", password="pass")
+        UserProfile.objects.update_or_create(
+            user=self.equipier_b, defaults={"role": "EQUIPIER", "ship": self.occ_b.asset.ship}
+        )
+
+    def test_assignation_hors_perimetre_refusee(self):
+        r = self.client.patch(
+            f"/api/maintenance/occurrences/{self.occ_a.pk}/", {"assignees": [self.equipier_b.pk]}, format="json"
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(self.occ_a.assignees.exists())
+
+    def test_assignation_dans_le_perimetre_acceptee(self):
+        r = self.client.patch(
+            f"/api/maintenance/occurrences/{self.occ_a.pk}/", {"assignees": [self.equipier_a.pk]}, format="json"
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(list(self.occ_a.assignees.all()), [self.equipier_a])
+
+    def test_plan_sur_un_materiel_hors_perimetre_refuse(self):
+        nb = MaintenancePlan.objects.count()
+        r = self.client.post(
+            "/api/maintenance/plans/",
+            {"scope": "ASSET", "asset": self.occ_b.asset.pk, "name": "Intrus", "every_n_days": 30},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(MaintenancePlan.objects.count(), nb)
+
+    def test_auteur_du_plan_pose_par_le_serveur(self):
+        r = self.client.post(
+            "/api/maintenance/plans/",
+            {"scope": "ASSET", "asset": self.occ_a.asset.pk, "name": "Ok", "every_n_days": 30,
+             "created_by": self.equipier_b.pk},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(MaintenancePlan.objects.get(pk=r.data["id"]).created_by, self.chef_a)

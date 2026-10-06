@@ -102,3 +102,13 @@ class ApiDiscussionsChampsProprietaireTests(TestCase):
         )
         self.assertEqual(r.status_code, 400)
         self.assertFalse(Thread.objects.exists())
+
+    def test_message_systeme_non_supprimable(self):
+        systeme = Message.objects.create(thread=self.thread_a, author=self.chef_a, body="Statut", is_system=True)
+        r = self.client_a.delete(f"/api/threads/messages/{systeme.pk}/")
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(Message.objects.filter(pk=systeme.pk).exists())
+
+    def test_message_ordinaire_supprimable_par_son_auteur(self):
+        r = self.client_a.delete(f"/api/threads/messages/{self.message_a.pk}/")
+        self.assertEqual(r.status_code, 204)

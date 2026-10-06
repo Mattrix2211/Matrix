@@ -84,3 +84,20 @@ class ApiComptesChampsProprietaireTests(TestCase):
         r = self._client("admin_a_chp").delete(f"/api/accounts/profiles/{self.equipier_a.profile.pk}/")
         self.assertEqual(r.status_code, 405)
         self.assertTrue(UserProfile.objects.filter(pk=self.equipier_a.profile.pk).exists())
+
+    def test_commandant_ne_peut_pas_retirer_tout_rattachement(self):
+        r = self._client("commandant_a_chp").patch(
+            f"/api/accounts/profiles/{self.equipier_a.profile.pk}/",
+            {"role": "EQUIPIER", "ship": None, "service": None, "sector": None, "section": None},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+        self.equipier_a.profile.refresh_from_db()
+        self.assertEqual(self.equipier_a.profile.ship, self.ship_a)
+
+    def test_retirer_un_seul_rattachement_reste_possible(self):
+        UserProfile.objects.filter(pk=self.equipier_a.profile.pk).update(service=self.service_a)
+        r = self._client("commandant_a_chp").patch(
+            f"/api/accounts/profiles/{self.equipier_a.profile.pk}/", {"role": "EQUIPIER", "service": None}, format="json"
+        )
+        self.assertEqual(r.status_code, 200, r.content)

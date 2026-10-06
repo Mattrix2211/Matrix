@@ -16,7 +16,7 @@ from accounts.models import AuditLog
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class MaintenancePlanViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = MaintenancePlan.objects.select_related("asset", "asset_type", "checklist_template").all()
     serializer_class = MaintenancePlanSerializer
     permission_classes = [RolePermission]
@@ -26,6 +26,12 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # RolePermission), même valeur par défaut, sans effet sur les autres
     # ViewSets qui restent au seuil générique non configurable.
     role_threshold_action_write = "maintenance_plan_ecriture"
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Un plan porte soit sur un actif précis (asset, qui porte lui-même
@@ -42,7 +48,7 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin), même raisonnement que
     # CorrectiveTicketViewSet (logistics/views.py) : une occurrence n'est
     # jamais créée à la main (seule generate_occurrences/Celery le fait, cf.
@@ -58,6 +64,13 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
     permission_classes = [RolePermission]
     # Seuil configurable par navire (matrix/core/role_thresholds.py).
     role_threshold_action_write = "maintenance_execution_ecriture"
+    champs_utilisateurs_perimetre = ("assignees",)
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Une occurrence porte soit sur du matériel mobile (asset), soit sur
@@ -87,7 +100,7 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
                     )
                 }
             )
-        serializer.save()
+        super().perform_update(serializer)
 
     @decorators.action(detail=True, methods=["post"])
     def start(self, request, pk=None):

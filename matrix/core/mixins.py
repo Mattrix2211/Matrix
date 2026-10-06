@@ -1,11 +1,13 @@
 import logging
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
-from .scopes import scope_filters_for_user
+from .roles import RoleLevel, user_role_level
+from .scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +28,8 @@ def build_scope_q(user, *lookup_paths):
       couvrent pas les 4 niveaux (ex. un type d'actif n'est jamais rattaché
       à une section précise).
 
-    Si l'utilisateur n'a pas de périmètre défini (ex. administrateur
-    général sans navire attribué), renvoie Q() : aucun filtre, comportement
-    volontaire identique à scope_filters_for_user().
+    Sans périmètre défini, seul un MASTER_ADMIN (ou superutilisateur) obtient
+    Q() (flotte entière) ; tout autre utilisateur n'obtient aucun résultat.
 
     Si un périmètre est défini mais qu'aucun des chemins fournis ne le
     couvre, renvoie un Q qui n'égale jamais rien : mieux vaut ne rien
@@ -36,7 +37,7 @@ def build_scope_q(user, *lookup_paths):
     """
     filters = scope_filters_for_user(user)
     if not filters:
-        return Q()
+        return Q() if is_master_admin(user) else Q(pk__in=[])
     (key, value), = filters.items()
     q = Q()
     matched = False
@@ -47,6 +48,19 @@ def build_scope_q(user, *lookup_paths):
         q |= Q(**{lookup: value})
         matched = True
     return q if matched else Q(pk__in=[])
+
+
+def utilisateurs_visibles_par(user):
+    """Comptes utilisateurs que `user` peut lire ou désigner (assignation) :
+    flotte entière pour un MASTER_ADMIN ; tout le navire pour un COMMANDANT ou
+    ADMIN_NAVIRE ; sinon son périmètre hiérarchique. Sans périmètre : personne.
+    User ne porte pas le périmètre, son profil si : préfixe "profile__"."""
+    User = get_user_model()
+    if is_master_admin(user):
+        return User.objects.all()
+    if user_role_level(user) >= RoleLevel.COMMANDANT:
+        return User.objects.filter(perimetre_navire_q(user, "profile__"))
+    return User.objects.filter(build_scope_q(user, "profile__"))
 
 
 class SuppressionInterditeMixin:
@@ -101,10 +115,8 @@ class ScopedQuerySetMixin:
             return qs.filter(filters)
 
         if not filters:
-            # Utilisateur sans périmètre défini (ex. administrateur général) :
-            # aucun filtre à appliquer, comportement volontaire de
-            # scope_filters_for_user().
-            return qs
+            # Sans périmètre : flotte entière pour un MASTER_ADMIN, rien pour les autres.
+            return qs if is_master_admin(self.request.user) else qs.none()
 
         # Ne garder que les filtres correspondant à un champ direct du modèle
         applicable = {k: v for k, v in filters.items() if hasattr(qs.model, k.replace("_id", ""))}
@@ -135,7 +147,13 @@ class EcritureDansLePerimetreMixin:
     choisie dans le payload) est refusée en 400 et annulée.
 
     Les champs posés par le serveur (demandeur, auteur...) se déclarent dans
-    champs_serveur_creation() / champs_serveur_modification()."""
+    champs_serveur_creation() / champs_serveur_modification().
+
+    `champs_utilisateurs_perimetre` liste les champs (clé étrangère ou
+    plusieurs-à-plusieurs vers User) dont les comptes désignés doivent
+    appartenir au périmètre de l'appelant (assignation)."""
+
+    champs_utilisateurs_perimetre = ()
 
     def champs_serveur_creation(self):
         return {}
@@ -143,7 +161,18 @@ class EcritureDansLePerimetreMixin:
     def champs_serveur_modification(self):
         return {}
 
+    def _verifier_utilisateurs(self, serializer):
+        for champ in self.champs_utilisateurs_perimetre:
+            valeur = serializer.validated_data.get(champ)
+            if not valeur:
+                continue
+            ids = {u.pk for u in (valeur if isinstance(valeur, (list, tuple)) else [valeur])}
+            autorises = set(utilisateurs_visibles_par(self.request.user).filter(pk__in=ids).values_list("pk", flat=True))
+            if ids - autorises:
+                raise ValidationError({champ: "Utilisateur hors de votre périmètre."})
+
     def _enregistrer_dans_le_perimetre(self, serializer, **champs):
+        self._verifier_utilisateurs(serializer)
         with transaction.atomic():
             objet = serializer.save(**champs)
             if not self.get_queryset().filter(pk=objet.pk).exists():

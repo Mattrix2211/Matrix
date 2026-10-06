@@ -8,40 +8,13 @@ from .serializers import (
     SpecialityChoiceSerializer,
     RoleAvailabilitySerializer,
 )
-from matrix.core.mixins import build_scope_q
+from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.permissions import RolePermission, ManageUsersPermission
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
+from matrix.core.scopes import is_master_admin, perimetre_navire_q
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
-
-
-def _utilisateurs_visibles_par(user):
-    """Périmètre de lecture des comptes utilisateurs, aligné sur celui déjà
-    appliqué à l'annuaire web (UserDirectoryView, accounts/web_views.py) :
-    - MASTER_ADMIN (ou un superutilisateur) voit la flotte entière ;
-    - COMMANDANT et ADMIN_NAVIRE, rattachés à un navire précis (cf.
-      matrix/core/scopes.py::is_master_admin), voient tout le personnel de
-      LEUR navire, à n'importe quel niveau de rattachement (navire/service/
-      secteur/section) ;
-    - les autres rôles restent restreints à leur périmètre hiérarchique
-      habituel (build_scope_q).
-    Avant correction, un COMMANDANT (ou au-dessus) voyait le personnel de
-    tous les navires de la flotte (fuite de données inter-navire, audit
-    sécurité du 2026-08-29).
-
-    User ne porte pas directement les 4 champs de périmètre — c'est son
-    profil qui les porte — d'où le préfixe "profile__" passé aux filtres.
-    """
-    if is_master_admin(user):
-        return User.objects.all()
-    if user_role_level(user) >= RoleLevel.COMMANDANT:
-        return User.objects.filter(perimetre_navire_q(user, "profile__"))
-    if not scope_filters_for_user(user):
-        # Sans périmètre, build_scope_q() ne filtre rien : on ne montre personne.
-        return User.objects.none()
-    return User.objects.filter(build_scope_q(user, "profile__"))
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -53,7 +26,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [DefaultPermission]
 
     def get_queryset(self):
-        return _utilisateurs_visibles_par(self.request.user).order_by("username")
+        return utilisateurs_visibles_par(self.request.user).order_by("username")
 
 class UserProfileViewSet(viewsets.ModelViewSet):
     # queryset non filtré conservé uniquement pour l'inférence du basename par
@@ -73,8 +46,6 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             return qs
         if user_role_level(self.request.user) >= RoleLevel.COMMANDANT:
             return qs.filter(perimetre_navire_q(self.request.user, ""))
-        if not scope_filters_for_user(self.request.user):
-            return qs.none()
         return qs.filter(build_scope_q(self.request.user, ""))
 
 

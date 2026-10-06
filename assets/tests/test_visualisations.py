@@ -11,6 +11,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from assets.models import Installation, InstallationIsolationReading, InstallationVibrationReading
+from accounts.models import UserProfile
 from org.models import Sector, Service, Ship
 
 
@@ -27,6 +28,7 @@ class CourbeIsolementTests(TestCase):
             isolation_seuil_ohms=100,
         )
         self.user = User.objects.create_user(username="u1", password="pass")
+        UserProfile.objects.update_or_create(user=self.user, defaults={"ship": self.ship})
         self.client.login(username="u1", password="pass")
         self.url = reverse("installation-detail", args=[self.installation.pk])
 
@@ -93,6 +95,7 @@ class FriseVibrationTests(TestCase):
             designation="Pompe tribord", ship=self.ship, service=self.service, sector=self.sector,
         )
         self.user = User.objects.create_user(username="u2", password="pass")
+        UserProfile.objects.update_or_create(user=self.user, defaults={"ship": self.ship})
         self.client.login(username="u2", password="pass")
         self.url = reverse("installation-detail", args=[self.installation.pk])
 

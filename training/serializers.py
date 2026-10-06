@@ -17,7 +17,7 @@ class TrainingCourseSerializer(serializers.ModelSerializer):
         # signalée par le Tech Lead, tâche Notion Circuit C). Une formation
         # créée via l'API reste donc toujours « organisme » (valeurs par
         # défaut du modèle : gere_par_le_bord=False, statut_validation=ACTIVE).
-        read_only_fields = ["gere_par_le_bord", "statut_validation"]
+        read_only_fields = ["gere_par_le_bord", "statut_validation", "created_by", "updated_by"]
 
 class ReferentFormationSerializer(serializers.ModelSerializer):
     class Meta:

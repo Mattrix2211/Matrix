@@ -12,7 +12,7 @@ from accounts.models import AuditLog
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+class CorrectiveTicketViewSet(SuppressionInterditeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin) : un ticket correctif
     # porte tout le cycle de vie de la panne (statuts, REX obligatoire à
     # CLOSED, signature de validation à RETURNED_TO_SERVICE) — il ne doit
@@ -24,6 +24,13 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
     queryset = CorrectiveTicket.objects.select_related("asset").all()
     serializer_class = CorrectiveTicketSerializer
     permission_classes = [RolePermission]
+    champs_utilisateurs_perimetre = ("assignees",)
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Un ticket correctif porte sur un matériel mobile (asset), qui
@@ -49,7 +56,7 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
                     )
                 }
             )
-        serializer.save()
+        super().perform_update(serializer)
 
     @decorators.action(detail=True, methods=["post"])
     def transition(self, request, pk=None):

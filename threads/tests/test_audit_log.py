@@ -28,7 +28,7 @@ class AuditLogThreadsTests(TestCase):
         self.ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Fuite constatée")
 
         self.chef = User.objects.create_user(username="chef_audit_threads", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": Roles.CHEF_SECTION})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": Roles.CHEF_SECTION, "ship": self.ship})
 
         ct = ContentType.objects.get_for_model(CorrectiveTicket)
         self.thread = Thread.objects.create(content_type=ct, object_id=str(self.ticket.pk))
@@ -54,7 +54,7 @@ class AuditLogThreadsTests(TestCase):
 
     def test_suppression_refusee_ne_genere_aucune_entree(self):
         autre = User.objects.create_user(username="autre_audit_threads", password="pass")
-        UserProfile.objects.update_or_create(user=autre, defaults={"role": Roles.CHEF_SECTION})
+        UserProfile.objects.update_or_create(user=autre, defaults={"role": Roles.CHEF_SECTION, "ship": self.ship})
         client_autre = APIClient()
         client_autre.login(username="autre_audit_threads", password="pass")
         r = client_autre.delete(f"/api/threads/messages/{self.message.pk}/")

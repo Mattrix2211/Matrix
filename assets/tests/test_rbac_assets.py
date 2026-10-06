@@ -18,8 +18,8 @@ class AssetRBACTests(TestCase):
         # Un profil est déjà auto-créé par le signal post_save sur User (rôle EQUIPIER
         # par défaut) : on met à jour le rôle plutôt que de recréer un profil.
         from accounts.models import UserProfile
-        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER"})
-        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION"})
+        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER", "ship": ship})
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION", "ship": ship})
 
         client = APIClient()
         client.login(username="e1", password="pass")
@@ -67,8 +67,8 @@ class InstallationMaintenanceRBACTests(TestCase):
         # Un profil est déjà auto-créé par le signal post_save sur User (rôle EQUIPIER
         # par défaut) : on met à jour le rôle plutôt que de recréer un profil.
         from accounts.models import UserProfile
-        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER"})
-        UserProfile.objects.update_or_create(user=chef_service, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=equipier, defaults={"role": "EQUIPIER", "ship": ship})
+        UserProfile.objects.update_or_create(user=chef_service, defaults={"role": "CHEF_SERVICE", "ship": ship})
 
         url = f"/installations/{installation.id}/"
 
@@ -104,8 +104,8 @@ class InstallationMaintenanceModeDeclenchementTests(TestCase):
         from accounts.models import UserProfile
         self.equipier = User.objects.create_user(username="e3", password="pass")
         self.chef_service = User.objects.create_user(username="cs2", password="pass")
-        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
-        UserProfile.objects.update_or_create(user=self.chef_service, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER", "ship": ship})
+        UserProfile.objects.update_or_create(user=self.chef_service, defaults={"role": "CHEF_SERVICE", "ship": ship})
         self.url = f"/installations/{self.installation.id}/"
 
     def test_equipier_cannot_edit_maintenance(self):

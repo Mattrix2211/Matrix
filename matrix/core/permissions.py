@@ -83,10 +83,10 @@ class ManageUsersPermission(BasePermission):
 
     Règles :
     - MASTER_ADMIN : gère tout
-    - ADMIN_NAVIRE : gère tout le personnel de son navire (le scoping par
-      navire de la DESTINATION d'affectation — ship/service/sector/section —
-      est appliqué dans UserProfileSerializer.validate(), pas ici : cette
-      permission ne porte que sur le RÔLE gérable, pas sur le périmètre)
+    - ADMIN_NAVIRE : gère tous les rôles jusqu'au sien, jamais MASTER_ADMIN
+      (le scoping par navire de la DESTINATION d'affectation est appliqué dans
+      UserProfileSerializer.validate() : cette permission ne porte que sur le
+      RÔLE gérable)
     - COMMANDANT: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - ETAT_MAJOR: peut gérer CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - CHEF_SERVICE: peut gérer CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
@@ -95,6 +95,10 @@ class ManageUsersPermission(BasePermission):
     """
 
     MANAGE_MAP = {
+        Roles.ADMIN_NAVIRE: {
+            Roles.COMMANDANT, Roles.ETAT_MAJOR, Roles.CHEF_SERVICE,
+            Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER, Roles.ADMIN_NAVIRE,
+        },
         Roles.COMMANDANT: {Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.ETAT_MAJOR: {Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SERVICE: {Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
@@ -109,16 +113,15 @@ class ManageUsersPermission(BasePermission):
         # Passage forcé pour le super-utilisateur
         if getattr(request.user, 'is_superuser', False):
             return True
-        # ADMIN_NAVIRE peut gérer (scoping navire à appliquer côté viewset/form)
         profile = getattr(request.user, 'profile', None)
         if not profile:
             return False
-        if profile.role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
+        if profile.role == Roles.MASTER_ADMIN:
             return True
-        # Pour une création/modification, vérifie le rôle demandé dans le payload, sinon refuse
+        # Rôle demandé dans le payload ; ADMIN_NAVIRE peut modifier sans changer de rôle
         target_role = request.data.get('role')
         if not target_role:
-            return False
+            return profile.role == Roles.ADMIN_NAVIRE
         allowed = self.MANAGE_MAP.get(profile.role, set())
         return target_role in allowed
 
@@ -131,7 +134,7 @@ class ManageUsersPermission(BasePermission):
         profile = getattr(request.user, 'profile', None)
         if not profile:
             return False
-        if profile.role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
+        if profile.role == Roles.MASTER_ADMIN:
             return True
         # Vérifie le rôle actuel de l'utilisateur cible
         obj_role = getattr(obj, 'role', None)

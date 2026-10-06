@@ -83,7 +83,7 @@ class AffichageSousDossierTests(TestCase):
     def setUp(self):
         self.ship, self.service, self.sector, self.asset_type = _creer_hierarchie("B")
         self.chef = User.objects.create_user(username="chef_dossier", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
         self.root = AssetFolder.objects.create(name="Racine")
         self.sub = AssetFolder.objects.create(name="SousDossier", parent=self.root)
         self.asset_range = Asset.objects.create(

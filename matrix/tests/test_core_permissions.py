@@ -163,9 +163,13 @@ class ManageUsersPermissionTests(TestCase):
         req = fake_request("POST", self.commandant, {})
         self.assertFalse(self.permission.has_permission(req, self.view))
 
-    def test_admin_navire_peut_tout_attribuer(self):
-        req = fake_request("POST", self.admin_navire, {"role": "MASTER_ADMIN"})
+    def test_admin_navire_peut_attribuer_jusqua_son_rang(self):
+        req = fake_request("POST", self.admin_navire, {"role": "ADMIN_NAVIRE"})
         self.assertTrue(self.permission.has_permission(req, self.view))
+
+    def test_admin_navire_ne_peut_pas_attribuer_master_admin(self):
+        req = fake_request("POST", self.admin_navire, {"role": "MASTER_ADMIN"})
+        self.assertFalse(self.permission.has_permission(req, self.view))
 
     def test_sans_profil_ecriture_refusee(self):
         """Cas défensif : un utilisateur sans UserProfile (profil supprimé) ne
