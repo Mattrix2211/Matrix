@@ -1,4 +1,5 @@
 from django import forms
+from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant
 from .models import UserProfile, RoleAvailability
 
 
@@ -27,3 +28,9 @@ class UserProfileForm(forms.ModelForm):
         active_codes = list(RoleAvailability.objects.filter(active=True).values_list("code", flat=True))
         if active_codes:
             self.fields["role"].choices = [c for c in self.fields["role"].choices if c[0] in active_codes]
+
+    def clean(self):
+        donnees = super().clean()
+        if equipage_manquant(donnees.get("ship"), donnees.get("equipage")):
+            self.add_error("equipage", MESSAGE_EQUIPAGE_OBLIGATOIRE)
+        return donnees

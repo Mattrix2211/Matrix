@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from django.contrib.auth.models import User
+from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant
 from matrix.core.scopes import is_master_admin, resoudre_affectation_dans_perimetre
 
 class UserSerializer(serializers.ModelSerializer):
@@ -29,6 +30,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         appartenait au périmètre de l'appelant (même classe de faille que
         celle corrigée côté web dans create_user/edit_user/bulk_update_*).
         """
+        # Seulement quand l'unité ou l'équipage change : les profils existants restent valides.
+        if "ship" in attrs or "equipage" in attrs:
+            navire = attrs["ship"] if "ship" in attrs else getattr(self.instance, "ship", None)
+            equipage = attrs["equipage"] if "equipage" in attrs else getattr(self.instance, "equipage", "")
+            if equipage_manquant(navire, equipage):
+                raise serializers.ValidationError({"equipage": MESSAGE_EQUIPAGE_OBLIGATOIRE})
         request = self.context.get("request")
         acting_user = getattr(request, "user", None)
         if acting_user is None or is_master_admin(acting_user):

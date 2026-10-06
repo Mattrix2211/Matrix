@@ -103,6 +103,7 @@ MIDDLEWARE = [
     # vues web d'un module désactivé sur le navire du marin connecté (voir
     # matrix/core/middleware.py et matrix/core/modules.py).
     "matrix.core.middleware.ModuleActivationMiddleware",
+    "matrix.core.middleware.EquipageATerreMiddleware",
 ]
 
 # Correspondance entre les niveaux de messages Django et les classes Bootstrap 5

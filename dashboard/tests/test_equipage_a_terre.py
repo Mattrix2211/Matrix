@@ -37,21 +37,21 @@ class EquipageATerreTests(TestCase):
         return user
 
     def test_helper(self):
-        self.assertTrue(equipage_a_terre_lecture_seule(self.terre, self.navire))
-        self.assertFalse(equipage_a_terre_lecture_seule(self.bord, self.navire))
+        self.assertTrue(equipage_a_terre_lecture_seule(self.terre))
+        self.assertFalse(equipage_a_terre_lecture_seule(self.bord))
 
     def test_helper_sans_effet_hors_double_equipage_ou_sans_equipage(self):
-        self.navire.double_equipage = False
-        self.assertFalse(equipage_a_terre_lecture_seule(self.terre, self.navire))
-        self.navire.double_equipage = True
+        self.terre.profile.ship.double_equipage = False
+        self.assertFalse(equipage_a_terre_lecture_seule(self.terre))
+        self.terre.profile.ship.double_equipage = True
         self.terre.profile.equipage = ""
-        self.assertFalse(equipage_a_terre_lecture_seule(self.terre, self.navire))
+        self.assertFalse(equipage_a_terre_lecture_seule(self.terre))
 
     def test_rotation_inverse_les_roles(self):
         self.navire.equipage_a_bord = "B"
         self.navire.save()
-        self.assertFalse(equipage_a_terre_lecture_seule(User.objects.get(pk=self.terre.pk), self.navire))
-        self.assertTrue(equipage_a_terre_lecture_seule(User.objects.get(pk=self.bord.pk), self.navire))
+        self.assertFalse(equipage_a_terre_lecture_seule(User.objects.get(pk=self.terre.pk)))
+        self.assertTrue(equipage_a_terre_lecture_seule(User.objects.get(pk=self.bord.pk)))
 
     def test_page_equipage_a_terre_bandeau_et_actions_masquees(self):
         self.client.login(username="terre", password="pass")

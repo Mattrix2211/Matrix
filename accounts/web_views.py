@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
+from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
@@ -131,6 +132,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
         ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
         ctx["specialites"] = SpecialityChoice.objects.filter(active=True).order_by("name")
+        ctx["sans_equipage"] = [
+            u for u in ctx["users"] if u.profile.ship_id and equipage_manquant(u.profile.ship, u.profile.equipage)
+        ]
         ctx["export_url"] = self.request.build_absolute_uri("?" + ("ship=" + str(self.request.GET.get("ship")) + "&" if self.request.GET.get("ship") else "") + "export=xlsx")
         return ctx
 
@@ -347,6 +351,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             if not ok:
                 messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
                 return redirect("user-directory")
+            equipage = request.POST.get("equipage", "").strip()
+            if equipage_manquant(ship, equipage):
+                messages.error(request, MESSAGE_EQUIPAGE_OBLIGATOIRE)
+                return redirect("user-directory")
             if role:
                 User = get_user_model()
                 # Identifiant = prenom.nom (slugifié), avec suffixe numérique si collision
@@ -377,6 +385,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     profile.specialite = specialite
                 if matricule:
                     profile.matricule = matricule
+                profile.equipage = equipage
                 if date_naissance:
                     try:
                         from datetime import datetime
@@ -436,6 +445,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 if not ok:
                     messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
                     return redirect("user-directory")
+                equipage = request.POST.get("equipage", "").strip()
+                if equipage_manquant(ship, equipage):
+                    messages.error(request, MESSAGE_EQUIPAGE_OBLIGATOIRE)
+                    return redirect("user-directory")
                 user.username = request.POST.get("username", user.username).strip() or user.username
                 user.email = request.POST.get("email", user.email).strip()
                 user.first_name = request.POST.get("first_name", user.first_name).strip()
@@ -451,6 +464,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 profile.specialite = request.POST.get("specialite", "").strip()
                 # Matricule et date de naissance
                 profile.matricule = request.POST.get("matricule", "").strip()
+                profile.equipage = equipage
                 date_naissance = request.POST.get("date_naissance", "").strip()
                 if date_naissance:
                     try:

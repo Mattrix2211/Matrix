@@ -56,7 +56,7 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         batiments = batiments_suivis(utilisateur)
         if batiments:
             contexte["aujourdhui"] = aujourdhui
-            contexte["a_faire"] = a_faire_terre(utilisateur, batiments)
+            contexte["a_faire"] = a_faire_terre(batiments)
             contexte["cartes"] = cartes_batiments(batiments, aujourdhui)
             contexte["choix_possible"] = len(batiments) > 1
             contexte["salutation"] = utilisateur.last_name or utilisateur.get_username()

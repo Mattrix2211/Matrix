@@ -17,7 +17,7 @@ from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemp
 from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, commentaires_de
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
-from matrix.core.equipage import equipage_a_terre_lecture_seule
+from matrix.core.equipage import suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
 from matrix.core.role_thresholds import niveau_requis_pour
 from accounts.models import AuditLog
@@ -52,7 +52,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         return render(request, self.template_name, contexte)
 
     def post(self, request, pk):
-        if equipage_a_terre_lecture_seule(request.user):
+        if suivi_a_terre_sans_validation(request.user):
             raise PermissionDenied
         # Périmètre : même filtre que get() ci-dessus.
         try:
@@ -154,8 +154,6 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
     """
 
     def post(self, request, pk):
-        if equipage_a_terre_lecture_seule(request.user):
-            raise PermissionDenied
         # Périmètre : même filtre que OccurrenceExecuteView — sans lui, un
         # marin connaissant l'identifiant d'une occurrence d'un autre navire
         # pouvait y poster un commentaire (T-SEC, fuite de périmètre).
@@ -442,8 +440,6 @@ class MaintenanceOccurrenceSelfAssignView(LoginRequiredMixin, View):
     qui reste réservée aux chefs)."""
 
     def post(self, request, pk):
-        if equipage_a_terre_lecture_seule(request.user):
-            raise PermissionDenied
         filtres = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
         try:
             occ = MaintenanceOccurrence.objects.filter(filtres).get(pk=pk)

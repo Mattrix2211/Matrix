@@ -57,13 +57,13 @@ class AujourdhuiTerreTests(TestCase):
 
     def test_a_faire_borne_aux_batiments_suivis(self):
         self._avec_droit_de_gestion(self.ssf)
-        attente = self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
+        self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
         self._occurrence(self.ship_c, 1, "WAITING_VALIDATION")
         ticket = CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="BLOCKED")
         CorrectiveTicket.objects.create(asset=self.assets[self.ship_c], description="HS", status="BLOCKED")
         CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="REPORTED")
-        urls = [e["url"] for e in a_faire_terre(self.ssf, batiments_suivis(self.ssf))]
-        self.assertEqual(urls, [reverse("occurrence-execute", args=[attente.pk]), reverse("ticket-detail", args=[ticket.pk])])
+        urls = [e["url"] for e in a_faire_terre(batiments_suivis(self.ssf))]
+        self.assertEqual(urls, [None, reverse("ticket-detail", args=[ticket.pk])])
 
     def test_liens_generes_suivis_a_terre(self):
         # Les liens « Valider » et « Commenter » doivent aboutir pour classe et spécialité.
@@ -96,11 +96,16 @@ class AujourdhuiTerreTests(TestCase):
         self.client.login(username="ssf", password="pass")
         self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 400)
 
-    def test_valider_sans_droit_n_a_pas_de_lien(self):
-        self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
-        entree = a_faire_terre(self.ssf, batiments_suivis(self.ssf))[0]
-        self.assertIsNone(entree["url"])
-        self.assertEqual(entree["libelle"], "Valider")
+    def test_a_terre_aucun_bouton_valider_meme_avec_droit(self):
+        self._avec_droit_de_gestion(self.ssf)
+        attente = self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
+        self.assertIsNone(a_faire_terre(batiments_suivis(self.ssf))[0]["url"])
+        self.client.login(username="ssf", password="pass")
+        self.assertNotContains(self.client.get(reverse("home")), "Valider")
+        r = self.client.post(reverse("occurrence-execute", args=[attente.pk]), {"conformity": "CONFORME"})
+        self.assertEqual(r.status_code, 403)
+        attente.refresh_from_db()
+        self.assertEqual(attente.status, "WAITING_VALIDATION")
 
     def test_badges_par_batiment(self):
         self._occurrence(self.ship_a, -2, "OVERDUE")

@@ -1,6 +1,12 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
+from rest_framework.authentication import BasicAuthentication
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import SAFE_METHODS
+
+from .equipage import equipage_a_terre_lecture_seule
 
 
 class ModuleActivationMiddleware:
@@ -58,3 +64,43 @@ class ModuleActivationMiddleware:
             "(Paramètres > Modules).",
         )
         return redirect("home")
+
+
+# Écritures restant permises à l'équipage à terre : session, notifications, réglages
+# personnels et administration (chaque vue y contrôle déjà les droits du rôle).
+CHEMINS_ECRITURE_A_TERRE = (
+    "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
+    "/api/notifications/", "/users/", "/parametre/", "/admin/", "/api/accounts/", "/api/org/",
+    "/calendar/personnel/",
+)
+
+MESSAGE_LECTURE_SEULE = "Lecture seule : votre équipage est à terre, cette action est réservée à l'équipage à bord."
+
+
+class EquipageATerreMiddleware:
+    """Refuse toute écriture (web et API) du marin d'un équipage à terre, hors CHEMINS_ECRITURE_A_TERRE.
+
+    Refus par défaut : une nouvelle vue d'écriture est protégée sans rien déclarer.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.method not in SAFE_METHODS and not request.path.startswith(CHEMINS_ECRITURE_A_TERRE):
+            if equipage_a_terre_lecture_seule(self._utilisateur(request)):
+                if request.path.startswith("/api/"):
+                    return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
+                return HttpResponseForbidden(MESSAGE_LECTURE_SEULE)
+        return self.get_response(request)
+
+    @staticmethod
+    def _utilisateur(request):
+        """Utilisateur de la session ; l'API accepte aussi l'authentification Basic, résolue ici."""
+        if request.user.is_authenticated or not request.path.startswith("/api/"):
+            return request.user
+        try:
+            resultat = BasicAuthentication().authenticate(request)
+        except AuthenticationFailed:
+            return request.user
+        return resultat[0] if resultat else request.user

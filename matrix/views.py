@@ -12,7 +12,7 @@ from django.views import View
 from django.db.models import ProtectedError
 from accounts.models import (
     GradeChoice, SpecialityChoice, ServiceFunctionChoice, FonctionQuartChoice, RoleAvailability, Roles,
-    AuditLog, ResponsableSpecialite,
+    AuditLog, ResponsableSpecialite, UserProfile,
 )
 from assets.models import InstallationBigrameChoice, Installation
 from rondes.services import modeles_visibles, rondes_visibles
@@ -23,6 +23,7 @@ from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import session_expiree, tracer_expiration, url_connexion
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.equipage import marins_sans_equipage, peut_changer_equipage_a_bord, tracer_changement_equipage
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
@@ -71,6 +72,20 @@ def _lignes_modules(ship_id):
         }
         for mod in REGISTRE_MODULES
     ]
+
+
+def _lignes_equipage(navire, utilisateur):
+    """Données de l'onglet Équipage des Réglages : équipage à bord, équipages connus, marins sans équipage."""
+    if navire is None:
+        return {'equipage_ship': None}
+    codes = UserProfile.objects.filter(ship=navire).exclude(equipage='').values_list(
+        'equipage', flat=True).distinct().order_by('equipage')
+    return {
+        'equipage_ship': navire,
+        'equipage_codes': list(codes),
+        'equipage_sans': list(marins_sans_equipage(navire)),
+        'equipage_peut_changer': peut_changer_equipage_a_bord(utilisateur, navire),
+    }
 
 
 @login_required
@@ -196,6 +211,15 @@ class SettingsView(LoginRequiredMixin, View):
         # navire comme n'importe quel autre seuil de l'onglet Sécurité.
         return user_role_level(user) >= niveau_requis_pour(user, 'module_gestion')
 
+    @staticmethod
+    def _peut_voir_equipage(user):
+        # Onglet Équipage : commandant et administrateur d'unité d'un bâtiment à double équipage.
+        profil = getattr(user, 'profile', None)
+        navire = profil.ship if profil else None
+        return bool(
+            navire and navire.double_equipage and profil.role in (Roles.COMMANDANT, Roles.ADMIN_NAVIRE)
+        )
+
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             # Seules les sections "Notification quotidienne" (réglage personnel
@@ -214,9 +238,11 @@ class SettingsView(LoginRequiredMixin, View):
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
+            peut_voir_equipage = self._peut_voir_equipage(request.user)
             tab = request.GET.get('tab', 'generale')
             tab_ok = request.method == 'GET' and (
                 tab == 'notifications'
+                or (tab == 'equipage' and peut_voir_equipage)
                 or (tab == 'seuils_role' and est_admin_navire)
                 or (tab == 'utilisateurs' and peut_gerer_responsables)
                 or (tab == 'modules' and peut_gerer_modules)
@@ -239,7 +265,12 @@ class SettingsView(LoginRequiredMixin, View):
             action_module_ok = (
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
-            if not (tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok):
+            # Le droit de faire la relève (commandant seul) est revérifié dans post().
+            action_equipage_ok = request.method == 'POST' and action == 'changer_equipage'
+            if not (
+                tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
+                or action_equipage_ok
+            ):
                 return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
 
@@ -263,8 +294,11 @@ class SettingsView(LoginRequiredMixin, View):
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
+            peut_voir_equipage = self._peut_voir_equipage(request.user)
             active_tab = 'notifications'
-            if tab == 'seuils_role' and est_admin_navire:
+            if tab == 'equipage' and peut_voir_equipage:
+                active_tab = 'equipage'
+            elif tab == 'seuils_role' and est_admin_navire:
                 active_tab = 'seuils_role'
             elif tab == 'utilisateurs' and peut_gerer_responsables:
                 active_tab = 'utilisateurs'
@@ -277,7 +311,10 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_gerer_seuils': est_admin_navire,
                 'peut_gerer_responsables': peut_gerer_responsables,
                 'peut_gerer_modules': peut_gerer_modules,
+                'peut_voir_equipage': peut_voir_equipage,
             }
+            if active_tab == 'equipage':
+                context.update(_lignes_equipage(profile.ship, request.user))
             if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
                 context.update({
@@ -378,6 +415,7 @@ class SettingsView(LoginRequiredMixin, View):
             'peut_gerer_seuils': True,
             'peut_gerer_responsables': True,
             'peut_gerer_modules': True,
+            'peut_voir_equipage': True,
             # Responsables transverses (dashboards par spécialité / par classe de
             # navire, tâche Notion « Dashboards transverses par spécialité et par
             # classe de navire ») : rôle indépendant de la hiérarchie Navire →
@@ -407,6 +445,8 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
             })
+        if tab == 'equipage':
+            context.update(_lignes_equipage(selected_ship, request.user))
         if tab == 'modules':
             # MASTER_ADMIN choisit le navire à configurer, même sélecteur que
             # l'onglet Sécurité ci-dessus (selected_ship).
@@ -760,6 +800,28 @@ class SettingsView(LoginRequiredMixin, View):
                         f"Module « {module_info.libelle} » "
                         f"{'activé' if etat.active else 'désactivé'} pour {ship.name}.",
                     )
+        elif action == 'changer_equipage':
+            # Relève : seul le commandant du bâtiment (ou MASTER_ADMIN) change l'équipage à bord.
+            next_tab = 'equipage'
+            if request.user.is_superuser:
+                navire = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+            else:
+                navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
+            if navire is None or not peut_changer_equipage_a_bord(request.user, navire):
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden()
+            nouvel = (request.POST.get('equipage') or '').strip()
+            connu = UserProfile.objects.filter(ship=navire, equipage=nouvel).exists()
+            if not navire.double_equipage or not connu:
+                messages.error(request, "Équipage inconnu sur cette unité.")
+            elif nouvel == navire.equipage_a_bord:
+                messages.info(request, f"L'équipage {nouvel} est déjà à bord.")
+            else:
+                avant = (navire.double_equipage, navire.equipage_a_bord)
+                navire.equipage_a_bord = nouvel
+                navire.save(update_fields=['equipage_a_bord', 'updated_at'])
+                tracer_changement_equipage(request.user, navire, avant)
+                messages.success(request, f"Relève effectuée : l'équipage {nouvel} est à bord de {navire.name}.")
         elif action == 'update_notification_time':
             val = (request.POST.get('notification_time') or '').strip()
             val_soir = (request.POST.get('notification_time_soir') or '').strip()
@@ -769,7 +831,6 @@ class SettingsView(LoginRequiredMixin, View):
                 t_soir = datetime.strptime(val_soir, '%H:%M').time()
                 profile = getattr(request.user, 'profile', None)
                 if profile is None:
-                    from accounts.models import UserProfile, Roles
                     profile = UserProfile.objects.create(user=request.user, role=Roles.EQUIPIER)
                 profile.notification_time = t
                 profile.notification_time_soir = t_soir

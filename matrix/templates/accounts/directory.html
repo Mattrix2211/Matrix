@@ -46,6 +46,12 @@
     </div>
   </div>
 </div>
+{% if sans_equipage %}
+<div class="alert alert-warning" role="alert">
+  <strong>{{ sans_equipage|length }} marin{{ sans_equipage|length|pluralize }} sans équipage</strong> sur un bâtiment à double équipage :
+  {% for u in sans_equipage %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+</div>
+{% endif %}
 <style>
   #userTable .select-col { display: table-cell; }
 </style>
@@ -59,6 +65,7 @@
       <th>Grade</th>
       <th>Spécialité</th>
       <th>Matricule</th>
+      <th>Équipage</th>
       <th>Unité</th>
       <th>Fonction</th>
       <th>Service</th>
@@ -77,6 +84,7 @@
         <td>{{ u.profile.role|default:"—" }}</td>
         <td>{{ u.profile.grade|default:"—" }}</td>
         <td>{{ u.profile.specialite|default:"—" }}</td>
+        <td class="font-mono">{{ u.profile.equipage|default:"—" }}</td>
         <td class="font-mono">{{ u.profile.matricule|default:"—" }}</td>
         <td>{% if u.profile.ship %}{{ u.profile.ship.name }} {{ u.profile.ship|badge_type_unite }}{% else %}—{% endif %}</td>
         <td>{{ u.profile.fonction_service|default:"—" }}</td>
@@ -97,6 +105,7 @@
               data-grade="{{ u.profile.grade }}"
               data-specialite="{{ u.profile.specialite }}"
               data-matricule="{{ u.profile.matricule }}"
+              data-equipage="{{ u.profile.equipage }}"
               data-date-naissance="{% if u.profile.date_naissance %}{{ u.profile.date_naissance|date:'Y-m-d' }}{% endif %}">
             {% icone "modification" %}
           </button>
@@ -111,7 +120,7 @@
         </td>
       </tr>
     {% empty %}
-      <tr><td colspan="14" class="text-muted">Aucun utilisateur</td></tr>
+      <tr><td colspan="15" class="text-muted">Aucun utilisateur</td></tr>
     {% endfor %}
   </tbody>
   </table>
@@ -146,6 +155,10 @@
             <div class="col-md-3">
               <label class="form-label">Matricule</label>
               <input class="form-control" name="matricule" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Équipage</label>
+              <input class="form-control" name="equipage" maxlength="8" placeholder="A, B… (double équipage)" />
             </div>
             <div class="col-md-3">
               <label class="form-label">Date de naissance</label>
@@ -261,6 +274,10 @@
             <div class="col-md-3">
               <label class="form-label">Matricule</label>
               <input class="form-control" name="matricule" id="editMatricule" />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Équipage</label>
+              <input class="form-control" name="equipage" id="editEquipage" maxlength="8" placeholder="A, B… (double équipage)" />
             </div>
             <div class="col-md-3">
               <label class="form-label">Date de naissance</label>
@@ -560,6 +577,7 @@
       setSelectValue('editGrade', grade);
       setSelectValue('editSpecialite', specialite);
       var editMat = document.getElementById('editMatricule'); if (editMat) editMat.value = matricule;
+      var editEq = document.getElementById('editEquipage'); if (editEq) editEq.value = button.getAttribute('data-equipage') || '';
       var editDn = document.getElementById('editDateNaissance'); if (editDn) editDn.value = dateNaissance;
     });
 

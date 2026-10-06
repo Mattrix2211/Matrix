@@ -8,8 +8,6 @@ from dashboard.aujourdhui import STATUTS_ASSET_INDISPONIBLES, STATUTS_MAINTENANC
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.contexte_batiment import batiments_du_perimetre
-from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
 from training.models import navire_de
 
 # Le navire d'une occurrence passe par le matériel ou par l'installation.
@@ -27,23 +25,21 @@ def _par_navire(requete, champ_navire):
     return dict(requete.values_list(champ_navire).annotate(n=Count("pk")).values_list(champ_navire, "n"))
 
 
-def a_faire_terre(user, batiments):
-    """Validations de maintenance en attente et tickets bloqués des bâtiments suivis."""
+def a_faire_terre(batiments):
+    """Validations de maintenance en attente (à titre d'information) et tickets bloqués des bâtiments suivis."""
     ids = [b.pk for b in batiments]
     entrees = []
-    # Même règle que la fiche d'exécution : assigné, ou seuil de gestion des maintenances d'autrui.
-    gere_les_tiers = user_role_level(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers")
     en_attente = (
         MaintenanceOccurrence.objects.annotate(navire=_NAVIRE_OCCURRENCE)
         .filter(navire__in=ids, status="WAITING_VALIDATION")
-        .select_related("asset", "installation_maintenance__installation").prefetch_related("assignees")
+        .select_related("asset", "installation_maintenance__installation")
         .order_by("scheduled_for")
     )
     for occ in en_attente:
-        peut_valider = gere_les_tiers or user in occ.assignees.all()
+        # Le suivi à terre est en consultation : la validation reste à bord, donc aucun bouton.
         entrees.append({
             "titre": occ.titre_affiche, "detail": f"En attente de validation · prévue le {occ.scheduled_for:%d/%m}",
-            "url": reverse("occurrence-execute", args=[occ.pk]) if peut_valider else None, "libelle": "Valider", "icone": "maintenance",
+            "url": None, "libelle": "", "icone": "maintenance",
             "classes": "mx-aujourdhui__tache--attention",
         })
     tickets = (

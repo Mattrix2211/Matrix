@@ -1,6 +1,7 @@
 from accounts.models import Roles
 from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
 from matrix.core.inactivite import delai_avertissement, delai_inactivite
+from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.navigation import construire_navigation
 from notifications.models import Notification
 
@@ -56,6 +57,8 @@ def barre_superieure(request):
         },
         "batiment_courant": batiment_courant(request, batiments),
         "batiments_selectionnables": batiments,
+        # Équipage à terre : bandeau « Lecture seule » permanent (docs/UX.md §11.4).
+        "equipage_a_terre": profil.equipage if equipage_a_terre_lecture_seule(utilisateur) else "",
     }
 
 
