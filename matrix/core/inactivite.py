@@ -24,6 +24,7 @@ DELAI_DEFAUT, DELAI_MIN, DELAI_MAX = 900, 60, 8 * 3600
 AVERTISSEMENT_DEFAUT, AVERTISSEMENT_MIN = 60, 10
 # Écriture de la session au plus toutes les N secondes, pour ne pas la mettre à jour à chaque requête.
 PAS_ECRITURE = 5
+LONGUEUR_MAX_RETOUR = 2000
 
 
 def _entier(valeur, defaut, minimum, maximum):
@@ -46,8 +47,11 @@ def delai_avertissement():
 
 
 def _suivant_sur(request, url):
-    """Adresse de retour acceptée seulement si elle reste sur ce site (pas de redirection ouverte)."""
-    if url and url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+    """Adresse de retour acceptée seulement si elle reste sur ce site (pas de redirection ouverte),
+    sans caractère de contrôle et de longueur raisonnable."""
+    if not url or len(url) > LONGUEUR_MAX_RETOUR or any(ord(c) < 32 or ord(c) == 127 for c in url):
+        return None
+    if url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
         return url
     return None
 
@@ -74,6 +78,12 @@ def url_connexion(request, expire, suivant=None):
         parametres["next"] = suivant
     base = resolve_url(settings.LOGIN_URL)
     return f"{base}?{urlencode(parametres)}" if parametres else base
+
+
+def session_expiree(request):
+    """Vrai si le serveur constate lui-même que la session est restée inactive au-delà du délai."""
+    derniere = request.session.get(CLE_SESSION)
+    return isinstance(derniere, int) and int(time.time()) - derniere > delai_inactivite()
 
 
 def tracer_expiration(utilisateur):
@@ -108,11 +118,10 @@ class InactiviteMiddleware:
             derniere = request.session.get(CLE_SESSION)
             if not isinstance(derniere, int):
                 derniere = None
-            # La déconnexion volontaire de l'inactivité (/logout/) est traitée par sa propre vue.
-            if (
-                derniere is not None and maintenant - derniere > delai_inactivite()
-                and request.path != reverse("logout")
-            ):
+            # /logout/ constate elle-même l'expiration (traçabilité) : on n'y renouvelle ni n'expire rien.
+            if request.path == reverse("logout"):
+                return self.get_response(request)
+            if derniere is not None and maintenant - derniere > delai_inactivite():
                 tracer_expiration(utilisateur)
                 logout(request)
                 if request.path.startswith("/api/"):
@@ -149,8 +158,8 @@ class SessionInactiviteView(LoginRequiredMixin, View):
     def get(self, request):
         maintenant = int(time.time())
         ecoule = maintenant - request.session.get(CLE_SESSION, maintenant)
-        return JsonResponse({"restant": max(0, delai_inactivite() - ecoule)})
+        return JsonResponse({"restant": max(0, delai_inactivite() - ecoule), "utilisateur": request.user.pk})
 
     def post(self, request):
         request.session[CLE_SESSION] = int(time.time())
-        return JsonResponse({"restant": delai_inactivite()})
+        return JsonResponse({"restant": delai_inactivite(), "utilisateur": request.user.pk})

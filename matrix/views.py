@@ -21,7 +21,7 @@ from quarts.echanges import peut_valider_echange
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
 from matrix.core import recherche
-from matrix.core.inactivite import tracer_expiration, url_connexion
+from matrix.core.inactivite import session_expiree, tracer_expiration, url_connexion
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
@@ -162,15 +162,15 @@ def logout_then_login(request):
     # Déconnexion en un clic (POST + CSRF : un simple lien ne peut pas déconnecter
     # quelqu'un à son insu), puis redirection vers la page de connexion. La session
     # est vidée, y compris le bâtiment courant : poste partagé.
-    if request.POST.get('inactivite'):
-        # Déconnexion automatique demandée par le navigateur : tracée, avec retour à la page quittée.
-        if request.user.is_authenticated:
-            tracer_expiration(request.user)
-        cible = url_connexion(request, expire=True, suivant=request.POST.get('next'))
-        logout(request)
-        return redirect(cible)
+    # Le navigateur ne fait que demander le retour à la page quittée (« next ») : seul le serveur
+    # constate l'expiration, qui est alors tracée et annoncée sur la page de connexion.
+    expire = request.user.is_authenticated and session_expiree(request)
+    if expire:
+        tracer_expiration(request.user)
+    suivant = request.POST.get('next')
+    cible = url_connexion(request, expire, suivant) if (expire or suivant) else '/login/'
     logout(request)
-    return redirect('/login/')
+    return redirect(cible)
 
 
 class SettingsView(LoginRequiredMixin, View):

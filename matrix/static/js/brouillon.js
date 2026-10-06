@@ -48,6 +48,7 @@
 
   var URL_BROUILLON = '/brouillons/';
   var CLE_ENVOYES = 'mx_brouillons_envoyes';
+  var autreSession = false; // un autre marin est connecté : plus aucun enregistrement depuis cette page
   var TYPES_IGNORES = ['password', 'hidden', 'file', 'submit', 'button', 'reset', 'image'];
 
   // Stockage de session : jamais bloquant (navigation privée, quota, valeur corrompue).
@@ -73,6 +74,9 @@
 
   function appeler(methode, cle, corps) {
     var options = { method: methode, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf(), 'X-Mx-Automatique': '1' } };
+    var page = document.getElementById('mx-inactivite');
+    // Marin pour qui la page a été ouverte : le serveur refuse (409) si c'est un autre qui est connecté.
+    if (page && page.getAttribute('data-utilisateur')) options.headers['X-Mx-Utilisateur'] = page.getAttribute('data-utilisateur');
     if (corps) {
       options.headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(corps);
@@ -173,6 +177,12 @@
             return true;
           });
         }
+        if (rep.status === 409) {
+          autreSession = true;
+          clearTimeout(minuteur); clearTimeout(relance);
+          message('Une autre session est ouverte : brouillon non enregistré. Quittez cette page.', true);
+          return false;
+        }
         if (rep.status === 413) { message('Saisie trop volumineuse : brouillon non enregistré.', true); return false; }
         if (rep.status === 401 || rep.status === 403) {
           message('Session expirée : brouillon non enregistré. Reconnectez-vous dans un autre onglet ; votre saisie reste dans cette page.', true);
@@ -188,7 +198,7 @@
     }
 
     function planifier() {
-      if (!actif || restauration || envoye) return;
+      if (!actif || restauration || envoye || autreSession) return;
       aEnregistrer = true;
       clearTimeout(minuteur);
       minuteur = setTimeout(enregistrer, delai);
@@ -197,6 +207,7 @@
     conteneur.addEventListener('input', planifier);
     conteneur.addEventListener('change', planifier);
     conteneur.mx_enregistrer_maintenant = function () {
+      if (autreSession) return Promise.resolve(false);
       if (!actif || envoye || !aEnregistrer) return Promise.resolve(true);
       clearTimeout(minuteur);
       return enregistrer();

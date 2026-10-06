@@ -1,6 +1,6 @@
 // Logique pure de static/js/inactivite.js : node matrix/tests/inactivite.test.js
 const assert = require('assert');
-const { phase, secondesRestantes, renouvellementUtile, serveurToujoursValide } = require('../static/js/inactivite.js');
+const { phase, secondesRestantes, renouvellementUtile, serveurToujoursValide, memeUtilisateur } = require('../static/js/inactivite.js');
 
 // Délai 100 s, préavis 20 s (valeurs d'essai : le script n'en connaît aucune)
 assert.strictEqual(phase(0, 0, 100000, 20000), 'actif');
@@ -18,4 +18,8 @@ assert.strictEqual(renouvellementUtile(10000, 0, 20000), true);
 
 assert.strictEqual(serveurToujoursValide(9000, 20000), false);
 assert.strictEqual(serveurToujoursValide(60000, 20000), true);
+assert.strictEqual(memeUtilisateur('12', 12), true);
+assert.strictEqual(memeUtilisateur('12', 13), false);
+assert.strictEqual(memeUtilisateur('12', undefined), false);
+assert.strictEqual(memeUtilisateur('', ''), false);
 console.log('inactivite.test.js : OK');

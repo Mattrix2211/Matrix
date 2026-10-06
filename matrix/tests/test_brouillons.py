@@ -24,6 +24,39 @@ def envoyer(client, donnees, **extra):
     return client.post(reverse("brouillon"), data=json.dumps(donnees), content_type="application/json", **extra)
 
 
+class BrouillonIdentiteTests(TestCase):
+    """La page indique son marin (X-Mx-Utilisateur) : un autre marin connecté ne reçoit ni n'écrit rien."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.alice = User.objects.create_user("alice_id", password="x")
+        self.bob = User.objects.create_user("bob_id", password="x")
+        self.client.force_login(self.bob)  # Bob s'est connecté dans un autre onglet
+        Brouillon.objects.create(user=self.bob, cle="cr:1", contenu={"note": "à Bob"})
+        self.entete_alice = {"HTTP_X_MX_UTILISATEUR": str(self.alice.pk)}
+
+    def test_ecriture_refusee_sans_rien_creer(self):
+        reponse = envoyer(self.client, {"cle": "cr:2", "contenu": {"note": "secret d'Alice"}}, **self.entete_alice)
+        self.assertEqual(reponse.status_code, 409)
+        self.assertEqual(reponse.json()["erreur"], "Une autre session est ouverte.")
+        self.assertFalse(Brouillon.objects.filter(cle="cr:2").exists())
+        reponse = envoyer(self.client, {"cle": "cr:1", "contenu": {"note": "écrasé"}}, **self.entete_alice)
+        self.assertEqual(Brouillon.objects.get(cle="cr:1").contenu, {"note": "à Bob"})
+
+    def test_lecture_et_suppression_refusees(self):
+        url = reverse("brouillon") + "?cle=cr:1"
+        self.assertEqual(self.client.get(url, **self.entete_alice).status_code, 409)
+        self.assertEqual(self.client.delete(url, **self.entete_alice).status_code, 409)
+        self.assertTrue(Brouillon.objects.filter(cle="cr:1").exists())
+
+    def test_identifiant_correct_comme_avant(self):
+        entete = {"HTTP_X_MX_UTILISATEUR": str(self.bob.pk)}
+        self.assertEqual(envoyer(self.client, {"cle": "cr:3", "contenu": {"note": "ok"}}, **entete).status_code, 200)
+        self.assertTrue(self.client.get(reverse("brouillon") + "?cle=cr:1", **entete).json()["existe"])
+        self.assertEqual(self.client.delete(reverse("brouillon") + "?cle=cr:1", **entete).status_code, 200)
+        self.assertFalse(Brouillon.objects.filter(cle="cr:1").exists())
+
+
 class BrouillonApiTests(TestCase):
     def setUp(self):
         User = get_user_model()

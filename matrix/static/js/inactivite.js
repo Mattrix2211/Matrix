@@ -28,8 +28,13 @@
     return restantMs > avertissement / 2;
   }
 
+  // La session du serveur doit appartenir au marin qui a ouvert la page (cookies partagés entre onglets).
+  function memeUtilisateur(page, serveur) {
+    return page !== '' && page != null && String(page) === String(serveur);
+  }
+
   var API = {
-    phase: phase, secondesRestantes: secondesRestantes,
+    phase: phase, secondesRestantes: secondesRestantes, memeUtilisateur: memeUtilisateur,
     renouvellementUtile: renouvellementUtile, serveurToujoursValide: serveurToujoursValide
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; }
@@ -47,6 +52,8 @@
 
   var URL_SESSION = racine.getAttribute('data-url-session');
   var URL_DECONNEXION = racine.getAttribute('data-url-deconnexion');
+  var UTILISATEUR = racine.getAttribute('data-utilisateur'); // identifiant du marin de la page, pas un jeton
+  var CLASSE_MASQUE = 'mx-inactivite--bloque'; // cache la page derrière le dialogue
   var CLE_PARTAGE = 'mx_session_renouvelee'; // synchronise les onglets (localStorage, facultatif)
 
   var modale = bootstrap.Modal.getOrCreateInstance(racine);
@@ -63,6 +70,7 @@
   var affiche = false;
   var bloque = false;         // déconnexion suspendue : saisie non enregistrée
   var termine = false;        // déconnexion en cours
+  var autreSession = false;   // la session du serveur appartient à un autre marin
   var enCours = false;        // requête de renouvellement en cours
   var precedentFocus = null;
   var derniereAnnonce = 0;
@@ -100,6 +108,7 @@
     if (!affiche) return;
     affiche = false;
     bloque = false;
+    document.body.classList.remove(CLASSE_MASQUE);
     modale.hide();
     if (precedentFocus && precedentFocus.focus && document.contains(precedentFocus)) precedentFocus.focus();
   }
@@ -118,17 +127,23 @@
     enCours = true;
     var envoi = Date.now();
     return appelerSession('POST').then(function (rep) {
-      if (rep.ok) { noter(envoi); masquer(); return; }
+      if (rep.ok) {
+        return rep.json().then(function (d) {
+          if (memeUtilisateur(UTILISATEUR, d.utilisateur)) { noter(envoi); masquer(); } else { montrerAutreSession(); }
+        });
+      }
       if (rep.status === 401 || rep.status === 403) { return terminer(); }
     }).catch(function () { /* réseau indisponible : l'échéance locale reste la référence */ })
       .then(function () { enCours = false; });
   }
 
-  function soumettreDeconnexion() {
+  // Retour à la page quittée demandé seulement pour une déconnexion automatique ; le serveur
+  // décide seul si la session a réellement expiré (message et traçabilité).
+  function soumettreDeconnexion(avecRetour) {
     var formulaire = document.createElement('form');
     formulaire.method = 'post';
     formulaire.action = URL_DECONNEXION;
-    [['csrfmiddlewaretoken', csrf()], ['inactivite', '1'], ['next', location.pathname + location.search]].forEach(function (c) {
+    [['csrfmiddlewaretoken', csrf()]].concat(avecRetour ? [['next', location.pathname + location.search]] : []).forEach(function (c) {
       var champ = document.createElement('input');
       champ.type = 'hidden'; champ.name = c[0]; champ.value = c[1];
       formulaire.appendChild(champ);
@@ -140,6 +155,7 @@
   function montrerBloque() {
     bloque = true;
     termine = false;
+    document.body.classList.add(CLASSE_MASQUE);
     titre.textContent = 'Session expirée';
     texte.textContent = 'Votre session a expiré et votre saisie n’a pas pu être enregistrée.';
     aide.textContent = 'Elle reste dans cette page : reconnectez-vous dans un nouvel onglet, puis revenez ici.';
@@ -150,6 +166,18 @@
     if (bouton) bouton.focus();
   }
 
+  // Un autre marin a ouvert une session : la page ne doit rien lui montrer ni enregistrer pour lui.
+  function montrerAutreSession() {
+    autreSession = true;
+    montrerBloque();
+    titre.textContent = 'Autre session ouverte';
+    texte.textContent = 'Une autre session est ouverte : quittez cette page.';
+    aide.textContent = '';
+    racine.querySelector('[data-inactivite-reessayer]').hidden = true;
+    racine.querySelector('[data-inactivite-nouvel-onglet]').hidden = true;
+    piedBloque.querySelector('[data-inactivite-quitter]').focus();
+  }
+
   // Échéance atteinte : on vérifie le serveur, on enregistre les brouillons, puis on déconnecte.
   function terminer() {
     if (termine) return Promise.resolve();
@@ -158,6 +186,7 @@
     return appelerSession('GET').then(function (rep) { return rep.ok ? rep.json() : { restant: 0 }; })
       .catch(function () { return { restant: 0 }; })
       .then(function (etat) {
+        if (etat.utilisateur !== undefined && !memeUtilisateur(UTILISATEUR, etat.utilisateur)) { montrerAutreSession(); return null; }
         var restant = (etat.restant || 0) * 1000;
         if (serveurToujoursValide(restant, avertissement)) { // prolongée ailleurs
           noter(Date.now() - (delai - restant));
@@ -166,7 +195,9 @@
           return null;
         }
         return enregistrerTout().then(function (ok) {
-          if (ok) soumettreDeconnexion(); else montrerBloque();
+          if (!ok) { montrerBloque(); return; }
+          // Le serveur n'expire qu'après le délai complet : on attend ce reste (plus une marge d’une seconde et demie) avant de déconnecter.
+          setTimeout(function () { soumettreDeconnexion(true); }, restant + 1500);
         });
       });
   }
@@ -202,15 +233,26 @@
 
   racine.querySelector('[data-inactivite-rester]').addEventListener('click', prolonger);
   racine.querySelectorAll('[data-inactivite-quitter]').forEach(function (b) {
-    b.addEventListener('click', function () { termine = true; soumettreDeconnexion(); });
+    b.addEventListener('click', function () {
+      termine = true;
+      if (autreSession) { location.replace(racine.querySelector('[data-inactivite-nouvel-onglet]').href); return; } // ne pas déconnecter l'autre marin
+      soumettreDeconnexion(piedBloque.contains(b));
+    });
   });
   racine.querySelector('[data-inactivite-reessayer]').addEventListener('click', function () {
     // Session rouverte ailleurs : on la renouvelle ici, puis on remet la saisie à l'abri.
-    appelerSession('POST').then(function (rep) {
-      if (!rep.ok) return;
-      noter(Date.now());
+    // On vérifie d'abord (sans prolonger) que la session rouverte est bien celle du marin de la page.
+    appelerSession('GET').then(function (rep) {
+      if (!rep.ok) return null;
+      return rep.json().then(function (d) {
+        if (!memeUtilisateur(UTILISATEUR, d.utilisateur)) { montrerAutreSession(); return null; }
+        return appelerSession('POST').then(function (r) { return r.ok ? noter(Date.now()) || true : null; });
+      });
+    }).then(function (reouverte) {
+      if (!reouverte) return;
       return enregistrerTout().then(function (ok) {
         if (!ok) return;
+        document.body.classList.remove(CLASSE_MASQUE);
         titre.textContent = 'Inactivité détectée';
         texte.innerHTML = texteAvertissement;
         compte = racine.querySelector('[data-inactivite-compte]');

@@ -6,7 +6,7 @@ Les délais viennent de la configuration (matrix/core/inactivite.py) ; aucun jet
 <div class="modal fade mx-modale mx-inactivite" id="mx-inactivite" tabindex="-1" role="alertdialog"
      aria-labelledby="mx-inactivite-titre" aria-describedby="mx-inactivite-texte" aria-hidden="true"
      data-bs-backdrop="static" data-bs-keyboard="false"
-     data-inactivite data-delai="{{ inactivite.delai }}" data-avertissement="{{ inactivite.avertissement }}"
+     data-utilisateur="{{ user.pk }}" data-inactivite data-delai="{{ inactivite.delai }}" data-avertissement="{{ inactivite.avertissement }}"
      data-url-session="{% url 'session-inactivite' %}" data-url-deconnexion="{% url 'logout' %}">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -24,7 +24,7 @@ Les délais viennent de la configuration (matrix/core/inactivite.py) ; aucun jet
       </div>
       <div class="modal-footer" data-inactivite-pied-bloque hidden>
         <button type="button" class="btn btn-outline-secondary" data-inactivite-quitter>Quitter sans enregistrer</button>
-        <a class="btn btn-outline-secondary" href="{% url 'login' %}" target="_blank" rel="noopener">Se reconnecter dans un nouvel onglet</a>
+        <a class="btn btn-outline-secondary" href="{% url 'login' %}" target="_blank" rel="noopener" data-inactivite-nouvel-onglet>Se reconnecter dans un nouvel onglet</a>
         <button type="button" class="btn btn-primary" data-inactivite-reessayer>J'ai rouvert ma session</button>
       </div>
     </div>

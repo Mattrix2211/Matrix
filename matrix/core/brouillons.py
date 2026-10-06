@@ -80,6 +80,14 @@ class BrouillonView(LoginRequiredMixin, View):
     est redirigé vers la connexion, jamais servi.
     """
 
+    def dispatch(self, request, *args, **kwargs):
+        # La page indique pour quel marin elle a été ouverte : si un autre est connecté entre-temps
+        # (cookies partagés entre onglets), on ne lit, n'écrit ni ne supprime rien.
+        attendu = request.headers.get("X-Mx-Utilisateur")
+        if request.user.is_authenticated and attendu is not None and attendu != str(request.user.pk):
+            return _erreur("Une autre session est ouverte.", 409)
+        return super().dispatch(request, *args, **kwargs)
+
     def handle_no_permission(self):
         return _erreur("Connexion requise.", 401)
 

@@ -126,7 +126,7 @@ class RenouvellementTests(InactiviteTestCase):
         self.client.get(reverse("home"))
         self.vieillir(DELAI_DEFAUT - 20)
         reponse = self.client.post(reverse("session-inactivite"), HTTP_ACCEPT="application/json")
-        self.assertEqual(reponse.json(), {"restant": DELAI_DEFAUT})
+        self.assertEqual(reponse.json()["restant"], DELAI_DEFAUT)
         self.assertGreater(self.derniere_activite(), int(time.time()) - 5)
 
     def test_consulter_le_temps_restant_ne_prolonge_pas(self):
@@ -165,6 +165,13 @@ class HtmxTests(InactiviteTestCase):
         self.assertEqual(reponse["HX-Redirect"], "/accounts/login/?next=%2F")
         self.assertNotIn(b"<html", reponse.content)
 
+    def test_htmx_page_courante_sans_hote_ou_avec_controle_ignoree(self):
+        for courante in ("//evil.example", "http://testserver/" + "a" * 2100):
+            reponse = Client().get(
+                reverse("recherche-rapide") + "?q=ab", HTTP_HX_REQUEST="true", HTTP_HX_CURRENT_URL=courante
+            )
+            self.assertEqual(reponse["HX-Redirect"], "/accounts/login/", courante[:30])
+
     def test_htmx_page_courante_etrangere_ignoree(self):
         reponse = Client().get(
             reverse("recherche-rapide") + "?q=ab", HTTP_HX_REQUEST="true", HTTP_HX_CURRENT_URL="http://evil.example/x"
@@ -196,28 +203,39 @@ class ApiTests(InactiviteTestCase):
 
 
 class DeconnexionNavigateurTests(InactiviteTestCase):
-    def test_deconnexion_automatique_tracee_avec_retour_a_la_page(self):
-        reponse = self.client.post(reverse("logout"), {"inactivite": "1", "next": "/formations/"})
-        self.assertEqual(reponse["Location"], "/accounts/login/?expire=1&next=%2Fformations%2F")
-        self.assertTrue(AuditLog.objects.filter(actor=self.marin, action="session_expiree").exists())
-
-    def test_retour_externe_refuse(self):
-        for suivant in ("https://evil.example/", "//evil.example/", "javascript:alert(1)"):
-            reponse = self.client.post(reverse("logout"), {"inactivite": "1", "next": suivant})
-            self.assertEqual(reponse["Location"], "/accounts/login/?expire=1", suivant)
-            self.client.force_login(self.marin)
-
-    def test_deconnexion_manuelle_inchangee(self):
-        reponse = self.client.post(reverse("logout"))
-        self.assertEqual(reponse["Location"], "/login/")
-        self.assertFalse(AuditLog.objects.filter(action="session_expiree").exists())
-
-    def test_deconnexion_possible_meme_session_expiree(self):
+    def test_vraie_expiration_tracee_une_fois_avec_message_et_retour(self):
         self.client.get(reverse("home"))
         self.vieillir(DELAI_DEFAUT + 5)
-        reponse = self.client.post(reverse("logout"), {"inactivite": "1", "next": "/formations/"})
+        reponse = self.client.post(reverse("logout"), {"next": "/formations/"})
         self.assertEqual(reponse["Location"], "/accounts/login/?expire=1&next=%2Fformations%2F")
-        self.assertEqual(AuditLog.objects.filter(action="session_expiree").count(), 1)
+        self.assertEqual(AuditLog.objects.filter(actor=self.marin, action="session_expiree").count(), 1)
+
+    def test_champ_forge_sur_session_fraiche_ne_trace_rien(self):
+        self.client.get(reverse("home"))
+        reponse = self.client.post(reverse("logout"), {"inactivite": "1", "next": "/formations/"})
+        self.assertEqual(reponse["Location"], "/accounts/login/?next=%2Fformations%2F")
+        self.assertFalse(AuditLog.objects.filter(action="session_expiree").exists())
+
+    def test_deconnexion_volontaire_sans_message_ni_trace(self):
+        self.client.get(reverse("home"))
+        reponse = self.client.post(reverse("logout"))
+        self.assertEqual(reponse["Location"], "/login/")
+        self.assertNotContains(self.client.get(reponse["Location"]), "expiré par inactivité")
+        self.assertFalse(AuditLog.objects.filter(action="session_expiree").exists())
+
+    def test_retour_invalide_refuse(self):
+        invalides = ("https://evil.example/", "//evil.example/", "javascript:alert(1)", "/a\x00b", "/" + "a" * 2000)
+        for suivant in invalides:
+            self.client.force_login(self.marin)
+            self.client.get(reverse("home"))
+            self.vieillir(DELAI_DEFAUT + 5)
+            reponse = self.client.post(reverse("logout"), {"next": suivant})
+            self.assertEqual(reponse["Location"], "/accounts/login/?expire=1", repr(suivant)[:30])
+
+    def test_retour_limite_accepte(self):
+        self.client.get(reverse("home"))
+        reponse = self.client.post(reverse("logout"), {"next": "/" + "a" * 1990})
+        self.assertIn("next=", reponse["Location"])
 
 
 class PageTests(InactiviteTestCase):
@@ -228,6 +246,13 @@ class PageTests(InactiviteTestCase):
         self.assertContains(page, 'data-avertissement="17"')
         self.assertContains(page, 'role="alertdialog"')
         self.assertContains(page, "js/inactivite.js")
+
+    def test_dialogue_lie_au_marin_de_la_page(self):
+        page = self.client.get(reverse("home"))
+        self.assertContains(page, f'data-utilisateur="{self.marin.pk}"')
+        self.client.get(reverse("home"))
+        reponse = self.client.get(reverse("session-inactivite"), **AUTOMATIQUE)
+        self.assertEqual(reponse.json()["utilisateur"], self.marin.pk)
 
     def test_aucun_jeton_dans_les_data_attributs(self):
         page = self.client.get(reverse("home")).content.decode()

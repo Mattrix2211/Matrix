@@ -846,6 +846,9 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
 
 /* Déconnexion automatique (static/js/inactivite.js) : compte à rebours bien lisible */
 .mx-inactivite__compte { font-family: var(--f-mono); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+/* Session perdue avec saisie non enregistrée : la page reste en mémoire mais illisible (poste partagé) */
+.mx-inactivite--bloque > :not(.mx-inactivite):not(.modal-backdrop) { visibility: hidden; }
+.mx-inactivite--bloque .modal-backdrop { --bs-backdrop-bg: var(--bg); --bs-backdrop-opacity: 1; }
 .mx-inactivite .modal-footer { flex-wrap: wrap; gap: var(--s2); }
 
 /* Menu contextuel « ⋯ » : actions secondaires, jamais l'action principale */
