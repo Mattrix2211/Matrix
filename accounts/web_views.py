@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
-from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant
+from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.permissions import ManageUsersPermission
@@ -445,7 +445,11 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 if not ok:
                     messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
                     return redirect("user-directory")
-                equipage = request.POST.get("equipage", "").strip()
+                equipage_actuel = getattr(getattr(user, "profile", None), "equipage", "")
+                equipage = request.POST.get("equipage", equipage_actuel).strip()
+                if equipage != equipage_actuel and not equipage_modifiable_par(request.user, user):
+                    messages.error(request, "Vous ne pouvez pas modifier votre propre équipage.")
+                    return redirect("user-directory")
                 if equipage_manquant(ship, equipage):
                     messages.error(request, MESSAGE_EQUIPAGE_OBLIGATOIRE)
                     return redirect("user-directory")

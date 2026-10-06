@@ -1,9 +1,12 @@
 """Double équipage : l'équipage à terre consulte le bâtiment en lecture seule."""
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from accounts.models import AuditLog, Roles
 from matrix.core.scopes import is_master_admin
+from notifications.models import Notification
 
+ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve")
 MESSAGE_EQUIPAGE_OBLIGATOIRE = "L'équipage est obligatoire sur un bâtiment à double équipage."
 
 
@@ -28,12 +31,111 @@ def suivi_a_terre_sans_validation(user):
     return not is_master_admin(user) and navire_de(user) is None
 
 
-def peut_changer_equipage_a_bord(user, navire):
-    """Seul le commandant du bâtiment (ou l'administrateur général) fait la relève."""
-    if is_master_admin(user):
-        return True
+def equipage_modifiable_par(acteur, cible):
+    """Nul ne change son propre équipage (sauf l'administrateur général) : cela contournerait la lecture seule."""
+    return is_master_admin(acteur) or acteur.pk != cible.pk
+
+
+def commandants_equipage(navire, equipage):
+    """Commandants désignés (rôle COMMANDANT + équipage) d'un équipage de l'unité."""
+    return get_user_model().objects.filter(
+        profile__ship=navire, profile__role=Roles.COMMANDANT, profile__equipage=equipage
+    )
+
+
+def releve_en_attente(navire):
+    from org.models import ReleveEquipage
+
+    return ReleveEquipage.objects.filter(ship=navire, statut=ReleveEquipage.Statut.EN_ATTENTE).first()
+
+
+def _equipage_commandant(user, navire):
+    """Équipage dont l'utilisateur est commandant sur cette unité, sinon chaîne vide (pas de contournement MASTER_ADMIN)."""
     profil = getattr(user, "profile", None)
-    return bool(profil and profil.role == Roles.COMMANDANT and profil.ship_id == navire.pk)
+    if profil and profil.role == Roles.COMMANDANT and profil.ship_id == navire.pk:
+        return profil.equipage
+    return ""
+
+
+def proposer_releve(auteur, navire, equipage):
+    """Un commandant propose la relève ; renvoie (proposition, message d'erreur)."""
+    from org.models import ReleveEquipage
+
+    mon_equipage = _equipage_commandant(auteur, navire)
+    a_bord = navire.equipage_a_bord
+    if not mon_equipage:
+        return None, "Seul un commandant de l'unité peut proposer la relève."
+    if not navire.double_equipage or not a_bord:
+        return None, "Cette unité n'a pas de double équipage ou d'équipage à bord renseigné."
+    if equipage == a_bord:
+        return None, f"L'équipage {equipage} est déjà à bord."
+    if mon_equipage not in (a_bord, equipage):
+        return None, "Vous devez être commandant de l'équipage à bord ou de celui à embarquer."
+    autre = equipage if mon_equipage == a_bord else a_bord
+    if not commandants_equipage(navire, autre).exists():
+        return None, f"Aucun commandant n'est désigné pour l'équipage {autre} : la relève est impossible."
+    if releve_en_attente(navire):
+        return None, "Une relève est déjà en attente de validation."
+    proposition = ReleveEquipage.objects.create(ship=navire, equipage_propose=equipage, propose_par=auteur)
+    AuditLog.objects.create(
+        actor=auteur, action="releve_proposee", details=f"navire={navire.name}; equipage_propose={equipage}"
+    )
+    for cdt in commandants_equipage(navire, autre):
+        Notification.objects.create(
+            user=cdt,
+            verb=f"Relève proposée sur {navire.name} : l'équipage {equipage} à bord. Votre validation est attendue.",
+        )
+    return proposition, ""
+
+
+def decider_releve(auteur, proposition, accepter):
+    """Le commandant de l'autre équipage valide ou refuse ; la validation applique la relève. Renvoie un message d'erreur ou ''."""
+    navire = proposition.ship
+    if proposition.statut != proposition.Statut.EN_ATTENTE:
+        return "Cette relève n'est plus en attente."
+    mon_equipage = _equipage_commandant(auteur, navire)
+    if not mon_equipage:
+        return "Seul un commandant de l'unité peut valider la relève."
+    if auteur == proposition.propose_par:
+        return "Vous ne pouvez pas valider votre propre proposition."
+    proposeur = _equipage_commandant(proposition.propose_par, navire)
+    if mon_equipage == proposeur or mon_equipage not in (navire.equipage_a_bord, proposition.equipage_propose):
+        return "Seul le commandant de l'autre équipage peut valider cette relève."
+    proposition.decide_par = auteur
+    proposition.decide_le = timezone.now()
+    details = (
+        f"navire={navire.name}; equipage_propose={proposition.equipage_propose}; "
+        f"propose_par={proposition.propose_par}; decide_par={auteur}"
+    )
+    if accepter:
+        avant = (navire.double_equipage, navire.equipage_a_bord)
+        proposition.statut = proposition.Statut.VALIDEE
+        navire.equipage_a_bord = proposition.equipage_propose
+        navire.save(update_fields=["equipage_a_bord", "updated_at"])
+        AuditLog.objects.create(actor=auteur, action="releve_validee", details=details)
+        tracer_changement_equipage(auteur, navire, avant)
+    else:
+        proposition.statut = proposition.Statut.REFUSEE
+        AuditLog.objects.create(actor=auteur, action="releve_refusee", details=details)
+    proposition.save()
+    if proposition.propose_par:
+        Notification.objects.create(
+            user=proposition.propose_par,
+            verb=f"Relève sur {navire.name} {'validée' if accepter else 'refusée'} par {auteur.get_full_name() or auteur.username}.",
+        )
+    return ""
+
+
+def annuler_releve(auteur, proposition):
+    """Seul l'auteur annule sa proposition en attente. Renvoie un message d'erreur ou ''."""
+    if proposition.statut != proposition.Statut.EN_ATTENTE or auteur != proposition.propose_par:
+        return "Seul l'auteur peut annuler sa proposition en attente."
+    proposition.statut = proposition.Statut.ANNULEE
+    proposition.save(update_fields=["statut", "updated_at"])
+    AuditLog.objects.create(
+        actor=auteur, action="releve_annulee", details=f"navire={proposition.ship.name}; equipage_propose={proposition.equipage_propose}"
+    )
+    return ""
 
 
 def tracer_changement_equipage(auteur, navire, avant):

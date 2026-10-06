@@ -642,21 +642,40 @@
       <div class="card-header">Relève — {{ equipage_ship.name }}</div>
       <div class="card-body">
         <p>Équipage actuellement à bord : <strong>{{ equipage_ship.equipage_a_bord|default:"non renseigné" }}</strong>. L'autre équipage est à terre, en lecture seule.</p>
-        {% if equipage_peut_changer %}
+        {% if releve %}
+        <div class="alert alert-info">
+          Relève en attente : l'équipage <strong>{{ releve.equipage_propose }}</strong> à bord, proposée par {{ releve.propose_par.get_full_name|default:releve.propose_par.username }}. L'équipage à bord reste inchangé tant que l'autre commandant n'a pas validé.
+        </div>
+        {% if equipage_commandant %}
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="next_tab" value="equipage" />
+          <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
+          {% if releve.propose_par_id == user.id %}
+          <button class="btn btn-outline-secondary" type="submit" name="action" value="annuler_releve">Annuler ma proposition</button>
+          {% else %}
+          <input type="hidden" name="action" value="decider_releve" />
+          <button class="btn btn-primary" type="submit" name="decision" value="valider">Valider la relève</button>
+          <button class="btn btn-outline-danger" type="submit" name="decision" value="refuser">Refuser</button>
+          {% endif %}
+        </form>
+        {% endif %}
+        {% elif equipage_commandant %}
         <form method="post" class="row g-2 align-items-center">
           {% csrf_token %}
-          <input type="hidden" name="action" value="changer_equipage" />
+          <input type="hidden" name="action" value="proposer_releve" />
           <input type="hidden" name="next_tab" value="equipage" />
           <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
           <div class="col-auto">
-            <select name="equipage" class="form-select" aria-label="Équipage à bord">
-              {% for code in equipage_codes %}<option value="{{ code }}" {% if code == equipage_ship.equipage_a_bord %}selected{% endif %}>Équipage {{ code }}</option>{% endfor %}
+            <select name="equipage" class="form-select" aria-label="Équipage à mettre à bord">
+              {% for code in equipage_codes %}{% if code != equipage_ship.equipage_a_bord %}<option value="{{ code }}">Équipage {{ code }}</option>{% endif %}{% endfor %}
             </select>
           </div>
-          <div class="col-auto"><button class="btn btn-primary" type="submit">Faire la relève</button></div>
+          <div class="col-auto"><button class="btn btn-primary" type="submit">Proposer la relève</button></div>
         </form>
+        <p class="text-muted small mt-2 mb-0">La relève prend effet quand le commandant de l'autre équipage la valide.</p>
         {% else %}
-        <p class="text-muted mb-0">Seul le commandant du bâtiment fait la relève.</p>
+        <p class="text-muted mb-0">La relève est proposée et validée par les commandants des deux équipages.</p>
         {% endif %}
       </div>
     </div>

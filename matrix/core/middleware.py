@@ -6,7 +6,7 @@ from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS
 
-from .equipage import equipage_a_terre_lecture_seule
+from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
 
 
 class ModuleActivationMiddleware:
@@ -66,13 +66,14 @@ class ModuleActivationMiddleware:
         return redirect("home")
 
 
-# Écritures restant permises à l'équipage à terre : session, notifications, réglages
-# personnels et administration (chaque vue y contrôle déjà les droits du rôle).
+# Écritures restant permises à l'équipage à terre : uniquement personnelles ou de session.
 CHEMINS_ECRITURE_A_TERRE = (
     "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
-    "/api/notifications/", "/users/", "/parametre/", "/admin/", "/api/accounts/", "/api/org/",
+    "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/",
     "/calendar/personnel/",
 )
+# Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
+ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")
 
 MESSAGE_LECTURE_SEULE = "Lecture seule : votre équipage est à terre, cette action est réservée à l'équipage à bord."
 
@@ -87,12 +88,18 @@ class EquipageATerreMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method not in SAFE_METHODS and not request.path.startswith(CHEMINS_ECRITURE_A_TERRE):
+        if request.method not in SAFE_METHODS and not self._exemptee(request):
             if equipage_a_terre_lecture_seule(self._utilisateur(request)):
                 if request.path.startswith("/api/"):
                     return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
                 return HttpResponseForbidden(MESSAGE_LECTURE_SEULE)
         return self.get_response(request)
+
+    @staticmethod
+    def _exemptee(request):
+        if request.path == "/parametre/":
+            return request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
+        return request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
 
     @staticmethod
     def _utilisateur(request):

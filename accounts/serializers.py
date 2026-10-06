@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from django.contrib.auth.models import User
-from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant
+from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.scopes import is_master_admin, resoudre_affectation_dans_perimetre
 
 class UserSerializer(serializers.ModelSerializer):
@@ -30,6 +30,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         appartenait au périmètre de l'appelant (même classe de faille que
         celle corrigée côté web dans create_user/edit_user/bulk_update_*).
         """
+        acteur = getattr(self.context.get("request"), "user", None)
+        if (
+            self.instance and acteur and "equipage" in attrs and attrs["equipage"] != self.instance.equipage
+            and not equipage_modifiable_par(acteur, self.instance.user)
+        ):
+            raise serializers.ValidationError({"equipage": "Vous ne pouvez pas modifier votre propre équipage."})
         # Seulement quand l'unité ou l'équipage change : les profils existants restent valides.
         if "ship" in attrs or "equipage" in attrs:
             navire = attrs["ship"] if "ship" in attrs else getattr(self.instance, "ship", None)

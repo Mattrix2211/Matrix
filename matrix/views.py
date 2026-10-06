@@ -1,5 +1,5 @@
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.contrib.auth import logout
@@ -23,7 +23,7 @@ from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import session_expiree, tracer_expiration, url_connexion
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
-from matrix.core.equipage import marins_sans_equipage, peut_changer_equipage_a_bord, tracer_changement_equipage
+from matrix.core.equipage import ACTIONS_RELEVE, annuler_releve, decider_releve, marins_sans_equipage, proposer_releve, releve_en_attente
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
@@ -84,7 +84,8 @@ def _lignes_equipage(navire, utilisateur):
         'equipage_ship': navire,
         'equipage_codes': list(codes),
         'equipage_sans': list(marins_sans_equipage(navire)),
-        'equipage_peut_changer': peut_changer_equipage_a_bord(utilisateur, navire),
+        'releve': releve_en_attente(navire),
+        'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') == Roles.COMMANDANT,
     }
 
 
@@ -233,7 +234,6 @@ class SettingsView(LoginRequiredMixin, View):
             # accessibles aux non-superusers. Le reste des Réglages
             # (référentiels globaux, navires, hiérarchie, journal...) reste
             # réservé aux comptes techniques superuser Django (MASTER_ADMIN).
-            from django.http import HttpResponseForbidden
             profile = getattr(request.user, 'profile', None)
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
@@ -265,8 +265,8 @@ class SettingsView(LoginRequiredMixin, View):
             action_module_ok = (
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
-            # Le droit de faire la relève (commandant seul) est revérifié dans post().
-            action_equipage_ok = request.method == 'POST' and action == 'changer_equipage'
+            # Le droit des commandants est revérifié dans post().
+            action_equipage_ok = request.method == 'POST' and action in ACTIONS_RELEVE
             if not (
                 tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
                 or action_equipage_ok
@@ -800,28 +800,36 @@ class SettingsView(LoginRequiredMixin, View):
                         f"Module « {module_info.libelle} » "
                         f"{'activé' if etat.active else 'désactivé'} pour {ship.name}.",
                     )
-        elif action == 'changer_equipage':
-            # Relève : seul le commandant du bâtiment (ou MASTER_ADMIN) change l'équipage à bord.
+        elif action in ACTIONS_RELEVE:
+            # Relève : proposée par un commandant, appliquée à la validation de l'autre.
             next_tab = 'equipage'
             if request.user.is_superuser:
                 navire = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
             else:
                 navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
-            if navire is None or not peut_changer_equipage_a_bord(request.user, navire):
-                from django.http import HttpResponseForbidden
+            if navire is None:
                 return HttpResponseForbidden()
-            nouvel = (request.POST.get('equipage') or '').strip()
-            connu = UserProfile.objects.filter(ship=navire, equipage=nouvel).exists()
-            if not navire.double_equipage or not connu:
-                messages.error(request, "Équipage inconnu sur cette unité.")
-            elif nouvel == navire.equipage_a_bord:
-                messages.info(request, f"L'équipage {nouvel} est déjà à bord.")
+            proposition = releve_en_attente(navire)
+            if action == 'proposer_releve':
+                nouvel = (request.POST.get('equipage') or '').strip()
+                connu = UserProfile.objects.filter(ship=navire, equipage=nouvel).exists()
+                if not connu:
+                    erreur = "Équipage inconnu sur cette unité."
+                else:
+                    proposition, erreur = proposer_releve(request.user, navire, nouvel)
+                succes = "Relève proposée : l'autre commandant doit la valider."
+            elif proposition is None:
+                erreur, succes = "Aucune relève en attente.", ""
+            elif action == 'annuler_releve':
+                erreur, succes = annuler_releve(request.user, proposition), "Proposition annulée."
             else:
-                avant = (navire.double_equipage, navire.equipage_a_bord)
-                navire.equipage_a_bord = nouvel
-                navire.save(update_fields=['equipage_a_bord', 'updated_at'])
-                tracer_changement_equipage(request.user, navire, avant)
-                messages.success(request, f"Relève effectuée : l'équipage {nouvel} est à bord de {navire.name}.")
+                accepter = request.POST.get('decision') == 'valider'
+                erreur = decider_releve(request.user, proposition, accepter)
+                succes = f"Relève validée : l'équipage {proposition.equipage_propose} est à bord de {navire.name}." if accepter else "Relève refusée."
+            if erreur:
+                messages.error(request, erreur)
+            else:
+                messages.success(request, succes)
         elif action == 'update_notification_time':
             val = (request.POST.get('notification_time') or '').strip()
             val_soir = (request.POST.get('notification_time_soir') or '').strip()

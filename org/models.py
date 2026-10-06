@@ -178,3 +178,31 @@ class ResponsableClasseNavire(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} — responsable classe ({self.classe_navire})"
+
+
+class ReleveEquipage(TimeStampedModel):
+    """Relève du double équipage : proposée par un commandant, appliquée à la validation de l'autre.
+
+    Une seule proposition en attente par unité ; les décisions passées sont conservées.
+    """
+
+    class Statut(models.TextChoices):
+        EN_ATTENTE = "en_attente", "En attente"
+        VALIDEE = "validee", "Validée"
+        REFUSEE = "refusee", "Refusée"
+        ANNULEE = "annulee", "Annulée"
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="releves")
+    equipage_propose = models.CharField(max_length=8)
+    propose_par = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="releves_proposees")
+    statut = models.CharField(max_length=12, choices=Statut.choices, default=Statut.EN_ATTENTE)
+    decide_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="releves_decidees")
+    decide_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ship"], condition=models.Q(statut="en_attente"), name="une_releve_en_attente_par_unite"
+            )
+        ]
