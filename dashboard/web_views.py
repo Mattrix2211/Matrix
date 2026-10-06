@@ -19,7 +19,7 @@ from django.views.generic import TemplateView
 
 from accounts.models import ResponsableSpecialite, SpecialityChoice
 from assets.models import Asset, Installation, InstallationMaintenance
-from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee
+from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee, supervision
 from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
@@ -62,6 +62,7 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         contexte["profil"] = profil
         contexte["a_faire"] = a_faire(self.request.user, aujourdhui)
         contexte["journee"] = journee(self.request.user, aujourdhui, contexte["a_faire"])
+        contexte["supervision"] = supervision(self.request.user, aujourdhui)
         contexte["brouillons"] = brouillons_a_reprendre(self.request.user).exclude(url="")
         return contexte
 

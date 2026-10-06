@@ -92,5 +92,51 @@
   </div>
 </div>
 
+{% if supervision %}
+<h2 class="h5 mt-5 mb-3">Supervision</h2>
+{% if supervision.retards_total %}
+  {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}{% fin_attention %}
+{% endif %}
+<div class="row g-3 mt-1 mb-3">
+  <div class="col-6 col-md-3">
+    {% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}
+  </div>
+  <div class="col-6 col-md-3">
+    {% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}
+  </div>
+  <div class="col-6 col-md-3">
+    {% include "components/metric.html" with libelle="Équipements indisponibles" icone="materiel" valeur=supervision.indisponibles etat=supervision.indisponibles|yesno:"danger,ok" %}
+  </div>
+  <div class="col-6 col-md-3">
+    {% include "components/jauge.html" with libelle="Part de maintenances en retard" valeur=supervision.retards_pct etat=supervision.retards_total|yesno:"danger,ok" %}
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    {% surface titre="Retards de l'équipe" icone="retard" %}
+      {% for retard in supervision.retards %}
+        {% carte_action titre=retard.titre libelle="Ouvrir" url=retard.url classes="mx-aujourdhui__tache--danger" %}{{ retard.detail }}{% fin_carte_action %}
+      {% empty %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Aucun retard" texte="Toutes les maintenances de votre périmètre sont à jour." %}
+      {% endfor %}
+    {% fin_surface %}
+  </div>
+  <div class="col-lg-6">
+    {% surface titre="Validations en attente" icone="maintenance" %}
+      {% for validation in supervision.validations %}
+        {% carte_action titre=validation.titre libelle="Valider" url=validation.url classes="mx-aujourdhui__tache--attention" %}{{ validation.detail }}{% fin_carte_action %}
+      {% endfor %}
+      {% if supervision.formations_a_valider %}
+        {% url 'formation-list' as url_formations %}
+        {% carte_action titre="Formations proposées par le bord" libelle="Examiner" url=url_formations classes="mx-aujourdhui__tache--attention" %}{{ supervision.formations_a_valider }} à examiner{% fin_carte_action %}
+      {% endif %}
+      {% if not supervision.validations_total %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Rien à valider" texte="Aucune validation n'attend votre décision." %}
+      {% endif %}
+    {% fin_surface %}
+  </div>
+</div>
+{% endif %}
+
 {% include "dashboard/_pilotage.html" %}
 {% endblock %}

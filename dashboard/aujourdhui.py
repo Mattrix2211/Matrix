@@ -1,15 +1,20 @@
-"""Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié et frise « Ma journée »."""
+"""Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié, frise « Ma journée » et bloc « Supervision »."""
 from datetime import datetime, time, timedelta
 
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from logistics.models import CorrectiveTicket
+from assets.models import Asset
+from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
+from matrix.core.mixins import build_scope_q
+from matrix.core.role_thresholds import niveau_requis_pour
+from matrix.core.roles import user_role_level
+from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
-from training.models import TrainingSession
+from training.models import TrainingCourse, TrainingSession
 
 STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
 STATUTS_TICKET_TERMINES = ["CLOSED", "CANCELLED"]
@@ -126,3 +131,62 @@ def journee(user, aujourdhui, taches):
             })
     points.sort(key=lambda p: (p["heure"] is None, p["heure"] or debut_jour))
     return points
+
+
+STATUTS_ASSET_INDISPONIBLES = ["OUT_OF_SERVICE", "FAULTY"]
+LIGNES_SUPERVISION = 5
+
+
+def peut_superviser(user):
+    """Bloc « Supervision » : seuil de rôle configurable par navire, et un périmètre à superviser."""
+    if user_role_level(user) < niveau_requis_pour(user, "supervision_aujourdhui"):
+        return False
+    return is_master_admin(user) or bool(scope_filters_for_user(user))
+
+
+def _noms(occurrence):
+    noms = [a.last_name or a.get_username() for a in occurrence.assignees.all()]
+    return ", ".join(noms) if noms else "non assignée"
+
+
+def supervision(user, aujourdhui):
+    """Retards, validations en attente et indicateurs du périmètre du chef, ou None sans droit de supervision."""
+    if not peut_superviser(user):
+        return None
+    occurrences = (
+        MaintenanceOccurrence.objects.filter(
+            build_scope_q(user, "asset__", "installation_maintenance__installation__"),
+        ).exclude(status__in=STATUTS_MAINTENANCE_TERMINES)
+    )
+    en_attente = occurrences.filter(status="WAITING_VALIDATION")
+    # Une occurrence en attente de validation n'est pas un retard de l'équipe.
+    retards = occurrences.filter(Q(status="OVERDUE") | Q(scheduled_for__lt=aujourdhui)).exclude(status="WAITING_VALIDATION")
+    retards_total, actives = retards.count(), occurrences.count()
+    liaisons = ("asset", "installation_maintenance__installation")
+    lignes_retard = [
+        {
+            "titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]),
+            "detail": f"Prévue le {occ.scheduled_for:%d/%m} · {_noms(occ)}",
+        }
+        for occ in retards.select_related(*liaisons).prefetch_related("assignees").order_by("scheduled_for")[:LIGNES_SUPERVISION]
+    ]
+    lignes_validation = [
+        {"titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]), "detail": f"Prévue le {occ.scheduled_for:%d/%m}"}
+        for occ in en_attente.select_related(*liaisons).order_by("scheduled_for")[:LIGNES_SUPERVISION]
+    ]
+    # Import différé : training.web_views est une couche de vues, chargée seulement ici.
+    from training.web_views import peut_valider_proposition_bord
+    formations_a_valider = sum(
+        1 for c in TrainingCourse.objects.filter(gere_par_le_bord=True, statut_validation="WAITING_VALIDATION").select_related("updated_by")
+        if peut_valider_proposition_bord(user, c.updated_by)
+    )
+    return {
+        "retards": lignes_retard,
+        "retards_total": retards_total,
+        "retards_pct": round(retards_total / actives * 100) if actives else 0,
+        "validations": lignes_validation,
+        "validations_total": en_attente.count() + formations_a_valider,
+        "formations_a_valider": formations_a_valider,
+        "anomalies_ouvertes": Anomalie.objects.filter(build_scope_q(user, ""), statut__in=STATUTS_ANOMALIE_OUVERTS).count(),
+        "indisponibles": Asset.objects.filter(build_scope_q(user, ""), status__in=STATUTS_ASSET_INDISPONIBLES).count(),
+    }
