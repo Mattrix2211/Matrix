@@ -27,3 +27,5 @@ class MaintenanceExecutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaintenanceExecution
         fields = "__all__"
+        # Exécutant et signature de validation sont posés par le serveur.
+        read_only_fields = ["executed_by", "valide_par", "date_validation", "created_by", "updated_by"]

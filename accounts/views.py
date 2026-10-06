@@ -11,7 +11,7 @@ from .serializers import (
 from matrix.core.mixins import build_scope_q
 from matrix.core.permissions import RolePermission, ManageUsersPermission
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import is_master_admin, perimetre_navire_q
+from matrix.core.scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -38,6 +38,9 @@ def _utilisateurs_visibles_par(user):
         return User.objects.all()
     if user_role_level(user) >= RoleLevel.COMMANDANT:
         return User.objects.filter(perimetre_navire_q(user, "profile__"))
+    if not scope_filters_for_user(user):
+        # Sans périmètre, build_scope_q() ne filtre rien : on ne montre personne.
+        return User.objects.none()
     return User.objects.filter(build_scope_q(user, "profile__"))
 
 
@@ -58,6 +61,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.select_related("user", "ship", "service", "sector", "section").all()
     serializer_class = UserProfileSerializer
     permission_classes = [ManageUsersPermission]
+    # Le profil est créé avec le compte : ni création ni suppression par l'API.
+    http_method_names = ["get", "put", "patch", "head", "options"]
 
     def get_queryset(self):
         # Même périmètre de lecture que UserViewSet ci-dessus, traduit sur
@@ -68,6 +73,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             return qs
         if user_role_level(self.request.user) >= RoleLevel.COMMANDANT:
             return qs.filter(perimetre_navire_q(self.request.user, ""))
+        if not scope_filters_for_user(self.request.user):
+            return qs.none()
         return qs.filter(build_scope_q(self.request.user, ""))
 
 

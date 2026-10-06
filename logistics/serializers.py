@@ -43,3 +43,4 @@ class PartRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = PartRequest
         fields = "__all__"
+        read_only_fields = ["requested_by", "created_by", "updated_by"]

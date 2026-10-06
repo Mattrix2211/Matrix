@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "first_name", "last_name", "email"]
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = UserProfile
@@ -33,6 +33,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         acting_user = getattr(request, "user", None)
         if acting_user is None or is_master_admin(acting_user):
             return attrs
+        for secteur in attrs.get("allowed_sectors", []):
+            ok, *_ = resoudre_affectation_dans_perimetre(acting_user, sector_id=secteur.id)
+            if not ok:
+                raise serializers.ValidationError("Secteur autorisé hors de votre périmètre.")
         ship = attrs.get("ship")
         service = attrs.get("service")
         sector = attrs.get("sector")

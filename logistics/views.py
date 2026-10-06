@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
-from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from django.contrib.contenttypes.models import ContentType
 from threads.models import Thread, Message
 from matrix.core.permissions import RolePermission
@@ -106,7 +106,7 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
             Message.objects.create(thread=thread, author=request.user, body=f"Statut: {old} → {new_status}", is_system=True)
         return response.Response(self.get_serializer(ticket).data)
 
-class PartRequestViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class PartRequestViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = PartRequest.objects.select_related("ticket", "requested_by").all()
     serializer_class = PartRequestSerializer
     permission_classes = [RolePermission]
@@ -116,7 +116,13 @@ class PartRequestViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         # matériel mobile (asset).
         return build_scope_q(self.request.user, "ticket__asset__", "ticket__installation__")
 
-class PartLineItemViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+    def champs_serveur_creation(self):
+        return {"requested_by": self.request.user, "created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
+
+class PartLineItemViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = PartLineItem.objects.select_related("part_request").all()
     serializer_class = PartLineItemSerializer
     permission_classes = [RolePermission]

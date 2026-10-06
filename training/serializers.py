@@ -38,8 +38,14 @@ class TrainingRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRecord
         fields = "__all__"
+        read_only_fields = ["validated_by", "created_by", "updated_by"]
 
     def validate(self, attrs):
+        # Marin et formation fixent l'autorité du référent : non réaffectables.
+        if self.instance and any(
+            champ in attrs and attrs[champ] != getattr(self.instance, champ) for champ in ("user", "course")
+        ):
+            raise serializers.ValidationError("Le marin et la formation d'une validation ne peuvent pas être modifiés.")
         # Reproduit ici la règle métier de TrainingRecord.clean() (formations
         # prérequises non validées) : le ViewSet DRF n'appelle pas full_clean()
         # automatiquement, il faut donc revalider explicitement à ce niveau pour

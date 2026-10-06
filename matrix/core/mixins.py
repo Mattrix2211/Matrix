@@ -1,7 +1,9 @@
 import logging
 
 from django.core.exceptions import ImproperlyConfigured
+from django.db import transaction
 from django.db.models import Q
+from rest_framework.exceptions import ValidationError
 
 from .scopes import scope_filters_for_user
 
@@ -125,3 +127,30 @@ class ScopedQuerySetMixin:
             "périmètre direct et son ViewSet ne surcharge pas get_scoped_filters(). "
             "Voir matrix/core/mixins.py::build_scope_q."
         )
+
+
+class EcritureDansLePerimetreMixin:
+    """À combiner avec ScopedQuerySetMixin : une création ou une modification
+    qui rattacherait l'objet hors du périmètre de l'appelant (clé étrangère
+    choisie dans le payload) est refusée en 400 et annulée.
+
+    Les champs posés par le serveur (demandeur, auteur...) se déclarent dans
+    champs_serveur_creation() / champs_serveur_modification()."""
+
+    def champs_serveur_creation(self):
+        return {}
+
+    def champs_serveur_modification(self):
+        return {}
+
+    def _enregistrer_dans_le_perimetre(self, serializer, **champs):
+        with transaction.atomic():
+            objet = serializer.save(**champs)
+            if not self.get_queryset().filter(pk=objet.pk).exists():
+                raise ValidationError("Objet de rattachement hors de votre périmètre.")
+
+    def perform_create(self, serializer):
+        self._enregistrer_dans_le_perimetre(serializer, **self.champs_serveur_creation())
+
+    def perform_update(self, serializer):
+        self._enregistrer_dans_le_perimetre(serializer, **self.champs_serveur_modification())

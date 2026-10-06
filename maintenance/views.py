@@ -9,7 +9,7 @@ from .models import (
     mettre_a_jour_echeance_installation,
 )
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
-from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from accounts.models import AuditLog
 
@@ -160,7 +160,7 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
             mettre_a_jour_echeance_installation(occ)
         return response.Response(MaintenanceExecutionSerializer(exec).data)
 
-class MaintenanceExecutionViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+class MaintenanceExecutionViewSet(SuppressionInterditeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin) : une exécution porte
     # le résultat réel de l'entretien (conformité, mesures, signature de
     # validation) — même raisonnement que MaintenanceOccurrenceViewSet
@@ -181,3 +181,9 @@ class MaintenanceExecutionViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin
             "occurrence__asset__",
             "occurrence__installation_maintenance__installation__",
         )
+
+    def champs_serveur_creation(self):
+        return {"executed_by": self.request.user, "created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
