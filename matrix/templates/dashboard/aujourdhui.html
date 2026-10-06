@@ -115,7 +115,11 @@
   <div class="col-lg-6">
     {% surface titre="Retards de l'équipe" icone="retard" %}
       {% for retard in supervision.retards %}
-        {% carte_action titre=retard.titre libelle="Ouvrir" url=retard.url classes="mx-aujourdhui__tache--danger" %}{{ retard.detail }}{% fin_carte_action %}
+        {% if retard.peut_valider %}
+          {% carte_action titre=retard.titre libelle="Ouvrir" url=retard.url classes="mx-aujourdhui__tache--danger" %}{{ retard.detail }}{% fin_carte_action %}
+        {% else %}
+          <div class="mx-carte mx-carte--action mx-aujourdhui__tache--danger"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ retard.titre }}</span><span class="mx-carte__contenu">{{ retard.detail }}</span></div></div>
+        {% endif %}
       {% empty %}
         {% include "components/etat_vide.html" with icone="terminee" titre="Aucun retard" texte="Toutes les maintenances de votre périmètre sont à jour." %}
       {% endfor %}
@@ -124,7 +128,11 @@
   <div class="col-lg-6">
     {% surface titre="Validations en attente" icone="maintenance" %}
       {% for validation in supervision.validations %}
-        {% carte_action titre=validation.titre libelle="Valider" url=validation.url classes="mx-aujourdhui__tache--attention" %}{{ validation.detail }}{% fin_carte_action %}
+        {% if validation.peut_valider %}
+          {% carte_action titre=validation.titre libelle="Valider" url=validation.url classes="mx-aujourdhui__tache--attention" %}{{ validation.detail }}{% fin_carte_action %}
+        {% else %}
+          <div class="mx-carte mx-carte--action mx-aujourdhui__tache--attention"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ validation.titre }}</span><span class="mx-carte__contenu">{{ validation.detail }}</span></div></div>
+        {% endif %}
       {% endfor %}
       {% if supervision.formations_a_valider %}
         {% url 'formation-list' as url_formations %}

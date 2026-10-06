@@ -59,6 +59,10 @@ class SupervisionTests(TestCase):
         self.assertIsNone(r.context["supervision"])
         self.assertNotContains(r, "Validations en attente")
 
+    def test_chef_de_section_ne_voit_pas_le_bloc(self):
+        chef_section = self._marin("chef_section", "CHEF_SECTION", self.secteur_a)
+        self.assertFalse(peut_superviser(chef_section))
+
     def test_chef_voit_le_bloc(self):
         r = self._page(self.chef_a)
         self.assertIsNotNone(r.context["supervision"])
@@ -121,3 +125,28 @@ class SupervisionTests(TestCase):
         retards = supervision(self.chef_a, self.aujourdhui)["retards"]
         self.assertEqual(len(retards), 1)
         self.assertIn("Equipier", retards[0]["detail"])
+
+    def test_valider_reserve_aux_habilites(self):
+        occ = self._occurrence(self.asset_a, 1, "WAITING_VALIDATION")
+        self.assertTrue(supervision(self.chef_a, self.aujourdhui)["validations"][0]["peut_valider"])
+        # Seuil de gestion des maintenances d'autrui relevé au-dessus du chef de secteur.
+        RoleThresholdConfig.objects.create(
+            ship=self.navire, thresholds={"maintenance_occurrence_gestion_tiers": "CHEF_SERVICE"},
+        )
+        invalidate_cache(self.navire.pk)
+        # La config est annulée en fin de test : on purge aussi le cache pour ne pas fausser les autres tests.
+        self.addCleanup(invalidate_cache, self.navire.pk)
+        self.assertFalse(supervision(self.chef_a, self.aujourdhui)["validations"][0]["peut_valider"])
+        occ.assignees.add(self.chef_a)
+        self.assertTrue(supervision(self.chef_a, self.aujourdhui)["validations"][0]["peut_valider"])
+
+    def test_formation_d_un_autre_navire_non_comptee(self):
+        autre = Ship.objects.create(name="Autre navire", code="AN-SU")
+        proposeur = self._marin("proposeur", "CHEF_SECTEUR")
+        proposeur.profile.ship = autre
+        proposeur.profile.save()
+        TrainingCourse.objects.create(
+            title="Ailleurs", gere_par_le_bord=True, statut_validation="WAITING_VALIDATION", updated_by=proposeur,
+        )
+        commandant = self._marin("commandant", "COMMANDANT", self.secteur_a)
+        self.assertEqual(supervision(commandant, self.aujourdhui)["formations_a_valider"], 0)

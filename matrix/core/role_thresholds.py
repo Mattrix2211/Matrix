@@ -98,7 +98,7 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "supervision_aujourdhui",
         "Voir le bloc Supervision (retards, validations, indicateurs du périmètre) de la page Aujourd'hui",
-        "Tableau de bord", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+        "Tableau de bord", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
     ),
     ActionSeuil(
         "thread_ecriture", "Créer ou modifier une discussion",

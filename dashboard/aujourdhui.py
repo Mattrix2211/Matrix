@@ -163,22 +163,32 @@ def supervision(user, aujourdhui):
     retards = occurrences.filter(Q(status="OVERDUE") | Q(scheduled_for__lt=aujourdhui)).exclude(status="WAITING_VALIDATION")
     retards_total, actives = retards.count(), occurrences.count()
     liaisons = ("asset", "installation_maintenance__installation")
+    # Même règle que la fiche d'exécution : assigné, ou seuil de gestion des maintenances d'autrui.
+    gere_les_tiers = user_role_level(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers")
     lignes_retard = [
         {
             "titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]),
             "detail": f"Prévue le {occ.scheduled_for:%d/%m} · {_noms(occ)}",
+            "peut_valider": gere_les_tiers or user in occ.assignees.all(),
         }
         for occ in retards.select_related(*liaisons).prefetch_related("assignees").order_by("scheduled_for")[:LIGNES_SUPERVISION]
     ]
     lignes_validation = [
-        {"titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]), "detail": f"Prévue le {occ.scheduled_for:%d/%m}"}
-        for occ in en_attente.select_related(*liaisons).order_by("scheduled_for")[:LIGNES_SUPERVISION]
+        {
+            "titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]),
+            "detail": f"Prévue le {occ.scheduled_for:%d/%m}",
+            "peut_valider": gere_les_tiers or user in occ.assignees.all(),
+        }
+        for occ in en_attente.select_related(*liaisons).prefetch_related("assignees").order_by("scheduled_for")[:LIGNES_SUPERVISION]
     ]
     # Import différé : training.web_views est une couche de vues, chargée seulement ici.
     from training.web_views import peut_valider_proposition_bord
+    propositions = TrainingCourse.objects.filter(gere_par_le_bord=True, statut_validation="WAITING_VALIDATION")
+    if not is_master_admin(user):
+        # Bornage au navire du chef : le seuil COMMANDANT+ de la validation ne borne pas lui-même.
+        propositions = propositions.filter(updated_by__profile__ship=user.profile.ship)
     formations_a_valider = sum(
-        1 for c in TrainingCourse.objects.filter(gere_par_le_bord=True, statut_validation="WAITING_VALIDATION").select_related("updated_by")
-        if peut_valider_proposition_bord(user, c.updated_by)
+        1 for c in propositions.select_related("updated_by__profile") if peut_valider_proposition_bord(user, c.updated_by)
     )
     return {
         "retards": lignes_retard,
