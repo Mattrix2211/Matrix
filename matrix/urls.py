@@ -7,6 +7,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from .views import global_search, recherche_rapide
 from .core.brouillons import BrouillonView
+from .core.inactivite import SessionInactiviteView
 from .styleguide import StyleguideView
 from dashboard.web_views import TableauDeBordView
 
@@ -47,6 +48,7 @@ urlpatterns = [
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),
     path("brouillons/", BrouillonView.as_view(), name="brouillon"),
+    path("session/", SessionInactiviteView.as_view(), name="session-inactivite"),
     path("styleguide/", StyleguideView.as_view(), name="styleguide"),
     path("search/", global_search, name="global-search"),
     path("search/rapide/", recherche_rapide, name="recherche-rapide"),

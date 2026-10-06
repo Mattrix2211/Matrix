@@ -844,6 +844,10 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
 .mx-modale .modal-content,
 .mx-panneau { box-shadow: var(--shadow-md); }
 
+/* Déconnexion automatique (static/js/inactivite.js) : compte à rebours bien lisible */
+.mx-inactivite__compte { font-family: var(--f-mono); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.mx-inactivite .modal-footer { flex-wrap: wrap; gap: var(--s2); }
+
 /* Menu contextuel « ⋯ » : actions secondaires, jamais l'action principale */
 .mx-menu__declencheur { color: var(--text-sec); border-color: var(--border); }
 .mx-menu__declencheur:hover,

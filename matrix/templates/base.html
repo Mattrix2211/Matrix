@@ -52,6 +52,7 @@
     <script src="{% static 'js/grille.js' %}"></script>
     {% if navigation_laterale %}<script src="{% static 'js/barre_laterale.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/brouillon.js' %}"></script>{% endif %}
+    {% if user.is_authenticated and inactivite %}{% include "components/inactivite.html" %}<script src="{% static 'js/inactivite.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/push.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/recherche.js' %}"></script>{% endif %}
     <script>

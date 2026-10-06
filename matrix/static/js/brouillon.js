@@ -4,6 +4,8 @@
 // data-brouillon-delai (millisecondes de temporisation, 2000 par défaut),
 // data-brouillon-ignorer sur un champ à ne jamais conserver.
 // Serveur : matrix/core/brouillons.py (endpoint /brouillons/).
+// window.mx_brouillon_enregistrer_tout() enregistre aussitôt les saisies en attente (utilisé
+// par inactivite.js avant une déconnexion) et renvoie une promesse : vrai si rien n'est perdu.
 (function () {
   'use strict';
 
@@ -70,7 +72,7 @@
   }
 
   function appeler(methode, cle, corps) {
-    var options = { method: methode, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() } };
+    var options = { method: methode, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf(), 'X-Mx-Automatique': '1' } };
     if (corps) {
       options.headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(corps);
@@ -143,6 +145,7 @@
     var actif = false;      // vrai une fois la question « reprendre ? » réglée
     var restauration = false;
     var envoye = false;
+    var aEnregistrer = false; // saisie modifiée et pas encore enregistrée
     var minuteur = null, relance = null, essais = 0;
 
     function message(texte, erreur) {
@@ -153,7 +156,7 @@
     function enregistrer() {
       clearTimeout(relance);
       relance = null;
-      if (!document.contains(conteneur)) return; // conteneur retiré de la page : plus rien à enregistrer
+      if (!document.contains(conteneur)) return Promise.resolve(true); // conteneur retiré de la page : plus rien à enregistrer
       var contenu = collecter(conteneur);
       var requete = contenuVide(contenu)
         ? appeler('DELETE', cle)
@@ -161,34 +164,43 @@
           cle: cle, contenu: contenu, url: location.pathname + location.search,
           libelle: conteneur.getAttribute('data-brouillon-libelle') || document.title
         });
-      requete.then(function (rep) {
+      return requete.then(function (rep) {
         if (rep.ok) {
           essais = 0;
+          aEnregistrer = false;
           return rep.json().then(function (d) {
             message(d.existe ? 'Brouillon enregistré à ' + formaterHeure(new Date(d.mis_a_jour)) : '');
+            return true;
           });
         }
-        if (rep.status === 413) { message('Saisie trop volumineuse : brouillon non enregistré.', true); return; }
+        if (rep.status === 413) { message('Saisie trop volumineuse : brouillon non enregistré.', true); return false; }
         if (rep.status === 401 || rep.status === 403) {
           message('Session expirée : brouillon non enregistré. Reconnectez-vous dans un autre onglet ; votre saisie reste dans cette page.', true);
-          return;
+          return false;
         }
         throw new Error('serveur');
       }).catch(function () {
         // Coupure réseau ou erreur serveur : rien n'est perdu, nouvel essai automatique.
         message('Brouillon non enregistré (réseau indisponible). Nouvel essai automatique…', true);
         if (document.contains(conteneur)) relance = setTimeout(enregistrer, delaiReessai(essais++));
+        return false;
       });
     }
 
     function planifier() {
       if (!actif || restauration || envoye) return;
+      aEnregistrer = true;
       clearTimeout(minuteur);
       minuteur = setTimeout(enregistrer, delai);
     }
 
     conteneur.addEventListener('input', planifier);
     conteneur.addEventListener('change', planifier);
+    conteneur.mx_enregistrer_maintenant = function () {
+      if (!actif || envoye || !aEnregistrer) return Promise.resolve(true);
+      clearTimeout(minuteur);
+      return enregistrer();
+    };
     conteneur.mx_reessayer = function () { if (relance) { clearTimeout(relance); enregistrer(); } };
 
     var formulaire = conteneur.tagName === 'FORM' ? conteneur : conteneur.closest('form');
@@ -270,6 +282,13 @@
   window.addEventListener('online', function () {
     document.querySelectorAll('[data-brouillon]').forEach(function (c) { if (c.mx_reessayer) c.mx_reessayer(); });
   });
+
+  window.mx_brouillon_enregistrer_tout = function () {
+    var envois = Array.prototype.map.call(document.querySelectorAll('[data-brouillon]'), function (c) {
+      return c.mx_enregistrer_maintenant ? c.mx_enregistrer_maintenant() : true;
+    });
+    return Promise.all(envois).then(function (resultats) { return resultats.every(Boolean); });
+  };
 
   function initialiser(racine) {
     racine.querySelectorAll('[data-brouillon]').forEach(demarrer);

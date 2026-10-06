@@ -95,6 +95,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Déconnexion automatique après inactivité (matrix/core/inactivite.py)
+    "matrix.core.inactivite.InactiviteMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Modules activables par bâtiment : bloque l'accès direct par URL aux
@@ -133,6 +135,7 @@ TEMPLATES = [
                 "matrix.context_processors.theme_utilisateur",
                 "matrix.context_processors.navigation_laterale",
                 "matrix.context_processors.barre_superieure",
+                "matrix.context_processors.inactivite",
             ],
             "libraries": {
                 "icones": "matrix.core.balises_icones",
@@ -216,6 +219,11 @@ CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:63
 # d'environnement, sans toucher au code.
 BROUILLONS_CONSERVATION_JOURS = int(os.getenv("BROUILLONS_CONSERVATION_JOURS", "30"))
 BROUILLONS_TAILLE_MAX = int(os.getenv("BROUILLONS_TAILLE_MAX", str(256 * 1024)))
+
+# Déconnexion automatique des postes partagés (en secondes) : délai d'inactivité et
+# préavis affiché avant la déconnexion. Valeurs bornées et corrigées par matrix/core/inactivite.py.
+INACTIVITE_DELAI_SECONDES = os.getenv("INACTIVITE_DELAI_SECONDES", "900")
+INACTIVITE_AVERTISSEMENT_SECONDES = os.getenv("INACTIVITE_AVERTISSEMENT_SECONDES", "60")
 
 CELERY_BEAT_SCHEDULE = {
     "purger_brouillons_daily": {
