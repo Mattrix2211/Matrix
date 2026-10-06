@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
@@ -535,6 +536,25 @@ class BasculerThemeView(LoginRequiredMixin, View):
         profil.theme = Themes.CLAIR if profil.theme == Themes.SOMBRE else Themes.SOMBRE
         profil.save(update_fields=["theme", "updated_at"])
         retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        return redirect(retour)
+
+
+class MemoriserBarreLateraleView(LoginRequiredMixin, View):
+    """Mémorise dans le profil du marin connecté l'état replié (« repliee=1 ») ou
+    déplié (« repliee=0 ») de la barre latérale. Sans JavaScript, le formulaire
+    recharge la page ; avec, la requête part en arrière-plan (réponse 204)."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        profil, _ = UserProfile.objects.get_or_create(user=request.user)
+        profil.barre_laterale_repliee = request.POST.get("repliee") == "1"
+        profil.save(update_fields=["barre_laterale_repliee", "updated_at"])
+        if request.headers.get("X-Requested-With") == "fetch":
+            return HttpResponse(status=204)
+        retour = request.META.get("HTTP_REFERER") or "/"
         if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
             retour = "/"
         return redirect(retour)

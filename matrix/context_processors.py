@@ -2,6 +2,7 @@ from datetime import timedelta, date
 from django.utils import timezone
 from django.urls import reverse
 from assets.models import Installation, InstallationIsolationReading, InstallationVibrationReading
+from matrix.core.navigation import construire_navigation
 from notifications.models import Notification
 
 
@@ -152,3 +153,16 @@ def theme_utilisateur(request):
     utilisateur = getattr(request, "user", None)
     profil = getattr(utilisateur, "profile", None) if utilisateur and utilisateur.is_authenticated else None
     return {"theme_utilisateur": profil.theme if profil else "clair"}
+
+
+def navigation_laterale(request):
+    """Barre latérale (docs/UX.md §7) : groupes visibles selon les droits et les
+    modules du bâtiment, entrée courante, état replié mémorisé dans le profil."""
+    utilisateur = getattr(request, "user", None)
+    if not utilisateur or not utilisateur.is_authenticated:
+        return {}
+    profil = getattr(utilisateur, "profile", None)
+    return {
+        "navigation_laterale": construire_navigation(utilisateur, request.path),
+        "barre_laterale_repliee": bool(profil and profil.barre_laterale_repliee),
+    }

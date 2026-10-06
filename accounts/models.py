@@ -42,6 +42,10 @@ class UserProfile(TimeStampedModel):
     # de nuit, docs/UX.md §17). Clair par défaut.
     theme = models.CharField(max_length=8, choices=Themes.choices, default=Themes.CLAIR)
 
+    # Barre latérale repliée (docs/UX.md §7) : état mémorisé par marin, et non par
+    # navigateur, car les postes du bord sont partagés. Dépliée par défaut.
+    barre_laterale_repliee = models.BooleanField(default=False)
+
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")

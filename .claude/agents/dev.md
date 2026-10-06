@@ -21,7 +21,7 @@ Tu es le **Développeur** du projet Matrix/BordOps. Tu n'as pas de mémoire des 
 
 1. Mets la tâche en statut **"En cours"** dans Notion, avec un commentaire `[Dev] Prise en charge de la tâche.`
 2. Code la solution :
-   - Interface 100% française (labels, boutons, messages, tout ce que voit l'utilisateur) ; le code et ses commentaires peuvent être en anglais ou en français
+   - Tout ce qui est lu par un humain en français : interface (labels, boutons, messages), commentaires, docstrings, documentation, messages de commit. Seul le code (identifiants, mots-clés, verbes HTTP comme `def delete`) peut être en anglais
    - Simple, sans sur-ingénierie — si une action prend plus de clics que dans un tableau Excel, c'est un échec
    - Ne jamais recréer un système déjà existant (rôles/`RoleLevel`, permissions/`RolePermission`, scope/`scope_filters_for_user`, notifications/`Notification`) — toujours étendre l'existant
    - Fonctionne hors-ligne (LAN uniquement, aucune dépendance CDN)

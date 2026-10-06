@@ -57,146 +57,6 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="nav">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item">
-              <a class="nav-link" href="/" title="Tableau de bord" aria-label="Tableau de bord">
-                <span class="bi bi-speedometer2 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tableau de bord</span>
-              </a>
-            </li>
-            {% if user|module_actif:"assets" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/assets/" title="Matériels" aria-label="Matériels">
-                <span class="bi bi-box-seam nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Matériels</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/installations/" title="Installations" aria-label="Installations">
-                <span class="bi bi-gear-wide-connected nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Installations</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'plan-navire-vue' %}" title="Plan du navire" aria-label="Plan du navire">
-                <span class="bi bi-map nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Plan du navire</span>
-              </a>
-            </li>
-            {% if user|peut_configurer_plan_navire %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'plan-navire-list' %}" title="Configurer le plan du navire" aria-label="Configurer le plan du navire">
-                <span class="bi bi-sliders nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Configurer le plan du navire</span>
-              </a>
-            </li>
-            {% endif %}
-            {% endif %}
-            {% if user|module_actif:"maintenance" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/calendar/?type=maintenance" title="Maintenance" aria-label="Maintenance">
-                <span class="bi bi-tools nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Maintenance</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'maintenance-occurrences' %}" title="Gestion Maintenance" aria-label="Gestion Maintenance">
-                <span class="bi bi-clipboard-check nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Gestion Maintenance</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"logistics" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/logistics/stock/" title="Logistique" aria-label="Logistique">
-                <span class="bi bi-boxes nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Logistique</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/logistics/tickets/" title="Tickets correctifs" aria-label="Tickets correctifs">
-                <span class="bi bi-ticket-perforated nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tickets correctifs</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'anomalie-list' %}" title="Anomalies" aria-label="Anomalies">
-                <span class="bi bi-exclamation-triangle nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Anomalies</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"training" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/formations/" title="Formations" aria-label="Formations">
-                <span class="bi bi-mortarboard nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Formations</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"rondes" %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'rondes-index' %}" title="Rondes" aria-label="Rondes">
-                <span class="bi bi-signpost-split nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Rondes</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"quarts" %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'quarts-index' %}" title="Quarts et gardes" aria-label="Quarts et gardes">
-                <span class="bi bi-clock-history nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Quarts et gardes</span>
-              </a>
-            </li>
-            {% endif %}
-            <li class="nav-item">
-              <a class="nav-link" href="/calendar/" title="Calendrier" aria-label="Calendrier">
-                <span class="bi bi-calendar3 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Calendrier</span>
-              </a>
-            </li>
-            {% if user|peut_voir_vue_flotte %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'vue-flotte' %}" title="Vue flotte" aria-label="Vue flotte">
-                <span class="bi bi-diagram-3 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Vue flotte</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|peut_voir_dashboard_specialite %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'dashboard-specialite-choix' %}" title="Tableau de bord spécialité" aria-label="Tableau de bord spécialité">
-                <span class="bi bi-award nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tableau de bord spécialité</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|peut_voir_dashboard_classe_navire %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'dashboard-classe-navire-choix' %}" title="Tableau de bord classe de navire" aria-label="Tableau de bord classe de navire">
-                <span class="bi bi-diagram-2 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tableau de bord classe de navire</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|peut_voir_pret_appareillage %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'pret-appareillage' %}" title="Prêt à appareillage" aria-label="Prêt à appareillage">
-                <span class="bi bi-compass nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Prêt à appareillage</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user.is_authenticated %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% if user.is_superuser %}/parametre/{% else %}/parametre/?tab=notifications{% endif %}" title="Paramètres" aria-label="Paramètres">
-                <span class="bi bi-gear nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Paramètres</span>
-              </a>
-            </li>
-            {% endif %}
-          </ul>
           <ul class="navbar-nav ms-auto">
             {% if user.is_authenticated %}
               <li class="nav-item dropdown me-2">
@@ -244,14 +104,6 @@
                   {% endif %}
                 </ul>
               </li>
-              {% if user.is_superuser or user.profile.role == 'ADMIN_NAVIRE' or user.profile.role == 'COMMANDANT' %}
-              <li class="nav-item">
-                <a class="nav-link" href="/users/" title="Utilisateurs" aria-label="Utilisateurs">
-                  <span class="bi bi-people nav-icon" aria-hidden="true"></span>
-                  <span class="visually-hidden">Utilisateurs</span>
-                </a>
-              </li>
-              {% endif %}
               <li class="nav-item">
                 <form method="post" action="{% url 'basculer-theme' %}" class="d-inline">
                   {% csrf_token %}
@@ -281,12 +133,16 @@
         </div>
       </div>
     </nav>
-    <main class="container py-4">
-      {% block content %}{% endblock %}
-    </main>
+    <div class="mx-coque">
+      {% if navigation_laterale %}{% include "components/barre_laterale.html" %}{% endif %}
+      <main class="container py-4 mx-coque__contenu">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/matrix.js' %}"></script>
     <script src="{% static 'js/grille.js' %}"></script>
+    {% if navigation_laterale %}<script src="{% static 'js/barre_laterale.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/brouillon.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/push.js' %}"></script>{% endif %}
     <script>
