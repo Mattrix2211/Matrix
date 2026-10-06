@@ -80,12 +80,38 @@ def perimetre_navire_q(user, prefix: str = "") -> Q:
     ship_id = ship_id_for_user(user)
     if not ship_id:
         return Q(pk__in=[])
+    return navire_q(ship_id, prefix)
+
+
+def navire_q(ship_id, prefix: str = "") -> Q:
+    """Filtre Q couvrant tout rattachement (navire/service/secteur/section)
+    au navire donné ; `prefix` s'utilise comme pour perimetre_navire_q."""
     return (
         Q(**{f"{prefix}ship_id": ship_id})
         | Q(**{f"{prefix}service__ship_id": ship_id})
         | Q(**{f"{prefix}sector__service__ship_id": ship_id})
         | Q(**{f"{prefix}section__sector__service__ship_id": ship_id})
     )
+
+
+def perimetre_hierarchique_q(user, prefix: str = "") -> Optional[Q]:
+    """Filtre Q des marins rattachés n'importe où EN DESSOUS du niveau de
+    périmètre de `user` (section, secteur, service ou navire). Renvoie None si
+    l'utilisateur n'a aucun périmètre : l'appelant décide alors quoi en faire."""
+    filters = scope_filters_for_user(user)
+    if (section_id := filters.get("section_id")) is not None:
+        return Q(**{f"{prefix}section_id": section_id})
+    if (sector_id := filters.get("sector_id")) is not None:
+        return Q(**{f"{prefix}sector_id": sector_id}) | Q(**{f"{prefix}section__sector_id": sector_id})
+    if (service_id := filters.get("service_id")) is not None:
+        return (
+            Q(**{f"{prefix}service_id": service_id})
+            | Q(**{f"{prefix}sector__service_id": service_id})
+            | Q(**{f"{prefix}section__sector__service_id": service_id})
+        )
+    if (ship_id := filters.get("ship_id")) is not None:
+        return navire_q(ship_id, prefix)
+    return None
 
 
 def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=None, sector_id=None, section_id=None):

@@ -1,5 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models.signals import m2m_changed
@@ -7,6 +8,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.scopes import navire_q, perimetre_hierarchique_q
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Ship, Service, Section
 
@@ -196,6 +198,29 @@ def peut_valider_formation(user, course, ship):
     if ReferentFormation.objects.filter(course=course, ship=ship, user=user).exists():
         return True
     return ReferentFormationNavire.objects.filter(ship=ship, user=user).exists()
+
+
+def dossiers_formation_visibles_q(user):
+    """Filtre Q (sur TrainingRecord) des dossiers de formation lisibles par
+    `user` : le sien, ceux des marins de son périmètre hiérarchique s'il est
+    chef (CHEF_SECTION et au-dessus), ceux des navires dont il est Personnel
+    BRH, et ceux que ses désignations de référent l'autorisent à valider.
+    Supervision globale : tout. Aucun périmètre : seulement le sien."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        return Q()
+    marin = "user__profile__"
+    q = Q(user=user)
+    if user_role_level(user) >= RoleLevel.CHEF_SECTION:
+        perimetre = perimetre_hierarchique_q(user, marin)
+        if perimetre is not None:
+            q |= perimetre
+    for ship_id in PersonnelBRH.objects.filter(user=user).values_list("ship_id", flat=True):
+        q |= navire_q(ship_id, marin)
+    for ship_id in ReferentFormationNavire.objects.filter(user=user).values_list("ship_id", flat=True):
+        q |= navire_q(ship_id, marin)
+    for course_id, ship_id in ReferentFormation.objects.filter(user=user).values_list("course_id", "ship_id"):
+        q |= Q(course_id=course_id) & navire_q(ship_id, marin)
+    return q
 
 
 def _verifier_absence_de_cycle_prerequis(course, nouveaux_ids):

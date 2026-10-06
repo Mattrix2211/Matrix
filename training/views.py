@@ -10,6 +10,7 @@ from .models import (
     TrainingRequirement,
     TrainingSession,
     TrainingRecord,
+    dossiers_formation_visibles_q,
     navire_de,
     peut_valider_formation,
 )
@@ -461,12 +462,7 @@ class TrainingRecordViewSet(viewsets.ModelViewSet):
     permission_classes = [TrainingRecordPermission]
 
     def get_queryset(self):
-        # Supervision globale : tout. Sinon son propre dossier et celui de l'équipage de son navire.
-        user = self.request.user
-        qs = super().get_queryset()
-        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
-            return qs
-        return qs.filter(Q(user=user) | perimetre_navire_q(user, "user__profile__"))
+        return super().get_queryset().filter(dossiers_formation_visibles_q(self.request.user))
 
     def perform_create(self, serializer):
         serializer.save(validated_by=self.request.user, created_by=self.request.user)

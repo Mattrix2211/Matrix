@@ -6,13 +6,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import ListView, View
 
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import scope_filters_for_user, ship_id_for_user
+from matrix.core.scopes import perimetre_hierarchique_q, ship_id_for_user
 from notifications.models import Notification
 from org.models import Ship
 from accounts.models import AuditLog
@@ -29,6 +29,7 @@ from .models import (
     TrainingRecord,
     TrainingSession,
     TrainingWaitlistEntry,
+    dossiers_formation_visibles_q,
     navire_de,
     peut_valider_formation,
 )
@@ -306,34 +307,7 @@ def filtres_perimetre_marin(user):
 
     Renvoie un objet Q, ou None si le périmètre est vide (supervision
     globale, COMMANDANT et au-dessus, qui voient tous les marins)."""
-    filters = scope_filters_for_user(user)
-
-    section_id = filters.get("section_id")
-    if section_id is not None:
-        return Q(profile__section_id=section_id)
-
-    sector_id = filters.get("sector_id")
-    if sector_id is not None:
-        return Q(profile__sector_id=sector_id) | Q(profile__section__sector_id=sector_id)
-
-    service_id = filters.get("service_id")
-    if service_id is not None:
-        return (
-            Q(profile__service_id=service_id)
-            | Q(profile__sector__service_id=service_id)
-            | Q(profile__section__sector__service_id=service_id)
-        )
-
-    ship_id = filters.get("ship_id")
-    if ship_id is not None:
-        return (
-            Q(profile__ship_id=ship_id)
-            | Q(profile__service__ship_id=ship_id)
-            | Q(profile__sector__service__ship_id=ship_id)
-            | Q(profile__section__sector__service__ship_id=ship_id)
-        )
-
-    return None
+    return perimetre_hierarchique_q(user, "profile__")
 
 
 def _marins_validables(user):
@@ -454,7 +428,15 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         # (cf. get_context_data), jamais dans le catalogue général.
         qs = (
             TrainingCourse.objects.filter(statut_validation="ACTIVE")
-            .prefetch_related("prerequisites", "records", "records__user")
+            .prefetch_related(
+                "prerequisites",
+                Prefetch(
+                    "records",
+                    queryset=TrainingRecord.objects.filter(
+                        dossiers_formation_visibles_q(self.request.user)
+                    ).select_related("user"),
+                ),
+            )
             .order_by("title")
         )
         # Valeur issue du <select> HTML du filtre catégorie.
