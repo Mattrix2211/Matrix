@@ -42,3 +42,11 @@ document.addEventListener('keydown', function (evt) {
     if (popover) popover.hide();
   });
 });
+
+// Centre de notifications : après « Marquer comme lu », le bouton cliqué disparaît
+// et le focus se perd ; on le rend au panneau pour que Échap le ferme toujours.
+document.body.addEventListener('htmx:afterSwap', function (evt) {
+  if (evt.detail.target && evt.detail.target.id === 'notif-liste' && document.activeElement === document.body) {
+    document.getElementById('centre-notifications').focus();
+  }
+});

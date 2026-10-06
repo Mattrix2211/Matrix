@@ -1,7 +1,7 @@
 {% load static %}
 {% load icones %}
 {# Barre supérieure (docs/UX.md §8) : une seule ligne, hauteur fixe --mx-hauteur-navbar. #}
-{# Emplacements réservés, non implémentés ici : recherche globale (UX-1.4) entre le contexte et l'utilisateur ; centre de notifications (UX-1.3) à la place de la cloche actuelle ; déconnexion automatique (UX-1.5) sans élément visible. #}
+{# Emplacements réservés, non implémentés ici : recherche globale (UX-1.4) entre le contexte et l'utilisateur ; déconnexion automatique (UX-1.5) sans élément visible. #}
 <header class="navbar navbar-expand navbar-dark bg-dark mx-barre">
   <div class="container-fluid flex-nowrap">
     <a class="navbar-brand matrix-logo" href="/" aria-label="Matrix — accueil">
@@ -45,51 +45,12 @@
     {% endif %}
     <ul class="navbar-nav flex-row ms-auto align-items-center mx-barre__outils">
       {% if user.is_authenticated %}
-              <li class="nav-item dropdown me-2">
-                  <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
-                    <span class="bi bi-bell"></span>
-                    {% if notifications_unread_count %}
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ notifications_unread_count }}</span>
-                    {% endif %}
-                  </a>
-                  <ul class="dropdown-menu dropdown-menu-end" style="min-width: 360px; max-height: 60vh; overflow:auto;">
-                    <li class="dropdown-header d-flex justify-content-between align-items-center">
-                      <span><span class="bi bi-bell me-1"></span>Notifications</span>
-                      <button class="btn btn-sm btn-outline-secondary" id="notif-mark-all" title="Marquer tout comme lu"><span class="bi bi-check2-all"></span></button>
-                    </li>
-                    <li class="dropdown-item-text d-flex align-items-center justify-content-between border-bottom pb-2 mb-1">
-                      <label class="form-check-label small mb-0" for="push-toggle">Alertes critiques sur cet appareil</label>
-                      <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" role="switch" id="push-toggle" onclick="event.stopPropagation()">
-                      </div>
-                    </li>
-                    <li id="push-indisponible" class="dropdown-item-text small text-muted d-none">Non disponible sur cet appareil/navigateur.</li>
-                    {% if notifications %}
-                      {% for n in notifications %}
-                        <li>
-                          <div class="dropdown-item d-flex align-items-start gap-2 {% if n.persisted and not n.is_read %}bg-light{% endif %}">
-                            <span class="bi {% if n.level == 'danger' %}bi-exclamation-octagon text-danger{% elif n.level == 'warning' %}bi-exclamation-triangle text-warning{% else %}bi-info-circle text-muted{% endif %}"></span>
-                            <div class="flex-grow-1">
-                              <a class="text-decoration-none" href="{{ n.url }}">
-                                <div class="fw-semibold">{{ n.title }}</div>
-                                <div class="small text-muted">{{ n.subtitle }}</div>
-                              </a>
-                            </div>
-                            {% if n.persisted %}
-                              {% if not n.is_read %}
-                                <button class="btn btn-sm btn-outline-success" data-notif-id="{{ n.id }}" data-action="read" title="Marquer comme lu"><span class="bi bi-check2"></span></button>
-                              {% else %}
-                                <button class="btn btn-sm btn-outline-secondary" data-notif-id="{{ n.id }}" data-action="unread" title="Marquer comme non lu"><span class="bi bi-arrow-counterclockwise"></span></button>
-                              {% endif %}
-                            {% endif %}
-                          </div>
-                        </li>
-                      {% endfor %}
-                    {% else %}
-                      <li><div class="dropdown-item text-muted">Aucune notification</div></li>
-                    {% endif %}
-                  </ul>
-                </li>
+        <li class="nav-item mx-cloche">
+          <button type="button" class="mx-barre__bouton" data-bs-toggle="offcanvas" data-bs-target="#centre-notifications" aria-controls="centre-notifications" aria-label="Notifications" title="Notifications">
+            {% icone "notifications" %}
+          </button>
+          {% include "notifications/_compteur.html" with non_lues=notifications_non_lues %}
+        </li>
         <li class="nav-item">
           <form method="post" action="{% url 'basculer-theme' %}" class="d-inline">
             {% csrf_token %}

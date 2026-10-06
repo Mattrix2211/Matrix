@@ -33,6 +33,7 @@ urlpatterns = [
     path("api/training/", include("training.urls")),
     path("api/threads/", include("threads.urls")),
     path("api/notifications/", include("notifications.urls")),
+    path("notifications/", include("notifications.web_urls")),
     path("api/dashboard/", include("dashboard.urls")),
     path("dashboard/", include("dashboard.web_urls")),
     path("calendar/", include("calendar_app.urls")),

@@ -2,6 +2,7 @@
 {% load dashboard_extras %}
 {% load asset_extras %}
 {% load org_extras %}
+{% load composants %}
 <!doctype html>
 <html lang="fr" data-theme="{{ theme_utilisateur|default:'clair' }}"{% if theme_utilisateur == 'sombre' %} data-bs-theme="dark"{% endif %}>
   <head>
@@ -39,6 +40,7 @@
       {% endif %}
     </div>
     {% include "components/barre_superieure.html" %}
+    {% if user.is_authenticated %}{% url "notifications-panneau" as url_panneau %}{% panneau_lateral id="centre-notifications" titre="Notifications" icone="notifications" url=url_panneau %}{% fin_panneau_lateral %}{% endif %}
     <div class="mx-coque">
       {% if navigation_laterale %}{% include "components/barre_laterale.html" %}{% endif %}
       <main class="container py-4 mx-coque__contenu">
@@ -56,38 +58,6 @@
       (function(){
         var toastElList = [].slice.call(document.querySelectorAll('.toast'));
         toastElList.forEach(function (toastEl) { try { new bootstrap.Toast(toastEl).show(); } catch(e){} });
-      })();
-
-      // Notifications: marquer comme lu (une ou toutes)
-      (function(){
-        function getCookie(name){
-          var value = '; ' + document.cookie;
-          var parts = value.split('; ' + name + '=');
-          if (parts.length === 2) return parts.pop().split(';').shift();
-          return '';
-        }
-        var csrf = getCookie('csrftoken') || getCookie('CSRF-TOKEN');
-        document.addEventListener('click', function(e){
-          var btnAll = e.target.closest('#notif-mark-all');
-          if (btnAll){
-            fetch('/api/notifications/notifications/mark_all_read/', {
-              method: 'POST', headers: { 'X-CSRFToken': csrf }
-            }).then(function(){ location.reload(); }).catch(function(){});
-            e.preventDefault(); return;
-          }
-          var btnOne = e.target.closest('[data-notif-id]');
-          if (btnOne){
-            var id = btnOne.getAttribute('data-notif-id');
-            var action = btnOne.getAttribute('data-action') || 'read';
-            var payload = { is_read: action === 'read' };
-            fetch('/api/notifications/notifications/' + id + '/', {
-              method: 'PATCH', headers: {
-                'Content-Type': 'application/json', 'X-CSRFToken': csrf
-              }, body: JSON.stringify(payload)
-            }).then(function(){ location.reload(); }).catch(function(){});
-            e.preventDefault(); return;
-          }
-        });
       })();
     </script>
   </body>

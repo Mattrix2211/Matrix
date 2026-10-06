@@ -53,6 +53,11 @@ ICONES = {
     "navire": "bi-water",
     "deconnexion": "bi-box-arrow-right",
     "deplier_liste": "bi-chevron-down",
+    # Centre de notifications
+    "notifications": "bi-bell",
+    "marquer_lu": "bi-check2",
+    "tout_marquer_lu": "bi-check2-all",
+    "lien_direct": "bi-box-arrow-up-right",
     # États
     "retard": "bi-alarm",
     "terminee": "bi-check-circle",

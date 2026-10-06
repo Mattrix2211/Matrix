@@ -130,6 +130,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "matrix.context_processors.installations_notifications",
+                "matrix.context_processors.compteur_notifications",
                 "matrix.context_processors.theme_utilisateur",
                 "matrix.context_processors.navigation_laterale",
                 "matrix.context_processors.barre_superieure",

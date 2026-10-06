@@ -51,36 +51,6 @@ def installations_notifications(request):
     notifs = []
     try:
         today = timezone.localdate()
-        unread_count = 0
-        # Notifications sauvegardées (si l’utilisateur est connecté)
-        if getattr(request, "user", None) and request.user.is_authenticated:
-            for n in Notification.objects.filter(user=request.user).order_by("-created_at")[:50]:
-                url = None
-                if n.content_type and n.object_id:
-                    try:
-                        if n.content_type.model == "installation":
-                            url = f"/installations/{n.object_id}/"
-                        # autres types éventuels ignorés
-                    except Exception:
-                        pass
-                if url is None and n.verb.startswith("Ma journée"):
-                    # Digest calendrier quotidien (notifications.tasks._digest_journee) :
-                    # pas d'objet unique à cibler, on renvoie vers le calendrier pour le détail.
-                    url = reverse("calendar-index")
-                item = {
-                    "id": n.id,
-                    "persisted": True,
-                    "is_read": n.is_read,
-                    "level": n.level,
-                    "title": n.verb.split(":")[0] if ":" in n.verb else n.verb,
-                    "subtitle": ": ".join(n.verb.split(":")[1:]).strip() if ":" in n.verb else "",
-                    "url": url or "#",
-                    "days": 9998,
-                }
-                notifs.append(item)
-                if not n.is_read:
-                    unread_count += 1
-
         # Requêtes groupées (installation_id__in=...) plutôt qu'un .first() par
         # installation : ce context processor s'exécute sur CHAQUE page du site,
         # le nombre de requêtes ne doit donc pas dépendre du nombre d'installations.
@@ -146,8 +116,16 @@ def installations_notifications(request):
     return {
         "notifications": dedup,
         "notifications_count": len(dedup),
-        "notifications_unread_count": unread_count,
     }
+
+
+def compteur_notifications(request):
+    """Notifications non lues du marin connecté : une seule requête COUNT,
+    aucune pour un anonyme."""
+    utilisateur = getattr(request, "user", None)
+    if not utilisateur or not utilisateur.is_authenticated:
+        return {}
+    return {"notifications_non_lues": Notification.objects.filter(user=utilisateur, is_read=False).count()}
 
 
 def theme_utilisateur(request):
