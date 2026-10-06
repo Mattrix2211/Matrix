@@ -50,14 +50,57 @@ class AujourdhuiTerreTests(TestCase):
         ResponsableSpecialite.objects.create(user=resp, specialite=SpecialityChoice.objects.create(name="Élec"))
         self.assertEqual(len(batiments_suivis(resp)), 3)
 
+    def _avec_droit_de_gestion(self, *utilisateurs):
+        for u in utilisateurs:
+            u.profile.role = "CHEF_SECTION"
+            u.profile.save()
+
     def test_a_faire_borne_aux_batiments_suivis(self):
+        self._avec_droit_de_gestion(self.ssf)
         attente = self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
         self._occurrence(self.ship_c, 1, "WAITING_VALIDATION")
         ticket = CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="BLOCKED")
         CorrectiveTicket.objects.create(asset=self.assets[self.ship_c], description="HS", status="BLOCKED")
         CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="REPORTED")
-        urls = [e["url"] for e in a_faire_terre(batiments_suivis(self.ssf))]
+        urls = [e["url"] for e in a_faire_terre(self.ssf, batiments_suivis(self.ssf))]
         self.assertEqual(urls, [reverse("occurrence-execute", args=[attente.pk]), reverse("ticket-detail", args=[ticket.pk])])
+
+    def test_liens_generes_suivis_a_terre(self):
+        # Les liens « Valider » et « Commenter » doivent aboutir pour classe et spécialité.
+        resp = User.objects.create_user(username="resp", password="pass")
+        ResponsableSpecialite.objects.create(user=resp, specialite=SpecialityChoice.objects.create(name="Élec"))
+        self._avec_droit_de_gestion(self.ssf, resp)
+        attente = self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
+        ticket = CorrectiveTicket.objects.create(asset=self.assets[self.ship_a], description="HS", status="BLOCKED")
+        hors = self._occurrence(self.ship_c, 1, "WAITING_VALIDATION")
+        hors_ticket = CorrectiveTicket.objects.create(asset=self.assets[self.ship_c], description="HS", status="BLOCKED")
+        for nom in ("ssf", "resp"):
+            self.client.login(username=nom, password="pass")
+            self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 200)
+            self.assertEqual(self.client.get(reverse("occurrence-execute", args=[attente.pk])).status_code, 200)
+            self.assertEqual(
+                self.client.post(reverse("ticket-comment-create", args=[ticket.pk]), {"body": "Suivi"}).status_code // 100, 3,
+            )
+        self.client.login(username="ssf", password="pass")
+        self.assertEqual(self.client.get(reverse("ticket-detail", args=[hors_ticket.pk])).status_code, 400)
+        self.assertEqual(self.client.get(reverse("occurrence-execute", args=[hors.pk])).status_code, 400)
+
+    def test_sans_perimetre_ou_rattache_aucun_gain(self):
+        ticket = CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="BLOCKED")
+        User.objects.create_user(username="sans", password="pass")
+        self.client.login(username="sans", password="pass")
+        self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 400)
+        # Rattaché au bâtiment Alpha : la responsabilité de classe n'élargit pas son périmètre.
+        self.ssf.profile.ship = self.ship_a
+        self.ssf.profile.save()
+        self.client.login(username="ssf", password="pass")
+        self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 400)
+
+    def test_valider_sans_droit_n_a_pas_de_lien(self):
+        self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
+        entree = a_faire_terre(self.ssf, batiments_suivis(self.ssf))[0]
+        self.assertIsNone(entree["url"])
+        self.assertEqual(entree["libelle"], "Valider")
 
     def test_badges_par_batiment(self):
         self._occurrence(self.ship_a, -2, "OVERDUE")

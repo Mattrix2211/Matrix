@@ -41,6 +41,11 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
 
     template_name = "dashboard/aujourdhui.html"
 
+    def get_template_names(self):
+        if batiments_suivis(self.request.user):
+            return ["dashboard/aujourdhui_terre.html"]
+        return super().get_template_names()
+
     def get_context_data(self, **kwargs):
         contexte = super().get_context_data(**kwargs)
 
@@ -49,9 +54,8 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         # Utilisateur à terre : vue flotte à la place de l'espace personnel de bord.
         batiments = batiments_suivis(utilisateur)
         if batiments:
-            self.template_name = "dashboard/aujourdhui_terre.html"
             contexte["aujourdhui"] = aujourdhui
-            contexte["a_faire"] = a_faire_terre(batiments)
+            contexte["a_faire"] = a_faire_terre(utilisateur, batiments)
             contexte["cartes"] = cartes_batiments(batiments, aujourdhui)
             contexte["choix_possible"] = len(batiments) > 1
             contexte["salutation"] = utilisateur.last_name or utilisateur.get_username()

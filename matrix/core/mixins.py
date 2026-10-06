@@ -28,16 +28,25 @@ def build_scope_q(user, *lookup_paths):
       couvrent pas les 4 niveaux (ex. un type d'actif n'est jamais rattaché
       à une section précise).
 
-    Sans périmètre défini, seul un MASTER_ADMIN (ou superutilisateur) obtient
-    Q() (flotte entière) ; tout autre utilisateur n'obtient aucun résultat.
+    Sans rattachement, un MASTER_ADMIN (ou superutilisateur) obtient Q()
+    (flotte entière) ; un utilisateur à terre est borné aux bâtiments qu'il
+    suit (batiments_du_perimetre) ; tout autre n'obtient aucun résultat.
 
     Si un périmètre est défini mais qu'aucun des chemins fournis ne le
     couvre, renvoie un Q qui n'égale jamais rien : mieux vaut ne rien
     montrer que de renvoyer une donnée hors périmètre.
     """
     filters = scope_filters_for_user(user)
+    suffixe = ""
     if not filters:
-        return Q() if is_master_admin(user) else Q(pk__in=[])
+        if is_master_admin(user):
+            return Q()
+        # Import différé : contexte_batiment importe scopes (cycle).
+        from .contexte_batiment import batiments_du_perimetre
+        filters = {"ship_id": list(batiments_du_perimetre(user).values_list("pk", flat=True))}
+        if not filters["ship_id"]:
+            return Q(pk__in=[])
+        suffixe = "__in"
     (key, value), = filters.items()
     q = Q()
     matched = False
@@ -45,7 +54,7 @@ def build_scope_q(user, *lookup_paths):
         lookup = path.get(key) if isinstance(path, dict) else f"{path}{key}"
         if not lookup:
             continue
-        q |= Q(**{lookup: value})
+        q |= Q(**{lookup + suffixe: value})
         matched = True
     return q if matched else Q(pk__in=[])
 
