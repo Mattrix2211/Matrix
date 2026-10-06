@@ -98,15 +98,44 @@ class PerimetreTests(RechercheRapideTestCase):
         self.client.force_login(self.equipier)
         reponse = self.client.get(reverse(URL), {"q": "ZEBRE"})
         for groupe in reponse.context["groupes"]:
-            for resultat in groupe["resultats"]:
+            for resultat in filter(lambda r: r["url"], groupe["resultats"]):
                 self.assertEqual(self.client.get(resultat["url"]).status_code, 200, resultat["url"])
 
-    def test_marins_reserves_aux_commandants_et_limites_au_navire(self):
-        self.assertNotContains(self.chercher(self.chef, "Zebrowski"), "Marins")
-        autre = self._marin("zebre_ailleurs", "EQUIPIER", ship=self.autre_navire)
-        reponse = self.chercher(self.commandant, "zebr")
+    def test_equipier_trouve_un_collegue_du_meme_navire(self):
+        reponse = self.chercher(self.equipier, "Zebrowski")
+        self.assertContains(reponse, "Marins")
         self.assertContains(reponse, "Zebrowski")
-        self.assertNotContains(reponse, autre.username)
+        self.assertContains(reponse, "Commandant")  # rôle en sous-titre
+
+    def test_equipier_ne_trouve_pas_un_marin_dun_autre_navire(self):
+        self._marin("zebre_ailleurs", "EQUIPIER", ship=self.autre_navire, last_name="Zebrelle")
+        self.assertNotContains(self.chercher(self.equipier, "Zebrelle"), "Zebrelle")
+        self.assertNotContains(self.chercher(self.commandant, "Zebrelle"), "Zebrelle")
+
+    def test_sans_rattachement_aucun_marin(self):
+        orphelin = self._marin("orphelin", "EQUIPIER")
+        self.assertNotContains(self.chercher(orphelin, "Zebrowski"), "Marins")
+        self.assertNotContains(self.chercher(orphelin, "equipier"), "Marins")
+
+    def test_maitre_voit_la_flotte(self):
+        self._marin("zebre_ailleurs", "EQUIPIER", ship=self.autre_navire, last_name="Zebrelle")
+        admin = User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        self.assertContains(self.chercher(admin, "Zebrelle"), "Zebrelle")
+
+    def test_resultat_marin_sans_lien_pour_equipier_avec_lien_pour_commandant(self):
+        equipier = self.chercher(self.equipier, "Zebrowski")
+        self.assertNotContains(equipier, reverse("user-directory"))
+        self.assertContains(equipier, 'role="option"')
+        self.assertContains(self.chercher(self.commandant, "Zebrowski"), reverse("user-directory") + "?q=cdt")
+
+    def test_annuaire_toujours_interdit_a_un_equipier(self):
+        self.client.force_login(self.equipier)
+        self.assertEqual(self.client.get(reverse("user-directory")).status_code, 403)
+
+    def test_email_absent_des_resultats(self):
+        User.objects.filter(pk=self.commandant.pk).update(email="secret.cdt@navy.fr")
+        self.assertNotContains(self.chercher(self.equipier, "Zebrowski"), "secret.cdt")
+        self.assertNotContains(self.chercher(self.equipier, "secret.cdt"), "Zebrowski")
 
 
 class CategoriesTests(RechercheRapideTestCase):
@@ -147,6 +176,10 @@ class SaisieTests(RechercheRapideTestCase):
         reponse = self.chercher(self.chef, "z")
         self.assertContains(reponse, "au moins 2 caractères")
         self.assertEqual(reponse.context["groupes"], [])
+
+    def test_caracteres_de_controle_retires(self):
+        self.assertEqual(recherche.normaliser("ZE\x00BRE\x1f"), "ZEBRE")
+        self.assertContains(self.chercher(self.chef, "ZE\x00BRE"), "Installations")
 
     def test_longueur_maximale(self):
         self.assertEqual(len(recherche.normaliser("a" * 500)), recherche.MAX_CARACTERES)

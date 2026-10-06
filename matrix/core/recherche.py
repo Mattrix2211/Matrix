@@ -6,6 +6,7 @@ résultat ne mène à un objet que l'utilisateur ne peut pas ouvrir. Les
 catégories d'un module désactivé pour le bâtiment ne sont pas interrogées.
 ``icontains`` échappe lui-même ``%`` et ``_`` : aucun SQL brut.
 """
+import re
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -26,11 +27,13 @@ from training.models import TrainingCourse
 MIN_CARACTERES = 2
 MAX_CARACTERES = 80
 PAR_CATEGORIE = 5
+_CONTROLES = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
 
 def normaliser(brut):
     """Terme nettoyé et borné ; chaîne vide s'il est trop court pour chercher."""
-    terme = (brut or "").strip()[:MAX_CARACTERES].strip()
+    # Les caractères de contrôle (dont \x00) feraient échouer PostgreSQL.
+    terme = _CONTROLES.sub("", brut or "").strip()[:MAX_CARACTERES].strip()
     return terme if len(terme) >= MIN_CARACTERES else ""
 
 
@@ -78,7 +81,8 @@ def formations(user, terme):
 
 
 def marins(user, terme):
-    # Même règle que l'annuaire : réservé aux commandants et au-dessus, limité à leur navire.
+    # Tout marin cherche dans son navire ; sans navire rattaché, aucun résultat
+    # (jamais toute la flotte), sauf maître ou superutilisateur.
     qs = get_user_model().objects.select_related("profile").filter(
         _ou(terme, "username", "first_name", "last_name")
     ).order_by("last_name", "username")
@@ -91,35 +95,41 @@ def _sous_titre(*morceaux):
     return " · ".join(str(m) for m in morceaux if m)
 
 
-def _ligne_installation(i):
+def _ligne_installation(i, user):
     return i.designation, _sous_titre(i.sector.name, i.reference), reverse("installation-detail", args=[i.pk])
 
 
-def _ligne_materiel(a):
+def _ligne_materiel(a, user):
     libelle = a.designation or a.internal_id or a.serial_number or a.asset_type.name
     return libelle, _sous_titre(a.asset_type.name, a.get_status_display(), a.local), reverse("asset-detail", args=[a.pk])
 
 
-def _ligne_ticket(t):
+def _ligne_ticket(t, user):
     cible = t.asset or t.installation
     libelle = t.description if len(t.description) <= 70 else t.description[:69] + "…"
     return libelle, _sous_titre(cible, t.get_status_display()), reverse("ticket-detail", args=[t.pk])
 
 
-def _ligne_anomalie(a):
+def _ligne_anomalie(a, user):
     return a.titre, _sous_titre(a.localisation, a.get_statut_display()), reverse("anomalie-detail", args=[a.pk])
 
 
-def _ligne_formation(f):
+def _ligne_formation(f, user):
     return f.title, f.category, reverse("formation-list")
 
 
-def _ligne_marin(u):
+def _ligne_marin(u, user):
     profil = getattr(u, "profile", None)
+    # Pas de fiche marin : le résultat n'est un lien que pour qui peut ouvrir l'annuaire.
+    url = reverse("user-directory") + "?" + urlencode({"q": u.username}) if _commandant_ou_plus(user) else ""
     return (
         u.get_full_name() or u.username,
-        _sous_titre(getattr(profil, "grade", ""), getattr(profil, "fonction_service", "")),
-        reverse("user-directory") + "?" + urlencode({"q": u.username}),
+        _sous_titre(
+            getattr(profil, "grade", ""),
+            profil.get_role_display() if profil and profil.role else "",
+            getattr(profil, "fonction_service", ""),
+        ),
+        url,
     )
 
 
@@ -135,7 +145,6 @@ class Categorie:
     requete: Callable
     ligne: Callable
     module: Optional[str] = None  # clé de REGISTRE_MODULES ; None = toujours disponible
-    droit: Optional[Callable] = None
     liste: Optional[str] = None  # écran de liste acceptant ?q= (lien « Tout voir »)
 
 
@@ -147,7 +156,7 @@ CATEGORIES = [
     Categorie("tickets", "Tickets correctifs", "ticket", tickets, _ligne_ticket, module="logistics"),
     Categorie("anomalies", "Anomalies", "anomalie", anomalies, _ligne_anomalie, module="logistics"),
     Categorie("formations", "Formations", "formation", formations, _ligne_formation, module="training"),
-    Categorie("marins", "Marins", "annuaire", marins, _ligne_marin, droit=_commandant_ou_plus),
+    Categorie("marins", "Marins", "annuaire", marins, _ligne_marin),
 ]
 
 
@@ -158,8 +167,6 @@ def rechercher(user, terme):
     for cat in CATEGORIES:
         if cat.module and not module_actif_pour_user(cat.module, user):
             continue
-        if cat.droit and not cat.droit(user):
-            continue
         trouves = list(cat.requete(user, terme)[:PAR_CATEGORIE + 1])
         if not trouves:
             continue
@@ -167,7 +174,7 @@ def rechercher(user, terme):
             "cle": cat.cle, "libelle": cat.libelle, "icone": cat.icone,
             "resultats": [
                 {"libelle": libelle, "sous_titre": sous_titre, "url": url}
-                for libelle, sous_titre, url in map(cat.ligne, trouves[:PAR_CATEGORIE])
+                for libelle, sous_titre, url in (cat.ligne(obj, user) for obj in trouves[:PAR_CATEGORIE])
             ],
             # « Tout voir » seulement s'il reste des résultats et que l'écran de liste filtre sur ?q=.
             "url_liste": (

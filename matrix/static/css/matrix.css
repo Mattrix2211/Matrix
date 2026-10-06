@@ -1074,6 +1074,7 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
 .mx-recherche__voir,
 .mx-recherche__pied { text-decoration: none; color: var(--text); }
 .mx-recherche__resultat { display: flex; flex-direction: column; padding: var(--s2) var(--s3); border-left: 3px solid transparent; }
+div.mx-recherche__resultat { cursor: default; }
 .mx-recherche__libelle { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mx-recherche__sous-titre { font-size: .8rem; color: var(--text-sec); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mx-recherche__voir { font-size: .8rem; color: var(--text-sec); padding: 0 var(--s1); border-radius: var(--r-sm, 4px); }
