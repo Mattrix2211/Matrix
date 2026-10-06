@@ -9,6 +9,9 @@
     {% if profil.service %} · {{ profil.service.name }}{% endif %}
   </p>
 </header>
+{% if lecture_seule %}
+<div class="alert alert-secondary py-2 mt-3 mb-0" role="status">Lecture seule — Équipage {{ profil.equipage }} à terre</div>
+{% endif %}
 
 <div class="row g-4 mt-1">
   <div class="col-lg-7">
@@ -16,7 +19,11 @@
       {% if a_faire %}
       <div class="mx-aujourdhui__liste">
         {% for tache in a_faire %}
+          {% if lecture_seule %}
+          <div class="mx-carte mx-carte--action {{ tache.classes }}"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ tache.titre }}</span><span class="mx-carte__contenu">{{ tache.detail }}</span></div></div>
+          {% else %}
           {% carte_action titre=tache.titre libelle="Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
+          {% endif %}
         {% endfor %}
       </div>
       {% else %}
@@ -24,7 +31,7 @@
       {% endif %}
     {% fin_surface %}
 
-    {% if brouillons %}
+    {% if brouillons and not lecture_seule %}
     <div class="mt-4">
     {% surface titre="Brouillons à reprendre" icone="modification" %}
       <div class="mx-aujourdhui__liste">
@@ -44,7 +51,8 @@
         {% for point in journee %}
         <li class="mx-frise__point">
           <span class="mx-frise__heure">{% if point.heure %}{{ point.heure|date:"H:i" }}{% else %}Journée{% endif %}</span>
-          <a href="{{ point.url }}" class="mx-frise__libelle">{% icone point.icone %} {{ point.libelle }}</a>
+          {% if lecture_seule %}<span class="mx-frise__libelle">{% icone point.icone %} {{ point.libelle }}</span>
+          {% else %}<a href="{{ point.url }}" class="mx-frise__libelle">{% icone point.icone %} {{ point.libelle }}</a>{% endif %}
         </li>
         {% endfor %}
       </ol>
@@ -115,7 +123,7 @@
   <div class="col-lg-6">
     {% surface titre="Retards de l'équipe" icone="retard" %}
       {% for retard in supervision.retards %}
-        {% if retard.peut_valider %}
+        {% if retard.peut_valider and not lecture_seule %}
           {% carte_action titre=retard.titre libelle="Ouvrir" url=retard.url classes="mx-aujourdhui__tache--danger" %}{{ retard.detail }}{% fin_carte_action %}
         {% else %}
           <div class="mx-carte mx-carte--action mx-aujourdhui__tache--danger"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ retard.titre }}</span><span class="mx-carte__contenu">{{ retard.detail }}</span></div></div>
@@ -128,13 +136,13 @@
   <div class="col-lg-6">
     {% surface titre="Validations en attente" icone="maintenance" %}
       {% for validation in supervision.validations %}
-        {% if validation.peut_valider %}
+        {% if validation.peut_valider and not lecture_seule %}
           {% carte_action titre=validation.titre libelle="Valider" url=validation.url classes="mx-aujourdhui__tache--attention" %}{{ validation.detail }}{% fin_carte_action %}
         {% else %}
           <div class="mx-carte mx-carte--action mx-aujourdhui__tache--attention"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ validation.titre }}</span><span class="mx-carte__contenu">{{ validation.detail }}</span></div></div>
         {% endif %}
       {% endfor %}
-      {% if supervision.formations_a_valider %}
+      {% if supervision.formations_a_valider and not lecture_seule %}
         {% url 'formation-list' as url_formations %}
         {% carte_action titre="Formations proposées par le bord" libelle="Examiner" url=url_formations classes="mx-aujourdhui__tache--attention" %}{{ supervision.formations_a_valider }} à examiner{% fin_carte_action %}
       {% endif %}

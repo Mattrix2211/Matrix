@@ -30,6 +30,8 @@ class UserProfile(TimeStampedModel):
     specialite = models.CharField(max_length=128, blank=True, default="")
     fonction_service = models.CharField(max_length=128, blank=True, default="")
     matricule = models.CharField(max_length=64, blank=True, default="")
+    # Équipage (« A », « B »…) pour un bâtiment à double équipage ; vide sinon.
+    equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
     date_naissance = models.DateField(null=True, blank=True)
     # Heure du matin : alertes d'échéance (installations) et digest « Ma journée ».
     notification_time = models.TimeField(default=time(8,0))

@@ -29,6 +29,12 @@ class Ship(TimeStampedModel):
     # Optionnel et sans valeur par défaut arbitraire : reste rétrocompatible
     # avec les unités déjà existantes, non concernées par les unités non-navires.
     classe_navire = models.CharField(max_length=100, blank=True, default="", verbose_name="Classe de navire")
+    # Double équipage (FREMM, PSP, BSAM) : l'équipage à bord est une donnée
+    # configurable (codes libres, ex. « A » / « B »), pas une règle en dur.
+    double_equipage = models.BooleanField(default=False, verbose_name="Double équipage")
+    equipage_a_bord = models.CharField(
+        max_length=8, blank=True, default="", verbose_name="Équipage actuellement à bord"
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:

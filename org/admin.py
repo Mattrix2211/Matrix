@@ -3,7 +3,7 @@ from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdC
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "archived", "created_at")
+    list_display = ("name", "code", "double_equipage", "equipage_a_bord", "archived", "created_at")
     search_fields = ("name", "code")
     list_filter = ("archived",)
 

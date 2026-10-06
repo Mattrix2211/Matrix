@@ -10,6 +10,7 @@ class UserProfileForm(forms.ModelForm):
             "specialite",
             "matricule",
             "role",
+            "equipage",
             "ship",
             "service",
             "sector",
