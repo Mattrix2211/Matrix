@@ -4,8 +4,7 @@ ou de matériels affichés (requêtes groupées / prefetch_related), et les vale
 affichées doivent rester identiques à avant la correction.
 
 Les vues sont invoquées directement (RequestFactory + get_context_data), sans
-passer par le rendu complet du template ni par les context processors globaux
-(ex: matrix.context_processors.installations_notifications), afin d'isoler
+passer par le rendu complet du template ni par les context processors globaux, afin d'isoler
 précisément le comportement des vues corrigées."""
 from decimal import Decimal
 

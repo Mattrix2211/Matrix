@@ -5,6 +5,7 @@ from django.db import connection
 from django.test import Client, RequestFactory, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from accounts.models import UserProfile
 from assets.models import Installation
@@ -99,6 +100,13 @@ class PanneauTests(CentreNotificationsTestCase):
         self.assertIn("Critique", html)
         self.assertIn("Alerte", html)
 
+    def test_message_echappe(self):
+        self._notif(self.marin, "<script>alert(1)</script>")
+        self.client.force_login(self.marin)
+        reponse = self.client.get(reverse("notifications-panneau"))
+        self.assertContains(reponse, "&lt;script&gt;")
+        self.assertNotContains(reponse, "<script>alert(1)")
+
     def test_ne_montre_pas_les_notifications_des_autres(self):
         self._notif(self.autre, "Secret de l'autre")
         self.client.force_login(self.marin)
@@ -182,3 +190,41 @@ class ActionsTests(CentreNotificationsTestCase):
         client.force_login(self.marin)
         self.assertEqual(client.post(reverse("notifications-lue", args=[notif.pk])).status_code, 403)
         self.assertEqual(client.post(reverse("notifications-tout-lu")).status_code, 403)
+
+
+class ApiTests(CentreNotificationsTestCase):
+    url = "/api/notifications/notifications/"
+
+    def setUp(self):
+        super().setUp()
+        self.api = APIClient()
+        self.api.force_authenticate(self.marin)
+
+    def test_post_ne_cree_rien(self):
+        reponse = self.api.post(self.url, {"user": self.autre.pk, "verb": "Injection", "level": "danger"}, format="json")
+        self.assertEqual(reponse.status_code, 405)
+        self.assertFalse(Notification.objects.filter(verb="Injection").exists())
+
+    def test_patch_ne_reaffecte_pas(self):
+        notif = self._notif(self.marin, "Origine")
+        reponse = self.api.patch(f"{self.url}{notif.pk}/", {"user": self.autre.pk, "verb": "Changé", "is_read": True}, format="json")
+        self.assertEqual(reponse.status_code, 200)
+        notif.refresh_from_db()
+        self.assertEqual((notif.user, notif.verb, notif.is_read), (self.marin, "Origine", True))
+
+    def test_delete_refuse(self):
+        notif = self._notif(self.marin)
+        self.assertEqual(self.api.delete(f"{self.url}{notif.pk}/").status_code, 405)
+        self.assertTrue(Notification.objects.filter(pk=notif.pk).exists())
+
+    def test_patch_notification_d_un_autre_introuvable(self):
+        notif = self._notif(self.autre)
+        self.assertEqual(self.api.patch(f"{self.url}{notif.pk}/", {"is_read": True}, format="json").status_code, 404)
+
+    def test_mark_all_read(self):
+        self._notif(self.marin)
+        autre = self._notif(self.autre)
+        reponse = self.api.post(f"{self.url}mark_all_read/")
+        self.assertEqual(reponse.json(), {"marked": 1})
+        autre.refresh_from_db()
+        self.assertFalse(autre.is_read)
