@@ -27,7 +27,7 @@ from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.mixins import ScopedQuerySetMixin
 from .documents_installation_web import peut_ajouter_document, peut_supprimer_document
-from matrix.core.saisie import date_fr_ou_none, formater_date_fr
+from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
@@ -220,7 +220,7 @@ def _resoudre_emplacement(request, ship):
         emplacement, _cree = Location.objects.get_or_create(ship=ship, name=nom, parent=None)
         return emplacement
     if location_id:
-        return Location.objects.filter(pk=location_id).first()
+        return Location.objects.filter(pk=entier_ou_none(location_id), ship=ship).first()
     return None
 
 
@@ -297,6 +297,59 @@ def _org_dans_perimetre(user, model, cible_id):
     if champ is None:
         return False
     return model.objects.filter(pk=cible_id, **{champ: valeur}).exists()
+
+
+def _emplacements_visibles(user):
+    """Emplacements des navires du périmètre de l'utilisateur (tous pour la gestion flotte)."""
+    emplacements = Location.objects.select_related('ship').order_by('ship__name', 'name')
+    profil = getattr(user, 'profile', None)
+    niveau, valeur = profil.scope if profil else (None, None)
+    if is_master_admin(user) or niveau is None:
+        return emplacements
+    champ = {
+        'ship': 'id', 'service': 'services__id',
+        'sector': 'services__sectors__id', 'section': 'services__sectors__sections__id',
+    }[niveau]
+    return emplacements.filter(ship__in=Ship.objects.filter(**{champ: valeur}))
+
+
+def _restreindre_au_navire_de_emplacement(request, objets, emplacement):
+    """Ne garde que les objets du navire de l'emplacement cible ; signale les autres."""
+    if emplacement is None:
+        return objets
+    conformes = objets.filter(ship_id=emplacement.ship_id)
+    ecartes = objets.count() - conformes.count()
+    if ecartes:
+        messages.warning(request, f"{ecartes} élément(s) ignoré(s) : cet emplacement appartient à un autre navire.")
+    return conformes
+
+
+def _dossiers_et_descendants(dossier):
+    """Identifiants du dossier et de tous ses sous-dossiers."""
+    ids, a_visiter = set(), [dossier.pk]
+    while a_visiter:
+        ids.add(a_visiter[-1])
+        a_visiter = list(AssetFolder.objects.filter(parent_id__in=a_visiter).exclude(pk__in=ids).values_list('pk', flat=True))
+    return ids
+
+
+def _materiel_hors_perimetre(user, dossier):
+    """Vrai si l'arborescence du dossier contient un matériel hors du périmètre de l'utilisateur."""
+    filtres = scope_filters_for_user(user)
+    if is_master_admin(user) or not filtres:
+        return False
+    return Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exclude(**filtres).exists()
+
+
+def _dossier_gerable(user, dossier):
+    """Un dossier n'a pas de navire : il est gérable si aucun matériel de son
+    arborescence n'est hors périmètre. Un dossier sans matériel n'appartient à
+    personne : réservé à la gestion avancée."""
+    if _materiel_hors_perimetre(user, dossier):
+        return False
+    if Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exists():
+        return True
+    return user_role_level(user) >= niveau_requis_pour(user, 'asset_gestion_avancee')
 
 
 def _afficher_erreur_validation(request, erreur):
@@ -702,7 +755,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['types'] = AssetType.objects.order_by('name')
-        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
+        ctx['locations'] = _emplacements_visibles(self.request.user)
         # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
         # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi
         # la liste est restreinte, avec un lien pour revenir à la vue complète.
@@ -803,9 +856,9 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 )
             elif action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
-                loc = Location.objects.filter(pk=loc_id).first()
+                loc = Location.objects.filter(pk=entier_ou_none(loc_id)).first()
                 return _appliquer_bulk_update(
-                    request, assets, 'location', loc,
+                    request, _restreindre_au_navire_de_emplacement(request, assets, loc), 'location', loc,
                     action_audit='bulk_update_asset_location', detail_audit=f'location_id={loc_id}',
                     message_succes='Emplacement mis à jour pour {count} matériel(s).',
                     redirect_url_name='asset-list',
@@ -862,8 +915,11 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # _peut_gerer_materiel, sous peine de rendre la configuration sans
             # effet réel sur cette action (bug corrigé après refus du Tech Lead).
             name = request.POST.get('name', '').strip()
-            parent_id = request.POST.get('parent_id')
+            parent_id = entier_ou_none(request.POST.get('parent_id'))
             parent = AssetFolder.objects.filter(pk=parent_id).first() if parent_id else None
+            if parent and _materiel_hors_perimetre(request.user, parent):
+                messages.error(request, "Ce dossier contient du matériel hors de votre périmètre.")
+                return _redirect_liste_materiel(request)
             if name:
                 fld = AssetFolder.objects.create(name=name)
                 photo = request.FILES.get('photo')
@@ -877,10 +933,13 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 AuditLog.objects.create(actor=request.user, action='create_asset_folder', details=f'name={name}')
             return _redirect_liste_materiel(request)
         if action == 'rename_folder':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             name = request.POST.get('name', '').strip()
             try:
                 fld = AssetFolder.objects.get(pk=pk)
+                if not _dossier_gerable(request.user, fld):
+                    messages.error(request, "Ce dossier ne relève pas de votre périmètre.")
+                    return _redirect_liste_materiel(request)
                 if name:
                     fld.name = name
                     fld.save(update_fields=['name'])
@@ -890,8 +949,15 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 messages.error(request, 'Dossier introuvable.')
             return _redirect_liste_materiel(request)
         if action == 'delete_folder':
-            pk = request.POST.get('pk')
-            AssetFolder.objects.filter(pk=pk).delete()
+            pk = entier_ou_none(request.POST.get('pk'))
+            fld = AssetFolder.objects.filter(pk=pk).first()
+            if fld is None:
+                messages.error(request, 'Dossier introuvable.')
+                return _redirect_liste_materiel(request)
+            if not _dossier_gerable(request.user, fld):
+                messages.error(request, "Ce dossier ne relève pas de votre périmètre.")
+                return _redirect_liste_materiel(request)
+            fld.delete()
             AuditLog.objects.create(actor=request.user, action='delete_asset_folder', details=f'id={pk}')
             messages.success(request, 'Dossier supprimé.')
             return _redirect_liste_materiel(request)
@@ -1052,6 +1118,9 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 except ValueError:
                     messages.error(request, "Date invalide : saisissez jj/mm/aaaa.")
                     return _redirect_liste_materiel(request)
+                if asset.date_mise_en_service and asset.date_peremption and asset.date_peremption < asset.date_mise_en_service:
+                    messages.error(request, "La péremption ne peut pas précéder la mise en service.")
+                    return _redirect_liste_materiel(request)
                 type_id = request.POST.get('asset_type_id')
                 if type_id:
                     try:
@@ -1156,7 +1225,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['services'] = Service.objects.select_related('ship').order_by('name')
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
-        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
+        ctx['locations'] = _emplacements_visibles(self.request.user)
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
         # Pré-remplissage du formulaire de création : Navire/Service/Secteur du
         # périmètre de l'utilisateur connecté, pour éviter de ressaisir à la main
@@ -1307,9 +1376,9 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             items = self.get_queryset().filter(id__in=ids)
             if action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
-                loc = Location.objects.filter(pk=loc_id).first()
+                loc = Location.objects.filter(pk=entier_ou_none(loc_id)).first()
                 return _appliquer_bulk_update(
-                    request, items, 'location', loc,
+                    request, _restreindre_au_navire_de_emplacement(request, items, loc), 'location', loc,
                     action_audit='bulk_update_installation_location', detail_audit=f'location_id={loc_id}',
                     message_succes='Emplacement mis à jour pour {count} installation(s).',
                     redirect_url_name='installation-list',
@@ -1512,7 +1581,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
-        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
+        ctx['locations'] = _emplacements_visibles(self.request.user)
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, options
         # limitées au même secteur que l'installation courante (même périmètre),
         # en excluant l'installation elle-même et ses sous-ensembles (évite un choix
