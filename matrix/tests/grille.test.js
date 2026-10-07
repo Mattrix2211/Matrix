@@ -17,6 +17,11 @@ assert.deepStrictEqual(
   g.toutConforme(['', 'non_conforme', 'non_applicable', '', 'conforme']),
   ['conforme', 'non_conforme', 'non_applicable', 'conforme', 'conforme']
 );
+assert.strictEqual(g.horsPlage('12,5', '0', '10'), true);
+assert.strictEqual(g.horsPlage('5', '0', '10'), false);
+assert.strictEqual(g.horsPlage('-1', '0', null), true);
+assert.strictEqual(g.horsPlage('', '0', '10'), false);
+assert.strictEqual(g.horsPlage('abc', '0', '10'), false);
 // Garde anti-doublon : un second chargement du script ne réinstalle rien.
 let ecouteurs = 0;
 global.window = {};

@@ -16,6 +16,13 @@
   </a>
 </div>
 
+{% if tournee_ids %}
+<div class="mb-3 d-flex flex-wrap gap-2">
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'tournee-imprimer' %}?ids={{ tournee_ids }}" target="_blank" rel="noopener">Imprimer la tournée (un tableau par catégorie)</a>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'tournee-saisie' %}?ids={{ tournee_ids }}">Saisir la tournée en grille</a>
+</div>
+{% endif %}
+
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">

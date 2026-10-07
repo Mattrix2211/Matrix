@@ -537,6 +537,9 @@ class MaintenanceOccurrenceListView(LoginRequiredMixin, ScopedQuerySetMixin, Lis
             occ.badge_classe = _BADGE_STATUT_OCCURRENCE.get(occ.status, "bg-secondary")
             occ.en_retard = occ.scheduled_for < aujourdhui and occ.status not in _STATUTS_SANS_RETARD
             occ.suis_assigne = self.request.user in occ.assignees.all()
+        ctx["tournee_ids"] = ",".join(
+            str(o.pk) for o in ctx["occurrences"] if o.asset_id and o.status not in ("DONE", "CANCELLED")
+        )
         return ctx
 
 

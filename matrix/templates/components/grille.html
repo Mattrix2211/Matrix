@@ -16,6 +16,7 @@ Paramètres :
   lignes        : liste de dictionnaires {cle, libelle, valeurs, erreurs}
                   valeurs : {nom_de_colonne: valeur} ; erreurs : {nom_de_colonne: message}
                   (erreur affichée DANS la cellule, ligne par ligne)
+  colonne « nombre » : min et max facultatifs (plage attendue) ; une valeur hors plage s'affiche en rouge, sans bloquer
   libelle_ligne : en-tête de la première colonne (« Élément » par défaut)
   lecture_seule : vrai = consultation seule (équipage à terre) : aucune saisie, aucun bouton
   libelle_final : texte du bouton principal (« Enregistrer » par défaut)
@@ -58,7 +59,7 @@ pied. La barre d'outils est masquée tant que le JS ne l'a pas affichée. Le seu
               <option value="">À saisir</option>
               {% for choix in liste %}<option value="{{ choix.valeur }}"{% if choix.valeur == valeur %} selected{% endif %}>{{ choix.libelle }}</option>{% endfor %}
             </select>
-            {% else %}<input class="mx-grille__champ" data-grille-champ data-initial="{{ valeur }}" type="text" name="{{ ligne.cle }}__{{ col.nom }}" id="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}" value="{{ valeur }}" aria-label="{{ col.libelle }} : {{ ligne.libelle }}"{% if col.type == "nombre" %} inputmode="decimal"{% elif col.type == "date" %} inputmode="numeric" placeholder="{{ col.placeholder|default:'JJ/MM/AAAA' }}"{% elif col.placeholder %} placeholder="{{ col.placeholder }}"{% endif %}{% if erreur %} aria-invalid="true" aria-describedby="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}-erreur"{% endif %} autocomplete="off">
+            {% else %}<input class="mx-grille__champ" data-grille-champ data-initial="{{ valeur }}" type="text" name="{{ ligne.cle }}__{{ col.nom }}" id="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}" value="{{ valeur }}" aria-label="{{ col.libelle }} : {{ ligne.libelle }}"{% if col.type == "nombre" %} inputmode="decimal"{% if col.min is not None %} data-min="{{ col.min|stringformat:'g' }}"{% endif %}{% if col.max is not None %} data-max="{{ col.max|stringformat:'g' }}"{% endif %}{% elif col.type == "date" %} inputmode="numeric" placeholder="{{ col.placeholder|default:'JJ/MM/AAAA' }}"{% elif col.placeholder %} placeholder="{{ col.placeholder }}"{% endif %}{% if erreur %} aria-invalid="true" aria-describedby="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}-erreur"{% endif %} autocomplete="off">
             {% endif %}
             {% if erreur %}<span class="mx-grille__erreur" id="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}-erreur">{{ erreur }}</span>{% endif %}
           </td>{% endwith %}{% endfor %}

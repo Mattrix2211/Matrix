@@ -899,6 +899,8 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
 .mx-grille__champ:focus { outline: 2px solid var(--signal); outline-offset: -2px; background: var(--surface); }
 .mx-grille__cellule--modifiee { box-shadow: inset 4px 0 0 var(--signal-ui); background: var(--bg); }
 .mx-grille__cellule--erreur { box-shadow: inset 0 -3px 0 var(--red-texte); }
+.mx-grille__cellule--hors-plage .mx-grille__champ { color: var(--red-texte); font-weight: 700; }
+.mx-grille__cellule--hors-plage { box-shadow: inset 0 -3px 0 var(--red-texte); }
 .mx-grille__erreur { display: block; padding: 0 var(--s2) var(--s1); color: var(--red-texte); font-size: .75rem; }
 .mx-grille__pied { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); }
 .mx-grille__compteur { color: var(--text-sec); font-size: .8125rem; }

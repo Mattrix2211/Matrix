@@ -33,7 +33,15 @@
     return valeurs.map(function (v) { return v === '' ? 'conforme' : v; });
   }
 
-  var API = { decouperPresse: decouperPresse, deplacer: deplacer, toutConforme: toutConforme };
+  // Vrai si le nombre saisi (virgule ou point) sort de la plage ; texte vide ou illisible : faux.
+  function horsPlage(texte, min, max) {
+    var brut = String(texte).replace(/[\s\u00a0]/g, '').replace(',', '.');
+    if (brut === '' || isNaN(Number(brut))) return false;
+    var v = Number(brut);
+    return (min !== null && min !== '' && v < Number(min)) || (max !== null && max !== '' && v > Number(max));
+  }
+
+  var API = { decouperPresse: decouperPresse, deplacer: deplacer, toutConforme: toutConforme, horsPlage: horsPlage };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; }
   if (typeof document === 'undefined') { return; }
   if (window.mx_grille) { return; } // script chargé deux fois : pas de double écouteur
@@ -71,6 +79,10 @@
     var modifiee = champ.value !== (champ.getAttribute('data-initial') || '');
     var td = champ.closest('td');
     if (td) td.classList.toggle('mx-grille__cellule--modifiee', modifiee);
+    if (td && (champ.hasAttribute('data-min') || champ.hasAttribute('data-max'))) {
+      td.classList.toggle('mx-grille__cellule--hors-plage',
+        horsPlage(champ.value, champ.getAttribute('data-min'), champ.getAttribute('data-max')));
+    }
     var grille = grilleDe(champ);
     if (!grille) return;
     var n = grille.querySelectorAll('.mx-grille__cellule--modifiee').length;
@@ -203,6 +215,7 @@
 
   // Sans JavaScript, les boutons de la barre ne feraient rien : ils restent masqués.
   function afficherBarres(racine) {
+    racine.querySelectorAll('[data-min], [data-max]').forEach(marquer); // plages dès l'ouverture
     racine.querySelectorAll('[data-grille-barre][hidden]').forEach(function (b) {
       b.hidden = false;
       // « Tout conforme » n'a de sens que s'il existe une colonne de conformité.

@@ -62,3 +62,12 @@ body { background: var(--imp-papier) !important; color: var(--imp-encre) !import
 .fiche-signature { flex: 1; height: 28mm; border: 1pt solid var(--imp-encre); padding: 2mm; display: flex; flex-direction: column; }
 .fiche-signature span { font-size: 9pt; }
 .fiche-pied { margin-top: 4mm; font-size: 9pt; text-align: center; }
+
+/* Fiche de tournée : un tableau par catégorie, à l'italienne, en-tête répété sur chaque page. */
+@page tournee { size: A4 landscape; margin: 10mm; }
+.fiche-tournee { page: tournee; break-inside: auto; }
+.fiche-tournee table { font-size: 9pt; }
+.fiche-tournee th, .fiche-tournee td { padding: 1.5mm; }
+.fiche-tournee td { height: 10mm; }
+.fiche-tournee .fiche-col-case { width: auto; }
+.fiche-tournee-lieu { display: block; font-size: 8pt; font-weight: 400; }
