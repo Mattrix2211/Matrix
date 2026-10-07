@@ -1,5 +1,6 @@
 from django.db.models import Q
-from django.http import HttpResponse, HttpResponseForbidden
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.contrib.auth import logout
@@ -275,7 +276,7 @@ class SettingsView(LoginRequiredMixin, View):
                 tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
                 or action_equipage_ok
             ):
-                return HttpResponseForbidden()
+                raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
@@ -819,7 +820,7 @@ class SettingsView(LoginRequiredMixin, View):
             else:
                 navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
             if navire is None:
-                return HttpResponseForbidden()
+                raise PermissionDenied
             proposition = releve_en_attente(navire)
             if action == 'proposer_releve':
                 nouvel = (request.POST.get('equipage') or '').strip()

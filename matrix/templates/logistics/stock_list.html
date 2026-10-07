@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 <h1 class="h3 mb-3">Stock de pièces</h1>
 
@@ -19,7 +20,7 @@
     </div>
     {% if peut_gerer %}
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerPieceModal">
-      <i class="bi bi-plus-lg"></i> Ajouter une pièce
+      {% icone "ajout" %} Ajouter une pièce
     </button>
     {% endif %}
   </div>
@@ -111,7 +112,7 @@
       <div class="modal-footer">
         {% if peut_gerer %}
         <button type="button" class="btn btn-outline-secondary" id="detailBtnModifier">
-          <i class="bi bi-pencil"></i> Modifier
+          {% icone "modification" %} Modifier
         </button>
         {% endif %}
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>

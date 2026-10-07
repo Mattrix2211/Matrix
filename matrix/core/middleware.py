@@ -1,7 +1,7 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
-from django.http import HttpResponseForbidden, JsonResponse
-from django.shortcuts import redirect
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS
@@ -92,7 +92,7 @@ class EquipageATerreMiddleware:
             if equipage_a_terre_lecture_seule(self._utilisateur(request)):
                 if request.path.startswith("/api/"):
                     return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
-                return HttpResponseForbidden(MESSAGE_LECTURE_SEULE)
+                return render(request, "403.html", {"message_refus": MESSAGE_LECTURE_SEULE}, status=403)
         return self.get_response(request)
 
     @staticmethod

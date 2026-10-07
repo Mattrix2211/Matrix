@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
+from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse, HttpResponseBadRequest
 from django.db.models import Q
 from datetime import timedelta, datetime
 from org.models import Ship, Service, Sector
@@ -449,7 +450,7 @@ _COULEUR_STATUT_MAINTENANCE = {
 }
 _COULEUR_PAR_TYPE = {
     "maintenance":   {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
-    "ticket":        {"backgroundColor": "#fd7e14", "borderColor": "#d96307", "textColor": "#fff"},
+    "ticket":        {"backgroundColor": "#b8500a", "borderColor": "#964008", "textColor": "#fff"},
     "training":      {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
     "personal":      {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
     # Teintes assombries par rapport à un simple "teal"/"pink" Bootstrap : un
@@ -481,7 +482,7 @@ def _couleur_evenement(ev_type, status=None):
 
 def calendar_events(request):
     if not request.user.is_authenticated:
-        return HttpResponseForbidden()
+        raise PermissionDenied
     start, end = _parse_common_period(request)
     filters = {
         "ship": request.GET.get("ship") or None,
@@ -680,7 +681,7 @@ def calendar_events(request):
 
 def calendar_event_move(request):
     if not request.user.is_authenticated:
-        return HttpResponseForbidden()
+        raise PermissionDenied
     if request.method != "POST":
         return HttpResponseBadRequest("POST required")
     # permission: CHEF_SECTION+ ou assigné (pour une occurrence)
@@ -694,14 +695,14 @@ def calendar_event_move(request):
         return HttpResponseBadRequest("Invalid date")
     if ev_type == "ticket" and ev_id:
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         try:
             # Le queryset est restreint au périmètre de l'appelant avant la
             # récupération : un ticket hors périmètre n'existe pas pour lui,
             # même s'il en devine l'identifiant.
             t = _perimetre_ticket(CorrectiveTicket.objects.all(), request.user).get(pk=ev_id)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         t.planned_for = new_date
         t.save(update_fields=["planned_for"])
         # Journal d'audit transverse : modification de la planification d'un
@@ -725,10 +726,10 @@ def calendar_event_move(request):
             # l'installation fixe rattachée) — un assigné garde toujours la main
             # sur sa propre occurrence, quel que soit son rôle ou son périmètre.
             if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
-                return HttpResponseForbidden()
+                raise PermissionDenied
             perimetre = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
             if not MaintenanceOccurrence.objects.filter(perimetre, pk=ev_id).exists():
-                return HttpResponseForbidden()
+                raise PermissionDenied
         occ.scheduled_for = new_date
         occ.save(update_fields=["scheduled_for"])
         if not est_assigne:
@@ -750,14 +751,14 @@ def calendar_event_move(request):
         # ci-dessus, cf. tâche Notion « Formation unique et portable entre
         # navires »).
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         try:
             # Le queryset est restreint au périmètre de l'appelant avant la
             # récupération : une session hors périmètre n'existe pas pour lui,
             # même s'il en devine l'identifiant.
             s = _perimetre_session(TrainingSession.objects.all(), request.user).get(pk=ev_id)
         except TrainingSession.DoesNotExist:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         # Utiliser l'heure fournie si présente, sinon 09:00 locale
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         s.scheduled_at = aware_dt
@@ -776,7 +777,7 @@ def calendar_event_move(request):
             # dérogation de rôle possible, contrairement aux autres types.
             pe = PersonalEvent.objects.get(pk=ev_id, owner=request.user)
         except PersonalEvent.DoesNotExist:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         champs_modifies = ["starts_at"]
         # Date de fin optionnelle : envoyée par le redimensionnement par

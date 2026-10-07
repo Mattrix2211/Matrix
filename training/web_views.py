@@ -778,10 +778,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             if peut_valider_proposition_bord(self.request.user, c.updated_by)
         ]
 
-        # Objet date (pas de chaîne) : comparé tel quel à r.expires_at dans le
-        # template pour le badge À jour/Expirée. Le rendu template d'un objet
-        # date appelle str(), qui produit déjà le format ISO AAAA-MM-JJ attendu
-        # par l'attribut value de l'input type="date" du formulaire.
+        # Objet date comparé tel quel à r.expires_at ; le gabarit le formate en AAAA-MM-JJ pour <input type="date">.
         ctx["aujourdhui"] = aujourdhui
         return ctx
 

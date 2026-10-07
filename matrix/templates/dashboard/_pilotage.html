@@ -103,15 +103,15 @@
 })();
 </script>
 <script>
-(async function(){
-  const ctx1 = document.getElementById('chartPreventive');
-  const res1 = await fetch('/api/dashboard/preventive_week/');
-  const data1 = await res1.json();
-  new Chart(ctx1, {type:'bar', data: data1});
-
-  const ctx2 = document.getElementById('chartCorrective');
-  const res2 = await fetch('/api/dashboard/corrective_open/');
-  const data2 = await res2.json();
-  new Chart(ctx2, {type:'doughnut', data: data2});
+(function(){
+  // Une page quittée avant la fin du chargement annule la requête : sans conséquence.
+  async function tracer(id, url, type) {
+    try {
+      const res = await fetch(url);
+      new Chart(document.getElementById(id), {type: type, data: await res.json()});
+    } catch (e) { /* requête annulée */ }
+  }
+  tracer('chartPreventive', '/api/dashboard/preventive_week/', 'bar');
+  tracer('chartCorrective', '/api/dashboard/corrective_open/', 'doughnut');
 })();
 </script>

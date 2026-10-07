@@ -180,7 +180,7 @@ class Command(BaseCommand):
           grade="Matelot", specialite="Électricité")
         self.equipier_incendie = u("equipier_incendie_a", Roles.EQUIPIER, "Omar", ship=ship, service=s["Sécurité"], sector=pompiers, section=sp, equipage="A",
           grade="Matelot", specialite="Sécurité")
-        u("admin_navire", Roles.ADMIN_NAVIRE, "Paul", ship=ship)
+        u("admin_navire", Roles.ADMIN_NAVIRE, "Paul", ship=ship, equipage="A")
         ChefDeListe.objects.get_or_create(user=self.chef_secteur_a, sector=moteurs, ship=None, service=None, section=None)
         # Visa et suivi : le commandant en second est désigné par l'administration.
         Location.objects.get_or_create(ship=ship, name="Local machine", parent=None)

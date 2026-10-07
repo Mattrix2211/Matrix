@@ -120,6 +120,11 @@ class AujourdhuiTerreTests(TestCase):
         )
         self.assertEqual(cartes[1]["badges"], [{"etat": "ok", "libelle": "Rien à signaler"}])
 
+    def test_badge_ticket_bloque_coherent_avec_a_faire(self):
+        CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="Pièce", status="BLOCKED")
+        cartes = cartes_batiments(batiments_suivis(self.ssf), self.aujourdhui)
+        self.assertEqual(cartes[1]["badges"], [{"etat": "attention", "libelle": "1 ticket(s) bloqué(s)"}])
+
     def test_page_a_terre_et_page_de_bord_inchangee(self):
         self.client.login(username="ssf", password="pass")
         r = self.client.get(reverse("home"))

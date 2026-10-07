@@ -44,12 +44,12 @@
   <div class="col-lg-5">
     {% surface titre="Ma journée" icone="calendrier" %}
       {% if journee %}
-      <ol class="mx-frise">
+      <ol class="mx-journee">
         {% for point in journee %}
-        <li class="mx-frise__point">
-          <span class="mx-frise__heure">{% if point.heure %}{{ point.heure|date:"H:i" }}{% else %}Journée{% endif %}</span>
-          {% if lecture_seule %}<span class="mx-frise__libelle">{% icone point.icone %} {{ point.libelle }}</span>
-          {% else %}<a href="{{ point.url }}" class="mx-frise__libelle">{% icone point.icone %} {{ point.libelle }}</a>{% endif %}
+        <li class="mx-journee__point">
+          <span class="mx-journee__heure">{% if point.heure %}{{ point.heure|date:"H:i" }}{% else %}Journée{% endif %}</span>
+          {% if lecture_seule %}<span class="mx-journee__libelle">{% icone point.icone %} {{ point.libelle }}</span>
+          {% else %}<a href="{{ point.url }}" class="mx-journee__libelle">{% icone point.icone %} {{ point.libelle }}</a>{% endif %}
         </li>
         {% endfor %}
       </ol>
@@ -89,9 +89,9 @@
   <div class="col-md-4">
     {% surface titre="Mes services de garde" icone="garde" %}
       <p class="small text-muted mb-2">Listes publiées uniquement : votre situation, en toute transparence.</p>
-      <div class="mx-aujourdhui__ligne"><span>Ce mois-ci</span>
+      <div class="mx-aujourdhui__ligne mx-aujourdhui__ligne--pile"><span>Ce mois-ci</span>
         <span class="small">{{ mes_compteurs_equite_garde.mois.semaine }} semaine · {{ mes_compteurs_equite_garde.mois.vendredi }} vendredi · {{ mes_compteurs_equite_garde.mois.weekend }} week-end</span></div>
-      <div class="mx-aujourdhui__ligne"><span>Cette année</span>
+      <div class="mx-aujourdhui__ligne mx-aujourdhui__ligne--pile"><span>Cette année</span>
         <span class="small">{{ mes_compteurs_equite_garde.annee.semaine }} semaine · {{ mes_compteurs_equite_garde.annee.vendredi }} vendredi · {{ mes_compteurs_equite_garde.annee.weekend }} week-end</span></div>
     {% fin_surface %}
   </div>

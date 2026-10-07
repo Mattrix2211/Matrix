@@ -46,6 +46,7 @@
       {% if navigation_laterale %}{% include "components/barre_laterale.html" %}{% endif %}
       <main class="container py-4 mx-coque__contenu">
         {% if equipage_a_terre %}<div class="alert alert-secondary py-2" role="status">Lecture seule — Équipage {{ equipage_a_terre }} à terre</div>{% endif %}
+        {% if user.is_authenticated %}<p class="mx-impression-entete">{% firstof batiment_courant.name user.profile.ship.name "Matrix" %} · imprimé le {% now "d/m/Y à H:i" %} par {{ identite_utilisateur.nom|default:user.username }}</p>{% endif %}
         {% block content %}{% endblock %}
       </main>
     </div>

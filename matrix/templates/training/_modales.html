@@ -261,7 +261,7 @@ modification (pk pré-rempli) d'une formation « gérée par le bord ».
           </div>
           <div class="mb-3">
             <label class="form-label">Date de complétion</label>
-            <input type="date" class="form-control font-mono" name="completed_at" value="{{ aujourdhui }}" required>
+            <input type="date" class="form-control font-mono" name="completed_at" value="{{ aujourdhui|date:"Y-m-d" }}" required>
             <div class="form-text">La date d'expiration est calculée automatiquement selon la durée de validité de la formation.</div>
           </div>
         </div>

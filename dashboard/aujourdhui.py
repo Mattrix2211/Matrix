@@ -69,8 +69,9 @@ def a_faire(user, aujourdhui):
     tickets = tickets.filter(cond_ticket).distinct()
     for occ in occurrences.prefetch_related("assignees"):
         sans_assigne = not occ.assignees.all()
-        en_retard = occ.status == "OVERDUE" or occ.scheduled_for < aujourdhui
         attente = occ.status == "WAITING_VALIDATION"
+        # L'attente de validation prime : le retard n'est plus du ressort de l'exécutant.
+        en_retard = not attente and (occ.status == "OVERDUE" or occ.scheduled_for < aujourdhui)
         if en_retard:
             detail = f"En retard, prévue le {occ.scheduled_for:%d/%m}"
         elif attente:

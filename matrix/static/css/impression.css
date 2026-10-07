@@ -1,12 +1,40 @@
 /* Impression A4 en noir et blanc : fiches papier (docs/UX.md §19). */
-:root { --imp-encre: CanvasText; --imp-papier: Canvas; }
+:root { --imp-encre: #000; --imp-papier: #fff; color-scheme: light; }  /* le papier est blanc, même en thème sombre */
 @page { size: A4; margin: 15mm; }
 
-/* Masque l'interface : barres, panneaux, notifications, boutons. */
-.mx-barre, .mx-lateral, .toast-container, .offcanvas, .fiche-actions,
-.btn, .alert { display: none !important; }
+/* Masque l'interface : barres, panneaux, notifications, boutons, saisie. */
+.mx-barre, .mx-lateral, .toast-container, .offcanvas, .modal, .modal-backdrop, .dropdown-menu, .popover,
+.fiche-actions, .mx-barre-action, .mx-brouillon, .mx-brouillon__reprise, .mx-fiche__action, .mx-menu,
+.fc-toolbar, .nav-tabs, input[type="search"], input[type="checkbox"].row-select, .mx-liste-carte__case, .pagination, .no-print, .btn, .alert, [data-bs-dismiss] { display: none !important; }
 .mx-coque { display: block; }
 .mx-coque__contenu { max-width: none; padding: 0 !important; }
+
+/* En-tête commun : bâtiment, date d'impression, utilisateur (docs/UX.md §19.1). */
+.mx-impression-entete { display: block; margin: 0 0 4mm; padding-bottom: 2mm; border-bottom: 1pt solid var(--imp-encre); font-size: 9pt; }
+.mx-coque__contenu:has(.fiche-papier) > .mx-impression-entete { display: none; }
+
+/* Noir et blanc : aucune couleur de fond, bordures pour garder la structure. */
+/* [class] égale la spécificité des utilitaires Bootstrap (.text-bg-*, .bg-*), déclarés avant. */
+*, [class], *::before, *::after { color: var(--imp-encre) !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; }
+a { text-decoration: none; }
+.mx-planning__semaine { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mx-planning__creneau { border-left: 3pt solid var(--imp-encre) !important; }
+.mx-planning__creneau--libre { border-left-style: dashed !important; }
+dl.row > dt { flex: 0 0 50%; max-width: 50%; font-size: 10pt; }
+dl.row > dd { flex: 0 0 50%; max-width: 50%; }
+img, canvas, svg { filter: grayscale(1); }
+.progress, .mx-jauge__piste { border: .5pt solid var(--imp-encre) !important; }
+.progress-bar, .mx-jauge__barre { background: var(--imp-encre) !important; print-color-adjust: exact; }
+.card, .mx-carte, .mx-surface, .badge, .mx-metric, .mx-badge, .table { border: .5pt solid var(--imp-encre) !important; }
+.badge { padding: 0 1.5mm; }
+.table > :not(caption) > * > * { border-bottom: .5pt solid var(--imp-encre) !important; }
+
+/* Sauts de page : pas de ligne, carte ou titre coupé ; l'en-tête de tableau se répète. */
+h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+tr, .card, .mx-carte, .mx-surface, .mx-metric, figure, canvas, img { break-inside: avoid; }
+thead { display: table-header-group; }
+.table-responsive, .mx-grille, [style*="overflow"] { overflow: visible !important; max-height: none !important; }
+.mx-grille__entete { position: static; }
 
 body { background: var(--imp-papier) !important; color: var(--imp-encre) !important; font-size: 11pt; line-height: 1.35; }
 

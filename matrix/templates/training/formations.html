@@ -164,7 +164,7 @@
 {% if candidatures_organisme_a_traiter %}
 <div class="card mb-3">
   <div class="card-body">
-    <h6 class="fw-bold mb-3"><i class="bi bi-mortarboard"></i> Candidatures transmises — sélection de l'organisme</h6>
+    <h6 class="fw-bold mb-3">{% icone "formation" %} Candidatures transmises — sélection de l'organisme</h6>
     {% for c in candidatures_organisme_a_traiter %}
       <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
@@ -304,7 +304,7 @@
           <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
                   data-pk="{{ f.id }}" data-title="{{ f.title }}" data-description="{{ f.description }}"
                   data-category="{{ f.category }}" data-validity="{{ f.validity_days }}">
-            <i class="bi bi-pencil"></i> Modifier et proposer à nouveau
+            {% icone "modification" %} Modifier et proposer à nouveau
           </button>
         </div>
       </div>

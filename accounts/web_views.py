@@ -112,8 +112,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # second consulte l'annuaire (lecture) sans pouvoir y écrire.
         seuil = NIVEAU_VISION_COMMANDEMENT if request.method in ("GET", "HEAD") else RoleLevel.COMMANDANT
         if request.user.is_authenticated and user_role_level(request.user) < seuil:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden()
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -645,8 +644,7 @@ class UserSettingsView(LoginRequiredMixin, ListView):
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden()
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):

@@ -22,6 +22,11 @@
   function delaiReessai(essai) { return Math.min(60000, 5000 * Math.pow(2, Math.max(0, essai))); }
 
   function deuxChiffres(n) { return (n < 10 ? '0' : '') + n; }
+  // Le serveur envoie l'heure du fuseau du projet : on lit l'heure murale, pas celle du navigateur.
+  function dateMurale(iso) {
+    var m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(String(iso));
+    return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) : new Date(iso);
+  }
   function formaterHeure(date) { return deuxChiffres(date.getHours()) + ':' + deuxChiffres(date.getMinutes()); }
   function formaterDateHeure(date) {
     return deuxChiffres(date.getDate()) + '/' + deuxChiffres(date.getMonth() + 1) + ' à ' + formaterHeure(date);
@@ -36,7 +41,7 @@
   }
 
   var API = {
-    nomSensible: nomSensible, delaiReessai: delaiReessai, formaterHeure: formaterHeure,
+    nomSensible: nomSensible, delaiReessai: delaiReessai, formaterHeure: formaterHeure, dateMurale: dateMurale,
     formaterDateHeure: formaterDateHeure, contenuVide: contenuVide
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = API; }
@@ -173,7 +178,7 @@
           essais = 0;
           aEnregistrer = false;
           return rep.json().then(function (d) {
-            message(d.existe ? 'Brouillon enregistré à ' + formaterHeure(new Date(d.mis_a_jour)) : '');
+            message(d.existe ? 'Brouillon enregistré à ' + formaterHeure(dateMurale(d.mis_a_jour)) : '');
             return true;
           });
         }
@@ -235,7 +240,7 @@
     appeler('GET', cle).then(function (rep) { return rep.ok ? rep.json() : { existe: false }; })
       .then(function (d) {
         if (!d.existe || contenuVide(d.contenu)) { actif = true; return; }
-        var quand = formaterDateHeure(new Date(d.mis_a_jour));
+        var quand = formaterDateHeure(dateMurale(d.mis_a_jour));
         var bandeau = creer('mx-brouillon__reprise', 'region', 'Brouillon à reprendre');
         var texte = document.createElement('span');
         texte.textContent = 'Un brouillon de cette saisie existe (' + quand + ').';

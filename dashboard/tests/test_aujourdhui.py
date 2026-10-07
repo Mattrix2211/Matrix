@@ -58,6 +58,13 @@ class AujourdhuiTests(TestCase):
         self.assertEqual(ordre, [retard, attente, normale_tot, normale_tard])
         self.assertEqual([e["niveau"] for e in r.context["a_faire"]], ["danger", "attention", "", ""])
 
+    def test_attente_de_validation_prime_sur_le_retard(self):
+        attente = self._occurrence(-5, statut="WAITING_VALIDATION")
+        r = self.client.get(self.url)
+        entree = next(e for e in r.context["a_faire"] if e["objet"] == attente)
+        self.assertEqual(entree["niveau"], "attention")
+        self.assertEqual(entree["detail"], "En attente de validation")
+
     def test_a_faire_criticite_departage_a_echeance_egale(self):
         banale = self._occurrence(1, priorite=1)
         critique = self._occurrence(1, priorite=5)

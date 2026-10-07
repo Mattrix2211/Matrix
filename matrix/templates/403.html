@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "components/etat_vide.html" with icone="verrouille" titre="Accès refusé" texte=message_refus|default:"Vous n'avez pas les droits nécessaires pour cette action. Si vous pensez que c'est une erreur, contactez votre chef ou le commandant." url="/" libelle="Retour à Aujourd'hui" %}
+{% endblock %}

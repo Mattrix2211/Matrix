@@ -1,13 +1,13 @@
-<div class="card mb-2" id="point-{{ r.pk }}">
+{% load icones %}<div class="card mb-2" id="point-{{ r.pk }}">
   <div class="card-body px-3 py-3">
     <div class="d-flex justify-content-between align-items-start gap-2">
       <div>
         <div class="fw-bold"><span class="font-mono text-muted">{{ r.ordre }}.</span> {{ r.libelle }}</div>
         {% if r.consigne %}<div class="small text-muted">{{ r.consigne }}</div>{% endif %}
-        {% if r.equipement_libelle %}<div class="small"><span class="bi bi-gear" aria-hidden="true"></span> {{ r.equipement_libelle }}</div>{% endif %}
+        {% if r.equipement_libelle %}<div class="small">{% icone "parametres" %} {{ r.equipement_libelle }}</div>{% endif %}
       </div>
-      {% if r.resultat == 'CONFORME' %}<span class="badge" style="background: var(--green-tech);">Conforme</span>
-      {% elif r.resultat == 'NON_CONFORME' %}<span class="badge" style="background: var(--red);">Non conforme</span>
+      {% if r.resultat == 'CONFORME' %}<span class="badge mx-resultat--conforme">Conforme</span>
+      {% elif r.resultat == 'NON_CONFORME' %}<span class="badge mx-resultat--non-conforme">Non conforme</span>
       {% else %}<span class="badge bg-secondary">À contrôler</span>{% endif %}
     </div>
     {% if erreur %}<div class="alert alert-danger py-1 my-2 small" role="alert">{{ erreur }}</div>{% endif %}
@@ -27,8 +27,8 @@
         <div class="col"><input class="form-control form-control-sm" name="commentaire" placeholder="Commentaire (obligatoire si non conforme)" aria-label="Commentaire" value="{{ r.commentaire }}"></div>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn flex-fill text-white" style="background: var(--green-tech); min-height:44px;" type="submit" name="resultat" value="CONFORME"><span class="bi bi-check-lg" aria-hidden="true"></span> Conforme</button>
-        <button class="btn flex-fill text-white" style="background: var(--red); min-height:44px;" type="submit" name="resultat" value="NON_CONFORME"><span class="bi bi-x-lg" aria-hidden="true"></span> Non conforme</button>
+        <button class="btn flex-fill mx-resultat--conforme" style="min-height:44px;" type="submit" name="resultat" value="CONFORME"><span class="bi bi-check-lg" aria-hidden="true"></span> Conforme</button>
+        <button class="btn flex-fill mx-resultat--non-conforme" style="min-height:44px;" type="submit" name="resultat" value="NON_CONFORME"><span class="bi bi-x-lg" aria-hidden="true"></span> Non conforme</button>
       </div>
     </form>
     {% else %}

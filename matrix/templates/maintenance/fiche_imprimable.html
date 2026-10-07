@@ -37,7 +37,7 @@
     <tbody>
     {% for it in f.items %}
       <tr>
-        <td class="fiche-col-case"><span class="fiche-case" aria-hidden="true"></span></td>
+        <td class="fiche-col-case">{% if it.field_type == 'checkbox' %}<span class="fiche-case" aria-hidden="true"></span>{% endif %}</td>
         <td>{{ it.label }}{% if it.required %} <span class="fiche-oblig">(obligatoire)</span>{% endif %}{% if it.requires_photo %} <span class="fiche-oblig">(photo)</span>{% endif %}</td>
         <td class="fiche-col-valeur">
           {% if it.field_type == 'number' %}<span class="fiche-ligne"></span> {{ it.unit|default:"" }}{% if it.valeur_min is not None or it.valeur_max is not None %} <span class="fiche-oblig">(attendu : {% if it.valeur_min is not None %}{{ it.valeur_min|floatformat:"-3" }}{% else %}…{% endif %} à {% if it.valeur_max is not None %}{{ it.valeur_max|floatformat:"-3" }}{% else %}…{% endif %})</span>{% endif %}

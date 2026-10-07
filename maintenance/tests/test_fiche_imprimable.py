@@ -56,6 +56,10 @@ class FicheImprimableTests(TestCase):
         self.assertContains(r, "Contrôle")
         self.assertContains(r, "data:image/png;base64,")
 
+    def test_case_fait_seulement_sur_les_points_a_cocher(self):
+        r = self.client.get(reverse("occurrence-imprimer", args=[self.occ_a.pk]))
+        self.assertContains(r, 'class="fiche-case" aria-hidden="true"', count=1)
+
     def test_hors_perimetre_refuse(self):
         r = self.client.get(reverse("occurrence-imprimer", args=[self.occ_b.pk]))
         self.assertEqual(r.status_code, 404)

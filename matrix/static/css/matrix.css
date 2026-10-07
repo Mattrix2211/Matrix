@@ -47,7 +47,13 @@
   --border:  #DDE5ED;
   --text:      var(--ink);
   --text-sec:  #4A6580;
-  --text-ter:  #8FAFC7;
+  --text-ter:  #56728B;
+  /* Lien et texte d'accent : --signal (2,46:1) est trop clair pour du texte sur fond clair. */
+  --lien:      #007A94;
+  --lien-rgb:  0, 122, 148;
+  --focus:     #006D87;
+  --attention-texte: #9A5200;
+  --ok-texte:  #0F7A35;
 
   /* Typographie (§3) — Space Grotesk (titres/nav/cards), Inter (corps),
      JetBrains Mono (données techniques). Jamais Syncopate (réservé hero/sport). */
@@ -87,7 +93,12 @@
   --border:    #2A4760;
   --text:      #E6EEF5;
   --text-sec:  #A3BBCE;
-  --text-ter:  #6B8BA4;
+  --text-ter:  #8AA6BC;
+  --lien:      var(--signal);
+  --lien-rgb:  0, 180, 216;
+  --focus:     var(--signal);
+  --attention-texte: var(--amber);
+  --ok-texte:  var(--green-tech);
 
   --shadow-sm:   0 1px 3px rgba(0, 0, 0, .45);
   --shadow-md:   0 4px 16px rgba(0, 0, 0, .55);
@@ -112,8 +123,8 @@
   --bs-body-color: var(--text);
   --bs-primary: var(--signal);
   --bs-primary-rgb: 0, 180, 216;
-  --bs-link-color: var(--signal);
-  --bs-link-color-rgb: 0, 180, 216;
+  --bs-link-color: var(--lien);
+  --bs-link-color-rgb: var(--lien-rgb);
   --bs-link-hover-color: var(--horizon);
   --bs-border-color: var(--border);
   --bs-border-radius: var(--r-md);
@@ -155,7 +166,7 @@ code, pre, kbd, .font-mono {
   --bs-btn-disabled-color: var(--ink);
 }
 .btn-outline-primary {
-  --bs-btn-color: var(--signal);
+  --bs-btn-color: var(--lien);
   --bs-btn-border-color: var(--signal-ui);
   --bs-btn-hover-bg: var(--signal);
   --bs-btn-hover-border-color: var(--signal);
@@ -164,7 +175,9 @@ code, pre, kbd, .font-mono {
   --bs-btn-active-border-color: var(--signal);
   --bs-btn-active-color: var(--ink);
 }
-.text-primary { color: var(--signal) !important; }
+.text-primary { color: var(--lien) !important; }
+.text-warning { color: var(--attention-texte) !important; }
+.text-secondary { color: var(--text-sec) !important; }
 .bg-primary { background-color: var(--signal) !important; }
 .border-primary { border-color: var(--signal) !important; }
 .form-check-input:checked {
@@ -177,7 +190,7 @@ code, pre, kbd, .font-mono {
   border-color: var(--signal);
   color: var(--ink);
 }
-.page-link { color: var(--signal); }
+.page-link { color: var(--lien); }
 /* --signal-ui : remplissage assombri, conforme WCAG 1.4.11 (≥3:1) sur fond clair */
 .progress-bar { background-color: var(--signal-ui); }
 .spinner-border.text-primary { color: var(--signal) !important; }
@@ -1101,11 +1114,12 @@ a.mx-recherche__resultat:hover,
 .mx-aujourdhui__tache--attention { border-left: 4px solid var(--amber); }
 .mx-aujourdhui__tache--danger { border-left: 4px solid var(--red); }
 .mx-aujourdhui__ligne { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); padding: var(--s1) 0; }
-.mx-frise { list-style: none; margin: 0; padding: 0 0 0 var(--s3); border-left: 2px solid var(--border); }
-.mx-frise__point { display: flex; gap: var(--s3); align-items: baseline; padding: var(--s2) 0; }
-.mx-frise__heure { min-width: 3.5rem; font-family: var(--f-mono); color: var(--text-sec); }
-.mx-frise__libelle { color: var(--text); text-decoration: none; }
-.mx-frise__libelle:hover { color: var(--signal-ui); }
+.mx-journee { list-style: none; margin: 0; padding: 0 0 0 var(--s3); border-left: 2px solid var(--border); }
+.mx-journee__point { display: flex; gap: var(--s3); align-items: baseline; padding: var(--s2) 0; }
+.mx-journee__heure { flex: 0 0 4.5rem; font-family: var(--f-mono); color: var(--text-sec); }
+.mx-journee__libelle { color: var(--text); text-decoration: none; }
+.mx-journee__libelle:hover { color: var(--signal-ui); }
+.mx-aujourdhui__ligne--pile { flex-direction: column; align-items: flex-start; gap: 0; }
 
 /* En-tête de fiche */
 .mx-fiche { margin-bottom: var(--s4); }
@@ -1223,7 +1237,7 @@ a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
 
 /* Catalogue : équiper le navire et exemplaires à bord */
 .mx-cat-equiper-article { margin-bottom: 1rem; }
-.mx-cat-a-bord { color: var(--signal); font-size: 0.8125rem; font-weight: 600; }
+.mx-cat-a-bord { color: var(--lien); font-size: 0.8125rem; font-weight: 600; }
 .mx-cat-compteur { font-weight: 600; margin-bottom: 0.5rem; }
 .mx-cat-exemplaires { list-style: none; padding: 0; margin: 0; }
 .mx-cat-exemplaires li { padding: 0.25rem 0; border-bottom: 1px solid var(--bordure, var(--bs-border-color)); }
@@ -1290,3 +1304,62 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
 .mx-liste-carte__detail { font-size: .875rem; color: var(--text-sec); }
 .mx-liste-entete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
 .mx-liste-entete__actions { display: flex; align-items: center; gap: var(--s2); }
+
+/* ---------------------------------------------------------------------- */
+/* Accessibilité (docs/UX.md §24) : focus clavier visible partout,        */
+/* badges lisibles, calendrier FullCalendar aux couleurs du thème.        */
+/* ---------------------------------------------------------------------- */
+:root :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mx-barre :focus-visible { outline-color: var(--signal); }
+.mx-grille__champ:focus-visible { outline-offset: -2px; }
+.badge.bg-info, .badge.bg-warning, .badge.bg-primary { color: var(--ink); }
+/* Boutons « contour » : les gris, rouge et vert Bootstrap restent sous 4,5:1 sur --bg ; on passe par les variables du thème. */
+.btn-outline-secondary {
+  --bs-btn-color: var(--text-sec); --bs-btn-border-color: var(--text-ter);
+  --bs-btn-hover-color: var(--text); --bs-btn-hover-bg: var(--border); --bs-btn-hover-border-color: var(--text-sec);
+  --bs-btn-active-color: var(--text); --bs-btn-active-bg: var(--border); --bs-btn-active-border-color: var(--text-sec);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--red-texte); --bs-btn-border-color: var(--red-texte);
+  --bs-btn-hover-color: var(--paper); --bs-btn-hover-bg: var(--red-plein); --bs-btn-hover-border-color: var(--red-plein);
+  --bs-btn-active-color: var(--paper); --bs-btn-active-bg: var(--red-plein); --bs-btn-active-border-color: var(--red-plein);
+}
+.btn-outline-success {
+  --bs-btn-color: var(--ok-texte); --bs-btn-border-color: var(--ok-texte);
+  --bs-btn-hover-color: var(--ink); --bs-btn-hover-bg: var(--green-tech); --bs-btn-hover-border-color: var(--green-tech);
+  --bs-btn-active-color: var(--ink); --bs-btn-active-bg: var(--green-tech); --bs-btn-active-border-color: var(--green-tech);
+}
+.fc { --fc-border-color: var(--border); --fc-page-bg-color: var(--surface); --fc-neutral-bg-color: var(--bg); --fc-neutral-text-color: var(--text-sec); --fc-today-bg-color: rgba(var(--lien-rgb), .08); color: var(--text); }
+.fc .fc-col-header-cell { background: var(--bg); }
+.fc .fc-col-header-cell-cushion, .fc .fc-col-header-cell-cushion:hover { color: var(--text); text-decoration: none; }
+.fc .fc-daygrid-day-number { color: var(--lien); }
+.fc .fc-day-today .fc-daygrid-day-number { color: var(--text); }
+.fc .fc-daygrid-dot-event, .fc .fc-daygrid-dot-event:hover { color: var(--text); }
+
+/* Option tablette : zones tactiles d'au moins 44 px sur les écrans opérationnels. */
+@media (pointer: coarse) {
+  .btn, .form-control, .form-select, .mx-lateral__lien, .mx-grille__champ, .page-link, .nav-link { min-height: 44px; }
+  .btn-sm, .btn-group-sm > .btn { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--s1); }
+  .form-check-input { width: 1.5rem; height: 1.5rem; margin-top: 0; }
+  .form-check { display: flex; align-items: center; gap: var(--s2); min-height: 44px; padding-left: 0; }
+  .form-check .form-check-input { float: none; margin-left: 0; }
+  .form-check-label { flex: 1; padding: var(--s2) 0; }
+  /* Case isolée (sélection de liste) : la zone tactile déborde de la case. */
+  .form-check-input { position: relative; }
+  .form-check-input::after { content: ""; position: absolute; inset: -10px; }
+  .mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment, .theme-toggle, .mx-recherche__champ { min-height: 44px; min-width: 44px; }
+  .mx-liste-carte__titre, .mx-aujourdhui__tache a, .mx-journee__libelle { display: inline-block; padding: var(--s3) 0; }
+}
+
+/* Résultat de contrôle (rondes) : texte --ink sur le vert, blanc sur le rouge plein, contrastes AA. */
+.mx-resultat--conforme { background: var(--green-tech); color: var(--ink); }
+.mx-resultat--non-conforme { background: var(--red-plein); color: var(--paper); }
+.mx-resultat--attente { background: var(--border); }
+.mx-resultat--conforme:hover, .mx-resultat--non-conforme:hover { color: inherit; filter: brightness(.92); }
+.mx-texte--ok { color: var(--ok-texte); }
+.mx-texte--danger { color: var(--red-texte); }
+.mx-ronde-frise { display: flex; gap: var(--s1); margin-bottom: var(--s3); }
+.mx-ronde-frise > * { flex: 1 1 0; height: 8px; border-radius: var(--r-sm); }
+
+/* Visible seulement à l'impression (matrix/static/css/impression.css). */
+.mx-impression-entete { display: none; }

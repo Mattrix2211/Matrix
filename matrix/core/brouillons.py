@@ -101,7 +101,7 @@ class BrouillonView(LoginRequiredMixin, View):
         return JsonResponse({
             "existe": True,
             "contenu": brouillon.contenu,
-            "mis_a_jour": brouillon.updated_at.isoformat(),
+            "mis_a_jour": timezone.localtime(brouillon.updated_at).isoformat(),
         })
 
     def post(self, request):
@@ -134,7 +134,7 @@ class BrouillonView(LoginRequiredMixin, View):
                 "url": _adresse_sure(url)[:300],
             },
         )
-        return JsonResponse({"existe": True, "mis_a_jour": brouillon.updated_at.isoformat()})
+        return JsonResponse({"existe": True, "mis_a_jour": timezone.localtime(brouillon.updated_at).isoformat()})
 
     def delete(self, request):
         cle = request.GET.get("cle", "")

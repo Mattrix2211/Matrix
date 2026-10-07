@@ -65,6 +65,10 @@ def cartes_batiments(batiments, aujourdhui):
     )
     retards = _par_navire(occurrences, "navire")
     anomalies = _par_navire(Anomalie.objects.filter(ship_id__in=ids, statut__in=STATUTS_ANOMALIE_OUVERTS), "ship_id")
+    bloques = _par_navire(
+        CorrectiveTicket.objects.annotate(navire=Coalesce("asset__ship_id", "installation__ship_id"))
+        .filter(navire__in=ids, status="BLOCKED"), "navire",
+    )
     indisponibles = _par_navire(Asset.objects.filter(ship_id__in=ids, status__in=STATUTS_ASSET_INDISPONIBLES), "ship_id")
     cartes = []
     for batiment in batiments:
@@ -72,6 +76,7 @@ def cartes_batiments(batiments, aujourdhui):
             (retards.get(batiment.pk, 0), "danger", "en retard"),
             (anomalies.get(batiment.pk, 0), "attention", "anomalie(s) ouverte(s)"),
             (indisponibles.get(batiment.pk, 0), "danger", "indisponible(s)"),
+            (bloques.get(batiment.pk, 0), "attention", "ticket(s) bloqué(s)"),
         )
         badges = [{"etat": etat, "libelle": f"{nombre} {texte}"} for nombre, etat, texte in compteurs if nombre]
         cartes.append({"batiment": batiment, "badges": badges or [{"etat": "ok", "libelle": "Rien à signaler"}]})

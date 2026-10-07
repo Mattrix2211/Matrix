@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load icones %}
 {% load org_extras %}
 {% block content %}
 <h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules or peut_voir_equipage %}Paramètres{% else %}Mes notifications{% endif %}</h1>
@@ -39,7 +40,7 @@
 <div class="card">
   <div class="card-header">Paramètres généraux
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Paramètres généraux" data-bs-content="Paramétrez les options globales de Matrix. Ces réglages s’appliquent à toutes les unités et utilisateurs.">
-      <span class="bi bi-info-circle"></span>
+      {% icone "information" %}
     </button>
   </div>
   <div class="card-body">
@@ -63,7 +64,7 @@
     <div class="card">
       <div class="card-header">Grades
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Grades" data-bs-content="Liste des grades disponibles pour toutes les unités. Supprimez un grade lorsqu’il n’est plus utilisé.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -100,7 +101,7 @@
     <div class="card">
       <div class="card-header">Spécialités
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Spécialités" data-bs-content="Catalogue des spécialités transversales. Les suppressions impactent la sélection de profil lors de la création/édition d’utilisateur.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -137,7 +138,7 @@
     <div class="card">
       <div class="card-header">Fonctions de service
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Fonctions de service" data-bs-content="Liste des fonctions (ex: Responsable Sécurité, Opérateur, Électricien de quart) sélectionnables pour les utilisateurs. Modifiez-les ici.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -174,7 +175,7 @@
     <div class="card">
       <div class="card-header">Fonctions de quart
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Fonctions de quart" data-bs-content="Liste des fonctions de quart (ex: Barre, Veille, Machine avant), transversales aux secteurs/services, utilisées pour organiser les listes de quarts du module Quarts/services.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -215,7 +216,7 @@
     <div class="card">
       <div class="card-header">Rôles (assignables)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Rôles assignables" data-bs-content="Activez ou désactivez l’attribution des rôles aux utilisateurs. MASTER_ADMIN est réservé aux superutilisateurs et toujours disponible.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -248,7 +249,7 @@
     <div class="card">
       <div class="card-header">Responsables de spécialité (dashboard flotte)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de spécialité" data-bs-content="Un marin désigné responsable d’une spécialité accède au dashboard transverse de cette spécialité, agrégé sur toute la flotte (tous navires confondus).">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -296,7 +297,7 @@
     <div class="card">
       <div class="card-header">Responsables de classe de navire (dashboard flotte)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de classe de navire" data-bs-content="Un marin désigné responsable d’une classe de navire accède au dashboard transverse de cette classe, agrégé sur tous les navires de la classe.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -350,7 +351,7 @@
     <div class="card">
       <div class="card-header">Bigrames (installations)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Bigrames" data-bs-content="Liste des bigrames utilisables dans les installations. Activez/désactivez ou supprimez des entrées.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -395,7 +396,7 @@
     <div class="card">
       <div class="card-header">Paramètres vibratoires (global)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Vibration" data-bs-content="Définissez l’échéance (jours) avant la prochaine mesure selon le dernier état A/B/C. Ces paramètres s’appliquent à toutes les installations.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -449,7 +450,7 @@
     <div class="card">
       <div class="card-header">Seuils de rôle{% if seuils_ship %} — {{ seuils_ship.name }}{% endif %}
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Seuils de rôle" data-bs-content="Le rôle minimal requis pour chaque action peut être ajusté pour cette unité. Tant qu'aucune valeur n'est modifiée, le comportement par défaut de Matrix s'applique. « Réinitialiser » revient à la valeur par défaut.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -506,7 +507,7 @@
     <div class="card">
       <div class="card-header">Référentiels communs à toute la flotte
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Référentiels globaux" data-bs-content="Ces référentiels (grades, spécialités...) ne sont rattachés à aucune unité précise : leur seuil s'applique à toute la flotte, réservé aux administrateurs généraux.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -578,7 +579,7 @@
     <div class="card">
       <div class="card-header">Modules activables{% if modules_ship %} — {{ modules_ship.name }}{% endif %}
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Modules activables" data-bs-content="Désactiver un module masque son entrée de menu et ses pages pour tout le monde sur cette unité, mais ne supprime aucune donnée : réactiver le module fait tout réapparaître tel quel.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -715,7 +716,7 @@
 <div class="card">
   <div class="card-header">Notification quotidienne
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Notification quotidienne" data-bs-content="Choisissez l’heure du matin (alertes d’échéance, résumé « Ma journée ») et l’heure du soir (résumé « Ma journée de demain »)">
-      <span class="bi bi-info-circle"></span>
+      {% icone "information" %}
     </button>
   </div>
   <div class="card-body">
@@ -744,7 +745,7 @@
 <div class="card">
   <div class="card-header">Journal des actions
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Traçabilité" data-bs-content="Liste des actions effectuées sur l’application: créations, éditions, suppressions, exports, etc.">
-      <span class="bi bi-info-circle"></span>
+      {% icone "information" %}
     </button>
   </div>
   <div class="card-body">
@@ -787,7 +788,7 @@
     <div class="card">
       <div class="card-header">Unités
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Unités" data-bs-content="Vous pouvez modifier, supprimer ou dupliquer une unité (navire, école, centre de formation ou bureau). La duplication copie la hiérarchie (services/secteurs/sections) sous un nouveau nom et code.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -840,7 +841,7 @@
       <input type="hidden" name="tab" value="hierarchie" />
       <div class="col-auto"><label class="col-form-label">Unité :</label>
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Sélection de l'unité" data-bs-content="Choisissez une unité pour éditer son arborescence de Services, Secteurs et Sections.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="col-auto">
@@ -861,7 +862,7 @@
     <div class="card">
       <div class="card-header">Arborescence de l'unité {% if selected_ship %}<strong>{{ selected_ship.name }}</strong>{% endif %}
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Arborescence" data-bs-content="Ajoutez ou supprimez des Services, puis leurs Secteurs et Sections pour structurer l’organisation de l'unité.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">

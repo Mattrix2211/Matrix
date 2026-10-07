@@ -16,6 +16,7 @@ assert.deepStrictEqual([0, 1, 2, 3, 4, 10].map(b.delaiReessai), [5000, 10000, 20
 assert.strictEqual(b.delaiReessai(-3), 5000);
 
 assert.strictEqual(b.formaterHeure(new Date(2026, 9, 2, 9, 5)), '09:05');
+assert.strictEqual(b.formaterHeure(b.dateMurale('2026-10-07T19:23:41+02:00')), '19:23');
 assert.strictEqual(b.formaterDateHeure(new Date(2026, 9, 2, 14, 12)), '02/10 à 14:12');
 
 assert.strictEqual(b.contenuVide({ a: '', b: [] }), true);

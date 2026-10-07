@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load icones %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0"><span class="bi bi-map me-2"></span>Plan du navire</h1>
@@ -27,7 +28,7 @@
         <input type="hidden" name="action" value="create_deck" />
         {% if multi_navires %}<input type="hidden" name="navire_id" value="{{ navire.id }}" />{% endif %}
         <input type="text" name="name" class="form-control" placeholder="Nom du pont (ex : Pont supérieur)" required />
-        <button type="submit" class="btn btn-primary text-nowrap"><span class="bi bi-plus-lg"></span> Ajouter</button>
+        <button type="submit" class="btn btn-primary text-nowrap">{% icone "ajout" %} Ajouter</button>
       </form>
     </div>
   </div>
@@ -63,7 +64,7 @@
           <input type="hidden" name="action" value="delete_deck" />
           <input type="hidden" name="pk" value="{{ pont.id }}" />
           {% if multi_navires %}<input type="hidden" name="navire_id" value="{{ navire.id }}" />{% endif %}
-          <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"><span class="bi bi-trash"></span></button>
+          <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">{% icone "suppression" %}</button>
         </form>
       </li>
       {% empty %}
