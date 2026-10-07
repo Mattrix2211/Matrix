@@ -26,11 +26,32 @@
   function activerPopovers(racine) {
     if (!window.bootstrap) return;
     racine.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
-      bootstrap.Popover.getOrCreateInstance(el);
+      // Contenu riche : copie d'un <template> (lignes, lien, bouton), ouverte au clic
+      var modele = el.dataset.mxContenu;
+      bootstrap.Popover.getOrCreateInstance(el, modele ? {
+        html: true,
+        content: function () { return document.querySelector(modele).content.firstElementChild.cloneNode(true); }
+      } : {});
     });
   }
   document.addEventListener('DOMContentLoaded', function () { activerPopovers(document); });
   document.body.addEventListener('htmx:afterSwap', function (evt) { activerPopovers(evt.target); });
+})();
+
+// Un popover à contenu riche se ferme au clic ailleurs et à l'ouverture d'une modale.
+(function () {
+  function fermer(sauf) {
+    if (!window.bootstrap) return;
+    document.querySelectorAll('[data-mx-contenu]').forEach(function (el) {
+      var popover = bootstrap.Popover.getInstance(el);
+      if (popover && el !== sauf) popover.hide();
+    });
+  }
+  document.addEventListener('click', function (evt) {
+    if (evt.target.closest('.popover')) return;
+    fermer(evt.target.closest('[data-mx-contenu]'));
+  });
+  document.addEventListener('show.bs.modal', function () { fermer(null); });
 })();
 
 // Échap ferme les popovers ouverts (la modale, le panneau latéral et le menu

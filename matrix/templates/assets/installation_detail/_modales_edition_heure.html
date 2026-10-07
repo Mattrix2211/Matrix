@@ -8,7 +8,7 @@
         <div class="modal-body">
           {% csrf_token %}
           
-          <input type="hidden" name="tab" value="hours" />
+          <input type="hidden" name="tab" value="mesures" />
           <input type="hidden" name="reading_id" value="{{ r.id }}" />
           <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" value="{{ r.date|date:'d/m/Y' }}" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
           <div class="mb-3"><label class="form-label">Heures (cumulées)</label><input type="text" class="form-control" name="hours" value="{{ r.hours }}" inputmode="decimal" required /></div>

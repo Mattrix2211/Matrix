@@ -1120,3 +1120,25 @@ a.mx-fiche__indicateur:hover,
 a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
 .mx-fiche__version { margin: var(--s3) 0 0; padding: var(--s2) var(--s3); border-left: 4px solid var(--signal-ui); background: var(--surface); font-size: .875rem; }
 .mx-fiche__tracabilite { margin: var(--s3) 0 0; font-size: .8125rem; color: var(--text-sec); }
+.mx-fiche__popover p { margin: 0 0 var(--s2); font-size: .875rem; }
+.mx-fiche__popover a { display: block; margin-bottom: var(--s2); font-size: .875rem; }
+.mx-repliable { border: 1px solid var(--border); border-radius: var(--r-sm, 4px); background: var(--surface); }
+.mx-repliable > summary { padding: var(--s2) var(--s3); cursor: pointer; font-weight: 600; color: var(--text); }
+.mx-repliable__liste { margin: 0; padding: var(--s2) var(--s3) var(--s3) calc(var(--s3) + 1rem); font-size: .875rem; }
+.mx-derive { display: flex; flex-wrap: wrap; gap: var(--s3); padding: var(--s2) var(--s3); margin-bottom: var(--s3); border-left: 4px solid var(--signal-ui); background: var(--surface); font-size: .875rem; }
+.mx-mesures__nav { display: flex; gap: var(--s3); margin-bottom: var(--s3); font-size: .875rem; }
+.mx-mesure { margin-bottom: var(--s4, 1.5rem); padding-top: var(--s2); border-top: 1px solid var(--border); scroll-margin-top: var(--s4, 1.5rem); }
+
+/* Compte rendu de maintenance */
+.mx-cr { border: 0; padding: 0; margin: 0; min-width: 0; }
+.mx-cr-ligne { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s2) var(--s4); padding: var(--s2) var(--s2); border-bottom: 1px solid var(--border); }
+.mx-cr-ligne:last-child { border-bottom: 0; }
+.mx-cr-ligne--hors-plage { background: var(--surface); border-left: 4px solid var(--red); }
+.mx-cr-ligne__libelle { flex: 1 1 18rem; }
+.mx-cr-ligne__saisie { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.mx-cr-ligne__commentaire { width: 16rem; }
+.mx-cr-ligne__nombre { width: 7rem; text-align: right; }
+.mx-cr-alerte { color: var(--red-texte); font-weight: 600; font-size: .8125rem; }
+.mx-barre-action { position: sticky; bottom: 0; z-index: 1020; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s3); margin-top: var(--s4); padding: var(--s3) var(--s4); background: var(--surface); border-top: 2px solid var(--signal-ui); box-shadow: 0 -2px 8px rgba(0, 0, 0, .12); }
+.mx-barre-action__etat { display: flex; flex-direction: column; font-size: .875rem; }
+.mx-barre-action__boutons { display: flex; gap: var(--s2); }

@@ -1,4 +1,4 @@
-      <div class="tab-pane fade show active" id="pane-infos" role="tabpanel" aria-labelledby="tab-infos">
+      <div class="tab-pane fade show active" id="pane-ensemble" role="tabpanel" aria-labelledby="tab-ensemble">
         <img class="float-end ms-3 mb-2" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur l'installation" src="/api/assets/installations/{{ object.id }}/qr_png/" height="96" />
         <div class="row g-3">
           <div class="col-md-6">
@@ -39,4 +39,16 @@
             </div>
           </div>
         </div>
+        <details class="mx-repliable mt-3">
+          <summary>Sous-équipements <span class="badge text-bg-secondary rounded-pill">{{ object.sous_ensembles.count }}</span></summary>
+          <ul class="mx-repliable__liste">
+            {% for c in object.sous_ensembles.all %}<li><a href="/installations/{{ c.id }}/">{{ c.designation }}</a>{% if c.reference %} <span class="text-muted font-mono">{{ c.reference }}</span>{% endif %}</li>{% empty %}<li class="text-muted">Aucun sous-équipement</li>{% endfor %}
+          </ul>
+        </details>
+        <details class="mx-repliable mt-2">
+          <summary>Documents <span class="badge text-bg-secondary rounded-pill">{{ documents|length }}</span></summary>
+          <ul class="mx-repliable__liste">
+            {% for pj in documents %}<li><a href="{{ pj.file.url }}" target="_blank" rel="noopener">{{ pj.filename }}</a></li>{% empty %}<li class="text-muted">Aucun document</li>{% endfor %}
+          </ul>
+        </details>
       </div>

@@ -92,14 +92,14 @@
   }
   // Rendre si l'onglet est déjà actif à l'arrivée sur la page
   try {
-    var hoursTabBtn = document.querySelector('#tab-hours');
+    var hoursTabBtn = document.querySelector('#tab-mesures');
     if (hoursTabBtn && hoursTabBtn.classList.contains('active')) {
       scheduleHoursRender();
     }
   } catch(_){}
   // Et re-rendre lors de l'affichage de l'onglet
   document.addEventListener('shown.bs.tab', function(e){
-    if (e.target && e.target.id === 'tab-hours') scheduleHoursRender();
+    if (e.target && e.target.id === 'tab-mesures') scheduleHoursRender();
   });
   // File d’attente supplémentaire: après DOM prêt, après onload, et à la visibilité
   if (document.readyState === 'loading') {

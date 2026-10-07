@@ -9,7 +9,7 @@
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="edit_maintenance" />
-          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="tab" value="maintenance" />
           <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
           <div class="row g-3">
             <div class="col-md-6"><label class="form-label">Périodicité</label>
@@ -82,7 +82,7 @@
                     <form method="post" class="d-inline">
                       {% csrf_token %}
                       <input type="hidden" name="action" value="delete_maintenance_attachment" />
-                      <input type="hidden" name="tab" value="entretien" />
+                      <input type="hidden" name="tab" value="maintenance" />
                       <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
                       <input type="hidden" name="attachment_id" value="{{ att.id }}" />
                       <button class="btn btn-link btn-sm text-danger" title="Supprimer" style="text-decoration:none"><span class="bi bi-x-circle"></span></button>
@@ -133,7 +133,7 @@
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="add_maintenance" />
-          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="tab" value="maintenance" />
           <div class="row g-3">
             <div class="col-md-6"><label class="form-label">Périodicité</label>
               <select class="form-select" name="periodicity">
@@ -204,7 +204,7 @@
         <form method="post" id="mntDeleteForm" style="display:none">
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_maintenance" />
-          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="tab" value="maintenance" />
           <input type="hidden" name="maintenance_id" id="mntDeleteId" />
         </form>
         <hr />

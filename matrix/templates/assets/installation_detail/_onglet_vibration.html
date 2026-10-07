@@ -1,7 +1,7 @@
-      <div class="tab-pane fade" id="pane-vibration" role="tabpanel">
+      <section class="mx-mesure" id="pane-vibration" aria-labelledby="mesures-vibration">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div>
-            <h6 class="mb-0">Vibration
+            <h6 class="mb-0" id="mesures-vibration">Vibrations
               {% if vibration_last_state %}
                 {% if vibration_last_state == 'A' %}
                   <span class="badge text-bg-success ms-2">Dernier état: A</span>
@@ -77,4 +77,4 @@
             </tbody>
           </table>
         </div>
-      </div>
+      </section>

@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import UserProfile
-from assets.models import Asset, AssetType, Installation
+from assets.models import Asset, AssetType, Installation, InstallationHourReading
 from logistics.models import CorrectiveTicket
 from org.models import Sector, Service, Ship
 from threads.utils import ajouter_commentaire
@@ -53,3 +53,40 @@ class FicheEnteteTests(TestCase):
         self.client.login(username="marin_e", password="pass")
         r = self.client.get(f"/logistics/tickets/{self.ticket.id}/")
         self.assertNotContains(r, "btn btn-primary mx-fiche__action")
+
+
+class FicheInstallationOngletsTests(FicheEnteteTests):
+    """Cinq onglets, blocs repliables et indicateurs à popover (UX §12 et §13)."""
+
+    def test_cinq_onglets_de_premier_niveau(self):
+        r = self.client.get(f"/installations/{self.installation.id}/")
+        for onglet in ("ensemble", "maintenance", "mesures", "histo", "parts"):
+            self.assertContains(r, f'id="tab-{onglet}"')
+        self.assertContains(r, 'role="tab"', count=5)
+
+    def test_blocs_repliables_documents_et_sous_equipements(self):
+        sous = Installation.objects.create(designation="Moteur", ship=self.navire, service=self.installation.service,
+                                           sector=self.installation.sector, parent=self.installation)
+        r = self.client.get(f"/installations/{self.installation.id}/")
+        self.assertContains(r, "<summary>Sous-équipements", count=1)
+        self.assertContains(r, "<summary>Documents", count=1)
+        self.assertContains(r, f"/installations/{sous.id}/")
+
+    def test_indicateur_popover_avec_ajout_de_releve(self):
+        r = self.client.get(f"/installations/{self.installation.id}/")
+        self.assertContains(r, 'data-mx-contenu="#indicateur-')
+        self.assertContains(r, "Ajouter un relevé</button>", count=3)
+
+    def test_popover_affiche_dernier_releve(self):
+        InstallationHourReading.objects.create(installation=self.installation, date=timezone.localdate(), hours=12)
+        r = self.client.get(f"/installations/{self.installation.id}/")
+        self.assertContains(r, "Dernier relevé : 12")
+
+    def test_ajout_de_releve_masque_a_terre(self):
+        self.navire.double_equipage = True
+        self.navire.equipage_a_bord = "A"
+        self.navire.save()
+        UserProfile.objects.filter(user=self.chef).update(equipage="B")
+        r = self.client.get(f"/installations/{self.installation.id}/")
+        self.assertContains(r, "Dernier relevé", count=0)
+        self.assertNotContains(r, "Ajouter un relevé</button>")

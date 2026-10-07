@@ -213,7 +213,7 @@
     var active = document.querySelector('#instTabs .nav-link.active');
     if (!active) return '';
     var id = active.id || '';
-    return id.replace('tab-',''); // infos | histo | parts | hours
+    return id.replace('tab-',''); // ensemble | maintenance | mesures | histo | parts
   }
   document.addEventListener('submit', function(e){
     var f = e.target.closest('form');
@@ -232,7 +232,13 @@
     var tab = params.get('tab');
     if (!tab) return;
     var btn = document.getElementById('tab-' + tab);
-    if (btn){ var t = bootstrap.Tab.getOrCreateInstance(btn); t.show(); }
+    if (!btn) return;
+    // Une ancre (#mesures-isolement) mène à la sous-section une fois l'onglet affiché
+    btn.addEventListener('shown.bs.tab', function(){
+      var cible = window.location.hash && document.querySelector(window.location.hash);
+      if (cible) cible.scrollIntoView();
+    }, { once: true });
+    bootstrap.Tab.getOrCreateInstance(btn).show();
   }
   activateTabFromQuery();
 })();

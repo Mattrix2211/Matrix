@@ -78,13 +78,13 @@
     renderIsolationChart();
   }
   try {
-    var isoTabBtn = document.querySelector('#tab-isolement');
+    var isoTabBtn = document.querySelector('#tab-mesures');
     if (isoTabBtn && isoTabBtn.classList.contains('active')) {
       scheduleIsolationRender();
     }
   } catch(_){}
   document.addEventListener('shown.bs.tab', function(e){
-    if (e.target && e.target.id === 'tab-isolement') scheduleIsolationRender();
+    if (e.target && e.target.id === 'tab-mesures') scheduleIsolationRender();
   });
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function(){ scheduleIsolationRender(); });

@@ -1413,6 +1413,24 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 from .installation_actions import ACTION_HANDLERS
 
 
+def _lignes_releve(releves, formater, *complements):
+    """Lignes du popover d'un indicateur : dernier relevé, date d'ajout puis lignes complémentaires non vides (relevés du plus récent au plus ancien)."""
+    if not releves:
+        return ["Aucun relevé enregistré."]
+    dernier = releves[0]
+    lignes = [f"Dernier relevé : {formater(dernier)} le {dernier.date:%d/%m/%Y}",
+              f"Ajouté le {timezone.localtime(dernier.created_at):%d/%m/%Y à %H:%M}"]
+    return lignes + [c for c in complements if c]
+
+
+def _tendance_heures(valeurs_mensuelles):
+    """Moyenne mensuelle des trois derniers mois complets (la fenêtre de 12 mois finit au mois courant)."""
+    trois_mois = valeurs_mensuelles[-4:-1]
+    if not any(trois_mois):
+        return ""
+    return f"Tendance : environ {sum(trois_mois) / len(trois_mois):.0f} h / mois"
+
+
 class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
     model = Installation
     template_name = 'assets/installation_detail.html'
@@ -1490,6 +1508,9 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             m.duration_hours = total // 60
             m.duration_minutes = total % 60
         ctx['maintenances'] = maints
+        # Documents de la fiche : pièces jointes des événements et des entretiens (déjà préchargées)
+        ctx['documents'] = [pj for ev in ctx['events'] for pj in ev.attachments.all()] + \
+                           [pj for m in maints for pj in m.attachments.all()]
         # Vibrations: historique
         try:
             vib_logs = list(
@@ -1661,6 +1682,10 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             detail_vibration = f"en retard de {ctx['vibration_retard_jours']} j" if jours < 0 else f"prochain dans {jours} j"
         isolement = ctx['isolation_last']
         isolement_en_retard = ctx['isolation_next_days'] is not None and ctx['isolation_next_days'] < 0
+        derive_jours = ctx['isolation_jours_avant_seuil']
+        detail_isolement = "Relevé en retard" if isolement_en_retard else ""
+        if derive_jours is not None:
+            detail_isolement = f"Dérive : seuil dans {derive_jours} j"
         return {
             "action_principale": {"libelle": "Signaler une anomalie", "icone": "anomalie", "modale": "addEventModal"},
             "menu_fiche": menu,
@@ -1668,12 +1693,19 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
                 {"libelle": "Criticité", "valeur": "Critique" if inst.critique else "Standard",
                  "etat": "danger" if inst.critique else ""},
                 {"libelle": "État vibratoire", "valeur": f"État {ctx['vibration_last_state']}" if etat_vibration else "Aucun relevé",
-                 "etat": etat_vibration or "", "detail": detail_vibration, "url": "?tab=vibration"},
+                 "etat": etat_vibration or "", "detail": detail_vibration, "url": "?tab=mesures#mesures-vibration",
+                 "ajout_modale": "addVibrationModal",
+                 "lignes": _lignes_releve(ctx['vibration_logs'], lambda r: f"État {r.state}", f"Prochaine mesure : {detail_vibration}" if detail_vibration else "")},
                 {"libelle": "Dernier isolement", "valeur": isolement.ohms if isolement else "Aucun relevé",
-                 "unite": "Ω" if isolement else "", "etat": "danger" if isolement_en_retard else "",
-                 "detail": "Relevé en retard" if isolement_en_retard else "", "url": "?tab=isolement"},
+                 "unite": "Ω" if isolement else "",
+                 "etat": "danger" if isolement_en_retard else "attention" if derive_jours is not None else "",
+                 "detail": detail_isolement, "url": "?tab=mesures#mesures-isolement",
+                 "ajout_modale": "addIsolationModal",
+                 "lignes": _lignes_releve(ctx['isolation_logs'], lambda r: f"{r.ohms} Ω", detail_isolement)},
                 {"libelle": "Heures de marche", "valeur": ctx['hours_total'] if ctx['hour_logs'] else "Aucun relevé",
-                 "unite": "h" if ctx['hour_logs'] else "", "url": "?tab=hours"},
+                 "unite": "h" if ctx['hour_logs'] else "", "url": "?tab=mesures#mesures-heures",
+                 "ajout_modale": "addHourReadingModal",
+                 "lignes": _lignes_releve(ctx['hour_logs'], lambda r: f"{r.hours} h", _tendance_heures(ctx['hours_month_values']))},
             ],
             **contexte_discussion(inst, 'installation-comment-create'),
         }
@@ -1688,7 +1720,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             raise PermissionDenied
         inst = self.get_object()
         tab = (request.POST.get('tab') or '').strip()
-        tab = tab if tab in ('infos','histo','parts','hours','vibration','isolement','entretien') else ''
+        tab = tab if tab in ('ensemble','maintenance','mesures','histo','parts') else ''
         qs = f"?tab={tab}" if tab else ''
         handler = ACTION_HANDLERS.get(action)
         if handler is None:
