@@ -19,6 +19,7 @@ ICONES = {
     "historique": "bi-clock-history",
     "discussion": "bi-chat-left-text",
     "impression": "bi-printer",
+    "document": "bi-file-earmark-text",
     # Actions courantes
     "ajout": "bi-plus-lg",
     "mot_de_passe": "bi-key",

@@ -50,6 +50,10 @@ class AssetSerializer(serializers.ModelSerializer):
         # training/serializers.py::TrainingRecordSerializer.validate()).
         pk = self.instance.pk if self.instance else None
         parent = attrs["parent"] if "parent" in attrs else (self.instance.parent if self.instance else None)
+        mise = attrs["date_mise_en_service"] if "date_mise_en_service" in attrs else (self.instance.date_mise_en_service if self.instance else None)
+        peremption = attrs["date_peremption"] if "date_peremption" in attrs else (self.instance.date_peremption if self.instance else None)
+        if mise and peremption and peremption < mise:
+            raise serializers.ValidationError({"date_peremption": "La péremption ne peut pas précéder la mise en service."})
         candidat = Asset(pk=pk, parent=parent)
         try:
             candidat.clean()

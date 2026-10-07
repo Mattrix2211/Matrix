@@ -1275,3 +1275,18 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
 .mx-prop-fiche dd { margin: 0; }
 .mx-prop-historique { list-style: none; margin: 0; padding: 0; }
 .mx-prop-historique li { padding: var(--s2) 0; border-bottom: 1px solid var(--border); }
+
+/* Listes de matériels et d'installations : cartes avec case de sélection et menu ⋯ */
+.mx-liste-carte { position: relative; height: 100%; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.mx-liste-carte__photo { display: flex; align-items: center; justify-content: center; height: 150px; background: var(--bg); color: var(--text-sec); font-size: 2.5rem; text-decoration: none; }
+.mx-liste-carte__photo img { width: 100%; height: 100%; object-fit: cover; }
+.mx-liste-carte__case, .mx-liste-carte__menu { position: absolute; top: var(--s2); z-index: 2; }
+.mx-liste-carte__case { left: var(--s2); padding: var(--s1) var(--s2); background: var(--surface); border-radius: var(--r-sm); }
+.mx-liste-carte__menu { right: var(--s2); }
+.mx-liste-carte__menu .mx-menu__declencheur { background: var(--surface); }
+.mx-liste-carte__corps { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s1); }
+.mx-liste-carte__titre { font-weight: 600; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mx-liste-carte__titre:hover { color: var(--text); text-decoration: underline; }
+.mx-liste-carte__detail { font-size: .875rem; color: var(--text-sec); }
+.mx-liste-entete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
+.mx-liste-entete__actions { display: flex; align-items: center; gap: var(--s2); }

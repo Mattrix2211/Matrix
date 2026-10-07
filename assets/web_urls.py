@@ -8,6 +8,9 @@ from .proposition_web import (
     PropositionsView, PropositionNouvelleView, PropositionDetailView, PropositionModifierView,
     PropositionViserView, PropositionRefuserView, PropositionVerifierView,
 )
+from .documents_installation_web import (
+    DocumentInstallationAjouterView, DocumentInstallationSupprimerView, DocumentInstallationTelechargerView,
+)
 from .exemplaires_web import ArticleExemplairesView, ExemplairesIncompletsView
 from .web_views import (
     AssetDetailView, StartVisualCheckView, AssetListView, InstallationListView,
@@ -43,6 +46,9 @@ urlpatterns = [
     path('assets/<uuid:pk>/start-visual/', StartVisualCheckView.as_view(), name='asset-start-visual'),
     path('installations/', InstallationListView.as_view(), name='installation-list'),
     path('installations/<uuid:pk>/', InstallationDetailView.as_view(), name='installation-detail'),
+    path('installations/<uuid:pk>/documents/ajouter/', DocumentInstallationAjouterView.as_view(), name='installation-document-ajouter'),
+    path('installations/<uuid:pk>/documents/<uuid:document_pk>/supprimer/', DocumentInstallationSupprimerView.as_view(), name='installation-document-supprimer'),
+    path('installations/<uuid:pk>/documents/<uuid:document_pk>/telecharger/', DocumentInstallationTelechargerView.as_view(), name='installation-document-telecharger'),
     path('installations/<uuid:pk>/commentaire/', InstallationCommentCreateView.as_view(), name='installation-comment-create'),
     # Scan QR : point d'entrée unique pour matériel mobile ET installation fixe
     # (même UUID, ScanQRView résout le bon modèle).

@@ -16,7 +16,7 @@ from django.db import models
 from collections import defaultdict
 from .models import Asset, AssetType, Deck, Location, Installation, AssetFolder, InstallationExtraField, AssetDocument
 from .models import InstallationBigrameChoice, InstallationEvent, InstallationPart, InstallationHourReading, InstallationVibrationReading, InstallationIsolationReading
-from .models import InstallationMaintenance
+from .models import InstallationMaintenance, DocumentInstallation
 from datetime import datetime
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
@@ -26,6 +26,8 @@ from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.mixins import ScopedQuerySetMixin
+from .documents_installation_web import peut_ajouter_document, peut_supprimer_document
+from matrix.core.saisie import date_fr_ou_none, formater_date_fr
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
@@ -345,6 +347,34 @@ def _appliquer_bulk_suppression(request, queryset, *, action_audit, message_succ
     return redirect(redirect_url_name)
 
 
+def _filtres_actifs(request, champs):
+    """Étiquettes des filtres actifs ; champs = [(paramètre, libellé, {valeur: nom})].
+    L'adresse de chaque étiquette est la liste sans ce filtre."""
+    etiquettes = []
+    for param, libelle, noms in champs:
+        valeur = request.GET.get(param)
+        if not valeur:
+            continue
+        reste = request.GET.copy()
+        reste.pop(param)
+        url = request.path + ('?' + reste.urlencode() if reste else '')
+        etiquettes.append({'libelle': f"{libelle} : {noms.get(valeur, valeur)}", 'url': url})
+    return etiquettes
+
+
+def _noms_par_id(queryset):
+    return {str(o.pk): o.name for o in queryset}
+
+
+def _droits_liste(user, cle_ecriture, cle_gestion):
+    """Droits d'écriture et de gestion (actions groupées, suppression) pour une liste."""
+    niveau = user_role_level(user)
+    return {
+        'peut_ecrire': niveau >= niveau_requis_pour(user, cle_ecriture),
+        'peut_gerer': niveau >= niveau_requis_pour(user, cle_gestion),
+    }
+
+
 def _perimetre_utilisateur(user):
     """Navire/service/secteur/section affectés à l'utilisateur connecté (profil),
     utilisés pour pré-remplir automatiquement les formulaires de création de
@@ -413,6 +443,7 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         # StockPiece (logistics), affiché ici en lecture seule, la gestion du stock
         # se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(asset=self.object).order_by('reference')
+        ctx['peremption_depassee'] = bool(self.object.date_peremption and self.object.date_peremption < timezone.localdate())
         ctx.update(self._entete(self.object))
         return ctx
 
@@ -687,9 +718,15 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             Asset.objects.select_related('sector', 'asset_type').order_by('designation')
             if ctx['peut_gerer_parent'] else Asset.objects.none()
         )
-        # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
-        # de création à partir du profil du chef connecté.
-        ctx.update(_perimetre_utilisateur(self.request.user))
+        ctx.update(_droits_liste(self.request.user, 'asset_ecriture_simple', 'asset_gestion_avancee'))
+        ctx['filtres_actifs'] = _filtres_actifs(self.request, [
+            ('ship', 'Unité', _noms_par_id(ctx['ships'])),
+            ('service', 'Service', _noms_par_id(ctx['services'])),
+            ('sector', 'Secteur', _noms_par_id(ctx['sectors'])),
+            ('section', 'Section', _noms_par_id(ctx['sections'])),
+            ('type', 'Type', _noms_par_id(ctx['types'])),
+            ('status', 'Statut', dict(Asset.STATUS)),
+        ])
         # Navigation par dossiers
         current_folder_id = self.request.GET.get('folder')
         current_folder = AssetFolder.objects.filter(pk=current_folder_id).select_related('parent').first() if current_folder_id else None
@@ -1009,6 +1046,12 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 asset.local = request.POST.get('local', asset.local).strip()
                 asset.status = request.POST.get('status', asset.status)
                 asset.criticality = int(request.POST.get('criticality') or asset.criticality)
+                try:
+                    for nom in ('date_mise_en_service', 'date_dernier_controle', 'date_peremption'):
+                        setattr(asset, nom, date_fr_ou_none(request.POST.get(nom, formater_date_fr(getattr(asset, nom)))))
+                except ValueError:
+                    messages.error(request, "Date invalide : saisissez jj/mm/aaaa.")
+                    return _redirect_liste_materiel(request)
                 type_id = request.POST.get('asset_type_id')
                 if type_id:
                     try:
@@ -1132,6 +1175,13 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
         # de création à partir du profil du chef connecté.
         ctx.update(_perimetre_utilisateur(self.request.user))
+        ctx.update(_droits_liste(self.request.user, 'installation_ecriture_simple', 'installation_gestion_avancee'))
+        ctx['filtres_actifs'] = _filtres_actifs(self.request, [
+            ('ship', 'Unité', _noms_par_id(ctx['ships'])),
+            ('service', 'Service', _noms_par_id(ctx['services'])),
+            ('sector', 'Secteur', _noms_par_id(ctx['sectors'])),
+            ('section', 'Section', _noms_par_id(ctx['sections'])),
+        ])
         # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement).
         # Requêtes groupées (installation_id__in=...) plutôt qu'une requête par
         # installation affichée : le nombre de requêtes ne dépend plus de N.
@@ -1511,6 +1561,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         # Documents de la fiche : pièces jointes des événements et des entretiens (déjà préchargées)
         ctx['documents'] = [pj for ev in ctx['events'] for pj in ev.attachments.all()] + \
                            [pj for m in maints for pj in m.attachments.all()]
+        ctx['documents_installation'] = list(self.object.documents.all())
+        ctx['nb_documents'] = len(ctx['documents_installation']) + len(ctx['documents'])
+        ctx['types_document'] = DocumentInstallation.TYPES
+        ctx['peut_ajouter_document'] = peut_ajouter_document(self.request.user)
+        ctx['peut_supprimer_document'] = peut_supprimer_document(self.request.user)
         # Vibrations: historique
         try:
             vib_logs = list(

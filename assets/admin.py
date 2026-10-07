@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location, Deck, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, CategorieCatalogue, ArticleCatalogue, ChefResponsableSpecialite
+from .models import Location, Deck, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, DocumentInstallation, CategorieCatalogue, ArticleCatalogue, ChefResponsableSpecialite
 from matrix.core.admin import AdminScopedMixin
 
 @admin.register(Location)
@@ -39,6 +39,19 @@ class AssetAdmin(AdminScopedMixin, admin.ModelAdmin):
 class AssetDocumentAdmin(admin.ModelAdmin):
     list_display = ("asset", "name", "file", "created_at")
     list_filter = ("asset",)
+
+@admin.register(DocumentInstallation)
+class DocumentInstallationAdmin(admin.ModelAdmin):
+    list_display = ("titre", "installation", "type_document", "created_at")
+    list_filter = ("type_document",)
+    search_fields = ("titre",)
+    readonly_fields = ("created_by", "updated_by")
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 @admin.register(AssetChecklistOverride)
 class AssetChecklistOverrideAdmin(admin.ModelAdmin):

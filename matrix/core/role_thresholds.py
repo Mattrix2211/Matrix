@@ -52,12 +52,12 @@ REGISTRE_ACTIONS = [
         "Matériel mobile", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
-        "installation_ecriture_simple", "Créer ou modifier une installation",
+        "installation_ecriture_simple", "Créer ou modifier une installation, ajouter un document",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
         "installation_gestion_avancee",
-        "Supprimer une installation ou lancer une action groupée",
+        "Supprimer une installation ou un de ses documents, ou lancer une action groupée",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(

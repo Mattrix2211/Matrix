@@ -1,4 +1,4 @@
-      <div class="tab-pane fade show active" id="pane-ensemble" role="tabpanel" aria-labelledby="tab-ensemble">
+{% load icones %}      <div class="tab-pane fade show active" id="pane-ensemble" role="tabpanel" aria-labelledby="tab-ensemble">
         <img class="float-end ms-3 mb-2" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur l'installation" src="/api/assets/installations/{{ object.id }}/qr_png/" height="96" />
         <div class="row g-3">
           <div class="col-md-6">
@@ -45,10 +45,19 @@
             {% for c in object.sous_ensembles.all %}<li><a href="/installations/{{ c.id }}/">{{ c.designation }}</a>{% if c.reference %} <span class="text-muted font-mono">{{ c.reference }}</span>{% endif %}</li>{% empty %}<li class="text-muted">Aucun sous-équipement</li>{% endfor %}
           </ul>
         </details>
-        <details class="mx-repliable mt-2">
-          <summary>Documents <span class="badge text-bg-secondary rounded-pill">{{ documents|length }}</span></summary>
+        <details class="mx-repliable mt-2" id="documents-installation">
+          <summary>Documents <span class="badge text-bg-secondary rounded-pill">{{ nb_documents }}</span></summary>
           <ul class="mx-repliable__liste">
-            {% for pj in documents %}<li><a href="{{ pj.file.url }}" target="_blank" rel="noopener">{{ pj.filename }}</a></li>{% empty %}<li class="text-muted">Aucun document</li>{% endfor %}
+            {% for doc in documents_installation %}<li class="d-flex align-items-center gap-2">
+              {% icone "document" %}
+              <a href="{% url 'installation-document-telecharger' object.pk doc.pk %}">{{ doc.titre }}</a>
+              <span class="badge text-bg-light">{{ doc.get_type_document_display }}</span>
+              {% if doc.notes %}<span class="text-muted small">{{ doc.notes }}</span>{% endif %}
+              {% if peut_supprimer_document and not equipage_a_terre %}<form method="post" action="{% url 'installation-document-supprimer' object.pk doc.pk %}" class="ms-auto" onsubmit="return confirm('Supprimer ce document ?');">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer le document {{ doc.titre }}">{% icone "suppression" %}</button></form>{% endif %}
+            </li>{% endfor %}
+            {% for pj in documents %}<li><a href="{{ pj.file.url }}" target="_blank" rel="noopener">{{ pj.filename }}</a> <span class="text-muted small">pièce jointe</span></li>{% endfor %}
+            {% if not documents_installation and not documents %}<li class="text-muted">Aucun document</li>{% endif %}
           </ul>
+          {% if peut_ajouter_document and not equipage_a_terre %}<button type="button" class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#addDocumentInstallationModal">{% icone "ajout" %} Ajouter un document</button>{% endif %}
         </details>
       </div>

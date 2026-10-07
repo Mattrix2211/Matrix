@@ -8,6 +8,7 @@
   <div><strong>Type:</strong> {{ object.asset_type.name }} ({{ object.asset_type.category }})</div>
   <div><strong>Emplacement:</strong> {{ object.location }}</div>
   <div class="text-muted">ID interne: {{ object.internal_id }} | Série: {{ object.serial_number }}</div>
+  <div><strong>Mise en service :</strong> {{ object.date_mise_en_service|date:"d/m/Y"|default:"—" }} | <strong>Dernier contrôle :</strong> {{ object.date_dernier_controle|date:"d/m/Y"|default:"—" }} | <strong>Péremption :</strong> {{ object.date_peremption|date:"d/m/Y"|default:"—" }}{% if peremption_depassee %} <span class="badge text-bg-danger">Dépassée</span>{% endif %}</div>
   <div><strong>Rattaché à:</strong> {% if object.parent %}<a href="/assets/{{ object.parent.id }}/">{{ object.parent }}</a>{% else %}—{% endif %}</div>
   <div><strong>Sous-ensembles:</strong> {% for c in object.sous_ensembles.all %}<a href="/assets/{{ c.id }}/">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</div>
 </div>

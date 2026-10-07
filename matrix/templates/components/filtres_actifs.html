@@ -1,0 +1,9 @@
+{% comment %}
+Filtres actifs d'une liste, en étiquettes supprimables (docs/UX.md §20.5).
+Usage : {% include "components/filtres_actifs.html" with filtres=filtres_actifs %}
+Paramètre : filtres, liste de {libelle, url} ; url = la liste sans ce filtre.
+{% endcomment %}{% if filtres %}
+<p class="mx-annuaire-filtres">
+  {% for f in filtres %}<a class="mx-cat-filtre__puce mx-cat-filtre__puce--actif" href="{{ f.url }}" title="Retirer le filtre">{{ f.libelle }} ×</a> {% endfor %}
+</p>
+{% endif %}

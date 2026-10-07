@@ -1,7 +1,8 @@
-"""Compléter les exemplaires : saisie en grille (façon tableur) du n° de série, du n° de bord et de
-l'emplacement des fiches créées depuis le catalogue. Mêmes droits que la modification d'un matériel
+"""Compléter les exemplaires : saisie en grille (façon tableur) du n° de série, du n° de bord, de
+l'emplacement et des dates (mise en service, dernier contrôle, péremption) des fiches créées depuis le catalogue. Mêmes droits que la modification d'un matériel
 (seuil `asset_ecriture_simple`, périmètre de l'appelant, refus à terre) ; chaque ligne postée est
 revalidée par identifiant côté serveur et l'enregistrement est tout ou rien."""
+import calendar
 import uuid
 
 from django.contrib import messages
@@ -15,6 +16,7 @@ from django.views import View
 
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
+from matrix.core.saisie import date_fr_ou_none, formater_date_fr
 
 from .equipement_web import peut_equiper, quantite_maximale
 from .models import ArticleCatalogue, Asset, Location
@@ -26,9 +28,13 @@ COLONNES = [
     {"nom": "emplacement", "libelle": "Emplacement"},
     {"nom": "local", "libelle": "Local"},
     {"nom": "gisement", "libelle": "Gisement"},
+    {"nom": "date_mise_en_service", "libelle": "Mise en service", "type": "date"},
+    {"nom": "date_dernier_controle", "libelle": "Dernier contrôle", "type": "date"},
+    {"nom": "date_peremption", "libelle": "Péremption", "type": "date"},
 ]
 NOMS = [c["nom"] for c in COLONNES]
 TEXTES = ("serial_number", "internal_id", "local", "gisement")
+DATES = ("date_mise_en_service", "date_dernier_controle", "date_peremption")
 LIBELLES = {c["nom"]: c["libelle"] for c in COLONNES}
 
 
@@ -37,7 +43,16 @@ def _valeurs(asset):
         "serial_number": asset.serial_number, "internal_id": asset.internal_id,
         "emplacement": asset.location.name if asset.location else "",
         "local": asset.local, "gisement": asset.gisement,
+        **{nom: formater_date_fr(getattr(asset, nom)) for nom in DATES},
     }
+
+
+def _ajouter_mois(date, mois):
+    """Date décalée de `mois` mois, ramenée au dernier jour du mois cible si besoin."""
+    total = date.year * 12 + date.month - 1 + mois
+    annee, mois_cible = divmod(total, 12)
+    return date.replace(year=annee, month=mois_cible + 1,
+                        day=min(date.day, calendar.monthrange(annee, mois_cible + 1)[1]))
 
 
 class _ExemplairesGrilleView(LoginRequiredMixin, View):
@@ -57,7 +72,7 @@ class _ExemplairesGrilleView(LoginRequiredMixin, View):
         return Asset.objects.filter(build_scope_q(request.user, ""), article_catalogue__isnull=False)
 
     def _lot(self, request, **kwargs):
-        return (self.lot(request, **kwargs).select_related("ship", "location", "asset_type")
+        return (self.lot(request, **kwargs).select_related("ship", "location", "asset_type", "article_catalogue")
                 .order_by("ship__name", "designation", "created_at", "pk"))
 
     def _verifier_droit(self, request):
@@ -107,6 +122,9 @@ class _ExemplairesGrilleView(LoginRequiredMixin, View):
         modifies = self._enregistrer(request.user, assets, valeurs)
         if modifies:
             messages.success(request, f"{len(modifies)} exemplaire{'s' if len(modifies) > 1 else ''} mis à jour.")
+            if any(ligne.get("_proposee") for ligne in valeurs.values()):
+                messages.info(request, "Péremption calculée d'après la durée de vie type de l'article "
+                                       "pour les lignes laissées vides : modifiez-la si besoin.")
             doublons = self._doublons(modifies)
             if doublons:
                 messages.warning(request, "N° de série en double sur ce navire pour le même article : "
@@ -126,6 +144,14 @@ class _ExemplairesGrilleView(LoginRequiredMixin, View):
             for nom in TEXTES:
                 if len(ligne[nom]) > 255:
                     erreurs.setdefault(str(asset.pk), {})[nom] = "255 caractères au plus."
+            for nom in DATES:
+                try:
+                    ligne["_" + nom] = date_fr_ou_none(ligne[nom])
+                except ValueError:
+                    erreurs.setdefault(str(asset.pk), {})[nom] = "Date invalide : saisissez jj/mm/aaaa."
+            mise, peremption = ligne.get("_date_mise_en_service"), ligne.get("_date_peremption")
+            if mise and peremption and peremption < mise:
+                erreurs.setdefault(str(asset.pk), {})["date_peremption"] = "Péremption antérieure à la mise en service."
             if ligne["emplacement"]:
                 trouves = lieux.get((asset.ship_id, ligne["emplacement"].lower()), [])
                 if len(trouves) != 1:
@@ -149,6 +175,17 @@ class _ExemplairesGrilleView(LoginRequiredMixin, View):
             if lieu != asset.location:
                 changements.append(f"Emplacement « {asset.location or ''} » -> « {lieu or ''} »")
                 asset.location = lieu
+            mise_modifiee = asset.date_mise_en_service != ligne["_date_mise_en_service"]
+            for nom in DATES:
+                if getattr(asset, nom) != ligne["_" + nom]:
+                    changements.append(f"{LIBELLES[nom]} « {formater_date_fr(getattr(asset, nom))} » -> « {ligne[nom]} »")
+                    setattr(asset, nom, ligne["_" + nom])
+            # Péremption proposée : mise en service modifiée, péremption vide, durée de vie type connue.
+            duree = asset.article_catalogue.duree_vie_mois if asset.article_catalogue else None
+            if duree and mise_modifiee and asset.date_mise_en_service and not asset.date_peremption:
+                asset.date_peremption = _ajouter_mois(asset.date_mise_en_service, duree)
+                ligne["_proposee"] = True
+                changements.append(f"{LIBELLES['date_peremption']} proposée : « {formater_date_fr(asset.date_peremption)} »")
             if changements:
                 asset.updated_by = user
                 modifies.append(asset)
@@ -157,7 +194,7 @@ class _ExemplairesGrilleView(LoginRequiredMixin, View):
         with transaction.atomic():
             for asset in modifies:
                 asset.save(update_fields=["serial_number", "internal_id", "local", "gisement", "location",
-                                          "updated_by", "updated_at"])
+                                          *DATES, "updated_by", "updated_at"])
             AuditLog.objects.bulk_create(traces)
         return modifies
 

@@ -142,6 +142,9 @@ class Asset(TimeStampedModel, OwnedModel):
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="assets")
     status = models.CharField(max_length=32, choices=STATUS, default="OK")
     criticality = models.PositiveSmallIntegerField(default=1)
+    date_mise_en_service = models.DateField(null=True, blank=True, verbose_name="Date de mise en service")
+    date_dernier_controle = models.DateField(null=True, blank=True, verbose_name="Date du dernier contrôle")
+    date_peremption = models.DateField(null=True, blank=True, verbose_name="Date de péremption")
     folder = models.ForeignKey('AssetFolder', null=True, blank=True, on_delete=models.SET_NULL, related_name='assets')
     # Article du catalogue dont ce matériel est un exemplaire. SET_NULL : la fiche du bord
     # est une copie autonome et survit à la suppression (rare, réservée) de l'article.
@@ -282,6 +285,33 @@ class Installation(TimeStampedModel, OwnedModel):
         # leurs __str__ ici dupliquait les segments navire/service dans le
         # libellé de l'installation (bug remonté par le QA).
         return f"{self.designation} ({self.ship.name} / {self.service.name} / {self.sector.name})"
+
+
+class DocumentInstallation(TimeStampedModel, OwnedModel):
+    """Document de référence d'une installation (plan, notice, procédure...), distinct des pièces
+    jointes d'événements et d'entretiens."""
+    TYPES = (
+        ("plan", "Plan"),
+        ("notice", "Notice"),
+        ("procedure", "Procédure"),
+        ("schema", "Schéma"),
+        ("certificat", "Certificat"),
+        ("autre", "Autre"),
+    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="documents")
+    titre = models.CharField(max_length=255, verbose_name="Titre")
+    type_document = models.CharField(max_length=20, choices=TYPES, default="autre", verbose_name="Type")
+    fichier = models.FileField(upload_to="installation_docs/", verbose_name="Fichier")
+    notes = models.TextField(blank=True, default="", verbose_name="Notes")
+
+    class Meta:
+        ordering = ["titre", "created_at"]
+        verbose_name = "Document d'installation"
+        verbose_name_plural = "Documents d'installation"
+
+    def __str__(self):
+        return self.titre
 
 
 class AssetFolder(TimeStampedModel, OwnedModel):

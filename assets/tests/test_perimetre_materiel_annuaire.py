@@ -124,7 +124,7 @@ class AffichageSousDossierTests(TestCase):
 
 
 class PreRemplissagePerimetreTests(TestCase):
-    """[BUG SEC] point 6 : le formulaire de création de matériel/installation doit
+    """[BUG SEC] point 6 : le formulaire de création d'installation doit
     être pré-rempli avec le périmètre (navire/service/secteur) du chef connecté."""
 
     def setUp(self):
@@ -134,13 +134,6 @@ class PreRemplissagePerimetreTests(TestCase):
             user=self.chef,
             defaults={"role": "CHEF_SERVICE", "ship": self.ship, "service": self.service, "sector": self.sector},
         )
-
-    def test_contexte_liste_materiel_contient_le_perimetre_du_chef(self):
-        self.client.login(username="chef_perimetre", password="pass")
-        r = self.client.get("/assets/")
-        self.assertEqual(r.context["user_ship_id"], self.ship.id)
-        self.assertEqual(r.context["user_service_id"], self.service.id)
-        self.assertEqual(r.context["user_sector_id"], self.sector.id)
 
     def test_contexte_liste_installations_contient_le_perimetre_du_chef(self):
         self.client.login(username="chef_perimetre", password="pass")
