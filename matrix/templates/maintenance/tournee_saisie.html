@@ -21,4 +21,14 @@
   {% grille id=g.id libelle="Compte rendu de tournée : "|add:g.categorie libelle_ligne="Équipement" colonnes=g.colonnes lignes=g.lignes lecture_seule=lecture_seule libelle_final="Valider la tournée" brouillon=g.brouillon libelle_brouillon="Compte rendu de tournée" %}{% fin_grille %}
   {% endfor %}
 </form>
+{% if verrouillees %}
+<h2 class="h5 mt-4">Déjà enregistrées</h2>
+<p class="text-secondary">La grille ne réécrit pas ces équipements : pour les modifier, ouvrez leur fiche individuelle (motif obligatoire, avant/après tracé).</p>
+<ul class="list-group mb-3">
+  {% for o in verrouillees %}<li class="list-group-item d-flex justify-content-between align-items-center">
+    <span>{{ o.libelle }} <span class="badge bg-secondary">{{ o.statut }}</span></span>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ o.url }}">Ouvrir la fiche</a>
+  </li>{% endfor %}
+</ul>
+{% endif %}
 {% endblock %}

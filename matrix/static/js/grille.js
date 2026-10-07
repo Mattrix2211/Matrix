@@ -213,6 +213,17 @@
     }
   });
 
+  // Double clic : le bouton principal est désactivé dès l'envoi pour ne pas poster deux fois.
+  document.addEventListener('submit', function (evt) {
+    var formulaire = evt.target;
+    if (!formulaire.querySelector || !formulaire.querySelector('[data-grille]')) return;
+    formulaire.querySelectorAll('.mx-grille__pied button[type="submit"]').forEach(function (b) { b.disabled = true; });
+  });
+  // Retour arrière depuis le cache du navigateur : les boutons redeviennent utilisables.
+  window.addEventListener('pageshow', function (evt) {
+    if (evt.persisted) document.querySelectorAll('.mx-grille__pied button[disabled]').forEach(function (b) { b.disabled = false; });
+  });
+
   // Sans JavaScript, les boutons de la barre ne feraient rien : ils restent masqués.
   function afficherBarres(racine) {
     racine.querySelectorAll('[data-min], [data-max]').forEach(marquer); // plages dès l'ouverture

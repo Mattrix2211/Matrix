@@ -15,13 +15,20 @@ from .compte_rendu import ETATS, lignes_de_saisie, lire_saisie, resume
 from .models import MaintenanceOccurrence
 
 STATUTS_CLOS = ("DONE", "CANCELLED")
+STATUTS_VERROUILLES = STATUTS_CLOS + ("WAITING_VALIDATION",)
+MAX_IDENTIFIANTS = 500
 SANS_CATEGORIE = "Sans catégorie"
 
 
 def identifiants(texte):
-    """Identifiants lus dans « 1,2,3 », sans doublon, dans l'ordre donné."""
-    lus = [n for n in map(entier_ou_none, (texte or "").split(",")) if n is not None]
+    """Identifiants lus dans « 1,2,3 », sans doublon, dans l'ordre donné, plafonnés."""
+    lus = [n for n in map(entier_ou_none, (texte or "").split(",", MAX_IDENTIFIANTS)[:MAX_IDENTIFIANTS]) if n is not None]
     return list(dict.fromkeys(lus))
+
+
+def verrouillee(occ, execution):
+    """Vrai si la grille ne doit plus réécrire l'occurrence : en validation, close ou déjà exécutée."""
+    return occ.status in STATUTS_VERROUILLES or bool(execution and execution.completed_at)
 
 
 def adresse(nom_url, occurrences):
@@ -85,9 +92,14 @@ def groupes(occurrences):
     return [par_cle[cle] for cle in sorted(par_cle)]
 
 
+def empreinte(ids):
+    """Empreinte hexadécimale stable d'une liste d'identifiants (ordre indifférent)."""
+    return hashlib.sha1(",".join(map(str, sorted(ids))).encode()).hexdigest()
+
+
 def cle_brouillon(ids, rang):
     """Clé stable de brouillon : même tournée, même tableau, même brouillon."""
-    return f"tournee:{hashlib.sha1(','.join(map(str, sorted(ids))).encode()).hexdigest()[:12]}:{rang}"
+    return f"tournee:{empreinte(ids)[:12]}:{rang}"
 
 
 def libelle_equipement(occ):

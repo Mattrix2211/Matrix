@@ -24,7 +24,7 @@ assert.strictEqual(g.horsPlage('', '0', '10'), false);
 assert.strictEqual(g.horsPlage('abc', '0', '10'), false);
 // Garde anti-doublon : un second chargement du script ne réinstalle rien.
 let ecouteurs = 0;
-global.window = {};
+global.window = { addEventListener() {} };
 global.document = {
   readyState: 'complete',
   addEventListener() { ecouteurs++; },

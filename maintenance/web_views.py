@@ -19,7 +19,7 @@ from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemp
 from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
-from matrix.core.equipage import suivi_a_terre_sans_validation
+from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -96,7 +96,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         return contexte
 
     def post(self, request, pk):
-        if suivi_a_terre_sans_validation(request.user):
+        if equipage_a_terre_lecture_seule(request.user) or suivi_a_terre_sans_validation(request.user):
             raise PermissionDenied
         occ, items, erreur = self._charger(request, pk)
         if erreur:
