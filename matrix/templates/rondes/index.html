@@ -1,43 +1,42 @@
 {% extends 'base.html' %}
+{% load composants icones %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Rondes</h1>
-  <a class="btn btn-outline-primary" href="{% url 'ronde-modeles' %}">{% if peut_gerer %}Gérer les modèles{% else %}Modèles de ronde{% endif %}</a>
+  <a class="btn btn-outline-secondary" href="{% url 'ronde-modeles' %}">{% icone "parametres" %} {% if peut_gerer %}Gérer les modèles{% else %}Modèles de ronde{% endif %}</a>
 </div>
+
+{# Ronde en cours : en tête, avant tout le reste #}
+{% if en_cours %}
+<h2 class="h5">{% icone "ronde" %} En cours</h2>
+<div class="mx-rondes-liste mb-4">
+  {% for ronde in en_cours %}
+  {% if not equipage_a_terre %}{% url 'ronde-detail' ronde.pk as lien %}{% endif %}
+  {% carte_action titre=ronde.nom libelle="Reprendre la ronde" url=lien|default:"" principale=ronde.principale icone="ronde" classes="mx-ronde-carte mx-ronde-carte--en-cours" %}{% include "rondes/_carte_contenu.html" %}{% fin_carte_action %}
+  {% endfor %}
+</div>
+{% endif %}
 
 <h2 class="h5">À faire</h2>
-{% for ronde in a_faire %}
-<a class="card text-decoration-none mb-2" href="{% url 'ronde-detail' ronde.pk %}">
-  <div class="card-body py-2">
-    <div class="d-flex justify-content-between">
-      <strong>{{ ronde.nom }}</strong>
-      <span class="badge {% if ronde.statut == 'EN_RETARD' %}bg-danger{% elif ronde.statut == 'EN_COURS' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ ronde.get_statut_display }}</span>
-    </div>
-    <div class="small text-muted font-mono">Prévue le {{ ronde.date_prevue|date:"d/m/Y" }} · {{ ronde.repondus }}/{{ ronde.total }} points</div>
-    <div class="progress mt-1" style="height:6px;"><div class="progress-bar" style="width: {{ ronde.pct }}%; background: var(--signal);"></div></div>
+<div class="mx-rondes-liste mb-4">
+  {% for ronde in a_faire %}
+  {% if not equipage_a_terre %}{% url 'ronde-detail' ronde.pk as lien %}{% endif %}
+  {% carte_action titre=ronde.nom libelle="Démarrer la ronde" url=lien|default:"" principale=ronde.principale icone="ronde" classes="mx-ronde-carte" %}{% include "rondes/_carte_contenu.html" %}{% fin_carte_action %}
+  {% empty %}
+  {% if not en_cours %}{% include "components/etat_vide.html" with icone="terminee" titre="Aucune ronde à faire" texte="Les prochaines rondes apparaîtront ici à leur échéance." %}{% else %}<p class="text-muted">Aucune autre ronde à faire.</p>{% endif %}
+  {% endfor %}
+</div>
+
+<h2 class="h5">{% icone "historique" %} Historique</h2>
+{% for ronde in recentes %}
+<a class="mx-carte mx-carte--interactive mx-ronde-carte mb-2" href="{% url 'ronde-detail' ronde.pk %}">
+  <div class="mx-carte__texte">
+    <span class="mx-carte__titre">{{ ronde.nom }}</span>
+    <span class="mx-carte__contenu font-mono">Terminée le {{ ronde.fin|date:"d/m/Y H:i" }} · {{ ronde.total }} point{{ ronde.total|pluralize }}</span>
   </div>
+  {% if ronde.non_conformes %}{% include "components/badge_etat.html" with etat="danger" libelle=ronde.non_conformes|stringformat:"s"|add:" non conforme(s)" %}{% else %}{% include "components/badge_etat.html" with etat="ok" libelle="Tout conforme" %}{% endif %}
 </a>
 {% empty %}
-<p class="text-muted">Aucune ronde à faire pour le moment.</p>
+{% include "components/etat_vide.html" with icone="historique" titre="Aucune ronde terminée" texte="L'historique se remplit au fil des rondes terminées." %}
 {% endfor %}
-
-<h2 class="h5 mt-4">Dernières rondes terminées</h2>
-<div class="card">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>Ronde</th><th>Terminée le</th><th>Résultat</th></tr></thead>
-      <tbody>
-        {% for ronde in recentes %}
-        <tr onclick="window.location='{% url 'ronde-detail' ronde.pk %}'" style="cursor:pointer;">
-          <td>{{ ronde.nom }}</td>
-          <td class="font-mono">{{ ronde.fin|date:"d/m/Y H:i" }}</td>
-          <td>{% if ronde.non_conformes %}<span class="badge" style="background: var(--red);">{{ ronde.non_conformes }} non conforme(s)</span>{% else %}<span class="badge" style="background: var(--green-tech);">Tout conforme</span>{% endif %}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="3" class="text-center text-muted py-3">Aucune ronde terminée.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
 {% endblock %}

@@ -32,7 +32,7 @@ def _audit(user, action, modele, extra=""):
 
 
 class RondesIndexView(LoginRequiredMixin, View):
-    """Tableau du jour : mes rondes à faire (en retard en tête), rondes récentes."""
+    """Tableau du jour : ma ronde en cours d'abord, puis mes rondes à faire, puis l'historique."""
 
     def get(self, request):
         a_faire = list(services.rondes_du_marin(request.user).order_by("date_prevue"))
@@ -41,8 +41,13 @@ class RondesIndexView(LoginRequiredMixin, View):
         recentes = list(services.rondes_visibles(request.user).filter(statut=Ronde.TERMINEE).order_by("-fin")[:10])
         for ronde in recentes:
             ronde.repondus, ronde.total, ronde.pct, ronde.non_conformes = services.progression(ronde)
+        en_cours = [r for r in a_faire if r.statut == Ronde.EN_COURS]
+        a_faire = [r for r in a_faire if r.statut != Ronde.EN_COURS]
+        # Une seule action principale : la ronde en cours, sinon la première à faire.
+        for ronde in (en_cours or a_faire)[:1]:
+            ronde.principale = True
         return render(request, "rondes/index.html", {
-            "a_faire": a_faire, "recentes": recentes,
+            "en_cours": en_cours, "a_faire": a_faire, "recentes": recentes,
             "peut_gerer": services.peut_gerer_modeles(request.user),
         })
 

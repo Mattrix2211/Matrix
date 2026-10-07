@@ -1142,3 +1142,25 @@ a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
 .mx-barre-action { position: sticky; bottom: 0; z-index: 1020; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s3); margin-top: var(--s4); padding: var(--s3) var(--s4); background: var(--surface); border-top: 2px solid var(--signal-ui); box-shadow: 0 -2px 8px rgba(0, 0, 0, .12); }
 .mx-barre-action__etat { display: flex; flex-direction: column; font-size: .875rem; }
 .mx-barre-action__boutons { display: flex; gap: var(--s2); }
+.mx-rondes-liste { display: flex; flex-direction: column; gap: var(--s2); }
+.mx-ronde-carte--en-cours { border-left: 4px solid var(--signal-ui); }
+.mx-ronde-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+
+/* Workflow du ticket correctif et assistant de signalement */
+.mx-workflow { margin: var(--s3) 0; padding: var(--s4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.mx-frise { display: flex; gap: var(--s2); list-style: none; margin: 0 0 var(--s4); padding: 0; }
+.mx-frise__etape { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--s1); padding-top: var(--s2); border-top: 4px solid var(--border); text-align: center; font-size: .8125rem; color: var(--text-sec); }
+.mx-frise__etape--faite { border-top-color: var(--green-tech); color: var(--text); }
+.mx-frise__etape--actuelle { border-top-color: var(--signal-ui); color: var(--text); font-weight: 600; }
+.mx-frise__repere { font-family: var(--f-mono); font-weight: 600; }
+.mx-workflow__centre { max-width: 40rem; }
+.mx-workflow__etat { margin: 0 0 var(--s3); font-size: 1.125rem; }
+.mx-workflow__validation { margin: 0 0 var(--s3); font-size: .875rem; color: var(--text-sec); }
+.mx-workflow__rex { margin: var(--s4) 0 0; padding-top: var(--s3); border-top: 1px solid var(--border); font-size: .875rem; }
+.mx-workflow__rex dt { color: var(--text-sec); font-weight: 600; }
+.mx-workflow__rex dd { margin: 0 0 var(--s2); }
+.mx-workflow__autres { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--border); font-size: .875rem; }
+.mx-workflow__autres > summary { cursor: pointer; color: var(--text-sec); margin-bottom: var(--s2); }
+.mx-synthese { display: grid; grid-template-columns: max-content 1fr; gap: var(--s1) var(--s4); margin: 0; }
+.mx-synthese dt { color: var(--text-sec); font-weight: 600; }
+.mx-synthese dd { margin: 0; overflow-wrap: anywhere; }
