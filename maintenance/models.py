@@ -94,6 +94,7 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     measurements = JSONField(default=dict, blank=True)
     conformity = models.CharField(max_length=24, choices=CONFORMITY, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    intervenants = models.ManyToManyField(User, blank=True, related_name="executions_intervenant", verbose_name="Intervenants")
     # Signature de validation (T-FEAT signature) : le passage en "Terminée" (DONE) sur
     # une installation critique exige une ré-authentification légère (mot de passe
     # courant, cf. OccurrenceExecuteView) avant d'être appliqué. AuditLog trace déjà

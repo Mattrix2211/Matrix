@@ -10,6 +10,7 @@ from django.http import Http404, HttpResponseBadRequest
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from .models import (
     MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, OccurrenceStatusLog,
     mettre_a_jour_echeance_installation,
@@ -21,35 +22,67 @@ from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.equipage import suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
 from matrix.core.role_thresholds import niveau_requis_pour
-from accounts.models import AuditLog
+from accounts.models import AuditLog, Roles, UserProfile
+from notifications.models import Notification, NotificationLevel
+from .compte_rendu import ETATS, lignes_de_saisie, lire_saisie, resume
 
 
 class OccurrenceExecuteView(LoginRequiredMixin, View):
+    """Compte rendu d'une occurrence : saisie sur PC après la fiche papier (parcours de
+    référence) ou exécution en direct (bouton « Enregistrer » puis « Terminer »)."""
     template_name = 'maintenance/execute.html'
 
-    def get(self, request, pk):
-        # Périmètre : même filtre que MaintenanceOccurrenceSelfAssignView
-        # (build_scope_q sur asset OU installation_maintenance__installation) —
-        # sans lui, un marin connaissant l'identifiant d'une occurrence d'un
-        # autre navire pouvait consulter et exécuter sa checklist (T-SEC).
+    @staticmethod
+    def _charger(request, pk):
+        """Occurrence et lignes de checklist, ou une réponse d'erreur ; périmètre et droits
+        identiques pour la lecture et l'écriture."""
         try:
             occ = MaintenanceOccurrence.objects.select_related(
                 'plan', 'asset', 'plan__checklist_template',
                 'installation_maintenance', 'installation_maintenance__installation',
             ).filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__")).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
-            return HttpResponseBadRequest('Occurrence introuvable')
+            return None, None, HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
         items = []
         if occ.plan and occ.plan.checklist_template:
-            items = list(occ.plan.checklist_template.items.order_by('order').all())
-        return render(request, self.template_name, {"occ": occ, "items": items, **self._entete(request, occ)})
+            items = list(occ.plan.checklist_template.items.order_by('order', 'pk'))
+        return occ, items, None
+
+    def get(self, request, pk):
+        occ, items, erreur = self._charger(request, pk)
+        if erreur:
+            return erreur
+        return render(request, self.template_name, self._contexte(request, occ, items))
 
     @staticmethod
-    def _entete(request, occ):
-        """Données de l'en-tête de fiche ; l'exécution est refusée au suivi à terre (post)."""
+    def _contexte(request, occ, items, saisie=None, erreurs=None):
+        """Contexte de la page. saisie : (results, mesures, notes, conformity, debut, fin, intervenants) à
+        réafficher après une erreur ; sinon la saisie enregistrée."""
+        execution = MaintenanceExecution.objects.filter(occurrence=occ).first()
+        if saisie is None:
+            saisie = (
+                execution.results if execution else {}, execution.measurements if execution else {},
+                execution.notes if execution else "", execution.conformity if execution else "",
+                execution.started_at if execution else None, execution.completed_at if execution else None,
+                {u.pk for u in execution.intervenants.all()} if execution else None,
+            )
+        results, mesures, notes, conformity, debut, fin, intervenants = saisie
+        assignees = list(occ.assignees.all())
+        if request.user not in assignees:
+            assignees.append(request.user)
+        lignes = lignes_de_saisie(items, results, mesures)
+        installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
+        faits = sum(1 for ligne in lignes if ligne["etat"] or ligne["valeur"])
         contexte = {
+            "occ": occ, "items": items, "lignes": lignes, "etats": ETATS, "erreurs": erreurs or [],
+            "notes": notes, "conformity": conformity, "debut": _valeur_datetime(debut), "fin": _valeur_datetime(fin),
+            "intervenants": [{"user": u, "coche": (u.pk in intervenants) if intervenants is not None else u in occ.assignees.all()} for u in assignees],
+            "deja_termine": bool(execution and execution.completed_at),
+            "critique": bool(installation and installation.critique),
+            "resume": resume(items, results, mesures),
+            "operations": {"faites": faits, "total": len(items)},
             "menu_fiche": [{"libelle": "Imprimer la fiche", "icone": "impression", "url": reverse('occurrence-imprimer', args=[occ.pk])}],
             "indicateurs_fiche": [
                 {"libelle": "Prévue le", "valeur": occ.scheduled_for.strftime("%d/%m/%Y"),
@@ -59,101 +92,166 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             "badge_etat": {"DONE": "ok", "OVERDUE": "danger", "WAITING_VALIDATION": "attention", "CANCELLED": "neutre"}.get(occ.status, "neutre"),
             **contexte_discussion(occ, 'occurrence-comment-create'),
         }
-        if not suivi_a_terre_sans_validation(request.user):
-            contexte["action_principale"] = {"libelle": "Valider l'exécution", "icone": "terminee", "formulaire": "formulaire-execution"}
         return contexte
 
     def post(self, request, pk):
         if suivi_a_terre_sans_validation(request.user):
             raise PermissionDenied
-        # Périmètre : même filtre que get() ci-dessus.
-        try:
-            occ = MaintenanceOccurrence.objects.select_related(
-                'plan', 'asset', 'plan__checklist_template',
-                'installation_maintenance', 'installation_maintenance__installation',
-            ).filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__")).get(pk=pk)
-        except MaintenanceOccurrence.DoesNotExist:
-            return HttpResponseBadRequest('Occurrence introuvable')
-        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
-            raise PermissionDenied
+        occ, items, erreur = self._charger(request, pk)
+        if erreur:
+            return erreur
+        en_direct = request.POST.get('action') == 'enregistrer'
+        execution = MaintenanceExecution.objects.filter(occurrence=occ).first()
+        deja_termine = bool(execution and execution.completed_at)
 
-        items = []
-        if occ.plan and occ.plan.checklist_template:
-            items = list(occ.plan.checklist_template.items.order_by('order').all())
-
+        results, mesures, erreurs = lire_saisie(items, request.POST, exiger_complet=not en_direct)
         conformity = request.POST.get('conformity', '')
-
-        # Passage en "Terminée" (DONE) d'une installation critique : geste engageant
-        # qui exige une ré-authentification légère (mot de passe courant, comme un
-        # "sudo" léger). Vérifié avant tout enregistrement, pour ne rien modifier si
-        # le mot de passe saisi est incorrect. Une occurrence NON_CONFORME repasse en
-        # WAITING_VALIDATION (pas DONE) et n'est donc pas concernée.
-        installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
-        exige_validation = bool(installation and installation.critique) and conformity != 'NON_CONFORME'
-        if exige_validation and not request.user.check_password(request.POST.get('mot_de_passe', '')):
-            erreur = "Mot de passe incorrect : l'exécution n'a pas été validée."
-            if request.headers.get('HX-Request'):
-                return render(request, 'maintenance/_execute_erreur.html', {"occ": occ, "erreur": erreur})
-            return render(request, self.template_name, {"occ": occ, "items": items, "erreur": erreur, **self._entete(request, occ)})
-
-        # Collecter les résultats des items
-        results = {}
-        for item in items:
-            key = f"item_{item.id}"
-            val = request.POST.get(key)
-            if item.field_type == 'checkbox':
-                results[item.label] = request.POST.get(key) == 'on'
-            else:
-                results[item.label] = val
-
         notes = request.POST.get('notes', '')
+        debut, err_debut = _lire_datetime(request.POST.get('debut'))
+        fin, err_fin = _lire_datetime(request.POST.get('fin'))
+        erreurs += [e for e in (err_debut, err_fin) if e]
+        if debut and fin and fin < debut:
+            erreurs.append("La fin de l'intervention précède son début.")
+        motif = request.POST.get('motif', '').strip()
+        if en_direct and deja_termine:
+            erreurs.append("Ce compte rendu est déjà terminé : utilisez « Terminer » en indiquant le motif de la modification.")
+        if not en_direct:
+            if conformity not in dict(MaintenanceExecution.CONFORMITY):
+                erreurs.append("La conformité finale est à déclarer.")
+            if deja_termine and not motif:
+                erreurs.append("Le motif de la modification est obligatoire.")
 
-        exec_obj, _ = MaintenanceExecution.objects.get_or_create(occurrence=occ)
-        if not exec_obj.started_at:
-            exec_obj.started_at = timezone.now()
+        # Mot de passe (signature) seulement à la clôture d'une installation critique ; une
+        # occurrence non conforme repasse en WAITING_VALIDATION et n'est pas concernée.
+        installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
+        exige_validation = (not en_direct) and bool(installation and installation.critique) and conformity != 'NON_CONFORME'
+        if exige_validation and not request.user.check_password(request.POST.get('mot_de_passe', '')):
+            erreurs.append("Mot de passe incorrect : l'exécution n'a pas été validée.")
+
+        if erreurs:
+            if request.headers.get('HX-Request'):
+                return render(request, 'maintenance/_execute_erreur.html', {"erreurs": erreurs})
+            saisie = (results, mesures, notes, conformity, debut, fin, _intervenants_choisis(request, occ))
+            return render(request, self.template_name, self._contexte(request, occ, items, saisie, erreurs))
+
+        avant = {} if execution is None else {
+            "conformite": execution.conformity, "resultats": execution.results,
+            "releves": execution.measurements, "notes": execution.notes,
+        }
+        exec_obj = execution or MaintenanceExecution(occurrence=occ)
+        maintenant = timezone.now()
+        exec_obj.started_at = debut or exec_obj.started_at or maintenant
         exec_obj.results = results
-        exec_obj.conformity = conformity
+        exec_obj.measurements = mesures
         exec_obj.notes = notes
         exec_obj.executed_by = request.user
-        exec_obj.completed_at = timezone.now()
-        if exige_validation:
-            exec_obj.valide_par = request.user
-            exec_obj.date_validation = timezone.now()
-        exec_obj.save()
+        if en_direct:
+            exec_obj.save()
+        else:
+            exec_obj.conformity = conformity
+            exec_obj.completed_at = fin or maintenant
+            if exige_validation:
+                exec_obj.valide_par = request.user
+                exec_obj.date_validation = maintenant
+            exec_obj.save()
+        exec_obj.intervenants.set(_intervenants_choisis(request, occ))
 
-        # Mettre à jour le statut de l'occurrence (le signal gère le ticket si NON_CONFORME)
         ancien_statut = occ.status
-        occ.status = 'DONE' if conformity != 'NON_CONFORME' else 'WAITING_VALIDATION'
-        occ.save(update_fields=['status'])
-        # Historique structuré de l'occurrence + journal transverse (AuditLog) —
-        # même principe que TicketTransitionView (logistics/web_views.py), cf.
-        # tâche Notion « Unifier les modèles d'historique/audit ».
-        OccurrenceStatusLog.objects.create(
-            occurrence=occ, old_status=ancien_statut, new_status=occ.status,
-            user=request.user if request.user.is_authenticated else None,
-        )
-        AuditLog.objects.create(
-            actor=request.user if request.user.is_authenticated else None,
-            action='occurrence_status_change' if not exige_validation else 'occurrence_validation_critique',
-            details=f'occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}',
-        )
-        if occ.status == 'DONE':
-            # Occurrence liée à une installation fixe : remise à zéro de l'échéance
-            # (branche compteur uniquement ici, la branche calendaire est relue
-            # directement depuis cette exécution par la génération d'occurrences).
-            mettre_a_jour_echeance_installation(occ)
+        if en_direct:
+            nouveau_statut = 'IN_PROGRESS'
+        else:
+            nouveau_statut = 'DONE' if conformity != 'NON_CONFORME' else 'WAITING_VALIDATION'
+        if nouveau_statut != ancien_statut:
+            occ.status = nouveau_statut
+            occ.save(update_fields=['status'])
+            OccurrenceStatusLog.objects.create(
+                occurrence=occ, old_status=ancien_statut, new_status=occ.status, user=request.user,
+            )
+            AuditLog.objects.create(
+                actor=request.user,
+                action='occurrence_validation_critique' if exige_validation else 'occurrence_status_change',
+                details=f'occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}',
+            )
+        elif exige_validation:
+            AuditLog.objects.create(
+                actor=request.user, action='occurrence_validation_critique',
+                details=f'occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}',
+            )
 
-        # Gérer les pièces jointes: créer ou récupérer le thread de l'occurrence
+        synthese = resume(items, results, mesures)
+        if en_direct:
+            if request.headers.get('HX-Request'):
+                return render(request, 'maintenance/_execute_enregistre.html', {"resume": synthese, "heure": timezone.localtime()})
+            return redirect('occurrence-execute', pk=occ.pk)
+
+        if deja_termine:
+            apres = {
+                "conformite": conformity, "resultats": results, "releves": mesures, "notes": notes,
+            }
+            modifs = {c: {"avant": avant[c], "apres": apres[c]} for c in apres if avant.get(c) != apres[c]}
+            AuditLog.objects.create(
+                actor=request.user, action='occurrence_compte_rendu_modifie',
+                details=f'occurrence={occ.pk}; motif={motif}; modifications={json.dumps(modifs, ensure_ascii=False)}',
+            )
+        if occ.status == 'DONE':
+            # Remise à zéro de l'échéance d'une installation fixe (branche compteur).
+            mettre_a_jour_echeance_installation(occ)
+        _notifier_chefs_de_secteur(occ, request.user, conformity, synthese, modification=deja_termine)
+
+        # Pièces jointes et trace dans la discussion de l'occurrence
         ct = ContentType.objects.get_for_model(MaintenanceOccurrence)
         thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(occ.pk))
-        msg = Message.objects.create(thread=thread, author=request.user if request.user.is_authenticated else None, body=f"Exécution: {conformity}", is_system=False)
+        msg = Message.objects.create(thread=thread, author=request.user, body=f"Exécution: {conformity} — {synthese['texte']}", is_system=False)
         for f in request.FILES.getlist('photos'):
             Attachment.objects.create(message=msg, file=f, name=f.name)
 
-        # Réponse HTMX ou redirection
         if request.headers.get('HX-Request'):
-            return render(request, 'maintenance/_execute_done.html', {"occ": occ, "exec": exec_obj})
+            return render(request, 'maintenance/_execute_done.html', {"occ": occ, "exec": exec_obj, "resume": synthese})
         return redirect('/')
+
+
+def _intervenants_choisis(request, occ):
+    """Identifiants des intervenants cochés, limités aux assignés et à l'auteur de la saisie."""
+    autorises = {u.pk for u in occ.assignees.all()} | {request.user.pk}
+    return {int(i) for i in request.POST.getlist('intervenants') if i.isdigit()} & autorises
+
+
+def _valeur_datetime(valeur):
+    """Valeur d'un champ datetime-local (heure locale, sans secondes)."""
+    return timezone.localtime(valeur).strftime("%Y-%m-%dT%H:%M") if valeur else ""
+
+
+def _lire_datetime(texte):
+    """(datetime, erreur) depuis un champ datetime-local ; vide : (None, None)."""
+    texte = (texte or "").strip()
+    if not texte:
+        return None, None
+    try:
+        valeur = parse_datetime(texte)
+    except ValueError:
+        valeur = None
+    if valeur is None:
+        return None, "Date ou heure illisible."
+    return (timezone.make_aware(valeur) if timezone.is_naive(valeur) else valeur), None
+
+
+def _notifier_chefs_de_secteur(occ, auteur, conformity, synthese, modification):
+    """Prévient les chefs du secteur concerné qu'un compte rendu est saisi (information, sans visa)."""
+    if occ.installation_maintenance_id:
+        secteur_id = occ.installation_maintenance.installation.sector_id
+    else:
+        secteur_id = occ.asset.sector_id if occ.asset_id else None
+    if not secteur_id:
+        return
+    attention = conformity != 'CONFORME' or synthese['a_surveiller']
+    verbe = f"Compte rendu {'modifié' if modification else 'saisi'} : {occ.titre_affiche} — {dict(MaintenanceExecution.CONFORMITY)[conformity]} ({synthese['texte']})"
+    ct = ContentType.objects.get_for_model(MaintenanceOccurrence)
+    chefs = UserProfile.objects.filter(role=Roles.CHEF_SECTEUR, sector_id=secteur_id).exclude(user=auteur)
+    for profil in chefs:
+        Notification.objects.create(
+            user=profil.user, verb=verbe[:255], content_type=ct, object_id=str(occ.pk),
+            level=NotificationLevel.WARNING if attention else NotificationLevel.INFO,
+        )
 
 
 class OccurrenceCommentCreateView(LoginRequiredMixin, View):

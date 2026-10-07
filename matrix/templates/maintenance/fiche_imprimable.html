@@ -40,7 +40,7 @@
         <td class="fiche-col-case"><span class="fiche-case" aria-hidden="true"></span></td>
         <td>{{ it.label }}{% if it.required %} <span class="fiche-oblig">(obligatoire)</span>{% endif %}{% if it.requires_photo %} <span class="fiche-oblig">(photo)</span>{% endif %}</td>
         <td class="fiche-col-valeur">
-          {% if it.field_type == 'number' %}<span class="fiche-ligne"></span> {{ it.unit|default:"" }}
+          {% if it.field_type == 'number' %}<span class="fiche-ligne"></span> {{ it.unit|default:"" }}{% if it.valeur_min is not None or it.valeur_max is not None %} <span class="fiche-oblig">(attendu : {% if it.valeur_min is not None %}{{ it.valeur_min|floatformat:"-3" }}{% else %}…{% endif %} à {% if it.valeur_max is not None %}{{ it.valeur_max|floatformat:"-3" }}{% else %}…{% endif %})</span>{% endif %}
           {% elif it.field_type == 'date' %}__ / __ / ____
           {% elif it.field_type == 'text' %}<span class="fiche-ligne"></span>
           {% elif it.unit %}<span class="fiche-ligne"></span> {{ it.unit }}{% endif %}

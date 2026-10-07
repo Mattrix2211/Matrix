@@ -105,6 +105,9 @@ class ChecklistItemTemplate(TimeStampedModel):
     required = models.BooleanField(default=False)
     requires_photo = models.BooleanField(default=False)
     unit = models.CharField(max_length=50, blank=True, default="")
+    # Plage attendue d'un relevé numérique (contrôle immédiat à la saisie du compte rendu).
+    valeur_min = models.FloatField(null=True, blank=True, verbose_name="Valeur minimale")
+    valeur_max = models.FloatField(null=True, blank=True, verbose_name="Valeur maximale")
     choices = JSONField(default=list, blank=True)
     order = models.PositiveIntegerField(default=0)
 
