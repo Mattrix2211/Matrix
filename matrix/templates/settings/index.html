@@ -676,6 +676,17 @@
           {% endif %}
         </form>
         {% endif %}
+        {% if releve_secours %}
+        <form method="post" class="row g-2 align-items-end mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="valider_releve_secours" />
+          <input type="hidden" name="next_tab" value="equipage" />
+          <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
+          <div class="col-12"><p class="small text-muted mb-0">Aucun commandant ni commandant en second n'est disponible dans l'équipage qui doit valider. Vous pouvez valider en secours ; l'action est tracée.</p></div>
+          <div class="col-md-8"><input type="text" name="motif" class="form-control" required maxlength="300" placeholder="Motif obligatoire" aria-label="Motif de la validation de secours" /></div>
+          <div class="col-auto"><button class="btn btn-warning" type="submit">Valider en secours</button></div>
+        </form>
+        {% endif %}
         {% elif equipage_commandant %}
         <form method="post" class="row g-2 align-items-center">
           {% csrf_token %}

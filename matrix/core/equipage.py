@@ -6,7 +6,7 @@ from accounts.models import AuditLog, Roles
 from matrix.core.scopes import is_master_admin
 from notifications.models import Notification
 
-ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve")
+ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve", "valider_releve_secours")
 # Le commandant en second supplée le commandant de son équipage.
 ROLES_COMMANDEMENT = (Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND)
 MESSAGE_EQUIPAGE_OBLIGATOIRE = "L'équipage est obligatoire sur un bâtiment à double équipage."
@@ -103,24 +103,80 @@ def decider_releve(auteur, proposition, accepter):
     proposeur = _equipage_commandant(proposition.propose_par, navire)
     if mon_equipage == proposeur or mon_equipage not in (navire.equipage_a_bord, proposition.equipage_propose):
         return "Seul le commandant (ou en second) de l'autre équipage peut valider cette relève."
+    return _appliquer_decision(auteur, proposition, accepter, "releve_validee", f"decide_par={auteur}")
+
+
+def _equipage_valideur(proposition):
+    """Équipage chargé de valider : l'autre que celui du proposant ; chaîne vide si le proposant n'est plus commandant."""
+    navire = proposition.ship
+    proposeur = _equipage_commandant(proposition.propose_par, navire)
+    if not proposeur:
+        return ""
+    return proposition.equipage_propose if proposeur == navire.equipage_a_bord else navire.equipage_a_bord
+
+
+def erreur_secours_releve(auteur, proposition):
+    """Message d'erreur si la validation de secours n'est pas permise, sinon ''.
+
+    Réservée à l'administrateur général, et seulement quand l'équipage valideur n'a ni commandant ni second.
+    """
+    if not is_master_admin(auteur):
+        return "Seul l'administrateur général peut valider une relève en secours."
+    if proposition.statut != proposition.Statut.EN_ATTENTE:
+        return "Cette relève n'est plus en attente."
+    valideur = _equipage_valideur(proposition)
+    if not valideur:
+        return "La proposition ne vient plus d'un commandant de l'unité : la validation de secours est impossible."
+    if commandants_equipage(proposition.ship, valideur).exists():
+        return f"L'équipage {valideur} a un commandant ou un commandant en second : lui seul peut valider."
+    return ""
+
+
+def valider_releve_secours(auteur, proposition, motif):
+    """L'administrateur général valide à la place d'un équipage sans commandant ni second ; motif obligatoire. Renvoie un message d'erreur ou ''."""
+    erreur = erreur_secours_releve(auteur, proposition)
+    if erreur:
+        return erreur
+    motif = (motif or "").strip()
+    if not motif:
+        return "Le motif de la validation de secours est obligatoire."
+    navire = proposition.ship
+    equipages = {proposition.equipage_propose, navire.equipage_a_bord}
+    _appliquer_decision(
+        auteur, proposition, True, "releve_validee_secours",
+        f"decide_par={auteur}; equipage_valideur={_equipage_valideur(proposition)}; motif={motif}",
+        notifier_proposant=False,
+    )
+    destinataires = get_user_model().objects.filter(profile__ship=navire, profile__equipage__in=equipages)
+    for marin in destinataires:
+        Notification.objects.create(
+            user=marin,
+            verb=f"Relève sur {navire.name} validée en secours par l'administrateur général (aucun commandant disponible).",
+        )
+    return ""
+
+
+def _appliquer_decision(auteur, proposition, accepter, action_validation, complement, notifier_proposant=True):
+    """Enregistre la décision, applique la relève si validée, trace et notifie le proposant (sauf si la validation de secours s'en charge)."""
+    navire = proposition.ship
     proposition.decide_par = auteur
     proposition.decide_le = timezone.now()
     details = (
         f"navire={navire.name}; equipage_propose={proposition.equipage_propose}; "
-        f"propose_par={proposition.propose_par}; decide_par={auteur}"
+        f"propose_par={proposition.propose_par}; {complement}"
     )
     if accepter:
         avant = (navire.double_equipage, navire.equipage_a_bord)
         proposition.statut = proposition.Statut.VALIDEE
         navire.equipage_a_bord = proposition.equipage_propose
         navire.save(update_fields=["equipage_a_bord", "updated_at"])
-        AuditLog.objects.create(actor=auteur, action="releve_validee", details=details)
+        AuditLog.objects.create(actor=auteur, action=action_validation, details=details)
         tracer_changement_equipage(auteur, navire, avant)
     else:
         proposition.statut = proposition.Statut.REFUSEE
         AuditLog.objects.create(actor=auteur, action="releve_refusee", details=details)
     proposition.save()
-    if proposition.propose_par:
+    if notifier_proposant and proposition.propose_par:
         Notification.objects.create(
             user=proposition.propose_par,
             verb=f"Relève sur {navire.name} {'validée' if accepter else 'refusée'} par {auteur.get_full_name() or auteur.username}.",

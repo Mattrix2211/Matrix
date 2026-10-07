@@ -119,6 +119,75 @@ class RelevePersonnelTests(DoubleEquipageBase):
         self._agir("root", "proposer_releve", equipage="B", ship_id=self.navire.pk)
         self.assertFalse(self.navire.releves.exists())
 
+    def _secours(self, motif="Commandant B évacué", nom="root"):
+        self.client.login(username=nom, password="pass")
+        return self.client.post(reverse("settings"), {
+            "action": "valider_releve_secours", "ship_id": self.navire.pk, "motif": motif,
+        })
+
+    def _proposition_sans_commandant_b(self):
+        User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        self._agir("cdt", "proposer_releve", equipage="B")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+
+    def test_secours_valide_sans_commandant_ni_second_avec_trace(self):
+        self._proposition_sans_commandant_b()
+        self._secours()
+        self.assertEqual(self._a_bord(), "B")
+        trace = AuditLog.objects.get(action="releve_validee_secours")
+        self.assertIn("motif=Commandant B évacué", trace.details)
+        self.assertIn("decide_par=root", trace.details)
+        self.assertTrue(self.cdt.notifications.filter(verb__contains="secours").exists())
+        self.assertTrue(self.bord.notifications.filter(verb__contains="secours").exists())
+
+    def test_secours_motif_vide_refuse(self):
+        self._proposition_sans_commandant_b()
+        self._secours(motif="   ")
+        self.assertEqual(self._a_bord(), "A")
+        self.assertFalse(AuditLog.objects.filter(action="releve_validee_secours").exists())
+
+    def test_secours_refuse_si_un_commandant_ou_un_second_existe(self):
+        User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        self._agir("cdt", "proposer_releve", equipage="B")
+        self._secours()
+        self.assertEqual(self._a_bord(), "A")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="COMMANDANT_EN_SECOND")
+        self._secours()
+        self.assertEqual(self._a_bord(), "A")
+
+    def test_secours_refuse_aux_non_administrateurs_generaux(self):
+        self._proposition_sans_commandant_b()
+        for nom in ("adm", "cdt", "chef"):
+            self._secours(nom=nom)
+        self.assertEqual(self._a_bord(), "A")
+
+    def test_administrateur_general_ne_propose_pas_meme_en_secours(self):
+        User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        self._agir("root", "proposer_releve", equipage="B", ship_id=self.navire.pk)
+        self.assertFalse(self.navire.releves.exists())
+
+    def test_secours_refuse_sans_proposition(self):
+        User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        self._secours()
+        self.assertEqual(self._a_bord(), "A")
+
+    def test_secours_auto_validation_commandant_refusee(self):
+        self._proposition_sans_commandant_b()
+        self._agir("cdt", "decider_releve", decision="valider")
+        self.assertEqual(self._a_bord(), "A")
+
+    def test_bouton_secours_affiche_seulement_dans_le_cas_de_secours(self):
+        self._proposition_sans_commandant_b()
+        self.client.login(username="root", password="pass")
+        url = f"{reverse('settings')}?tab=equipage&ship={self.navire.pk}"
+        self.assertContains(self.client.get(url), "Valider en secours")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="COMMANDANT")
+        self.assertNotContains(self.client.get(url), "Valider en secours")
+        self.client.login(username="cdt", password="pass")
+        self.assertNotContains(self.client.get(reverse("settings"), {"tab": "equipage"}), "Valider en secours")
+
     def test_le_commandant_d_un_autre_navire_ne_peut_pas(self):
         autre = Ship.objects.create(name="Autre", code="AU", double_equipage=True, equipage_a_bord="A")
         self.cdt.profile.ship = autre

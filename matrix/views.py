@@ -23,7 +23,7 @@ from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
-from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, marins_sans_equipage, proposer_releve, releve_en_attente
+from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
@@ -80,12 +80,14 @@ def _lignes_equipage(navire, utilisateur):
         return {'equipage_ship': None}
     codes = UserProfile.objects.filter(ship=navire).exclude(equipage='').values_list(
         'equipage', flat=True).distinct().order_by('equipage')
+    releve = releve_en_attente(navire)
     return {
         'equipage_ship': navire,
         'equipage_codes': list(codes),
         'equipage_sans': list(marins_sans_equipage(navire)),
-        'releve': releve_en_attente(navire),
+        'releve': releve,
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
+        'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
     }
 
 
@@ -805,7 +807,7 @@ class SettingsView(LoginRequiredMixin, View):
         elif action in ACTIONS_RELEVE:
             # Relève : proposée par un commandant, appliquée à la validation de l'autre.
             next_tab = 'equipage'
-            if request.user.is_superuser:
+            if is_master_admin(request.user):
                 navire = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
             else:
                 navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
@@ -824,6 +826,9 @@ class SettingsView(LoginRequiredMixin, View):
                 erreur, succes = "Aucune relève en attente.", ""
             elif action == 'annuler_releve':
                 erreur, succes = annuler_releve(request.user, proposition), "Proposition annulée."
+            elif action == 'valider_releve_secours':
+                erreur = valider_releve_secours(request.user, proposition, request.POST.get('motif'))
+                succes = f"Relève validée en secours : l'équipage {proposition.equipage_propose} est à bord de {navire.name}."
             else:
                 accepter = request.POST.get('decision') == 'valider'
                 erreur = decider_releve(request.user, proposition, accepter)
