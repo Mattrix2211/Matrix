@@ -1,5 +1,6 @@
 """Double équipage : l'équipage à terre consulte le bâtiment en lecture seule."""
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import AuditLog, Roles
@@ -39,9 +40,9 @@ def equipage_modifiable_par(acteur, cible):
 
 
 def commandants_equipage(navire, equipage):
-    """Commandants et commandants en second d'un équipage de l'unité."""
+    """Commandants et commandants en second actifs d'un équipage de l'unité."""
     return get_user_model().objects.filter(
-        profile__ship=navire, profile__role__in=ROLES_COMMANDEMENT, profile__equipage=equipage
+        is_active=True, profile__ship=navire, profile__role__in=ROLES_COMMANDEMENT, profile__equipage=equipage
     )
 
 
@@ -103,14 +104,18 @@ def decider_releve(auteur, proposition, accepter):
     proposeur = _equipage_commandant(proposition.propose_par, navire)
     if mon_equipage == proposeur or mon_equipage not in (navire.equipage_a_bord, proposition.equipage_propose):
         return "Seul le commandant (ou en second) de l'autre équipage peut valider cette relève."
-    return _appliquer_decision(auteur, proposition, accepter, "releve_validee", f"decide_par={auteur}")
+    with transaction.atomic():
+        proposition = _recharger_en_attente(proposition)
+        if proposition is None:
+            return "Cette relève n'est plus en attente."
+        return _appliquer_decision(auteur, proposition, accepter, "releve_validee", f"decide_par={auteur}")
 
 
 def _equipage_valideur(proposition):
-    """Équipage chargé de valider : l'autre que celui du proposant ; chaîne vide si le proposant n'est plus commandant."""
+    """Équipage chargé de valider : l'autre que celui du proposant ; chaîne vide si le proposant n'est plus commandant d'un des deux équipages."""
     navire = proposition.ship
     proposeur = _equipage_commandant(proposition.propose_par, navire)
-    if not proposeur:
+    if proposeur not in (navire.equipage_a_bord, proposition.equipage_propose):
         return ""
     return proposition.equipage_propose if proposeur == navire.equipage_a_bord else navire.equipage_a_bord
 
@@ -124,12 +129,20 @@ def erreur_secours_releve(auteur, proposition):
         return "Seul l'administrateur général peut valider une relève en secours."
     if proposition.statut != proposition.Statut.EN_ATTENTE:
         return "Cette relève n'est plus en attente."
+    if auteur == proposition.propose_par:
+        return "Vous ne pouvez pas valider votre propre proposition."
     valideur = _equipage_valideur(proposition)
     if not valideur:
         return "La proposition ne vient plus d'un commandant de l'unité : la validation de secours est impossible."
     if commandants_equipage(proposition.ship, valideur).exists():
         return f"L'équipage {valideur} a un commandant ou un commandant en second : lui seul peut valider."
     return ""
+
+
+def _recharger_en_attente(proposition):
+    """Recharge la proposition verrouillée ; None si elle n'est plus en attente (double validation)."""
+    verrouillee = type(proposition).objects.select_for_update().select_related("ship", "propose_par").get(pk=proposition.pk)
+    return verrouillee if verrouillee.statut == verrouillee.Statut.EN_ATTENTE else None
 
 
 def valider_releve_secours(auteur, proposition, motif):
@@ -140,19 +153,26 @@ def valider_releve_secours(auteur, proposition, motif):
     motif = (motif or "").strip()
     if not motif:
         return "Le motif de la validation de secours est obligatoire."
-    navire = proposition.ship
-    equipages = {proposition.equipage_propose, navire.equipage_a_bord}
-    _appliquer_decision(
-        auteur, proposition, True, "releve_validee_secours",
-        f"decide_par={auteur}; equipage_valideur={_equipage_valideur(proposition)}; motif={motif}",
-        notifier_proposant=False,
-    )
-    destinataires = get_user_model().objects.filter(profile__ship=navire, profile__equipage__in=equipages)
-    for marin in destinataires:
-        Notification.objects.create(
-            user=marin,
-            verb=f"Relève sur {navire.name} validée en secours par l'administrateur général (aucun commandant disponible).",
+    with transaction.atomic():
+        proposition = _recharger_en_attente(proposition)
+        if proposition is None:
+            return "Cette relève n'est plus en attente."
+        erreur = erreur_secours_releve(auteur, proposition)
+        if erreur:
+            return erreur
+        navire = proposition.ship
+        equipages = {proposition.equipage_propose, navire.equipage_a_bord}
+        _appliquer_decision(
+            auteur, proposition, True, "releve_validee_secours",
+            f"decide_par={auteur}; equipage_valideur={_equipage_valideur(proposition)}; motif={motif}",
+            notifier_proposant=False,
         )
+        destinataires = get_user_model().objects.filter(profile__ship=navire, profile__equipage__in=equipages)
+        for marin in destinataires:
+            Notification.objects.create(
+                user=marin,
+                verb=f"Relève sur {navire.name} validée en secours par l'administrateur général (aucun commandant disponible).",
+            )
     return ""
 
 

@@ -627,7 +627,7 @@
 
 {% if active_tab == 'equipage' %}
 <div class="row g-3">
-  {% if user.is_superuser %}
+  {% if ships %}
   <div class="col-12">
     <form method="get" class="row g-2 align-items-center">
       <input type="hidden" name="tab" value="equipage" />

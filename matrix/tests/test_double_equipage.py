@@ -188,6 +188,80 @@ class RelevePersonnelTests(DoubleEquipageBase):
         self.client.login(username="cdt", password="pass")
         self.assertNotContains(self.client.get(reverse("settings"), {"tab": "equipage"}), "Valider en secours")
 
+    def test_secours_refuse_au_proposant_superuser_commandant(self):
+        root = User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        UserProfile.objects.update_or_create(
+            user=root, defaults={"role": "COMMANDANT", "ship": self.navire, "equipage": "A"})
+        self._agir("root", "proposer_releve", equipage="B", ship_id=self.navire.pk)
+        self.assertTrue(self.navire.releves.exists())
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        self._secours()
+        self.assertEqual(self._a_bord(), "A")
+
+    def test_commandant_inactif_ne_bloque_pas_le_secours(self):
+        self._proposition_sans_commandant_b()
+        UserProfile.objects.filter(user=self.cdt_b).update(role="COMMANDANT")
+        self._secours()
+        self.assertEqual(self._a_bord(), "A")
+        User.objects.filter(pk=self.cdt_b.pk).update(is_active=False)
+        self._secours()
+        self.assertEqual(self._a_bord(), "B")
+
+    def test_commandant_inactif_ne_compte_pas_pour_proposer(self):
+        User.objects.filter(pk=self.cdt_b.pk).update(is_active=False)
+        self._agir("cdt", "proposer_releve", equipage="B")
+        self.assertFalse(self.navire.releves.exists())
+
+    def test_double_decision_sur_releve_deja_decidee_sans_doublon(self):
+        from matrix.core.equipage import decider_releve, valider_releve_secours
+        self._agir("cdt", "proposer_releve", equipage="B")
+        perimee = self.navire.releves.get()
+        cdt_b = User.objects.get(pk=self.cdt_b.pk)
+        self.assertEqual(decider_releve(cdt_b, perimee, True), "")
+        self.assertNotEqual(decider_releve(cdt_b, perimee, True), "")
+        root = User.objects.create_superuser(username="root", password="pass", email="r@r.fr")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        self.assertNotEqual(valider_releve_secours(root, perimee, "motif"), "")
+        self.assertEqual(AuditLog.objects.filter(action__startswith="releve_validee").count(), 1)
+        self.assertEqual(self.cdt.notifications.count(), 1)
+
+    def test_secours_refuse_si_proposant_hors_des_deux_equipages(self):
+        self._proposition_sans_commandant_b()
+        UserProfile.objects.filter(user=self.cdt).update(equipage="C")
+        self._secours()
+        self.assertEqual(self._a_bord(), "A")
+
+    def _master_role(self):
+        master = User.objects.create_user(username="master", password="pass")
+        UserProfile.objects.update_or_create(user=master, defaults={"role": "MASTER_ADMIN"})
+        return master
+
+    def test_master_admin_de_role_voit_l_onglet_et_choisit_un_navire(self):
+        self._master_role()
+        Ship.objects.create(name="Zulu-Vedette", code="ZV")
+        self.client.login(username="master", password="pass")
+        r = self.client.get(reverse("settings"), {"tab": "equipage", "ship": self.navire.pk})
+        self.assertContains(r, "Relève — FREMM")
+        self.assertNotContains(r, ">Zulu-Vedette</option>")
+
+    def test_master_admin_de_role_valide_en_secours_dans_le_cas_autorise_seulement(self):
+        self._master_role()
+        self._agir("cdt", "proposer_releve", equipage="B")
+        self._secours(nom="master")
+        self.assertEqual(self._a_bord(), "A")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        self.client.login(username="master", password="pass")
+        self.assertContains(
+            self.client.get(reverse("settings"), {"tab": "equipage", "ship": self.navire.pk}), "Valider en secours")
+        self._secours(nom="master")
+        self.assertEqual(self._a_bord(), "B")
+
+    def test_master_admin_de_role_ne_propose_pas(self):
+        self._master_role()
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        self._agir("master", "proposer_releve", equipage="B", ship_id=self.navire.pk)
+        self.assertFalse(self.navire.releves.exists())
+
     def test_le_commandant_d_un_autre_navire_ne_peut_pas(self):
         autre = Ship.objects.create(name="Autre", code="AU", double_equipage=True, equipage_a_bord="A")
         self.cdt.profile.ship = autre
@@ -298,7 +372,7 @@ class EquipageObligatoireTests(DoubleEquipageBase):
         self.assertIn("equipage", form.errors)
 
     def test_formulaire_sans_double_equipage_non_concerne(self):
-        simple = Ship.objects.create(name="Simple", code="SI")
+        simple = Ship.objects.create(name="Zulu-Vedette", code="ZV")
         form = UserProfileForm({"role": "EQUIPIER", "ship": simple.pk, "equipage": ""})
         self.assertNotIn("equipage", form.errors)
 

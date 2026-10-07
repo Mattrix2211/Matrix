@@ -217,6 +217,8 @@ class SettingsView(LoginRequiredMixin, View):
     @staticmethod
     def _peut_voir_equipage(user):
         # Onglet Équipage : commandant, son second et administrateur d'unité d'un bâtiment à double équipage.
+        if is_master_admin(user):
+            return True
         profil = getattr(user, 'profile', None)
         navire = profil.ship if profil else None
         return bool(
@@ -315,7 +317,12 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_gerer_modules': peut_gerer_modules,
                 'peut_voir_equipage': peut_voir_equipage,
             }
-            if active_tab == 'equipage':
+            if active_tab == 'equipage' and is_master_admin(request.user):
+                # Administrateur général de rôle : choix d'un navire à double équipage.
+                navires = Ship.objects.filter(double_equipage=True).order_by('name')
+                choisi = navires.filter(pk=request.GET.get('ship') or None).first() or navires.first()
+                context.update({'ships': navires, **_lignes_equipage(choisi, request.user)})
+            elif active_tab == 'equipage':
                 context.update(_lignes_equipage(profile.ship, request.user))
             if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
