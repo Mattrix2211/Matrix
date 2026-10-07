@@ -1,0 +1,12 @@
+"""Lecture défensive des paramètres de requête."""
+
+ENTIER_MAX = 2**63 - 1  # borne des clés primaires entières
+
+
+def entier_ou_none(valeur):
+    """Entier positif lu depuis du texte, ou None (chiffres exposants et valeurs trop grandes refusés)."""
+    texte = str(valeur or "").strip()
+    if not (texte.isascii() and texte.isdigit()):
+        return None
+    nombre = int(texte)
+    return nombre if nombre <= ENTIER_MAX else None

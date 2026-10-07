@@ -14,6 +14,7 @@ from django.views import View
 from accounts.models import AuditLog, SpecialityChoice
 from matrix.core.icones import ICONES
 from matrix.core.recherche import normaliser
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import is_master_admin
 
 from .catalogue_photo import valider_photo
@@ -49,10 +50,6 @@ def _uuid_ou_none(valeur):
         return uuid.UUID(str(valeur))
     except ValueError:
         return None
-
-
-def _entier_ou_none(valeur):
-    return int(valeur) if str(valeur or "").isdigit() else None
 
 
 def _icone(categorie):
@@ -141,7 +138,7 @@ class CatalogueView(LoginRequiredMixin, View):
 
     def get(self, request):
         q = normaliser(request.GET.get("q"))
-        specialite = SpecialityChoice.objects.filter(pk=_entier_ou_none(request.GET.get("specialite")) or 0).first()
+        specialite = SpecialityChoice.objects.filter(pk=entier_ou_none(request.GET.get("specialite")) or 0).first()
         categorie_id = _uuid_ou_none(request.GET.get("categorie"))
         categorie = (CategorieCatalogue.objects.select_related("parent", "specialite")
                      .filter(pk=categorie_id, actif=True).first() if categorie_id else None)
@@ -259,7 +256,7 @@ class CategorieEcritureView(_EcritureCatalogueView):
 
     def _initial(self, request):
         return {"parent": _uuid_ou_none(request.GET.get("parent")),
-                "specialite": _entier_ou_none(request.GET.get("specialite"))}
+                "specialite": entier_ou_none(request.GET.get("specialite"))}
 
 
 class ArticleEcritureView(_EcritureCatalogueView):

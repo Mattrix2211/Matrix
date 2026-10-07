@@ -21,6 +21,7 @@ from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.equipage import suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
 from accounts.models import AuditLog, Roles, UserProfile
 from notifications.models import Notification, NotificationLevel
@@ -213,7 +214,8 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
 def _intervenants_choisis(request, occ):
     """Identifiants des intervenants cochés, limités aux assignés et à l'auteur de la saisie."""
     autorises = {u.pk for u in occ.assignees.all()} | {request.user.pk}
-    return {int(i) for i in request.POST.getlist('intervenants') if i.isdigit()} & autorises
+    choisis = {entier_ou_none(i) for i in request.POST.getlist('intervenants')}
+    return choisis & autorises
 
 
 def _valeur_datetime(valeur):
@@ -585,7 +587,7 @@ class OccurrenceImprimerView(LoginRequiredMixin, View):
         if pk is not None:
             identifiants = [pk]
         else:
-            identifiants = [int(i) for i in request.GET.get("ids", "").split(",") if i.strip().isdigit()]
+            identifiants = [n for n in map(entier_ou_none, request.GET.get("ids", "").split(",")) if n is not None]
         occurrences = (
             MaintenanceOccurrence.objects.select_related(
                 "plan", "asset", "asset__asset_type", "plan__checklist_template",

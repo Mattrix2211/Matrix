@@ -32,6 +32,8 @@ class CatalogueDurcissementTests(TestCase):
             ("catalogue-categorie-nouvelle", {"parent": "abc"}),
             ("catalogue-categorie-nouvelle", {"specialite": "abc"}),
             ("catalogue-article-nouveau", {"categorie": "abc"}),
+            ("catalogue", {"specialite": "\u00b2"}), ("catalogue", {"specialite": "9" * 40}),
+            ("catalogue-categorie-nouvelle", {"specialite": "\u00b2"}),
         ):
             self.assertEqual(self.client.get(reverse(url), params).status_code, 200, (url, params))
 

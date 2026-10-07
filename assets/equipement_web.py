@@ -16,6 +16,7 @@ from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import ship_id_for_user
 from org.models import Section, Sector
 
@@ -145,7 +146,7 @@ class ArticleEquiperView(LoginRequiredMixin, View):
                 return "Section hors de votre périmètre.", None
         emplacement = None
         if valeurs.get("emplacement"):
-            emplacement = Location.objects.filter(pk=valeurs["emplacement"] if valeurs["emplacement"].isdigit() else 0,
+            emplacement = Location.objects.filter(pk=entier_ou_none(valeurs["emplacement"]) or 0,
                                                   ship=secteur.service.ship).first()
             if emplacement is None:
                 return "Emplacement inconnu sur ce navire.", None
