@@ -62,6 +62,36 @@ class RelevePersonnelTests(DoubleEquipageBase):
         self._agir("cdt", "decider_releve", decision="valider")
         self.assertEqual(self._a_bord(), "A")
 
+    def test_commandant_en_second_supplee_le_commandant_absent(self):
+        # Le commandant de l'équipage B est remplacé par son second.
+        UserProfile.objects.filter(user=self.cdt_b).update(role="COMMANDANT_EN_SECOND")
+        self._agir("cdt", "proposer_releve", equipage="B")
+        self.assertTrue(self.cdt_b.notifications.exists())
+        self._agir("cdtb", "decider_releve", decision="valider")
+        self.assertEqual(self._a_bord(), "B")
+
+    def test_commandant_en_second_propose_et_le_commandant_valide(self):
+        second = self._marin("second", "COMMANDANT_EN_SECOND", "A")
+        self._agir("second", "proposer_releve", equipage="B")
+        self.assertEqual(self.navire.releves.count(), 1)
+        self._agir("second", "decider_releve", decision="valider")
+        self.assertEqual(self._a_bord(), "A")
+        self._agir("cdtb", "decider_releve", decision="valider")
+        self.assertEqual(self._a_bord(), "B")
+        self.assertTrue(second.notifications.exists())
+
+    def test_commandant_et_son_second_de_meme_equipage_ne_se_valident_pas(self):
+        self._marin("second", "COMMANDANT_EN_SECOND", "A")
+        self._agir("cdt", "proposer_releve", equipage="B")
+        self._agir("second", "decider_releve", decision="valider")
+        self.assertEqual(self._a_bord(), "A")
+
+    def test_equipage_sans_commandant_ni_second_refuse(self):
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        self._marin("second_a", "COMMANDANT_EN_SECOND", "A")
+        self._agir("second_a", "proposer_releve", equipage="B")
+        self.assertFalse(self.navire.releves.exists())
+
     def test_equipage_sans_commandant_refuse(self):
         self.cdt_b.profile.role = "EQUIPIER"
         self.cdt_b.profile.save()

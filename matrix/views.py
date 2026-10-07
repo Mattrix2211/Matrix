@@ -23,7 +23,7 @@ from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import session_expiree, tracer_expiration, url_connexion
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
-from matrix.core.equipage import ACTIONS_RELEVE, annuler_releve, decider_releve, marins_sans_equipage, proposer_releve, releve_en_attente
+from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, marins_sans_equipage, proposer_releve, releve_en_attente
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
@@ -34,7 +34,7 @@ from matrix.core.modules import (
 )
 
 # Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
-# les 8 rôles, du plus bas (Équipier) au plus haut (Administrateur général) —
+# les 9 rôles, du plus bas (Équipier) au plus haut (Administrateur général) —
 # ordre ascendant de RoleLevel, libellés français repris de Roles.choices.
 _LIBELLE_ROLE = dict(Roles.choices)
 ROLES_POUR_SEUILS = [(niveau.name, _LIBELLE_ROLE.get(niveau.name, niveau.name)) for niveau in RoleLevel]
@@ -85,7 +85,7 @@ def _lignes_equipage(navire, utilisateur):
         'equipage_codes': list(codes),
         'equipage_sans': list(marins_sans_equipage(navire)),
         'releve': releve_en_attente(navire),
-        'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') == Roles.COMMANDANT,
+        'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
     }
 
 
@@ -214,11 +214,11 @@ class SettingsView(LoginRequiredMixin, View):
 
     @staticmethod
     def _peut_voir_equipage(user):
-        # Onglet Équipage : commandant et administrateur d'unité d'un bâtiment à double équipage.
+        # Onglet Équipage : commandant, son second et administrateur d'unité d'un bâtiment à double équipage.
         profil = getattr(user, 'profile', None)
         navire = profil.ship if profil else None
         return bool(
-            navire and navire.double_equipage and profil.role in (Roles.COMMANDANT, Roles.ADMIN_NAVIRE)
+            navire and navire.double_equipage and profil.role in (*ROLES_COMMANDEMENT, Roles.ADMIN_NAVIRE)
         )
 
     def dispatch(self, request, *args, **kwargs):

@@ -1,4 +1,4 @@
-"""Matrice de tests de permissions par rôle x ressource (les 8 niveaux de rôle).
+"""Matrice de tests de permissions par rôle x ressource (tous les niveaux de rôle).
 
 Tâche Notion « Matrice de tests de permissions par rôle × ressource » (Phase 0
 - Assainissement) : construit une suite systématique couvrant, pour les

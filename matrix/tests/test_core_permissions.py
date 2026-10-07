@@ -159,6 +159,26 @@ class ManageUsersPermissionTests(TestCase):
         req = fake_request("POST", self.commandant, {"role": "ADMIN_NAVIRE"})
         self.assertFalse(self.permission.has_permission(req, self.view))
 
+    def test_hierarchie_commandant_en_second_entre_etat_major_et_commandant(self):
+        self.assertLess(RoleLevel.ETAT_MAJOR, RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertLess(RoleLevel.COMMANDANT_EN_SECOND, RoleLevel.COMMANDANT)
+
+    def test_commandant_designe_son_second_mais_pas_l_inverse(self):
+        req = fake_request("POST", self.commandant, {"role": "COMMANDANT_EN_SECOND"})
+        self.assertTrue(self.permission.has_permission(req, self.view))
+        second = User.objects.create_user(username="second", password="pass")
+        UserProfile.objects.update_or_create(user=second, defaults={"role": Roles.COMMANDANT_EN_SECOND})
+        second.refresh_from_db()
+        for role in ("COMMANDANT", "COMMANDANT_EN_SECOND", "ADMIN_NAVIRE"):
+            req = fake_request("POST", second, {"role": role})
+            self.assertFalse(self.permission.has_permission(req, self.view), role)
+        req = fake_request("POST", second, {"role": "ETAT_MAJOR"})
+        self.assertTrue(self.permission.has_permission(req, self.view))
+
+    def test_admin_navire_peut_designer_un_commandant_en_second(self):
+        req = fake_request("POST", self.admin_navire, {"role": "COMMANDANT_EN_SECOND"})
+        self.assertTrue(self.permission.has_permission(req, self.view))
+
     def test_ecriture_refusee_sans_role_dans_la_charge_utile(self):
         req = fake_request("POST", self.commandant, {})
         self.assertFalse(self.permission.has_permission(req, self.view))

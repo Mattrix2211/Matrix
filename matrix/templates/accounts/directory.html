@@ -516,7 +516,7 @@
       var roleSel = document.getElementById('createRole');
       if (!roleSel) return;
       var role = roleSel.value;
-      if (role === 'ETAT_MAJOR' || role === 'COMMANDANT') {
+      if (role === 'ETAT_MAJOR' || role === 'COMMANDANT_EN_SECOND' || role === 'COMMANDANT') {
         setWrapVisible('createServiceWrap', false);
         setWrapVisible('createSectorWrap', false);
         setWrapVisible('createSectionWrap', false);

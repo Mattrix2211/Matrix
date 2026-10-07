@@ -7,6 +7,8 @@ from matrix.core.scopes import is_master_admin
 from notifications.models import Notification
 
 ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve")
+# Le commandant en second supplée le commandant de son équipage.
+ROLES_COMMANDEMENT = (Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND)
 MESSAGE_EQUIPAGE_OBLIGATOIRE = "L'équipage est obligatoire sur un bâtiment à double équipage."
 
 
@@ -37,9 +39,9 @@ def equipage_modifiable_par(acteur, cible):
 
 
 def commandants_equipage(navire, equipage):
-    """Commandants désignés (rôle COMMANDANT + équipage) d'un équipage de l'unité."""
+    """Commandants et commandants en second d'un équipage de l'unité."""
     return get_user_model().objects.filter(
-        profile__ship=navire, profile__role=Roles.COMMANDANT, profile__equipage=equipage
+        profile__ship=navire, profile__role__in=ROLES_COMMANDEMENT, profile__equipage=equipage
     )
 
 
@@ -50,30 +52,30 @@ def releve_en_attente(navire):
 
 
 def _equipage_commandant(user, navire):
-    """Équipage dont l'utilisateur est commandant sur cette unité, sinon chaîne vide (pas de contournement MASTER_ADMIN)."""
+    """Équipage dont l'utilisateur est commandant (ou en second) sur cette unité, sinon chaîne vide (pas de contournement MASTER_ADMIN)."""
     profil = getattr(user, "profile", None)
-    if profil and profil.role == Roles.COMMANDANT and profil.ship_id == navire.pk:
+    if profil and profil.role in ROLES_COMMANDEMENT and profil.ship_id == navire.pk:
         return profil.equipage
     return ""
 
 
 def proposer_releve(auteur, navire, equipage):
-    """Un commandant propose la relève ; renvoie (proposition, message d'erreur)."""
+    """Un commandant ou son second propose la relève ; renvoie (proposition, message d'erreur)."""
     from org.models import ReleveEquipage
 
     mon_equipage = _equipage_commandant(auteur, navire)
     a_bord = navire.equipage_a_bord
     if not mon_equipage:
-        return None, "Seul un commandant de l'unité peut proposer la relève."
+        return None, "Seul un commandant ou un commandant en second de l'unité peut proposer la relève."
     if not navire.double_equipage or not a_bord:
         return None, "Cette unité n'a pas de double équipage ou d'équipage à bord renseigné."
     if equipage == a_bord:
         return None, f"L'équipage {equipage} est déjà à bord."
     if mon_equipage not in (a_bord, equipage):
-        return None, "Vous devez être commandant de l'équipage à bord ou de celui à embarquer."
+        return None, "Vous devez être commandant (ou en second) de l'équipage à bord ou de celui à embarquer."
     autre = equipage if mon_equipage == a_bord else a_bord
     if not commandants_equipage(navire, autre).exists():
-        return None, f"Aucun commandant n'est désigné pour l'équipage {autre} : la relève est impossible."
+        return None, f"Aucun commandant ni commandant en second n'est désigné pour l'équipage {autre} : la relève est impossible."
     if releve_en_attente(navire):
         return None, "Une relève est déjà en attente de validation."
     proposition = ReleveEquipage.objects.create(ship=navire, equipage_propose=equipage, propose_par=auteur)
@@ -89,18 +91,18 @@ def proposer_releve(auteur, navire, equipage):
 
 
 def decider_releve(auteur, proposition, accepter):
-    """Le commandant de l'autre équipage valide ou refuse ; la validation applique la relève. Renvoie un message d'erreur ou ''."""
+    """Le commandant (ou en second) de l'autre équipage valide ou refuse ; la validation applique la relève. Renvoie un message d'erreur ou ''."""
     navire = proposition.ship
     if proposition.statut != proposition.Statut.EN_ATTENTE:
         return "Cette relève n'est plus en attente."
     mon_equipage = _equipage_commandant(auteur, navire)
     if not mon_equipage:
-        return "Seul un commandant de l'unité peut valider la relève."
+        return "Seul un commandant ou un commandant en second de l'unité peut valider la relève."
     if auteur == proposition.propose_par:
         return "Vous ne pouvez pas valider votre propre proposition."
     proposeur = _equipage_commandant(proposition.propose_par, navire)
     if mon_equipage == proposeur or mon_equipage not in (navire.equipage_a_bord, proposition.equipage_propose):
-        return "Seul le commandant de l'autre équipage peut valider cette relève."
+        return "Seul le commandant (ou en second) de l'autre équipage peut valider cette relève."
     proposition.decide_par = auteur
     proposition.decide_le = timezone.now()
     details = (

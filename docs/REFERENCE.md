@@ -19,7 +19,7 @@ Source de vérité : `design/DESIGN_SYSTEM.md` (submodule), à lire avant tout t
 - **À bord** (configurable par navire) : Commandant → Commandant en second (même vision globale) → commandants adjoints COMAEQ (équipage), COMOPS (opérations), COMANAV (navire), COMAVIA (seulement avec capacité aviation) → chefs de service → chefs de secteur → chefs de section → opérateurs. Chaque service dépend d'un commandant adjoint. Afficher le sigle, jamais « chef de groupement ».
 - **Double équipage** (FREMM, PSP, BSAM) : deux équipages en miroir sur un même bâtiment ; l'équipage à terre garde un accès en lecture seule. Le bâtiment porte installations, matériel, fiches, historique, stock ; l'équipage porte personnes, quarts, services, assignations, espace personnel.
 - **À terre** : ALFAN → division Exploitation → spécialités (Mécan, Sécu, Élec, SIC, Artilleur), chacune avec un responsable de spécialité (`accounts.ResponsableSpecialite`), encadré par un chef du responsable de spécialité. Le SSF suit une classe ou une liste de bâtiments et peut agir (commenter un ticket…).
-- **Codes techniques** : `MASTER_ADMIN → ADMIN_NAVIRE → COMMANDANT → ETAT_MAJOR → CHEF_SERVICE → CHEF_SECTEUR → CHEF_SECTION → EQUIPIER`.
+- **Codes techniques** : `MASTER_ADMIN → ADMIN_NAVIRE → COMMANDANT → COMMANDANT_EN_SECOND → ETAT_MAJOR → CHEF_SERVICE → CHEF_SECTEUR → CHEF_SECTION → EQUIPIER`.
 
 ## 3. Équipements
 

@@ -12,6 +12,7 @@ class Roles(models.TextChoices):
     MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général"
     ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité"
     COMMANDANT = "COMMANDANT", "Commandant"
+    COMMANDANT_EN_SECOND = "COMMANDANT_EN_SECOND", "Commandant en second"
     ETAT_MAJOR = "ETAT_MAJOR", "État-major"
     CHEF_SERVICE = "CHEF_SERVICE", "Chef de service"
     CHEF_SECTEUR = "CHEF_SECTEUR", "Chef de secteur"
