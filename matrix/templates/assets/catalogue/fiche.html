@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load icones composants %}
+{% block title %}{{ article.designation }}{% endblock %}
+{% block content %}
+<nav aria-label="Fil d'Ariane" class="mx-cat-ariane">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'catalogue' %}">Catalogue</a></li>
+    {% for c in chemin %}<li class="breadcrumb-item"><a href="{% url 'catalogue' %}?categorie={{ c.pk }}">{{ c.nom }}</a></li>{% endfor %}
+    <li class="breadcrumb-item active" aria-current="page">{{ article.designation }}</li>
+  </ol>
+</nav>
+
+{% include "components/fiche_entete.html" with titre=article.designation sous_titre=article.categorie.specialite.name badge_libelle=article.actif|yesno:",Archivé" action=action objet=article %}
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    {% surface titre="Caractéristiques" icone="information" %}
+      <dl class="mx-synthese">
+        {% if article.marque %}<dt>Marque</dt><dd>{{ article.marque }}</dd>{% endif %}
+        {% if article.reference %}<dt>Modèle</dt><dd>{{ article.reference }}</dd>{% endif %}
+        {% if article.nno %}<dt>NNO</dt><dd>{{ article.nno }}</dd>{% endif %}
+        {% if duree_vie %}<dt>Durée de vie</dt><dd>{{ duree_vie }}</dd>{% endif %}
+        {% for nom, valeur in article.caracteristiques.items %}<dt>{{ nom }}</dt><dd>{{ valeur }}</dd>{% endfor %}
+      </dl>
+    {% fin_surface %}
+    {% surface titre="Fiches de maintenance" icone="maintenance" classes="mt-3" %}
+      {# Emplacement prêt : les fiches y seront listées. #}
+      {% include "components/etat_vide.html" with titre="Aucune fiche de maintenance" texte="Les fiches rattachées à cet article apparaîtront ici." %}
+    {% fin_surface %}
+    {% surface titre="Exemplaires à bord" icone="materiel" classes="mt-3" %}
+      {# Emplacement prêt : un badge d'état par exemplaire. #}
+      {% include "components/etat_vide.html" with titre="Aucun exemplaire à bord" texte="Les exemplaires suivis à bord, avec leur état, apparaîtront ici." %}
+    {% fin_surface %}
+  </div>
+  <div class="col-lg-5">
+    <div class="mx-cat-photo">{% if article.photo %}<img src="{{ article.photo.url }}" alt="{{ article.designation }}">{% else %}{% icone "materiel" %}{% endif %}</div>
+    {% if peut_modifier and article.actif and not equipage_a_terre %}
+    <form method="post" action="{% url 'catalogue-article-archiver' article.pk %}" class="mt-3">{% csrf_token %}<button type="submit" class="btn btn-outline-danger btn-sm">Archiver l'article</button></form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

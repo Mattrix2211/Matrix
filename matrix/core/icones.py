@@ -38,6 +38,7 @@ ICONES = {
     # Navigation latérale (§7)
     "aujourdhui": "bi-house-door",
     "materiel": "bi-box-seam",
+    "catalogue": "bi-book",
     "installation": "bi-gear-wide-connected",
     "plan_navire": "bi-map",
     "configuration": "bi-sliders",
@@ -62,6 +63,8 @@ ICONES = {
     # États
     "retard": "bi-alarm",
     "terminee": "bi-check-circle",
+    "verrouille": "bi-lock",
+    "arbre_competences": "bi-diagram-3",
 }
 
 

@@ -8,6 +8,7 @@ from .serializers import (
     AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer,
     CategorieCatalogueSerializer, ArticleCatalogueSerializer,
 )
+from .catalogue_web import journaliser
 from .permissions import CataloguePermission
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
@@ -212,10 +213,14 @@ class _CatalogueViewSet(viewsets.ModelViewSet):
     permission_classes = [CataloguePermission]
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        journaliser(self.request.user, "creation", serializer.save(created_by=self.request.user, updated_by=self.request.user))
 
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        journaliser(self.request.user, "modification", serializer.save(updated_by=self.request.user))
+
+    def perform_destroy(self, instance):
+        journaliser(self.request.user, "suppression", instance)
+        instance.delete()
 
 
 class CategorieCatalogueViewSet(_CatalogueViewSet):

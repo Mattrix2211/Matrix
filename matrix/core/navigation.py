@@ -54,6 +54,7 @@ GROUPES = [
     ("Équipements", [
         Entree("Matériels", "materiel", "asset-list", module="assets"),
         Entree("Installations", "installation", "installation-list", module="assets"),
+        Entree("Catalogue", "catalogue", "catalogue", module="assets"),
         Entree("Plan du navire", "plan_navire", "plan-navire-vue", module="assets"),
         Entree("Configurer le plan du navire", "configuration", "plan-navire-list",
                module="assets", droit=peut_configurer_plan_navire),

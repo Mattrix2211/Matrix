@@ -1,4 +1,8 @@
 from django.urls import path
+from .catalogue_web import (
+    CatalogueView, ArticleCatalogueDetailView, CategorieEcritureView, ArticleEcritureView,
+    CategorieArchiverView, ArticleArchiverView,
+)
 from .web_views import (
     AssetDetailView, StartVisualCheckView, AssetListView, InstallationListView,
     InstallationDetailView, ScanQRView, AssetImportView, AssetImportModeleView,
@@ -7,6 +11,14 @@ from .web_views import (
 )
 
 urlpatterns = [
+    path('catalogue/', CatalogueView.as_view(), name='catalogue'),
+    path('catalogue/categories/nouvelle/', CategorieEcritureView.as_view(), name='catalogue-categorie-nouvelle'),
+    path('catalogue/categories/<uuid:pk>/modifier/', CategorieEcritureView.as_view(), name='catalogue-categorie-modifier'),
+    path('catalogue/categories/<uuid:pk>/archiver/', CategorieArchiverView.as_view(), name='catalogue-categorie-archiver'),
+    path('catalogue/articles/nouveau/', ArticleEcritureView.as_view(), name='catalogue-article-nouveau'),
+    path('catalogue/articles/<uuid:pk>/', ArticleCatalogueDetailView.as_view(), name='catalogue-article'),
+    path('catalogue/articles/<uuid:pk>/modifier/', ArticleEcritureView.as_view(), name='catalogue-article-modifier'),
+    path('catalogue/articles/<uuid:pk>/archiver/', ArticleArchiverView.as_view(), name='catalogue-article-archiver'),
     path('assets/', AssetListView.as_view(), name='asset-list'),
     path('assets/importer/', AssetImportView.as_view(), name='asset-import'),
     path('assets/importer/modele/', AssetImportModeleView.as_view(), name='asset-import-modele'),
