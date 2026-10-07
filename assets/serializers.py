@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
-from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument
+from rest_framework.exceptions import PermissionDenied
+from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, CategorieCatalogue, ArticleCatalogue
+from .permissions import peut_gerer_catalogue
 
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -57,3 +59,47 @@ class AssetChecklistOverrideSerializer(serializers.ModelSerializer):
     class Meta:
         model = AssetChecklistOverride
         fields = "__all__"
+
+
+class _CatalogueSerializer(serializers.ModelSerializer):
+    """Socle : valide les cycles et refuse d'écrire hors de sa spécialité (403)."""
+
+    def _verifier_droit(self, specialite):
+        if not peut_gerer_catalogue(self.context["request"].user, specialite):
+            raise PermissionDenied("Vous n'êtes pas responsable de cette spécialité.")
+
+    def _verifier_modele(self, candidat):
+        try:
+            candidat.clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
+
+
+class CategorieCatalogueSerializer(_CatalogueSerializer):
+    class Meta:
+        model = CategorieCatalogue
+        fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
+
+    def validate(self, attrs):
+        i = self.instance
+        pk = i.pk if i else None
+        parent = attrs["parent"] if "parent" in attrs else (i.parent if i else None)
+        specialite = attrs.get("specialite") or (i.specialite if i else None)
+        self._verifier_droit(specialite)
+        self._verifier_modele(CategorieCatalogue(pk=pk, parent=parent, specialite=specialite))
+        return attrs
+
+
+class ArticleCatalogueSerializer(_CatalogueSerializer):
+    specialite = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ArticleCatalogue
+        fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
+
+    def validate(self, attrs):
+        categorie = attrs.get("categorie") or self.instance.categorie
+        self._verifier_droit(categorie.specialite)
+        return attrs

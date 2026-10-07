@@ -461,3 +461,74 @@ class InstallationMaintenanceAttachment(TimeStampedModel, OwnedModel):
             return base
         except Exception:
             return self.name or self.file.name
+
+
+def _verifier_cycle_categorie(categorie):
+    """Refuse un parent qui ferait de la catégorie son propre ancêtre."""
+    vus = {categorie.pk}
+    noeud = categorie.parent
+    while noeud is not None:
+        if noeud.pk in vus:
+            raise ValidationError({"parent": "Rattachement invalide : cela créerait une boucle dans les catégories."})
+        vus.add(noeud.pk)
+        noeud = noeud.parent
+
+
+class CategorieCatalogue(TimeStampedModel, OwnedModel):
+    """Catégorie du catalogue de matériel, commun à toute la flotte (non rattaché
+    à un navire). Géré à terre par les responsables de la spécialité."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="enfants", verbose_name="Catégorie parente")
+    nom = models.CharField(max_length=255, verbose_name="Nom")
+    specialite = models.ForeignKey("accounts.SpecialityChoice", on_delete=models.PROTECT, related_name="categories_catalogue", verbose_name="Spécialité")
+    ordre = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
+    icone = models.CharField(max_length=64, blank=True, default="", verbose_name="Icône")
+    photo = models.FileField(upload_to="catalogue_categories/", null=True, blank=True, verbose_name="Photo")
+    actif = models.BooleanField(default=True, verbose_name="Active")
+
+    class Meta:
+        ordering = ["specialite__name", "ordre", "nom"]
+        unique_together = ("parent", "nom")
+        verbose_name = "Catégorie du catalogue"
+        verbose_name_plural = "Catégories du catalogue"
+
+    def clean(self):
+        super().clean()
+        _verifier_cycle_categorie(self)
+        if self.parent_id and self.parent.specialite_id != self.specialite_id:
+            raise ValidationError({"specialite": "Une sous-catégorie appartient à la spécialité de sa catégorie parente."})
+
+    def save(self, *args, **kwargs):
+        # clean() n'est pas appelé par save() : on protège aussi les écritures directes.
+        _verifier_cycle_categorie(self)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nom
+
+
+class ArticleCatalogue(TimeStampedModel, OwnedModel):
+    """Référence de matériel du catalogue de la flotte : le bord y sélectionne
+    ce qu'il possède. La spécialité est celle de la catégorie."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    categorie = models.ForeignKey(CategorieCatalogue, on_delete=models.PROTECT, related_name="articles", verbose_name="Catégorie")
+    designation = models.CharField(max_length=255, verbose_name="Désignation")
+    marque = models.CharField(max_length=255, blank=True, default="", verbose_name="Marque")
+    reference = models.CharField(max_length=255, blank=True, default="", verbose_name="Modèle / référence")
+    nno = models.CharField(max_length=255, blank=True, default="", verbose_name="NNO")
+    photo = models.FileField(upload_to="catalogue_articles/", null=True, blank=True, verbose_name="Photo")
+    caracteristiques = JSONField(default=dict, blank=True, verbose_name="Caractéristiques")
+    duree_vie_mois = models.PositiveIntegerField(null=True, blank=True, verbose_name="Durée de vie ou de péremption type (mois)")
+    actif = models.BooleanField(default=True, verbose_name="Actif")
+
+    class Meta:
+        ordering = ["categorie__nom", "designation"]
+        verbose_name = "Article du catalogue"
+        verbose_name_plural = "Articles du catalogue"
+
+    @property
+    def specialite(self):
+        return self.categorie.specialite
+
+    def __str__(self):
+        return self.designation

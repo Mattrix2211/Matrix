@@ -2,11 +2,13 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, filters, decorators, response
-from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, Installation
+from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, Installation, CategorieCatalogue, ArticleCatalogue
 from .serializers import (
     LocationSerializer, AssetTypeSerializer, ChecklistTemplateSerializer, ChecklistItemTemplateSerializer,
-    AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer
+    AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer,
+    CategorieCatalogueSerializer, ArticleCatalogueSerializer,
 )
+from .permissions import CataloguePermission
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from matrix.core.scopes import scope_filters_for_user
@@ -201,3 +203,30 @@ def installation_qr_png(request, pk):
     installation = _installation_scopee_ou_404(request, pk)
     url = request.build_absolute_uri(f"/scan/{installation.pk}/")
     return HttpResponse(_construire_qr_png(url), content_type="image/png")
+
+
+class _CatalogueViewSet(viewsets.ModelViewSet):
+    """Catalogue commun à la flotte : pas de filtre de navire (donc ni
+    ScopedQuerySetMixin ni EcritureDansLePerimetreMixin, conçus pour des données
+    rattachées à un navire). Droits dans CataloguePermission, auteur posé ici."""
+    permission_classes = [CataloguePermission]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
+class CategorieCatalogueViewSet(_CatalogueViewSet):
+    queryset = CategorieCatalogue.objects.select_related("parent", "specialite").all()
+    serializer_class = CategorieCatalogueSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["nom"]
+
+
+class ArticleCatalogueViewSet(_CatalogueViewSet):
+    queryset = ArticleCatalogue.objects.select_related("categorie", "categorie__specialite").all()
+    serializer_class = ArticleCatalogueSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["designation", "marque", "reference", "nno"]
