@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location, Deck, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, CategorieCatalogue, ArticleCatalogue
+from .models import Location, Deck, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, CategorieCatalogue, ArticleCatalogue, ChefResponsableSpecialite
 from matrix.core.admin import AdminScopedMixin
 
 @admin.register(Location)
@@ -64,3 +64,9 @@ class ArticleCatalogueAdmin(admin.ModelAdmin):
     search_fields = ("designation", "marque", "reference", "nno")
     readonly_fields = ("created_by", "updated_by")
     save_model = CategorieCatalogueAdmin.save_model
+
+
+@admin.register(ChefResponsableSpecialite)
+class ChefResponsableSpecialiteAdmin(admin.ModelAdmin):
+    list_display = ("responsable", "chef")
+    raw_id_fields = ("chef",)

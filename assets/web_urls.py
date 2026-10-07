@@ -4,6 +4,11 @@ from .catalogue_web import (
     CategorieArchiverView, ArticleArchiverView,
 )
 from .equipement_web import ArticleEquiperView
+from .proposition_web import (
+    PropositionsView, PropositionNouvelleView, PropositionDetailView, PropositionModifierView,
+    PropositionViserView, PropositionRefuserView, PropositionVerifierView,
+)
+from .exemplaires_web import ArticleExemplairesView, ExemplairesIncompletsView
 from .web_views import (
     AssetDetailView, StartVisualCheckView, AssetListView, InstallationListView,
     InstallationDetailView, ScanQRView, AssetImportView, AssetImportModeleView,
@@ -19,8 +24,17 @@ urlpatterns = [
     path('catalogue/articles/nouveau/', ArticleEcritureView.as_view(), name='catalogue-article-nouveau'),
     path('catalogue/articles/<uuid:pk>/', ArticleCatalogueDetailView.as_view(), name='catalogue-article'),
     path('catalogue/articles/<uuid:pk>/equiper/', ArticleEquiperView.as_view(), name='catalogue-article-equiper'),
+    path('catalogue/articles/<uuid:pk>/exemplaires/', ArticleExemplairesView.as_view(), name='catalogue-article-exemplaires'),
+    path('catalogue/exemplaires/', ExemplairesIncompletsView.as_view(), name='catalogue-exemplaires-incomplets'),
     path('catalogue/articles/<uuid:pk>/modifier/', ArticleEcritureView.as_view(), name='catalogue-article-modifier'),
     path('catalogue/articles/<uuid:pk>/archiver/', ArticleArchiverView.as_view(), name='catalogue-article-archiver'),
+    path('catalogue/propositions/', PropositionsView.as_view(), name='catalogue-propositions'),
+    path('catalogue/propositions/nouvelle/', PropositionNouvelleView.as_view(), name='catalogue-proposition-nouvelle'),
+    path('catalogue/propositions/<uuid:pk>/', PropositionDetailView.as_view(), name='catalogue-proposition'),
+    path('catalogue/propositions/<uuid:pk>/modifier/', PropositionModifierView.as_view(), name='catalogue-proposition-modifier'),
+    path('catalogue/propositions/<uuid:pk>/viser/', PropositionViserView.as_view(), name='catalogue-proposition-viser'),
+    path('catalogue/propositions/<uuid:pk>/refuser/', PropositionRefuserView.as_view(), name='catalogue-proposition-refuser'),
+    path('catalogue/propositions/<uuid:pk>/verifier/', PropositionVerifierView.as_view(), name='catalogue-proposition-verifier'),
     path('assets/', AssetListView.as_view(), name='asset-list'),
     path('assets/importer/', AssetImportView.as_view(), name='asset-import'),
     path('assets/importer/modele/', AssetImportModeleView.as_view(), name='asset-import-modele'),

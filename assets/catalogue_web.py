@@ -1,6 +1,7 @@
 """Écran web du catalogue de matériel de la flotte : lecture pour tout connecté,
 écriture réservée aux responsables de la spécialité (même règle que l'API)."""
 import uuid
+from urllib.parse import quote
 
 from django import forms
 from django.contrib import messages
@@ -21,6 +22,7 @@ from .catalogue_photo import valider_photo
 from .equipement_web import exemplaires_a_bord, exemplaires_a_bord_liste, peut_equiper
 from .models import ArticleCatalogue, CategorieCatalogue
 from .permissions import peut_gerer_catalogue
+from .proposition_article import peut_proposer
 
 # Icônes proposées pour une catégorie (concepts de matrix/core/icones.py).
 ICONES_CATEGORIE = [
@@ -174,6 +176,8 @@ class CatalogueView(LoginRequiredMixin, View):
                                      else (peut_gerer_catalogue(request.user, specialite) if specialite else gerees.exists())),
             "peut_creer_article": bool(categorie) and peut_gerer_catalogue(request.user, categorie.specialite),
             "peut_modifier": bool(categorie) and peut_gerer_catalogue(request.user, categorie.specialite),
+            "peut_proposer": peut_proposer(request.user)[0],
+            "url_proposer": reverse("catalogue-proposition-nouvelle") + (f"?designation={quote(q)}" if q else ""),
         }
         gabarit = "assets/catalogue/_contenu.html" if request.headers.get("HX-Request") else "assets/catalogue/index.html"
         return render(request, gabarit, contexte)

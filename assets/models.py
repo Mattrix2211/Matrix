@@ -537,3 +537,89 @@ class ArticleCatalogue(TimeStampedModel, OwnedModel):
 
     def __str__(self):
         return self.designation
+
+
+class ChefResponsableSpecialite(TimeStampedModel):
+    """Chef désigné d'un responsable de spécialité : il vise la proposition d'article après sa vérification."""
+    responsable = models.OneToOneField("accounts.ResponsableSpecialite", on_delete=models.CASCADE, related_name="chef_designe", verbose_name="Responsable de spécialité")
+    chef = models.ForeignKey(User, on_delete=models.CASCADE, related_name="responsables_specialite_diriges", verbose_name="Chef du responsable")
+
+    class Meta:
+        verbose_name = "Chef de responsable de spécialité"
+        verbose_name_plural = "Chefs de responsables de spécialité"
+
+    def clean(self):
+        super().clean()
+        if self.responsable_id and self.chef_id == self.responsable.user_id:
+            raise ValidationError({"chef": "Le chef doit être une autre personne que le responsable."})
+
+    def __str__(self):
+        return f"{self.chef} — chef de {self.responsable.user}"
+
+
+class PropositionArticle(TimeStampedModel, OwnedModel):
+    """Article proposé par le bord, absent du catalogue : il suit un circuit de visas
+    puis devient un ArticleCatalogue. `created_by` est le rédacteur."""
+
+    class Etat(models.TextChoices):
+        VISA_SECTEUR = "visa_secteur", "Visa du chef de secteur"
+        VISA_SERVICE = "visa_service", "Visa du chef de service"
+        VISA_COMA = "visa_coma", "Visa du commandant adjoint"
+        VERIFICATION = "verification", "Vérification par le responsable de spécialité"
+        VISA_CHEF_SPECIALITE = "visa_chef_specialite", "Visa du chef du responsable de spécialité"
+        PUBLIEE = "publiee", "Publiée au catalogue"
+        REFUSEE = "refusee", "Renvoyée au rédacteur"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    etat = models.CharField(max_length=24, choices=Etat.choices, default=Etat.VISA_SERVICE, db_index=True)
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="propositions_article", verbose_name="Bâtiment")
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="propositions_article", verbose_name="Service d'origine")
+    secteur = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="propositions_article", verbose_name="Secteur du rédacteur")
+    # Rôle et équipage du rédacteur à la rédaction : ils fixent la première étape et le titulaire du commandant adjoint.
+    role_redacteur = models.CharField(max_length=32)
+    equipage = models.CharField(max_length=8, blank=True, default="")
+    categorie = models.ForeignKey(CategorieCatalogue, on_delete=models.PROTECT, related_name="propositions", verbose_name="Catégorie")
+    designation = models.CharField(max_length=255, verbose_name="Désignation")
+    marque = models.CharField(max_length=255, blank=True, default="", verbose_name="Marque")
+    reference = models.CharField(max_length=255, blank=True, default="", verbose_name="Modèle / référence")
+    nno = models.CharField(max_length=255, blank=True, default="", verbose_name="NNO")
+    photo = models.FileField(upload_to="catalogue_propositions/", null=True, blank=True, verbose_name="Photo")
+    caracteristiques = JSONField(default=dict, blank=True, verbose_name="Caractéristiques")
+    duree_vie_mois = models.PositiveIntegerField(null=True, blank=True, verbose_name="Durée de vie ou de péremption type (mois)")
+    motif_refus = models.TextField(blank=True, default="")
+    verificateur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="propositions_article_verifiees")
+    article = models.OneToOneField(ArticleCatalogue, null=True, blank=True, on_delete=models.SET_NULL, related_name="proposition", verbose_name="Article publié")
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Proposition d'article"
+        verbose_name_plural = "Propositions d'article"
+
+    @property
+    def specialite(self):
+        return self.categorie.specialite
+
+    def __str__(self):
+        return self.designation
+
+
+class EvenementProposition(TimeStampedModel):
+    """Historique d'une proposition : chaque transition, avec son auteur et son motif."""
+
+    class Action(models.TextChoices):
+        SOUMISE = "soumise", "Soumise"
+        RESOUMISE = "resoumise", "Soumise à nouveau"
+        VISEE = "visee", "Visée"
+        CORRIGEE = "corrigee", "Corrigée"
+        VERIFIEE = "verifiee", "Vérifiée"
+        REFUSEE = "refusee", "Renvoyée au rédacteur"
+        PUBLIEE = "publiee", "Publiée"
+
+    proposition = models.ForeignKey(PropositionArticle, on_delete=models.CASCADE, related_name="evenements")
+    action = models.CharField(max_length=12, choices=Action.choices)
+    etape = models.CharField(max_length=24, choices=PropositionArticle.Etat.choices, blank=True, default="")
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="evenements_proposition_article")
+    motif = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["created_at", "pk"]

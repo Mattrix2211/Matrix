@@ -7,6 +7,8 @@
   <div class="mx-cat-commandes">
     {% if peut_creer_categorie and not equipage_a_terre %}<a class="btn btn-outline-primary btn-sm" href="{% url 'catalogue-categorie-nouvelle' %}?{% if categorie %}parent={{ categorie.pk }}&specialite={{ categorie.specialite_id }}{% elif specialite %}specialite={{ specialite.pk }}{% endif %}">{% icone "ajout" %} Nouvelle catégorie</a>{% endif %}
     {% if peut_creer_article and not equipage_a_terre %}<a class="btn btn-primary btn-sm" href="{% url 'catalogue-article-nouveau' %}?categorie={{ categorie.pk }}">{% icone "ajout" %} Nouvel article</a>{% endif %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'catalogue-propositions' %}">Propositions</a>
+    {% if peut_proposer and not equipage_a_terre %}<a class="btn btn-outline-primary btn-sm" href="{% url 'catalogue-proposition-nouvelle' %}">{% icone "ajout" %} Proposer un article</a>{% endif %}
   </div>
 </div>
 

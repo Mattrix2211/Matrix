@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.html import format_html
 from django.views import View
 
 from accounts.models import AuditLog
@@ -183,7 +184,8 @@ class ArticleEquiperView(LoginRequiredMixin, View):
             return self._afficher(request, article, secteurs, 2, valeurs)
         quantite, secteur, section, emplacement = objets
         creer_exemplaires(request.user, article, quantite, secteur, section, emplacement)
-        messages.success(
-            request, f"{quantite} exemplaire{'s' if quantite > 1 else ''} de « {article.designation} » ajouté{'s' if quantite > 1 else ''} au matériel : "
-                     "complétez les numéros de série, emplacements et dates depuis la liste du matériel.")
+        pluriel = "s" if quantite > 1 else ""
+        messages.success(request, format_html(
+            "{} exemplaire{} de « {} » ajouté{} au matériel : <a class=\"text-reset\" href=\"{}\">compléter les exemplaires</a>.",
+            quantite, pluriel, article.designation, pluriel, reverse("catalogue-article-exemplaires", args=[article.pk])))
         return redirect(reverse("catalogue-article", args=[article.pk]))

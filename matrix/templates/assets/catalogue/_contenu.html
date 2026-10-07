@@ -51,7 +51,11 @@
 
 {% if not tuiles and not articles %}
   {% if q %}
-    {% include "components/etat_vide.html" with icone="recherche" titre="Aucun article trouvé" texte="Essayez une autre désignation, une marque, un modèle ou un NNO." %}
+    {% if peut_proposer and not equipage_a_terre %}
+      {% include "components/etat_vide.html" with icone="recherche" titre="Aucun article trouvé" texte="Absent du catalogue ? Proposez-le : il sera visé puis publié pour toute la flotte." url=url_proposer libelle="Proposer cet article" %}
+    {% else %}
+      {% include "components/etat_vide.html" with icone="recherche" titre="Aucun article trouvé" texte="Essayez une autre désignation, une marque, un modèle ou un NNO." %}
+    {% endif %}
   {% elif categorie %}
     {% if peut_creer_article and not equipage_a_terre %}
       {% url 'catalogue-article-nouveau' as url_nouveau %}{% with url_vide=url_nouveau|add:'?categorie='|add:categorie_id %}

@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from assets.models import Asset
+from assets.proposition_article import propositions_a_viser
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.mixins import build_scope_q
@@ -104,6 +105,12 @@ def a_faire(user, aujourdhui):
                 reverse("calendar-index") + f"?view=day&date={aujourdhui:%Y-%m-%d}", "formation", NORMAL, 0,
                 _echeance(session.scheduled_at),
             ))
+    for proposition in propositions_a_viser(user):
+        entrees.append(_entree(
+            proposition, proposition.designation, f"Proposition d'article · {proposition.get_etat_display()}",
+            reverse("catalogue-proposition", args=[proposition.pk]), "catalogue", ATTENTION, 0,
+            _echeance(proposition.updated_at),
+        ))
     entrees.sort(key=lambda e: (_RANG_NIVEAU[e["niveau"]], -e["criticite"], e["echeance"]))
     return entrees
 

@@ -2,6 +2,7 @@
 {% block title %}{{ titre }}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">{{ titre }}</h1>
+{% if introduction %}<p class="text-secondary">{{ introduction }}</p>{% endif %}
 <form method="post" enctype="multipart/form-data" class="mx-surface mx-cat-formulaire">
   {% csrf_token %}
   {{ form.non_field_errors }}
@@ -13,7 +14,7 @@
     {% for e in champ.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
   </div>
   {% endfor %}
-  <button type="submit" class="btn btn-primary">Enregistrer</button>
+  <button type="submit" class="btn btn-primary">{{ bouton|default:"Enregistrer" }}</button>
   <a href="{{ annuler }}" class="btn btn-outline-secondary">Annuler</a>
 </form>
 {% endblock %}

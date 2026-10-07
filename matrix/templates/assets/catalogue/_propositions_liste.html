@@ -1,0 +1,13 @@
+{% if liste %}
+<ul class="mx-prop-liste">
+  {% for p in liste %}
+  <li><a class="mx-prop-ligne" href="{% url 'catalogue-proposition' p.pk %}">
+    <span class="mx-prop-ligne__titre">{{ p.designation }}</span>
+    <span class="mx-prop-ligne__meta">{{ p.service.name }} · {{ p.ship.name }} · {{ p.created_at|date:"d/m/Y" }}</span>
+    <span class="mx-prop-etat mx-prop-etat--{{ p.etat }}">{{ p.get_etat_display }}</span>
+  </a></li>
+  {% endfor %}
+</ul>
+{% elif vide %}
+<p class="text-secondary mb-0">{{ vide }}</p>
+{% endif %}

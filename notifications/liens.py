@@ -10,10 +10,13 @@ def liens_accessibles(request, notifications):
     cible connue et accessible. Les accès sont vérifiés en une requête par type."""
     liens = {}
     installations = {}
+    propositions = {}
     for notification in notifications:
         modele = notification.content_type.model if notification.content_type_id else None
         if modele == "installation" and notification.object_id:
             installations[notification.pk] = notification.object_id
+        elif modele == "propositionarticle" and notification.object_id:
+            propositions[notification.pk] = notification.object_id
         elif notification.verb.startswith("Ma journée"):
             # Digest quotidien : pas d'objet unique, on renvoie vers le calendrier
             liens[notification.pk] = reverse("calendar-index")
@@ -28,6 +31,15 @@ def liens_accessibles(request, notifications):
         for pk_notification, objet in installations.items():
             if objet in identifiants:
                 liens[pk_notification] = reverse("installation-detail", args=[objet])
+    if propositions:
+        # Même périmètre que la page de la proposition d'article
+        from assets.proposition_article import propositions_visibles
+
+        identifiants = {str(i) for i in propositions_visibles(request.user).filter(
+            pk__in=_uuids(propositions.values())).values_list("pk", flat=True)}
+        for pk_notification, objet in propositions.items():
+            if objet in identifiants:
+                liens[pk_notification] = reverse("catalogue-proposition", args=[objet])
     return liens
 
 

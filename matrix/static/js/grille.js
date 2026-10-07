@@ -203,7 +203,12 @@
 
   // Sans JavaScript, les boutons de la barre ne feraient rien : ils restent masqués.
   function afficherBarres(racine) {
-    racine.querySelectorAll('[data-grille-barre][hidden]').forEach(function (b) { b.hidden = false; });
+    racine.querySelectorAll('[data-grille-barre][hidden]').forEach(function (b) {
+      b.hidden = false;
+      // « Tout conforme » n'a de sens que s'il existe une colonne de conformité.
+      var bouton = b.querySelector('[data-grille-action="tout-conforme"]');
+      if (bouton && !grilleDe(b).querySelector('[data-conformite]')) bouton.hidden = true;
+    });
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { afficherBarres(document); });

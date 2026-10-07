@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load icones composants %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+<div class="mx-cat-exemplaires-entete">
+  <div>
+    <h1 class="h4 mb-1">{{ titre }}</h1>
+    <p class="text-secondary mb-0">Une ligne par exemplaire. Entrée : ligne du dessous · Ctrl+D ou bouton : recopier vers le bas · collez directement depuis Excel.</p>
+  </div>
+  <div class="mx-cat-exemplaires-liens">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'asset-import' %}">Importer depuis Excel</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ retour_url }}">Retour</a>
+  </div>
+</div>
+
+{% if lignes %}
+<form method="post" class="mt-3">
+  {% csrf_token %}
+  {% grille id="exemplaires" libelle="Informations de suivi des exemplaires" libelle_ligne="Exemplaire" colonnes=colonnes lignes=lignes libelle_final="Enregistrer les exemplaires" brouillon=cle_brouillon libelle_brouillon=titre %}{% fin_grille %}
+</form>
+{% else %}
+{% include "components/etat_vide.html" with titre="Aucun exemplaire à compléter" texte="Les exemplaires créés depuis le catalogue apparaîtront ici." %}
+{% endif %}
+{% endblock %}
