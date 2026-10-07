@@ -34,7 +34,7 @@ h1, h2, h3, h4, h5, h6 { break-after: avoid; }
 tr, .card, .mx-carte, .mx-surface, .mx-metric, figure, canvas, img { break-inside: avoid; }
 thead { display: table-header-group; }
 .table-responsive, .mx-grille, [style*="overflow"] { overflow: visible !important; max-height: none !important; }
-.mx-grille__entete { position: static; }
+.mx-grille__entete, .mx-grille__ligne-titre { position: static; }
 
 body { background: var(--imp-papier) !important; color: var(--imp-encre) !important; font-size: 11pt; line-height: 1.35; }
 
@@ -70,4 +70,5 @@ body { background: var(--imp-papier) !important; color: var(--imp-encre) !import
 .fiche-tournee th, .fiche-tournee td { padding: 1.5mm; }
 .fiche-tournee td { height: 10mm; }
 .fiche-tournee .fiche-col-case { width: auto; }
+.fiche-tournee .fiche-col-observation { width: 30%; }
 .fiche-tournee-lieu { display: block; font-size: 8pt; font-weight: 400; }

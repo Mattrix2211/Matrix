@@ -24,14 +24,36 @@ assert.strictEqual(g.horsPlage('', '0', '10'), false);
 assert.strictEqual(g.horsPlage('abc', '0', '10'), false);
 // Garde anti-doublon : un second chargement du script ne réinstalle rien.
 let ecouteurs = 0;
+const ecouteursParType = {};
 global.window = { addEventListener() {} };
 global.document = {
   readyState: 'complete',
-  addEventListener() { ecouteurs++; },
+  addEventListener(type, fn) { ecouteurs++; (ecouteursParType[type] = ecouteursParType[type] || []).push(fn); },
   querySelectorAll() { return []; }
 };
 delete require.cache[require.resolve('../static/js/grille.js')];
 require('../static/js/grille.js');
+// « Tout conforme » sans cellule active : toute la colonne de conformité, valeurs saisies conservées.
+function champ(valeur, conformite) {
+  const attrs = conformite ? { 'data-conformite': '', 'data-grille-champ': '' } : { 'data-grille-champ': '' };
+  return {
+    tagName: 'SELECT', value: valeur, options: [{ value: 'conforme' }, { value: 'non_conforme' }],
+    hasAttribute(n) { return n in attrs; }, getAttribute(n) { return n in attrs ? attrs[n] : null; },
+    closest() { return null; }
+  };
+}
+const colonne = [champ('', true), champ('non_conforme', true), champ('', true)];
+const texte = [champ('', false), champ('', false), champ('', false)];
+const lignes = colonne.map((c, i) => ({ querySelectorAll() { return [c, texte[i]]; } }));
+const grille = { querySelectorAll(sel) { return sel === 'tbody tr' ? lignes : []; } }; // aucune cellule active
+const bouton = {
+  getAttribute() { return 'tout-conforme'; },
+  closest(sel) { return sel === '[data-grille]' ? grille : bouton; }
+};
+ecouteursParType.click.forEach(fn => fn({ target: bouton }));
+assert.deepStrictEqual(colonne.map(c => c.value), ['conforme', 'non_conforme', 'conforme']);
+assert.deepStrictEqual(texte.map(c => c.value), ['', '', '']);
+
 const premier = ecouteurs;
 assert.ok(premier > 0);
 delete require.cache[require.resolve('../static/js/grille.js')];

@@ -20,8 +20,8 @@
     <thead>
       <tr>
         <th>Équipement</th>
-        {% for it in g.items %}<th{% if it.field_type == 'checkbox' %} class="fiche-col-case"{% endif %}>{{ it.label }}{% if it.unit %} ({{ it.unit }}){% endif %}{% if it.valeur_min is not None or it.valeur_max is not None %}<span class="fiche-tournee-lieu">attendu : {% if it.valeur_min is not None %}{{ it.valeur_min|floatformat:"-3" }}{% else %}…{% endif %} à {% if it.valeur_max is not None %}{{ it.valeur_max|floatformat:"-3" }}{% else %}…{% endif %}</span>{% endif %}</th>{% endfor %}
-        <th>Observation / non vu (motif)</th>
+        {% for e in g.entetes %}{% with it=e.item %}<th{% if it.field_type == 'checkbox' %} class="fiche-col-case"{% endif %}>{{ e.libelle }}{% if it.valeur_min is not None or it.valeur_max is not None %}<span class="fiche-tournee-lieu">attendu : {% if it.valeur_min is not None %}{{ it.valeur_min|floatformat:"-3" }}{% else %}…{% endif %} à {% if it.valeur_max is not None %}{{ it.valeur_max|floatformat:"-3" }}{% else %}…{% endif %}</span>{% endif %}</th>{% endwith %}{% endfor %}
+        <th class="fiche-col-observation">Observation / non vu (motif)</th>
       </tr>
     </thead>
     <tbody>
@@ -29,7 +29,7 @@
       <tr>
         <th scope="row">{{ ligne.designation }}{% if ligne.lieu %}<span class="fiche-tournee-lieu">{{ ligne.lieu }}</span>{% endif %}{% if ligne.repere %}<span class="fiche-tournee-lieu">{{ ligne.repere }}</span>{% endif %}</th>
         {% for it in g.items %}<td{% if it.field_type == 'checkbox' %} class="fiche-col-case"{% endif %}>{% if it.field_type == 'checkbox' %}<span class="fiche-case" aria-hidden="true"></span>{% elif it.field_type == 'date' %}__/__/____{% endif %}</td>{% endfor %}
-        <td></td>
+        <td class="fiche-col-observation"></td>
       </tr>
     {% endfor %}
     </tbody>

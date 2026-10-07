@@ -50,8 +50,9 @@ class TourneeImprimerView(LoginRequiredMixin, View):
             g["lignes"] = [{
                 "designation": o.asset.designation or o.asset.asset_type.name,
                 "lieu": tournee.emplacement_de(o.asset),
-                "repere": " · ".join(p for p in (o.asset.internal_id, o.asset.serial_number) if p),
+                "repere": tournee.repere_de(o.asset),
             } for o in g["occurrences"]]
+            g["entetes"] = [{"item": it, "libelle": tournee.libelle_colonne(it)} for it in g["items"]]
         return render(request, self.template_name, {
             "groupes": groupes, "grille_url": tournee.adresse("tournee-saisie", [o for g in groupes for o in g["occurrences"]]),
         })
@@ -84,6 +85,8 @@ class TourneeSaisieView(LoginRequiredMixin, View):
             g["brouillon"] = tournee.cle_brouillon(ids, rang)
             g["lignes"] = [{
                 "cle": o.pk, "libelle": tournee.libelle_equipement(o),
+                "titre": o.asset.designation or o.asset.asset_type.name,
+                "details": [d for d in (tournee.emplacement_de(o.asset), tournee.repere_de(o.asset)) if d],
                 "valeurs": (valeurs or {}).get(o.pk) or tournee.valeurs_enregistrees(g["items"], executions.get(o.pk)),
                 "erreurs": (erreurs or {}).get(o.pk, {}),
             } for o in g["occurrences"]]
@@ -134,17 +137,13 @@ class TourneeSaisieView(LoginRequiredMixin, View):
                 ligne = postes.get(occ.pk, {})
                 valeurs[occ.pk] = {**tournee.valeurs_enregistrees(g["items"], None), **ligne}
                 results, mesures, err = tournee.lire_ligne(g["items"], ligne)
-                motif, observation = ligne.get("non_vu", ""), ligne.get("observation", "")
+                observation = ligne.get("observation", "")
                 saisi = bool(results or mesures or err)
-                if motif:
-                    if saisi:
-                        err["non_vu"] = "Équipement non vu : videz ses contrôles ou effacez le motif."
-                    else:
-                        non_vus.append((occ, motif))
-                elif saisi:
+                # Contrôles saisis : le texte est une observation ; sinon, c'est le motif « non vu ».
+                if saisi:
                     a_enregistrer.append((occ, g["items"], results, mesures, observation))
                 elif observation:
-                    err["observation"] = "Renseignez les contrôles de cet équipement, ou un motif s'il n'a pas été vu."
+                    non_vus.append((occ, observation))
                 if err:
                     erreurs[occ.pk] = err
         if erreurs:

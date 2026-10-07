@@ -14,8 +14,11 @@ Paramètres :
                   par la vue) ou « conformite » (liste de choix) ;
                   choix : liste de {valeur, libelle} pour « conformite » (défaut : conforme / non_conforme)
   lignes        : liste de dictionnaires {cle, libelle, valeurs, erreurs}
+                  titre et details (liste de textes) facultatifs : titre affiché à la place du libellé,
+                  suivi des détails en petit (le libellé reste le nom accessible des cellules)
                   valeurs : {nom_de_colonne: valeur} ; erreurs : {nom_de_colonne: message}
                   (erreur affichée DANS la cellule, ligne par ligne)
+  colonne « large » : booléen facultatif, cellule plus large (observations)
   colonne « nombre » : min et max facultatifs (plage attendue) ; une valeur hors plage s'affiche en rouge, sans bloquer
   libelle_ligne : en-tête de la première colonne (« Élément » par défaut)
   lecture_seule : vrai = consultation seule (équipage à terre) : aucune saisie, aucun bouton
@@ -33,7 +36,7 @@ Champs envoyés : « <cle de ligne>__<nom de colonne> » (ex. « 12__etat »), u
 Clavier : flèches et Tab / Maj+Tab = cellule voisine, Entrée = cellule du dessous (n'envoie jamais le
 formulaire), Échap = annule la saisie en cours dans la cellule, Ctrl+D = recopie la cellule active vers
 le bas (même action que le bouton « Recopier vers le bas »), Ctrl+V = collage multi-cellules depuis Excel.
-« Tout conforme » : ne touche que les cellules de conformité VIDES ; les « non conforme » et « non
+« Tout conforme » : s'applique à toute la grille sans cellule active ; ne touche que les cellules de conformité VIDES ; les « non conforme » et « non
 applicable » déjà saisis sont conservés. Cellule modifiée = bordure gauche épaisse, comptée dans le
 pied. La barre d'outils est masquée tant que le JS ne l'a pas affichée. Le seul bouton --signal est le bouton principal ; la logique est dans static/js/grille.js.
 {% endcomment %}{% load composants icones %}<section class="mx-grille {{ classes }}" data-grille{% if brouillon and not lecture_seule %} data-brouillon="{{ brouillon }}" data-brouillon-libelle="{{ libelle_brouillon|default:libelle }}"{% endif %}{% if lecture_seule %} data-grille-lecture-seule{% endif %}>
@@ -52,8 +55,8 @@ pied. La barre d'outils est masquée tant que le JS ne l'a pas affichée. Le seu
       </thead>
       <tbody>
         {% for ligne in lignes %}<tr role="row">
-          <th scope="row" role="rowheader" class="mx-grille__ligne-titre">{{ ligne.libelle }}</th>
-          {% for col in colonnes %}{% with liste=col.choix|default:choix_conformite valeur=ligne|valeur_cellule:col.nom erreur=ligne|erreur_cellule:col.nom %}<td role="gridcell" class="mx-grille__cellule{% if erreur %} mx-grille__cellule--erreur{% endif %}">
+          <th scope="row" role="rowheader" class="mx-grille__ligne-titre">{{ ligne.titre|default:ligne.libelle }}{% for d in ligne.details %}<span class="mx-grille__ligne-detail">{{ d }}</span>{% endfor %}</th>
+          {% for col in colonnes %}{% with liste=col.choix|default:choix_conformite valeur=ligne|valeur_cellule:col.nom erreur=ligne|erreur_cellule:col.nom %}<td role="gridcell" class="mx-grille__cellule{% if col.large %} mx-grille__cellule--large{% endif %}{% if erreur %} mx-grille__cellule--erreur{% endif %}">
             {% if lecture_seule %}{% if col.type == "conformite" %}{% for choix in liste %}{% if choix.valeur == valeur %}{{ choix.libelle }}{% endif %}{% endfor %}{% else %}{{ valeur }}{% endif %}
             {% elif col.type == "conformite" %}<select class="mx-grille__champ" data-grille-champ data-initial="{{ valeur|initiale_liste:liste }}" data-conformite name="{{ ligne.cle }}__{{ col.nom }}" id="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}" aria-label="{{ col.libelle }} : {{ ligne.libelle }}"{% if erreur %} aria-invalid="true" aria-describedby="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}-erreur"{% endif %}>
               <option value="">À saisir</option>

@@ -105,10 +105,21 @@
 <script>
 (function(){
   // Une page quittée avant la fin du chargement annule la requête : sans conséquence.
+  // Couleurs de la charte (variables CSS), pas celles par défaut de Chart.js.
+  function couleur(nom) { return getComputedStyle(document.documentElement).getPropertyValue(nom).trim(); }
+  const palette = ['--signal-ui', '--amber', '--green-tech', '--red', '--fog', '--slate'].map(couleur);
   async function tracer(id, url, type) {
     try {
       const res = await fetch(url);
-      new Chart(document.getElementById(id), {type: type, data: await res.json()});
+      const data = await res.json();
+      const options = {};
+      if (type === 'bar') {
+        data.datasets.forEach(function (d, i) { d.backgroundColor = palette[i === 0 ? 0 : 2]; });
+        options.scales = {y: {beginAtZero: true, ticks: {precision: 0}}}; // effectifs entiers
+      } else {
+        data.datasets.forEach(function (d) { d.backgroundColor = palette; });
+      }
+      new Chart(document.getElementById(id), {type: type, data: data, options: options});
     } catch (e) { /* requête annulée */ }
   }
   tracer('chartPreventive', '/api/dashboard/preventive_week/', 'bar');

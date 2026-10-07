@@ -18,6 +18,7 @@ STATUTS_CLOS = ("DONE", "CANCELLED")
 STATUTS_VERROUILLES = STATUTS_CLOS + ("WAITING_VALIDATION",)
 MAX_IDENTIFIANTS = 500
 SANS_CATEGORIE = "Sans catégorie"
+COLONNE_OBSERVATION = "Observation / non vu (motif)"
 
 
 def identifiants(texte):
@@ -56,6 +57,23 @@ def emplacement_de(asset):
     return " · ".join(p for p in parties if p)
 
 
+def repere_de(asset):
+    """« Repère · n° de série » : ce qui distingue deux équipements de même désignation."""
+    return " · ".join(p for p in (asset.internal_id, asset.serial_number) if p)
+
+
+def libelle_colonne(item):
+    """Libellé d'une ligne de fiche, l'unité n'étant ajoutée que si le libellé ne la porte pas déjà."""
+    if item.unit and f"({item.unit})".lower() not in item.label.lower():
+        return f"{item.label} ({item.unit})"
+    return item.label
+
+
+def _est_observation(item):
+    """Ligne de texte libre « Observation(s) » de la fiche : remplacée par la colonne unique."""
+    return item.field_type == "text" and item.label.strip().lower().startswith("observation")
+
+
 def _cle_tri(occ):
     """Pont (ordre du plan, ceux sans pont en dernier), emplacement, puis désignation."""
     a = occ.asset
@@ -83,7 +101,8 @@ def groupes(occurrences):
         modele = occ.plan.checklist_template if occ.plan_id else None
         modele_id = modele.pk if modele else None
         if modele_id not in items_par_modele:
-            items_par_modele[modele_id] = list(modele.items.order_by("order", "pk")) if modele else []
+            items_par_modele[modele_id] = (
+                [it for it in modele.items.order_by("order", "pk") if not _est_observation(it)] if modele else [])
         groupe = par_cle.setdefault((categorie_de(occ.asset), modele.name if modele else "", modele_id or 0), {
             "categorie": categorie_de(occ.asset), "modele": modele.name if modele else "",
             "items": items_par_modele[modele_id], "occurrences": [],
@@ -103,17 +122,17 @@ def cle_brouillon(ids, rang):
 
 
 def libelle_equipement(occ):
-    """Première colonne : désignation et emplacement de l'équipement."""
+    """Libellé accessible d'une ligne : désignation, emplacement et repère."""
     a = occ.asset
     lieu = emplacement_de(a)
-    return f"{a.designation or a.asset_type.name}" + (f" — {lieu}" if lieu else "")
+    return " — ".join(p for p in (a.designation or a.asset_type.name, lieu, repere_de(a)) if p)
 
 
 def colonnes_grille(items):
-    """Colonnes de la grille : une par ligne de fiche, puis l'observation et « Non vu »."""
+    """Colonnes de la grille : une par ligne de fiche, puis l'observation (ou motif si non vu)."""
     colonnes = []
     for it in items:
-        libelle = f"{it.label} ({it.unit})" if it.unit else it.label
+        libelle = libelle_colonne(it)
         if it.field_type == "checkbox":
             colonnes.append({"nom": f"i{it.pk}", "libelle": libelle, "type": "conformite",
                              "choix": [{"valeur": cle, "libelle": nom} for cle, nom in ETATS]})
@@ -122,8 +141,7 @@ def colonnes_grille(items):
                              "min": it.valeur_min, "max": it.valeur_max})
         else:
             colonnes.append({"nom": f"i{it.pk}", "libelle": libelle, "type": "date" if it.field_type == "date" else "texte"})
-    colonnes.append({"nom": "observation", "libelle": "Observation"})
-    colonnes.append({"nom": "non_vu", "libelle": "Non vu : motif", "placeholder": "Motif si non vu"})
+    colonnes.append({"nom": "observation", "libelle": COLONNE_OBSERVATION, "placeholder": "Motif si non vu", "large": True})
     return colonnes
 
 
@@ -152,7 +170,7 @@ def lire_ligne(items, donnees):
 
 def valeurs_enregistrees(items, execution):
     """Valeurs de la grille pour une ligne, pré-remplies par un compte rendu commencé en direct."""
-    valeurs = {"observation": execution.notes if execution else "", "non_vu": ""}
+    valeurs = {"observation": execution.notes if execution else ""}
     lignes = lignes_de_saisie(items, execution.results if execution else {}, execution.measurements if execution else {})
     for ligne in lignes:
         it = ligne["item"]

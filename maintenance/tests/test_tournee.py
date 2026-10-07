@@ -67,7 +67,7 @@ class TourneeTests(TestCase):
         r = self._poster({
             self.a: {f"i{self.etat.pk}": "conforme", f"i{self.pression.pk}": "12,5"},
             self.b: {f"i{self.etat.pk}": "non_conforme", f"i{self.pression.pk}": "9"},
-            self.c: {"non_vu": "Local fermé"},
+            self.c: {"observation": "Local fermé"},
         })
         self.assertEqual(r.status_code, 302)
         ex_a = MaintenanceExecution.objects.get(occurrence=self.a)
@@ -88,10 +88,23 @@ class TourneeTests(TestCase):
         self.assertContains(r, "valeur numérique illisible", status_code=400)
         self.assertFalse(MaintenanceExecution.objects.exists())
 
-    def test_non_vu_avec_controles_refuse(self):
-        r = self._poster({self.a: {f"i{self.etat.pk}": "conforme", "non_vu": "Absent"}})
-        self.assertEqual(r.status_code, 400)
-        self.assertFalse(MaintenanceExecution.objects.exists())
+    def test_observation_avec_controles_va_dans_les_notes(self):
+        self._poster({self.a: {f"i{self.etat.pk}": "conforme", "observation": "Goupille rouillée"}})
+        self.assertEqual(MaintenanceExecution.objects.get(occurrence=self.a).notes, "Goupille rouillée")
+        self.assertFalse(AuditLog.objects.filter(action="tournee_non_vu").exists())
+
+    def test_une_seule_colonne_observation_et_unite_une_fois(self):
+        ChecklistItemTemplate.objects.create(
+            template=self.etat.template, label="Observations", field_type="text", order=3)
+        ChecklistItemTemplate.objects.create(
+            template=self.etat.template, label="Débit (l/min)", field_type="number", unit="l/min", order=4)
+        for nom in ("tournee-saisie", "tournee-imprimer"):
+            contenu = self.client.get(f"{reverse(nom)}?ids={self.ids}").content.decode()
+            self.assertIn("Observation / non vu (motif)", contenu)
+            self.assertNotIn("Observations", contenu)
+            self.assertIn("Pression (bar)", contenu)
+            self.assertNotIn("(bar) (bar)", contenu)
+            self.assertNotIn("(l/min) (l/min)", contenu)
 
     def test_ligne_hors_perimetre_refusee(self):
         autre_ship = Ship.objects.create(name="Autre", code="AU-TOUR")
@@ -144,8 +157,8 @@ class TourneeTests(TestCase):
                                  MaintenanceExecution.objects.count()))
 
     def test_double_envoi_non_vu_sans_doublon(self):
-        self._poster({self.c: {"non_vu": "Local fermé"}})
-        self._poster({self.c: {"non_vu": "Local fermé"}})
+        self._poster({self.c: {"observation": "Local fermé"}})
+        self._poster({self.c: {"observation": "Local fermé"}})
         self.assertEqual(AuditLog.objects.filter(action="tournee_non_vu").count(), 1)
         self.assertEqual(Message.objects.filter(body__contains="Local fermé").count(), 1)
 
@@ -181,12 +194,11 @@ class TourneeTests(TestCase):
 
     def test_html_dans_motif_et_observation_echappe(self):
         piege = "<script>alert(1)</script>"
-        r = self._poster({self.a: {f"i{self.etat.pk}": "conforme", f"i{self.pression.pk}": "12", "observation": piege},
-                          self.c: {f"i{self.etat.pk}": "conforme", "non_vu": piege}})
+        r = self._poster({self.a: {f"i{self.etat.pk}": "conforme", f"i{self.pression.pk}": "abc", "observation": piege}})
         self.assertEqual(r.status_code, 400)
         self.assertNotContains(r, piege, status_code=400)
         self.assertContains(r, "&lt;script&gt;", status_code=400)
-        self._poster({self.c: {"non_vu": piege}})
+        self._poster({self.c: {"observation": piege}})
         self.assertNotContains(self.client.get(reverse("occurrence-execute", args=[self.c.pk])), piege)
 
     def test_compte_rendu_individuel_refuse_equipage_a_terre(self):
