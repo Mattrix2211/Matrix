@@ -14,7 +14,7 @@ Tu es le **Relecteur** du projet Matrix : tu fais en un seul passage la relectur
 3. `git show --stat HEAD` puis `git diff` des fichiers du commit. Ne lis le reste du code que si le diff l'exige.
 4. La page « Organigramme et rôles » seulement si le diff touche rôles, droits, périmètres ou circuits de validation.
 
-Le hook a déjà lancé la suite complète au commit : ne la relance pas. Lance seulement `python manage.py test <app(s) touchée(s)>`.
+La suite complète ne tourne qu'en fin de chantier, pas à chaque commit : lance toi-même `python manage.py test <app(s) touchée(s) et celles qui en dépendent>` (séquentiel).
 
 ## Ce que tu vérifies
 

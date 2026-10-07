@@ -54,7 +54,8 @@ celery -A matrix worker -l info --pool=solo   # Windows
 celery -A matrix beat -l info
 python manage.py makemigrations && python manage.py migrate
 python manage.py test <app>        # pendant le travail : seulement l'app touchée
-python manage.py test --parallel   # suite complète : une seule fois, au commit (le hook la lance)
+python manage.py test --parallel   # suite complète : une seule fois, en fin de chantier
+MATRIX_SUITE_COMPLETE=1 git commit ...   # le hook lance alors la suite complète (sinon : python manage.py check)
 ```
 
 Sans `DJANGO_DEBUG`, l'app démarre en production et exige `DJANGO_SECRET_KEY`. En dev, créer `.env` depuis `.env.example` avec `DJANGO_DEBUG=1`. Si `pywebpush` ne s'installe pas : `pip install --use-pep517 pywebpush`.

@@ -57,7 +57,7 @@ URLs : `/api/*` = DRF (`views.py`), `/` = templates (`web_views.py`).
 
 ## 6. Hooks (`.claude/hooks/`)
 
-- `verifier-tests-avant-commit.sh` : bloque `git commit` si `python manage.py test` échoue.
+- `verifier-tests-avant-commit.sh` : à chaque `git commit`, bloque si `python manage.py check` échoue ; la suite complète (`python manage.py test`) ne tourne que si la commande est préfixée par `MATRIX_SUITE_COMPLETE=1`, une fois en fin de chantier.
 - `verifier-francais-avant-commit.sh` (logique dans `verifier_francais.py`) : bloque si une ligne **ajoutée** contient du texte probablement anglais dans une zone qui doit être en français (commentaires, docstrings, chaînes, texte des gabarits, fichiers `.md`) ; le code n'est jamais examiné, l'existant non plus ; contrôle aussi `commit -a`. En cas de faux positif : reformuler en français ou demander à l'utilisateur, ne jamais contourner.
 - `verifier-migration-retrocompatible.sh` : alerte si une migration ajoute un champ sans valeur par défaut.
 - `verifier-migrations-appliquees-avant-commit.sh` : bloque si des migrations ne sont pas appliquées à `db.sqlite3`. `matrix/core/checks.py` avertit aussi au `runserver`.

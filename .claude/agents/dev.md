@@ -19,7 +19,7 @@ Tu es le **Développeur** du projet Matrix. Tu démarres sans mémoire.
 1. Statut Notion **« En cours »**.
 2. Code la solution en respectant `CLAUDE.md` : tout ce qui est lu par un humain en français (interface, commentaires, docstrings, documentation ; seul le code peut être en anglais), simple, étend l'existant (jamais de système parallèle), hors-ligne, **commentaires courts**.
 3. Pendant le travail, teste seulement l'app touchée : `python manage.py test <app>`.
-4. `git add <fichiers>` puis `git commit`. Le hook lance alors la suite complète : si elle échoue, lis seulement la fin du journal (`tail -n 60 /tmp/matrix_test_output.log`), corrige, recommence.
+4. `git add <fichiers>` puis `git commit`. Le hook ne lance que `python manage.py check` ; la suite complète est lancée une seule fois en fin de chantier par l'orchestrateur (`MATRIX_SUITE_COMPLETE=1`). Teste donc toi-même les apps touchées et celles qui en dépendent.
 5. Classe la tâche (définitions dans `CLAUDE.md`) :
    - **Petite** : `git push`, statut **« Terminé »**, commentaire `[Dev] ✅ <fichiers> — <changement en une ligne>`.
    - **Grosse** : statut **« En vérification »**, commentaire `[Dev] <fichiers> — <changement en une ligne>`. Indique que la tâche passe au `relecteur`.
