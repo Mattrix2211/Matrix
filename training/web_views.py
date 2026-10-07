@@ -7,7 +7,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Prefetch, Q
-from django.shortcuts import redirect, render
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import ListView, View
 
@@ -15,6 +17,7 @@ from matrix.core.commandants_adjoints import est_commandant_adjoint_du_service, 
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import perimetre_hierarchique_q, ship_id_for_user
 from notifications.models import Notification
+from threads.utils import ajouter_commentaire, contexte_discussion
 from org.models import Ship
 from accounts.models import AuditLog, Roles
 
@@ -30,11 +33,17 @@ from .models import (
     TrainingRecord,
     TrainingSession,
     TrainingWaitlistEntry,
+    _prerequis_manquants,
     dossiers_formation_visibles_q,
     navire_de,
     peut_valider_formation,
 )
-from .services import calculer_carte_competences, regrouper_par_categorie
+from .services import (
+    CATEGORIE_NON_RENSEIGNEE,
+    calculer_carte_competences,
+    qualifications_validees_de,
+    regrouper_par_categorie,
+)
 
 User = get_user_model()
 
@@ -411,6 +420,37 @@ def _afficher_erreur_prerequis(request, erreur):
         messages.error(request, str(erreur))
 
 
+_ETATS_PERSONNELS = {
+    "badge-conforme": ("ok", "À jour"),
+    "text-bg-warning": ("attention", "À renouveler"),
+    "text-bg-danger": ("danger", "Expirée"),
+}
+
+
+def _etat_personnel(qualification):
+    """État de la formation pour le marin connecté : (couleur, libellé)."""
+    if qualification is None:
+        return "neutre", "Non suivie"
+    return _ETATS_PERSONNELS[qualification.badge_classe]
+
+
+def _grouper_par_categorie(formations):
+    """Formations regroupées par catégorie, les non catégorisées en dernier."""
+    groupes = defaultdict(list)
+    for f in formations:
+        groupes[f.category or CATEGORIE_NON_RENSEIGNEE].append(f)
+    return sorted(groupes.items(), key=lambda g: (g[0] == CATEGORIE_NON_RENSEIGNEE, g[0].lower()))
+
+
+def _synthese_personnelle(formations):
+    """Compteurs d'états du marin et taux de formations à jour."""
+    compteurs = {"ok": 0, "attention": 0, "danger": 0, "neutre": 0}
+    for f in formations:
+        compteurs[f.mon_etat] += 1
+    total = len(formations)
+    return {**compteurs, "total": total, "taux": round(100 * compteurs["ok"] / total) if total else 0}
+
+
 class TrainingCourseListView(LoginRequiredMixin, ListView):
     """Liste des formations, avec configuration des prérequis pour les chefs
     (T-FORM). Point d'entrée du module Formations, avant l'arbre de compétences
@@ -588,6 +628,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         # setdefault garde la PREMIÈRE occurrence rencontrée par formation,
         # donc la plus récente, plutôt que la dernière (ce que ferait un
         # simple dict comprehension, qui écraserait avec la plus ancienne).
+        mes_qualifications = {q.course_id: q for q in qualifications_validees_de(self.request.user, aujourdhui)}
         mes_candidatures_par_course = {}
         for c in CandidatureFormation.objects.filter(marin=self.request.user).select_related("course"):
             mes_candidatures_par_course.setdefault(c.course_id, c)
@@ -599,7 +640,12 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             f.nb_a_jour = sum(1 for r in records if r.expires_at >= aujourdhui)
             f.nb_expires = sum(1 for r in records if r.expires_at < aujourdhui)
             f.dernieres_validations = sorted(records, key=lambda r: r.completed_at, reverse=True)[:5]
+            ma_qualification = mes_qualifications.get(f.id)
+            f.mon_etat, f.mon_etat_libelle = _etat_personnel(ma_qualification)
+            f.mon_expiration = ma_qualification.expires_at if ma_qualification else None
         ctx["formations"] = formations
+        ctx["groupes_formations"] = _grouper_par_categorie(formations)
+        ctx["synthese_personnelle"] = _synthese_personnelle(formations)
 
         # Peut valider une formation : rôle de supervision globale
         # (COMMANDANT+, comme training.models.peut_valider_formation) OU
@@ -1819,6 +1865,76 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             )
         messages.success(request, "Proposition de formation refusée.")
         return redirect("formation-list")
+
+
+class FormationDetailView(TrainingCourseListView):
+    """Fiche d'une formation : réutilise le contexte du catalogue (sessions,
+    référents, validations, droits), restreint à une seule formation.
+    Lecture seule : les actions postent vers le catalogue, qui reste le
+    point d'entrée des droits et des circuits de validation."""
+
+    template_name = "training/formation_detail.html"
+    http_method_names = ["get", "head", "options"]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(pk=self.kwargs["pk"])
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        if not ctx["formations"]:
+            raise Http404
+        f = ctx["formation"] = ctx["formations"][0]
+        manquants = list(_prerequis_manquants(self.request.user, f))
+        f.prerequis_manquants = manquants
+        ctx.update(contexte_discussion(f, "formation-commentaire"))
+        ctx.update(_en_tete_formation(f, ctx["peut_valider"], bool(manquants)))
+        return ctx
+
+
+def _en_tete_formation(f, peut_valider, prerequis_manquants):
+    """Indicateurs, action principale et menu de l'en-tête de fiche : l'action
+    n'est proposée que si elle peut aboutir."""
+    indicateurs = [
+        {"libelle": "Mon état", "valeur": f.mon_etat_libelle, "etat": f.mon_etat if f.mon_etat != "neutre" else ""},
+        {"libelle": "Validité", "valeur": f.validity_days, "unite": "jours"},
+        {"libelle": "Marins à jour", "valeur": f.nb_a_jour,
+         "detail": f"{f.nb_expires} à renouveler" if f.nb_expires else ""},
+        {"libelle": "Sessions à venir", "valeur": len(f.sessions_a_venir)},
+    ]
+    action = None
+    session = None if prerequis_manquants else next(
+        (s for s in f.sessions_a_venir
+         if not s.deja_reserve and not (s.mon_entree_attente and s.places_restantes() == 0)),
+        None,
+    )
+    if session is not None:
+        complete = session.capacite_max and session.places_restantes() == 0
+        action = {
+            "libelle": "Rejoindre la liste d'attente" if complete else "Réserver une place",
+            "icone": "calendrier", "formulaire": f"reserver-{session.id}",
+        }
+        session.action_principale = True
+    elif peut_valider:
+        action = {"libelle": "Valider une formation", "icone": "terminee", "modale": "validerFormationModal"}
+    elif not f.ma_candidature and not f.sessions_a_venir:
+        action = {"libelle": "Candidater à ce stage", "icone": "formation", "formulaire": "candidater-form"}
+    menu = [{"libelle": "Arbre de compétences", "icone": "arbre_competences", "url": reverse("formation-arbre-competences")}]
+    return {"indicateurs_fiche": indicateurs, "action_principale": action, "menu_fiche": menu}
+
+
+class FormationCommentCreateView(LoginRequiredMixin, View):
+    """Ajoute un commentaire à la discussion d'une formation du catalogue,
+    visible de tout utilisateur connecté comme la formation elle-même."""
+
+    def post(self, request, pk):
+        course = get_object_or_404(TrainingCourse, pk=pk, statut_validation="ACTIVE")
+        corps = request.POST.get("body", "").strip()
+        if not corps:
+            messages.error(request, "Le commentaire ne peut pas être vide.")
+        else:
+            ajouter_commentaire(course, request.user, corps)
+            messages.success(request, "Commentaire ajouté.")
+        return redirect("formation-detail", pk=course.pk)
 
 
 class ValiderFormationView(LoginRequiredMixin, View):

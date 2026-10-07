@@ -313,17 +313,17 @@ class AffichageSectionSessionsAVenirTests(TestCase):
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
 
     def test_message_clair_si_aucune_session_planifiee(self):
-        TrainingCourse.objects.create(title="Formation sans session")
+        course = TrainingCourse.objects.create(title="Formation sans session")
         self.client.login(username="marin_affi", password="pass")
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{course.pk}/")
         self.assertContains(r, "Sessions à venir")
-        self.assertContains(r, "Aucune session prévue pour l'instant.")
+        self.assertContains(r, "Aucune session prévue")
 
     def test_section_affiche_la_session_planifiee(self):
         course = TrainingCourse.objects.create(title="Formation avec session")
         TrainingSession.objects.create(course=course, scheduled_at=timezone.now() + timedelta(days=7))
         self.client.login(username="marin_affi", password="pass")
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{course.pk}/")
         self.assertContains(r, "Sessions à venir")
         self.assertContains(r, "Réserver ma place")
-        self.assertNotContains(r, "Aucune session prévue pour l'instant.")
+        self.assertNotContains(r, "Aucune session prévue")

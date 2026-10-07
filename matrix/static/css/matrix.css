@@ -1227,3 +1227,51 @@ a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
 .mx-cat-compteur { font-weight: 600; margin-bottom: 0.5rem; }
 .mx-cat-exemplaires { list-style: none; padding: 0; margin: 0; }
 .mx-cat-exemplaires li { padding: 0.25rem 0; border-bottom: 1px solid var(--bordure, var(--bs-border-color)); }
+.mx-cat-exemplaires-entete { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; align-items: flex-start; }
+.mx-cat-exemplaires-liens { display: flex; gap: 0.5rem; }
+
+/* Annuaire : tableau, barre de sélection et formulaire utilisateur en page */
+.mx-annuaire-outils { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
+.mx-annuaire-outils > input { flex: 1 1 14rem; max-width: 22rem; }
+.mx-annuaire-outils__filtre select { min-width: 13rem; }
+.mx-annuaire-filtres { margin-bottom: var(--s3); }
+.mx-annuaire { font-size: .875rem; color: var(--text); }
+.mx-annuaire th { white-space: nowrap; color: var(--text-sec); font-weight: 600; }
+.mx-annuaire__case { width: 2rem; }
+.mx-annuaire__menu { width: 2.5rem; text-align: right; }
+.mx-annuaire__tri { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.mx-annuaire__tri:hover, .mx-annuaire__tri:focus-visible { color: var(--text); text-decoration: underline; }
+th[aria-sort="ascending"] .mx-annuaire__tri::after { content: " ▲"; font-size: .7em; }
+th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size: .7em; }
+.mx-barre-selection { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); padding: var(--s2) var(--s3); margin-bottom: var(--s3); background: var(--surface); border: 1px solid var(--signal-ui); border-radius: var(--r-md); }
+.mx-utilisateur-form { max-width: 56rem; padding: var(--s4); }
+.mx-utilisateur-form__groupe { margin-bottom: var(--s4); border: 0; padding: 0; }
+.mx-utilisateur-form__groupe legend { margin-bottom: var(--s2); color: var(--text-sec); font-weight: 600; }
+.mx-utilisateur-form__actions { display: flex; gap: var(--s2); }
+
+/* Paramètres : navigation verticale à gauche */
+.mx-parametres { display: grid; grid-template-columns: 13.5rem minmax(0, 1fr); gap: var(--s4); align-items: start; }
+.mx-parametres__nav { position: sticky; top: var(--s3); display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.mx-parametres__groupe-titre { margin: 0 0 var(--s1); font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-ter); }
+.mx-parametres__lien { display: block; padding: var(--s1) var(--s2); border-radius: var(--r-sm, 4px); color: var(--text-sec); text-decoration: none; font-size: .9rem; }
+.mx-parametres__lien:hover, .mx-parametres__lien:focus-visible { background: var(--bg); color: var(--text); }
+.mx-parametres__lien--actif { background: var(--bg); color: var(--text); font-weight: 600; box-shadow: inset 3px 0 0 var(--signal-ui); }
+@media (max-width: 767.98px) { .mx-parametres { grid-template-columns: 1fr; } .mx-parametres__nav { position: static; } }
+
+/* Catalogue : propositions d'articles */
+.mx-frise__etape--refusee { border-top-color: var(--red-texte); color: var(--text); font-weight: 600; }
+.mx-prop-liste { list-style: none; margin: 0; padding: 0; }
+.mx-prop-ligne { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--border); color: var(--text); text-decoration: none; }
+.mx-prop-ligne:hover .mx-prop-ligne__titre { color: var(--signal-ui); }
+.mx-prop-ligne__titre { font-weight: 600; }
+.mx-prop-ligne__meta { flex: 1 1 auto; color: var(--text-sec); font-size: .8125rem; }
+.mx-prop-etat { display: inline-block; padding: 0 var(--s2); border: 1px solid var(--border); border-radius: 999px; font-size: .75rem; font-weight: 600; color: var(--text-sec); vertical-align: middle; }
+.mx-prop-etat--publiee { border-color: var(--green-tech); color: var(--text); }
+.mx-prop-etat--refusee { border-color: var(--red-texte); color: var(--red-texte); }
+.mx-prop-colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--s3); }
+.mx-prop-photo { max-width: 100%; max-height: 14rem; margin-bottom: var(--s3); border-radius: var(--r-sm, 4px); }
+.mx-prop-fiche { display: grid; grid-template-columns: max-content 1fr; gap: var(--s1) var(--s3); margin: 0; }
+.mx-prop-fiche dt { color: var(--text-sec); font-weight: 400; }
+.mx-prop-fiche dd { margin: 0; }
+.mx-prop-historique { list-style: none; margin: 0; padding: 0; }
+.mx-prop-historique li { padding: var(--s2) 0; border-bottom: 1px solid var(--border); }

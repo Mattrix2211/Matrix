@@ -1,14 +1,13 @@
 {% extends "base.html" %}
-{% load static training_extras %}
+{% load static icones training_extras %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">Arbre de compétences</h1>
-  <a class="btn btn-outline-secondary" href="{% url 'formation-list' %}">
-    <i class="bi bi-list"></i> Gérer les formations
-  </a>
+<div class="mx-fiche__haut mb-3">
+  <div>
+    <h1 class="mx-fiche__titre">Arbre de compétences</h1>
+    <p class="mx-fiche__sous-titre">Catalogue commun à toutes les unités : le même arbre est visible par tous les marins, quel que soit leur bord.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'formation-list' %}">{% icone "formation" %} Catalogue des formations</a>
 </div>
-
-<p class="small text-muted">Catalogue commun à toutes les unités : le même arbre est visible par tous les marins, quel que soit leur bord.</p>
 
 <div class="mb-4 d-flex gap-4 small">
   <span><span class="legende-puce legende-puce--valide"></span>Validé</span>
@@ -17,7 +16,7 @@
 </div>
 
 {% if not categories %}
-  <p class="text-muted">Aucune formation dans le catalogue pour le moment.</p>
+  {% include "components/etat_vide.html" with icone="arbre_competences" titre="L'arbre est vide" texte="Il se dessinera dès que des formations seront ajoutées au catalogue." %}
 {% else %}
   {# Le graphe (niveaux, anti-cycle) est calculé sur tout le catalogue ; seul #}
   {# cet affichage est réparti par catégorie (domaine métier). Un prérequis  #}
@@ -32,7 +31,7 @@
   {# de s'empiler l'une sous l'autre ; seules les formations reliées par un  #}
   {# prérequis (niveaux successifs d'une même chaîne) restent empilées.      #}
   <p class="small text-muted d-flex align-items-center gap-2 mb-2">
-    <i class="bi bi-arrows-move"></i>
+    {% icone "information" %}
     Cliquez n'importe où dans le cadre ci-dessous et glissez pour vous déplacer dans l'arbre, comme sur une carte.
   </p>
   <div class="arbre-viewport" id="arbre-viewport">
@@ -61,11 +60,11 @@
                           <h6 class="card-title mb-1">{{ item.course.title }}</h6>
                           <span class="badge badge-etat badge-etat--{{ item.etat|lower }}">
                             {% if item.etat == 'VALIDE' %}
-                              <i class="bi bi-check-circle"></i> Validé
+                              {% icone "terminee" %} Validé
                             {% elif item.etat == 'DISPONIBLE' %}
-                              <i class="bi bi-unlock"></i> Disponible
+                              {% icone "formation" %} Disponible
                             {% else %}
-                              <i class="bi bi-lock"></i> Verrouillé
+                              {% icone "verrouille" %} Verrouillé
                             {% endif %}
                           </span>
                         </div>
@@ -77,7 +76,7 @@
                                 <a href="#cat-{{ p.category|categorie_affichee|slugify }}"
                                    class="badge text-bg-light border"
                                    title="Ce prérequis appartient à une autre catégorie">
-                                  <i class="bi bi-box-arrow-up-right"></i> {{ p.category|categorie_affichee }}
+                                  {% icone "lien_direct" %} {{ p.category|categorie_affichee }}
                                 </a>
                               {% endif %}{% if not forloop.last %}, {% endif %}
                             {% endfor %}
