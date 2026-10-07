@@ -2,33 +2,39 @@
 {% load org_extras %}
 {% block content %}
 <h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules or peut_voir_equipage %}Paramètres{% else %}Mes notifications{% endif %}</h1>
-<ul class="nav nav-tabs mb-3">
+<div class="mx-parametres">
+<nav class="mx-parametres__nav" aria-label="Sections des paramètres">
   {% if user.is_superuser %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Organisation</h2>
+    <a class="mx-parametres__lien {% if active_tab == 'navires' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=navires">Unités</a>
+    <a class="mx-parametres__lien {% if active_tab == 'hierarchie' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a>
+    <a class="mx-parametres__lien {% if active_tab == 'installations' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=installations">Installations</a>
+  </div>
   {% endif %}
-  {% if user.is_superuser or peut_gerer_responsables %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="/parametre/?tab=utilisateurs">Utilisateurs</a></li>
+  {% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_voir_equipage %}
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Utilisateurs et droits</h2>
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'utilisateurs' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=utilisateurs">Référentiels et rôles</a>{% endif %}
+    {% if peut_gerer_seuils %}<a class="mx-parametres__lien {% if active_tab == 'seuils_role' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Seuils de rôle</a>{% endif %}
+    {% if user.is_superuser or peut_gerer_responsables %}<a class="mx-parametres__lien {% if active_tab == 'responsables' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=responsables">Responsables</a>{% endif %}
+    {% if peut_voir_equipage %}<a class="mx-parametres__lien {% if active_tab == 'equipage' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=equipage{% if equipage_ship %}&ship={{ equipage_ship.id }}{% endif %}">Équipage</a>{% endif %}
+  </div>
   {% endif %}
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Application</h2>
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'generale' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=generale">Générale et sécurité</a>{% endif %}
+    {% if peut_gerer_modules %}<a class="mx-parametres__lien {% if active_tab == 'modules' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a>{% endif %}
+    <a class="mx-parametres__lien {% if active_tab == 'notifications' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=notifications">Notifications</a>
+  </div>
   {% if user.is_superuser %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Unités</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Système</h2>
+    <a class="mx-parametres__lien {% if active_tab == 'journal' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=journal">Journal</a>
+  </div>
   {% endif %}
-  {% if peut_gerer_seuils %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'seuils_role' %}active{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Sécurité</a></li>
-  {% endif %}
-  {% if peut_gerer_modules %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'modules' %}active{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a></li>
-  {% endif %}
-  {% if peut_voir_equipage %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'equipage' %}active{% endif %}" href="/parametre/?tab=equipage{% if equipage_ship %}&ship={{ equipage_ship.id }}{% endif %}">Équipage</a></li>
-  {% endif %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" href="/parametre/?tab=notifications">Notification</a></li>
-  {% if user.is_superuser %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'journal' %}active{% endif %}" href="/parametre/?tab=journal">Journal</a></li>
-  {% endif %}
-</ul>
-
+</nav>
+<div class="mx-parametres__contenu">
 {% if active_tab == 'generale' %}
 <div class="card">
   <div class="card-header">Paramètres généraux
@@ -38,6 +44,13 @@
   </div>
   <div class="card-body">
     <p class="text-muted mb-0">Ajustez ici les paramètres généraux de Matrix. (À compléter)</p>
+  </div>
+</div>
+<div class="card mt-3">
+  <div class="card-header">Déconnexion automatique</div>
+  <div class="card-body">
+    <p class="mb-1">Un poste inactif se déconnecte au bout de <strong>{{ inactivite_delai_minutes }} minute{{ inactivite_delai_minutes|pluralize }}</strong>, avec un préavis de <strong>{{ inactivite_preavis_secondes }} seconde{{ inactivite_preavis_secondes|pluralize }}</strong>.</p>
+    <small class="text-muted">Réglage du serveur (affichage seul) : il se modifie dans le fichier de configuration du serveur, pas depuis cet écran.</small>
   </div>
 </div>
 {% elif active_tab == 'utilisateurs' %}
@@ -227,6 +240,9 @@
     </div>
   </div>
   {% endif %}
+</div>
+{% elif active_tab == 'responsables' %}
+<div class="row g-3">
   {% if user.is_superuser or peut_gerer_responsables %}
   <div class="col-md-6">
     <div class="card">
@@ -923,6 +939,9 @@
   </div>
 </div>
 {% endif %}
+
+</div>
+</div>
 
 {# Modal de confirmation générique #}
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">

@@ -47,7 +47,8 @@ class SeuilsDeLectureTests(VisionCommandementBase):
         reponse = self.client.get("/users/")
         self.assertEqual(reponse.status_code, 200)
         self.assertFalse(reponse.context["peut_gerer"])
-        self.assertNotContains(reponse, 'data-bs-target="#createUserModal"')
+        self.assertNotContains(reponse, "/users/nouveau/")
+        self.assertNotContains(reponse, 'id="barreSelection"')
         self.assertNotContains(reponse, 'id="bulkActionsBtn"')
         reponse = self.client.post("/users/", {"action": "bulk_delete_users", "selected_ids": [self.marin.pk]})
         self.assertEqual(reponse.status_code, 403)
@@ -57,7 +58,8 @@ class SeuilsDeLectureTests(VisionCommandementBase):
         self.client.login(username="cdt", password="pass")
         reponse = self.client.get("/users/")
         self.assertTrue(reponse.context["peut_gerer"])
-        self.assertContains(reponse, 'data-bs-target="#createUserModal"')
+        self.assertContains(reponse, "/users/nouveau/")
+        self.assertContains(reponse, 'id="barreSelection"')
 
     def test_annuaire_ferme_au_chef_de_service(self):
         self.client.login(username="chef", password="pass")

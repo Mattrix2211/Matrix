@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load org_extras icones %}
+{% block title %}{% if cible %}Modifier {{ cible.username }}{% else %}Nouvel utilisateur{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="Fil d'Ariane" class="mx-cat-ariane">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'user-directory' %}">Annuaire</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% if cible %}{{ cible.username }}{% else %}Nouvel utilisateur{% endif %}</li>
+  </ol>
+</nav>
+<h1 class="h3 mb-3">{% if cible %}Modifier l'utilisateur{% else %}Nouvel utilisateur{% endif %}</h1>
+{% if equipage_a_terre %}
+<div class="alert alert-warning" role="alert">Lecture seule : votre équipage est à terre, cette modification est réservée à l'équipage à bord.</div>
+{% endif %}
+<form method="post" action="{% url 'user-directory' %}" class="mx-surface mx-utilisateur-form" id="formUtilisateur" data-creation="{% if cible %}0{% else %}1{% endif %}">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{% if cible %}edit_user{% else %}create_user{% endif %}" />
+  {% if cible %}<input type="hidden" name="pk" value="{{ cible.pk }}" />{% endif %}
+  <fieldset class="mx-utilisateur-form__groupe" {% if equipage_a_terre %}disabled{% endif %}>
+    <legend class="h6">Identité</legend>
+    <div class="row g-3">
+      {% if cible %}
+      <div class="col-md-4">
+        <label class="form-label" for="fUsername">Identifiant</label>
+        <input class="form-control" name="username" id="fUsername" value="{{ cible.username }}" />
+      </div>
+      {% endif %}
+      <div class="col-md-4">
+        <label class="form-label" for="fFirstName">Prénom</label>
+        <input class="form-control" name="first_name" id="fFirstName" value="{{ cible.first_name }}" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="fLastName">Nom</label>
+        <input class="form-control" name="last_name" id="fLastName" value="{{ cible.last_name }}" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="fMatricule">Matricule</label>
+        <input class="form-control" name="matricule" id="fMatricule" value="{{ profil.matricule }}" />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="fDateNaissance">Date de naissance</label>
+        <input type="date" class="form-control" name="date_naissance" id="fDateNaissance" value="{% if profil.date_naissance %}{{ profil.date_naissance|date:'Y-m-d' }}{% endif %}" />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="mx-utilisateur-form__groupe" {% if equipage_a_terre %}disabled{% endif %}>
+    <legend class="h6">Rôle et qualifications</legend>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="fRole">Rôle</label>
+        <select class="form-select" name="role" id="fRole" {% if not cible %}required{% endif %}>
+          {% if cible and profil.role %}{% if profil.role not in roles_codes %}<option value="" selected>{{ profil.get_role_display }} (inchangé)</option>{% endif %}{% endif %}
+          {% for r in roles %}<option value="{{ r.code }}" {% if profil.role == r.code %}selected{% endif %}>{{ r.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="fGrade">Grade</label>
+        <select class="form-select" name="grade" id="fGrade">
+          <option value="">—</option>
+          {% for g in grades %}<option value="{{ g.name }}" {% if profil.grade == g.name %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="fSpecialite">Spécialité</label>
+        <select class="form-select" name="specialite" id="fSpecialite">
+          <option value="">—</option>
+          {% for s in specialites %}<option value="{{ s.name }}" {% if profil.specialite == s.name %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="fFonction">Fonction de service</label>
+        <select class="form-select" name="fonction_service" id="fFonction">
+          <option value="">—</option>
+          {% for f in fonctions %}<option value="{{ f.name }}" {% if profil.fonction_service == f.name %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="mx-utilisateur-form__groupe" {% if equipage_a_terre %}disabled{% endif %}>
+    <legend class="h6">Rattachement</legend>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="fShip">Unité</label>
+        <select class="form-select" name="ship_id" id="fShip">
+          <option value="">—</option>
+          {% unites_groupees_par_type ships as groupes_unites %}
+          {% for libelle_type, liste_unites in groupes_unites %}
+            <optgroup label="{{ libelle_type }}">
+              {% for sh in liste_unites %}<option value="{{ sh.id }}" {% if sh.id == profil.ship_id or sh.id|stringformat:'s' == ship_initial %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="fEquipage">Équipage</label>
+        <input class="form-control" name="equipage" id="fEquipage" maxlength="8" placeholder="A, B… (double équipage)" value="{{ profil.equipage }}" {% if equipage_verrouille %}disabled aria-describedby="aideEquipage"{% endif %} />
+        {% if equipage_verrouille %}<div class="form-text" id="aideEquipage">Vous ne pouvez pas modifier votre propre équipage.</div>{% endif %}
+      </div>
+      <div class="col-md-4" id="fServiceWrap">
+        <label class="form-label" for="fService">Service</label>
+        <select class="form-select" name="service_id" id="fService">
+          <option value="">—</option>
+          {% for sv in services %}<option value="{{ sv.id }}" data-ship-id="{{ sv.ship_id }}" {% if sv.id == profil.service_id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4" id="fSectorWrap">
+        <label class="form-label" for="fSector">Secteur</label>
+        <select class="form-select" name="sector_id" id="fSector">
+          <option value="">—</option>
+          {% for sc in sectors %}<option value="{{ sc.id }}" data-ship-id="{{ sc.service.ship_id }}" data-service-id="{{ sc.service_id }}" {% if sc.id == profil.sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4" id="fSectionWrap">
+        <label class="form-label" for="fSection">Section</label>
+        <select class="form-select" name="section_id" id="fSection">
+          <option value="">—</option>
+          {% for se in sections %}<option value="{{ se.id }}" data-ship-id="{{ se.sector.service.ship_id }}" data-service-id="{{ se.sector.service_id }}" data-sector-id="{{ se.sector_id }}" {% if se.id == profil.section_id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+  </fieldset>
+
+  {% if not cible %}<p class="text-muted">L'identifiant est généré automatiquement au format <strong>prenom.nom</strong> (suffixe ajouté en cas de doublon). Le mot de passe se définit ensuite depuis l'annuaire, menu « ⋯ » de la ligne.</p>{% endif %}
+  <div class="mx-utilisateur-form__actions">
+    {% if not equipage_a_terre %}<button type="submit" class="btn btn-primary">{% if cible %}Enregistrer{% else %}Créer{% endif %}</button>{% endif %}
+    <a href="{% url 'user-directory' %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+
+<script>
+  (function () {
+    var form = document.getElementById('formUtilisateur');
+    var ship = document.getElementById('fShip');
+    var service = document.getElementById('fService');
+    var sector = document.getElementById('fSector');
+    var section = document.getElementById('fSection');
+    var role = document.getElementById('fRole');
+    // Copie des options pour filtrer service, secteur et section selon l'unité choisie
+    function copie(sel) { return Array.prototype.slice.call(sel.options).filter(function (o) { return o.value; }); }
+    var tous = { service: copie(service), sector: copie(sector), section: copie(section) };
+    function remplir(sel, options, accepte) {
+      var courant = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      options.forEach(function (o) {
+        if (!accepte(o)) return;
+        var n = o.cloneNode(true);
+        n.selected = o.value === courant;
+        sel.appendChild(n);
+      });
+    }
+    function filtrer() {
+      var u = ship.value, sv = service.value;
+      remplir(service, tous.service, function (o) { return !u || o.dataset.shipId === u; });
+      sv = service.value;
+      remplir(sector, tous.sector, function (o) { return (!u || o.dataset.shipId === u) && (!sv || o.dataset.serviceId === sv); });
+      var sc = sector.value;
+      remplir(section, tous.section, function (o) { return (!u || o.dataset.shipId === u) && (!sv || o.dataset.serviceId === sv) && (!sc || o.dataset.sectorId === sc); });
+    }
+    // À la création, les niveaux de rattachement inutiles au rôle sont masqués
+    function masquer(id, visible) {
+      var bloc = document.getElementById(id), sel = bloc.querySelector('select');
+      bloc.classList.toggle('d-none', !visible);
+      sel.disabled = !visible;
+      if (!visible) sel.selectedIndex = 0;
+    }
+    function champsDuRole() {
+      var r = role.value;
+      var etatMajor = ['ETAT_MAJOR', 'COMMANDANT_EN_SECOND', 'COMMANDANT'].indexOf(r) >= 0;
+      masquer('fServiceWrap', !etatMajor);
+      masquer('fSectorWrap', !etatMajor && r !== 'CHEF_SERVICE');
+      masquer('fSectionWrap', !etatMajor && r !== 'CHEF_SERVICE' && r !== 'CHEF_SECTEUR');
+    }
+    ship.addEventListener('change', filtrer);
+    service.addEventListener('change', filtrer);
+    sector.addEventListener('change', filtrer);
+    filtrer();
+    if (form.dataset.creation === '1') {
+      role.addEventListener('change', champsDuRole);
+      champsDuRole();
+    }
+  })();
+</script>
+{% endblock %}

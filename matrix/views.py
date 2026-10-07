@@ -21,7 +21,7 @@ from quarts.echanges import peut_valider_echange
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
 from matrix.core import recherche
-from matrix.core.inactivite import session_expiree, tracer_expiration, url_connexion
+from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
 from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, marins_sans_equipage, proposer_releve, releve_en_attente
 from matrix.core.roles import RoleLevel, user_role_level
@@ -244,7 +244,7 @@ class SettingsView(LoginRequiredMixin, View):
                 tab == 'notifications'
                 or (tab == 'equipage' and peut_voir_equipage)
                 or (tab == 'seuils_role' and est_admin_navire)
-                or (tab == 'utilisateurs' and peut_gerer_responsables)
+                or (tab in ('utilisateurs', 'responsables') and peut_gerer_responsables)
                 or (tab == 'modules' and peut_gerer_modules)
             )
             action = request.POST.get('action')
@@ -300,8 +300,8 @@ class SettingsView(LoginRequiredMixin, View):
                 active_tab = 'equipage'
             elif tab == 'seuils_role' and est_admin_navire:
                 active_tab = 'seuils_role'
-            elif tab == 'utilisateurs' and peut_gerer_responsables:
-                active_tab = 'utilisateurs'
+            elif tab in ('utilisateurs', 'responsables') and peut_gerer_responsables:
+                active_tab = 'responsables'
             elif tab == 'modules' and peut_gerer_modules:
                 active_tab = 'modules'
             context = {
@@ -330,7 +330,7 @@ class SettingsView(LoginRequiredMixin, View):
                     'modules_ship': Ship.objects.filter(pk=mon_ship_id).first(),
                     'modules_lignes': _lignes_modules(mon_ship_id),
                 })
-            if active_tab == 'utilisateurs':
+            if active_tab == 'responsables':
                 # Seules les données nécessaires à la désignation de
                 # responsables transverses sont exposées ici (pas les
                 # référentiels Grades/Fonctions/Rôles, qui restent réservés au
@@ -416,6 +416,8 @@ class SettingsView(LoginRequiredMixin, View):
             'peut_gerer_responsables': True,
             'peut_gerer_modules': True,
             'peut_voir_equipage': True,
+            'inactivite_delai_minutes': delai_inactivite() // 60,
+            'inactivite_preavis_secondes': delai_avertissement(),
             # Responsables transverses (dashboards par spécialité / par classe de
             # navire, tâche Notion « Dashboards transverses par spécialité et par
             # classe de navire ») : rôle indépendant de la hiérarchie Navire →
@@ -848,6 +850,8 @@ class SettingsView(LoginRequiredMixin, View):
             except Exception:
                 messages.error(request, "Heure invalide (format HH:MM).")
                 next_tab = 'notifications'
+        if action in ('add_responsable_specialite', 'retirer_responsable_specialite', 'add_responsable_classe', 'retirer_responsable_classe'):
+            next_tab = 'responsables'
         # Conserve le navire sélectionné lors de la redirection
         suffix_parts = []
         if selected_ship_id:

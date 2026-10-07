@@ -1,6 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import ListView, TemplateView
@@ -64,6 +64,39 @@ def _utilisateurs_gerables_par(acting_user):
     return qs
 
 
+def _referentiels_formulaire(user):
+    """Listes de choix de l'annuaire et du formulaire utilisateur (rôles, hiérarchie, grades…).
+
+    Un utilisateur limité à son navire ne se voit proposer que son propre navire
+    et sa hiérarchie : les autres noms ne doivent pas fuiter."""
+    from accounts.models import RoleAvailability
+    from org.models import Ship, Service, Sector, Section
+    # Rôles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
+    actifs = {o.code: o.active for o in RoleAvailability.objects.all()}
+    ctx = {
+        "roles": [
+            {"code": code, "label": label}
+            for code, label in Roles.choices
+            if code != "MASTER_ADMIN" and actifs.get(code, True)
+        ],
+    }
+    if is_master_admin(user):
+        ctx["ships"] = Ship.objects.order_by("name")
+        ctx["services"] = Service.objects.select_related("ship").order_by("name")
+        ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
+        ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+    else:
+        mon_navire_id = ship_id_for_user(user)
+        ctx["ships"] = Ship.objects.filter(pk=mon_navire_id).order_by("name")
+        ctx["services"] = Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name")
+        ctx["sectors"] = Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name")
+        ctx["sections"] = Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+    ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
+    ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
+    ctx["specialites"] = SpecialityChoice.objects.filter(active=True).order_by("name")
+    return ctx
+
+
 class UserDirectoryView(LoginRequiredMixin, ListView):
     template_name = "accounts/directory.html"
     context_object_name = "users"
@@ -107,34 +140,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         return qs
 
     def get_context_data(self, **kwargs):
-        from accounts.models import RoleAvailability
-        from org.models import Ship, Service, Sector, Section
         ctx = super().get_context_data(**kwargs)
         ctx["peut_gerer"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
-        # Roles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
-        all_roles = [c for c in Roles.choices if c[0] != 'MASTER_ADMIN']
-        opts = {o.code: o.active for o in RoleAvailability.objects.all()}
-        ctx["roles"] = [{"code": code, "label": label} for code, label in all_roles if opts.get(code, True)]
-        # Hiérarchie pour sélection (filtre "Unité" et formulaires de création/
-        # édition) : un utilisateur limité à son navire (non MASTER_ADMIN) ne
-        # doit se voir proposer que son propre navire — lui montrer les autres
-        # navires de la flotte n'aurait aucun sens (l'annuaire ne renverra de
-        # toute façon aucun résultat pour eux) et fuiterait leurs noms.
-        if is_master_admin(self.request.user):
-            ctx["ships"] = Ship.objects.order_by("name")
-            ctx["services"] = Service.objects.select_related("ship").order_by("name")
-            ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
-            ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
-        else:
-            mon_navire_id = ship_id_for_user(self.request.user)
-            ctx["ships"] = Ship.objects.filter(pk=mon_navire_id).order_by("name")
-            ctx["services"] = Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name")
-            ctx["sectors"] = Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name")
-            ctx["sections"] = Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name")
-        # Choix pour fonction, grade et spécialité
-        ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
-        ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
-        ctx["specialites"] = SpecialityChoice.objects.filter(active=True).order_by("name")
+        ctx.update(_referentiels_formulaire(self.request.user))
         ctx["sans_equipage"] = [
             u for u in ctx["users"] if u.profile.ship_id and equipage_manquant(u.profile.ship, u.profile.equipage)
         ]
@@ -518,6 +526,31 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             except User.DoesNotExist:
                 pass
         return redirect("user-directory")
+
+
+class UserFormView(LoginRequiredMixin, TemplateView):
+    """Création et édition d'un compte en page complète ; l'enregistrement passe par
+    UserDirectoryView.post (mêmes contrôles de rôle, de périmètre et d'équipage)."""
+    template_name = "accounts/utilisateur_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(_referentiels_formulaire(self.request.user))
+        pk = kwargs.get("pk")
+        cible = get_object_or_404(_utilisateurs_gerables_par(self.request.user), pk=pk) if pk else None
+        ctx["roles_codes"] = [r["code"] for r in ctx["roles"]]
+        ctx["cible"] = cible
+        ctx["profil"] = getattr(cible, "profile", None)
+        # Nul ne change son propre équipage : champ en lecture seule (le serveur refuse aussi)
+        ctx["equipage_verrouille"] = bool(cible) and not equipage_modifiable_par(self.request.user, cible)
+        # L'unité du filtre de l'annuaire préremplit la création
+        ctx["ship_initial"] = "" if cible else self.request.GET.get("ship", "")
+        return ctx
 
 
 class MonProfilView(LoginRequiredMixin, TemplateView):

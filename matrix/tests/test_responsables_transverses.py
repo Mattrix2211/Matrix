@@ -175,7 +175,7 @@ class GestionResponsablesTransversesTests(TestCase):
         response = self.client.get(self.url, {"tab": "utilisateurs"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["active_tab"], "utilisateurs")
+        self.assertEqual(response.context["active_tab"], "responsables")
         self.assertTrue(response.context["peut_gerer_responsables"])
         self.assertContains(response, "Responsables de spécialité (dashboard flotte)")
         self.assertContains(response, "Responsables de classe de navire (dashboard flotte)")
