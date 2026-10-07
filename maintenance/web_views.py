@@ -1,3 +1,4 @@
+import base64
 import json
 from django.views import View
 from django.views.generic import ListView
@@ -5,7 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.utils import timezone
@@ -15,7 +16,7 @@ from .models import (
 )
 from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemplate
 from threads.models import Thread, Message, Attachment
-from threads.utils import ajouter_commentaire, commentaires_de
+from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.equipage import suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
@@ -43,13 +44,24 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         items = []
         if occ.plan and occ.plan.checklist_template:
             items = list(occ.plan.checklist_template.items.order_by('order').all())
+        return render(request, self.template_name, {"occ": occ, "items": items, **self._entete(request, occ)})
+
+    @staticmethod
+    def _entete(request, occ):
+        """Données de l'en-tête de fiche ; l'exécution est refusée au suivi à terre (post)."""
         contexte = {
-            "occ": occ,
-            "items": items,
-            "commentaires": commentaires_de(occ),
-            "commentaire_action_url": reverse('occurrence-comment-create', args=[occ.pk]),
+            "menu_fiche": [{"libelle": "Imprimer la fiche", "icone": "impression", "url": reverse('occurrence-imprimer', args=[occ.pk])}],
+            "indicateurs_fiche": [
+                {"libelle": "Prévue le", "valeur": occ.scheduled_for.strftime("%d/%m/%Y"),
+                 "etat": "danger" if occ.status == "OVERDUE" else ""},
+                {"libelle": "Priorité", "valeur": f"{occ.priority}/5"},
+            ],
+            "badge_etat": {"DONE": "ok", "OVERDUE": "danger", "WAITING_VALIDATION": "attention", "CANCELLED": "neutre"}.get(occ.status, "neutre"),
+            **contexte_discussion(occ, 'occurrence-comment-create'),
         }
-        return render(request, self.template_name, contexte)
+        if not suivi_a_terre_sans_validation(request.user):
+            contexte["action_principale"] = {"libelle": "Valider l'exécution", "icone": "terminee", "formulaire": "formulaire-execution"}
+        return contexte
 
     def post(self, request, pk):
         if suivi_a_terre_sans_validation(request.user):
@@ -82,7 +94,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             erreur = "Mot de passe incorrect : l'exécution n'a pas été validée."
             if request.headers.get('HX-Request'):
                 return render(request, 'maintenance/_execute_erreur.html', {"occ": occ, "erreur": erreur})
-            return render(request, self.template_name, {"occ": occ, "items": items, "erreur": erreur})
+            return render(request, self.template_name, {"occ": occ, "items": items, "erreur": erreur, **self._entete(request, occ)})
 
         # Collecter les résultats des items
         results = {}
@@ -457,3 +469,47 @@ class MaintenanceOccurrenceSelfAssignView(LoginRequiredMixin, View):
             messages.success(request, "Vous êtes désormais assigné à cette occurrence.")
 
         return redirect("maintenance-occurrences")
+
+
+def _qr_data_uri(url):
+    """QR code en PNG intégré à la page (aucun service externe, fonctionne hors-ligne)."""
+    from assets.views import _construire_qr_png
+    return "data:image/png;base64," + base64.b64encode(_construire_qr_png(url)).decode()
+
+
+class OccurrenceImprimerView(LoginRequiredMixin, View):
+    """Fiche papier d'une occurrence (ou d'un lot via ?ids=1,2,3), à remplir sur
+    le terrain puis à saisir sur PC. Lecture seule : même périmètre que la fiche
+    de l'occurrence, sans condition de rôle ni d'assignation."""
+    template_name = "maintenance/fiche_imprimable.html"
+
+    def get(self, request, pk=None):
+        if pk is not None:
+            identifiants = [pk]
+        else:
+            identifiants = [int(i) for i in request.GET.get("ids", "").split(",") if i.strip().isdigit()]
+        occurrences = (
+            MaintenanceOccurrence.objects.select_related(
+                "plan", "asset", "asset__asset_type", "plan__checklist_template",
+                "installation_maintenance", "installation_maintenance__installation",
+            )
+            .prefetch_related("assignees")
+            .filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__"))
+            .filter(pk__in=identifiants)
+            .order_by("scheduled_for", "pk")
+        )
+        fiches = []
+        for occ in occurrences:
+            items = []
+            if occ.plan and occ.plan.checklist_template:
+                items = list(occ.plan.checklist_template.items.order_by("order", "pk"))
+            url = request.build_absolute_uri(reverse("occurrence-execute", args=[occ.pk]))
+            fiches.append({
+                "occ": occ,
+                "numero": f"FM-{occ.pk:06d}",
+                "items": items,
+                "qr": _qr_data_uri(url),
+            })
+        if not fiches:
+            raise Http404("Aucune fiche à imprimer")
+        return render(request, self.template_name, {"fiches": fiches})

@@ -1,0 +1,36 @@
+/* Impression A4 en noir et blanc : fiches papier (docs/UX.md §19). */
+:root { --imp-encre: CanvasText; --imp-papier: Canvas; }
+@page { size: A4; margin: 15mm; }
+
+/* Masque l'interface : barres, panneaux, notifications, boutons. */
+.mx-barre, .mx-lateral, .toast-container, .offcanvas, .fiche-actions,
+.btn, .alert { display: none !important; }
+.mx-coque { display: block; }
+.mx-coque__contenu { max-width: none; padding: 0 !important; }
+
+body { background: var(--imp-papier) !important; color: var(--imp-encre) !important; font-size: 11pt; line-height: 1.35; }
+
+.fiche-papier { break-after: page; break-inside: avoid-page; color: var(--imp-encre); }
+.fiche-papier:last-of-type { break-after: auto; }
+.fiche-entete { display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 2pt solid var(--imp-encre); padding-bottom: 4mm; margin-bottom: 4mm; }
+.fiche-titre { font-size: 18pt; margin: 0; }
+.fiche-numero { font-size: 13pt; font-weight: 700; font-family: monospace; }
+.fiche-qr { width: 28mm; height: 28mm; }
+
+.fiche-papier table { width: 100%; border-collapse: collapse; }
+.fiche-papier th, .fiche-papier td { border: 1pt solid var(--imp-encre); padding: 2mm; vertical-align: top; text-align: left; }
+.fiche-identite th { width: 22%; background: none; font-weight: 700; }
+.fiche-section { font-size: 12pt; text-transform: uppercase; margin: 6mm 0 2mm; }
+.fiche-points tr { break-inside: avoid; }
+.fiche-points td { height: 9mm; }
+.fiche-col-case { width: 14mm; text-align: center !important; }
+.fiche-col-valeur { width: 38%; }
+.fiche-oblig { font-size: 9pt; font-style: italic; }
+.fiche-case { display: inline-block; width: 5mm; height: 5mm; border: 1.2pt solid var(--imp-encre); vertical-align: middle; }
+.fiche-ligne { display: inline-block; min-width: 25mm; border-bottom: 1pt solid var(--imp-encre); height: 1em; }
+.fiche-observations { height: 35mm; border: 1pt solid var(--imp-encre); }
+.fiche-signatures { display: flex; gap: 8mm; margin-top: 8mm; break-inside: avoid; }
+.fiche-signature { flex: 1; height: 28mm; border: 1pt solid var(--imp-encre); padding: 2mm; display: flex; flex-direction: column; }
+.fiche-signature span { font-size: 9pt; }
+.fiche-pied { margin-top: 4mm; font-size: 9pt; text-align: center; }

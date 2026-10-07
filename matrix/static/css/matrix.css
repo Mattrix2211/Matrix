@@ -1106,3 +1106,17 @@ a.mx-recherche__resultat:hover,
 .mx-frise__heure { min-width: 3.5rem; font-family: var(--f-mono); color: var(--text-sec); }
 .mx-frise__libelle { color: var(--text); text-decoration: none; }
 .mx-frise__libelle:hover { color: var(--signal-ui); }
+
+/* En-tête de fiche */
+.mx-fiche { margin-bottom: var(--s4); }
+.mx-fiche__haut { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--s3); }
+.mx-fiche__titre { margin: 0; font: 600 1.5rem/1.25 var(--f-display); color: var(--text); }
+.mx-fiche__sous-titre { margin: var(--s1) 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); color: var(--text-sec); font-size: .875rem; }
+.mx-fiche__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.mx-fiche__indicateurs { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s3); }
+.mx-fiche__indicateurs > * { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm, 4px); min-width: 9rem; }
+a.mx-fiche__indicateur { color: var(--text); text-decoration: none; transition: border-color .15s ease; }
+a.mx-fiche__indicateur:hover,
+a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
+.mx-fiche__version { margin: var(--s3) 0 0; padding: var(--s2) var(--s3); border-left: 4px solid var(--signal-ui); background: var(--surface); font-size: .875rem; }
+.mx-fiche__tracabilite { margin: var(--s3) 0 0; font-size: .8125rem; color: var(--text-sec); }

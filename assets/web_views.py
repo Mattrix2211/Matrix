@@ -1,4 +1,5 @@
 from django.views.generic import DetailView, View, ListView
+from django.views.generic.detail import SingleObjectMixin
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect, render, get_object_or_404
@@ -20,6 +21,7 @@ from datetime import datetime
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket, StockPiece
+from reports.services import STATUTS_TICKET_FERMES
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -35,6 +37,7 @@ from matrix.core.export import (
     xlsx_disponible,
 )
 from accounts.models import AuditLog
+from threads.utils import ajouter_commentaire, contexte_discussion
 from org.models import Ship, Service, Sector, Section
 from .import_materiel import importer_materiel_depuis_fichier, generer_modele_xlsx
 
@@ -410,7 +413,40 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         # StockPiece (logistics), affiché ici en lecture seule, la gestion du stock
         # se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(asset=self.object).order_by('reference')
+        ctx.update(self._entete(self.object))
         return ctx
+
+    def _entete(self, asset):
+        """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
+        premier_ticket = asset.tickets.first()
+        menu = [
+            {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
+             "url": f"{reverse('anomalie-create')}?asset={asset.pk}"},
+        ]
+        if user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION:
+            menu.append({"libelle": "Démarrer un contrôle visuel", "icone": "maintenance", "ecriture": True,
+                         "hx_post": reverse('asset-start-visual', args=[asset.pk]), "hx_cible": "#result"})
+        if premier_ticket:
+            menu.append({"libelle": "Voir le ticket récent", "icone": "ticket",
+                         "url": reverse('ticket-detail', args=[premier_ticket.pk])})
+        if self.request.user.is_staff:
+            menu.append({"libelle": "Ouvrir dans l'administration", "icone": "parametres",
+                         "url": f"/admin/assets/asset/{asset.pk}/change/"})
+        tickets_ouverts = asset.tickets.exclude(status__in=STATUTS_TICKET_FERMES).count()
+        en_retard = MaintenanceOccurrence.objects.filter(asset=asset, status="OVERDUE").count()
+        return {
+            "action_principale": {"libelle": "Signaler une anomalie", "icone": "anomalie", "modale": "signalerAnomalieModal"},
+            "menu_fiche": menu,
+            "indicateurs_fiche": [
+                {"libelle": "Criticité", "valeur": asset.criticality},
+                {"libelle": "Tickets ouverts", "valeur": tickets_ouverts, "url": reverse('ticket-list'),
+                 "etat": "attention" if tickets_ouverts else "ok"},
+                {"libelle": "Maintenances en retard", "valeur": en_retard, "url": reverse('maintenance-occurrences'),
+                 "etat": "danger" if en_retard else "ok"},
+            ],
+            "badge_etat": {"OK": "ok", "ATTENTION": "attention", "DANGER": "danger"}[asset.etat_plan],
+            **contexte_discussion(asset, 'asset-comment-create'),
+        }
 
 class StartVisualCheckView(LoginRequiredMixin, View):
     def post(self, request, pk):
@@ -1602,7 +1638,45 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         else:
             visit_label = ""
         ctx['hours_visit_label'] = visit_label
+        ctx.update(self._entete(self.object, ctx))
         return ctx
+
+    def _entete(self, inst, ctx):
+        """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
+        niveau = user_role_level(self.request.user)
+        menu = [
+            {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
+             "url": f"{reverse('anomalie-create')}?installation={inst.pk}"},
+        ]
+        if niveau >= niveau_requis_pour(self.request.user, 'installation_ecriture_simple'):
+            menu.append({"libelle": "Modifier les infos", "icone": "modification", "ecriture": True,
+                         "modale": "editInstallationModal"})
+        if niveau >= niveau_requis_pour(self.request.user, 'installation_gestion_avancee'):
+            menu.append({"libelle": "Supprimer", "icone": "suppression", "ecriture": True, "danger": True,
+                         "modale": "deleteInstallationModal"})
+        etat_vibration = {"A": "ok", "B": "attention", "C": "danger"}.get(ctx['vibration_last_state'])
+        jours = ctx['vibration_next_days']
+        detail_vibration = ""
+        if jours is not None:
+            detail_vibration = f"en retard de {ctx['vibration_retard_jours']} j" if jours < 0 else f"prochain dans {jours} j"
+        isolement = ctx['isolation_last']
+        isolement_en_retard = ctx['isolation_next_days'] is not None and ctx['isolation_next_days'] < 0
+        return {
+            "action_principale": {"libelle": "Signaler une anomalie", "icone": "anomalie", "modale": "addEventModal"},
+            "menu_fiche": menu,
+            "indicateurs_fiche": [
+                {"libelle": "Criticité", "valeur": "Critique" if inst.critique else "Standard",
+                 "etat": "danger" if inst.critique else ""},
+                {"libelle": "État vibratoire", "valeur": f"État {ctx['vibration_last_state']}" if etat_vibration else "Aucun relevé",
+                 "etat": etat_vibration or "", "detail": detail_vibration, "url": "?tab=vibration"},
+                {"libelle": "Dernier isolement", "valeur": isolement.ohms if isolement else "Aucun relevé",
+                 "unite": "Ω" if isolement else "", "etat": "danger" if isolement_en_retard else "",
+                 "detail": "Relevé en retard" if isolement_en_retard else "", "url": "?tab=isolement"},
+                {"libelle": "Heures de marche", "valeur": ctx['hours_total'] if ctx['hour_logs'] else "Aucun relevé",
+                 "unite": "h" if ctx['hour_logs'] else "", "url": "?tab=hours"},
+            ],
+            **contexte_discussion(inst, 'installation-comment-create'),
+        }
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
@@ -1620,6 +1694,31 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         if handler is None:
             return HttpResponseBadRequest('Action non prise en charge')
         return handler(self, request, inst, qs)
+
+
+class _CommentaireFicheView(LoginRequiredMixin, ScopedQuerySetMixin, SingleObjectMixin, View):
+    """Ajoute un commentaire au fil de discussion d'une fiche, dans le même périmètre que la fiche."""
+    nom_fiche = ""
+
+    def post(self, request, *args, **kwargs):
+        fiche = self.get_object()
+        corps = request.POST.get('body', '').strip()
+        if not corps:
+            messages.error(request, "Le commentaire ne peut pas être vide.")
+        else:
+            ajouter_commentaire(fiche, request.user, corps)
+            messages.success(request, "Commentaire ajouté.")
+        return redirect(self.nom_fiche, pk=fiche.pk)
+
+
+class AssetCommentCreateView(_CommentaireFicheView):
+    model = Asset
+    nom_fiche = 'asset-detail'
+
+
+class InstallationCommentCreateView(_CommentaireFicheView):
+    model = Installation
+    nom_fiche = 'installation-detail'
 
 
 # (Standalone InstallationSettingsView removed; settings are now managed in global Settings > Installations)

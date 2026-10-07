@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="fiche-actions mb-3">
+  <button type="button" class="btn btn-primary" onclick="window.print()">Imprimer</button>
+  <span class="text-muted small ms-2">{{ fiches|length }} fiche{{ fiches|length|pluralize }} — format A4</span>
+</div>
+
+{% for f in fiches %}
+{% with occ=f.occ %}
+<section class="fiche-papier">
+  <header class="fiche-entete">
+    <div>
+      <h1 class="fiche-titre">Fiche de maintenance</h1>
+      <div class="fiche-numero">N° {{ f.numero }}</div>
+    </div>
+    <img class="fiche-qr" src="{{ f.qr }}" alt="QR code vers la fiche {{ f.numero }}">
+  </header>
+
+  <table class="fiche-identite">
+    {% if occ.installation_maintenance %}
+      <tr><th>Installation</th><td>{{ occ.installation_maintenance.installation }}</td>
+          <th>Entretien</th><td>{{ occ.installation_maintenance.title }}</td></tr>
+    {% else %}
+      <tr><th>Matériel</th><td>{{ occ.asset }}</td>
+          <th>Plan</th><td>{{ occ.plan.name }}</td></tr>
+    {% endif %}
+    <tr><th>Date prévue</th><td>{{ occ.scheduled_for|date:"d/m/Y" }}</td>
+        <th>Responsable</th><td>{% for m in occ.assignees.all %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="fiche-ligne"></span>{% endfor %}</td></tr>
+    <tr><th>Date de réalisation</th><td><span class="fiche-ligne"></span></td>
+        <th>Durée réelle</th><td><span class="fiche-ligne"></span></td></tr>
+  </table>
+
+  <h2 class="fiche-section">Points à contrôler</h2>
+  {% if f.items %}
+  <table class="fiche-points">
+    <thead><tr><th class="fiche-col-case">Fait</th><th>Point</th><th class="fiche-col-valeur">Relevé / observation</th></tr></thead>
+    <tbody>
+    {% for it in f.items %}
+      <tr>
+        <td class="fiche-col-case"><span class="fiche-case" aria-hidden="true"></span></td>
+        <td>{{ it.label }}{% if it.required %} <span class="fiche-oblig">(obligatoire)</span>{% endif %}{% if it.requires_photo %} <span class="fiche-oblig">(photo)</span>{% endif %}</td>
+        <td class="fiche-col-valeur">
+          {% if it.field_type == 'number' %}<span class="fiche-ligne"></span> {{ it.unit|default:"" }}
+          {% elif it.field_type == 'date' %}__ / __ / ____
+          {% elif it.field_type == 'text' %}<span class="fiche-ligne"></span>
+          {% elif it.unit %}<span class="fiche-ligne"></span> {{ it.unit }}{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="fiche-vide">Aucune checklist associée : décrire les opérations réalisées ci-dessous.</p>
+  {% endif %}
+
+  <h2 class="fiche-section">Conformité</h2>
+  <p class="fiche-conformite">
+    <span class="fiche-case"></span> Conforme &nbsp;&nbsp;
+    <span class="fiche-case"></span> Non conforme &nbsp;&nbsp;
+    <span class="fiche-case"></span> Sans objet
+  </p>
+
+  <h2 class="fiche-section">Observations</h2>
+  <div class="fiche-observations"></div>
+
+  <div class="fiche-signatures">
+    <div class="fiche-signature"><strong>Exécutant</strong><span>Nom, date et signature</span></div>
+    <div class="fiche-signature"><strong>Contrôle</strong><span>Nom, date et signature</span></div>
+  </div>
+  <footer class="fiche-pied">{{ f.numero }} — à saisir dans Matrix après réalisation</footer>
+</section>
+{% endwith %}
+{% endfor %}
+{% endblock %}

@@ -108,7 +108,7 @@ class OccurrenceCommentsTests(TestCase):
 
     def test_commentaire_dev_fil_de_suivi_non_affiche_en_clair(self):
         """Régression : le commentaire {# ... #} multi-lignes explicatif du fil
-        de suivi générique (threads/_messages.html, inclus dans la checklist
+        de suivi générique (threads/_discussion.html, panneau de l'en-tête de fiche
         d'exécution) s'affichait en clair, faute d'être invisible avec
         {% comment %}...{% endcomment %}."""
         self.client.login(username="assigne_noc", password="pass")

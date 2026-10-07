@@ -11,7 +11,7 @@ from assets.models import (
 
 
 class SyntheseFicheInstallationTests(TestCase):
-    """La fiche installation affiche une synthèse visuelle et des compteurs sur les onglets."""
+    """L'en-tête de la fiche installation affiche une synthèse visuelle et des compteurs sur les onglets."""
 
     def setUp(self):
         ship = Ship.objects.create(name="Navire S")
@@ -26,7 +26,6 @@ class SyntheseFicheInstallationTests(TestCase):
 
     def test_synthese_affichee_avec_badge_critique(self):
         r = self.client.get(f"/installations/{self.installation.id}/")
-        self.assertContains(r, 'id="synthese-installation"')
         self.assertContains(r, "Critique")
         self.assertContains(r, "Aucun relevé")
 

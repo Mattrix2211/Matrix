@@ -1,29 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="d-flex align-items-center mb-3">
-  <h1 class="h4 mb-0">Actif: {{ object }}</h1>
-  <img class="ms-3" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur le matériel" src="/api/assets/assets/{{ object.id }}/qr_png/" height="96" />
-  <a class="btn btn-outline-secondary btn-sm ms-2" href="/api/assets/assets/{{ object.id }}/" target="_blank">API</a>
-  <a class="btn btn-outline-secondary btn-sm ms-2" href="/api/assets/assets/{{ object.id }}/qr/" target="_blank">QR JSON</a>
-  </div>
+{% include "components/fiche_entete.html" with titre=object.designation|default:object sous_titre=object.asset_type.name badge_libelle=object.get_status_display action=action_principale menu=menu_fiche menu_libelle="Autres actions sur ce matériel" indicateurs=indicateurs_fiche objet=object %}
+<div id="result" class="mb-3"></div>
 
 <div class="mb-3">
+  <img class="float-end ms-3" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur le matériel" src="/api/assets/assets/{{ object.id }}/qr_png/" height="96" />
   <div><strong>Type:</strong> {{ object.asset_type.name }} ({{ object.asset_type.category }})</div>
   <div><strong>Emplacement:</strong> {{ object.location }}</div>
-  <div><span class="badge bg-info">{{ object.status }}</span> <span class="badge bg-secondary">Criticité {{ object.criticality }}</span></div>
   <div class="text-muted">ID interne: {{ object.internal_id }} | Série: {{ object.serial_number }}</div>
   <div><strong>Rattaché à:</strong> {% if object.parent %}<a href="/assets/{{ object.parent.id }}/">{{ object.parent }}</a>{% else %}—{% endif %}</div>
   <div><strong>Sous-ensembles:</strong> {% for c in object.sous_ensembles.all %}<a href="/assets/{{ c.id }}/">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</div>
-</div>
-
-<div id="actions">
-  <button class="btn btn-primary" hx-post="/assets/{{ object.id }}/start-visual/" hx-target="#result" hx-swap="innerHTML">Démarrer contrôle visuel</button>
-  <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#signalerAnomalieModal">Signaler une anomalie</button>
-  <a class="btn btn-outline-secondary" href="{% url 'anomalie-create' %}?asset={{ object.id }}">Signalement libre</a>
-  <a class="btn btn-outline-primary" href="/logistics/tickets/{{ object.tickets.first.id }}/" {% if object.tickets.count == 0 %}style="display:none"{% endif %}>Voir ticket récent</a>
-  <div id="result" class="mt-2"></div>
-  <p class="text-muted mt-2">Une occurrence de maintenance planifiée aujourd'hui sera créée/assignée.</p>
-  <p class="mt-3"><a href="/admin/assets/asset/{{ object.id }}/change/" class="btn btn-outline-dark btn-sm">Ouvrir dans l'admin</a></p>
 </div>
 
 {# Signalement rapide d'anomalie : crée un ticket correctif en un clic (description + gravité). #}

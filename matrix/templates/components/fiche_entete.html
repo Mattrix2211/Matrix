@@ -1,0 +1,37 @@
+{% comment %}
+En-tête standard d'une fiche métier (docs/UX.md §10 et §11) : identité en H1,
+indicateurs cliquables, UNE action principale, bouton Discussion en panneau
+latéral, menu ⋯, bandeau de version et mention de traçabilité.
+À inclure avec {% include %} (le formulaire du panneau a besoin du contexte de la page).
+Usage : {% include "components/fiche_entete.html" with titre="Pompe P1" sous_titre="Installation · Machine AV" action=action menu=menu indicateurs=indicateurs objet=object %}
+Paramètres :
+  titre            : identité de l'objet, texte du H1 (obligatoire)
+  sous_titre       : type et rattachement (facultatif)
+  badge_libelle    : état de l'objet, affiché en pastille (facultatif)
+  badge_etat       : "ok", "attention", "danger" ou "neutre" (facultatif)
+  indicateurs      : liste de dictionnaires {libelle, valeur, unite, etat, detail, url} ; avec url l'indicateur est cliquable
+  action           : l'unique action principale, dictionnaire {libelle, icone} + url, ou modale, ou formulaire (identifiant du formulaire soumis), ou hx_post (+ hx_cible) ; absente à terre (lecture seule)
+  menu             : liste de dictionnaires {libelle, icone, danger, ecriture} + url, ou modale, ou hx_post (+ hx_cible) ; ecriture masque l'entrée à terre
+  menu_libelle     : nom accessible du menu ⋯ (facultatif)
+  commentaires     : messages du fil de l'objet (fournis par discussion_contexte) ; avec commentaire_action_url, affiche le bouton Discussion
+  commentaire_action_url : adresse d'ajout d'un commentaire
+  version          : dictionnaire {publiee_le, proposition_par, proposition_le} pour un objet proposer, valider, publier (facultatif)
+  objet            : objet portant created_by, updated_by, created_at et updated_at, pour la mention de traçabilité
+  historique_url   : lien « Historique » de la mention de traçabilité (facultatif)
+{% endcomment %}{% load icones composants %}<header class="mx-fiche">
+  <div class="mx-fiche__haut">
+    <div class="mx-fiche__identite">
+      <h1 class="mx-fiche__titre">{{ titre }}</h1>
+      {% if sous_titre or badge_libelle %}<p class="mx-fiche__sous-titre">{% if sous_titre %}<span>{{ sous_titre }}</span>{% endif %}{% if badge_libelle %} {% include "components/badge_etat.html" with etat=badge_etat libelle=badge_libelle %}{% endif %}</p>{% endif %}
+    </div>
+    <div class="mx-fiche__actions">
+      {% if action and not equipage_a_terre %}{% if action.url %}<a class="btn btn-primary mx-fiche__action" href="{{ action.url }}">{% elif action.modale %}<button type="button" class="btn btn-primary mx-fiche__action" data-bs-toggle="modal" data-bs-target="#{{ action.modale }}">{% elif action.formulaire %}<button type="submit" form="{{ action.formulaire }}" class="btn btn-primary mx-fiche__action">{% else %}<button type="button" class="btn btn-primary mx-fiche__action" hx-post="{{ action.hx_post }}"{% if action.hx_cible %} hx-target="{{ action.hx_cible }}" hx-swap="innerHTML"{% endif %}>{% endif %}{% if action.icone %}{% icone action.icone %} {% endif %}{{ action.libelle }}{% if action.url %}</a>{% else %}</button>{% endif %}{% endif %}
+      {% if commentaire_action_url %}<button type="button" class="btn btn-outline-secondary mx-fiche__discussion" data-bs-toggle="offcanvas" data-bs-target="#discussion" aria-controls="discussion">{% icone "discussion" %} Discussion · {{ commentaires|length }}</button>{% endif %}
+      {% if menu %}{% menu_contextuel libelle=menu_libelle|default:"Autres actions" %}{% for entree in menu %}{% if not entree.ecriture or not equipage_a_terre %}{% include "components/menu_item.html" with libelle=entree.libelle url=entree.url modale=entree.modale hx_post=entree.hx_post hx_cible=entree.hx_cible icone=entree.icone danger=entree.danger %}{% endif %}{% endfor %}{% fin_menu_contextuel %}{% endif %}
+    </div>
+  </div>
+  {% if indicateurs %}<div class="mx-fiche__indicateurs">{% for i in indicateurs %}{% if i.url %}<a class="mx-fiche__indicateur" href="{{ i.url }}">{% include "components/metric.html" with libelle=i.libelle valeur=i.valeur unite=i.unite etat=i.etat detail=i.detail %}</a>{% else %}{% include "components/metric.html" with libelle=i.libelle valeur=i.valeur unite=i.unite etat=i.etat detail=i.detail %}{% endif %}{% endfor %}</div>{% endif %}
+  {% if version %}<p class="mx-fiche__version">{% icone "historique" %} Version publiée du {{ version.publiee_le|date:"d/m/Y" }}{% if version.proposition_par %} · Proposition en attente de validation ({{ version.proposition_par }}, {{ version.proposition_le|date:"d/m" }}){% endif %}</p>{% endif %}
+  {% if objet %}<p class="mx-fiche__tracabilite">{% if objet.created_by %}Créé par {{ objet.created_by.get_full_name|default:objet.created_by.username }} le {{ objet.created_at|date:"d/m/Y à H:i" }} · {% endif %}Modifié {% if objet.updated_by %}par {{ objet.updated_by.get_full_name|default:objet.updated_by.username }} {% endif %}le {{ objet.updated_at|date:"d/m/Y à H:i" }}{% if historique_url %} · <a href="{{ historique_url }}">Historique</a>{% endif %}</p>{% endif %}
+</header>
+{% if commentaire_action_url %}{% panneau_lateral id="discussion" titre="Discussion" icone="discussion" %}{% include "threads/_discussion.html" %}{% fin_panneau_lateral %}{% endif %}

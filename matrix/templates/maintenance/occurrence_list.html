@@ -46,6 +46,7 @@
                 {% if occ.suis_assigne %}Me désister{% else %}M'assigner{% endif %}
               </button>
             </form>
+            <a href="{% url 'occurrence-imprimer' occ.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">Imprimer</a>
             <a href="{% url 'occurrence-execute' occ.pk %}" class="btn btn-sm btn-outline-success">Exécuter</a>
           </td>
         </tr>

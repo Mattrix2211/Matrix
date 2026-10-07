@@ -1,25 +1,7 @@
 {% extends "base.html" %}
 {% load l10n %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div class="d-flex align-items-center">
-    <h1 class="h4 mb-0">Installation</h1>
-    <img class="ms-3" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur l'installation" src="/api/assets/installations/{{ object.id }}/qr_png/" height="96" />
-  </div>
-  <div class="d-flex gap-2 align-items-center">
-    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addEventModal" onclick="document.querySelector('#addEventModal input[name=label]').value='Anomalie'; document.querySelector('#addEventModal textarea[name=notes]').focus();">Signaler une anomalie</button>
-    <a class="btn btn-outline-secondary" href="{% url 'anomalie-create' %}?installation={{ object.id }}">Signalement libre</a>
-    <a class="btn btn-secondary" href="/installations/">Retour</a>
-    <div class="dropdown">
-      <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
-      <ul class="dropdown-menu dropdown-menu-end">
-        <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editInstallationModal">Modifier les infos</button></li>
-        <li><hr class="dropdown-divider"></li>
-        <li><button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteInstallationModal">Supprimer</button></li>
-      </ul>
-    </div>
-  </div>
-  </div>
+{% include "components/fiche_entete.html" with titre=object.designation sous_titre=object.sector action=action_principale menu=menu_fiche menu_libelle="Autres actions sur cette installation" indicateurs=indicateurs_fiche objet=object historique_url="?tab=histo" %}
 
 <div class="card">
   {% if object.photo %}
@@ -81,4 +63,12 @@
 {% include "assets/installation_detail/_modale_ajout_heure.html" %}
 {% include "assets/installation_detail/_modales_edition_heure.html" %}
 {% include "assets/installation_detail/_modale_confirmation_suppression_pj.html" %}
+<script>
+  // « Signaler une anomalie » : pré-remplit l'événement et place le curseur dans les notes.
+  var signaler = document.querySelector('.mx-fiche__action');
+  if (signaler) signaler.addEventListener('click', function () {
+    document.querySelector('#addEventModal input[name=label]').value = 'Anomalie';
+    document.querySelector('#addEventModal textarea[name=notes]').focus();
+  });
+</script>
 {% endblock %}

@@ -3,8 +3,10 @@ Entrée d'un menu contextuel (à placer dans {% menu_contextuel %}).
 Usage : {% include "components/menu_item.html" with libelle="Imprimer" url="/x/" icone="impression" %}
 Paramètres :
   libelle : texte de l'action (obligatoire)
-  url     : destination (lien) ; ou hx_post pour une action HTMX sans changer de page
+  url     : destination (lien) ; ou hx_post / modale pour une action sans changer de page
   hx_post : URL appelée en POST par HTMX (facultatif, remplace url)
+  hx_cible: sélecteur CSS qui reçoit la réponse de hx_post (facultatif)
+  modale  : identifiant d'une modale à ouvrir (facultatif, remplace url)
   icone   : concept d'icône (facultatif)
   danger  : si vrai, action destructive (rouge, placée en dernier, §25 règle 16)
-{% endcomment %}{% load icones %}<li>{% if hx_post %}<button type="button" class="dropdown-item mx-menu__item{% if danger %} mx-menu__item--danger{% endif %}" hx-post="{{ hx_post }}">{% else %}<a class="dropdown-item mx-menu__item{% if danger %} mx-menu__item--danger{% endif %}" href="{{ url }}">{% endif %}{% if icone %}{% icone icone %}{% endif %}<span>{{ libelle }}</span>{% if hx_post %}</button>{% else %}</a>{% endif %}</li>
+{% endcomment %}{% load icones %}<li>{% if hx_post %}<button type="button" class="dropdown-item mx-menu__item{% if danger %} mx-menu__item--danger{% endif %}" hx-post="{{ hx_post }}"{% if hx_cible %} hx-target="{{ hx_cible }}" hx-swap="innerHTML"{% endif %}>{% elif modale %}<button type="button" class="dropdown-item mx-menu__item{% if danger %} mx-menu__item--danger{% endif %}" data-bs-toggle="modal" data-bs-target="#{{ modale }}">{% else %}<a class="dropdown-item mx-menu__item{% if danger %} mx-menu__item--danger{% endif %}" href="{{ url }}">{% endif %}{% if icone %}{% icone icone %}{% endif %}<span>{{ libelle }}</span>{% if hx_post or modale %}</button>{% else %}</a>{% endif %}</li>

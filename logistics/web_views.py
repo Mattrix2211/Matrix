@@ -31,7 +31,7 @@ from matrix.core.export import (
 from accounts.models import AuditLog
 from org.models import Sector, Section
 from assets.models import Asset, Installation
-from threads.utils import ajouter_commentaire, commentaires_de
+from threads.utils import ajouter_commentaire, contexte_discussion
 
 
 
@@ -150,9 +150,20 @@ class TicketDetailView(LoginRequiredMixin, View):
             "ticket": ticket,
             "part_requests": part_requests,
             "peut_assigner": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-            "commentaires": commentaires_de(ticket),
-            "commentaire_action_url": reverse('ticket-comment-create', args=[ticket.pk]),
+            **contexte_discussion(ticket, 'ticket-comment-create'),
         }
+        actif = ticket.installation or ticket.asset
+        url_actif = reverse('installation-detail' if ticket.installation else 'asset-detail', args=[actif.pk])
+        contexte["titre_fiche"] = ticket.installation.designation if ticket.installation else str(ticket.asset)
+        # Le changement de statut exige CHEF_SECTION (TicketTransitionView) : pas d'action principale en deçà.
+        if contexte["peut_assigner"]:
+            contexte["action_principale"] = {"libelle": "Changer le statut", "icone": "ticket", "url": "#ticket-status"}
+        contexte["menu_fiche"] = [{"libelle": "Voir la fiche de l'actif", "icone": "materiel", "url": url_actif}]
+        contexte["indicateurs_fiche"] = [
+            {"libelle": "Gravité", "valeur": f"{ticket.severity}/5",
+             "etat": "danger" if ticket.severity >= 4 else "attention" if ticket.severity == 3 else "ok"},
+            {"libelle": "Signalé le", "valeur": timezone.localtime(ticket.reported_at).strftime("%d/%m/%Y")},
+        ]
         # Prélèvement de stock en un clic (T-FEAT) : réservé à CHEF_SECTION et
         # au-dessus, même seuil que l'assignation et les autres actions
         # d'écriture du module. La liste proposée ne montre que les pièces du

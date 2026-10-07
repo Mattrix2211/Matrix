@@ -7,6 +7,7 @@ dans l'en-tête de chaque gabarit de ``components/`` et les contrastes sont calc
 sur les variables de ``matrix.css``. Le styleguide ne peut donc pas dériver.
 """
 import re
+from datetime import datetime
 
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -38,6 +39,21 @@ LIGNES_GRILLE_ERREUR = [
     {"cle": "2", "libelle": "Extincteur 2", "valeurs": {"serie": "EX-0413", "etat": "conforme"}},
 ]
 
+# Données de l'exemple « en-tête de fiche ».
+INDICATEURS_FICHE = [
+    {"libelle": "Heures de marche", "valeur": "1 248", "unite": "h", "url": "#entete"},
+    {"libelle": "Vibrations", "valeur": "État B", "etat": "attention", "url": "#entete"},
+    {"libelle": "Isolement", "valeur": "72", "unite": "MΩ", "etat": "ok"},
+]
+ACTION_FICHE = {"libelle": "Signaler une anomalie", "icone": "anomalie", "url": "#entete"}
+MENU_FICHE = [
+    {"libelle": "Modifier les infos", "icone": "modification", "url": "#entete", "ecriture": True},
+    {"libelle": "Imprimer la fiche", "icone": "impression", "url": "#entete"},
+    {"libelle": "Supprimer", "icone": "suppression", "url": "#entete", "danger": True, "ecriture": True},
+]
+OBJET_FICHE = {"created_by": {"username": "dupont"}, "created_at": datetime(2026, 9, 12, 8, 15),
+               "updated_by": {"username": "durand"}, "updated_at": datetime(2026, 10, 1, 16, 40)}
+
 
 def ex(libelle, code, note="", formulaire=False, vue=""):
     """Un exemple : ``code`` est rendu tel quel puis affiché tel quel."""
@@ -45,6 +61,20 @@ def ex(libelle, code, note="", formulaire=False, vue=""):
 
 
 COMPOSANTS = [
+    {
+        "nom": "fiche_entete", "titre": "En-tête de fiche", "balise": False,
+        "quand": "Le haut de toute grande fiche métier : identité, indicateurs, une seule action principale, Discussion, menu, version et traçabilité.",
+        "quand_pas": "Pour une liste ou un écran sans objet unique. Jamais deux actions principales : les autres vont dans le menu.",
+        "exemples": [
+            ex("Fiche complète",
+               '{% include "components/fiche_entete.html" with titre="Pompe incendie tribord" sous_titre="Installation critique · Mécanique" badge_libelle="Opérationnelle" badge_etat="ok" indicateurs=indicateurs action=action menu=menu commentaires=commentaires commentaire_action_url="#entete" objet=objet historique_url="#entete" %}',
+               "Le bouton Discussion ouvre le panneau latéral ; l'action principale et les entrées d'écriture du menu disparaissent pour l'équipage à terre.", False,
+               "indicateurs = [{libelle, valeur, unite, etat, url}, ...]  ·  action = {libelle, icone, url}  ·  menu = [{libelle, icone, url, danger, ecriture}, ...]"),
+            ex("Avec bandeau de version",
+               '{% include "components/fiche_entete.html" with titre="Fiche de maintenance" sous_titre="Plan hebdomadaire" version=version %}',
+               "", False, "version = {publiee_le, proposition_par, proposition_le}"),
+        ],
+    },
     {
         "nom": "surface", "titre": "Surface", "balise": True,
         "quand": "Regrouper des informations d'un même sujet dans un cadre neutre (mesures, détail d'une fiche).",
@@ -333,7 +363,12 @@ def preparer_composants():
     moteur = engines["django"]
     composants = []
     for composant in COMPOSANTS:
-        contexte = {"etapes": ETAPES, "colonnes": COLONNES_GRILLE, "lignes": LIGNES_GRILLE, "lignes_erreur": LIGNES_GRILLE_ERREUR}
+        contexte = {
+            "etapes": ETAPES, "colonnes": COLONNES_GRILLE, "lignes": LIGNES_GRILLE, "lignes_erreur": LIGNES_GRILLE_ERREUR,
+            "indicateurs": INDICATEURS_FICHE, "action": ACTION_FICHE, "menu": MENU_FICHE, "objet": OBJET_FICHE,
+            "commentaires": [], "csrf_token": "exemple",
+            "version": {"publiee_le": datetime(2026, 9, 12), "proposition_par": "SM Durand", "proposition_le": datetime(2026, 10, 1)},
+        }
         exemples = [
             dict(e, rendu=moteur.from_string("{% load composants icones %}" + e["code"]).render(contexte))
             for e in composant["exemples"]
