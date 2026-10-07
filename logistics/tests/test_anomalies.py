@@ -96,8 +96,63 @@ class AnomalieTests(TestCase):
         self.assertEqual(reponse.status_code, 400)
 
     def test_gravite_bornee(self):
-        self._signaler(self.marin, gravite="99")
+        self._signaler(self.marin, gravite="99", description="Voie d'eau")
         self.assertEqual(Anomalie.objects.get().gravite, 5)
+
+    def test_anomalie_critique_exige_une_description(self):
+        reponse = self._signaler(self.marin, gravite="5")
+        self.assertEqual(reponse.status_code, 400)
+        self.assertEqual(reponse.context["etape"], 3)
+        self.assertFalse(Anomalie.objects.exists())
+
+    def _etape(self, etape, action="suivant", **donnees):
+        self.client.login(username="marin", password="pass")
+        return self.client.post(reverse("anomalie-create"), {"etape": str(etape), "action": action, **donnees})
+
+    def test_assistant_quatre_etapes_prerempli_depuis_la_fiche(self):
+        self.client.login(username="marin", password="pass")
+        reponse = self.client.get(reverse("anomalie-create") + f"?asset={self.asset.pk}")
+        self.assertEqual(reponse.context["etapes"], ["Objet concerné", "Nature et gravité", "Description et photo", "Vérification"])
+        self.assertEqual(reponse.context["etape"], 1)
+        self.assertContains(reponse, f'value="{self.asset.pk}" selected')
+        self.assertContains(reponse, 'data-brouillon="anomalie:nouvelle"')
+
+    def test_assistant_avance_sans_creer_puis_valide_a_la_derniere_etape(self):
+        saisie = {"asset": str(self.asset.pk), "titre": "Fuite", "gravite": "4", "description": "Sous la pompe"}
+        for etape in (1, 2, 3):
+            reponse = self._etape(etape, **saisie)
+            self.assertEqual(reponse.context["etape"], etape + 1)
+        self.assertEqual(reponse.context["synthese"]["equipement"], self.asset)
+        self.assertFalse(Anomalie.objects.exists())
+        self._etape(4, **saisie)
+        anomalie = Anomalie.objects.get()
+        self.assertEqual((anomalie.asset, anomalie.gravite, anomalie.titre), (self.asset, 4, "Fuite"))
+
+    def test_assistant_refuse_de_passer_une_etape_invalide(self):
+        reponse = self._etape(2, titre=" ")
+        self.assertEqual((reponse.status_code, reponse.context["etape"]), (400, 2))
+        reponse = self._etape(1, asset=str(self.asset_etranger.pk))
+        self.assertEqual((reponse.status_code, reponse.context["etape"]), (400, 1))
+
+    def test_assistant_precedent_garde_les_donnees(self):
+        reponse = self._etape(3, action="precedent", titre="Fuite", gravite="2")
+        self.assertEqual(reponse.context["etape"], 2)
+        self.assertContains(reponse, 'value="Fuite"')
+
+    def test_assistant_conserve_la_photo_entre_les_etapes(self):
+        photo = SimpleUploadedFile("p.png", b"\x89PNG\r\n", content_type="image/png")
+        reponse = self._etape(3, titre="Fuite", photo=photo)
+        self.assertEqual(reponse.context["etape"], 4)
+        jeton = reponse.context["photo_attente"]
+        self._etape(4, titre="Fuite", photo_attente=jeton)
+        self.assertTrue(Anomalie.objects.get().photo)
+
+    def test_jeton_de_photo_d_un_autre_marin_ignore(self):
+        photo = SimpleUploadedFile("p.png", b"\x89PNG\r\n", content_type="image/png")
+        jeton = self._etape(3, titre="Fuite", photo=photo).context["photo_attente"]
+        self.client.login(username="marin2", password="pass")
+        self.client.post(reverse("anomalie-create"), {"etape": "4", "titre": "Fuite", "photo_attente": jeton})
+        self.assertFalse(Anomalie.objects.get().photo)
 
     def test_notifie_les_chefs_du_perimetre_uniquement(self):
         self._signaler(self.marin, gravite="4")

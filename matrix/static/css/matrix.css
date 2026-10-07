@@ -1164,3 +1164,28 @@ a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
 .mx-synthese { display: grid; grid-template-columns: max-content 1fr; gap: var(--s1) var(--s4); margin: 0; }
 .mx-synthese dt { color: var(--text-sec); font-weight: 600; }
 .mx-synthese dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Calendrier : en-tête, commandes et étiquettes de filtres actifs */
+.mx-cal-entete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s3); }
+.mx-cal-commandes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.mx-cal-etiquettes { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s2); }
+.mx-cal-etiquettes:empty { display: none; }
+.mx-cal-etiquette__retirer { margin-left: var(--s1); padding: 0 var(--s1); border: 0; background: transparent; color: inherit; font-weight: 700; line-height: 1; }
+
+/* Quarts et gardes : frise des échanges, planning en grille de semaines */
+.frise-echange { display: flex; gap: 4px; }
+.frise-echange .etape { flex: 1; text-align: center; font-size: .75rem; padding: 4px 2px; border-top: 4px solid var(--border); color: var(--text-sec); }
+.frise-echange .etape.fait { border-top-color: var(--green-tech); color: var(--text); }
+.frise-echange .etape.courant { border-top-color: var(--signal-ui); color: var(--text); font-weight: 600; }
+.frise-echange .etape.echec { border-top-color: var(--red-texte); color: var(--red-texte); font-weight: 600; }
+.mx-planning__outils { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); margin: var(--s3) 0; }
+.mx-planning__semaine { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s2); margin-bottom: var(--s2); }
+.mx-planning__jour { min-height: 5.5rem; padding: var(--s2); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); }
+.mx-planning__jour--hors { background: transparent; border-style: dashed; color: var(--text-ter); }
+.mx-planning__jour--aujourdhui { border-color: var(--signal-ui); box-shadow: 0 0 0 1px var(--signal-ui); }
+.mx-planning__date { display: block; margin-bottom: var(--s1); font-family: var(--f-mono); font-size: .75rem; color: var(--text-sec); }
+.mx-planning__creneau { margin-bottom: var(--s1); padding: var(--s1) var(--s2); border-left: 4px solid var(--green-tech); border-radius: var(--r-sm); background: var(--bg); font-size: .8125rem; overflow-wrap: anywhere; }
+.mx-planning__creneau--libre { border-left-color: var(--amber); }
+.mx-planning__poste { display: block; font-weight: 600; }
+.mx-planning__heures { font-family: var(--f-mono); font-size: .75rem; color: var(--text-sec); }
+.mx-planning__actions { display: flex; flex-wrap: wrap; gap: var(--s1); margin-top: var(--s1); }

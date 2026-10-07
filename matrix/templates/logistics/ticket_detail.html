@@ -4,11 +4,11 @@
 
 {% if ticket.anomalie_source %}<div class="mb-2 text-muted">Issu de l'anomalie : <a href="{% url 'anomalie-detail' ticket.anomalie_source.pk %}">{{ ticket.anomalie_source.titre }}</a></div>{% endif %}
 
-<div id="ticket-status" hx-target="this" hx-swap="outerHTML">
-  {% include 'logistics/_status.html' %}
-</div>
+{% include 'logistics/_status.html' %}
 
-<div class="card mt-3">
+<div class="row g-3 mt-0">
+<div class="col-lg-5">
+<div class="card h-100">
   <div class="card-header">Assignation</div>
   <div class="card-body">
     {% if ticket.assignees.all %}
@@ -25,7 +25,7 @@
       {% csrf_token %}
       <div>
         <label class="form-label small mb-1">Marins assignés (équipage de l'unité)</label>
-        <select class="form-select form-select-sm" name="assignees" multiple size="4" style="min-width: 260px;">
+        <select class="form-select form-select-sm" name="assignees" multiple size="4">
           {% for u in utilisateurs_assignables %}
           <option value="{{ u.id }}" {% if u in ticket.assignees.all %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
           {% endfor %}
@@ -37,8 +37,10 @@
     {% endif %}
   </div>
 </div>
+</div>
 
-<div class="card mt-3">
+<div class="col-lg-7">
+<div class="card h-100">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span>Demande de pièces</span>
     <form hx-post="/logistics/tickets/{{ ticket.id }}/part-request/create/" hx-target="#part-requests" hx-swap="outerHTML">
@@ -52,11 +54,13 @@
     {% include 'logistics/_part_requests.html' %}
   </div>
 </div>
+</div>
+</div>
 
 {% if peut_prelever_stock %}
-<div class="card mt-3">
-  <div class="card-header">Prélèvement de stock</div>
-  <div class="card-body">
+<details class="mx-repliable mt-3">
+  <summary>Prélèvement de stock</summary>
+  <div class="p-3">
     {% if pieces_disponibles %}
     <form method="post" action="{% url 'ticket-stock-prelevement' ticket.id %}" class="row g-2 align-items-end">
       {% csrf_token %}
@@ -80,7 +84,7 @@
     <p class="text-muted mb-0">Aucune pièce disponible dans votre périmètre de stock.</p>
     {% endif %}
   </div>
-</div>
+</details>
 {% endif %}
 
 {% endblock %}

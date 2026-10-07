@@ -128,6 +128,52 @@ def _lignes_export_stock(qs):
     ]
 
 
+# Frise du workflow (docs/UX.md §20.2) ; PLANNED, BLOCKED et CANCELLED restent hors frise.
+FRISE_TICKET = [
+    ("REPORTED", "Signalé"), ("DIAGNOSED", "Diagnostiqué"), ("WAITING_PARTS", "Pièces"),
+    ("IN_REPAIR", "Réparation"), ("TESTING", "Essais"), ("RETURNED_TO_SERVICE", "Remise en service"),
+    ("CLOSED", "Clôture"),
+]
+# Étape suivante proposée selon le statut actuel : (statut cible, libellé du bouton).
+ACTION_SUIVANTE_TICKET = {
+    "REPORTED": ("DIAGNOSED", "Passer au diagnostic"),
+    "DIAGNOSED": ("IN_REPAIR", "Lancer la réparation"),
+    "WAITING_PARTS": ("IN_REPAIR", "Pièces reçues : lancer la réparation"),
+    "PLANNED": ("IN_REPAIR", "Lancer la réparation"),
+    "IN_REPAIR": ("TESTING", "Passer aux essais"),
+    "TESTING": ("RETURNED_TO_SERVICE", "Remettre en service"),
+    "RETURNED_TO_SERVICE": ("CLOSED", "Clôturer le ticket"),
+}
+
+
+def contexte_statut_ticket(ticket, user, erreur_fermeture=None):
+    """Contexte de la zone workflow (frise + action suivante). L'action n'est proposée
+    qu'à qui peut réellement changer le statut (même seuil que TicketTransitionView)."""
+    rang = {code: i for i, (code, _) in enumerate(FRISE_TICKET)}
+    rang["PLANNED"] = rang["WAITING_PARTS"] + 0.5
+    actuel = rang.get(ticket.status)
+    frise = []
+    for code, libelle in FRISE_TICKET:
+        if ticket.status == "CLOSED" or (actuel is not None and rang[code] < actuel):
+            etat = "faite"
+        elif code == ticket.status:
+            etat = "actuelle"
+        else:
+            etat = "avenir"
+        frise.append({"libelle": libelle, "etat": etat})
+    peut_changer = user_role_level(user) >= RoleLevel.CHEF_SECTION
+    cible = ACTION_SUIVANTE_TICKET.get(ticket.status) if peut_changer else None
+    return {
+        "ticket": ticket,
+        "frise": frise,
+        "statut_hors_frise": ticket.status not in dict(FRISE_TICKET),
+        "statuts_ticket": CorrectiveTicket.STATUS,
+        "peut_changer_statut": peut_changer,
+        "action_suivante": {"cible": cible[0], "libelle": cible[1]} if cible else None,
+        "erreur_fermeture": erreur_fermeture,
+    }
+
+
 class TicketDetailView(LoginRequiredMixin, View):
     """Fiche détail d'un ticket correctif — lecture (dont les commentaires de
     suivi) restreinte au périmètre du matériel concerné, même filtre que
@@ -150,14 +196,13 @@ class TicketDetailView(LoginRequiredMixin, View):
             "ticket": ticket,
             "part_requests": part_requests,
             "peut_assigner": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
+            **contexte_statut_ticket(ticket, request.user),
             **contexte_discussion(ticket, 'ticket-comment-create'),
         }
         actif = ticket.installation or ticket.asset
         url_actif = reverse('installation-detail' if ticket.installation else 'asset-detail', args=[actif.pk])
         contexte["titre_fiche"] = ticket.installation.designation if ticket.installation else str(ticket.asset)
-        # Le changement de statut exige CHEF_SECTION (TicketTransitionView) : pas d'action principale en deçà.
-        if contexte["peut_assigner"]:
-            contexte["action_principale"] = {"libelle": "Changer le statut", "icone": "ticket", "url": "#ticket-status"}
+        # L'action principale est l'étape suivante, au centre de la fiche (zone workflow), pas dans l'en-tête.
         contexte["menu_fiche"] = [{"libelle": "Voir la fiche de l'actif", "icone": "materiel", "url": url_actif}]
         contexte["indicateurs_fiche"] = [
             {"libelle": "Gravité", "valeur": f"{ticket.severity}/5",
@@ -327,8 +372,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
             erreur_fermeture = "Mot de passe incorrect : la remise en service n'a pas été validée."
             messages.error(request, erreur_fermeture)
             if request.headers.get('HX-Request'):
-                part_requests = ticket.part_requests.prefetch_related('lines').all()
-                return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+                return render(request, 'logistics/_status.html', contexte_statut_ticket(ticket, request.user, erreur_fermeture))
             return redirect('ticket-detail', pk=ticket.pk)
 
         diagnostic_final = request.POST.get('diagnostic_final', '').strip()
@@ -366,8 +410,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
             )
 
         if request.headers.get('HX-Request'):
-            part_requests = ticket.part_requests.prefetch_related('lines').all()
-            return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+            return render(request, 'logistics/_status.html', contexte_statut_ticket(ticket, request.user, erreur_fermeture))
         return redirect('ticket-detail', pk=ticket.pk)
 
 
