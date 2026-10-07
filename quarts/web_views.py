@@ -23,6 +23,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views import View
@@ -258,6 +259,17 @@ def _peut_lire_liste(user, liste):
     return User.objects.filter(marins_du_perimetre(liste), pk=user.pk).exists()
 
 
+def _perimetres_creation(user):
+    """Périmètres où `user` peut créer une liste : toute la flotte en supervision
+    globale, sinon ses périmètres de chef de liste."""
+    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+        return _perimetres_org_disponibles(user, borne_par_scope=False)
+    return [
+        {"valeur": _encoder_perimetre(cdl.perimetre), "label": _libelle_perimetre(cdl.perimetre)}
+        for cdl in ChefDeListe.objects.filter(user=user).select_related("ship", "service", "sector", "section")
+    ]
+
+
 class ListeIndexView(LoginRequiredMixin, View):
     """Tableau de bord du module : listes gérées par l'utilisateur (s'il est
     chef de liste ou en supervision globale), listes publiées le concernant,
@@ -266,15 +278,7 @@ class ListeIndexView(LoginRequiredMixin, View):
     template_name = "quarts/liste_index.html"
 
     def _contexte(self, user):
-        supervision_globale = user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE
-        mes_perimetres = ChefDeListe.objects.filter(user=user).select_related("ship", "service", "sector", "section")
-        if supervision_globale:
-            perimetres_creation = _perimetres_org_disponibles(user, borne_par_scope=False)
-        else:
-            perimetres_creation = [
-                {"valeur": _encoder_perimetre(cdl.perimetre), "label": _libelle_perimetre(cdl.perimetre)}
-                for cdl in mes_perimetres
-            ]
+        perimetres_creation = _perimetres_creation(user)
         return {
             "quarts": _listes_visibles(Quart, user),
             "services_garde": _listes_visibles(ServiceGarde, user),
@@ -283,11 +287,6 @@ class ListeIndexView(LoginRequiredMixin, View):
             "perimetres_creation": perimetres_creation,
             "peut_creer": bool(perimetres_creation),
             "peut_designer_chef_de_liste": user_role_level(user) >= NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE,
-            # Fonction obligatoire par liste (correction de cadrage du
-            # 09/09/2026, cf. docstring de quarts/models.py) : deux
-            # référentiels distincts selon le type de liste créée.
-            "fonctions_quart": FonctionQuartChoice.objects.filter(active=True).order_by("name"),
-            "fonctions_service": ServiceFunctionChoice.objects.filter(active=True).order_by("name"),
         }
 
     def get(self, request):
@@ -297,50 +296,183 @@ class ListeIndexView(LoginRequiredMixin, View):
         action = request.POST.get("action")
         if action not in ("creer_quart", "creer_service_garde"):
             return HttpResponseBadRequest("Action inconnue.")
+        return _creer_liste(request, action, "quarts-index")
 
-        ship, service, sector, section = _resoudre_perimetre(request.POST.get("perimetre"))
-        if not any([ship, service, sector, section]):
-            messages.error(request, "Le périmètre est obligatoire.")
-            return redirect("quarts-index")
-        if not utilisateur_autorise_pour_perimetre(request.user, ship, service, sector, section):
-            raise PermissionDenied
 
-        date_debut = parse_date(request.POST.get("date_debut", ""))
-        date_fin = parse_date(request.POST.get("date_fin", ""))
-        if not date_debut or not date_fin:
-            messages.error(request, "La période (début et fin) est obligatoire.")
-            return redirect("quarts-index")
+def _creer_liste(request, action, retour_erreur):
+    """Crée le brouillon d'une liste depuis la saisie postée (index ou assistant)."""
+    ship, service, sector, section = _resoudre_perimetre(request.POST.get("perimetre"))
+    if not any([ship, service, sector, section]):
+        messages.error(request, "Le périmètre est obligatoire.")
+        return redirect(retour_erreur)
+    if not utilisateur_autorise_pour_perimetre(request.user, ship, service, sector, section):
+        raise PermissionDenied
 
-        champs_communs = dict(
-            nom=request.POST.get("nom", "").strip(),
-            ship=ship, service=service, sector=sector, section=section,
-            date_debut=date_debut, date_fin=date_fin,
-            created_by=request.user, updated_by=request.user,
+    date_debut = parse_date(request.POST.get("date_debut", ""))
+    date_fin = parse_date(request.POST.get("date_fin", ""))
+    if not date_debut or not date_fin:
+        messages.error(request, "La période (début et fin) est obligatoire.")
+        return redirect(retour_erreur)
+
+    champs_communs = dict(
+        nom=request.POST.get("nom", "").strip(),
+        ship=ship, service=service, sector=sector, section=section,
+        date_debut=date_debut, date_fin=date_fin,
+        created_by=request.user, updated_by=request.user,
+    )
+    # Fonction obligatoire, référentiel distinct selon le type de liste
+    # (cf. docstring de quarts/models.py, correction du 09/09/2026) :
+    # une liste de quarts choisit une FonctionQuartChoice, une liste de
+    # garde réutilise le référentiel ServiceFunctionChoice déjà existant.
+    if action == "creer_quart":
+        fonction = FonctionQuartChoice.objects.filter(pk=request.POST.get("fonction_quart"), active=True).first()
+        liste = Quart(fonction=fonction, **champs_communs)
+        url_name = "quart-detail"
+    else:
+        fonction = ServiceFunctionChoice.objects.filter(pk=request.POST.get("fonction_service"), active=True).first()
+        liste = ServiceGarde(fonction=fonction, **champs_communs)
+        url_name = "garde-detail"
+
+    try:
+        liste.full_clean()
+    except ValidationError as exc:
+        for erreurs in exc.message_dict.values():
+            for erreur in erreurs:
+                messages.error(request, erreur)
+        return redirect(retour_erreur)
+
+    liste.save()
+    messages.success(request, "Liste créée en brouillon : ajoutez les créneaux puis publiez-la.")
+    return redirect(url_name, pk=liste.pk)
+
+
+class CreerListeView(LoginRequiredMixin, View):
+    """Assistant de création d'une liste : type, période, périmètre (sauté s'il
+    est unique), règles puis vérification. La création finale réutilise
+    `_creer_liste` : mêmes contrôles et mêmes droits que l'index."""
+
+    template_name = "quarts/liste_creer.html"
+
+    def _etapes(self, perimetres):
+        etapes = [("type", "Type"), ("periode", "Période"), ("perimetre", "Périmètre"), ("regles", "Règles"), ("verification", "Vérification")]
+        return [e for e in etapes if e[0] != "perimetre" or len(perimetres) > 1]
+
+    def _valeurs_initiales(self, request, perimetres):
+        """Pré-remplissage : période qui suit la dernière liste, sinon lundi prochain."""
+        aujourdhui = timezone.localdate()
+        derniere = max(
+            (q.date_fin for q in _listes_visibles(Quart, request.user)),
+            default=None,
         )
-        # Fonction obligatoire, référentiel distinct selon le type de liste
-        # (cf. docstring de quarts/models.py, correction du 09/09/2026) :
-        # une liste de quarts choisit une FonctionQuartChoice, une liste de
-        # garde réutilise le référentiel ServiceFunctionChoice déjà existant.
-        if action == "creer_quart":
-            fonction = FonctionQuartChoice.objects.filter(pk=request.POST.get("fonction_quart"), active=True).first()
-            liste = Quart(fonction=fonction, **champs_communs)
-            url_name = "quart-detail"
-        else:
-            fonction = ServiceFunctionChoice.objects.filter(pk=request.POST.get("fonction_service"), active=True).first()
-            liste = ServiceGarde(fonction=fonction, **champs_communs)
-            url_name = "garde-detail"
+        derniere_garde = max((g.date_fin for g in _listes_visibles(ServiceGarde, request.user)), default=None)
+        fins = [d for d in (derniere, derniere_garde) if d and d >= aujourdhui]
+        debut = max(fins) + timezone.timedelta(days=1) if fins else aujourdhui + timezone.timedelta(days=7 - aujourdhui.weekday())
+        return {
+            "type_liste": "creer_service_garde" if request.GET.get("type") == "garde" else "creer_quart",
+            "perimetre": perimetres[0]["valeur"] if perimetres else "",
+            "date_debut": str(debut),
+            "date_fin": str(debut + timezone.timedelta(days=6)),
+        }
 
+    def _afficher(self, request, perimetres, etape, valeurs, statut=200):
+        etapes = self._etapes(perimetres)
+        contexte = {
+            "etapes": [libelle for _, libelle in etapes],
+            "etape": etape,
+            "cle_etape": etapes[etape - 1][0],
+            "valeurs": valeurs,
+            "perimetres_creation": perimetres,
+            "fonctions_quart": FonctionQuartChoice.objects.filter(active=True).order_by("name"),
+            "fonctions_service": ServiceFunctionChoice.objects.filter(active=True).order_by("name"),
+        }
+        if etapes[etape - 1][0] == "verification":
+            est_quart = valeurs.get("type_liste") == "creer_quart"
+            fonctions = contexte["fonctions_quart" if est_quart else "fonctions_service"]
+            ship, service, sector, section = _resoudre_perimetre(valeurs.get("perimetre"))
+            contexte["synthese"] = {
+                "type": "Quart (rotation de postes)" if est_quart else "Service à quai / garde",
+                "perimetre": _libelle_perimetre(ship or service or sector or section),
+                "fonction": fonctions.filter(pk=valeurs.get("fonction_quart" if est_quart else "fonction_service") or 0).first(),
+                "date_debut": parse_date(valeurs.get("date_debut", "")),
+                "date_fin": parse_date(valeurs.get("date_fin", "")),
+            }
+        return render(request, self.template_name, contexte, status=statut)
+
+    def _controler(self, cle, valeurs, perimetres):
+        """Message d'erreur de l'étape, ou None si elle est valide."""
+        if cle == "type" and valeurs.get("type_liste") not in ("creer_quart", "creer_service_garde"):
+            return "Choisissez le type de liste."
+        if cle == "periode":
+            debut, fin = parse_date(valeurs.get("date_debut", "")), parse_date(valeurs.get("date_fin", ""))
+            if not debut or not fin:
+                return "La période (début et fin) est obligatoire."
+            if fin < debut:
+                return "La fin de période précède le début."
+        if cle == "perimetre" and valeurs.get("perimetre") not in {p["valeur"] for p in perimetres}:
+            return "Choisissez le périmètre de la liste."
+        if cle == "regles":
+            champ = "fonction_quart" if valeurs.get("type_liste") == "creer_quart" else "fonction_service"
+            if not valeurs.get(champ):
+                return "La fonction est obligatoire."
+        return None
+
+    def get(self, request):
+        perimetres = _perimetres_creation(request.user)
+        if not perimetres:
+            raise PermissionDenied
+        return self._afficher(request, perimetres, 1, self._valeurs_initiales(request, perimetres))
+
+    def post(self, request):
+        perimetres = _perimetres_creation(request.user)
+        if not perimetres:
+            raise PermissionDenied
+        if len(perimetres) == 1:
+            request.POST = request.POST.copy()
+            request.POST["perimetre"] = perimetres[0]["valeur"]
+        valeurs = dict(request.POST.items())
+        etapes = self._etapes(perimetres)
         try:
-            liste.full_clean()
-        except ValidationError as exc:
-            for erreurs in exc.message_dict.values():
-                for erreur in erreurs:
-                    messages.error(request, erreur)
-            return redirect("quarts-index")
+            etape = min(max(int(valeurs.get("etape") or 1), 1), len(etapes))
+        except ValueError:
+            etape = 1
+        if valeurs.get("action") == "precedent":
+            return self._afficher(request, perimetres, max(etape - 1, 1), valeurs)
+        if etape < len(etapes):
+            erreur = self._controler(etapes[etape - 1][0], valeurs, perimetres)
+            if erreur:
+                messages.error(request, erreur)
+                return self._afficher(request, perimetres, etape, valeurs, 400)
+            return self._afficher(request, perimetres, etape + 1, valeurs)
+        for rang, (cle, _) in enumerate(etapes, 1):
+            erreur = self._controler(cle, valeurs, perimetres)
+            if erreur:
+                messages.error(request, erreur)
+                return self._afficher(request, perimetres, rang, valeurs, 400)
+        return _creer_liste(request, valeurs["type_liste"], "quarts-creer")
 
-        liste.save()
-        messages.success(request, "Liste créée en brouillon : ajoutez les créneaux puis publiez-la.")
-        return redirect(url_name, pk=liste.pk)
+
+def _semaines(liste, creneaux):
+    """Planning en grille : semaines (lundi à dimanche) couvrant la période de la
+    liste et tous ses créneaux ; chaque jour porte ses créneaux."""
+    par_jour = {}
+    for c in creneaux:
+        par_jour.setdefault(timezone.localtime(c.debut).date(), []).append(c)
+    bornes = [liste.date_debut, liste.date_fin, *par_jour]
+    debut, fin = min(bornes), max(bornes)
+    debut -= timezone.timedelta(days=debut.weekday())
+    aujourdhui = timezone.localdate()
+    semaines, jour = [], debut
+    while jour <= fin:
+        semaines.append([
+            {
+                "date": j, "creneaux": par_jour.get(j, []),
+                "dans_periode": liste.date_debut <= j <= liste.date_fin,
+                "aujourdhui": j == aujourdhui,
+            }
+            for j in (jour + timezone.timedelta(days=i) for i in range(7))
+        ])
+        jour += timezone.timedelta(days=7)
+    return semaines
 
 
 class _DetailListeViewBase(LoginRequiredMixin, View):
@@ -404,7 +536,45 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 )
         if isinstance(liste, ServiceGarde) and peut_gerer:
             contexte["formations_disponibles"] = TrainingCourse.objects.order_by("title")
+        contexte.update(self._contexte_vues(request, liste, contexte, peut_gerer))
         return render(request, self.template_name, contexte)
+
+    def _contexte_vues(self, request, liste, contexte, peut_gerer):
+        """Onglets (Planning, Échanges, Équité, Paramètres), grille, en-tête et échanges de la liste."""
+        creneaux = list(contexte["creneaux"])
+        est_garde = isinstance(liste, ServiceGarde)
+        onglets = [("planning", "Planning")]
+        if est_garde:
+            onglets.append(("echanges", "Échanges"))
+        if contexte["compteurs_equite"] is not None:
+            onglets.append(("equite", "Équité"))
+        if peut_gerer:
+            onglets.append(("parametres", "Paramètres"))
+        vue = request.GET.get("vue")
+        if vue not in {cle for cle, _ in onglets}:
+            vue = "planning"
+        non_affectes = sum(1 for c in creneaux if c.marin_id is None)
+        resultat = {
+            "onglets": onglets,
+            "vue": vue,
+            "badge_etat": "ok" if liste.statut == liste.STATUT_PUBLIEE else "attention",
+            "semaines": _semaines(liste, creneaux),
+            "indicateurs": [
+                {"libelle": "Créneaux", "valeur": len(creneaux)},
+                {"libelle": "Non affectés", "valeur": non_affectes, "etat": "attention" if non_affectes else "ok"},
+            ],
+            "action": (
+                {"libelle": "Publier la liste", "icone": "terminee", "formulaire": "form-publier"}
+                if peut_gerer and liste.statut == liste.STATUT_BROUILLON else None
+            ),
+        }
+        if est_garde and vue == "echanges":
+            echanges = [
+                e for e in _echanges_visibles(request.user)
+                if e.creneau_demandeur.service_garde_id == liste.pk
+            ]
+            resultat.update(_grouper_echanges(echanges, request.user))
+        return resultat
 
     def post(self, request, pk):
         liste = self._liste(pk)
@@ -420,6 +590,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             self._supprimer_creneau(request, liste)
         elif action == "regler_echanges" and isinstance(liste, ServiceGarde):
             self._regler_echanges(request, liste)
+            return redirect(f"{reverse(f'{self.url_prefix}-detail', args=[liste.pk])}?vue=parametres")
         elif action == "publier":
             liste.publier(request.user)
             messages.success(request, "Liste publiée : les marins affectés ont été notifiés.")
@@ -634,21 +805,26 @@ def _etapes(echange):
     return etapes
 
 
+def _grouper_echanges(echanges, user):
+    """Annote chaque échange des actions possibles pour `user` et les range en
+    « à traiter », « en cours » et « terminés »."""
+    for e in echanges:
+        e.peut_repondre = e.statut == e.STATUT_DEMANDE and e.cible_id == user.pk
+        e.peut_annuler = e.en_cours and e.demandeur_id == user.pk
+        e.peut_trancher = e.statut == e.STATUT_ACCEPTE and peut_valider_echange(user, e)
+        e.etapes = _etapes(e)
+    return {
+        "a_traiter": [e for e in echanges if e.peut_repondre or e.peut_trancher],
+        "en_cours": [e for e in echanges if e.en_cours and not (e.peut_repondre or e.peut_trancher)],
+        "termines": [e for e in echanges if not e.en_cours],
+    }
+
+
 class EchangesIndexView(LoginRequiredMixin, View):
     template_name = "quarts/echanges.html"
 
     def get(self, request):
-        echanges = _echanges_visibles(request.user)
-        for e in echanges:
-            e.peut_repondre = e.statut == e.STATUT_DEMANDE and e.cible_id == request.user.pk
-            e.peut_annuler = e.en_cours and e.demandeur_id == request.user.pk
-            e.peut_trancher = e.statut == e.STATUT_ACCEPTE and peut_valider_echange(request.user, e)
-            e.etapes = _etapes(e)
-        return render(request, self.template_name, {
-            "a_traiter": [e for e in echanges if e.peut_repondre or e.peut_trancher],
-            "en_cours": [e for e in echanges if e.en_cours and not (e.peut_repondre or e.peut_trancher)],
-            "termines": [e for e in echanges if not e.en_cours],
-        })
+        return render(request, self.template_name, _grouper_echanges(_echanges_visibles(request.user), request.user))
 
 
 class EchangeActionView(LoginRequiredMixin, View):

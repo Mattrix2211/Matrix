@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load composants %}
+{% block content %}
+{# Toutes les étapes restent dans le formulaire (masquées hors étape) : revenir en arrière ne perd rien. #}
+<form method="post" style="max-width: 760px;" data-brouillon="quarts:nouvelle-liste" data-brouillon-libelle="Création d'une liste de quart ou de garde">
+  {% csrf_token %}
+  <input type="hidden" name="etape" value="{{ etape }}">
+  {% if cle_etape != "perimetre" %}<input type="hidden" name="perimetre" value="{{ valeurs.perimetre }}">{% endif %}
+  {% assistant titre="Créer une liste" etapes=etapes etape=etape libelle_final="Créer le brouillon" %}
+  <div {% if cle_etape != "type" %}hidden{% endif %}>
+    <p class="text-muted">Quelle liste voulez-vous établir ?</p>
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="radio" name="type_liste" id="type-quart" value="creer_quart" {% if valeurs.type_liste == "creer_quart" %}checked{% endif %}>
+      <label class="form-check-label" for="type-quart">Quart (rotation de postes)</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="radio" name="type_liste" id="type-garde" value="creer_service_garde" {% if valeurs.type_liste == "creer_service_garde" %}checked{% endif %}>
+      <label class="form-check-label" for="type-garde">Service à quai / garde</label>
+    </div>
+  </div>
+
+  <div {% if cle_etape != "periode" %}hidden{% endif %}>
+    <p class="text-muted">Période déjà proposée à la suite de vos listes : modifiez-la si besoin.</p>
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label" for="date_debut">Début de période</label>
+        <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ valeurs.date_debut }}">
+      </div>
+      <div class="col-6">
+        <label class="form-label" for="date_fin">Fin de période</label>
+        <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ valeurs.date_fin }}">
+      </div>
+    </div>
+  </div>
+
+  {% if cle_etape == "perimetre" %}
+  <div>
+    <p class="text-muted">À quelle partie du bord s'applique la liste ?</p>
+    <label class="form-label" for="perimetre">Périmètre</label>
+    <select class="form-select" id="perimetre" name="perimetre">
+      {% for p in perimetres_creation %}<option value="{{ p.valeur }}" {% if valeurs.perimetre == p.valeur %}selected{% endif %}>{{ p.label }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <div {% if cle_etape != "regles" %}hidden{% endif %}>
+    <div class="mb-3" {% if valeurs.type_liste == "creer_service_garde" %}hidden{% endif %}>
+      <label class="form-label" for="fonction_quart">Fonction de quart</label>
+      <select class="form-select" id="fonction_quart" name="fonction_quart">
+        <option value="">— Choisir une fonction —</option>
+        {% for f in fonctions_quart %}<option value="{{ f.pk }}" {% if valeurs.fonction_quart == f.pk|stringformat:'s' %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="mb-3" {% if valeurs.type_liste != "creer_service_garde" %}hidden{% endif %}>
+      <label class="form-label" for="fonction_service">Fonction de service</label>
+      <select class="form-select" id="fonction_service" name="fonction_service">
+        <option value="">— Choisir une fonction —</option>
+        {% for f in fonctions_service %}<option value="{{ f.pk }}" {% if valeurs.fonction_service == f.pk|stringformat:'s' %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label" for="nom">Nom (facultatif)</label>
+      <input type="text" class="form-control" id="nom" name="nom" value="{{ valeurs.nom }}" placeholder="Ex. Semaine du 08/09">
+    </div>
+  </div>
+
+  {% if synthese %}
+  <dl class="mx-synthese">
+    <dt>Type</dt><dd>{{ synthese.type }}</dd>
+    <dt>Période</dt><dd>du {{ synthese.date_debut|date:"d/m/Y" }} au {{ synthese.date_fin|date:"d/m/Y" }}</dd>
+    <dt>Périmètre</dt><dd>{{ synthese.perimetre }}</dd>
+    <dt>Fonction</dt><dd>{{ synthese.fonction }}</dd>
+    {% if valeurs.nom %}<dt>Nom</dt><dd>{{ valeurs.nom }}</dd>{% endif %}
+  </dl>
+  <p class="text-muted small mt-2">La liste est créée en brouillon : vous ajoutez les créneaux puis vous la publiez.</p>
+  {% endif %}
+  {% fin_assistant %}
+</form>
+{% endblock %}

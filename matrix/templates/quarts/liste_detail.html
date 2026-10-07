@@ -1,167 +1,112 @@
 {% extends 'base.html' %}
+{% load composants icones %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-3">
-  <div>
-    <h1 class="h3 mb-0">{{ liste.nom|default:liste.libelle_type|capfirst }}</h1>
-    <div class="text-muted font-mono">
-      {{ liste.fonction }} — {{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}
-      {% if liste.type_service %} — {{ liste.type_service }}{% endif %}
-    </div>
-  </div>
-  <div class="text-end">
-    <span class="badge fs-6 {% if liste.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ liste.get_statut_display }}</span>
-    {% if liste.statut == 'PUBLIEE' %}
-      <div class="small text-muted mt-1">Publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}</div>
-    {% endif %}
-  </div>
+{% include "components/fiche_entete.html" with titre=liste.nom|default:liste.libelle_type|capfirst badge_libelle=liste.get_statut_display|upper badge_etat=badge_etat action=action indicateurs=indicateurs objet=liste %}
+<p class="text-secondary">{{ liste.fonction }} — {{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}{% if liste.type_service %} — {{ liste.type_service }}{% endif %}{% if liste.statut == 'PUBLIEE' %} — publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}{% endif %}</p>
+{% if action %}<form method="post" id="form-publier" onsubmit="return confirm('Publier cette liste ? Les marins affectés seront notifiés.');">{% csrf_token %}<input type="hidden" name="action" value="publier"></form>{% endif %}
+
+<ul class="nav nav-tabs mb-3">
+  {% for cle, libelle in onglets %}
+  <li class="nav-item"><a class="nav-link{% if vue == cle %} active{% endif %}" href="?vue={{ cle }}"{% if vue == cle %} aria-current="page"{% endif %}>{{ libelle }}</a></li>
+  {% endfor %}
+</ul>
+
+{% if vue == "planning" %}
+{% if peut_gerer and not equipage_a_terre %}
+<div class="mx-planning__outils">
+  <span class="text-secondary small">Les créneaux non affectés apparaissent en orange.</span>
+  <button type="button" class="btn btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#creneau-ajout" aria-controls="creneau-ajout">{% icone "ajout" %} Créneau</button>
 </div>
-
-<div class="card">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead>
-        <tr>
-          <th>Poste</th>
-          <th>Début</th>
-          <th>Fin</th>
-          <th>Marin affecté</th>
-          <th>Note</th>
-          {% if peut_gerer %}<th></th>{% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in creneaux %}
-        <tr>
-          <td>{{ c.poste }}</td>
-          <td class="font-mono">{{ c.debut|date:"d/m/Y H:i" }}</td>
-          <td class="font-mono">{{ c.fin|date:"d/m/Y H:i" }}</td>
-          <td>
-            {% if c.marin %}{{ c.marin.get_full_name|default:c.marin.username }}{% else %}<span class="text-muted">Non affecté</span>{% endif %}
-            {% if c.en_echange %}<span class="badge text-bg-info ms-1">Échange en cours</span>{% endif %}
-            {% if c.peut_echanger %}
-            <div class="dropdown d-inline ms-1">
-              <button class="btn btn-sm btn-outline-primary" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                <i class="bi bi-arrow-left-right"></i> Proposer un échange
-              </button>
-              <form method="post" action="{% url 'echange-proposer' liste.pk %}" class="dropdown-menu p-3" style="min-width: 22rem">
-                {% csrf_token %}
-                <input type="hidden" name="creneau_id" value="{{ c.pk }}">
-                <label class="form-label small">Échanger contre le tour de</label>
-                <select name="cible_creneau_id" class="form-select form-select-sm mb-2" required>
-                  {% for t in tours_echangeables %}
-                  <option value="{{ t.pk }}">{{ t.marin.get_full_name|default:t.marin.username }} — {{ t.poste }} le {{ t.debut|date:"d/m/Y H:i" }}</option>
-                  {% endfor %}
-                </select>
-                <input type="text" name="motif" class="form-control form-control-sm mb-2" placeholder="Motif (facultatif)">
-                <button type="submit" class="btn btn-sm btn-primary">Envoyer la demande</button>
-              </form>
-            </div>
-            {% endif %}
-          </td>
-          <td class="small text-muted">{{ c.note|default:"—" }}</td>
-          {% if peut_gerer %}
-          <td>
-            <form method="post" onsubmit="return confirm('Supprimer ce créneau ?');">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="supprimer_creneau">
-              <input type="hidden" name="creneau_id" value="{{ c.pk }}">
-              <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
-          </td>
-          {% endif %}
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-4">Aucun créneau pour l'instant.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-{% if peut_gerer %}
-<div class="row g-4 mt-1">
-  <div class="col-md-7">
-    <h2 class="h5">Ajouter un créneau</h2>
-    <div class="card card-body">
-      <form method="post" class="row g-2">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="ajouter_creneau">
-        <div class="col-md-4">
-          <label class="form-label">Poste</label>
-          <input type="text" name="poste" class="form-control" placeholder="Ex. Passerelle" required>
+{% endif %}
+{% for semaine in semaines %}
+<div class="mx-planning__semaine">
+  {% for jour in semaine %}
+  <div class="mx-planning__jour{% if not jour.dans_periode %} mx-planning__jour--hors{% endif %}{% if jour.aujourdhui %} mx-planning__jour--aujourdhui{% endif %}">
+    <span class="mx-planning__date">{{ jour.date|date:"D d/m" }}</span>
+    {% for c in jour.creneaux %}
+    <div class="mx-planning__creneau{% if not c.marin %} mx-planning__creneau--libre{% endif %}">
+      <span class="mx-planning__poste">{{ c.poste }}</span>
+      <span class="mx-planning__heures">{{ c.debut|date:"H:i" }}–{{ c.fin|date:"H:i" }}</span>
+      <span class="d-block">{% if c.marin %}{{ c.marin.get_full_name|default:c.marin.username }}{% else %}Non affecté{% endif %}</span>
+      {% if c.note %}<span class="d-block small text-secondary">{{ c.note }}</span>{% endif %}
+      {% if c.en_echange or c.peut_echanger or peut_gerer and not equipage_a_terre %}
+      <div class="mx-planning__actions">
+        {% if c.en_echange %}<span class="badge text-bg-info">Échange en cours</span>{% endif %}
+        {% if c.peut_echanger and not equipage_a_terre %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Proposer un échange</button>
+          <form method="post" action="{% url 'echange-proposer' liste.pk %}" class="dropdown-menu p-3" style="min-width: 22rem">
+            {% csrf_token %}
+            <input type="hidden" name="creneau_id" value="{{ c.pk }}">
+            <label class="form-label small">Échanger contre le tour de</label>
+            <select name="cible_creneau_id" class="form-select form-select-sm mb-2" required>
+              {% for t in tours_echangeables %}
+              <option value="{{ t.pk }}">{{ t.marin.get_full_name|default:t.marin.username }} — {{ t.poste }} le {{ t.debut|date:"d/m/Y H:i" }}</option>
+              {% endfor %}
+            </select>
+            <input type="text" name="motif" class="form-control form-control-sm mb-2" placeholder="Motif (facultatif)">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Envoyer la demande</button>
+          </form>
         </div>
-        <div class="col-md-4">
-          <label class="form-label">Début</label>
-          <input type="datetime-local" name="debut" class="form-control" required>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Fin <span class="text-muted small">(facultatif — {{ liste.duree_creneau_heures }} h par défaut)</span></label>
-          <input type="datetime-local" name="fin" class="form-control">
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Marin affecté <span class="text-muted small">(facultatif)</span></label>
-          <select name="marin" class="form-select">
-            <option value="">— Non affecté —</option>
-            {% for m in marins_perimetre %}
-            <option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Note <span class="text-muted small">(facultatif)</span></label>
-          <input type="text" name="note" class="form-control">
-        </div>
-        <div class="col-12">
-          <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Ajouter le créneau</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="col-md-5">
-    <h2 class="h5">Publication</h2>
-    <div class="card card-body">
-      {% if liste.statut == 'PUBLIEE' %}
-        <p class="mb-0 text-success"><i class="bi bi-check-circle"></i> Liste déjà publiée. Vous pouvez continuer à corriger les créneaux ci-dessus si nécessaire.</p>
-      {% else %}
-        <p class="text-muted">Une fois publiée, chaque marin affecté sur un créneau reçoit une notification.</p>
-        <form method="post" onsubmit="return confirm('Publier cette liste ? Les marins affectés seront notifiés.');">
+        {% endif %}
+        {% if peut_gerer and not equipage_a_terre %}
+        <form method="post" onsubmit="return confirm('Supprimer ce créneau ?');">
           {% csrf_token %}
-          <input type="hidden" name="action" value="publier">
-          <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Publier la liste</button>
+          <input type="hidden" name="action" value="supprimer_creneau">
+          <input type="hidden" name="creneau_id" value="{{ c.pk }}">
+          <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer le créneau {{ c.poste }}">{% icone "suppression" %}</button>
         </form>
+        {% endif %}
+      </div>
       {% endif %}
     </div>
+    {% endfor %}
   </div>
+  {% endfor %}
 </div>
-{% if formations_disponibles is not None %}
-<div class="card card-body mt-3">
-  <h2 class="h5">Règles des échanges de tour</h2>
-  <form method="post" class="row g-2">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="regler_echanges">
-    <div class="col-md-4">
-      <label class="form-label">Délai minimal avant le tour (heures)</label>
-      <input type="number" min="0" name="delai_minimal_echange_heures" value="{{ liste.delai_minimal_echange_heures }}" class="form-control">
-    </div>
-    <div class="col-md-8">
-      <label class="form-label">Habilitations exigées pour reprendre un tour <span class="text-muted small">(facultatif)</span></label>
-      <select name="formations_requises" multiple class="form-select">
-        {% for f in formations_disponibles %}
-        <option value="{{ f.pk }}" {% if f in liste.formations_requises.all %}selected{% endif %}>{{ f.title }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-12"><button type="submit" class="btn btn-outline-primary">Enregistrer les règles</button></div>
-  </form>
-</div>
-{% endif %}
+{% endfor %}
+{% if not creneaux %}<p class="text-secondary text-center py-3">Aucun créneau pour l'instant.{% if peut_gerer and not equipage_a_terre %} Ajoutez-en avec « Créneau ».{% endif %}</p>{% endif %}
+
+{% if peut_gerer and not equipage_a_terre %}
+{% panneau_lateral id="creneau-ajout" titre="Nouveau créneau" icone="ajout" %}
+<form method="post" class="d-grid gap-3">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="ajouter_creneau">
+  <div>
+    <label class="form-label" for="creneau-poste">Poste</label>
+    <input type="text" id="creneau-poste" name="poste" class="form-control" placeholder="Ex. Passerelle" required>
+  </div>
+  <div>
+    <label class="form-label" for="creneau-debut">Début</label>
+    <input type="datetime-local" id="creneau-debut" name="debut" class="form-control" required>
+  </div>
+  <div>
+    <label class="form-label" for="creneau-fin">Fin <span class="text-secondary small">(facultatif — {{ liste.duree_creneau_heures }} h par défaut)</span></label>
+    <input type="datetime-local" id="creneau-fin" name="fin" class="form-control">
+  </div>
+  <div>
+    <label class="form-label" for="creneau-marin">Marin affecté <span class="text-secondary small">(facultatif)</span></label>
+    <select id="creneau-marin" name="marin" class="form-select">
+      <option value="">— Non affecté —</option>
+      {% for m in marins_perimetre %}<option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="form-label" for="creneau-note">Note <span class="text-secondary small">(facultatif)</span></label>
+    <input type="text" id="creneau-note" name="note" class="form-control">
+  </div>
+  <div><button type="submit" class="btn btn-outline-secondary">{% icone "ajout" %} Ajouter le créneau</button></div>
+</form>
+{% fin_panneau_lateral %}
 {% endif %}
 
-{% if compteurs_equite is not None %}
-<div class="mt-4">
+{% elif vue == "echanges" %}
+{% include "quarts/_echanges_groupe.html" with titre="À traiter" liste_echanges=a_traiter vide="Rien à traiter pour l'instant." %}
+{% include "quarts/_echanges_groupe.html" with titre="En cours" liste_echanges=en_cours vide="Aucune demande en cours." %}
+{% include "quarts/_echanges_groupe.html" with titre="Historique" liste_echanges=termines vide="Aucun échange terminé." %}
+
+{% elif vue == "equite" %}
+<div>
   <h2 class="h5">Équité des services de garde — périmètre de cette liste</h2>
   <p class="text-muted small mb-2">
     Compteur en lecture seule : créneaux des listes déjà publiées uniquement, pour vous aider à répartir équitablement les prochaines affectations.
@@ -233,5 +178,33 @@
     </div>
   </div>
 </div>
+
+{% elif vue == "parametres" %}
+<div class="card card-body mb-3">
+  <h2 class="h5">Durée par défaut d'un créneau</h2>
+  <p class="mb-0">{{ liste.duree_creneau_heures }} h, appliquée quand la fin d'un créneau n'est pas saisie.</p>
+</div>
+{% if formations_disponibles is not None %}
+<div class="card card-body">
+  <h2 class="h5">Règles des échanges de tour</h2>
+  <form method="post" class="row g-2">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="regler_echanges">
+    <div class="col-md-4">
+      <label class="form-label">Délai minimal avant le tour (heures)</label>
+      <input type="number" min="0" name="delai_minimal_echange_heures" value="{{ liste.delai_minimal_echange_heures }}" class="form-control">
+    </div>
+    <div class="col-md-8">
+      <label class="form-label">Habilitations exigées pour reprendre un tour <span class="text-muted small">(facultatif)</span></label>
+      <select name="formations_requises" multiple class="form-select">
+        {% for f in formations_disponibles %}
+        <option value="{{ f.pk }}" {% if f in liste.formations_requises.all %}selected{% endif %}>{{ f.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12"><button type="submit" class="btn btn-outline-primary">Enregistrer les règles</button></div>
+  </form>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}
