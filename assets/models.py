@@ -143,6 +143,11 @@ class Asset(TimeStampedModel, OwnedModel):
     status = models.CharField(max_length=32, choices=STATUS, default="OK")
     criticality = models.PositiveSmallIntegerField(default=1)
     folder = models.ForeignKey('AssetFolder', null=True, blank=True, on_delete=models.SET_NULL, related_name='assets')
+    # Article du catalogue dont ce matériel est un exemplaire. SET_NULL : la fiche du bord
+    # est une copie autonome et survit à la suppression (rare, réservée) de l'article.
+    article_catalogue = models.ForeignKey(
+        "ArticleCatalogue", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="exemplaires", verbose_name="Article du catalogue")
     # Rattachement hiérarchique optionnel (ex: un multimètre rattaché à une caisse à outils)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="sous_ensembles")
     # Positionnement précis sur le plan visuel du navire (épingle x/y),

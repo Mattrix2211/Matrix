@@ -1220,3 +1220,10 @@ a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
 .mx-formations-jauge { min-width: 12rem; padding: var(--s2) var(--s3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm, 4px); align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
 .mx-formation-session { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--s2); padding: var(--s2) 0; border-bottom: 1px solid var(--border); }
 .mx-formation-session:last-of-type { border-bottom: 0; }
+
+/* Catalogue : équiper le navire et exemplaires à bord */
+.mx-cat-equiper-article { margin-bottom: 1rem; }
+.mx-cat-a-bord { color: var(--signal); font-size: 0.8125rem; font-weight: 600; }
+.mx-cat-compteur { font-weight: 600; margin-bottom: 0.5rem; }
+.mx-cat-exemplaires { list-style: none; padding: 0; margin: 0; }
+.mx-cat-exemplaires li { padding: 0.25rem 0; border-bottom: 1px solid var(--bordure, var(--bs-border-color)); }

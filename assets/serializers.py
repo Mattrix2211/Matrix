@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, CategorieCatalogue, ArticleCatalogue
 from .permissions import peut_gerer_catalogue
+from .catalogue_photo import valider_photo
 
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -36,7 +37,8 @@ class AssetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Asset
         fields = "__all__"
-        read_only_fields = ["created_by", "updated_by"]
+        # Le lien au catalogue n'est posé que par l'assistant « Équiper le navire ».
+        read_only_fields = ["created_by", "updated_by", "article_catalogue"]
 
     def validate(self, attrs):
         # Reproduit ici la règle métier de Asset.clean() (protection anti-cycle
@@ -67,6 +69,12 @@ class _CatalogueSerializer(serializers.ModelSerializer):
     def _verifier_droit(self, specialite):
         if not peut_gerer_catalogue(self.context["request"].user, specialite):
             raise PermissionDenied("Vous n'êtes pas responsable de cette spécialité.")
+
+    def validate_photo(self, fichier):
+        try:
+            return valider_photo(fichier)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages)
 
     def _verifier_modele(self, candidat):
         try:

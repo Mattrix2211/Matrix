@@ -28,12 +28,19 @@
       {% include "components/etat_vide.html" with titre="Aucune fiche de maintenance" texte="Les fiches rattachées à cet article apparaîtront ici." %}
     {% fin_surface %}
     {% surface titre="Exemplaires à bord" icone="materiel" classes="mt-3" %}
-      {# Emplacement prêt : un badge d'état par exemplaire. #}
+      {% if exemplaires %}
+      <p class="mx-cat-compteur" role="status">{{ exemplaires|length }} exemplaire{{ exemplaires|length|pluralize }} à bord</p>
+      <ul class="mx-cat-exemplaires">
+        {% for e in exemplaires %}<li><a href="{% url 'asset-detail' e.pk %}">{{ e.internal_id|default:e.serial_number|default:"Sans numéro" }}</a> <span class="text-secondary small">{{ e.sector.name }}{% if e.location %} · {{ e.location.name }}{% endif %}</span> <span class="badge text-bg-secondary">{{ e.get_status_display }}</span></li>{% endfor %}
+      </ul>
+      {% else %}
       {% include "components/etat_vide.html" with titre="Aucun exemplaire à bord" texte="Les exemplaires suivis à bord, avec leur état, apparaîtront ici." %}
+      {% endif %}
     {% fin_surface %}
   </div>
   <div class="col-lg-5">
     <div class="mx-cat-photo">{% if article.photo %}<img src="{{ article.photo.url }}" alt="{{ article.designation }}">{% else %}{% icone "materiel" %}{% endif %}</div>
+    {% if peut_equiper %}<a class="btn btn-primary mt-3" href="{% url 'catalogue-article-equiper' article.pk %}">{% icone "navire" %} Équiper le navire</a>{% endif %}
     {% if peut_modifier and article.actif and not equipage_a_terre %}
     <form method="post" action="{% url 'catalogue-article-archiver' article.pk %}" class="mt-3">{% csrf_token %}<button type="submit" class="btn btn-outline-danger btn-sm">Archiver l'article</button></form>
     {% endif %}

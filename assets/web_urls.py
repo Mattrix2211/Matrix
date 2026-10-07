@@ -3,6 +3,7 @@ from .catalogue_web import (
     CatalogueView, ArticleCatalogueDetailView, CategorieEcritureView, ArticleEcritureView,
     CategorieArchiverView, ArticleArchiverView,
 )
+from .equipement_web import ArticleEquiperView
 from .web_views import (
     AssetDetailView, StartVisualCheckView, AssetListView, InstallationListView,
     InstallationDetailView, ScanQRView, AssetImportView, AssetImportModeleView,
@@ -17,6 +18,7 @@ urlpatterns = [
     path('catalogue/categories/<uuid:pk>/archiver/', CategorieArchiverView.as_view(), name='catalogue-categorie-archiver'),
     path('catalogue/articles/nouveau/', ArticleEcritureView.as_view(), name='catalogue-article-nouveau'),
     path('catalogue/articles/<uuid:pk>/', ArticleCatalogueDetailView.as_view(), name='catalogue-article'),
+    path('catalogue/articles/<uuid:pk>/equiper/', ArticleEquiperView.as_view(), name='catalogue-article-equiper'),
     path('catalogue/articles/<uuid:pk>/modifier/', ArticleEcritureView.as_view(), name='catalogue-article-modifier'),
     path('catalogue/articles/<uuid:pk>/archiver/', ArticleArchiverView.as_view(), name='catalogue-article-archiver'),
     path('assets/', AssetListView.as_view(), name='asset-list'),

@@ -1,5 +1,7 @@
 """Écran web du catalogue de matériel de la flotte : lecture pour tout connecté,
 écriture réservée aux responsables de la spécialité (même règle que l'API)."""
+import uuid
+
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -11,8 +13,11 @@ from django.views import View
 
 from accounts.models import AuditLog, SpecialityChoice
 from matrix.core.icones import ICONES
+from matrix.core.recherche import normaliser
 from matrix.core.scopes import is_master_admin
 
+from .catalogue_photo import valider_photo
+from .equipement_web import exemplaires_a_bord, exemplaires_a_bord_liste, peut_equiper
 from .models import ArticleCatalogue, CategorieCatalogue
 from .permissions import peut_gerer_catalogue
 
@@ -39,6 +44,17 @@ def journaliser(user, verbe, objet):
         details=f"{objet._meta.verbose_name} « {objet} » ({objet.pk})")
 
 
+def _uuid_ou_none(valeur):
+    try:
+        return uuid.UUID(str(valeur))
+    except ValueError:
+        return None
+
+
+def _entier_ou_none(valeur):
+    return int(valeur) if str(valeur or "").isdigit() else None
+
+
 def _icone(categorie):
     return categorie.icone if categorie.icone in ICONES else "materiel"
 
@@ -60,7 +76,12 @@ class _FormBootstrap(forms.ModelForm):
             champ.widget.attrs["class"] = classe
 
 
-class CategorieForm(_FormBootstrap):
+class _PhotoMixin:
+    def clean_photo(self):
+        return valider_photo(self.cleaned_data.get("photo"))
+
+
+class CategorieForm(_PhotoMixin, _FormBootstrap):
     icone = forms.ChoiceField(choices=[("", "Par défaut")] + ICONES_CATEGORIE, required=False, label="Icône")
 
     class Meta:
@@ -82,7 +103,7 @@ class CategorieForm(_FormBootstrap):
         return cleaned
 
 
-class ArticleForm(_FormBootstrap):
+class ArticleForm(_PhotoMixin, _FormBootstrap):
     caracteristiques_texte = forms.CharField(
         label="Caractéristiques", required=False, widget=forms.Textarea(attrs={"rows": 4}),
         help_text="Une par ligne, sous la forme « nom : valeur ».")
@@ -119,11 +140,11 @@ class CatalogueView(LoginRequiredMixin, View):
     """Tuiles de catégories, cartes d'articles, recherche (fragment HTMX) et filtre de spécialité."""
 
     def get(self, request):
-        q = request.GET.get("q", "").strip()
-        specialite = SpecialityChoice.objects.filter(pk=request.GET.get("specialite") or 0).first()
+        q = normaliser(request.GET.get("q"))
+        specialite = SpecialityChoice.objects.filter(pk=_entier_ou_none(request.GET.get("specialite")) or 0).first()
+        categorie_id = _uuid_ou_none(request.GET.get("categorie"))
         categorie = (CategorieCatalogue.objects.select_related("parent", "specialite")
-                     .filter(pk=request.GET.get("categorie"), actif=True).first()
-                     if request.GET.get("categorie") else None)
+                     .filter(pk=categorie_id, actif=True).first() if categorie_id else None)
         if categorie:
             specialite = categorie.specialite
         articles = ArticleCatalogue.objects.filter(actif=True).select_related("categorie")
@@ -143,6 +164,10 @@ class CatalogueView(LoginRequiredMixin, View):
             for t in tuiles:
                 t.icone_affichee = _icone(t)
             articles = articles.filter(categorie=categorie) if categorie else articles.none()
+        articles = list(articles)
+        compteurs = exemplaires_a_bord(request.user, [a.pk for a in articles])
+        for a in articles:
+            a.nb_a_bord = compteurs.get(a.pk, 0)
         gerees = specialites_gerees(request.user)
         contexte = {
             "q": q, "categorie": categorie, "categorie_id": str(categorie.pk) if categorie else "", "specialite": specialite,
@@ -162,9 +187,11 @@ class ArticleCatalogueDetailView(LoginRequiredMixin, View):
         article = get_object_or_404(ArticleCatalogue.objects.select_related("categorie__parent", "categorie__specialite"), pk=pk)
         duree = article.duree_vie_mois
         peut = peut_gerer_catalogue(request.user, article.specialite)
+        exemplaires = list(exemplaires_a_bord_liste(request.user, article))
         return render(request, "assets/catalogue/fiche.html", {
             "article": article, "chemin": _chemin(article.categorie),
-            "peut_modifier": peut,
+            "peut_modifier": peut, "exemplaires": exemplaires,
+            "peut_equiper": article.actif and peut_equiper(request.user),
             "action": {"libelle": "Modifier", "icone": "modification", "url": reverse("catalogue-article-modifier", args=[article.pk])} if peut else None,
             "duree_vie": None if not duree else (
                 f"{duree} mois" + (f" ({duree // 12} an{'s' if duree // 12 > 1 else ''})" if duree % 12 == 0 and duree >= 12 else "")),
@@ -231,7 +258,8 @@ class CategorieEcritureView(_EcritureCatalogueView):
         return f"{reverse('catalogue')}?categorie={objet.pk}"
 
     def _initial(self, request):
-        return {"parent": request.GET.get("parent") or None, "specialite": request.GET.get("specialite") or None}
+        return {"parent": _uuid_ou_none(request.GET.get("parent")),
+                "specialite": _entier_ou_none(request.GET.get("specialite"))}
 
 
 class ArticleEcritureView(_EcritureCatalogueView):
@@ -243,7 +271,7 @@ class ArticleEcritureView(_EcritureCatalogueView):
         return reverse("catalogue-article", args=[objet.pk])
 
     def _initial(self, request):
-        return {"categorie": request.GET.get("categorie") or None}
+        return {"categorie": _uuid_ou_none(request.GET.get("categorie"))}
 
 
 class _ArchiverView(LoginRequiredMixin, View):

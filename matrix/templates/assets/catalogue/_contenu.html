@@ -42,6 +42,7 @@
       <span class="mx-carte__titre">{{ a.designation }}</span>
       <span class="mx-carte__sous-titre">{{ a.marque }}{% if a.marque and a.reference %} · {% endif %}{{ a.reference }}</span>
       {% if q %}<span class="mx-carte__sous-titre">{{ a.categorie.nom }}</span>{% endif %}
+      {% if a.nb_a_bord %}<span class="mx-cat-a-bord">{{ a.nb_a_bord }} à bord</span>{% endif %}
     </span>
   </a>
   {% endfor %}
