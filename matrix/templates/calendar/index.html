@@ -1,236 +1,187 @@
 {% extends "base.html" %}
-{% load static icones %}
+{% load static icones composants %}
 {% block content %}
 <div class="container-fluid py-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">Calendrier</h3>
-    <div class="d-flex gap-2">
-      <button id="btnPrev" class="btn btn-outline-secondary btn-sm">&#9664; Précédent</button>
-      <button id="btnToday" class="btn btn-outline-primary btn-sm">Aujourd'hui</button>
-      <button id="btnNext" class="btn btn-outline-secondary btn-sm">Suivant &#9654;</button>
-    </div>
-  </div>
-
-  {# Filtres #}
-  <form method="get" class="row g-2 align-items-end mb-3">
-    {% comment %}
-    La vue (Jour/Semaine/Mois) n'est plus soumise par ce formulaire : elle
-    est pilotée en JS pur par calendar.changeView() (voir script plus bas)
-    pour éviter tout rechargement de page. Le champ caché ci-dessous garde
-    uniquement la vue courante en mémoire, pour qu'elle soit préservée si
-    l'utilisateur soumet les autres filtres classiques.
-    {% endcomment %}
-    <input type="hidden" name="view" id="vue-courante" value="{{ view }}">
-    <div class="col-auto">
-      <label class="form-label mb-1 d-block">Vue</label>
+  <div class="mx-cal-entete mb-2">
+    <h1 class="h3 mb-0">Calendrier</h1>
+    <div class="mx-cal-commandes">
+      <div class="btn-group btn-group-sm" role="group" aria-label="Navigation dans le calendrier">
+        <button id="btnPrev" type="button" class="btn btn-outline-secondary" aria-label="Période précédente">{% icone "precedent" %}</button>
+        <button id="btnToday" type="button" class="btn btn-outline-secondary">Aujourd'hui</button>
+        <button id="btnNext" type="button" class="btn btn-outline-secondary" aria-label="Période suivante">{% icone "suite" %}</button>
+      </div>
       <div class="btn-group btn-group-sm" role="group" aria-label="Vue du calendrier">
         <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="day">Jour</button>
         <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="week">Semaine</button>
         <button type="button" class="btn btn-outline-primary btn-vue-calendrier" data-vue="month">Mois</button>
       </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btnFiltres" data-bs-toggle="offcanvas" data-bs-target="#panneau-filtres" aria-controls="panneau-filtres">{% icone "configuration" %} <span id="libelle-filtres">Filtres</span></button>
+      {% if not equipage_a_terre %}
+      <button type="button" class="btn btn-primary btn-sm" id="btnNouvelEvenement" data-bs-toggle="offcanvas" data-bs-target="#panneau-evenement" aria-controls="panneau-evenement">{% icone "ajout" %} Événement</button>
+      {% endif %}
     </div>
-    <div class="col-auto">
-      <label class="form-label mb-1">Date</label>
-      <input type="date" name="date" value="{{ date|date:'Y-m-d' }}" class="form-control form-control-sm" />
-    </div>
-    <div class="col-auto">
-      <label class="form-label mb-1">Unité</label>
-      <select name="ship" class="form-select form-select-sm">
-        <option value="">Tous</option>
-        {% for s in ships %}
-          <option value="{{ s.id }}" {% if active_filters.ship|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-auto">
-      <label class="form-label mb-1">Service</label>
-      <select name="service" class="form-select form-select-sm">
-        <option value="">Tous</option>
-        {% for s in services %}
-          <option value="{{ s.id }}" {% if active_filters.service|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.ship.name }} / {{ s.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-auto">
-      <label class="form-label mb-1">Secteur</label>
-      <select name="sector" class="form-select form-select-sm">
-        <option value="">Tous</option>
-        {% for s in sectors %}
-          <option value="{{ s.id }}" {% if active_filters.sector|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.service.name }} / {{ s.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-auto">
-      <label class="form-label mb-1">Utilisateur</label>
-      <select name="user" class="form-select form-select-sm">
-        <option value="">Tous</option>
-        {% for u in users %}
-          <option value="{{ u.id }}" {% if active_filters.user|default:''|stringformat:'s' == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-auto">
-      <label class="form-label mb-1">Type</label>
-      <select name="type" class="form-select form-select-sm">
-        <option value="">Tous</option>
-        <option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>Maintenance</option>
-        <option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>Ticket</option>
-        <option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>Formation</option>
-        <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>Quart</option>
-        <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>Ronde</option>
-        <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>Garde</option>
-        <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>Personnel</option>
-      </select>
-    </div>
-    <div class="col-auto">
-      <label class="form-label mb-1">Statut</label>
-      <select name="status" class="form-select form-select-sm">
-        <option value="">Tous</option>
-        <optgroup label="Maintenance">
-          <option value="PLANNED"            {% if active_filters.status == 'PLANNED' %}selected{% endif %}>Planifiée</option>
-          <option value="ASSIGNED"           {% if active_filters.status == 'ASSIGNED' %}selected{% endif %}>Assignée</option>
-          <option value="IN_PROGRESS"        {% if active_filters.status == 'IN_PROGRESS' %}selected{% endif %}>En cours</option>
-          <option value="WAITING_VALIDATION" {% if active_filters.status == 'WAITING_VALIDATION' %}selected{% endif %}>En validation</option>
-          <option value="DONE"               {% if active_filters.status == 'DONE' %}selected{% endif %}>Terminée</option>
-          <option value="OVERDUE"            {% if active_filters.status == 'OVERDUE' %}selected{% endif %}>En retard</option>
-          <option value="CANCELLED"          {% if active_filters.status == 'CANCELLED' %}selected{% endif %}>Annulée</option>
-        </optgroup>
-        <optgroup label="Tickets">
-          <option value="REPORTED"            {% if active_filters.status == 'REPORTED' %}selected{% endif %}>Signalé</option>
-          <option value="DIAGNOSED"           {% if active_filters.status == 'DIAGNOSED' %}selected{% endif %}>Diagnostiqué</option>
-          <option value="WAITING_PARTS"       {% if active_filters.status == 'WAITING_PARTS' %}selected{% endif %}>Attente pièces</option>
-          <option value="IN_REPAIR"           {% if active_filters.status == 'IN_REPAIR' %}selected{% endif %}>En réparation</option>
-          <option value="TESTING"             {% if active_filters.status == 'TESTING' %}selected{% endif %}>En test</option>
-          <option value="RETURNED_TO_SERVICE" {% if active_filters.status == 'RETURNED_TO_SERVICE' %}selected{% endif %}>Remis en service</option>
-          <option value="BLOCKED"             {% if active_filters.status == 'BLOCKED' %}selected{% endif %}>Bloqué</option>
-        </optgroup>
-      </select>
-    </div>
-    <div class="col-auto align-self-end">
-      <button class="btn btn-primary btn-sm" type="submit">Filtrer</button>
-    </div>
-  </form>
+  </div>
+
+  {# Filtres actifs : étiquettes supprimables, remplies par le script #}
+  <div id="etiquettes-filtres" class="mx-cal-etiquettes" aria-live="polite"></div>
 
   {# Légende #}
-  <div class="d-flex gap-3 mb-2 small">
-    <span><span class="badge" style="background:#0d6efd">{% icone "maintenance" %} Maintenance</span></span>
-    <span><span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span></span>
-    <span><span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span></span>
-    <span><span class="badge" style="background:#fd7e14">{% icone "ticket" %} Ticket</span></span>
-    <span><span class="badge" style="background:#198754">{% icone "formation" %} Formation</span></span>
-    <span><span class="badge" style="background:#0b7285">{% icone "quart" %} Quart</span></span>
-    <span><span class="badge" style="background:#a61e4d">{% icone "garde" %} Garde</span></span>
-    <span><span class="badge" style="background:#5f3dc4">{% icone "ronde" %} Ronde</span></span>
-    <span><span class="badge" style="background:#6f42c1">{% icone "personnel" %} Personnel</span></span>
+  <div class="d-flex flex-wrap gap-3 mb-2 small">
+    <span class="badge" style="background:#0d6efd">{% icone "maintenance" %} Maintenance</span>
+    <span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span>
+    <span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span>
+    <span class="badge" style="background:#fd7e14">{% icone "ticket" %} Ticket</span>
+    <span class="badge" style="background:#198754">{% icone "formation" %} Formation</span>
+    <span class="badge" style="background:#0b7285">{% icone "quart" %} Quart</span>
+    <span class="badge" style="background:#a61e4d">{% icone "garde" %} Garde</span>
+    <span class="badge" style="background:#5f3dc4">{% icone "ronde" %} Ronde</span>
+    <span class="badge" style="background:#6f42c1">{% icone "personnel" %} Personnel</span>
   </div>
 
-  {# Alerte chargement #}
   <div id="cal-erreur" class="alert alert-danger d-none">Impossible de charger les événements.</div>
 
-  <div class="row g-3">
-    <div class="col-lg-9">
-      <div class="card shadow-sm">
-        <div class="card-body p-2">
-          <div id="calendar"></div>
-        </div>
-      </div>
-    </div>
-
-    {% comment %}
-    Ajout libre d'un événement personnel (rappel, note) — visible uniquement
-    par son créateur, à côté des événements auto-générés (maintenance,
-    formation).
-    {% endcomment %}
-    <div class="col-lg-3">
-      <div class="card shadow-sm mb-3">
-        <div class="card-header py-2">
-          <strong>Ajouter un événement personnel</strong>
-        </div>
-        <div class="card-body">
-          <form method="post" action="{% url 'calendar-personal-save' %}" id="form-evenement-personnel">
-            {% csrf_token %}
-            <input type="hidden" name="id" id="pe-id" value="">
-            <div class="mb-2">
-              <label class="form-label mb-1" for="pe-title">Titre</label>
-              <input type="text" class="form-control form-control-sm" id="pe-title" name="title" maxlength="200" required>
-            </div>
-            <div class="row g-2 mb-2">
-              {% comment %}
-              Deux champs côte à côte (début/fin), comme le formulaire de
-              création rapide du calendrier Apple : la fin est facultative
-              (une durée par défaut d'une heure est appliquée côté serveur
-              si elle est laissée vide, cf. calendar_app/views.py) et se
-              recale automatiquement en JS si le début est avancé au-delà
-              d'elle (voir ajusterFinSiNecessaire plus bas).
-              {% endcomment %}
-              <div class="col-6">
-                <label class="form-label mb-1" for="pe-starts-at">Début</label>
-                <input type="datetime-local" class="form-control form-control-sm" id="pe-starts-at" name="starts_at" required>
-              </div>
-              <div class="col-6">
-                <label class="form-label mb-1" for="pe-ends-at">Fin (facultatif)</label>
-                <input type="datetime-local" class="form-control form-control-sm" id="pe-ends-at" name="ends_at">
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label mb-1" for="pe-note">Note (facultatif)</label>
-              <textarea class="form-control form-control-sm" id="pe-note" name="note" rows="2"></textarea>
-            </div>
-            <div class="d-flex gap-2">
-              <button type="submit" class="btn btn-primary btn-sm flex-fill">Ajouter</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="pe-annuler">Annuler</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="card shadow-sm">
-        <div class="card-header py-2">
-          <strong>Mes événements personnels</strong>
-        </div>
-        <ul class="list-group list-group-flush">
-          {% for pe in mes_evenements_personnels %}
-            <li class="list-group-item d-flex justify-content-between align-items-start gap-2 small">
-              <div>
-                <div class="fw-semibold">{{ pe.title }}</div>
-                <div class="text-muted">{{ pe.starts_at|date:"d/m/Y H:i" }}</div>
-              </div>
-              <div class="d-flex gap-1">
-                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 btn-modifier-evenement"
-                        data-id="{{ pe.id }}" data-title="{{ pe.title }}"
-                        data-starts-at="{{ pe.starts_at|date:'Y-m-d\TH:i' }}" data-note="{{ pe.note }}">
-                  Modifier
-                </button>
-                <form method="post" action="{% url 'calendar-personal-delete' pe.id %}" class="form-suppression-evenement-personnel">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">Suppr.</button>
-                </form>
-              </div>
-            </li>
-          {% empty %}
-            <li class="list-group-item small text-muted">Aucun événement personnel à venir.</li>
-          {% endfor %}
-        </ul>
-      </div>
+  <div class="card shadow-sm">
+    <div class="card-body p-2">
+      <div id="calendar"></div>
     </div>
   </div>
 
-  {% comment %}
-  Modale de confirmation de suppression d'un événement personnel — remplace
-  le confirm() natif du navigateur (incompatible avec l'automatisation de
-  test et non personnalisable, cf. cadrage QA). Partagée par les deux points
-  d'entrée (liste "Mes événements personnels" et popover d'aperçu rapide) :
-  au clic sur "Supprimer", l'action réelle (soumission du formulaire ou
-  appel fetch, selon l'origine) est mémorisée puis exécutée seulement à la
-  confirmation, cf. script plus bas.
-  {% endcomment %}
-  {% comment %}
-  z-index relevé au-dessus du popover d'aperçu rapide (Bootstrap : popover
-  1070 > modale 1055 par défaut) : la modale doit rester lisible même quand
-  elle est ouverte depuis le bouton "Supprimer" du popover, laissé ouvert
-  derrière elle pour conserver l'affichage d'un éventuel message d'erreur
-  (voir afficherErreurPopover plus bas).
-  {% endcomment %}
+  {% panneau_lateral id="panneau-filtres" titre="Filtres" icone="configuration" %}
+    <div class="d-flex flex-column gap-3">
+      <div>
+        <label class="form-label mb-1" for="filtre-ship">Unité</label>
+        <select name="ship" id="filtre-ship" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          {% for s in ships %}
+            <option value="{{ s.id }}" {% if active_filters.ship|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1" for="filtre-service">Service</label>
+        <select name="service" id="filtre-service" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          {% for s in services %}
+            <option value="{{ s.id }}" {% if active_filters.service|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.ship.name }} / {{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1" for="filtre-sector">Secteur</label>
+        <select name="sector" id="filtre-sector" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          {% for s in sectors %}
+            <option value="{{ s.id }}" {% if active_filters.sector|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.service.name }} / {{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1" for="filtre-user">Utilisateur</label>
+        <select name="user" id="filtre-user" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          {% for u in users %}
+            <option value="{{ u.id }}" {% if active_filters.user|default:''|stringformat:'s' == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1" for="filtre-type">Type</label>
+        <select name="type" id="filtre-type" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          <option value="maintenance" {% if active_filters.type == 'maintenance' %}selected{% endif %}>Maintenance</option>
+          <option value="ticket" {% if active_filters.type == 'ticket' %}selected{% endif %}>Ticket</option>
+          <option value="training" {% if active_filters.type == 'training' %}selected{% endif %}>Formation</option>
+          <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>Quart</option>
+          <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>Ronde</option>
+          <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>Garde</option>
+          <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>Personnel</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1" for="filtre-status">Statut</label>
+        <select name="status" id="filtre-status" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          <optgroup label="Maintenance">
+            <option value="PLANNED"            {% if active_filters.status == 'PLANNED' %}selected{% endif %}>Planifiée</option>
+            <option value="ASSIGNED"           {% if active_filters.status == 'ASSIGNED' %}selected{% endif %}>Assignée</option>
+            <option value="IN_PROGRESS"        {% if active_filters.status == 'IN_PROGRESS' %}selected{% endif %}>En cours</option>
+            <option value="WAITING_VALIDATION" {% if active_filters.status == 'WAITING_VALIDATION' %}selected{% endif %}>En validation</option>
+            <option value="DONE"               {% if active_filters.status == 'DONE' %}selected{% endif %}>Terminée</option>
+            <option value="OVERDUE"            {% if active_filters.status == 'OVERDUE' %}selected{% endif %}>En retard</option>
+            <option value="CANCELLED"          {% if active_filters.status == 'CANCELLED' %}selected{% endif %}>Annulée</option>
+          </optgroup>
+          <optgroup label="Tickets">
+            <option value="REPORTED"            {% if active_filters.status == 'REPORTED' %}selected{% endif %}>Signalé</option>
+            <option value="DIAGNOSED"           {% if active_filters.status == 'DIAGNOSED' %}selected{% endif %}>Diagnostiqué</option>
+            <option value="WAITING_PARTS"       {% if active_filters.status == 'WAITING_PARTS' %}selected{% endif %}>Attente pièces</option>
+            <option value="IN_REPAIR"           {% if active_filters.status == 'IN_REPAIR' %}selected{% endif %}>En réparation</option>
+            <option value="TESTING"             {% if active_filters.status == 'TESTING' %}selected{% endif %}>En test</option>
+            <option value="RETURNED_TO_SERVICE" {% if active_filters.status == 'RETURNED_TO_SERVICE' %}selected{% endif %}>Remis en service</option>
+            <option value="BLOCKED"             {% if active_filters.status == 'BLOCKED' %}selected{% endif %}>Bloqué</option>
+          </optgroup>
+        </select>
+      </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm align-self-start" id="btnReinitialiserFiltres">Réinitialiser les filtres</button>
+    </div>
+  {% fin_panneau_lateral %}
+
+  {% if not equipage_a_terre %}
+  {% panneau_lateral id="panneau-evenement" titre="Événement personnel" icone="personnel" %}
+    <form method="post" action="{% url 'calendar-personal-save' %}" id="form-evenement-personnel" class="mb-4">
+      {% csrf_token %}
+      <input type="hidden" name="id" id="pe-id" value="">
+      <div class="mb-2">
+        <label class="form-label mb-1" for="pe-title">Titre</label>
+        <input type="text" class="form-control form-control-sm" id="pe-title" name="title" maxlength="200" required>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-6">
+          <label class="form-label mb-1" for="pe-starts-at">Début</label>
+          <input type="datetime-local" class="form-control form-control-sm" id="pe-starts-at" name="starts_at" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label mb-1" for="pe-ends-at">Fin (facultatif)</label>
+          <input type="datetime-local" class="form-control form-control-sm" id="pe-ends-at" name="ends_at">
+        </div>
+      </div>
+      <div class="mb-2">
+        <label class="form-label mb-1" for="pe-note">Note (facultatif)</label>
+        <textarea class="form-control form-control-sm" id="pe-note" name="note" rows="2"></textarea>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm flex-fill">Ajouter</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="pe-annuler">Annuler</button>
+      </div>
+    </form>
+
+    <h3 class="h6">Mes événements à venir</h3>
+    <ul class="list-group list-group-flush">
+      {% for pe in mes_evenements_personnels %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2 small px-0">
+          <div>
+            <div class="fw-semibold">{{ pe.title }}</div>
+            <div class="text-muted">{{ pe.starts_at|date:"d/m/Y H:i" }}</div>
+          </div>
+          <div class="d-flex gap-1">
+            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 btn-modifier-evenement"
+                    data-id="{{ pe.id }}" data-title="{{ pe.title }}"
+                    data-starts-at="{{ pe.starts_at|date:'Y-m-d\TH:i' }}" data-note="{{ pe.note }}">
+              Modifier
+            </button>
+            <form method="post" action="{% url 'calendar-personal-delete' pe.id %}" class="form-suppression-evenement-personnel">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">Suppr.</button>
+            </form>
+          </div>
+        </li>
+      {% empty %}
+        <li class="list-group-item small text-muted px-0">Aucun événement personnel à venir.</li>
+      {% endfor %}
+    </ul>
+  {% fin_panneau_lateral %}
+  {% endif %}
+
+  {# Au-dessus du popover d'aperçu (z-index 1070) #}
   <style>
     #modaleConfirmationSuppressionEvenement { z-index: 1080; }
   </style>
@@ -291,6 +242,9 @@ document.addEventListener('DOMContentLoaded', function () {
   // Correspondance entre la vue courte utilisée dans l'URL (day/week/month,
   // partagée avec le rendu initial côté serveur) et le nom de vue FullCalendar.
   const VUES_FULLCALENDAR = { day: 'timeGridDay', week: 'dayGridWeek', month: 'dayGridMonth' };
+  // Panneau de création absent côté serveur pour un équipage à terre.
+  const panneauEvenement = document.getElementById('panneau-evenement');
+  const peutCreer = panneauEvenement !== null;
 
   function construireUrlEvenements(vue) {
     return `/calendar/events/?view=${vue}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
@@ -301,26 +255,21 @@ document.addEventListener('DOMContentLoaded', function () {
     initialView: VUES_FULLCALENDAR[view] || 'dayGridMonth',
     initialDate: date,
     editable: true,
-    // Autorise le simple clic (vue mois, callback dateClick) et le
-    // glisser-sélection d'une plage horaire (vues semaine/jour, callback
-    // select) pour la création rapide d'un événement personnel.
-    selectable: true,
+    // Clic (mois) ou glisser (semaine/jour) : création rapide, sauf équipage à terre.
+    selectable: peutCreer,
     height: 'auto',
     headerToolbar: { start: '', center: 'title', end: '' },
     buttonText: { today: "Aujourd'hui", month: 'Mois', week: 'Semaine', day: 'Jour' },
-    // Clic simple sur une case vide en vue mois : pré-remplit le formulaire
-    // "Ajouter un événement personnel" avec la date cliquée. Volontairement
-    // limité à l'événement personnel : la création d'une maintenance, d'un
-    // ticket ou d'une formation reste réservée à son propre écran, chacun
-    // ayant ses règles métier (checklist, prérequis, signature...).
+    // Clic sur une case vide (vue mois) : ouvre la création d'un événement personnel
+    // à cette date ; maintenance, ticket et formation gardent leur propre écran.
     dateClick: function (info) {
-      preRemplirFormulairePersonnel(info.date);
+      if (peutCreer) preRemplirFormulairePersonnel(info.date);
     },
     // Sélection d'une plage horaire en vues semaine/jour (ou clic simple,
     // FullCalendar déclenchant aussi select dans ce cas) : même
     // pré-remplissage, à partir du début de la plage sélectionnée.
     select: function (info) {
-      preRemplirFormulairePersonnel(info.start);
+      if (peutCreer) preRemplirFormulairePersonnel(info.start);
       calendar.unselect();
     },
     eventSources: [{
@@ -494,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // vérifications (checklist, signature, REX...) qu'un popover ne doit
     // pas dupliquer.
     if (props.type === 'personal' && props.peut_agir) {
-      actions += `<button type="button" class="btn btn-outline-secondary btn-sm" data-popover-action="modifier">Modifier</button>`;
+      if (peutCreer) actions += `<button type="button" class="btn btn-outline-secondary btn-sm" data-popover-action="modifier">Modifier</button>`;
       actions += `<button type="button" class="btn btn-outline-danger btn-sm" data-popover-action="supprimer">Supprimer</button>`;
     }
     return `
@@ -553,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btnValider.textContent = 'Modifier';
         btnAnnuler.classList.remove('d-none');
         fermerPopover();
-        champTitre.focus();
+        ouvrirPanneauEvenement();
       });
     }
   }
@@ -596,7 +545,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // --- Bascule Jour/Semaine/Mois sans rechargement de page -----------------
   const boutonsVue = document.querySelectorAll('.btn-vue-calendrier');
-  const champVueCourante = document.getElementById('vue-courante');
 
   function marquerBoutonVueActif(vue) {
     boutonsVue.forEach(function (bouton) {
@@ -641,7 +589,6 @@ document.addEventListener('DOMContentLoaded', function () {
     view = nouvelleVue;
     calendar.changeView(VUES_FULLCALENDAR[view]);
     marquerBoutonVueActif(view);
-    champVueCourante.value = view;
     synchroniserUrlPage();
     actualiserSourceEvenements();
   }
@@ -652,11 +599,7 @@ document.addEventListener('DOMContentLoaded', function () {
   marquerBoutonVueActif(view);
   // --------------------------------------------------------------------
 
-  // --- Filtres appliqués sans rechargement de page -------------------------
-  // Chaque <select> de filtre (navire/service/secteur/utilisateur/type/statut)
-  // rafraîchit directement les événements en JS au lieu de soumettre le
-  // formulaire. Le bouton "Filtrer" et la soumission classique du formulaire
-  // restent en place comme secours (accessibilité, JS désactivé).
+  // --- Filtres du panneau latéral, appliqués sans rechargement de page -----
   const champsFiltres = {
     ship: document.querySelector('select[name="ship"]'),
     service: document.querySelector('select[name="service"]'),
@@ -665,6 +608,34 @@ document.addEventListener('DOMContentLoaded', function () {
     type: document.querySelector('select[name="type"]'),
     status: document.querySelector('select[name="status"]'),
   };
+  const zoneEtiquettes = document.getElementById('etiquettes-filtres');
+  const libelleFiltres = document.getElementById('libelle-filtres');
+
+  // Une étiquette supprimable par filtre actif ; le bouton « Filtres » en indique le nombre.
+  function afficherEtiquettes() {
+    zoneEtiquettes.replaceChildren();
+    let nombre = 0;
+    Object.keys(champsFiltres).forEach(function (cle) {
+      const champ = champsFiltres[cle];
+      if (!champ || !champ.value) return;
+      nombre += 1;
+      const etiquette = document.createElement('span');
+      etiquette.className = 'mx-badge mx-badge--neutre mx-cal-etiquette';
+      etiquette.append(champ.selectedOptions[0].textContent.trim() + ' ');
+      const retirer = document.createElement('button');
+      retirer.type = 'button';
+      retirer.className = 'mx-cal-etiquette__retirer';
+      retirer.textContent = '×';
+      retirer.setAttribute('aria-label', 'Retirer le filtre ' + champ.selectedOptions[0].textContent.trim());
+      retirer.addEventListener('click', function () {
+        champ.value = '';
+        appliquerFiltre(cle, '');
+      });
+      etiquette.append(retirer);
+      zoneEtiquettes.append(etiquette);
+    });
+    libelleFiltres.textContent = nombre ? 'Filtres · ' + nombre : 'Filtres';
+  }
 
   function appliquerFiltre(cle, valeur) {
     switch (cle) {
@@ -675,16 +646,23 @@ document.addEventListener('DOMContentLoaded', function () {
       case 'type': type = valeur; break;
       case 'status': status = valeur; break;
     }
+    afficherEtiquettes();
     synchroniserUrlPage();
     actualiserSourceEvenements();
   }
 
   Object.keys(champsFiltres).forEach(function (cle) {
     const champ = champsFiltres[cle];
-    if (champ) {
-      champ.addEventListener('change', function () { appliquerFiltre(cle, champ.value); });
-    }
+    champ.addEventListener('change', function () { appliquerFiltre(cle, champ.value); });
   });
+  document.getElementById('btnReinitialiserFiltres').addEventListener('click', function () {
+    Object.keys(champsFiltres).forEach(function (cle) { champsFiltres[cle].value = ''; });
+    ship = service = sector = user = type = status = '';
+    afficherEtiquettes();
+    synchroniserUrlPage();
+    actualiserSourceEvenements();
+  });
+  afficherEtiquettes();
   // --------------------------------------------------------------------
 
   function getCookie(name) {
@@ -693,8 +671,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (parts.length === 2) return parts.pop().split(';').shift();
   }
 
-  // Passage du formulaire d'ajout en mode modification pour un événement
-  // personnel existant : un seul formulaire sert aux deux usages.
+  // Un seul formulaire (dans le panneau « + Événement ») sert à l'ajout et à la modification.
   const formPersonnel = document.getElementById('form-evenement-personnel');
   const champId = document.getElementById('pe-id');
   const champTitre = document.getElementById('pe-title');
@@ -702,71 +679,68 @@ document.addEventListener('DOMContentLoaded', function () {
   const champFin = document.getElementById('pe-ends-at');
   const champNote = document.getElementById('pe-note');
   const btnAnnuler = document.getElementById('pe-annuler');
-  const btnValider = formPersonnel.querySelector('button[type="submit"]');
+  const btnValider = peutCreer ? formPersonnel.querySelector('button[type="submit"]') : null;
 
-  // Comme le formulaire de création rapide du calendrier Apple : si une
-  // heure de fin est déjà saisie et que l'utilisateur avance le début
-  // au-delà (ou dessus) d'elle, on recale automatiquement la fin une heure
-  // après le nouveau début, pour ne jamais soumettre une fin antérieure au
-  // début. Simple confort JS — le serveur revalide de toute façon cette
-  // règle (calendar_app/views.py::personal_event_save) et ne fait jamais
-  // confiance à cet ajustement seul.
+  // Le serveur revalide la fin (personal_event_save) ; ceci évite seulement une fin antérieure au début.
   function ajusterFinSiNecessaire() {
     if (!champFin.value || !champDate.value) return;
     if (champFin.value > champDate.value) return;
     const nouveauDebut = new Date(champDate.value);
     champFin.value = versDatetimeLocal(new Date(nouveauDebut.getTime() + 60 * 60 * 1000));
   }
-  champDate.addEventListener('change', ajusterFinSiNecessaire);
 
-  // Pré-remplit le formulaire "Ajouter un événement personnel" à partir
-  // d'une date cliquée/sélectionnée sur le calendrier (callbacks dateClick
-  // et select ci-dessus) : remet le formulaire en mode "Ajout" (au cas où
-  // une modification était en cours) puis reporte le focus dessus pour que
-  // l'utilisateur voie immédiatement le pré-remplissage.
-  function preRemplirFormulairePersonnel(date) {
+  function remettreFormulaireEnAjout() {
     formPersonnel.reset();
     champId.value = '';
-    champDate.value = versDatetimeLocal(date);
     btnValider.textContent = 'Ajouter';
     btnAnnuler.classList.add('d-none');
-    formPersonnel.closest('.card').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    champTitre.focus();
   }
 
-  document.querySelectorAll('.btn-modifier-evenement').forEach(function (bouton) {
-    bouton.addEventListener('click', function () {
-      champId.value = bouton.dataset.id;
-      champTitre.value = bouton.dataset.title;
-      champDate.value = bouton.dataset.startsAt;
-      // Champ de fin laissé vide : voir commentaire équivalent ci-dessus
-      // (popover "Modifier").
-      champFin.value = '';
-      champNote.value = bouton.dataset.note || '';
-      btnValider.textContent = 'Modifier';
-      btnAnnuler.classList.remove('d-none');
-      champTitre.focus();
-    });
-  });
+  // Ouvre le panneau et place le curseur sur le titre une fois celui-ci visible.
+  function ouvrirPanneauEvenement() {
+    panneauEvenement.addEventListener('shown.bs.offcanvas', function () { champTitre.focus(); }, { once: true });
+    bootstrap.Offcanvas.getOrCreateInstance(panneauEvenement).show();
+  }
 
-  btnAnnuler.addEventListener('click', function () {
-    formPersonnel.reset();
-    champId.value = '';
-    btnValider.textContent = 'Ajouter';
-    btnAnnuler.classList.add('d-none');
-  });
+  // Pré-remplit l'ajout avec la date cliquée ou sélectionnée sur le calendrier.
+  function preRemplirFormulairePersonnel(date) {
+    remettreFormulaireEnAjout();
+    champDate.value = versDatetimeLocal(date);
+    ouvrirPanneauEvenement();
+  }
 
-  // Suppression d'un événement personnel depuis la liste "Mes événements
-  // personnels" : la soumission classique du formulaire est interceptée
-  // pour passer par la modale de confirmation partagée ci-dessus, puis
-  // exécutée telle quelle (même formulaire, mêmes champs, même endpoint)
-  // une fois confirmée.
-  document.querySelectorAll('.form-suppression-evenement-personnel').forEach(function (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      demanderConfirmationSuppression(function () { form.submit(); });
+  if (peutCreer) {
+    champDate.addEventListener('change', ajusterFinSiNecessaire);
+    // Fermé, le panneau revient en mode ajout (le bouton « + Événement » l'ouvre vierge).
+    panneauEvenement.addEventListener('hidden.bs.offcanvas', remettreFormulaireEnAjout);
+
+    document.querySelectorAll('.btn-modifier-evenement').forEach(function (bouton) {
+      bouton.addEventListener('click', function () {
+        champId.value = bouton.dataset.id;
+        champTitre.value = bouton.dataset.title;
+        champDate.value = bouton.dataset.startsAt;
+        // Fin vide : la durée existante est conservée côté serveur.
+        champFin.value = '';
+        champNote.value = bouton.dataset.note || '';
+        btnValider.textContent = 'Modifier';
+        btnAnnuler.classList.remove('d-none');
+        champTitre.focus();
+      });
     });
-  });
+
+    btnAnnuler.addEventListener('click', function () {
+      remettreFormulaireEnAjout();
+      bootstrap.Offcanvas.getOrCreateInstance(panneauEvenement).hide();
+    });
+
+    // La suppression passe par la modale de confirmation partagée.
+    document.querySelectorAll('.form-suppression-evenement-personnel').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        demanderConfirmationSuppression(function () { form.submit(); });
+      });
+    });
+  }
 });
 </script>
 {% endblock %}
