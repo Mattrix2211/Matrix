@@ -67,21 +67,13 @@ class TitulairesTests(CommandantsAdjointsBase):
         self.assertTrue(est_commandant_adjoint_du_service(comaeq_b, self.machine, "B"))
         self.assertFalse(est_commandant_adjoint_du_service(comaeq_b, self.machine, "A"))
 
-    def test_champ_service_editable_par_l_api(self):
+    def test_champ_service_non_modifiable_par_l_api(self):
         admin = self._marin("adm", "ADMIN_NAVIRE", ship=self.navire)
         client = APIClient()
         client.force_authenticate(admin)
-        reponse = client.patch(f"/api/org/services/{self.libre.pk}/", {"commandant_adjoint": "COMOPS"}, format="json")
-        self.assertEqual(reponse.status_code, 200, reponse.content)
+        client.patch(f"/api/org/services/{self.libre.pk}/", {"commandant_adjoint": "COMOPS"}, format="json")
         self.libre.refresh_from_db()
-        self.assertEqual(self.libre.commandant_adjoint, "COMOPS")
-
-    def test_valeur_inconnue_refusee(self):
-        admin = self._marin("adm", "ADMIN_NAVIRE", ship=self.navire)
-        client = APIClient()
-        client.force_authenticate(admin)
-        reponse = client.patch(f"/api/org/services/{self.libre.pk}/", {"commandant_adjoint": "XXX"}, format="json")
-        self.assertEqual(reponse.status_code, 400)
+        self.assertEqual(self.libre.commandant_adjoint, "")
 
 
 class FormulaireProfilTests(TestCase):
