@@ -140,6 +140,19 @@ class RelevePersonnelTests(DoubleEquipageBase):
         self.assertTrue(self.cdt.notifications.filter(verb__contains="secours").exists())
         self.assertTrue(self.bord.notifications.filter(verb__contains="secours").exists())
 
+    def test_secours_notifie_les_deux_equipages_et_mentionne_la_trace(self):
+        second_a = self._marin("second_a", "COMMANDANT_EN_SECOND", "A")
+        self._proposition_sans_commandant_b()
+        second_b = self._marin("second_b", "EQUIPIER", "B")
+        inactif = self._marin("inactif", "EQUIPIER", "B")
+        User.objects.filter(pk=inactif.pk).update(is_active=False)
+        self._secours()
+        for marin in (self.cdt, second_a, self.bord, self.cdt_b, second_b):
+            notif = marin.notifications.filter(verb__contains="secours").get()
+            self.assertIn("administrateur général", notif.verb)
+            self.assertIn("journal d'audit", notif.verb)
+        self.assertFalse(inactif.notifications.exists())
+
     def test_secours_motif_vide_refuse(self):
         self._proposition_sans_commandant_b()
         self._secours(motif="   ")

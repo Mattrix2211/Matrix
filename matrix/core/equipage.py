@@ -167,11 +167,18 @@ def valider_releve_secours(auteur, proposition, motif):
             f"decide_par={auteur}; equipage_valideur={_equipage_valideur(proposition)}; motif={motif}",
             notifier_proposant=False,
         )
-        destinataires = get_user_model().objects.filter(profile__ship=navire, profile__equipage__in=equipages)
+        # Les deux équipages sont prévenus, commandants et seconds compris.
+        destinataires = get_user_model().objects.filter(
+            is_active=True, profile__ship=navire, profile__equipage__in=equipages
+        )
         for marin in destinataires:
             Notification.objects.create(
                 user=marin,
-                verb=f"Relève sur {navire.name} validée en secours par l'administrateur général (aucun commandant disponible).",
+                verb=(
+                    f"Relève sur {navire.name} : l'équipage {proposition.equipage_propose} est à bord. "
+                    "Validation de secours par l'administrateur général (aucun commandant ni second disponible "
+                    "pour valider), tracée dans le journal d'audit."
+                ),
             )
     return ""
 
