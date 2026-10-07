@@ -32,6 +32,11 @@ ROLE_TO_LEVEL = {
 }
 
 
+# Le commandant en second a la même vision (lecture) que le commandant ;
+# les écritures « tout-puissantes » restent à RoleLevel.COMMANDANT.
+NIVEAU_VISION_COMMANDEMENT = RoleLevel.COMMANDANT_EN_SECOND
+
+
 def user_role_level(user) -> RoleLevel:
     if getattr(user, "is_superuser", False):
         return RoleLevel.MASTER_ADMIN

@@ -39,6 +39,7 @@ from .models import (
     CreneauServiceGarde,
     EchangeService,
     NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE,
+    NIVEAU_LECTURE_GLOBALE_LISTE,
     NIVEAU_SUPERVISION_GLOBALE_LISTE,
     Quart,
     ServiceGarde,
@@ -198,7 +199,7 @@ def _listes_visibles(model, user):
     supervision globale (bornées à son périmètre, comme la Vue flotte) ou
     celles correspondant EXACTEMENT à l'un de ses périmètres de chef de
     liste."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+    if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_LISTE:
         filtres = scope_filters_for_user(user)
         return model.objects.filter(**filtres) if filtres else model.objects.all()
     q = Q(pk__in=[])
@@ -250,6 +251,8 @@ def _peut_lire_liste(user, liste):
     (même règle de cascade que les marins affectables sur un créneau, cf.
     marins_du_perimetre) — une liste encore en BROUILLON reste visible
     uniquement à ses chefs de liste gérants (cf. peut_gerer_liste)."""
+    if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_LISTE:
+        return _listes_visibles(type(liste), user).filter(pk=liste.pk).exists()
     if liste.statut != liste.STATUT_PUBLIEE:
         return False
     return User.objects.filter(marins_du_perimetre(liste), pk=user.pk).exists()

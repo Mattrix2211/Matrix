@@ -4,6 +4,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied
 from rest_framework.permissions import SAFE_METHODS
 from .models import (
+    NIVEAU_LECTURE_GLOBALE_FORMATION,
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
     ReferentFormation,
     TrainingCourse,
@@ -79,7 +80,7 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return TrainingCourse.objects.none()
         base = TrainingCourse.objects.all()
-        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
             return base
         # Mêmes deux ensembles complémentaires que
         # TrainingCourseListView.get_context_data (mes_propositions_bord /
@@ -224,7 +225,7 @@ class ReferentFormationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return ReferentFormation.objects.none()
-        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
             return qs
         ship_id = ship_id_for_user(user)
         if ship_id is None:
@@ -315,7 +316,7 @@ class TrainingRequirementViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return TrainingRequirement.objects.none()
-        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
             return qs
         return qs.filter(
             perimetre_navire_q(user, "applies_to_")

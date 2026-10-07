@@ -44,9 +44,21 @@ class Ship(TimeStampedModel):
     def __str__(self):
         return self.name
 
+class CommandantAdjoint(models.TextChoices):
+    """Fonctions de commandant adjoint à bord (COMAVIA seulement si l'unité a une capacité aviation)."""
+    COMAEQ = "COMAEQ", "COMAEQ (équipage)"
+    COMOPS = "COMOPS", "COMOPS (opérations)"
+    COMANAV = "COMANAV", "COMANAV (navire)"
+    COMAVIA = "COMAVIA", "COMAVIA (aviation)"
+
+
 class Service(TimeStampedModel):
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="services")
     name = models.CharField(max_length=255)
+    # Commandant adjoint dont dépend le service ; vide = non configuré (repli sur les seuils de rôle).
+    commandant_adjoint = models.CharField(
+        max_length=16, choices=CommandantAdjoint.choices, blank=True, default="", verbose_name="Commandant adjoint"
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:

@@ -19,8 +19,8 @@ class ShipAdmin(admin.ModelAdmin):
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ("name", "ship", "archived")
-    list_filter = ("ship", "archived")
+    list_display = ("name", "ship", "commandant_adjoint", "archived")
+    list_filter = ("ship", "commandant_adjoint", "archived")
 
 @admin.register(Sector)
 class SectorAdmin(admin.ModelAdmin):

@@ -21,7 +21,7 @@ from dashboard.templatetags.dashboard_extras import (
     peut_voir_vue_flotte,
 )
 from matrix.core.modules import module_actif_pour_user
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 
 
 @dataclass(frozen=True)
@@ -36,7 +36,7 @@ class Entree:
 
 
 def _commandant_ou_plus(user):
-    return user_role_level(user) >= RoleLevel.COMMANDANT
+    return user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT
 
 
 def _url_parametres(user):

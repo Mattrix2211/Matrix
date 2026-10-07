@@ -7,8 +7,9 @@ from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
-from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import navire_q, perimetre_hierarchique_q
+from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
+from matrix.core.scopes import is_master_admin, navire_q, perimetre_hierarchique_q
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Ship, Service, Section
 
@@ -149,6 +150,8 @@ class ReferentFormationNavire(TimeStampedModel):
 # pour ReferentFormationNavire, pour la mission confiée sur tout le navire),
 # pas pour la position hiérarchique.
 NIVEAU_SUPERVISION_GLOBALE_FORMATION = RoleLevel.COMMANDANT
+# Lecture seule des listes et dossiers de formation : le commandant en second voit comme le commandant.
+NIVEAU_LECTURE_GLOBALE_FORMATION = NIVEAU_VISION_COMMANDEMENT
 
 
 def navire_de(user):
@@ -200,19 +203,46 @@ def peut_valider_formation(user, course, ship):
     return ReferentFormationNavire.objects.filter(ship=ship, user=user).exists()
 
 
+def _services_d_un_autre_coma(user, navire):
+    """Ids des services du bâtiment rattachés à un commandant adjoint (avec titulaire actif) autre que `user`."""
+    profil = user.profile
+    ids = []
+    for service in Service.objects.filter(ship=navire).exclude(commandant_adjoint=""):
+        if service.commandant_adjoint != profil.fonction_coma and titulaires_commandant_adjoint(
+            navire, service.commandant_adjoint, profil.equipage
+        ).exists():
+            ids.append(service.pk)
+    return ids
+
+
 def dossiers_formation_visibles_q(user):
     """Filtre Q (sur TrainingRecord) des dossiers de formation lisibles par
     `user` : le sien, ceux des marins de son périmètre hiérarchique s'il est
     chef (CHEF_SECTION et au-dessus), ceux des navires dont il est Personnel
     BRH, et ceux que ses désignations de référent l'autorisent à valider.
-    Supervision globale : tout. Aucun périmètre : seulement le sien."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
-        return Q()
+
+    Le commandant et son second voient tout leur navire (la flotte entière
+    pour l'administrateur général). Un état-major ne voit que les services
+    de son commandant adjoint, ou ceux sans commandant adjoint configuré."""
     marin = "user__profile__"
+    if is_master_admin(user):
+        return Q()
+    niveau = user_role_level(user)
+    navire = navire_de(user)
+    if niveau >= NIVEAU_LECTURE_GLOBALE_FORMATION and navire is not None:
+        return navire_q(navire.pk, marin) | Q(user=user)
     q = Q(user=user)
-    if user_role_level(user) >= RoleLevel.CHEF_SECTION:
+    if niveau >= RoleLevel.CHEF_SECTION:
         perimetre = perimetre_hierarchique_q(user, marin)
         if perimetre is not None:
+            if niveau == RoleLevel.ETAT_MAJOR and navire is not None:
+                autres = _services_d_un_autre_coma(user, navire)
+                if autres:
+                    perimetre &= ~(
+                        Q(**{f"{marin}service_id__in": autres})
+                        | Q(**{f"{marin}sector__service_id__in": autres})
+                        | Q(**{f"{marin}section__sector__service_id__in": autres})
+                    )
             q |= perimetre
     for ship_id in PersonnelBRH.objects.filter(user=user).values_list("ship_id", flat=True):
         q |= navire_q(ship_id, marin)
@@ -275,6 +305,8 @@ def _prerequis_manquants(user, course, reference_date=None):
 class TrainingRequirement(TimeStampedModel):
     ROLE_CHOICES = (
         ("COMMANDANT", "Commandant"),
+        ("COMMANDANT_EN_SECOND", "Commandant en second"),
+        ("ETAT_MAJOR", "État-major"),
         ("CHEF_SERVICE", "Chef de service"),
         ("CHEF_SECTEUR", "Chef de secteur"),
         ("CHEF_SECTION", "Chef de section"),

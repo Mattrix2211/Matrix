@@ -10,7 +10,7 @@ from .serializers import (
 )
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.permissions import RolePermission, ManageUsersPermission
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -44,7 +44,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         qs = UserProfile.objects.select_related("user", "ship", "service", "sector", "section").all()
         if is_master_admin(self.request.user):
             return qs
-        if user_role_level(self.request.user) >= RoleLevel.COMMANDANT:
+        if user_role_level(self.request.user) >= NIVEAU_VISION_COMMANDEMENT:
             return qs.filter(perimetre_navire_q(self.request.user, ""))
         return qs.filter(build_scope_q(self.request.user, ""))
 

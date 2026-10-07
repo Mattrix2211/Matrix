@@ -83,11 +83,12 @@ class ManageUsersPermission(BasePermission):
 
     Règles :
     - MASTER_ADMIN : gère tout
-    - ADMIN_NAVIRE : gère tous les rôles jusqu'au sien, jamais MASTER_ADMIN
+    - ADMIN_NAVIRE : gère tous les rôles jusqu'au sien, jamais MASTER_ADMIN ;
+      seuls les administrateurs désignent le COMMANDANT_EN_SECOND
       (le scoping par navire de la DESTINATION d'affectation est appliqué dans
       UserProfileSerializer.validate() : cette permission ne porte que sur le
       RÔLE gérable)
-    - COMMANDANT: peut gérer COMMANDANT_EN_SECOND (remplaçant désigné), ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
+    - COMMANDANT: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - COMMANDANT_EN_SECOND: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - ETAT_MAJOR: peut gérer CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - CHEF_SERVICE: peut gérer CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
@@ -100,7 +101,7 @@ class ManageUsersPermission(BasePermission):
             Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND, Roles.ETAT_MAJOR, Roles.CHEF_SERVICE,
             Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER, Roles.ADMIN_NAVIRE,
         },
-        Roles.COMMANDANT: {Roles.COMMANDANT_EN_SECOND, Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
+        Roles.COMMANDANT: {Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.COMMANDANT_EN_SECOND: {Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.ETAT_MAJOR: {Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SERVICE: {Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},

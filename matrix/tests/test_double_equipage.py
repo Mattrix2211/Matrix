@@ -93,8 +93,7 @@ class RelevePersonnelTests(DoubleEquipageBase):
         self.assertFalse(self.navire.releves.exists())
 
     def test_equipage_sans_commandant_refuse(self):
-        self.cdt_b.profile.role = "EQUIPIER"
-        self.cdt_b.profile.save()
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
         self._agir("cdt", "proposer_releve", equipage="B")
         self.assertFalse(self.navire.releves.exists())
 

@@ -11,6 +11,7 @@ class UserProfileForm(forms.ModelForm):
             "specialite",
             "matricule",
             "role",
+            "fonction_coma",
             "equipage",
             "ship",
             "service",
@@ -24,10 +25,9 @@ class UserProfileForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filtrer les rôles disponibles (hors MASTER_ADMIN qui est réservé)
-        active_codes = list(RoleAvailability.objects.filter(active=True).values_list("code", flat=True))
-        if active_codes:
-            self.fields["role"].choices = [c for c in self.fields["role"].choices if c[0] in active_codes]
+        # Un rôle sans ligne RoleAvailability est actif (comme dans les Réglages).
+        desactives = set(RoleAvailability.objects.filter(active=False).values_list("code", flat=True))
+        self.fields["role"].choices = [c for c in self.fields["role"].choices if c[0] not in desactives]
 
     def clean(self):
         donnees = super().clean()

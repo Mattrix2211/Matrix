@@ -20,7 +20,7 @@ from logistics.anomalie_views import anomalies_visibles
 from logistics.models import CorrectiveTicket
 from matrix.core.mixins import build_scope_q
 from matrix.core.modules import module_actif_pour_user
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
 from training.models import TrainingCourse
 
@@ -135,7 +135,7 @@ def _ligne_marin(u, user):
 
 
 def _commandant_ou_plus(user):
-    return user_role_level(user) >= RoleLevel.COMMANDANT
+    return user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT
 
 
 @dataclass(frozen=True)

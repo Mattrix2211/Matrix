@@ -11,11 +11,12 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import ListView, View
 
+from matrix.core.commandants_adjoints import est_commandant_adjoint_du_service, service_de, titulaires_du_service
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import perimetre_hierarchique_q, ship_id_for_user
 from notifications.models import Notification
 from org.models import Ship
-from accounts.models import AuditLog
+from accounts.models import AuditLog, Roles
 
 from .models import (
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
@@ -215,6 +216,15 @@ def peut_valider_proposition_bord(user, proposeur):
         return False
     if proposeur is None:
         return False
+    # Service rattaché à un commandant adjoint (avec titulaire) : seul son titulaire valide
+    # parmi l'état-major ; sans commandant adjoint configuré, repli sur le seuil de rôle.
+    service = service_de(proposeur)
+    equipage = getattr(getattr(proposeur, "profile", None), "equipage", "")
+    if titulaires_du_service(service, equipage).exists():
+        if est_commandant_adjoint_du_service(user, service, equipage):
+            return True
+        if user.profile.role == Roles.ETAT_MAJOR:
+            return False
     q_perimetre = filtres_perimetre_marin(user)
     if q_perimetre is None:
         return True

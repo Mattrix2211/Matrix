@@ -12,7 +12,7 @@ from django.db.models import Q
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
-from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
     is_master_admin,
@@ -75,8 +75,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # secteur/service. Aucun seuil n'était en place auparavant (bug sécurité).
         # Le test d'authentification (redirection vers /login/) reste géré par
         # LoginRequiredMixin ci-dessous ; on ne bloque en 403 qu'un utilisateur
-        # déjà connecté mais dont le rôle est insuffisant.
-        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
+        # déjà connecté mais dont le rôle est insuffisant. Le commandant en
+        # second consulte l'annuaire (lecture) sans pouvoir y écrire.
+        seuil = NIVEAU_VISION_COMMANDEMENT if request.method in ("GET", "HEAD") else RoleLevel.COMMANDANT
+        if request.user.is_authenticated and user_role_level(request.user) < seuil:
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden()
         return super().dispatch(request, *args, **kwargs)
@@ -108,6 +110,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         from accounts.models import RoleAvailability
         from org.models import Ship, Service, Sector, Section
         ctx = super().get_context_data(**kwargs)
+        ctx["peut_gerer"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
         # Roles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
         all_roles = [c for c in Roles.choices if c[0] != 'MASTER_ADMIN']
         opts = {o.code: o.active for o in RoleAvailability.objects.all()}

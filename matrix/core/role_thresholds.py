@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from django.core.cache import cache
 
-from .roles import RoleLevel
+from .roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel
 
 PORTEE_NAVIRE = "SHIP"
 PORTEE_GLOBALE = "GLOBALE"
@@ -107,7 +107,7 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
-        "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+        "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,
     ),
     ActionSeuil(
         "referentiel_global_ecriture",

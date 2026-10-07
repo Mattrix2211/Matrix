@@ -3,7 +3,7 @@ from datetime import date, time
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from org.models import Ship, Service, Sector, Section
+from org.models import CommandantAdjoint, Ship, Service, Sector, Section
 from matrix.core.models import TimeStampedModel
 
 User = get_user_model()
@@ -33,6 +33,10 @@ class UserProfile(TimeStampedModel):
     matricule = models.CharField(max_length=64, blank=True, default="")
     # Équipage (« A », « B »…) pour un bâtiment à double équipage ; vide sinon.
     equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
+    # Fonction de commandant adjoint (rôle État-major) : sert au routage des visas par service.
+    fonction_coma = models.CharField(
+        max_length=16, choices=CommandantAdjoint.choices, blank=True, default="", verbose_name="Fonction de commandant adjoint"
+    )
     date_naissance = models.DateField(null=True, blank=True)
     # Heure du matin : alertes d'échéance (installations) et digest « Ma journée ».
     notification_time = models.TimeField(default=time(8,0))

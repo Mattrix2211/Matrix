@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
-from .roles import RoleLevel, user_role_level
+from .roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from .scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
 
 logger = logging.getLogger(__name__)
@@ -61,13 +61,13 @@ def build_scope_q(user, *lookup_paths):
 
 def utilisateurs_visibles_par(user):
     """Comptes utilisateurs que `user` peut lire ou désigner (assignation) :
-    flotte entière pour un MASTER_ADMIN ; tout le navire pour un COMMANDANT ou
+    flotte entière pour un MASTER_ADMIN ; tout le navire pour un COMMANDANT, son second ou
     ADMIN_NAVIRE ; sinon son périmètre hiérarchique. Sans périmètre : personne.
     User ne porte pas le périmètre, son profil si : préfixe "profile__"."""
     User = get_user_model()
     if is_master_admin(user):
         return User.objects.all()
-    if user_role_level(user) >= RoleLevel.COMMANDANT:
+    if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
         return User.objects.filter(perimetre_navire_q(user, "profile__"))
     return User.objects.filter(build_scope_q(user, "profile__"))
 

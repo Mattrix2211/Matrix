@@ -73,7 +73,7 @@ from django.utils import timezone
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from notifications.models import Notification
 from org.models import Sector, Section, Service, Ship
 
@@ -85,6 +85,8 @@ User = get_user_model()
 # training.models.NIVEAU_SUPERVISION_GLOBALE_FORMATION, pour rester cohérent
 # avec les autres rôles annexes du projet.
 NIVEAU_SUPERVISION_GLOBALE_LISTE = RoleLevel.COMMANDANT
+# Lecture des listes du navire : le commandant en second voit comme le commandant, sans pouvoir les modifier.
+NIVEAU_LECTURE_GLOBALE_LISTE = NIVEAU_VISION_COMMANDEMENT
 
 # Seuil générique requis pour accéder à l'écran de désignation d'un chef de
 # liste : CHEF_SERVICE et au-dessus, comme d'autres désignations de
