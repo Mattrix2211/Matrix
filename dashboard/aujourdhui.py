@@ -49,13 +49,25 @@ def _echeance(valeur):
 
 
 def a_faire(user, aujourdhui):
-    """Ce qui demande une intervention du marin, trié : retard, attente, criticité, échéance."""
+    """Ce qui demande une intervention du marin, trié : retard, attente, criticité (5 = la plus critique), échéance.
+
+    Un chef (seuil de supervision, périmètre non vide) voit aussi les maintenances et tickets non assignés de son périmètre.
+    """
     entrees = []
+    chef = peut_superviser(user) and bool(scope_filters_for_user(user))
     occurrences = (
         MaintenanceOccurrence.objects.select_related("asset", "installation_maintenance__installation")
-        .filter(assignees=user).exclude(status__in=STATUTS_MAINTENANCE_TERMINES)
+        .exclude(status__in=STATUTS_MAINTENANCE_TERMINES)
     )
-    for occ in occurrences:
+    tickets = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=STATUTS_TICKET_TERMINES)
+    cond_occ, cond_ticket = Q(assignees=user), Q(assignees=user)
+    if chef:
+        cond_occ |= Q(assignees__isnull=True) & build_scope_q(user, "asset__", "installation_maintenance__installation__")
+        cond_ticket |= Q(assignees__isnull=True) & build_scope_q(user, "asset__", "installation__")
+    occurrences = occurrences.filter(cond_occ).distinct()
+    tickets = tickets.filter(cond_ticket).distinct()
+    for occ in occurrences.prefetch_related("assignees"):
+        sans_assigne = not occ.assignees.all()
         en_retard = occ.status == "OVERDUE" or occ.scheduled_for < aujourdhui
         attente = occ.status == "WAITING_VALIDATION"
         if en_retard:
@@ -64,17 +76,16 @@ def a_faire(user, aujourdhui):
             detail = "En attente de validation"
         else:
             detail = f"Prévue le {occ.scheduled_for:%d/%m}"
+        if sans_assigne:
+            detail = f"Non assigné · {detail}"
         entrees.append(_entree(
             occ, occ.titre_affiche, detail, reverse("occurrence-execute", args=[occ.pk]), "maintenance",
             DANGER if en_retard else ATTENTION if attente else NORMAL, occ.priority, _echeance(occ.scheduled_for),
         ))
-    tickets = (
-        CorrectiveTicket.objects.select_related("asset", "installation")
-        .filter(assignees=user).exclude(status__in=STATUTS_TICKET_TERMINES)
-    )
-    for ticket in tickets:
+    for ticket in tickets.prefetch_related("assignees"):
+        prefixe = "" if ticket.assignees.all() else "Non assigné · "
         entrees.append(_entree(
-            ticket, str(ticket.equipement), f"Ticket correctif · {ticket.get_status_display()}",
+            ticket, str(ticket.equipement), f"{prefixe}Ticket correctif · {ticket.get_status_display()}",
             reverse("ticket-detail", args=[ticket.pk]), "ticket",
             ATTENTION if ticket.status == "BLOCKED" else NORMAL, ticket.severity,
             _echeance(ticket.planned_for or ticket.reported_at),

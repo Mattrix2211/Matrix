@@ -48,6 +48,7 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
     )
     scheduled_for = models.DateField()
     status = models.CharField(max_length=24, choices=STATUS, default="PLANNED")
+    # 1 à 5 : 5 = le plus critique (trie « À faire »).
     priority = models.PositiveSmallIntegerField(default=3)
     assignees = models.ManyToManyField(User, blank=True, related_name="assigned_occurrences")
 

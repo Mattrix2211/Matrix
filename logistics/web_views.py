@@ -1,6 +1,5 @@
 from django.views import View
 from django.views.generic import ListView
-from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
@@ -17,7 +16,7 @@ from .models import (
 )
 from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import scope_filters_for_user
 from notifications.models import Notification
 from matrix.core.export import (
@@ -34,7 +33,6 @@ from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, commentaires_de
 
-User = get_user_model()
 
 
 def _secteur_dans_perimetre(user, sector_id):
@@ -103,19 +101,6 @@ class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         return ctx
 
 
-def _ship_du_profil_q(ship_id):
-    """Filtre les utilisateurs dont le profil appartient au navire donné, quel
-    que soit le niveau de périmètre auquel leur profil est réellement scopé
-    (ship directement, ou service/sector/section dont on remonte jusqu'au
-    navire) — un profil scopé au secteur n'a jamais profile.ship renseigné
-    directement, contrairement à profile.service/sector/section."""
-    return (
-        Q(profile__ship_id=ship_id)
-        | Q(profile__service__ship_id=ship_id)
-        | Q(profile__sector__service__ship_id=ship_id)
-        | Q(profile__section__sector__service__ship_id=ship_id)
-    )
-
 _ENTETES_EXPORT_STOCK = [
     'Référence', 'Désignation', 'NNO', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
     'Unité', 'Service', 'Secteur', 'Section',
@@ -180,14 +165,10 @@ class TicketDetailView(LoginRequiredMixin, View):
             pieces_qs = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
             contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
         if contexte["peut_assigner"]:
-            # Utilisateurs assignables : l'équipage du navire portant l'actif en
-            # panne — un chef choisit ensuite librement parmi eux. Le navire de
-            # l'utilisateur peut être porté directement par son profil (profile.ship)
-            # ou déduit de son périmètre plus fin (service/secteur/section), un
-            # profil scopé au secteur n'ayant jamais ship renseigné directement.
-            contexte["utilisateurs_assignables"] = User.objects.filter(
-                _ship_du_profil_q(ticket.equipement.ship_id)
-            ).select_related("profile").order_by("username").distinct()
+            # Assignables : le périmètre hiérarchique du chef (navire entier dès COMMANDANT), comme l'API.
+            contexte["utilisateurs_assignables"] = (
+                utilisateurs_visibles_par(request.user).select_related("profile").order_by("username").distinct()
+            )
         return render(request, self.template_name, contexte)
 
 
@@ -279,9 +260,8 @@ class TicketAssignView(LoginRequiredMixin, View):
             return HttpResponseBadRequest('Ticket introuvable')
         anciens_assignes = set(ticket.assignees.all())
         ids = request.POST.getlist('assignees')
-        # On ne retient que des utilisateurs de l'équipage du navire de l'actif
-        # concerné, même filtre que le formulaire (contournement d'un POST direct).
-        utilisateurs = list(User.objects.filter(_ship_du_profil_q(ticket.equipement.ship_id), pk__in=ids))
+        # Même filtre que le formulaire (contournement d'un POST direct).
+        utilisateurs = list(utilisateurs_visibles_par(request.user).filter(pk__in=ids).distinct())
         ticket.assignees.set(utilisateurs)
 
         # Notifie uniquement les marins nouvellement assignés (pas ceux déjà

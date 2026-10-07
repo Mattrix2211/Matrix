@@ -228,3 +228,64 @@ class ApiTests(CentreNotificationsTestCase):
         self.assertEqual(reponse.json(), {"marked": 1})
         autre.refresh_from_db()
         self.assertFalse(autre.is_read)
+
+
+class PageCentreTests(CentreNotificationsTestCase):
+    def test_historique_personnel_et_pagination(self):
+        for i in range(25):
+            self._notif(self.marin, verb=f"Mienne {i}")
+        self._notif(self.autre, verb="Secrète")
+        self.client.force_login(self.marin)
+        r = self.client.get(reverse("notifications-centre"))
+        self.assertEqual(len(r.context["page"].object_list), 20)
+        self.assertNotContains(r, "Secrète")
+        self.assertEqual(len(self.client.get(reverse("notifications-centre") + "?page=2").context["page"].object_list), 5)
+
+    def test_filtres_lu_et_niveau(self):
+        self._notif(self.marin, verb="Neuve")
+        self._notif(self.marin, verb="Ancienne", lue=True)
+        self._notif(self.marin, verb="Grave", level="danger")
+        self.client.force_login(self.marin)
+        url = reverse("notifications-centre")
+        self.assertEqual(len(self.client.get(url + "?etat=non_lues").context["page"].object_list), 2)
+        self.assertEqual(len(self.client.get(url + "?etat=lues").context["page"].object_list), 1)
+        self.assertEqual(len(self.client.get(url + "?niveau=danger").context["page"].object_list), 1)
+
+    def test_tout_marquer_lu_ne_touche_que_le_marin(self):
+        self._notif(self.marin)
+        autre = self._notif(self.autre)
+        self.client.force_login(self.marin)
+        self.client.post(reverse("notifications-centre-tout-lu"))
+        self.assertFalse(Notification.objects.filter(user=self.marin, is_read=False).exists())
+        autre.refresh_from_db()
+        self.assertFalse(autre.is_read)
+
+    def test_marquer_lue_refuse_celle_dun_autre(self):
+        autre = self._notif(self.autre)
+        self.client.force_login(self.marin)
+        r = self.client.post(reverse("notifications-centre-lue", args=[autre.pk]))
+        self.assertEqual(r.status_code, 404)
+
+    def test_marquer_lue_conserve_les_filtres(self):
+        n = self._notif(self.marin)
+        self.client.force_login(self.marin)
+        r = self.client.post(reverse("notifications-centre-lue", args=[n.pk]), {"requete": "etat=non_lues"})
+        self.assertRedirects(r, reverse("notifications-centre") + "?etat=non_lues")
+        n.refresh_from_db()
+        self.assertTrue(n.is_read)
+
+    def test_equipage_a_terre_peut_marquer_lu(self):
+        self.navire.double_equipage, self.navire.equipage_a_bord = True, "A"
+        self.navire.save()
+        profil = self.marin.profile
+        profil.equipage = "B"
+        profil.save()
+        n = self._notif(self.marin)
+        self.client.force_login(self.marin)
+        self.client.post(reverse("notifications-centre-lue", args=[n.pk]))
+        self.client.post(reverse("notifications-centre-tout-lu"))
+        self.assertFalse(Notification.objects.filter(user=self.marin, is_read=False).exists())
+
+    def test_panneau_propose_voir_tout(self):
+        self.client.force_login(self.marin)
+        self.assertContains(self.client.get(reverse("notifications-panneau")), reverse("notifications-centre"))
