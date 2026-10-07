@@ -5,7 +5,8 @@ from django.db.models import JSONField, Q
 from matrix.core.models import TimeStampedModel, OwnedModel
 from assets.models import Asset, ChecklistTemplate, InstallationMaintenance
 from assets.models import AssetType
-from assets.models import InstallationHourReading, ModeDeclenchement
+from assets.mesures import compteur_total
+from assets.models import ModeDeclenchement
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from logistics.models import CorrectiveTicket, TicketStatusLog, destinataires_ticket, niveau_alerte_ticket
@@ -112,8 +113,8 @@ def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
     l'exécution validée (occurrence passée en statut DONE).
 
     - Branche compteur (COMPTEUR / LES_DEUX) : la référence 'derniere_echeance_heures'
-      est alignée sur le dernier relevé d'heures de marche connu, ce qui repousse le
-      prochain déclenchement du seuil configuré.
+      est alignée sur le compteur total courant (le plus grand relevé) : c'est le
+      compteur à la visite, les heures depuis la dernière visite repartent de zéro.
     - Branche calendaire (CALENDRIER / LES_DEUX) : aucune mise à jour de modèle n'est
       nécessaire ici — generate_installation_occurrences relit directement la date de
       cette MaintenanceExecution comme référence pour calculer la prochaine échéance.
@@ -122,16 +123,10 @@ def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
     if maintenance is None:
         return
     if maintenance.mode_declenchement in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX):
-        dernier_releve = (
-            InstallationHourReading.objects.filter(installation=maintenance.installation)
-            .order_by("-date")
-            .first()
-        )
-        if dernier_releve is not None:
-            maintenance.derniere_echeance_heures = dernier_releve.hours
-            InstallationMaintenance.objects.filter(pk=maintenance.pk).update(
-                derniere_echeance_heures=dernier_releve.hours
-            )
+        total = compteur_total(maintenance.installation.hour_readings.all())
+        if total is not None:
+            maintenance.derniere_echeance_heures = total
+            InstallationMaintenance.objects.filter(pk=maintenance.pk).update(derniere_echeance_heures=total)
 
 
 @receiver(post_save, sender=MaintenanceExecution)

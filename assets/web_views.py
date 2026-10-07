@@ -22,6 +22,7 @@ from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket, StockPiece
 from reports.services import STATUTS_TICKET_FERMES
+from .mesures import formater_heures, formater_nombre, formater_ohms, heures_par_releve, resume_heures
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -1275,8 +1276,14 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             releves_heures_par_installation = defaultdict(list)
             for releve in InstallationHourReading.objects.filter(installation_id__in=installation_ids):
                 releves_heures_par_installation[releve.installation_id].append(releve)
+            references_par_installation = defaultdict(list)
+            for inst_id, heures in InstallationMaintenance.objects.filter(
+                installation_id__in=installation_ids, derniere_echeance_heures__isnull=False
+            ).values_list("installation_id", "derniere_echeance_heures"):
+                references_par_installation[inst_id].append(heures)
         except OperationalError:
             releves_heures_par_installation = {}
+            references_par_installation = {}
         for it in installations:
             # Vibrations: dernier état et prochaine échéance
             last_vib = derniers_vibrations.get(it.id)
@@ -1297,11 +1304,9 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 it.vibration_next_days_card = None
             # Heures de marche: total et depuis dernière visite
             hour_logs = releves_heures_par_installation.get(it.id, [])
-            total = sum(float(r.hours or 0) for r in hour_logs) if hour_logs else 0.0
-            last_visit = next((r for r in hour_logs if getattr(r, 'is_visit', False)), None)
-            since_last = sum(float(r.hours or 0) for r in hour_logs if last_visit and r.date > last_visit.date) if hour_logs and last_visit else total
-            it.hours_total_card = total
-            it.hours_last_visit_card = since_last
+            heures = resume_heures(hour_logs, references_par_installation.get(it.id, ()))
+            it.hours_total_card = heures['total']
+            it.hours_last_visit_card = heures['depuis_visite']
             # Isolement: dernière mesure
             last_iso = derniers_isolements.get(it.id)
             if last_iso:
@@ -1547,7 +1552,7 @@ def _tendance_heures(valeurs_mensuelles):
     trois_mois = valeurs_mensuelles[-4:-1]
     if not any(trois_mois):
         return ""
-    return f"Tendance : environ {sum(trois_mois) / len(trois_mois):.0f} h / mois"
+    return f"Tendance : environ {formater_nombre(sum(trois_mois) / len(trois_mois))} h / mois"
 
 
 class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
@@ -1736,14 +1741,17 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         except OperationalError:
             logs = []
         ctx['hour_logs'] = logs
-        # Total = somme de toutes les heures relevées
-        ctx['hours_total'] = sum(float(r.hours or 0) for r in logs) if logs else 0
-        # Dernière visite = somme des heures après le dernier relevé marqué visite
-        last_visit = next((r for r in logs if getattr(r, 'is_visit', False)), None)
-        if last_visit:
-            ctx['hours_last_visit'] = sum(float(r.hours or 0) for r in logs if r.date > last_visit.date)
-        else:
-            ctx['hours_last_visit'] = ctx['hours_total']
+        # Les relevés sont des compteurs : total = plus grand compteur, heures depuis
+        # la visite = total - compteur à la dernière visite (cf. assets/mesures.py).
+        heures = resume_heures(
+            logs,
+            self.object.maintenances.filter(derniere_echeance_heures__isnull=False)
+            .values_list('derniere_echeance_heures', flat=True),
+        )
+        ctx['hours_total'] = heures['total']
+        ctx['hours_compteur_visite'] = heures['a_la_visite']
+        ctx['hours_last_visit'] = heures['depuis_visite']
+        last_visit = next((r for r in logs if r.is_visit), None)
         # Heures du mois en cours (somme par mois)
         today = timezone.localdate()
         first_day = today.replace(day=1)
@@ -1760,17 +1768,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         for i in range(12):
             y, m = month_add(start_y, start_m, i)
             labels.append(f"{m:02}/{y}")
-        # Répartit chaque relevé dans le bon index 0..11
-        for r in logs:
-            if not getattr(r, 'date', None):
-                continue
-            idx = (r.date.year - start_y) * 12 + (r.date.month - start_m)
+        # Heures d'un mois = écarts entre relevés consécutifs (jamais la somme des compteurs)
+        for date_releve, ecart in heures_par_releve(logs):
+            idx = (date_releve.year - start_y) * 12 + (date_releve.month - start_m)
             if 0 <= idx < 12:
-                try:
-                    values[idx] += float(r.hours or 0.0)
-                except Exception:
-                    pass
-        values = [max(0.0, v) for v in values]
+                values[idx] += float(ecart)
         ctx['hours_month_labels'] = labels
         ctx['hours_month_values'] = values
         ctx['hours_month_labels_json'] = json.dumps(labels)
@@ -1820,16 +1822,20 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
                  "etat": etat_vibration or "", "detail": detail_vibration, "url": "?tab=mesures#mesures-vibration",
                  "ajout_modale": "addVibrationModal",
                  "lignes": _lignes_releve(ctx['vibration_logs'], lambda r: f"État {r.state}", f"Prochaine mesure : {detail_vibration}" if detail_vibration else "")},
-                {"libelle": "Dernier isolement", "valeur": isolement.ohms if isolement else "Aucun relevé",
-                 "unite": "Ω" if isolement else "",
+                {"libelle": "Dernier isolement", "valeur": formater_ohms(isolement.ohms) if isolement else "Aucun relevé",
                  "etat": "danger" if isolement_en_retard else "attention" if derive_jours is not None else "",
                  "detail": detail_isolement, "url": "?tab=mesures#mesures-isolement",
                  "ajout_modale": "addIsolationModal",
-                 "lignes": _lignes_releve(ctx['isolation_logs'], lambda r: f"{r.ohms} Ω", detail_isolement)},
-                {"libelle": "Heures de marche", "valeur": ctx['hours_total'] if ctx['hour_logs'] else "Aucun relevé",
-                 "unite": "h" if ctx['hour_logs'] else "", "url": "?tab=mesures#mesures-heures",
+                 "lignes": _lignes_releve(ctx['isolation_logs'], lambda r: formater_ohms(r.ohms), detail_isolement)},
+                {"libelle": "Heures de marche", "valeur": formater_nombre(ctx['hours_total']) if ctx['hour_logs'] else "Aucun relevé",
+                 "unite": "h" if ctx['hour_logs'] else "",
+                 "detail": f"{formater_heures(ctx['hours_last_visit'])} depuis la dernière visite" if ctx['hour_logs'] else "",
+                 "url": "?tab=mesures#mesures-heures",
                  "ajout_modale": "addHourReadingModal",
-                 "lignes": _lignes_releve(ctx['hour_logs'], lambda r: f"{r.hours} h", _tendance_heures(ctx['hours_month_values']))},
+                 "lignes": _lignes_releve(
+                     ctx['hour_logs'], lambda r: f"{formater_heures(r.hours)} au compteur",
+                     f"Depuis la dernière visite : {formater_heures(ctx['hours_last_visit'])}" if ctx['hour_logs'] else "",
+                     _tendance_heures(ctx['hours_month_values']))},
             ],
             **contexte_discussion(inst, 'installation-comment-create'),
         }

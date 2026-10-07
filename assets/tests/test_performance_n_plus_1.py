@@ -48,7 +48,7 @@ class InstallationListNPlusUnTests(TestCase):
                 designation=f"Installation {i}", ship=self.ship, service=self.service, sector=self.sector,
             )
             InstallationHourReading.objects.create(installation=inst, date="2026-01-01", hours=Decimal("10.0"), is_visit=True)
-            InstallationHourReading.objects.create(installation=inst, date="2026-02-01", hours=Decimal("5.0"))
+            InstallationHourReading.objects.create(installation=inst, date="2026-02-01", hours=Decimal("25.0"))
             InstallationVibrationReading.objects.create(installation=inst, date="2026-02-01", state="B")
             InstallationIsolationReading.objects.create(installation=inst, date="2026-02-01", ohms=Decimal("100.00"))
             installations.append(inst)
@@ -94,8 +94,8 @@ class InstallationListNPlusUnTests(TestCase):
         it = page[0]
         self.assertEqual(it.vibration_last_state_card, "A")
         self.assertEqual(it.isolation_last_ohms_card, Decimal("250.00"))
-        self.assertEqual(it.hours_total_card, 15.0)
-        self.assertEqual(it.hours_last_visit_card, 5.0)
+        self.assertEqual(it.hours_total_card, Decimal("25.0"))
+        self.assertEqual(it.hours_last_visit_card, Decimal("15.0"))
 
 
 class AssetListNPlusUnTests(TestCase):

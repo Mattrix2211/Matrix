@@ -1,6 +1,7 @@
 import os
 from django import template
 
+from assets.mesures import formater_heures, formater_ohms
 from matrix.core.roles import RoleLevel, user_role_level
 
 register = template.Library()
@@ -24,3 +25,15 @@ def peut_configurer_plan_navire(user) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
     return user_role_level(user) >= RoleLevel.CHEF_SERVICE
+
+
+@register.filter
+def heures_lisibles(value, decimales=0) -> str:
+    """« 4 715 h » : compteur ou durée d'heures de marche."""
+    return formater_heures(value, int(decimales)) if value not in (None, "") else "—"
+
+
+@register.filter
+def ohms_lisibles(value) -> str:
+    """« 560 kΩ » : mesure d'isolement avec l'unité adaptée."""
+    return formater_ohms(value) if value not in (None, "") else "—"

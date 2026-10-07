@@ -10,6 +10,7 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import StockPiece
 from accounts.models import UserProfile, Roles
 from assets.models import Installation, InstallationMaintenance, ModeDeclenchement
+from assets.mesures import reference_visite_maintenance
 from assets.trend import jours_avant_franchissement_seuil
 from calendar_app.views import evenements_utilisateur_jour
 
@@ -219,7 +220,7 @@ def detect_installation_drift():
     Le seuil d'isolement (Installation.isolation_seuil_ohms) est optionnel et
     propre à chaque installation : sans seuil renseigné, aucune dérive n'est
     calculée. Le seuil des heures de marche est celui déjà défini sur chaque
-    InstallationMaintenance en mode compteur (seuil_heures + derniere_echeance_heures).
+    InstallationMaintenance en mode compteur (seuil_heures depuis la dernière visite).
 
     Même cycle de vie que notify_low_stock : une notification active par
     installation/entretien tant que la dérive persiste, résolue dès qu'elle
@@ -245,13 +246,14 @@ def detect_installation_drift():
         )
 
         # Heures de marche : dérive à la hausse vers le seuil de chaque entretien au compteur.
-        releves_heures = [(r.date, float(r.hours)) for r in installation.hour_readings.all()]
+        releves = list(installation.hour_readings.all())
+        releves_heures = [(r.date, float(r.hours)) for r in releves]
         for maintenance in installation.maintenances.all():
             if maintenance.mode_declenchement not in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX):
                 continue
             if not maintenance.seuil_heures:
                 continue
-            seuil = float(maintenance.derniere_echeance_heures or 0) + float(maintenance.seuil_heures)
+            seuil = float(reference_visite_maintenance(maintenance, releves)) + float(maintenance.seuil_heures)
             jours = jours_avant_franchissement_seuil(releves_heures, seuil, sens="HAUSSE")
             object_id = f"{maintenance.id}:DERIVE_HEURES"
             verb = (

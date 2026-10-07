@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load l10n static icones composants %}
+{% load l10n static icones composants asset_extras %}
 {% block content %}
 {# Cartes plutôt que tableau : photo et indicateurs (vibration, heures, isolement) se lisent d'un coup d'œil (docs/UX.md §20.6) #}
 <div class="mx-liste-entete">
@@ -134,13 +134,13 @@
           {% endif %}
           {% if request.GET.show_hours == '1' %}
             <span class="mx-liste-carte__detail">
-              Heures : total {{ it.hours_total_card|floatformat:"1" }} h<br>
-              depuis visite {{ it.hours_last_visit_card|floatformat:"1" }} h
+              Heures : total {{ it.hours_total_card|heures_lisibles }}<br>
+              depuis visite {{ it.hours_last_visit_card|heures_lisibles }}
             </span>
           {% endif %}
           {% if request.GET.show_iso == '1' %}
             <span class="mx-liste-carte__detail">
-              Isolement : {% if it.isolation_last_ohms_card %}{{ it.isolation_last_ohms_card|floatformat:"2" }} Ω{% else %}—{% endif %}<br>
+              Isolement : {% if it.isolation_last_ohms_card %}{{ it.isolation_last_ohms_card|ohms_lisibles }}{% else %}—{% endif %}<br>
               {% if it.isolation_next_date_card %}Prochaine : {{ it.isolation_next_date_card|date:"d/m/Y" }}{% if it.isolation_next_days_card is not None %} (dans {{ it.isolation_next_days_card }} j){% endif %}{% endif %}
             </span>
           {% endif %}
@@ -298,7 +298,7 @@
       var row = document.createElement('div'); row.className = 'input-group mb-2';
       row.innerHTML = '<input class="form-control" placeholder="Libellé" value="'+(label||'')+'">'
         + '<input class="form-control" placeholder="Valeur" value="'+(value||'')+'">'
-        + '<button class="btn btn-outline-danger" type="button"><span class="bi bi-trash"></span></button>';
+        + '<button class="btn btn-outline-danger" type="button" aria-label="Supprimer ce champ"><span class="bi bi-trash" aria-hidden="true"></span></button>';
       row.querySelector('button').addEventListener('click', function(){ row.remove(); });
       container.appendChild(row);
     }

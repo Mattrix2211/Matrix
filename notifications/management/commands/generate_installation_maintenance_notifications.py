@@ -2,7 +2,8 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from assets.models import InstallationMaintenance, InstallationEvent, InstallationHourReading, ModeDeclenchement
+from assets.mesures import formater_heures, heures_depuis_visite_maintenance
+from assets.models import InstallationMaintenance, InstallationEvent, ModeDeclenchement
 from notifications.models import Notification, NotificationLevel
 from notifications.utils import add_interval, human_delta
 
@@ -85,13 +86,14 @@ class Command(BaseCommand):
 
             # Branche compteur
             if mode in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX) and maintenance.seuil_heures:
-                last_reading = InstallationHourReading.objects.filter(installation=inst).order_by("-date").first()
-                if last_reading:
-                    baseline = maintenance.derniere_echeance_heures or 0
-                    seuil = baseline + maintenance.seuil_heures
-                    if last_reading.hours >= seuil:
-                        # Seuil compteur déjà atteint/dépassé : toujours critique.
-                        verb = f"Entretien — {inst.designation} : {maintenance.title} (échéance compteur atteinte : {last_reading.hours} h / seuil {seuil} h)"
-                        notify(maintenance, verb, NotificationLevel.DANGER)
+                releves = list(inst.hour_readings.all())
+                depuis_visite = heures_depuis_visite_maintenance(maintenance, releves)
+                if depuis_visite is not None and depuis_visite >= maintenance.seuil_heures:
+                    # Seuil compteur déjà atteint/dépassé : toujours critique.
+                    verb = (
+                        f"Entretien — {inst.designation} : {maintenance.title} (échéance compteur atteinte : "
+                        f"{formater_heures(depuis_visite)} depuis la dernière visite / seuil {formater_heures(maintenance.seuil_heures)})"
+                    )
+                    notify(maintenance, verb, NotificationLevel.DANGER)
 
         self.stdout.write(f"Notifications créées: {created}")

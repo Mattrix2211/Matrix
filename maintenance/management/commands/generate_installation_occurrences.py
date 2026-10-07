@@ -1,7 +1,8 @@
 from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from assets.models import InstallationMaintenance, InstallationEvent, InstallationHourReading, ModeDeclenchement
+from assets.mesures import heures_depuis_visite_maintenance
+from assets.models import InstallationMaintenance, InstallationEvent, ModeDeclenchement
 from maintenance.models import MaintenanceOccurrence, MaintenanceExecution
 from notifications.utils import add_interval
 
@@ -14,13 +15,9 @@ def prochaine_echeance(maintenance: InstallationMaintenance, today: date, until:
     """Calcule la prochaine date d'échéance d'une maintenance d'installation, tous
     modes confondus. Retourne None si aucune échéance n'est à générer dans la fenêtre.
 
-    Reprend la logique de détection initialement écrite dans
-    generate_installation_maintenance_notifications (branche compteur basée sur
-    InstallationHourReading), avec une évolution pour la branche calendaire : la
-    dernière réalisation est désormais lue en priorité sur la MaintenanceExecution
-    structurée de la dernière occurrence terminée (formulaire de fin de maintenance),
-    et seulement à défaut sur l'ancienne heuristique texte InstallationEvent.label —
-    conservée en repli pour les maintenances déjà suivies sans exécution structurée.
+    Branche calendaire : la dernière réalisation est lue en priorité sur la
+    MaintenanceExecution de la dernière occurrence terminée, à défaut sur
+    InstallationEvent.label (maintenances sans exécution structurée).
     """
     mode = maintenance.mode_declenchement
     inst = maintenance.installation
@@ -48,15 +45,12 @@ def prochaine_echeance(maintenance: InstallationMaintenance, today: date, until:
         if next_date <= until:
             echeances.append(next_date)
 
-    # Branche compteur : pas de date prévisible à l'avance, l'échéance est constatée
-    # dès que le seuil est atteint et déclenche une occurrence immédiate (aujourd'hui).
+    # Branche compteur : pas de date prévisible, l'échéance est constatée dès que les
+    # heures depuis la dernière visite atteignent le seuil (occurrence immédiate).
     if mode in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX) and maintenance.seuil_heures:
-        last_reading = InstallationHourReading.objects.filter(installation=inst).order_by("-date").first()
-        if last_reading:
-            baseline = maintenance.derniere_echeance_heures or 0
-            seuil = baseline + maintenance.seuil_heures
-            if last_reading.hours >= seuil:
-                echeances.append(today)
+        depuis_visite = heures_depuis_visite_maintenance(maintenance, list(inst.hour_readings.all()))
+        if depuis_visite is not None and depuis_visite >= maintenance.seuil_heures:
+            echeances.append(today)
 
     if not echeances:
         return None
