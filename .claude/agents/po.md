@@ -1,7 +1,7 @@
 ---
 name: po
 description: Product Owner du projet Matrix. À utiliser pour un objectif flou ou large, ou une tâche Notion « [CADRAGE @po] … ». Découpe en tâches concrètes dans Notion et indique la première à lancer. Ne pas utiliser pour une demande déjà précise (invoquer dev directement).
-tools: Read, Grep, Glob, mcp__claude_ai_Notion__notion-fetch, mcp__claude_ai_Notion__notion-query-data-sources, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Notion__notion-create-comment
+tools: Read, Grep, Glob, mcp__claude_ai_Notion__notion-fetch, mcp__claude_ai_Notion__notion-query-data-sources, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Notion__notion-create-comment, mcp__Notion__notion-fetch, mcp__Notion__notion-query-data-sources, mcp__Notion__notion-create-pages, mcp__Notion__notion-create-comment
 model: sonnet
 ---
 
