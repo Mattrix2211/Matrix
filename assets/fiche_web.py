@@ -13,7 +13,7 @@ from django.views import View
 from logistics.models import StockPiece
 from matrix.core.mixins import build_scope_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule
-from matrix.core.saisie import entier_ou_none
+from matrix.core.saisie import entier_ou_none, sans_nul
 from threads.utils import ajouter_commentaire, contexte_discussion
 from training.models import TrainingCourse
 
@@ -79,8 +79,17 @@ def _cle(texte):
         raise ErreurCircuit("Identifiant de ligne invalide : rechargez l'assistant.")
 
 
+def _sans_nul(post):
+    """Copie du formulaire sans caractère NUL (PostgreSQL les refuse)."""
+    copie = post.copy()
+    for cle in list(copie):
+        copie.setlist(cle, [sans_nul(v) for v in copie.getlist(cle)])
+    return copie
+
+
 def lire_formulaire(post):
     """Contenu d'une version lu dans le formulaire de l'assistant (les lignes vides sont ignorées)."""
+    post = _sans_nul(post)
     mode = post.get("mode_declenchement")
     contenu = {
         "name": post.get("name", "").strip(), "description": post.get("description", "").strip(),
@@ -149,7 +158,7 @@ class FicheDetailView(LoginRequiredMixin, View):
         peut_rediger, direct = _droits_redaction(request.user, fiche)
         a_terre = equipage_a_terre_lecture_seule(request.user)
         bord = fiche.niveau == "BORD"
-        peut_traiter = peut_rediger and not a_terre and fiche_signalement.peut_traiter(request.user, fiche)[0]
+        peut_traiter = peut_rediger and not a_terre and validation.peut_traiter_signalement(request.user, fiche)[0]
         contexte = {
             "fiche": fiche, "installation": fiche.installation, "version": affichee, "versions": versions,
             "validee": validee, "en_cours": en_cours, "suivie": suivie, "peut_agir": peut,
@@ -217,9 +226,12 @@ class FicheDetailView(LoginRequiredMixin, View):
 
 
 def _signalement(request, fiche):
-    """Signalement ouvert à partir duquel l'assistant est lancé (?signalement=), s'il concerne cette fiche."""
+    """Signalement ouvert à partir duquel l'assistant est lancé (?signalement=), s'il concerne cette fiche
+    et que l'utilisateur a le droit de le traiter (jamais d'indice sur les autres)."""
     pk = _nombre(request.GET.get("signalement") or request.POST.get("signalement"))
-    return fiche.signalements.filter(pk=pk, traite=False).first() if fiche and pk else None
+    if not (fiche and pk) or not validation.peut_traiter_signalement(request.user, fiche)[0]:
+        return None
+    return fiche.signalements.filter(pk=pk, traite=False).first()
 
 
 def _visas_prevus(user, flotte=False, direct=False):
@@ -432,9 +444,10 @@ class FicheFlotteAssistantView(_AssistantBase):
         specialite = SpecialityChoice.objects.filter(pk=_nombre(request.POST.get("specialite")), active=True).first()
         if specialite is None:
             raise ErreurCircuit("Choisissez la spécialité qui vérifiera cette fiche.")
-        return {"specialite": specialite, "equipement": request.POST.get("equipement", "").strip(),
-                "reference_equipement": request.POST.get("reference_equipement", "").strip(),
-                "classe_navire": request.POST.get("classe_navire", "").strip()}
+        donnees = _sans_nul(request.POST)
+        return {"specialite": specialite, "equipement": donnees.get("equipement", "").strip(),
+                "reference_equipement": donnees.get("reference_equipement", "").strip(),
+                "classe_navire": donnees.get("classe_navire", "").strip()}
 
 
 class _ActionView(LoginRequiredMixin, View):
@@ -502,7 +515,7 @@ class FicheOrigineView(LoginRequiredMixin, View):
 class FicheCommentaireView(LoginRequiredMixin, View):
     def post(self, request, pk):
         fiche = _fiche(request, pk)
-        corps = request.POST.get("body", "").strip()
+        corps = sans_nul(request.POST.get("body")).strip()
         if corps:
             ajouter_commentaire(fiche, request.user, corps)
             messages.success(request, "Commentaire ajouté.")

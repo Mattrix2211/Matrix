@@ -21,12 +21,13 @@ from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.saisie import sans_nul
 from matrix.core.scopes import is_master_admin
 from notifications.models import Notification
 
 from . import fiche_maintenance
 from .models import (
-    CategorieCatalogue, ChecklistTemplate, EvenementProposition, Installation, InstallationMaintenance,
+    CategorieCatalogue, ChecklistTemplate, EvenementProposition, Installation, InstallationMaintenance, SignalementFiche,
 )
 from .proposition_article import (
     ROLES_REDACTEURS, ErreurCircuit, chef_du, chef_specialite_optionnel, habilite_coma, secteur_de,
@@ -393,11 +394,24 @@ def _controler_contenu_flotte(contenu, fiche_ou_cible, fiche=None, exiger_resume
     _controler_contenu(contenu, None, fiche, voisines_de(fiche or fiche_ou_cible), exiger_resume)
 
 
-def _lier_signalement(signalement, fiche, version):
+def peut_traiter_signalement(user, fiche):
+    """(bool, raison) : l'utilisateur peut-il ouvrir une nouvelle version à partir d'un signalement de cette fiche ?"""
+    if fiche.niveau == "FLOTTE":
+        mode, raison = mode_redaction_flotte(user, fiche.specialite_visee.pk)
+        return mode == DIRECT, raison or "Seul le responsable de spécialité traite les signalements d'une fiche flotte."
+    return peut_rediger(user, fiche.installation)
+
+
+def _lier_signalement(signalement, fiche, version, user):
+    """Clôt le signalement (relu sous verrou) : il doit concerner cette fiche, être ouvert et traitable par l'utilisateur."""
     if signalement is None:
         return
-    if signalement.fiche_id != fiche.pk:
-        raise ErreurCircuit("Ce signalement concerne une autre fiche.")
+    signalement = SignalementFiche.objects.select_for_update().get(pk=signalement.pk)
+    if signalement.fiche_id != fiche.pk or signalement.traite:
+        raise ErreurCircuit("Ce signalement n'est plus à traiter pour cette fiche.")
+    autorise, raison = peut_traiter_signalement(user, fiche)
+    if not autorise:
+        raise ErreurCircuit(raison)
     signalement.traite, signalement.version_proposee = True, version
     signalement.save(update_fields=["traite", "version_proposee", "updated_at"])
 
@@ -426,7 +440,7 @@ def soumettre(user, installation, contenu, fiche=None, origine=None, signalement
         fiche, contenu, user, role_redacteur=user.profile.role, equipage=user.profile.equipage)
     version.etat = circuit(version)[0]
     version.save(update_fields=["etat"])
-    _lier_signalement(signalement, fiche, version)
+    _lier_signalement(signalement, fiche, version, user)
     _tracer(version, user, Action.SOUMISE, version.etat)
     _notifier_etape(version)
     return version
@@ -472,7 +486,7 @@ def soumettre_flotte(user, contenu, cible=None, fiche=None, signalement=None):
     version = fiche_maintenance.creer_version(fiche, contenu, user, **champs)
     version.etat = circuit(version)[0]
     version.save(update_fields=["etat"])
-    _lier_signalement(signalement, fiche, version)
+    _lier_signalement(signalement, fiche, version, user)
     _tracer(version, user, Action.SOUMISE, version.etat)
     if mode == DIRECT and chef is None:
         _tracer(version, user, Action.VERIFIEE, Etat.VERIFICATION, "Étape du chef sautée : aucun chef désigné (configuration explicite).")
@@ -518,6 +532,11 @@ def _publier(version, user):
     version.save(update_fields=["etat", "valide_le", "verificateur"])
     fiche_maintenance.appliquer_a_la_fiche(version)
     _tracer(version, user, Action.PUBLIEE)
+    if version.fiche.categorie_id:
+        # Import différé : maintenance dépend d'assets, pas l'inverse.
+        from maintenance.tasks import retirer_occurrences_remplacees
+
+        retirer_occurrences_remplacees(version.fiche)
     _notifier(version, [version.redacteur] if version.redacteur else [],
               f"Votre fiche « {version.name} » v{version.numero} est validée : elle s'applique désormais.")
     for adaptation in version.fiche.adaptations.select_related("installation"):
@@ -584,7 +603,7 @@ def verifier(user, pk, contenu=None):
 @transaction.atomic
 def refuser(user, pk, etat_attendu, motif):
     """Renvoie la version au rédacteur ; le motif est obligatoire. La version validée reste appliquée."""
-    motif = (motif or "").strip()
+    motif = sans_nul(motif).strip()
     if not motif:
         raise ErreurCircuit("Le motif du refus est obligatoire.")
     if etat_attendu not in ETAPES:

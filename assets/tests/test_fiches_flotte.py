@@ -419,8 +419,8 @@ class SignalementTests(BaseFlotte):
         fiche = self.fiche_validee()
         occ = MaintenanceOccurrence.objects.create(installation_maintenance=fiche, scheduled_for=date.today())
         signalement = fiche_signalement.signaler(self.equipier, occ, "Étape manquante")
-        self.assertTrue(fiche_signalement.peut_traiter(self.chef_secteur, fiche)[0])
-        self.assertFalse(fiche_signalement.peut_traiter(self.equipier, fiche)[0])
+        self.assertTrue(circuit.peut_traiter_signalement(self.chef_secteur, fiche)[0])
+        self.assertFalse(circuit.peut_traiter_signalement(self.equipier, fiche)[0])
         self.client.force_login(self.chef_secteur)
         page = self.client.get(reverse("fiche-modifier", args=[fiche.pk]) + f"?signalement={signalement.pk}")
         self.assertContains(page, "Étape manquante")
@@ -595,3 +595,145 @@ class MigrationFlotteTests(BaseFlotte):
         flotte.refresh_from_db()
         bord.refresh_from_db()
         self.assertEqual((flotte.niveau, flotte.title, bord.niveau, bord.description), ("FLOTTE", "Annuel", "BORD", "Texte"))
+
+
+class RelectureTests(BaseFlotte):
+    def signalement_flotte(self):
+        fiche = self.publier().fiche
+        plan = tasks.MaintenancePlan.objects.create(scope="FICHE", fiche=fiche, name="Plan")
+        occ = MaintenanceOccurrence.objects.create(plan=plan, asset=self.exemplaire(self.parent, "A"), scheduled_for=date.today())
+        return fiche, fiche_signalement.signaler(self.equipier, occ, "Texte confidentiel du marin")
+
+    def test_un_signalement_de_fiche_flotte_n_est_ni_lisible_ni_clos_par_le_bord(self):
+        fiche, signalement = self.signalement_flotte()
+        self.client.force_login(self.chef_section)
+        url = reverse("fiche-flotte-modifier", args=[fiche.pk])
+        self.assertNotContains(self.client.get(url + f"?signalement={signalement.pk}"), "Texte confidentiel")
+        self.assertNotContains(self.client.get(reverse("fiche-detail", args=[fiche.pk])), "Texte confidentiel")
+        with self.assertRaises(ErreurCircuit):
+            circuit.soumettre_flotte(self.chef_section, self.contenu(resume_modifications="x"), fiche=fiche, signalement=signalement)
+        signalement.refresh_from_db()
+        self.assertFalse(signalement.traite)
+        self.assertEqual(fiche.versions.count(), 1)
+        # Le responsable, lui, le lit et le clôt ; un signalement déjà clos ne se rejoue pas.
+        self.client.force_login(self.resp)
+        self.assertContains(self.client.get(url + f"?signalement={signalement.pk}"), "Texte confidentiel")
+        version = circuit.soumettre_flotte(self.resp, self.contenu(resume_modifications="x"), fiche=fiche, signalement=signalement)
+        signalement.refresh_from_db()
+        self.assertEqual((signalement.traite, signalement.version_proposee), (True, version))
+        circuit.viser(self.chef_resp, version.pk, version.etat)
+        with self.assertRaises(ErreurCircuit):
+            circuit.soumettre_flotte(self.resp, self.contenu(resume_modifications="y"), fiche=fiche, signalement=signalement)
+
+    def test_un_signalement_du_bord_n_est_traitable_que_dans_le_perimetre(self):
+        fiche = self.fiche_validee()
+        occ = MaintenanceOccurrence.objects.create(installation_maintenance=fiche, scheduled_for=date.today())
+        signalement = fiche_signalement.signaler(self.equipier, occ, "Secret du bord")
+        with self.assertRaises(ErreurCircuit):
+            circuit.soumettre(self.equipier, self.installation, self.contenu(resume_modifications="x"), fiche, signalement=signalement)
+        signalement.refresh_from_db()
+        self.assertFalse(signalement.traite)
+
+    def test_reprendre_et_garder_refusent_une_fiche_qui_n_est_pas_une_adaptation(self):
+        fiche = self.fiche_validee()
+        for action in (fiche_adaptation.reprendre, fiche_adaptation.garder):
+            with self.assertRaises(ErreurCircuit):
+                action(self.chef_secteur, fiche.pk)
+        self.client.force_login(self.chef_secteur)
+        for nom in ("fiche-reprendre", "fiche-garder"):
+            self.assertEqual(self.client.post(reverse(nom, args=[fiche.pk])).status_code, 302)
+        self.assertEqual(self.client.post(reverse("fiche-reprendre", args=[999999])).status_code, 404)
+
+    def test_l_adaptation_d_un_navire_ne_touche_ni_la_flotte_ni_les_autres_navires(self):
+        cible = {"specialite": self.spe, "equipement": "Pompe incendie", "reference_equipement": "", "classe_navire": ""}
+        version = circuit.soumettre_flotte(self.resp, self.contenu(name="Pompe flotte"), cible)
+        circuit.viser(self.chef_resp, version.pk, version.etat)
+        flotte = version.fiche
+        # Un second navire adapte la même fiche flotte.
+        from org.models import Section, Sector, Service, Ship
+        from assets.models import Installation
+
+        navire = Ship.objects.create(name="Autre", code="AUT")
+        service = Service.objects.create(ship=navire, name="Machine", commandant_adjoint="COMAEQ")
+        secteur = Sector.objects.create(service=service, name="Propulsion")
+        section = Section.objects.create(sector=secteur, name="Moteurs")
+        pompe = Installation.objects.create(designation="Pompe incendie", ship=navire, service=service, sector=secteur, section=section)
+        chef = self._u("chef_autre", "CHEF_SECTION", ship=navire, service=service, sector=secteur, section=section)
+        adaptation_autre = circuit.soumettre(chef, pompe, fiche_adaptation.contenu_de_adaptation(flotte), origine=flotte).fiche
+        locale = circuit.soumettre(self.chef_section, self.installation, fiche_adaptation.contenu_de_adaptation(flotte), origine=flotte).fiche
+        avant = (flotte.versions.count(), adaptation_autre.versions.count(), adaptation_autre.title)
+        circuit.refuser(self.chef_secteur, locale.versions.get().pk, Etat.VISA_SECTEUR, "Local")
+        circuit.resoumettre(self.chef_section, locale.versions.get().pk, self.contenu(name="Pompe locale", intervalle=1))
+        flotte.refresh_from_db()
+        adaptation_autre.refresh_from_db()
+        self.assertEqual((flotte.versions.count(), adaptation_autre.versions.count(), adaptation_autre.title), avant)
+        self.assertEqual((flotte.title, flotte.intervalle), ("Pompe flotte", 3))
+        self.assertEqual(adaptation_autre.versions.get().name, "Pompe flotte")
+        self.assertEqual(list(InstallationMaintenance.objects.filter(origine=flotte).values_list("installation", flat=True).order_by("installation")),
+                         sorted([self.installation.pk, pompe.pk]))
+
+    def test_les_caracteres_nul_sont_retires_des_saisies(self):
+        self.client.force_login(self.chef_section)
+        donnees = {"name": "Fiche\x00 NUL", "description": "a\x00b", "mode_declenchement": "CALENDRIER", "intervalle": "3",
+                   "unite_intervalle": "M", "etape_texte": ["Étape\x00"], "etape_attention": [""], "ligne_label": ["Point\x00"],
+                   "ligne_type": ["checkbox"], "ligne_cle": [""], "ligne_unite": [""], "ligne_min": [""], "ligne_max": [""]}
+        reponse = self.client.post(reverse("fiche-flotte-nouvelle", args=[self.parent.pk]), donnees)
+        self.assertEqual(reponse.status_code, 302)
+        version = ChecklistTemplate.objects.get(fiche__niveau="FLOTTE")
+        self.assertEqual((version.name, version.description, version.etapes.get().texte, version.items.get().label),
+                         ("Fiche NUL", "ab", "Étape", "Point"))
+        self.client.force_login(self.resp)
+        reponse = self.client.post(reverse("fiche-flotte-depuis-bord", args=[self.fiche_validee().pk]), {
+            **donnees, "name": "Autre", "specialite": str(self.spe.pk), "equipement": "Pompe\x00", "reference_equipement": "r\x00", "classe_navire": "c\x00"})
+        self.assertEqual(reponse.status_code, 302)
+        flotte = InstallationMaintenance.objects.get(niveau="FLOTTE", categorie__isnull=True)
+        self.assertEqual((flotte.equipement, flotte.reference_equipement, flotte.classe_navire), ("Pompe", "r", "c"))
+        circuit.refuser(self.chef_secteur, version.pk, Etat.VISA_SECTEUR, "mo\x00tif")
+        self.assertEqual(ChecklistTemplate.objects.get(pk=version.pk).motif_refus, "motif")
+        occ = MaintenanceOccurrence.objects.create(installation_maintenance=InstallationMaintenance.objects.get(installation=self.installation), scheduled_for=date.today())
+        self.assertEqual(fiche_signalement.signaler(self.equipier, occ, "a\x00b").texte, "ab")
+
+
+class GenerationIdempotenteTests(BaseFlotte):
+    def test_relancer_la_generation_un_autre_jour_ne_cree_rien_de_plus(self):
+        self.publier(self.parent)
+        ext = self.exemplaire(self.parent, "A")
+        aujourdhui = date.today()
+        tasks.generer_occurrences_fiches_flotte(aujourdhui, aujourdhui + timedelta(days=90))
+        nombre = MaintenanceOccurrence.objects.filter(asset=ext).count()
+        for jour in range(1, 6):
+            tasks.generer_occurrences_fiches_flotte(aujourdhui + timedelta(days=jour), aujourdhui + timedelta(days=90 + jour))
+        # Seule la prochaine échéance, au pas de la gamme, peut s'ajouter.
+        dates = list(MaintenanceOccurrence.objects.filter(asset=ext).order_by("scheduled_for").values_list("scheduled_for", flat=True))
+        self.assertEqual({(b - a).days for a, b in zip(dates, dates[1:])}, {90})
+        self.assertLessEqual(len(dates) - nombre, 1)
+
+    def test_la_generation_des_plans_existants_est_idempotente_elle_aussi(self):
+        ext = self.exemplaire(self.parent, "A")
+        plan = tasks.MaintenancePlan.objects.create(scope="ASSET", asset=ext, name="Plan", every_n_days=30)
+        aujourdhui = date.today()
+        tasks._creer_occurrences(plan, ext, aujourdhui, aujourdhui + timedelta(days=90))
+        nombre = plan.occurrences.count()
+        for jour in range(1, 10):
+            tasks._creer_occurrences(plan, ext, aujourdhui + timedelta(days=jour), aujourdhui + timedelta(days=90 + jour))
+        self.assertLessEqual(plan.occurrences.count() - nombre, 1)
+        self.assertEqual(tasks.generate_occurrences(), {"status": "ok"})
+
+    def test_la_sous_categorie_qui_publie_retire_les_occurrences_futures_non_commencees_du_parent(self):
+        parent = self.publier(self.parent, name="Parent").fiche
+        ext_enfant, ext_parent = self.exemplaire(self.enfant, "CO2"), self.exemplaire(self.parent, "Poudre")
+        aujourdhui = date.today()
+        tasks.generer_occurrences_fiches_flotte(aujourdhui, aujourdhui + timedelta(days=200))
+        plan = parent.plans.get()
+        futures = MaintenanceOccurrence.objects.filter(plan=plan, asset=ext_enfant)
+        commencee, terminee = futures.order_by("scheduled_for")[1], futures.order_by("scheduled_for")[2]
+        from maintenance.models import MaintenanceExecution
+
+        MaintenanceExecution.objects.create(occurrence=commencee)
+        MaintenanceOccurrence.objects.filter(pk=terminee.pk).update(status="DONE")
+        self.publier(self.enfant, name="Enfant")
+        statuts = {o.pk: o.status for o in futures}
+        self.assertEqual(statuts[commencee.pk], "PLANNED")
+        self.assertEqual(statuts[terminee.pk], "DONE")
+        self.assertEqual(sum(1 for s in statuts.values() if s == "CANCELLED"), len(statuts) - 2)
+        self.assertFalse(MaintenanceOccurrence.objects.filter(plan=plan, asset=ext_parent, status="CANCELLED").exists())

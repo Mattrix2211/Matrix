@@ -5,7 +5,7 @@ from django.db import transaction
 from accounts.models import AuditLog
 
 from . import fiche_flotte, fiche_maintenance, fiche_validation as validation
-from .models import InstallationMaintenance
+from .models import Installation, InstallationMaintenance
 from .proposition_article import ErreurCircuit
 
 
@@ -31,8 +31,16 @@ def contenu_de_adaptation(flotte):
 
 
 def _verrouiller(pk):
+    """Adaptation verrouillée, installation d'abord puis fiche (même ordre que `soumettre`, sans interblocage)."""
+    installation_id = (InstallationMaintenance.objects.filter(pk=pk, niveau="BORD", origine__isnull=False)
+                       .values_list("installation_id", flat=True).first())
+    if installation_id is None:
+        raise ErreurCircuit("Cette fiche n'est pas une adaptation d'une fiche flotte.")
+    Installation.objects.select_for_update().get(pk=installation_id)
     fiche = (InstallationMaintenance.objects.select_for_update(of=("self",)).select_related("installation__service", "origine")
-             .get(pk=pk, niveau="BORD", origine__isnull=False))
+             .filter(pk=pk, niveau="BORD", origine__isnull=False).first())
+    if fiche is None:
+        raise ErreurCircuit("Cette fiche n'est pas une adaptation d'une fiche flotte.")
     if fiche.origine_en_attente is None:
         raise ErreurCircuit("Aucun changement de la fiche flotte n'est à examiner : actualisez la page.")
     return fiche

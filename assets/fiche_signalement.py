@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from accounts.models import AuditLog
+from matrix.core.saisie import sans_nul
 
 from . import fiche_validation as validation
 from .models import SignalementFiche
@@ -22,7 +23,7 @@ def destinataires(fiche):
 @transaction.atomic
 def signaler(user, occurrence, texte):
     """Enregistre le signalement de la fiche suivie par cette occurrence et prévient le responsable."""
-    texte = (texte or "").strip()
+    texte = sans_nul(texte).strip()
     if not texte:
         raise ErreurCircuit("Dites en une phrase ce qui est faux ou manque dans la fiche.")
     if len(texte) > MAX_TEXTE:
@@ -37,14 +38,6 @@ def signaler(user, occurrence, texte):
         f"Fiche « {fiche.title} » signalée fausse ou incomplète par {validation.nom(user)} : {texte[:200]}")
     AuditLog.objects.create(actor=user, action="fiche.signalement", details=f"« {fiche.title} » ({fiche.pk}) v{version.numero}; {texte[:200]}")
     return signalement
-
-
-def peut_traiter(user, fiche):
-    """(bool, raison) : l'utilisateur peut-il ouvrir une nouvelle version à partir d'un signalement ?"""
-    if fiche.niveau == "FLOTTE":
-        mode, raison = validation.mode_redaction_flotte(user, fiche.specialite_visee.pk)
-        return mode == validation.DIRECT, raison or "Seul le responsable de spécialité traite les signalements d'une fiche flotte."
-    return validation.peut_rediger(user, fiche.installation)
 
 
 def ouverts(fiche):

@@ -13,6 +13,7 @@ from accounts.models import AuditLog, Roles
 from matrix.core.commandants_adjoints import service_de, titulaires_du_service
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.saisie import sans_nul
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from notifications.models import Notification
 
@@ -381,7 +382,7 @@ def _acteurs(proposition):
 @transaction.atomic
 def refuser(user, pk, etat_attendu, motif):
     """Renvoie la proposition au rédacteur ; le motif est obligatoire."""
-    motif = (motif or "").strip()
+    motif = sans_nul(motif).strip()
     if not motif:
         raise ErreurCircuit("Le motif du refus est obligatoire.")
     if etat_attendu not in ETAPES:

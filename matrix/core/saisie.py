@@ -22,3 +22,8 @@ def date_fr_ou_none(valeur):
 def formater_date_fr(date):
     """jj/mm/aaaa, ou texte vide si la date est absente."""
     return date.strftime("%d/%m/%Y") if date else ""
+
+
+def sans_nul(texte):
+    """Texte débarrassé des caractères NUL, que PostgreSQL refuse (erreur serveur sinon)."""
+    return str(texte or "").replace("\x00", "")
