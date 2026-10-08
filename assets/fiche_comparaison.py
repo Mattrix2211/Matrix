@@ -2,15 +2,18 @@
 import difflib
 
 from . import fiche_maintenance
+from .models import TypeReleve
 
 LIBELLES = {"ajoutee": "Ajoutée", "modifiee": "Modifiée", "supprimee": "Supprimée", "deplacee": "Déplacée", "inchangee": "Inchangée"}
-CHAMPS_LIGNE = (("label", "Point"), ("field_type", "Type"), ("unit", "Unité"), ("required", "Obligatoire"),
+CHAMPS_LIGNE = (("label", "Point"), ("field_type", "Type"), ("unit", "Unité"), ("releve", "Alimente"), ("required", "Obligatoire"),
                 ("valeur_min", "Minimum"), ("valeur_max", "Maximum"))
 
 
 def _valeur(champ, valeur):
     if champ == "field_type":
-        return "Relevé" if valeur == "number" else "Contrôle"
+        return {"number": "Relevé", "text": "Texte"}.get(valeur, "Contrôle")
+    if champ == "releve":
+        return TypeReleve(valeur).label if valeur else "—"
     if champ == "required":
         return "oui" if valeur else "non"
     return "—" if valeur in (None, "") else f"{valeur:g}" if isinstance(valeur, float) else str(valeur)

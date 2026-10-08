@@ -173,6 +173,13 @@ class ChecklistTemplate(TimeStampedModel):
     def __str__(self):
         return f"{self.name} ({self.sector})" if self.sector_id else self.name
 
+class TypeReleve(models.TextChoices):
+    """Mesure d'installation qu'un relevé de fiche alimente à la clôture du compte rendu."""
+    HEURES = "heures", "Heures de marche"
+    ISOLEMENT = "isolement", "Isolement (Ω)"
+    VIBRATIONS = "vibrations", "Vibrations (A, B ou C)"
+
+
 class ChecklistItemTemplate(TimeStampedModel):
     CHECK_TYPES = (
         ("checkbox", "Case à cocher"),
@@ -188,6 +195,8 @@ class ChecklistItemTemplate(TimeStampedModel):
     required = models.BooleanField(default=False)
     requires_photo = models.BooleanField(default=False)
     unit = models.CharField(max_length=50, blank=True, default="")
+    # Relevé qui alimente aussi les mesures de l'installation (heures, isolement, vibrations).
+    releve = models.CharField(max_length=12, choices=TypeReleve.choices, blank=True, default="")
     # Plage attendue d'un relevé numérique (contrôle immédiat à la saisie du compte rendu).
     valeur_min = models.FloatField(null=True, blank=True, verbose_name="Valeur minimale")
     valeur_max = models.FloatField(null=True, blank=True, verbose_name="Valeur maximale")
@@ -489,6 +498,10 @@ class InstallationIsolationReading(TimeStampedModel, OwnedModel):
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="isolation_readings")
     date = models.DateField(default=timezone.localdate)
     ohms = models.DecimalField(max_digits=12, decimal_places=2)
+    execution = models.ForeignKey(
+        "maintenance.MaintenanceExecution", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Compte rendu d'origine",
+    )
     note = models.TextField(blank=True, default="")
 
     class Meta:
@@ -503,6 +516,10 @@ class InstallationHourReading(TimeStampedModel, OwnedModel):
     date = models.DateField(default=timezone.localdate)
     hours = models.DecimalField(max_digits=10, decimal_places=2)
     is_visit = models.BooleanField(default=False)
+    execution = models.ForeignKey(
+        "maintenance.MaintenanceExecution", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Compte rendu d'origine",
+    )
 
     class Meta:
         ordering = ["-date"]
@@ -524,6 +541,10 @@ class InstallationVibrationReading(TimeStampedModel, OwnedModel):
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="vibration_readings")
     date = models.DateField(default=timezone.localdate)
     state = models.CharField(max_length=1, choices=STATE_CHOICES)
+    execution = models.ForeignKey(
+        "maintenance.MaintenanceExecution", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Compte rendu d'origine",
+    )
     note = models.TextField(blank=True, default="")
 
     class Meta:

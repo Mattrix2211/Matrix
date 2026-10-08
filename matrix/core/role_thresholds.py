@@ -96,6 +96,11 @@ REGISTRE_ACTIONS = [
         "Maintenance", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "maintenance_compte_rendu_correction",
+        "Corriger un compte rendu de maintenance terminé (motif obligatoire, saisie d'origine conservée)",
+        "Maintenance", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
+    ),
+    ActionSeuil(
         "maintenance_plan_ecriture",
         "Créer ou modifier un plan de maintenance préventive",
         "Maintenance", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,

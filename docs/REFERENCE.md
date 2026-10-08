@@ -44,6 +44,16 @@ Le calendrier dit QUAND, la fiche dit COMMENT. Une fiche = une gamme (`assets.In
 - **Signalement** (`assets/fiche_signalement.py`, `SignalementFiche`) depuis l'écran d'exécution : fiche du bord, chef de secteur ; fiche flotte, responsable de spécialité, qui ouvre une nouvelle version depuis le signalement.
 - **Comparaison** publiée/proposition : `assets/fiche_comparaison.py`, affichée sur l'écran de visa. « À faire » de la page Aujourd'hui : `versions_a_viser`.
 
+### Historique et séries de relevés (UX-3.10)
+
+Tout vient des comptes rendus : aucune double saisie.
+
+- **Indexation par `cle`** : `MaintenanceExecution.results` et `measurements` sont indexés par la `cle` de la ligne de fiche (stable d'une version à l'autre). `maintenance.compte_rendu.valeur_de` lit encore les anciens comptes rendus par libellé ; la migration `maintenance.0009` convertit l'existant (rejouable, un libellé en double reste inchangé).
+- **Frise et séries** : `maintenance/historique.py`. Écran `maintenance/historique/installation/<id>/` et `.../materiel/<id>/` (chronologie filtrable par gamme et non-conformités, relevés en tableau et graphique, dérive par `assets/trend.py`) ; les derniers comptes rendus sont aussi sur l'onglet Historique de l'installation et la fiche du matériel.
+- **Relevés qui alimentent les mesures** : `ChecklistItemTemplate.releve` (heures, isolement, vibrations). À la clôture, `maintenance/releves.py` crée ou met à jour la mesure d'installation liée au compte rendu (`execution`), sans doublon.
+- **Correction d'un compte rendu terminé** : seuil `maintenance_compte_rendu_correction` (chef de secteur par défaut), motif obligatoire. La saisie du marin reste dans `saisie_origine`, chaque correction dans `ModificationCompteRendu` et l'`AuditLog` ; l'API ne réécrit plus un compte rendu terminé. Le chef de secteur est notifié à chaque compte rendu (sans visa), le marin d'origine à chaque correction.
+- **Correctif** : `CompteRenduCorrectif` (`maintenance/correctif_web.py`), avec ou sans fiche, pour un ticket existant ou une panne imprévue (le ticket est alors ouvert). Pièces prélevées via `logistics/stock.py` (chef de section et au-dessus), diagnostic et action repris dans `diagnostic_final` et `solution` du ticket.
+
 ## 4. Les 13 apps Django
 
 | App | Rôle |
