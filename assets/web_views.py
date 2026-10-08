@@ -22,7 +22,8 @@ from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket, StockPiece
 from reports.services import STATUTS_TICKET_FERMES
-from .mesures import formater_heures, formater_nombre, formater_ohms, heures_par_releve, resume_heures
+from . import fiche_validation
+from .mesures import formater_heures, formater_nombre, formater_ohms, heures_par_gamme, heures_par_releve, resume_heures
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -1277,13 +1278,15 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             for releve in InstallationHourReading.objects.filter(installation_id__in=installation_ids):
                 releves_heures_par_installation[releve.installation_id].append(releve)
             references_par_installation = defaultdict(list)
-            for inst_id, heures in InstallationMaintenance.objects.filter(
-                installation_id__in=installation_ids, derniere_echeance_heures__isnull=False
-            ).values_list("installation_id", "derniere_echeance_heures"):
-                references_par_installation[inst_id].append(heures)
+            fiches_par_installation = defaultdict(list)
+            for fiche in InstallationMaintenance.objects.filter(installation_id__in=installation_ids):
+                fiches_par_installation[fiche.installation_id].append(fiche)
+                if fiche.derniere_echeance_heures is not None:
+                    references_par_installation[fiche.installation_id].append(fiche.derniere_echeance_heures)
         except OperationalError:
             releves_heures_par_installation = {}
             references_par_installation = {}
+            fiches_par_installation = {}
         for it in installations:
             # Vibrations: dernier état et prochaine échéance
             last_vib = derniers_vibrations.get(it.id)
@@ -1307,6 +1310,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             heures = resume_heures(hour_logs, references_par_installation.get(it.id, ()))
             it.hours_total_card = heures['total']
             it.hours_last_visit_card = heures['depuis_visite']
+            it.heures_gammes_card = heures_par_gamme(fiches_par_installation.get(it.id, []), hour_logs)
             # Isolement: dernière mesure
             last_iso = derniers_isolements.get(it.id)
             if last_iso:
@@ -1618,7 +1622,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             maints = list(
                 InstallationMaintenance.objects
                 .filter(installation=self.object)
-                .prefetch_related('attachments')
+                .prefetch_related('attachments', 'versions')
                 .order_by('periodicity', 'title')
             )
         except OperationalError:
@@ -1631,7 +1635,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
                 total = 0
             m.duration_hours = total // 60
             m.duration_minutes = total % 60
+            etats = [v.etat for v in m.versions.all()]
+            m.fiche_en_validation = any(e not in ('validee', 'refusee') for e in etats)
+            m.fiche_renvoyee = 'refusee' in etats
         ctx['maintenances'] = maints
+        ctx['peut_rediger_fiche'] = fiche_validation.peut_rediger(self.request.user, self.object)[0]
         # Documents de la fiche : pièces jointes des événements et des entretiens (déjà préchargées)
         ctx['documents'] = [pj for ev in ctx['events'] for pj in ev.attachments.all()] + \
                            [pj for m in maints for pj in m.attachments.all()]
@@ -1751,6 +1759,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         ctx['hours_total'] = heures['total']
         ctx['hours_compteur_visite'] = heures['a_la_visite']
         ctx['hours_last_visit'] = heures['depuis_visite']
+        ctx['heures_gammes'] = heures_par_gamme(maints, logs)
         last_visit = next((r for r in logs if r.is_visit), None)
         # Heures du mois en cours (somme par mois)
         today = timezone.localdate()

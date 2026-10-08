@@ -11,6 +11,9 @@ from .proposition_web import (
 from .documents_installation_web import (
     DocumentInstallationAjouterView, DocumentInstallationSupprimerView, DocumentInstallationTelechargerView,
 )
+from .fiche_web import (
+    FicheAssistantView, FicheCommentaireView, FicheDetailView, FicheDupliquerView, FicheRefuserView, FicheViserView,
+)
 from .exemplaires_web import ArticleExemplairesView, ExemplairesIncompletsView
 from .web_views import (
     AssetDetailView, StartVisualCheckView, AssetListView, InstallationListView,
@@ -50,6 +53,13 @@ urlpatterns = [
     path('installations/<uuid:pk>/documents/<uuid:document_pk>/supprimer/', DocumentInstallationSupprimerView.as_view(), name='installation-document-supprimer'),
     path('installations/<uuid:pk>/documents/<uuid:document_pk>/telecharger/', DocumentInstallationTelechargerView.as_view(), name='installation-document-telecharger'),
     path('installations/<uuid:pk>/commentaire/', InstallationCommentCreateView.as_view(), name='installation-comment-create'),
+    path('installations/<uuid:pk>/fiches/nouvelle/', FicheAssistantView.as_view(), name='fiche-nouvelle'),
+    path('fiches/<int:pk>/', FicheDetailView.as_view(), name='fiche-detail'),
+    path('fiches/<int:fiche_pk>/modifier/', FicheAssistantView.as_view(), name='fiche-modifier'),
+    path('fiches/<int:pk>/dupliquer/', FicheDupliquerView.as_view(), name='fiche-dupliquer'),
+    path('fiches/<int:pk>/commentaire/', FicheCommentaireView.as_view(), name='fiche-comment-create'),
+    path('fiches/versions/<int:pk>/viser/', FicheViserView.as_view(), name='fiche-viser'),
+    path('fiches/versions/<int:pk>/refuser/', FicheRefuserView.as_view(), name='fiche-refuser'),
     # Scan QR : point d'entrée unique pour matériel mobile ET installation fixe
     # (même UUID, ScanQRView résout le bon modèle).
     path('scan/<uuid:pk>/', ScanQRView.as_view(), name='scan-qr'),

@@ -28,6 +28,13 @@ Source de vérité : `design/DESIGN_SYSTEM.md` (submodule), à lire avant tout t
 - Les deux ont une hiérarchie parent/enfant protégée contre les cycles.
 - Décisions en cadrage (tâches Notion « [CADRAGE @po] … ») : catalogue de matériel flotte géré à terre ; une fiche de maintenance par gamme (checklist et/ou relevés), fiches matériel flotte publiées par le responsable de spécialité, fiches installation validées par chef de service puis commandant adjoint ; comptes rendus générés depuis les fiches, notifiés au chef de secteur.
 
+### Fiches de maintenance (UX-3.9a)
+
+Le calendrier dit QUAND, la fiche dit COMMENT. Une fiche = une gamme (`assets.InstallationMaintenance`, champs `niveau` BORD/FLOTTE, `installation` ou `categorie`) ; ses versions sont des `ChecklistTemplate` rattachés (`fiche`, `numero`, `etat`). Tant qu'une version n'est pas validée, la dernière validée s'applique ; à la validation, la fiche recopie déclenchement, durée et effectif (le moteur `generate_installation_occurrences` est inchangé). Chaque `MaintenanceExecution` garde sa `version_fiche`. Une ligne garde sa `cle` d'une version à l'autre.
+
+- Contenu : `assets/fiche_maintenance.py` (préparation `FichePreparation`, étapes `FicheEtape`, lignes `ChecklistItemTemplate`). Circuit bord : `assets/fiche_validation.py` (chef de section → secteur → service → commandant adjoint ; chef de secteur → service → commandant adjoint), mêmes règles que `proposition_article.py`, historique dans `EvenementProposition.version`. Seuil de rédaction : `fiche_bord_redaction`.
+- Écrans : `assets/fiche_web.py`. Heures par gamme : `assets.mesures.heures_par_gamme`.
+
 ## 4. Les 13 apps Django
 
 | App | Rôle |

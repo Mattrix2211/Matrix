@@ -25,6 +25,21 @@
             </div>
           </div>
         </div>
+        {% if heures_gammes %}
+        <section class="mb-3" aria-label="Heures depuis la dernière visite, par gamme">
+          <h6>Par gamme</h6>
+          <p class="text-muted small">Chaque gamme a sa propre visite : les heures se comptent depuis la dernière visite de cette gamme.</p>
+          {% for g in heures_gammes %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between"><a href="{% url 'fiche-detail' g.fiche.pk %}">{{ g.fiche.title }} · gamme {{ g.gamme }}</a>
+              <span class="font-mono">{{ g.depuis_visite|heures_lisibles }} / {{ g.gamme }}</span></div>
+            <div class="progress" role="progressbar" aria-label="{{ g.fiche.title }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ g.pourcentage|default:0 }}">
+              <div class="progress-bar {% if g.pourcentage >= 100 %}bg-danger{% elif g.pourcentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ g.pourcentage|default:0 }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </section>
+        {% endif %}
         <div class="mb-3">
           <div class="card">
             <div class="card-body">

@@ -1173,6 +1173,8 @@ a.mx-fiche__indicateur:focus-visible { border-color: var(--signal-ui); }
 .mx-frise__etape--faite { border-top-color: var(--green-tech); color: var(--text); }
 .mx-frise__etape--actuelle { border-top-color: var(--signal-ui); color: var(--text); font-weight: 600; }
 .mx-frise__repere { font-family: var(--f-mono); font-weight: 600; }
+.mx-frise__detail { font-size: .75rem; font-weight: 400; color: var(--text-sec); overflow-wrap: anywhere; }
+.mx-fiche-etapes > li { margin-bottom: var(--s3); }
 .mx-workflow__centre { max-width: 40rem; }
 .mx-workflow__etat { margin: 0 0 var(--s3); font-size: 1.125rem; }
 .mx-workflow__validation { margin: 0 0 var(--s3); font-size: .875rem; color: var(--text-sec); }

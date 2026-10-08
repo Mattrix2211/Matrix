@@ -134,8 +134,8 @@
           {% endif %}
           {% if request.GET.show_hours == '1' %}
             <span class="mx-liste-carte__detail">
-              Heures : total {{ it.hours_total_card|heures_lisibles }}<br>
-              depuis visite {{ it.hours_last_visit_card|heures_lisibles }}
+              Heures : total {{ it.hours_total_card|heures_lisibles }}
+              {% for g in it.heures_gammes_card %}<br>Gamme {{ g.gamme }} : {{ g.depuis_visite|heures_lisibles }} depuis la visite{% empty %}<br>depuis visite {{ it.hours_last_visit_card|heures_lisibles }}{% endfor %}
             </span>
           {% endif %}
           {% if request.GET.show_iso == '1' %}
