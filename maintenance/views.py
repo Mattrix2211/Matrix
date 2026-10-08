@@ -17,7 +17,7 @@ class DefaultPermission(permissions.IsAuthenticated):
     pass
 
 class MaintenancePlanViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
-    queryset = MaintenancePlan.objects.select_related("asset", "asset_type", "checklist_template").all()
+    queryset = MaintenancePlan.objects.select_related("asset", "asset_type", "checklist_template").filter(fiche__isnull=True)
     serializer_class = MaintenancePlanSerializer
     permission_classes = [RolePermission]
     # Seuil configurable par navire (matrix/core/role_thresholds.py), même

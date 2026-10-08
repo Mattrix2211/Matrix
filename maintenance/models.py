@@ -19,6 +19,7 @@ class MaintenancePlan(TimeStampedModel, OwnedModel):
     SCOPE = (
         ("ASSET_TYPE", "Par type d'actif"),
         ("ASSET", "Par actif"),
+        ("FICHE", "Par fiche flotte"),
     )
     scope = models.CharField(max_length=16, choices=SCOPE)
     asset_type = models.ForeignKey(AssetType, null=True, blank=True, on_delete=models.CASCADE, related_name="maintenance_plans")
@@ -27,6 +28,8 @@ class MaintenancePlan(TimeStampedModel, OwnedModel):
     every_n_days = models.PositiveIntegerField(default=90)
     expected_duration_min = models.PositiveIntegerField(default=30)
     checklist_template = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.SET_NULL)
+    # Plan engendré par une fiche flotte de matériel : la fiche (catégorie la plus proche) fait foi.
+    fiche = models.ForeignKey(InstallationMaintenance, null=True, blank=True, on_delete=models.CASCADE, related_name="plans")
     requires_validation = models.BooleanField(default=False)
     validation_role = models.CharField(max_length=32, blank=True, default="CHEF_SECTION")
 
@@ -64,8 +67,9 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
             ),
         ]
 
-    def version_fiche(self):
-        """Version de fiche appliquée : celle figée dans l'exécution, sinon la dernière validée."""
+    def version_fiche(self, cache=None):
+        """Version de fiche appliquée : celle figée dans l'exécution, sinon la dernière validée
+        (`cache` : voir assets.fiche_flotte.version_applicable)."""
         try:
             execution = self.execution
         except MaintenanceExecution.DoesNotExist:
@@ -74,6 +78,10 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
             return execution.version_fiche
         if self.installation_maintenance_id:
             return self.installation_maintenance.version_validee
+        if self.plan_id and self.plan.fiche_id:
+            from assets.fiche_flotte import version_applicable
+
+            return version_applicable(self.asset, self.plan.fiche, cache)
         modele = self.plan.checklist_template if self.plan_id else None
         return modele.version_applicable() if modele else None
 

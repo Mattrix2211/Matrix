@@ -86,7 +86,7 @@ def charger(user, ids):
     """Occurrences de matériel demandées, dans le périmètre de l'appelant, sans filtre de droit d'écriture."""
     return list(
         MaintenanceOccurrence.objects.select_related(
-            "plan", "plan__checklist_template", "asset", "asset__asset_type", "asset__ship", "asset__location",
+            "plan", "plan__checklist_template", "plan__fiche", "asset", "asset__asset_type", "asset__ship", "asset__location",
             "asset__plan_deck", "asset__article_catalogue", "asset__article_catalogue__categorie", "execution__version_fiche",
         ).prefetch_related("assignees")
         .filter(build_scope_q(user, "asset__"), pk__in=ids, asset__isnull=False)
@@ -96,9 +96,9 @@ def charger(user, ids):
 def groupes(occurrences):
     """Un groupe par (catégorie, modèle de fiche) : les colonnes sont les lignes de la fiche, donc
     deux modèles différents ne partagent pas de tableau. Lignes triées pont puis emplacement."""
-    items_par_modele, par_cle = {}, {}
+    items_par_modele, par_cle, cache = {}, {}, {}
     for occ in sorted(occurrences, key=_cle_tri):
-        modele = occ.version_fiche()
+        modele = occ.version_fiche(cache)
         modele_id = modele.pk if modele else None
         if modele_id not in items_par_modele:
             items_par_modele[modele_id] = (

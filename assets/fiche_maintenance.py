@@ -39,13 +39,26 @@ def gamme_de(version):
     return gamme if gamme != "—" or periodicite in ("", "—") else periodicite
 
 
-def gammes_prises(installation, sauf=None):
-    """Gammes déjà couvertes par une fiche de l'installation (version en cours ou validée)."""
+def gammes_des_fiches(fiches, sauf=None):
+    """Gammes déjà couvertes par ces fiches (version en cours ou validée)."""
     prises = set()
-    for fiche in installation.maintenances.exclude(pk=getattr(sauf, "pk", None)).prefetch_related("versions"):
+    for fiche in fiches.exclude(pk=getattr(sauf, "pk", None)).prefetch_related("versions"):
         version = fiche.version_en_cours or fiche.version_validee
         prises.add((gamme_de(version) if version else fiche.periodicity).strip().lower())
     return prises
+
+
+def gammes_prises(installation, sauf=None):
+    """Gammes déjà couvertes par une fiche de l'installation."""
+    return gammes_des_fiches(installation.maintenances.all(), sauf)
+
+
+JOURS_PAR_UNITE = {"J": 1, "S": 7, "M": 30, "A": 365}
+
+
+def jours_de_gamme(fiche):
+    """Périodicité calendaire de la fiche en jours (90 jours par défaut, comme un plan de matériel)."""
+    return (fiche.intervalle or 0) * JOURS_PAR_UNITE.get(fiche.unite_intervalle, 0) or 90
 
 
 MAX_LIGNES = 200
@@ -69,8 +82,9 @@ def verifier_contenu(contenu, installation, fiche=None):
     if max(len(contenu["preparations"]), len(contenu["etapes"]), len(contenu["lignes"])) > MAX_LIGNES:
         raise ErreurCircuit(f"Trop de lignes : {MAX_LIGNES} au maximum par rubrique.")
     pieces = {p["piece"] for p in contenu["preparations"] if p.get("piece") is not None}
-    if pieces and StockPiece.objects.filter(pk__in=pieces, ship_id=installation.ship_id).count() != len(pieces):
-        raise ErreurCircuit("Pièce inconnue ou n'appartenant pas au stock de ce bâtiment.")
+    if pieces and (installation is None
+                   or StockPiece.objects.filter(pk__in=pieces, ship_id=installation.ship_id).count() != len(pieces)):
+        raise ErreurCircuit("Pièce inconnue ou n'appartenant pas au stock de ce bâtiment : une fiche flotte n'en désigne aucune.")
     if any(len(p["libelle"]) > 255 or not 1 <= p["quantite"] <= 100_000 for p in contenu["preparations"]):
         raise ErreurCircuit("Une ligne de préparation est trop longue ou sa quantité est hors limites.")
     connues = set(ChecklistItemTemplate.objects.filter(template__fiche=fiche).values_list("cle", flat=True)) if fiche else set()
@@ -136,7 +150,8 @@ def creer_version(fiche, contenu, auteur=None, **champs):
     """Nouvelle version de la fiche (numéro suivant) avec ce contenu ; les lignes qui portent une `cle` gardent
     leur identité d'une version à l'autre."""
     numero = (fiche.versions.order_by("-numero").values_list("numero", flat=True).first() or 0) + 1
-    version = ChecklistTemplate(fiche=fiche, numero=numero, sector_id=fiche.installation.sector_id, redacteur=auteur,
+    secteur = fiche.installation.sector_id if fiche.installation_id else None
+    version = ChecklistTemplate(fiche=fiche, numero=numero, sector_id=secteur, redacteur=auteur,
                                 name=contenu["name"], **champs)
     version.save()
     _ecrire_contenu(version, contenu)

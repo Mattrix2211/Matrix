@@ -394,7 +394,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
 
     def get_queryset(self):
         return (
-            super().get_queryset()
+            super().get_queryset().filter(fiche__isnull=True)
             .select_related("asset", "asset__asset_type", "asset_type", "asset_type__sector", "checklist_template")
             .order_by("name")
         )

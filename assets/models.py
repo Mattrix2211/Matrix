@@ -105,15 +105,18 @@ class ChecklistTemplate(TimeStampedModel):
         VISA_SECTEUR = "visa_secteur", "Visa du chef de secteur"
         VISA_SERVICE = "visa_service", "Visa du chef de service"
         VISA_COMA = "visa_coma", "Visa du commandant adjoint"
+        VERIFICATION = "verification", "Vérification par le responsable de spécialité"
+        VISA_CHEF_SPECIALITE = "visa_chef_specialite", "Visa du chef du responsable de spécialité"
         VALIDEE = "validee", "Validée"
         REFUSEE = "refusee", "Renvoyée au rédacteur"
 
     name = models.CharField(max_length=255)
-    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="checklist_templates")
+    # Vide pour une version de fiche flotte : elle ne relève d'aucun secteur de bord.
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="checklist_templates")
     asset_type = models.ForeignKey(AssetType, null=True, blank=True, on_delete=models.SET_NULL, related_name="checklist_templates")
     fiche = models.ForeignKey("InstallationMaintenance", null=True, blank=True, on_delete=models.CASCADE, related_name="versions", verbose_name="Fiche")
     numero = models.PositiveIntegerField(default=1, verbose_name="Version")
-    etat = models.CharField(max_length=16, choices=Etat.choices, default=Etat.VALIDEE, db_index=True)
+    etat = models.CharField(max_length=24, choices=Etat.choices, default=Etat.VALIDEE, db_index=True)
     description = models.TextField(blank=True, default="", verbose_name="Objet de la fiche")
     resume_modifications = models.TextField(blank=True, default="", verbose_name="Ce qui change")
     # Déclenchement, durée et effectif de cette version : recopiés sur la fiche à la validation.
@@ -130,6 +133,11 @@ class ChecklistTemplate(TimeStampedModel):
     equipage = models.CharField(max_length=8, blank=True, default="")
     motif_refus = models.TextField(blank=True, default="")
     valide_le = models.DateTimeField(null=True, blank=True)
+    # Origine d'une version de fiche flotte (le bord n'a pas d'installation) et responsable qui l'a vérifiée.
+    ship_origine = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    service_origine = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    secteur_origine = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    verificateur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="versions_fiche_verifiees")
 
     class Meta:
         constraints = [
@@ -146,11 +154,15 @@ class ChecklistTemplate(TimeStampedModel):
 
     @property
     def service(self):
-        return self.fiche.installation.service
+        return self.fiche.installation.service if self.fiche.installation_id else self.service_origine
 
     @property
     def ship_id(self):
-        return self.fiche.installation.ship_id
+        return self.fiche.installation.ship_id if self.fiche.installation_id else self.ship_origine_id
+
+    @property
+    def secteur_id(self):
+        return self.fiche.installation.sector_id if self.fiche.installation_id else self.secteur_origine_id
 
     def version_applicable(self):
         """Version à utiliser : la dernière validée de la fiche (le modèle lui-même s'il est autonome)."""
@@ -159,7 +171,7 @@ class ChecklistTemplate(TimeStampedModel):
         return self.fiche.version_validee
 
     def __str__(self):
-        return f"{self.name} ({self.sector})"
+        return f"{self.name} ({self.sector})" if self.sector_id else self.name
 
 class ChecklistItemTemplate(TimeStampedModel):
     CHECK_TYPES = (
@@ -550,6 +562,15 @@ class InstallationMaintenance(TimeStampedModel, OwnedModel):
     installation = models.ForeignKey(Installation, null=True, blank=True, on_delete=models.CASCADE, related_name="maintenances")
     categorie = models.ForeignKey("CategorieCatalogue", null=True, blank=True, on_delete=models.PROTECT, related_name="fiches_maintenance", verbose_name="Catégorie de matériel")
     niveau = models.CharField(max_length=6, choices=NIVEAU_CHOICES, default="BORD")
+    # Fiche flotte d'une installation (sans installation précise) : spécialité qui la vérifie, équipement et classe visés.
+    specialite = models.ForeignKey("accounts.SpecialityChoice", null=True, blank=True, on_delete=models.PROTECT, related_name="fiches_maintenance", verbose_name="Spécialité")
+    equipement = models.CharField(max_length=255, blank=True, default="", verbose_name="Installation visée (désignation)")
+    reference_equipement = models.CharField(max_length=255, blank=True, default="", verbose_name="Référence de l'installation visée")
+    classe_navire = models.CharField(max_length=100, blank=True, default="", verbose_name="Classe de navire visée")
+    # Adaptation locale : fiche du bord tirée d'une fiche flotte, version reprise et version flotte à examiner.
+    origine = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="adaptations", verbose_name="Fiche flotte d'origine")
+    origine_numero = models.PositiveIntegerField(null=True, blank=True)
+    origine_en_attente = models.PositiveIntegerField(null=True, blank=True)
     periodicity = models.CharField(max_length=64)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
@@ -577,9 +598,10 @@ class InstallationMaintenance(TimeStampedModel, OwnedModel):
         ordering = ["periodicity", "title"]
         constraints = [
             models.CheckConstraint(
-                name="fiche_installation_xor_categorie",
-                condition=(models.Q(installation__isnull=False, categorie__isnull=True)
-                           | models.Q(installation__isnull=True, categorie__isnull=False)),
+                name="fiche_cible_coherente",
+                condition=(models.Q(niveau="BORD", installation__isnull=False, categorie__isnull=True)
+                           | models.Q(niveau="FLOTTE", installation__isnull=True, categorie__isnull=False)
+                           | models.Q(niveau="FLOTTE", installation__isnull=True, categorie__isnull=True, specialite__isnull=False)),
             ),
         ]
 
@@ -594,8 +616,20 @@ class InstallationMaintenance(TimeStampedModel, OwnedModel):
         """Version en circuit de visas ou renvoyée au rédacteur, s'il y en a une."""
         return self.versions.exclude(etat=ChecklistTemplate.Etat.VALIDEE).order_by("-numero").first()
 
+    @property
+    def specialite_visee(self):
+        """Spécialité qui vérifie la fiche flotte : celle de la catégorie, sinon celle de l'installation visée."""
+        return self.categorie.specialite if self.categorie_id else self.specialite
+
+    @property
+    def cible(self):
+        """Ce que la fiche couvre, en clair (installation, catégorie ou équipement de la flotte)."""
+        if self.installation_id:
+            return self.installation.designation
+        return self.categorie.nom if self.categorie_id else self.equipement
+
     def __str__(self):
-        return f"{self.installation or self.categorie} - {self.title} ({self.periodicity})"
+        return f"{self.cible} - {self.title} ({self.periodicity})"
 
 class InstallationMaintenanceAttachment(TimeStampedModel, OwnedModel):
     maintenance = models.ForeignKey(InstallationMaintenance, on_delete=models.CASCADE, related_name="attachments")
@@ -778,3 +812,17 @@ class EvenementProposition(TimeStampedModel):
                            | models.Q(proposition__isnull=True, version__isnull=False)),
             ),
         ]
+
+
+class SignalementFiche(TimeStampedModel):
+    """« Fiche fausse ou incomplète » signalée par un marin pendant l'exécution ; il reste ouvert
+    jusqu'à ce qu'une nouvelle version soit proposée (ou qu'il soit classé)."""
+    fiche = models.ForeignKey(InstallationMaintenance, on_delete=models.CASCADE, related_name="signalements")
+    version = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.SET_NULL, related_name="signalements", verbose_name="Version signalée")
+    auteur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="signalements_fiche")
+    texte = models.TextField(verbose_name="Ce qui est faux ou manque")
+    traite = models.BooleanField(default=False)
+    version_proposee = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-created_at"]
