@@ -1,0 +1,62 @@
+{% load icones %}
+{% if entrees %}
+<ol class="mx-histo">
+  {% for e in entrees %}
+  <li class="mx-histo__entree mx-histo__entree--{{ e.etat_badge }}">
+    <span class="mx-histo__repere" aria-hidden="true"></span>
+    <div class="mx-histo__corps">
+      <div class="mx-histo__tete">
+        <time class="font-mono" datetime="{{ e.date|date:'c' }}">{{ e.date|date:"d/m/Y H:i" }}</time>
+        <strong>{{ e.titre }}</strong>
+        {% if e.correctif %}<span class="badge text-bg-dark">Correctif</span>{% endif %}
+        <span class="badge text-bg-light">{{ e.gamme }}{% if e.version %} · {{ e.version }}{% endif %}</span>
+        {% include "components/badge_etat.html" with etat=e.etat_badge libelle=e.conformite_libelle|default:"Sans conformité" %}
+        {% if e.modifications %}<span class="badge text-bg-warning">Corrigé</span>{% endif %}
+      </div>
+      <p class="mx-histo__meta">
+        {% if e.intervenants %}Par {{ e.intervenants|join:", " }}{% else %}Intervenants non renseignés{% endif %}
+        {% if e.duree %} · Temps passé {{ e.duree }}{% if e.estime %} (estimé {{ e.estime }}){% endif %}{% if e.depassement %} <strong class="text-danger">au-delà de l'estimé</strong>{% endif %}{% endif %}
+        · {{ e.resume }}
+      </p>
+      {% if e.correctif %}
+        {% if e.constat %}<p class="mb-1"><strong>Constat :</strong> {{ e.constat }}</p>{% endif %}
+        {% if e.diagnostic %}<p class="mb-1"><strong>Diagnostic :</strong> {{ e.diagnostic }}</p>{% endif %}
+        {% if e.action %}<p class="mb-1"><strong>Action réalisée :</strong> {{ e.action }}</p>{% endif %}
+        {% if e.pieces %}<p class="mb-1"><strong>Pièces consommées :</strong> {% for p in e.pieces %}{{ p.quantite }} × {{ p.reference }} ({{ p.designation }}){% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+      {% endif %}
+      {% for l in e.lignes %}{% if l.non_conforme or l.hors_plage %}
+        <p class="mx-histo__alerte mb-1">{% icone "anomalie" %} <strong>{{ l.libelle }}</strong> :
+          {% if l.non_conforme %}non conforme{% if l.commentaire %} — {{ l.commentaire }}{% endif %}{% else %}{{ l.valeur }}{% if l.unite %}&nbsp;{{ l.unite }}{% endif %} (hors plage){% endif %}</p>
+      {% endif %}{% endfor %}
+      {% if e.notes %}<p class="mb-1 text-muted"><em>{{ e.notes }}</em></p>{% endif %}
+      {% if e.lignes %}
+      <details class="mx-histo__detail"><summary>Résultat de chaque ligne ({{ e.lignes|length }})</summary>
+        <table class="table table-sm mb-0"><tbody>
+          {% for l in e.lignes %}<tr><th scope="row" class="fw-normal">{{ l.libelle }}</th>
+            <td class="{% if l.non_conforme or l.hors_plage %}text-danger fw-semibold{% endif %}">{% if l.etat %}{{ l.etat_libelle }}{% if l.commentaire %} — {{ l.commentaire }}{% endif %}{% else %}{{ l.valeur }}{% if l.unite %}&nbsp;{{ l.unite }}{% endif %}{% endif %}</td></tr>{% endfor %}
+        </tbody></table>
+      </details>
+      {% endif %}
+      {% for m in e.modifications %}
+      <div class="mx-histo__correction">
+        <p class="mb-1">{% icone "modification" %} Corrigé le {{ m.date|date:"d/m/Y H:i" }} par {% if m.auteur %}{{ m.auteur.get_full_name|default:m.auteur.username }}{% else %}un utilisateur supprimé{% endif %} — motif : {{ m.motif }}</p>
+        <ul class="mb-1">{% for c in m.changements %}<li>{{ c.libelle }} : <del>{{ c.avant }}</del> &rarr; <ins>{{ c.apres }}</ins></li>{% endfor %}</ul>
+      </div>
+      {% endfor %}
+      {% if e.origine %}
+      <details class="mx-histo__detail"><summary>Saisie d'origine{% if e.origine.par %} de {{ e.origine.par }}{% endif %}{% if e.origine.le %} ({{ e.origine.le|date:"d/m/Y H:i" }}){% endif %}</summary>
+        <p class="mb-1">Conformité déclarée : {{ e.origine.conformite|default:"—" }}{% if e.origine.notes %} · {{ e.origine.notes }}{% endif %}</p>
+        {% for libelle, texte in e.origine.textes %}<p class="mb-1">{{ libelle }} : {{ texte }}</p>{% endfor %}
+        <table class="table table-sm mb-0"><tbody>
+          {% for l in e.origine.lignes %}<tr><th scope="row" class="fw-normal">{{ l.libelle }}</th><td>{% if l.etat %}{{ l.etat_libelle }}{% if l.commentaire %} — {{ l.commentaire }}{% endif %}{% else %}{{ l.valeur }}{% if l.unite %}&nbsp;{{ l.unite }}{% endif %}{% endif %}</td></tr>{% endfor %}
+        </tbody></table>
+      </details>
+      {% endif %}
+      {% if e.lien %}<a class="small" href="{{ e.lien }}">Ouvrir le compte rendu</a>{% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+  {% include "components/etat_vide.html" with icone="historique" titre="Aucun compte rendu" texte="Les comptes rendus terminés apparaissent ici, sans ressaisie." %}
+{% endif %}
