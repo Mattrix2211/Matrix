@@ -9,6 +9,7 @@ from accounts.models import AuditLog, UserProfile
 from threads.models import Message
 from notifications.models import Notification
 from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemplate, Deck
+from maintenance import tournee
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
 from org.models import Sector, Service, Ship
 
@@ -55,6 +56,17 @@ class TourneeTests(TestCase):
         self.assertLess(contenu.index("Ext B"), contenu.index("Ext C"))
         self.assertContains(r, "Pression")
         self.assertContains(r, "data:image/png;base64,")
+
+    def test_nombre_de_requetes_independant_du_nombre_de_lignes(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        def requetes(ids):
+            with CaptureQueriesContext(connection) as contexte:
+                tournee.groupes(tournee.charger(User.objects.get(username="chef_t"), ids))
+            return len(contexte)
+
+        self.assertEqual(requetes([self.a.pk]), requetes([o.pk for o in self.occs]))
 
     def test_grille_meme_ordre(self):
         r = self.client.get(self.url)

@@ -87,7 +87,7 @@ def charger(user, ids):
     return list(
         MaintenanceOccurrence.objects.select_related(
             "plan", "plan__checklist_template", "asset", "asset__asset_type", "asset__ship", "asset__location",
-            "asset__plan_deck", "asset__article_catalogue", "asset__article_catalogue__categorie",
+            "asset__plan_deck", "asset__article_catalogue", "asset__article_catalogue__categorie", "execution__version_fiche",
         ).prefetch_related("assignees")
         .filter(build_scope_q(user, "asset__"), pk__in=ids, asset__isnull=False)
     )

@@ -19,6 +19,12 @@ class ChecklistItemTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChecklistItemTemplate
         fields = "__all__"
+        read_only_fields = ["cle"]
+
+    def validate_template(self, template):
+        if template.fiche_id is not None:
+            raise serializers.ValidationError("Les lignes d'une version de fiche ne se modifient que par le circuit de validation.")
+        return template
 
 class ChecklistTemplateSerializer(serializers.ModelSerializer):
     items = ChecklistItemTemplateSerializer(many=True, read_only=True)

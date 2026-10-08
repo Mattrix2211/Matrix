@@ -251,7 +251,7 @@ def _notifier_etape(proposition):
 
 def _verrouiller(pk, etat_attendu):
     """Charge la proposition sous verrou et refuse si elle n'est plus à l'étape attendue."""
-    proposition = (PropositionArticle.objects.select_for_update()
+    proposition = (PropositionArticle.objects.select_for_update(of=("self",))
                    .select_related("service", "ship", "categorie__specialite", "created_by").get(pk=pk))
     if proposition.etat != etat_attendu:
         raise ErreurCircuit("Cette proposition n'est plus à cette étape : actualisez la page.")

@@ -586,7 +586,8 @@ class InstallationMaintenance(TimeStampedModel, OwnedModel):
     @property
     def version_validee(self):
         """Dernière version validée : celle qui s'applique tant qu'une proposition n'est pas validée."""
-        return self.versions.filter(etat=ChecklistTemplate.Etat.VALIDEE).order_by("-numero").first()
+        return (self.versions.filter(etat=ChecklistTemplate.Etat.VALIDEE)
+                .order_by(models.F("valide_le").desc(nulls_last=True), "-numero").first())
 
     @property
     def version_en_cours(self):

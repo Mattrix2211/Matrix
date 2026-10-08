@@ -66,7 +66,10 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
 
     def version_fiche(self):
         """Version de fiche appliquée : celle figée dans l'exécution, sinon la dernière validée."""
-        execution = MaintenanceExecution.objects.filter(occurrence=self).select_related("version_fiche").first()
+        try:
+            execution = self.execution
+        except MaintenanceExecution.DoesNotExist:
+            execution = None
         if execution and execution.version_fiche_id:
             return execution.version_fiche
         if self.installation_maintenance_id:

@@ -457,3 +457,136 @@ class EcransTests(BaseFiches):
         self.client.force_login(self.chef_section)
         self.client.post(reverse("fiche-comment-create", args=[fiche.pk]), {"body": "Pensez au joint"})
         self.assertContains(self.client.get(reverse("fiche-detail", args=[fiche.pk])), "Pensez au joint")
+
+
+class VoieDirecteTests(BaseFiches):
+    def test_modification_directe_refusee_tant_qu_une_version_est_en_circuit(self):
+        fiche = self.fiche_validee()
+        circuit.soumettre(self.chef_section, self.installation, self.contenu(resume_modifications="Changement", intervalle=6), fiche)
+        fiche.refresh_from_db()
+        fiche.title = "Titre direct"
+        fiche.save()
+        with self.assertRaisesMessage(ErreurCircuit, "en cours de validation"):
+            fiche_maintenance.enregistrer_version_directe(fiche, self.chef_service, "Direct")
+        self.assertEqual(fiche.versions.count(), 2)
+
+    def test_modification_directe_via_l_ecran_affiche_le_refus_et_annule(self):
+        fiche = self.fiche_validee()
+        circuit.soumettre(self.chef_section, self.installation, self.contenu(resume_modifications="Changement", intervalle=6), fiche)
+        self.client.force_login(self.chef_service)
+        self.client.post(reverse("installation-detail", args=[self.installation.pk]), {
+            "action": "edit_maintenance", "maintenance_id": fiche.pk, "title": "Titre direct"})
+        fiche.refresh_from_db()
+        self.assertEqual(fiche.title, "Entretien trimestriel")
+
+    def test_modification_directe_trace_l_auteur_et_se_fonde_sur_la_date_de_validation(self):
+        fiche = self.fiche_validee()
+        fiche.title = "Direct"
+        fiche.save()
+        v2 = fiche_maintenance.enregistrer_version_directe(fiche, self.chef_service, "Raison")
+        evenement = v2.evenements.get()
+        self.assertEqual((evenement.user, evenement.motif), (self.chef_service, "Raison"))
+        self.assertTrue(AuditLog.objects.filter(action="fiche.version.directe", actor=self.chef_service).exists())
+        self.assertEqual(fiche.version_validee, v2)
+        ChecklistTemplate.objects.exclude(pk=v2.pk).filter(fiche=fiche).update(valide_le="2999-01-01T00:00:00Z")
+        self.assertEqual(fiche.version_validee.numero, 1)
+
+    def test_deuxieme_fiche_de_meme_gamme_refusee(self):
+        InstallationMaintenance.objects.create(installation=self.installation, periodicity="Mensuelle", title="A")
+        doublon = InstallationMaintenance.objects.create(installation=self.installation, periodicity="mensuelle", title="B")
+        with self.assertRaisesMessage(ErreurCircuit, "existe déjà"):
+            fiche_maintenance.enregistrer_version_directe(doublon, self.chef_service, "Création")
+        InstallationMaintenance.objects.filter(pk=doublon.pk).update(periodicity="Annuelle")
+        self.assertIsNotNone(fiche_maintenance.enregistrer_version_directe(doublon, self.chef_service, "Création"))
+
+
+class EntreesForgeesTests(BaseFiches):
+    def poster(self, **plus):
+        donnees = {
+            "name": "Fiche", "mode_declenchement": "CALENDRIER", "intervalle": "3", "unite_intervalle": "M",
+            "duree_estimee_min": "10", "nb_personnes": "1",
+            "prep_type": ["piece"], "prep_libelle": ["Joint"], "prep_quantite": ["1"], "prep_piece": [""],
+            "etape_texte": ["Faire"], "etape_attention": [""],
+            "ligne_cle": [""], "ligne_type": ["checkbox"], "ligne_label": ["Point"], "ligne_unite": [""],
+            "ligne_min": [""], "ligne_max": [""],
+        }
+        donnees.update(plus)
+        self.client.force_login(self.chef_section)
+        reponse = self.client.post(reverse("fiche-nouvelle", args=[self.installation.pk]), donnees)
+        self.assertEqual(reponse.status_code, 200, "attendu : message d'erreur, pas de redirection ni d'erreur serveur")
+        self.assertFalse(InstallationMaintenance.objects.exists())
+        return reponse
+
+    def test_entrees_invalides(self):
+        from logistics.models import StockPiece
+        import uuid
+
+        autre = Ship.objects.create(name="Autre", code="AUT")
+        autre_service = Service.objects.create(ship=autre, name="S")
+        piece = StockPiece.objects.create(ship=autre, service=autre_service, sector=Sector.objects.create(service=autre_service, name="X"),
+                                          reference="R", designation="D")
+        cas = {
+            "qualification inconnue": ({"qualification": "9999"}, "Qualification inconnue"),
+            "pièce d'un autre navire": ({"prep_piece": [str(piece.pk)]}, "Pièce inconnue"),
+            "pièce inexistante": ({"prep_piece": ["9999"]}, "Pièce inconnue"),
+            "clé illisible": ({"ligne_cle": ["pas-un-uuid"]}, "Identifiant de ligne invalide"),
+            "clé inconnue": ({"ligne_cle": [str(uuid.uuid4())]}, "Identifiant de ligne inconnu"),
+            "unité inconnue": ({"unite_intervalle": "Z"}, "Unité de périodicité inconnue"),
+            "titre trop long": ({"name": "x" * 256}, "255 caractères"),
+            "libellé trop long": ({"ligne_label": ["x" * 256]}, "trop long"),
+            "unité de relevé trop longue": ({"ligne_unite": ["x" * 51]}, "trop long"),
+            "entier hors bornes": ({"intervalle": "99999999999999999999"}, "hors limites"),
+            "durée négative": ({"duree_estimee_min": "-5"}, "hors limites"),
+            "quantité hors bornes": ({"prep_quantite": ["99999999999"]}, "hors limites"),
+            "minimum au-dessus du maximum": ({"ligne_type": ["number"], "ligne_min": ["9"], "ligne_max": ["1"]}, "minimum dépasse"),
+            "entier illisible": ({"seuil_heures": "12abc"}, "pas un nombre entier"),
+        }
+        for nom, (donnees, message) in cas.items():
+            with self.subTest(nom):
+                self.assertContains(self.poster(**donnees), message)
+
+    def test_valeur_non_finie_ignoree(self):
+        from assets.fiche_web import lire_formulaire
+        from django.http import QueryDict
+
+        contenu = lire_formulaire(QueryDict("ligne_cle=&ligne_unite=&ligne_label=Pression&ligne_type=number&ligne_min=nan&ligne_max=inf"))
+        self.assertEqual((contenu["lignes"][0]["valeur_min"], contenu["lignes"][0]["valeur_max"]), (None, None))
+
+    def test_la_cle_d_une_ligne_connue_est_conservee_en_uuid(self):
+        fiche = self.fiche_validee()
+        ligne = fiche.version_validee.items.get(label="Plombage")
+        self.client.force_login(self.chef_section)
+        donnees = {
+            "name": "Fiche", "mode_declenchement": "CALENDRIER", "intervalle": "3", "unite_intervalle": "M",
+            "duree_estimee_min": "10", "nb_personnes": "1", "resume_modifications": "Renommage",
+            "ligne_cle": [str(ligne.cle)], "ligne_type": ["checkbox"], "ligne_label": ["Plombage renommé"],
+            "ligne_unite": [""], "ligne_min": [""], "ligne_max": [""],
+        }
+        self.client.post(reverse("fiche-modifier", args=[fiche.pk]), donnees)
+        v2 = fiche.versions.get(numero=2)
+        self.assertEqual(v2.items.get().cle, ligne.cle)
+        corrige = fiche_maintenance.contenu_de(v2)
+        corrige["lignes"][0]["label"] = "Corrigé"
+        v2.etat = Etat.REFUSEE
+        v2.save()
+        fiche_maintenance.remplacer_contenu(v2, corrige)
+        self.assertEqual(v2.items.get().cle, ligne.cle)
+        self.assertEqual(v2.items.count(), 1)
+
+
+class ApiLignesTests(BaseFiches):
+    def test_les_lignes_d_une_version_ne_se_modifient_pas_par_l_api(self):
+        fiche = self.fiche_validee()
+        version = fiche.version_validee
+        ligne = version.items.first()
+        modele = ChecklistTemplate.objects.create(name="Autonome", sector=self.secteur)
+        item = modele.items.create(label="Point")
+        self.client.force_login(self.chef_service)
+        url = "/api/assets/checklist-items/"
+        self.assertEqual(self.client.post(url, {"template": version.pk, "label": "Intrus"}).status_code, 400)
+        self.assertEqual(self.client.patch(f"{url}{ligne.pk}/", {"label": "Piraté"}, content_type="application/json").status_code, 404)
+        self.assertEqual(self.client.patch(f"{url}{item.pk}/", {"template": version.pk}, content_type="application/json").status_code, 400)
+        self.assertEqual(self.client.post(url, {"template": modele.pk, "label": "Bon"}).status_code, 201)
+        self.assertEqual(version.items.count(), 2)
+        ligne.refresh_from_db()
+        self.assertEqual(ligne.label, "Plombage")

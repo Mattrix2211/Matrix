@@ -308,7 +308,7 @@ class InstallationMaintenanceMatriceTests(MatricePermissionsTestCase):
     def test_modification_maintenance(self):
         def executer(client, role):
             m = InstallationMaintenance.objects.create(
-                installation=self.installation, title=f"Avant modif {role.name}", periodicity="M",
+                installation=self.installation, title=f"Avant modif {role.name}", periodicity=f"Tous les {role.name}",
             )
             r = client.post(f"/installations/{self.installation.id}/", {
                 "action": "edit_maintenance", "maintenance_id": str(m.id),

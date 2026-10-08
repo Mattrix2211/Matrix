@@ -123,8 +123,11 @@ def valideurs(version):
     return [u for u in _candidats(version, version.etat).distinct() if peut_agir(u, version)[0]]
 
 
-def message_blocage(version):
-    if version.etat not in ETAPES or valideurs(version):
+def message_blocage(version, candidats=None):
+    """Explication quand personne ne peut agir (`candidats` : valideurs déjà calculés)."""
+    if candidats is None:
+        candidats = valideurs(version)
+    if version.etat not in ETAPES or candidats:
         return ""
     return f"Aucun valideur disponible pour l'étape « {version.get_etat_display()} » : signalez-le au commandant ou à l'administrateur."
 
@@ -186,7 +189,7 @@ def _notifier_etape(version):
 
 
 def _verrouiller(pk, etat_attendu):
-    version = (ChecklistTemplate.objects.select_for_update()
+    version = (ChecklistTemplate.objects.select_for_update(of=("self",))
                .select_related("fiche__installation__service", "fiche__installation__ship", "redacteur").get(pk=pk, fiche__isnull=False))
     if version.etat != etat_attendu:
         raise ErreurCircuit("Cette version n'est plus à cette étape : actualisez la page.")
@@ -200,6 +203,7 @@ def _controler(user, version):
 
 
 def _verifier_contenu(contenu, installation, fiche=None, exiger_resume=False):
+    fiche_maintenance.verifier_contenu(contenu, installation, fiche)
     if not contenu["name"].strip():
         raise ErreurCircuit("Le titre de la fiche est obligatoire.")
     gamme = fiche_maintenance.libelle_gamme(contenu["mode_declenchement"], contenu["intervalle"], contenu["unite_intervalle"], contenu["seuil_heures"])
@@ -217,6 +221,8 @@ def soumettre(user, installation, contenu, fiche=None):
     autorise, raison = peut_rediger(user, installation)
     if not autorise:
         raise ErreurCircuit(raison)
+    # Verrou de l'installation : deux soumissions concurrentes de la même gamme se suivent.
+    Installation.objects.select_for_update().get(pk=installation.pk)
     if fiche is not None:
         fiche = InstallationMaintenance.objects.select_for_update().get(pk=fiche.pk, installation=installation)
         if fiche.version_en_cours:

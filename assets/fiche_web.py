@@ -1,4 +1,5 @@
 """Écrans de la fiche de maintenance d'une installation : consultation, assistant de rédaction, visas."""
+import math
 import uuid
 
 from django.contrib import messages
@@ -46,12 +47,34 @@ def _nombre(texte):
     return entier_ou_none((texte or "").strip().replace(" ", "").replace(" ", ""))
 
 
+def _entier(texte):
+    """Entier d'un champ du formulaire : None si vide, ErreurCircuit si illisible."""
+    texte = (texte or "").strip().replace("\u00a0", "").replace(" ", "")
+    if not texte:
+        return None
+    try:
+        return int(texte)
+    except ValueError:
+        raise ErreurCircuit(f"« {texte[:20]} » n'est pas un nombre entier.")
+
+
 def _flottant(texte):
     texte = (texte or "").strip().replace(",", ".")
     try:
-        return float(texte) if texte else None
+        valeur = float(texte) if texte else None
     except ValueError:
         return None
+    return valeur if valeur is None or math.isfinite(valeur) else None
+
+
+def _cle(texte):
+    """Identité de ligne lue dans le formulaire ; None si vide, ErreurCircuit si mal formée."""
+    if not texte:
+        return None
+    try:
+        return uuid.UUID(texte)
+    except ValueError:
+        raise ErreurCircuit("Identifiant de ligne invalide : rechargez l'assistant.")
 
 
 def lire_formulaire(post):
@@ -61,20 +84,20 @@ def lire_formulaire(post):
         "name": post.get("name", "").strip(), "description": post.get("description", "").strip(),
         "resume_modifications": post.get("resume_modifications", "").strip(),
         "mode_declenchement": mode if mode in ModeDeclenchement.values else ModeDeclenchement.CALENDRIER,
-        "intervalle": _nombre(post.get("intervalle")), "unite_intervalle": post.get("unite_intervalle") or None,
-        "seuil_heures": _nombre(post.get("seuil_heures")),
-        "duree_estimee_min": _nombre(post.get("duree_estimee_min")) or 0, "nb_personnes": max(1, _nombre(post.get("nb_personnes")) or 1),
-        "qualification": _nombre(post.get("qualification")),
+        "intervalle": _entier(post.get("intervalle")), "unite_intervalle": post.get("unite_intervalle") or None,
+        "seuil_heures": _entier(post.get("seuil_heures")),
+        "duree_estimee_min": _entier(post.get("duree_estimee_min")) or 0, "nb_personnes": _entier(post.get("nb_personnes")) or 1,
+        "qualification": _entier(post.get("qualification")),
     }
     types = dict(FichePreparation.Type.choices)
     contenu["preparations"] = [
-        {"type": t, "libelle": lib.strip(), "quantite": max(1, _nombre(q) or 1), "piece": _nombre(piece)}
+        {"type": t, "libelle": lib.strip(), "quantite": _entier(q) or 1, "piece": _entier(piece)}
         for t, lib, q, piece in zip(post.getlist("prep_type"), post.getlist("prep_libelle"), post.getlist("prep_quantite"),
                                     post.getlist("prep_piece")) if lib.strip() and t in types]
     contenu["etapes"] = [{"texte": t.strip(), "attention": a.strip()}
                          for t, a in zip(post.getlist("etape_texte"), post.getlist("etape_attention")) if t.strip()]
     contenu["lignes"] = [
-        {"cle": cle or None, "label": lab.strip(), "field_type": "number" if t == "number" else "checkbox", "unit": u.strip(),
+        {"cle": _cle(cle), "label": lab.strip(), "field_type": "number" if t == "number" else "checkbox", "unit": u.strip(),
          "valeur_min": _flottant(mn), "valeur_max": _flottant(mx)}
         for cle, t, lab, u, mn, mx in zip(post.getlist("ligne_cle"), post.getlist("ligne_type"), post.getlist("ligne_label"),
                                           post.getlist("ligne_unite"), post.getlist("ligne_min"), post.getlist("ligne_max"))
@@ -96,13 +119,14 @@ class FicheDetailView(LoginRequiredMixin, View):
             raise Http404("Cette fiche n'a pas encore de contenu.")
         suivie = affichee if affichee.etat != Etat.VALIDEE else en_cours
         peut, _ = validation.peut_agir(request.user, suivie) if suivie else (False, "")
+        valideurs = validation.valideurs(suivie) if suivie else []
         peut_rediger, _ = validation.peut_rediger(request.user, fiche.installation)
         contexte = {
             "fiche": fiche, "installation": fiche.installation, "version": affichee, "versions": versions,
             "validee": validee, "en_cours": en_cours, "suivie": suivie, "peut_agir": peut,
             "frise": validation.frise(suivie) if suivie else [],
-            "blocage": validation.message_blocage(suivie) if suivie else "",
-            "valideurs": validation.valideurs(suivie) if suivie else [],
+            "blocage": validation.message_blocage(suivie, valideurs) if suivie else "",
+            "valideurs": valideurs,
             "peut_corriger": bool(en_cours and en_cours.etat == Etat.REFUSEE and en_cours.redacteur_id == request.user.pk and peut_rediger),
             "peut_proposer": peut_rediger and en_cours is None,
             "evenements": affichee.evenements.select_related("user"),
@@ -186,7 +210,10 @@ class FicheAssistantView(LoginRequiredMixin, View):
 
     def post(self, request, pk=None, fiche_pk=None):
         installation, fiche, correction = self._charger(request, pk, fiche_pk)
-        contenu = lire_formulaire(request.POST)
+        try:
+            contenu = lire_formulaire(request.POST)
+        except ErreurCircuit as erreur:
+            return self._contexte(request, installation, fiche, fiche_maintenance.contenu_initial(), correction, str(erreur))
         try:
             if correction:
                 validation.resoumettre(request.user, correction.pk, contenu)

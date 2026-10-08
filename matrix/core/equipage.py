@@ -141,7 +141,7 @@ def erreur_secours_releve(auteur, proposition):
 
 def _recharger_en_attente(proposition):
     """Recharge la proposition verrouillée ; None si elle n'est plus en attente (double validation)."""
-    verrouillee = type(proposition).objects.select_for_update().select_related("ship", "propose_par").get(pk=proposition.pk)
+    verrouillee = type(proposition).objects.select_for_update(of=("self",)).select_related("ship", "propose_par").get(pk=proposition.pk)
     return verrouillee if verrouillee.statut == verrouillee.Statut.EN_ATTENTE else None
 
 

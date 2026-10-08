@@ -92,7 +92,7 @@ class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class ChecklistItemTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class ChecklistItemTemplateViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = ChecklistItemTemplate.objects.filter(template__fiche__isnull=True).select_related("template")
     serializer_class = ChecklistItemTemplateSerializer
     permission_classes = [RolePermission]
