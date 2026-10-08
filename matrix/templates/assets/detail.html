@@ -107,6 +107,15 @@
 
 <hr class="my-4" />
 <div>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 mb-0">Historique de cet exemplaire</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ historique_url }}">Frise complète et relevés</a>
+  </div>
+  {% include "maintenance/_frise.html" with entrees=historique_recent %}
+</div>
+
+<hr class="my-4" />
+<div>
   <h2 class="h6">Pannes déjà rencontrées sur ce type d'équipement</h2>
   <p class="text-muted small">Tickets fermés pour « {{ object.asset_type.name }} », toutes unités confondues.</p>
   {% if pannes_deja_rencontrees %}

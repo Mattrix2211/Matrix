@@ -2,20 +2,18 @@ from django.views import View
 from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.urls import reverse
 from django.utils import timezone
-from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Q
 from .models import (
     CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
     destinataires_ticket, niveau_alerte_ticket,
 )
-from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import scope_filters_for_user
 from notifications.models import Notification
@@ -29,6 +27,7 @@ from matrix.core.export import (
     xlsx_disponible,
 )
 from accounts.models import AuditLog
+from .stock import StockInsuffisant, prelever
 from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -204,6 +203,11 @@ class TicketDetailView(LoginRequiredMixin, View):
         contexte["titre_fiche"] = ticket.installation.designation if ticket.installation else str(ticket.asset)
         # L'action principale est l'étape suivante, au centre de la fiche (zone workflow), pas dans l'en-tête.
         contexte["menu_fiche"] = [{"libelle": "Voir la fiche de l'actif", "icone": "materiel", "url": url_actif}]
+        if request.user in ticket.assignees.all() or user_role_level(request.user) >= niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers'):
+            contexte["menu_fiche"].append({
+                "libelle": "Compte rendu d'intervention", "icone": "maintenance", "ecriture": True,
+                "url": reverse('correctif-compte-rendu', args=[ticket.pk]),
+            })
         contexte["indicateurs_fiche"] = [
             {"libelle": "Gravité", "valeur": f"{ticket.severity}/5",
              "etat": "danger" if ticket.severity >= 4 else "attention" if ticket.severity == 3 else "ok"},
@@ -567,40 +571,15 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
             )
             return redirect('ticket-detail', pk=ticket.pk)
 
-        # Mise à jour atomique conditionnelle (T-CONC) : deux prélèvements
-        # concurrents sur la même pièce pourraient sinon tous les deux lire la
-        # même quantité disponible avant d'écrire, et la perdre en écrasant
-        # l'écriture de l'autre (perte de mise à jour). Le contrôle
-        # "quantite > piece.quantite" ci-dessus reste utile pour un message
-        # d'erreur rapide dans le cas courant, mais seule cette écriture
-        # conditionnelle en base (WHERE quantite >= quantite demandée)
-        # garantit qu'on ne prélève jamais plus que le stock réellement
-        # disponible au moment de l'écriture.
-        with transaction.atomic():
-            lignes_modifiees = StockPiece.objects.filter(
-                pk=piece.pk, quantite__gte=quantite,
-            ).update(
-                quantite=F('quantite') - quantite,
-                updated_by=request.user,
-                updated_at=timezone.now(),
-            )
-        if not lignes_modifiees:
+        try:
+            prelever(request.user, piece, quantite, ticket)
+        except StockInsuffisant:
             messages.error(
                 request,
                 f"Stock insuffisant : la quantité disponible pour {piece.reference} "
                 "a changé entre-temps, réessayez.",
             )
             return redirect('ticket-detail', pk=ticket.pk)
-
-        # Trace du prélèvement : message système dans le fil de suivi du ticket,
-        # même mécanisme que les transitions de statut
-        # (CorrectiveTicketViewSet.transition, logistics/views.py).
-        ct = ContentType.objects.get_for_model(CorrectiveTicket)
-        thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(ticket.pk))
-        Message.objects.create(
-            thread=thread, author=request.user, is_system=True,
-            body=f"Prélèvement stock : {quantite} x {piece.reference} ({piece.designation})",
-        )
 
         messages.success(request, f"{quantite} unité(s) de {piece.reference} prélevée(s) du stock.")
         return redirect('ticket-detail', pk=ticket.pk)

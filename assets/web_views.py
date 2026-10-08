@@ -19,6 +19,7 @@ from .models import InstallationBigrameChoice, InstallationEvent, InstallationPa
 from .models import InstallationMaintenance, DocumentInstallation
 from datetime import datetime
 from datetime import timedelta
+from maintenance import historique
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket, StockPiece
 from reports.services import STATUTS_TICKET_FERMES
@@ -498,6 +499,8 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         # StockPiece (logistics), affiché ici en lecture seule, la gestion du stock
         # se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(asset=self.object).order_by('reference')
+        ctx['historique_recent'] = historique.recents(self.request.user, asset=self.object)
+        ctx['historique_url'] = reverse('historique-materiel', args=[self.object.pk])
         ctx['peremption_depassee'] = bool(self.object.date_peremption and self.object.date_peremption < timezone.localdate())
         ctx.update(self._entete(self.object))
         return ctx
@@ -512,6 +515,11 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         if user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION:
             menu.append({"libelle": "Démarrer un contrôle visuel", "icone": "maintenance", "ecriture": True,
                          "hx_post": reverse('asset-start-visual', args=[asset.pk]), "hx_cible": "#result"})
+        menu += [
+            {"libelle": "Historique et relevés", "icone": "historique", "url": reverse('historique-materiel', args=[asset.pk])},
+            {"libelle": "Compte rendu d'intervention corrective", "icone": "maintenance", "ecriture": True,
+             "url": f"{reverse('correctif-nouveau')}?asset={asset.pk}"},
+        ]
         if premier_ticket:
             menu.append({"libelle": "Voir le ticket récent", "icone": "ticket",
                          "url": reverse('ticket-detail', args=[premier_ticket.pk])})
@@ -1616,6 +1624,8 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         # StockPiece (logistics), affiché ici en lecture seule dans l'onglet
         # « Pièces », la gestion du stock se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(installation=self.object).order_by('reference')
+        ctx['historique_recent'] = historique.recents(self.request.user, installation=self.object)
+        ctx['historique_url'] = reverse('historique-installation', args=[self.object.pk])
         ctx['extra_fields'] = list(self.object.extra_fields.all())
         # Entretien: liste des tâches d'entretien définies sur l'installation
         try:
@@ -1804,6 +1814,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         menu = [
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?installation={inst.pk}"},
+        ]
+        menu += [
+            {"libelle": "Historique et relevés", "icone": "historique", "url": reverse('historique-installation', args=[inst.pk])},
+            {"libelle": "Compte rendu d'intervention corrective", "icone": "maintenance", "ecriture": True,
+             "url": f"{reverse('correctif-nouveau')}?installation={inst.pk}"},
         ]
         if niveau >= niveau_requis_pour(self.request.user, 'installation_ecriture_simple'):
             menu.append({"libelle": "Modifier les infos", "icone": "modification", "ecriture": True,

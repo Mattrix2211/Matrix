@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static icones %}
+{% block content %}
+{% include "components/fiche_entete.html" with titre=equipement.designation|default:equipement sous_titre="Historique et relevés" %}
+
+<p class="mb-3"><a href="{{ retour_url }}">&larr; Retour à la fiche</a>
+  {% if not equipage_a_terre %} · <a href="{{ nouveau_correctif_url }}">{% icone "ticket" %} Compte rendu d'une intervention corrective</a>{% endif %}</p>
+
+<nav class="mx-histo-filtres" aria-label="Affichage de l'historique">
+  <div class="btn-group" role="group" aria-label="Vue">
+    <a class="btn btn-sm {% if vue == 'frise' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?vue=frise{% if gamme %}&amp;gamme={{ gamme|urlencode }}{% endif %}{% if anomalies %}&amp;anomalies=1{% endif %}">{% icone "historique" %} Chronologie</a>
+    <a class="btn btn-sm {% if vue == 'releves' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?vue=releves{% if gamme %}&amp;gamme={{ gamme|urlencode }}{% endif %}">{% icone "maintenance" %} Relevés</a>
+  </div>
+  {% if gammes|length > 1 or gamme %}
+  <div class="mx-histo-gammes" role="group" aria-label="Filtrer par gamme">
+    <a class="badge rounded-pill text-decoration-none {% if not gamme %}text-bg-primary{% else %}text-bg-light{% endif %}" href="?vue={{ vue }}{% if anomalies %}&amp;anomalies=1{% endif %}">Toutes les gammes</a>
+    {% for g in gammes %}<a class="badge rounded-pill text-decoration-none {% if g == gamme %}text-bg-primary{% else %}text-bg-light{% endif %}" href="?vue={{ vue }}&amp;gamme={{ g|urlencode }}{% if anomalies %}&amp;anomalies=1{% endif %}">{{ g }}</a>{% endfor %}
+  </div>
+  {% endif %}
+  {% if vue == 'frise' %}
+  <a class="btn btn-sm {% if anomalies %}btn-danger{% else %}btn-outline-danger{% endif %}" href="?vue=frise{% if gamme %}&amp;gamme={{ gamme|urlencode }}{% endif %}{% if not anomalies %}&amp;anomalies=1{% endif %}">{% icone "anomalie" %} Non-conformités seulement</a>
+  {% endif %}
+</nav>
+
+{% if vue == 'frise' %}
+  {% include "maintenance/_frise.html" with entrees=entrees %}
+  {% if page.paginator.num_pages > 1 %}
+  <nav class="mt-3 d-flex gap-2 align-items-center" aria-label="Pages">
+    {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?vue=frise&amp;page={{ page.previous_page_number }}{% if gamme %}&amp;gamme={{ gamme|urlencode }}{% endif %}{% if anomalies %}&amp;anomalies=1{% endif %}">{% icone "precedent" %} Plus récents</a>{% endif %}
+    <span class="text-muted small">Page {{ page.number }} sur {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?vue=frise&amp;page={{ page.next_page_number }}{% if gamme %}&amp;gamme={{ gamme|urlencode }}{% endif %}{% if anomalies %}&amp;anomalies=1{% endif %}">Plus anciens {% icone "suite" %}</a>{% endif %}
+  </nav>
+  {% endif %}
+{% else %}
+  {% include "maintenance/_releves.html" with series=series %}
+  <script src="{% static 'js/historique_releves.js' %}"></script>
+{% endif %}
+{% endblock %}
