@@ -74,7 +74,8 @@ class AssetTypeViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         )
 
 class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
-    queryset = ChecklistTemplate.objects.select_related("sector", "asset_type").prefetch_related("items").all()
+    # Les versions de fiche ne se modifient que par le circuit de validation.
+    queryset = ChecklistTemplate.objects.filter(fiche__isnull=True).select_related("sector", "asset_type").prefetch_related("items")
     serializer_class = ChecklistTemplateSerializer
     permission_classes = [RolePermission]
 
@@ -92,7 +93,7 @@ class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         )
 
 class ChecklistItemTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
-    queryset = ChecklistItemTemplate.objects.select_related("template").all()
+    queryset = ChecklistItemTemplate.objects.filter(template__fiche__isnull=True).select_related("template")
     serializer_class = ChecklistItemTemplateSerializer
     permission_classes = [RolePermission]
 

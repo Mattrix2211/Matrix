@@ -75,12 +75,12 @@ def peut_proposer(user):
         return False, "Lecture seule : votre équipage est à terre."
     if service_de(user) is None:
         return False, "Votre fiche n'est rattachée à aucun service : proposition impossible."
-    if profil.role == Roles.CHEF_SECTION and _secteur_de(user) is None:
+    if profil.role == Roles.CHEF_SECTION and secteur_de(user) is None:
         return False, "Votre fiche n'est rattachée à aucun secteur : proposition impossible."
     return True, ""
 
 
-def _secteur_de(user):
+def secteur_de(user):
     profil = user.profile
     if profil.sector_id:
         return profil.sector
@@ -93,7 +93,7 @@ def _etapes_de(proposition, user):
         user=user, action__in=[Action.VISEE, Action.VERIFIEE]).values_list("etape", flat=True))
 
 
-def _habilite_coma(user, proposition):
+def habilite_coma(user, proposition):
     titulaires = titulaires_du_service(proposition.service, proposition.equipage)
     if titulaires.exists():
         return titulaires.filter(pk=user.pk).exists()
@@ -114,7 +114,7 @@ def _habilite(user, proposition):
     if etat == Etat.VISA_SERVICE:
         return profil is not None and profil.role == Roles.CHEF_SERVICE and profil.service_id == proposition.service_id
     if etat == Etat.VISA_COMA:
-        return _habilite_coma(user, proposition)
+        return habilite_coma(user, proposition)
     if etat == Etat.VERIFICATION:
         return user.specialites_dont_il_est_responsable.filter(specialite_id=proposition.categorie.specialite_id).exists()
     if etat == Etat.VISA_CHEF_SPECIALITE:
@@ -272,7 +272,7 @@ def soumettre(user, proposition):
         raise ErreurCircuit(raison)
     service = service_de(user)
     proposition.service, proposition.ship = service, service.ship
-    proposition.secteur = _secteur_de(user)
+    proposition.secteur = secteur_de(user)
     proposition.role_redacteur = user.profile.role
     proposition.equipage = user.profile.equipage
     proposition.created_by = proposition.updated_by = user

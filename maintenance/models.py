@@ -64,6 +64,21 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
             ),
         ]
 
+    def version_fiche(self):
+        """Version de fiche appliquée : celle figée dans l'exécution, sinon la dernière validée."""
+        execution = MaintenanceExecution.objects.filter(occurrence=self).select_related("version_fiche").first()
+        if execution and execution.version_fiche_id:
+            return execution.version_fiche
+        if self.installation_maintenance_id:
+            return self.installation_maintenance.version_validee
+        modele = self.plan.checklist_template if self.plan_id else None
+        return modele.version_applicable() if modele else None
+
+    def lignes_fiche(self):
+        """Lignes de contrôle et de relevé de la version appliquée, dans l'ordre de la fiche."""
+        version = self.version_fiche()
+        return list(version.items.order_by("order", "pk")) if version else []
+
     @property
     def titre_affiche(self):
         """Libellé lisible de l'occurrence, qu'elle concerne du matériel
@@ -106,6 +121,13 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
         related_name="executions_validees", verbose_name="Validé par",
     )
     date_validation = models.DateTimeField(null=True, blank=True, verbose_name="Date de validation")
+    # Version de la fiche suivie lors de cette exécution, figée à la première écriture.
+    version_fiche = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.SET_NULL, related_name="executions", verbose_name="Version de la fiche")
+
+    def save(self, *args, **kwargs):
+        if self.version_fiche_id is None:
+            self.version_fiche = self.occurrence.version_fiche()
+        super().save(*args, **kwargs)
 
 
 def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:

@@ -20,6 +20,7 @@ from assets.models import (
     InstallationExtraField, InstallationHourReading, InstallationIsolationReading,
     InstallationMaintenance, InstallationPart, InstallationVibrationReading, Location,
 )
+from assets import fiche_maintenance
 from matrix.core.models import Brouillon
 from logistics.models import (
     Anomalie, CorrectiveTicket, PartLineItem, PartRequest, StockPiece, TicketStatusLog,
@@ -332,22 +333,27 @@ class Command(BaseCommand):
             for nom, ref in [("Filtre à air", "FA-220"), ("Joint de culasse", "JC-18"), ("Capteur de température", "CT-4")]:
                 InstallationPart.objects.create(installation=ge, name=nom, reference=ref, marque="Wärtsilä")
         if not ge.maintenances.exists():
-            InstallationMaintenance.objects.create(
+            self._fiche(
                 installation=ge, periodicity="Mensuelle", title="Contrôle des niveaux et fuites", planned_duration_min=45,
                 people_count=2, mode_declenchement="CALENDRIER", intervalle=1, unite_intervalle="M", created_by=self.chef_secteur_a)
-            InstallationMaintenance.objects.create(
+            self._fiche(
                 installation=ge, periodicity="Toutes les 500 h", title="Vidange et filtre à huile", planned_duration_min=180,
                 people_count=2, competence="BORD", mode_declenchement="LES_DEUX", intervalle=6, unite_intervalle="M",
                 seuil_heures=500, derniere_echeance_heures=Decimal("4200"), created_by=self.chef_secteur_a)
-            InstallationMaintenance.objects.create(
+            self._fiche(
                 installation=pompe, periodicity="Trimestrielle", title="Graissage des paliers", planned_duration_min=30,
                 mode_declenchement="CALENDRIER", intervalle=3, unite_intervalle="M", created_by=self.chef_secteur_a)
-            InstallationMaintenance.objects.create(
+            self._fiche(
                 installation=red, periodicity="Annuelle", title="Analyse d'huile", competence="SLM", planned_duration_min=60,
                 mode_declenchement="CALENDRIER", intervalle=1, unite_intervalle="A", created_by=self.chef_secteur_a)
-            InstallationMaintenance.objects.create(
+            self._fiche(
                 installation=self.inst["SEP-1"], periodicity="Hebdomadaire", title="Nettoyage du séparateur", planned_duration_min=20,
                 mode_declenchement="CALENDRIER", intervalle=1, unite_intervalle="S", created_by=self.chef_secteur_a)
+
+    def _fiche(self, **champs):
+        """Fiche de démonstration : directement validée (version 1)."""
+        fiche = InstallationMaintenance.objects.create(**champs)
+        fiche_maintenance.enregistrer_version_directe(fiche, champs["created_by"], "Fiche de démonstration")
 
     # ---------- Maintenance ----------
 

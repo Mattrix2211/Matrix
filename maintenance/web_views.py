@@ -46,10 +46,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             return None, None, HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
-        items = []
-        if occ.plan and occ.plan.checklist_template:
-            items = list(occ.plan.checklist_template.items.order_by('order', 'pk'))
-        return occ, items, None
+        return occ, occ.lignes_fiche(), None
 
     def get(self, request, pk):
         occ, items, erreur = self._charger(request, pk)
@@ -358,7 +355,7 @@ def _checklists_disponibles(user):
     """Checklists utilisables pour un plan de maintenance — même règle de
     périmètre que _asset_types_disponibles ci-dessus (ChecklistTemplate ne
     porte lui aussi qu'un secteur, jamais une section précise)."""
-    return ChecklistTemplate.objects.filter(build_scope_q(
+    return ChecklistTemplate.objects.filter(fiche__isnull=True).filter(build_scope_q(
         user,
         {
             "ship_id": "sector__service__ship_id",
@@ -603,14 +600,12 @@ class OccurrenceImprimerView(LoginRequiredMixin, View):
         )
         fiches = []
         for occ in occurrences:
-            items = []
-            if occ.plan and occ.plan.checklist_template:
-                items = list(occ.plan.checklist_template.items.order_by("order", "pk"))
             url = request.build_absolute_uri(reverse("occurrence-execute", args=[occ.pk]))
             fiches.append({
                 "occ": occ,
                 "numero": f"FM-{occ.pk:06d}",
-                "items": items,
+                "items": occ.lignes_fiche(),
+                "version": occ.version_fiche(),
                 "qr": _qr_data_uri(url),
             })
         if not fiches:

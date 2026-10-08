@@ -70,7 +70,7 @@ class Command(BaseCommand):
         until = today + timedelta(days=days_ahead)
         created = 0
 
-        for maintenance in InstallationMaintenance.objects.select_related("installation").all():
+        for maintenance in InstallationMaintenance.objects.select_related("installation").filter(installation__isnull=False):
             echeance = prochaine_echeance(maintenance, today, until)
             if echeance is None:
                 continue

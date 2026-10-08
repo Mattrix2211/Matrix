@@ -98,7 +98,7 @@ def groupes(occurrences):
     deux modèles différents ne partagent pas de tableau. Lignes triées pont puis emplacement."""
     items_par_modele, par_cle = {}, {}
     for occ in sorted(occurrences, key=_cle_tri):
-        modele = occ.plan.checklist_template if occ.plan_id else None
+        modele = occ.version_fiche()
         modele_id = modele.pk if modele else None
         if modele_id not in items_par_modele:
             items_par_modele[modele_id] = (

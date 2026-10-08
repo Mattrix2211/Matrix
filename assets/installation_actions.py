@@ -32,6 +32,7 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from org.models import Section, Sector, Service, Ship
 
+from . import fiche_maintenance
 from .models import (
     Installation,
     InstallationBigrameChoice,
@@ -273,6 +274,7 @@ def _action_add_maintenance(view, request, inst, qs):
         created_by=request.user,
         updated_by=request.user,
     )
+    fiche_maintenance.enregistrer_version_directe(m, request.user, "Création par le chef de service")
     for f in request.FILES.getlist('attachments'):
         InstallationMaintenanceAttachment.objects.create(maintenance=m, file=f, created_by=request.user, updated_by=request.user)
     AuditLog.objects.create(actor=request.user, action='add_installation_maintenance', details=f'maintenance_id={m.id}')
@@ -373,6 +375,7 @@ def _action_edit_maintenance(view, request, inst, qs):
             pass
     m.updated_by = request.user
     m.save()
+    fiche_maintenance.enregistrer_version_directe(m, request.user, "Modification par le chef de service")
     # Traçabilité du changement de mode de suivi : historisé via InstallationEvent
     # (système d'historique déjà existant, pas de nouveau mécanisme d'audit).
     if m.mode_declenchement != ancien_mode:

@@ -84,10 +84,79 @@ class AssetType(TimeStampedModel):
     def __str__(self):
         return f"{self.name} ({self.sector})"
 
+class ModeDeclenchement(models.TextChoices):
+    """Mode de déclenchement d'une échéance de maintenance préventive."""
+    CALENDRIER = "CALENDRIER", "Calendaire"
+    COMPTEUR = "COMPTEUR", "Compteur (heures de marche)"
+    LES_DEUX = "LES_DEUX", "Le premier des deux"
+
+UNITE_INTERVALLE_CHOICES = (
+    ("J", "Jour(s)"),
+    ("S", "Semaine(s)"),
+    ("M", "Mois"),
+    ("A", "Année(s)"),
+)
+
 class ChecklistTemplate(TimeStampedModel):
+    """Modèle de checklist. Sans `fiche`, c'est un modèle autonome (plans de matériel) ;
+    rattaché à une fiche de maintenance, c'est UNE VERSION de cette fiche."""
+
+    class Etat(models.TextChoices):
+        VISA_SECTEUR = "visa_secteur", "Visa du chef de secteur"
+        VISA_SERVICE = "visa_service", "Visa du chef de service"
+        VISA_COMA = "visa_coma", "Visa du commandant adjoint"
+        VALIDEE = "validee", "Validée"
+        REFUSEE = "refusee", "Renvoyée au rédacteur"
+
     name = models.CharField(max_length=255)
     sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="checklist_templates")
     asset_type = models.ForeignKey(AssetType, null=True, blank=True, on_delete=models.SET_NULL, related_name="checklist_templates")
+    fiche = models.ForeignKey("InstallationMaintenance", null=True, blank=True, on_delete=models.CASCADE, related_name="versions", verbose_name="Fiche")
+    numero = models.PositiveIntegerField(default=1, verbose_name="Version")
+    etat = models.CharField(max_length=16, choices=Etat.choices, default=Etat.VALIDEE, db_index=True)
+    description = models.TextField(blank=True, default="", verbose_name="Objet de la fiche")
+    resume_modifications = models.TextField(blank=True, default="", verbose_name="Ce qui change")
+    # Déclenchement, durée et effectif de cette version : recopiés sur la fiche à la validation.
+    mode_declenchement = models.CharField(max_length=16, choices=ModeDeclenchement.choices, default=ModeDeclenchement.CALENDRIER)
+    intervalle = models.PositiveIntegerField(null=True, blank=True)
+    unite_intervalle = models.CharField(max_length=1, choices=UNITE_INTERVALLE_CHOICES, null=True, blank=True)
+    seuil_heures = models.PositiveIntegerField(null=True, blank=True)
+    duree_estimee_min = models.PositiveIntegerField(default=0, verbose_name="Durée estimée (min)")
+    nb_personnes = models.PositiveSmallIntegerField(default=1, verbose_name="Nombre de personnes")
+    qualification = models.ForeignKey("training.TrainingCourse", null=True, blank=True, on_delete=models.SET_NULL, related_name="fiches_maintenance", verbose_name="Qualification requise")
+    # Circuit de validation bord : rôle et équipage du rédacteur fixent la première étape et le commandant adjoint.
+    redacteur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="versions_fiche_redigees")
+    role_redacteur = models.CharField(max_length=32, blank=True, default="")
+    equipage = models.CharField(max_length=8, blank=True, default="")
+    motif_refus = models.TextField(blank=True, default="")
+    valide_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["fiche", "numero"], name="version_fiche_unique"),
+        ]
+
+    @property
+    def created_by(self):
+        return self.redacteur
+
+    @property
+    def updated_by(self):
+        return self.redacteur
+
+    @property
+    def service(self):
+        return self.fiche.installation.service
+
+    @property
+    def ship_id(self):
+        return self.fiche.installation.ship_id
+
+    def version_applicable(self):
+        """Version à utiliser : la dernière validée de la fiche (le modèle lui-même s'il est autonome)."""
+        if self.fiche_id is None:
+            return self
+        return self.fiche.version_validee
 
     def __str__(self):
         return f"{self.name} ({self.sector})"
@@ -100,6 +169,8 @@ class ChecklistItemTemplate(TimeStampedModel):
         ("text", "Texte"),
     )
     template = models.ForeignKey(ChecklistTemplate, on_delete=models.CASCADE, related_name="items")
+    # Identité de la ligne d'une version à l'autre (historique et graphiques continus).
+    cle = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     label = models.CharField(max_length=255)
     field_type = models.CharField(max_length=20, choices=CHECK_TYPES, default="checkbox")
     required = models.BooleanField(default=False)
@@ -110,6 +181,37 @@ class ChecklistItemTemplate(TimeStampedModel):
     valeur_max = models.FloatField(null=True, blank=True, verbose_name="Valeur maximale")
     choices = JSONField(default=list, blank=True)
     order = models.PositiveIntegerField(default=0)
+
+
+class FichePreparation(TimeStampedModel):
+    """Ce qu'il faut préparer avant d'intervenir : outils, pièces, EPI, consignes."""
+
+    class Type(models.TextChoices):
+        OUTIL = "outil", "Outil"
+        PIECE = "piece", "Pièce ou consommable"
+        EPI = "epi", "Équipement de protection (EPI)"
+        CONSIGNE = "consigne", "Consigne de sécurité ou consignation"
+
+    version = models.ForeignKey(ChecklistTemplate, on_delete=models.CASCADE, related_name="preparations")
+    type = models.CharField(max_length=10, choices=Type.choices)
+    libelle = models.CharField(max_length=255)
+    quantite = models.PositiveIntegerField(default=1)
+    piece = models.ForeignKey("logistics.StockPiece", null=True, blank=True, on_delete=models.SET_NULL, related_name="fiches_maintenance", verbose_name="Pièce du stock")
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre", "pk"]
+
+
+class FicheEtape(TimeStampedModel):
+    """Étape numérotée de la méthodologie, avec un encadré « Attention » facultatif."""
+    version = models.ForeignKey(ChecklistTemplate, on_delete=models.CASCADE, related_name="etapes")
+    texte = models.TextField()
+    attention = models.TextField(blank=True, default="")
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre", "pk"]
 
 class AssetChecklistOverride(TimeStampedModel):
     asset = models.ForeignKey("Asset", on_delete=models.CASCADE, related_name="checklist_overrides")
@@ -431,26 +533,23 @@ class InstallationExtraField(TimeStampedModel, OwnedModel):
     def __str__(self):
         return f"{self.installation} - {self.label}"
 
-class ModeDeclenchement(models.TextChoices):
-    """Mode de déclenchement d'une échéance de maintenance préventive."""
-    CALENDRIER = "CALENDRIER", "Calendaire"
-    COMPTEUR = "COMPTEUR", "Compteur (heures de marche)"
-    LES_DEUX = "LES_DEUX", "Le premier des deux"
-
-# Entretien préventif d'une installation
+# Fiche de maintenance : une par gamme (calendaire ou heures de marche). Elle porte le
+# déclenchement et ses versions (ChecklistTemplate.fiche) ; ses champs reflètent la version validée.
 class InstallationMaintenance(TimeStampedModel, OwnedModel):
     COMPETENCE_CHOICES = (
         ("BORD", "Bord"),
         ("SLM", "SLM"),
         ("INDUSTRIEL", "Industriel"),
     )
-    UNITE_INTERVALLE_CHOICES = (
-        ("J", "Jour(s)"),
-        ("S", "Semaine(s)"),
-        ("M", "Mois"),
-        ("A", "Année(s)"),
+    UNITE_INTERVALLE_CHOICES = UNITE_INTERVALLE_CHOICES
+    NIVEAU_CHOICES = (
+        ("BORD", "Fiche du bord"),
+        ("FLOTTE", "Fiche flotte"),
     )
-    installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="maintenances")
+    # Fiche d'une installation précise, ou fiche flotte d'un type de matériel (catégorie du catalogue).
+    installation = models.ForeignKey(Installation, null=True, blank=True, on_delete=models.CASCADE, related_name="maintenances")
+    categorie = models.ForeignKey("CategorieCatalogue", null=True, blank=True, on_delete=models.PROTECT, related_name="fiches_maintenance", verbose_name="Catégorie de matériel")
+    niveau = models.CharField(max_length=6, choices=NIVEAU_CHOICES, default="BORD")
     periodicity = models.CharField(max_length=64)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
@@ -476,9 +575,26 @@ class InstallationMaintenance(TimeStampedModel, OwnedModel):
 
     class Meta:
         ordering = ["periodicity", "title"]
+        constraints = [
+            models.CheckConstraint(
+                name="fiche_installation_xor_categorie",
+                condition=(models.Q(installation__isnull=False, categorie__isnull=True)
+                           | models.Q(installation__isnull=True, categorie__isnull=False)),
+            ),
+        ]
+
+    @property
+    def version_validee(self):
+        """Dernière version validée : celle qui s'applique tant qu'une proposition n'est pas validée."""
+        return self.versions.filter(etat=ChecklistTemplate.Etat.VALIDEE).order_by("-numero").first()
+
+    @property
+    def version_en_cours(self):
+        """Version en circuit de visas ou renvoyée au rédacteur, s'il y en a une."""
+        return self.versions.exclude(etat=ChecklistTemplate.Etat.VALIDEE).order_by("-numero").first()
 
     def __str__(self):
-        return f"{self.installation} - {self.title} ({self.periodicity})"
+        return f"{self.installation or self.categorie} - {self.title} ({self.periodicity})"
 
 class InstallationMaintenanceAttachment(TimeStampedModel, OwnedModel):
     maintenance = models.ForeignKey(InstallationMaintenance, on_delete=models.CASCADE, related_name="attachments")
@@ -634,7 +750,7 @@ class PropositionArticle(TimeStampedModel, OwnedModel):
 
 
 class EvenementProposition(TimeStampedModel):
-    """Historique d'une proposition : chaque transition, avec son auteur et son motif."""
+    """Historique d'une proposition d'article ou d'une version de fiche : chaque transition, avec son auteur et son motif."""
 
     class Action(models.TextChoices):
         SOUMISE = "soumise", "Soumise"
@@ -645,7 +761,8 @@ class EvenementProposition(TimeStampedModel):
         REFUSEE = "refusee", "Renvoyée au rédacteur"
         PUBLIEE = "publiee", "Publiée"
 
-    proposition = models.ForeignKey(PropositionArticle, on_delete=models.CASCADE, related_name="evenements")
+    proposition = models.ForeignKey(PropositionArticle, null=True, blank=True, on_delete=models.CASCADE, related_name="evenements")
+    version = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.CASCADE, related_name="evenements")
     action = models.CharField(max_length=12, choices=Action.choices)
     etape = models.CharField(max_length=24, choices=PropositionArticle.Etat.choices, blank=True, default="")
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="evenements_proposition_article")
@@ -653,3 +770,10 @@ class EvenementProposition(TimeStampedModel):
 
     class Meta:
         ordering = ["created_at", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                name="evenement_proposition_xor_version",
+                condition=(models.Q(proposition__isnull=False, version__isnull=True)
+                           | models.Q(proposition__isnull=True, version__isnull=False)),
+            ),
+        ]

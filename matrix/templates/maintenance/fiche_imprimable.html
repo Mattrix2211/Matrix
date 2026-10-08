@@ -30,6 +30,20 @@
         <th>Durée réelle</th><td><span class="fiche-ligne"></span></td></tr>
   </table>
 
+  {% if f.version.fiche_id %}
+  <p class="fiche-numero">Fiche « {{ f.version.name }} » — version {{ f.version.numero }}</p>
+  {% with preparations=f.version.preparations.all etapes=f.version.etapes.all %}
+  {% if preparations %}
+  <h2 class="fiche-section">Préparation</h2>
+  <ul>{% for p in preparations %}<li>{{ p.get_type_display }} : {{ p.libelle }}{% if p.type == "piece" %} × {{ p.quantite }}{% endif %}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if etapes %}
+  <h2 class="fiche-section">Méthodologie</h2>
+  <ol>{% for e in etapes %}<li>{{ e.texte|linebreaksbr }}{% if e.attention %}<div class="fiche-oblig"><strong>Attention :</strong> {{ e.attention|linebreaksbr }}</div>{% endif %}</li>{% endfor %}</ol>
+  {% endif %}
+  {% endwith %}
+  {% endif %}
+
   <h2 class="fiche-section">Points à contrôler</h2>
   {% if f.items %}
   <table class="fiche-points">

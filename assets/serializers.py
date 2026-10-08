@@ -26,6 +26,8 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChecklistTemplate
         fields = "__all__"
+        # Le cycle de vie d'une version de fiche relève du circuit de validation, pas de l'API.
+        read_only_fields = ["fiche", "numero", "etat", "redacteur", "role_redacteur", "equipage", "motif_refus", "valide_le"]
 
 class AssetDocumentSerializer(serializers.ModelSerializer):
     class Meta:

@@ -61,7 +61,7 @@ class Command(BaseCommand):
                 deja_notifies.add(cle)
                 created += 1
 
-        for maintenance in InstallationMaintenance.objects.select_related("installation").all():
+        for maintenance in InstallationMaintenance.objects.select_related("installation").filter(installation__isnull=False):
             mode = maintenance.mode_declenchement
             inst = maintenance.installation
 

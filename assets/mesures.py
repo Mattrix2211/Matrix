@@ -46,6 +46,22 @@ def heures_depuis_visite_maintenance(maintenance, releves):
     return max(ZERO, total - reference_visite_maintenance(maintenance, releves))
 
 
+def heures_par_gamme(maintenances, releves):
+    """Heures depuis la dernière visite de chaque fiche suivie à l'heure de marche : les gammes ne se
+    cumulent pas, chacune a sa propre visite. [{fiche, gamme, depuis_visite, seuil, pourcentage}]."""
+    gammes = []
+    for fiche in maintenances:
+        if not fiche.seuil_heures or fiche.mode_declenchement == "CALENDRIER":
+            continue
+        depuis = heures_depuis_visite_maintenance(fiche, releves)
+        gammes.append({
+            "fiche": fiche, "gamme": f"{formater_nombre(fiche.seuil_heures)}\u00a0h", "depuis_visite": depuis,
+            "seuil": fiche.seuil_heures,
+            "pourcentage": None if depuis is None else min(100, int(depuis * 100 / fiche.seuil_heures)),
+        })
+    return sorted(gammes, key=lambda g: g["seuil"])
+
+
 def resume_heures(releves, references_echeance=()):
     """Compteur total, compteur à la visite et heures depuis la visite (Decimal ;
     None partout sans relevé)."""
