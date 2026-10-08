@@ -12,6 +12,7 @@ def liens_accessibles(request, notifications):
     installations = {}
     propositions = {}
     versions = {}
+    fiches = {}
     for notification in notifications:
         modele = notification.content_type.model if notification.content_type_id else None
         if modele == "installation" and notification.object_id:
@@ -20,6 +21,8 @@ def liens_accessibles(request, notifications):
             propositions[notification.pk] = notification.object_id
         elif modele == "checklisttemplate" and notification.object_id:
             versions[notification.pk] = notification.object_id
+        elif modele == "installationmaintenance" and notification.object_id:
+            fiches[notification.pk] = notification.object_id
         elif notification.verb.startswith("Ma journée"):
             # Digest quotidien : pas d'objet unique, on renvoie vers le calendrier
             liens[notification.pk] = reverse("calendar-index")
@@ -52,6 +55,15 @@ def liens_accessibles(request, notifications):
         for pk_notification, objet in versions.items():
             if objet in visibles:
                 liens[pk_notification] = f"{reverse('fiche-detail', args=[visibles[objet].fiche_id])}?v={visibles[objet].numero}"
+    if fiches:
+        # Même périmètre que la page de la fiche
+        from assets.fiche_validation import fiches_visibles
+
+        visibles = {str(pk) for pk in fiches_visibles(request.user).filter(
+            pk__in=[int(i) for i in fiches.values() if i.isdigit()]).values_list("pk", flat=True)}
+        for pk_notification, objet in fiches.items():
+            if objet in visibles:
+                liens[pk_notification] = reverse("fiche-detail", args=[objet])
     return liens
 
 

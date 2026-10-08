@@ -71,6 +71,11 @@ REGISTRE_ACTIONS = [
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "fiche_flotte_proposition",
+        "Proposer une fiche de maintenance flotte (matériel ou installation) ou son adaptation (chef de section ou de secteur)",
+        "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
         "rattachement_parent_gestion",
         "Modifier le rattachement parent/enfant d'un matériel ou d'une installation",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,

@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
+from assets.fiche_validation import versions_a_viser
 from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
@@ -111,6 +112,12 @@ def a_faire(user, aujourdhui):
             proposition, proposition.designation, f"Proposition d'article · {proposition.get_etat_display()}",
             reverse("catalogue-proposition", args=[proposition.pk]), "catalogue", ATTENTION, 0,
             _echeance(proposition.updated_at),
+        ))
+    for version in versions_a_viser(user):
+        entrees.append(_entree(
+            version, version.name, f"Fiche à valider · {version.get_etat_display()}",
+            f"{reverse('fiche-detail', args=[version.fiche_id])}?v={version.numero}", "document", ATTENTION, 0,
+            _echeance(version.updated_at),
         ))
     entrees.sort(key=lambda e: (_RANG_NIVEAU[e["niveau"]], -e["criticite"], e["echeance"]))
     return entrees
