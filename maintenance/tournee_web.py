@@ -13,10 +13,11 @@ from django.views import View
 
 from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
+from matrix.core.saisie import sans_nul
 from threads.utils import ajouter_commentaire
 
 from . import tournee
-from .compte_rendu import resume
+from .compte_rendu import LONGUEUR_NOTES, instantane, resume
 from .models import MaintenanceExecution, MaintenanceOccurrence, OccurrenceStatusLog
 from .web_views import _notifier_chefs_de_secteur, _qr_data_uri
 
@@ -122,7 +123,7 @@ class TourneeSaisieView(LoginRequiredMixin, View):
         for cle, valeur in request.POST.items():
             identifiant, _, colonne = cle.rpartition("__")
             if colonne and identifiant.isdigit():
-                postes.setdefault(int(identifiant), {})[colonne] = valeur.strip()
+                postes.setdefault(int(identifiant), {})[colonne] = sans_nul(valeur).strip()[:LONGUEUR_NOTES]
         if not set(postes) <= set(lot) | deja:
             messages.error(request, "Un équipement est introuvable ou hors de votre périmètre : rien n'a été enregistré.")
             return redirect("maintenance-occurrences")
@@ -186,6 +187,7 @@ class TourneeSaisieView(LoginRequiredMixin, View):
             execution.results, execution.measurements, execution.notes = results, mesures, observation
             execution.conformity = conformity
             execution.executed_by = user
+            execution.saisie_origine = instantane(user, execution)
             execution.save()
             execution.intervenants.set([user])
             ancien, occ.status = occ.status, ("WAITING_VALIDATION" if conformity == "NON_CONFORME" else "DONE")

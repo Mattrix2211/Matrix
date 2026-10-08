@@ -3,6 +3,7 @@ import json
 from django.views import View
 from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
@@ -10,10 +11,9 @@ from django.http import Http404, HttpResponseBadRequest
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from .models import (
     MaintenancePlan, MaintenanceOccurrence, MaintenanceExecution, OccurrenceStatusLog,
-    mettre_a_jour_echeance_installation,
+    ModificationCompteRendu, mettre_a_jour_echeance_installation,
 )
 from assets.models import Asset, AssetType, ChecklistItemTemplate, ChecklistTemplate
 from threads.models import Thread, Message, Attachment
@@ -21,13 +21,42 @@ from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
-from matrix.core.saisie import entier_ou_none
+from matrix.core.saisie import entier_ou_none, sans_nul
 from matrix.core.role_thresholds import niveau_requis_pour
-from accounts.models import AuditLog, Roles, UserProfile
-from notifications.models import Notification, NotificationLevel
+from accounts.models import AuditLog
 from assets import fiche_signalement
 from assets.proposition_article import ErreurCircuit
-from .compte_rendu import ETATS, lignes_de_saisie, lire_saisie, resume
+from . import releves
+from .compte_rendu import (
+    ETATS, LONGUEUR_MOTIF, LONGUEUR_NOTES, differences, instantane, lignes_de_saisie, lire_saisie, par_libelle, resume,
+)
+from .formats import lire_datetime, valeur_datetime
+from .diffusion import notifier_compte_rendu
+from .historique import derniers_releves, duree_estimee, formater_duree
+
+
+class _Conflit(Exception):
+    """Le compte rendu a changé entre l'affichage du formulaire et son envoi."""
+
+
+def _sujet(occ):
+    """(installation, matériel) dont le compte rendu alimente l'historique."""
+    if occ.installation_maintenance_id:
+        return occ.installation_maintenance.installation, None
+    return None, occ.asset
+
+
+def _anomalie_url(occ):
+    """Signalement d'anomalie pré-rempli pour l'équipement de l'occurrence (circuit existant)."""
+    installation, asset = _sujet(occ)
+    return f"{reverse('anomalie-create')}?{'installation' if installation else 'asset'}={(installation or asset).pk}"
+
+
+def _historique_url(occ):
+    installation, asset = _sujet(occ)
+    if installation:
+        return reverse('historique-installation', args=[installation.pk])
+    return reverse('historique-materiel', args=[asset.pk])
 
 
 class OccurrenceExecuteView(LoginRequiredMixin, View):
@@ -73,19 +102,31 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         if request.user not in assignees:
             assignees.append(request.user)
         lignes = lignes_de_saisie(items, results, mesures)
-        installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
+        installation, asset = _sujet(occ)
+        derniers = derniers_releves(items, installation, asset, exclure_execution=execution.pk if execution else None)
+        for ligne in lignes:
+            ligne["dernier"] = derniers.get(str(ligne["item"].cle))
         version_fiche = occ.version_fiche()
+        estimee = duree_estimee(occ, version_fiche)
         faits = sum(1 for ligne in lignes if ligne["etat"] or ligne["valeur"])
+        deja_termine = bool(execution and execution.completed_at)
+        peut_corriger = user_role_level(request.user) >= niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction')
         contexte = {
             "occ": occ, "items": items, "lignes": lignes, "etats": ETATS, "erreurs": erreurs or [],
-            "notes": notes, "conformity": conformity, "debut": _valeur_datetime(debut), "fin": _valeur_datetime(fin),
+            "notes": notes, "conformity": conformity, "debut": valeur_datetime(debut), "fin": valeur_datetime(fin),
             "intervenants": [{"user": u, "coche": (u.pk in intervenants) if intervenants is not None else u in occ.assignees.all()} for u in assignees],
-            "deja_termine": bool(execution and execution.completed_at),
+            "deja_termine": deja_termine, "duree_estimee": formater_duree(estimee) if estimee else "",
+            "lecture_seule": equipage_a_terre_lecture_seule(request.user) or (deja_termine and not peut_corriger),
+            "correction_reservee": deja_termine and not peut_corriger,
             "signalable": bool(version_fiche and version_fiche.fiche_id),
             "critique": bool(installation and installation.critique),
             "resume": resume(items, results, mesures),
+            "anomalie_url": _anomalie_url(occ),
             "operations": {"faites": faits, "total": len(items)},
-            "menu_fiche": [{"libelle": "Imprimer la fiche", "icone": "impression", "url": reverse('occurrence-imprimer', args=[occ.pk])}],
+            "menu_fiche": [
+                {"libelle": "Imprimer la fiche", "icone": "impression", "url": reverse('occurrence-imprimer', args=[occ.pk])},
+                {"libelle": "Historique et relevés de l'équipement", "icone": "historique", "url": _historique_url(occ)},
+            ],
             "indicateurs_fiche": [
                 {"libelle": "Prévue le", "valeur": occ.scheduled_for.strftime("%d/%m/%Y"),
                  "etat": "danger" if occ.status == "OVERDUE" else ""},
@@ -105,16 +146,30 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         en_direct = request.POST.get('action') == 'enregistrer'
         execution = MaintenanceExecution.objects.filter(occurrence=occ).first()
         deja_termine = bool(execution and execution.completed_at)
+        # Un compte rendu terminé ne se corrige qu'avec le seuil de correction (chef de secteur par défaut) ;
+        # le marin qui renvoie son propre formulaire (double envoi) est prévenu sans erreur.
+        if deja_termine and user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction'):
+            if execution.executed_by_id != request.user.pk:
+                raise PermissionDenied
+            message = "Ce compte rendu est déjà enregistré : seule une correction par un chef de secteur peut le modifier."
+            if request.headers.get('HX-Request'):
+                return render(request, 'maintenance/_execute_erreur.html', {"erreurs": [message]})
+            messages.warning(request, message)
+            return redirect('occurrence-execute', pk=occ.pk)
 
         results, mesures, erreurs = lire_saisie(items, request.POST, exiger_complet=not en_direct)
         conformity = request.POST.get('conformity', '')
-        notes = request.POST.get('notes', '')
-        debut, err_debut = _lire_datetime(request.POST.get('debut'))
-        fin, err_fin = _lire_datetime(request.POST.get('fin'))
+        notes = sans_nul(request.POST.get('notes', ''))
+        debut, err_debut = lire_datetime(request.POST.get('debut'))
+        fin, err_fin = lire_datetime(request.POST.get('fin'))
         erreurs += [e for e in (err_debut, err_fin) if e]
         if debut and fin and fin < debut:
             erreurs.append("La fin de l'intervention précède son début.")
-        motif = request.POST.get('motif', '').strip()
+        if len(notes) > LONGUEUR_NOTES:
+            erreurs.append(f"Les observations sont limitées à {LONGUEUR_NOTES} caractères.")
+        motif = sans_nul(request.POST.get('motif', '')).strip()
+        if len(motif) > LONGUEUR_MOTIF:
+            erreurs.append(f"Le motif est limité à {LONGUEUR_MOTIF} caractères.")
         if en_direct and deja_termine:
             erreurs.append("Ce compte rendu est déjà terminé : utilisez « Terminer » en indiquant le motif de la modification.")
         if not en_direct:
@@ -122,63 +177,30 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
                 erreurs.append("La conformité finale est à déclarer.")
             if deja_termine and not motif:
                 erreurs.append("Le motif de la modification est obligatoire.")
+            erreurs += releves.verifier(items, results, mesures)
 
         # Mot de passe (signature) seulement à la clôture d'une installation critique ; une
         # occurrence non conforme repasse en WAITING_VALIDATION et n'est pas concernée.
-        installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
+        installation, _ = _sujet(occ)
         exige_validation = (not en_direct) and bool(installation and installation.critique) and conformity != 'NON_CONFORME'
         if exige_validation and not request.user.check_password(request.POST.get('mot_de_passe', '')):
             erreurs.append("Mot de passe incorrect : l'exécution n'a pas été validée.")
 
+        intervenants = _intervenants_choisis(request, occ)
+        if not erreurs:
+            try:
+                with transaction.atomic():
+                    exec_obj, original, modifie = self._ecrire(
+                        request.user, occ, items, en_direct, deja_termine, exige_validation, motif, intervenants,
+                        (results, mesures, notes, conformity, debut, fin),
+                    )
+            except _Conflit as conflit:
+                erreurs.append(str(conflit))
         if erreurs:
             if request.headers.get('HX-Request'):
                 return render(request, 'maintenance/_execute_erreur.html', {"erreurs": erreurs})
-            saisie = (results, mesures, notes, conformity, debut, fin, _intervenants_choisis(request, occ))
+            saisie = (results, mesures, notes, conformity, debut, fin, intervenants)
             return render(request, self.template_name, self._contexte(request, occ, items, saisie, erreurs))
-
-        avant = {} if execution is None else {
-            "conformite": execution.conformity, "resultats": execution.results,
-            "releves": execution.measurements, "notes": execution.notes,
-        }
-        exec_obj = execution or MaintenanceExecution(occurrence=occ)
-        maintenant = timezone.now()
-        exec_obj.started_at = debut or exec_obj.started_at or maintenant
-        exec_obj.results = results
-        exec_obj.measurements = mesures
-        exec_obj.notes = notes
-        exec_obj.executed_by = request.user
-        if en_direct:
-            exec_obj.save()
-        else:
-            exec_obj.conformity = conformity
-            exec_obj.completed_at = fin or maintenant
-            if exige_validation:
-                exec_obj.valide_par = request.user
-                exec_obj.date_validation = maintenant
-            exec_obj.save()
-        exec_obj.intervenants.set(_intervenants_choisis(request, occ))
-
-        ancien_statut = occ.status
-        if en_direct:
-            nouveau_statut = 'IN_PROGRESS'
-        else:
-            nouveau_statut = 'DONE' if conformity != 'NON_CONFORME' else 'WAITING_VALIDATION'
-        if nouveau_statut != ancien_statut:
-            occ.status = nouveau_statut
-            occ.save(update_fields=['status'])
-            OccurrenceStatusLog.objects.create(
-                occurrence=occ, old_status=ancien_statut, new_status=occ.status, user=request.user,
-            )
-            AuditLog.objects.create(
-                actor=request.user,
-                action='occurrence_validation_critique' if exige_validation else 'occurrence_status_change',
-                details=f'occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}',
-            )
-        elif exige_validation:
-            AuditLog.objects.create(
-                actor=request.user, action='occurrence_validation_critique',
-                details=f'occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}',
-            )
 
         synthese = resume(items, results, mesures)
         if en_direct:
@@ -186,30 +208,115 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
                 return render(request, 'maintenance/_execute_enregistre.html', {"resume": synthese, "heure": timezone.localtime()})
             return redirect('occurrence-execute', pk=occ.pk)
 
-        if deja_termine:
-            apres = {
-                "conformite": conformity, "resultats": results, "releves": mesures, "notes": notes,
-            }
-            modifs = {c: {"avant": avant[c], "apres": apres[c]} for c in apres if avant.get(c) != apres[c]}
-            AuditLog.objects.create(
-                actor=request.user, action='occurrence_compte_rendu_modifie',
-                details=f'occurrence={occ.pk}; motif={motif}; modifications={json.dumps(modifs, ensure_ascii=False)}',
-            )
-        if occ.status == 'DONE':
-            # Remise à zéro de l'échéance d'une installation fixe (branche compteur).
-            mettre_a_jour_echeance_installation(occ)
-        _notifier_chefs_de_secteur(occ, request.user, conformity, synthese, modification=deja_termine)
+        if deja_termine and not modifie:
+            if request.headers.get('HX-Request'):
+                return render(request, 'maintenance/_execute_inchange.html')
+            messages.info(request, "Aucun changement : le compte rendu n'a pas été modifié.")
+            return redirect('occurrence-execute', pk=occ.pk)
+        _notifier_chefs_de_secteur(occ, request.user, conformity, synthese, modification=deja_termine, original=original)
 
         # Pièces jointes et trace dans la discussion de l'occurrence
         ct = ContentType.objects.get_for_model(MaintenanceOccurrence)
         thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(occ.pk))
-        msg = Message.objects.create(thread=thread, author=request.user, body=f"Exécution: {conformity} — {synthese['texte']}", is_system=False)
+        msg = Message.objects.create(thread=thread, author=request.user, body=f"{'Correction' if deja_termine else 'Exécution'}: {conformity} — {synthese['texte']}", is_system=False)
         for f in request.FILES.getlist('photos'):
             Attachment.objects.create(message=msg, file=f, name=f.name)
 
         if request.headers.get('HX-Request'):
-            return render(request, 'maintenance/_execute_done.html', {"occ": occ, "exec": exec_obj, "resume": synthese})
+            return render(request, 'maintenance/_execute_done.html', {
+                "occ": occ, "exec": exec_obj, "resume": synthese, "anomalie_url": _anomalie_url(occ),
+            })
         return redirect('/')
+
+    @staticmethod
+    def _ecrire(user, occ, items, en_direct, deja_termine, exige_validation, motif, intervenants, saisie):
+        """Écrit le compte rendu sous verrou de l'occurrence. Renvoie (exécution, marin d'origine, modifié)."""
+        results, mesures, notes, conformity, debut, fin = saisie
+        occ_verrouillee = MaintenanceOccurrence.objects.select_for_update(of=("self",)).get(pk=occ.pk)
+        execution = MaintenanceExecution.objects.filter(occurrence=occ_verrouillee).select_related('executed_by').first()
+        if bool(execution and execution.completed_at) != deja_termine:
+            raise _Conflit("Ce compte rendu a été enregistré entre-temps : rechargez la page avant de continuer.")
+        exec_obj = execution or MaintenanceExecution(occurrence=occ_verrouillee)
+        original = exec_obj.executed_by if deja_termine else None
+        avant = _etat_saisie(items, exec_obj) if deja_termine else None
+        # Une correction d'un compte rendu antérieur à la conservation de l'origine fige d'abord l'état actuel.
+        origine_avant = instantane(original, exec_obj) if deja_termine and exec_obj.saisie_origine is None else None
+        maintenant = timezone.now()
+        exec_obj.started_at = debut or exec_obj.started_at or maintenant
+        exec_obj.results, exec_obj.measurements, exec_obj.notes = results, mesures, notes
+        if not deja_termine:
+            exec_obj.executed_by = user
+        if not en_direct:
+            exec_obj.conformity = conformity
+            exec_obj.completed_at = fin or exec_obj.completed_at or maintenant
+            if exige_validation:
+                exec_obj.valide_par = user
+                exec_obj.date_validation = maintenant
+            if not deja_termine:
+                exec_obj.saisie_origine = instantane(user, exec_obj)
+            elif origine_avant:
+                exec_obj.saisie_origine = origine_avant
+        exec_obj.save()
+        exec_obj.intervenants.set(intervenants)
+
+        ancien_statut = occ_verrouillee.status
+        if en_direct:
+            nouveau_statut = 'IN_PROGRESS'
+        else:
+            nouveau_statut = 'DONE' if conformity != 'NON_CONFORME' else 'WAITING_VALIDATION'
+        if nouveau_statut != ancien_statut:
+            occ.status = occ_verrouillee.status = nouveau_statut
+            occ_verrouillee.save(update_fields=['status'])
+            OccurrenceStatusLog.objects.create(
+                occurrence=occ_verrouillee, old_status=ancien_statut, new_status=nouveau_statut, user=user,
+            )
+            AuditLog.objects.create(
+                actor=user,
+                action='occurrence_validation_critique' if exige_validation else 'occurrence_status_change',
+                details=f'occurrence={occ.pk}; {ancien_statut} -> {nouveau_statut}; conformite={conformity}',
+            )
+        elif exige_validation:
+            AuditLog.objects.create(
+                actor=user, action='occurrence_validation_critique',
+                details=f'occurrence={occ.pk}; {ancien_statut} -> {nouveau_statut}; conformite={conformity}',
+            )
+        if en_direct:
+            return exec_obj, original, True
+
+        installation, _ = _sujet(occ)
+        if installation:
+            releves.reporter(exec_obj, installation, items, results, mesures, user)
+        if occ.status == 'DONE':
+            # Remise à zéro de l'échéance d'une installation fixe (branche compteur).
+            mettre_a_jour_echeance_installation(occ)
+        modifie = False
+        if deja_termine:
+            apres = _etat_saisie(items, exec_obj)
+            modifs = {c: {"avant": avant[c], "apres": apres[c]} for c in apres if avant[c] != apres[c]}
+            modifie = bool(modifs)
+            if modifie:
+                ModificationCompteRendu.objects.create(
+                    execution=exec_obj, auteur=user, motif=motif,
+                    modifications=differences(avant, apres),
+                )
+                AuditLog.objects.create(
+                    actor=user, action='occurrence_compte_rendu_modifie',
+                    details=f'occurrence={occ.pk}; motif={motif}; modifications={json.dumps(modifs, ensure_ascii=False)}',
+                )
+        return exec_obj, original, modifie
+
+
+def _etat_saisie(items, exec_obj):
+    """Saisie d'un compte rendu telle que tracée : par libellé de ligne, lisible dans l'AuditLog."""
+    etat = {
+        "conformite": exec_obj.conformity, "resultats": par_libelle(items, exec_obj.results),
+        "releves": par_libelle(items, exec_obj.measurements), "notes": exec_obj.notes,
+        "debut": valeur_datetime(exec_obj.started_at), "fin": valeur_datetime(exec_obj.completed_at),
+        "intervenants": sorted(u.get_full_name() or u.username for u in exec_obj.intervenants.all()) if exec_obj.pk else [],
+    }
+    if hasattr(exec_obj, "constat"):
+        etat.update(constat=exec_obj.constat, diagnostic=exec_obj.diagnostic, action=exec_obj.action_realisee)
+    return etat
 
 
 def _intervenants_choisis(request, occ):
@@ -219,42 +326,14 @@ def _intervenants_choisis(request, occ):
     return choisis & autorises
 
 
-def _valeur_datetime(valeur):
-    """Valeur d'un champ datetime-local (heure locale, sans secondes)."""
-    return timezone.localtime(valeur).strftime("%Y-%m-%dT%H:%M") if valeur else ""
-
-
-def _lire_datetime(texte):
-    """(datetime, erreur) depuis un champ datetime-local ; vide : (None, None)."""
-    texte = (texte or "").strip()
-    if not texte:
-        return None, None
-    try:
-        valeur = parse_datetime(texte)
-    except ValueError:
-        valeur = None
-    if valeur is None:
-        return None, "Date ou heure illisible."
-    return (timezone.make_aware(valeur) if timezone.is_naive(valeur) else valeur), None
-
-
-def _notifier_chefs_de_secteur(occ, auteur, conformity, synthese, modification):
-    """Prévient les chefs du secteur concerné qu'un compte rendu est saisi (information, sans visa)."""
-    if occ.installation_maintenance_id:
-        secteur_id = occ.installation_maintenance.installation.sector_id
-    else:
-        secteur_id = occ.asset.sector_id if occ.asset_id else None
-    if not secteur_id:
-        return
-    attention = conformity != 'CONFORME' or synthese['a_surveiller']
-    verbe = f"Compte rendu {'modifié' if modification else 'saisi'} : {occ.titre_affiche} — {dict(MaintenanceExecution.CONFORMITY)[conformity]} ({synthese['texte']})"
-    ct = ContentType.objects.get_for_model(MaintenanceOccurrence)
-    chefs = UserProfile.objects.filter(role=Roles.CHEF_SECTEUR, sector_id=secteur_id).exclude(user=auteur)
-    for profil in chefs:
-        Notification.objects.create(
-            user=profil.user, verb=verbe[:255], content_type=ct, object_id=str(occ.pk),
-            level=NotificationLevel.WARNING if attention else NotificationLevel.INFO,
-        )
+def _notifier_chefs_de_secteur(occ, auteur, conformity, synthese, modification, original=None):
+    """Prévient les chefs du secteur concerné qu'un compte rendu est saisi ou corrigé (information, sans visa)."""
+    installation, asset = _sujet(occ)
+    secteur_id = (installation or asset).sector_id if (installation or asset) else None
+    notifier_compte_rendu(
+        secteur_id, occ.titre_affiche, occ, auteur, conformity, synthese['texte'], synthese['a_surveiller'],
+        modification, original,
+    )
 
 
 class OccurrenceCommentCreateView(LoginRequiredMixin, View):
@@ -278,7 +357,7 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
             return HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
-        corps = request.POST.get('body', '').strip()
+        corps = sans_nul(request.POST.get("body", "")).strip()
         if not corps:
             messages.error(request, "Le commentaire ne peut pas être vide.")
         else:
@@ -424,7 +503,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
         if action not in ("create_plan", "edit_plan"):
             return HttpResponseBadRequest("Action inconnue")
 
-        name = request.POST.get("name", "").strip()
+        name = sans_nul(request.POST.get("name", "")).strip()
         if not name:
             messages.error(request, "Le nom du plan est obligatoire.")
             return redirect("maintenance-plans")

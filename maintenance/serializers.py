@@ -29,4 +29,10 @@ class MaintenanceExecutionSerializer(serializers.ModelSerializer):
         model = MaintenanceExecution
         fields = "__all__"
         # Exécutant et signature de validation sont posés par le serveur.
-        read_only_fields = ["executed_by", "valide_par", "date_validation", "created_by", "updated_by"]
+        read_only_fields = ["executed_by", "valide_par", "date_validation", "created_by", "updated_by", "saisie_origine"]
+
+    def validate(self, attrs):
+        # Un compte rendu terminé ne se réécrit pas en silence : la correction passe par l'écran (motif, trace, origine).
+        if self.instance is not None and self.instance.completed_at:
+            raise serializers.ValidationError("Compte rendu terminé : corrigez-le depuis son écran, avec un motif.")
+        return attrs

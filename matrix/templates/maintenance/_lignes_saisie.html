@@ -1,0 +1,38 @@
+{% load icones %}
+  <div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center">
+    <span>Points à contrôler</span>
+    {% if lignes %}<button type="button" class="btn btn-sm btn-outline-secondary" data-tout-conforme>{% icone "terminee" %} Tout conforme</button>{% endif %}
+  </div><div class="card-body">
+    {% for ligne in lignes %}{% with it=ligne.item %}
+      <div class="mx-cr-ligne{% if ligne.hors_plage %} mx-cr-ligne--hors-plage{% endif %}" data-ligne data-type="{{ it.field_type }}"{% if it.valeur_min is not None %} data-min="{{ it.valeur_min|stringformat:'g' }}"{% endif %}{% if it.valeur_max is not None %} data-max="{{ it.valeur_max|stringformat:'g' }}"{% endif %}>
+        <div class="mx-cr-ligne__libelle">
+          <label for="item_{{ it.id }}{% if it.field_type == 'checkbox' %}_conforme{% endif %}">{{ it.label }}</label>{% if it.required %} <span class="text-muted small">(obligatoire)</span>{% endif %}{% if it.requires_photo %} <span class="text-muted small">(photo)</span>{% endif %}
+        </div>
+        <div class="mx-cr-ligne__saisie">
+          {% if it.field_type == 'checkbox' %}
+            <div class="btn-group" role="group" aria-label="{{ it.label }}">
+              {% for cle, libelle in etats %}
+                <input class="btn-check" type="radio" name="item_{{ it.id }}" id="item_{{ it.id }}_{{ cle }}" value="{{ cle }}"{% if ligne.etat == cle %} checked{% endif %}>
+                <label class="btn btn-sm {% if cle == 'conforme' %}btn-outline-success{% elif cle == 'non_conforme' %}btn-outline-danger{% else %}btn-outline-secondary{% endif %}" for="item_{{ it.id }}_{{ cle }}">{{ libelle }}</label>
+              {% endfor %}
+            </div>
+            <input class="form-control form-control-sm mx-cr-ligne__commentaire" type="text" name="commentaire_{{ it.id }}" value="{{ ligne.commentaire }}" placeholder="Commentaire (non-conformité)" aria-label="Commentaire sur {{ it.label }}" data-commentaire{% if ligne.etat != 'non_conforme' %} hidden{% endif %}>
+          {% elif it.field_type == 'number' %}
+            <input class="form-control form-control-sm font-mono mx-cr-ligne__nombre{% if ligne.hors_plage %} is-invalid{% endif %}" type="text" inputmode="decimal" autocomplete="off" id="item_{{ it.id }}" name="item_{{ it.id }}" value="{{ ligne.valeur }}">
+            {% if it.unit %}<span class="text-muted">{{ it.unit }}</span>{% endif %}
+            {% if it.valeur_min is not None or it.valeur_max is not None %}<span class="text-muted small">attendu : {% if it.valeur_min is not None %}{{ it.valeur_min|floatformat:"-3" }}{% else %}…{% endif %} à {% if it.valeur_max is not None %}{{ it.valeur_max|floatformat:"-3" }}{% else %}…{% endif %}</span>{% endif %}
+            <span class="mx-cr-alerte" data-alerte{% if not ligne.hors_plage %} hidden{% endif %}>Hors plage</span>
+            <a class="small" href="{{ anomalie_url }}" target="_blank" rel="noopener" data-proposition{% if not ligne.hors_plage %} hidden{% endif %}>Signaler une anomalie</a>
+            {% if ligne.dernier %}{% include "maintenance/_dernier_releve.html" with serie=ligne.dernier unite=it.unit %}{% endif %}
+          {% elif it.field_type == 'date' %}
+            <input class="form-control form-control-sm font-mono" type="date" id="item_{{ it.id }}" name="item_{{ it.id }}" value="{{ ligne.valeur }}">
+          {% else %}
+            <input class="form-control form-control-sm" type="text" id="item_{{ it.id }}" name="item_{{ it.id }}" value="{{ ligne.valeur }}">
+          {% endif %}
+        </div>
+      </div>
+    {% endwith %}{% empty %}
+      <p class="text-muted mb-0">Aucun point de contrôle pour cette maintenance : décrire les opérations dans les observations.</p>
+    {% endfor %}
+  </div></div>
+
