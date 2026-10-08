@@ -1,6 +1,7 @@
 """Compte rendu de maintenance saisi sur PC (UX-3.5) et exécution en direct (UX-3.6)."""
 import json
 import shutil
+import uuid
 import subprocess
 import unittest
 from pathlib import Path
@@ -15,7 +16,7 @@ from assets.models import (
     Asset, AssetType, ChecklistItemTemplate, ChecklistTemplate, Installation, InstallationMaintenance,
     ModeDeclenchement,
 )
-from maintenance.compte_rendu import lire_nombre, lire_saisie, resume
+from maintenance.compte_rendu import lire_nombre, lire_saisie, resume, valeur_de
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
@@ -25,6 +26,7 @@ class LectureSaisieTests(SimpleTestCase):
     class Ligne:
         def __init__(self, id, label, field_type, required=False, mini=None, maxi=None):
             self.id, self.label, self.field_type, self.required = id, label, field_type, required
+            self.cle = uuid.UUID(int=id)
             self.valeur_min, self.valeur_max = mini, maxi
 
     def test_virgule_francaise(self):
@@ -42,9 +44,18 @@ class LectureSaisieTests(SimpleTestCase):
             "item_1": "conforme", "item_2": "non_conforme", "commentaire_2": "Suintement", "item_3": "5,5",
         })
         self.assertEqual(erreurs, [])
-        self.assertEqual(results["Fuite"], {"etat": "non_conforme", "commentaire": "Suintement"})
-        self.assertEqual(mesures, {"Pression": 5.5})
+        self.assertEqual(results[str(items[1].cle)], {"etat": "non_conforme", "commentaire": "Suintement"})
+        self.assertEqual(mesures, {str(items[2].cle): 5.5})
         self.assertEqual(resume(items, results, mesures)["texte"], "2/2 contrôles, 1 non conforme, 1 relevé à surveiller")
+
+    def test_valeurs_non_finies_et_anciens_libelles(self):
+        for texte in ("nan", "inf", "-inf", "1e999"):
+            with self.assertRaises(ValueError):
+                lire_nombre(texte)
+        pression = self.Ligne(3, "Pression", "number")
+        self.assertEqual(valeur_de({"Pression": 4.0}, pression), 4.0)
+        self.assertEqual(valeur_de({str(pression.cle): 5.0, "Pression": 4.0}, pression), 5.0)
+        self.assertIsNone(valeur_de(["pas", "un dict"], pression))
 
     def test_ligne_obligatoire_et_valeur_illisible(self):
         items = [self.Ligne(1, "Goupille", "checkbox", required=True), self.Ligne(2, "Pression", "number")]
@@ -97,8 +108,8 @@ class CompteRenduWebTests(TestCase):
     def test_saisie_complete_notifie_le_chef_de_secteur(self):
         self.client.post(self.url, self._saisie(notes="RAS", intervenants=[str(self.tech.pk)]))
         execution = MaintenanceExecution.objects.get(occurrence=self.occ)
-        self.assertEqual(execution.results["Goupille"]["etat"], "conforme")
-        self.assertEqual(execution.measurements["Pression"], 4.2)
+        self.assertEqual(execution.results[str(self.goupille.cle)]["etat"], "conforme")
+        self.assertEqual(execution.measurements[str(self.pression.cle)], 4.2)
         self.assertEqual(list(execution.intervenants.all()), [self.tech])
         self.occ.refresh_from_db()
         self.assertEqual(self.occ.status, "DONE")
@@ -122,15 +133,56 @@ class CompteRenduWebTests(TestCase):
         # La saisie enregistrée est reprise à la réouverture.
         self.assertContains(self.client.get(self.url), "checked")
 
-    def test_modification_exige_un_motif_et_est_tracee(self):
+    def test_marin_ne_corrige_pas_son_compte_rendu_termine(self):
         self.client.post(self.url, self._saisie())
+        r = self.client.post(self.url, self._saisie(**{f"item_{self.pression.pk}": "6", "motif": "Erreur"}))
+        self.assertEqual(r.status_code, 302)
+        execution = MaintenanceExecution.objects.get(occurrence=self.occ)
+        self.assertEqual(execution.measurements[str(self.pression.cle)], 4.2)
+        self.assertFalse(AuditLog.objects.filter(action="occurrence_compte_rendu_modifie").exists())
+        self.assertContains(self.client.get(self.url), "Seul un chef de secteur peut le corriger")
+
+    def test_correction_par_le_chef_tracee_et_origine_conservee(self):
+        self.client.post(self.url, self._saisie(notes="RAS"))
+        self.client.logout()
+        self.client.login(username="chef_cr", password="x")
         r = self.client.post(self.url, self._saisie(**{f"item_{self.pression.pk}": "6"}))
         self.assertContains(r, "motif de la modification est obligatoire")
-        self.client.post(self.url, self._saisie(**{f"item_{self.pression.pk}": "6", "motif": "Erreur de lecture"}))
+        correction = self._saisie(**{f"item_{self.pression.pk}": "6", "motif": "Erreur de lecture", "notes": "RAS"})
+        self.client.post(self.url, correction)
         entree = AuditLog.objects.get(action="occurrence_compte_rendu_modifie")
         self.assertIn("Erreur de lecture", entree.details)
         modifs = json.loads(entree.details.split("modifications=")[1])
         self.assertEqual(modifs["releves"], {"avant": {"Pression": 4.2}, "apres": {"Pression": 6.0}})
+        execution = MaintenanceExecution.objects.get(occurrence=self.occ)
+        self.assertEqual(execution.executed_by, self.tech)
+        self.assertEqual(execution.saisie_origine["measurements"], {str(self.pression.cle): 4.2})
+        self.assertEqual(execution.saisie_origine["par"], self.tech.pk)
+        trace = execution.modifications.get()
+        self.assertEqual((trace.auteur, trace.motif), (self.chef, "Erreur de lecture"))
+        self.assertEqual(trace.modifications["Pression"], {"avant": 4.2, "apres": 6.0})
+        # Le marin d'origine est prévenu de la correction.
+        self.assertTrue(Notification.objects.filter(user=self.tech, verb__startswith="Compte rendu modifié").exists())
+        # Rejouer la même correction ne crée ni trace ni notification de plus.
+        self.client.post(self.url, correction)
+        self.assertEqual(execution.modifications.count(), 1)
+
+    def test_double_envoi_du_marin_ne_cree_qu_un_compte_rendu(self):
+        self.client.post(self.url, self._saisie())
+        r = self.client.post(self.url, self._saisie())
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(MaintenanceExecution.objects.count(), 1)
+        self.assertEqual(Notification.objects.filter(user=self.chef).count(), 1)
+
+    def test_nul_et_notes_trop_longues_refuses_sans_erreur_serveur(self):
+        r = self.client.post(self.url, self._saisie(notes="x" * 10001))
+        self.assertContains(r, "limitées à")
+        self.client.post(self.url, self._saisie(notes="a\x00b"))
+        self.assertEqual(MaintenanceExecution.objects.get(occurrence=self.occ).notes, "ab")
+
+    def test_valeur_non_finie_refusee(self):
+        r = self.client.post(self.url, self._saisie(**{f"item_{self.pression.pk}": "nan"}))
+        self.assertContains(r, "valeur numérique illisible")
 
     def test_mot_de_passe_seulement_pour_installation_critique(self):
         installation = Installation.objects.create(
