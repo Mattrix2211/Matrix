@@ -1,4 +1,4 @@
-// Assistant de fiche de maintenance : étapes successives et lignes à ajouter ou retirer.
+// Assistant de fiche de maintenance : étapes successives, lignes à ajouter, retirer, déplacer ou dupliquer.
 (function () {
   var formulaire = document.querySelector("[data-assistant-fiche]");
   if (!formulaire) { return; }
@@ -39,8 +39,22 @@
       if (champ && evenement.isTrusted) { champ.focus(); }
       return;
     }
-    var retrait = evenement.target.closest("[data-retirer]");
-    if (retrait) { retrait.closest("[data-ligne]").remove(); }
+    var bouton = evenement.target.closest("[data-retirer], [data-monter], [data-descendre], [data-dupliquer]");
+    if (!bouton) { return; }
+    var ligne = bouton.closest("[data-ligne]");
+    if (bouton.hasAttribute("data-retirer")) { ligne.remove(); return; }
+    if (bouton.hasAttribute("data-monter") && ligne.previousElementSibling) {
+      ligne.parentNode.insertBefore(ligne, ligne.previousElementSibling);
+    } else if (bouton.hasAttribute("data-descendre") && ligne.nextElementSibling) {
+      ligne.parentNode.insertBefore(ligne.nextElementSibling, ligne);
+    } else if (bouton.hasAttribute("data-dupliquer")) {
+      var copie = ligne.cloneNode(true);
+      // La copie est une nouvelle ligne : elle ne reprend pas l'identité de l'originale.
+      [].slice.call(copie.querySelectorAll('input[name="ligne_cle"]')).forEach(function (c) { c.value = ""; });
+      ligne.parentNode.insertBefore(copie, ligne.nextSibling);
+    }
+    // Le bouton déplacé garde le focus pour enchaîner les déplacements au clavier.
+    if (!bouton.hasAttribute("data-dupliquer") && evenement.isTrusted) { bouton.focus(); }
   });
 
   // Une ligne vide au départ pour ne pas démarrer devant un écran sans champ.

@@ -1,0 +1,12 @@
+{# Comparaison de la proposition avec la version appliquée (docs/UX.md §11.1) : le statut est écrit, pas seulement coloré. #}
+<details class="mx-diff mt-3" open>
+  <summary><strong>Comparer avec la version appliquée (v{{ validee.numero }})</strong> · {{ comparaison.total }} différence{{ comparaison.total|pluralize }}</summary>
+  {% if not comparaison.total %}<p class="text-secondary mt-2 mb-0">Aucune différence de contenu.</p>{% endif %}
+  {% for titre, entrees in comparaison.sections %}{% if entrees %}
+  <h3 class="h6 mt-3">{{ titre }}</h3>
+  <ul class="mx-diff__liste">
+    {% for e in entrees %}<li class="mx-diff__ligne mx-diff__ligne--{{ e.statut }}">
+      <span class="mx-diff__statut">{{ e.libelle }}</span> {{ e.texte }}
+      {% for d in e.details %}<div class="small text-secondary">{{ d }}</div>{% endfor %}</li>{% endfor %}
+  </ul>{% endif %}{% endfor %}
+</details>

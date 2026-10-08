@@ -1,10 +1,12 @@
-{% load icones %}<div class="row g-2 mb-2 align-items-end" data-ligne>
+<div class="row g-2 mb-2 align-items-end" data-ligne>
   <input type="hidden" name="ligne_cle" value="{{ l.cle|default:'' }}">
   <div class="col-md-2"><label class="form-label small">Type</label>
     <select class="form-select form-select-sm" name="ligne_type"><option value="checkbox"{% if l.field_type != "number" %} selected{% endif %}>Contrôle</option><option value="number"{% if l.field_type == "number" %} selected{% endif %}>Relevé</option></select></div>
-  <div class="col-md-4"><label class="form-label small">Point</label><input class="form-control form-control-sm" name="ligne_label" value="{{ l.label }}"></div>
-  <div class="col-md-2"><label class="form-label small">Unité</label><input class="form-control form-control-sm" name="ligne_unite" value="{{ l.unit }}"></div>
+  <div class="col-md-3"><label class="form-label small">Point</label><input class="form-control form-control-sm" name="ligne_label" value="{{ l.label }}"></div>
+  <div class="col-md-1"><label class="form-label small">Unité</label><input class="form-control form-control-sm" name="ligne_unite" value="{{ l.unit }}"></div>
   <div class="col-md-1"><label class="form-label small">Min</label><input class="form-control form-control-sm" name="ligne_min" inputmode="decimal" value="{{ l.valeur_min|default_if_none:''|stringformat:'s' }}"></div>
   <div class="col-md-1"><label class="form-label small">Max</label><input class="form-control form-control-sm" name="ligne_max" inputmode="decimal" value="{{ l.valeur_max|default_if_none:''|stringformat:'s' }}"></div>
-  <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" data-retirer aria-label="Retirer ce point" title="Retirer">{% icone "suppression" %}</button></div>
+  <div class="col-md-1"><label class="form-label small">Obligatoire</label>
+    <select class="form-select form-select-sm" name="ligne_obligatoire"><option value="0">Non</option><option value="1"{% if l.required %} selected{% endif %}>Oui</option></select></div>
+  <div class="col-md-3 text-md-end">{% include "assets/fiche/_actions_ligne.html" %}</div>
 </div>

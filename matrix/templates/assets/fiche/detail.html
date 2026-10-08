@@ -4,14 +4,27 @@
 {% block content %}
 <nav aria-label="Fil d'Ariane" class="mx-cat-ariane">
   <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'installation-detail' installation.pk %}?tab=maintenance">{{ installation.designation }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Fiche de maintenance</li>
+    {% for e in fil %}<li class="breadcrumb-item"><a href="{{ e.url }}">{{ e.libelle }}</a></li>
+    {% endfor %}    <li class="breadcrumb-item active" aria-current="page">Fiche de maintenance</li>
   </ol>
 </nav>
 {% include "components/fiche_entete.html" with titre=version.name sous_titre=sous_titre badge_libelle=version.get_etat_display badge_etat=badge_etat indicateurs=indicateurs_fiche action=action_fiche version=version_fiche objet=version %}
 
 <p class="text-secondary small mb-3">Version {{ version.numero }}{% if version.valide_le %} validée le {{ version.valide_le|date:"d/m/Y" }}{% endif %}
   {% if not validee %}· <strong>Aucune version validée : cette fiche ne déclenche aucune maintenance pour l'instant.</strong>{% elif version != validee %}· <a href="{% url 'fiche-detail' fiche.pk %}">Voir la version appliquée (v{{ validee.numero }})</a>{% endif %}</p>
+
+{% if flotte %}<p class="small mb-2"><span class="badge text-bg-info">Fiche flotte</span>
+  {% if fiche.categorie %}Valable pour la catégorie « {{ fiche.categorie.nom }} » et ses sous-catégories, sauf là où une sous-catégorie a sa propre fiche pour cette gamme.
+  {% else %}Valable pour « {{ fiche.equipement }} »{% if fiche.classe_navire %}, classe {{ fiche.classe_navire }}{% endif %} ; chaque navire l'adapte à sa situation.{% endif %}</p>{% endif %}
+{% if origine %}<p class="small mb-2"><span class="badge text-bg-secondary">Adaptation locale</span> Adaptée de la fiche flotte <a href="{% url 'fiche-detail' origine.pk %}">{{ origine.title }}</a> v{{ fiche.origine_numero }}.</p>{% endif %}
+{% if origine_a_examiner %}
+<section class="mx-surface mb-3" aria-label="Fiche flotte modifiée">
+  <h2 class="mx-surface__titre">La fiche flotte a changé</h2>
+  <p>La fiche flotte d'origine est passée en v{{ fiche.origine_en_attente }}. Reprenez-vous les changements ? Votre adaptation reste appliquée tant que vous n'avez pas décidé.</p>
+  <form method="post" action="{% url 'fiche-reprendre' fiche.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-primary">Reprendre les changements</button></form>
+  <form method="post" action="{% url 'fiche-garder' fiche.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-outline-secondary">Garder la mienne</button></form>
+</section>
+{% endif %}
 
 {% if suivie %}
 <section class="mx-surface mb-3" aria-label="Validation de la version {{ suivie.numero }}">
@@ -31,10 +44,11 @@
   {% elif blocage %}<div class="alert alert-warning" role="alert">{{ blocage }}</div>
   {% elif valideurs %}<p class="text-secondary" role="status">En attente de : {% for u in valideurs %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}. La version {{ validee.numero|default:"précédente" }} reste appliquée en attendant.</p>{% endif %}
   {% if peut_agir and not equipage_a_terre %}
-  <form method="post" action="{% url 'fiche-viser' suivie.pk %}" class="d-inline">{% csrf_token %}
+  {% if verification %}<a class="btn btn-primary" href="{% url 'fiche-flotte-verifier' suivie.pk %}">{% icone "modification" %} Vérifier et transmettre</a>
+  {% else %}<form method="post" action="{% url 'fiche-viser' suivie.pk %}" class="d-inline">{% csrf_token %}
     <input type="hidden" name="etape" value="{{ suivie.etat }}">
     <button type="submit" class="btn btn-primary">{% icone "terminee" %} Viser</button>
-  </form>
+  </form>{% endif %}
   <details class="mt-3">
     <summary>Renvoyer au rédacteur</summary>
     <form method="post" action="{% url 'fiche-refuser' suivie.pk %}" class="mt-2">{% csrf_token %}
@@ -45,6 +59,7 @@
     </form>
   </details>
   {% endif %}
+  {% if comparaison %}{% include "assets/fiche/_comparaison.html" with comparaison=comparaison validee=validee suivie=suivie %}{% endif %}
 </section>
 {% endif %}
 
@@ -100,6 +115,26 @@
         {% empty %}<li class="text-secondary">Version reprise de l'existant.</li>{% endfor %}
       </ol>
     </section>
+
+    {% if signalements %}
+    <section class="mx-surface mb-3" aria-labelledby="fiche-signalements">
+      <h2 class="mx-surface__titre" id="fiche-signalements">Signalements ouverts ({{ signalements|length }})</h2>
+      <ul class="list-unstyled mb-0">
+        {% for sg in signalements %}<li class="mb-2">{{ sg.texte|linebreaksbr }}
+          <div class="small text-secondary">{{ sg.auteur.get_full_name|default:sg.auteur.username|default:"—" }}, le {{ sg.created_at|date:"d/m/Y" }}{% if sg.version %} · v{{ sg.version.numero }}{% endif %}</div>
+          {% if peut_traiter and not equipage_a_terre %}<a class="btn btn-sm btn-outline-primary mt-1" href="{% if flotte %}{% url 'fiche-flotte-modifier' fiche.pk %}{% else %}{% url 'fiche-modifier' fiche.pk %}{% endif %}?signalement={{ sg.pk }}">Ouvrir une nouvelle version</a>
+          {% endif %}</li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if peut_proposer_flotte %}
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Proposer pour toute la flotte</h2>
+      <p class="small text-secondary">Cette fiche pourrait servir à d'autres navires : proposez-la comme fiche flotte (visas du bord, vérification par le responsable de spécialité, visa de son chef).</p>
+      <a class="btn btn-outline-primary" href="{% url 'fiche-flotte-depuis-bord' fiche.pk %}">Proposer comme fiche flotte</a>
+    </section>
+    {% endif %}
 
     {% if destinations and not equipage_a_terre %}
     <section class="mx-surface mb-3">

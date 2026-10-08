@@ -25,6 +25,8 @@ from matrix.core.saisie import entier_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
 from accounts.models import AuditLog, Roles, UserProfile
 from notifications.models import Notification, NotificationLevel
+from assets import fiche_signalement
+from assets.proposition_article import ErreurCircuit
 from .compte_rendu import ETATS, lignes_de_saisie, lire_saisie, resume
 
 
@@ -72,12 +74,14 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             assignees.append(request.user)
         lignes = lignes_de_saisie(items, results, mesures)
         installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
+        version_fiche = occ.version_fiche()
         faits = sum(1 for ligne in lignes if ligne["etat"] or ligne["valeur"])
         contexte = {
             "occ": occ, "items": items, "lignes": lignes, "etats": ETATS, "erreurs": erreurs or [],
             "notes": notes, "conformity": conformity, "debut": _valeur_datetime(debut), "fin": _valeur_datetime(fin),
             "intervenants": [{"user": u, "coche": (u.pk in intervenants) if intervenants is not None else u in occ.assignees.all()} for u in assignees],
             "deja_termine": bool(execution and execution.completed_at),
+            "signalable": bool(version_fiche and version_fiche.fiche_id),
             "critique": bool(installation and installation.critique),
             "resume": resume(items, results, mesures),
             "operations": {"faites": faits, "total": len(items)},
@@ -575,6 +579,23 @@ def _qr_data_uri(url):
     """QR code en PNG intégré à la page (aucun service externe, fonctionne hors-ligne)."""
     from assets.views import _construire_qr_png
     return "data:image/png;base64," + base64.b64encode(_construire_qr_png(url)).decode()
+
+
+class OccurrenceSignalerFicheView(LoginRequiredMixin, View):
+    """Le marin qui exécute signale que la fiche est fausse ou incomplète : le responsable est prévenu."""
+
+    def post(self, request, pk):
+        if equipage_a_terre_lecture_seule(request.user) or suivi_a_terre_sans_validation(request.user):
+            raise PermissionDenied
+        occ, _, erreur = OccurrenceExecuteView._charger(request, pk)
+        if erreur:
+            return erreur
+        try:
+            fiche_signalement.signaler(request.user, occ, request.POST.get("texte"))
+            messages.success(request, "Signalement envoyé : le responsable de la fiche est prévenu.")
+        except ErreurCircuit as erreur:
+            messages.error(request, str(erreur))
+        return redirect("occurrence-execute", pk=occ.pk)
 
 
 class OccurrenceImprimerView(LoginRequiredMixin, View):

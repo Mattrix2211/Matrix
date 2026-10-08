@@ -1298,6 +1298,15 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
 .mx-prop-historique { list-style: none; margin: 0; padding: 0; }
 .mx-prop-historique li { padding: var(--s2) 0; border-bottom: 1px solid var(--border); }
 
+/* Comparaison de versions : le statut est écrit dans la ligne, la bordure ne fait que l'appuyer. */
+.mx-diff__liste { list-style: none; margin: 0; padding: 0; }
+.mx-diff__ligne { padding: var(--s2) var(--s3); border-left: 4px solid var(--border); margin-bottom: var(--s1); }
+.mx-diff__ligne--ajoutee { border-left-color: var(--green-tech); }
+.mx-diff__ligne--modifiee, .mx-diff__ligne--deplacee { border-left-color: var(--amber); }
+.mx-diff__ligne--supprimee { border-left-color: var(--red); }
+.mx-diff__ligne--inchangee { color: var(--text-sec); }
+.mx-diff__statut { font-weight: 600; margin-right: var(--s2); }
+
 /* Listes de matériels et d'installations : cartes avec case de sélection et menu ⋯ */
 .mx-liste-carte { position: relative; height: 100%; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .mx-liste-carte__photo { display: flex; align-items: center; justify-content: center; height: 150px; background: var(--bg); color: var(--text-sec); font-size: 2.5rem; text-decoration: none; }

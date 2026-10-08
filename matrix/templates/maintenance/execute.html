@@ -115,6 +115,16 @@
   </div>
   {% endif %}
 </form>
+{% if signalable and not equipage_a_terre %}
+<details class="mx-surface mt-3">
+  <summary>Cette fiche est fausse ou incomplète ?</summary>
+  <form method="post" action="{% url 'occurrence-signaler-fiche' occ.pk %}" class="mt-2">{% csrf_token %}
+    <label class="form-label" for="signalement-texte">Dites en une phrase ce qui est faux ou manque</label>
+    <textarea class="form-control mb-2" id="signalement-texte" name="texte" rows="2" maxlength="2000" required></textarea>
+    <button type="submit" class="btn btn-outline-primary">Signaler au responsable de la fiche</button>
+  </form>
+</details>
+{% endif %}
 <script src="{% static 'js/compte_rendu.js' %}"></script>
 
 {% endblock %}

@@ -12,7 +12,8 @@ from .documents_installation_web import (
     DocumentInstallationAjouterView, DocumentInstallationSupprimerView, DocumentInstallationTelechargerView,
 )
 from .fiche_web import (
-    FicheAssistantView, FicheCommentaireView, FicheDetailView, FicheDupliquerView, FicheRefuserView, FicheViserView,
+    FicheAssistantView, FicheCommentaireView, FicheDetailView, FicheDupliquerView, FicheFlotteAssistantView, FicheOrigineView,
+    FicheRefuserView, FicheViserView,
 )
 from .exemplaires_web import ArticleExemplairesView, ExemplairesIncompletsView
 from .web_views import (
@@ -58,6 +59,12 @@ urlpatterns = [
     path('fiches/<int:fiche_pk>/modifier/', FicheAssistantView.as_view(), name='fiche-modifier'),
     path('fiches/<int:pk>/dupliquer/', FicheDupliquerView.as_view(), name='fiche-dupliquer'),
     path('fiches/<int:pk>/commentaire/', FicheCommentaireView.as_view(), name='fiche-comment-create'),
+    path('catalogue/categories/<uuid:categorie_pk>/fiches/nouvelle/', FicheFlotteAssistantView.as_view(), name='fiche-flotte-nouvelle'),
+    path('fiches/<int:depuis_pk>/proposer-flotte/', FicheFlotteAssistantView.as_view(), name='fiche-flotte-depuis-bord'),
+    path('fiches/<int:fiche_pk>/modifier-flotte/', FicheFlotteAssistantView.as_view(), name='fiche-flotte-modifier'),
+    path('fiches/versions/<int:version_pk>/verifier/', FicheFlotteAssistantView.as_view(), name='fiche-flotte-verifier'),
+    path('fiches/<int:pk>/reprendre/', FicheOrigineView.as_view(decision='reprendre'), name='fiche-reprendre'),
+    path('fiches/<int:pk>/garder/', FicheOrigineView.as_view(decision='garder'), name='fiche-garder'),
     path('fiches/versions/<int:pk>/viser/', FicheViserView.as_view(), name='fiche-viser'),
     path('fiches/versions/<int:pk>/refuser/', FicheRefuserView.as_view(), name='fiche-refuser'),
     # Scan QR : point d'entrée unique pour matériel mobile ET installation fixe

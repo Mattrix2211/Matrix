@@ -13,11 +13,13 @@ from django.urls import reverse
 from django.views import View
 
 from accounts.models import AuditLog, SpecialityChoice
+from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.icones import ICONES
 from matrix.core.recherche import normaliser
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import is_master_admin
 
+from . import fiche_flotte, fiche_validation as validation
 from .catalogue_photo import valider_photo
 from .equipement_web import exemplaires_a_bord, exemplaires_a_bord_liste, peut_equiper
 from .models import ArticleCatalogue, CategorieCatalogue
@@ -189,8 +191,14 @@ class ArticleCatalogueDetailView(LoginRequiredMixin, View):
         duree = article.duree_vie_mois
         peut = peut_gerer_catalogue(request.user, article.specialite)
         exemplaires = list(exemplaires_a_bord_liste(request.user, article))
+        mode, _ = validation.mode_redaction_flotte(request.user, article.specialite.pk)
+        a_terre = equipage_a_terre_lecture_seule(request.user)
+        visibles = validation.versions_visibles(request.user).values("pk")
         return render(request, "assets/catalogue/fiche.html", {
             "article": article, "chemin": _chemin(article.categorie),
+            "fiches": fiche_flotte.fiches_de_categorie(article.categorie),
+            "fiches_en_cours": fiche_flotte.propositions_en_cours(article.categorie).filter(pk__in=visibles),
+            "peut_proposer_fiche": mode is not None and not a_terre, "fiche_directe": mode == validation.DIRECT,
             "peut_modifier": peut, "exemplaires": exemplaires,
             "peut_equiper": article.actif and peut_equiper(request.user),
             "action": {"libelle": "Modifier", "icone": "modification", "url": reverse("catalogue-article-modifier", args=[article.pk])} if peut else None,

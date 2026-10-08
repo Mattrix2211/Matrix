@@ -27,6 +27,9 @@ ICONES = {
     "suite": "bi-chevron-right",
     "precedent": "bi-chevron-left",
     "recopie_bas": "bi-arrow-down-square",
+    "monter": "bi-arrow-up",
+    "descendre": "bi-arrow-down",
+    "dupliquer": "bi-copy",
     "menu_actions": "bi-three-dots",
     "information": "bi-info-circle",
     # Types d'événements du calendrier

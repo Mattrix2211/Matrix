@@ -3,6 +3,7 @@ from .tournee_web import TourneeImprimerView, TourneeSaisieView
 from .web_views import (
     OccurrenceExecuteView,
     OccurrenceImprimerView,
+    OccurrenceSignalerFicheView,
     OccurrenceCommentCreateView,
     MaintenancePlanListView,
     MaintenanceOccurrenceListView,
@@ -11,6 +12,7 @@ from .web_views import (
 
 urlpatterns = [
     path('occurrences/<int:pk>/execute/', OccurrenceExecuteView.as_view(), name='occurrence-execute'),
+    path('occurrences/<int:pk>/signaler-fiche/', OccurrenceSignalerFicheView.as_view(), name='occurrence-signaler-fiche'),
     path('occurrences/<int:pk>/imprimer/', OccurrenceImprimerView.as_view(), name='occurrence-imprimer'),
     path('occurrences/tournee/', TourneeSaisieView.as_view(), name='tournee-saisie'),
     path('occurrences/tournee/imprimer/', TourneeImprimerView.as_view(), name='tournee-imprimer'),

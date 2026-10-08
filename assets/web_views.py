@@ -22,7 +22,7 @@ from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from logistics.models import CorrectiveTicket, StockPiece
 from reports.services import STATUTS_TICKET_FERMES
-from . import fiche_validation
+from . import fiche_adaptation, fiche_validation
 from .mesures import formater_heures, formater_nombre, formater_ohms, heures_par_gamme, heures_par_releve, resume_heures
 from .trend import jours_avant_franchissement_seuil
 from matrix.core.roles import user_role_level, RoleLevel
@@ -1640,6 +1640,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             m.fiche_renvoyee = 'refusee' in etats
         ctx['maintenances'] = maints
         ctx['peut_rediger_fiche'] = fiche_validation.peut_rediger(self.request.user, self.object)[0]
+        ctx['fiches_flotte'] = fiche_adaptation.fiches_flotte_proposees(self.object) if ctx['peut_rediger_fiche'] else []
         # Documents de la fiche : pièces jointes des événements et des entretiens (déjà préchargées)
         ctx['documents'] = [pj for ev in ctx['events'] for pj in ev.attachments.all()] + \
                            [pj for m in maints for pj in m.attachments.all()]

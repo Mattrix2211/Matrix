@@ -523,16 +523,16 @@ def _publier(version, user):
     for adaptation in version.fiche.adaptations.select_related("installation"):
         adaptation.origine_en_attente = version.numero
         adaptation.save(update_fields=["origine_en_attente", "updated_at"])
-        notifier_fiche(adaptation, _responsables_bord(adaptation.installation),
+        notifier_fiche(adaptation, responsables_bord(adaptation.installation),
                        f"La fiche flotte « {version.name} » est passée en v{version.numero} : "
                        f"reprendre les changements ou garder votre adaptation ({adaptation.installation.designation}) ?")
 
 
-def _responsables_bord(installation):
-    """Chefs de secteur et de service d'une installation (ceux qui décident des fiches du bord)."""
-    return list(User.objects.filter(is_active=True).filter(
-        Q(profile__role=Roles.CHEF_SECTEUR, profile__sector_id=installation.sector_id)
-        | Q(profile__role=Roles.CHEF_SERVICE, profile__service_id=installation.service_id)))
+def responsables_bord(installation):
+    """Chefs de secteur de l'installation (ceux qui décident de ses fiches), à défaut son chef de service."""
+    actifs = User.objects.filter(is_active=True)
+    chefs = list(actifs.filter(profile__role=Roles.CHEF_SECTEUR, profile__sector_id=installation.sector_id))
+    return chefs or list(actifs.filter(profile__role=Roles.CHEF_SERVICE, profile__service_id=installation.service_id))
 
 
 @transaction.atomic

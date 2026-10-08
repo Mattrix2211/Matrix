@@ -1,5 +1,5 @@
-{% load icones %}<div class="row g-2 mb-2 align-items-start" data-ligne>
-  <div class="col-md-6"><label class="form-label small">Étape</label><textarea class="form-control form-control-sm" name="etape_texte" rows="2">{{ e.texte }}</textarea></div>
-  <div class="col-md-5"><label class="form-label small">Attention (facultatif)</label><textarea class="form-control form-control-sm" name="etape_attention" rows="2">{{ e.attention }}</textarea></div>
-  <div class="col-md-1 pt-4"><button type="button" class="btn btn-sm btn-outline-danger" data-retirer aria-label="Retirer cette étape" title="Retirer">{% icone "suppression" %}</button></div>
+<div class="row g-2 mb-2 align-items-start" data-ligne>
+  <div class="col-md-5"><label class="form-label small">Étape</label><textarea class="form-control form-control-sm" name="etape_texte" rows="2">{{ e.texte }}</textarea></div>
+  <div class="col-md-4"><label class="form-label small">Attention (facultatif)</label><textarea class="form-control form-control-sm" name="etape_attention" rows="2">{{ e.attention }}</textarea></div>
+  <div class="col-md-3 pt-4 text-md-end">{% include "assets/fiche/_actions_ligne.html" %}</div>
 </div>

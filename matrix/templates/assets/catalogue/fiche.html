@@ -24,8 +24,26 @@
       </dl>
     {% fin_surface %}
     {% surface titre="Fiches de maintenance" icone="maintenance" classes="mt-3" %}
-      {# Emplacement prêt : les fiches y seront listées. #}
-      {% include "components/etat_vide.html" with titre="Aucune fiche de maintenance" texte="Les fiches rattachées à cet article apparaîtront ici." %}
+      {% if fiches %}
+      <ul class="list-unstyled mb-2">
+        {% for f in fiches %}<li class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <span><a href="{% url 'fiche-detail' f.fiche.pk %}">{{ f.fiche.title }}</a>
+            <span class="text-secondary small">· {{ f.fiche.periodicity }} · v{{ f.version.numero }}{% if f.heritee %} · héritée de « {{ f.fiche.categorie.nom }} »{% endif %}</span></span>
+          {% if peut_proposer_fiche %}<span class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'fiche-flotte-modifier' f.fiche.pk %}">Proposer une modification</a>
+            {% if f.heritee %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'fiche-flotte-nouvelle' article.categorie.pk %}?depuis={{ f.fiche.pk }}">Remplacer pour « {{ article.categorie.nom }} »</a>{% endif %}
+          </span>{% endif %}</li>{% endfor %}
+      </ul>
+      {% else %}
+      {% include "components/etat_vide.html" with titre="Aucune fiche de maintenance" texte="Aucune fiche n'est publiée pour cette catégorie de matériel." %}
+      {% endif %}
+      {% if fiches_en_cours %}
+      <h3 class="h6 mt-3">En cours de validation</h3>
+      <ul class="list-unstyled mb-2">
+        {% for v in fiches_en_cours %}<li><a href="{% url 'fiche-detail' v.fiche.pk %}?v={{ v.numero }}">{{ v.name }} v{{ v.numero }}</a> <span class="text-secondary small">· {{ v.get_etat_display }}</span></li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% if peut_proposer_fiche %}<a class="btn btn-sm btn-primary mt-1" href="{% url 'fiche-flotte-nouvelle' article.categorie.pk %}">{% icone "ajout" %} {% if fiche_directe %}Créer une fiche{% else %}Proposer une fiche{% endif %}</a>{% endif %}
     {% fin_surface %}
     {% surface titre="Exemplaires à bord" icone="materiel" classes="mt-3" %}
       {% if exemplaires %}
