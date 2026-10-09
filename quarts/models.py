@@ -126,7 +126,7 @@ from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_agissant, scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
-from org.models import Equipage, Sector, Section, Service, Ship
+from org.models import CommandantAdjoint, Equipage, Sector, Section, Service, Ship
 
 User = get_user_model()
 
@@ -841,20 +841,12 @@ class EchangeServiceEvenement(TimeStampedModel):
 #   CHEF_SECTEUR ou plus] --> VISA_SERVICE --> VISA_COMAEQ --(le visa COMAEQ
 #   vaut publication, un seul clic)--> PUBLIEE
 #
-# Hypothèse de cadrage à signaler explicitement (reprise dans le
-# compte-rendu [Dev] de la tâche) : le rôle COMAEQ (commandant adjoint
-# équipage) n'a PAS de modélisation dédiée dans l'application (page Notion
-# « Organigramme et rôles », section 3 : ligne « Commandants adjoints »
-# marquée 🆕 ; tâche Notion « [CADRAGE @po] Ajouter le niveau des
-# commandants adjoints » encore À faire, avec la mention explicite
-# « Prérequis du circuit de validation des fiches de maintenance » — cette
-# feuille de service a EXACTEMENT le même prérequis manquant). En son
-# absence, le visa « COMAEQ » est ici approximé par le seuil de rôle
-# ETAT_MAJOR sur le NAVIRE de la feuille (n'importe quel membre de
-# l'état-major du bord, pas seulement celui en charge de l'équipage) —
-# seuil configurable comme les deux autres visas (matrix/core/
-# role_thresholds.py, catégorie « Feuille de service »). À corriger pour
-# router précisément vers le COMAEQ le jour où ce niveau existera.
+# Le visa COMAEQ est routé vers le titulaire actif du poste de COMAEQ
+# (org.CommandantAdjoint) du bâtiment et, en double équipage, de l'équipage
+# de la feuille (titulaire_comaeq). Poste vacant : escalade tracée dans
+# l'AuditLog et notifiée au commandant du bâtiment, qui peut viser à la place
+# du COMAEQ ; le commandant en second ne le peut que si le bâtiment lui a
+# confié ce droit (REGISTRE_DROITS_EN_SECOND, "feuille_service_visa_comaeq").
 #
 # Comme pour ListeServiceAbstract, la publication fige un instantané
 # horodaté (VersionFeuilleService) sans jamais réécrire les précédents —
@@ -1107,6 +1099,9 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         }.get(self.statut)
         if verificateur is None:
             return []
+        titulaire = titulaire_comaeq(self) if self.statut == self.STATUT_VISA_COMAEQ else None
+        if titulaire is not None:
+            return [titulaire]
         destinataires = [
             u for u in User.objects.filter(is_active=True, profile__ship_id=self.ship_id)
             .filter(Q() if self.equipage_id is None else Q(profile__equipage_id=self.equipage_id))
@@ -1118,10 +1113,24 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         return destinataires
 
     def _notifier_prochain_visa(self):
+        vacant = self.statut == self.STATUT_VISA_COMAEQ and titulaire_comaeq(self) is None
+        if vacant:
+            # Escalade visible : poste de COMAEQ vacant, le visa remonte au
+            # commandant (et au commandant en second s'il en a reçu le droit).
+            AuditLog.objects.create(
+                actor=None, action="feuille_service_comaeq_vacant",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
+                        "visa escaladé au commandant.",
+            )
         for destinataire in self.validateurs_a_notifier():
             Notification.objects.create(
                 user=destinataire,
-                verb=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) attend votre visa.",
+                verb=(
+                    f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
+                    "elle attend votre visa."
+                    if vacant else
+                    f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) attend votre visa."
+                ),
                 level=NotificationLevel.WARNING,
             )
 
@@ -1498,17 +1507,59 @@ def peut_viser_service(user, feuille):
     return _perimetre_dans_scope_utilisateur(user, None, feuille.service_redacteur, None, None, seuil)
 
 
+def titulaire_comaeq(feuille):
+    """Titulaire actif du poste de COMAEQ du bâtiment et de l'équipage de la
+    feuille, ou None si le poste est vacant : poste non créé, sans titulaire,
+    titulaire désactivé ou n'appartenant plus au bâtiment ni à l'équipage
+    concerné (double équipage : jamais le COMAEQ de l'autre équipage)."""
+    poste = (
+        CommandantAdjoint.objects.filter(
+            ship_id=feuille.ship_id, equipage_id=feuille.equipage_id, sigle=CommandantAdjoint.Sigle.COMAEQ,
+        )
+        .select_related("titulaire__profile")
+        .first()
+    )
+    titulaire = poste.titulaire if poste else None
+    if titulaire is None or not titulaire.is_active:
+        return None
+    profil = getattr(titulaire, "profile", None)
+    if profil is None or profil.navire_id_effectif != feuille.ship_id:
+        return None
+    if feuille.equipage_id and profil.equipage_id != feuille.equipage_id:
+        return None
+    return titulaire
+
+
+def _supervision_du_navire_feuille(user, feuille):
+    """Commandant (ou plus) du bâtiment de la feuille ; l'administrateur
+    général agit sur tous les bâtiments."""
+    if not _est_supervision_globale_feuille(user):
+        return False
+    return user_role_level(user) >= RoleLevel.MASTER_ADMIN or ship_id_for_user(user) == feuille.ship_id
+
+
+def _peut_viser_comaeq_poste_vacant(user, feuille):
+    """Poste de COMAEQ vacant : escalade vers le commandant du bâtiment, et vers
+    le commandant en second seulement si le bâtiment lui a confié ce droit
+    (REGISTRE_DROITS_EN_SECOND) — aucune suppléance implicite."""
+    from org.commandant_en_second import droit_metier_en_second
+    return _supervision_du_navire_feuille(user, feuille) or (
+        ship_id_for_user(user) == feuille.ship_id and droit_metier_en_second(user, "feuille_service_visa_comaeq")
+    )
+
+
 def peut_viser_comaeq(user, feuille):
-    """Approximation du visa COMAEQ (cf. commentaire de section) : n'importe
-    quel membre de l'état-major du navire, en l'absence d'un niveau
-    commandant adjoint dédié dans l'application. Sur un bâtiment à double
-    équipage, seul l'état-major de l'équipage de la feuille peut la viser."""
+    """Visa COMAEQ : réservé au titulaire actif du poste de COMAEQ du bâtiment
+    (de l'équipage de la feuille en double équipage) ; le commandant du
+    bâtiment peut toujours le donner à sa place. Poste vacant : escalade, cf.
+    _peut_viser_comaeq_poste_vacant. Un membre quelconque de l'état-major n'a
+    plus ce droit."""
     if not _dans_mon_equipage(user, feuille):
         return False
-    if _est_supervision_globale_feuille(user):
-        return True
-    seuil = niveau_requis_pour(user, "feuille_service_visa_comaeq")
-    return _perimetre_dans_scope_utilisateur(user, feuille.ship, None, None, None, seuil)
+    titulaire = titulaire_comaeq(feuille)
+    if titulaire is None:
+        return _peut_viser_comaeq_poste_vacant(user, feuille)
+    return titulaire.pk == user.pk or _supervision_du_navire_feuille(user, feuille)
 
 
 def peut_lire_feuille_service(user, feuille):

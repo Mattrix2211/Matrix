@@ -39,6 +39,7 @@ from .models import (
     peut_lire_feuille_service,
     peut_rediger_feuille_service,
     peut_viser_comaeq,
+    titulaire_comaeq,
     peut_viser_secteur,
     peut_viser_service,
     personnel_du_jour,
@@ -185,6 +186,10 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             "peut_viser_comaeq": (
                 feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
                 and peut_viser_comaeq(request.user, feuille)
+            ),
+            "comaeq_titulaire": (
+                titulaire_comaeq(feuille)
+                if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ else None
             ),
             "alertes": etat_alertes(ship, date_, equipage),
             "peut_gerer_alertes": (

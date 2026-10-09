@@ -120,12 +120,6 @@ REGISTRE_ACTIONS = [
         "Feuille de service", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
-        "feuille_service_visa_comaeq",
-        "Viser et publier une feuille de service en tant que COMAEQ (vie à bord, service courant ; approximé "
-        "par l'état-major du navire, cf. quarts/models.py)",
-        "Feuille de service", PORTEE_NAVIRE, RoleLevel.ETAT_MAJOR,
-    ),
-    ActionSeuil(
         "alerte_organisation_validation",
         "Valider une modification de l'organisation sécurité / protection-défense (scénarios d'alerte et postes)",
         "Feuille de service", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
@@ -176,6 +170,11 @@ REGISTRE_DROITS_EN_SECOND = [
     DroitEnSecond(
         "alerte_organisation_validation",
         "Valider une modification de l'organisation sécurité / protection-défense (il en est le chef)",
+        "Feuille de service",
+    ),
+    DroitEnSecond(
+        "feuille_service_visa_comaeq",
+        "Viser et publier la feuille de service quand le poste de COMAEQ est vacant",
         "Feuille de service",
     ),
 ]

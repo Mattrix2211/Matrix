@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import ServiceFunctionChoice, UserProfile
-from org.models import Equipage, Ship
+from org.models import CommandantAdjoint, Equipage, Ship
 from quarts.models import (
     CreneauServiceGarde,
     FeuilleService,
@@ -35,6 +35,8 @@ class FeuilleServiceParEquipageTests(TestCase):
         self.marin_rouge = self._marin("marin_rouge", "EQUIPIER", self.rouge)
         self.comaeq_bleu = self._marin("comaeq_bleu", "ETAT_MAJOR", self.bleu)
         self.comaeq_rouge = self._marin("comaeq_rouge", "ETAT_MAJOR", self.rouge)
+        CommandantAdjoint.objects.create(ship=self.ship, equipage=self.bleu, sigle="COMAEQ", titulaire=self.comaeq_bleu)
+        CommandantAdjoint.objects.create(ship=self.ship, equipage=self.rouge, sigle="COMAEQ", titulaire=self.comaeq_rouge)
         self.url = f"/quarts/feuille-service/{self.ship.pk}/{self.jour.isoformat()}/"
 
     def _marin(self, username, role, equipage):

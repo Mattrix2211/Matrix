@@ -132,8 +132,7 @@ class LectureListesEtFeuilleTests(Base):
         feuille = FeuilleService.objects.create(
             ship=self.ship, date=timezone.localdate(), created_by=self.matelot, updated_by=self.matelot,
         )
-        # Seuil du visa COMAEQ relevé : seul le poste ouvre alors la lecture.
-        RoleThresholdConfig.objects.create(ship=self.ship, thresholds={"feuille_service_visa_comaeq": "COMMANDANT"})
+        # Le second n'est pas titulaire du COMAEQ : seul son poste ouvre la lecture.
         self.assertTrue(peut_lire_feuille_service(self.second, feuille))
         self.poste.delete()
         self.assertFalse(peut_lire_feuille_service(self.second, feuille))
