@@ -12,7 +12,7 @@ class CorrectiveTicketSerializer(serializers.ModelSerializer):
         # PATCH direct sur "status" contournait totalement le contrôle mot de
         # passe de CorrectiveTicketViewSet.transition() (cf. perform_update
         # ci-contre).
-        read_only_fields = ["status"]
+        read_only_fields = ["status", "created_by", "updated_by"]
 
     def validate(self, attrs):
         # Règle « un matériel OU une installation » (CorrectiveTicket.clean) :
@@ -43,3 +43,4 @@ class PartRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = PartRequest
         fields = "__all__"
+        read_only_fields = ["requested_by", "created_by", "updated_by"]

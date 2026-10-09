@@ -1,26 +1,30 @@
 from django.db.models import Q
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
+from django.template.loader import render_to_string
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from assets.models import Asset, AssetDocument
-from logistics.models import CorrectiveTicket
-from logistics.anomalie_views import anomalies_visibles
+from django.views.decorators.http import require_GET, require_POST
+from assets.models import AssetDocument
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.db.models import ProtectedError
 from accounts.models import (
     GradeChoice, SpecialityChoice, ServiceFunctionChoice, FonctionQuartChoice, RoleAvailability, Roles,
-    AuditLog, ResponsableSpecialite,
+    AuditLog, ResponsableSpecialite, UserProfile,
 )
 from assets.models import InstallationBigrameChoice, Installation
-from training.models import TrainingCourse
 from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
+from matrix.core import recherche
+from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
@@ -31,7 +35,7 @@ from matrix.core.modules import (
 )
 
 # Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
-# les 8 rôles, du plus bas (Équipier) au plus haut (Administrateur général) —
+# les 9 rôles, du plus bas (Équipier) au plus haut (Administrateur général) —
 # ordre ascendant de RoleLevel, libellés français repris de Roles.choices.
 _LIBELLE_ROLE = dict(Roles.choices)
 ROLES_POUR_SEUILS = [(niveau.name, _LIBELLE_ROLE.get(niveau.name, niveau.name)) for niveau in RoleLevel]
@@ -71,6 +75,23 @@ def _lignes_modules(ship_id):
     ]
 
 
+def _lignes_equipage(navire, utilisateur):
+    """Données de l'onglet Équipage des Réglages : équipage à bord, équipages connus, marins sans équipage."""
+    if navire is None:
+        return {'equipage_ship': None}
+    codes = UserProfile.objects.filter(ship=navire).exclude(equipage='').values_list(
+        'equipage', flat=True).distinct().order_by('equipage')
+    releve = releve_en_attente(navire)
+    return {
+        'equipage_ship': navire,
+        'equipage_codes': list(codes),
+        'equipage_sans': list(marins_sans_equipage(navire)),
+        'releve': releve,
+        'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
+        'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
+    }
+
+
 @login_required
 def global_search(request):
     # Recherche globale réservée aux utilisateurs connectés, restreinte à leur
@@ -93,42 +114,25 @@ def global_search(request):
     # quotidien en premier.
     q = request.GET.get('q', '').strip()
     perimetre = scope_filters_for_user(request.user)
-    perimetre_tickets = Q()
-    for cle, valeur in perimetre.items():
-        perimetre_tickets |= Q(**{f"asset__{cle}": valeur}) | Q(**{f"installation__{cle}": valeur})
     perimetre_documents = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
     perimetre_users = {f"profile__{cle}": valeur for cle, valeur in perimetre.items()}
     assets = tickets = users = installations = formations = documents = []
     anomalies = ronde_modeles = rondes = echanges = []
     if q:
-        assets = Asset.objects.filter(**perimetre).filter(
-            Q(internal_id__icontains=q) | Q(serial_number__icontains=q)
-        )[:20]
-        tickets = CorrectiveTicket.objects.filter(perimetre_tickets).filter(
-            Q(description__icontains=q) | Q(id__icontains=q)
-        )[:20]
-        users = User.objects.filter(**perimetre_users).filter(
-            Q(username__icontains=q) | Q(email__icontains=q)
-        )[:20]
-        installations = Installation.objects.select_related('ship', 'service', 'sector').filter(**perimetre).filter(
-            Q(designation__icontains=q) | Q(reference__icontains=q)
-        )[:20]
-        # Formation : fiche UNIQUE et globale (pas de rattachement navire, cf.
-        # TrainingCourse et TrainingCourseListView) — même filtre "catalogue
-        # actif" que la liste des formations, aucun périmètre supplémentaire à
-        # appliquer puisque le référentiel est déjà commun à toute la flotte.
-        formations = TrainingCourse.objects.filter(statut_validation="ACTIVE").filter(
-            Q(title__icontains=q) | Q(category__icontains=q)
-        )[:20]
+        # Matériels, installations, tickets, anomalies, formations : mêmes
+        # requêtes que la recherche rapide de la barre supérieure.
+        assets = recherche.materiels(request.user, q)[:20]
+        tickets = recherche.tickets(request.user, q)[:20]
+        installations = recherche.installations(request.user, q)[:20]
+        formations = recherche.formations(request.user, q)[:20]
+        anomalies = recherche.anomalies(request.user, q)[:20]
+        # Sans périmètre, seul un maître voit tout : jamais toute la flotte par défaut.
+        if perimetre_users or is_master_admin(request.user):
+            users = User.objects.filter(**perimetre_users, is_active=True).filter(
+                Q(username__icontains=q) | Q(email__icontains=q)
+            )[:20]
         documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
             Q(name__icontains=q)
-        )[:20]
-        # Anomalies : périmètre propre à l'app logistics (pas
-        # scope_filters_for_user) — un équipier voit ses signalements +ceux de
-        # sa section, un chef voit tout son périmètre + les siens — même
-        # fonction que la liste des anomalies (AnomalieListView).
-        anomalies = anomalies_visibles(request.user).filter(
-            Q(titre__icontains=q) | Q(description__icontains=q) | Q(localisation__icontains=q)
         )[:20]
         # Rondes : périmètre "couvrant" propre à l'app rondes (un chef de
         # secteur/service/navire voit aussi ce qui est en dessous de lui) —
@@ -158,10 +162,34 @@ def global_search(request):
     })
 
 
+@login_required
+@require_GET
+def recherche_rapide(request):
+    """Résultats de la recherche rapide de la barre supérieure (fragment htmx)."""
+    terme = recherche.normaliser(request.GET.get('q'))
+    groupes = recherche.rechercher(request.user, terme) if terme else []
+    # Sans la requête : le fragment n'a pas besoin des processeurs de contexte (requêtes en moins).
+    return HttpResponse(render_to_string('components/_recherche_resultats.html', {
+        "terme": terme, "groupes": groupes,
+        "nombre": sum(len(g["resultats"]) for g in groupes),
+        "trop_court": not terme,
+    }))
+
+
+@require_POST
 def logout_then_login(request):
-    # Déconnexion simple puis redirection immédiate vers la page de connexion
+    # Déconnexion en un clic (POST + CSRF : un simple lien ne peut pas déconnecter
+    # quelqu'un à son insu), puis redirection vers la page de connexion. La session
+    # est vidée, y compris le bâtiment courant : poste partagé.
+    # Le navigateur ne fait que demander le retour à la page quittée (« next ») : seul le serveur
+    # constate l'expiration, qui est alors tracée et annoncée sur la page de connexion.
+    expire = request.user.is_authenticated and session_expiree(request)
+    if expire:
+        tracer_expiration(request.user)
+    suivant = request.POST.get('next')
+    cible = url_connexion(request, expire, suivant) if (expire or suivant) else '/login/'
     logout(request)
-    return redirect('/login/')
+    return redirect(cible)
 
 
 class SettingsView(LoginRequiredMixin, View):
@@ -187,6 +215,17 @@ class SettingsView(LoginRequiredMixin, View):
         # navire comme n'importe quel autre seuil de l'onglet Sécurité.
         return user_role_level(user) >= niveau_requis_pour(user, 'module_gestion')
 
+    @staticmethod
+    def _peut_voir_equipage(user):
+        # Onglet Équipage : commandant, son second et administrateur d'unité d'un bâtiment à double équipage.
+        if is_master_admin(user):
+            return True
+        profil = getattr(user, 'profile', None)
+        navire = profil.ship if profil else None
+        return bool(
+            navire and navire.double_equipage and profil.role in (*ROLES_COMMANDEMENT, Roles.ADMIN_NAVIRE)
+        )
+
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             # Seules les sections "Notification quotidienne" (réglage personnel
@@ -200,16 +239,17 @@ class SettingsView(LoginRequiredMixin, View):
             # accessibles aux non-superusers. Le reste des Réglages
             # (référentiels globaux, navires, hiérarchie, journal...) reste
             # réservé aux comptes techniques superuser Django (MASTER_ADMIN).
-            from django.http import HttpResponseForbidden
             profile = getattr(request.user, 'profile', None)
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
+            peut_voir_equipage = self._peut_voir_equipage(request.user)
             tab = request.GET.get('tab', 'generale')
             tab_ok = request.method == 'GET' and (
                 tab == 'notifications'
+                or (tab == 'equipage' and peut_voir_equipage)
                 or (tab == 'seuils_role' and est_admin_navire)
-                or (tab == 'utilisateurs' and peut_gerer_responsables)
+                or (tab in ('utilisateurs', 'responsables') and peut_gerer_responsables)
                 or (tab == 'modules' and peut_gerer_modules)
             )
             action = request.POST.get('action')
@@ -230,8 +270,13 @@ class SettingsView(LoginRequiredMixin, View):
             action_module_ok = (
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
-            if not (tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok):
-                return HttpResponseForbidden()
+            # Le droit des commandants est revérifié dans post().
+            action_equipage_ok = request.method == 'POST' and action in ACTIONS_RELEVE
+            if not (
+                tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
+                or action_equipage_ok
+            ):
+                raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
@@ -254,11 +299,14 @@ class SettingsView(LoginRequiredMixin, View):
             est_admin_navire = bool(profile and profile.role == 'ADMIN_NAVIRE')
             peut_gerer_responsables = self._peut_gerer_responsables(request.user)
             peut_gerer_modules = self._peut_gerer_modules(request.user)
+            peut_voir_equipage = self._peut_voir_equipage(request.user)
             active_tab = 'notifications'
-            if tab == 'seuils_role' and est_admin_navire:
+            if tab == 'equipage' and peut_voir_equipage:
+                active_tab = 'equipage'
+            elif tab == 'seuils_role' and est_admin_navire:
                 active_tab = 'seuils_role'
-            elif tab == 'utilisateurs' and peut_gerer_responsables:
-                active_tab = 'utilisateurs'
+            elif tab in ('utilisateurs', 'responsables') and peut_gerer_responsables:
+                active_tab = 'responsables'
             elif tab == 'modules' and peut_gerer_modules:
                 active_tab = 'modules'
             context = {
@@ -268,7 +316,15 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_gerer_seuils': est_admin_navire,
                 'peut_gerer_responsables': peut_gerer_responsables,
                 'peut_gerer_modules': peut_gerer_modules,
+                'peut_voir_equipage': peut_voir_equipage,
             }
+            if active_tab == 'equipage' and is_master_admin(request.user):
+                # Administrateur général de rôle : choix d'un navire à double équipage.
+                navires = Ship.objects.filter(double_equipage=True).order_by('name')
+                choisi = navires.filter(pk=request.GET.get('ship') or None).first() or navires.first()
+                context.update({'ships': navires, **_lignes_equipage(choisi, request.user)})
+            elif active_tab == 'equipage':
+                context.update(_lignes_equipage(profile.ship, request.user))
             if active_tab == 'seuils_role':
                 mon_ship_id = ship_id_for_user(request.user)
                 context.update({
@@ -284,7 +340,7 @@ class SettingsView(LoginRequiredMixin, View):
                     'modules_ship': Ship.objects.filter(pk=mon_ship_id).first(),
                     'modules_lignes': _lignes_modules(mon_ship_id),
                 })
-            if active_tab == 'utilisateurs':
+            if active_tab == 'responsables':
                 # Seules les données nécessaires à la désignation de
                 # responsables transverses sont exposées ici (pas les
                 # référentiels Grades/Fonctions/Rôles, qui restent réservés au
@@ -369,6 +425,9 @@ class SettingsView(LoginRequiredMixin, View):
             'peut_gerer_seuils': True,
             'peut_gerer_responsables': True,
             'peut_gerer_modules': True,
+            'peut_voir_equipage': True,
+            'inactivite_delai_minutes': delai_inactivite() // 60,
+            'inactivite_preavis_secondes': delai_avertissement(),
             # Responsables transverses (dashboards par spécialité / par classe de
             # navire, tâche Notion « Dashboards transverses par spécialité et par
             # classe de navire ») : rôle indépendant de la hiérarchie Navire →
@@ -398,6 +457,8 @@ class SettingsView(LoginRequiredMixin, View):
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
             })
+        if tab == 'equipage':
+            context.update(_lignes_equipage(selected_ship, request.user))
         if tab == 'modules':
             # MASTER_ADMIN choisit le navire à configurer, même sélecteur que
             # l'onglet Sécurité ci-dessus (selected_ship).
@@ -751,6 +812,39 @@ class SettingsView(LoginRequiredMixin, View):
                         f"Module « {module_info.libelle} » "
                         f"{'activé' if etat.active else 'désactivé'} pour {ship.name}.",
                     )
+        elif action in ACTIONS_RELEVE:
+            # Relève : proposée par un commandant, appliquée à la validation de l'autre.
+            next_tab = 'equipage'
+            if is_master_admin(request.user):
+                navire = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+            else:
+                navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
+            if navire is None:
+                raise PermissionDenied
+            proposition = releve_en_attente(navire)
+            if action == 'proposer_releve':
+                nouvel = (request.POST.get('equipage') or '').strip()
+                connu = UserProfile.objects.filter(ship=navire, equipage=nouvel).exists()
+                if not connu:
+                    erreur = "Équipage inconnu sur cette unité."
+                else:
+                    proposition, erreur = proposer_releve(request.user, navire, nouvel)
+                succes = "Relève proposée : l'autre commandant doit la valider."
+            elif proposition is None:
+                erreur, succes = "Aucune relève en attente.", ""
+            elif action == 'annuler_releve':
+                erreur, succes = annuler_releve(request.user, proposition), "Proposition annulée."
+            elif action == 'valider_releve_secours':
+                erreur = valider_releve_secours(request.user, proposition, request.POST.get('motif'))
+                succes = f"Relève validée en secours : l'équipage {proposition.equipage_propose} est à bord de {navire.name}."
+            else:
+                accepter = request.POST.get('decision') == 'valider'
+                erreur = decider_releve(request.user, proposition, accepter)
+                succes = f"Relève validée : l'équipage {proposition.equipage_propose} est à bord de {navire.name}." if accepter else "Relève refusée."
+            if erreur:
+                messages.error(request, erreur)
+            else:
+                messages.success(request, succes)
         elif action == 'update_notification_time':
             val = (request.POST.get('notification_time') or '').strip()
             val_soir = (request.POST.get('notification_time_soir') or '').strip()
@@ -760,7 +854,6 @@ class SettingsView(LoginRequiredMixin, View):
                 t_soir = datetime.strptime(val_soir, '%H:%M').time()
                 profile = getattr(request.user, 'profile', None)
                 if profile is None:
-                    from accounts.models import UserProfile, Roles
                     profile = UserProfile.objects.create(user=request.user, role=Roles.EQUIPIER)
                 profile.notification_time = t
                 profile.notification_time_soir = t_soir
@@ -770,6 +863,8 @@ class SettingsView(LoginRequiredMixin, View):
             except Exception:
                 messages.error(request, "Heure invalide (format HH:MM).")
                 next_tab = 'notifications'
+        if action in ('add_responsable_specialite', 'retirer_responsable_specialite', 'add_responsable_classe', 'retirer_responsable_classe'):
+            next_tab = 'responsables'
         # Conserve le navire sélectionné lors de la redirection
         suffix_parts = []
         if selected_ship_id:

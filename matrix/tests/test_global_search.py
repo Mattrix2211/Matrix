@@ -182,6 +182,29 @@ class GlobalSearchViewTests(TestCase):
         self.assertIn(self.marin, users)
         self.assertNotIn(self.autre_marin, users)
 
+    def test_utilisateur_sans_rattachement_ne_voit_aucune_personne(self):
+        orphelin = User.objects.create_user(username="orphelin_cible", password="pass")
+        UserProfile.objects.filter(user=orphelin).update(role="EQUIPIER")
+        self.client.login(username="orphelin_cible", password="pass")
+        response = self.client.get(self.url, {"q": "cible"})
+        self.assertEqual(list(response.context["users"]), [])
+
+    def test_maitre_voit_toutes_les_personnes(self):
+        User.objects.create_superuser(username="maitre_cible", password="pass", email="m@navy.fr")
+        self.client.login(username="maitre_cible", password="pass")
+        users = list(self.client.get(self.url, {"q": "cible"}).context["users"])
+        self.assertIn(self.marin, users)
+        self.assertIn(self.autre_marin, users)
+
+    def test_compte_desactive_absent_des_personnes(self):
+        User.objects.filter(pk=self.marin.pk).update(is_active=False)
+        # Le compte désactivé ne peut plus se connecter : on cherche depuis un collègue du navire A.
+        collegue = User.objects.create_user(username="collegue_cible", password="pass")
+        UserProfile.objects.filter(user=collegue).update(role="EQUIPIER", ship=self.navire_a)
+        self.client.login(username="collegue_cible", password="pass")
+        users = list(self.client.get(self.url, {"q": "marin_cible"}).context["users"])
+        self.assertNotIn(self.marin, users)
+
     def test_recherche_ne_renvoie_que_les_installations_du_perimetre(self):
         self.client.login(username="marin_cible", password="pass")
         response = self.client.get(self.url, {"q": "CIBLE"})

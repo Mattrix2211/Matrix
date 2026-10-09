@@ -1,11 +1,12 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from rest_framework import viewsets, permissions
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import Thread, Message, Attachment
 from .serializers import ThreadSerializer, MessageSerializer, AttachmentSerializer
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import IsAuthorOrReadOnly, RolePermission
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -40,11 +41,10 @@ def _filtre_perimetre_threads(user, prefix=""):
     Attachment ("message__thread__"), qui ne portent pas eux-mêmes le
     content_type/object_id mais y accèdent via leur fil.
 
-    Si l'utilisateur n'a pas de périmètre défini (ex. administrateur
-    général), renvoie None : aucun filtre à appliquer, même convention que
-    scope_filters_for_user()."""
+    Sans périmètre défini : None (aucun filtre) pour un MASTER_ADMIN, aucun
+    résultat pour les autres."""
     if not scope_filters_for_user(user):
-        return None
+        return None if is_master_admin(user) else Q(pk__in=[])
     # Import différé : évite tout risque de cycle d'import au chargement du
     # module (logistics/maintenance n'importent jamais threads.views).
     from logistics.models import CorrectiveTicket
@@ -62,7 +62,12 @@ def _filtre_perimetre_threads(user, prefix=""):
     )
 
 
-class ThreadViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+def _fil_dans_perimetre(user, thread):
+    filtre = _filtre_perimetre_threads(user)
+    return filtre is None or Thread.objects.filter(filtre, pk=thread.pk).exists()
+
+
+class ThreadViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Thread.objects.all()
     serializer_class = ThreadSerializer
     permission_classes = [RolePermission]
@@ -93,7 +98,18 @@ class MessageViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user, prefix="thread__")
 
+    def perform_create(self, serializer):
+        if not _fil_dans_perimetre(self.request.user, serializer.validated_data["thread"]):
+            raise ValidationError({"thread": "Fil hors de votre périmètre."})
+        serializer.save(author=self.request.user, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
     def perform_destroy(self, instance):
+        # Un message système est une trace automatique : jamais supprimable.
+        if instance.is_system:
+            raise PermissionDenied("Un message système ne peut pas être supprimé.")
         # Suppression d'un message d'une discussion : action sensible (un
         # message peut porter une décision ou une consigne), tracée dans le
         # journal transverse — cf. tâche Notion « Unifier les modèles
@@ -111,3 +127,9 @@ class AttachmentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
 
     def get_scoped_filters(self):
         return _filtre_perimetre_threads(self.request.user, prefix="message__thread__")
+
+    def perform_create(self, serializer):
+        message = serializer.validated_data["message"]
+        if message.author_id != self.request.user.pk or not _fil_dans_perimetre(self.request.user, message.thread):
+            raise ValidationError({"message": "Vous ne pouvez joindre un fichier qu'à votre propre message."})
+        serializer.save(created_by=self.request.user)

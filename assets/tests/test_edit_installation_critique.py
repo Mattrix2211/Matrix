@@ -20,7 +20,7 @@ class EditInstallationCritiqueTests(TestCase):
         self.sector = Sector.objects.create(name="Sec C", service=self.service)
 
         self.chef = User.objects.create_user(username="chef_critique", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
 
         self.installation = Installation.objects.create(
             designation="Compresseur", ship=self.ship, service=self.service, sector=self.sector,

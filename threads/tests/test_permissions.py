@@ -7,8 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 
 class ThreadPermissionTests(TestCase):
     def test_only_author_can_update_message(self):
-        user1 = User.objects.create_user(username="u1", password="pass")
-        user2 = User.objects.create_user(username="u2", password="pass")
+        user1 = User.objects.create_superuser(username="u1", password="pass")
+        user2 = User.objects.create_superuser(username="u2", password="pass")
         client = APIClient()
 
         # Création d'une discussion (rattachée à n'importe quel modèle, ex. User)

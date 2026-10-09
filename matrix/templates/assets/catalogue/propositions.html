@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load icones %}
+{% block title %}Propositions d'articles{% endblock %}
+{% block content %}
+<div class="mx-cat-entete">
+  <h1 class="h3 mb-0">Propositions d'articles au catalogue</h1>
+  <div class="mx-cat-commandes">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'catalogue' %}">{% icone "catalogue" %} Catalogue</a>
+    {% if peut_proposer and not equipage_a_terre %}<a class="btn btn-primary btn-sm" href="{% url 'catalogue-proposition-nouvelle' %}">{% icone "ajout" %} Proposer un article</a>{% endif %}
+  </div>
+</div>
+
+<section class="mx-surface mb-3" aria-labelledby="titre-a-viser">
+  <h2 class="mx-surface__titre" id="titre-a-viser">À viser</h2>
+  {% include "assets/catalogue/_propositions_liste.html" with liste=a_viser vide="Aucune proposition n'attend votre visa." %}
+</section>
+<section class="mx-surface mb-3" aria-labelledby="titre-mes">
+  <h2 class="mx-surface__titre" id="titre-mes">Mes propositions</h2>
+  {% include "assets/catalogue/_propositions_liste.html" with liste=mes_propositions vide="Vous n'avez proposé aucun article." %}
+</section>
+{% if autres %}
+<section class="mx-surface" aria-labelledby="titre-suivi">
+  <h2 class="mx-surface__titre" id="titre-suivi">Suivi de mon périmètre</h2>
+  {% include "assets/catalogue/_propositions_liste.html" with liste=autres vide="" %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,69 @@
+{% load icones composants %}{# Fragment remplacé par la recherche instantanée (HTMX). #}
+{% if q %}
+  <p class="text-secondary small" role="status">{{ articles|length }} article{{ articles|length|pluralize }} pour « {{ q }} »{% if specialite %} · {{ specialite.name }}{% endif %}</p>
+{% else %}
+  <nav aria-label="Fil d'Ariane" class="mx-cat-ariane">
+    <ol class="breadcrumb">
+      {% if chemin %}<li class="breadcrumb-item"><a href="{% url 'catalogue' %}">Catalogue</a></li>{% else %}<li class="breadcrumb-item active" aria-current="page">Catalogue</li>{% endif %}
+      {% for c in chemin %}<li class="breadcrumb-item{% if forloop.last %} active" aria-current="page">{{ c.nom }}{% else %}"><a href="{% url 'catalogue' %}?categorie={{ c.pk }}">{{ c.nom }}</a>{% endif %}</li>{% endfor %}
+    </ol>
+  </nav>
+  {% if categorie %}
+  <p class="mx-cat-sous-titre">{{ categorie.specialite.name }}
+    {% if peut_modifier and not equipage_a_terre %}
+      <a class="btn btn-sm btn-link" href="{% url 'catalogue-categorie-modifier' categorie.pk %}">{% icone "modification" %} Modifier la catégorie</a>
+      <form method="post" action="{% url 'catalogue-categorie-archiver' categorie.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link text-danger">Archiver</button></form>
+    {% endif %}
+  </p>
+  {% endif %}
+{% endif %}
+
+{% if tuiles %}
+<div class="mx-cat-grille">
+  {% for t in tuiles %}
+  <a class="mx-carte mx-carte--interactive mx-cat-tuile" href="{% url 'catalogue' %}?categorie={{ t.pk }}">
+    {% if t.photo %}<img class="mx-cat-tuile__photo" src="{{ t.photo.url }}" alt="" loading="lazy">{% else %}<span class="mx-cat-tuile__icone">{% icone t.icone_affichee %}</span>{% endif %}
+    <span class="mx-carte__texte">
+      <span class="mx-carte__titre">{{ t.nom }}</span>
+      <span class="mx-carte__sous-titre">{% if t.nb_sous %}{{ t.nb_sous }} sous-catégorie{{ t.nb_sous|pluralize }} · {% endif %}{{ t.nb_articles }} article{{ t.nb_articles|pluralize }}{% if not specialite %} · {{ t.specialite.name }}{% endif %}</span>
+    </span>
+    <span class="mx-carte__fleche">{% icone "suite" %}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if articles %}
+<div class="mx-cat-grille mx-cat-grille--articles">
+  {% for a in articles %}
+  <a class="mx-carte mx-carte--interactive mx-cat-article" href="{% url 'catalogue-article' a.pk %}">
+    <span class="mx-cat-article__image">{% if a.photo %}<img src="{{ a.photo.url }}" alt="" loading="lazy">{% else %}{% icone "materiel" %}{% endif %}</span>
+    <span class="mx-cat-article__corps">
+      <span class="mx-carte__titre">{{ a.designation }}</span>
+      <span class="mx-carte__sous-titre">{{ a.marque }}{% if a.marque and a.reference %} · {% endif %}{{ a.reference }}</span>
+      {% if q %}<span class="mx-carte__sous-titre">{{ a.categorie.nom }}</span>{% endif %}
+      {% if a.nb_a_bord %}<span class="mx-cat-a-bord">{{ a.nb_a_bord }} à bord</span>{% endif %}
+    </span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not tuiles and not articles %}
+  {% if q %}
+    {% if peut_proposer and not equipage_a_terre %}
+      {% include "components/etat_vide.html" with icone="recherche" titre="Aucun article trouvé" texte="Absent du catalogue ? Proposez-le : il sera visé puis publié pour toute la flotte." url=url_proposer libelle="Proposer cet article" %}
+    {% else %}
+      {% include "components/etat_vide.html" with icone="recherche" titre="Aucun article trouvé" texte="Essayez une autre désignation, une marque, un modèle ou un NNO." %}
+    {% endif %}
+  {% elif categorie %}
+    {% if peut_creer_article and not equipage_a_terre %}
+      {% url 'catalogue-article-nouveau' as url_nouveau %}{% with url_vide=url_nouveau|add:'?categorie='|add:categorie_id %}
+      {% include "components/etat_vide.html" with icone="materiel" titre="Cette catégorie est vide" texte="Ajoutez le premier article de la catégorie." url=url_vide libelle="Nouvel article" %}{% endwith %}
+    {% else %}
+      {% include "components/etat_vide.html" with icone="materiel" titre="Cette catégorie est vide" texte="Aucun article n'y est encore référencé." %}
+    {% endif %}
+  {% else %}
+    {% include "components/etat_vide.html" with icone="catalogue" titre="Le catalogue est vide" texte="Les responsables de spécialité y référencent le matériel de la flotte." %}
+  {% endif %}
+{% endif %}

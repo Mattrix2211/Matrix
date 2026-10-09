@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load icones %}
+{% block title %}{{ proposition.designation }}{% endblock %}
+{% block content %}
+<nav aria-label="Fil d'Ariane" class="mx-cat-ariane">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'catalogue' %}">Catalogue</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'catalogue-propositions' %}">Propositions</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ proposition.designation }}</li>
+  </ol>
+</nav>
+<h1 class="h3 mb-3">{{ proposition.designation }} <span class="mx-prop-etat mx-prop-etat--{{ proposition.etat }}">{{ proposition.get_etat_display }}</span></h1>
+
+<ol class="mx-frise" aria-label="Étapes de la proposition">
+  {% for etape in frise %}<li class="mx-frise__etape mx-frise__etape--{{ etape.etat }}"{% if etape.etat == "actuelle" %} aria-current="step"{% endif %}>
+    <span class="mx-frise__repere">{% if etape.etat == "faite" %}{% icone "terminee" %}<span class="visually-hidden">Terminée : </span>{% else %}{{ forloop.counter }}{% endif %}</span>
+    <span>{{ etape.libelle }}</span>
+  </li>{% endfor %}
+</ol>
+
+{% if proposition.etat == "refusee" %}
+<div class="alert alert-danger" role="alert"><strong>Renvoyée au rédacteur.</strong> Motif : {{ proposition.motif_refus }}
+  {% if peut_corriger and not equipage_a_terre %}<a class="btn btn-sm btn-primary ms-2" href="{% url 'catalogue-proposition-modifier' proposition.pk %}">{% icone "modification" %} Corriger et soumettre à nouveau</a>{% endif %}
+</div>
+{% elif proposition.etat == "publiee" and proposition.article %}
+<div class="alert alert-success" role="status">{% icone "terminee" %} Publiée au catalogue pour tous les bâtiments.
+  <a class="btn btn-sm btn-primary ms-2" href="{% url 'catalogue-article' proposition.article.pk %}">Voir l'article</a></div>
+{% elif blocage %}
+<div class="alert alert-warning" role="alert">{{ blocage }}</div>
+{% elif valideurs %}
+<p class="text-secondary" role="status">En attente de : {% for u in valideurs %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+{% endif %}
+{% if proposition.etat != "publiee" and proposition.etat != "refusee" %}<p class="text-secondary small">Tant que l'article n'est pas publié, il ne peut pas être utilisé pour équiper un bâtiment.</p>{% endif %}
+
+{% if peut_agir and not equipage_a_terre %}
+<section class="mx-surface mb-3" aria-label="Votre décision">
+  {% if est_verification %}
+  <a class="btn btn-primary" href="{% url 'catalogue-proposition-verifier' proposition.pk %}">{% icone "modification" %} Vérifier et corriger l'article</a>
+  {% else %}
+  <form method="post" action="{% url 'catalogue-proposition-viser' proposition.pk %}" class="d-inline">{% csrf_token %}
+    <input type="hidden" name="etape" value="{{ proposition.etat }}">
+    <button type="submit" class="btn btn-primary">{% icone "terminee" %} Viser</button>
+  </form>
+  {% endif %}
+  <details class="mt-3">
+    <summary>Renvoyer au rédacteur</summary>
+    <form method="post" action="{% url 'catalogue-proposition-refuser' proposition.pk %}" class="mt-2">{% csrf_token %}
+      <input type="hidden" name="etape" value="{{ proposition.etat }}">
+      <label class="form-label" for="motif-refus">Motif (obligatoire)</label>
+      <textarea class="form-control mb-2" id="motif-refus" name="motif" rows="3" required></textarea>
+      <button type="submit" class="btn btn-outline-danger">Renvoyer</button>
+    </form>
+  </details>
+</section>
+{% endif %}
+
+<div class="mx-prop-colonnes">
+  <section class="mx-surface">
+    <h2 class="mx-surface__titre">Article proposé</h2>
+    {% if proposition.photo %}<img class="mx-prop-photo" src="{{ proposition.photo.url }}" alt="">{% endif %}
+    <dl class="mx-prop-fiche">
+      <dt>Catégorie</dt><dd>{{ proposition.categorie.specialite.name }} › {{ proposition.categorie.nom }}</dd>
+      {% if proposition.marque %}<dt>Marque</dt><dd>{{ proposition.marque }}</dd>{% endif %}
+      {% if proposition.reference %}<dt>Modèle / référence</dt><dd>{{ proposition.reference }}</dd>{% endif %}
+      {% if proposition.nno %}<dt>NNO</dt><dd>{{ proposition.nno }}</dd>{% endif %}
+      {% if proposition.duree_vie_mois %}<dt>Durée de vie type</dt><dd>{{ proposition.duree_vie_mois }} mois</dd>{% endif %}
+      {% for cle, valeur in proposition.caracteristiques.items %}<dt>{{ cle }}</dt><dd>{{ valeur }}</dd>{% endfor %}
+      <dt>Origine</dt><dd>{{ proposition.service.name }} · {{ proposition.ship.name }}</dd>
+      <dt>Rédacteur</dt><dd>{{ proposition.created_by.get_full_name|default:proposition.created_by.username }}</dd>
+    </dl>
+  </section>
+  <section class="mx-surface">
+    <h2 class="mx-surface__titre">{% icone "historique" %} Historique</h2>
+    <ol class="mx-prop-historique">
+      {% for e in evenements %}<li>
+        <strong>{{ e.get_action_display }}</strong>{% if e.etape %} · {{ e.get_etape_display }}{% endif %}
+        <span class="text-secondary small">par {{ e.user.get_full_name|default:e.user.username|default:"—" }}, le {{ e.created_at|date:"d/m/Y H:i" }}</span>
+        {% if e.motif %}<div class="small">{{ e.motif }}</div>{% endif %}
+      </li>{% endfor %}
+    </ol>
+  </section>
+</div>
+{% endblock %}

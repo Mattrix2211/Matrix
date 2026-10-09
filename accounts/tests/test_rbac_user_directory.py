@@ -136,9 +136,8 @@ class UserDirectoryRBACTests(TestCase):
         self.autre.profile.refresh_from_db()
         self.assertEqual(self.autre.profile.role, Roles.CHEF_SERVICE)
 
-    def test_admin_navire_peut_attribuer_le_role_master_admin(self):
-        """L'ADMIN_NAVIRE conserve une gestion complète des comptes, y compris
-        l'attribution du rôle MASTER_ADMIN (cf. ManageUsersPermission.MANAGE_MAP)."""
+    def test_admin_navire_ne_peut_pas_attribuer_le_role_master_admin(self):
+        """L'ADMIN_NAVIRE gère les comptes de son navire, jamais jusqu'à MASTER_ADMIN."""
         self.client.login(username="adm1", password="pass")
         r = self.client.post("/users/", {
             "action": "bulk_update_role",
@@ -147,4 +146,4 @@ class UserDirectoryRBACTests(TestCase):
         })
         self.assertEqual(r.status_code, 302)
         self.autre.profile.refresh_from_db()
-        self.assertEqual(self.autre.profile.role, Roles.MASTER_ADMIN)
+        self.assertEqual(self.autre.profile.role, Roles.EQUIPIER)

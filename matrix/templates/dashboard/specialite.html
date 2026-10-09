@@ -131,7 +131,7 @@
         datasets: [{
           label: 'Marins',
           data: {{ repartition_navire_values_json|safe }},
-          backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+          backgroundColor: [matrixCouleur('--signal-ui'), matrixCouleur('--fog'), matrixCouleur('--amber'), matrixCouleur('--signal'), matrixCouleur('--green-tech'), matrixCouleur('--mist')],
         }]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -146,7 +146,7 @@
         datasets: [{
           label: 'Qualifications',
           data: {{ qualifications_chart_values_json|safe }},
-          backgroundColor: ['#20c997', '#ffc107', '#dc3545'],
+          backgroundColor: [matrixCouleur('--green-tech'), matrixCouleur('--amber'), matrixCouleur('--red')],
         }]
       },
       options: { responsive: true, maintainAspectRatio: false }
@@ -161,7 +161,7 @@
         datasets: [{
           label: 'Tickets ouverts',
           data: {{ technique_tickets_chart_values_json|safe }},
-          backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+          backgroundColor: [matrixCouleur('--signal-ui'), matrixCouleur('--fog'), matrixCouleur('--amber'), matrixCouleur('--signal'), matrixCouleur('--green-tech'), matrixCouleur('--mist')],
         }]
       },
       options: { responsive: true, maintainAspectRatio: false }

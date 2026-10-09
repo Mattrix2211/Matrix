@@ -18,14 +18,14 @@
       <div class="modal-body">
         <dl class="row mb-0">
           <dt class="col-5">Date</dt><dd class="col-7 font-mono" id="hoursViewDate">—</dd>
-          <dt class="col-5">Heures</dt><dd class="col-7 font-mono" id="hoursViewHours">—</dd>
+          <dt class="col-5">Compteur total</dt><dd class="col-7 font-mono" id="hoursViewHours">—</dd>
           <dt class="col-5">Visite</dt><dd class="col-7" id="hoursViewVisit">—</dd>
           <dt class="col-5">Utilisateur</dt><dd class="col-7" id="hoursViewUser">—</dd>
         </dl>
         <form method="post" id="hoursDeleteForm" class="d-none">
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_hour_reading" />
-          <input type="hidden" name="tab" value="hours" />
+          <input type="hidden" name="tab" value="mesures" />
           <input type="hidden" name="reading_id" id="hoursDeleteId" />
         </form>
       </div>

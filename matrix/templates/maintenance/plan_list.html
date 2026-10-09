@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 <h1 class="h3 mb-3">Gestion de la maintenance</h1>
 {% include 'maintenance/_gestion_tabs.html' %}
@@ -7,7 +8,7 @@
   <p class="text-muted mb-0">Plans de maintenance préventive de votre périmètre.</p>
   {% if peut_gerer %}
   <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerPlanModal">
-    <i class="bi bi-plus-lg"></i> Nouveau plan
+    {% icone "ajout" %} Nouveau plan
   </button>
   {% endif %}
 </div>
@@ -56,7 +57,7 @@
               data-every-n-days="{{ plan.every_n_days }}" data-expected-duration-min="{{ plan.expected_duration_min }}"
               data-checklist-id="{% if plan.checklist_template %}{{ plan.checklist_template.id }}{% endif %}"
               data-requires-validation="{% if plan.requires_validation %}1{% else %}0{% endif %}">
-              <i class="bi bi-pencil"></i> Modifier
+              {% icone "modification" %} Modifier
             </button>
           </td>
           {% endif %}

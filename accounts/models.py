@@ -3,7 +3,7 @@ from datetime import date, time
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from org.models import Ship, Service, Sector, Section
+from org.models import CommandantAdjoint, Ship, Service, Sector, Section
 from matrix.core.models import TimeStampedModel
 
 User = get_user_model()
@@ -12,11 +12,17 @@ class Roles(models.TextChoices):
     MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général"
     ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité"
     COMMANDANT = "COMMANDANT", "Commandant"
+    COMMANDANT_EN_SECOND = "COMMANDANT_EN_SECOND", "Commandant en second"
     ETAT_MAJOR = "ETAT_MAJOR", "État-major"
     CHEF_SERVICE = "CHEF_SERVICE", "Chef de service"
     CHEF_SECTEUR = "CHEF_SECTEUR", "Chef de secteur"
     CHEF_SECTION = "CHEF_SECTION", "Chef de section"
     EQUIPIER = "EQUIPIER", "Équipier"
+
+class Themes(models.TextChoices):
+    CLAIR = "clair", "Clair"
+    SOMBRE = "sombre", "Sombre"
+
 
 class UserProfile(TimeStampedModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
@@ -25,6 +31,12 @@ class UserProfile(TimeStampedModel):
     specialite = models.CharField(max_length=128, blank=True, default="")
     fonction_service = models.CharField(max_length=128, blank=True, default="")
     matricule = models.CharField(max_length=64, blank=True, default="")
+    # Équipage (« A », « B »…) pour un bâtiment à double équipage ; vide sinon.
+    equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
+    # Fonction de commandant adjoint (rôle État-major) : sert au routage des visas par service.
+    fonction_coma = models.CharField(
+        max_length=16, choices=CommandantAdjoint.choices, blank=True, default="", verbose_name="Fonction de commandant adjoint"
+    )
     date_naissance = models.DateField(null=True, blank=True)
     # Heure du matin : alertes d'échéance (installations) et digest « Ma journée ».
     notification_time = models.TimeField(default=time(8,0))
@@ -32,6 +44,14 @@ class UserProfile(TimeStampedModel):
     # avant de quitter son poste) — distincte de notification_time car elle
     # sert un besoin différent (fin de journée, pas le matin).
     notification_time_soir = models.TimeField(default=time(18,0))
+
+    # Thème d'affichage choisi manuellement par le marin (mode sombre pour l'usage
+    # de nuit, docs/UX.md §17). Clair par défaut.
+    theme = models.CharField(max_length=8, choices=Themes.choices, default=Themes.CLAIR)
+
+    # Barre latérale repliée (docs/UX.md §7) : état mémorisé par marin, et non par
+    # navigateur, car les postes du bord sont partagés. Dépliée par défaut.
+    barre_laterale_repliee = models.BooleanField(default=False)
 
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")

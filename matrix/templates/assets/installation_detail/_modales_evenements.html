@@ -1,4 +1,4 @@
-{# Modales événements: détail + édition, par événement #}
+{% load icones %}{# Modales événements: détail + édition, par événement #}
 {% for ev in events %}
 <div class="modal fade" id="eventDetailModal-{{ ev.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -72,7 +72,7 @@
               </a>
               {% endwith %}
               <button type="button" class="btn btn-sm btn-outline-danger btn-delete-attachment" data-event-id="{{ ev.id }}" data-attachment-id="{{ att.id }}" data-filename="{{ att.filename }}" title="Supprimer">
-                <span class="bi bi-trash"></span>
+                {% icone "suppression" %}
               </button>
             </div>
             {% empty %}

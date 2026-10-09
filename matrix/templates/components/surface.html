@@ -1,0 +1,12 @@
+{% comment %}
+Surface : conteneur neutre, sans survol (docs/UX.md §14).
+Balise : {% load composants %}{% surface titre="..." icone="..." %}...{% fin_surface %}
+Paramètres (tous facultatifs) :
+  titre    : titre de la surface
+  icone    : concept d'icône (matrix/core/icones.py), affiché avant le titre
+  contenu  : HTML du corps (fourni par le bloc de la balise)
+  classes  : classes CSS supplémentaires
+{% endcomment %}{% load icones %}<section class="mx-surface {{ classes }}">
+  {% if titre %}<h2 class="mx-surface__titre">{% if icone %}{% icone icone %} {% endif %}{{ titre }}</h2>{% endif %}
+  <div class="mx-surface__corps">{{ contenu }}</div>
+</section>

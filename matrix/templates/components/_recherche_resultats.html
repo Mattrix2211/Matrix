@@ -1,0 +1,26 @@
+{% load icones %}{# Fragment htmx de la recherche rapide (docs/UX.md §21) : résultats groupés par catégorie. #}
+{% if trop_court %}
+  <p class="mx-recherche__aide" data-nombre="0">Saisissez au moins 2 caractères.</p>
+{% elif groupes %}
+  <div id="recherche-liste" role="listbox" aria-label="Résultats de la recherche" data-nombre="{{ nombre }}">
+    {% for groupe in groupes %}
+      <div role="group" aria-labelledby="recherche-groupe-{{ groupe.cle }}" class="mx-recherche__groupe">
+        <div class="mx-recherche__titre">
+          <h2 id="recherche-groupe-{{ groupe.cle }}" class="mx-recherche__categorie">{% icone groupe.icone %} {{ groupe.libelle }}</h2>
+          {% if groupe.url_liste %}<a role="option" tabindex="-1" class="mx-recherche__voir" href="{{ groupe.url_liste }}" aria-label="Tout voir : {{ groupe.libelle }}">Tout voir {% icone "suite" %}</a>{% endif %}
+        </div>
+        {% for resultat in groupe.resultats %}
+          <{% if resultat.url %}a href="{{ resultat.url }}"{% else %}div aria-disabled="true"{% endif %} role="option" tabindex="-1" class="mx-recherche__resultat">
+            <span class="mx-recherche__libelle">{{ resultat.libelle }}</span>
+            {% if resultat.sous_titre %}<span class="mx-recherche__sous-titre">{{ resultat.sous_titre }}</span>{% endif %}
+          </{% if resultat.url %}a{% else %}div{% endif %}>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  <a class="mx-recherche__pied" href="{% url 'global-search' %}?q={{ terme|urlencode }}">Recherche complète {% icone "suite" %}</a>
+{% else %}
+  <div data-nombre="0">
+    {% include "components/etat_vide.html" with icone="recherche" titre="Aucun résultat" texte="Essayez une désignation, un NNO, un numéro de série ou une référence." %}
+  </div>
+{% endif %}

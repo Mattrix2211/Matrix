@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
+from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse, HttpResponseBadRequest
 from django.db.models import Q
 from datetime import timedelta, datetime
 from org.models import Ship, Service, Sector
@@ -19,6 +20,7 @@ from .models import PersonalEvent
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.scopes import scope_filters_for_user
 from matrix.core.mixins import build_scope_q
+from matrix.core.icones import classe_icone
 from accounts.models import AuditLog
 
 
@@ -448,7 +450,7 @@ _COULEUR_STATUT_MAINTENANCE = {
 }
 _COULEUR_PAR_TYPE = {
     "maintenance":   {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
-    "ticket":        {"backgroundColor": "#fd7e14", "borderColor": "#d96307", "textColor": "#fff"},
+    "ticket":        {"backgroundColor": "#b8500a", "borderColor": "#964008", "textColor": "#fff"},
     "training":      {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
     "personal":      {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
     # Teintes assombries par rapport à un simple "teal"/"pink" Bootstrap : un
@@ -459,6 +461,19 @@ _COULEUR_PAR_TYPE = {
     "ronde":         {"backgroundColor": "#5f3dc4", "borderColor": "#4c2fa0", "textColor": "#fff"},
 }
 
+# Concept d'icône (table centrale matrix/core/icones.py) par type d'événement :
+# le gabarit du calendrier affiche l'icône devant le titre (aucun emoji).
+_CONCEPT_ICONE_PAR_TYPE = {
+    "maintenance": "maintenance",
+    "ticket": "ticket",
+    "training": "formation",
+    "quart": "quart",
+    "service_garde": "garde",
+    "ronde": "ronde",
+    "personal": "personnel",
+}
+
+
 def _couleur_evenement(ev_type, status=None):
     if ev_type == "maintenance" and status in _COULEUR_STATUT_MAINTENANCE:
         return _COULEUR_STATUT_MAINTENANCE[status]
@@ -467,7 +482,7 @@ def _couleur_evenement(ev_type, status=None):
 
 def calendar_events(request):
     if not request.user.is_authenticated:
-        return HttpResponseForbidden()
+        raise PermissionDenied
     start, end = _parse_common_period(request)
     filters = {
         "ship": request.GET.get("ship") or None,
@@ -503,7 +518,7 @@ def calendar_events(request):
         couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
             "id": f"occ-{occ.id}",
-            "title": f"🔧 {occ.titre_affiche}",
+            "title": str(occ.titre_affiche),
             "start": occ.scheduled_for.isoformat(),
             "end": occ.scheduled_for.isoformat(),
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
@@ -532,7 +547,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("ticket")
             events.append({
                 "id": f"tic-{t.pk}",
-                "title": f"🛠 {t.equipement}",
+                "title": str(t.equipement),
                 "start": t.planned_for.isoformat(),
                 "end": t.planned_for.isoformat(),
                 "url": f"/logistics/tickets/{t.pk}/",
@@ -565,7 +580,7 @@ def calendar_events(request):
         couleur = _couleur_evenement("training")
         events.append({
             "id": f"trn-{s.id}",
-            "title": f"📚 {course_title}",
+            "title": str(course_title),
             "start": s.scheduled_at.isoformat(),
             "end": s.scheduled_at.isoformat(),
             "url": "/training/",
@@ -592,7 +607,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("quart")
             events.append({
                 "id": f"qrt-{c.id}",
-                "title": f"⏱ {c.poste}",
+                "title": str(c.poste),
                 "start": c.debut.isoformat(),
                 "end": c.fin.isoformat(),
                 "url": f"/quarts/quart/{c.quart_id}/",
@@ -608,7 +623,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("service_garde")
             events.append({
                 "id": f"svc-{c.id}",
-                "title": f"🛡 {c.poste}",
+                "title": str(c.poste),
                 "start": c.debut.isoformat(),
                 "end": c.fin.isoformat(),
                 "url": f"/quarts/garde/{c.service_garde_id}/",
@@ -621,7 +636,7 @@ def calendar_events(request):
         for ronde in _rondes_a_faire(request.user, start, end):
             events.append({
                 "id": f"rnd-{ronde.id}",
-                "title": f"🧭 {ronde.nom}",
+                "title": str(ronde.nom),
                 "start": ronde.date_prevue.isoformat(),
                 "end": ronde.date_prevue.isoformat(),
                 "url": f"/rondes/{ronde.id}/",
@@ -636,7 +651,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("personal")
             events.append({
                 "id": f"per-{pe.id}",
-                "title": f"📌 {pe.title}",
+                "title": str(pe.title),
                 "start": pe.starts_at.isoformat(),
                 # Sans date de fin renseignée, on retombe sur l'ancien
                 # comportement (événement ponctuel, sans durée) — FullCalendar
@@ -657,12 +672,16 @@ def calendar_events(request):
                 },
                 **couleur,
             })
+    for evenement in events:
+        concept = _CONCEPT_ICONE_PAR_TYPE.get(evenement["extendedProps"]["type"])
+        if concept:
+            evenement["extendedProps"]["icone"] = classe_icone(concept)
     return JsonResponse(events, safe=False)
 
 
 def calendar_event_move(request):
     if not request.user.is_authenticated:
-        return HttpResponseForbidden()
+        raise PermissionDenied
     if request.method != "POST":
         return HttpResponseBadRequest("POST required")
     # permission: CHEF_SECTION+ ou assigné (pour une occurrence)
@@ -676,14 +695,14 @@ def calendar_event_move(request):
         return HttpResponseBadRequest("Invalid date")
     if ev_type == "ticket" and ev_id:
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         try:
             # Le queryset est restreint au périmètre de l'appelant avant la
             # récupération : un ticket hors périmètre n'existe pas pour lui,
             # même s'il en devine l'identifiant.
             t = _perimetre_ticket(CorrectiveTicket.objects.all(), request.user).get(pk=ev_id)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         t.planned_for = new_date
         t.save(update_fields=["planned_for"])
         # Journal d'audit transverse : modification de la planification d'un
@@ -707,10 +726,10 @@ def calendar_event_move(request):
             # l'installation fixe rattachée) — un assigné garde toujours la main
             # sur sa propre occurrence, quel que soit son rôle ou son périmètre.
             if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
-                return HttpResponseForbidden()
+                raise PermissionDenied
             perimetre = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
             if not MaintenanceOccurrence.objects.filter(perimetre, pk=ev_id).exists():
-                return HttpResponseForbidden()
+                raise PermissionDenied
         occ.scheduled_for = new_date
         occ.save(update_fields=["scheduled_for"])
         if not est_assigne:
@@ -732,14 +751,14 @@ def calendar_event_move(request):
         # ci-dessus, cf. tâche Notion « Formation unique et portable entre
         # navires »).
         if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         try:
             # Le queryset est restreint au périmètre de l'appelant avant la
             # récupération : une session hors périmètre n'existe pas pour lui,
             # même s'il en devine l'identifiant.
             s = _perimetre_session(TrainingSession.objects.all(), request.user).get(pk=ev_id)
         except TrainingSession.DoesNotExist:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         # Utiliser l'heure fournie si présente, sinon 09:00 locale
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         s.scheduled_at = aware_dt
@@ -758,7 +777,7 @@ def calendar_event_move(request):
             # dérogation de rôle possible, contrairement aux autres types.
             pe = PersonalEvent.objects.get(pk=ev_id, owner=request.user)
         except PersonalEvent.DoesNotExist:
-            return HttpResponseForbidden()
+            raise PermissionDenied
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         champs_modifies = ["starts_at"]
         # Date de fin optionnelle : envoyée par le redimensionnement par

@@ -1,4 +1,4 @@
-"""Matrice de tests de permissions par rôle x ressource (les 8 niveaux de rôle).
+"""Matrice de tests de permissions par rôle x ressource (tous les niveaux de rôle).
 
 Tâche Notion « Matrice de tests de permissions par rôle × ressource » (Phase 0
 - Assainissement) : construit une suite systématique couvrant, pour les
@@ -308,7 +308,7 @@ class InstallationMaintenanceMatriceTests(MatricePermissionsTestCase):
     def test_modification_maintenance(self):
         def executer(client, role):
             m = InstallationMaintenance.objects.create(
-                installation=self.installation, title=f"Avant modif {role.name}", periodicity="M",
+                installation=self.installation, title=f"Avant modif {role.name}", periodicity=f"Tous les {role.name}",
             )
             r = client.post(f"/installations/{self.installation.id}/", {
                 "action": "edit_maintenance", "maintenance_id": str(m.id),

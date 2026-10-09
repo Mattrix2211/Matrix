@@ -83,7 +83,7 @@ class AffichageSousDossierTests(TestCase):
     def setUp(self):
         self.ship, self.service, self.sector, self.asset_type = _creer_hierarchie("B")
         self.chef = User.objects.create_user(username="chef_dossier", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
         self.root = AssetFolder.objects.create(name="Racine")
         self.sub = AssetFolder.objects.create(name="SousDossier", parent=self.root)
         self.asset_range = Asset.objects.create(
@@ -124,7 +124,7 @@ class AffichageSousDossierTests(TestCase):
 
 
 class PreRemplissagePerimetreTests(TestCase):
-    """[BUG SEC] point 6 : le formulaire de création de matériel/installation doit
+    """[BUG SEC] point 6 : le formulaire de création d'installation doit
     être pré-rempli avec le périmètre (navire/service/secteur) du chef connecté."""
 
     def setUp(self):
@@ -134,13 +134,6 @@ class PreRemplissagePerimetreTests(TestCase):
             user=self.chef,
             defaults={"role": "CHEF_SERVICE", "ship": self.ship, "service": self.service, "sector": self.sector},
         )
-
-    def test_contexte_liste_materiel_contient_le_perimetre_du_chef(self):
-        self.client.login(username="chef_perimetre", password="pass")
-        r = self.client.get("/assets/")
-        self.assertEqual(r.context["user_ship_id"], self.ship.id)
-        self.assertEqual(r.context["user_service_id"], self.service.id)
-        self.assertEqual(r.context["user_sector_id"], self.sector.id)
 
     def test_contexte_liste_installations_contient_le_perimetre_du_chef(self):
         self.client.login(username="chef_perimetre", password="pass")

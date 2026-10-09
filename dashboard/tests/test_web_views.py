@@ -57,7 +57,7 @@ class EspacePersonnelTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["mes_maintenances"]), [occ])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [occ])
 
     def test_maintenance_assignee_a_un_autre_marin_est_absente_du_contexte(self):
         occ = MaintenanceOccurrence.objects.create(
@@ -68,7 +68,7 @@ class EspacePersonnelTests(TestCase):
         self.client.login(username="marin", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_maintenances"]), [])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [])
 
     def test_maintenances_terminees_ou_annulees_sont_exclues(self):
         occ_terminee = MaintenanceOccurrence.objects.create(
@@ -83,7 +83,7 @@ class EspacePersonnelTests(TestCase):
         self.client.login(username="marin", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_maintenances"]), [])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [])
 
     def test_maintenance_sur_installation_fixe_affiche_le_bon_titre(self):
         occ = MaintenanceOccurrence.objects.create(
@@ -96,7 +96,7 @@ class EspacePersonnelTests(TestCase):
         self.client.login(username="marin", password="pass")
         response = self.client.get(self.url)
 
-        occurrence_affichee = response.context["mes_maintenances"][0]
+        occurrence_affichee = response.context["a_faire"][0]["objet"]
         self.assertIn("Groupe électrogène", occurrence_affichee.titre_affiche)
         self.assertIn("Vidange", occurrence_affichee.titre_affiche)
 
@@ -116,7 +116,7 @@ class EspacePersonnelTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(
-            list(response.context["mes_maintenances"]), [occ_en_retard, occ_planifiee]
+            [e["objet"] for e in response.context["a_faire"]], [occ_en_retard, occ_planifiee]
         )
 
     def test_contexte_contient_les_formations_du_marin_connecte(self):
@@ -188,9 +188,9 @@ class EspacePersonnelTests(TestCase):
         self.client.login(username="marin", password="pass")
         response = self.client.get(self.url)
 
-        self.assertContains(response, "Aucune maintenance ne vous est actuellement assignée.")
-        self.assertContains(response, "Aucune formation ne vous est actuellement programmée.")
-        self.assertContains(response, "Aucune formation validée n'est actuellement enregistrée à votre nom.")
+        self.assertContains(response, "Rien à faire pour le moment")
+        self.assertContains(response, "Aucune formation programmée.")
+        self.assertContains(response, "Aucune formation validée enregistrée à votre nom.")
 
     def test_contexte_contient_les_qualifications_du_marin_connecte(self):
         cours = TrainingCourse.objects.create(title="Sécurité incendie")

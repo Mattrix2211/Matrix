@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load icones composants %}
+{% block title %}Équiper le navire : {{ article.designation }}{% endblock %}
+{% block content %}
+{# Les deux étapes restent dans le formulaire (masquées hors étape) : revenir en arrière ne perd rien. #}
+<form method="post" style="max-width: 760px;" data-brouillon="catalogue:equiper:{{ article.pk }}" data-brouillon-libelle="Équiper le navire : {{ article.designation }}">
+  {% csrf_token %}
+  <input type="hidden" name="etape" value="{{ etape }}">
+  {% assistant titre="Équiper le navire" etapes=etapes etape=etape libelle_final="Créer les exemplaires" %}
+  <div class="mx-carte mx-cat-equiper-article">
+    <span class="mx-carte__texte">
+      <span class="mx-carte__titre">{{ article.designation }}</span>
+      <span class="mx-carte__sous-titre">{{ article.marque }}{% if article.marque and article.reference %} · {% endif %}{{ article.reference }}{% if article.nno %} · NNO {{ article.nno }}{% endif %}</span>
+    </span>
+  </div>
+
+  <div {% if etape != 1 %}hidden{% endif %}>
+    <div class="row g-2 mb-3">
+      <div class="col-sm-4">
+        <label class="form-label" for="quantite">Combien en avez-vous ?</label>
+        <input type="number" class="form-control" id="quantite" name="quantite" min="1" max="{{ quantite_max }}" value="{{ valeurs.quantite }}" required>
+      </div>
+    </div>
+    <div class="row g-2">
+      <div class="col-sm-6">
+        <label class="form-label" for="secteur">Secteur</label>
+        <select class="form-select" id="secteur" name="secteur" required>
+          <option value="">— Choisir —</option>
+          {% for s in secteurs %}<option value="{{ s.pk }}" {% if valeurs.secteur == s.pk|stringformat:'s' %}selected{% endif %}>{% if plusieurs_navires %}{{ s.service.ship.name }} / {% endif %}{{ s.service.name }} / {{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label" for="section">Section (facultatif)</label>
+        <select class="form-select" id="section" name="section">
+          <option value="">— Aucune —</option>
+          {% for s in sections %}<option value="{{ s.pk }}" {% if valeurs.section == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+        <div class="form-text">La liste suit le secteur : validez l'étape après avoir changé de secteur.</div>
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label" for="emplacement">Emplacement (facultatif)</label>
+        <select class="form-select" id="emplacement" name="emplacement">
+          <option value="">— Aucun —</option>
+          {% for e in emplacements %}<option value="{{ e.pk }}" {% if valeurs.emplacement == e.pk|stringformat:'s' %}selected{% endif %}>{% if plusieurs_navires %}{{ e.ship.name }} / {% endif %}{{ e.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  {% if synthese %}
+  <input type="hidden" name="quantite" value="{{ valeurs.quantite }}">
+  <input type="hidden" name="secteur" value="{{ valeurs.secteur }}">
+  <input type="hidden" name="section" value="{{ valeurs.section }}">
+  <input type="hidden" name="emplacement" value="{{ valeurs.emplacement }}">
+  <dl class="mx-synthese">
+    <dt>Exemplaires</dt><dd>{{ synthese.quantite }}</dd>
+    <dt>Navire</dt><dd>{{ synthese.secteur.service.ship.name }}</dd>
+    <dt>Secteur</dt><dd>{{ synthese.secteur.service.name }} / {{ synthese.secteur.name }}</dd>
+    {% if synthese.section %}<dt>Section</dt><dd>{{ synthese.section.name }}</dd>{% endif %}
+    {% if synthese.emplacement %}<dt>Emplacement</dt><dd>{{ synthese.emplacement.name }}</dd>{% endif %}
+  </dl>
+  <ul class="mx-cat-exemplaires">
+    {% for n in exemplaires %}<li>{{ article.designation }} — exemplaire {{ n }}</li>{% endfor %}
+    {% if synthese.quantite > 10 %}<li class="text-secondary">… et {{ synthese.quantite|add:"-10" }} autre{{ synthese.quantite|add:"-10"|pluralize }}</li>{% endif %}
+  </ul>
+  <p class="text-muted small mt-2">Les numéros de série, numéros de bord, emplacements précis et dates se complètent ensuite dans la liste du matériel.</p>
+  {% endif %}
+  {% fin_assistant %}
+</form>
+{% endblock %}

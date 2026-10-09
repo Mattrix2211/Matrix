@@ -1,5 +1,5 @@
 from django.conf import settings
-from rest_framework import viewsets, permissions, decorators, response, status
+from rest_framework import mixins, viewsets, permissions, decorators, response, status
 from rest_framework.views import APIView
 from .models import Notification, PushSubscription
 from .serializers import NotificationSerializer
@@ -7,7 +7,11 @@ from .serializers import NotificationSerializer
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-class NotificationViewSet(viewsets.ModelViewSet):
+class NotificationViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
+):
+    # Pas de création ni de suppression par l'API ; POST sert à mark_all_read
+    http_method_names = ["get", "patch", "post", "head", "options"]
     queryset = Notification.objects.select_related("user").all()
     serializer_class = NotificationSerializer
     permission_classes = [DefaultPermission]

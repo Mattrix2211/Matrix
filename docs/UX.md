@@ -104,6 +104,8 @@ Toute fonctionnalité secondaire est masquée, repliée, ou accessible par un me
 
 Le panneau latéral se ferme toujours sans changer de page.
 
+**Composants** (`matrix/templates/components/`, balises de `matrix/core/balises_composants.py`) : `popover.html`, `menu_contextuel` + `menu_item.html`, `modale`, `panneau_lateral`, `assistant`, `grille` (UX-0.5 : mode d'emploi en tête de `components/grille.html`, logique dans `static/js/grille.js`). Règles communes : Échap ferme chaque niveau, le focus revient au déclencheur, le titre est relié par `aria-labelledby` et toute icône seule porte un `aria-label`. Une seule action principale (`--signal`) par vue : jamais dans un menu `⋯`, et au plus une par modale ou par étape d'assistant. Les actions destructives sont les dernières entrées du menu (rouge). Le contenu d'une modale ou d'un panneau peut se charger par `hx-get` (paramètre `url`). La règle de choix reste celle du §5.2.
+
 ### 5.2 Assistant ou grille : la règle
 
 - **Un objet isolé à créer** → assistant multi-étapes (ou formulaire simple s'il tient en une étape).

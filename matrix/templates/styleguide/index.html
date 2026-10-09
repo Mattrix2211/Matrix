@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load icones %}
+{% block content %}
+<div class="mx-styleguide">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Composants de Matrix</h1>
+      <p class="text-secondary mb-0">Page de référence pour les administrateurs : chaque exemple est le vrai composant, rendu à partir du code affiché.</p>
+    </div>
+    <form method="post" action="{% url 'basculer-theme' %}" class="mx-styleguide__theme">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-outline-secondary">
+        {% if theme_utilisateur == 'sombre' %}<i class="bi bi-sun" aria-hidden="true"></i> Passer en mode clair{% else %}<i class="bi bi-moon-stars" aria-hidden="true"></i> Passer en mode sombre{% endif %}
+      </button>
+      <span class="text-secondary small">Mode actuel : {% if theme_utilisateur == 'sombre' %}sombre{% else %}clair{% endif %}</span>
+    </form>
+  </div>
+
+  <nav class="mx-styleguide__sommaire" aria-label="Sommaire du styleguide">
+    {% for c in composants %}<a href="#composant-{{ c.nom }}">{{ c.titre }}</a>{% endfor %}
+    <a href="#couleurs">Couleurs</a>
+    <a href="#icones">Icônes</a>
+    <a href="#typographies">Typographies</a>
+    <a href="#espacements">Espacements</a>
+  </nav>
+
+  <h2 class="h4 mt-4">Composants</h2>
+  <p class="text-secondary">Code d'appel : un clic dans le cadre sélectionne tout le code, prêt à copier. Les balises en bloc demandent <code>{% verbatim %}{% load composants %}{% endverbatim %}</code>, les icônes <code>{% verbatim %}{% load icones %}{% endverbatim %}</code>.</p>
+
+  {% for c in composants %}
+  <section class="mx-surface mx-styleguide__composant" id="composant-{{ c.nom }}" aria-labelledby="titre-{{ c.nom }}">
+    <h3 class="h5" id="titre-{{ c.nom }}">{{ c.titre }} <code class="mx-styleguide__nom">{{ c.nom }}</code></h3>
+    <div class="row g-3 mb-3">
+      <div class="col-md-6"><strong>Quand l'utiliser</strong><p class="mb-0">{{ c.quand }}</p></div>
+      <div class="col-md-6"><strong>Quand ne pas l'utiliser</strong><p class="mb-0">{{ c.quand_pas }}</p></div>
+    </div>
+    {% for e in c.exemples %}
+    <div class="mx-styleguide__exemple">
+      <h4 class="mx-styleguide__etat">{{ e.libelle }}</h4>
+      <div class="mx-styleguide__rendu">
+        {% if e.formulaire %}<form method="get" action="#composant-{{ c.nom }}">{{ e.rendu }}</form>{% else %}{{ e.rendu }}{% endif %}
+      </div>
+      {% if e.note %}<p class="small text-secondary mb-2">{{ e.note }}</p>{% endif %}
+      {% if e.vue %}<p class="small text-secondary mb-1">Dans la vue : <code>{{ e.vue }}</code></p>{% endif %}
+      <pre class="mx-styleguide__code" tabindex="0" aria-label="Code d'appel : {{ e.libelle }}">{{ e.code }}</pre>
+    </div>
+    {% endfor %}
+    <details class="mx-styleguide__parametres">
+      <summary>Paramètres acceptés ({{ c.parametres|length }})</summary>
+      <table class="table table-sm mb-0">
+        <thead><tr><th scope="col">Paramètre</th><th scope="col">Rôle</th></tr></thead>
+        <tbody>{% for nom, description in c.parametres %}<tr><th scope="row"><code>{{ nom }}</code></th><td>{{ description }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </details>
+  </section>
+  {% endfor %}
+
+  <section class="mx-surface mx-styleguide__composant" id="couleurs" aria-labelledby="titre-couleurs">
+    <h2 class="h4" id="titre-couleurs">Couleurs</h2>
+    <p class="text-secondary">Toutes les couleurs passent par des variables CSS : <code>var(--nom)</code>. La pastille suit le mode actuel ; les deux valeurs sont lues dans <code>matrix.css</code>. Le rouge de texte (<code>--red-texte</code>) et le rouge plein (<code>--red-plein</code>) sont distincts : le premier porte du texte, le second un fond sous du texte blanc.</p>
+    {% for g in groupes_couleurs %}
+    <h3 class="h6 mt-3">{{ g.titre }}</h3>
+    <div class="mx-styleguide__couleurs">
+      {% for c in g.couleurs %}
+      <div class="mx-styleguide__couleur">
+        <span class="mx-styleguide__pastille" style="background: var(--{{ c.nom }})" aria-hidden="true"></span>
+        <span><code>--{{ c.nom }}</code><br><span class="small">{{ c.role }}</span><br><span class="small text-secondary">Clair {{ c.clair }} · Sombre {{ c.sombre }}</span></span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <h3 class="h6 mt-4">Rapports de contraste (WCAG)</h3>
+    <p class="small text-secondary">Calculés à partir des valeurs de <code>matrix.css</code>. Seuil de 4,5:1 pour le texte, 3:1 pour les éléments non textuels. Le verdict est écrit en toutes lettres.</p>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th scope="col">Usage</th><th scope="col">Seuil</th><th scope="col">Mode clair</th><th scope="col">Mode sombre</th></tr></thead>
+        <tbody>
+          {% for l in contrastes %}
+          <tr>
+            <th scope="row" class="fw-normal">{{ l.usage }}<br><code class="small">--{{ l.premier }} sur --{{ l.arriere }}</code></th>
+            <td>{{ l.seuil }}</td>
+            <td>{{ l.clair.valeur }} {% if l.clair.conforme %}{% include "components/badge_etat.html" with etat="ok" libelle="Conforme" %}{% else %}{% include "components/badge_etat.html" with etat="danger" libelle="Insuffisant" %}{% endif %}</td>
+            <td>{{ l.sombre.valeur }} {% if l.sombre.conforme %}{% include "components/badge_etat.html" with etat="ok" libelle="Conforme" %}{% else %}{% include "components/badge_etat.html" with etat="danger" libelle="Insuffisant" %}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mx-surface mx-styleguide__composant" id="icones" aria-labelledby="titre-icones">
+    <h2 class="h4" id="titre-icones">Icônes</h2>
+    <p class="text-secondary">Table <code>matrix/core/icones.py</code> : un concept garde la même icône partout. Appel : <code>{% verbatim %}{% icone "concept" %}{% endverbatim %}</code>. Une icône seule porte toujours une infobulle et un <code>aria-label</code>.</p>
+    <div class="mx-styleguide__icones">
+      {% for concept, classe in icones %}
+      <div class="mx-styleguide__icone">{% icone concept %}<span><code>{{ concept }}</code><br><span class="small text-secondary">{{ classe }}</span></span></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="mx-surface mx-styleguide__composant" id="typographies" aria-labelledby="titre-typographies">
+    <h2 class="h4" id="titre-typographies">Typographies</h2>
+    <p class="text-secondary">Polices auto-hébergées dans <code>static/fonts/</code> (aucune police distante).</p>
+    {% for variable, nom, usage in polices %}
+    <div class="mx-styleguide__police">
+      <span class="small text-secondary"><code>--{{ variable }}</code> · {{ nom }} · {{ usage }}</span>
+      <p class="mx-styleguide__echantillon" style="font-family: var(--{{ variable }})">Le bâtiment appareille à 08 h 30 : 1 248 h de marche, 72 MΩ.</p>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="mx-surface mx-styleguide__composant" id="espacements" aria-labelledby="titre-espacements">
+    <h2 class="h4" id="titre-espacements">Espacements</h2>
+    <p class="text-secondary">Base de 4 px. Appel : <code>var(--s4)</code>.</p>
+    {% for variable, pixels in espacements %}
+    <div class="mx-styleguide__espacement"><code>--{{ variable }}</code><span class="small text-secondary">{{ pixels }} px</span><span class="mx-styleguide__barre" style="width: var(--{{ variable }})" aria-hidden="true"></span></div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

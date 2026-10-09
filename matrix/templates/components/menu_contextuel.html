@@ -1,0 +1,16 @@
+{% comment %}
+Menu contextuel « ⋯ » : actions secondaires uniquement (docs/UX.md §5.1) —
+modifier, imprimer, déplacer, archiver, supprimer. Jamais l'action principale
+de la vue. Se ferme avec Échap ; navigation aux flèches (Bootstrap dropdown).
+Balise : {% load composants %}
+  {% menu_contextuel libelle="Actions sur la pompe P1" %}
+    {% include "components/menu_item.html" with libelle="Imprimer" url="/x/" icone="impression" %}
+  {% fin_menu_contextuel %}
+Paramètres :
+  libelle : nom accessible du bouton, qui dit sur quoi portent les actions (obligatoire)
+  contenu : entrées <li> (fournies par le bloc de la balise)
+  classes : classes CSS supplémentaires
+{% endcomment %}{% load icones %}<div class="dropdown mx-menu {{ classes }}">
+  <button type="button" class="btn btn-sm btn-outline-secondary mx-menu__declencheur" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="{{ libelle }}" title="{{ libelle }}">{% icone "menu_actions" %}</button>
+  <ul class="dropdown-menu dropdown-menu-end">{{ contenu }}</ul>
+</div>

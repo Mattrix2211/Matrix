@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load composants icones %}
+{% block content %}
+<header class="mx-aujourdhui__entete">
+  <h1 class="h3 mb-1">Bonjour {{ salutation }}</h1>
+  <p class="text-muted mb-0">
+    {{ aujourdhui|date:"l j F" }}
+    {% if profil.ship %} · {{ profil.ship.name }}{% endif %}
+    {% if profil.service %} · {{ profil.service.name }}{% endif %}
+  </p>
+</header>
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-7">
+    {% surface titre="À faire" icone="maintenance" %}
+      {% if a_faire %}
+      <div class="mx-aujourdhui__liste">
+        {% for tache in a_faire %}
+          {% if lecture_seule %}
+          <div class="mx-carte mx-carte--action {{ tache.classes }}"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ tache.titre }}</span><span class="mx-carte__contenu">{{ tache.detail }}</span></div></div>
+          {% else %}
+          {% carte_action titre=tache.titre libelle="Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Rien à faire pour le moment" texte="Aucune tâche ne vous attend." %}
+      {% endif %}
+    {% fin_surface %}
+
+    {% if brouillons and not lecture_seule %}
+    <div class="mt-4">
+    {% surface titre="Brouillons à reprendre" icone="modification" %}
+      <div class="mx-aujourdhui__liste">
+        {% for brouillon in brouillons %}
+          {% carte_action titre=brouillon.libelle|default:"Saisie non terminée" libelle="Reprendre" url=brouillon.url %}Modifié le {{ brouillon.updated_at|date:"d/m à H:i" }}{% fin_carte_action %}
+        {% endfor %}
+      </div>
+    {% fin_surface %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    {% surface titre="Ma journée" icone="calendrier" %}
+      {% if journee %}
+      <ol class="mx-journee">
+        {% for point in journee %}
+        <li class="mx-journee__point">
+          <span class="mx-journee__heure">{% if point.heure %}{{ point.heure|date:"H:i" }}{% else %}Journée{% endif %}</span>
+          {% if lecture_seule %}<span class="mx-journee__libelle">{% icone point.icone %} {{ point.libelle }}</span>
+          {% else %}<a href="{{ point.url }}" class="mx-journee__libelle">{% icone point.icone %} {{ point.libelle }}</a>{% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+        {% include "components/etat_vide.html" with icone="calendrier" titre="Rien de prévu aujourd'hui" %}
+      {% endif %}
+    {% fin_surface %}
+  </div>
+</div>
+
+<h2 class="h5 mt-5 mb-3">Informations</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    {% surface titre="Prochaines formations" icone="formation" %}
+      {% for session in mes_formations|slice:":5" %}
+        <div class="mx-aujourdhui__ligne">
+          <span>{{ session.course.title }}{% if session.est_formateur %} <span class="badge bg-info">Formateur</span>{% endif %}</span>
+          <span class="text-muted small font-mono">{{ session.scheduled_at|date:"d/m H:i" }}</span>
+        </div>
+      {% empty %}
+        <p class="text-muted mb-0">Aucune formation programmée.</p>
+      {% endfor %}
+    {% fin_surface %}
+  </div>
+  <div class="col-md-4">
+    {% surface titre="Mes qualifications" icone="formation" %}
+      {% for qualification in mes_qualifications %}
+        <div class="mx-aujourdhui__ligne">
+          <span>{{ qualification.course.title }}</span>
+          <span class="badge {{ qualification.badge_classe }}">{{ qualification.badge_libelle }}</span>
+        </div>
+      {% empty %}
+        <p class="text-muted mb-0">Aucune formation validée enregistrée à votre nom.</p>
+      {% endfor %}
+    {% fin_surface %}
+  </div>
+  <div class="col-md-4">
+    {% surface titre="Mes services de garde" icone="garde" %}
+      <p class="small text-muted mb-2">Listes publiées uniquement : votre situation, en toute transparence.</p>
+      <div class="mx-aujourdhui__ligne mx-aujourdhui__ligne--pile"><span>Ce mois-ci</span>
+        <span class="small">{{ mes_compteurs_equite_garde.mois.semaine }} semaine · {{ mes_compteurs_equite_garde.mois.vendredi }} vendredi · {{ mes_compteurs_equite_garde.mois.weekend }} week-end</span></div>
+      <div class="mx-aujourdhui__ligne mx-aujourdhui__ligne--pile"><span>Cette année</span>
+        <span class="small">{{ mes_compteurs_equite_garde.annee.semaine }} semaine · {{ mes_compteurs_equite_garde.annee.vendredi }} vendredi · {{ mes_compteurs_equite_garde.annee.weekend }} week-end</span></div>
+    {% fin_surface %}
+  </div>
+</div>
+
+{% if supervision %}
+<h2 class="h5 mt-5 mb-3">Supervision</h2>
+{% if supervision.retards_total %}
+  {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}{% fin_attention %}
+{% endif %}
+<div class="row g-3 mt-1 mb-3">
+  <div class="col-6 col-md-3">
+    {% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}
+  </div>
+  <div class="col-6 col-md-3">
+    {% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}
+  </div>
+  <div class="col-6 col-md-3">
+    {% include "components/metric.html" with libelle="Équipements indisponibles" icone="materiel" valeur=supervision.indisponibles etat=supervision.indisponibles|yesno:"danger,ok" %}
+  </div>
+  <div class="col-6 col-md-3">
+    {% include "components/jauge.html" with libelle="Part de maintenances en retard" valeur=supervision.retards_pct etat=supervision.retards_total|yesno:"danger,ok" %}
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    {% surface titre="Retards de l'équipe" icone="retard" %}
+      {% for retard in supervision.retards %}
+        {% if retard.peut_valider and not lecture_seule %}
+          {% carte_action titre=retard.titre libelle="Ouvrir" url=retard.url classes="mx-aujourdhui__tache--danger" %}{{ retard.detail }}{% fin_carte_action %}
+        {% else %}
+          <div class="mx-carte mx-carte--action mx-aujourdhui__tache--danger"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ retard.titre }}</span><span class="mx-carte__contenu">{{ retard.detail }}</span></div></div>
+        {% endif %}
+      {% empty %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Aucun retard" texte="Toutes les maintenances de votre périmètre sont à jour." %}
+      {% endfor %}
+    {% fin_surface %}
+  </div>
+  <div class="col-lg-6">
+    {% surface titre="Validations en attente" icone="maintenance" %}
+      {% for validation in supervision.validations %}
+        {% if validation.peut_valider and not lecture_seule %}
+          {% carte_action titre=validation.titre libelle="Valider" url=validation.url classes="mx-aujourdhui__tache--attention" %}{{ validation.detail }}{% fin_carte_action %}
+        {% else %}
+          <div class="mx-carte mx-carte--action mx-aujourdhui__tache--attention"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ validation.titre }}</span><span class="mx-carte__contenu">{{ validation.detail }}</span></div></div>
+        {% endif %}
+      {% endfor %}
+      {% if supervision.formations_a_valider and not lecture_seule %}
+        {% url 'formation-list' as url_formations %}
+        {% carte_action titre="Formations proposées par le bord" libelle="Examiner" url=url_formations classes="mx-aujourdhui__tache--attention" %}{{ supervision.formations_a_valider }} à examiner{% fin_carte_action %}
+      {% endif %}
+      {% if not supervision.validations_total %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Rien à valider" texte="Aucune validation n'attend votre décision." %}
+      {% endif %}
+    {% fin_surface %}
+  </div>
+</div>
+{% endif %}
+
+{% include "dashboard/_pilotage.html" %}
+{% endblock %}

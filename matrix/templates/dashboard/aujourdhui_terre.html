@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load composants icones %}
+{% block content %}
+<header class="mx-aujourdhui__entete">
+  <h1 class="h3 mb-1">Bonjour {{ salutation }}</h1>
+  <p class="text-muted mb-0">{{ aujourdhui|date:"l j F" }} · Vue de la flotte</p>
+</header>
+
+<div class="mt-4">
+  {% surface titre="À faire" icone="maintenance" %}
+    {% if a_faire %}
+    <div class="mx-aujourdhui__liste">
+      {% for tache in a_faire %}
+        {% carte_action titre=tache.titre libelle=tache.libelle url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
+      {% endfor %}
+    </div>
+    {% else %}
+      {% include "components/etat_vide.html" with icone="terminee" titre="Rien à faire pour le moment" texte="Aucune validation ni aucun ticket n'attend votre intervention." %}
+    {% endif %}
+  {% fin_surface %}
+</div>
+
+<h2 class="h5 mt-5 mb-3">Mes bâtiments</h2>
+<div class="row g-3">
+  {% for carte in cartes %}
+  <div class="col-md-6 col-xl-4">
+    {% if choix_possible %}
+    <form method="post" action="{% url 'choisir-batiment' %}">
+      {% csrf_token %}
+      <input type="hidden" name="batiment" value="{{ carte.batiment.pk }}">
+      <button type="submit" class="mx-carte mx-carte--interactive w-100 text-start">
+        {% include "dashboard/_carte_batiment.html" %}
+        <span class="mx-carte__fleche">{% icone "suite" %}</span>
+      </button>
+    </form>
+    {% else %}
+    <div class="mx-carte">{% include "dashboard/_carte_batiment.html" %}</div>
+    {% endif %}
+  </div>
+  {% empty %}
+    {% include "components/etat_vide.html" with icone="materiel" titre="Aucun bâtiment suivi" texte="Aucun bâtiment n'est rattaché à votre périmètre." %}
+  {% endfor %}
+</div>
+{% endblock %}

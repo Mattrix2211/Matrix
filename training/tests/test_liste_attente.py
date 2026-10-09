@@ -339,7 +339,7 @@ class BoutonReservationApresLiberationTests(TestCase):
         # présent et actionnable, pas seulement « Quitter la liste d'attente ».
         self.client.logout()
         self.client.login(username="marin_bouton_b", password="pass")
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{self.session.course_id}/")
         self.assertContains(r, "Réserver ma place")
         self.assertContains(r, 'value="reserver_session"')
         self.assertContains(r, "Quitter la liste d'attente")
@@ -356,6 +356,6 @@ class BoutonReservationApresLiberationTests(TestCase):
             "action": "reserver_session",
             "session_id": self.session.id,
         })
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{self.session.course_id}/")
         self.assertContains(r, "Quitter la liste d'attente")
         self.assertNotContains(r, "Réserver ma place")

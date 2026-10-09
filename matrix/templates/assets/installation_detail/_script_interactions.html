@@ -1,4 +1,4 @@
-<script>
+{% load icones %}<script>
 (function(){
   function setupCascades(root){
     var shipSel = root.querySelector('select[name="ship_id"]');
@@ -118,7 +118,7 @@
     var row = document.createElement('div'); row.className = 'input-group mb-2';
     row.innerHTML = '<input class="form-control" placeholder="Libellé" value="'+(label||'')+'">'
       + '<input class="form-control" placeholder="Valeur" value="'+(value||'')+'">'
-      + '<button class="btn btn-outline-danger" type="button"><span class="bi bi-trash"></span></button>';
+      + '<button class="btn btn-outline-danger" type="button" aria-label="Supprimer ce champ">{% icone "suppression" %}</button>';
     row.querySelector('button').addEventListener('click', function(){ row.remove(); });
     container.appendChild(row);
   }
@@ -179,7 +179,7 @@
           var icon = document.createElement('span'); icon.className = fileIcon(f.name) + '';
           var text = document.createElement('span'); text.textContent = ' ' + f.name;
           var del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-sm btn-outline-danger p-0 px-1'; del.title = 'Retirer';
-          del.innerHTML = '<span class="bi bi-trash"></span>';
+          del.innerHTML = '{% icone "suppression" %}';
           del.addEventListener('click', function(){
             var inp = hidden.querySelector('input[data-uid="' + uid + '"]');
             if (inp) inp.remove();
@@ -213,7 +213,7 @@
     var active = document.querySelector('#instTabs .nav-link.active');
     if (!active) return '';
     var id = active.id || '';
-    return id.replace('tab-',''); // infos | histo | parts | hours
+    return id.replace('tab-',''); // ensemble | maintenance | mesures | histo | parts
   }
   document.addEventListener('submit', function(e){
     var f = e.target.closest('form');
@@ -232,7 +232,13 @@
     var tab = params.get('tab');
     if (!tab) return;
     var btn = document.getElementById('tab-' + tab);
-    if (btn){ var t = bootstrap.Tab.getOrCreateInstance(btn); t.show(); }
+    if (!btn) return;
+    // Une ancre (#mesures-isolement) mène à la sous-section une fois l'onglet affiché
+    btn.addEventListener('shown.bs.tab', function(){
+      var cible = window.location.hash && document.querySelector(window.location.hash);
+      if (cible) cible.scrollIntoView();
+    }, { once: true });
+    bootstrap.Tab.getOrCreateInstance(btn).show();
   }
   activateTabFromQuery();
 })();

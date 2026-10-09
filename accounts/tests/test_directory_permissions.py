@@ -26,6 +26,10 @@ class AnnuaireUtilisateursPermissionsTests(TestCase):
         r = self.client.get("/users/")
         self.assertEqual(r.status_code, 200)
 
+    def test_role_commandant_en_second_visible_dans_l_annuaire(self):
+        self.client.login(username="cmd_annuaire", password="pass")
+        self.assertContains(self.client.get("/users/"), "Commandant en second")
+
     def test_anonyme_redirige_vers_connexion(self):
         r = self.client.get("/users/")
         self.assertEqual(r.status_code, 302)

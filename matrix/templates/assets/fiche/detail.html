@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load icones %}
+{% block title %}{{ version.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Fil d'Ariane" class="mx-cat-ariane">
+  <ol class="breadcrumb">
+    {% for e in fil %}<li class="breadcrumb-item"><a href="{{ e.url }}">{{ e.libelle }}</a></li>
+    {% endfor %}    <li class="breadcrumb-item active" aria-current="page">Fiche de maintenance</li>
+  </ol>
+</nav>
+{% include "components/fiche_entete.html" with titre=version.name sous_titre=sous_titre badge_libelle=version.get_etat_display badge_etat=badge_etat indicateurs=indicateurs_fiche action=action_fiche version=version_fiche objet=version %}
+
+<p class="text-secondary small mb-3">Version {{ version.numero }}{% if version.valide_le %} validée le {{ version.valide_le|date:"d/m/Y" }}{% endif %}
+  {% if not validee %}· <strong>Aucune version validée : cette fiche ne déclenche aucune maintenance pour l'instant.</strong>{% elif version != validee %}· <a href="{% url 'fiche-detail' fiche.pk %}">Voir la version appliquée (v{{ validee.numero }})</a>{% endif %}</p>
+
+{% if flotte %}<p class="small mb-2"><span class="badge text-bg-info">Fiche flotte</span>
+  {% if fiche.categorie %}Valable pour la catégorie « {{ fiche.categorie.nom }} » et ses sous-catégories, sauf là où une sous-catégorie a sa propre fiche pour cette gamme.
+  {% else %}Valable pour « {{ fiche.equipement }} »{% if fiche.classe_navire %}, classe {{ fiche.classe_navire }}{% endif %} ; chaque navire l'adapte à sa situation.{% endif %}</p>{% endif %}
+{% if origine %}<p class="small mb-2"><span class="badge text-bg-secondary">Adaptation locale</span> Adaptée de la fiche flotte <a href="{% url 'fiche-detail' origine.pk %}">{{ origine.title }}</a> v{{ fiche.origine_numero }}.</p>{% endif %}
+{% if origine_a_examiner %}
+<section class="mx-surface mb-3" aria-label="Fiche flotte modifiée">
+  <h2 class="mx-surface__titre">La fiche flotte a changé</h2>
+  <p>La fiche flotte d'origine est passée en v{{ fiche.origine_en_attente }}. Reprenez-vous les changements ? Votre adaptation reste appliquée tant que vous n'avez pas décidé.</p>
+  <form method="post" action="{% url 'fiche-reprendre' fiche.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-primary">Reprendre les changements</button></form>
+  <form method="post" action="{% url 'fiche-garder' fiche.pk %}" class="d-inline">{% csrf_token %}<button type="submit" class="btn btn-outline-secondary">Garder la mienne</button></form>
+</section>
+{% endif %}
+
+{% if suivie %}
+<section class="mx-surface mb-3" aria-label="Validation de la version {{ suivie.numero }}">
+  <h2 class="mx-surface__titre">Validation de la version {{ suivie.numero }}</h2>
+  {% if suivie.resume_modifications %}<p class="small">Ce qui change : {{ suivie.resume_modifications }}</p>{% endif %}
+  <ol class="mx-frise mx-frise--detail" aria-label="Étapes de validation">
+    {% for etape in frise %}<li class="mx-frise__etape mx-frise__etape--{{ etape.etat }}"{% if etape.etat == "actuelle" %} aria-current="step"{% endif %}>
+      <span class="mx-frise__repere">{% if etape.etat == "faite" %}{% icone "terminee" %}<span class="visually-hidden">Terminée : </span>{% else %}{{ forloop.counter }}{% endif %}</span>
+      <span>{{ etape.libelle }}</span>
+      {% if etape.fonction %}<span class="mx-frise__detail">{{ etape.organisme }} · {{ etape.fonction }}</span>
+      <span class="mx-frise__detail">{{ etape.service }}</span>
+      <span class="mx-frise__detail"><strong>{{ etape.titulaire }}</strong></span>{% endif %}
+    </li>{% endfor %}
+  </ol>
+  {% if suivie.etat == "refusee" %}
+  <div class="alert alert-danger" role="alert"><strong>Renvoyée au rédacteur.</strong> Motif : {{ suivie.motif_refus }}</div>
+  {% elif blocage %}<div class="alert alert-warning" role="alert">{{ blocage }}</div>
+  {% elif valideurs %}<p class="text-secondary" role="status">En attente de : {% for u in valideurs %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}. La version {{ validee.numero|default:"précédente" }} reste appliquée en attendant.</p>{% endif %}
+  {% if peut_agir and not equipage_a_terre %}
+  {% if verification %}<a class="btn btn-primary" href="{% url 'fiche-flotte-verifier' suivie.pk %}">{% icone "modification" %} Vérifier et transmettre</a>
+  {% else %}<form method="post" action="{% url 'fiche-viser' suivie.pk %}" class="d-inline">{% csrf_token %}
+    <input type="hidden" name="etape" value="{{ suivie.etat }}">
+    <button type="submit" class="btn btn-primary">{% icone "terminee" %} Viser</button>
+  </form>{% endif %}
+  <details class="mt-3">
+    <summary>Renvoyer au rédacteur</summary>
+    <form method="post" action="{% url 'fiche-refuser' suivie.pk %}" class="mt-2">{% csrf_token %}
+      <input type="hidden" name="etape" value="{{ suivie.etat }}">
+      <label class="form-label" for="motif-refus">Motif (obligatoire)</label>
+      <textarea class="form-control mb-2" id="motif-refus" name="motif" rows="3" required></textarea>
+      <button type="submit" class="btn btn-outline-danger">Renvoyer</button>
+    </form>
+  </details>
+  {% endif %}
+  {% if comparaison %}{% include "assets/fiche/_comparaison.html" with comparaison=comparaison validee=validee suivie=suivie %}{% endif %}
+</section>
+{% endif %}
+
+<div class="mx-prop-colonnes">
+  <div>
+    {% if version.description %}<section class="mx-surface mb-3"><h2 class="mx-surface__titre">Objet</h2><p class="mb-0">{{ version.description|linebreaksbr }}</p></section>{% endif %}
+
+    <section class="mx-surface mb-3" aria-labelledby="fiche-preparation">
+      <h2 class="mx-surface__titre" id="fiche-preparation">{% icone "piece" %} Préparation</h2>
+      {% regroup preparations by get_type_display as groupes %}
+      {% for groupe in groupes %}
+      <h3 class="h6 mt-2">{{ groupe.grouper }}</h3>
+      <ul>{% for p in groupe.list %}<li>{{ p.libelle }}{% if p.type == "piece" %} × {{ p.quantite }}{% if p.piece %} <span class="text-secondary small">(stock : {{ p.piece.quantite }})</span>{% endif %}{% endif %}</li>{% endfor %}</ul>
+      {% empty %}<p class="text-secondary mb-0">Rien à préparer n'est indiqué.</p>{% endfor %}
+    </section>
+
+    <section class="mx-surface mb-3" aria-labelledby="fiche-methode">
+      <h2 class="mx-surface__titre" id="fiche-methode">{% icone "maintenance" %} Méthodologie</h2>
+      <ol class="mx-fiche-etapes">
+        {% for e in etapes %}<li>{{ e.texte|linebreaksbr }}{% if e.attention %}<div class="alert alert-warning py-2 mt-2 mb-0" role="note"><strong>Attention.</strong> {{ e.attention|linebreaksbr }}</div>{% endif %}</li>
+        {% empty %}<li class="text-secondary">Aucune étape décrite.</li>{% endfor %}
+      </ol>
+    </section>
+
+    <section class="mx-surface mb-3" aria-labelledby="fiche-controles">
+      <h2 class="mx-surface__titre" id="fiche-controles">Contrôles et relevés</h2>
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Type</th><th>Point</th><th>Unité</th><th>Plage attendue</th></tr></thead>
+        <tbody>{% for l in lignes %}<tr>
+          <td>{% if l.field_type == "number" %}Relevé{% else %}Contrôle{% endif %}</td><td>{{ l.label }}</td>
+          <td>{{ l.unit|default:"—" }}</td>
+          <td>{% if l.valeur_min is not None or l.valeur_max is not None %}{% if l.valeur_min is not None %}{{ l.valeur_min|floatformat:"-3" }}{% else %}…{% endif %} à {% if l.valeur_max is not None %}{{ l.valeur_max|floatformat:"-3" }}{% else %}…{% endif %}{% else %}—{% endif %}</td>
+        </tr>{% empty %}<tr><td colspan="4" class="text-secondary">Aucun point défini.</td></tr>{% endfor %}</tbody>
+      </table>
+    </section>
+  </div>
+
+  <div>
+    <section class="mx-surface mb-3" aria-labelledby="fiche-versions">
+      <h2 class="mx-surface__titre" id="fiche-versions">Versions</h2>
+      <ul class="list-unstyled mb-0">
+        {% for v in versions %}<li><a href="?v={{ v.numero }}"{% if v == version %} aria-current="true"{% endif %}>Version {{ v.numero }}</a>
+          <span class="text-secondary small">· {{ v.get_etat_display }}{% if v == validee %} (appliquée){% endif %} · {{ v.redacteur.get_full_name|default:v.redacteur.username|default:"—" }}, {{ v.created_at|date:"d/m/Y" }}</span></li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">{% icone "historique" %} Historique de cette version</h2>
+      <ol class="mx-prop-historique">
+        {% for e in evenements %}<li><strong>{{ e.get_action_display }}</strong>{% if e.etape %} · {{ e.get_etape_display }}{% endif %}
+          <span class="text-secondary small">par {{ e.user.get_full_name|default:e.user.username|default:"—" }}, le {{ e.created_at|date:"d/m/Y H:i" }}</span>
+          {% if e.motif %}<div class="small">{{ e.motif }}</div>{% endif %}</li>
+        {% empty %}<li class="text-secondary">Version reprise de l'existant.</li>{% endfor %}
+      </ol>
+    </section>
+
+    {% if signalements %}
+    <section class="mx-surface mb-3" aria-labelledby="fiche-signalements">
+      <h2 class="mx-surface__titre" id="fiche-signalements">Signalements ouverts ({{ signalements|length }})</h2>
+      <ul class="list-unstyled mb-0">
+        {% for sg in signalements %}<li class="mb-2">{{ sg.texte|linebreaksbr }}
+          <div class="small text-secondary">{{ sg.auteur.get_full_name|default:sg.auteur.username|default:"—" }}, le {{ sg.created_at|date:"d/m/Y" }}{% if sg.version %} · v{{ sg.version.numero }}{% endif %}</div>
+          {% if peut_traiter and not equipage_a_terre %}<a class="btn btn-sm btn-outline-primary mt-1" href="{% if flotte %}{% url 'fiche-flotte-modifier' fiche.pk %}{% else %}{% url 'fiche-modifier' fiche.pk %}{% endif %}?signalement={{ sg.pk }}">Ouvrir une nouvelle version</a>
+          {% endif %}</li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if peut_proposer_flotte %}
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Proposer pour toute la flotte</h2>
+      <p class="small text-secondary">Cette fiche pourrait servir à d'autres navires : proposez-la comme fiche flotte (visas du bord, vérification par le responsable de spécialité, visa de son chef).</p>
+      <a class="btn btn-outline-primary" href="{% url 'fiche-flotte-depuis-bord' fiche.pk %}">Proposer comme fiche flotte</a>
+    </section>
+    {% endif %}
+
+    {% if destinations and not equipage_a_terre %}
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Copier vers une autre installation</h2>
+      <p class="small text-secondary">La copie est indépendante : elle suit le circuit de visas de l'installation choisie.</p>
+      <form method="post" action="{% url 'fiche-dupliquer' fiche.pk %}" class="d-flex gap-2">{% csrf_token %}
+        <label class="visually-hidden" for="destination">Installation de destination</label>
+        <select class="form-select" id="destination" name="installation" required>
+          <option value="">Choisir l'installation…</option>
+          {% for d in destinations %}<option value="{{ d.pk }}">{{ d.designation }} ({{ d.ship.name }})</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-outline-primary">Copier</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

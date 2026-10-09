@@ -1,0 +1,5 @@
+{% load icones %}<span class="mx-carte__texte">
+  <span class="mx-carte__titre">{{ carte.batiment.name }}</span>
+  {% if carte.batiment.classe_navire %}<span class="mx-carte__sous-titre">{{ carte.batiment.classe_navire }}</span>{% endif %}
+  <span class="mx-carte__contenu">{% for badge in carte.badges %}{% include "components/badge_etat.html" with etat=badge.etat libelle=badge.libelle %} {% endfor %}</span>
+</span>

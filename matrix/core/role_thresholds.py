@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from django.core.cache import cache
 
-from .roles import RoleLevel
+from .roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel
 
 PORTEE_NAVIRE = "SHIP"
 PORTEE_GLOBALE = "GLOBALE"
@@ -52,18 +52,28 @@ REGISTRE_ACTIONS = [
         "Matériel mobile", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
-        "installation_ecriture_simple", "Créer ou modifier une installation",
+        "installation_ecriture_simple", "Créer ou modifier une installation, ajouter un document",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
         "installation_gestion_avancee",
-        "Supprimer une installation ou lancer une action groupée",
+        "Supprimer une installation ou un de ses documents, ou lancer une action groupée",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
         "installation_entretien_gestion",
         "Gérer les tâches d'entretien d'une installation (ajout, modification, suppression, pièce jointe)",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "fiche_bord_redaction",
+        "Rédiger ou proposer une nouvelle version d'une fiche de maintenance d'installation (chef de section ou de secteur)",
+        "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
+        "fiche_flotte_proposition",
+        "Proposer une fiche de maintenance flotte (matériel ou installation) ou son adaptation (chef de section ou de secteur)",
+        "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
         "rattachement_parent_gestion",
@@ -96,13 +106,18 @@ REGISTRE_ACTIONS = [
         "Rondes", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "supervision_aujourdhui",
+        "Voir le bloc Supervision (retards, validations, indicateurs du périmètre) de la page Aujourd'hui",
+        "Tableau de bord", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
+    ),
+    ActionSeuil(
         "thread_ecriture", "Créer ou modifier une discussion",
         "Discussions", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
-        "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+        "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,
     ),
     ActionSeuil(
         "referentiel_global_ecriture",

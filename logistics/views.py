@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
-from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from django.contrib.contenttypes.models import ContentType
 from threads.models import Thread, Message
 from matrix.core.permissions import RolePermission
@@ -12,7 +12,7 @@ from accounts.models import AuditLog
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+class CorrectiveTicketViewSet(SuppressionInterditeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin) : un ticket correctif
     # porte tout le cycle de vie de la panne (statuts, REX obligatoire à
     # CLOSED, signature de validation à RETURNED_TO_SERVICE) — il ne doit
@@ -24,6 +24,13 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
     queryset = CorrectiveTicket.objects.select_related("asset").all()
     serializer_class = CorrectiveTicketSerializer
     permission_classes = [RolePermission]
+    champs_utilisateurs_perimetre = ("assignees",)
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Un ticket correctif porte sur un matériel mobile (asset), qui
@@ -49,7 +56,7 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
                     )
                 }
             )
-        serializer.save()
+        super().perform_update(serializer)
 
     @decorators.action(detail=True, methods=["post"])
     def transition(self, request, pk=None):
@@ -106,7 +113,7 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, vi
             Message.objects.create(thread=thread, author=request.user, body=f"Statut: {old} → {new_status}", is_system=True)
         return response.Response(self.get_serializer(ticket).data)
 
-class PartRequestViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class PartRequestViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = PartRequest.objects.select_related("ticket", "requested_by").all()
     serializer_class = PartRequestSerializer
     permission_classes = [RolePermission]
@@ -116,7 +123,13 @@ class PartRequestViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         # matériel mobile (asset).
         return build_scope_q(self.request.user, "ticket__asset__", "ticket__installation__")
 
-class PartLineItemViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+    def champs_serveur_creation(self):
+        return {"requested_by": self.request.user, "created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
+
+class PartLineItemViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = PartLineItem.objects.select_related("part_request").all()
     serializer_class = PartLineItemSerializer
     permission_classes = [RolePermission]

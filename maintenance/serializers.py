@@ -5,6 +5,7 @@ class MaintenancePlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaintenancePlan
         fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
 
 class MaintenanceOccurrenceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,7 +17,7 @@ class MaintenanceOccurrenceSerializer(serializers.ModelSerializer):
         # installation critique, mise à jour de l'échéance...). Sans ce verrou, un
         # PATCH direct sur "status" contournait totalement le contrôle mot de passe
         # de MaintenanceOccurrenceViewSet.complete() (cf. perform_update ci-contre).
-        read_only_fields = ["status"]
+        read_only_fields = ["status", "created_by", "updated_by"]
 
 class OccurrenceStatusLogSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,3 +28,5 @@ class MaintenanceExecutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaintenanceExecution
         fields = "__all__"
+        # Exécutant et signature de validation sont posés par le serveur.
+        read_only_fields = ["executed_by", "valide_par", "date_validation", "created_by", "updated_by"]

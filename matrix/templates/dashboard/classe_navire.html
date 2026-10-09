@@ -133,9 +133,9 @@
       data: {
         labels: {{ comparatif_chart_labels_json|safe }},
         datasets: [
-          { label: 'Taux de pannes (%)', data: {{ comparatif_taux_pannes_json|safe }}, backgroundColor: '#dc3545' },
-          { label: 'Maintenance en retard (%)', data: {{ comparatif_maintenance_retard_json|safe }}, backgroundColor: '#ffc107' },
-          { label: 'Installations critiques hors service', data: {{ comparatif_installations_hors_service_json|safe }}, backgroundColor: '#6610f2' },
+          { label: 'Taux de pannes (%)', data: {{ comparatif_taux_pannes_json|safe }}, backgroundColor: matrixCouleur('--red') },
+          { label: 'Maintenance en retard (%)', data: {{ comparatif_maintenance_retard_json|safe }}, backgroundColor: matrixCouleur('--amber') },
+          { label: 'Installations critiques hors service', data: {{ comparatif_installations_hors_service_json|safe }}, backgroundColor: matrixCouleur('--mist') },
         ]
       },
       options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
@@ -159,7 +159,7 @@
       datasets: [{
         label: 'Tickets ouverts',
         data: {{ tickets_chart_values_json|safe }},
-        backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+        backgroundColor: [matrixCouleur('--signal-ui'), matrixCouleur('--fog'), matrixCouleur('--amber'), matrixCouleur('--signal'), matrixCouleur('--green-tech'), matrixCouleur('--mist')],
       }]
     },
     options: { responsive: true, maintainAspectRatio: false }

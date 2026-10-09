@@ -1,0 +1,128 @@
+{% load reports_extras %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Préventif: planifié vs réalisé</div>
+      <div class="card-body">
+        <canvas id="chartPreventive"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Tickets correctifs (ouverts)</div>
+      <div class="card-body">
+        <canvas id="chartCorrective"></canvas>
+      </div>
+    </div>
+  </div>
+  {% if user|peut_generer_bilan %}
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Bilan du périmètre</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Document de synthèse pour votre hiérarchie : état actuel de votre périmètre,
+          ou activité réalisée sur une période choisie. Disponible en PDF ou en tableur
+          (Excel/CSV) pour retravailler les chiffres.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{% url 'rapport-bilan' %}" class="btn btn-primary">
+            <span class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></span>Générer le bilan (PDF)
+          </a>
+          <a href="{% url 'rapport-bilan' %}?format=xlsx" class="btn btn-outline-success" title="Exporter en Excel">
+            <span class="bi bi-file-earmark-excel me-1" aria-hidden="true"></span>Excel
+          </a>
+          <a href="{% url 'rapport-bilan' %}?format=csv" class="btn btn-outline-success" title="Exporter en CSV">
+            <span class="bi bi-filetype-csv me-1" aria-hidden="true"></span>CSV
+          </a>
+          <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#periode-bilan" aria-expanded="false" aria-controls="periode-bilan">
+            <span class="bi bi-calendar-range me-1" aria-hidden="true"></span>Choisir une période
+          </button>
+        </div>
+        <div class="collapse mt-3" id="periode-bilan">
+          <form method="get" action="{% url 'rapport-bilan' %}" id="form-bilan-periode" class="border-top pt-3">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-raccourci="mois">Ce mois-ci</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-raccourci="trimestre">Ce trimestre</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-raccourci="annee">Cette année</button>
+            </div>
+            <div class="row g-2 align-items-end">
+              <div class="col-auto">
+                <label for="bilan-date-debut" class="form-label small mb-0">Du</label>
+                <input type="date" class="form-control form-control-sm" id="bilan-date-debut" name="date_debut" required>
+              </div>
+              <div class="col-auto">
+                <label for="bilan-date-fin" class="form-label small mb-0">Au</label>
+                <input type="date" class="form-control form-control-sm" id="bilan-date-fin" name="date_fin" required>
+              </div>
+              <div class="col-auto">
+                <label for="bilan-format" class="form-label small mb-0">Format</label>
+                <select class="form-select form-select-sm" id="bilan-format" name="format">
+                  <option value="pdf">PDF</option>
+                  <option value="xlsx">Excel</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
+              <div class="col-auto">
+                {# Type par défaut d'un <button> dans un <form> : valide le formulaire au clic #}
+                <button class="btn btn-sm btn-primary">Générer</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+<script>
+(function(){
+  // Raccourcis de période pour le bilan PDF : remplissent les dates et
+  // soumettent directement le formulaire (2 clics au total : "Choisir une
+  // période" puis le raccourci).
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function iso(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  document.querySelectorAll('#periode-bilan [data-raccourci]').forEach(function(bouton){
+    bouton.addEventListener('click', function(){
+      var aujourdhui = new Date();
+      var debut;
+      if (bouton.dataset.raccourci === 'mois') {
+        debut = new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1);
+      } else if (bouton.dataset.raccourci === 'trimestre') {
+        var trimestre = Math.floor(aujourdhui.getMonth() / 3);
+        debut = new Date(aujourdhui.getFullYear(), trimestre * 3, 1);
+      } else {
+        debut = new Date(aujourdhui.getFullYear(), 0, 1);
+      }
+      document.getElementById('bilan-date-debut').value = iso(debut);
+      document.getElementById('bilan-date-fin').value = iso(aujourdhui);
+      document.getElementById('form-bilan-periode').requestSubmit();
+    });
+  });
+})();
+</script>
+<script>
+(function(){
+  // Une page quittée avant la fin du chargement annule la requête : sans conséquence.
+  // Couleurs de la charte (variables CSS), pas celles par défaut de Chart.js.
+  function couleur(nom) { return getComputedStyle(document.documentElement).getPropertyValue(nom).trim(); }
+  const palette = ['--signal-ui', '--amber', '--green-tech', '--red', '--fog', '--slate'].map(couleur);
+  async function tracer(id, url, type) {
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const options = {};
+      if (type === 'bar') {
+        data.datasets.forEach(function (d, i) { d.backgroundColor = palette[i === 0 ? 0 : 2]; });
+        options.scales = {y: {beginAtZero: true, ticks: {precision: 0}}}; // effectifs entiers
+      } else {
+        data.datasets.forEach(function (d) { d.backgroundColor = palette; });
+      }
+      new Chart(document.getElementById(id), {type: type, data: data, options: options});
+    } catch (e) { /* requête annulée */ }
+  }
+  tracer('chartPreventive', '/api/dashboard/preventive_week/', 'bar');
+  tracer('chartCorrective', '/api/dashboard/corrective_open/', 'doughnut');
+})();
+</script>

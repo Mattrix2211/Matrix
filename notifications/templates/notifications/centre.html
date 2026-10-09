@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load composants icones %}
+{% block content %}
+<header class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <h1 class="h3 mb-0">Centre de notifications</h1>
+  {% if non_lues %}
+    <form method="post" action="{% url 'notifications-centre-tout-lu' %}">{% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-outline-secondary">{% icone "tout_marquer_lu" %} Tout marquer comme lu ({{ non_lues }})</button>
+    </form>
+  {% endif %}
+</header>
+
+{% surface %}
+  <form method="get" class="d-flex flex-wrap gap-2 mb-3">
+    <select name="etat" class="form-select form-select-sm w-auto" aria-label="État de lecture">
+      <option value="">Toutes</option>
+      <option value="non_lues"{% if etat == "non_lues" %} selected{% endif %}>Non lues</option>
+      <option value="lues"{% if etat == "lues" %} selected{% endif %}>Lues</option>
+    </select>
+    <select name="niveau" class="form-select form-select-sm w-auto" aria-label="Niveau">
+      <option value="">Tous niveaux</option>
+      {% for code, libelle in niveaux %}<option value="{{ code }}"{% if niveau == code %} selected{% endif %}>{{ libelle }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-primary">Filtrer</button>
+  </form>
+
+  {% if page.object_list %}
+    <ul class="mx-notif__liste">
+      {% for n in page.object_list %}
+        <li class="mx-notif mx-notif--{{ n.level }}{% if not n.is_read %} mx-notif--non-lue{% endif %}">
+          <div class="mx-notif__entete">
+            {% if n.level == "danger" %}{% include "components/badge_etat.html" with etat="danger" libelle="Critique" %}
+            {% elif n.level == "warning" %}{% include "components/badge_etat.html" with etat="attention" libelle="Attention" %}
+            {% else %}<span class="mx-badge mx-badge--neutre">{% icone "information" %} Information</span>{% endif %}
+            <span class="mx-notif__date">{{ n.date_relative }}</span>
+          </div>
+          <p class="mx-notif__message">{{ n.verb }}</p>
+          <div class="mx-notif__actions">
+            {% if n.lien %}<a href="{{ n.lien }}" class="btn btn-sm btn-outline-primary">{% icone "lien_direct" %} Ouvrir</a>{% endif %}
+            {% if not n.is_read %}
+              <form method="post" action="{% url 'notifications-centre-lue' n.pk %}" class="d-inline">{% csrf_token %}
+                <input type="hidden" name="requete" value="{{ request.GET.urlencode }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">{% icone "marquer_lu" %} Marquer comme lu</button>
+              </form>
+            {% else %}<span class="mx-notif__lue">Lue</span>{% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if page.paginator.num_pages > 1 %}
+      <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Pagination">
+        {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?page={{ page.previous_page_number }}{{ filtres }}">Précédente</a>{% else %}<span></span>{% endif %}
+        <span class="small text-secondary">Page {{ page.number }} sur {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?page={{ page.next_page_number }}{{ filtres }}">Suivante</a>{% else %}<span></span>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    {% include "components/etat_vide.html" with icone="notifications" titre="Aucune notification" texte="Rien ne correspond à ce filtre." %}
+  {% endif %}
+{% fin_surface %}
+{% endblock %}

@@ -1,11 +1,18 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views import View
 from django.views.generic import ListView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles
-from matrix.core.roles import user_role_level, RoleLevel
+from django.db.models import Q
+from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
+from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
+from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
     is_master_admin,
@@ -25,12 +32,10 @@ def _role_attribution_autorisee(acting_user, role_cible):
     même règle. Empêche par exemple un COMMANDANT de s'auto-attribuer (ou d'attribuer
     à un tiers) le rôle ADMIN_NAVIRE ou MASTER_ADMIN.
     """
-    if getattr(acting_user, "is_superuser", False):
+    if is_master_admin(acting_user):
         return True
     profile = getattr(acting_user, "profile", None)
     acting_role = profile.role if profile else None
-    if acting_role in (Roles.MASTER_ADMIN, Roles.ADMIN_NAVIRE):
-        return True
     allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
     return role_cible in allowed
 
@@ -52,8 +57,44 @@ def _utilisateurs_gerables_par(acting_user):
     User = get_user_model()
     qs = User.objects.all()
     if not is_master_admin(acting_user):
-        qs = qs.filter(perimetre_navire_q(acting_user, "profile__"))
+        # Un profil MASTER_ADMIN n'est jamais modifiable par un administrateur de bord.
+        qs = qs.filter(perimetre_navire_q(acting_user, "profile__")).exclude(
+            Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True)
+        )
     return qs
+
+
+def _referentiels_formulaire(user):
+    """Listes de choix de l'annuaire et du formulaire utilisateur (rôles, hiérarchie, grades…).
+
+    Un utilisateur limité à son navire ne se voit proposer que son propre navire
+    et sa hiérarchie : les autres noms ne doivent pas fuiter."""
+    from accounts.models import RoleAvailability
+    from org.models import Ship, Service, Sector, Section
+    # Rôles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
+    actifs = {o.code: o.active for o in RoleAvailability.objects.all()}
+    ctx = {
+        "roles": [
+            {"code": code, "label": label}
+            for code, label in Roles.choices
+            if code != "MASTER_ADMIN" and actifs.get(code, True)
+        ],
+    }
+    if is_master_admin(user):
+        ctx["ships"] = Ship.objects.order_by("name")
+        ctx["services"] = Service.objects.select_related("ship").order_by("name")
+        ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
+        ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+    else:
+        mon_navire_id = ship_id_for_user(user)
+        ctx["ships"] = Ship.objects.filter(pk=mon_navire_id).order_by("name")
+        ctx["services"] = Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name")
+        ctx["sectors"] = Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name")
+        ctx["sections"] = Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+    ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
+    ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
+    ctx["specialites"] = SpecialityChoice.objects.filter(active=True).order_by("name")
+    return ctx
 
 
 class UserDirectoryView(LoginRequiredMixin, ListView):
@@ -67,10 +108,11 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # secteur/service. Aucun seuil n'était en place auparavant (bug sécurité).
         # Le test d'authentification (redirection vers /login/) reste géré par
         # LoginRequiredMixin ci-dessous ; on ne bloque en 403 qu'un utilisateur
-        # déjà connecté mais dont le rôle est insuffisant.
-        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden()
+        # déjà connecté mais dont le rôle est insuffisant. Le commandant en
+        # second consulte l'annuaire (lecture) sans pouvoir y écrire.
+        seuil = NIVEAU_VISION_COMMANDEMENT if request.method in ("GET", "HEAD") else RoleLevel.COMMANDANT
+        if request.user.is_authenticated and user_role_level(request.user) < seuil:
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -97,33 +139,12 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         return qs
 
     def get_context_data(self, **kwargs):
-        from accounts.models import RoleAvailability
-        from org.models import Ship, Service, Sector, Section
         ctx = super().get_context_data(**kwargs)
-        # Roles disponibles (hors MASTER_ADMIN), filtrés par RoleAvailability
-        all_roles = [c for c in Roles.choices if c[0] != 'MASTER_ADMIN']
-        opts = {o.code: o.active for o in RoleAvailability.objects.all()}
-        ctx["roles"] = [{"code": code, "label": label} for code, label in all_roles if opts.get(code, True)]
-        # Hiérarchie pour sélection (filtre "Unité" et formulaires de création/
-        # édition) : un utilisateur limité à son navire (non MASTER_ADMIN) ne
-        # doit se voir proposer que son propre navire — lui montrer les autres
-        # navires de la flotte n'aurait aucun sens (l'annuaire ne renverra de
-        # toute façon aucun résultat pour eux) et fuiterait leurs noms.
-        if is_master_admin(self.request.user):
-            ctx["ships"] = Ship.objects.order_by("name")
-            ctx["services"] = Service.objects.select_related("ship").order_by("name")
-            ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
-            ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
-        else:
-            mon_navire_id = ship_id_for_user(self.request.user)
-            ctx["ships"] = Ship.objects.filter(pk=mon_navire_id).order_by("name")
-            ctx["services"] = Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name")
-            ctx["sectors"] = Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name")
-            ctx["sections"] = Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name")
-        # Choix pour fonction, grade et spécialité
-        ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
-        ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
-        ctx["specialites"] = SpecialityChoice.objects.filter(active=True).order_by("name")
+        ctx["peut_gerer"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
+        ctx.update(_referentiels_formulaire(self.request.user))
+        ctx["sans_equipage"] = [
+            u for u in ctx["users"] if u.profile.ship_id and equipage_manquant(u.profile.ship, u.profile.equipage)
+        ]
         ctx["export_url"] = self.request.build_absolute_uri("?" + ("ship=" + str(self.request.GET.get("ship")) + "&" if self.request.GET.get("ship") else "") + "export=xlsx")
         return ctx
 
@@ -340,6 +361,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             if not ok:
                 messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
                 return redirect("user-directory")
+            equipage = request.POST.get("equipage", "").strip()
+            if equipage_manquant(ship, equipage):
+                messages.error(request, MESSAGE_EQUIPAGE_OBLIGATOIRE)
+                return redirect("user-directory")
             if role:
                 User = get_user_model()
                 # Identifiant = prenom.nom (slugifié), avec suffixe numérique si collision
@@ -370,6 +395,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     profile.specialite = specialite
                 if matricule:
                     profile.matricule = matricule
+                profile.equipage = equipage
                 if date_naissance:
                     try:
                         from datetime import datetime
@@ -429,6 +455,14 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 if not ok:
                     messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
                     return redirect("user-directory")
+                equipage_actuel = getattr(getattr(user, "profile", None), "equipage", "")
+                equipage = request.POST.get("equipage", equipage_actuel).strip()
+                if equipage != equipage_actuel and not equipage_modifiable_par(request.user, user):
+                    messages.error(request, "Vous ne pouvez pas modifier votre propre équipage.")
+                    return redirect("user-directory")
+                if equipage_manquant(ship, equipage):
+                    messages.error(request, MESSAGE_EQUIPAGE_OBLIGATOIRE)
+                    return redirect("user-directory")
                 user.username = request.POST.get("username", user.username).strip() or user.username
                 user.email = request.POST.get("email", user.email).strip()
                 user.first_name = request.POST.get("first_name", user.first_name).strip()
@@ -444,6 +478,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 profile.specialite = request.POST.get("specialite", "").strip()
                 # Matricule et date de naissance
                 profile.matricule = request.POST.get("matricule", "").strip()
+                profile.equipage = equipage
                 date_naissance = request.POST.get("date_naissance", "").strip()
                 if date_naissance:
                     try:
@@ -492,6 +527,31 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         return redirect("user-directory")
 
 
+class UserFormView(LoginRequiredMixin, TemplateView):
+    """Création et édition d'un compte en page complète ; l'enregistrement passe par
+    UserDirectoryView.post (mêmes contrôles de rôle, de périmètre et d'équipage)."""
+    template_name = "accounts/utilisateur_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and user_role_level(request.user) < RoleLevel.COMMANDANT:
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(_referentiels_formulaire(self.request.user))
+        pk = kwargs.get("pk")
+        cible = get_object_or_404(_utilisateurs_gerables_par(self.request.user), pk=pk) if pk else None
+        ctx["roles_codes"] = [r["code"] for r in ctx["roles"]]
+        ctx["cible"] = cible
+        ctx["profil"] = getattr(cible, "profile", None)
+        # Nul ne change son propre équipage : champ en lecture seule (le serveur refuse aussi)
+        ctx["equipage_verrouille"] = bool(cible) and not equipage_modifiable_par(self.request.user, cible)
+        # L'unité du filtre de l'annuaire préremplit la création
+        ctx["ship_initial"] = "" if cible else self.request.GET.get("ship", "")
+        return ctx
+
+
 class MonProfilView(LoginRequiredMixin, TemplateView):
     """« Mon profil » : fiche personnelle du marin connecté, en lecture seule.
 
@@ -520,14 +580,71 @@ class MonProfilView(LoginRequiredMixin, TemplateView):
         return contexte
 
 
+class BasculerThemeView(LoginRequiredMixin, View):
+    """Bascule en un clic entre le mode clair et le mode sombre ; le choix est
+    mémorisé dans le profil du marin (docs/UX.md §17). Ne modifie que le thème
+    de l'utilisateur connecté."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        profil, _ = UserProfile.objects.get_or_create(user=request.user)
+        profil.theme = Themes.CLAIR if profil.theme == Themes.SOMBRE else Themes.SOMBRE
+        profil.save(update_fields=["theme", "updated_at"])
+        retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        return redirect(retour)
+
+
+class ChoisirBatimentView(LoginRequiredMixin, View):
+    """Mémorise en session le bâtiment consulté par un utilisateur à terre qui en
+    suit plusieurs (barre supérieure, docs/UX.md §8). Le bâtiment demandé est
+    TOUJOURS validé côté serveur contre le périmètre de l'utilisateur : un
+    identifiant hors périmètre (ou un utilisateur de bord) est refusé."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        try:
+            identifiant = int(request.POST.get("batiment", ""))
+        except ValueError:
+            raise PermissionDenied
+        if identifiant not in {b.pk for b in selecteur_batiment(request.user)}:
+            raise PermissionDenied
+        request.session[CLE_SESSION] = identifiant
+        retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        return redirect(retour)
+
+
+class MemoriserBarreLateraleView(LoginRequiredMixin, View):
+    """Mémorise dans le profil du marin connecté l'état replié (« repliee=1 ») ou
+    déplié (« repliee=0 ») de la barre latérale. Sans JavaScript, le formulaire
+    recharge la page ; avec, la requête part en arrière-plan (réponse 204)."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        profil, _ = UserProfile.objects.get_or_create(user=request.user)
+        profil.barre_laterale_repliee = request.POST.get("repliee") == "1"
+        profil.save(update_fields=["barre_laterale_repliee", "updated_at"])
+        if request.headers.get("X-Requested-With") == "fetch":
+            return HttpResponse(status=204)
+        retour = request.META.get("HTTP_REFERER") or "/"
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        return redirect(retour)
+
+
 class UserSettingsView(LoginRequiredMixin, ListView):
     template_name = "accounts/settings_users.html"
     context_object_name = "grades"
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_superuser:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden()
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):

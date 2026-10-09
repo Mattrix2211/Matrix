@@ -53,14 +53,14 @@ class BaremeCreationFormationTests(TestCase):
     def test_carte_de_formation_affiche_le_lien_du_bareme(self):
         formation = TrainingCourse.objects.create(title="Amarrage avancé", bareme=_fichier())
         self.client.login(username="admin_bareme", password="pass")
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{formation.pk}/")
         self.assertContains(r, "Voir le barème")
         self.assertContains(r, formation.bareme.url)
 
     def test_carte_de_formation_sans_bareme_naffiche_aucun_lien(self):
-        TrainingCourse.objects.create(title="Formation vierge de barème")
+        formation = TrainingCourse.objects.create(title="Formation vierge de barème")
         self.client.login(username="admin_bareme", password="pass")
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{formation.pk}/")
         self.assertNotContains(r, "Voir le barème")
 
 

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static icones %}
+{% block title %}{% if fiche %}Modifier la fiche{% else %}Nouvelle fiche{% endif %}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">{% if verification %}Vérifier la version {{ en_verification.numero }} de « {{ fiche.title }} »{% elif correction %}Corriger la version {{ correction.numero }}{% elif fiche %}Nouvelle version de « {{ fiche.title }} »{% else %}Nouvelle fiche de maintenance{% endif %}</h1>
+<p class="text-secondary">{{ sous_titre }} · {% if verification %}corrigez si besoin, puis transmettez à votre chef.{% else %}la version proposée suivra les visas ; la version validée reste appliquée en attendant.{% endif %}</p>
+{% if origine %}<div class="alert alert-info" role="note">Adaptation locale de la fiche flotte « {{ origine.title }} » (v{{ origine.version_validee.numero }}) : elle ne concerne que ce navire.</div>{% endif %}
+{% if signalement %}<div class="alert alert-warning" role="note">Signalement de {{ signalement.auteur.get_full_name|default:signalement.auteur.username }} : {{ signalement.texte }}</div>{% endif %}
+{% if correction %}<div class="alert alert-danger" role="alert">Motif du renvoi : {{ correction.motif_refus }}</div>{% endif %}
+{% if erreur %}<div class="alert alert-danger" role="alert">{{ erreur }}</div>{% endif %}
+
+<form method="post" data-assistant-fiche>
+  {% csrf_token %}
+  {% if origine %}<input type="hidden" name="depuis" value="{{ origine.pk }}">{% endif %}
+  {% if signalement %}<input type="hidden" name="signalement" value="{{ signalement.pk }}">{% endif %}
+  <ol class="mx-frise mb-3" aria-label="Étapes de l'assistant" data-frise hidden>
+    <li class="mx-frise__etape"><span>Gamme</span></li><li class="mx-frise__etape"><span>Préparation</span></li><li class="mx-frise__etape"><span>Méthode</span></li><li class="mx-frise__etape"><span>Contrôles</span></li><li class="mx-frise__etape"><span>Envoi</span></li>
+  </ol>
+
+  <section class="mx-surface mb-3" data-etape="1" aria-labelledby="etape-1"><h2 class="mx-surface__titre" id="etape-1">1. Gamme et identité</h2>
+    <div class="row g-3">
+      {% if cible %}
+      <div class="col-md-4"><label class="form-label" for="specialite">Spécialité qui vérifiera la fiche</label>
+        <select class="form-select" id="specialite" name="specialite" required><option value="">Choisir…</option>{% for sp in specialites %}<option value="{{ sp.pk }}">{{ sp.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><label class="form-label" for="equipement">Installation visée</label>
+        <input class="form-control" id="equipement" name="equipement" maxlength="100" value="{{ cible.equipement }}" required></div>
+      <div class="col-md-2"><label class="form-label" for="reference_equipement">Référence</label>
+        <input class="form-control" id="reference_equipement" name="reference_equipement" maxlength="100" value="{{ cible.reference_equipement }}"></div>
+      <div class="col-md-2"><label class="form-label" for="classe_navire">Classe de navire</label>
+        <input class="form-control" id="classe_navire" name="classe_navire" maxlength="100" value="{{ cible.classe_navire }}"></div>
+      {% endif %}
+      <div class="col-md-8"><label class="form-label" for="name">Titre de la fiche</label>
+        <input class="form-control" id="name" name="name" value="{{ contenu.name }}" required placeholder="Entretien trimestriel de la pompe"></div>
+      <div class="col-md-4"><label class="form-label" for="mode_declenchement">Déclenchement</label>
+        <select class="form-select" id="mode_declenchement" name="mode_declenchement">{% for cle, libelle in modes %}<option value="{{ cle }}"{% if contenu.mode_declenchement == cle %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select>
+        {% if calendaire_seul %}<div class="form-text">Une fiche de matériel est toujours calendaire.</div>{% endif %}</div>
+      <div class="col-md-3"><label class="form-label" for="intervalle">Tous les</label>
+        <input class="form-control" type="number" min="1" id="intervalle" name="intervalle" value="{{ contenu.intervalle|default_if_none:'' }}"></div>
+      <div class="col-md-3"><label class="form-label" for="unite_intervalle">Unité</label>
+        <select class="form-select" id="unite_intervalle" name="unite_intervalle">{% for cle, libelle in unites %}<option value="{{ cle }}"{% if contenu.unite_intervalle == cle %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+      {% if not calendaire_seul %}<div class="col-md-3"><label class="form-label" for="seuil_heures">Toutes les (heures de marche)</label>
+        <input class="form-control" type="number" min="1" id="seuil_heures" name="seuil_heures" value="{{ contenu.seuil_heures|default_if_none:'' }}"></div>{% endif %}
+      <div class="col-md-3"><label class="form-label" for="duree_estimee_min">Durée estimée (min)</label>
+        <input class="form-control" type="number" min="0" id="duree_estimee_min" name="duree_estimee_min" value="{{ contenu.duree_estimee_min }}"></div>
+      <div class="col-md-3"><label class="form-label" for="nb_personnes">Nombre de personnes</label>
+        <input class="form-control" type="number" min="1" id="nb_personnes" name="nb_personnes" value="{{ contenu.nb_personnes }}"></div>
+      <div class="col-md-5"><label class="form-label" for="qualification">Qualification requise</label>
+        <select class="form-select" id="qualification" name="qualification"><option value="">Aucune</option>{% for q in qualifications %}<option value="{{ q.pk }}"{% if contenu.qualification == q.pk %} selected{% endif %}>{{ q.title }}</option>{% endfor %}</select></div>
+      <div class="col-12"><label class="form-label" for="description">Objet de la fiche (facultatif)</label>
+        <textarea class="form-control" id="description" name="description" rows="2">{{ contenu.description }}</textarea></div>
+    </div>
+  </section>
+
+  <section class="mx-surface mb-3" data-etape="2" aria-labelledby="etape-2"><h2 class="mx-surface__titre" id="etape-2">2. Préparation</h2>
+    <p class="text-secondary small">Outils, pièces ou consommables, équipements de protection, consignes de sécurité ou de consignation.</p>
+    <div data-lignes="preparation">
+      {% for p in contenu.preparations %}{% include "assets/fiche/_ligne_preparation.html" with p=p %}{% endfor %}
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-ajouter="preparation">{% icone "ajout" %} Ajouter</button>
+    <template data-modele="preparation">{% include "assets/fiche/_ligne_preparation.html" with p=None %}</template>
+  </section>
+
+  <section class="mx-surface mb-3" data-etape="3" aria-labelledby="etape-3"><h2 class="mx-surface__titre" id="etape-3">3. Méthodologie</h2>
+    <p class="text-secondary small">Une étape par ligne, dans l'ordre. L'encadré « Attention » est facultatif.</p>
+    <div data-lignes="etape">
+      {% for e in contenu.etapes %}{% include "assets/fiche/_ligne_etape.html" with e=e %}{% endfor %}
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-ajouter="etape">{% icone "ajout" %} Ajouter une étape</button>
+    <template data-modele="etape">{% include "assets/fiche/_ligne_etape.html" with e=None %}</template>
+  </section>
+
+  <section class="mx-surface mb-3" data-etape="4" aria-labelledby="etape-4"><h2 class="mx-surface__titre" id="etape-4">4. Contrôles et relevés</h2>
+    <p class="text-secondary small">Un contrôle se coche (Fait, Non conforme, Sans objet). Un relevé porte une valeur, une unité et une plage attendue.</p>
+    <div data-lignes="ligne">
+      {% for l in contenu.lignes %}{% include "assets/fiche/_ligne_controle.html" with l=l %}{% endfor %}
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-ajouter="ligne">{% icone "ajout" %} Ajouter un point</button>
+    <template data-modele="ligne">{% include "assets/fiche/_ligne_controle.html" with l=None %}</template>
+  </section>
+
+  <section class="mx-surface mb-3" data-etape="5" aria-labelledby="etape-5"><h2 class="mx-surface__titre" id="etape-5">5. Envoi pour validation</h2>
+    {% if fiche %}
+    <label class="form-label" for="resume_modifications">Ce qui change par rapport à la version validée</label>
+    <textarea class="form-control mb-3" id="resume_modifications" name="resume_modifications" rows="2"{% if not verification %} required{% endif %}>{{ contenu.resume_modifications }}</textarea>
+    {% endif %}
+    {% if visas and not verification %}<p class="small text-secondary">Visas : {{ visas }}.</p>{% endif %}
+    <button type="submit" class="btn btn-primary">{% icone "terminee" %} {{ bouton }}</button>
+    <a class="btn btn-link" href="{{ annuler }}">Annuler</a>
+  </section>
+
+  <div class="d-flex justify-content-between mb-4" data-navigation hidden>
+    <button type="button" class="btn btn-outline-secondary" data-precedent>{% icone "precedent" %} Précédent</button>
+    <button type="button" class="btn btn-primary" data-suivant>Suivant {% icone "suite" %}</button>
+  </div>
+</form>
+<script src="{% static 'js/fiche_assistant.js' %}"></script>
+{% endblock %}

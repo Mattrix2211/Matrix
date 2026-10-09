@@ -1,6 +1,7 @@
 """Tests de l'interface web : création/affectation/publication d'une liste,
 et désignation des chefs de liste."""
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -9,7 +10,7 @@ from django.utils import timezone
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice, UserProfile
 from notifications.models import Notification
 from org.models import Sector, Section, Service, Ship
-from quarts.models import ChefDeListe, CreneauQuart, Quart, ServiceGarde
+from quarts.models import ChefDeListe, CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
 
 
 class CreationListeTests(TestCase):
@@ -227,3 +228,143 @@ class DesignationChefDeListeTests(TestCase):
         r = self.client.post("/quarts/reglages/", {"action": "retirer", "pk": cdl.pk})
         self.assertEqual(r.status_code, 302)
         self.assertFalse(ChefDeListe.objects.filter(pk=cdl.pk).exists())
+
+
+class PlanningEtOngletsTests(TestCase):
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Planning", code="WPL")
+        self.sector = Sector.objects.create(
+            service=Service.objects.create(ship=self.ship, name="Pont"), name="Manœuvre"
+        )
+        self.cdl = User.objects.create_user(username="cdl_planning", password="pass")
+        UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
+        ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
+        self.second = User.objects.create_user(username="second_planning", password="pass")
+        UserProfile.objects.update_or_create(user=self.second, defaults={"role": "COMMANDANT_EN_SECOND"})
+        aujourdhui = timezone.localdate()
+        self.garde = ServiceGarde.objects.create(
+            sector=self.sector, date_debut=aujourdhui, date_fin=aujourdhui + timedelta(days=9),
+        )
+        debut = timezone.now() + timedelta(hours=3)
+        CreneauServiceGarde.objects.create(
+            service_garde=self.garde, poste="Coupée", debut=debut, fin=debut + timedelta(hours=4),
+        )
+
+    def test_brouillon_affiche_badge_et_publier_pour_le_chef(self):
+        self.client.login(username="cdl_planning", password="pass")
+        r = self.client.get(f"/quarts/garde/{self.garde.pk}/")
+        self.assertContains(r, "BROUILLON")
+        self.assertContains(r, "Publier la liste")
+        self.assertContains(r, 'id="creneau-ajout"')
+        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "echanges", "equite", "parametres"])
+        self.assertGreaterEqual(len(r.context["semaines"]), 2)
+
+    def test_lecture_seule_sans_action_ni_parametres(self):
+        self.garde.publier(self.cdl)
+        self.client.login(username="second_planning", password="pass")
+        r = self.client.get(f"/quarts/garde/{self.garde.pk}/")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, "Publier la liste")
+        self.assertNotContains(r, 'id="creneau-ajout"')
+        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "echanges"])
+
+    def test_liste_publiee_sans_action_de_publication(self):
+        self.garde.publier(self.cdl)
+        self.client.login(username="cdl_planning", password="pass")
+        self.assertNotContains(self.client.get(f"/quarts/garde/{self.garde.pk}/"), "Publier la liste")
+
+    def test_onglets_echanges_equite_parametres(self):
+        self.client.login(username="cdl_planning", password="pass")
+        for vue, texte in (("echanges", "Rien à traiter"), ("equite", "Équité des services"), ("parametres", "Règles des échanges")):
+            with self.subTest(vue=vue):
+                self.assertContains(self.client.get(f"/quarts/garde/{self.garde.pk}/?vue={vue}"), texte)
+
+    def test_quart_na_pas_donglet_echanges_ni_equite(self):
+        quart = Quart.objects.create(sector=self.sector, date_debut=timezone.localdate(), date_fin=timezone.localdate())
+        self.client.login(username="cdl_planning", password="pass")
+        r = self.client.get(f"/quarts/quart/{quart.pk}/?vue=equite")
+        self.assertEqual(r.context["vue"], "planning")
+        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "parametres"])
+
+    def test_equipage_a_terre_masque_les_actions(self):
+        self.client.login(username="cdl_planning", password="pass")
+        with patch("matrix.context_processors.equipage_a_terre_lecture_seule", return_value=True):
+            self.cdl.profile.equipage = "B"
+            self.cdl.profile.save()
+            r = self.client.get(f"/quarts/garde/{self.garde.pk}/")
+        self.assertNotContains(r, "Publier la liste")
+        self.assertNotContains(r, 'id="creneau-ajout"')
+
+
+class AssistantCreationListeTests(TestCase):
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Navire Assistant", code="WAS")
+        service = Service.objects.create(ship=self.ship, name="Pont")
+        self.sector = Sector.objects.create(service=service, name="Manœuvre")
+        self.autre_secteur = Sector.objects.create(service=service, name="Veille")
+        self.cdl = User.objects.create_user(username="cdl_assistant", password="pass")
+        UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
+        ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
+        self.fonction = FonctionQuartChoice.objects.create(name="Barre assistant")
+        self.client.login(username="cdl_assistant", password="pass")
+
+    def _suivant(self, etape, **champs):
+        return self.client.post("/quarts/creer/", {"etape": etape, "action": "suivant", **champs})
+
+    def test_etape_perimetre_supprimee_quand_unique_et_periode_preremplie(self):
+        r = self.client.get("/quarts/creer/")
+        self.assertEqual(r.context["etapes"], ["Type", "Période", "Règles", "Vérification"])
+        self.assertContains(r, 'data-brouillon="quarts:nouvelle-liste"')
+        self.assertTrue(r.context["valeurs"]["date_debut"])
+
+    def test_etape_perimetre_presente_si_plusieurs_choix(self):
+        ChefDeListe.objects.create(user=self.cdl, sector=self.autre_secteur)
+        r = self.client.get("/quarts/creer/")
+        self.assertIn("Périmètre", r.context["etapes"])
+
+    def test_parcours_complet_cree_le_brouillon(self):
+        donnees = {
+            "type_liste": "creer_quart", "date_debut": "2026-11-02", "date_fin": "2026-11-08",
+            "fonction_quart": self.fonction.pk, "nom": "Semaine 45",
+        }
+        r = self._suivant(1, **donnees)
+        self.assertEqual(r.context["cle_etape"], "periode")
+        r = self._suivant(2, **donnees)
+        self.assertEqual(r.context["cle_etape"], "regles")
+        r = self._suivant(3, **donnees)
+        self.assertEqual(r.context["cle_etape"], "verification")
+        self.assertEqual(r.context["synthese"]["fonction"], self.fonction)
+        r = self._suivant(4, **donnees)
+        quart = Quart.objects.get(nom="Semaine 45")
+        self.assertRedirects(r, f"/quarts/quart/{quart.pk}/")
+        self.assertEqual(quart.statut, Quart.STATUT_BROUILLON)
+        self.assertEqual(quart.sector, self.sector)
+
+    def test_precedent_conserve_la_saisie(self):
+        r = self.client.post("/quarts/creer/", {
+            "etape": 3, "action": "precedent", "type_liste": "creer_quart",
+            "date_debut": "2026-11-02", "date_fin": "2026-11-08",
+        })
+        self.assertEqual(r.context["cle_etape"], "periode")
+        self.assertEqual(r.context["valeurs"]["date_debut"], "2026-11-02")
+
+    def test_etape_invalide_reste_sur_l_etape(self):
+        r = self._suivant(2, type_liste="creer_quart", date_debut="2026-11-08", date_fin="2026-11-02")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.context["cle_etape"], "periode")
+        r = self._suivant(3, type_liste="creer_quart", date_debut="2026-11-02", date_fin="2026-11-08")
+        self.assertEqual(r.context["cle_etape"], "regles")
+
+    def test_non_designe_refuse(self):
+        User.objects.create_user(username="simple_assistant", password="pass")
+        self.client.login(username="simple_assistant", password="pass")
+        self.assertEqual(self.client.get("/quarts/creer/").status_code, 403)
+        self.assertEqual(self.client.post("/quarts/creer/", {"etape": 4}).status_code, 403)
+
+    def test_perimetre_hors_droits_refuse(self):
+        ChefDeListe.objects.create(user=self.cdl, sector=self.autre_secteur)
+        r = self._suivant(5, type_liste="creer_quart", perimetre="sector:999999", date_debut="2026-11-02",
+                          date_fin="2026-11-08", fonction_quart=self.fonction.pk)
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.context["cle_etape"], "perimetre")
+        self.assertFalse(Quart.objects.exists())

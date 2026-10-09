@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
-<h1 class="h3 mb-1"><span class="bi bi-compass" aria-hidden="true"></span> Session d'appareillage — {{ session.ship }}</h1>
+<h1 class="h3 mb-1">{% icone "ronde" %} Session d'appareillage — {{ session.ship }}</h1>
 <p class="text-muted mb-4">
   Ouverte le {{ session.ouverte_le|date:"d/m/Y H:i" }}{% if session.cloturee_le %}, clôturée le {{ session.cloturee_le|date:"d/m/Y H:i" }}{% endif %}.
 </p>

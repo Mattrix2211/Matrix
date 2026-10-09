@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 <h1 class="h3 mb-3">Chefs de liste</h1>
 <p class="text-muted">Un chef de liste est habilité à créer, affecter et publier les listes de quarts et de services de garde pour le périmètre pour lequel il est désigné — indépendamment de son grade ou de son rôle hiérarchique.</p>
@@ -25,7 +26,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="retirer">
                   <input type="hidden" name="pk" value="{{ cdl.pk }}">
-                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirer"><i class="bi bi-trash"></i></button>
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirer">{% icone "suppression" %}</button>
                 </form>
               </td>
             </tr>

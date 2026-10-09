@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load icones %}
+{% block title %}Catalogue{% endblock %}
+{% block content %}
+<div class="mx-cat-entete">
+  <h1 class="h3 mb-0">Catalogue du matériel de la flotte</h1>
+  <div class="mx-cat-commandes">
+    {% if peut_creer_categorie and not equipage_a_terre %}<a class="btn btn-outline-primary btn-sm" href="{% url 'catalogue-categorie-nouvelle' %}?{% if categorie %}parent={{ categorie.pk }}&specialite={{ categorie.specialite_id }}{% elif specialite %}specialite={{ specialite.pk }}{% endif %}">{% icone "ajout" %} Nouvelle catégorie</a>{% endif %}
+    {% if peut_creer_article and not equipage_a_terre %}<a class="btn btn-primary btn-sm" href="{% url 'catalogue-article-nouveau' %}?categorie={{ categorie.pk }}">{% icone "ajout" %} Nouvel article</a>{% endif %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'catalogue-propositions' %}">Propositions</a>
+    {% if peut_proposer and not equipage_a_terre %}<a class="btn btn-outline-primary btn-sm" href="{% url 'catalogue-proposition-nouvelle' %}">{% icone "ajout" %} Proposer un article</a>{% endif %}
+  </div>
+</div>
+
+<form class="mx-cat-recherche" role="search" hx-get="{% url 'catalogue' %}" hx-trigger="input changed delay:250ms from:#catalogue-q, submit" hx-target="#catalogue-contenu" hx-swap="innerHTML" onsubmit="return false">
+  <label class="visually-hidden" for="catalogue-q">Rechercher dans le catalogue</label>
+  <span class="mx-cat-recherche__champ">{% icone "recherche" %}<input type="search" id="catalogue-q" name="q" value="{{ q }}" class="form-control" placeholder="Désignation, marque, modèle ou NNO" autocomplete="off"></span>
+  {% if specialite %}<input type="hidden" name="specialite" value="{{ specialite.pk }}">{% endif %}
+</form>
+
+{% if not categorie %}
+<nav class="mx-cat-filtre" aria-label="Filtrer par spécialité">
+  <a class="mx-cat-filtre__puce{% if not specialite %} mx-cat-filtre__puce--actif{% endif %}" href="{% url 'catalogue' %}">Toutes les spécialités</a>
+  {% for s in specialites %}<a class="mx-cat-filtre__puce{% if specialite and specialite.pk == s.pk %} mx-cat-filtre__puce--actif{% endif %}" href="{% url 'catalogue' %}?specialite={{ s.pk }}">{{ s.name }}</a>{% endfor %}
+</nav>
+{% endif %}
+
+<div id="catalogue-contenu">{% include "assets/catalogue/_contenu.html" %}</div>
+{% endblock %}

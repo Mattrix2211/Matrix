@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from django.contrib.auth.models import User
+from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.scopes import is_master_admin, resoudre_affectation_dans_perimetre
 
 class UserSerializer(serializers.ModelSerializer):
@@ -9,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "first_name", "last_name", "email"]
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = UserProfile
@@ -29,10 +30,32 @@ class UserProfileSerializer(serializers.ModelSerializer):
         appartenait au périmètre de l'appelant (même classe de faille que
         celle corrigée côté web dans create_user/edit_user/bulk_update_*).
         """
+        acteur = getattr(self.context.get("request"), "user", None)
+        if (
+            self.instance and acteur and "equipage" in attrs and attrs["equipage"] != self.instance.equipage
+            and not equipage_modifiable_par(acteur, self.instance.user)
+        ):
+            raise serializers.ValidationError({"equipage": "Vous ne pouvez pas modifier votre propre équipage."})
+        # Seulement quand l'unité ou l'équipage change : les profils existants restent valides.
+        if "ship" in attrs or "equipage" in attrs:
+            navire = attrs["ship"] if "ship" in attrs else getattr(self.instance, "ship", None)
+            equipage = attrs["equipage"] if "equipage" in attrs else getattr(self.instance, "equipage", "")
+            if equipage_manquant(navire, equipage):
+                raise serializers.ValidationError({"equipage": MESSAGE_EQUIPAGE_OBLIGATOIRE})
         request = self.context.get("request")
         acting_user = getattr(request, "user", None)
         if acting_user is None or is_master_admin(acting_user):
             return attrs
+        for secteur in attrs.get("allowed_sectors", []):
+            ok, *_ = resoudre_affectation_dans_perimetre(acting_user, sector_id=secteur.id)
+            if not ok:
+                raise serializers.ValidationError("Secteur autorisé hors de votre périmètre.")
+        champs = ("ship", "service", "sector", "section")
+        # Retirer tout rattachement sortirait le profil du périmètre de l'appelant.
+        if any(c in attrs for c in champs) and not any(
+            attrs[c] if c in attrs else getattr(self.instance, c, None) for c in champs
+        ):
+            raise serializers.ValidationError("Un rattachement (unité, service, secteur ou section) est obligatoire.")
         ship = attrs.get("ship")
         service = attrs.get("service")
         sector = attrs.get("sector")

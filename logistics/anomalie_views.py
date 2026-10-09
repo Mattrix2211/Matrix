@@ -1,6 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponseBadRequest
@@ -109,19 +111,36 @@ class AnomalieListView(LoginRequiredMixin, View):
         })
 
 
+ETAPES_SIGNALEMENT = ["Objet concerné", "Nature et gravité", "Description et photo", "Vérification"]
+GRAVITES = [(1, "1 — Mineure"), (2, "2"), (3, "3 — Moyenne"), (4, "4"), (5, "5 — Critique")]
+GRAVITE_CRITIQUE = 5
+SEL_PHOTO = "anomalie-photo-en-attente"
+
+
+def _gravite(donnees):
+    try:
+        return min(max(int(donnees.get('gravite') or 3), 1), 5)
+    except ValueError:
+        return 3
+
+
 class AnomalieCreateView(LoginRequiredMixin, View):
-    """Signalement rapide : titre + gravité suffisent, tout le reste est
-    optionnel. Ouvert à tout marin connecté. L'équipement peut être pré-rempli
-    depuis sa fiche (?asset=<id> ou ?installation=<id>)."""
+    """Assistant de signalement en 4 étapes (objet, nature et gravité, description
+    et photo, vérification), ouvert à tout marin connecté. L'équipement est
+    pré-rempli depuis sa fiche (?asset=<id> ou ?installation=<id>). Un POST sans
+    numéro d'étape crée directement l'anomalie, avec les mêmes contrôles."""
     template_name = 'logistics/anomalie_form.html'
 
-    def _contexte(self, request, valeurs=None):
+    def _contexte(self, request, etape, valeurs=None):
         installations, materiels = _equipements_du_perimetre(request.user)
         secteur_du_profil = perimetre_du_profil(getattr(request.user, 'profile', None))[2]
-        return {
+        contexte = {
             'installations': installations.order_by('designation'),
             'materiels': materiels,
             'secteurs': _secteurs_selectionnables(request.user),
+            'etapes': ETAPES_SIGNALEMENT,
+            'etape': etape,
+            'gravites': GRAVITES,
             'valeurs': valeurs or {
                 'secteur': str(secteur_du_profil.pk) if secteur_du_profil else '',
                 'installation': request.GET.get('installation', ''),
@@ -129,48 +148,104 @@ class AnomalieCreateView(LoginRequiredMixin, View):
                 'gravite': '3',
             },
         }
+        contexte['critique'] = _gravite(contexte['valeurs']) >= GRAVITE_CRITIQUE
+        return contexte
 
-    def _erreur(self, request, message):
-        messages.error(request, message)
-        return render(request, self.template_name, self._contexte(request, request.POST), status=400)
-
-    def get(self, request):
-        return render(request, self.template_name, self._contexte(request))
-
-    def post(self, request):
-        donnees = request.POST
-        titre = donnees.get('titre', '').strip()
-        if not titre:
-            return self._erreur(request, "Merci de donner un titre à l'anomalie.")
+    def _photo_en_attente(self, request):
+        """Chemin de la photo déposée à cette étape ou à une précédente (jeton signé, propre à l'utilisateur)."""
+        fichier = request.FILES.get('photo')
+        if fichier:
+            return default_storage.save(f"anomalie_photos/attente/{fichier.name}", fichier)
         try:
-            gravite = min(max(int(donnees.get('gravite') or 3), 1), 5)
-        except ValueError:
-            gravite = 3
+            donnees = signing.loads(request.POST.get('photo_attente', ''), salt=SEL_PHOTO, max_age=86400)
+        except signing.BadSignature:
+            return ''
+        if donnees.get('u') == request.user.pk and default_storage.exists(donnees['p']):
+            return donnees['p']
+        return ''
 
+    def _afficher(self, request, etape, statut=200):
+        contexte = self._contexte(request, etape, dict(request.POST.items()) if request.method == 'POST' else None)
+        chemin = self._photo_en_attente(request) if request.method == 'POST' else ''
+        if chemin:
+            contexte['photo_nom'] = chemin.rsplit('/', 1)[-1]
+            contexte['photo_attente'] = signing.dumps({'u': request.user.pk, 'p': chemin}, salt=SEL_PHOTO)
+        if etape == len(ETAPES_SIGNALEMENT):
+            installation, materiel, secteur, _ = self._objets(request)
+            valeurs = contexte['valeurs']
+            contexte['synthese'] = {
+                'equipement': installation or materiel, 'secteur': secteur,
+                'gravite': dict(GRAVITES)[_gravite(valeurs)], 'valeurs': valeurs,
+            }
+        return render(request, self.template_name, contexte, status=statut)
+
+    def _erreur(self, request, message, etape):
+        messages.error(request, message)
+        return self._afficher(request, etape, 400)
+
+    def _objets(self, request):
+        """(installation, matériel, secteur, message d'erreur) choisis dans la saisie."""
+        donnees = request.POST
         id_installation, id_materiel = donnees.get('installation', ''), donnees.get('asset', '')
         if id_installation and id_materiel:
-            return self._erreur(request, "Choisissez une installation OU un matériel, pas les deux.")
+            return None, None, None, "Choisissez une installation OU un matériel, pas les deux."
         installations, materiels = _equipements_du_perimetre(request.user)
-        installation = materiel = None
+        installation = materiel = secteur = None
         try:
             if id_installation:
                 installation = installations.get(pk=id_installation)
             if id_materiel:
                 materiel = materiels.get(pk=id_materiel)
         except (Installation.DoesNotExist, Asset.DoesNotExist, ValueError, ValidationError):
-            return self._erreur(request, "Équipement introuvable ou hors de votre périmètre.")
-
-        secteur = None
+            return None, None, None, "Équipement introuvable ou hors de votre périmètre."
         if donnees.get('secteur'):
             try:
                 secteur = _secteurs_selectionnables(request.user).get(pk=donnees['secteur'])
             except (Sector.DoesNotExist, ValueError):
-                return self._erreur(request, "Secteur introuvable ou hors de votre unité.")
+                return None, None, None, "Secteur introuvable ou hors de votre unité."
+        return installation, materiel, secteur, None
+
+    def _controler(self, request, etape):
+        """Message d'erreur de l'étape, ou None si elle est valide."""
+        donnees = request.POST
+        if etape == 1:
+            return self._objets(request)[3]
+        if etape == 2 and not donnees.get('titre', '').strip():
+            return "Merci de donner un titre à l'anomalie."
+        if etape == 3 and _gravite(donnees) >= GRAVITE_CRITIQUE and not donnees.get('description', '').strip():
+            return "Anomalie critique : décrivez la situation pour que les chefs puissent réagir."
+        return None
+
+    def get(self, request):
+        return render(request, self.template_name, self._contexte(request, 1))
+
+    def post(self, request):
+        try:
+            etape = min(max(int(request.POST.get('etape') or 0), 0), len(ETAPES_SIGNALEMENT))
+        except ValueError:
+            etape = 0
+        if etape and request.POST.get('action') == 'precedent':
+            return self._afficher(request, max(etape - 1, 1))
+        if etape and etape < len(ETAPES_SIGNALEMENT):
+            erreur = self._controler(request, etape)
+            return self._erreur(request, erreur, etape) if erreur else self._afficher(request, etape + 1)
+        return self._creer(request)
+
+    def _creer(self, request):
+        donnees = request.POST
+        for etape in (1, 2, 3):
+            erreur = self._controler(request, etape)
+            if erreur:
+                return self._erreur(request, erreur, etape)
+        installation, materiel, secteur, _ = self._objets(request)
+        titre = donnees['titre'].strip()
+        gravite = _gravite(donnees)
 
         anomalie = Anomalie(
             titre=titre, description=donnees.get('description', '').strip(), gravite=gravite,
             localisation=donnees.get('localisation', '').strip(),
-            installation=installation, asset=materiel, photo=request.FILES.get('photo'),
+            installation=installation, asset=materiel,
+            photo=request.FILES.get('photo') or self._photo_en_attente(request) or None,
             created_by=request.user, updated_by=request.user,
         )
         anomalie.rattacher_a(getattr(request.user, 'profile', None), secteur)

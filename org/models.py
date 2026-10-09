@@ -29,6 +29,12 @@ class Ship(TimeStampedModel):
     # Optionnel et sans valeur par défaut arbitraire : reste rétrocompatible
     # avec les unités déjà existantes, non concernées par les unités non-navires.
     classe_navire = models.CharField(max_length=100, blank=True, default="", verbose_name="Classe de navire")
+    # Double équipage (FREMM, PSP, BSAM) : l'équipage à bord est une donnée
+    # configurable (codes libres, ex. « A » / « B »), pas une règle en dur.
+    double_equipage = models.BooleanField(default=False, verbose_name="Double équipage")
+    equipage_a_bord = models.CharField(
+        max_length=8, blank=True, default="", verbose_name="Équipage actuellement à bord"
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -38,9 +44,21 @@ class Ship(TimeStampedModel):
     def __str__(self):
         return self.name
 
+class CommandantAdjoint(models.TextChoices):
+    """Fonctions de commandant adjoint à bord (COMAVIA seulement si l'unité a une capacité aviation)."""
+    COMAEQ = "COMAEQ", "COMAEQ (équipage)"
+    COMOPS = "COMOPS", "COMOPS (opérations)"
+    COMANAV = "COMANAV", "COMANAV (navire)"
+    COMAVIA = "COMAVIA", "COMAVIA (aviation)"
+
+
 class Service(TimeStampedModel):
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="services")
     name = models.CharField(max_length=255)
+    # Commandant adjoint dont dépend le service ; vide = non configuré (repli sur les seuils de rôle).
+    commandant_adjoint = models.CharField(
+        max_length=16, choices=CommandantAdjoint.choices, blank=True, default="", verbose_name="Commandant adjoint"
+    )
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -172,3 +190,31 @@ class ResponsableClasseNavire(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} — responsable classe ({self.classe_navire})"
+
+
+class ReleveEquipage(TimeStampedModel):
+    """Relève du double équipage : proposée par un commandant, appliquée à la validation de l'autre.
+
+    Une seule proposition en attente par unité ; les décisions passées sont conservées.
+    """
+
+    class Statut(models.TextChoices):
+        EN_ATTENTE = "en_attente", "En attente"
+        VALIDEE = "validee", "Validée"
+        REFUSEE = "refusee", "Refusée"
+        ANNULEE = "annulee", "Annulée"
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="releves")
+    equipage_propose = models.CharField(max_length=8)
+    propose_par = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="releves_proposees")
+    statut = models.CharField(max_length=12, choices=Statut.choices, default=Statut.EN_ATTENTE)
+    decide_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="releves_decidees")
+    decide_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ship"], condition=models.Q(statut="en_attente"), name="une_releve_en_attente_par_unite"
+            )
+        ]

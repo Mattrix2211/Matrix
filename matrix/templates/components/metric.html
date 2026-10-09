@@ -1,0 +1,21 @@
+{% comment %}
+Metric : indicateur compact (1 248 h, 4 anomalies, 72 MΩ) — docs/UX.md §12 et §14.
+Usage : {% include "components/metric.html" with libelle="Heures de marche" valeur="1 248" unite="h" %}
+Paramètres :
+  libelle : nom de l'indicateur (obligatoire)
+  valeur  : valeur déjà formatée (obligatoire)
+  unite   : unité (facultatif)
+  icone   : concept d'icône (facultatif)
+  etat    : "ok", "attention" ou "danger" (facultatif, neutre par défaut) ; l'état
+            est aussi écrit en toutes lettres pour ne pas reposer sur la couleur
+  detail  : ligne secondaire, ex. « +42 h / mois » (facultatif)
+  popover : texte du popover ; s'il est fourni, l'indicateur devient un bouton
+            avec survol (seul cas où une Metric réagit au survol)
+  contenu_id : identifiant d'un <template> au contenu riche (lignes, lien, bouton d'action) ;
+            l'indicateur devient un bouton qui ouvre le popover au clic (matrix.js)
+{% endcomment %}{% load icones %}{% if contenu_id %}<button type="button" class="mx-metric mx-metric--interactif{% if etat %} mx-metric--{{ etat }}{% endif %}" data-bs-toggle="popover" data-bs-trigger="click" data-bs-placement="bottom" data-bs-title="{{ libelle }}" data-mx-contenu="#{{ contenu_id }}">{% elif popover %}<button type="button" class="mx-metric mx-metric--interactif{% if etat %} mx-metric--{{ etat }}{% endif %}" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="bottom" data-bs-title="{{ libelle }}" data-bs-content="{{ popover }}">{% else %}<div class="mx-metric{% if etat %} mx-metric--{{ etat }}{% endif %}">{% endif %}
+  <span class="mx-metric__libelle">{% if icone %}{% icone icone %} {% endif %}{{ libelle }}</span>
+  <span class="mx-metric__valeur">{{ valeur }}{% if unite %}<span class="mx-metric__unite"> {{ unite }}</span>{% endif %}</span>
+  {% if etat == "ok" %}<span class="mx-metric__etat">Conforme</span>{% elif etat == "attention" %}<span class="mx-metric__etat">À surveiller</span>{% elif etat == "danger" %}<span class="mx-metric__etat">Critique</span>{% endif %}
+  {% if detail %}<span class="mx-metric__detail">{{ detail }}</span>{% endif %}
+{% if popover or contenu_id %}</button>{% else %}</div>{% endif %}

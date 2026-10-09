@@ -4,8 +4,7 @@ ou de matériels affichés (requêtes groupées / prefetch_related), et les vale
 affichées doivent rester identiques à avant la correction.
 
 Les vues sont invoquées directement (RequestFactory + get_context_data), sans
-passer par le rendu complet du template ni par les context processors globaux
-(ex: matrix.context_processors.installations_notifications), afin d'isoler
+passer par le rendu complet du template ni par les context processors globaux, afin d'isoler
 précisément le comportement des vues corrigées."""
 from decimal import Decimal
 
@@ -38,6 +37,8 @@ class InstallationListNPlusUnTests(TestCase):
         self.service = Service.objects.create(name="Srv", ship=self.ship)
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.user = User.objects.create_user(username="u1", password="pass")
+        self.user.profile.ship = self.ship
+        self.user.profile.save()
         self.factory = RequestFactory()
 
     def _creer_installations_avec_releves(self, n):
@@ -47,7 +48,7 @@ class InstallationListNPlusUnTests(TestCase):
                 designation=f"Installation {i}", ship=self.ship, service=self.service, sector=self.sector,
             )
             InstallationHourReading.objects.create(installation=inst, date="2026-01-01", hours=Decimal("10.0"), is_visit=True)
-            InstallationHourReading.objects.create(installation=inst, date="2026-02-01", hours=Decimal("5.0"))
+            InstallationHourReading.objects.create(installation=inst, date="2026-02-01", hours=Decimal("25.0"))
             InstallationVibrationReading.objects.create(installation=inst, date="2026-02-01", state="B")
             InstallationIsolationReading.objects.create(installation=inst, date="2026-02-01", ohms=Decimal("100.00"))
             installations.append(inst)
@@ -67,6 +68,7 @@ class InstallationListNPlusUnTests(TestCase):
 
     def test_nombre_de_requetes_ne_depend_pas_du_nombre_dinstallations(self):
         self._creer_installations_avec_releves(2)
+        self._construire_contexte()  # amorçage des caches (réglages du navire)
         with CaptureQueriesContext(connection) as petit_lot:
             self._construire_contexte()
 
@@ -92,8 +94,8 @@ class InstallationListNPlusUnTests(TestCase):
         it = page[0]
         self.assertEqual(it.vibration_last_state_card, "A")
         self.assertEqual(it.isolation_last_ohms_card, Decimal("250.00"))
-        self.assertEqual(it.hours_total_card, 15.0)
-        self.assertEqual(it.hours_last_visit_card, 5.0)
+        self.assertEqual(it.hours_total_card, Decimal("25.0"))
+        self.assertEqual(it.hours_last_visit_card, Decimal("15.0"))
 
 
 class AssetListNPlusUnTests(TestCase):
@@ -107,6 +109,8 @@ class AssetListNPlusUnTests(TestCase):
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.asset_type = AssetType.objects.create(name="Extincteur", category="EPI", sector=self.sector)
         self.user = User.objects.create_user(username="u2", password="pass")
+        self.user.profile.ship = self.ship
+        self.user.profile.save()
         self.factory = RequestFactory()
 
     def _creer_materiels_avec_documents(self, n):
@@ -127,6 +131,7 @@ class AssetListNPlusUnTests(TestCase):
 
     def test_nombre_de_requetes_ne_depend_pas_du_nombre_de_materiels(self):
         self._creer_materiels_avec_documents(2)
+        list(self._obtenir_queryset())  # amorçage des caches (réglages du navire)
         with CaptureQueriesContext(connection) as petit_lot:
             for a in self._obtenir_queryset():
                 list(a.documents.all())

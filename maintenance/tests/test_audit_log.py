@@ -15,6 +15,7 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from assets.models import Installation, InstallationMaintenance, ModeDeclenchement
 from maintenance.models import MaintenanceOccurrence, OccurrenceStatusLog
+from accounts.models import UserProfile
 from org.models import Sector, Service, Ship
 
 
@@ -34,6 +35,7 @@ class AuditLogOccurrenceTests(TestCase):
             critique=False,
         )
         self.tech = User.objects.create_user(username="tech_audit_occ", password="MotDePasseCorrect1")
+        UserProfile.objects.update_or_create(user=self.tech, defaults={"ship": self.ship})
         self.client.login(username="tech_audit_occ", password="MotDePasseCorrect1")
 
     def _creer_occurrence(self, installation):

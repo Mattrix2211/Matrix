@@ -19,9 +19,9 @@ class InstallationRattachementParentFormulaireTests(TestCase):
         self.chef = User.objects.create_user(username="chef_i", password="pass")
         self.chef_section = User.objects.create_user(username="chef_section_i", password="pass")
         self.equipier = User.objects.create_user(username="equipier_i", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
-        UserProfile.objects.update_or_create(user=self.chef_section, defaults={"role": "CHEF_SECTION"})
-        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
+        UserProfile.objects.update_or_create(user=self.chef_section, defaults={"role": "CHEF_SECTION", "ship": self.ship})
+        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER", "ship": self.ship})
 
         self.groupe = Installation.objects.create(
             designation="Groupe propulsion", ship=self.ship, service=self.service, sector=self.sector,
@@ -207,8 +207,8 @@ class AssetRattachementParentFormulaireTests(TestCase):
 
         self.chef = User.objects.create_user(username="chef_a", password="pass")
         self.equipier = User.objects.create_user(username="equipier_a", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
-        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
+        UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER", "ship": self.ship})
 
         self.caisse = Asset.objects.create(
             asset_type=self.asset_type, designation="Caisse à outils",

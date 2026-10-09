@@ -11,9 +11,9 @@ class ListeMaterielAllegeeTests(TestCase):
     - la carte "Dossiers" ne rend son contenu (grille de sous-dossiers, astuce)
       que s'il existe au moins un sous-dossier à afficher, pour ne pas imposer
       une grande carte vide aux utilisateurs qui ne se servent jamais des
-      dossiers (le bandeau fil d'Ariane + bouton "Nouveau" reste toujours là) ;
-    - le bouton "Actions groupées" est rendu masqué par défaut (classe d-none),
-      il n'est révélé qu'après sélection d'au moins un matériel, en JS.
+      dossiers (le bandeau fil d'Ariane reste toujours là) ;
+    - la barre d'actions groupées est rendue masquée par défaut (classe d-none),
+      elle n'est révélée qu'après sélection d'au moins un matériel, en JS.
     Changement purement d'affichage (aucune fonctionnalité retirée, aucun champ
     de données modifié) : couvert ici par un simple contrôle du HTML rendu."""
 
@@ -27,16 +27,14 @@ class ListeMaterielAllegeeTests(TestCase):
         )
         self.client.login(username="chef_allege", password="pass")
 
-    def test_bouton_actions_groupees_masque_par_defaut(self):
+    def test_barre_actions_groupees_masquee_par_defaut(self):
         r = self.client.get("/assets/")
-        self.assertContains(r, 'id="bulkActionsBtn"')
-        # Le bouton doit porter la classe d-none dans le HTML servi : c'est le
-        # JS (countSelected) qui la retire lorsqu'au moins un matériel est coché.
-        self.assertContains(r, 'class="btn btn-outline-secondary dropdown-toggle d-none" type="button" id="bulkActionsBtn"')
+        # La barre n'est révélée par le JS qu'après sélection d'au moins un matériel.
+        self.assertContains(r, 'class="mx-barre-selection d-none" id="barreSelection"')
 
     def test_carte_dossiers_sans_contenu_si_aucun_sous_dossier(self):
         # Aucun AssetFolder créé : la carte "Dossiers" ne doit pas rendre de
-        # grille (folderGrid), seulement son bandeau (fil d'Ariane + Nouveau).
+        # grille (folderGrid), seulement son bandeau (fil d'Ariane).
         r = self.client.get("/assets/")
         self.assertContains(r, ">Dossiers<")
         self.assertNotContains(r, 'id="folderGrid"')

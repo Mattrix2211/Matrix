@@ -1,0 +1,94 @@
+{% comment %}
+Modales des actions groupées d'une liste (matériels, installations) ; pilotées par static/js/selection_liste.js.
+Usage : {% include "components/liste_modales_groupees.html" with avec_statut=True %}
+Contexte attendu : ships, services, sectors, sections, locations.
+Les boutons déclencheurs portent data-bulk (champ modifié) et data-titre, ou data-action et data-label pour la confirmation.
+{% endcomment %}
+<div class="modal fade" id="bulkModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkTitre">Modifier la sélection</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="post" id="bulkForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="bulkAction" />
+          {% if avec_statut %}
+          <div class="mb-3" data-groupe="status">
+            <label class="form-label" for="bulkStatus">Statut</label>
+            <select class="form-select" name="status" id="bulkStatus">
+              <option value="OK">OK</option>
+              <option value="IN_SERVICE">En service</option>
+              <option value="OUT_OF_SERVICE">Hors service</option>
+              <option value="FAULTY">Défectueux</option>
+            </select>
+          </div>
+          {% endif %}
+          <div class="mb-3" data-groupe="ship">
+            <label class="form-label" for="bulkShip">Unité</label>
+            <select class="form-select" name="ship_id" id="bulkShip">
+              <option value="">—</option>
+              {% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3" data-groupe="service">
+            <label class="form-label" for="bulkService">Service</label>
+            <select class="form-select" name="service_id" id="bulkService">
+              <option value="">—</option>
+              {% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3" data-groupe="sector">
+            <label class="form-label" for="bulkSector">Secteur</label>
+            <select class="form-select" name="sector_id" id="bulkSector">
+              <option value="">—</option>
+              {% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3" data-groupe="section">
+            <label class="form-label" for="bulkSection">Section</label>
+            <select class="form-select" name="section_id" id="bulkSection">
+              <option value="">—</option>
+              {% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3" data-groupe="location">
+            <label class="form-label" for="bulkLocation">Emplacement</label>
+            <select class="form-select" name="location_id" id="bulkLocation">
+              <option value="">—</option>
+              {% for loc in locations %}<option value="{{ loc.id }}">{{ loc.name }} — {{ loc.ship.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Appliquer à la sélection</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="bulkConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmer l'action</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="post" id="bulkConfirmForm">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="bulkConfirmAction" />
+          <p id="bulkConfirmLabel"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Confirmer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

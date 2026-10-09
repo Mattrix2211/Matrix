@@ -10,6 +10,8 @@ class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = "__all__"
+        # Le commandant adjoint route les visas : réglage administratif, pas via l'API.
+        read_only_fields = ("commandant_adjoint",)
 
 class SectorSerializer(serializers.ModelSerializer):
     class Meta:

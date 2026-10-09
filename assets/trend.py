@@ -48,8 +48,8 @@ def jours_avant_franchissement_seuil(
     - seuil : valeur du seuil de danger à ne pas franchir.
     - sens : "BAISSE" si la dégradation correspond à une valeur qui diminue
       vers le seuil (ex: isolement en Ohms), "HAUSSE" si elle correspond à
-      une valeur qui augmente vers le seuil (ex: heures de marche cumulées
-      par rapport au seuil d'entretien compteur).
+      une valeur qui augmente vers le seuil (ex: compteur d'heures de marche
+      par rapport au seuil d'entretien).
 
     Renvoie le nombre de jours entiers avant franchissement estimé, ou None
     si :
@@ -71,10 +71,9 @@ def jours_avant_franchissement_seuil(
     resultat = regression_lineaire_simple(points)
     if resultat is None:
         return None
-    pente, origine = resultat
+    pente, _ = resultat
 
     derniere_valeur = releves_tries[-1][1]
-    dernier_x = points[-1][0]
 
     if sens == "BAISSE":
         if derniere_valeur <= seuil or pente >= 0:
@@ -83,8 +82,7 @@ def jours_avant_franchissement_seuil(
         if derniere_valeur >= seuil or pente <= 0:
             return None
 
-    x_seuil = (seuil - origine) / pente
-    jours = round(x_seuil - dernier_x)
-    if jours <= 0:
-        return None
-    return jours
+    # Part de la dernière valeur réelle : la droite ajustée peut déjà être sous le
+    # seuil alors que la dernière mesure est encore au-dessus.
+    jours = round((seuil - derniere_valeur) / pente)
+    return max(jours, 1)

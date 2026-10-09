@@ -1,0 +1,7 @@
+{% comment %}
+StatusBadge : état en une pastille, couleur + icône + libellé (docs/UX.md §15.1).
+Usage : {% include "components/badge_etat.html" with etat="ok" libelle="Opérationnel" %}
+Paramètres :
+  etat    : "ok" (vert), "attention" (ambre), "danger" (rouge) ou "neutre" (gris, par défaut)
+  libelle : texte affiché (obligatoire)
+{% endcomment %}{% load icones %}<span class="mx-badge mx-badge--{{ etat|default:'neutre' }}">{% if etat == "ok" %}{% icone "terminee" %} {% elif etat == "attention" %}{% icone "anomalie" %} {% elif etat == "danger" %}{% icone "retard" %} {% endif %}{{ libelle }}</span>

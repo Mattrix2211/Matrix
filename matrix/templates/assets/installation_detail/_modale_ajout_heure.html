@@ -7,12 +7,12 @@
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="add_hour_reading" />
-          <input type="hidden" name="tab" value="hours" />
+          <input type="hidden" name="tab" value="mesures" />
           <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
-          <div class="mb-3"><label class="form-label">Heures (cumulées)</label><input type="text" class="form-control" name="hours" inputmode="decimal" placeholder="ex: 1234,50" required /></div>
+          <div class="mb-3"><label class="form-label">Compteur d’heures de la machine</label><input type="text" class="form-control" name="hours" inputmode="decimal" placeholder="ex: 4715" required /><div class="form-text">Lisez le compteur total de la machine, sans le soustraire : les heures depuis la dernière visite sont calculées.</div></div>
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" value="1" id="isVisitAdd" name="is_visit">
-            <label class="form-check-label" for="isVisitAdd">Marquer comme visite</label>
+            <label class="form-check-label" for="isVisitAdd">Relevé fait lors d’une visite en atelier</label>
           </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>

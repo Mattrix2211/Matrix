@@ -5,6 +5,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from accounts.models import UserProfile
 from org.models import Ship, Service, Sector
 from assets.models import (
     Asset,
@@ -31,6 +32,7 @@ class ExecutionInstallationTests(TestCase):
             designation="Groupe électrogène", ship=self.ship, service=self.service, sector=self.sector,
         )
         self.tech = User.objects.create_user(username="tech", password="pass")
+        UserProfile.objects.update_or_create(user=self.tech, defaults={"ship": self.ship})
         self.client = APIClient()
         self.client.login(username="tech", password="pass")
 

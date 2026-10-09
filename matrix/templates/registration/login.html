@@ -14,8 +14,9 @@
     <meta name="apple-mobile-web-app-title" content="Matrix">
     {# Bibliothèque auto-hébergée — aucune dépendance CDN, fonctionne hors-ligne sur le réseau du bord #}
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/fonts.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
     <style>
-      body{background:#f5f7fb;}
       .login-card{max-width:420px;margin:8vh auto;}
     </style>
   </head>
@@ -24,6 +25,9 @@
     <div class="card shadow-sm login-card">
       <div class="card-body">
         <h3 class="mb-3 text-center">Connexion</h3>
+        {% if request.GET.expire %}
+          <div class="alert alert-warning" role="status">Votre session a expiré par inactivité. Reconnectez-vous pour continuer.</div>
+        {% endif %}
         {% if form.errors %}
           <div class="alert alert-danger">Identifiants invalides, réessayez.</div>
         {% endif %}

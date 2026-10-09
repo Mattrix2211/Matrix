@@ -1,0 +1,30 @@
+{% load icones %}
+<div id="notif-liste">
+  {% if oob %}{% include "notifications/_compteur.html" %}{% endif %}
+  {% if notifications %}
+    {% if non_lues %}
+      <button type="button" class="btn btn-sm btn-outline-secondary mx-notif__tout" hx-post="{% url 'notifications-tout-lu' %}" hx-target="#notif-liste" hx-swap="outerHTML">{% icone "tout_marquer_lu" %} Tout marquer comme lu</button>
+    {% endif %}
+    <ul class="mx-notif__liste">
+      {% for n in notifications %}
+        <li class="mx-notif mx-notif--{{ n.level }}{% if not n.is_read %} mx-notif--non-lue{% endif %}">
+          <div class="mx-notif__entete">
+            {% if n.level == "danger" %}{% include "components/badge_etat.html" with etat="danger" libelle="Critique" %}
+            {% elif n.level == "warning" %}{% include "components/badge_etat.html" with etat="attention" libelle="Attention" %}
+            {% else %}<span class="mx-badge mx-badge--neutre">{% icone "information" %} Information</span>{% endif %}
+            <span class="mx-notif__date">{{ n.date_relative }}</span>
+          </div>
+          <p class="mx-notif__message">{{ n.verb }}</p>
+          <div class="mx-notif__actions">
+            {% if n.lien %}<a href="{{ n.lien }}" class="btn btn-sm btn-outline-primary">{% icone "lien_direct" %} Ouvrir</a>{% endif %}
+            {% if not n.is_read %}
+              <button type="button" class="btn btn-sm btn-outline-secondary" hx-post="{% url 'notifications-lue' n.pk %}" hx-target="#notif-liste" hx-swap="outerHTML">{% icone "marquer_lu" %} Marquer comme lu</button>
+            {% else %}<span class="mx-notif__lue">Lue</span>{% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {% include "components/etat_vide.html" with icone="notifications" titre="Aucune notification" texte="Vous êtes à jour." %}
+  {% endif %}
+</div>

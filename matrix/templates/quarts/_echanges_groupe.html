@@ -1,4 +1,4 @@
-<h2 class="h5 mt-4">{{ titre }}</h2>
+{% load icones %}<h2 class="h5 mt-4">{{ titre }}</h2>
 {% for e in liste_echanges %}
 <div class="card mb-3">
   <div class="card-body">
@@ -26,7 +26,7 @@
     {% endif %}
     {% if e.peut_trancher %}
     <form method="post" action="{% url 'echange-action' e.pk 'valider' %}" class="d-inline">
-      {% csrf_token %}<button class="btn btn-sm btn-success"><i class="bi bi-check2-all"></i> Valider l'échange</button>
+      {% csrf_token %}<button class="btn btn-sm btn-success">{% icone "tout_marquer_lu" %} Valider l'échange</button>
     </form>
     {% endif %}
     {% if e.peut_repondre or e.peut_trancher or e.peut_annuler %}

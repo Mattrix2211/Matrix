@@ -32,12 +32,14 @@ class OccurrenceCommentsTests(TestCase):
         )
 
         self.assigne = User.objects.create_user(username="assigne_noc", password="pass")
+        UserProfile.objects.filter(user=self.assigne).update(ship=self.navire)
         self.occurrence.assignees.add(self.assigne)
 
         self.chef = User.objects.create_user(username="chef_noc", password="pass")
-        UserProfile.objects.filter(user=self.chef).update(role="CHEF_SECTION", sector=self.secteur)
+        UserProfile.objects.filter(user=self.chef).update(role="CHEF_SECTION", sector=self.secteur, ship=self.navire)
 
         self.tiers = User.objects.create_user(username="tiers_noc", password="pass")
+        UserProfile.objects.filter(user=self.tiers).update(ship=self.navire)
 
         self.url_detail = reverse("occurrence-execute", args=[self.occurrence.id])
         self.url_commentaire = reverse("occurrence-comment-create", args=[self.occurrence.id])
@@ -106,7 +108,7 @@ class OccurrenceCommentsTests(TestCase):
 
     def test_commentaire_dev_fil_de_suivi_non_affiche_en_clair(self):
         """Régression : le commentaire {# ... #} multi-lignes explicatif du fil
-        de suivi générique (threads/_messages.html, inclus dans la checklist
+        de suivi générique (threads/_discussion.html, panneau de l'en-tête de fiche
         d'exécution) s'affichait en clair, faute d'être invisible avec
         {% comment %}...{% endcomment %}."""
         self.client.login(username="assigne_noc", password="pass")

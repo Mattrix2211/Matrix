@@ -1,0 +1,12 @@
+{% comment %}
+Popover : petite information ou mini-action sans quitter la page (docs/UX.md §5.1).
+Jamais de formulaire dedans. Le texte est du texte brut (échappé), il s'ouvre au
+clic, au focus clavier et au survol, et se ferme avec Échap (matrix.js).
+Usage : {% include "components/popover.html" with libelle="Dernier relevé" titre="Isolement" texte="72 MΩ le 02/10" %}
+Paramètres :
+  libelle : texte du déclencheur (obligatoire)
+  texte   : contenu du popover (obligatoire)
+  titre   : titre du popover (facultatif, le libellé par défaut)
+  icone   : concept d'icône avant le libellé (facultatif)
+  placement : "top", "bottom" (par défaut), "left" ou "right"
+{% endcomment %}{% load icones %}<button type="button" class="mx-popover__declencheur" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="{{ placement|default:'bottom' }}" data-bs-title="{{ titre|default:libelle }}" data-bs-content="{{ texte }}">{% if icone %}{% icone icone %} {% endif %}{{ libelle }}</button>
