@@ -53,7 +53,7 @@
   <button class="btn btn-primary" type="submit">Publier</button>
 </form>
 
-{% if peut_gerer and not equipage_a_terre and interlocuteurs %}
+{% if peut_gerer and tache.ouverte and not equipage_a_terre and interlocuteurs %}
 <form method="post" action="{% url 'tache-action' tache.pk %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="interlocuteur">
   <div class="col-auto"><label class="form-label" for="id_interlocuteur">Ajouter un interlocuteur au fil</label>
     <select class="form-select" id="id_interlocuteur" name="interlocuteur">{% for u in interlocuteurs %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>

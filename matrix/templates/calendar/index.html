@@ -35,6 +35,7 @@
     <span class="badge" style="background:#0b7285">{% icone "quart" %} Quart</span>
     <span class="badge" style="background:#a61e4d">{% icone "garde" %} Garde</span>
     <span class="badge" style="background:#5f3dc4">{% icone "ronde" %} Ronde</span>
+    <span class="badge" style="background:#2b6a3f">{% icone "tache" %} Tâche</span>
     <span class="badge" style="background:#6f42c1">{% icone "personnel" %} Personnel</span>
   </div>
 
@@ -94,6 +95,7 @@
           <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>Quart</option>
           <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>Ronde</option>
           <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>Garde</option>
+          <option value="tache" {% if active_filters.type == 'tache' %}selected{% endif %}>Tâche</option>
           <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>Personnel</option>
         </select>
       </div>
