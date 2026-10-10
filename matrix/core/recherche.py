@@ -21,7 +21,7 @@ from logistics.models import CorrectiveTicket
 from matrix.core.mixins import build_scope_q
 from matrix.core.modules import module_actif_pour_user
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
-from matrix.core.scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
+from matrix.core.scopes import is_master_admin, perimetre_navire_q
 from training.models import TrainingCourse
 
 MIN_CARACTERES = 2
@@ -48,7 +48,7 @@ def _ou(terme, *champs):
 
 def installations(user, terme):
     return (
-        Installation.objects.filter(**scope_filters_for_user(user))
+        Installation.objects.filter(build_scope_q(user, ""))
         .filter(_ou(terme, "designation", "reference", "local"))
         .select_related("sector").order_by("designation")
     )
@@ -56,7 +56,7 @@ def installations(user, terme):
 
 def materiels(user, terme):
     return (
-        Asset.objects.filter(**scope_filters_for_user(user))
+        Asset.objects.filter(build_scope_q(user, ""))
         .filter(_ou(terme, "designation", "internal_id", "serial_number", "nno", "reference", "local"))
         .select_related("asset_type").order_by("internal_id", "designation")
     )

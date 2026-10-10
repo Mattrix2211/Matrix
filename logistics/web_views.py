@@ -16,9 +16,10 @@ from .models import (
 )
 from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q, utilisateurs_visibles_par
 from matrix.core.validators import valider_photo, message_erreur_fichier
-from matrix.core.scopes import equipage_marin_q, scope_filters_for_user
+from matrix.core.scopes import equipage_marin_q, is_master_admin, scope_filters_for_user
 from notifications.models import Notification
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
@@ -48,7 +49,7 @@ def _secteur_dans_perimetre(user, sector_id):
     confiance au menu déroulant du formulaire, contournable par un POST direct."""
     filters = scope_filters_for_user(user)
     if not filters:
-        return Sector.objects.filter(pk=sector_id).exists()
+        return is_master_admin(user) and Sector.objects.filter(pk=sector_id).exists()
     (key, value), = filters.items()
     if key == "sector_id":
         return str(value) == str(sector_id)
@@ -218,8 +219,7 @@ class TicketDetailView(LoginRequiredMixin, View):
         # pièce impossible à prélever.
         contexte["peut_prelever_stock"] = contexte["peut_assigner"]
         if contexte["peut_prelever_stock"]:
-            filtres_stock = scope_filters_for_user(request.user)
-            pieces_qs = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+            pieces_qs = StockPiece.objects.filter(build_scope_q(request.user, ""))
             contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
         if contexte["peut_assigner"]:
             # Assignables : le périmètre hiérarchique du chef (navire entier dès COMMANDANT), comme l'API.
@@ -241,8 +241,7 @@ class TicketCreateView(LoginRequiredMixin, View):
     def post(self, request, asset_pk):
         # Périmètre : un marin ne peut signaler une anomalie que sur un matériel
         # de son propre périmètre — même filtre que ScopedQuerySetMixin/AssetViewSet.
-        filtres = scope_filters_for_user(request.user)
-        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        assets = Asset.objects.filter(build_scope_q(request.user, ""))
         try:
             asset = assets.get(pk=asset_pk)
         except Asset.DoesNotExist:
@@ -549,8 +548,7 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
 
-        filtres_stock = scope_filters_for_user(request.user)
-        pieces = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+        pieces = StockPiece.objects.filter(build_scope_q(request.user, ""))
         try:
             piece = pieces.get(pk=request.POST.get('piece_id'))
         except (StockPiece.DoesNotExist, ValueError):
@@ -634,14 +632,15 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['peut_gerer'] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('service__ship__name', 'service__name', 'name')
-        ctx['sections'] = Section.objects.select_related('sector').order_by('sector__name', 'name')
+        organisation = referentiel_organisation(self.request.user)
+        ctx['sectors'] = organisation['sectors'].order_by('service__ship__name', 'service__name', 'name')
+        ctx['sections'] = organisation['sections'].order_by('sector__name', 'name')
         # Équipement affiliable (T-FEAT stock détaillé) : listés une seule fois,
         # avec leur secteur en attribut, pour filtrer côté client selon le secteur
         # choisi (même principe que le filtrage des sections). Le contrôle réel
         # d'appartenance au secteur est fait côté serveur (voir post()).
-        ctx['installations'] = Installation.objects.select_related('sector').order_by('designation')
-        ctx['assets_materiel'] = Asset.objects.select_related('sector', 'asset_type').order_by('designation')
+        ctx['installations'] = Installation.objects.filter(build_scope_q(self.request.user, "")).select_related('sector').order_by('designation')
+        ctx['assets_materiel'] = Asset.objects.filter(build_scope_q(self.request.user, "")).select_related('sector', 'asset_type').order_by('designation')
         ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
         ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
         ctx['xlsx_disponible'] = xlsx_disponible()

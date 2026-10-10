@@ -26,7 +26,7 @@ from django.views import View
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
-from matrix.core.scopes import equipage_agissant, equipage_marin_q, perimetre_navire_q, scope_filters_for_user
+from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_admin, perimetre_navire_q, scope_filters_for_user
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
@@ -114,6 +114,8 @@ def _perimetres_org_disponibles(user, borne_par_scope=True):
     services = Service.objects.select_related("ship")
     sectors = Sector.objects.select_related("service", "service__ship")
     sections = Section.objects.select_related("sector", "sector__service", "sector__service__ship")
+    if borne_par_scope and not filtres and not is_master_admin(user):
+        ships, services, sectors, sections = Ship.objects.none(), Service.objects.none(), Sector.objects.none(), Section.objects.none()
     if filtres:
         (cle, valeur), = filtres.items()
         if cle == "ship_id":
@@ -157,7 +159,7 @@ def _perimetre_autorise_pour_designation(user, ship, service, sector, section):
         return False
     filtres = scope_filters_for_user(user)
     if not filtres:
-        return True
+        return is_master_admin(user)
     (cle, valeur), = filtres.items()
     valeur = str(valeur)
     if cle == "section_id":
@@ -195,9 +197,9 @@ def _listes_visibles(model, user):
     celles correspondant EXACTEMENT à l'un de ses périmètres de chef de
     liste."""
     if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_LISTE:
-        filtres = scope_filters_for_user(user)
-        visibles = model.objects.filter(**filtres) if filtres else model.objects.all()
-        return visibles.filter(listes_de_l_equipage_q(user))
+        # Toutes les listes du navire, quel que soit le niveau (navire, service, secteur, section) où elles sont posées.
+        portee = Q() if is_master_admin(user) else perimetre_navire_q(user, "")
+        return model.objects.filter(portee).filter(listes_de_l_equipage_q(user))
     q = Q(pk__in=[])
     trouve = False
     for cdl in ChefDeListe.objects.filter(user=user):

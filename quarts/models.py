@@ -126,7 +126,7 @@ from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.saisie import entier_ou_none
-from matrix.core.scopes import equipage_agissant, scope_filters_for_user, ship_id_for_user
+from matrix.core.scopes import equipage_agissant, is_master_admin, scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Section, Service, Ship
 
@@ -285,7 +285,7 @@ def _perimetre_dans_scope_utilisateur(user, ship, service, sector, section, nive
         return False
     filtres = scope_filters_for_user(user)
     if not filtres:
-        return True
+        return is_master_admin(user)
     (cle, valeur), = filtres.items()
     valeur = str(valeur)
     if cle == "section_id":

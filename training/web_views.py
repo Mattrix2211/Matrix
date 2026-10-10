@@ -15,7 +15,7 @@ from django.views.generic import ListView, View
 
 from matrix.core.commandants_adjoints import est_commandant_adjoint_du_service, service_de, titulaires_du_service
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import perimetre_hierarchique_q, ship_id_for_user
+from matrix.core.scopes import is_master_admin, perimetre_hierarchique_q, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document
 from notifications.models import Notification
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -325,9 +325,10 @@ def filtres_perimetre_marin(user):
     n'importe où EN DESSOUS de ce niveau dans la hiérarchie, via un Q
     combinant chaque chemin possible.
 
-    Renvoie un objet Q, ou None si le périmètre est vide (supervision
-    globale, COMMANDANT et au-dessus, qui voient tous les marins)."""
-    return perimetre_hierarchique_q(user, "profile__")
+    Renvoie un objet Q, ou None pour l'administrateur général (tous les
+    marins) ; un utilisateur sans rattachement ne voit personne."""
+    q = perimetre_hierarchique_q(user, "profile__")
+    return Q(pk__in=[]) if q is None and not is_master_admin(user) else q
 
 
 def _marins_validables(user):

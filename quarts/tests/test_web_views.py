@@ -286,7 +286,8 @@ class PlanningEtOngletsTests(TestCase):
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
         ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
         self.second = User.objects.create_user(username="second_planning", password="pass")
-        UserProfile.objects.update_or_create(user=self.second, defaults={"role": "COMMANDANT_EN_SECOND"})
+        UserProfile.objects.update_or_create(
+            user=self.second, defaults={"role": "COMMANDANT_EN_SECOND", "ship": self.sector.service.ship})
         aujourdhui = timezone.localdate()
         self.garde = ServiceGarde.objects.create(
             sector=self.sector, date_debut=aujourdhui, date_fin=aujourdhui + timedelta(days=9),

@@ -41,6 +41,21 @@ def batiments_du_perimetre(user):
     return filtre.filter(archived=False).distinct().order_by("name")
 
 
+def referentiel_organisation(user):
+    """Bâtiments du périmètre de l'utilisateur et leur organisation (services, secteurs, sections),
+    pour les listes déroulantes de filtre : jamais les noms des autres bâtiments."""
+    from org.models import Section, Sector, Service
+
+    navires = batiments_du_perimetre(user)
+    return {
+        "ships": navires,
+        "services": Service.objects.filter(ship__in=navires).select_related("ship").order_by("name"),
+        "sectors": Sector.objects.filter(service__ship__in=navires).select_related("service", "service__ship").order_by("name"),
+        "sections": Section.objects.filter(sector__service__ship__in=navires).select_related(
+            "sector", "sector__service", "sector__service__ship").order_by("name"),
+    }
+
+
 def selecteur_batiment(user):
     """Liste des bâtiments proposés si l'utilisateur en suit plusieurs, sinon []."""
     batiments = list(batiments_du_perimetre(user))
