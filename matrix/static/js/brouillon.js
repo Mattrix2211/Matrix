@@ -79,9 +79,9 @@
 
   function appeler(methode, cle, corps) {
     var options = { method: methode, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf(), 'X-Mx-Automatique': '1' } };
-    var page = document.getElementById('mx-inactivite');
     // Marin pour qui la page a été ouverte : le serveur refuse (409) si c'est un autre qui est connecté.
-    if (page && page.getAttribute('data-utilisateur')) options.headers['X-Mx-Utilisateur'] = page.getAttribute('data-utilisateur');
+    var utilisateur = document.body.getAttribute('data-utilisateur');
+    if (utilisateur) options.headers['X-Mx-Utilisateur'] = utilisateur;
     if (corps) {
       options.headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(corps);

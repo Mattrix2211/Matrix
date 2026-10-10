@@ -11,7 +11,7 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from matrix.core.mixins import build_scope_q
 from accounts.models import AuditLog
 from .models import PersonalEvent
@@ -24,7 +24,7 @@ def _perimetre_ticket(qs, user):
     (aucun nouveau système de périmètre)."""
     filtres = scope_filters_for_user(user)
     if not filtres:
-        return qs
+        return qs if is_master_admin(user) else qs.none()
     (cle, valeur), = filtres.items()
     return qs.filter(Q(**{f"asset__{cle}": valeur}) | Q(**{f"installation__{cle}": valeur}))
 

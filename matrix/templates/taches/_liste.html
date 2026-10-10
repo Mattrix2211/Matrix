@@ -1,0 +1,19 @@
+<div class="card mb-3">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Tâche</th>{% if avec_marin %}<th>Marin</th>{% endif %}<th>Échéance</th><th>Statut</th></tr></thead>
+      <tbody>
+        {% for t in taches %}
+        <tr>
+          <td><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a>{% if t.priorite == "URGENTE" and t.ouverte %} <span class="badge text-bg-danger">Urgente</span>{% endif %}{% if t.personnelle %} <span class="badge text-bg-light border">Personnelle{% if not t.partagee %} · privée{% endif %}</span>{% endif %}</td>
+          {% if avec_marin %}<td>{{ t.assigne.get_full_name|default:t.assigne.username }}</td>{% endif %}
+          <td>{% if t.echeance %}{{ t.echeance|date:"d/m/Y" }}{% else %}<span class="text-muted">Sans échéance</span>{% endif %}{% if t.ouverte and t.echeance and t.echeance < aujourdhui %} <span class="badge text-bg-danger">En retard</span>{% endif %}</td>
+          <td>{% include "taches/_statut.html" %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted py-4">{{ vide }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

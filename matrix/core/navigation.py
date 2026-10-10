@@ -66,6 +66,7 @@ GROUPES = [
         Entree("Logistique", "logistique", "stock-piece-list", module="logistics"),
     ]),
     ("Activité", [
+        Entree("Tâches", "tache", "taches-index", module="taches"),
         Entree("Rondes", "ronde", "rondes-index", module="rondes"),
         Entree("Quarts et gardes", "quart", "quarts-index", module="quarts"),
         Entree("Feuille de service", "feuille_service", "feuille-service-index", module="quarts"),

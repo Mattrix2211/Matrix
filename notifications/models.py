@@ -13,8 +13,8 @@ class NotificationLevel(models.TextChoices):
     restent strictement in-app pour ne pas noyer l'équipage d'alertes de
     moindre importance."""
     INFO = "info", "Information"
-    WARNING = "warning", "Attention"
-    DANGER = "danger", "Critique"
+    WARNING = "warning", "Important"
+    DANGER = "danger", "Urgent"
 
 
 class Notification(TimeStampedModel):
@@ -25,6 +25,8 @@ class Notification(TimeStampedModel):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     object_id = models.CharField(max_length=64, null=True, blank=True)
     target = GenericForeignKey('content_type', 'object_id')
+    # Destination sans objet précis (liste, réglage) : chemin interne ; la page applique elle-même ses droits.
+    url = models.CharField(max_length=200, blank=True, default="")
 
     class Meta:
         ordering = ("-created_at",)

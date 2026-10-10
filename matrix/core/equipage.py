@@ -87,6 +87,7 @@ def proposer_releve(auteur, navire, equipage):
         Notification.objects.create(
             user=cdt,
             verb=f"Relève proposée sur {navire.name} : l'équipage {equipage} à bord. Votre validation est attendue.",
+            url="/parametre/?tab=equipage",
         )
     return proposition, ""
 
@@ -179,6 +180,7 @@ def valider_releve_secours(auteur, proposition, motif):
                     "Validation de secours par l'administrateur général (aucun commandant ni second disponible "
                     "pour valider), tracée dans le journal d'audit."
                 ),
+                url="/parametre/?tab=equipage",
             )
     return ""
 
@@ -207,6 +209,7 @@ def _appliquer_decision(auteur, proposition, accepter, action_validation, comple
         Notification.objects.create(
             user=proposition.propose_par,
             verb=f"Relève sur {navire.name} {'validée' if accepter else 'refusée'} par {auteur.get_full_name() or auteur.username}.",
+            url="/parametre/?tab=equipage",
         )
     return ""
 

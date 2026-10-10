@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "training.apps.TrainingConfig",
     "quarts.apps.QuartsConfig",
     "absences.apps.AbsencesConfig",
+    "taches.apps.TachesConfig",
     "rondes.apps.RondesConfig",
     "threads.apps.ThreadsConfig",
     "notifications.apps.NotificationsConfig",
@@ -95,11 +96,17 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    # Retire le caractère NUL des paramètres (erreur 500 sous PostgreSQL)
+    "matrix.core.middleware.SansNulMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Déconnexion automatique après inactivité (matrix/core/inactivite.py)
     "matrix.core.inactivite.InactiviteMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Écriture refusée si la page a été ouverte pour un autre marin (poste partagé)
+    "matrix.core.middleware.IdentitePageMiddleware",
+    # Mot de passe provisoire : changement obligatoire avant toute autre page
+    "matrix.core.middleware.MotDePasseProvisoireMiddleware",
     # Modules activables par bâtiment : bloque l'accès direct par URL aux
     # vues web d'un module désactivé sur le navire du marin connecté (voir
     # matrix/core/middleware.py et matrix/core/modules.py).
@@ -225,9 +232,15 @@ BROUILLONS_TAILLE_MAX = int(os.getenv("BROUILLONS_TAILLE_MAX", str(256 * 1024)))
 # Déconnexion automatique des postes partagés (en secondes) : délai d'inactivité et
 # préavis affiché avant la déconnexion. Valeurs bornées et corrigées par matrix/core/inactivite.py.
 INACTIVITE_DELAI_SECONDES = os.getenv("INACTIVITE_DELAI_SECONDES", "900")
+# Taille maximale (Mo) des documents téléversés, pièces jointes et documents d'installation
+DOCUMENT_TAILLE_MAX_MO = int(os.getenv("DOCUMENT_TAILLE_MAX_MO", "20"))
 INACTIVITE_AVERTISSEMENT_SECONDES = os.getenv("INACTIVITE_AVERTISSEMENT_SECONDES", "60")
 
 CELERY_BEAT_SCHEDULE = {
+    "purger_sessions_daily": {
+        "task": "matrix.core.tasks.purger_sessions",
+        "schedule": 60 * 60 * 24,
+    },
     "purger_brouillons_daily": {
         "task": "matrix.core.tasks.purger_brouillons",
         "schedule": 60 * 60 * 24,
@@ -308,6 +321,10 @@ CELERY_BEAT_SCHEDULE = {
     # déclenchement toutes les minutes suffit à respecter des préférences
     # différentes d'un marin à l'autre (même principe que les alertes
     # d'échéance d'installations ci-dessus).
+    "notify_taches_en_retard_daily": {
+        "task": "notifications.tasks.notify_taches_en_retard",
+        "schedule": 60 * 60 * 24,
+    },
     "notify_ma_journee_minute": {
         "task": "notifications.tasks.notify_ma_journee",
         "schedule": crontab(minute="*"),

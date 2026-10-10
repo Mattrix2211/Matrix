@@ -2,6 +2,7 @@ from celery import shared_task
 from django.core.management import call_command
 from django.db.models import F, Q
 from django.contrib.contenttypes.models import ContentType
+from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta, time as dt_time
 from .models import Notification, NotificationLevel
@@ -13,6 +14,7 @@ from assets.models import Installation, InstallationMaintenance, ModeDeclencheme
 from assets.mesures import reference_visite_maintenance
 from assets.trend import jours_avant_franchissement_seuil
 from calendar_app.views import evenements_utilisateur_jour
+from taches.services import relancer_echeances_depassees
 
 # Échéances (en jours avant expiration) auxquelles une formation déclenche une
 # alerte : réutilisé par training/services.py pour aligner le seuil "bientôt
@@ -30,12 +32,13 @@ def notify_expiring_training(days_list=JOURS_ALERTE_EXPIRATION_FORMATION):
             Notification.objects.get_or_create(
                 user=rec.user,
                 verb=f"Formation '{rec.course.title}' expire dans {days} jours",
-                defaults={"level": NotificationLevel.WARNING},
+                defaults={"level": NotificationLevel.WARNING, "url": reverse("formation-detail", args=[rec.course_id])},
             )
     return {"status": "ok"}
 
 @shared_task
 def notify_overdue_occurrences():
+    occurrence_ct = ContentType.objects.get_for_model(MaintenanceOccurrence)
     occurrences = MaintenanceOccurrence.objects.filter(status='OVERDUE').select_related(
         'plan'
     ).prefetch_related('assignees')
@@ -44,7 +47,7 @@ def notify_overdue_occurrences():
             Notification.objects.get_or_create(
                 user=u,
                 verb=f"Occurrence en retard: {occ.id}",
-                defaults={"level": NotificationLevel.DANGER},
+                defaults={"level": NotificationLevel.DANGER, "content_type": occurrence_ct, "object_id": str(occ.pk)},
             )
     return {"status": "ok"}
 
@@ -81,9 +84,19 @@ def notify_maintenance_echeance_proche(jours=JOURS_ALERTE_ECHEANCE_MAINTENANCE):
             Notification.objects.get_or_create(
                 user=u,
                 verb=f"Échéance proche ({jours} j) : {occ.titre_affiche}",
-                defaults={"level": NotificationLevel.WARNING},
+                defaults={
+                    "level": NotificationLevel.WARNING,
+                    "content_type": ContentType.objects.get_for_model(MaintenanceOccurrence), "object_id": str(occ.pk),
+                },
             )
     return {"status": "ok"}
+
+
+@shared_task
+def notify_taches_en_retard():
+    """Relance quotidienne des tâches attribuées dont l'échéance est dépassée (logique dans taches/services.py)."""
+    return {"status": "ok", "created": relancer_echeances_depassees()}
+
 
 @shared_task
 def notify_low_stock():
@@ -145,7 +158,7 @@ def notify_low_stock():
                 content_type=piece_ct,
                 object_id=str(piece.pk),
                 is_read=False,
-                defaults={"verb": verb, "level": niveau},
+                defaults={"verb": verb, "level": niveau, "url": reverse("stock-piece-list")},
             )
     return {"status": "ok"}
 
@@ -294,12 +307,13 @@ def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
         nb_personnels = len(evenements["personnels"])
         nb_creneaux = len(evenements["creneaux"])
         nb_rondes = len(evenements["rondes"])
+        nb_taches = len(evenements["taches"])
         nb_absences = len(evenements["absences"])
         # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
         # service quotidienne ») : mise en avant dans le digest si le marin
         # est lui-même de service ce jour-là, cf. quarts/services.py.
         de_service = bool(evenements["feuille_service"] and evenements["feuille_service"]["je_suis_de_service"])
-        if not (nb_maintenances or nb_formations or nb_personnels or nb_creneaux or nb_rondes or nb_absences or de_service):
+        if not (nb_maintenances or nb_formations or nb_personnels or nb_creneaux or nb_rondes or nb_taches or nb_absences or de_service):
             continue
 
         parts = []
@@ -313,6 +327,8 @@ def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
             parts.append(f"{nb_creneaux} créneau(x) de quart/garde")
         if nb_rondes:
             parts.append(f"{nb_rondes} ronde(s)")
+        if nb_taches:
+            parts.append(f"{nb_taches} tâche(s) à échéance")
         if nb_absences:
             parts.append(f"{nb_absences} absence(s)")
         if nb_personnels:

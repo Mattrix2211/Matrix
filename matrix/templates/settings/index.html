@@ -551,6 +551,30 @@
       </div>
     </div>
   </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Tâches : relances et affichage (toute la flotte)</div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_parametres_taches" />
+          <input type="hidden" name="next_tab" value="seuils_role" />
+          <div class="col-md-3"><label class="form-label" for="id_jours_relances">Jours entre deux relances</label>
+            <input class="form-control" type="number" min="0" max="365" id="id_jours_relances" name="jours_entre_relances" value="{{ parametres_taches.jours_entre_relances }}" />
+            <div class="form-text">0 : aucune relance.</div></div>
+          <div class="col-md-3"><label class="form-label" for="id_jours_terminees">Jours d'affichage des terminées</label>
+            <input class="form-control" type="number" min="1" max="365" id="id_jours_terminees" name="jours_terminees_affichees" value="{{ parametres_taches.jours_terminees_affichees }}" />
+            <div class="form-text">Dans la vue d'avancement du chef.</div></div>
+          <div class="col-md-6">
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_rel_assigne" name="relancer_assigne" {% if parametres_taches.relancer_assigne %}checked{% endif %} /><label class="form-check-label" for="id_rel_assigne">Relancer le marin assigné</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_rel_chef" name="relancer_chef_attributeur" {% if parametres_taches.relancer_chef_attributeur %}checked{% endif %} /><label class="form-check-label" for="id_rel_chef">Relancer le chef qui a attribué la tâche</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_rel_blocage" name="relancer_chefs_si_blocage" {% if parametres_taches.relancer_chefs_si_blocage %}checked{% endif %} /><label class="form-check-label" for="id_rel_blocage">Relancer les chefs du périmètre pour un blocage en retard</label></div>
+          </div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
   {% endif %}
   <div class="col-12">
     <p class="text-muted">Chaque modification est historisée (auteur, date, ancienne et nouvelle valeur){% if user.is_superuser %} — consultable dans l'onglet Journal{% endif %}.</p>

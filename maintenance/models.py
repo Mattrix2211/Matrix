@@ -202,4 +202,5 @@ def create_corrective_on_non_conform(sender, instance: "MaintenanceExecution", c
                     user=profile.user,
                     level=niveau_alerte,
                     verb=f"Anomalie détectée sur {asset} lors d'une inspection : {ticket.description}",
+                    target=ticket,
                 )

@@ -4,17 +4,14 @@ from rest_framework.views import APIView
 from .models import Notification, PushSubscription
 from .serializers import NotificationSerializer
 
-class DefaultPermission(permissions.IsAuthenticated):
-    pass
-
 class NotificationViewSet(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
 ):
     # Pas de création ni de suppression par l'API ; POST sert à mark_all_read
     http_method_names = ["get", "patch", "post", "head", "options"]
-    queryset = Notification.objects.select_related("user").all()
+    queryset = Notification.objects.all()
     serializer_class = NotificationSerializer
-    permission_classes = [DefaultPermission]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         # Limite les notifications à l'utilisateur courant, pour la confidentialité

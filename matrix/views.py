@@ -19,18 +19,20 @@ from assets.models import InstallationBigrameChoice, Installation
 from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
+from taches.models import ParametresTaches
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
-from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.mixins import build_scope_q
+from matrix.core.scopes import is_master_admin, ship_id_for_user
 from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
 )
 from matrix.core.modules import (
-    REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif,
+    REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif, module_actif_pour_user,
     invalidate_cache as invalidate_modules_cache,
 )
 
@@ -112,49 +114,52 @@ def global_search(request):
     # cherchable dédié), événements de calendrier et discussions — pour
     # éviter la sur-ingénierie et prioriser les types les plus utiles au
     # quotidien en premier.
-    q = request.GET.get('q', '').strip()
-    perimetre = scope_filters_for_user(request.user)
-    perimetre_documents = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
-    perimetre_users = {f"profile__{cle}": valeur for cle, valeur in perimetre.items()}
+    q = recherche.normaliser(request.GET.get('q'))
     assets = tickets = users = installations = formations = documents = []
     anomalies = ronde_modeles = rondes = echanges = []
     if q:
+        # Une catégorie d'un module désactivé pour le navire du marin n'est pas interrogée.
+        def actif(cle):
+            return module_actif_pour_user(cle, request.user)
+
         # Matériels, installations, tickets, anomalies, formations : mêmes
         # requêtes que la recherche rapide de la barre supérieure.
-        assets = recherche.materiels(request.user, q)[:20]
-        tickets = recherche.tickets(request.user, q)[:20]
-        installations = recherche.installations(request.user, q)[:20]
-        formations = recherche.formations(request.user, q)[:20]
-        anomalies = recherche.anomalies(request.user, q)[:20]
-        # Sans périmètre, seul un maître voit tout : jamais toute la flotte par défaut.
-        if perimetre_users or is_master_admin(request.user):
-            users = User.objects.filter(**perimetre_users, is_active=True).filter(
-                Q(username__icontains=q) | Q(email__icontains=q)
+        if actif('assets'):
+            assets = recherche.materiels(request.user, q)[:20]
+            installations = recherche.installations(request.user, q)[:20]
+            documents = AssetDocument.objects.select_related('asset').filter(build_scope_q(request.user, 'asset__')).filter(
+                Q(name__icontains=q)
             )[:20]
-        documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
-            Q(name__icontains=q)
-        )[:20]
+        if actif('logistics'):
+            tickets = recherche.tickets(request.user, q)[:20]
+            anomalies = recherche.anomalies(request.user, q)[:20]
+        if actif('training'):
+            formations = recherche.formations(request.user, q)[:20]
+        # Mêmes personnes que la recherche rapide (navire du marin), identifiant et e-mail en plus.
+        users = recherche.marins(request.user, q, avec_identifiants=True)[:20]
         # Rondes : périmètre "couvrant" propre à l'app rondes (un chef de
         # secteur/service/navire voit aussi ce qui est en dessous de lui) —
         # mêmes fonctions que RondesIndexView/ModeleListView.
-        ronde_modeles = modeles_visibles(request.user).filter(
-            Q(nom__icontains=q) | Q(description__icontains=q)
-        )[:20]
-        rondes = rondes_visibles(request.user).filter(Q(nom__icontains=q))[:20]
+        if actif('rondes'):
+            ronde_modeles = modeles_visibles(request.user).filter(
+                Q(nom__icontains=q) | Q(description__icontains=q)
+            )[:20]
+            rondes = rondes_visibles(request.user).filter(Q(nom__icontains=q))[:20]
         # Échanges de service : aucun périmètre géographique simple — visible
         # seulement du demandeur, de la cible, ou du chef de liste habilité à
         # trancher (même règle que _echanges_visibles, quarts/web_views.py).
         # Filtrage en Python après un premier filtre texte en base, faute de
         # traduire cette règle en un Q() unique.
-        candidats_echanges = EchangeService.objects.select_related(
-            'demandeur', 'cible', 'creneau_demandeur__service_garde', 'creneau_cible__service_garde',
-        ).filter(
-            Q(libelle_creneau_demandeur__icontains=q) | Q(libelle_creneau_cible__icontains=q) | Q(motif__icontains=q)
-        )
-        echanges = [
-            e for e in candidats_echanges
-            if request.user.pk in (e.demandeur_id, e.cible_id) or peut_valider_echange(request.user, e)
-        ][:20]
+        if actif('quarts'):
+            candidats_echanges = EchangeService.objects.select_related(
+                'demandeur', 'cible', 'creneau_demandeur__service_garde', 'creneau_cible__service_garde',
+            ).filter(
+                Q(libelle_creneau_demandeur__icontains=q) | Q(libelle_creneau_cible__icontains=q) | Q(motif__icontains=q)
+            )
+            echanges = [
+                e for e in candidats_echanges
+                if request.user.pk in (e.demandeur_id, e.cible_id) or peut_valider_echange(request.user, e)
+            ][:20]
     return render(request, 'search.html', {
         "q": q, "assets": assets, "tickets": tickets, "users": users,
         "installations": installations, "formations": formations, "documents": documents,
@@ -186,6 +191,7 @@ def logout_then_login(request):
     expire = request.user.is_authenticated and session_expiree(request)
     if expire:
         tracer_expiration(request.user)
+        request.session_expiree_tracee = True
     suivant = request.POST.get('next')
     cible = url_connexion(request, expire, suivant) if (expire or suivant) else '/login/'
     logout(request)
@@ -454,6 +460,7 @@ class SettingsView(LoginRequiredMixin, View):
                 'seuils_ship': selected_ship,
                 'seuils_lignes': _lignes_seuils(selected_ship.id if selected_ship else None, 'SHIP'),
                 'seuils_lignes_globales': _lignes_seuils(None, PORTEE_GLOBALE),
+                'parametres_taches': ParametresTaches.courants(),
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
             })
@@ -776,6 +783,35 @@ class SettingsView(LoginRequiredMixin, View):
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> défaut ({action_seuil.defaut.name})",
                             )
                         messages.success(request, "Seuil de rôle réinitialisé à sa valeur par défaut.")
+        elif action == 'update_parametres_taches':
+            # Réglages des tâches communs à toute la flotte (relances, durée des terminées).
+            next_tab = 'seuils_role'
+            if not is_master_admin(request.user):
+                messages.error(request, "Seuls les administrateurs généraux peuvent modifier les réglages des tâches de la flotte.")
+            else:
+                parametres = ParametresTaches.objects.first() or ParametresTaches()
+                try:
+                    jours_relance = int(request.POST.get('jours_entre_relances', ''))
+                    jours_terminees = int(request.POST.get('jours_terminees_affichees', ''))
+                except ValueError:
+                    jours_relance = jours_terminees = -1
+                if not (0 <= jours_relance <= 365 and 1 <= jours_terminees <= 365):
+                    messages.error(request, "Indiquez des durées en jours valides (relance : 0 à 365, terminées : 1 à 365).")
+                else:
+                    avant = (parametres.jours_entre_relances, parametres.relancer_assigne, parametres.relancer_chef_attributeur,
+                             parametres.relancer_chefs_si_blocage, parametres.jours_terminees_affichees)
+                    parametres.jours_entre_relances = jours_relance
+                    parametres.jours_terminees_affichees = jours_terminees
+                    parametres.relancer_assigne = request.POST.get('relancer_assigne') == 'on'
+                    parametres.relancer_chef_attributeur = request.POST.get('relancer_chef_attributeur') == 'on'
+                    parametres.relancer_chefs_si_blocage = request.POST.get('relancer_chefs_si_blocage') == 'on'
+                    parametres.save()
+                    AuditLog.objects.create(
+                        actor=request.user, action='update_parametres_taches',
+                        details=f"avant={avant}; apres=({jours_relance}, {parametres.relancer_assigne}, "
+                                f"{parametres.relancer_chef_attributeur}, {parametres.relancer_chefs_si_blocage}, {jours_terminees})",
+                    )
+                    messages.success(request, "Réglages des tâches enregistrés.")
         elif action == 'toggle_module':
             # Onglet Modules : bascule activé/désactivé d'un module applicatif
             # pour un navire. Accessible à un rôle habilité par le seuil

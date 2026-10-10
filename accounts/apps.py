@@ -10,3 +10,4 @@ class AccountsConfig(AppConfig):
 
     def ready(self):
         from matrix.core import checks  # noqa: F401 - enregistre le garde-fou migrations en attente
+        from . import signals  # noqa: F401 - trace connexions et déconnexions

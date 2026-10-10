@@ -38,11 +38,11 @@ from matrix.core.export import (
     reponse_fichier,
     xlsx_disponible,
 )
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.validators import message_erreur_fichier, valider_document, valider_photo
 from org.models import Section, Sector, Service, Ship
 
@@ -328,11 +328,9 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['services'] = Service.objects.select_related('ship').order_by('name')
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
-        ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
-        ctx['types'] = AssetType.objects.order_by('name')
+        ctx.update(referentiel_organisation(self.request.user))
+        ctx['types'] = AssetType.objects.filter(
+            models.Q(sector__isnull=True) | models.Q(sector__service__ship__in=ctx['ships'])).order_by('name')
         ctx['locations'] = _emplacements_visibles(self.request.user)
         # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
         # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi
@@ -346,8 +344,8 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
         ctx['assets_pour_parent'] = (
-            Asset.objects.select_related('sector', 'asset_type').order_by('designation')
-            if ctx['peut_gerer_parent'] else Asset.objects.none()
+            Asset.objects.filter(build_scope_q(self.request.user, "")).select_related('sector', 'asset_type')
+            .order_by('designation') if ctx['peut_gerer_parent'] else Asset.objects.none()
         )
         ctx.update(_droits_liste(self.request.user, 'asset_ecriture_simple', 'asset_gestion_avancee'))
         ctx['filtres_actifs'] = _filtres_actifs(self.request, [
@@ -385,7 +383,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # navire/service/secteur/section manuels, cf. get_queryset ci-dessus,
             # destinés à un usage de gestion transverse) — sécurité appliquée
             # explicitement ici, indépendamment de get_queryset().
-            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            qs = self.get_queryset().filter(build_scope_q(request.user, ""))
             lignes = _lignes_export_assets(qs)
             if format_export == 'xlsx':
                 contenu = rendre_xlsx(_ENTETES_EXPORT_ASSETS, lignes, titre_feuille='Matériels')

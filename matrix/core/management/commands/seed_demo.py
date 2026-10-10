@@ -10,9 +10,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from absences.models import Absence
 from accounts.models import (
     FonctionQuartChoice, GradeChoice, ResponsableSpecialite, Roles, ServiceFunctionChoice,
-    SpecialityChoice,
+    SpecialityChoice, TypeAbsence,
 )
 from assets.models import (
     ArticleCatalogue, Asset, AssetType, CategorieCatalogue, ChecklistItemTemplate, ChecklistTemplate,
@@ -33,6 +34,8 @@ from quarts.models import (
 )
 from rondes.models import PointControle, RondeModele
 from rondes import services as rondes_services
+from taches import services as taches_services
+from taches.models import Tache
 from threads.models import Message, Thread
 from training.models import (
     ReferentFormation, TrainingCourse, TrainingRecord, TrainingRequirement, TrainingSession,
@@ -60,6 +63,7 @@ class Command(BaseCommand):
         self._rondes()
         self._quarts()
         self._formations()
+        self._taches()
         self._notifications_et_brouillons()
         self.stdout.write(self.style.SUCCESS("Données de démonstration prêtes. Comptes (mot de passe « pass ») :"))
         for ligne in self.comptes:
@@ -530,6 +534,40 @@ class Command(BaseCommand):
                                           completed_at=self.aujourdhui - timedelta(days=100), expires_at=self.aujourdhui + timedelta(days=630))
         ReferentFormation.objects.get_or_create(course=cours["Lutte contre l'incendie"], ship=self.bre, user=self.chef_secteur_a)
         TrainingRequirement.objects.get_or_create(course=cours["Lutte contre l'incendie"], applies_to_role="EQUIPIER", applies_to_ship=self.bre)
+
+    # ---------- Tâches ----------
+
+    def _taches(self):
+        # À jouer en direct (À faire), en retard (relance), bloquée avec fil ouvert à l'équipage B, cycle complet terminé,
+        # tâche personnelle privée.
+        chef, ivan = User.objects.get(username="chef_section_a"), User.objects.get(username="chef_secteur_b")
+        demain, hier = self.aujourdhui + timedelta(days=1), self.aujourdhui - timedelta(days=1)
+        if not Tache.objects.filter(titre="Contrôler le graissage des paliers de la ligne d'arbre").exists():
+            taches_services.creer_tache(
+                chef, self.equipier_a, "Contrôler le graissage des paliers de la ligne d'arbre", demain,
+                "Relever l'état des graisseurs et signaler toute fuite.")
+        if not Tache.objects.filter(titre="Remplacer le filtre du circuit d'huile").exists():
+            tache = taches_services.creer_tache(
+                chef, self.equipier_a2, "Remplacer le filtre du circuit d'huile", self.aujourdhui + timedelta(days=3))
+            taches_services.demarrer(tache, self.equipier_a2)
+            taches_services.signaler_blocage(tache, self.equipier_a2, "Filtre de rechange introuvable en magasin.")
+            taches_services.ajouter_participant(tache, chef, ivan)
+            taches_services.repondre(tache, ivan, "Une référence équivalente est au magasin de l'équipage B, je la fais passer.")
+        if not Tache.objects.filter(titre="Mettre à jour le registre des rondes machines").exists():
+            taches_services.creer_tache(
+                chef, self.equipier_a2, "Mettre à jour le registre des rondes machines", self.aujourdhui - timedelta(days=2))
+        if not Tache.objects.filter(titre="Préparer mon dossier de formation incendie").exists():
+            taches_services.creer_tache(
+                self.equipier_a, self.equipier_a, "Préparer mon dossier de formation incendie", self.aujourdhui + timedelta(days=5),
+                priorite=Tache.PRIORITE_URGENTE)
+        permission, _ = TypeAbsence.objects.get_or_create(name="Permission")
+        Absence.objects.get_or_create(marin=self.equipier_a, type_absence=permission, date_debut=demain, defaults=dict(
+            date_fin=demain + timedelta(days=1), statut=Absence.STATUT_VALIDEE, created_by=chef))
+        if not Tache.objects.filter(titre="Vérifier l'étalonnage des sondes de température").exists():
+            tache = taches_services.creer_tache(
+                User.objects.get(username="chef_secteur_elec_a"), self.equipier_elec, "Vérifier l'étalonnage des sondes de température", hier)
+            taches_services.demarrer(tache, self.equipier_elec)
+            taches_services.rendre_compte(tache, self.equipier_elec, "Quatre sondes vérifiées, écart inférieur à 0,5 °C.")
 
     # ---------- Notifications et brouillons ----------
 

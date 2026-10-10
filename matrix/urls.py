@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.views.static import serve as serve_static
 from .views import logout_then_login, SettingsView
+from accounts.web_views import ChangerMotDePasseView
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import global_search, recherche_rapide
@@ -22,6 +23,7 @@ urlpatterns = [
         {"document_root": settings.BASE_DIR / "matrix" / "static" / "js", "path": "service-worker.js"},
         name="service-worker",
     ),
+    path("accounts/password_change/", ChangerMotDePasseView.as_view(), name="password_change"),
     path("accounts/", include("django.contrib.auth.urls")),
     # Raccourcis conviviaux
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
@@ -45,6 +47,7 @@ urlpatterns = [
     path("formations/", include("training.web_urls")),
     path("quarts/", include("quarts.web_urls")),
     path("absences/", include("absences.web_urls")),
+    path("taches/", include("taches.web_urls")),
     path("rondes/", include("rondes.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),

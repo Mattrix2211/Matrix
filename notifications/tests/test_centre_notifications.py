@@ -97,7 +97,7 @@ class PanneauTests(CentreNotificationsTestCase):
         self._notif(self.marin, "Alerte", "danger")
         self.client.force_login(self.marin)
         html = self.client.get(reverse("notifications-panneau")).content.decode()
-        self.assertIn("Critique", html)
+        self.assertIn("Urgent", html)
         self.assertIn("Alerte", html)
 
     def test_message_echappe(self):

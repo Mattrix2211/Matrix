@@ -41,11 +41,11 @@ from matrix.core.export import (
     reponse_fichier,
     xlsx_disponible,
 )
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.contexte_batiment import referentiel_organisation
 from threads.utils import contexte_discussion
 from org.models import Section, Sector, Service, Ship
 
@@ -184,10 +184,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['services'] = Service.objects.select_related('ship').order_by('name')
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
-        ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
+        ctx.update(referentiel_organisation(self.request.user))
         ctx['locations'] = _emplacements_visibles(self.request.user)
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
         # Pré-remplissage du formulaire de création : Navire/Service/Secteur du
@@ -201,8 +198,8 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
         ctx['installations_pour_parent'] = (
-            Installation.objects.select_related('sector').order_by('designation')
-            if ctx['peut_gerer_parent'] else Installation.objects.none()
+            Installation.objects.filter(build_scope_q(self.request.user, "")).select_related('sector')
+            .order_by('designation') if ctx['peut_gerer_parent'] else Installation.objects.none()
         )
         # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
         # de création à partir du profil du chef connecté.
@@ -305,7 +302,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre : même garde-fou que AssetListView.get — l'export ne doit
             # JAMAIS dépasser le périmètre de l'utilisateur, même si l'affichage
             # de cette liste n'est pas lui-même restreint par périmètre.
-            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            qs = self.get_queryset().filter(build_scope_q(request.user, ""))
             lignes = _lignes_export_installations(qs)
             if format_export == 'xlsx':
                 contenu = rendre_xlsx(
@@ -546,10 +543,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['services'] = Service.objects.select_related('ship').order_by('name')
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
-        ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
+        ctx.update(referentiel_organisation(self.request.user))
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
         ctx['locations'] = _emplacements_visibles(self.request.user)
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, options

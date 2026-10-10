@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load icones %}
+{% block content %}
+{% include "components/fiche_entete.html" with titre=tache.titre sous_titre="Tâche" objet=tache %}
+<p>{% include "taches/_statut.html" with t=tache %}
+  {% if en_retard %}<span class="badge text-bg-danger">En retard</span>{% endif %}
+  {% if tache.priorite == "URGENTE" and tache.ouverte %}<span class="badge text-bg-danger">Urgente</span>{% endif %}
+  {% if tache.personnelle %}<span class="badge text-bg-light border">Personnelle · {% if tache.partagee %}visible de vos chefs{% else %}privée{% endif %}</span>{% endif %}
+  · Assignée à <strong>{{ tache.assigne.get_full_name|default:tache.assigne.username }}</strong>
+  · {% if tache.echeance %}Échéance le {{ tache.echeance|date:"d/m/Y" }}{% else %}Sans échéance{% endif %}</p>
+{% if tache.description %}<p>{{ tache.description|linebreaksbr }}</p>{% endif %}
+
+{% if tache.statut == "BLOQUEE" %}
+<div class="alert alert-warning"><strong>Bloquée :</strong> {{ tache.motif_blocage|linebreaksbr }}
+  {% if peut_gerer and not equipage_a_terre %}
+  <form method="post" action="{% url 'tache-action' tache.pk %}" class="mt-2">{% csrf_token %}<input type="hidden" name="action" value="reprendre"><button class="btn btn-sm btn-success" type="submit">Lever le blocage</button></form>
+  {% endif %}
+</div>
+{% endif %}
+{% if tache.compte_rendu %}<div class="alert alert-success"><strong>Compte rendu</strong> ({{ tache.terminee_le|date:"d/m/Y H:i" }}) : {{ tache.compte_rendu|linebreaksbr }}</div>{% endif %}
+
+{% if est_assigne and tache.ouverte and not equipage_a_terre %}
+<div class="card card-body mb-4">
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    {% if tache.statut == "A_FAIRE" %}
+    <form method="post" action="{% url 'tache-action' tache.pk %}">{% csrf_token %}<input type="hidden" name="action" value="demarrer"><button class="btn btn-primary" type="submit">Démarrer</button></form>
+    {% endif %}
+  </div>
+  <form method="post" action="{% url 'tache-action' tache.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="action" value="bloquer">
+    <label class="form-label" for="id_motif">Je suis bloqué</label>
+    <textarea class="form-control mb-2" id="id_motif" name="motif" rows="2" placeholder="Décrivez le problème rencontré" required></textarea>
+    <button class="btn btn-outline-warning" type="submit">Signaler le blocage</button>
+  </form>
+  <form method="post" action="{% url 'tache-action' tache.pk %}">{% csrf_token %}<input type="hidden" name="action" value="rendre_compte">
+    <label class="form-label" for="id_cr">Rendre compte</label>
+    <textarea class="form-control mb-2" id="id_cr" name="compte_rendu" rows="2" placeholder="Ce qui a été fait, constats" required></textarea>
+    <button class="btn btn-success" type="submit">Terminer et rendre compte</button>
+  </form>
+</div>
+{% endif %}
+
+<h2 class="h5">Fil de la tâche</h2>
+<p class="text-muted small">Participants : {{ tache.assigne.get_full_name|default:tache.assigne.username }}{% for p in participants %}, {{ p.get_full_name|default:p.username }}{% endfor %}</p>
+<ul class="list-unstyled mb-3">
+  {% for message in commentaires %}
+  <li class="mb-2 pb-2 border-bottom">
+    {% if message.is_system %}<span class="badge bg-secondary">Suivi</span>{% else %}<span class="badge bg-info text-dark">{{ message.author.get_full_name|default:message.author.username|default:"Utilisateur supprimé" }}</span>{% endif %}
+    <span class="text-muted small ms-2">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+    <div class="{% if message.is_system %}fst-italic text-muted{% endif %}">{{ message.body|linebreaksbr }}</div>
+  </li>
+  {% empty %}<li class="text-muted">Aucun message.</li>{% endfor %}
+</ul>
+<form method="post" action="{% url 'tache-commentaire' tache.pk %}" class="mb-4">{% csrf_token %}
+  <label class="form-label" for="id_reponse">Répondre dans le fil</label>
+  <textarea class="form-control mb-2" id="id_reponse" name="body" rows="3" required></textarea>
+  <button class="btn btn-primary" type="submit">Publier</button>
+</form>
+
+{% if tache.personnelle and est_assigne and not equipage_a_terre %}
+<form method="post" action="{% url 'tache-action' tache.pk %}" class="mb-4">{% csrf_token %}
+  <input type="hidden" name="action" value="{% if tache.partagee %}ne_plus_partager{% else %}partager{% endif %}">
+  <button class="btn btn-outline-secondary btn-sm" type="submit">{% if tache.partagee %}Reprendre en privé{% else %}Partager avec mes chefs{% endif %}</button>
+</form>
+{% endif %}
+{% if peut_modifier and not equipage_a_terre %}
+<form method="post" action="{% url 'tache-action' tache.pk %}" class="card card-body mb-4">{% csrf_token %}<input type="hidden" name="action" value="modifier">
+  <h2 class="h6">Réaffecter ou replanifier</h2>
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label" for="id_mod_assigne">Marin</label>
+      <select class="form-select" id="id_mod_assigne" name="assigne">{% for m in marins %}<option value="{{ m.pk }}" {% if m.pk == tache.assigne_id %}selected{% endif %}>{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label" for="id_mod_echeance">Échéance (facultative)</label>
+      <input class="form-control" type="date" id="id_mod_echeance" name="echeance" value="{{ tache.echeance|date:'Y-m-d' }}"></div>
+    <div class="col-md-3"><label class="form-label" for="id_mod_priorite">Priorité</label>
+      <select class="form-select" id="id_mod_priorite" name="priorite">{% for code, libelle in tache.PRIORITE_CHOICES %}<option value="{{ code }}" {% if code == tache.priorite %}selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Modifier</button></div>
+  </div>
+  <div class="form-text">Un changement de marin remet la tâche « À faire » chez le nouveau titulaire. Tout est consigné dans le fil.</div>
+</form>
+{% endif %}
+{% if peut_gerer and tache.ouverte and not equipage_a_terre and interlocuteurs %}
+<form method="post" action="{% url 'tache-action' tache.pk %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="interlocuteur">
+  <div class="col-auto"><label class="form-label" for="id_interlocuteur">Ajouter un interlocuteur au fil</label>
+    <select class="form-select" id="id_interlocuteur" name="interlocuteur">{% for u in interlocuteurs %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary" type="submit">Ajouter</button></div>
+</form>
+{% endif %}
+{% endblock %}

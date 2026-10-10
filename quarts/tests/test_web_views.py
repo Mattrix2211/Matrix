@@ -231,13 +231,14 @@ class DesignationChefDeListeTests(TestCase):
         )
 
         self.candidat = User.objects.create_user(username="candidat_dsg", password="pass")
-        UserProfile.objects.update_or_create(user=self.candidat, defaults={"role": "EQUIPIER"})
+        UserProfile.objects.update_or_create(
+            user=self.candidat, defaults={"role": "EQUIPIER", "ship": self.ship, "sector": self.sector})
 
         self.equipier = User.objects.create_user(username="equipier_dsg", password="pass")
         UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
 
         self.commandant = User.objects.create_user(username="commandant_dsg", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
 
     def test_chef_service_peut_designer_sur_son_propre_perimetre(self):
         self.client.login(username="chef_service_dsg", password="pass")
@@ -286,7 +287,8 @@ class PlanningEtOngletsTests(TestCase):
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
         ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
         self.second = User.objects.create_user(username="second_planning", password="pass")
-        UserProfile.objects.update_or_create(user=self.second, defaults={"role": "COMMANDANT_EN_SECOND"})
+        UserProfile.objects.update_or_create(
+            user=self.second, defaults={"role": "COMMANDANT_EN_SECOND", "ship": self.sector.service.ship})
         aujourdhui = timezone.localdate()
         self.garde = ServiceGarde.objects.create(
             sector=self.sector, date_debut=aujourdhui, date_fin=aujourdhui + timedelta(days=9),

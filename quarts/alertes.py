@@ -9,6 +9,7 @@ Trois responsabilités :
   validation de l'autorité configurée (le BSC propose, il ne modifie pas seul
   une organisation permanente), avec trace complète dans l'AuditLog.
 """
+from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
@@ -123,6 +124,7 @@ def signaler_postes_non_armes(feuille, user):
             user=destinataire,
             verb=f"Feuille de service du {feuille.date:%d/%m/%Y} : postes d'alerte obligatoires non armés — {detail}",
             level=NotificationLevel.WARNING,
+            url=reverse("feuille-service-detail", args=[feuille.ship_id, f"{feuille.date:%Y-%m-%d}"]),
         )
 
 
@@ -195,6 +197,7 @@ def proposer_modification(user, ship, action, donnees=None, scenario=None):
                     user=destinataire,
                     verb=f"Organisation d'alerte ({ship}) : {modification} attend votre validation.",
                     level=NotificationLevel.WARNING,
+                    url=reverse("feuille-service-alertes"),
                 )
     return modification, None
 
@@ -261,4 +264,5 @@ def _prevenir_auteur(modification, user, message):
     if auteur is not None and auteur.pk != user.pk:
         Notification.objects.create(
             user=auteur, verb=f"Organisation d'alerte : modification {message}", level=NotificationLevel.INFO,
+            url=reverse("feuille-service-alertes"),
         )

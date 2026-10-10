@@ -60,7 +60,7 @@ class NavigationLateraleTests(TestCase):
 
     def test_module_desactive_masque_ses_entrees_et_le_groupe_vide(self):
         user = self._marin("module_nav", "EQUIPIER")
-        for module in ("rondes", "quarts", "absences"):
+        for module in ("rondes", "quarts", "absences", "taches"):
             ModuleActivation.objects.create(ship=self.ship, module=module, active=False)
         invalidate_cache(self.ship.id)
         groupes = self._nav(user)

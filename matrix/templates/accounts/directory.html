@@ -54,7 +54,7 @@
       <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="grade" data-titre="Modifier le grade">Grade…</button></li>
       <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="specialite" data-titre="Modifier la spécialité">Spécialité…</button></li>
       <li><hr class="dropdown-divider"></li>
-      <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_reset_passwords">{% icone "mot_de_passe" %} Réinitialiser les mots de passe…</button></li>
+      {% if peut_reinitialiser %}<li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_reset_passwords">{% icone "mot_de_passe" %} Réinitialiser les mots de passe…</button></li>{% endif %}
       <li><button type="button" class="dropdown-item mx-menu__item--danger" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_delete_users">{% icone "suppression" %} Supprimer…</button></li>
     </ul>
   </div>
@@ -96,7 +96,9 @@
           {% menu_contextuel libelle="Actions sur "|add:u.username %}
             {% url 'user-edit' u.id as url_modifier %}
             {% include "components/menu_item.html" with libelle="Modifier" url=url_modifier icone="modification" %}
-            <li><button type="button" class="dropdown-item mx-menu__item" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-pk="{{ u.id }}" data-username="{{ u.username }}">{% icone "mot_de_passe" %}<span>Définir le mot de passe</span></button></li>
+            {% if peut_reinitialiser %}
+            <li><button type="button" class="dropdown-item mx-menu__item" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-pk="{{ u.id }}" data-username="{{ u.username }}">{% icone "mot_de_passe" %}<span>Réinitialiser le mot de passe</span></button></li>
+            {% endif %}
             <li><button type="button" class="dropdown-item mx-menu__item mx-menu__item--danger" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_user" data-pk="{{ u.id }}" data-label="Supprimer l'utilisateur {{ u.username }}">{% icone "suppression" %}<span>Supprimer</span></button></li>
           {% fin_menu_contextuel %}
         </td>
@@ -114,7 +116,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Définir le mot de passe</h5>
+        <h5 class="modal-title">Réinitialiser le mot de passe</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
       <form method="post" id="resetPasswordForm">
@@ -126,18 +128,11 @@
             <label class="form-label" for="resetUsername">Utilisateur</label>
             <input class="form-control" id="resetUsername" disabled />
           </div>
-          <div class="mb-3">
-            <label class="form-label" for="resetPassword">Nouveau mot de passe</label>
-            <div class="input-group">
-              <input class="form-control" name="password" id="resetPassword" placeholder="Saisir ou générer automatiquement" />
-              <button type="button" class="btn btn-outline-secondary" id="generatePasswordBtn" title="Générer" aria-label="Générer un mot de passe">{% icone "generer" %}</button>
-            </div>
-            <small class="text-muted">Doit contenir des majuscules, minuscules, chiffres et symboles.</small>
-          </div>
+          <p class="text-muted mb-0">Un mot de passe provisoire sera généré et affiché une seule fois. Le marin devra le remplacer à sa prochaine connexion.</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
+          <button type="submit" class="btn btn-primary">Réinitialiser</button>
         </div>
       </form>
     </div>
@@ -363,24 +358,11 @@
     document.getElementById('resetPasswordModal').addEventListener('show.bs.modal', function (e) {
       document.getElementById('resetUserPk').value = e.relatedTarget.dataset.pk;
       document.getElementById('resetUsername').value = e.relatedTarget.dataset.username || '';
-      document.getElementById('resetPassword').value = '';
     });
     document.getElementById('confirmModal').addEventListener('show.bs.modal', function (e) {
       document.getElementById('confirmAction').value = e.relatedTarget.dataset.action;
       document.getElementById('confirmPk').value = e.relatedTarget.dataset.pk;
       document.getElementById('confirmLabel').textContent = e.relatedTarget.dataset.label || 'Êtes-vous sûr ?';
-    });
-    document.getElementById('generatePasswordBtn').addEventListener('click', function () {
-      var minuscules = 'abcdefghijklmnopqrstuvwxyz', majuscules = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', chiffres = '0123456789', symboles = '!@$%*#?';
-      var tous = minuscules + majuscules + chiffres + symboles;
-      function contient(s, jeu) { return s.split('').some(function (c) { return jeu.indexOf(c) >= 0; }); }
-      function generer() {
-        var tirage = new Uint32Array(14), mdp = '';
-        window.crypto.getRandomValues(tirage);
-        tirage.forEach(function (t) { mdp += tous[t % tous.length]; });
-        return [minuscules, majuscules, chiffres, symboles].every(function (jeu) { return contient(mdp, jeu); }) ? mdp : generer();
-      }
-      document.getElementById('resetPassword').value = generer();
     });
   });
 </script>

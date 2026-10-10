@@ -8,8 +8,9 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import TemplateView
 
+from matrix.core.contexte_batiment import referentiel_organisation
+from matrix.core.mixins import utilisateurs_visibles_par
 from matrix.core.scopes import equipage_marin_q
-from org.models import Ship, Service, Sector
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
@@ -85,10 +86,8 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "start": start,
             "end": end,
             "events": events,
-            "ships": Ship.objects.all(),
-            "services": Service.objects.select_related("ship").all(),
-            "sectors": Sector.objects.select_related("service", "service__ship").all(),
-            "users": User.objects.filter(equipage_marin_q(request.user)).order_by("username"),
+            **{cle: valeur for cle, valeur in referentiel_organisation(request.user).items() if cle != "sections"},
+            "users": utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user)).order_by("username"),
             "active_filters": filters,
             "mes_evenements_personnels": PersonalEvent.objects.filter(
                 owner=request.user, starts_at__gte=timezone.now()

@@ -14,7 +14,7 @@ from org.models import Sector
 from assets.models import Asset, Installation
 from matrix.core.mixins import build_scope_q
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.scopes import is_master_admin
 from matrix.core.validators import valider_photo, message_erreur_fichier
 from notifications.models import Notification
 from threads.utils import ajouter_commentaire, commentaires_de
@@ -38,16 +38,15 @@ def anomalies_visibles(user):
     """Anomalies que l'utilisateur a le droit de voir : pour un équipier, ses
     signalements et ceux de sa section ; pour un chef de section et au-dessus,
     ses signalements + tout son périmètre (build_scope_q sur les champs de
-    périmètre de l'anomalie). Un utilisateur sans périmètre défini
-    (administrateur général) voit tout, comme scope_filters_for_user() le
-    prévoit."""
+    périmètre de l'anomalie). Seul l'administrateur général voit tout ; sans
+    rattachement, un chef ne voit que ses propres signalements."""
     if not _est_chef(user):
         filtre = Q(created_by=user)
         section_id = _section_id_du_profil(user)
         if section_id:
             filtre |= Q(section_id=section_id)
         return Anomalie.objects.filter(filtre)
-    if not scope_filters_for_user(user):
+    if is_master_admin(user):
         return Anomalie.objects.all()
     return Anomalie.objects.filter(Q(created_by=user) | build_scope_q(user, ""))
 
@@ -60,14 +59,13 @@ def _secteurs_selectionnables(user):
     secteurs = Sector.objects.select_related("service")
     if ship:
         secteurs = secteurs.filter(service__ship=ship)
+    elif not is_master_admin(user):
+        secteurs = secteurs.none()
     return secteurs.order_by("service__name", "name")
 
 
 def _equipements_du_perimetre(user):
-    filtres = scope_filters_for_user(user)
-    installations = Installation.objects.filter(**filtres) if filtres else Installation.objects.all()
-    materiels = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
-    return installations, materiels
+    return Installation.objects.filter(build_scope_q(user, "")), Asset.objects.filter(build_scope_q(user, ""))
 
 
 def _anomalie_visible_ou_404(user, pk):
@@ -268,6 +266,7 @@ class AnomalieCreateView(LoginRequiredMixin, View):
             if profil.user_id != request.user.id:
                 Notification.objects.create(
                     user=profil.user, level=niveau, verb=f"Anomalie signalée : {titre}",
+                    target=anomalie,
                 )
         messages.success(request, "Anomalie signalée. Merci !")
         return redirect('anomalie-detail', pk=anomalie.pk)
@@ -316,6 +315,7 @@ class AnomalieTransitionView(LoginRequiredMixin, View):
                 Notification.objects.create(
                     user=anomalie.created_by,
                     verb=f"Votre anomalie « {anomalie.titre} » est passée au statut : {anomalie.get_statut_display()}",
+                    target=anomalie,
                 )
             messages.success(request, f"Statut mis à jour : {anomalie.get_statut_display()}.")
         return redirect('anomalie-detail', pk=anomalie.pk)

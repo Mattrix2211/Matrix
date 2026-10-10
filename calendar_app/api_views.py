@@ -23,6 +23,7 @@ from .evenements_sources import (
     _peut_agir_occurrence,
     _peut_agir_ticket,
     _rondes_a_faire,
+    _taches_a_faire,
 )
 
 
@@ -95,6 +96,7 @@ _COULEUR_PAR_TYPE = {
     # (ratio < 4.5:1) — #0b7285/#a61e4d passent largement (ratio > 5:1).
     "quart":         {"backgroundColor": "#0b7285", "borderColor": "#095c6b", "textColor": "#fff"},
     "service_garde": {"backgroundColor": "#a61e4d", "borderColor": "#84173d", "textColor": "#fff"},
+    "tache":         {"backgroundColor": "#2b6a3f", "borderColor": "#1f4f2e", "textColor": "#fff"},
     "ronde":         {"backgroundColor": "#5f3dc4", "borderColor": "#4c2fa0", "textColor": "#fff"},
     "absence":       {"backgroundColor": "#7c4a03", "borderColor": "#5c3702", "textColor": "#fff"},
 }
@@ -108,6 +110,7 @@ _CONCEPT_ICONE_PAR_TYPE = {
     "quart": "quart",
     "service_garde": "garde",
     "ronde": "ronde",
+    "tache": "tache",
     "personal": "personnel",
     "absence": "absence",
 }
@@ -298,6 +301,19 @@ def calendar_events(request):
                 "editable": False,
                 "extendedProps": {"type": "ronde", "status": ronde.statut, "peut_agir": False},
                 **_couleur_evenement("ronde"),
+            })
+    # Tâches attribuées par un chef : échéance sur le calendrier du marin.
+    if not filters.get("type") or filters["type"] == "tache":
+        for tache in _taches_a_faire(request.user, start, end):
+            events.append({
+                "id": f"tch-{tache.id}",
+                "title": tache.titre,
+                "start": tache.echeance.isoformat(),
+                "end": tache.echeance.isoformat(),
+                "url": f"/taches/{tache.id}/",
+                "editable": False,
+                "extendedProps": {"type": "tache", "status": tache.statut, "peut_agir": False},
+                **_couleur_evenement("tache"),
             })
     # Événements personnels libres : uniquement ceux du marin connecté,
     # affichés à côté des événements auto-générés sur son calendrier.

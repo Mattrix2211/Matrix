@@ -6,7 +6,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel, OwnedModel
-from matrix.core.validators import valider_photo, valider_document
+from matrix.core.validators import (
+    valider_document, valider_document_installation, valider_photo, valider_photo_catalogue,
+)
 from org.models import Ship, Service, Sector, Section
 
 User = get_user_model()
@@ -417,7 +419,7 @@ class DocumentInstallation(TimeStampedModel, OwnedModel):
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="documents")
     titre = models.CharField(max_length=255, verbose_name="Titre")
     type_document = models.CharField(max_length=20, choices=TYPES, default="autre", verbose_name="Type")
-    fichier = models.FileField(upload_to="installation_docs/", verbose_name="Fichier")
+    fichier = models.FileField(upload_to="installation_docs/", verbose_name="Fichier", validators=[valider_document_installation])
     notes = models.TextField(blank=True, default="", verbose_name="Notes")
 
     class Meta:
@@ -670,7 +672,7 @@ class CategorieCatalogue(TimeStampedModel, OwnedModel):
     specialite = models.ForeignKey("accounts.SpecialityChoice", on_delete=models.PROTECT, related_name="categories_catalogue", verbose_name="Spécialité")
     ordre = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
     icone = models.CharField(max_length=64, blank=True, default="", verbose_name="Icône")
-    photo = models.FileField(upload_to="catalogue_categories/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="catalogue_categories/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo_catalogue])
     actif = models.BooleanField(default=True, verbose_name="Active")
 
     class Meta:
@@ -703,7 +705,7 @@ class ArticleCatalogue(TimeStampedModel, OwnedModel):
     marque = models.CharField(max_length=255, blank=True, default="", verbose_name="Marque")
     reference = models.CharField(max_length=255, blank=True, default="", verbose_name="Modèle / référence")
     nno = models.CharField(max_length=255, blank=True, default="", verbose_name="NNO")
-    photo = models.FileField(upload_to="catalogue_articles/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="catalogue_articles/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo_catalogue])
     caracteristiques = JSONField(default=dict, blank=True, verbose_name="Caractéristiques")
     duree_vie_mois = models.PositiveIntegerField(null=True, blank=True, verbose_name="Durée de vie ou de péremption type (mois)")
     actif = models.BooleanField(default=True, verbose_name="Actif")
@@ -765,7 +767,7 @@ class PropositionArticle(TimeStampedModel, OwnedModel):
     marque = models.CharField(max_length=255, blank=True, default="", verbose_name="Marque")
     reference = models.CharField(max_length=255, blank=True, default="", verbose_name="Modèle / référence")
     nno = models.CharField(max_length=255, blank=True, default="", verbose_name="NNO")
-    photo = models.FileField(upload_to="catalogue_propositions/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="catalogue_propositions/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo_catalogue])
     caracteristiques = JSONField(default=dict, blank=True, verbose_name="Caractéristiques")
     duree_vie_mois = models.PositiveIntegerField(null=True, blank=True, verbose_name="Durée de vie ou de péremption type (mois)")
     motif_refus = models.TextField(blank=True, default="")
