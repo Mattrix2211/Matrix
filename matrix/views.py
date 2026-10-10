@@ -31,7 +31,7 @@ from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
 )
 from matrix.core.modules import (
-    REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif,
+    REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif, module_actif_pour_user,
     invalidate_cache as invalidate_modules_cache,
 )
 
@@ -113,49 +113,54 @@ def global_search(request):
     # cherchable dédié), événements de calendrier et discussions — pour
     # éviter la sur-ingénierie et prioriser les types les plus utiles au
     # quotidien en premier.
-    q = request.GET.get('q', '').strip()
+    q = recherche.normaliser(request.GET.get('q'))
     perimetre = scope_filters_for_user(request.user)
     perimetre_documents = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
-    perimetre_users = {f"profile__{cle}": valeur for cle, valeur in perimetre.items()}
     assets = tickets = users = installations = formations = documents = []
     anomalies = ronde_modeles = rondes = echanges = []
     if q:
+        # Une catégorie d'un module désactivé pour le navire du marin n'est pas interrogée.
+        def actif(cle):
+            return module_actif_pour_user(cle, request.user)
+
         # Matériels, installations, tickets, anomalies, formations : mêmes
         # requêtes que la recherche rapide de la barre supérieure.
-        assets = recherche.materiels(request.user, q)[:20]
-        tickets = recherche.tickets(request.user, q)[:20]
-        installations = recherche.installations(request.user, q)[:20]
-        formations = recherche.formations(request.user, q)[:20]
-        anomalies = recherche.anomalies(request.user, q)[:20]
-        # Sans périmètre, seul un maître voit tout : jamais toute la flotte par défaut.
-        if perimetre_users or is_master_admin(request.user):
-            users = User.objects.filter(**perimetre_users, is_active=True).filter(
-                Q(username__icontains=q) | Q(email__icontains=q)
+        if actif('assets'):
+            assets = recherche.materiels(request.user, q)[:20]
+            installations = recherche.installations(request.user, q)[:20]
+            documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
+                Q(name__icontains=q)
             )[:20]
-        documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
-            Q(name__icontains=q)
-        )[:20]
+        if actif('logistics'):
+            tickets = recherche.tickets(request.user, q)[:20]
+            anomalies = recherche.anomalies(request.user, q)[:20]
+        if actif('training'):
+            formations = recherche.formations(request.user, q)[:20]
+        # Mêmes personnes que la recherche rapide (navire du marin), identifiant et e-mail en plus.
+        users = recherche.marins(request.user, q, avec_identifiants=True)[:20]
         # Rondes : périmètre "couvrant" propre à l'app rondes (un chef de
         # secteur/service/navire voit aussi ce qui est en dessous de lui) —
         # mêmes fonctions que RondesIndexView/ModeleListView.
-        ronde_modeles = modeles_visibles(request.user).filter(
-            Q(nom__icontains=q) | Q(description__icontains=q)
-        )[:20]
-        rondes = rondes_visibles(request.user).filter(Q(nom__icontains=q))[:20]
+        if actif('rondes'):
+            ronde_modeles = modeles_visibles(request.user).filter(
+                Q(nom__icontains=q) | Q(description__icontains=q)
+            )[:20]
+            rondes = rondes_visibles(request.user).filter(Q(nom__icontains=q))[:20]
         # Échanges de service : aucun périmètre géographique simple — visible
         # seulement du demandeur, de la cible, ou du chef de liste habilité à
         # trancher (même règle que _echanges_visibles, quarts/web_views.py).
         # Filtrage en Python après un premier filtre texte en base, faute de
         # traduire cette règle en un Q() unique.
-        candidats_echanges = EchangeService.objects.select_related(
-            'demandeur', 'cible', 'creneau_demandeur__service_garde', 'creneau_cible__service_garde',
-        ).filter(
-            Q(libelle_creneau_demandeur__icontains=q) | Q(libelle_creneau_cible__icontains=q) | Q(motif__icontains=q)
-        )
-        echanges = [
-            e for e in candidats_echanges
-            if request.user.pk in (e.demandeur_id, e.cible_id) or peut_valider_echange(request.user, e)
-        ][:20]
+        if actif('quarts'):
+            candidats_echanges = EchangeService.objects.select_related(
+                'demandeur', 'cible', 'creneau_demandeur__service_garde', 'creneau_cible__service_garde',
+            ).filter(
+                Q(libelle_creneau_demandeur__icontains=q) | Q(libelle_creneau_cible__icontains=q) | Q(motif__icontains=q)
+            )
+            echanges = [
+                e for e in candidats_echanges
+                if request.user.pk in (e.demandeur_id, e.cible_id) or peut_valider_echange(request.user, e)
+            ][:20]
     return render(request, 'search.html', {
         "q": q, "assets": assets, "tickets": tickets, "users": users,
         "installations": installations, "formations": formations, "documents": documents,

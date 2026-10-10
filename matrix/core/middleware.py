@@ -1,12 +1,33 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, QueryDict
 from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS
 
 from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
+
+
+def _sans_nul(parametres):
+    propres = QueryDict(mutable=True, encoding=parametres.encoding)
+    for cle, valeurs in parametres.lists():
+        propres.setlist(cle.replace("\x00", ""), [v.replace("\x00", "") for v in valeurs])
+    return propres
+
+
+class SansNulMiddleware:
+    """Retire le caractère NUL des paramètres d'URL : PostgreSQL le refuse dans toute requête
+    texte (erreur 500), ce que SQLite laisse passer en développement. Les formulaires Django
+    le rejettent déjà eux-mêmes."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if "%00" in request.META.get("QUERY_STRING", "").lower():
+            request.GET = _sans_nul(request.GET)
+        return self.get_response(request)
 
 
 class ModuleActivationMiddleware:

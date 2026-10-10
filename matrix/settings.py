@@ -96,6 +96,8 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    # Retire le caractère NUL des paramètres (erreur 500 sous PostgreSQL)
+    "matrix.core.middleware.SansNulMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Déconnexion automatique après inactivité (matrix/core/inactivite.py)
     "matrix.core.inactivite.InactiviteMiddleware",

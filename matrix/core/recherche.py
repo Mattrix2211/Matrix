@@ -27,13 +27,15 @@ from training.models import TrainingCourse
 MIN_CARACTERES = 2
 MAX_CARACTERES = 80
 PAR_CATEGORIE = 5
-_CONTROLES = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+_NUL_ET_LARGEUR_NULLE = re.compile(r"[\x00\u200b-\u200f\u2060\ufeff]")
+_CONTROLES = re.compile(r"[\x01-\x1f\x7f-\x9f]")
 
 
 def normaliser(brut):
     """Terme nettoyé et borné ; chaîne vide s'il est trop court pour chercher."""
-    # Les caractères de contrôle (dont \x00) feraient échouer PostgreSQL.
-    terme = _CONTROLES.sub("", brut or "").strip()[:MAX_CARACTERES].strip()
+    # NUL ferait échouer PostgreSQL et la largeur nulle fausserait la longueur : on les retire ;
+    # les autres contrôles (tabulation, saut de ligne) séparent des mots.
+    terme = " ".join(_CONTROLES.sub(" ", _NUL_ET_LARGEUR_NULLE.sub("", brut or "")).split())[:MAX_CARACTERES].strip()
     return terme if len(terme) >= MIN_CARACTERES else ""
 
 
@@ -62,6 +64,7 @@ def materiels(user, terme):
 
 def tickets(user, terme):
     # Même filtre que la fiche détail d'un ticket.
+    # L'identifiant (UUID) n'est jamais affiché : on ne cherche que la description.
     return (
         CorrectiveTicket.objects.filter(build_scope_q(user, "asset__", "installation__"))
         .filter(description__icontains=terme)
@@ -80,12 +83,14 @@ def formations(user, terme):
     ).order_by("title")
 
 
-def marins(user, terme):
+def marins(user, terme, avec_identifiants=False):
     # Tout marin cherche dans son navire ; sans navire rattaché, aucun résultat
-    # (jamais toute la flotte), sauf maître ou superutilisateur.
+    # (jamais toute la flotte), sauf maître ou superutilisateur. La recherche rapide
+    # ne cherche jamais l'identifiant de connexion (il ne s'affiche pas et servirait
+    # d'oracle) ; la page complète, qui affiche identifiant et e-mail, les cherche.
+    champs = ("first_name", "last_name", "username", "email") if avec_identifiants else ("first_name", "last_name")
     qs = get_user_model().objects.select_related("profile").filter(
-        # Jamais l'identifiant de connexion : il ne s'affiche pas et servirait d'oracle.
-        _ou(terme, "first_name", "last_name"), is_active=True,
+        _ou(terme, *champs), is_active=True,
     ).order_by("last_name", "username")
     if not is_master_admin(user):
         qs = qs.filter(perimetre_navire_q(user, "profile__"))

@@ -15,8 +15,9 @@
   }
 
   function choisir(index) {
-    var liste = options();
-    liste.forEach(function (o) { o.classList.remove('is-actif'); o.removeAttribute('aria-selected'); });
+    // Un résultat inerte (aria-disabled) n'est jamais actif ni cliqué au clavier.
+    var liste = options().filter(function (o) { return o.getAttribute('aria-disabled') !== 'true'; });
+    options().forEach(function (o) { o.classList.remove('is-actif'); o.removeAttribute('aria-selected'); });
     actif = liste.length ? (index + liste.length) % liste.length : -1;
     if (actif < 0) { champ.removeAttribute('aria-activedescendant'); return; }
     var option = liste[actif];
@@ -55,7 +56,7 @@
   });
 
   champ.addEventListener('keydown', function (evt) {
-    var liste = options();
+    var liste = options().filter(function (o) { return o.getAttribute('aria-disabled') !== 'true'; });
     if (evt.key === 'Escape') {
       if (panneau.hidden) champ.blur(); else fermer();
       evt.preventDefault();
@@ -74,6 +75,8 @@
   champ.addEventListener('htmx:configRequest', function (evt) {
     if (champ.value.trim().length < MIN) {
       evt.preventDefault();
+      // Annule une requête déjà partie : elle rouvrirait le panneau après coup.
+      if (window.htmx) window.htmx.trigger(champ, 'htmx:abort');
       panneau.innerHTML = '';
       fermer();
       annonce.textContent = '';
@@ -88,6 +91,15 @@
     ouvrir();
     annonce.textContent = nombre === 0 ? 'Aucun résultat.' :
       nombre + (nombre > 1 ? ' résultats disponibles.' : ' résultat disponible.');
+  });
+
+  // Erreur réseau ou serveur : pas de résultats périmés à l'écran.
+  ['htmx:responseError', 'htmx:sendError'].forEach(function (nom) {
+    champ.addEventListener(nom, function () {
+      panneau.innerHTML = '';
+      fermer();
+      annonce.textContent = 'La recherche est indisponible pour le moment.';
+    });
   });
 
   // Un clic dans le panneau ne retire pas le focus du champ.
