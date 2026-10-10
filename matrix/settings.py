@@ -230,6 +230,8 @@ BROUILLONS_TAILLE_MAX = int(os.getenv("BROUILLONS_TAILLE_MAX", str(256 * 1024)))
 # Déconnexion automatique des postes partagés (en secondes) : délai d'inactivité et
 # préavis affiché avant la déconnexion. Valeurs bornées et corrigées par matrix/core/inactivite.py.
 INACTIVITE_DELAI_SECONDES = os.getenv("INACTIVITE_DELAI_SECONDES", "900")
+# Taille maximale (Mo) des documents téléversés, pièces jointes et documents d'installation
+DOCUMENT_TAILLE_MAX_MO = int(os.getenv("DOCUMENT_TAILLE_MAX_MO", "20"))
 INACTIVITE_AVERTISSEMENT_SECONDES = os.getenv("INACTIVITE_AVERTISSEMENT_SECONDES", "60")
 
 CELERY_BEAT_SCHEDULE = {

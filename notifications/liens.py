@@ -30,7 +30,8 @@ def liens_accessibles(request, notifications):
 
 def _chemin_sur(chemin):
     """Chemin interne uniquement : jamais d'adresse externe ni de schéma."""
-    return bool(chemin) and chemin.startswith("/") and not chemin.startswith("//") and "\\" not in chemin
+    return (bool(chemin) and chemin.startswith("/") and not chemin.startswith("//") and "\\" not in chemin
+            and not any(ord(c) < 32 or ord(c) == 127 for c in chemin))
 
 
 def _uuids(valeurs):

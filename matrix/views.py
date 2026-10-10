@@ -24,7 +24,8 @@ from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, Resp
 from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
-from matrix.core.scopes import scope_filters_for_user, is_master_admin, ship_id_for_user
+from matrix.core.mixins import build_scope_q
+from matrix.core.scopes import is_master_admin, ship_id_for_user
 from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
@@ -114,8 +115,6 @@ def global_search(request):
     # éviter la sur-ingénierie et prioriser les types les plus utiles au
     # quotidien en premier.
     q = recherche.normaliser(request.GET.get('q'))
-    perimetre = scope_filters_for_user(request.user)
-    perimetre_documents = {f"asset__{cle}": valeur for cle, valeur in perimetre.items()}
     assets = tickets = users = installations = formations = documents = []
     anomalies = ronde_modeles = rondes = echanges = []
     if q:
@@ -128,7 +127,7 @@ def global_search(request):
         if actif('assets'):
             assets = recherche.materiels(request.user, q)[:20]
             installations = recherche.installations(request.user, q)[:20]
-            documents = AssetDocument.objects.select_related('asset').filter(**perimetre_documents).filter(
+            documents = AssetDocument.objects.select_related('asset').filter(build_scope_q(request.user, 'asset__')).filter(
                 Q(name__icontains=q)
             )[:20]
         if actif('logistics'):

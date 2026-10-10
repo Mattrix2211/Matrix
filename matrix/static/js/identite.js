@@ -34,7 +34,7 @@
   var originale = window.fetch;
   if (typeof originale !== 'function') { return; }
   window.fetch = function (entree, options) {
-    var url = typeof entree === 'string' ? entree : (entree && entree.url) || '';
+    var url = typeof entree === 'string' ? entree : String((entree && (entree.url || entree.href)) || '');
     var methode = ((options && options.method) || (entree && entree.method) || 'GET').toUpperCase();
     var local = memeOrigine(url);
     var enTetes = new Headers((options && options.headers) || (entree && entree.headers) || {});

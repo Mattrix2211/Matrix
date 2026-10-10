@@ -78,3 +78,25 @@ class RechercheDetteTests(TestCase):
         isole.profile.ship = None
         isole.profile.save()
         self.assertNotContains(self.chercher("Rivière", user=isole), "@exemple.test")
+
+
+class DocumentsSansRattachementTests(TestCase):
+    def test_marin_sans_rattachement_ne_voit_aucun_document(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from assets.models import AssetDocument
+        navire = Ship.objects.create(name="Navire D", code="NVD")
+        service = Service.objects.create(ship=navire, name="Service D")
+        secteur = Sector.objects.create(service=service, name="Secteur D")
+        type_asset = AssetType.objects.create(name="Pompe", category="MCO", sector=secteur)
+        asset = Asset.objects.create(asset_type=type_asset, internal_id="POMPE-D", ship=navire, service=service, sector=secteur)
+        AssetDocument.objects.create(asset=asset, name="Notice confidentielle", file=SimpleUploadedFile("n.txt", b"texte"))
+        isole = User.objects.create_user(username="isole_d", password="pass")
+        self.client.force_login(isole)
+        self.assertNotContains(self.client.get(reverse("global-search"), {"q": "confidentielle"}), "Notice confidentielle")
+        membre = User.objects.create_user(username="membre_d", password="pass")
+        membre.profile.ship, membre.profile.service, membre.profile.sector = navire, service, secteur
+        membre.profile.role = "EQUIPIER"
+        membre.profile.save()
+        self.client.force_login(membre)
+        self.assertContains(self.client.get(reverse("global-search"), {"q": "confidentielle"}), "Notice confidentielle")

@@ -125,6 +125,7 @@ class ValidateurFichierTeleverse:
                 code=self.code,
             )
 
+        # Une limite égale à TAILLE_MAX_DOCUMENT suit le réglage DOCUMENT_TAILLE_MAX_MO (migrations déjà écrites).
         maximum = taille_document_max() if self.taille_max_octets == TAILLE_MAX_DOCUMENT else self.taille_max_octets
         taille = getattr(fichier, "size", None)
         if taille is not None and taille > maximum:
