@@ -19,6 +19,7 @@ from assets.models import InstallationBigrameChoice, Installation
 from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
+from taches.models import ParametresTaches
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
 from matrix.core import recherche
@@ -454,6 +455,7 @@ class SettingsView(LoginRequiredMixin, View):
                 'seuils_ship': selected_ship,
                 'seuils_lignes': _lignes_seuils(selected_ship.id if selected_ship else None, 'SHIP'),
                 'seuils_lignes_globales': _lignes_seuils(None, PORTEE_GLOBALE),
+                'parametres_taches': ParametresTaches.courants(),
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
             })
@@ -776,6 +778,35 @@ class SettingsView(LoginRequiredMixin, View):
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> défaut ({action_seuil.defaut.name})",
                             )
                         messages.success(request, "Seuil de rôle réinitialisé à sa valeur par défaut.")
+        elif action == 'update_parametres_taches':
+            # Réglages des tâches communs à toute la flotte (relances, durée des terminées).
+            next_tab = 'seuils_role'
+            if not is_master_admin(request.user):
+                messages.error(request, "Seuls les administrateurs généraux peuvent modifier les réglages des tâches de la flotte.")
+            else:
+                parametres = ParametresTaches.objects.first() or ParametresTaches()
+                try:
+                    jours_relance = int(request.POST.get('jours_entre_relances', ''))
+                    jours_terminees = int(request.POST.get('jours_terminees_affichees', ''))
+                except ValueError:
+                    jours_relance = jours_terminees = -1
+                if not (0 <= jours_relance <= 365 and 1 <= jours_terminees <= 365):
+                    messages.error(request, "Indiquez des durées en jours valides (relance : 0 à 365, terminées : 1 à 365).")
+                else:
+                    avant = (parametres.jours_entre_relances, parametres.relancer_assigne, parametres.relancer_chef_attributeur,
+                             parametres.relancer_chefs_si_blocage, parametres.jours_terminees_affichees)
+                    parametres.jours_entre_relances = jours_relance
+                    parametres.jours_terminees_affichees = jours_terminees
+                    parametres.relancer_assigne = request.POST.get('relancer_assigne') == 'on'
+                    parametres.relancer_chef_attributeur = request.POST.get('relancer_chef_attributeur') == 'on'
+                    parametres.relancer_chefs_si_blocage = request.POST.get('relancer_chefs_si_blocage') == 'on'
+                    parametres.save()
+                    AuditLog.objects.create(
+                        actor=request.user, action='update_parametres_taches',
+                        details=f"avant={avant}; apres=({jours_relance}, {parametres.relancer_assigne}, "
+                                f"{parametres.relancer_chef_attributeur}, {parametres.relancer_chefs_si_blocage}, {jours_terminees})",
+                    )
+                    messages.success(request, "Réglages des tâches enregistrés.")
         elif action == 'toggle_module':
             # Onglet Modules : bascule activé/désactivé d'un module applicatif
             # pour un navire. Accessible à un rôle habilité par le seuil

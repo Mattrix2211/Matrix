@@ -145,6 +145,11 @@ REGISTRE_ACTIONS = [
         "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,
     ),
     ActionSeuil(
+        "tache_attribution",
+        "Attribuer une tâche à un marin de son périmètre et suivre l'avancement de l'équipe",
+        "Tâches", PORTEE_GLOBALE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,

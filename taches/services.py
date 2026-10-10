@@ -15,18 +15,22 @@ from django.utils import timezone
 from absences.services import marin_dans_perimetre
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.role_thresholds import seuil_role
+from matrix.core.roles import user_role_level
 from matrix.core.scopes import equipage_marin_q
 from notifications.models import Notification, NotificationLevel
 from threads.models import Message, Thread
 from threads.utils import ajouter_commentaire
 
-from .models import Tache
+from .models import ParametresTaches, Tache
 
 User = get_user_model()
 
-NIVEAU_REQUIS_GESTION_TACHE = RoleLevel.CHEF_SECTION
-JOURS_TERMINEES_AFFICHEES = 30
+
+
+def peut_attribuer(user):
+    """Niveau minimal configurable (Réglages > Seuils de rôle, action « tache_attribution »)."""
+    return user_role_level(user) >= seuil_role("tache_attribution")
 
 
 def _nom(user):
@@ -34,7 +38,7 @@ def _nom(user):
 
 
 def est_chef_de(user, marin):
-    return user_role_level(user) >= NIVEAU_REQUIS_GESTION_TACHE and marin_dans_perimetre(user, marin)
+    return peut_attribuer(user) and marin_dans_perimetre(user, marin)
 
 
 def peut_gerer(user, tache):
@@ -49,7 +53,7 @@ def peut_consulter(user, tache):
 
 def taches_visibles(user):
     base = Q(assigne=user) | Q(created_by=user) | Q(participants=user)
-    if user_role_level(user) >= NIVEAU_REQUIS_GESTION_TACHE:
+    if peut_attribuer(user):
         base |= build_scope_q(user, "assigne__profile__") & equipage_marin_q(user, "assigne__profile__")
     return Tache.objects.filter(base).distinct()
 
@@ -65,7 +69,7 @@ def taches_a_suivre(user):
 
 def taches_supervisees(user):
     """Tâches des marins du périmètre et de l'équipage d'un chef, hors les siennes."""
-    if user_role_level(user) < NIVEAU_REQUIS_GESTION_TACHE:
+    if not peut_attribuer(user):
         return Tache.objects.none()
     return Tache.objects.filter(
         build_scope_q(user, "assigne__profile__"), equipage_marin_q(user, "assigne__profile__"),
@@ -75,10 +79,10 @@ def taches_supervisees(user):
 def avancement_equipe(user, aujourdhui=None):
     """Synthèse pour le chef : tâches par statut, retards et blocages en attente de levée.
 
-    Les tâches terminées ne comptent que sur les JOURS_TERMINEES_AFFICHEES derniers jours.
+    Les tâches terminées ne comptent que sur la durée réglée (jours_terminees_affichees).
     """
     aujourdhui = aujourdhui or timezone.localdate()
-    depuis = timezone.now() - timedelta(days=JOURS_TERMINEES_AFFICHEES)
+    depuis = timezone.now() - timedelta(days=ParametresTaches.courants().jours_terminees_affichees)
     taches = taches_supervisees(user).select_related("assigne")
     ouvertes = [t for t in taches if t.ouverte]
     comptes = {statut: 0 for statut, _ in Tache.STATUT_CHOICES}
@@ -95,7 +99,7 @@ def avancement_equipe(user, aujourdhui=None):
 
 def marins_assignables(user):
     """Marins à qui `user` peut attribuer une tâche (lui-même exclu)."""
-    if user_role_level(user) < NIVEAU_REQUIS_GESTION_TACHE:
+    if not peut_attribuer(user):
         return User.objects.none()
     return User.objects.filter(build_scope_q(user, "profile__"), equipage_marin_q(user)).exclude(pk=user.pk).order_by("username")
 
@@ -238,36 +242,48 @@ def _relances(tache):
     )
 
 
-def _destinataires_relance(tache):
+def _destinataires_relance(tache, parametres):
     """Tâche bloquée : les chefs qui peuvent lever le blocage ; sinon l'assigné et le chef qui l'a attribuée."""
     if tache.statut == Tache.STATUT_BLOQUEE:
+        if not parametres.relancer_chefs_si_blocage:
+            return []
         candidats = User.objects.filter(is_active=True, profile__ship_id=getattr(tache.assigne.profile, "ship_id", None))
         return [u for u in candidats if u.pk != tache.assigne_id and est_chef_de(u, tache.assigne)]
-    ids = {tache.assigne_id, tache.created_by_id} - {None}
+    ids = set()
+    if parametres.relancer_assigne:
+        ids.add(tache.assigne_id)
+    if parametres.relancer_chef_attributeur and tache.created_by_id:
+        ids.add(tache.created_by_id)
     return list(User.objects.filter(pk__in=ids, is_active=True))
 
 
 def relancer_echeances_depassees(aujourdhui=None):
-    """Relance une fois par jour, tant que la tâche n'est pas traitée, les acteurs d'une tâche en retard.
+    """Relance les acteurs d'une tâche en retard, tous les `jours_entre_relances` jours tant qu'elle n'est pas traitée.
 
     Le dédoublonnage ignore l'état de lecture : une relance lue n'est pas une tâche faite.
     Les relances encore non lues d'une tâche terminée sont soldées.
     """
+    parametres = ParametresTaches.courants()
     aujourdhui = aujourdhui or timezone.localdate()
-    debut_jour = timezone.make_aware(timezone.datetime.combine(aujourdhui, timezone.datetime.min.time()))
     creees = 0
-    for tache in Tache.objects.filter(statut__in=Tache.STATUTS_OUVERTS, echeance__lt=aujourdhui, assigne__is_active=True).select_related("assigne"):
-        jours = (aujourdhui - tache.echeance).days
-        etat = " (bloquée)" if tache.statut == Tache.STATUT_BLOQUEE else ""
-        for user in _destinataires_relance(tache):
-            if _relances(tache).filter(user=user, created_at__gte=debut_jour).exists():
-                continue
-            qui = f" de {_nom(tache.assigne)}" if user.pk != tache.assigne_id else ""
-            _notifier(
-                tache, [user],
-                f"{PREFIXE_RELANCE}{etat} : « {tache.titre} »{qui}, échéance dépassée de {jours} j.", NotificationLevel.WARNING,
-            )
-            creees += 1
+    if parametres.jours_entre_relances:
+        depuis = aujourdhui - timedelta(days=parametres.jours_entre_relances - 1)
+        debut = timezone.make_aware(timezone.datetime.combine(depuis, timezone.datetime.min.time()))
+        for tache in Tache.objects.filter(
+            statut__in=Tache.STATUTS_OUVERTS, echeance__lt=aujourdhui, assigne__is_active=True,
+        ).select_related("assigne"):
+            jours = (aujourdhui - tache.echeance).days
+            etat = " (bloquée)" if tache.statut == Tache.STATUT_BLOQUEE else ""
+            for user in _destinataires_relance(tache, parametres):
+                if _relances(tache).filter(user=user, created_at__gte=debut).exists():
+                    continue
+                qui = f" de {_nom(tache.assigne)}" if user.pk != tache.assigne_id else ""
+                _notifier(
+                    tache, [user],
+                    f"{PREFIXE_RELANCE}{etat} : « {tache.titre} »{qui}, échéance dépassée de {jours} j.",
+                    NotificationLevel.WARNING,
+                )
+                creees += 1
     for tache in Tache.objects.filter(statut=Tache.STATUT_TERMINEE):
         _relances(tache).filter(is_read=False).update(is_read=True)
     return creees

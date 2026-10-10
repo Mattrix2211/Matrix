@@ -48,3 +48,26 @@ class Tache(TimeStampedModel, OwnedModel):
     @property
     def ouverte(self):
         return self.statut in self.STATUTS_OUVERTS
+
+
+class ParametresTaches(TimeStampedModel):
+    """Réglages des tâches communs à toute la flotte (un seul enregistrement, modifié dans les Réglages)."""
+    jours_entre_relances = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Jours entre deux relances (0 : pas de relance)")
+    relancer_assigne = models.BooleanField(default=True, verbose_name="Relancer le marin assigné")
+    relancer_chef_attributeur = models.BooleanField(default=True, verbose_name="Relancer le chef qui a attribué la tâche")
+    relancer_chefs_si_blocage = models.BooleanField(
+        default=True, verbose_name="Relancer les chefs du périmètre pour un blocage en retard")
+    jours_terminees_affichees = models.PositiveSmallIntegerField(
+        default=30, verbose_name="Jours d'affichage des tâches terminées dans la vue d'avancement")
+
+    class Meta:
+        verbose_name = "Réglages des tâches"
+        verbose_name_plural = "Réglages des tâches"
+
+    def __str__(self):
+        return "Réglages des tâches"
+
+    @classmethod
+    def courants(cls):
+        return cls.objects.first() or cls()

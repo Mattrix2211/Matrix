@@ -10,7 +10,9 @@ from dashboard.aujourdhui import a_faire
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
 from taches import services
-from taches.models import Tache
+from matrix.core.role_thresholds import invalidate_cache
+from org.models import RoleThresholdConfig
+from taches.models import ParametresTaches, Tache
 from threads.utils import commentaires_de
 
 
@@ -216,3 +218,61 @@ class AvancementTests(TachesBase):
         self.assertContains(self.client.get(reverse("taches-index")), "Blocages à lever")
         self.client.login(username="marin", password="pass")
         self.assertNotContains(self.client.get(reverse("taches-index")), "Avancement de l'équipe")
+
+
+class ReglagesTests(TachesBase):
+    def relances(self, user):
+        return Notification.objects.filter(user=user, verb__startswith=services.PREFIXE_RELANCE)
+
+    def test_rythme_configurable_et_desactivable(self):
+        self._tache(echeance=self.aujourdhui - timedelta(days=5))
+        ParametresTaches.objects.create(jours_entre_relances=3)
+        self.assertEqual(services.relancer_echeances_depassees(), 2)
+        self.assertEqual(services.relancer_echeances_depassees(self.aujourdhui + timedelta(days=2)), 0)
+        self.assertEqual(services.relancer_echeances_depassees(self.aujourdhui + timedelta(days=3)), 2)
+        ParametresTaches.objects.update(jours_entre_relances=0)
+        self.assertEqual(services.relancer_echeances_depassees(self.aujourdhui + timedelta(days=9)), 0)
+
+    def test_destinataires_configurables(self):
+        self._tache(echeance=self.aujourdhui - timedelta(days=1))
+        ParametresTaches.objects.create(relancer_assigne=False)
+        services.relancer_echeances_depassees()
+        self.assertFalse(self.relances(self.marin).exists())
+        self.assertTrue(self.relances(self.chef).exists())
+
+    def test_blocage_sans_relance_des_chefs_si_desactive(self):
+        self._tache(echeance=self.aujourdhui - timedelta(days=1), statut=Tache.STATUT_BLOQUEE, motif_blocage="x")
+        ParametresTaches.objects.create(relancer_chefs_si_blocage=False)
+        self.assertEqual(services.relancer_echeances_depassees(), 0)
+
+    def test_duree_des_terminees_configurable(self):
+        self._tache(statut=Tache.STATUT_TERMINEE, terminee_le=timezone.now() - timedelta(days=10))
+        self.assertEqual(services.avancement_equipe(self.chef)["comptes"]["TERMINEE"], 1)
+        ParametresTaches.objects.create(jours_terminees_affichees=7)
+        self.assertEqual(services.avancement_equipe(self.chef)["comptes"]["TERMINEE"], 0)
+
+    def test_niveau_requis_pour_attribuer_configurable(self):
+        self.assertTrue(services.peut_attribuer(self.chef))
+        RoleThresholdConfig.objects.create(ship=None, thresholds={"tache_attribution": "CHEF_SECTEUR"})
+        invalidate_cache(None)
+        self.addCleanup(invalidate_cache, None)
+        self.assertFalse(services.peut_attribuer(self.chef))
+        self.assertEqual(Tache.objects.count(), 0)
+        with self.assertRaises(PermissionError):
+            services.creer_tache(self.chef, self.marin, "x", self.aujourdhui)
+
+    def test_formulaire_des_reglages_reserve_au_maitre_admin(self):
+        donnees = {"action": "update_parametres_taches", "jours_entre_relances": "2", "jours_terminees_affichees": "14",
+                   "relancer_assigne": "on"}
+        self.client.login(username="chef", password="pass")
+        self.client.post(reverse("settings"), donnees)
+        self.assertFalse(ParametresTaches.objects.exists())
+        User.objects.create_superuser("root", password="pass")
+        self.client.login(username="root", password="pass")
+        self.client.post(reverse("settings"), donnees)
+        p = ParametresTaches.objects.get()
+        self.assertEqual((p.jours_entre_relances, p.jours_terminees_affichees), (2, 14))
+        self.assertEqual((p.relancer_assigne, p.relancer_chef_attributeur, p.relancer_chefs_si_blocage), (True, False, False))
+        self.client.post(reverse("settings"), {**donnees, "jours_entre_relances": "abc"})
+        self.assertEqual(ParametresTaches.objects.get().jours_entre_relances, 2)
+        self.assertContains(self.client.get(reverse("settings"), {"tab": "seuils_role"}), "Jours entre deux relances")
