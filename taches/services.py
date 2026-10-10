@@ -194,3 +194,36 @@ def rendre_compte(tache, user, compte_rendu):
     _enregistrer(tache, user, "compte_rendu", ["statut", "compte_rendu", "terminee_le"])
     _message_systeme(tache, f"{_nom(user)} a rendu compte : {compte_rendu}")
     _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a terminé « {tache.titre} » et rendu compte.")
+
+
+PREFIXE_RELANCE = "Tâche en retard"
+STATUTS_RELANCES = (Tache.STATUT_A_FAIRE, Tache.STATUT_EN_COURS)
+
+
+def _relances(tache):
+    return Notification.objects.filter(
+        content_type=ContentType.objects.get_for_model(tache), object_id=str(tache.pk), verb__startswith=PREFIXE_RELANCE,
+    )
+
+
+def relancer_echeances_depassees(aujourdhui=None):
+    """Relance l'assigné d'une tâche en retard, une fois par jour tant qu'elle n'est pas traitée.
+
+    Le dédoublonnage ignore l'état de lecture : une relance lue n'est pas une tâche faite.
+    Une tâche bloquée n'est pas relancée (le marin a déjà agi) ; ses relances sont soldées avec celles des tâches closes.
+    """
+    aujourdhui = aujourdhui or timezone.localdate()
+    debut_jour = timezone.make_aware(timezone.datetime.combine(aujourdhui, timezone.datetime.min.time()))
+    creees = 0
+    for tache in Tache.objects.filter(statut__in=STATUTS_RELANCES, echeance__lt=aujourdhui, assigne__is_active=True):
+        if _relances(tache).filter(user_id=tache.assigne_id, created_at__gte=debut_jour).exists():
+            continue
+        jours = (aujourdhui - tache.echeance).days
+        _notifier(
+            tache, [tache.assigne],
+            f"{PREFIXE_RELANCE} : « {tache.titre} », échéance dépassée de {jours} j.", NotificationLevel.WARNING,
+        )
+        creees += 1
+    for tache in Tache.objects.exclude(statut__in=STATUTS_RELANCES):
+        _relances(tache).filter(is_read=False).update(is_read=True)
+    return creees

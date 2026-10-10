@@ -9,6 +9,7 @@ from django.utils import timezone
 from dashboard.aujourdhui import a_faire
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
+from taches import services
 from taches.models import Tache
 from threads.utils import commentaires_de
 
@@ -146,3 +147,36 @@ class AffichageTests(TachesBase):
             self.assertContains(self.client.get(reverse("taches-index")), "Tâches")
             self.assertContains(self.client.get(reverse("tache-detail", args=[tache.pk])), texte)
         self.assertNotContains(self.client.get(reverse("tache-detail", args=[tache.pk])), "Lever le blocage")
+
+
+class RelanceEcheanceTests(TachesBase):
+    def relances(self, user):
+        return Notification.objects.filter(user=user, verb__startswith=services.PREFIXE_RELANCE)
+
+    def test_relance_unique_par_jour_meme_si_lue(self):
+        self._tache(echeance=self.aujourdhui - timedelta(days=2))
+        self.assertEqual(services.relancer_echeances_depassees(), 1)
+        self.assertEqual(services.relancer_echeances_depassees(), 0)
+        self.relances(self.marin).update(is_read=True)
+        self.assertEqual(services.relancer_echeances_depassees(), 0)
+        self.assertEqual(self.relances(self.marin).count(), 1)
+
+    def test_nouvelle_relance_le_lendemain_si_non_traitee(self):
+        self._tache(echeance=self.aujourdhui - timedelta(days=1))
+        services.relancer_echeances_depassees()
+        self.relances(self.marin).update(is_read=True)
+        self.assertEqual(services.relancer_echeances_depassees(self.aujourdhui + timedelta(days=1)), 1)
+        self.assertEqual(self.relances(self.marin).count(), 2)
+
+    def test_pas_de_relance_pour_echeance_future_bloquee_ou_close(self):
+        self._tache(echeance=self.aujourdhui)
+        self._tache(echeance=self.aujourdhui - timedelta(days=1), statut=Tache.STATUT_BLOQUEE)
+        self._tache(echeance=self.aujourdhui - timedelta(days=1), statut=Tache.STATUT_TERMINEE)
+        self.assertEqual(services.relancer_echeances_depassees(), 0)
+
+    def test_relances_soldees_quand_la_tache_est_traitee(self):
+        tache = self._tache(echeance=self.aujourdhui - timedelta(days=1))
+        services.relancer_echeances_depassees()
+        services.rendre_compte(tache, self.marin, "Fait.")
+        services.relancer_echeances_depassees()
+        self.assertFalse(self.relances(self.marin).filter(is_read=False).exists())

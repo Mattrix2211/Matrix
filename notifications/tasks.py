@@ -13,6 +13,7 @@ from assets.models import Installation, InstallationMaintenance, ModeDeclencheme
 from assets.mesures import reference_visite_maintenance
 from assets.trend import jours_avant_franchissement_seuil
 from calendar_app.views import evenements_utilisateur_jour
+from taches.services import relancer_echeances_depassees
 
 # Échéances (en jours avant expiration) auxquelles une formation déclenche une
 # alerte : réutilisé par training/services.py pour aligner le seuil "bientôt
@@ -84,6 +85,12 @@ def notify_maintenance_echeance_proche(jours=JOURS_ALERTE_ECHEANCE_MAINTENANCE):
                 defaults={"level": NotificationLevel.WARNING},
             )
     return {"status": "ok"}
+
+@shared_task
+def notify_taches_en_retard():
+    """Relance quotidienne des tâches attribuées dont l'échéance est dépassée (logique dans taches/services.py)."""
+    return {"status": "ok", "created": relancer_echeances_depassees()}
+
 
 @shared_task
 def notify_low_stock():

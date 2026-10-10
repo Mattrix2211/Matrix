@@ -309,6 +309,10 @@ CELERY_BEAT_SCHEDULE = {
     # déclenchement toutes les minutes suffit à respecter des préférences
     # différentes d'un marin à l'autre (même principe que les alertes
     # d'échéance d'installations ci-dessus).
+    "notify_taches_en_retard_daily": {
+        "task": "notifications.tasks.notify_taches_en_retard",
+        "schedule": 60 * 60 * 24,
+    },
     "notify_ma_journee_minute": {
         "task": "notifications.tasks.notify_ma_journee",
         "schedule": crontab(minute="*"),

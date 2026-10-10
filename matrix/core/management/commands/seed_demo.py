@@ -537,7 +537,7 @@ class Command(BaseCommand):
     # ---------- Tâches ----------
 
     def _taches(self):
-        # Trois états : à jouer en direct (À faire), bloquée avec fil ouvert à l'équipage B, cycle complet terminé.
+        # À jouer en direct (À faire), en retard (relance), bloquée avec fil ouvert à l'équipage B, cycle complet terminé.
         chef, ivan = User.objects.get(username="chef_section_a"), User.objects.get(username="chef_secteur_b")
         demain, hier = self.aujourdhui + timedelta(days=1), self.aujourdhui - timedelta(days=1)
         if not Tache.objects.filter(titre="Contrôler le graissage des paliers de la ligne d'arbre").exists():
@@ -551,6 +551,9 @@ class Command(BaseCommand):
             taches_services.signaler_blocage(tache, self.equipier_a2, "Filtre de rechange introuvable en magasin.")
             taches_services.ajouter_participant(tache, chef, ivan)
             taches_services.repondre(tache, ivan, "Une référence équivalente est au magasin de l'équipage B, je la fais passer.")
+        if not Tache.objects.filter(titre="Mettre à jour le registre des rondes machines").exists():
+            taches_services.creer_tache(
+                chef, self.equipier_a2, "Mettre à jour le registre des rondes machines", self.aujourdhui - timedelta(days=2))
         if not Tache.objects.filter(titre="Vérifier l'étalonnage des sondes de température").exists():
             tache = taches_services.creer_tache(
                 User.objects.get(username="chef_secteur_elec_a"), self.equipier_elec, "Vérifier l'étalonnage des sondes de température", hier)
