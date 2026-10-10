@@ -3,7 +3,7 @@ from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
 from matrix.core.inactivite import delai_avertissement, delai_inactivite
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.navigation import construire_navigation
-from notifications.models import Notification
+from notifications.services import compter_non_lues
 
 
 def compteur_notifications(request):
@@ -12,7 +12,7 @@ def compteur_notifications(request):
     utilisateur = getattr(request, "user", None)
     if not utilisateur or not utilisateur.is_authenticated:
         return {}
-    return {"notifications_non_lues": Notification.objects.filter(user=utilisateur, is_read=False).count()}
+    return {"notifications_non_lues": compter_non_lues(utilisateur)}
 
 
 def theme_utilisateur(request):

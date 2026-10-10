@@ -15,6 +15,11 @@ from .push import envoyer_notification_push
 logger = logging.getLogger(__name__)
 
 
+def compter_non_lues(utilisateur):
+    """Notifications non lues du marin : unique source du compteur de la barre et du centre."""
+    return Notification.objects.filter(user=utilisateur, is_read=False).count()
+
+
 def creer_notifications_en_masse(notifications):
     """Enregistre une liste de `Notification` non sauvegardées en une requête
     et envoie le Web Push des seules notifications de niveau DANGER, une fois

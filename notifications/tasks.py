@@ -2,6 +2,7 @@ from celery import shared_task
 from django.core.management import call_command
 from django.db.models import F, Q
 from django.contrib.contenttypes.models import ContentType
+from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta, time as dt_time
 from .models import Notification, NotificationLevel
@@ -31,12 +32,13 @@ def notify_expiring_training(days_list=JOURS_ALERTE_EXPIRATION_FORMATION):
             Notification.objects.get_or_create(
                 user=rec.user,
                 verb=f"Formation '{rec.course.title}' expire dans {days} jours",
-                defaults={"level": NotificationLevel.WARNING},
+                defaults={"level": NotificationLevel.WARNING, "url": reverse("formation-detail", args=[rec.course_id])},
             )
     return {"status": "ok"}
 
 @shared_task
 def notify_overdue_occurrences():
+    occurrence_ct = ContentType.objects.get_for_model(MaintenanceOccurrence)
     occurrences = MaintenanceOccurrence.objects.filter(status='OVERDUE').select_related(
         'plan'
     ).prefetch_related('assignees')
@@ -45,7 +47,7 @@ def notify_overdue_occurrences():
             Notification.objects.get_or_create(
                 user=u,
                 verb=f"Occurrence en retard: {occ.id}",
-                defaults={"level": NotificationLevel.DANGER},
+                defaults={"level": NotificationLevel.DANGER, "content_type": occurrence_ct, "object_id": str(occ.pk)},
             )
     return {"status": "ok"}
 
@@ -82,7 +84,10 @@ def notify_maintenance_echeance_proche(jours=JOURS_ALERTE_ECHEANCE_MAINTENANCE):
             Notification.objects.get_or_create(
                 user=u,
                 verb=f"Échéance proche ({jours} j) : {occ.titre_affiche}",
-                defaults={"level": NotificationLevel.WARNING},
+                defaults={
+                    "level": NotificationLevel.WARNING,
+                    "content_type": ContentType.objects.get_for_model(MaintenanceOccurrence), "object_id": str(occ.pk),
+                },
             )
     return {"status": "ok"}
 
@@ -153,7 +158,7 @@ def notify_low_stock():
                 content_type=piece_ct,
                 object_id=str(piece.pk),
                 is_read=False,
-                defaults={"verb": verb, "level": niveau},
+                defaults={"verb": verb, "level": niveau, "url": reverse("stock-piece-list")},
             )
     return {"status": "ok"}
 

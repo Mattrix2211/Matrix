@@ -292,6 +292,7 @@ class TicketCreateView(LoginRequiredMixin, View):
                 user=profile.user,
                 level=niveau_alerte,
                 verb=f"Anomalie signalée sur {asset} : {description}",
+                target=ticket,
             )
 
         messages.success(request, "Anomalie signalée : le ticket correctif a été créé.")
@@ -333,6 +334,7 @@ class TicketAssignView(LoginRequiredMixin, View):
             Notification.objects.create(
                 user=marin,
                 verb=f"Vous avez été assigné(e) au ticket correctif : {ticket.equipement} — {ticket.description[:80]}",
+                target=ticket,
             )
 
         messages.info(request, "Assignation du ticket mise à jour.")

@@ -111,6 +111,7 @@ publicateurs_a_notifier) ; et l'historique des versions n'est consultable
 que par qui gère ou peut publier la liste (pas ouvert à tout marin lecteur
 d'une liste publiée).
 """
+from django.urls import reverse
 from datetime import datetime, time as heure_du_jour
 
 from django.contrib.auth import get_user_model
@@ -470,6 +471,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
                     f"« {self.nom or self.perimetre} » attend votre publication."
                 ),
                 level=NotificationLevel.WARNING,
+                url=reverse("quarts-index"),
             )
 
     def publier(self, user):
@@ -500,6 +502,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
                         f"Liste publiée : vous êtes affecté(e) au {self.libelle_type()} "
                         f"« {creneau.poste} » le {timezone.localtime(creneau.debut):%d/%m/%Y à %H:%M}."
                     ),
+                    url=reverse("quarts-index"),
                 )
 
     def creer_version(self, user):
@@ -1114,6 +1117,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                     f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) attend votre visa."
                 ),
                 level=NotificationLevel.WARNING,
+                url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
             )
 
     def proposer(self, user):
@@ -1187,6 +1191,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 user=marin,
                 verb=f"Feuille de service du {self.date:%d/%m/%Y} publiée : vous êtes de service.",
                 level=NotificationLevel.INFO,
+                url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
             )
         from .alertes import signaler_postes_non_armes
         signaler_postes_non_armes(self, user)
@@ -1216,6 +1221,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 user=self.created_by,
                 verb=f"Feuille de service du {self.date:%d/%m/%Y} renvoyée pour correction : {motif}",
                 level=NotificationLevel.WARNING,
+                url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
             )
 
     def creer_version(self, user):

@@ -268,6 +268,7 @@ class AnomalieCreateView(LoginRequiredMixin, View):
             if profil.user_id != request.user.id:
                 Notification.objects.create(
                     user=profil.user, level=niveau, verb=f"Anomalie signalée : {titre}",
+                    target=anomalie,
                 )
         messages.success(request, "Anomalie signalée. Merci !")
         return redirect('anomalie-detail', pk=anomalie.pk)
@@ -316,6 +317,7 @@ class AnomalieTransitionView(LoginRequiredMixin, View):
                 Notification.objects.create(
                     user=anomalie.created_by,
                     verb=f"Votre anomalie « {anomalie.titre} » est passée au statut : {anomalie.get_statut_display()}",
+                    target=anomalie,
                 )
             messages.success(request, f"Statut mis à jour : {anomalie.get_statut_display()}.")
         return redirect('anomalie-detail', pk=anomalie.pk)

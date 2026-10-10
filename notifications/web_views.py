@@ -11,11 +11,12 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .liens import liens_accessibles
 from .models import Notification, NotificationLevel
+from .services import compter_non_lues
 
 LIMITE_AFFICHEE = 50
 PAR_PAGE = 20
 
-# Gravité décroissante : critique, attention, information
+# Gravité décroissante : urgent, important, information
 _RANG_NIVEAU = Case(
     When(level=NotificationLevel.DANGER, then=Value(0)),
     When(level=NotificationLevel.WARNING, then=Value(1)),
@@ -28,10 +29,6 @@ def _date_relative(date):
     if (timezone.now() - date).total_seconds() < 60:
         return "à l'instant"
     return "il y a " + timesince(date).split(",")[0]
-
-
-def _non_lues(user):
-    return Notification.objects.filter(user=user, is_read=False).count()
 
 
 def _enrichir(request, notifications):
@@ -51,7 +48,7 @@ def _contexte_liste(request, **extra):
         .order_by("rang", "-created_at")[:LIMITE_AFFICHEE]
     )
     _enrichir(request, notifications)
-    return {"notifications": notifications, "non_lues": _non_lues(request.user), **extra}
+    return {"notifications": notifications, "non_lues": compter_non_lues(request.user), **extra}
 
 
 def _rendre_liste(request):
@@ -68,7 +65,7 @@ def panneau(request):
 @login_required
 @require_GET
 def compteur(request):
-    return render(request, "notifications/_compteur.html", {"non_lues": _non_lues(request.user)})
+    return render(request, "notifications/_compteur.html", {"non_lues": compter_non_lues(request.user)})
 
 
 @login_required
@@ -108,7 +105,7 @@ def centre(request):
     filtres = "".join(f"&{cle}={valeur}" for cle, valeur in (("etat", etat), ("niveau", niveau)) if valeur)
     return render(request, "notifications/centre.html", {
         "page": page, "etat": etat, "niveau": niveau, "niveaux": NotificationLevel.choices,
-        "filtres": filtres, "non_lues": _non_lues(request.user),
+        "filtres": filtres, "non_lues": compter_non_lues(request.user),
     })
 
 

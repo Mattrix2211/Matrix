@@ -29,8 +29,8 @@
       {% for n in page.object_list %}
         <li class="mx-notif mx-notif--{{ n.level }}{% if not n.is_read %} mx-notif--non-lue{% endif %}">
           <div class="mx-notif__entete">
-            {% if n.level == "danger" %}{% include "components/badge_etat.html" with etat="danger" libelle="Critique" %}
-            {% elif n.level == "warning" %}{% include "components/badge_etat.html" with etat="attention" libelle="Attention" %}
+            {% if n.level == "danger" %}{% include "components/badge_etat.html" with etat="danger" libelle="Urgent" %}
+            {% elif n.level == "warning" %}{% include "components/badge_etat.html" with etat="attention" libelle="Important" %}
             {% else %}<span class="mx-badge mx-badge--neutre">{% icone "information" %} Information</span>{% endif %}
             <span class="mx-notif__date">{{ n.date_relative }}</span>
           </div>
