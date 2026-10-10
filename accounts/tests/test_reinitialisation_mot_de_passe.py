@@ -1,4 +1,6 @@
 """Réinitialisation du mot de passe par l'administrateur du bâtiment : droits, mot de passe provisoire à usage unique."""
+import base64
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
@@ -101,6 +103,13 @@ class ChangementObligatoireTests(TestCase):
         self.assertEqual(self.client.get("/api/notifications/").status_code, 403)
         reponse = self.client.get("/", HTTP_HX_REQUEST="true")
         self.assertEqual(reponse["HX-Redirect"], reverse("password_change"))
+
+    def test_l_authentification_basic_de_l_api_n_echappe_pas_a_l_obligation(self):
+        self.client.logout()
+        jeton = base64.b64encode(b"provisoire_mdp:Provisoire-123!").decode()
+        reponse = self.client.get("/api/notifications/", HTTP_AUTHORIZATION=f"Basic {jeton}")
+        self.assertEqual(reponse.status_code, 403)
+        self.assertIn("mot de passe", reponse.json()["detail"])
 
     def test_page_de_changement_et_deconnexion_restent_accessibles(self):
         self.assertContains(self.client.get(reverse("password_change")), "Votre mot de passe est provisoire")

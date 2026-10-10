@@ -17,6 +17,17 @@ def _sans_nul(parametres):
     return propres
 
 
+def utilisateur_de_requete(request):
+    """Utilisateur de la session ; l'API accepte aussi l'authentification Basic, résolue ici."""
+    if request.user.is_authenticated or not request.path.startswith("/api/"):
+        return request.user
+    try:
+        resultat = BasicAuthentication().authenticate(request)
+    except AuthenticationFailed:
+        return request.user
+    return resultat[0] if resultat else request.user
+
+
 class SansNulMiddleware:
     """Retire le caractère NUL des paramètres d'URL : PostgreSQL le refuse dans toute requête
     texte (erreur 500), ce que SQLite laisse passer en développement. Les formulaires Django
@@ -39,7 +50,7 @@ class MotDePasseProvisoireMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        utilisateur = request.user
+        utilisateur = utilisateur_de_requete(request)
         if utilisateur.is_authenticated and getattr(getattr(utilisateur, "profile", None), "mot_de_passe_provisoire", False):
             changement = reverse("password_change")
             libres = (changement, reverse("logout"), "/static/", "/service-worker.js")
@@ -164,7 +175,7 @@ class EquipageATerreMiddleware:
 
     def __call__(self, request):
         if request.method not in SAFE_METHODS and not self._exemptee(request):
-            if equipage_a_terre_lecture_seule(self._utilisateur(request)):
+            if equipage_a_terre_lecture_seule(utilisateur_de_requete(request)):
                 if request.path.startswith("/api/"):
                     return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
                 return render(request, "403.html", {"message_refus": MESSAGE_LECTURE_SEULE}, status=403)
@@ -175,14 +186,3 @@ class EquipageATerreMiddleware:
         if request.path == "/parametre/":
             return request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
         return request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
-
-    @staticmethod
-    def _utilisateur(request):
-        """Utilisateur de la session ; l'API accepte aussi l'authentification Basic, résolue ici."""
-        if request.user.is_authenticated or not request.path.startswith("/api/"):
-            return request.user
-        try:
-            resultat = BasicAuthentication().authenticate(request)
-        except AuthenticationFailed:
-            return request.user
-        return resultat[0] if resultat else request.user
