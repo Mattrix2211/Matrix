@@ -538,7 +538,8 @@ class Command(BaseCommand):
     # ---------- Tâches ----------
 
     def _taches(self):
-        # À jouer en direct (À faire), en retard (relance), bloquée avec fil ouvert à l'équipage B, cycle complet terminé.
+        # À jouer en direct (À faire), en retard (relance), bloquée avec fil ouvert à l'équipage B, cycle complet terminé,
+        # tâche personnelle privée.
         chef, ivan = User.objects.get(username="chef_section_a"), User.objects.get(username="chef_secteur_b")
         demain, hier = self.aujourdhui + timedelta(days=1), self.aujourdhui - timedelta(days=1)
         if not Tache.objects.filter(titre="Contrôler le graissage des paliers de la ligne d'arbre").exists():
@@ -555,6 +556,10 @@ class Command(BaseCommand):
         if not Tache.objects.filter(titre="Mettre à jour le registre des rondes machines").exists():
             taches_services.creer_tache(
                 chef, self.equipier_a2, "Mettre à jour le registre des rondes machines", self.aujourdhui - timedelta(days=2))
+        if not Tache.objects.filter(titre="Préparer mon dossier de formation incendie").exists():
+            taches_services.creer_tache(
+                self.equipier_a, self.equipier_a, "Préparer mon dossier de formation incendie", self.aujourdhui + timedelta(days=5),
+                priorite=Tache.PRIORITE_URGENTE)
         permission, _ = TypeAbsence.objects.get_or_create(name="Permission")
         Absence.objects.get_or_create(marin=self.equipier_a, type_absence=permission, date_debut=demain, defaults=dict(
             date_fin=demain + timedelta(days=1), statut=Absence.STATUT_VALIDEE, created_by=chef))

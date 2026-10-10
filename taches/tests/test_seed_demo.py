@@ -11,6 +11,6 @@ class SeedDemoTachesTests(TestCase):
         for _ in range(2):
             call_command("seed_demo", stdout=StringIO())
         statuts = sorted(Tache.objects.values_list("statut", flat=True))
-        self.assertEqual(statuts, [Tache.STATUT_A_FAIRE, Tache.STATUT_A_FAIRE, Tache.STATUT_BLOQUEE, Tache.STATUT_TERMINEE])
+        self.assertEqual(statuts, [Tache.STATUT_A_FAIRE] * 3 + [Tache.STATUT_BLOQUEE, Tache.STATUT_TERMINEE])
         bloquee = Tache.objects.get(statut=Tache.STATUT_BLOQUEE)
         self.assertEqual(bloquee.participants.get().username, "chef_secteur_b")

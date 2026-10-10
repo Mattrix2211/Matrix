@@ -323,3 +323,55 @@ class LiensNotificationTests(TachesBase):
         self.client.login(username="chef", password="pass")
         r = self.client.get(reverse("taches-index"))
         self.assertEqual(r.context["terminees"], [recente, ancienne])
+
+
+class TachePersonnelleTests(TachesBase):
+    def creer(self, user, **extra):
+        return self.post(user, "taches-index", [], {"titre": "Ranger le local", "echeance": self.aujourdhui.isoformat(), **extra})
+
+    def test_le_marin_se_cree_une_tache_privee_sans_notification(self):
+        self.creer("marin")
+        tache = Tache.objects.get()
+        self.assertEqual((tache.assigne, tache.created_by, tache.partagee, tache.priorite), (self.marin, self.marin, False, "NORMALE"))
+        self.assertTrue(tache.personnelle)
+        self.assertFalse(Notification.objects.exists())
+        self.assertEqual(services.avancement_equipe(self.chef)["total"], 0)
+        self.assertNotIn(tache, services.taches_visibles(self.chef))
+        self.client.login(username="chef", password="pass")
+        self.assertEqual(self.client.get(reverse("tache-detail", args=[tache.pk])).status_code, 404)
+
+    def test_partage_avec_les_chefs_au_choix_du_marin(self):
+        self.creer("marin", partagee="on", priorite="URGENTE")
+        tache = Tache.objects.get()
+        self.assertTrue(tache.partagee)
+        self.assertEqual(tache.priorite, "URGENTE")
+        self.assertIn(tache, services.taches_visibles(self.chef))
+        self.assertEqual(services.avancement_equipe(self.chef)["total"], 1)
+        self.assertTrue(services.peut_gerer(self.chef, tache))
+
+    def test_une_tache_attribuee_reste_toujours_visible_du_chef(self):
+        self.creer("chef", assigne=self.marin.pk)
+        tache = Tache.objects.get()
+        self.assertTrue(tache.partagee)
+        self.assertFalse(tache.personnelle)
+        self.assertTrue(Notification.objects.filter(user=self.marin).exists())
+
+    def test_priorite_invalide_refusee(self):
+        self.creer("marin", priorite="CRITIQUE")
+        self.assertEqual(Tache.objects.count(), 0)
+
+    def test_equipage_a_terre_ne_peut_pas_creer(self):
+        self.creer("terre")
+        self.assertEqual(Tache.objects.count(), 0)
+
+    def test_chef_ne_peut_toujours_pas_attribuer_hors_perimetre(self):
+        self.creer("chef", assigne=self.voisin.pk)
+        self.assertEqual(Tache.objects.count(), 0)
+
+    def test_relances_d_une_tache_privee_pour_le_seul_marin(self):
+        hier = self.aujourdhui - timedelta(days=1)
+        self._tache(echeance=hier, created_by=self.marin, partagee=False)
+        self._tache(echeance=hier, created_by=self.marin, partagee=False, statut=Tache.STATUT_BLOQUEE, titre="Bloquée")
+        services.relancer_echeances_depassees()
+        verbes = Notification.objects.filter(verb__startswith=services.PREFIXE_RELANCE)
+        self.assertEqual(list(verbes.values_list("user__username", flat=True)), ["marin"])

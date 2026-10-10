@@ -42,7 +42,7 @@ def est_chef_de(user, marin):
 
 
 def peut_gerer(user, tache):
-    return user.pk != tache.assigne_id and est_chef_de(user, tache.assigne)
+    return tache.partagee and user.pk != tache.assigne_id and est_chef_de(user, tache.assigne)
 
 
 def peut_consulter(user, tache):
@@ -54,7 +54,7 @@ def peut_consulter(user, tache):
 def taches_visibles(user):
     base = Q(assigne=user) | Q(created_by=user) | Q(participants=user)
     if peut_attribuer(user):
-        base |= build_scope_q(user, "assigne__profile__") & equipage_marin_q(user, "assigne__profile__")
+        base |= build_scope_q(user, "assigne__profile__") & equipage_marin_q(user, "assigne__profile__") & Q(partagee=True)
     return Tache.objects.filter(base).distinct()
 
 
@@ -72,7 +72,7 @@ def taches_supervisees(user):
     if not peut_attribuer(user):
         return Tache.objects.none()
     return Tache.objects.filter(
-        build_scope_q(user, "assigne__profile__"), equipage_marin_q(user, "assigne__profile__"),
+        build_scope_q(user, "assigne__profile__"), equipage_marin_q(user, "assigne__profile__"), partagee=True,
     ).exclude(assigne=user)
 
 
@@ -163,17 +163,20 @@ def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO):
         Notification.objects.create(user=user, verb=verb, level=niveau, target=tache)
 
 
-def creer_tache(chef, assigne, titre, echeance, description=""):
-    if not est_chef_de(chef, assigne):
+def creer_tache(chef, assigne, titre, echeance, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True):
+    """Un chef attribue une tâche ; un marin peut aussi se créer la sienne (privée sauf partage de sa part)."""
+    personnelle = chef.pk == assigne.pk
+    if not personnelle and not est_chef_de(chef, assigne):
         raise PermissionError("Vous ne pouvez pas attribuer de tâche à ce marin.")
     tache = Tache(
-        titre=titre.strip(), description=description.strip(), echeance=echeance,
-        assigne=assigne, created_by=chef, updated_by=chef,
+        titre=titre.strip(), description=description.strip(), echeance=echeance, priorite=priorite,
+        partagee=partagee if personnelle else True, assigne=assigne, created_by=chef, updated_by=chef,
     )
     tache.full_clean(exclude=["assigne"])
     tache.save()
     _tracer(tache, chef, "creation")
-    _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} » (échéance {echeance:%d/%m/%Y}).")
+    if not personnelle:
+        _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} » (échéance {echeance:%d/%m/%Y}).")
     return tache
 
 
@@ -267,7 +270,7 @@ def _relances(tache):
 def _destinataires_relance(tache, parametres):
     """Tâche bloquée : les chefs qui peuvent lever le blocage ; sinon l'assigné et le chef qui l'a attribuée."""
     if tache.statut == Tache.STATUT_BLOQUEE:
-        if not parametres.relancer_chefs_si_blocage:
+        if not parametres.relancer_chefs_si_blocage or not tache.partagee:
             return []
         candidats = User.objects.filter(is_active=True, profile__ship_id=getattr(tache.assigne.profile, "ship_id", None))
         return [u for u in candidats if u.pk != tache.assigne_id and est_chef_de(u, tache.assigne)]

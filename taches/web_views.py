@@ -61,17 +61,21 @@ class TachesIndexView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
-        assigne = User.objects.filter(pk=request.POST.get("assigne")).first()
+        # Sans marin désigné, la tâche est celle de l'utilisateur lui-même.
+        assigne = User.objects.filter(pk=request.POST["assigne"]).first() if request.POST.get("assigne") else request.user
         echeance = parse_date(request.POST.get("echeance", ""))
         if assigne is None or echeance is None or not request.POST.get("titre", "").strip():
             messages.error(request, "Le titre, le marin et l'échéance sont obligatoires.")
             return redirect("taches-index")
         try:
-            tache = creer_tache(request.user, assigne, request.POST["titre"], echeance, request.POST.get("description", ""))
+            tache = creer_tache(
+                request.user, assigne, request.POST["titre"], echeance, request.POST.get("description", ""),
+                priorite=request.POST.get("priorite", Tache.PRIORITE_NORMALE), partagee=request.POST.get("partagee") == "on",
+            )
         except (PermissionError, ValidationError) as exc:
             _erreurs(request, exc)
             return redirect("taches-index")
-        messages.success(request, "Tâche attribuée.")
+        messages.success(request, "Tâche créée." if tache.personnelle else "Tâche attribuée.")
         return redirect("tache-detail", pk=tache.pk)
 
 

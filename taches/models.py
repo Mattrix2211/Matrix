@@ -21,10 +21,22 @@ class Tache(TimeStampedModel, OwnedModel):
     )
     STATUTS_OUVERTS = (STATUT_A_FAIRE, STATUT_EN_COURS, STATUT_BLOQUEE)
 
+    PRIORITE_NORMALE = "NORMALE"
+    PRIORITE_URGENTE = "URGENTE"
+    PRIORITE_CHOICES = (
+        (PRIORITE_NORMALE, "Normale"),
+        (PRIORITE_URGENTE, "Urgente"),
+    )
+
     titre = models.CharField(max_length=200, verbose_name="Titre")
     description = models.TextField(blank=True, default="", verbose_name="Consigne")
     echeance = models.DateField(verbose_name="Échéance")
     statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_A_FAIRE)
+    priorite = models.CharField(max_length=8, choices=PRIORITE_CHOICES, default=PRIORITE_NORMALE, verbose_name="Priorité")
+    partagee = models.BooleanField(
+        default=True, verbose_name="Visible des chefs",
+        help_text="Une tâche personnelle reste privée tant que le marin ne la partage pas.",
+    )
     assigne = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="taches_assignees",
         verbose_name="Assignée à",
@@ -44,6 +56,10 @@ class Tache(TimeStampedModel, OwnedModel):
 
     def __str__(self):
         return self.titre
+
+    @property
+    def personnelle(self):
+        return self.assigne_id == self.created_by_id
 
     @property
     def ouverte(self):
