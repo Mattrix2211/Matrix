@@ -41,6 +41,7 @@ class ParametreEquipageTests(BaseFeuille):
 
     def test_equipage_choisi_par_l_administrateur_general(self):
         self.client.force_login(creer_marin("admin_g", "MASTER_ADMIN", None))
+        creer_marin("m_rouge", "EQUIPIER", self.ship, self.rouge)
         reponse = self.client.get(self.url, {"equipage": self.rouge})
         self.assertEqual(reponse.context["equipage"], self.rouge)
 
@@ -129,6 +130,8 @@ class RattachementFeuilleHistoriqueTests(BaseFeuille):
     def setUp(self):
         super().setUp()
         self.cdt = creer_marin("cdt_r", "COMMANDANT", self.ship, self.bleu)
+        creer_marin("m_a", "EQUIPIER", self.ship, self.bleu)
+        creer_marin("m_b", "EQUIPIER", self.ship, self.rouge)
         self.client.force_login(self.cdt)
         self.orpheline = self.feuille("")
 
@@ -172,7 +175,7 @@ class RattachementFeuilleHistoriqueTests(BaseFeuille):
     def test_rattachement_possible_meme_en_etat_incoherent(self):
         self.ship.equipage_a_bord = ""
         self.ship.save()
-        UserProfile.objects.filter(user=self.cdt).update(equipage="A")
+        UserProfile.objects.filter(user=self.cdt).update(equipage="")
         self._rattacher(self.bleu)
         self.orpheline.refresh_from_db()
         self.assertEqual(self.orpheline.equipage, self.bleu)

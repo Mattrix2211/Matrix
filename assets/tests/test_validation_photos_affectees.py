@@ -34,7 +34,8 @@ class PhotosAffecteesDirectementTests(MediaRootTemporaireMixin, TestCase):
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.asset_type = AssetType.objects.create(name="Type", category="Cat", sector=self.sector)
         chef = User.objects.create_user(username="chef_photos", password="pass")
-        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship, "service": self.service},
+        )
         self.client.login(username="chef_photos", password="pass")
         self.installation = Installation.objects.create(
             designation="Pompe", ship=self.ship, service=self.service, sector=self.sector,

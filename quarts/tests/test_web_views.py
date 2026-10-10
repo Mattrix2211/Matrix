@@ -300,9 +300,12 @@ class PlanningEtOngletsTests(TestCase):
         self.client.login(username="cdl_planning", password="pass")
         r = self.client.get(f"/quarts/garde/{self.garde.pk}/")
         self.assertContains(r, "BROUILLON")
-        self.assertContains(r, "Publier la liste")
+        # Circuit proposer -> valider -> publier : le chef de liste propose, il ne publie pas seul.
+        self.assertContains(r, "Proposer la publication")
         self.assertContains(r, 'id="creneau-ajout"')
-        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "echanges", "equite", "parametres"])
+        self.assertEqual(
+            [c for c, _ in r.context["onglets"]], ["planning", "echanges", "equite", "historique", "parametres"]
+        )
         self.assertGreaterEqual(len(r.context["semaines"]), 2)
 
     def test_lecture_seule_sans_action_ni_parametres(self):
@@ -330,7 +333,7 @@ class PlanningEtOngletsTests(TestCase):
         self.client.login(username="cdl_planning", password="pass")
         r = self.client.get(f"/quarts/quart/{quart.pk}/?vue=equite")
         self.assertEqual(r.context["vue"], "planning")
-        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "parametres"])
+        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "historique", "parametres"])
 
     def test_equipage_a_terre_masque_les_actions(self):
         self.client.login(username="cdl_planning", password="pass")

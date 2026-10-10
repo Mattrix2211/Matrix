@@ -30,7 +30,7 @@ User = get_user_model()
 def marin(nom, role, ship, equipage="", sector=None):
     user = User.objects.create_user(username=nom, password="pass")
     UserProfile.objects.update_or_create(
-        user=user, defaults={"role": role, "ship": None if sector else ship, "sector": sector, "equipage": equipage}
+        user=user, defaults={"role": role, "ship": ship, "sector": sector, "equipage": equipage}
     )
     return User.objects.get(pk=user.pk)
 

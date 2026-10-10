@@ -64,6 +64,7 @@ def _peut_lire_liste(user, liste):
 # placés après _peut_lire_liste ci-dessus, car listes_views et echanges_views
 # la réimportent depuis CE module.
 from .listes_views import (  # noqa: E402,F401
+    _listes_visibles,
     ChefDeListeReglagesView,
     CreerListeView,
     ListeIndexView,

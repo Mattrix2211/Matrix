@@ -121,5 +121,5 @@ class FeuilleServiceParEquipageTests(TestCase):
     def test_equipage_a_terre_ne_peut_pas_creer_de_feuille(self):
         self.client.force_login(self.marin_rouge)
         reponse = self.client.post(self.url, {"action": "creer"})
-        self.assertEqual(reponse.status_code, 302)  # refus par le mode lecture seule
+        self.assertEqual(reponse.status_code, 403)  # refus par le mode lecture seule
         self.assertFalse(FeuilleService.objects.exists())

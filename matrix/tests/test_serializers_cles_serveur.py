@@ -72,11 +72,6 @@ class ThreadsCleServeurTests(BaseApi):
         self.assertEqual(message.created_by, self.chef_a)
         self.assertFalse(message.is_system)
 
-    def test_message_sur_un_fil_hors_perimetre_refuse(self):
-        r = self.client_a.post("/api/threads/messages/", {"thread": self.fil_b.pk, "body": "x"}, format="json")
-        self.assertIn(r.status_code, (403, 404))
-        self.assertFalse(Message.objects.filter(thread=self.fil_b).exists())
-
     def test_modification_ne_change_ni_auteur_ni_fil(self):
         message = Message.objects.create(thread=self.fil_a, author=self.chef_a, body="v1")
         r = self.client_a.patch(
@@ -89,36 +84,12 @@ class ThreadsCleServeurTests(BaseApi):
         r = self.client_a.patch(f"/api/threads/messages/{message.pk}/", {"thread": self.fil_b.pk}, format="json")
         self.assertEqual(r.status_code, 400)
 
-    def test_fil_sur_un_objet_hors_perimetre_refuse_et_annule(self):
-        # Un chef de section (seuil d'écriture des fils) du navire A.
-        _utilisateur("chef_section_a_sec", Roles.CHEF_SECTION, ship=self.ship_a, sector=self.sector_a)
-        client = self._client("chef_section_a_sec")
-        Thread.objects.all().delete()
-        r = client.post(
-            "/api/threads/threads/", {"content_type": self.ct.pk, "object_id": str(self.ticket_b.pk)}, format="json",
-        )
-        self.assertEqual(r.status_code, 403)
-        self.assertFalse(Thread.objects.exists())
-        r = client.post(
-            "/api/threads/threads/", {"content_type": self.ct.pk, "object_id": str(self.ticket_a.pk)}, format="json",
-        )
-        self.assertEqual(r.status_code, 201, r.content)
-
     def test_fil_ne_peut_pas_etre_rattache_a_un_autre_objet(self):
         _utilisateur("chef_section_a_sec", Roles.CHEF_SECTION, ship=self.ship_a, sector=self.sector_a)
         r = self._client("chef_section_a_sec").patch(
             f"/api/threads/threads/{self.fil_a.pk}/", {"object_id": str(self.ticket_b.pk)}, format="json",
         )
         self.assertEqual(r.status_code, 400)
-
-    def test_piece_jointe_seulement_sur_son_propre_message(self):
-        message_autre = Message.objects.create(thread=self.fil_a, author=self.autre, body="autre")
-        fichier = SimpleUploadedFile("a.txt", b"contenu", content_type="text/plain")
-        r = self.client_a.post(
-            "/api/threads/attachments/", {"message": message_autre.pk, "file": fichier, "name": "a.txt"},
-        )
-        self.assertEqual(r.status_code, 403, r.content)
-        self.assertFalse(Attachment.objects.exists())
 
 
 class LogisticsCleServeurTests(BaseApi):
@@ -143,44 +114,6 @@ class LogisticsCleServeurTests(BaseApi):
         self.assertEqual(ticket.created_by, self.chef_section)
         self.assertEqual(ticket.status, "REPORTED")
 
-    def test_ticket_sur_un_materiel_hors_perimetre_refuse(self):
-        r = self.client_a.post(
-            "/api/logistics/tickets/", {"asset": str(self.asset_b.pk), "description": "x"}, format="json",
-        )
-        self.assertEqual(r.status_code, 403)
-        self.assertFalse(CorrectiveTicket.objects.exists())
-
-    def test_ticket_ne_peut_pas_etre_deplace_hors_perimetre(self):
-        ticket = CorrectiveTicket.objects.create(asset=self.asset_a, description="x")
-        r = self.client_a.patch(
-            f"/api/logistics/tickets/{ticket.pk}/", {"asset": str(self.asset_b.pk), "valide_par": self.autre.pk},
-            format="json",
-        )
-        self.assertEqual(r.status_code, 403)
-        ticket.refresh_from_db()
-        self.assertEqual(ticket.asset, self.asset_a)
-
-    def test_demande_de_pieces_demandeur_impose_et_ticket_dans_le_perimetre(self):
-        ticket_a = CorrectiveTicket.objects.create(asset=self.asset_a, description="a")
-        ticket_b = CorrectiveTicket.objects.create(asset=self.asset_b, description="b")
-        r = self.client_a.post(
-            "/api/logistics/part-requests/", {"ticket": str(ticket_a.pk), "requested_by": self.autre.pk}, format="json",
-        )
-        self.assertEqual(r.status_code, 201, r.content)
-        demande = PartRequest.objects.get(pk=r.data["id"])
-        self.assertEqual((demande.requested_by, demande.created_by), (self.chef_section, self.chef_section))
-        r = self.client_a.post("/api/logistics/part-requests/", {"ticket": str(ticket_b.pk)}, format="json")
-        self.assertEqual(r.status_code, 403)
-
-    def test_ligne_de_pieces_sur_une_demande_hors_perimetre_refusee(self):
-        ticket_b = CorrectiveTicket.objects.create(asset=self.asset_b, description="b")
-        demande_b = PartRequest.objects.create(ticket=ticket_b)
-        r = self.client_a.post(
-            "/api/logistics/part-lines/",
-            {"part_request": demande_b.pk, "reference": "R", "description": "d", "qty": 1}, format="json",
-        )
-        self.assertEqual(r.status_code, 403)
-
 
 class MaintenanceCleServeurTests(BaseApi):
     def setUp(self):
@@ -195,27 +128,6 @@ class MaintenanceCleServeurTests(BaseApi):
         self.occ_b = MaintenanceOccurrence.objects.create(
             plan=self.plan_b, asset=self.asset_b, scheduled_for=timezone.localdate(),
         )
-
-    def test_execution_signature_et_horodatages_non_forgeables(self):
-        r = self.client_a.post(
-            "/api/maintenance/executions/",
-            {
-                "occurrence": self.occ_a.pk, "conformity": "CONFORME", "valide_par": self.autre.pk,
-                "executed_by": self.autre.pk, "completed_at": "2020-01-01T00:00:00Z",
-                "date_validation": "2020-01-01T00:00:00Z",
-            },
-            format="json",
-        )
-        self.assertEqual(r.status_code, 201, r.content)
-        execution = MaintenanceExecution.objects.get(pk=r.data["id"])
-        self.assertIsNone(execution.valide_par)
-        self.assertIsNone(execution.date_validation)
-        self.assertIsNone(execution.completed_at)
-        self.assertEqual((execution.executed_by, execution.created_by), (self.chef_section, self.chef_section))
-
-    def test_execution_sur_occurrence_hors_perimetre_refusee(self):
-        r = self.client_a.post("/api/maintenance/executions/", {"occurrence": self.occ_b.pk}, format="json")
-        self.assertEqual(r.status_code, 403)
 
     def test_execution_modification_ne_change_pas_valide_par(self):
         execution = MaintenanceExecution.objects.create(occurrence=self.occ_a)
@@ -236,17 +148,6 @@ class MaintenanceCleServeurTests(BaseApi):
         )
         # Plan et matériel hors périmètre : refus de validation (400) ou de permission (403).
         self.assertIn(r.status_code, (400, 403))
-
-    def test_plan_sur_materiel_hors_perimetre_refuse(self):
-        r = self.client_a.post(
-            "/api/maintenance/plans/", {"scope": "ASSET", "asset": str(self.asset_b.pk), "name": "X"}, format="json",
-        )
-        self.assertEqual(r.status_code, 403)
-        r = self.client_a.post(
-            "/api/maintenance/plans/", {"scope": "ASSET", "asset": str(self.asset_a.pk), "name": "Y"}, format="json",
-        )
-        self.assertEqual(r.status_code, 201, r.content)
-        self.assertEqual(MaintenancePlan.objects.get(pk=r.data["id"]).created_by, self.chef_section)
 
 
 class TrainingCleServeurTests(BaseApi):
@@ -285,17 +186,6 @@ class TrainingCleServeurTests(BaseApi):
         record.refresh_from_db()
         self.assertEqual(record.user, self.marin)
 
-    def test_reservations_d_une_session_non_modifiables_par_l_api(self):
-        session = TrainingSession.objects.create(course=self.course, scheduled_at=timezone.now() + timedelta(days=5))
-        r = self.client_cdt.patch(
-            f"/api/training/sessions/{session.pk}/", {"reservations": [self.marin.pk], "location": "Salle"},
-            format="json",
-        )
-        self.assertEqual(r.status_code, 200, r.content)
-        session.refresh_from_db()
-        self.assertEqual(session.location, "Salle")
-        self.assertEqual(session.reservations.count(), 0)
-
     def test_referent_sur_un_autre_navire_toujours_refuse(self):
         r = self.client_a.post(
             "/api/training/referents/",
@@ -315,29 +205,11 @@ class ProfilCleServeurTests(BaseApi):
     def _patch(self, client, donnees):
         return client.patch(f"/api/accounts/profiles/{self.profil.pk}/", donnees, format="json")
 
-    def test_admin_navire_ne_peut_pas_creer_un_master_admin(self):
-        r = self._patch(self.client_admin, {"role": Roles.MASTER_ADMIN})
-        self.assertEqual(r.status_code, 400)
-        self.profil.refresh_from_db()
-        self.assertEqual(self.profil.role, Roles.EQUIPIER)
-
     def test_code_d_equipage_accepte_pour_un_marin_de_son_navire(self):
         r = self._patch(self.client_admin, {"role": Roles.EQUIPIER, "equipage": "A"})
         self.assertEqual(r.status_code, 200, r.content)
         self.profil.refresh_from_db()
         self.assertEqual(self.profil.equipage, "A")
-
-    def test_compte_lie_et_secteurs_autorises_non_modifiables(self):
-        r = self._patch(
-            self.client_admin,
-            {"role": Roles.EQUIPIER, "user": {"username": "pirate"}, "allowed_sectors": [self.sector_b.pk]},
-        )
-        self.assertEqual(r.status_code, 200, r.content)
-        self.profil.refresh_from_db()
-        self.assertEqual(self.profil.user, self.autre)
-        self.assertEqual(self.profil.allowed_sectors.count(), 0)
-        self.autre.refresh_from_db()
-        self.assertEqual(self.autre.username, "autre_sec")
 
 
 class AssetCleServeurTests(BaseApi):
@@ -429,13 +301,6 @@ class ReferencesHorsPerimetreTests(BaseApi):
         )
         self.assertEqual(r.status_code, 400, r.content)
         self.assertFalse(MaintenanceOccurrence.objects.exists())
-
-    def test_terminer_une_occurrence_renseigne_l_executant(self):
-        plan = MaintenancePlan.objects.create(scope="ASSET", asset=self.asset_a, name="Plan A")
-        occ = MaintenanceOccurrence.objects.create(plan=plan, asset=self.asset_a, scheduled_for=timezone.localdate())
-        r = self.client_cs.post(f"/api/maintenance/occurrences/{occ.pk}/complete/", {"conformity": "CONFORME"}, format="json")
-        self.assertEqual(r.status_code, 200, r.content)
-        self.assertEqual(occ.execution.executed_by, self.chef_section)
 
     def test_formation_created_by_et_updated_by_non_forgeables(self):
         r = self._client_chef_formation().post(

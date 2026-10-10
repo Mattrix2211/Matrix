@@ -279,6 +279,9 @@ def _perimetre_dans_scope_utilisateur(user, ship, service, sector, section, nive
     contrôles de seuil + périmètre."""
     if user_role_level(user) < niveau_requis:
         return False
+    # Le commandant en second a la vision du commandant en lecture seule : il ne désigne ni ne vise ni ne publie.
+    if user_role_level(user) == NIVEAU_VISION_COMMANDEMENT:
+        return False
     filtres = scope_filters_for_user(user)
     if not filtres:
         return True
@@ -1406,6 +1409,11 @@ def equipage_de_feuille_pour(user, ship, equipage_id=None):
     à défaut l'équipage à bord. None si aucun équipage à bord n'est défini :
     c'est un état incohérent que la vue signale, jamais un choix arbitraire."""
     demande = str(equipage_id or "").strip()[:8] or None
+    # Seul un code d'équipage connu de l'unité (ou d'une feuille existante) est retenu.
+    if demande and demande not in codes_equipage(ship) and not FeuilleService.objects.filter(
+        ship=ship, equipage=demande
+    ).exists():
+        demande = None
     if not ship.double_equipage:
         return demande
     return equipage_agissant(user) or demande or ship.equipage_a_bord or None
