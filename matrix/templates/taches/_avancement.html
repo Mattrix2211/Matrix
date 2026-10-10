@@ -1,0 +1,36 @@
+{% with c=avancement.comptes n=avancement.total %}
+<div class="card card-body mb-4">
+  <h2 class="h5">Avancement de l'équipe</h2>
+  {% if n %}
+  <div class="progress mb-2" role="img" aria-label="Répartition des tâches par statut" style="height:1.5rem">
+    {% if c.TERMINEE %}<div class="progress-bar bg-success" style="width:{% widthratio c.TERMINEE n 100 %}%">{{ c.TERMINEE }}</div>{% endif %}
+    {% if c.EN_COURS %}<div class="progress-bar bg-primary" style="width:{% widthratio c.EN_COURS n 100 %}%">{{ c.EN_COURS }}</div>{% endif %}
+    {% if c.A_FAIRE %}<div class="progress-bar bg-secondary" style="width:{% widthratio c.A_FAIRE n 100 %}%">{{ c.A_FAIRE }}</div>{% endif %}
+    {% if c.BLOQUEE %}<div class="progress-bar bg-warning text-dark" style="width:{% widthratio c.BLOQUEE n 100 %}%">{{ c.BLOQUEE }}</div>{% endif %}
+  </div>
+  <p class="small text-muted mb-3">
+    <span class="badge text-bg-success">Terminées (30 j) {{ c.TERMINEE }}</span>
+    <span class="badge text-bg-primary">En cours {{ c.EN_COURS }}</span>
+    <span class="badge text-bg-secondary">À faire {{ c.A_FAIRE }}</span>
+    <span class="badge text-bg-warning">Bloquées {{ c.BLOQUEE }}</span>
+    <span class="badge text-bg-danger">En retard {{ avancement.retards|length }}</span>
+  </p>
+  {% endif %}
+  {% if avancement.blocages %}
+  <h3 class="h6">Blocages à lever</h3>
+  <ul class="list-unstyled">
+    {% for t in avancement.blocages %}
+    <li class="mb-1"><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a> · {{ t.assigne.get_full_name|default:t.assigne.username }} <span class="text-muted">— {{ t.motif_blocage|truncatechars:80 }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if avancement.retards %}
+  <h3 class="h6">Tâches en retard</h3>
+  <ul class="list-unstyled mb-0">
+    {% for t in avancement.retards %}
+    <li class="mb-1"><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a> · {{ t.assigne.get_full_name|default:t.assigne.username }} <span class="text-danger">— échéance {{ t.echeance|date:"d/m/Y" }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endwith %}

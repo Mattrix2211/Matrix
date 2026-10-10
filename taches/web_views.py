@@ -14,6 +14,7 @@ from threads.utils import commentaires_de
 from .models import Tache
 from .services import (
     ajouter_participant,
+    avancement_equipe,
     creer_tache,
     demarrer,
     interlocuteurs_possibles,
@@ -55,6 +56,7 @@ class TachesIndexView(LoginRequiredMixin, View):
             "suivies": [t for t in ouvertes if t.assigne_id != request.user.pk],
             "terminees": [t for t in taches if not t.ouverte][:10],
             "marins": marins_assignables(request.user),
+            "avancement": avancement_equipe(request.user),
             "aujourdhui": timezone.localdate(),
         })
 

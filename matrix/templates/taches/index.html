@@ -3,6 +3,10 @@
 <h1 class="h3 mb-3">Tâches</h1>
 <p class="text-muted">Les tâches qui vous sont attribuées, avec leur échéance, leur fil de discussion et leur compte rendu.</p>
 
+{% if avancement.total or avancement.retards or avancement.blocages %}
+{% include "taches/_avancement.html" %}
+{% endif %}
+
 <h2 class="h5">Mes tâches</h2>
 {% include "taches/_liste.html" with taches=mes_taches vide="Aucune tâche à réaliser." %}
 

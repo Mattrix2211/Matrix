@@ -180,3 +180,32 @@ class RelanceEcheanceTests(TachesBase):
         services.rendre_compte(tache, self.marin, "Fait.")
         services.relancer_echeances_depassees()
         self.assertFalse(self.relances(self.marin).filter(is_read=False).exists())
+
+
+class AvancementTests(TachesBase):
+    def test_synthese_du_chef(self):
+        hier = self.aujourdhui - timedelta(days=1)
+        self._tache(statut=Tache.STATUT_EN_COURS)
+        retard = self._tache(echeance=hier)
+        bloquee = self._tache(statut=Tache.STATUT_BLOQUEE, motif_blocage="Vanne grippée")
+        self._tache(statut=Tache.STATUT_TERMINEE, terminee_le=timezone.now())
+        self._tache(statut=Tache.STATUT_TERMINEE, terminee_le=timezone.now() - timedelta(days=45))
+        self._tache(assigne=self.voisin)
+        a = services.avancement_equipe(self.chef)
+        self.assertEqual(a["comptes"], {"A_FAIRE": 1, "EN_COURS": 1, "BLOQUEE": 1, "TERMINEE": 1})
+        self.assertEqual(a["total"], 4)
+        self.assertEqual(a["retards"], [retard])
+        self.assertEqual(a["blocages"], [bloquee])
+
+    def test_marin_sans_vue_equipe_et_pas_de_ses_propres_taches(self):
+        self._tache()
+        self.assertEqual(services.avancement_equipe(self.marin)["total"], 0)
+        self._tache(assigne=self.chef, created_by=self.chef)
+        self.assertEqual(services.avancement_equipe(self.chef)["total"], 1)
+
+    def test_page_affiche_la_vue_au_chef_seulement(self):
+        self._tache(statut=Tache.STATUT_BLOQUEE, motif_blocage="Vanne grippée")
+        self.client.login(username="chef", password="pass")
+        self.assertContains(self.client.get(reverse("taches-index")), "Blocages à lever")
+        self.client.login(username="marin", password="pass")
+        self.assertNotContains(self.client.get(reverse("taches-index")), "Avancement de l'équipe")

@@ -4,6 +4,8 @@ Un chef (CHEF_SECTION+) attribue une tâche à un marin de son périmètre et de
 Le fil de discussion est ouvert à l'assigné, au créateur, aux chefs du périmètre et aux
 interlocuteurs que le chef ajoute (marins du même navire, y compris l'équipage à terre).
 """
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -24,6 +26,7 @@ from .models import Tache
 User = get_user_model()
 
 NIVEAU_REQUIS_GESTION_TACHE = RoleLevel.CHEF_SECTION
+JOURS_TERMINEES_AFFICHEES = 30
 
 
 def _nom(user):
@@ -58,6 +61,36 @@ def taches_a_suivre(user):
         t for t in ouvertes
         if t.assigne_id == user.pk or (t.statut == Tache.STATUT_BLOQUEE and peut_gerer(user, t))
     ]
+
+
+def taches_supervisees(user):
+    """Tâches des marins du périmètre et de l'équipage d'un chef, hors les siennes."""
+    if user_role_level(user) < NIVEAU_REQUIS_GESTION_TACHE:
+        return Tache.objects.none()
+    return Tache.objects.filter(
+        build_scope_q(user, "assigne__profile__"), equipage_marin_q(user, "assigne__profile__"),
+    ).exclude(assigne=user)
+
+
+def avancement_equipe(user, aujourdhui=None):
+    """Synthèse pour le chef : tâches par statut, retards et blocages en attente de levée.
+
+    Les tâches terminées ne comptent que sur les JOURS_TERMINEES_AFFICHEES derniers jours.
+    """
+    aujourdhui = aujourdhui or timezone.localdate()
+    depuis = timezone.now() - timedelta(days=JOURS_TERMINEES_AFFICHEES)
+    taches = taches_supervisees(user).select_related("assigne")
+    ouvertes = [t for t in taches if t.ouverte]
+    comptes = {statut: 0 for statut, _ in Tache.STATUT_CHOICES}
+    for t in ouvertes:
+        comptes[t.statut] += 1
+    comptes[Tache.STATUT_TERMINEE] = taches.filter(statut=Tache.STATUT_TERMINEE, terminee_le__gte=depuis).count()
+    return {
+        "comptes": comptes,
+        "total": sum(comptes.values()),
+        "retards": [t for t in ouvertes if t.echeance < aujourdhui],
+        "blocages": [t for t in ouvertes if t.statut == Tache.STATUT_BLOQUEE],
+    }
 
 
 def marins_assignables(user):
