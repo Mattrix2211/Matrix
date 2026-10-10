@@ -192,6 +192,7 @@ def logout_then_login(request):
     expire = request.user.is_authenticated and session_expiree(request)
     if expire:
         tracer_expiration(request.user)
+        request.session_expiree_tracee = True
     suivant = request.POST.get('next')
     cible = url_connexion(request, expire, suivant) if (expire or suivant) else '/login/'
     logout(request)

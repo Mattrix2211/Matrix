@@ -111,8 +111,9 @@ class RenouvellementTests(InactiviteTestCase):
         self.client.get(reverse("home"))
         self.vieillir(300)
         ancienne = self.derniere_activite()
+        identite = {**AUTOMATIQUE, "HTTP_X_MX_UTILISATEUR": str(self.marin.pk)}
         for url in (reverse("notifications-compteur"), reverse("brouillon") + "?cle=x"):
-            self.assertLess(self.client.get(url, **AUTOMATIQUE).status_code, 400)
+            self.assertLess(self.client.get(url, **identite).status_code, 400)
         self.assertEqual(self.derniere_activite(), ancienne)
 
     def test_requete_automatique_sur_session_expiree_renvoie_401_sans_page(self):

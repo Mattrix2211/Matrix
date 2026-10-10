@@ -84,7 +84,9 @@ class BrouillonView(LoginRequiredMixin, View):
         # La page indique pour quel marin elle a été ouverte : si un autre est connecté entre-temps
         # (cookies partagés entre onglets), on ne lit, n'écrit ni ne supprime rien.
         attendu = request.headers.get("X-Mx-Utilisateur")
-        if request.user.is_authenticated and attendu is not None and attendu != str(request.user.pk):
+        automatique = bool(request.headers.get("X-Mx-Automatique"))
+        if request.user.is_authenticated and ((attendu is None and automatique) or (
+                attendu is not None and attendu != str(request.user.pk))):
             return _erreur("Une autre session est ouverte.", 409)
         return super().dispatch(request, *args, **kwargs)
 

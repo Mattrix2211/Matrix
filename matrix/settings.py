@@ -103,6 +103,8 @@ MIDDLEWARE = [
     "matrix.core.inactivite.InactiviteMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Écriture refusée si la page a été ouverte pour un autre marin (poste partagé)
+    "matrix.core.middleware.IdentitePageMiddleware",
     # Modules activables par bâtiment : bloque l'accès direct par URL aux
     # vues web d'un module désactivé sur le navire du marin connecté (voir
     # matrix/core/middleware.py et matrix/core/modules.py).
@@ -231,6 +233,10 @@ INACTIVITE_DELAI_SECONDES = os.getenv("INACTIVITE_DELAI_SECONDES", "900")
 INACTIVITE_AVERTISSEMENT_SECONDES = os.getenv("INACTIVITE_AVERTISSEMENT_SECONDES", "60")
 
 CELERY_BEAT_SCHEDULE = {
+    "purger_sessions_daily": {
+        "task": "matrix.core.tasks.purger_sessions",
+        "schedule": 60 * 60 * 24,
+    },
     "purger_brouillons_daily": {
         "task": "matrix.core.tasks.purger_brouillons",
         "schedule": 60 * 60 * 24,

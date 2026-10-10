@@ -1,6 +1,7 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
-from django.http import JsonResponse, QueryDict
+from django.http import HttpResponse, JsonResponse, QueryDict
+from django.urls import reverse
 from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -27,6 +28,36 @@ class SansNulMiddleware:
     def __call__(self, request):
         if "%00" in request.META.get("QUERY_STRING", "").lower():
             request.GET = _sans_nul(request.GET)
+        return self.get_response(request)
+
+
+class IdentitePageMiddleware:
+    """Refuse (409) une écriture dont la page a été ouverte pour un autre marin que celui connecté
+    (poste partagé : cookies communs à tous les onglets). L'identité vient de l'en-tête
+    ``X-Mx-Utilisateur`` (htmx, fetch) ou du champ ``mx_utilisateur`` (formulaire) ajoutés par
+    identite.js ; sans identité (page ancienne, sans JavaScript), la requête passe. Les brouillons
+    contrôlent eux-mêmes l'identité (réponses JSON)."""
+
+    METHODES_SURES = ("GET", "HEAD", "OPTIONS", "TRACE")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if (request.method not in self.METHODES_SURES and request.user.is_authenticated
+                and not request.path.startswith(("/api/", "/admin/", "/brouillons/"))
+                and request.path not in (reverse("logout"), reverse("login"))):
+            attendu = request.headers.get("X-Mx-Utilisateur")
+            if attendu is None and request.content_type in ("application/x-www-form-urlencoded", "multipart/form-data"):
+                try:
+                    attendu = request.POST.get("mx_utilisateur")
+                except Exception:
+                    attendu = None
+            if attendu is not None and attendu != str(request.user.pk):
+                return HttpResponse(
+                    "Une autre session est ouverte sur ce poste : rechargez la page.",
+                    status=409, content_type="text/plain; charset=utf-8",
+                )
         return self.get_response(request)
 
 
