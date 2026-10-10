@@ -30,7 +30,7 @@ class Tache(TimeStampedModel, OwnedModel):
 
     titre = models.CharField(max_length=200, verbose_name="Titre")
     description = models.TextField(blank=True, default="", verbose_name="Consigne")
-    echeance = models.DateField(verbose_name="Échéance")
+    echeance = models.DateField(null=True, blank=True, verbose_name="Échéance")
     statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_A_FAIRE)
     priorite = models.CharField(max_length=8, choices=PRIORITE_CHOICES, default=PRIORITE_NORMALE, verbose_name="Priorité")
     partagee = models.BooleanField(
@@ -50,7 +50,7 @@ class Tache(TimeStampedModel, OwnedModel):
     terminee_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ("echeance", "pk")
+        ordering = (models.F("echeance").asc(nulls_last=True), "pk")
         verbose_name = "Tâche"
         verbose_name_plural = "Tâches"
 
@@ -60,6 +60,9 @@ class Tache(TimeStampedModel, OwnedModel):
     @property
     def personnelle(self):
         return self.assigne_id == self.created_by_id
+
+    def en_retard_au(self, jour):
+        return self.ouverte and self.echeance is not None and self.echeance < jour
 
     @property
     def ouverte(self):

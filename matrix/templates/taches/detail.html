@@ -6,7 +6,8 @@
   {% if en_retard %}<span class="badge text-bg-danger">En retard</span>{% endif %}
   {% if tache.priorite == "URGENTE" and tache.ouverte %}<span class="badge text-bg-danger">Urgente</span>{% endif %}
   {% if tache.personnelle %}<span class="badge text-bg-light border">Personnelle · {% if tache.partagee %}visible de vos chefs{% else %}privée{% endif %}</span>{% endif %}
-  · Assignée à <strong>{{ tache.assigne.get_full_name|default:tache.assigne.username }}</strong></p>
+  · Assignée à <strong>{{ tache.assigne.get_full_name|default:tache.assigne.username }}</strong>
+  · {% if tache.echeance %}Échéance le {{ tache.echeance|date:"d/m/Y" }}{% else %}Sans échéance{% endif %}</p>
 {% if tache.description %}<p>{{ tache.description|linebreaksbr }}</p>{% endif %}
 
 {% if tache.statut == "BLOQUEE" %}

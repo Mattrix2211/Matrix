@@ -99,19 +99,19 @@ def avancement_equipe(user, aujourdhui=None):
         siennes = [t for t in ouvertes if t.assigne_id == marin.pk]
         absent = next((a for a in absences if a.marin_id == marin.pk and a.date_debut <= aujourdhui), None)
         charges.append({
-            "marin": marin, "ouvertes": len(siennes), "retards": sum(t.echeance < aujourdhui for t in siennes),
+            "marin": marin, "ouvertes": len(siennes), "retards": sum(t.en_retard_au(aujourdhui) for t in siennes),
             "bloquees": sum(t.statut == Tache.STATUT_BLOQUEE for t in siennes), "absent_jusqu_au": absent and absent.date_fin,
         })
     charges.sort(key=lambda c: (-c["ouvertes"], c["marin"].username))
     conflits = [
         {"tache": t, "absence": a}
         for t in ouvertes for a in absences
-        if a.marin_id == t.assigne_id and a.date_debut <= t.echeance <= a.date_fin
+        if t.echeance and a.marin_id == t.assigne_id and a.date_debut <= t.echeance <= a.date_fin
     ]
     return {
         "comptes": comptes,
         "total": sum(comptes.values()),
-        "retards": [t for t in ouvertes if t.echeance < aujourdhui],
+        "retards": [t for t in ouvertes if t.en_retard_au(aujourdhui)],
         "blocages": [t for t in ouvertes if t.statut == Tache.STATUT_BLOQUEE],
         "charges": charges,
         "charge_max": max((c["ouvertes"] for c in charges), default=0),
@@ -139,7 +139,7 @@ def interlocuteurs_possibles(tache):
 def _tracer(tache, acteur, action):
     AuditLog.objects.create(
         actor=acteur, action=f"tache_{action}", target_user=tache.assigne,
-        details=f"tache={tache.pk}; statut={tache.statut}; echeance={tache.echeance.isoformat()}",
+        details=f"tache={tache.pk}; statut={tache.statut}; echeance={tache.echeance.isoformat() if tache.echeance else 'aucune'}",
     )
 
 
@@ -163,7 +163,7 @@ def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO):
         Notification.objects.create(user=user, verb=verb, level=niveau, target=tache)
 
 
-def creer_tache(chef, assigne, titre, echeance, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True):
+def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True):
     """Un chef attribue une tâche ; un marin peut aussi se créer la sienne (privée sauf partage de sa part)."""
     personnelle = chef.pk == assigne.pk
     if not personnelle and not est_chef_de(chef, assigne):
@@ -176,7 +176,8 @@ def creer_tache(chef, assigne, titre, echeance, description="", priorite=Tache.P
     tache.save()
     _tracer(tache, chef, "creation")
     if not personnelle:
-        _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} » (échéance {echeance:%d/%m/%Y}).")
+        delai = f" (échéance {echeance:%d/%m/%Y})" if echeance else ""
+        _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} »{delai}.")
     return tache
 
 

@@ -103,14 +103,14 @@ def a_faire(user, aujourdhui):
         ))
     for tache in taches_a_suivre(user):
         propre = tache.assigne_id == user.pk
-        en_retard = tache.echeance < aujourdhui
+        en_retard = tache.en_retard_au(aujourdhui)
         if propre:
             detail = "Tâche en retard" if en_retard else f"Tâche · {tache.get_statut_display()}"
         else:
             detail = f"Blocage à lever · {tache.assigne.get_full_name() or tache.assigne.username}"
         entrees.append(_entree(
             tache, tache.titre, detail, reverse("tache-detail", args=[tache.pk]), "tache",
-            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 0, _echeance(tache.echeance),
+            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 0, _echeance(tache.echeance or aujourdhui + timedelta(days=3650)),
         ))
     for session in formations_du_marin(user):
         if timezone.localtime(session.scheduled_at).date() == aujourdhui:

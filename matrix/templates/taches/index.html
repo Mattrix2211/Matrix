@@ -23,7 +23,7 @@
     <div class="col-md-5"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" required></div>
     <div class="col-md-3"><label class="form-label" for="id_assigne">Marin</label>
       <select class="form-select" id="id_assigne" name="assigne" required>{% for m in marins %}<option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
-    <div class="col-md-2"><label class="form-label" for="id_echeance">Échéance</label><input class="form-control" type="date" id="id_echeance" name="echeance" value="{{ aujourdhui|date:'Y-m-d' }}" required></div>
+    <div class="col-md-2"><label class="form-label" for="id_echeance">Échéance (facultative)</label><input class="form-control" type="date" id="id_echeance" name="echeance" value="{{ aujourdhui|date:'Y-m-d' }}"></div>
     <div class="col-md-2"><label class="form-label" for="id_priorite">Priorité</label>
       <select class="form-select" id="id_priorite" name="priorite"><option value="NORMALE">Normale</option><option value="URGENTE">Urgente</option></select></div>
     <div class="col-12"><label class="form-label" for="id_description">Consigne (facultatif)</label><textarea class="form-control" id="id_description" name="description" rows="2"></textarea></div>
@@ -38,7 +38,7 @@
   {% csrf_token %}
   <div class="row g-3 align-items-end">
     <div class="col-md-5"><label class="form-label" for="id_perso_titre">Titre</label><input class="form-control" id="id_perso_titre" name="titre" maxlength="200" required></div>
-    <div class="col-md-2"><label class="form-label" for="id_perso_echeance">Échéance</label><input class="form-control" type="date" id="id_perso_echeance" name="echeance" value="{{ aujourdhui|date:'Y-m-d' }}" required></div>
+    <div class="col-md-2"><label class="form-label" for="id_perso_echeance">Échéance (facultative)</label><input class="form-control" type="date" id="id_perso_echeance" name="echeance" value="{{ aujourdhui|date:'Y-m-d' }}"></div>
     <div class="col-md-2"><label class="form-label" for="id_perso_priorite">Priorité</label>
       <select class="form-select" id="id_perso_priorite" name="priorite"><option value="NORMALE">Normale</option><option value="URGENTE">Urgente</option></select></div>
     <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" id="id_perso_partagee" name="partagee"><label class="form-check-label" for="id_perso_partagee">Visible de mes chefs</label></div></div>

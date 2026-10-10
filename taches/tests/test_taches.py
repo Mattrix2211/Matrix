@@ -375,3 +375,39 @@ class TachePersonnelleTests(TachesBase):
         services.relancer_echeances_depassees()
         verbes = Notification.objects.filter(verb__startswith=services.PREFIXE_RELANCE)
         self.assertEqual(list(verbes.values_list("user__username", flat=True)), ["marin"])
+
+
+class SansEcheanceTests(TachesBase):
+    def test_creation_sans_echeance_par_un_chef_et_par_le_marin(self):
+        self.post("chef", "taches-index", [], {"titre": "Ranger le local", "assigne": self.marin.pk, "echeance": ""})
+        self.post("marin", "taches-index", [], {"titre": "Ma note", "echeance": ""})
+        self.assertEqual(Tache.objects.filter(echeance__isnull=True).count(), 2)
+        self.assertIn("vous a attribué la tâche « Ranger le local ».", Notification.objects.get(user=self.marin).verb)
+
+    def test_date_invalide_refusee(self):
+        self.post("chef", "taches-index", [], {"titre": "x", "assigne": self.marin.pk, "echeance": "31/02/abc"})
+        self.assertEqual(Tache.objects.count(), 0)
+
+    def test_sans_echeance_ni_retard_ni_relance_ni_calendrier_mais_dans_aujourdhui(self):
+        tache = self._tache(echeance=None)
+        self.assertFalse(tache.en_retard_au(self.aujourdhui))
+        self.assertEqual(services.relancer_echeances_depassees(), 0)
+        self.assertEqual(services.avancement_equipe(self.chef)["retards"], [])
+        self.assertEqual([e["objet"] for e in a_faire(self.marin, self.aujourdhui)], [tache])
+        self.client.login(username="marin", password="pass")
+        debut, fin = (self.aujourdhui - timedelta(days=30)).isoformat(), (self.aujourdhui + timedelta(days=30)).isoformat()
+        r = self.client.get(reverse("calendar-events"), {"start": debut, "end": fin})
+        self.assertNotIn(f"tch-{tache.pk}", [e["id"] for e in r.json()])
+        self.assertContains(self.client.get(reverse("tache-detail", args=[tache.pk])), "Sans échéance")
+        self.assertContains(self.client.get(reverse("taches-index")), "Sans échéance")
+
+    def test_taches_sans_echeance_en_dernier_dans_la_liste(self):
+        sans = self._tache(titre="Sans", echeance=None)
+        avec = self._tache(titre="Avec", echeance=self.aujourdhui + timedelta(days=30))
+        self.assertEqual(list(Tache.objects.all()), [avec, sans])
+
+    def test_conflit_et_relance_ignorent_les_taches_sans_echeance(self):
+        permission = TypeAbsence.objects.create(name="Permission")
+        Absence.objects.create(marin=self.marin, type_absence=permission, date_debut=self.aujourdhui, date_fin=self.aujourdhui + timedelta(days=3))
+        self._tache(echeance=None)
+        self.assertEqual(services.avancement_equipe(self.chef)["conflits"], [])

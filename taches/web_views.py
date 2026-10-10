@@ -63,9 +63,10 @@ class TachesIndexView(LoginRequiredMixin, View):
     def post(self, request):
         # Sans marin désigné, la tâche est celle de l'utilisateur lui-même.
         assigne = User.objects.filter(pk=request.POST["assigne"]).first() if request.POST.get("assigne") else request.user
-        echeance = parse_date(request.POST.get("echeance", ""))
-        if assigne is None or echeance is None or not request.POST.get("titre", "").strip():
-            messages.error(request, "Le titre, le marin et l'échéance sont obligatoires.")
+        saisie = request.POST.get("echeance", "").strip()
+        echeance = parse_date(saisie) if saisie else None
+        if assigne is None or (saisie and echeance is None) or not request.POST.get("titre", "").strip():
+            messages.error(request, "Le titre et le marin sont obligatoires, l'échéance doit être une date valide.")
             return redirect("taches-index")
         try:
             tache = creer_tache(
@@ -90,7 +91,7 @@ class TacheDetailView(LoginRequiredMixin, View):
             "est_assigne": request.user.pk == tache.assigne_id,
             "peut_gerer": gerer,
             "interlocuteurs": interlocuteurs_possibles(tache) if gerer else [],
-            "en_retard": tache.ouverte and tache.echeance < timezone.localdate(),
+            "en_retard": tache.en_retard_au(timezone.localdate()),
         })
 
 
