@@ -18,6 +18,8 @@ from .services import (
     creer_tache,
     demarrer,
     interlocuteurs_possibles,
+    modifier_tache,
+    peut_modifier,
     marins_assignables,
     peut_consulter,
     peut_gerer,
@@ -91,12 +93,14 @@ class TacheDetailView(LoginRequiredMixin, View):
             "est_assigne": request.user.pk == tache.assigne_id,
             "peut_gerer": gerer,
             "interlocuteurs": interlocuteurs_possibles(tache) if gerer else [],
+            "peut_modifier": peut_modifier(request.user, tache),
+            "marins": marins_assignables(request.user) if gerer else [],
             "en_retard": tache.en_retard_au(timezone.localdate()),
         })
 
 
 class TacheActionView(LoginRequiredMixin, View):
-    """Actions de suivi : démarrer, bloquer, rendre compte, lever le blocage, ajouter un interlocuteur."""
+    """Actions de suivi : démarrer, bloquer, rendre compte, lever le blocage, modifier, ajouter un interlocuteur."""
 
     def post(self, request, pk):
         tache = _tache_visible(request, pk)
@@ -110,6 +114,14 @@ class TacheActionView(LoginRequiredMixin, View):
                 rendre_compte(tache, request.user, request.POST.get("compte_rendu", ""))
             elif action == "reprendre":
                 reprendre(tache, request.user)
+            elif action == "modifier":
+                nouveau = User.objects.filter(pk=request.POST.get("assigne")).first()
+                saisie = request.POST.get("echeance", "").strip()
+                echeance = parse_date(saisie) if saisie else None
+                if nouveau is None or (saisie and echeance is None):
+                    raise ValidationError("Indiquez un marin et une échéance valide (ou aucune).")
+                modifier_tache(request.user, tache, nouveau, echeance, request.POST.get("priorite", ""))
+                messages.success(request, "Tâche modifiée.")
             elif action == "interlocuteur":
                 cible = User.objects.filter(pk=request.POST.get("interlocuteur")).first()
                 if cible is None:

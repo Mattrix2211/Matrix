@@ -136,10 +136,10 @@ def interlocuteurs_possibles(tache):
     ).order_by("username")
 
 
-def _tracer(tache, acteur, action):
+def _tracer(tache, acteur, action, extra=""):
     AuditLog.objects.create(
         actor=acteur, action=f"tache_{action}", target_user=tache.assigne,
-        details=f"tache={tache.pk}; statut={tache.statut}; echeance={tache.echeance.isoformat() if tache.echeance else 'aucune'}",
+        details=f"tache={tache.pk}; statut={tache.statut}; echeance={tache.echeance.isoformat() if tache.echeance else 'aucune'}{extra}",
     )
 
 
@@ -181,10 +181,52 @@ def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Ta
     return tache
 
 
-def _enregistrer(tache, acteur, action, champs):
+def _enregistrer(tache, acteur, action, champs, extra=""):
     tache.updated_by = acteur
     tache.save(update_fields=[*champs, "updated_by", "updated_at"])
-    _tracer(tache, acteur, action)
+    _tracer(tache, acteur, action, extra)
+
+
+def _date(valeur):
+    return f"{valeur:%d/%m/%Y}" if valeur else "aucune"
+
+
+def peut_modifier(user, tache):
+    """Un chef du périmètre modifie une tâche attribuée et ouverte ; jamais la tâche personnelle d'un marin."""
+    return tache.ouverte and not tache.personnelle and peut_gerer(user, tache)
+
+
+def modifier_tache(chef, tache, assigne, echeance, priorite):
+    """Réaffecte, replanifie ou change la priorité ; chaque changement est tracé dans le fil et l'audit.
+
+    La tâche réaffectée repart « À faire » chez son nouveau titulaire, sans motif de blocage.
+    """
+    if not peut_modifier(chef, tache):
+        raise PermissionError("Vous ne pouvez pas modifier cette tâche.")
+    changements, champs, ancien = [], ["echeance", "priorite"], tache.assigne
+    if assigne.pk != tache.assigne_id:
+        if not est_chef_de(chef, assigne):
+            raise PermissionError("Vous ne pouvez pas confier la tâche à ce marin.")
+        tache.assigne = assigne
+        tache.statut, tache.motif_blocage = Tache.STATUT_A_FAIRE, ""
+        champs += ["assigne", "statut", "motif_blocage"]
+        changements.append(f"réaffectée de {_nom(ancien)} à {_nom(assigne)}")
+    if echeance != tache.echeance:
+        changements.append(f"échéance du {_date(tache.echeance)} au {_date(echeance)}")
+    if priorite != tache.priorite:
+        changements.append(f"priorité {tache.get_priorite_display().lower()} → {dict(Tache.PRIORITE_CHOICES).get(priorite, priorite).lower()}")
+    if not changements:
+        raise ValidationError("Aucune modification à enregistrer.")
+    tache.echeance, tache.priorite = echeance, priorite
+    tache.full_clean(exclude=["assigne"])
+    resume = "; ".join(changements)
+    _enregistrer(tache, chef, "modification", champs, extra=f"; modifications={resume}")
+    _message_systeme(tache, f"{_nom(chef)} a modifié la tâche : {resume}.")
+    if tache.assigne_id != ancien.pk:
+        _notifier(tache, [tache.assigne], f"{_nom(chef)} vous a confié la tâche « {tache.titre} » ({resume}).")
+        _notifier(tache, [ancien], f"La tâche « {tache.titre} » ne vous est plus attribuée : {resume}.")
+    else:
+        _notifier(tache, [tache.assigne], f"{_nom(chef)} a modifié « {tache.titre} » : {resume}.")
 
 
 def demarrer(tache, user):

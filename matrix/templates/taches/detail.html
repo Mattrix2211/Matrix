@@ -56,6 +56,21 @@
   <button class="btn btn-primary" type="submit">Publier</button>
 </form>
 
+{% if peut_modifier and not equipage_a_terre %}
+<form method="post" action="{% url 'tache-action' tache.pk %}" class="card card-body mb-4">{% csrf_token %}<input type="hidden" name="action" value="modifier">
+  <h2 class="h6">Réaffecter ou replanifier</h2>
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label" for="id_mod_assigne">Marin</label>
+      <select class="form-select" id="id_mod_assigne" name="assigne">{% for m in marins %}<option value="{{ m.pk }}" {% if m.pk == tache.assigne_id %}selected{% endif %}>{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label" for="id_mod_echeance">Échéance (facultative)</label>
+      <input class="form-control" type="date" id="id_mod_echeance" name="echeance" value="{{ tache.echeance|date:'Y-m-d' }}"></div>
+    <div class="col-md-3"><label class="form-label" for="id_mod_priorite">Priorité</label>
+      <select class="form-select" id="id_mod_priorite" name="priorite">{% for code, libelle in tache.PRIORITE_CHOICES %}<option value="{{ code }}" {% if code == tache.priorite %}selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Modifier</button></div>
+  </div>
+  <div class="form-text">Un changement de marin remet la tâche « À faire » chez le nouveau titulaire. Tout est consigné dans le fil.</div>
+</form>
+{% endif %}
 {% if peut_gerer and tache.ouverte and not equipage_a_terre and interlocuteurs %}
 <form method="post" action="{% url 'tache-action' tache.pk %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="interlocuteur">
   <div class="col-auto"><label class="form-label" for="id_interlocuteur">Ajouter un interlocuteur au fil</label>

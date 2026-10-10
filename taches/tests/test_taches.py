@@ -10,7 +10,7 @@ from dashboard.aujourdhui import a_faire
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
 from absences.models import Absence
-from accounts.models import TypeAbsence
+from accounts.models import AuditLog, TypeAbsence
 from taches import services
 from types import SimpleNamespace
 
@@ -411,3 +411,62 @@ class SansEcheanceTests(TachesBase):
         Absence.objects.create(marin=self.marin, type_absence=permission, date_debut=self.aujourdhui, date_fin=self.aujourdhui + timedelta(days=3))
         self._tache(echeance=None)
         self.assertEqual(services.avancement_equipe(self.chef)["conflits"], [])
+
+
+class ModificationTests(TachesBase):
+    def setUp(self):
+        super().setUp()
+        self.autre = self._marin("autre", self.secteur, "EQUIPIER", "A")
+        self.tache = self._tache(echeance=self.aujourdhui + timedelta(days=2), statut=Tache.STATUT_BLOQUEE, motif_blocage="Vanne")
+
+    def modifier(self, user, **champs):
+        donnees = {"action": "modifier", "assigne": self.marin.pk, "echeance": self.tache.echeance.isoformat(),
+                   "priorite": "NORMALE", **champs}
+        return self.post(user, "tache-action", [self.tache.pk], donnees)
+
+    def test_reaffectation_tracee_et_notifiee(self):
+        self.modifier("chef", assigne=self.autre.pk)
+        self.tache.refresh_from_db()
+        self.assertEqual((self.tache.assigne, self.tache.statut, self.tache.motif_blocage), (self.autre, Tache.STATUT_A_FAIRE, ""))
+        self.assertIn("réaffectée de", commentaires_de(self.tache).latest("pk").body)
+        self.assertIn("modifications=réaffectée de", AuditLog.objects.filter(action="tache_modification").get().details)
+        self.assertTrue(Notification.objects.filter(user=self.autre, verb__contains="vous a confié").exists())
+        self.assertTrue(Notification.objects.filter(user=self.marin, verb__contains="ne vous est plus attribuée").exists())
+
+    def test_changement_d_echeance_et_de_priorite(self):
+        nouvelle = self.aujourdhui + timedelta(days=9)
+        self.modifier("chef", echeance=nouvelle.isoformat(), priorite="URGENTE")
+        self.tache.refresh_from_db()
+        self.assertEqual((self.tache.echeance, self.tache.priorite, self.tache.assigne), (nouvelle, "URGENTE", self.marin))
+        self.assertEqual(self.tache.statut, Tache.STATUT_BLOQUEE)
+        corps = commentaires_de(self.tache).latest("pk").body
+        self.assertIn("échéance du", corps)
+        self.assertIn("priorité normale → urgente", corps)
+
+    def test_echeance_retiree(self):
+        self.modifier("chef", echeance="")
+        self.tache.refresh_from_db()
+        self.assertIsNone(self.tache.echeance)
+        self.assertIn("au aucune", commentaires_de(self.tache).latest("pk").body)
+
+    def test_refus_hors_perimetre_ou_sans_droit(self):
+        self.modifier("chef", assigne=self.voisin.pk)
+        self.modifier("marin", assigne=self.autre.pk)
+        self.modifier("voisin", assigne=self.autre.pk)
+        self.tache.refresh_from_db()
+        self.assertEqual(self.tache.assigne, self.marin)
+
+    def test_aucune_modification_ni_tache_close_ni_personnelle(self):
+        self.modifier("chef")
+        self.assertFalse(AuditLog.objects.filter(action="tache_modification").exists())
+        perso = self._tache(created_by=self.marin, partagee=True)
+        self.assertFalse(services.peut_modifier(self.chef, perso))
+        self.tache.statut = Tache.STATUT_TERMINEE
+        self.tache.save()
+        self.assertFalse(services.peut_modifier(self.chef, self.tache))
+
+    def test_formulaire_visible_du_chef_seulement(self):
+        self.client.login(username="chef", password="pass")
+        self.assertContains(self.client.get(reverse("tache-detail", args=[self.tache.pk])), "Réaffecter ou replanifier")
+        self.client.login(username="marin", password="pass")
+        self.assertNotContains(self.client.get(reverse("tache-detail", args=[self.tache.pk])), "Réaffecter ou replanifier")
