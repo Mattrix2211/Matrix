@@ -38,7 +38,7 @@ class TableauDeBordMesTicketsTests(TestCase):
         self.client.login(username="marin_tk", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_tickets"]), [ticket])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [ticket])
 
     def test_ticket_dun_autre_marin_est_absent_du_contexte(self):
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Fuite hydraulique")
@@ -47,7 +47,7 @@ class TableauDeBordMesTicketsTests(TestCase):
         self.client.login(username="marin_tk", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_tickets"]), [])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [])
 
     def test_ticket_ferme_ou_annule_est_exclu(self):
         ticket_ferme = CorrectiveTicket.objects.create(asset=self.asset, description="Fermé", status="CLOSED")
@@ -58,7 +58,7 @@ class TableauDeBordMesTicketsTests(TestCase):
         self.client.login(username="marin_tk", password="pass")
         response = self.client.get(self.url)
 
-        self.assertEqual(list(response.context["mes_tickets"]), [])
+        self.assertEqual([e["objet"] for e in response.context["a_faire"]], [])
 
 
 class TicketListViewTests(TestCase):
@@ -160,7 +160,7 @@ class TicketAssignViewTests(TestCase):
         self.ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Élingue usée")
 
         self.marin = User.objects.create_user(username="marin_ass", password="pass")
-        UserProfile.objects.filter(user=self.marin).update(role="EQUIPIER", ship=self.navire)
+        UserProfile.objects.filter(user=self.marin).update(role="EQUIPIER", sector=self.secteur)
 
         self.equipier = User.objects.create_user(username="equipier_ass", password="pass")
         UserProfile.objects.filter(user=self.equipier).update(role="EQUIPIER", sector=self.secteur)
@@ -169,6 +169,26 @@ class TicketAssignViewTests(TestCase):
         UserProfile.objects.filter(user=self.chef).update(role="CHEF_SECTION", sector=self.secteur)
 
         self.url = reverse("ticket-assign", args=[self.ticket.id])
+
+    def test_chef_ne_peut_assigner_que_dans_son_perimetre(self):
+        autre_secteur = Sector.objects.create(service=self.service, name="Autre secteur T-ASS")
+        loin = User.objects.create_user(username="loin_ass", password="pass")
+        UserProfile.objects.filter(user=loin).update(role="EQUIPIER", sector=autre_secteur)
+        self.client.login(username="chef_ass", password="pass")
+        page = self.client.get(reverse("ticket-detail", args=[self.ticket.id]))
+        self.assertNotContains(page, "loin_ass")
+        self.client.post(self.url, {"assignees": [str(loin.id), str(self.marin.id)]}, follow=True)
+        self.assertEqual(list(self.ticket.assignees.all()), [self.marin])
+
+    def test_commandant_assigne_sur_tout_le_navire(self):
+        autre_secteur = Sector.objects.create(service=self.service, name="Autre secteur T-ASS")
+        loin = User.objects.create_user(username="loin_ass", password="pass")
+        UserProfile.objects.filter(user=loin).update(role="EQUIPIER", sector=autre_secteur)
+        commandant = User.objects.create_user(username="cdt_ass", password="pass")
+        UserProfile.objects.filter(user=commandant).update(role="COMMANDANT", ship=self.navire)
+        self.client.login(username="cdt_ass", password="pass")
+        self.client.post(self.url, {"assignees": [str(loin.id)]}, follow=True)
+        self.assertEqual(list(self.ticket.assignees.all()), [loin])
 
     def test_equipier_ne_peut_pas_assigner(self):
         self.client.login(username="equipier_ass", password="pass")
@@ -234,9 +254,7 @@ class TicketAssignViewTests(TestCase):
         self.assertTrue(Notification.objects.filter(user=self.equipier).exists())
 
     def test_chef_qui_sassigne_lui_meme_nest_pas_notifie(self):
-        # self.chef est scopé au secteur de l'actif : il correspond déjà au
-        # filtre _ship_du_profil_q via profile__sector__service__ship_id, pas
-        # besoin de lui affecter un navire en direct.
+        # self.chef est scopé au secteur de l'actif : il se voit lui-même dans son périmètre.
         self.client.login(username="chef_ass", password="pass")
         self.client.post(self.url, {"assignees": [str(self.chef.id)]}, follow=True)
         self.assertFalse(Notification.objects.filter(user=self.chef).exists())

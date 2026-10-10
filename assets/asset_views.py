@@ -19,10 +19,16 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import DetailView, ListView, View
+from django.views.generic.detail import SingleObjectMixin
 
 from accounts.models import AuditLog
 from logistics.models import CorrectiveTicket, StockPiece
+from maintenance.models import MaintenanceOccurrence
+from reports.services import STATUTS_TICKET_FERMES
+from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -35,13 +41,21 @@ from matrix.core.export import (
 from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.scopes import scope_filters_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document, valider_photo
 from org.models import Section, Sector, Service, Ship
 
 from .import_materiel import generer_modele_xlsx, importer_materiel_depuis_fichier
-from .models import Asset, AssetDocument, AssetFolder, AssetType, Location
+from .models import Asset, AssetDocument, AssetFolder, AssetType, Installation, Location
 from .web_views import (
+    _droits_liste,
+    _dossier_gerable,
+    _emplacements_visibles,
+    _filtres_actifs,
+    _materiel_hors_perimetre,
+    _noms_par_id,
+    _restreindre_au_navire_de_emplacement,
     _afficher_erreur_validation,
     _appliquer_bulk_suppression,
     _appliquer_bulk_update,
@@ -144,7 +158,41 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         # StockPiece (logistics), affiché ici en lecture seule, la gestion du stock
         # se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(asset=self.object).order_by('reference')
+        ctx['peremption_depassee'] = bool(self.object.date_peremption and self.object.date_peremption < timezone.localdate())
+        ctx.update(self._entete(self.object))
         return ctx
+
+    def _entete(self, asset):
+        """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
+        premier_ticket = asset.tickets.first()
+        menu = [
+            {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
+             "url": f"{reverse('anomalie-create')}?asset={asset.pk}"},
+        ]
+        if user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION:
+            menu.append({"libelle": "Démarrer un contrôle visuel", "icone": "maintenance", "ecriture": True,
+                         "hx_post": reverse('asset-start-visual', args=[asset.pk]), "hx_cible": "#result"})
+        if premier_ticket:
+            menu.append({"libelle": "Voir le ticket récent", "icone": "ticket",
+                         "url": reverse('ticket-detail', args=[premier_ticket.pk])})
+        if self.request.user.is_staff:
+            menu.append({"libelle": "Ouvrir dans l'administration", "icone": "parametres",
+                         "url": f"/admin/assets/asset/{asset.pk}/change/"})
+        tickets_ouverts = asset.tickets.exclude(status__in=STATUTS_TICKET_FERMES).count()
+        en_retard = MaintenanceOccurrence.objects.filter(asset=asset, status="OVERDUE").count()
+        return {
+            "action_principale": {"libelle": "Signaler une anomalie", "icone": "anomalie", "modale": "signalerAnomalieModal"},
+            "menu_fiche": menu,
+            "indicateurs_fiche": [
+                {"libelle": "Criticité", "valeur": asset.criticality},
+                {"libelle": "Tickets ouverts", "valeur": tickets_ouverts, "url": reverse('ticket-list'),
+                 "etat": "attention" if tickets_ouverts else "ok"},
+                {"libelle": "Maintenances en retard", "valeur": en_retard, "url": reverse('maintenance-occurrences'),
+                 "etat": "danger" if en_retard else "ok"},
+            ],
+            "badge_etat": {"OK": "ok", "ATTENTION": "attention", "DANGER": "danger"}[asset.etat_plan],
+            **contexte_discussion(asset, 'asset-comment-create'),
+        }
 
 
 class AssetImportView(LoginRequiredMixin, View):
@@ -285,7 +333,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['types'] = AssetType.objects.order_by('name')
-        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
+        ctx['locations'] = _emplacements_visibles(self.request.user)
         # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
         # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi
         # la liste est restreinte, avec un lien pour revenir à la vue complète.
@@ -301,9 +349,15 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             Asset.objects.select_related('sector', 'asset_type').order_by('designation')
             if ctx['peut_gerer_parent'] else Asset.objects.none()
         )
-        # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
-        # de création à partir du profil du chef connecté.
-        ctx.update(_perimetre_utilisateur(self.request.user))
+        ctx.update(_droits_liste(self.request.user, 'asset_ecriture_simple', 'asset_gestion_avancee'))
+        ctx['filtres_actifs'] = _filtres_actifs(self.request, [
+            ('ship', 'Unité', _noms_par_id(ctx['ships'])),
+            ('service', 'Service', _noms_par_id(ctx['services'])),
+            ('sector', 'Secteur', _noms_par_id(ctx['sectors'])),
+            ('section', 'Section', _noms_par_id(ctx['sections'])),
+            ('type', 'Type', _noms_par_id(ctx['types'])),
+            ('status', 'Statut', dict(Asset.STATUS)),
+        ])
         # Navigation par dossiers
         current_folder_id = self.request.GET.get('folder')
         current_folder = AssetFolder.objects.filter(pk=current_folder_id).select_related('parent').first() if current_folder_id else None
@@ -380,9 +434,9 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 )
             elif action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
-                loc = Location.objects.filter(pk=loc_id).first()
+                loc = Location.objects.filter(pk=entier_ou_none(loc_id)).first()
                 return _appliquer_bulk_update(
-                    request, assets, 'location', loc,
+                    request, _restreindre_au_navire_de_emplacement(request, assets, loc), 'location', loc,
                     action_audit='bulk_update_asset_location', detail_audit=f'location_id={loc_id}',
                     message_succes='Emplacement mis à jour pour {count} matériel(s).',
                     redirect_url_name='asset-list',
@@ -439,8 +493,11 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # _peut_gerer_materiel, sous peine de rendre la configuration sans
             # effet réel sur cette action (bug corrigé après refus du Tech Lead).
             name = request.POST.get('name', '').strip()
-            parent_id = request.POST.get('parent_id')
+            parent_id = entier_ou_none(request.POST.get('parent_id'))
             parent = AssetFolder.objects.filter(pk=parent_id).first() if parent_id else None
+            if parent and _materiel_hors_perimetre(request.user, parent):
+                messages.error(request, "Ce dossier contient du matériel hors de votre périmètre.")
+                return _redirect_liste_materiel(request)
             if name:
                 photo = request.FILES.get('photo')
                 erreur_photo = message_erreur_fichier(photo, valider_photo)
@@ -458,10 +515,13 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 AuditLog.objects.create(actor=request.user, action='create_asset_folder', details=f'name={name}')
             return _redirect_liste_materiel(request)
         if action == 'rename_folder':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             name = request.POST.get('name', '').strip()
             try:
                 fld = AssetFolder.objects.get(pk=pk)
+                if not _dossier_gerable(request.user, fld):
+                    messages.error(request, "Ce dossier ne relève pas de votre périmètre.")
+                    return _redirect_liste_materiel(request)
                 if name:
                     fld.name = name
                     fld.save(update_fields=['name'])
@@ -471,8 +531,15 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 messages.error(request, 'Dossier introuvable.')
             return _redirect_liste_materiel(request)
         if action == 'delete_folder':
-            pk = request.POST.get('pk')
-            AssetFolder.objects.filter(pk=pk).delete()
+            pk = entier_ou_none(request.POST.get('pk'))
+            fld = AssetFolder.objects.filter(pk=pk).first()
+            if fld is None:
+                messages.error(request, 'Dossier introuvable.')
+                return _redirect_liste_materiel(request)
+            if not _dossier_gerable(request.user, fld):
+                messages.error(request, "Ce dossier ne relève pas de votre périmètre.")
+                return _redirect_liste_materiel(request)
+            fld.delete()
             AuditLog.objects.create(actor=request.user, action='delete_asset_folder', details=f'id={pk}')
             messages.success(request, 'Dossier supprimé.')
             return _redirect_liste_materiel(request)
@@ -628,6 +695,15 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 asset.local = request.POST.get('local', asset.local).strip()
                 asset.status = request.POST.get('status', asset.status)
                 asset.criticality = int(request.POST.get('criticality') or asset.criticality)
+                try:
+                    for nom in ('date_mise_en_service', 'date_dernier_controle', 'date_peremption'):
+                        setattr(asset, nom, date_fr_ou_none(request.POST.get(nom, formater_date_fr(getattr(asset, nom)))))
+                except ValueError:
+                    messages.error(request, "Date invalide : saisissez jj/mm/aaaa.")
+                    return _redirect_liste_materiel(request)
+                if asset.date_mise_en_service and asset.date_peremption and asset.date_peremption < asset.date_mise_en_service:
+                    messages.error(request, "La péremption ne peut pas précéder la mise en service.")
+                    return _redirect_liste_materiel(request)
                 type_id = request.POST.get('asset_type_id')
                 if type_id:
                     try:
@@ -681,3 +757,28 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             except Asset.DoesNotExist:
                 messages.error(request, 'Matériel introuvable.')
         return _redirect_liste_materiel(request)
+
+
+class _CommentaireFicheView(LoginRequiredMixin, ScopedQuerySetMixin, SingleObjectMixin, View):
+    """Ajoute un commentaire au fil de discussion d'une fiche, dans le même périmètre que la fiche."""
+    nom_fiche = ""
+
+    def post(self, request, *args, **kwargs):
+        fiche = self.get_object()
+        corps = request.POST.get('body', '').strip()
+        if not corps:
+            messages.error(request, "Le commentaire ne peut pas être vide.")
+        else:
+            ajouter_commentaire(fiche, request.user, corps)
+            messages.success(request, "Commentaire ajouté.")
+        return redirect(self.nom_fiche, pk=fiche.pk)
+
+
+class AssetCommentCreateView(_CommentaireFicheView):
+    model = Asset
+    nom_fiche = 'asset-detail'
+
+
+class InstallationCommentCreateView(_CommentaireFicheView):
+    model = Installation
+    nom_fiche = 'installation-detail'

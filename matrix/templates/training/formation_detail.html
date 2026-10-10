@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load icones %}
+{% block content %}
+<nav class="small mb-2" aria-label="Fil d'Ariane"><a href="{% url 'formation-list' %}">Formations</a></nav>
+{% include "components/fiche_entete.html" with titre=formation.title sous_titre=formation.category|default:"Non catégorisée" badge_libelle=formation.mon_etat_libelle badge_etat=formation.mon_etat action=action_principale menu=menu_fiche menu_libelle="Autres actions sur cette formation" indicateurs=indicateurs_fiche objet=formation %}
+
+{% if formation.prerequis_manquants %}
+<div class="mx-derive mb-3">
+  <span>{% icone "verrouille" %} Prérequis à valider avant de suivre cette formation :
+  {% for p in formation.prerequis_manquants %}<a href="{% url 'formation-detail' p.pk %}">{{ p.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</span>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Sessions à venir</h2>
+      {% for s in formation.sessions_a_venir %}
+      <div class="mx-formation-session">
+        <div>
+          <div class="font-mono">{{ s.scheduled_at|date:"d/m/Y à H:i" }}{% if s.location %} — {{ s.location }}{% endif %}</div>
+          {% if s.capacite_max %}
+            {% with restantes=s.places_restantes %}
+              {% if restantes > 0 %}
+                <div class="small text-muted">{{ restantes }} place(s) restante(s) sur {{ s.capacite_max }}</div>
+              {% else %}
+                <div class="small text-danger">Session complète ({{ s.capacite_max }} place(s))</div>
+              {% endif %}
+            {% endwith %}
+            {% if s.nb_en_attente %}<div class="small text-muted font-mono">{{ s.nb_en_attente }} en liste d'attente</div>{% endif %}
+            {% if s.mon_entree_attente %}<div class="mt-1"><span class="mx-badge mx-badge--attention">{% icone "anomalie" %} Position {{ s.ma_position_attente }} sur liste d'attente</span></div>{% endif %}
+          {% endif %}
+          {% if s.deja_reserve %}<div class="mt-1">{% include "components/badge_etat.html" with etat="ok" libelle="Place réservée" %}</div>{% endif %}
+        </div>
+        {% if not equipage_a_terre %}
+        <form method="post" action="{% url 'formation-list' %}"{% if s.action_principale %} id="reserver-{{ s.id }}"{% endif %} class="flex-shrink-0">
+          {% csrf_token %}
+          <input type="hidden" name="session_id" value="{{ s.id }}">
+          {% if s.deja_reserve %}
+            <input type="hidden" name="action" value="annuler_reservation">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Annuler ma réservation</button>
+          {% elif s.mon_entree_attente and s.places_restantes > 0 %}
+            <div class="d-flex flex-column align-items-end gap-1">
+              <button type="submit" name="action" value="reserver_session" class="btn btn-outline-primary btn-sm">Réserver ma place</button>
+              <button type="submit" name="action" value="quitter_liste_attente" class="btn btn-link btn-sm text-muted p-0">Quitter la liste d'attente</button>
+            </div>
+          {% elif s.mon_entree_attente %}
+            <input type="hidden" name="action" value="quitter_liste_attente">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Quitter la liste d'attente</button>
+          {% elif formation.prerequis_manquants %}
+            <span class="small text-muted">Prérequis manquants</span>
+          {% else %}
+            <input type="hidden" name="action" value="reserver_session">
+            <button type="submit" class="btn btn-outline-primary btn-sm">{% if s.capacite_max and s.places_restantes == 0 %}Rejoindre la liste d'attente{% else %}Réserver ma place{% endif %}</button>
+          {% endif %}
+        </form>
+        {% endif %}
+        {% if peut_valider and not equipage_a_terre %}
+        <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1 mt-2 w-100">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="affecter_session">
+          <input type="hidden" name="session_id" value="{{ s.id }}">
+          <select name="marin_id" class="form-select form-select-sm" required aria-label="Marin à affecter">
+            <option value="">Affecter un marin...</option>
+            {% for m in marins %}<option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="btn btn-outline-secondary btn-sm flex-shrink-0" {% if s.capacite_max and s.places_restantes == 0 %}disabled{% endif %}>Affecter</button>
+        </form>
+        {% endif %}
+      </div>
+      {% empty %}
+      {% include "components/etat_vide.html" with icone="calendrier" titre="Aucune session prévue" texte="Une session apparaîtra ici dès qu'elle sera planifiée." %}
+      {% endfor %}
+    </section>
+
+    {% if formation.dernieres_validations %}
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Dernières validations</h2>
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Marin</th><th>Validée le</th><th>Expire le</th><th>Statut</th></tr></thead>
+        <tbody>
+          {% for r in formation.dernieres_validations %}
+          <tr>
+            <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+            <td class="font-mono">{{ r.completed_at|date:"d/m/Y" }}</td>
+            <td class="font-mono">{{ r.expires_at|date:"d/m/Y" }}</td>
+            <td>{% if r.expires_at >= aujourdhui %}{% include "components/badge_etat.html" with etat="ok" libelle="À jour" %}{% else %}{% include "components/badge_etat.html" with etat="danger" libelle="Expirée" %}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Description</h2>
+      {% if formation.description %}<p>{{ formation.description }}</p>{% else %}<p class="text-muted">Aucune description renseignée.</p>{% endif %}
+      <dl class="mx-synthese mb-0">
+        <dt>Barème</dt>
+        <dd>{% if formation.bareme %}<a href="{{ formation.bareme.url }}" target="_blank">Voir le barème</a>{% else %}<span class="text-muted">Aucun</span>{% endif %}</dd>
+        <dt>Prérequis</dt>
+        <dd>{% for p in formation.prerequisites.all %}<a href="{% url 'formation-detail' p.pk %}">{{ p.title }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">Aucun</span>{% endfor %}</dd>
+        <dt>Référents (votre unité)</dt>
+        <dd>{% for r in formation.mes_referents %}{{ r.get_full_name|default:r.username }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">Aucun désigné</span>{% endfor %}</dd>
+        {% if formation.gere_par_le_bord %}<dt>Gestion</dt><dd>Géré par le bord</dd>{% endif %}
+      </dl>
+    </section>
+
+    {% if not equipage_a_terre %}
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Candidature</h2>
+      {% if formation.ma_candidature %}
+        <p class="mb-0">
+        {% if formation.ma_candidature.statut == "PENDING_APPROVAL" %}{% include "components/badge_etat.html" with etat="attention" libelle="En attente de validation" %}
+        {% elif formation.ma_candidature.statut == "TRANSMITTED" %}{% include "components/badge_etat.html" with etat="attention" libelle="Transmise à l'organisme" %}
+        {% elif formation.ma_candidature.statut == "SELECTED" %}{% include "components/badge_etat.html" with etat="ok" libelle="Sélectionnée" %}
+        {% else %}{% include "components/badge_etat.html" with etat="danger" libelle=formation.ma_candidature.get_statut_display %}{% endif %}
+        </p>
+      {% else %}
+        <form method="post" action="{% url 'formation-list' %}" id="candidater-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="candidater_formation">
+          <input type="hidden" name="course_id" value="{{ formation.id }}">
+          <button type="submit" class="btn btn-outline-primary btn-sm">Candidater à ce stage</button>
+        </form>
+      {% endif %}
+    </section>
+
+    {% if peut_demander_places %}
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Demander des places</h2>
+      <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="demander_places">
+        <input type="hidden" name="course_id" value="{{ formation.id }}">
+        <input type="number" min="1" name="nb_places_demandees" class="form-control form-control-sm" placeholder="Nb places" aria-label="Nombre de places" style="width:6rem;" required>
+        <button type="submit" class="btn btn-outline-primary btn-sm flex-shrink-0">Demander des places</button>
+      </form>
+    </section>
+    {% endif %}
+
+    {% if peut_gerer_prerequis or formation.gere_par_le_bord and peut_proposer_formation_bord %}
+    <section class="mx-surface mb-3">
+      <h2 class="mx-surface__titre">Gestion</h2>
+      <div class="d-flex flex-wrap gap-2">
+        {% if peut_gerer_prerequis %}
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#prerequisitesModal"
+                  data-pk="{{ formation.id }}" data-title="{{ formation.title }}"
+                  data-category="{{ formation.category }}"
+                  data-has-bareme="{% if formation.bareme %}1{% else %}0{% endif %}"
+                  data-selected="{% for p in formation.prerequisites.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                  data-referents-selected="{% for r in formation.mes_referents %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+            {% icone "modification" %} Modifier
+          </button>
+        {% endif %}
+        {% if formation.gere_par_le_bord and peut_proposer_formation_bord %}
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#proposerFormationBordModal"
+                  data-pk="{{ formation.id }}" data-title="{{ formation.title }}" data-description="{{ formation.description }}"
+                  data-category="{{ formation.category }}" data-validity="{{ formation.validity_days }}"
+                  data-has-bareme="{% if formation.bareme %}1{% else %}0{% endif %}">
+            {% icone "modification" %} Modifier (bord)
+          </button>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if not equipage_a_terre %}{% include "training/_modales.html" %}{% endif %}
+{% endblock %}

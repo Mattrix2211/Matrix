@@ -16,7 +16,7 @@ from accounts.models import Roles, UserProfile
 from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket, PartRequest
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
-from org.models import Equipage, Sector, Service, Ship
+from org.models import Sector, Service, Ship
 from threads.models import Attachment, Message, Thread
 from training.models import ReferentFormation, TrainingCourse, TrainingRecord, TrainingSession
 
@@ -310,8 +310,6 @@ class ProfilCleServeurTests(BaseApi):
         super().setUp()
         self.admin_a = _utilisateur("admin_a_sec", Roles.ADMIN_NAVIRE, ship=self.ship_a)
         self.client_admin = self._client("admin_a_sec")
-        self.equipage_a = Equipage.objects.create(ship=self.ship_a, nom="Bleu")
-        self.equipage_b = Equipage.objects.create(ship=self.ship_b, nom="Rouge")
         self.profil = self.autre.profile
 
     def _patch(self, client, donnees):
@@ -323,17 +321,11 @@ class ProfilCleServeurTests(BaseApi):
         self.profil.refresh_from_db()
         self.assertEqual(self.profil.role, Roles.EQUIPIER)
 
-    def test_equipage_d_un_autre_navire_refuse(self):
-        r = self._patch(self.client_admin, {"role": Roles.EQUIPIER, "equipage": self.equipage_b.pk})
-        self.assertEqual(r.status_code, 400)
-        self.profil.refresh_from_db()
-        self.assertIsNone(self.profil.equipage)
-
-    def test_equipage_du_bon_navire_accepte(self):
-        r = self._patch(self.client_admin, {"role": Roles.EQUIPIER, "equipage": self.equipage_a.pk})
+    def test_code_d_equipage_accepte_pour_un_marin_de_son_navire(self):
+        r = self._patch(self.client_admin, {"role": Roles.EQUIPIER, "equipage": "A"})
         self.assertEqual(r.status_code, 200, r.content)
         self.profil.refresh_from_db()
-        self.assertEqual(self.profil.equipage, self.equipage_a)
+        self.assertEqual(self.profil.equipage, "A")
 
     def test_compte_lie_et_secteurs_autorises_non_modifiables(self):
         r = self._patch(

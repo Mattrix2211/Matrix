@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
 from .models import Ship, Service, Sector, Section, SectorConfig
 from .serializers import ShipSerializer, ServiceSerializer, SectorSerializer, SectionSerializer, SectorConfigSerializer
+from matrix.core.equipage import tracer_changement_equipage
 from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -55,7 +56,13 @@ class ShipViewSet(viewsets.ModelViewSet):
             user_ship_id = _user_ship_id(self.request.user)
             if not user_ship_id or instance.id != user_ship_id:
                 raise PermissionDenied("Vous ne pouvez modifier que votre unité.")
-        serializer.save()
+        navire = serializer.instance
+        avant = (navire.double_equipage, navire.equipage_a_bord)
+        nouvel = serializer.validated_data.get("equipage_a_bord", navire.equipage_a_bord)
+        if nouvel != navire.equipage_a_bord:
+            raise PermissionDenied("L'équipage à bord change par une relève validée par les deux commandants.")
+        navire = serializer.save()
+        tracer_changement_equipage(self.request.user, navire, avant)
 
     def perform_destroy(self, instance):
         # Suppression d'un navire réservée à l'administrateur général : cette

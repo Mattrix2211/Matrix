@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import ServiceFunctionChoice, UserProfile
-from org.models import CommandantAdjoint, Equipage, Ship
+from org.models import Ship
 from quarts.models import (
     CreneauServiceGarde,
     FeuilleService,
@@ -24,8 +24,7 @@ from quarts.services import feuille_service_du_jour_pour
 class FeuilleServiceParEquipageTests(TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="FREMM Feuille", code="FF", classe_navire="FREMM", double_equipage=True)
-        self.bleu = Equipage.objects.create(ship=self.ship, nom="Bleu")
-        self.rouge = Equipage.objects.create(ship=self.ship, nom="Rouge")
+        self.bleu, self.rouge = "A", "B"
         self.ship.equipage_a_bord = self.bleu
         self.ship.save()
         self.fonction = FonctionFeuilleService.objects.create(ship=self.ship, libelle="Officier de garde", ordre=1)
@@ -33,16 +32,14 @@ class FeuilleServiceParEquipageTests(TestCase):
         self.jour = timezone.localdate()
         self.marin_bleu = self._marin("marin_bleu", "EQUIPIER", self.bleu)
         self.marin_rouge = self._marin("marin_rouge", "EQUIPIER", self.rouge)
-        self.comaeq_bleu = self._marin("comaeq_bleu", "ETAT_MAJOR", self.bleu)
-        self.comaeq_rouge = self._marin("comaeq_rouge", "ETAT_MAJOR", self.rouge)
-        CommandantAdjoint.objects.create(ship=self.ship, equipage=self.bleu, sigle="COMAEQ", titulaire=self.comaeq_bleu)
-        CommandantAdjoint.objects.create(ship=self.ship, equipage=self.rouge, sigle="COMAEQ", titulaire=self.comaeq_rouge)
+        self.comaeq_bleu = self._marin("comaeq_bleu", "ETAT_MAJOR", self.bleu, "COMAEQ")
+        self.comaeq_rouge = self._marin("comaeq_rouge", "ETAT_MAJOR", self.rouge, "COMAEQ")
         self.url = f"/quarts/feuille-service/{self.ship.pk}/{self.jour.isoformat()}/"
 
-    def _marin(self, username, role, equipage):
+    def _marin(self, username, role, equipage, fonction_coma=""):
         user = User.objects.create_user(username=username, password="pass")
         UserProfile.objects.update_or_create(
-            user=user, defaults={"role": role, "ship": self.ship, "equipage": equipage}
+            user=user, defaults={"role": role, "ship": self.ship, "equipage": equipage, "fonction_coma": fonction_coma}
         )
         return User.objects.get(pk=user.pk)
 
@@ -79,7 +76,7 @@ class FeuilleServiceParEquipageTests(TestCase):
         UserProfile.objects.update_or_create(user=marin, defaults={"role": "EQUIPIER", "ship": unique})
         self.client.force_login(marin)
         self.client.post(f"/quarts/feuille-service/{unique.pk}/{self.jour.isoformat()}/", {"action": "creer"})
-        self.assertIsNone(FeuilleService.objects.get().equipage)
+        self.assertEqual(FeuilleService.objects.get().equipage, "")
 
     def test_creation_via_la_vue_rattache_a_l_equipage_du_redacteur(self):
         self.ship.equipage_a_bord = self.rouge
@@ -95,7 +92,7 @@ class FeuilleServiceParEquipageTests(TestCase):
         self.client.force_login(self.marin_bleu)
         reponse = self.client.get(self.url)
         self.assertIsNone(reponse.context["feuille"])
-        self.assertContains(reponse, "équipage Bleu")
+        self.assertContains(reponse, "équipage A")
 
     def test_validateurs_a_notifier_limites_a_l_equipage(self):
         feuille = FeuilleService.objects.create(
@@ -126,43 +123,3 @@ class FeuilleServiceParEquipageTests(TestCase):
         reponse = self.client.post(self.url, {"action": "creer"})
         self.assertEqual(reponse.status_code, 302)  # refus par le mode lecture seule
         self.assertFalse(FeuilleService.objects.exists())
-
-
-from django.db import connection  # noqa: E402
-from django.db.migrations.executor import MigrationExecutor  # noqa: E402
-from django.test import TransactionTestCase  # noqa: E402
-
-
-class MigrationFeuillesExistantesTests(TransactionTestCase):
-    """Migration quarts 0006 : les feuilles déjà rédigées sur un bâtiment à
-    double équipage sont rattachées à l'équipage à bord ; celles d'un
-    bâtiment à équipage unique restent sans équipage."""
-
-    avant = [("quarts", "0005_feuilleservice_fonctionfeuilleservice_and_more"), ("org", "0013_synthese_passation")]
-    apres = [("quarts", "0006_feuille_service_par_equipage"), ("org", "0013_synthese_passation")]
-
-    def tearDown(self):
-        MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
-
-    def test_feuilles_preexistantes_rattachees_a_l_equipage_a_bord(self):
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.avant)
-        anciennes = executor.loader.project_state(self.avant).apps
-        Ship_ = anciennes.get_model("org", "Ship")
-        Equipage_ = anciennes.get_model("org", "Equipage")
-        Feuille_ = anciennes.get_model("quarts", "FeuilleService")
-        double = Ship_.objects.create(name="D", code="DD", classe_navire="FREMM", double_equipage=True)
-        bleu = Equipage_.objects.create(ship=double, nom="Bleu")
-        double.equipage_a_bord = bleu
-        double.save()
-        simple = Ship_.objects.create(name="S", code="SS", classe_navire="FREMM")
-        jour = timezone.localdate()
-        f_double = Feuille_.objects.create(ship=double, date=jour)
-        f_simple = Feuille_.objects.create(ship=simple, date=jour)
-
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.apres)
-        nouvelles = executor.loader.project_state(self.apres).apps
-        Feuille_ = nouvelles.get_model("quarts", "FeuilleService")
-        self.assertEqual(Feuille_.objects.get(pk=f_double.pk).equipage_id, bleu.pk)
-        self.assertIsNone(Feuille_.objects.get(pk=f_simple.pk).equipage_id)

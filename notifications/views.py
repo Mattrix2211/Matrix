@@ -8,17 +8,13 @@ class DefaultPermission(permissions.IsAuthenticated):
     pass
 
 class NotificationViewSet(
-    mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    viewsets.GenericViewSet,
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
 ):
-    """Lecture et marquage lu uniquement : pas de création ni de suppression
-    par l'API, pas de remplacement complet (PUT)."""
+    # Pas de création ni de suppression par l'API ; POST sert à mark_all_read
+    http_method_names = ["get", "patch", "post", "head", "options"]
     queryset = Notification.objects.select_related("user").all()
     serializer_class = NotificationSerializer
     permission_classes = [DefaultPermission]
-    http_method_names = ["get", "patch", "post", "head", "options"]
 
     def get_queryset(self):
         # Limite les notifications à l'utilisateur courant, pour la confidentialité

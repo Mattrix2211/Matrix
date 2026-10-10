@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from assets.models import Installation
 from notifications.models import Notification, NotificationLevel
 from notifications.utils import human_delta
-from org.equipages import marin_hors_equipage_a_bord
+from matrix.core.equipage import equipage_a_terre_lecture_seule
 
 User = get_user_model()
 
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         def notifier(inst, verb, level):
             nonlocal created
             for u in users:
-                if marin_hors_equipage_a_bord(u, inst.ship):
+                if equipage_a_terre_lecture_seule(u):
                     # Double équipage : l'équipage à terre n'est pas alerté.
                     continue
                 pref =getattr(getattr(u, 'profile', None), 'notification_time', None)

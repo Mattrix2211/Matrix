@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from accounts.models import ServiceFunctionChoice, UserProfile
 from notifications.models import Notification
-from org.models import CommandantAdjoint, Sector, Service, Ship
+from org.models import Sector, Service, Ship
 from quarts.models import (
     CreneauServiceGarde,
     FeuilleService,
@@ -58,7 +58,7 @@ class FeuilleServiceTestsBase(TestCase):
         self.etat_major_autre_navire = _utilisateur("etat_major_autre", "ETAT_MAJOR", ship=self.autre_ship)
         self.commandant = _utilisateur("commandant", "COMMANDANT", ship=self.ship)
         self.marin_service = _utilisateur("marin_service", "EQUIPIER", ship=self.ship)
-        CommandantAdjoint.objects.create(ship=self.ship, sigle="COMAEQ", titulaire=self.etat_major)
+        UserProfile.objects.filter(user=self.etat_major).update(fonction_coma="COMAEQ")
 
         self.fonction = FonctionFeuilleService.objects.create(
             ship=self.ship, libelle="Officier de garde", ordre=1

@@ -76,7 +76,7 @@ class SessionAppareillage(TimeStampedModel, OwnedModel):
 
 class ItemAppareillage(TimeStampedModel):
     """Item à vérifier dans une session d'appareillage : généré une seule fois
-    à l'ouverture de la session (cf. dashboard.pret_appareillage_views._points_de_vigilance_navire),
+    à l'ouverture de la session (cf. dashboard.web_views._points_de_vigilance_navire),
     jamais recalculé ensuite — l'état constaté à l'ouverture reste la référence
     même si la situation évolue en base pendant la préparation.
 

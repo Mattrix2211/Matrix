@@ -1,6 +1,5 @@
 from django.views import View
 from django.views.generic import ListView
-from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
@@ -17,7 +16,7 @@ from .models import (
 )
 from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q, utilisateurs_visibles_par
 from matrix.core.validators import valider_photo, message_erreur_fichier
 from matrix.core.scopes import equipage_marin_q, scope_filters_for_user
 from notifications.models import Notification
@@ -33,9 +32,8 @@ from matrix.core.export import (
 from accounts.models import AuditLog
 from org.models import Sector, Section
 from assets.models import Asset, Installation
-from threads.utils import ajouter_commentaire, commentaires_de
+from threads.utils import ajouter_commentaire, contexte_discussion
 
-User = get_user_model()
 
 
 def _secteur_dans_perimetre(user, sector_id):
@@ -104,19 +102,6 @@ class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         return ctx
 
 
-def _ship_du_profil_q(ship_id):
-    """Filtre les utilisateurs dont le profil appartient au navire donné, quel
-    que soit le niveau de périmètre auquel leur profil est réellement scopé
-    (ship directement, ou service/sector/section dont on remonte jusqu'au
-    navire) — un profil scopé au secteur n'a jamais profile.ship renseigné
-    directement, contrairement à profile.service/sector/section."""
-    return (
-        Q(profile__ship_id=ship_id)
-        | Q(profile__service__ship_id=ship_id)
-        | Q(profile__sector__service__ship_id=ship_id)
-        | Q(profile__section__sector__service__ship_id=ship_id)
-    )
-
 _ENTETES_EXPORT_STOCK = [
     'Référence', 'Désignation', 'NNO', 'Quantité', 'Quantité minimale', 'Seuil critique', 'Emplacement',
     'Unité', 'Service', 'Secteur', 'Section',
@@ -144,6 +129,52 @@ def _lignes_export_stock(qs):
     ]
 
 
+# Frise du workflow (docs/UX.md §20.2) ; PLANNED, BLOCKED et CANCELLED restent hors frise.
+FRISE_TICKET = [
+    ("REPORTED", "Signalé"), ("DIAGNOSED", "Diagnostiqué"), ("WAITING_PARTS", "Pièces"),
+    ("IN_REPAIR", "Réparation"), ("TESTING", "Essais"), ("RETURNED_TO_SERVICE", "Remise en service"),
+    ("CLOSED", "Clôture"),
+]
+# Étape suivante proposée selon le statut actuel : (statut cible, libellé du bouton).
+ACTION_SUIVANTE_TICKET = {
+    "REPORTED": ("DIAGNOSED", "Passer au diagnostic"),
+    "DIAGNOSED": ("IN_REPAIR", "Lancer la réparation"),
+    "WAITING_PARTS": ("IN_REPAIR", "Pièces reçues : lancer la réparation"),
+    "PLANNED": ("IN_REPAIR", "Lancer la réparation"),
+    "IN_REPAIR": ("TESTING", "Passer aux essais"),
+    "TESTING": ("RETURNED_TO_SERVICE", "Remettre en service"),
+    "RETURNED_TO_SERVICE": ("CLOSED", "Clôturer le ticket"),
+}
+
+
+def contexte_statut_ticket(ticket, user, erreur_fermeture=None):
+    """Contexte de la zone workflow (frise + action suivante). L'action n'est proposée
+    qu'à qui peut réellement changer le statut (même seuil que TicketTransitionView)."""
+    rang = {code: i for i, (code, _) in enumerate(FRISE_TICKET)}
+    rang["PLANNED"] = rang["WAITING_PARTS"] + 0.5
+    actuel = rang.get(ticket.status)
+    frise = []
+    for code, libelle in FRISE_TICKET:
+        if ticket.status == "CLOSED" or (actuel is not None and rang[code] < actuel):
+            etat = "faite"
+        elif code == ticket.status:
+            etat = "actuelle"
+        else:
+            etat = "avenir"
+        frise.append({"libelle": libelle, "etat": etat})
+    peut_changer = user_role_level(user) >= RoleLevel.CHEF_SECTION
+    cible = ACTION_SUIVANTE_TICKET.get(ticket.status) if peut_changer else None
+    return {
+        "ticket": ticket,
+        "frise": frise,
+        "statut_hors_frise": ticket.status not in dict(FRISE_TICKET),
+        "statuts_ticket": CorrectiveTicket.STATUS,
+        "peut_changer_statut": peut_changer,
+        "action_suivante": {"cible": cible[0], "libelle": cible[1]} if cible else None,
+        "erreur_fermeture": erreur_fermeture,
+    }
+
+
 class TicketDetailView(LoginRequiredMixin, View):
     """Fiche détail d'un ticket correctif — lecture (dont les commentaires de
     suivi) restreinte au périmètre du matériel concerné, même filtre que
@@ -166,9 +197,19 @@ class TicketDetailView(LoginRequiredMixin, View):
             "ticket": ticket,
             "part_requests": part_requests,
             "peut_assigner": user_role_level(request.user) >= RoleLevel.CHEF_SECTION,
-            "commentaires": commentaires_de(ticket),
-            "commentaire_action_url": reverse('ticket-comment-create', args=[ticket.pk]),
+            **contexte_statut_ticket(ticket, request.user),
+            **contexte_discussion(ticket, 'ticket-comment-create'),
         }
+        actif = ticket.installation or ticket.asset
+        url_actif = reverse('installation-detail' if ticket.installation else 'asset-detail', args=[actif.pk])
+        contexte["titre_fiche"] = ticket.installation.designation if ticket.installation else str(ticket.asset)
+        # L'action principale est l'étape suivante, au centre de la fiche (zone workflow), pas dans l'en-tête.
+        contexte["menu_fiche"] = [{"libelle": "Voir la fiche de l'actif", "icone": "materiel", "url": url_actif}]
+        contexte["indicateurs_fiche"] = [
+            {"libelle": "Gravité", "valeur": f"{ticket.severity}/5",
+             "etat": "danger" if ticket.severity >= 4 else "attention" if ticket.severity == 3 else "ok"},
+            {"libelle": "Signalé le", "valeur": timezone.localtime(ticket.reported_at).strftime("%d/%m/%Y")},
+        ]
         # Prélèvement de stock en un clic (T-FEAT) : réservé à CHEF_SECTION et
         # au-dessus, même seuil que l'assignation et les autres actions
         # d'écriture du module. La liste proposée ne montre que les pièces du
@@ -181,14 +222,11 @@ class TicketDetailView(LoginRequiredMixin, View):
             pieces_qs = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
             contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
         if contexte["peut_assigner"]:
-            # Utilisateurs assignables : l'équipage du navire portant l'actif en
-            # panne — un chef choisit ensuite librement parmi eux. Le navire de
-            # l'utilisateur peut être porté directement par son profil (profile.ship)
-            # ou déduit de son périmètre plus fin (service/secteur/section), un
-            # profil scopé au secteur n'ayant jamais ship renseigné directement.
-            contexte["utilisateurs_assignables"] = User.objects.filter(
-                _ship_du_profil_q(ticket.equipement.ship_id), equipage_marin_q(request.user)
-            ).select_related("profile").order_by("username").distinct()
+            # Assignables : le périmètre hiérarchique du chef (navire entier dès COMMANDANT), comme l'API.
+            contexte["utilisateurs_assignables"] = (
+                utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user))
+                .select_related("profile").order_by("username").distinct()
+            )
         return render(request, self.template_name, contexte)
 
 
@@ -280,12 +318,8 @@ class TicketAssignView(LoginRequiredMixin, View):
             return HttpResponseBadRequest('Ticket introuvable')
         anciens_assignes = set(ticket.assignees.all())
         ids = request.POST.getlist('assignees')
-        # On ne retient que des utilisateurs de l'équipage du navire de l'actif
-        # concerné, même filtre que le formulaire (contournement d'un POST direct).
-        # Double équipage : uniquement des marins de l'équipage de l'appelant.
-        utilisateurs = list(User.objects.filter(
-            _ship_du_profil_q(ticket.equipement.ship_id), equipage_marin_q(request.user), pk__in=ids
-        ))
+        # Même filtre que le formulaire (contournement d'un POST direct).
+        utilisateurs = list(utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user), pk__in=ids).distinct())
         ticket.assignees.set(utilisateurs)
 
         # Notifie uniquement les marins nouvellement assignés (pas ceux déjà
@@ -340,8 +374,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
             erreur_fermeture = "Mot de passe incorrect : la remise en service n'a pas été validée."
             messages.error(request, erreur_fermeture)
             if request.headers.get('HX-Request'):
-                part_requests = ticket.part_requests.prefetch_related('lines').all()
-                return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+                return render(request, 'logistics/_status.html', contexte_statut_ticket(ticket, request.user, erreur_fermeture))
             return redirect('ticket-detail', pk=ticket.pk)
 
         diagnostic_final = request.POST.get('diagnostic_final', '').strip()
@@ -379,8 +412,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
             )
 
         if request.headers.get('HX-Request'):
-            part_requests = ticket.part_requests.prefetch_related('lines').all()
-            return render(request, 'logistics/_status.html', {"ticket": ticket, "part_requests": part_requests, "erreur_fermeture": erreur_fermeture})
+            return render(request, 'logistics/_status.html', contexte_statut_ticket(ticket, request.user, erreur_fermeture))
         return redirect('ticket-detail', pk=ticket.pk)
 
 

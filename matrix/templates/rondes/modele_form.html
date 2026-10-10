@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">{% if modele %}{{ modele.nom }}{% else %}Nouveau modèle de ronde{% endif %}</h1>
@@ -42,7 +43,7 @@
     <div class="d-flex gap-1">
       <form method="post" action="{% url 'ronde-point' modele.pk p.pk 'monter' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Monter" aria-label="Monter" type="submit"><span class="bi bi-arrow-up"></span></button></form>
       <form method="post" action="{% url 'ronde-point' modele.pk p.pk 'descendre' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" title="Descendre" aria-label="Descendre" type="submit"><span class="bi bi-arrow-down"></span></button></form>
-      <form method="post" action="{% url 'ronde-point' modele.pk p.pk 'supprimer' %}" onsubmit="return confirm('Supprimer ce point ?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Supprimer" aria-label="Supprimer" type="submit"><span class="bi bi-trash"></span></button></form>
+      <form method="post" action="{% url 'ronde-point' modele.pk p.pk 'supprimer' %}" onsubmit="return confirm('Supprimer ce point ?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" title="Supprimer" aria-label="Supprimer" type="submit">{% icone "suppression" %}</button></form>
     </div>
     {% endif %}
   </div>

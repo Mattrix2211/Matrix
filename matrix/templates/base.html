@@ -2,8 +2,9 @@
 {% load dashboard_extras %}
 {% load asset_extras %}
 {% load org_extras %}
+{% load composants %}
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="{{ theme_utilisateur|default:'clair' }}"{% if theme_utilisateur == 'sombre' %} data-bs-theme="dark"{% endif %}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,10 +21,12 @@
     <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/fonts.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
+    <link rel="stylesheet" href="{% static 'css/impression.css' %}" media="print">
     <script src="{% static 'vendor/htmx/htmx.min.js' %}"></script>
     <script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
+    <script src="{% static 'js/theme.js' %}"></script>
   </head>
-  <body class="bg-light text-dark">
+  <body>
     {# Conteneur global de toasts #}
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
       {% if messages %}
@@ -37,312 +40,29 @@
         {% endfor %}
       {% endif %}
     </div>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div class="container-fluid">
-        <a class="navbar-brand matrix-logo" href="/" aria-label="Matrix — accueil">
-          <img class="matrix-logo__img" src="{% static 'img/IMG_5292.PNG' %}" alt="Matrix">
-          <svg class="matrix-logo__badge" viewBox="0 0 28 28" aria-hidden="true">
-            {# Pictogramme ancre — MK Design System §9 : flat, --signal, trait ~2px, stroke-linecap round #}
-            <circle cx="14" cy="14" r="14" fill="var(--paper)"></circle>
-            <g fill="none" stroke="var(--signal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="14" cy="7" r="2.2"></circle>
-              <line x1="14" y1="9.2" x2="14" y2="22"></line>
-              <line x1="9" y1="12" x2="19" y2="12"></line>
-              <path d="M7 15c0 4 3 7 7 7s7-3 7-7"></path>
-            </g>
-          </svg>
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Menu">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="nav">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-            <li class="nav-item">
-              <a class="nav-link" href="/" title="Tableau de bord" aria-label="Tableau de bord">
-                <span class="bi bi-speedometer2 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tableau de bord</span>
-              </a>
-            </li>
-            {% if user|module_actif:"assets" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/assets/" title="Matériels" aria-label="Matériels">
-                <span class="bi bi-box-seam nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Matériels</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/installations/" title="Installations" aria-label="Installations">
-                <span class="bi bi-gear-wide-connected nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Installations</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'plan-navire-vue' %}" title="Plan du navire" aria-label="Plan du navire">
-                <span class="bi bi-map nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Plan du navire</span>
-              </a>
-            </li>
-            {% if user|peut_configurer_plan_navire %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'plan-navire-list' %}" title="Configurer le plan du navire" aria-label="Configurer le plan du navire">
-                <span class="bi bi-sliders nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Configurer le plan du navire</span>
-              </a>
-            </li>
-            {% endif %}
-            {% endif %}
-            {% if user|module_actif:"maintenance" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/calendar/?type=maintenance" title="Maintenance" aria-label="Maintenance">
-                <span class="bi bi-tools nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Maintenance</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'maintenance-occurrences' %}" title="Gestion Maintenance" aria-label="Gestion Maintenance">
-                <span class="bi bi-clipboard-check nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Gestion Maintenance</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"logistics" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/logistics/stock/" title="Logistique" aria-label="Logistique">
-                <span class="bi bi-boxes nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Logistique</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/logistics/tickets/" title="Tickets correctifs" aria-label="Tickets correctifs">
-                <span class="bi bi-ticket-perforated nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tickets correctifs</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'anomalie-list' %}" title="Anomalies" aria-label="Anomalies">
-                <span class="bi bi-exclamation-triangle nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Anomalies</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"training" %}
-            <li class="nav-item">
-              <a class="nav-link" href="/formations/" title="Formations" aria-label="Formations">
-                <span class="bi bi-mortarboard nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Formations</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"rondes" %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'rondes-index' %}" title="Rondes" aria-label="Rondes">
-                <span class="bi bi-signpost-split nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Rondes</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"quarts" %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'quarts-index' %}" title="Quarts et gardes" aria-label="Quarts et gardes">
-                <span class="bi bi-clock-history nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Quarts et gardes</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'feuille-service-index' %}" title="Feuille de service" aria-label="Feuille de service">
-                <span class="bi bi-journal-text nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Feuille de service</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|module_actif:"absences" %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'absences-index' %}" title="Mes absences" aria-label="Mes absences">
-                <span class="bi bi-calendar-x nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Mes absences</span>
-              </a>
-            </li>
-            {% endif %}
-            <li class="nav-item">
-              <a class="nav-link" href="/calendar/" title="Calendrier" aria-label="Calendrier">
-                <span class="bi bi-calendar3 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Calendrier</span>
-              </a>
-            </li>
-            {% if user|peut_voir_vue_flotte %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'vue-flotte' %}" title="Vue flotte" aria-label="Vue flotte">
-                <span class="bi bi-diagram-3 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Vue flotte</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|peut_voir_dashboard_specialite %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'dashboard-specialite-choix' %}" title="Tableau de bord spécialité" aria-label="Tableau de bord spécialité">
-                <span class="bi bi-award nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tableau de bord spécialité</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|peut_voir_dashboard_classe_navire %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'dashboard-classe-navire-choix' %}" title="Tableau de bord classe de navire" aria-label="Tableau de bord classe de navire">
-                <span class="bi bi-diagram-2 nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Tableau de bord classe de navire</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|peut_voir_pret_appareillage %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'pret-appareillage' %}" title="Prêt à appareillage" aria-label="Prêt à appareillage">
-                <span class="bi bi-compass nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Prêt à appareillage</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user|peut_gerer_equipages_du_navire %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'equipages' %}" title="Équipages" aria-label="Équipages">
-                <span class="bi bi-people nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Équipages</span>
-              </a>
-            </li>
-            {% endif %}
-            {% if user.is_authenticated %}
-            <li class="nav-item">
-              <a class="nav-link" href="{% if user.is_superuser %}/parametre/{% else %}/parametre/?tab=notifications{% endif %}" title="Paramètres" aria-label="Paramètres">
-                <span class="bi bi-gear nav-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Paramètres</span>
-              </a>
-            </li>
-            {% endif %}
-          </ul>
-          <ul class="navbar-nav ms-auto">
-            {% if user.is_authenticated %}
-              <li class="nav-item dropdown me-2">
-                <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
-                  <span class="bi bi-bell"></span>
-                  {% if notifications_unread_count %}
-                  <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ notifications_unread_count }}</span>
-                  {% endif %}
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end" style="min-width: 360px; max-height: 60vh; overflow:auto;">
-                  <li class="dropdown-header d-flex justify-content-between align-items-center">
-                    <span><span class="bi bi-bell me-1"></span>Notifications</span>
-                    <button class="btn btn-sm btn-outline-secondary" id="notif-mark-all" title="Marquer tout comme lu"><span class="bi bi-check2-all"></span></button>
-                  </li>
-                  <li class="dropdown-item-text d-flex align-items-center justify-content-between border-bottom pb-2 mb-1">
-                    <label class="form-check-label small mb-0" for="push-toggle">Alertes critiques sur cet appareil</label>
-                    <div class="form-check form-switch mb-0">
-                      <input class="form-check-input" type="checkbox" role="switch" id="push-toggle" onclick="event.stopPropagation()">
-                    </div>
-                  </li>
-                  <li id="push-indisponible" class="dropdown-item-text small text-muted d-none">Non disponible sur cet appareil/navigateur.</li>
-                  {% if notifications %}
-                    {% for n in notifications %}
-                      <li>
-                        <div class="dropdown-item d-flex align-items-start gap-2 {% if n.persisted and not n.is_read %}bg-light{% endif %}">
-                          <span class="bi {% if n.level == 'danger' %}bi-exclamation-octagon text-danger{% elif n.level == 'warning' %}bi-exclamation-triangle text-warning{% else %}bi-info-circle text-muted{% endif %}"></span>
-                          <div class="flex-grow-1">
-                            <a class="text-decoration-none" href="{{ n.url }}">
-                              <div class="fw-semibold">{{ n.title }}</div>
-                              <div class="small text-muted">{{ n.subtitle }}</div>
-                            </a>
-                          </div>
-                          {% if n.persisted %}
-                            {% if not n.is_read %}
-                              <button class="btn btn-sm btn-outline-success" data-notif-id="{{ n.id }}" data-action="read" title="Marquer comme lu"><span class="bi bi-check2"></span></button>
-                            {% else %}
-                              <button class="btn btn-sm btn-outline-secondary" data-notif-id="{{ n.id }}" data-action="unread" title="Marquer comme non lu"><span class="bi bi-arrow-counterclockwise"></span></button>
-                            {% endif %}
-                          {% endif %}
-                        </div>
-                      </li>
-                    {% endfor %}
-                  {% else %}
-                    <li><div class="dropdown-item text-muted">Aucune notification</div></li>
-                  {% endif %}
-                </ul>
-              </li>
-              {% if user.is_superuser or user.profile.role == 'ADMIN_NAVIRE' or user.profile.role == 'COMMANDANT' %}
-              <li class="nav-item">
-                <a class="nav-link" href="/users/" title="Utilisateurs" aria-label="Utilisateurs">
-                  <span class="bi bi-people nav-icon" aria-hidden="true"></span>
-                  <span class="visually-hidden">Utilisateurs</span>
-                </a>
-              </li>
-              {% endif %}
-              <li class="nav-item">
-                <a class="nav-link navbar-text me-2" href="{% url 'mon-profil' %}" title="Mon profil" aria-label="Mon profil">{{ user.username }}</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="/logout/" title="Se déconnecter" aria-label="Se déconnecter">
-                  <span class="bi bi-box-arrow-right nav-icon" aria-hidden="true"></span>
-                  <span class="visually-hidden">Se déconnecter</span>
-                </a>
-              </li>
-            {% else %}
-              <li class="nav-item">
-                <a class="nav-link" href="/login/" title="Se connecter" aria-label="Se connecter">
-                  <span class="bi bi-box-arrow-in-right nav-icon" aria-hidden="true"></span>
-                  <span class="visually-hidden">Se connecter</span>
-                </a>
-              </li>
-            {% endif %}
-          </ul>
-        </div>
-      </div>
-    </nav>
-    <main class="container py-4">
-      {% if user|equipage_a_terre %}
-      <div class="alert alert-info d-flex align-items-center gap-2" role="status">
-        <span class="bi bi-eye" aria-hidden="true"></span>
-        <span>Votre équipage est à terre : vous consultez le bâtiment en <strong>lecture seule</strong>.</span>
-      </div>
-      {% endif %}
-      {% block content %}{% endblock %}
-    </main>
+    {% include "components/barre_superieure.html" %}
+    {% if user.is_authenticated %}{% url "notifications-panneau" as url_panneau %}{% panneau_lateral id="centre-notifications" titre="Notifications" icone="notifications" url=url_panneau %}{% fin_panneau_lateral %}{% endif %}
+    <div class="mx-coque">
+      {% if navigation_laterale %}{% include "components/barre_laterale.html" %}{% endif %}
+      <main class="container py-4 mx-coque__contenu">
+        {% if equipage_a_terre %}<div class="alert alert-secondary py-2" role="status">Lecture seule — Équipage {{ equipage_a_terre }} à terre</div>{% endif %}
+        {% if user.is_authenticated %}<p class="mx-impression-entete">{% firstof batiment_courant.name user.profile.ship.name "Matrix" %} · imprimé le {% now "d/m/Y à H:i" %} par {{ identite_utilisateur.nom|default:user.username }}</p>{% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/matrix.js' %}"></script>
+    <script src="{% static 'js/grille.js' %}"></script>
+    {% if navigation_laterale %}<script src="{% static 'js/barre_laterale.js' %}"></script>{% endif %}
+    {% if user.is_authenticated %}<script src="{% static 'js/brouillon.js' %}"></script>{% endif %}
+    {% if user.is_authenticated and inactivite %}{% include "components/inactivite.html" %}<script src="{% static 'js/inactivite.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/push.js' %}"></script>{% endif %}
+    {% if user.is_authenticated %}<script src="{% static 'js/recherche.js' %}"></script>{% endif %}
     <script>
       // Afficher automatiquement les toasts globaux si présents
       (function(){
         var toastElList = [].slice.call(document.querySelectorAll('.toast'));
         toastElList.forEach(function (toastEl) { try { new bootstrap.Toast(toastEl).show(); } catch(e){} });
-      })();
-
-      // Notifications: marquer comme lu (une ou toutes)
-      (function(){
-        function getCookie(name){
-          var value = '; ' + document.cookie;
-          var parts = value.split('; ' + name + '=');
-          if (parts.length === 2) return parts.pop().split(';').shift();
-          return '';
-        }
-        var csrf = getCookie('csrftoken') || getCookie('CSRF-TOKEN');
-        document.addEventListener('click', function(e){
-          var btnAll = e.target.closest('#notif-mark-all');
-          if (btnAll){
-            fetch('/api/notifications/notifications/mark_all_read/', {
-              method: 'POST', headers: { 'X-CSRFToken': csrf }
-            }).then(function(){ location.reload(); }).catch(function(){});
-            e.preventDefault(); return;
-          }
-          var btnOne = e.target.closest('[data-notif-id]');
-          if (btnOne){
-            var id = btnOne.getAttribute('data-notif-id');
-            var action = btnOne.getAttribute('data-action') || 'read';
-            var payload = { is_read: action === 'read' };
-            fetch('/api/notifications/notifications/' + id + '/', {
-              method: 'PATCH', headers: {
-                'Content-Type': 'application/json', 'X-CSRFToken': csrf
-              }, body: JSON.stringify(payload)
-            }).then(function(){ location.reload(); }).catch(function(){});
-            e.preventDefault(); return;
-          }
-        });
       })();
     </script>
   </body>

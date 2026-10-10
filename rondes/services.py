@@ -15,7 +15,7 @@ from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin
 from notifications.models import Notification, NotificationLevel
 
-from org.equipages import est_en_lecture_seule
+from matrix.core.equipage import equipage_a_terre_lecture_seule
 from org.models import Sector, Service, Ship
 
 from .models import Ronde, ResultatPoint, RondeModele, destinataires_ronde
@@ -117,7 +117,7 @@ def rondes_ouvertes_du_marin(user):
     ou non assignées et visibles. Double équipage : une ronde non assignée
     revient à l'équipage à bord, pas à l'équipage à terre (lecture seule)."""
     a_faire = Q(assigne_a=user)
-    if not est_en_lecture_seule(user):
+    if not equipage_a_terre_lecture_seule(user):
         a_faire |= Q(assigne_a=None)
     return rondes_visibles(user).filter(statut__in=Ronde.STATUTS_OUVERTS).filter(a_faire)
 

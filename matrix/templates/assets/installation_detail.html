@@ -1,25 +1,7 @@
 {% extends "base.html" %}
 {% load l10n %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div class="d-flex align-items-center">
-    <h1 class="h4 mb-0">Installation</h1>
-    <img class="ms-3" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur l'installation" src="/api/assets/installations/{{ object.id }}/qr_png/" height="96" />
-  </div>
-  <div class="d-flex gap-2 align-items-center">
-    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addEventModal" onclick="document.querySelector('#addEventModal input[name=label]').value='Anomalie'; document.querySelector('#addEventModal textarea[name=notes]').focus();">Signaler une anomalie</button>
-    <a class="btn btn-outline-secondary" href="{% url 'anomalie-create' %}?installation={{ object.id }}">Signalement libre</a>
-    <a class="btn btn-secondary" href="/installations/">Retour</a>
-    <div class="dropdown">
-      <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
-      <ul class="dropdown-menu dropdown-menu-end">
-        <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editInstallationModal">Modifier les infos</button></li>
-        <li><hr class="dropdown-divider"></li>
-        <li><button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteInstallationModal">Supprimer</button></li>
-      </ul>
-    </div>
-  </div>
-  </div>
+{% include "components/fiche_entete.html" with titre=object.designation sous_titre=object.sector action=action_principale menu=menu_fiche menu_libelle="Autres actions sur cette installation" indicateurs=indicateurs_fiche objet=object historique_url="?tab=histo" %}
 
 <div class="card">
   {% if object.photo %}
@@ -28,22 +10,16 @@
   <div class="card-body">
     <ul class="nav nav-tabs" id="instTabs" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-infos" data-bs-toggle="tab" data-bs-target="#pane-infos" type="button" role="tab">Infos</button>
+        <button class="nav-link active" id="tab-ensemble" data-bs-toggle="tab" data-bs-target="#pane-ensemble" type="button" role="tab">Vue d'ensemble</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-maintenance" data-bs-toggle="tab" data-bs-target="#pane-maintenance" type="button" role="tab">Maintenance{% if maintenances|length %} <span class="badge text-bg-secondary rounded-pill">{{ maintenances|length }}</span>{% endif %}</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-mesures" data-bs-toggle="tab" data-bs-target="#pane-mesures" type="button" role="tab">Mesures</button>
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-histo" data-bs-toggle="tab" data-bs-target="#pane-histo" type="button" role="tab">Historique{% if events|length %} <span class="badge text-bg-secondary rounded-pill">{{ events|length }}</span>{% endif %}</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-entretien" data-bs-toggle="tab" data-bs-target="#pane-entretien" type="button" role="tab">Entretien{% if maintenances|length %} <span class="badge text-bg-secondary rounded-pill">{{ maintenances|length }}</span>{% endif %}</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-vibration" data-bs-toggle="tab" data-bs-target="#pane-vibration" type="button" role="tab">Vibration{% if vibration_logs|length %} <span class="badge text-bg-secondary rounded-pill">{{ vibration_logs|length }}</span>{% endif %}</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-hours" data-bs-toggle="tab" data-bs-target="#pane-hours" type="button" role="tab">Heure de marche{% if hour_logs|length %} <span class="badge text-bg-secondary rounded-pill">{{ hour_logs|length }}</span>{% endif %}</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-isolement" data-bs-toggle="tab" data-bs-target="#pane-isolement" type="button" role="tab">Isolement{% if isolation_logs|length %} <span class="badge text-bg-secondary rounded-pill">{{ isolation_logs|length }}</span>{% endif %}</button>
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-parts" data-bs-toggle="tab" data-bs-target="#pane-parts" type="button" role="tab">Pièces{% if parts|length %} <span class="badge text-bg-secondary rounded-pill">{{ parts|length }}</span>{% endif %}</button>
@@ -52,15 +28,26 @@
 
     <!-- Contenu des onglets -->
     <div class="tab-content mt-3">
-      {# Chaque onglet est un sous-template dédié (assets/installation_detail/_onglet_*.html) : #}
-      {# fichier unique de 1593 lignes scindé par section logique, sans changement de rendu #}
-      {# (ARCH : le contexte de la vue est partagé automatiquement par {% include %}). #}
+      {# Chaque onglet est un sous-template dédié (assets/installation_detail/_onglet_*.html). #}
       {% include "assets/installation_detail/_onglet_infos.html" %}
       {% include "assets/installation_detail/_onglet_entretien.html" %}
-      {% include "assets/installation_detail/_onglet_vibration.html" %}
-      {% include "assets/installation_detail/_onglet_isolement.html" %}
+      <div class="tab-pane fade" id="pane-mesures" role="tabpanel" aria-labelledby="tab-mesures">
+        <div class="mx-derive">
+          <strong>Détection de dérive</strong>
+          <span>Isolement :
+            {% if isolation_jours_avant_seuil is not None %}seuil estimé franchi dans environ {{ isolation_jours_avant_seuil }} j
+            {% elif isolation_seuil_ohms and isolation_logs|length >= 3 %}aucune dérive détectée
+            {% else %}non calculable (seuil non défini ou moins de 3 relevés){% endif %}
+          </span>
+        </div>
+        <nav class="mx-mesures__nav" aria-label="Sections de mesures">
+          <a href="#mesures-heures">Heures de marche</a><a href="#mesures-vibration">Vibrations</a><a href="#mesures-isolement">Isolement</a>
+        </nav>
+        {% include "assets/installation_detail/_onglet_hours.html" %}
+        {% include "assets/installation_detail/_onglet_vibration.html" %}
+        {% include "assets/installation_detail/_onglet_isolement.html" %}
+      </div>
       {% include "assets/installation_detail/_onglet_historique.html" %}
-      {% include "assets/installation_detail/_onglet_hours.html" %}
       {% include "assets/installation_detail/_onglet_parts.html" %}
     </div>
   </div>
@@ -75,10 +62,19 @@
 {% include "assets/installation_detail/_modale_ajout_evenement.html" %}
 {% include "assets/installation_detail/_modale_consultation_vibration.html" %}
 {% include "assets/installation_detail/_modales_pieces.html" %}
+{% include "assets/installation_detail/_modale_document.html" %}
 {% include "assets/installation_detail/_script_interactions.html" %}
 {% include "assets/installation_detail/_script_graphique_heures.html" %}
 {% include "assets/installation_detail/_script_graphique_isolement.html" %}
 {% include "assets/installation_detail/_modale_ajout_heure.html" %}
 {% include "assets/installation_detail/_modales_edition_heure.html" %}
 {% include "assets/installation_detail/_modale_confirmation_suppression_pj.html" %}
+<script>
+  // « Signaler une anomalie » : pré-remplit l'événement et place le curseur dans les notes.
+  var signaler = document.querySelector('.mx-fiche__action');
+  if (signaler) signaler.addEventListener('click', function () {
+    document.querySelector('#addEventModal input[name=label]').value = 'Anomalie';
+    document.querySelector('#addEventModal textarea[name=notes]').focus();
+  });
+</script>
 {% endblock %}

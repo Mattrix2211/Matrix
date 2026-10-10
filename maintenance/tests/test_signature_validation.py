@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 
 from assets.models import Asset, AssetType, Installation, InstallationMaintenance, ModeDeclenchement
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
+from accounts.models import UserProfile
 from org.models import Sector, Service, Ship
 from django.utils import timezone
 
@@ -35,6 +36,7 @@ class SignatureValidationExecutionTests(TestCase):
             critique=False,
         )
         self.tech = User.objects.create_user(username="tech_signature", password="MotDePasseCorrect1")
+        UserProfile.objects.update_or_create(user=self.tech, defaults={"ship": self.ship})
 
     def _creer_occurrence(self, installation, mode=ModeDeclenchement.CALENDRIER):
         maintenance = InstallationMaintenance.objects.create(
@@ -131,6 +133,7 @@ class SignatureValidationAPIExecutionTests(TestCase):
             critique=True,
         )
         self.tech = User.objects.create_user(username="tech_signature_api", password="MotDePasseCorrect1")
+        UserProfile.objects.update_or_create(user=self.tech, defaults={"ship": self.ship})
         maintenance = InstallationMaintenance.objects.create(
             installation=self.installation_critique,
             periodicity="1 mois",

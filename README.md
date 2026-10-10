@@ -2,7 +2,7 @@
 
 Plateforme numérique opérationnelle quotidienne pour la Marine nationale française — quarts, services à quai et échanges, calendrier, maintenance préventive et corrective, matériel mobile, rondes, anomalies, formations, logistique, notifications, tableaux de bord. La maintenance (GMAO) est un module de Matrix, pas sa finalité : l'objectif est que chaque marin ouvre Matrix tous les jours, pas seulement quand il touche à un équipement.
 
-**Vision, cahier des charges et feuille de route : page Notion « Cahier des charges » du projet Matrix** (`docs/archive/VISION_MATRIX_2_0.md` n'en est qu'un ancien condensé). `CLAUDE.md` contient les règles techniques pour Claude Code et renvoie vers les pages Notion de référence. `docs/archive/` ne contient que des documents historiques.
+**Vision, cahier des charges et feuille de route : page Notion « Cahier des charges » du projet Matrix** (il n'existe pas de fichier de vision dans ce dépôt). `CLAUDE.md` contient les règles techniques pour Claude Code et renvoie vers les pages Notion de référence. `docs/archive/` ne contient que des documents historiques.
 
 ## Stack
 - Python 3.12+, Django 5, DRF, Bootstrap 5 + HTMX
@@ -85,29 +85,10 @@ python manage.py generate_vapid_keys
 Renseigner les variables d'environnement `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_ADMIN_EMAIL` affichées par la commande. Sans clés VAPID configurées, le Web Push est simplement désactivé (aucune erreur). Nécessite HTTPS ou `localhost` côté navigateur.
 
 ## Tests
+```bash
+python manage.py test
+```
 Les tests nécessitent un fichier `.env` local contenant au minimum `DJANGO_DEBUG=1` (sinon l'application démarre en mode production et exige une vraie clé secrète) et la bibliothèque `pywebpush` installée (en cas d'échec d'installation : `pip install --use-pep517 pywebpush`).
-
-**Pendant le développement, ne lancer que les tests des applications réellement modifiées** — la suite
-complète prend plusieurs minutes, ce n'est pas la bonne boucle de rétroaction pendant qu'on code :
-```bash
-python manage.py test accounts logistics   # exemple : uniquement les apps touchées
-```
-Lancer la suite complète (avec parallélisation, voir ci-dessous) avant de committer reste
-indispensable — c'est ce que fait automatiquement le hook `verifier-tests-avant-commit.sh` à chaque
-`git commit`, et ce que refait systématiquement le QA de façon indépendante. Il est donc inutile
-(et lent) de la relancer soi-même en boucle à chaque petite itération : cibler l'app en cours, puis
-laisser le hook et le QA se charger de la suite complète.
-
-**Suite complète, en parallèle** (nécessite `tblib`, déjà dans `requirements.txt` — sans lui,
-`--parallel` plante avec `TypeError: cannot pickle 'traceback' object` dès qu'un test échoue dans
-un processus autre que le principal) :
-```bash
-python manage.py test --parallel auto
-```
-`--parallel auto` répartit les tests sur autant de processus que de cœurs CPU disponibles (environ
-5 fois plus rapide que `python manage.py test` en séquentiel sur un poste de développement récent).
-Le code de sortie reste fiable en cas d'échec (testé y compris avec un test en échec exécuté dans un
-processus non principal) : le hook peut donc s'appuyer dessus sans faux positif.
 
 ## Applications principales
 - `accounts` — profils utilisateurs, rôles hiérarchiques (`MASTER_ADMIN` → ... → `EQUIPIER`)
@@ -116,7 +97,7 @@ processus non principal) : le hook peut donc s'appuyer dessus sans faux positif.
 - `maintenance` — plans préventifs, occurrences, exécutions guidées, signature de validation (mot de passe) sur les transitions critiques
 - `logistics` — tickets correctifs, demandes de pièces, stock, retours d'expérience (REX)
 - `training` — formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation, réservation self-service de sessions
-- `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, compteur d'équité
+- `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, compteur d'équité, feuille de service quotidienne
 - `absences` — absences et indisponibilités, prises en compte dans les échanges, la génération des listes et le calendrier
 - `rondes` — rondes de contrôle avec points de contrôle configurables et anomalies automatiques
 - `threads` — discussions génériques attachées à n'importe quel objet

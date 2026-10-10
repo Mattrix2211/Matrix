@@ -40,31 +40,6 @@ def module_actif(user, cle_module):
 
 
 @register.filter
-def equipage_a_terre(user):
-    """Vrai si l'équipage du marin est à terre (double équipage) : bandeau
-    « lecture seule » du gabarit de base."""
-    from org.equipages import est_en_lecture_seule
-    return est_en_lecture_seule(user)
-
-
-@register.filter
-def peut_gerer_equipages_du_navire(user):
-    """Vrai si l'entrée de menu « Équipages » doit s'afficher : rôle habilité
-    (seuil « equipage_gestion ») ET bâtiment concerné (déjà à double équipage,
-    ou de classe FREMM/PSP/BSAM). L'administrateur général la voit toujours."""
-    if not getattr(user, "is_authenticated", False):
-        return False
-    from org.equipages import navire_eligible, peut_gerer_equipages
-    from matrix.core.scopes import is_master_admin
-    if not peut_gerer_equipages(user):
-        return False
-    if is_master_admin(user):
-        return True
-    ship = getattr(getattr(user, "profile", None), "ship", None)
-    return bool(ship and (ship.double_equipage or navire_eligible(ship)))
-
-
-@register.filter
 def badge_type_unite(unite):
     """Badge Bootstrap (icône + libellé) selon le type de l'unité fournie."""
     if not unite:
@@ -78,13 +53,20 @@ def badge_type_unite(unite):
 
 @register.filter
 def coma_du_service(service):
-    """Poste de commandant adjoint (COMAEQ, COMOPS, COMANAV, COMAVIA) dont
-    dépend le service, avec son titulaire : à afficher dans les écrans de
-    circuit de validation. Vide si le service n'est rattaché à aucun poste."""
-    if service is None:
+    """Commandant adjoint dont dépend le service (sigle, signification, responsabilités)
+    et ses titulaires actifs : à afficher dans les écrans de circuit de validation.
+    None si le service n'est rattaché à aucun commandant adjoint."""
+    if service is None or not service.commandant_adjoint:
         return None
-    from org.commandants_adjoints import commandant_adjoint_du_service
-    return commandant_adjoint_du_service(service)
+    from matrix.core.commandants_adjoints import titulaires_du_service
+    from org.models import RESPONSABILITES_COMA, SIGNIFICATIONS_COMA
+    sigle = service.commandant_adjoint
+    return {
+        "sigle": sigle,
+        "signification": SIGNIFICATIONS_COMA.get(sigle, ""),
+        "responsabilites": RESPONSABILITES_COMA.get(sigle, ""),
+        "titulaires": list(titulaires_du_service(service)),
+    }
 
 
 @register.simple_tag

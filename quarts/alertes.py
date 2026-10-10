@@ -14,11 +14,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import AuditLog
+from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import ship_id_for_user
 from notifications.models import Notification, NotificationLevel
-from org.commandant_en_second import droit_metier_en_second
 from org.models import CommandantAdjoint
 
 from .models import (
@@ -46,16 +46,13 @@ def peut_proposer_organisation_alerte(user, ship):
 
 
 def peut_valider_organisation_alerte(user, ship):
-    """Valider une modification : l'autorité configurée du navire (seuil de rôle),
-    ou le commandant en second si le navire lui a confié ce droit."""
+    """Valider une modification : l'autorité configurée du navire (seuil de rôle)."""
     if not _meme_navire(user, ship):
         return False
-    return user_role_level(user) >= niveau_requis_pour(user, CLE_VALIDATION) or droit_metier_en_second(
-        user, CLE_VALIDATION
-    )
+    return user_role_level(user) >= niveau_requis_pour(user, CLE_VALIDATION)
 
 
-def etat_alertes(ship, date_, equipage=None):
+def etat_alertes(ship, date_, equipage=""):
     """Scénarios actifs du navire avec, pour chaque poste, le créneau du titulaire
     du jour (ou None) : `arme` est faux quand personne ne tient la fonction."""
     resultat = []
@@ -113,12 +110,8 @@ def signaler_postes_non_armes(feuille, user):
     if feuille.created_by_id:
         destinataires[feuille.created_by_id] = feuille.created_by
     for scenario, _ in problemes:
-        coma = CommandantAdjoint.objects.filter(
-            ship=feuille.ship, equipage=feuille.equipage, sigle=scenario.adjoint_responsable,
-            titulaire__isnull=False,
-        ).select_related("titulaire").first()
-        if coma:
-            destinataires[coma.titulaire_id] = coma.titulaire
+        for coma in titulaires_commandant_adjoint(feuille.ship, scenario.adjoint_responsable, feuille.equipage):
+            destinataires[coma.pk] = coma
     detail = " ; ".join(f"{s.libelle} : {', '.join(roles)}" for s, roles in problemes)
     AuditLog.objects.create(
         actor=user, action="feuille_service_postes_alerte_non_armes",
@@ -150,7 +143,7 @@ def _valider_donnees(ship, donnees):
         return "Le nom du scénario est obligatoire."
     if donnees["famille"] not in dict(ScenarioAlerte.FAMILLE_CHOICES):
         return "Famille inconnue."
-    if donnees["adjoint_sigle"] and donnees["adjoint_sigle"] not in CommandantAdjoint.Sigle.values:
+    if donnees["adjoint_sigle"] and donnees["adjoint_sigle"] not in CommandantAdjoint.values:
         return "COMA responsable inconnu."
     if not donnees["postes"]:
         return "Un scénario doit comporter au moins un poste."

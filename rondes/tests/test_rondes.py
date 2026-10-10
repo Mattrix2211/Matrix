@@ -250,8 +250,30 @@ class VuesTests(BaseRondes):
         services.creer_ronde(self.modele)
         self._connecter(self.marin)
         self.assertContains(self.client.get(reverse("rondes-index")), "Ronde coursives")
-        self.assertContains(self.client.get("/"), "Mes rondes du jour")
+        self.assertContains(self.client.get("/"), "Ronde coursives")
         self.assertContains(self.client.get(reverse("ronde-modeles")), "Ronde coursives")
+
+    def test_index_met_la_ronde_en_cours_en_tete_avec_une_action_principale(self):
+        ronde = services.creer_ronde(self.modele)
+        ronde.statut = Ronde.EN_COURS
+        ronde.save()
+        self._connecter(self.marin)
+        r = self.client.get(reverse("rondes-index"))
+        self.assertEqual([x.pk for x in r.context["en_cours"]], [ronde.pk])
+        self.assertEqual(r.context["a_faire"], [])
+        self.assertContains(r, "Reprendre la ronde")
+        self.assertContains(r, "Aucune ronde terminée")
+
+    def test_index_vide_affiche_etats_vides(self):
+        self._connecter(self.autre_marin)
+        r = self.client.get(reverse("rondes-index"))
+        self.assertContains(r, "Aucune ronde à faire")
+        self.assertContains(r, "Aucune ronde terminée")
+
+    def test_index_a_faire_propose_demarrer(self):
+        services.creer_ronde(self.modele)
+        self._connecter(self.marin)
+        self.assertContains(self.client.get(reverse("rondes-index")), "Démarrer la ronde")
 
 
 class PerimetreGerableTests(BaseRondes):

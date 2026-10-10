@@ -1,0 +1,19 @@
+{% if peut_ajouter_document and not equipage_a_terre %}
+<div class="modal fade" id="addDocumentInstallationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Ajouter un document</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <form method="post" action="{% url 'installation-document-ajouter' object.pk %}" enctype="multipart/form-data">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="mb-3"><label class="form-label" for="docFichier">Fichier</label><input type="file" class="form-control" id="docFichier" name="fichier" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.docx,.xlsx" required /><div class="form-text">PDF, image, texte, Word ou Excel.</div></div>
+          <div class="mb-3"><label class="form-label" for="docTitre">Titre</label><input class="form-control" id="docTitre" name="titre" maxlength="255" placeholder="Nom du fichier par défaut" /></div>
+          <div class="mb-3"><label class="form-label" for="docType">Type</label><select class="form-select" id="docType" name="type_document">{% for valeur, libelle in types_document %}<option value="{{ valeur }}"{% if valeur == "autre" %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+          <div class="mb-3"><label class="form-label" for="docNotes">Notes</label><textarea class="form-control" id="docNotes" name="notes" rows="2"></textarea></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Ajouter</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}

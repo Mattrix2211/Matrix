@@ -1,8 +1,8 @@
 /*
  * Abonnement/désabonnement aux notifications Web Push (alertes critiques).
  * Vanilla JS, aucune dépendance externe/CDN (fonctionne hors-ligne sur le
- * réseau du bord). Pilote l'interrupteur "push-toggle" de la cloche de
- * notifications (base.html).
+ * réseau du bord). Pilote l'interrupteur "push-toggle" du panneau de
+ * notifications (notifications/_panneau.html).
  */
 (function () {
   "use strict";
@@ -82,10 +82,13 @@
       });
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  // L'interrupteur vit dans le panneau de notifications, chargé par htmx à
+  // chaque ouverture : l'initialisation se refait à chaque chargement.
+  function initialiser() {
     var interrupteur = document.getElementById("push-toggle");
     var messageIndispo = document.getElementById("push-indisponible");
-    if (!interrupteur) return;
+    if (!interrupteur || interrupteur.dataset.pushInit) return;
+    interrupteur.dataset.pushInit = "1";
 
     if (!disponible()) {
       interrupteur.disabled = true;
@@ -116,5 +119,8 @@
         majInterrupteur(interrupteur, !etatSouhaite);
       });
     });
-  });
+  }
+
+  document.addEventListener("DOMContentLoaded", initialiser);
+  document.body.addEventListener("htmx:afterSwap", initialiser);
 })();

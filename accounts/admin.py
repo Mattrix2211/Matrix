@@ -3,7 +3,7 @@ from .models import TypeAbsence, UserProfile
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "ship", "service", "sector", "section")
+    list_display = ("user", "role", "fonction_coma", "equipage", "ship", "service", "sector", "section")
     list_filter = ("role", "ship", "service", "sector")
     search_fields = ("user__username", "user__email")
 

@@ -11,14 +11,13 @@ from django.test import TestCase
 from accounts.models import UserProfile
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
-from matrix.core.testing import MediaRootTemporaireMixin
 
 
 def _fichier(nom="bareme.pdf"):
-    return SimpleUploadedFile(nom, b"%PDF-1.4 contenu factice du bareme", content_type="application/pdf")
+    return SimpleUploadedFile(nom, b"contenu factice du bareme", content_type="application/pdf")
 
 
-class BaremeCreationFormationTests(MediaRootTemporaireMixin, TestCase):
+class BaremeCreationFormationTests(TestCase):
     """Un ADMIN_NAVIRE peut associer un barème dès la création d'une
     formation (formulaire « Nouvelle formation »)."""
 
@@ -54,18 +53,18 @@ class BaremeCreationFormationTests(MediaRootTemporaireMixin, TestCase):
     def test_carte_de_formation_affiche_le_lien_du_bareme(self):
         formation = TrainingCourse.objects.create(title="Amarrage avancé", bareme=_fichier())
         self.client.login(username="admin_bareme", password="pass")
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{formation.pk}/")
         self.assertContains(r, "Voir le barème")
         self.assertContains(r, formation.bareme.url)
 
     def test_carte_de_formation_sans_bareme_naffiche_aucun_lien(self):
-        TrainingCourse.objects.create(title="Formation vierge de barème")
+        formation = TrainingCourse.objects.create(title="Formation vierge de barème")
         self.client.login(username="admin_bareme", password="pass")
-        r = self.client.get("/formations/")
+        r = self.client.get(f"/formations/{formation.pk}/")
         self.assertNotContains(r, "Voir le barème")
 
 
-class BaremeEditionFormationTests(MediaRootTemporaireMixin, TestCase):
+class BaremeEditionFormationTests(TestCase):
     """Un CHEF_SECTION+ peut remplacer ou retirer le barème d'une formation
     existante depuis le formulaire d'édition (action update_prerequisites,
     même modale que la catégorie/les prérequis/les référents)."""
@@ -119,7 +118,7 @@ class BaremeEditionFormationTests(MediaRootTemporaireMixin, TestCase):
         self.assertIn("ancien", self.formation.bareme.name)
 
 
-class BaremeFormationBordTests(MediaRootTemporaireMixin, TestCase):
+class BaremeFormationBordTests(TestCase):
     """Le barème peut aussi être associé lors de la proposition d'une
     formation « gérée par le bord » (Circuit C)."""
 

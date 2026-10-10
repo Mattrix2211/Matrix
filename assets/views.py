@@ -2,12 +2,15 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, filters, decorators, response
-from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, Installation
+from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, Installation, CategorieCatalogue, ArticleCatalogue
 from .serializers import (
     LocationSerializer, AssetTypeSerializer, ChecklistTemplateSerializer, ChecklistItemTemplateSerializer,
-    AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer
+    AssetChecklistOverrideSerializer, AssetSerializer, AssetDocumentSerializer,
+    CategorieCatalogueSerializer, ArticleCatalogueSerializer,
 )
-from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from .catalogue_web import journaliser
+from .permissions import CataloguePermission
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from matrix.core.scopes import scope_filters_for_user
 
@@ -71,7 +74,8 @@ class AssetTypeViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         )
 
 class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
-    queryset = ChecklistTemplate.objects.select_related("sector", "asset_type").prefetch_related("items").all()
+    # Les versions de fiche ne se modifient que par le circuit de validation.
+    queryset = ChecklistTemplate.objects.filter(fiche__isnull=True).select_related("sector", "asset_type").prefetch_related("items")
     serializer_class = ChecklistTemplateSerializer
     permission_classes = [RolePermission]
 
@@ -88,8 +92,8 @@ class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class ChecklistItemTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
-    queryset = ChecklistItemTemplate.objects.select_related("template").all()
+class ChecklistItemTemplateViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+    queryset = ChecklistItemTemplate.objects.filter(template__fiche__isnull=True).select_related("template")
     serializer_class = ChecklistItemTemplateSerializer
     permission_classes = [RolePermission]
 
@@ -107,7 +111,7 @@ class ChecklistItemTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class AssetViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Asset.objects.select_related("asset_type", "ship", "service", "sector", "section", "location").all()
     serializer_class = AssetSerializer
     permission_classes = [RolePermission]
@@ -117,16 +121,16 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # écriture (création/modification) alignée sur asset_ecriture_simple,
     # suppression remontée à asset_gestion_avancee — même clé que
     # AssetListView.ACTION_VERS_SEUIL['delete_asset'] côté web
-    # (assets/asset_views.py) — décision métier par défaut : un chef de
+    # (assets/web_views.py) — décision métier par défaut : un chef de
     # section ne doit jamais pouvoir supprimer un matériel.
     role_threshold_action_write = "asset_ecriture_simple"
     role_threshold_action_delete = "asset_gestion_avancee"
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
 
-    def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     @decorators.action(detail=True, methods=["get"], url_path="qr")
     def qr_code(self, request, pk=None):
@@ -142,7 +146,7 @@ class AssetViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
         url = request.build_absolute_uri(f"/scan/{asset.pk}/")
         return HttpResponse(_construire_qr_png(url), content_type="image/png")
 
-class AssetDocumentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class AssetDocumentViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetDocument.objects.select_related("asset").all()
     serializer_class = AssetDocumentSerializer
     permission_classes = [RolePermission]
@@ -151,11 +155,11 @@ class AssetDocumentViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # côté web.
     role_threshold_action_delete = "asset_gestion_avancee"
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
 
-    def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Un document n'est rattaché qu'indirectement à un navire/service/
@@ -201,3 +205,34 @@ def installation_qr_png(request, pk):
     installation = _installation_scopee_ou_404(request, pk)
     url = request.build_absolute_uri(f"/scan/{installation.pk}/")
     return HttpResponse(_construire_qr_png(url), content_type="image/png")
+
+
+class _CatalogueViewSet(viewsets.ModelViewSet):
+    """Catalogue commun à la flotte : pas de filtre de navire (donc ni
+    ScopedQuerySetMixin ni EcritureDansLePerimetreMixin, conçus pour des données
+    rattachées à un navire). Droits dans CataloguePermission, auteur posé ici."""
+    permission_classes = [CataloguePermission]
+
+    def perform_create(self, serializer):
+        journaliser(self.request.user, "creation", serializer.save(created_by=self.request.user, updated_by=self.request.user))
+
+    def perform_update(self, serializer):
+        journaliser(self.request.user, "modification", serializer.save(updated_by=self.request.user))
+
+    def perform_destroy(self, instance):
+        journaliser(self.request.user, "suppression", instance)
+        instance.delete()
+
+
+class CategorieCatalogueViewSet(_CatalogueViewSet):
+    queryset = CategorieCatalogue.objects.select_related("parent", "specialite").all()
+    serializer_class = CategorieCatalogueSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["nom"]
+
+
+class ArticleCatalogueViewSet(_CatalogueViewSet):
+    queryset = ArticleCatalogue.objects.select_related("categorie", "categorie__specialite").all()
+    serializer_class = ArticleCatalogueSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["designation", "marque", "reference", "nno"]

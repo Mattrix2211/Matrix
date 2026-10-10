@@ -3,7 +3,8 @@ calendar_app/views.py."""
 from datetime import datetime, timedelta
 
 from django.db.models import Q
-from django.http import HttpResponseForbidden, JsonResponse
+from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse
 from django.utils import timezone
 
 from maintenance.models import MaintenanceOccurrence
@@ -11,6 +12,7 @@ from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import build_scope_q
+from matrix.core.icones import classe_icone
 from .evenements_sources import (
     _absences_periode,
     _appliquer_filtres_occurrences,
@@ -85,7 +87,7 @@ _COULEUR_STATUT_MAINTENANCE = {
 }
 _COULEUR_PAR_TYPE = {
     "maintenance":   {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
-    "ticket":        {"backgroundColor": "#fd7e14", "borderColor": "#d96307", "textColor": "#fff"},
+    "ticket":        {"backgroundColor": "#b8500a", "borderColor": "#964008", "textColor": "#fff"},
     "training":      {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
     "personal":      {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
     # Teintes assombries par rapport à un simple "teal"/"pink" Bootstrap : un
@@ -97,6 +99,20 @@ _COULEUR_PAR_TYPE = {
     "absence":       {"backgroundColor": "#7c4a03", "borderColor": "#5c3702", "textColor": "#fff"},
 }
 
+# Concept d'icône (table centrale matrix/core/icones.py) par type d'événement :
+# le gabarit du calendrier affiche l'icône devant le titre (aucun emoji).
+_CONCEPT_ICONE_PAR_TYPE = {
+    "maintenance": "maintenance",
+    "ticket": "ticket",
+    "training": "formation",
+    "quart": "quart",
+    "service_garde": "garde",
+    "ronde": "ronde",
+    "personal": "personnel",
+    "absence": "absence",
+}
+
+
 def _couleur_evenement(ev_type, status=None):
     if ev_type == "maintenance" and status in _COULEUR_STATUT_MAINTENANCE:
         return _COULEUR_STATUT_MAINTENANCE[status]
@@ -105,7 +121,7 @@ def _couleur_evenement(ev_type, status=None):
 
 def calendar_events(request):
     if not request.user.is_authenticated:
-        return HttpResponseForbidden()
+        raise PermissionDenied
     start, end = _parse_common_period(request)
     filters = {
         "ship": request.GET.get("ship") or None,
@@ -141,7 +157,7 @@ def calendar_events(request):
         couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
             "id": f"occ-{occ.id}",
-            "title": f"🔧 {occ.titre_affiche}",
+            "title": str(occ.titre_affiche),
             "start": occ.scheduled_for.isoformat(),
             "end": occ.scheduled_for.isoformat(),
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
@@ -170,7 +186,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("ticket")
             events.append({
                 "id": f"tic-{t.pk}",
-                "title": f"🛠 {t.equipement}",
+                "title": str(t.equipement),
                 "start": t.planned_for.isoformat(),
                 "end": t.planned_for.isoformat(),
                 "url": f"/logistics/tickets/{t.pk}/",
@@ -203,7 +219,7 @@ def calendar_events(request):
         couleur = _couleur_evenement("training")
         events.append({
             "id": f"trn-{s.id}",
-            "title": f"📚 {course_title}",
+            "title": str(course_title),
             "start": s.scheduled_at.isoformat(),
             "end": s.scheduled_at.isoformat(),
             "url": "/training/",
@@ -230,7 +246,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("quart")
             events.append({
                 "id": f"qrt-{c.id}",
-                "title": f"⏱ {c.poste}",
+                "title": str(c.poste),
                 "start": c.debut.isoformat(),
                 "end": c.fin.isoformat(),
                 "url": f"/quarts/quart/{c.quart_id}/",
@@ -246,7 +262,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("service_garde")
             events.append({
                 "id": f"svc-{c.id}",
-                "title": f"🛡 {c.poste}",
+                "title": str(c.poste),
                 "start": c.debut.isoformat(),
                 "end": c.fin.isoformat(),
                 "url": f"/quarts/garde/{c.service_garde_id}/",
@@ -262,7 +278,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("absence")
             events.append({
                 "id": f"abs-{a.id}",
-                "title": f"🚫 {a.type_absence}",
+                "title": f"{a.type_absence}",
                 "start": a.date_debut.isoformat(),
                 "end": (a.date_fin + timedelta(days=1)).isoformat(),
                 "url": "/absences/",
@@ -275,7 +291,7 @@ def calendar_events(request):
         for ronde in _rondes_a_faire(request.user, start, end):
             events.append({
                 "id": f"rnd-{ronde.id}",
-                "title": f"🧭 {ronde.nom}",
+                "title": str(ronde.nom),
                 "start": ronde.date_prevue.isoformat(),
                 "end": ronde.date_prevue.isoformat(),
                 "url": f"/rondes/{ronde.id}/",
@@ -290,7 +306,7 @@ def calendar_events(request):
             couleur = _couleur_evenement("personal")
             events.append({
                 "id": f"per-{pe.id}",
-                "title": f"📌 {pe.title}",
+                "title": str(pe.title),
                 "start": pe.starts_at.isoformat(),
                 # Sans date de fin renseignée, on retombe sur l'ancien
                 # comportement (événement ponctuel, sans durée) — FullCalendar
@@ -311,4 +327,8 @@ def calendar_events(request):
                 },
                 **couleur,
             })
+    for evenement in events:
+        concept = _CONCEPT_ICONE_PAR_TYPE.get(evenement["extendedProps"]["type"])
+        if concept:
+            evenement["extendedProps"]["icone"] = classe_icone(concept)
     return JsonResponse(events, safe=False)

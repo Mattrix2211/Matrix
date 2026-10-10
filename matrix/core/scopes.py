@@ -80,12 +80,38 @@ def perimetre_navire_q(user, prefix: str = "") -> Q:
     ship_id = ship_id_for_user(user)
     if not ship_id:
         return Q(pk__in=[])
+    return navire_q(ship_id, prefix)
+
+
+def navire_q(ship_id, prefix: str = "") -> Q:
+    """Filtre Q couvrant tout rattachement (navire/service/secteur/section)
+    au navire donné ; `prefix` s'utilise comme pour perimetre_navire_q."""
     return (
         Q(**{f"{prefix}ship_id": ship_id})
         | Q(**{f"{prefix}service__ship_id": ship_id})
         | Q(**{f"{prefix}sector__service__ship_id": ship_id})
         | Q(**{f"{prefix}section__sector__service__ship_id": ship_id})
     )
+
+
+def perimetre_hierarchique_q(user, prefix: str = "") -> Optional[Q]:
+    """Filtre Q des marins rattachés n'importe où EN DESSOUS du niveau de
+    périmètre de `user` (section, secteur, service ou navire). Renvoie None si
+    l'utilisateur n'a aucun périmètre : l'appelant décide alors quoi en faire."""
+    filters = scope_filters_for_user(user)
+    if (section_id := filters.get("section_id")) is not None:
+        return Q(**{f"{prefix}section_id": section_id})
+    if (sector_id := filters.get("sector_id")) is not None:
+        return Q(**{f"{prefix}sector_id": sector_id}) | Q(**{f"{prefix}section__sector_id": sector_id})
+    if (service_id := filters.get("service_id")) is not None:
+        return (
+            Q(**{f"{prefix}service_id": service_id})
+            | Q(**{f"{prefix}sector__service_id": service_id})
+            | Q(**{f"{prefix}section__sector__service_id": service_id})
+        )
+    if (ship_id := filters.get("ship_id")) is not None:
+        return navire_q(ship_id, prefix)
+    return None
 
 
 def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=None, sector_id=None, section_id=None):
@@ -131,11 +157,10 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
 
 
 def equipage_agissant(user):
-    """Équipage dans lequel `user` agit sur un bâtiment à double équipage
-    (page Notion « Organigramme et rôles » §9) : son propre équipage, ou à défaut
-    (administrateur d'unité, commandant sans équipage renseigné) l'équipage à
-    bord. None si le navire est à équipage unique (comportement inchangé) ou si
-    l'utilisateur voit la flotte entière (administrateur général).
+    """Code d'équipage dans lequel `user` agit sur un bâtiment à double équipage :
+    son propre équipage, ou à défaut (administrateur d'unité, commandant sans
+    équipage renseigné) l'équipage à bord. None si le navire est à équipage
+    unique (comportement inchangé) ou si l'utilisateur voit la flotte entière.
 
     Extension de scope_filters_for_user : le périmètre navire/service/secteur/
     section dit SUR QUOI l'utilisateur agit, l'équipage dit AVEC QUI (quarts,
@@ -146,14 +171,11 @@ def equipage_agissant(user):
     navire_id = profile.navire_id_effectif if profile else None
     if not navire_id:
         return None
-    from org.equipages import equipage_a_bord
     from org.models import Ship
     ship = Ship.objects.filter(pk=navire_id).first()
     if ship is None or not ship.double_equipage:
         return None
-    if profile.equipage_id and profile.equipage.ship_id == navire_id:
-        return profile.equipage
-    return equipage_a_bord(ship)
+    return profile.equipage or ship.equipage_a_bord or None
 
 
 def equipage_marin_q(user, prefix: str = "profile__") -> Q:
@@ -180,10 +202,9 @@ def meme_equipage(marin_a, marin_b) -> bool:
     bâtiment à double équipage. Sur un navire à équipage unique (aucun
     équipage renseigné), toujours vrai."""
     profil_a, profil_b = getattr(marin_a, "profile", None), getattr(marin_b, "profile", None)
-    equipage_a = profil_a.equipage_id if profil_a else None
-    equipage_b = profil_b.equipage_id if profil_b else None
+    equipage_a = profil_a.equipage if profil_a else ""
+    equipage_b = profil_b.equipage if profil_b else ""
     return equipage_a == equipage_b
-
 
 def section_id_for_user(user) -> Optional[int]:
     """Renvoie l'id de la section rattachée au profil de l'utilisateur, ou None

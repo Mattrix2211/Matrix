@@ -7,11 +7,8 @@ from assets.models import Asset, AssetType
 
 
 class CreationAssetSansSecteurTests(TestCase):
-    """Bug Phase 6 : soumettre la modale « Nouveau matériel » sans secteur (ou avec
-    un secteur sans aucun AssetType configuré) ne doit JAMAIS créer un matériel
-    fantôme ni faire disparaître le formulaire sans explication — verrouille le
-    comportement serveur actuel (refus propre, aucune création) et vérifie que le
-    correctif côté client (champ obligatoire) est bien en place dans le template."""
+    """Soumettre une création sans secteur (ou avec un secteur sans AssetType configuré)
+    ne doit JAMAIS créer un matériel fantôme : refus propre côté serveur, aucune création."""
 
     def setUp(self):
         self.ship = Ship.objects.create(name="S1")
@@ -59,16 +56,9 @@ class CreationAssetSansSecteurTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertTrue(Asset.objects.filter(designation="Multimètre n°9").exists())
 
-    def test_champ_secteur_obligatoire_cote_client_sans_type_preselectionne(self):
-        # Ouvrir « Nouveau matériel » sans filtre ?type= : le secteur doit être
-        # marqué obligatoire (attribut HTML required) pour empêcher la soumission
-        # silencieuse d'un formulaire incomplet.
+    def test_liste_propose_le_catalogue_plutot_que_la_saisie_libre(self):
+        # L'ajout passe par le catalogue : plus de modale de création libre sur la liste.
         r = self.client.get("/assets/")
-        self.assertContains(r, 'id="createSector" required')
-
-    def test_champ_secteur_non_obligatoire_si_type_preselectionne_via_filtre(self):
-        # Quand le type est déjà imposé par le filtre ?type=, le secteur reste
-        # facultatif (le type n'a pas besoin d'en être déduit).
-        asset_type = AssetType.objects.first()
-        r = self.client.get(f"/assets/?type={asset_type.id}")
-        self.assertNotContains(r, 'id="createSector" required')
+        self.assertContains(r, 'href="/catalogue/"')
+        self.assertContains(r, "Ajouter du matériel")
+        self.assertNotContains(r, "createAssetModal")

@@ -2,7 +2,7 @@
 # Hook PostToolUse — signale (sans bloquer) une migration Django qui ajoute un champ
 # sans valeur par defaut visible, risque de retrocompatibilite sur les enregistrements
 # existants. Informatif uniquement : PostToolUse ne peut pas bloquer l'action deja faite,
-# mais alerte immediatement le Dev/Tech Lead avant que ca n'aille plus loin.
+# mais alerte immediatement le Dev/Relecteur avant que ca n'aille plus loin.
 
 input=$(cat)
 file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')

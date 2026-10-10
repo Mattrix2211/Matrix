@@ -29,9 +29,11 @@ from django.shortcuts import redirect
 from accounts.models import AuditLog
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none
+from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
 
-from .models import Location
+from .models import Asset, AssetFolder, Location
 
 
 def _peut_gerer_rattachement_parent(user):
@@ -96,7 +98,7 @@ def _resoudre_emplacement(request, ship):
         emplacement, _cree = Location.objects.get_or_create(ship=ship, name=nom, parent=None)
         return emplacement
     if location_id:
-        return Location.objects.filter(pk=location_id).first()
+        return Location.objects.filter(pk=entier_ou_none(location_id), ship=ship).first()
     return None
 
 
@@ -159,6 +161,59 @@ def _org_dans_perimetre(user, model, cible_id):
     return model.objects.filter(pk=cible_id, **{champ: valeur}).exists()
 
 
+def _emplacements_visibles(user):
+    """Emplacements des navires du périmètre de l'utilisateur (tous pour la gestion flotte)."""
+    emplacements = Location.objects.select_related('ship').order_by('ship__name', 'name')
+    profil = getattr(user, 'profile', None)
+    niveau, valeur = profil.scope if profil else (None, None)
+    if is_master_admin(user) or niveau is None:
+        return emplacements
+    champ = {
+        'ship': 'id', 'service': 'services__id',
+        'sector': 'services__sectors__id', 'section': 'services__sectors__sections__id',
+    }[niveau]
+    return emplacements.filter(ship__in=Ship.objects.filter(**{champ: valeur}))
+
+
+def _restreindre_au_navire_de_emplacement(request, objets, emplacement):
+    """Ne garde que les objets du navire de l'emplacement cible ; signale les autres."""
+    if emplacement is None:
+        return objets
+    conformes = objets.filter(ship_id=emplacement.ship_id)
+    ecartes = objets.count() - conformes.count()
+    if ecartes:
+        messages.warning(request, f"{ecartes} élément(s) ignoré(s) : cet emplacement appartient à un autre navire.")
+    return conformes
+
+
+def _dossiers_et_descendants(dossier):
+    """Identifiants du dossier et de tous ses sous-dossiers."""
+    ids, a_visiter = set(), [dossier.pk]
+    while a_visiter:
+        ids.add(a_visiter[-1])
+        a_visiter = list(AssetFolder.objects.filter(parent_id__in=a_visiter).exclude(pk__in=ids).values_list('pk', flat=True))
+    return ids
+
+
+def _materiel_hors_perimetre(user, dossier):
+    """Vrai si l'arborescence du dossier contient un matériel hors du périmètre de l'utilisateur."""
+    filtres = scope_filters_for_user(user)
+    if is_master_admin(user) or not filtres:
+        return False
+    return Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exclude(**filtres).exists()
+
+
+def _dossier_gerable(user, dossier):
+    """Un dossier n'a pas de navire : il est gérable si aucun matériel de son
+    arborescence n'est hors périmètre. Un dossier sans matériel n'appartient à
+    personne : réservé à la gestion avancée."""
+    if _materiel_hors_perimetre(user, dossier):
+        return False
+    if Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exists():
+        return True
+    return user_role_level(user) >= niveau_requis_pour(user, 'asset_gestion_avancee')
+
+
 def _afficher_erreur_validation(request, erreur):
     """Affiche en français le(s) message(s) d'une ValidationError levée par
     full_clean() : protection anti-cycle sur le rattachement parent, fichier
@@ -213,6 +268,34 @@ def _appliquer_bulk_suppression(request, queryset, *, action_audit, message_succ
     return redirect(redirect_url_name)
 
 
+def _filtres_actifs(request, champs):
+    """Étiquettes des filtres actifs ; champs = [(paramètre, libellé, {valeur: nom})].
+    L'adresse de chaque étiquette est la liste sans ce filtre."""
+    etiquettes = []
+    for param, libelle, noms in champs:
+        valeur = request.GET.get(param)
+        if not valeur:
+            continue
+        reste = request.GET.copy()
+        reste.pop(param)
+        url = request.path + ('?' + reste.urlencode() if reste else '')
+        etiquettes.append({'libelle': f"{libelle} : {noms.get(valeur, valeur)}", 'url': url})
+    return etiquettes
+
+
+def _noms_par_id(queryset):
+    return {str(o.pk): o.name for o in queryset}
+
+
+def _droits_liste(user, cle_ecriture, cle_gestion):
+    """Droits d'écriture et de gestion (actions groupées, suppression) pour une liste."""
+    niveau = user_role_level(user)
+    return {
+        'peut_ecrire': niveau >= niveau_requis_pour(user, cle_ecriture),
+        'peut_gerer': niveau >= niveau_requis_pour(user, cle_gestion),
+    }
+
+
 def _perimetre_utilisateur(user):
     """Navire/service/secteur/section affectés à l'utilisateur connecté (profil),
     utilisés pour pré-remplir automatiquement les formulaires de création de
@@ -235,10 +318,12 @@ def _perimetre_utilisateur(user):
 # après les helpers ci-dessus, jamais en tête de fichier, car asset_views.py et
 # installation_views.py réimportent certains de ces helpers depuis CE module.
 from .asset_views import (  # noqa: E402,F401
+    AssetCommentCreateView,
     AssetDetailView,
     AssetImportModeleView,
     AssetImportView,
     AssetListView,
+    InstallationCommentCreateView,
 )
 from .installation_views import InstallationDetailView, InstallationListView  # noqa: E402,F401
 from .plan_navire_views import (  # noqa: E402,F401

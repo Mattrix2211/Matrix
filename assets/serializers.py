@@ -1,8 +1,11 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from matrix.core.scopes import resoudre_affectation_dans_perimetre, scope_filters_for_user
 from matrix.core.serializers import ReferencesDansPerimetreMixin
-from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument
+from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, CategorieCatalogue, ArticleCatalogue
+from .permissions import peut_gerer_catalogue
+from .catalogue_photo import valider_photo
 
 # Chemins de périmètre (matrix.core.mixins.build_scope_q) des objets référencés,
 # identiques à ceux des ViewSets correspondants (assets/views.py) ; _PERIMETRE_PAR_SECTEUR
@@ -26,30 +29,27 @@ class LocationSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializ
 
     class Meta:
         model = Location
-        fields = ("id", "ship", "name", "parent", "created_at", "updated_at")
-        read_only_fields = ("id", "created_at", "updated_at")
-
+        fields = "__all__"
 
 class AssetTypeSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"sector": (_PERIMETRE_SECTEUR,)}
 
     class Meta:
         model = AssetType
-        fields = ("id", "name", "category", "sector", "created_at", "updated_at")
-        read_only_fields = ("id", "created_at", "updated_at")
-
+        fields = "__all__"
 
 class ChecklistItemTemplateSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"template": (_PERIMETRE_PAR_SECTEUR,)}
 
     class Meta:
         model = ChecklistItemTemplate
-        fields = (
-            "id", "template", "label", "field_type", "required", "requires_photo", "unit",
-            "choices", "order", "created_at", "updated_at",
-        )
-        read_only_fields = ("id", "created_at", "updated_at")
+        fields = "__all__"
+        read_only_fields = ["cle"]
 
+    def validate_template(self, template):
+        if template.fiche_id is not None:
+            raise serializers.ValidationError("Les lignes d'une version de fiche ne se modifient que par le circuit de validation.")
+        return template
 
 class ChecklistTemplateSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     items = ChecklistItemTemplateSerializer(many=True, read_only=True)
@@ -57,19 +57,17 @@ class ChecklistTemplateSerializer(ReferencesDansPerimetreMixin, serializers.Mode
 
     class Meta:
         model = ChecklistTemplate
-        fields = ("id", "name", "sector", "asset_type", "items", "created_at", "updated_at")
-        read_only_fields = ("id", "created_at", "updated_at")
-
+        fields = "__all__"
+        # Le cycle de vie d'une version de fiche relève du circuit de validation, pas de l'API.
+        read_only_fields = ["fiche", "numero", "etat", "redacteur", "role_redacteur", "equipage", "motif_refus", "valide_le"]
 
 class AssetDocumentSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"asset": ("",)}
 
     class Meta:
         model = AssetDocument
-        fields = ("id", "asset", "file", "name", "created_by", "updated_by", "created_at", "updated_at")
-        # created_by/updated_by sont posés côté serveur (AssetDocumentViewSet).
-        read_only_fields = ("id", "created_by", "updated_by", "created_at", "updated_at")
-
+        fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
 
 class AssetSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     # Le parent est un autre matériel, le lieu et le type ont leur propre périmètre.
@@ -79,14 +77,9 @@ class AssetSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer)
 
     class Meta:
         model = Asset
-        fields = (
-            "id", "asset_type", "serial_number", "internal_id", "designation", "nno", "reference",
-            "marque", "gisement", "local", "photo", "location", "ship", "service", "sector",
-            "section", "status", "criticality", "folder", "parent", "plan_deck",
-            "position_x", "position_y", "created_by", "updated_by", "created_at", "updated_at",
-        )
-        # created_by/updated_by sont posés côté serveur (AssetViewSet).
-        read_only_fields = ("id", "created_by", "updated_by", "created_at", "updated_at")
+        fields = "__all__"
+        # Le lien au catalogue n'est posé que par l'assistant « Équiper le navire ».
+        read_only_fields = ["created_by", "updated_by", "article_catalogue"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -114,6 +107,10 @@ class AssetSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer)
         # training/serializers.py::TrainingRecordSerializer.validate()).
         pk = self.instance.pk if self.instance else None
         parent = attrs["parent"] if "parent" in attrs else (self.instance.parent if self.instance else None)
+        mise = attrs["date_mise_en_service"] if "date_mise_en_service" in attrs else (self.instance.date_mise_en_service if self.instance else None)
+        peremption = attrs["date_peremption"] if "date_peremption" in attrs else (self.instance.date_peremption if self.instance else None)
+        if mise and peremption and peremption < mise:
+            raise serializers.ValidationError({"date_peremption": "La péremption ne peut pas précéder la mise en service."})
         candidat = Asset(pk=pk, parent=parent)
         try:
             candidat.clean()
@@ -126,5 +123,54 @@ class AssetChecklistOverrideSerializer(ReferencesDansPerimetreMixin, serializers
 
     class Meta:
         model = AssetChecklistOverride
-        fields = ("id", "asset", "template", "extra_items", "overrides", "created_at", "updated_at")
-        read_only_fields = ("id", "created_at", "updated_at")
+        fields = "__all__"
+
+
+class _CatalogueSerializer(serializers.ModelSerializer):
+    """Socle : valide les cycles et refuse d'écrire hors de sa spécialité (403)."""
+
+    def _verifier_droit(self, specialite):
+        if not peut_gerer_catalogue(self.context["request"].user, specialite):
+            raise PermissionDenied("Vous n'êtes pas responsable de cette spécialité.")
+
+    def validate_photo(self, fichier):
+        try:
+            return valider_photo(fichier)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages)
+
+    def _verifier_modele(self, candidat):
+        try:
+            candidat.clean()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
+
+
+class CategorieCatalogueSerializer(_CatalogueSerializer):
+    class Meta:
+        model = CategorieCatalogue
+        fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
+
+    def validate(self, attrs):
+        i = self.instance
+        pk = i.pk if i else None
+        parent = attrs["parent"] if "parent" in attrs else (i.parent if i else None)
+        specialite = attrs.get("specialite") or (i.specialite if i else None)
+        self._verifier_droit(specialite)
+        self._verifier_modele(CategorieCatalogue(pk=pk, parent=parent, specialite=specialite))
+        return attrs
+
+
+class ArticleCatalogueSerializer(_CatalogueSerializer):
+    specialite = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ArticleCatalogue
+        fields = "__all__"
+        read_only_fields = ["created_by", "updated_by"]
+
+    def validate(self, attrs):
+        categorie = attrs.get("categorie") or self.instance.categorie
+        self._verifier_droit(categorie.specialite)
+        return attrs

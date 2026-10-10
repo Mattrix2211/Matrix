@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Quarts et services de garde</h1>
@@ -14,10 +15,8 @@
       <i class="bi bi-person-badge"></i> Chefs de liste
     </a>
     {% endif %}
-    {% if peut_creer %}
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerListeModal">
-      <i class="bi bi-plus-lg"></i> Créer une liste
-    </button>
+    {% if peut_creer and not equipage_a_terre %}
+    <a href="{% url 'quarts-creer' %}" class="btn btn-primary">{% icone "ajout" %} Créer une liste</a>
     {% endif %}
   </div>
 </div>
@@ -39,7 +38,7 @@
             <span class="fw-semibold">{{ q.nom|default:"Liste de quarts" }}</span>
             <span class="d-block small text-muted font-mono">{{ q.fonction }} — {{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
           </span>
-          <span class="badge {% if q.statut == 'PUBLIEE' %}text-bg-success{% elif q.statut == 'PROPOSEE' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ q.get_statut_display }}</span>
+          <span class="badge {% if q.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-warning{% endif %}">{{ q.get_statut_display|upper }}</span>
         </a>
         {% empty %}
         <div class="list-group-item text-muted text-center py-4">Aucune liste de quarts pour l'instant.</div>
@@ -58,7 +57,7 @@
             <span class="fw-semibold">{{ g.nom|default:g.type_service|default:"Liste de services de garde" }}</span>
             <span class="d-block small text-muted font-mono">{{ g.fonction }} — {{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
           </span>
-          <span class="badge {% if g.statut == 'PUBLIEE' %}text-bg-success{% elif g.statut == 'PROPOSEE' %}text-bg-warning{% else %}text-bg-secondary{% endif %}">{{ g.get_statut_display }}</span>
+          <span class="badge {% if g.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-warning{% endif %}">{{ g.get_statut_display|upper }}</span>
         </a>
         {% empty %}
         <div class="list-group-item text-muted text-center py-4">Aucune liste de services de garde pour l'instant.</div>
@@ -88,93 +87,4 @@
 </div>
 {% endif %}
 
-{% if peut_creer %}
-<div class="modal fade" id="creerListeModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <form method="post" class="modal-content">
-      {% csrf_token %}
-      <div class="modal-header">
-        <h5 class="modal-title">Créer une liste</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Type de liste</label>
-          <select name="action" id="creerListeType" class="form-select" required>
-            <option value="creer_quart">Quart (rotation de postes)</option>
-            <option value="creer_service_garde">Service à quai / garde</option>
-          </select>
-        </div>
-        <div class="mb-3" id="creerListeFonctionQuart">
-          <label class="form-label">Fonction de quart</label>
-          <select name="fonction_quart" class="form-select" required>
-            <option value="">— Choisir une fonction —</option>
-            {% for f in fonctions_quart %}
-            <option value="{{ f.pk }}">{{ f.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mb-3 d-none" id="creerListeFonctionService">
-          <label class="form-label">Fonction de service</label>
-          <select name="fonction_service" class="form-select">
-            <option value="">— Choisir une fonction —</option>
-            {% for f in fonctions_service %}
-            <option value="{{ f.pk }}">{{ f.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Périmètre</label>
-          <select name="perimetre" class="form-select" required>
-            {% for p in perimetres_creation %}
-            <option value="{{ p.valeur }}">{{ p.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Nom (facultatif)</label>
-          <input type="text" name="nom" class="form-control" placeholder="Ex. Semaine du 08/09">
-        </div>
-        <div class="row g-2">
-          <div class="col-6">
-            <label class="form-label">Début de période</label>
-            <input type="date" name="date_debut" class="form-control" required>
-          </div>
-          <div class="col-6">
-            <label class="form-label">Fin de période</label>
-            <input type="date" name="date_fin" class="form-control" required>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="submit" class="btn btn-primary">Créer la liste (brouillon)</button>
-      </div>
-    </form>
-  </div>
-</div>
-<script>
-  // Bascule le champ "Fonction" affiché (quart ou service) selon le type de
-  // liste choisi — deux référentiels distincts (cf. quarts/models.py,
-  // correction de cadrage du 09/09/2026). Le champ masqué est désactivé
-  // (required retiré) pour ne pas bloquer la validation du formulaire.
-  (function () {
-    var typeSelect = document.getElementById('creerListeType');
-    var blocQuart = document.getElementById('creerListeFonctionQuart');
-    var blocService = document.getElementById('creerListeFonctionService');
-    if (!typeSelect || !blocQuart || !blocService) { return; }
-    var selectQuart = blocQuart.querySelector('select');
-    var selectService = blocService.querySelector('select');
-    function actualiser() {
-      var estQuart = typeSelect.value === 'creer_quart';
-      blocQuart.classList.toggle('d-none', !estQuart);
-      blocService.classList.toggle('d-none', estQuart);
-      selectQuart.required = estQuart;
-      selectService.required = !estQuart;
-    }
-    typeSelect.addEventListener('change', actualiser);
-    actualiser();
-  })();
-</script>
-{% endif %}
 {% endblock %}

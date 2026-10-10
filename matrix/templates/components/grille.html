@@ -1,0 +1,78 @@
+{% comment %}
+Grille de saisie façon tableur : saisie ou contrôle EN SÉRIE de plusieurs lignes
+(docs/UX.md §5.1, §5.2). Pour un objet isolé, utiliser l'assistant. À placer DANS
+le <form method="post"> de la vue (avec {% csrf_token %}) : la vue reste
+responsable de la validation et de l'enregistrement ; le bouton principal envoie
+l'ensemble du formulaire en une action. Sans JavaScript, la grille reste un
+formulaire classique utilisable.
+Balise : {% load composants %}{% grille id="cr-extincteurs" libelle="Compte rendu de contrôle" colonnes=colonnes lignes=lignes %}...{% fin_grille %}
+Paramètres :
+  id            : identifiant (obligatoire si la page porte plusieurs grilles)
+  libelle       : nom accessible de la grille (obligatoire)
+  colonnes      : liste de dictionnaires {nom, libelle, type, choix, placeholder}
+                  type : « texte » (défaut), « nombre », « date » (saisie JJ/MM/AAAA, à interpréter
+                  par la vue) ou « conformite » (liste de choix) ;
+                  choix : liste de {valeur, libelle} pour « conformite » (défaut : conforme / non_conforme)
+  lignes        : liste de dictionnaires {cle, libelle, valeurs, erreurs}
+                  titre et details (liste de textes) facultatifs : titre affiché à la place du libellé,
+                  suivi des détails en petit (le libellé reste le nom accessible des cellules)
+                  valeurs : {nom_de_colonne: valeur} ; erreurs : {nom_de_colonne: message}
+                  (erreur affichée DANS la cellule, ligne par ligne)
+  colonne « large » : booléen facultatif, cellule plus large (observations)
+  colonne « nombre » : min et max facultatifs (plage attendue) ; une valeur hors plage s'affiche en rouge, sans bloquer
+  libelle_ligne : en-tête de la première colonne (« Élément » par défaut)
+  lecture_seule : vrai = consultation seule (équipage à terre) : aucune saisie, aucun bouton
+  libelle_final : texte du bouton principal (« Enregistrer » par défaut)
+  brouillon     : clé stable « formulaire:objet » (ex. « cr-extincteurs:12 ») : active l'enregistrement
+                  automatique d'un brouillon côté serveur (static/js/brouillon.js, docs/UX.md §5.4) :
+                  enregistrement 2 s après la dernière frappe, « Brouillon enregistré à HH:MM »,
+                  « Reprendre le brouillon du … / Abandonner » à la réouverture, suppression après
+                  l'envoi réussi. Un seul brouillon par utilisateur et par clé ; mots de passe jamais
+                  conservés. Seuls les champs DE LA GRILLE (et de « contenu ») sont conservés.
+  libelle_brouillon : texte affiché dans « Mes brouillons à reprendre » (libellé de la grille par défaut)
+  classes       : classes CSS supplémentaires
+  contenu       : HTML libre placé sous la grille (champs cachés, observations), fourni par le bloc
+Champs envoyés : « <cle de ligne>__<nom de colonne> » (ex. « 12__etat »), une valeur vide si non saisi.
+Clavier : flèches et Tab / Maj+Tab = cellule voisine, Entrée = cellule du dessous (n'envoie jamais le
+formulaire), Échap = annule la saisie en cours dans la cellule, Ctrl+D = recopie la cellule active vers
+le bas (même action que le bouton « Recopier vers le bas »), Ctrl+V = collage multi-cellules depuis Excel.
+« Tout conforme » : s'applique à toute la grille sans cellule active ; ne touche que les cellules de conformité VIDES ; les « non conforme » et « non
+applicable » déjà saisis sont conservés. Cellule modifiée = bordure gauche épaisse, comptée dans le
+pied. La barre d'outils est masquée tant que le JS ne l'a pas affichée. Le seul bouton --signal est le bouton principal ; la logique est dans static/js/grille.js.
+{% endcomment %}{% load composants icones %}<section class="mx-grille {{ classes }}" data-grille{% if brouillon and not lecture_seule %} data-brouillon="{{ brouillon }}" data-brouillon-libelle="{{ libelle_brouillon|default:libelle }}"{% endif %}{% if lecture_seule %} data-grille-lecture-seule{% endif %}>
+  {% if not lecture_seule %}<div class="mx-grille__barre" data-grille-barre hidden role="group" aria-label="Actions de la grille {{ libelle }}">
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-grille-action="tout-conforme">{% icone "terminee" %} Tout conforme</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-grille-action="recopier" title="Raccourci : Ctrl+D">{% icone "recopie_bas" %} Recopier vers le bas</button>
+    <span class="mx-grille__aide">Entrée : cellule du dessous · Échap : annuler · Ctrl+D : recopier</span>
+  </div>{% endif %}
+  <div class="mx-grille__defilement">
+    <table class="mx-grille__table" role="grid" id="{{ id|default:'grille' }}" aria-label="{{ libelle }}"{% if lecture_seule %} aria-readonly="true"{% endif %}>
+      <thead>
+        <tr role="row">
+          <th scope="col" role="columnheader" class="mx-grille__entete">{{ libelle_ligne|default:"Élément" }}</th>
+          {% for col in colonnes %}<th scope="col" role="columnheader" class="mx-grille__entete">{{ col.libelle }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in lignes %}<tr role="row">
+          <th scope="row" role="rowheader" class="mx-grille__ligne-titre">{{ ligne.titre|default:ligne.libelle }}{% for d in ligne.details %}<span class="mx-grille__ligne-detail">{{ d }}</span>{% endfor %}</th>
+          {% for col in colonnes %}{% with liste=col.choix|default:choix_conformite valeur=ligne|valeur_cellule:col.nom erreur=ligne|erreur_cellule:col.nom %}<td role="gridcell" class="mx-grille__cellule{% if col.large %} mx-grille__cellule--large{% endif %}{% if erreur %} mx-grille__cellule--erreur{% endif %}">
+            {% if lecture_seule %}{% if col.type == "conformite" %}{% for choix in liste %}{% if choix.valeur == valeur %}{{ choix.libelle }}{% endif %}{% endfor %}{% else %}{{ valeur }}{% endif %}
+            {% elif col.type == "conformite" %}<select class="mx-grille__champ" data-grille-champ data-initial="{{ valeur|initiale_liste:liste }}" data-conformite name="{{ ligne.cle }}__{{ col.nom }}" id="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}" aria-label="{{ col.libelle }} : {{ ligne.libelle }}"{% if erreur %} aria-invalid="true" aria-describedby="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}-erreur"{% endif %}>
+              <option value="">À saisir</option>
+              {% for choix in liste %}<option value="{{ choix.valeur }}"{% if choix.valeur == valeur %} selected{% endif %}>{{ choix.libelle }}</option>{% endfor %}
+            </select>
+            {% else %}<input class="mx-grille__champ" data-grille-champ data-initial="{{ valeur }}" type="text" name="{{ ligne.cle }}__{{ col.nom }}" id="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}" value="{{ valeur }}" aria-label="{{ col.libelle }} : {{ ligne.libelle }}"{% if col.type == "nombre" %} inputmode="decimal"{% if col.min is not None %} data-min="{{ col.min|stringformat:'g' }}"{% endif %}{% if col.max is not None %} data-max="{{ col.max|stringformat:'g' }}"{% endif %}{% elif col.type == "date" %} inputmode="numeric" placeholder="{{ col.placeholder|default:'JJ/MM/AAAA' }}"{% elif col.placeholder %} placeholder="{{ col.placeholder }}"{% endif %}{% if erreur %} aria-invalid="true" aria-describedby="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}-erreur"{% endif %} autocomplete="off">
+            {% endif %}
+            {% if erreur %}<span class="mx-grille__erreur" id="{{ id|default:'grille' }}-{{ ligne.cle }}-{{ col.nom }}-erreur">{{ erreur }}</span>{% endif %}
+          </td>{% endwith %}{% endfor %}
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ contenu }}
+  {% if not lecture_seule %}<div class="mx-grille__pied">
+    <button type="submit" class="btn btn-primary">{{ libelle_final|default:"Enregistrer" }}</button>
+    <span class="mx-grille__compteur" role="status" aria-live="polite" data-grille-compteur>Aucune modification</span>
+  </div>{% endif %}
+</section>

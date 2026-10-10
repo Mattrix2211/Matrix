@@ -1,61 +1,66 @@
 {% extends "base.html" %}
+{% load static icones composants %}
 {% block content %}
-<h1 class="h3 mb-3">Matériels</h1>
+{# Cartes plutôt que tableau : la photo et l'état du matériel parlent plus qu'une ligne de tableau (docs/UX.md §20.6) #}
+<div class="mx-liste-entete">
+  <h1 class="h3 mb-0">Matériels — {{ assets|length }} matériel{{ assets|length|pluralize }}</h1>
+  <div class="mx-liste-entete__actions">
+    {% if not equipage_a_terre %}<a class="btn btn-primary" href="/catalogue/">{% icone "ajout" %} Ajouter du matériel</a>{% endif %}
+    {% menu_contextuel libelle="Autres actions sur les matériels" %}
+      {% if not equipage_a_terre %}{% url 'asset-import' as url_import %}
+      {% include "components/menu_item.html" with libelle="Importer depuis Excel" url=url_import icone="materiel" %}{% endif %}
+      {% if xlsx_disponible %}{% include "components/menu_item.html" with libelle="Exporter en Excel" url=export_url_xlsx icone="materiel" %}{% endif %}
+      {% include "components/menu_item.html" with libelle="Exporter en CSV" url=export_url_csv icone="materiel" %}
+      {% if peut_ecrire and not equipage_a_terre %}<li><button type="button" class="dropdown-item mx-menu__item" id="btnNewFolderHere" data-bs-toggle="modal" data-bs-target="#createFolderModal">{% icone "ajout" %}<span>Nouveau dossier</span></button></li>{% endif %}
+    {% fin_menu_contextuel %}
+  </div>
+</div>
+
 {% if filtre_location %}
 <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
-  <span><span class="bi bi-geo-alt-fill me-1"></span> Filtré sur l'emplacement <strong>{{ filtre_location.name }}</strong> (venu du plan du navire).</span>
+  <span>Filtré sur l'emplacement <strong>{{ filtre_location.name }}</strong> (venu du plan du navire).</span>
   <a href="{% url 'asset-list' %}" class="btn btn-sm btn-outline-secondary">Voir tout le matériel</a>
 </div>
 {% endif %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div class="d-flex align-items-center gap-2">
-    <div class="dropdown">
-      <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filtersBtn" data-bs-toggle="dropdown" aria-expanded="false">Filtres</button>
-      <div class="dropdown-menu p-3" aria-labelledby="filtersBtn" style="min-width: 480px;">
-        <form method="get" id="filtersForm" class="row g-2">
-          <div class="col-6"><label class="form-label">Unité</label><select name="ship" class="form-select"><option value="">Tous</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
-          <div class="col-6"><label class="form-label">Service</label><select name="service" class="form-select"><option value="">Tous</option>{% for sv in services %}<option value="{{ sv.id }}" {% if request.GET.service == sv.id|stringformat:'s' %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
-          <div class="col-6"><label class="form-label">Secteur</label><select name="sector" class="form-select"><option value="">Tous</option>{% for sc in sectors %}<option value="{{ sc.id }}" {% if request.GET.sector == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
-          <div class="col-6"><label class="form-label">Section</label><select name="section" class="form-select"><option value="">Toutes</option>{% for se in sections %}<option value="{{ se.id }}" {% if request.GET.section == se.id|stringformat:'s' %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
-          <div class="col-6"><label class="form-label">Type</label><select name="type" class="form-select"><option value="">Tous</option>{% for t in types %}<option value="{{ t.id }}" {% if request.GET.type == t.id|stringformat:'s' %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
-          <div class="col-6"><label class="form-label">Statut</label><select name="status" class="form-select"><option value="">Tous</option><option value="OK" {% if request.GET.status == 'OK' %}selected{% endif %}>OK</option><option value="IN_SERVICE" {% if request.GET.status == 'IN_SERVICE' %}selected{% endif %}>En service</option><option value="OUT_OF_SERVICE" {% if request.GET.status == 'OUT_OF_SERVICE' %}selected{% endif %}>Hors service</option><option value="FAULTY" {% if request.GET.status == 'FAULTY' %}selected{% endif %}>Défectueux</option></select></div>
-          <div class="col-12 d-flex justify-content-end"><button class="btn btn-primary" type="submit">Appliquer</button></div>
-        </form>
-      </div>
-    </div>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssetModal" title="Nouveau matériel"><i class="bi bi-plus-lg"></i> Ajouter</button>
-    <a href="{% url 'asset-import' %}" class="btn btn-outline-primary" title="Importer plusieurs matériels d'un coup depuis un fichier Excel">
-      <i class="bi bi-file-earmark-excel"></i> Importer
-    </a>
-    <div class="dropdown">
-      <button class="btn btn-outline-success dropdown-toggle" type="button" id="exportBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Exporter la liste (respecte les filtres actifs et votre périmètre)">
-        <i class="bi bi-download"></i> Exporter
-      </button>
-      <ul class="dropdown-menu" aria-labelledby="exportBtn">
-        {% if xlsx_disponible %}<li><a class="dropdown-item" href="{{ export_url_xlsx }}">Excel (.xlsx)</a></li>{% endif %}
-        <li><a class="dropdown-item" href="{{ export_url_csv }}">CSV</a></li>
-      </ul>
-    </div>
-  </div>
-  <div class="d-flex align-items-center gap-2">
-    <input type="text" id="assetSearch" class="form-control" placeholder="Rechercher..." style="max-width: 260px;" />
-    <div class="dropdown">
-      {# Repliées par défaut (audit visuel §2/§5) : n'apparaissent qu'après sélection d'au
-      moins un matériel (classe d-none basculée en JS, cf. countSelected() plus bas), pour
-      ne pas encombrer la barre d'outils quand elles ne servent à rien. #}
-      <button class="btn btn-outline-secondary dropdown-toggle d-none" type="button" id="bulkActionsBtn" data-bs-toggle="dropdown" aria-expanded="false" disabled>Actions groupées</button>
-      <ul class="dropdown-menu" aria-labelledby="bulkActionsBtn">
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkStatusModal">Modifier statut…</button></li>
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkShipModal">Modifier unité…</button></li>
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkServiceModal">Modifier service…</button></li>
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectorModal">Modifier secteur…</button></li>
-        <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#bulkSectionModal">Modifier section…</button></li>
-        <li><hr class="dropdown-divider" /></li>
-        <li><button class="dropdown-item text-danger" type="button" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_delete_assets">Supprimer…</button></li>
-      </ul>
+
+<div class="mx-annuaire-outils">
+  <input type="search" id="assetSearch" class="form-control" placeholder="Rechercher un matériel…" aria-label="Rechercher dans la liste" />
+  <div class="dropdown">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="filtersBtn" data-bs-toggle="dropdown" aria-expanded="false">Filtres</button>
+    <div class="dropdown-menu p-3" aria-labelledby="filtersBtn" style="min-width: 480px;">
+      <form method="get" id="filtersForm" class="row g-2">
+        <div class="col-6"><label class="form-label">Unité</label><select name="ship" class="form-select"><option value="">Tous</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if request.GET.ship == sh.id|stringformat:'s' %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Service</label><select name="service" class="form-select"><option value="">Tous</option>{% for sv in services %}<option value="{{ sv.id }}" {% if request.GET.service == sv.id|stringformat:'s' %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Secteur</label><select name="sector" class="form-select"><option value="">Tous</option>{% for sc in sectors %}<option value="{{ sc.id }}" {% if request.GET.sector == sc.id|stringformat:'s' %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Section</label><select name="section" class="form-select"><option value="">Toutes</option>{% for se in sections %}<option value="{{ se.id }}" {% if request.GET.section == se.id|stringformat:'s' %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Type</label><select name="type" class="form-select"><option value="">Tous</option>{% for t in types %}<option value="{{ t.id }}" {% if request.GET.type == t.id|stringformat:'s' %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Statut</label><select name="status" class="form-select"><option value="">Tous</option><option value="OK" {% if request.GET.status == 'OK' %}selected{% endif %}>OK</option><option value="IN_SERVICE" {% if request.GET.status == 'IN_SERVICE' %}selected{% endif %}>En service</option><option value="OUT_OF_SERVICE" {% if request.GET.status == 'OUT_OF_SERVICE' %}selected{% endif %}>Hors service</option><option value="FAULTY" {% if request.GET.status == 'FAULTY' %}selected{% endif %}>Défectueux</option></select></div>
+        <div class="col-12 d-flex justify-content-end"><button class="btn btn-primary" type="submit">Appliquer</button></div>
+      </form>
     </div>
   </div>
 </div>
+{% include "components/filtres_actifs.html" with filtres=filtres_actifs %}
+
+{% if peut_gerer and not equipage_a_terre %}
+<div class="mx-barre-selection d-none" id="barreSelection" data-singulier="matériel sélectionné" data-pluriel="matériels sélectionnés" role="region" aria-label="Actions sur la sélection" aria-live="polite">
+  <strong id="barreSelectionNombre"></strong>
+  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="status" data-titre="Changer le statut">Changer le statut</button>
+  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="location" data-titre="Déplacer vers un emplacement">Déplacer</button>
+  <div class="dropdown">
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Autres actions sur la sélection">{% icone "menu_actions" %}</button>
+    <ul class="dropdown-menu">
+      <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="ship" data-titre="Modifier l'unité">Unité…</button></li>
+      <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="service" data-titre="Modifier le service">Service…</button></li>
+      <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="sector" data-titre="Modifier le secteur">Secteur…</button></li>
+      <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#bulkModal" data-bulk="section" data-titre="Modifier la section">Section…</button></li>
+      <li><hr class="dropdown-divider"></li>
+      <li><button type="button" class="dropdown-item mx-menu__item--danger" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="bulk_delete_assets" data-label="Supprimer les matériels sélectionnés ?">{% icone "suppression" %} Supprimer…</button></li>
+    </ul>
+  </div>
+  <button type="button" class="btn btn-sm btn-link" id="barreSelectionVider">Tout désélectionner</button>
+</div>
+{% endif %}
 
 <div class="row g-3">
   <div class="col-12">
@@ -78,15 +83,9 @@
             </ol>
           </nav>
         </div>
-        <button id="btnNewFolderHere" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createFolderModal">Nouveau</button>
       </div>
       {% if folders %}
-      {# Vue par défaut allégée (audit visuel §2/§5) : le contenu du dossier n'est
-      rendu que s'il y a au moins un sous-dossier à afficher, pour ne pas imposer
-      une grande carte vide aux utilisateurs qui ne se servent jamais des dossiers.
-      Le bandeau ci-dessus (fil d'Ariane + bouton "Nouveau") reste toujours visible :
-      la navigation et la création de dossier restent possibles en toute
-      circonstance. #}
+      {# Le contenu n'est rendu que s'il y a au moins un sous-dossier : pas de grande carte vide #}
       <div class="card-body">
         <div class="row g-3" id="folderGrid">
           {% for f in folders %}
@@ -112,97 +111,44 @@
   <div class="col-12">
     <div class="row g-3" id="assetGrid">
       {% for a in assets %}
-        <div class="col-12 col-sm-6 col-md-4">
-          <div class="card h-100 shadow-sm asset-card" draggable="true" data-id="{{ a.id }}">
-            {% if a.photo %}<img src="{{ a.photo.url }}" class="card-img-top" alt="{{ a.designation|default:'Matériel' }}" style="object-fit:cover;height:160px;cursor:pointer;" onclick="window.location.href='/assets/{{ a.id }}/'" />{% else %}
-            <div class="bg-light d-flex align-items-center justify-content-center" style="height:160px;cursor:pointer;" onclick="window.location.href='/assets/{{ a.id }}/'">
-              <i class="bi bi-gear-wide-connected fs-1 text-secondary"></i>
-            </div>{% endif %}
-            <div class="card-body">
-              <h6 class="card-title mb-1 text-truncate" title="{{ a.designation|default:'Matériel' }}">{{ a.designation|default:"(sans désignation)" }}</h6>
-              <div class="small text-muted">{{ a.ship.name }} • {{ a.service.name }}</div>
-              
-              <div class="small text-muted">{{ a.marque|default:"" }} <span class="font-mono">{{ a.reference|default:"" }}</span></div>
-            </div>
-            <div class="card-footer d-flex gap-2">
-              <input type="checkbox" value="{{ a.id }}" class="form-check-input me-2 row-select" />
-                          <button class="btn btn-outline-secondary btn-sm ms-auto" data-bs-toggle="modal" data-bs-target="#editAssetModal"
-                            data-pk="{{ a.id }}" data-type-id="{{ a.asset_type.id }}" data-designation="{{ a.designation }}" data-nno="{{ a.nno }}" data-reference="{{ a.reference }}" data-marque="{{ a.marque }}" data-gisement="{{ a.gisement }}" data-local="{{ a.local }}"
-                      data-internal-id="{{ a.internal_id }}" data-serial-number="{{ a.serial_number }}"
-                      data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}" data-location-id="{% if a.location_id %}{{ a.location_id }}{% endif %}">✏️</button>
-              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="delete_asset" data-pk="{{ a.id }}" data-label="Supprimer le matériel {{ a.designation|default:a.serial_number }}">🗑️</button>
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-3" data-selectionnable>
+          <div class="mx-liste-carte asset-card" draggable="true" data-id="{{ a.id }}">
+            {% if peut_gerer and not equipage_a_terre %}<span class="mx-liste-carte__case"><input type="checkbox" value="{{ a.id }}" class="form-check-input row-select" aria-label="Sélectionner {{ a.designation|default:a.serial_number }}" /></span>{% endif %}
+            {% if peut_ecrire and not equipage_a_terre %}
+            <span class="mx-liste-carte__menu">
+              {% menu_contextuel libelle="Actions sur ce matériel" %}
+                <li><button type="button" class="dropdown-item mx-menu__item" data-bs-toggle="modal" data-bs-target="#editAssetModal"
+                  data-pk="{{ a.id }}" data-type-id="{{ a.asset_type.id }}" data-designation="{{ a.designation }}" data-nno="{{ a.nno }}" data-reference="{{ a.reference }}" data-marque="{{ a.marque }}" data-gisement="{{ a.gisement }}" data-local="{{ a.local }}"
+                  data-internal-id="{{ a.internal_id }}" data-serial-number="{{ a.serial_number }}"
+                  data-status="{{ a.status }}" data-criticality="{{ a.criticality }}" data-ship-id="{{ a.ship.id }}" data-service-id="{{ a.service.id }}" data-sector-id="{{ a.sector.id }}" data-section-id="{% if a.section %}{{ a.section.id }}{% endif %}" data-parent-id="{% if a.parent_id %}{{ a.parent_id }}{% endif %}" data-location-id="{% if a.location_id %}{{ a.location_id }}{% endif %}">{% icone "modification" %}<span>Modifier</span></button></li>
+                {% if peut_gerer %}<li><button type="button" class="dropdown-item mx-menu__item mx-menu__item--danger" data-bs-toggle="modal" data-bs-target="#bulkConfirmModal" data-action="delete_asset" data-pk="{{ a.id }}" data-label="Supprimer le matériel {{ a.designation|default:a.serial_number }} ?">{% icone "suppression" %}<span>Supprimer</span></button></li>{% endif %}
+              {% fin_menu_contextuel %}
+            </span>
+            {% endif %}
+            <a class="mx-liste-carte__photo" href="{% url 'asset-detail' a.id %}" aria-label="Ouvrir la fiche de {{ a.designation|default:'ce matériel' }}">
+              {% if a.photo %}<img src="{{ a.photo.url }}" alt="" />{% else %}{% icone "materiel" %}{% endif %}
+            </a>
+            <div class="mx-liste-carte__corps">
+              <a class="mx-liste-carte__titre" href="{% url 'asset-detail' a.id %}" title="{{ a.designation|default:'Matériel' }}">{{ a.designation|default:"(sans désignation)" }}</a>
+              <span class="mx-liste-carte__detail">{{ a.ship.name }} • {{ a.service.name }}</span>
+              <span class="mx-liste-carte__detail">{{ a.marque|default:"" }} <span class="font-mono">{{ a.reference|default:"" }}</span></span>
+              <span>{% if a.status == "OK" or a.status == "IN_SERVICE" %}{% include "components/badge_etat.html" with etat="ok" libelle=a.get_status_display %}{% elif a.status == "FAULTY" %}{% include "components/badge_etat.html" with etat="attention" libelle=a.get_status_display %}{% else %}{% include "components/badge_etat.html" with etat="danger" libelle=a.get_status_display %}{% endif %}</span>
             </div>
           </div>
         </div>
       {% empty %}
-        <div class="col-12 text-muted">Aucun matériel</div>
+        <div class="col-12">
+          {% if request.GET %}
+            {% include "components/etat_vide.html" with icone="materiel" titre="Aucun matériel ne correspond" texte="Retirez un filtre pour élargir la liste." url=request.path libelle="Voir tout le matériel" %}
+          {% else %}
+            {% include "components/etat_vide.html" with icone="materiel" titre="Aucun matériel pour l'instant" texte="Ajoutez du matériel depuis le catalogue." url="/catalogue/" libelle="Ajouter du matériel" %}
+          {% endif %}
+        </div>
       {% endfor %}
     </div>
   </div>
 </div>
 
-{# Modale création #}
-<div class="modal fade" id="createAssetModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Nouveau matériel</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-      <form method="post" enctype="multipart/form-data">
-        <div class="modal-body">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="create_asset" />
-          <input type="hidden" name="folder_id" id="createFolderId" />
-          <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" required /></div>
-            {% if request.GET.type %}
-              <input type="hidden" name="asset_type_id" value="{{ request.GET.type }}" />
-            {% else %}
-              <input type="hidden" name="asset_type_id" id="createAssetTypeValue" />
-              <select id="createAssetTypeHidden" class="form-select d-none">{% for t in types %}<option value="{{ t.id }}" data-sector="{{ t.sector.id }}">{{ t.name }}</option>{% endfor %}</select>
-            {% endif %}
-            <div class="col-md-3"><label class="form-label">N°</label><input class="form-control font-mono" name="serial_number" /></div>
-            <div class="col-md-3"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" /></div>
-            <div class="col-md-3"><label class="form-label">Marque</label><input class="form-control" name="marque" /></div>
-            <div class="col-md-3"><label class="form-label">NNO</label><input class="form-control font-mono" name="nno" /></div>
-            <div class="col-md-3"><label class="form-label">Gisement</label><input class="form-control" name="gisement" /></div>
-            <div class="col-md-3"><label class="form-label">Local</label><input class="form-control" name="local" /></div>
-            <input type="hidden" name="status" value="OK" />
-            <input type="hidden" name="criticality" value="1" />
-            <div class="col-md-6"><label class="form-label">Unité</label><select class="form-select" name="ship_id" id="createShip"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}" {% if sh.id == user_ship_id %}selected{% endif %}>{{ sh.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4"><label class="form-label">Service</label><select class="form-select" name="service_id" id="createService"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}" data-ship="{{ sv.ship.id }}" {% if sv.id == user_service_id %}selected{% endif %}>{{ sv.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-4">
-              <label class="form-label">Secteur{% if not request.GET.type %} <span class="text-danger">*</span>{% endif %}</label>
-              <select class="form-select" name="sector_id" id="createSector" {% if not request.GET.type %}required{% endif %}><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}" data-service="{{ sc.service.id }}" {% if sc.id == user_sector_id %}selected{% endif %}>{{ sc.name }}</option>{% endfor %}</select>
-              <div class="invalid-feedback" id="createSectorFeedback">Aucun type de matériel n'est configuré pour ce secteur. Choisissez un autre secteur ou demandez à un administrateur d'en configurer un.</div>
-            </div>
-            <div class="col-md-4"><label class="form-label">Section</label><select class="form-select" name="section_id" id="createSection"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}" data-sector="{{ se.sector.id }}" {% if se.id == user_section_id %}selected{% endif %}>{{ se.name }}</option>{% endfor %}</select></div>
-            <div class="col-md-6">
-              <label class="form-label">Emplacement</label>
-              <select class="form-select" name="location_id" id="createLocation">
-                <option value="">—</option>
-                {% for loc in locations %}<option value="{{ loc.id }}" data-ship="{{ loc.ship.id }}">{{ loc.name }}</option>{% endfor %}
-                <option value="__new__">+ Ajouter un nouvel emplacement…</option>
-              </select>
-              <input type="text" class="form-control mt-2 d-none" name="new_location_name" id="createLocationNew" placeholder="Nom du nouvel emplacement" />
-            </div>
-            <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
-            {% if peut_gerer_parent %}
-            <div class="col-md-6">
-              <label class="form-label">Rattaché à (facultatif)</label>
-              <select class="form-select" name="parent_id" id="createParentAsset">
-                <option value="">— Aucun —</option>
-                {% for p in assets_pour_parent %}
-                  <option value="{{ p.id }}" data-sector="{{ p.sector_id }}">{{ p.designation|default:p.asset_type.name }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            {% endif %}
-          </div>
-        </div>
-        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Créer</button></div>
-      </form>
-    </div>
-  </div>
-</div>
 
 {# Modale édition #}
 <div class="modal fade" id="editAssetModal" tabindex="-1" aria-hidden="true">
@@ -235,6 +181,9 @@
                     <div class="col-md-3"><label class="form-label">N° série</label><input class="form-control font-mono" name="serial_number" id="editSerialNumber" /></div>
                     <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status" id="editStatus"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div>
                     <div class="col-md-3"><label class="form-label">Criticité</label><input type="number" min="1" max="5" class="form-control" name="criticality" id="editCriticality" /></div>
+                    <div class="col-md-4"><label class="form-label">Mise en service</label><input class="form-control" name="date_mise_en_service" id="editDateMiseEnService" inputmode="numeric" placeholder="JJ/MM/AAAA" autocomplete="off" /></div>
+                    <div class="col-md-4"><label class="form-label">Dernier contrôle</label><input class="form-control" name="date_dernier_controle" id="editDateDernierControle" inputmode="numeric" placeholder="JJ/MM/AAAA" autocomplete="off" /></div>
+                    <div class="col-md-4"><label class="form-label">Péremption</label><input class="form-control" name="date_peremption" id="editDatePeremption" inputmode="numeric" placeholder="JJ/MM/AAAA" autocomplete="off" /></div>
                     <div class="col-md-6"><label class="form-label">Photo</label><input type="file" class="form-control" name="photo" accept="image/*" /></div>
                   </div>
                 </div>
@@ -304,176 +253,12 @@
   </div>
 </div>
 
-{# Modales groupées #}
-<div class="modal fade" id="bulkStatusModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le statut (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkStatusForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_status" /><label class="form-label">Statut</label><select class="form-select" name="status"><option value="OK">OK</option><option value="IN_SERVICE">En service</option><option value="OUT_OF_SERVICE">Hors service</option><option value="FAULTY">Défectueux</option></select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
-<div class="modal fade" id="bulkShipModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier l'unité (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkShipForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_ship" /><label class="form-label">Unité</label><select class="form-select" name="ship_id"><option value="">—</option>{% for sh in ships %}<option value="{{ sh.id }}">{{ sh.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
-<div class="modal fade" id="bulkServiceModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le service (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkServiceForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_service" /><label class="form-label">Service</label><select class="form-select" name="service_id"><option value="">—</option>{% for sv in services %}<option value="{{ sv.id }}">{{ sv.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
-<div class="modal fade" id="bulkSectorModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier le secteur (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkSectorForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_sector" /><label class="form-label">Secteur</label><select class="form-select" name="sector_id"><option value="">—</option>{% for sc in sectors %}<option value="{{ sc.id }}">{{ sc.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
-<div class="modal fade" id="bulkSectionModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Modifier la section (sélection)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkSectionForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" value="bulk_update_section" /><label class="form-label">Section</label><select class="form-select" name="section_id"><option value="">—</option>{% for se in sections %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-primary">Appliquer</button></div></form></div></div></div>
-
-{# Modale confirmation #}
-<div class="modal fade" id="bulkConfirmModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Confirmer l'action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form method="post" id="bulkConfirmForm"><div class="modal-body">{% csrf_token %}<input type="hidden" name="action" id="bulkConfirmAction" /><p id="bulkConfirmLabel">Confirmer la suppression des matériels sélectionnés ?</p></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger">Appliquer</button></div></form></div></div></div>
-
-<script>
-  (function(){
-    var bulkBtn = document.getElementById('bulkActionsBtn');
-    var selectAll = document.getElementById('selectAll');
-    function countSelected(){
-      var rows = document.querySelectorAll('.row-select:checked');
-      var n = rows.length;
-      bulkBtn.disabled = n === 0;
-      bulkBtn.classList.toggle('d-none', n === 0);
-      bulkBtn.textContent = n>0 ? ('Actions groupées ('+n+')') : 'Actions groupées';
-    }
-    document.querySelectorAll('.row-select').forEach(function(ch){ ch.addEventListener('change', countSelected); });
-    if (selectAll) { selectAll.addEventListener('change', function(){ var rows = document.querySelectorAll('.row-select'); rows.forEach(function(ch){ ch.checked = selectAll.checked; }); countSelected(); }); }
-    countSelected();
-    // Search (cards)
-    var searchInput = document.getElementById('assetSearch');
-    if (searchInput) { searchInput.addEventListener('input', function(){ var q = searchInput.value.toLowerCase(); var cards = document.querySelectorAll('#assetGrid .asset-card'); cards.forEach(function(card){ var text = card.innerText.toLowerCase(); card.parentElement.style.display = q ? (text.indexOf(q) !== -1 ? '' : 'none') : ''; }); }); }
-    // Populate selected_ids
-    function populate(form){ Array.from(form.querySelectorAll('input[name="selected_ids"]')).forEach(function(el){ el.parentNode.removeChild(el); }); document.querySelectorAll('.row-select:checked').forEach(function(ch){ var inp = document.createElement('input'); inp.type='hidden'; inp.name='selected_ids'; inp.value=ch.value; form.appendChild(inp); }); }
-    var bs = {
-      status: document.getElementById('bulkStatusModal'),
-      
-      ship: document.getElementById('bulkShipModal'),
-      service: document.getElementById('bulkServiceModal'),
-      sector: document.getElementById('bulkSectorModal'),
-      section: document.getElementById('bulkSectionModal'),
-      confirm: document.getElementById('bulkConfirmModal')
-    };
-    if (bs.status) bs.status.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkStatusForm')); });
-    
-    if (bs.ship) bs.ship.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkShipForm')); });
-    if (bs.service) bs.service.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkServiceForm')); });
-    if (bs.sector) bs.sector.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkSectorForm')); });
-    if (bs.section) bs.section.addEventListener('show.bs.modal', function(){ populate(document.getElementById('bulkSectionForm')); });
-    if (bs.confirm) bs.confirm.addEventListener('show.bs.modal', function(event){ var btn = event.relatedTarget; var action = btn.getAttribute('data-action')||''; document.getElementById('bulkConfirmAction').value = action; populate(document.getElementById('bulkConfirmForm')); var label = btn.getAttribute('data-label') || 'Confirmer la suppression des matériels sélectionnés ?'; document.getElementById('bulkConfirmLabel').textContent = label; var pk = btn.getAttribute('data-pk')||''; var form = document.getElementById('bulkConfirmForm'); if (pk) { var inp = document.createElement('input'); inp.type='hidden'; inp.name='pk'; inp.value=pk; form.appendChild(inp); } });
-    // Edit modal populate
-    var editModal = document.getElementById('editAssetModal');
-    if (editModal) { editModal.addEventListener('show.bs.modal', function(event){ var b = event.relatedTarget; var pk = b.getAttribute('data-pk'); document.getElementById('editAssetPk').value = pk; function setSel(id,val){ var el=document.getElementById(id); if(!el) return; for(var i=0;i<el.options.length;i++){ if(el.options[i].value==val){ el.selectedIndex=i; break; } } }
-      setSel('editAssetType', b.getAttribute('data-type-id')||'');
-      document.getElementById('editDesignation').value = b.getAttribute('data-designation')||'';
-      document.getElementById('editNno').value = b.getAttribute('data-nno')||'';
-      document.getElementById('editReference').value = b.getAttribute('data-reference')||'';
-      document.getElementById('editMarque').value = b.getAttribute('data-marque')||'';
-      document.getElementById('editGisement').value = b.getAttribute('data-gisement')||'';
-      var locVal = b.getAttribute('data-local')||''; var editLocal = document.getElementById('editLocal'); if (editLocal) editLocal.value = locVal;
-      document.getElementById('editInternalId').value = b.getAttribute('data-internal-id')||''; document.getElementById('editSerialNumber').value = b.getAttribute('data-serial-number')||''; setSel('editStatus', b.getAttribute('data-status')||''); document.getElementById('editCriticality').value = b.getAttribute('data-criticality')||''; setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||'');
-      setSel('editLocation', b.getAttribute('data-location-id')||'');
-      var editLocationNew = document.getElementById('editLocationNew'); if (editLocationNew) { editLocationNew.classList.add('d-none'); editLocationNew.value = ''; }
-      // Rattachement parent (T3) : ne propose que les matériels du même secteur, en excluant le matériel lui-même.
-      var parentSel = document.getElementById('editParentAsset');
-      if (parentSel) {
-        var sectorId = b.getAttribute('data-sector-id')||'';
-        Array.from(parentSel.options).forEach(function(opt){
-          if (!opt.value) { opt.hidden = false; return; }
-          opt.hidden = (opt.getAttribute('data-sector') !== sectorId) || (opt.value === pk);
-        });
-        if (parentSel.selectedOptions.length && parentSel.selectedOptions[0].hidden) { parentSel.selectedIndex = 0; }
-        setSel('editParentAsset', b.getAttribute('data-parent-id')||'');
-      }
-    }); }
-    // Injecter la liste des documents existants dans la modale d'édition
-    if (editModal) { editModal.addEventListener('show.bs.modal', function(event){ var b = event.relatedTarget; var pk = b.getAttribute('data-pk'); var placeholder = document.getElementById('editAssetDocsList'); var hidden = document.getElementById('asset-docs-'+pk); if (placeholder) { placeholder.innerHTML = hidden ? hidden.innerHTML : '<span class="text-muted">Aucun document</span>'; } }); }
-    // Cascades (créer matériel): ship -> service -> sector -> section
-    function setupCreateCascades(){
-      var shipSel = document.getElementById('createShip');
-      var serviceSel = document.getElementById('createService');
-      var sectorSel = document.getElementById('createSector');
-      var sectionSel = document.getElementById('createSection');
-      var parentSel = document.getElementById('createParentAsset');
-      var locationSel = document.getElementById('createLocation');
-      function filterOptions(select, dataAttr, match){ if(!select) return; var val = match || ''; Array.from(select.options).forEach(function(opt){ if(!opt.value || opt.value === '__new__'){ opt.hidden=false; return; } var dv = opt.getAttribute(dataAttr); opt.hidden = !val || (dv !== val); }); if (select.selectedOptions.length && select.selectedOptions[0].hidden) { select.selectedIndex = 0; } }
-      function onShip(){ filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : ''); filterOptions(sectorSel, 'data-service', ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); filterOptions(locationSel, 'data-ship', shipSel ? shipSel.value : ''); }
-      function onService(){ filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : ''); filterOptions(sectionSel, 'data-sector', ''); filterOptions(parentSel, 'data-sector', ''); }
-      function onSector(){ filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : ''); filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : ''); updateAssetTypeFromSector(); if (sectorSel) sectorSel.classList.remove('is-invalid'); }
-      if (shipSel) shipSel.addEventListener('change', onShip);
-      if (serviceSel) serviceSel.addEventListener('change', onService);
-      if (sectorSel) sectorSel.addEventListener('change', onSector);
-      // Filtrage initial non destructif : conserve le périmètre pré-rempli depuis le
-      // profil du chef connecté au lieu de le réinitialiser en cascade (onShip/onService
-      // effacent les niveaux inférieurs, ce qui annulait le pré-remplissage automatique).
-      filterOptions(serviceSel, 'data-ship', shipSel ? shipSel.value : '');
-      filterOptions(sectorSel, 'data-service', serviceSel ? serviceSel.value : '');
-      filterOptions(sectionSel, 'data-sector', sectorSel ? sectorSel.value : '');
-      filterOptions(parentSel, 'data-sector', sectorSel ? sectorSel.value : '');
-      filterOptions(locationSel, 'data-ship', shipSel ? shipSel.value : '');
-    }
-    // Bascule du champ "Nouvel emplacement" : affiché uniquement quand l'option
-    // "+ Ajouter un nouvel emplacement…" est sélectionnée dans le menu déroulant.
-    function configurerBasculeEmplacement(idSelect, idChamp){
-      var sel = document.getElementById(idSelect); var champ = document.getElementById(idChamp);
-      if (!sel || !champ) return;
-      sel.addEventListener('change', function(){
-        var estNouveau = sel.value === '__new__';
-        champ.classList.toggle('d-none', !estNouveau);
-        if (!estNouveau) champ.value = '';
-      });
-    }
-    configurerBasculeEmplacement('createLocation', 'createLocationNew');
-    configurerBasculeEmplacement('editLocation', 'editLocationNew');
-    function updateAssetTypeFromSector(){ var hiddenSel = document.getElementById('createAssetTypeHidden'); var out = document.getElementById('createAssetTypeValue'); var sectorSel = document.getElementById('createSector'); if(!hiddenSel || !out || !sectorSel) return; var sec = sectorSel.value || ''; var chosen = ''; for (var i=0;i<hiddenSel.options.length;i++){ var opt = hiddenSel.options[i]; if (opt.getAttribute('data-sector') === sec){ chosen = opt.value; break; } } out.value = chosen; }
-    var createModal = document.getElementById('createAssetModal');
-    if (createModal) { createModal.addEventListener('shown.bs.modal', function(){ setupCreateCascades(); updateAssetTypeFromSector(); var cf = document.getElementById('createFolderId'); if (cf) { var currentParam = new URLSearchParams(window.location.search).get('folder'); cf.value = currentParam || ''; } var clNew = document.getElementById('createLocationNew'); if (clNew) { clNew.classList.add('d-none'); clNew.value = ''; } var cs = document.getElementById('createSector'); if (cs) cs.classList.remove('is-invalid'); }); }
-    // Garantir que le type est calculé avant l'envoi, et bloquer la soumission si le
-    // secteur choisi n'a aucun type de matériel configuré (sinon la création échoue en
-    // silence côté serveur et l'utilisateur perd toute sa saisie).
-    var createForm = document.querySelector('#createAssetModal form');
-    if (createForm) {
-      createForm.addEventListener('submit', function(ev){
-        updateAssetTypeFromSector();
-        var typeValue = document.getElementById('createAssetTypeValue');
-        var sectorSel = document.getElementById('createSector');
-        // Le contrôle ne s'applique que lorsque le type doit être déduit du secteur
-        // (pas de type déjà imposé via le filtre "?type=").
-        if (typeValue && sectorSel && sectorSel.value && !typeValue.value) {
-          ev.preventDefault();
-          sectorSel.classList.add('is-invalid');
-          sectorSel.focus();
-        } else if (sectorSel) {
-          sectorSel.classList.remove('is-invalid');
-        }
-      });
-    }
-    // Drag & Drop to folders
-    var draggedId = null;
-    document.querySelectorAll('.asset-card').forEach(function(card){
-      card.addEventListener('dragstart', function(ev){ draggedId = card.getAttribute('data-id'); ev.dataTransfer.setData('text/plain', draggedId); });
-    });
-    function postMove(assetId, folderId){
-      var formData = new FormData(); formData.append('action','move_asset_to_folder'); formData.append('asset_id', assetId); formData.append('folder_id', folderId);
-      var csrftoken = document.querySelector('input[name=csrfmiddlewaretoken]');
-      fetch(window.location.href, { method:'POST', headers: { 'X-CSRFToken': csrftoken ? csrftoken.value : '' }, body: formData }).then(function(r){ if(!r.ok){ console.warn('Move failed'); } });
-    }
-    // DnD et menu contextuel sur cartes dossier
-    document.querySelectorAll('.folder-card').forEach(function(card){
-      card.addEventListener('dragover', function(ev){ ev.preventDefault(); });
-      card.addEventListener('drop', function(ev){ ev.preventDefault(); var id = draggedId || ev.dataTransfer.getData('text/plain'); var folderId = card.getAttribute('data-folder-id') || ''; postMove(id, folderId); });
-    });
-    var ctx = document.getElementById('folderContextMenu'); var targetFolderId = '';
-    function showCtx(x,y){ ctx.style.left = x+'px'; ctx.style.top = y+'px'; ctx.style.display='block'; }
-    function hideCtx(){ ctx.style.display='none'; }
-    document.addEventListener('click', hideCtx);
-    document.querySelectorAll('.folder-card').forEach(function(card){
-      card.addEventListener('contextmenu', function(ev){ ev.preventDefault(); targetFolderId = card.getAttribute('data-folder-id')||''; var p = document.getElementById('createFolderParent'); if (p) p.value = targetFolderId; var rnPk = document.getElementById('renameFolderPk'); if (rnPk) rnPk.value = targetFolderId; var delPk = document.getElementById('deleteFolderPk'); if (delPk) delPk.value = targetFolderId; showCtx(ev.pageX, ev.pageY); });
-    });
-    // Bouton "Nouveau" place le sous-dossier dans le dossier courant
-    var btnNewFolderHere = document.getElementById('btnNewFolderHere');
-    if (btnNewFolderHere) { btnNewFolderHere.addEventListener('click', function(){
-      var currentParam = new URLSearchParams(window.location.search).get('folder');
-      var p = document.getElementById('createFolderParent'); if (p) p.value = currentParam || '';
-    }); }
-    ctx.addEventListener('click', function(ev){ var action = ev.target.getAttribute('data-action'); hideCtx(); if (!action) return; if (action==='new'){ var modal = new bootstrap.Modal(document.getElementById('createFolderModal')); modal.show(); } else if (action==='rename'){ var modal = new bootstrap.Modal(document.getElementById('renameFolderModal')); modal.show(); } else if (action==='delete'){ var modal = new bootstrap.Modal(document.getElementById('deleteFolderModal')); modal.show(); } });
-  })();
-</script>
-
-{# Menu contextuel dossiers #}
+{# Menu contextuel des dossiers : avant le script qui l'utilise #}
 <div id="folderContextMenu" class="dropdown-menu" style="position:absolute;display:none;">
   <button class="dropdown-item" type="button" data-action="new">Nouveau sous-dossier</button>
   <button class="dropdown-item" type="button" data-action="rename">Renommer…</button>
   <button class="dropdown-item text-danger" type="button" data-action="delete">Supprimer…</button>
-  </div>
+</div>
 
 {# Modal nouveau dossier #}
 <div class="modal fade" id="createFolderModal" tabindex="-1" aria-hidden="true">
@@ -524,5 +309,82 @@
       </div>
     </div>
   {% endfor %}
-  </div>
+</div>
+
+{% include "components/liste_modales_groupees.html" with avec_statut=True %}
+
+<script src="{% static 'js/selection_liste.js' %}"></script>
+<script>
+  (function(){
+    // Recherche instantanée sur les cartes
+    var searchInput = document.getElementById('assetSearch');
+    if (searchInput) { searchInput.addEventListener('input', function(){ var q = searchInput.value.toLowerCase(); document.querySelectorAll('#assetGrid .asset-card').forEach(function(card){ card.parentElement.style.display = q && card.innerText.toLowerCase().indexOf(q) === -1 ? 'none' : ''; }); }); }
+    // Modale d'édition : préremplissage depuis le bouton déclencheur
+    var editModal = document.getElementById('editAssetModal');
+    if (editModal) { editModal.addEventListener('show.bs.modal', function(event){ var b = event.relatedTarget; var pk = b.getAttribute('data-pk'); document.getElementById('editAssetPk').value = pk; function setSel(id,val){ var el=document.getElementById(id); if(!el) return; for(var i=0;i<el.options.length;i++){ if(el.options[i].value==val){ el.selectedIndex=i; break; } } }
+      setSel('editAssetType', b.getAttribute('data-type-id')||'');
+      document.getElementById('editDesignation').value = b.getAttribute('data-designation')||'';
+      document.getElementById('editNno').value = b.getAttribute('data-nno')||'';
+      document.getElementById('editReference').value = b.getAttribute('data-reference')||'';
+      document.getElementById('editMarque').value = b.getAttribute('data-marque')||'';
+      document.getElementById('editGisement').value = b.getAttribute('data-gisement')||'';
+      var editLocal = document.getElementById('editLocal'); if (editLocal) editLocal.value = b.getAttribute('data-local')||'';
+      document.getElementById('editInternalId').value = b.getAttribute('data-internal-id')||''; document.getElementById('editSerialNumber').value = b.getAttribute('data-serial-number')||''; setSel('editStatus', b.getAttribute('data-status')||''); document.getElementById('editCriticality').value = b.getAttribute('data-criticality')||''; setSel('editShip', b.getAttribute('data-ship-id')||''); setSel('editService', b.getAttribute('data-service-id')||''); setSel('editSector', b.getAttribute('data-sector-id')||''); setSel('editSection', b.getAttribute('data-section-id')||'');
+      setSel('editLocation', b.getAttribute('data-location-id')||'');
+      var editLocationNew = document.getElementById('editLocationNew'); if (editLocationNew) { editLocationNew.classList.add('d-none'); editLocationNew.value = ''; }
+      // Rattachement parent : uniquement les matériels du même secteur, sans le matériel lui-même
+      var parentSel = document.getElementById('editParentAsset');
+      if (parentSel) {
+        var sectorId = b.getAttribute('data-sector-id')||'';
+        Array.from(parentSel.options).forEach(function(opt){
+          if (!opt.value) { opt.hidden = false; return; }
+          opt.hidden = (opt.getAttribute('data-sector') !== sectorId) || (opt.value === pk);
+        });
+        if (parentSel.selectedOptions.length && parentSel.selectedOptions[0].hidden) { parentSel.selectedIndex = 0; }
+        setSel('editParentAsset', b.getAttribute('data-parent-id')||'');
+      }
+      // Documents existants
+      var placeholder = document.getElementById('editAssetDocsList'); var hidden = document.getElementById('asset-docs-'+pk);
+      if (placeholder) { placeholder.innerHTML = hidden ? hidden.innerHTML : '<span class="text-muted">Aucun document</span>'; }
+    }); }
+    // Champ « Nouvel emplacement » affiché seulement pour l'option « + Ajouter un nouvel emplacement… »
+    var selEmplacement = document.getElementById('editLocation'); var champEmplacement = document.getElementById('editLocationNew');
+    if (selEmplacement && champEmplacement) {
+      selEmplacement.addEventListener('change', function(){
+        var estNouveau = selEmplacement.value === '__new__';
+        champEmplacement.classList.toggle('d-none', !estNouveau);
+        if (!estNouveau) champEmplacement.value = '';
+      });
+    }
+    // Glisser-déposer d'un matériel sur un dossier
+    var draggedId = null;
+    document.querySelectorAll('.asset-card').forEach(function(card){
+      card.addEventListener('dragstart', function(ev){ draggedId = card.getAttribute('data-id'); ev.dataTransfer.setData('text/plain', draggedId); });
+    });
+    function postMove(assetId, folderId){
+      var formData = new FormData(); formData.append('action','move_asset_to_folder'); formData.append('asset_id', assetId); formData.append('folder_id', folderId);
+      var csrftoken = document.querySelector('input[name=csrfmiddlewaretoken]');
+      fetch(window.location.href, { method:'POST', headers: { 'X-CSRFToken': csrftoken ? csrftoken.value : '' }, body: formData }).then(function(r){ if(!r.ok){ console.warn('Move failed'); } });
+    }
+    document.querySelectorAll('.folder-card').forEach(function(card){
+      card.addEventListener('dragover', function(ev){ ev.preventDefault(); });
+      card.addEventListener('drop', function(ev){ ev.preventDefault(); var id = draggedId || ev.dataTransfer.getData('text/plain'); postMove(id, card.getAttribute('data-folder-id') || ''); });
+    });
+    // Menu contextuel des dossiers
+    var ctx = document.getElementById('folderContextMenu');
+    if (ctx) {
+      function hideCtx(){ ctx.style.display='none'; }
+      document.addEventListener('click', hideCtx);
+      document.querySelectorAll('.folder-card').forEach(function(card){
+        card.addEventListener('contextmenu', function(ev){ ev.preventDefault(); var id = card.getAttribute('data-folder-id')||''; ['createFolderParent','renameFolderPk','deleteFolderPk'].forEach(function(champ){ var el = document.getElementById(champ); if (el) el.value = id; }); ctx.style.left = ev.pageX+'px'; ctx.style.top = ev.pageY+'px'; ctx.style.display='block'; });
+      });
+      ctx.addEventListener('click', function(ev){ var action = ev.target.getAttribute('data-action'); hideCtx(); var modales = { 'new': 'createFolderModal', 'rename': 'renameFolderModal', 'delete': 'deleteFolderModal' }; var cible = modales[action] && document.getElementById(modales[action]); if (cible) new bootstrap.Modal(cible).show(); });
+    }
+    // « Nouveau dossier » : place le sous-dossier dans le dossier courant
+    var btnNewFolderHere = document.getElementById('btnNewFolderHere');
+    if (btnNewFolderHere) { btnNewFolderHere.addEventListener('click', function(){
+      var p = document.getElementById('createFolderParent'); if (p) p.value = new URLSearchParams(window.location.search).get('folder') || '';
+    }); }
+  })();
+</script>
 {% endblock %}

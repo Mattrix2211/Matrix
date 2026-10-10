@@ -124,9 +124,11 @@ class CorrectiveOpenChartViewTests(TestCase):
         labels = data["labels"]
         values = data["datasets"][0]["data"]
 
-        self.assertEqual(values[labels.index("REPORTED")], 2)
-        self.assertEqual(values[labels.index("IN_REPAIR")], 1)
-        self.assertEqual(values[labels.index("WAITING_PARTS")], 0)
+        statuts = dict(CorrectiveTicket.STATUS)
+        self.assertEqual(values[labels.index(statuts["REPORTED"])], 2)
+        self.assertEqual(values[labels.index(statuts["IN_REPAIR"])], 1)
+        self.assertEqual(values[labels.index(statuts["WAITING_PARTS"])], 0)
+        self.assertNotIn("REPORTED", labels)
 
     def test_nombre_de_requetes_borne(self):
         # Avant correction : 1 requête .count() par statut ouvert (6 statuts -> 6

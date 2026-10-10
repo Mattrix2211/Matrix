@@ -82,11 +82,11 @@ class APIRecordScopingTests(TestCase):
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
 
         self.referent = User.objects.create_user(username="api_referent", password="pass")
-        UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "EQUIPIER"})
+        UserProfile.objects.update_or_create(user=self.referent, defaults={"role": "EQUIPIER", "ship": self.ship})
         ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.referent)
 
         self.chef_non_referent = User.objects.create_user(username="api_chef_non_ref", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SECTEUR"})
+        UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SECTEUR", "ship": self.ship})
 
         self.commandant = User.objects.create_user(username="api_commandant", password="pass")
         UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
@@ -277,7 +277,7 @@ class APIReferentFormationScopingTests(TestCase):
     `ship` posté n'était auparavant pas confronté au navire de l'appelant).
     Seul un rôle de supervision globale (COMMANDANT et au-dessus) peut agir
     sur n'importe quel navire, même logique que
-    training/catalogue_actions.py::_action_update_prerequisites."""
+    training/web_views.py::update_prerequisites."""
 
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire Chef A", code="CHA")

@@ -1,43 +1,57 @@
 {% extends "base.html" %}
+{% load icones %}
 {% load org_extras %}
 {% block content %}
-<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules or peut_gerer_coma %}Paramètres{% else %}Mes notifications{% endif %}</h1>
-<ul class="nav nav-tabs mb-3">
+<h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules or peut_voir_equipage %}Paramètres{% else %}Mes notifications{% endif %}</h1>
+<div class="mx-parametres">
+<nav class="mx-parametres__nav" aria-label="Sections des paramètres">
   {% if user.is_superuser %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'generale' %}active{% endif %}" href="/parametre/?tab=generale">Générale</a></li>
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Organisation</h2>
+    <a class="mx-parametres__lien {% if active_tab == 'navires' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=navires">Unités</a>
+    <a class="mx-parametres__lien {% if active_tab == 'hierarchie' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a>
+    <a class="mx-parametres__lien {% if active_tab == 'installations' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=installations">Installations</a>
+  </div>
   {% endif %}
-  {% if user.is_superuser or peut_gerer_responsables %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="/parametre/?tab=utilisateurs">Utilisateurs</a></li>
+  {% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_voir_equipage %}
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Utilisateurs et droits</h2>
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'utilisateurs' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=utilisateurs">Référentiels et rôles</a>{% endif %}
+    {% if peut_gerer_seuils %}<a class="mx-parametres__lien {% if active_tab == 'seuils_role' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Seuils de rôle</a>{% endif %}
+    {% if user.is_superuser or peut_gerer_responsables %}<a class="mx-parametres__lien {% if active_tab == 'responsables' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=responsables">Responsables</a>{% endif %}
+    {% if peut_voir_equipage %}<a class="mx-parametres__lien {% if active_tab == 'equipage' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=equipage{% if equipage_ship %}&ship={{ equipage_ship.id }}{% endif %}">Équipage</a>{% endif %}
+  </div>
   {% endif %}
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Application</h2>
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'generale' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=generale">Générale et sécurité</a>{% endif %}
+    {% if peut_gerer_modules %}<a class="mx-parametres__lien {% if active_tab == 'modules' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a>{% endif %}
+    <a class="mx-parametres__lien {% if active_tab == 'notifications' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=notifications">Notifications</a>
+  </div>
   {% if user.is_superuser %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'navires' %}active{% endif %}" href="/parametre/?tab=navires">Unités</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'hierarchie' %}active{% endif %}" href="/parametre/?tab=hierarchie{% if selected_ship %}&ship={{ selected_ship.id }}{% endif %}">Hiérarchie</a></li>
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'installations' %}active{% endif %}" href="/parametre/?tab=installations">Installations</a></li>
+  <div>
+    <h2 class="mx-parametres__groupe-titre">Système</h2>
+    <a class="mx-parametres__lien {% if active_tab == 'journal' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=journal">Journal</a>
+  </div>
   {% endif %}
-  {% if peut_gerer_seuils %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'seuils_role' %}active{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Sécurité</a></li>
-  {% endif %}
-  {% if peut_gerer_coma %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'commandants_adjoints' %}active{% endif %}" href="/parametre/?tab=commandants_adjoints{% if coma_ship %}&ship={{ coma_ship.id }}{% endif %}">COMAEQ / COMOPS / COMANAV</a></li>
-  {% endif %}
-  {% if peut_gerer_modules %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'modules' %}active{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a></li>
-  {% endif %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" href="/parametre/?tab=notifications">Notification</a></li>
-  {% if user.is_superuser %}
-  <li class="nav-item"><a class="nav-link {% if active_tab == 'journal' %}active{% endif %}" href="/parametre/?tab=journal">Journal</a></li>
-  {% endif %}
-</ul>
-
+</nav>
+<div class="mx-parametres__contenu">
 {% if active_tab == 'generale' %}
 <div class="card">
   <div class="card-header">Paramètres généraux
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Paramètres généraux" data-bs-content="Paramétrez les options globales de Matrix. Ces réglages s’appliquent à toutes les unités et utilisateurs.">
-      <span class="bi bi-info-circle"></span>
+      {% icone "information" %}
     </button>
   </div>
   <div class="card-body">
     <p class="text-muted mb-0">Ajustez ici les paramètres généraux de Matrix. (À compléter)</p>
+  </div>
+</div>
+<div class="card mt-3">
+  <div class="card-header">Déconnexion automatique</div>
+  <div class="card-body">
+    <p class="mb-1">Un poste inactif se déconnecte au bout de <strong>{{ inactivite_delai_minutes }} minute{{ inactivite_delai_minutes|pluralize }}</strong>, avec un préavis de <strong>{{ inactivite_preavis_secondes }} seconde{{ inactivite_preavis_secondes|pluralize }}</strong>.</p>
+    <small class="text-muted">Réglage du serveur (affichage seul) : il se modifie dans le fichier de configuration du serveur, pas depuis cet écran.</small>
   </div>
 </div>
 {% elif active_tab == 'utilisateurs' %}
@@ -50,7 +64,7 @@
     <div class="card">
       <div class="card-header">Grades
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Grades" data-bs-content="Liste des grades disponibles pour toutes les unités. Supprimez un grade lorsqu’il n’est plus utilisé.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -87,7 +101,7 @@
     <div class="card">
       <div class="card-header">Spécialités
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Spécialités" data-bs-content="Catalogue des spécialités transversales. Les suppressions impactent la sélection de profil lors de la création/édition d’utilisateur.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -124,7 +138,7 @@
     <div class="card">
       <div class="card-header">Fonctions de service
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Fonctions de service" data-bs-content="Liste des fonctions (ex: Responsable Sécurité, Opérateur, Électricien de quart) sélectionnables pour les utilisateurs. Modifiez-les ici.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -161,7 +175,7 @@
     <div class="card">
       <div class="card-header">Fonctions de quart
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Fonctions de quart" data-bs-content="Liste des fonctions de quart (ex: Barre, Veille, Machine avant), transversales aux secteurs/services, utilisées pour organiser les listes de quarts du module Quarts/services.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -202,7 +216,7 @@
     <div class="card">
       <div class="card-header">Rôles (assignables)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Rôles assignables" data-bs-content="Activez ou désactivez l’attribution des rôles aux utilisateurs. MASTER_ADMIN est réservé aux superutilisateurs et toujours disponible.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -227,12 +241,15 @@
     </div>
   </div>
   {% endif %}
+</div>
+{% elif active_tab == 'responsables' %}
+<div class="row g-3">
   {% if user.is_superuser or peut_gerer_responsables %}
   <div class="col-md-6">
     <div class="card">
       <div class="card-header">Responsables de spécialité (dashboard flotte)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de spécialité" data-bs-content="Un marin désigné responsable d’une spécialité accède au dashboard transverse de cette spécialité, agrégé sur toute la flotte (tous navires confondus).">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -280,7 +297,7 @@
     <div class="card">
       <div class="card-header">Responsables de classe de navire (dashboard flotte)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Responsables de classe de navire" data-bs-content="Un marin désigné responsable d’une classe de navire accède au dashboard transverse de cette classe, agrégé sur tous les navires de la classe.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -324,56 +341,6 @@
       </div>
     </div>
   </div>
-  <div class="col-12">
-    <div class="card">
-      <div class="card-header">Chefs des responsables de spécialité
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Chefs des responsables de spécialité" data-bs-content="Un chef encadre plusieurs responsables de spécialité, mais pas forcément tous. C'est le chef du responsable concerné qui vise une fiche de maintenance matériel avant sa publication au catalogue flotte.">
-          <span class="bi bi-info-circle"></span>
-        </button>
-      </div>
-      <div class="card-body">
-        {% for alerte in alertes_chefs %}
-        <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle"></i> {{ alerte }}</div>
-        {% endfor %}
-        <form method="post" class="row g-2 mb-3">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="definir_chef_responsable" />
-          <div class="col-md-4">
-            <select name="user_id" class="form-select form-select-sm" required>
-              <option value="">Chef...</option>
-              {% for m in marins_disponibles %}<option value="{{ m.id }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="col-md-6">
-            <select name="responsable_ids" class="form-select form-select-sm" multiple size="4" required aria-label="Responsables encadrés">
-              {% for r in responsables_pour_chefs %}<option value="{{ r.id }}">{{ r.specialite.name }} — {{ r.user.get_full_name|default:r.user.username }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="col-md-2"><button class="btn btn-primary btn-sm w-100" type="submit">Enregistrer</button></div>
-        </form>
-        <table class="table table-sm">
-          <thead><tr><th>Chef</th><th>Responsables encadrés</th><th></th></tr></thead>
-          <tbody>
-          {% for c in chefs_responsables %}
-            <tr>
-              <td>{{ c.user.get_full_name|default:c.user.username }}</td>
-              <td>{% for r in c.responsables.all %}<span class="badge bg-light text-dark border">{{ r.specialite.name }} — {{ r.user.get_full_name|default:r.user.username }}</span> {% endfor %}</td>
-              <td>
-                <form method="post" style="display:inline">{% csrf_token %}
-                  <input type="hidden" name="action" value="retirer_chef_responsable" />
-                  <input type="hidden" name="pk" value="{{ c.id }}" />
-                  <button class="btn btn-outline-danger btn-sm" type="submit">Retirer</button>
-                </form>
-              </td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="3" class="text-muted">Aucun chef désigné</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
   {% endif %}
 </div>
 {% endif %}
@@ -384,7 +351,7 @@
     <div class="card">
       <div class="card-header">Bigrames (installations)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Bigrames" data-bs-content="Liste des bigrames utilisables dans les installations. Activez/désactivez ou supprimez des entrées.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -429,7 +396,7 @@
     <div class="card">
       <div class="card-header">Paramètres vibratoires (global)
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Vibration" data-bs-content="Définissez l’échéance (jours) avant la prochaine mesure selon le dernier état A/B/C. Ces paramètres s’appliquent à toutes les installations.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -483,7 +450,7 @@
     <div class="card">
       <div class="card-header">Seuils de rôle{% if seuils_ship %} — {{ seuils_ship.name }}{% endif %}
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Seuils de rôle" data-bs-content="Le rôle minimal requis pour chaque action peut être ajusté pour cette unité. Tant qu'aucune valeur n'est modifiée, le comportement par défaut de Matrix s'applique. « Réinitialiser » revient à la valeur par défaut.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -540,7 +507,7 @@
     <div class="card">
       <div class="card-header">Référentiels communs à toute la flotte
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Référentiels globaux" data-bs-content="Ces référentiels (grades, spécialités...) ne sont rattachés à aucune unité précise : leur seuil s'applique à toute la flotte, réservé aux administrateurs généraux.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -591,10 +558,6 @@
 </div>
 {% endif %}
 
-{% if active_tab == 'commandants_adjoints' %}
-{% include "settings/_commandants_adjoints.html" %}
-{% endif %}
-
 {% if active_tab == 'modules' %}
 <div class="row g-3">
   {% if user.is_superuser %}
@@ -616,7 +579,7 @@
     <div class="card">
       <div class="card-header">Modules activables{% if modules_ship %} — {{ modules_ship.name }}{% endif %}
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Modules activables" data-bs-content="Désactiver un module masque son entrée de menu et ses pages pour tout le monde sur cette unité, mais ne supprime aucune donnée : réactiver le module fait tout réapparaître tel quel.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -663,11 +626,97 @@
 </div>
 {% endif %}
 
+{% if active_tab == 'equipage' %}
+<div class="row g-3">
+  {% if ships %}
+  <div class="col-12">
+    <form method="get" class="row g-2 align-items-center">
+      <input type="hidden" name="tab" value="equipage" />
+      <div class="col-auto"><label class="col-form-label">Unité :</label></div>
+      <div class="col-auto">
+        <select name="ship" class="form-select" onchange="this.form.submit()">
+          {% for sh in ships %}
+            <option value="{{ sh.id }}" {% if equipage_ship and equipage_ship.id == sh.id %}selected{% endif %}>{{ sh.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  {% if equipage_ship and not equipage_ship.double_equipage %}
+  <div class="col-12"><p class="text-muted">{{ equipage_ship.name }} n'est pas à double équipage.</p></div>
+  {% elif equipage_ship %}
+  {% if equipage_sans %}
+  <div class="col-12">
+    <div class="alert alert-warning mb-0" role="alert">
+      <strong>{{ equipage_sans|length }} marin{{ equipage_sans|length|pluralize }} sans équipage</strong> : {% for m in equipage_sans %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+      Renseignez-le dans l'annuaire des utilisateurs.
+    </div>
+  </div>
+  {% endif %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Relève — {{ equipage_ship.name }}</div>
+      <div class="card-body">
+        <p>Équipage actuellement à bord : <strong>{{ equipage_ship.equipage_a_bord|default:"non renseigné" }}</strong>. L'autre équipage est à terre, en lecture seule.</p>
+        {% if releve %}
+        <div class="alert alert-info">
+          Relève en attente : l'équipage <strong>{{ releve.equipage_propose }}</strong> à bord, proposée par {{ releve.propose_par.get_full_name|default:releve.propose_par.username }}. L'équipage à bord reste inchangé tant que l'autre commandant n'a pas validé.
+        </div>
+        {% if equipage_commandant %}
+        <form method="post" class="d-flex gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="next_tab" value="equipage" />
+          <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
+          {% if releve.propose_par_id == user.id %}
+          <button class="btn btn-outline-secondary" type="submit" name="action" value="annuler_releve">Annuler ma proposition</button>
+          {% else %}
+          <input type="hidden" name="action" value="decider_releve" />
+          <button class="btn btn-primary" type="submit" name="decision" value="valider">Valider la relève</button>
+          <button class="btn btn-outline-danger" type="submit" name="decision" value="refuser">Refuser</button>
+          {% endif %}
+        </form>
+        {% endif %}
+        {% if releve_secours %}
+        <form method="post" class="row g-2 align-items-end mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="valider_releve_secours" />
+          <input type="hidden" name="next_tab" value="equipage" />
+          <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
+          <div class="col-12"><p class="small text-muted mb-0">Aucun commandant ni commandant en second n'est disponible dans l'équipage qui doit valider. Vous pouvez valider en secours ; l'action est tracée.</p></div>
+          <div class="col-md-8"><input type="text" name="motif" class="form-control" required maxlength="300" placeholder="Motif obligatoire" aria-label="Motif de la validation de secours" /></div>
+          <div class="col-auto"><button class="btn btn-warning" type="submit">Valider en secours</button></div>
+        </form>
+        {% endif %}
+        {% elif equipage_commandant %}
+        <form method="post" class="row g-2 align-items-center">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="proposer_releve" />
+          <input type="hidden" name="next_tab" value="equipage" />
+          <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
+          <div class="col-auto">
+            <select name="equipage" class="form-select" aria-label="Équipage à mettre à bord">
+              {% for code in equipage_codes %}{% if code != equipage_ship.equipage_a_bord %}<option value="{{ code }}">Équipage {{ code }}</option>{% endif %}{% endfor %}
+            </select>
+          </div>
+          <div class="col-auto"><button class="btn btn-primary" type="submit">Proposer la relève</button></div>
+        </form>
+        <p class="text-muted small mt-2 mb-0">La relève prend effet quand le commandant de l'autre équipage la valide.</p>
+        {% else %}
+        <p class="text-muted mb-0">La relève est proposée et validée par les commandants des deux équipages.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if active_tab == 'notifications' %}
 <div class="card">
   <div class="card-header">Notification quotidienne
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Notification quotidienne" data-bs-content="Choisissez l’heure du matin (alertes d’échéance, résumé « Ma journée ») et l’heure du soir (résumé « Ma journée de demain »)">
-      <span class="bi bi-info-circle"></span>
+      {% icone "information" %}
     </button>
   </div>
   <div class="card-body">
@@ -696,7 +745,7 @@
 <div class="card">
   <div class="card-header">Journal des actions
     <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Traçabilité" data-bs-content="Liste des actions effectuées sur l’application: créations, éditions, suppressions, exports, etc.">
-      <span class="bi bi-info-circle"></span>
+      {% icone "information" %}
     </button>
   </div>
   <div class="card-body">
@@ -739,7 +788,7 @@
     <div class="card">
       <div class="card-header">Unités
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Unités" data-bs-content="Vous pouvez modifier, supprimer ou dupliquer une unité (navire, école, centre de formation ou bureau). La duplication copie la hiérarchie (services/secteurs/sections) sous un nouveau nom et code.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -792,7 +841,7 @@
       <input type="hidden" name="tab" value="hierarchie" />
       <div class="col-auto"><label class="col-form-label">Unité :</label>
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Sélection de l'unité" data-bs-content="Choisissez une unité pour éditer son arborescence de Services, Secteurs et Sections.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="col-auto">
@@ -813,7 +862,7 @@
     <div class="card">
       <div class="card-header">Arborescence de l'unité {% if selected_ship %}<strong>{{ selected_ship.name }}</strong>{% endif %}
         <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Arborescence" data-bs-content="Ajoutez ou supprimez des Services, puis leurs Secteurs et Sections pour structurer l’organisation de l'unité.">
-          <span class="bi bi-info-circle"></span>
+          {% icone "information" %}
         </button>
       </div>
       <div class="card-body">
@@ -826,16 +875,7 @@
                 <input type="hidden" name="action" value="add_service" />
                 <input type="hidden" name="next_tab" value="hierarchie" />
                 <input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" />
-                {% if selected_ship.double_equipage %}
-                <div class="col-md-5"><input class="form-control" name="name" placeholder="Ajouter un service" /></div>
-                <div class="col-md-3">
-                  <select name="equipage_id" class="form-select" aria-label="Équipage du service">
-                    {% for eq in selected_ship.equipages.all %}<option value="{{ eq.id }}">Équipage {{ eq.nom }}</option>{% endfor %}
-                  </select>
-                </div>
-                {% else %}
                 <div class="col-md-8"><input class="form-control" name="name" placeholder="Ajouter un service" /></div>
-                {% endif %}
                 <div class="col-md-4"><button class="btn btn-primary w-100" type="submit">Ajouter</button></div>
               </form>
             </div>
@@ -843,7 +883,7 @@
               {% for sv in services %}
                 <li class="mb-3">
                   <div class="d-flex align-items-center justify-content-between">
-                    <strong>{{ sv.name }}{% if sv.equipage %} <span class="badge bg-info text-dark">Équipage {{ sv.equipage.nom }}</span>{% endif %}</strong>
+                    <strong>{{ sv.name }}</strong>
                     <div>
                       <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_service" data-pk="{{ sv.id }}" data-label="Supprimer le service {{ sv.name }}">Supprimer</button>
                     </div>
@@ -911,6 +951,9 @@
   </div>
 </div>
 {% endif %}
+
+</div>
+</div>
 
 {# Modal de confirmation générique #}
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">

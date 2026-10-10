@@ -1,9 +1,12 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
-from django.http import HttpResponseForbidden, JsonResponse
-from django.shortcuts import redirect
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from rest_framework.authentication import BasicAuthentication
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import SAFE_METHODS
 
-from matrix.core.authentication import MESSAGE_LECTURE_SEULE
+from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
 
 
 class ModuleActivationMiddleware:
@@ -63,33 +66,48 @@ class ModuleActivationMiddleware:
         return redirect("home")
 
 
-class LectureSeuleEquipageMiddleware:
-    """Double équipage : l'équipage à terre garde l'accès au bâtiment en
-    LECTURE SEULE. Ce middleware couvre les pages web et l'API en session
-    (org/equipages.py::est_en_lecture_seule). Il ne voit PAS l'utilisateur d'une
-    requête API en authentification Basic (DRF authentifie après les
-    middlewares) : celle-ci est couverte, ainsi que la session, par les classes
-    d'authentification de matrix/core/authentication.py, qui s'appliquent à
-    toutes les vues DRF. Écritures restant permises : voir
-    org/equipages.py::ECRITURES_AUTORISEES. Sans effet sur un bâtiment à
-    équipage unique."""
+# Écritures restant permises à l'équipage à terre : uniquement personnelles ou de session.
+CHEMINS_ECRITURE_A_TERRE = (
+    "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
+    "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/",
+    "/calendar/personnel/",
+)
+# Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
+ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")
 
-    METHODES_LECTURE = ("GET", "HEAD", "OPTIONS", "TRACE")
+MESSAGE_LECTURE_SEULE = "Lecture seule : votre équipage est à terre, cette action est réservée à l'équipage à bord."
+
+
+class EquipageATerreMiddleware:
+    """Refuse toute écriture (web et API) du marin d'un équipage à terre, hors CHEMINS_ECRITURE_A_TERRE.
+
+    Refus par défaut : une nouvelle vue d'écriture est protégée sans rien déclarer.
+    """
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method in self.METHODES_LECTURE:
-            return self.get_response(request)
-        from org.equipages import ecriture_autorisee_a_terre, est_en_lecture_seule
+        if request.method not in SAFE_METHODS and not self._exemptee(request):
+            if equipage_a_terre_lecture_seule(self._utilisateur(request)):
+                if request.path.startswith("/api/"):
+                    return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
+                return render(request, "403.html", {"message_refus": MESSAGE_LECTURE_SEULE}, status=403)
+        return self.get_response(request)
 
-        action = request.POST.get("action") if request.path == "/parametre/" else None
-        if ecriture_autorisee_a_terre(request.method, request.path, action) or not est_en_lecture_seule(request.user):
-            return self.get_response(request)
-        if request.path.startswith("/api/"):
-            return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
-        if request.headers.get("HX-Request"):
-            return HttpResponseForbidden(MESSAGE_LECTURE_SEULE)
-        messages.warning(request, MESSAGE_LECTURE_SEULE)
-        return redirect(request.META.get("HTTP_REFERER") or "home")
+    @staticmethod
+    def _exemptee(request):
+        if request.path == "/parametre/":
+            return request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
+        return request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
+
+    @staticmethod
+    def _utilisateur(request):
+        """Utilisateur de la session ; l'API accepte aussi l'authentification Basic, résolue ici."""
+        if request.user.is_authenticated or not request.path.startswith("/api/"):
+            return request.user
+        try:
+            resultat = BasicAuthentication().authenticate(request)
+        except AuthenticationFailed:
+            return request.user
+        return resultat[0] if resultat else request.user

@@ -37,10 +37,9 @@ ci-dessous, car listes_views et echanges_views la réimportent en retour
 volontaire, déjà en place pour dashboard/web_views.py avant ce découpage."""
 from django.contrib.auth import get_user_model
 
-from matrix.core.scopes import perimetre_navire_q
-from org.commandant_en_second import a_vision_commandant
+from matrix.core.roles import user_role_level
 
-from .models import listes_de_l_equipage_q, marins_du_perimetre
+from .models import NIVEAU_LECTURE_GLOBALE_LISTE, marins_du_perimetre
 
 User = get_user_model()
 
@@ -50,14 +49,12 @@ def _peut_lire_liste(user, liste):
     (même règle de cascade que les marins affectables sur un créneau, cf.
     marins_du_perimetre) — une liste encore en BROUILLON reste visible
     uniquement à ses chefs de liste gérants (cf. peut_gerer_liste)."""
-    if a_vision_commandant(user):
-        # Commandant en second : lecture de toutes les listes de son navire
-        # (son équipage), y compris en brouillon ou proposées.
-        modele = type(liste)
-        if modele.objects.filter(pk=liste.pk).filter(perimetre_navire_q(user, "")).filter(
-            listes_de_l_equipage_q(user)
-        ).exists():
-            return True
+    if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_LISTE:
+        # Commandant et commandant en second : toutes les listes de leur navire
+        # (leur équipage), y compris en brouillon ou proposées.
+        from .listes_views import _listes_visibles
+
+        return _listes_visibles(type(liste), user).filter(pk=liste.pk).exists()
     if liste.statut != liste.STATUT_PUBLIEE:
         return False
     return User.objects.filter(marins_du_perimetre(liste), pk=user.pk).exists()
@@ -68,6 +65,7 @@ def _peut_lire_liste(user, liste):
 # la réimportent depuis CE module.
 from .listes_views import (  # noqa: E402,F401
     ChefDeListeReglagesView,
+    CreerListeView,
     ListeIndexView,
     QuartDetailView,
     ServiceGardeDetailView,

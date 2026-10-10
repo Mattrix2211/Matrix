@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
   <div>
-    <h1 class="h3 mb-0">Feuille de service — {{ ship.name }}{% if equipage %} · équipage {{ equipage.nom }}{% endif %}</h1>
+    <h1 class="h3 mb-0">Feuille de service — {{ ship.name }}{% if equipage %} · équipage {{ equipage }}{% endif %}</h1>
     <div class="text-muted font-mono">{{ date|date:"l d/m/Y"|capfirst }}</div>
   </div>
   <div class="text-end">
@@ -22,9 +22,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <div class="btn-group">
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk veille|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}"><i class="bi bi-chevron-left"></i> Veille</a>
-    <a class="btn btn-outline-secondary btn-sm {% if date == aujourdhui %}active{% endif %}" href="{% url 'feuille-service-detail' ship.pk aujourdhui|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}">Aujourd'hui</a>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk lendemain|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage.pk }}{% endif %}">Lendemain <i class="bi bi-chevron-right"></i></a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk veille|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage }}{% endif %}"><i class="bi bi-chevron-left"></i> Veille</a>
+    <a class="btn btn-outline-secondary btn-sm {% if date == aujourdhui %}active{% endif %}" href="{% url 'feuille-service-detail' ship.pk aujourdhui|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage }}{% endif %}">Aujourd'hui</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk lendemain|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage }}{% endif %}">Lendemain <i class="bi bi-chevron-right"></i></a>
   </div>
   <div class="d-flex gap-2">
     {% if peut_gerer_alertes %}
@@ -41,7 +41,7 @@
   <i class="bi bi-exclamation-triangle-fill"></i>
   <strong>Configuration à corriger.</strong> Cette unité est en double équipage mais aucun équipage à bord n'est défini :
   la feuille de service ne peut pas être affichée sans risque de confusion entre les deux équipages.
-  <a class="alert-link" href="/equipages/">Définir l'équipage à bord (page « Équipages »)</a>.
+  Définissez l'équipage à bord dans les paramètres de l'unité (relève).
 </div>
 {% else %}
 {% if je_suis_de_service %}
@@ -187,7 +187,7 @@
 
     {% with coma=feuille.service_redacteur|coma_du_service %}
     {% if coma %}
-    <p class="small text-muted mb-3">Le service « {{ feuille.service_redacteur.name }} » dépend du <strong>{{ coma.sigle }}</strong> ({{ coma.signification }}) : {{ coma.titulaire.get_full_name|default:coma.titulaire.username|default:"poste vacant" }}.</p>
+    <p class="small text-muted mb-3">Le service « {{ feuille.service_redacteur.name }} » dépend du <strong title="{{ coma.responsabilites }}">{{ coma.sigle }}</strong> ({{ coma.signification }}) : {% for t in coma.titulaires %}{{ t.get_full_name|default:t.username }}{% if not forloop.last %}, {% endif %}{% empty %}poste vacant{% endfor %}.</p>
     {% endif %}
     {% endwith %}
 
@@ -195,7 +195,7 @@
       {% if comaeq_titulaire %}
       <p class="small mb-3">Visa attendu du <strong>COMAEQ</strong> : {{ comaeq_titulaire.get_full_name|default:comaeq_titulaire.username }}.</p>
       {% else %}
-      <div class="alert alert-warning small mb-3"><i class="bi bi-exclamation-triangle"></i> Poste de COMAEQ vacant : le visa est escaladé au commandant{% if equipage %} de l'équipage {{ equipage.nom }}{% endif %}.</div>
+      <div class="alert alert-warning small mb-3"><i class="bi bi-exclamation-triangle"></i> Poste de COMAEQ vacant : le visa est escaladé au commandant{% if equipage %} de l'équipage {{ equipage }}{% endif %}.</div>
       {% endif %}
     {% endif %}
 
@@ -289,7 +289,7 @@
 <div class="alert alert-info mt-4">
   <i class="bi bi-archive"></i> Autres feuilles de cette date (historique de double équipage) :
   {% for f in autres_feuilles %}
-  <a class="alert-link" href="{% url 'feuille-service-detail' ship.pk date|date:'Y-m-d' %}?equipage={{ f.equipage.pk }}">équipage {{ f.equipage.nom }}</a>{% if not forloop.last %}, {% endif %}
+  <a class="alert-link" href="{% url 'feuille-service-detail' ship.pk date|date:'Y-m-d' %}?equipage={{ f.equipage }}">équipage {{ f.equipage }}</a>{% if not forloop.last %}, {% endif %}
   {% endfor %}
 </div>
 {% endif %}
@@ -310,8 +310,8 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="rattacher_feuille">
           <input type="hidden" name="feuille_id" value="{{ f.pk }}">
-          <select name="equipage_id" class="form-select form-select-sm" required aria-label="Équipage">
-            {% for e in equipages_rattachement %}<option value="{{ e.pk }}">{{ e.nom }}</option>{% endfor %}
+          <select name="equipage" class="form-select form-select-sm" required aria-label="Équipage">
+            {% for e in equipages_rattachement %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
           </select>
           <button type="submit" class="btn btn-outline-primary btn-sm">Rattacher</button>
         </form>

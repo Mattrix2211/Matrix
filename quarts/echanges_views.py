@@ -97,21 +97,26 @@ def _etapes(echange):
     return etapes
 
 
+def _grouper_echanges(echanges, user):
+    """Annote chaque échange des actions possibles pour `user` et les range en
+    « à traiter », « en cours » et « terminés »."""
+    for e in echanges:
+        e.peut_repondre = e.statut == e.STATUT_DEMANDE and e.cible_id == user.pk
+        e.peut_annuler = e.en_cours and e.demandeur_id == user.pk
+        e.peut_trancher = e.statut == e.STATUT_ACCEPTE and peut_valider_echange(user, e)
+        e.etapes = _etapes(e)
+    return {
+        "a_traiter": [e for e in echanges if e.peut_repondre or e.peut_trancher],
+        "en_cours": [e for e in echanges if e.en_cours and not (e.peut_repondre or e.peut_trancher)],
+        "termines": [e for e in echanges if not e.en_cours],
+    }
+
+
 class EchangesIndexView(LoginRequiredMixin, View):
     template_name = "quarts/echanges.html"
 
     def get(self, request):
-        echanges = _echanges_visibles(request.user)
-        for e in echanges:
-            e.peut_repondre = e.statut == e.STATUT_DEMANDE and e.cible_id == request.user.pk
-            e.peut_annuler = e.en_cours and e.demandeur_id == request.user.pk
-            e.peut_trancher = e.statut == e.STATUT_ACCEPTE and peut_valider_echange(request.user, e)
-            e.etapes = _etapes(e)
-        return render(request, self.template_name, {
-            "a_traiter": [e for e in echanges if e.peut_repondre or e.peut_trancher],
-            "en_cours": [e for e in echanges if e.en_cours and not (e.peut_repondre or e.peut_trancher)],
-            "termines": [e for e in echanges if not e.en_cours],
-        })
+        return render(request, self.template_name, _grouper_echanges(_echanges_visibles(request.user), request.user))
 
 
 class EchangeActionView(LoginRequiredMixin, View):

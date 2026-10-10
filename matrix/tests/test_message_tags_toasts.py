@@ -22,7 +22,7 @@ class ToastMessageErreurTests(TestCase):
 
     def test_message_error_rend_le_toast_en_danger_pas_en_error(self):
         # update_all_vibration_params déclenche messages.error(...) dans
-        # matrix/settings_views.py::SettingsView.post lorsque les valeurs postées ne
+        # matrix/views.py::SettingsView.post lorsque les valeurs postées ne
         # sont pas des entiers valides — chemin de code réel, pas un test
         # isolé du template.
         self.client.login(username="admin_toast_test", password="pass")

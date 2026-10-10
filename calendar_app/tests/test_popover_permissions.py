@@ -7,6 +7,8 @@ index.html) sache afficher ou non des actions rapides sans dupliquer cette
 logique côté JavaScript. Vérifie aussi qu'un événement personnel n'expose
 peut_agir qu'à son propriétaire, et que la page calendrier continue de se
 charger normalement après la mise en place du popover."""
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
@@ -145,3 +147,31 @@ class PeutAgirPersonnelTests(TestCase):
         evenements = self.client.get(url).json()
         perso_event = _evenement(evenements, "personal")
         self.assertTrue(perso_event["extendedProps"]["peut_agir"])
+
+
+class CalendrierPageLayoutTests(TestCase):
+    """Page calendrier : filtres et création en panneaux latéraux, pas de formulaire permanent."""
+
+    def setUp(self):
+        self.marin = User.objects.create_user(username="marin_layout", password="pass")
+        self.client.login(username="marin_layout", password="pass")
+
+    def test_filtres_en_panneau_lateral_et_bouton_evenement(self):
+        reponse = self.client.get(reverse("calendar-index"))
+        self.assertContains(reponse, 'id="panneau-filtres"')
+        self.assertContains(reponse, 'id="etiquettes-filtres"')
+        self.assertContains(reponse, 'id="panneau-evenement"')
+        self.assertContains(reponse, 'id="btnNouvelEvenement"')
+        for vue in ("day", "week", "month"):
+            self.assertContains(reponse, f'data-vue="{vue}"')
+        self.assertNotContains(reponse, "Ajouter un événement personnel")
+
+    def test_equipage_a_terre_sans_creation(self):
+        profil = self.marin.profile
+        profil.equipage = "BLEU"
+        profil.save()
+        with patch("matrix.context_processors.equipage_a_terre_lecture_seule", return_value=True):
+            reponse = self.client.get(reverse("calendar-index"))
+        self.assertNotContains(reponse, 'id="btnNouvelEvenement"')
+        self.assertNotContains(reponse, 'id="panneau-evenement"')
+        self.assertContains(reponse, 'id="panneau-filtres"')

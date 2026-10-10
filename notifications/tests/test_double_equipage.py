@@ -84,7 +84,7 @@ class NotificationsEcheancesParEquipageTests(DoubleEquipageBase):
         navire = Ship.objects.create(name="Unique", code="UN")
         service = Service.objects.create(ship=navire, name="Pont")
         secteur = Sector.objects.create(service=service, name="Manœuvre")
-        equipier = marin("unique1", "EQUIPIER", navire, None, secteur)
+        equipier = marin("unique1", "EQUIPIER", navire, "", secteur)
         self._installation(navire, service, secteur)
         self._heure_de_notification(equipier)
         call_command("generate_installation_notifications")
@@ -115,8 +115,8 @@ class CouvertureQaTranche5Tests(DoubleEquipageBase):
         navire = Ship.objects.create(name="Unique2", code="U2")
         service = Service.objects.create(ship=navire, name="Pont")
         secteur = Sector.objects.create(service=service, name="Manœuvre")
-        a = marin("uniq_a", "EQUIPIER", navire, None, secteur)
-        b = marin("uniq_b", "EQUIPIER", navire, None, secteur)
+        a = marin("uniq_a", "EQUIPIER", navire, "", secteur)
+        b = marin("uniq_b", "EQUIPIER", navire, "", secteur)
         garde = self.garde(a, ship=navire)
         c = self.creneau(garde, b)
         debut, fin = self.aujourdhui, self.aujourdhui + timedelta(days=30)
@@ -128,7 +128,7 @@ class CouvertureQaTranche5Tests(DoubleEquipageBase):
         navire = Ship.objects.create(name="Unique3", code="U3")
         service = Service.objects.create(ship=navire, name="Pont")
         secteur = Sector.objects.create(service=service, name="Manœuvre")
-        a = marin("uniq_c", "EQUIPIER", navire, None, secteur)
+        a = marin("uniq_c", "EQUIPIER", navire, "", secteur)
         self.client.force_login(a)
         reponse = self.client.post(reverse("settings"), {
             "action": "update_notification_time", "notification_time": "06:15", "notification_time_soir": "19:00",

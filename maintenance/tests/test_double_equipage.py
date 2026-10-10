@@ -11,12 +11,12 @@ from accounts.models import UserProfile
 from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
-from org.models import Equipage, Sector, Service, Ship
+from org.models import Sector, Service, Ship
 
 User = get_user_model()
 
 
-def marin(nom, role, ship, equipage=None):
+def marin(nom, role, ship, equipage=""):
     user = User.objects.create_user(username=nom, password="pass")
     UserProfile.objects.update_or_create(user=user, defaults={"role": role, "ship": ship, "equipage": equipage})
     return User.objects.get(pk=user.pk)
@@ -25,8 +25,8 @@ def marin(nom, role, ship, equipage=None):
 class AssignationsParEquipageTests(TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="BSAM Test", code="BT", classe_navire="BSAM", double_equipage=True)
-        self.bleu = Equipage.objects.create(ship=self.ship, nom="Bleu")
-        self.rouge = Equipage.objects.create(ship=self.ship, nom="Rouge")
+        self.bleu = "A"
+        self.rouge = "B"
         self.ship.equipage_a_bord = self.bleu
         self.ship.save()
         service = Service.objects.create(ship=self.ship, name="Pont")

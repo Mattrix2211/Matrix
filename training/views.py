@@ -3,15 +3,15 @@ from django.db.models import Q
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied
 from rest_framework.permissions import SAFE_METHODS
-
-from org.commandant_en_second import niveau_lecture
 from .models import (
+    NIVEAU_LECTURE_GLOBALE_FORMATION,
     NIVEAU_SUPERVISION_GLOBALE_FORMATION,
     ReferentFormation,
     TrainingCourse,
     TrainingRequirement,
     TrainingSession,
     TrainingRecord,
+    dossiers_formation_visibles_q,
     navire_de,
     peut_valider_formation,
 )
@@ -25,22 +25,21 @@ from .serializers import (
 # Réutilise le contrôle de périmètre du Circuit C (chef de secteur -> chef de
 # service), déjà correct côté web — jamais recréé ici (cf. CLAUDE.md,
 # principe « ne jamais recréer un système déjà existant »). Import direct de
-# training.formation_perimetre (module de seuils/périmètre partagé, extrait de
-# training/web_views.py lors du re-découpage du fichier, tâche Notion « [ARCH]
-# Découper training/web_views.py... ») : aucun cycle, ce module n'importe
-# jamais views.py. peut_modifier_formation_bord/formation_bord_en_service/
+# training.web_views : aucun cycle, web_views.py n'importe jamais views.py.
+# peut_modifier_formation_bord/formation_bord_en_service/
 # NIVEAU_REQUIS_VALIDATION_FORMATION_BORD : mêmes garde-fous que
-# formation_bord_actions.py::_action_proposer_formation_bord, appliqués ici à
+# TrainingCourseListView._proposer_formation_bord, appliqués ici à
 # TrainingCourseViewSet.perform_update/perform_destroy suite au deuxième
 # refus du Tech Lead (tâche Notion Circuit C) — un PATCH/PUT/DELETE sur une
 # formation « bord » via l'API contournait jusqu'ici totalement ces
 # contrôles, pourtant déjà corrects côté web.
-from .formation_perimetre import (
+from .web_views import (
     formation_bord_en_service,
     NIVEAU_REQUIS_VALIDATION_FORMATION_BORD,
     peut_modifier_formation_bord,
     peut_valider_proposition_bord,
 )
+from matrix.core.mixins import EcritureDansLePerimetreMixin
 from matrix.core.permissions import RolePermission
 from matrix.core.roles import user_role_level
 from matrix.core.scopes import perimetre_navire_q, resoudre_affectation_dans_perimetre, ship_id_for_user
@@ -81,7 +80,7 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return TrainingCourse.objects.none()
         base = TrainingCourse.objects.all()
-        if niveau_lecture(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
             return base
         # Mêmes deux ensembles complémentaires que
         # TrainingCourseListView.get_context_data (mes_propositions_bord /
@@ -128,7 +127,7 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
             )
         # Formation déjà en service (validations, sessions, ou prérequis
         # d'une autre formation) : pas de mutation en place, même règle que
-        # formation_bord_actions._action_proposer_formation_bord.
+        # TrainingCourseListView._proposer_formation_bord.
         if instance.statut_validation == "ACTIVE" and formation_bord_en_service(instance):
             raise ApiPermissionDenied(
                 f"« {instance.title} » est déjà active et utilisée (validations, sessions ou "
@@ -170,7 +169,7 @@ class ReferentFormationPermission(RolePermission):
     supervision globale (COMMANDANT et au-dessus, cf.
     training.models.NIVEAU_SUPERVISION_GLOBALE_FORMATION) peuvent agir sur
     n'importe quel navire. Reproduit exactement la même logique que
-    training/catalogue_actions.py::_action_update_prerequisites (déjà correcte côté web) —
+    training/web_views.py::update_prerequisites (déjà correcte côté web) —
     voir aussi ReferentFormationNavire (training/models.py), volontairement
     sans route API et gérée uniquement côté web scopé, pour la même
     raison."""
@@ -226,7 +225,7 @@ class ReferentFormationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return ReferentFormation.objects.none()
-        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
             return qs
         ship_id = ship_id_for_user(user)
         if ship_id is None:
@@ -317,7 +316,7 @@ class TrainingRequirementViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return TrainingRequirement.objects.none()
-        if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
             return qs
         return qs.filter(
             perimetre_navire_q(user, "applies_to_")
@@ -445,20 +444,26 @@ class TrainingSessionPermission(RolePermission):
 # TrainingRecordViewSet ci-dessous) : une session de formation n'est plus
 # rattachée à un périmètre organisationnel précis depuis que TrainingCourse
 # est une fiche globale partagée par tous les navires (portabilité des
-# qualifications), et CalendarView (calendar_app/index_views.py) affiche
+# qualifications), et CalendarView (calendar_app/views.py) affiche
 # volontairement TOUTES les sessions à tout utilisateur pour que la
 # planification (disponibilité salles/formateurs) reste visible flotte
 # entière. Seule l'ÉCRITURE reste contrôlée finement (TrainingSessionPermission
 # ci-dessus, par affectation personnelle des marins concernés).
-class TrainingSessionViewSet(viewsets.ModelViewSet):
+class TrainingSessionViewSet(EcritureDansLePerimetreMixin, viewsets.ModelViewSet):
     queryset = TrainingSession.objects.select_related("course", "instructor").all()
     serializer_class = TrainingSessionSerializer
     permission_classes = [TrainingSessionPermission]
+    # Les présences (attendees) relèvent des référents (TrainingSessionPermission),
+    # désignés pour un navire précis : elles ne sont donc pas limitées ici.
+    champs_utilisateurs_perimetre = ("instructor", "reservations")
 
 class TrainingRecordViewSet(viewsets.ModelViewSet):
     queryset = TrainingRecord.objects.select_related("course", "user").all()
     serializer_class = TrainingRecordSerializer
     permission_classes = [TrainingRecordPermission]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(dossiers_formation_visibles_q(self.request.user))
 
     def perform_create(self, serializer):
         serializer.save(validated_by=self.request.user, created_by=self.request.user)

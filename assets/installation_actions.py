@@ -32,6 +32,10 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from org.models import Section, Sector, Service, Ship
 
+from django.db import transaction
+
+from . import fiche_maintenance
+from .proposition_article import ErreurCircuit
 from .models import (
     Installation,
     InstallationBigrameChoice,
@@ -271,17 +275,23 @@ def _action_add_maintenance(view, request, inst, qs):
     if not title:
         messages.error(request, "Le titre est requis.")
         return redirect(f"/installations/{inst.id}/{qs}")
-    m = InstallationMaintenance.objects.create(
-        installation=inst,
-        periodicity=periodicity or '—',
-        title=title,
-        description=description,
-        planned_duration_min=max(0, duration),
-        people_count=max(1, people),
-        competence=competence,
-        created_by=request.user,
-        updated_by=request.user,
-    )
+    try:
+        with transaction.atomic():
+            m = InstallationMaintenance.objects.create(
+                installation=inst,
+                periodicity=periodicity or '—',
+                title=title,
+                description=description,
+                planned_duration_min=max(0, duration),
+                people_count=max(1, people),
+                competence=competence,
+                created_by=request.user,
+                updated_by=request.user,
+            )
+            fiche_maintenance.enregistrer_version_directe(m, request.user, "Création par le chef de service")
+    except ErreurCircuit as erreur:
+        messages.error(request, str(erreur))
+        return redirect(f"/installations/{inst.id}/{qs}")
     for f in request.FILES.getlist('attachments'):
         erreur_fichier = message_erreur_fichier(f, valider_document)
         if erreur_fichier:
@@ -389,7 +399,13 @@ def _action_edit_maintenance(view, request, inst, qs):
         except ValueError:
             pass
     m.updated_by = request.user
-    m.save()
+    try:
+        with transaction.atomic():
+            m.save()
+            fiche_maintenance.enregistrer_version_directe(m, request.user, "Modification par le chef de service")
+    except ErreurCircuit as erreur:
+        messages.error(request, str(erreur))
+        return redirect(f"/installations/{inst.id}/{qs}")
     # Traçabilité du changement de mode de suivi : historisé via InstallationEvent
     # (système d'historique déjà existant, pas de nouveau mécanisme d'audit).
     if m.mode_declenchement != ancien_mode:

@@ -1,14 +1,10 @@
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator
 from django.conf import settings
-from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel
-
-from . import changement_equipage, regles_equipage
 
 User = get_user_model()
 
@@ -33,25 +29,12 @@ class Ship(TimeStampedModel):
     # Optionnel et sans valeur par défaut arbitraire : reste rétrocompatible
     # avec les unités déjà existantes, non concernées par les unités non-navires.
     classe_navire = models.CharField(max_length=100, blank=True, default="", verbose_name="Classe de navire")
-    # Capacité aviation réelle du bâtiment : conditionne la possibilité de créer
-    # un COMAVIA (org.CommandantAdjoint). Faux par défaut : rétrocompatible.
-    capacite_aviation = models.BooleanField(default=False, verbose_name="Capacité aviation")
-    # Double équipage (FREMM, PSP, BSAM uniquement — voir org/equipages.py) :
-    # activable par navire, faux par défaut donc sans effet sur les autres
-    # bâtiments. `equipage_a_bord` est l'équipage actuellement à bord ; une
-    # relève peut être planifiée (`equipage_releve` à partir de `date_releve`) :
-    # toujours passer par org.equipages.equipage_a_bord() pour connaître
-    # l'équipage à bord réel à une date donnée.
+    # Double équipage (FREMM, PSP, BSAM) : l'équipage à bord est une donnée
+    # configurable (codes libres, ex. « A » / « B »), pas une règle en dur.
     double_equipage = models.BooleanField(default=False, verbose_name="Double équipage")
-    equipage_a_bord = models.ForeignKey(
-        "Equipage", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
-        verbose_name="Équipage à bord",
+    equipage_a_bord = models.CharField(
+        max_length=8, blank=True, default="", verbose_name="Équipage actuellement à bord"
     )
-    equipage_releve = models.ForeignKey(
-        "Equipage", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
-        verbose_name="Équipage montant (relève planifiée)",
-    )
-    date_releve = models.DateField(null=True, blank=True, verbose_name="Date de la relève")
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -61,316 +44,42 @@ class Ship(TimeStampedModel):
     def __str__(self):
         return self.name
 
-class Equipage(TimeStampedModel):
-    """Équipage d'un bâtiment à double équipage (page Notion « Organigramme et
-    rôles » §9 et §11). Le bâtiment porte installations, matériel, fiches,
-    historique et stock ; l'équipage porte les personnes (UserProfile.equipage),
-    et, dans les tranches suivantes, l'organisation, les quarts, les
-    assignations et les notifications. Un navire à équipage unique n'a aucun
-    Equipage : ses marins restent rattachés au seul navire."""
-
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="equipages")
-    nom = models.CharField(max_length=50, verbose_name="Nom")
-
-    class Meta:
-        unique_together = ("ship", "nom")
-        ordering = ("ship__name", "nom")
-        verbose_name = "Équipage"
-        verbose_name_plural = "Équipages"
-
-    def __str__(self):
-        return f"{self.ship} / équipage {self.nom}"
+class CommandantAdjoint(models.TextChoices):
+    """Fonctions de commandant adjoint à bord (COMAVIA seulement si l'unité a une capacité aviation)."""
+    COMAEQ = "COMAEQ", "COMAEQ (équipage)"
+    COMOPS = "COMOPS", "COMOPS (opérations)"
+    COMANAV = "COMANAV", "COMANAV (navire)"
+    COMAVIA = "COMAVIA", "COMAVIA (aviation)"
 
 
-class SynthesePassation(TimeStampedModel):
-    """Synthèse de passation produite à la relève d'un bâtiment à double
-    équipage (voir org/passation.py) : état du BÂTIMENT (maintenances en cours
-    ou en retard, anomalies et tickets ouverts, stock sous seuil) figé à la date
-    de relève, pour l'équipage montant. Une seule synthèse par relève : la
-    contrainte d'unicité garantit l'idempotence du déclencheur quotidien."""
-
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="syntheses_passation")
-    equipage_montant = models.ForeignKey(
-        Equipage, on_delete=models.CASCADE, related_name="syntheses_recues", verbose_name="Équipage montant",
-    )
-    equipage_descendant = models.ForeignKey(
-        Equipage, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
-        verbose_name="Équipage descendant",
-    )
-    date_releve = models.DateField(verbose_name="Date de la relève")
-    contenu = JSONField(default=dict, blank=True, verbose_name="Contenu figé")
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=("ship", "equipage_montant", "date_releve"), name="passation_unique_par_releve"
-            ),
-        ]
-        ordering = ("-date_releve", "-created_at")
-        verbose_name = "Synthèse de passation"
-        verbose_name_plural = "Synthèses de passation"
-
-    def __str__(self):
-        return f"Passation {self.ship} du {self.date_releve:%d/%m/%Y} vers l'équipage {self.equipage_montant.nom}"
-
-
-class CommandantAdjoint(TimeStampedModel):
-    """Niveau « commandant adjoint » de l'état-major, entre le navire et les
-    services (page Notion « Organigramme et rôles » §2 et §11). Configurable
-    PAR NAVIRE : un navire ne porte que les postes qu'il a créés, COMAVIA
-    n'étant possible que sur un bâtiment à capacité aviation. Chaque service
-    peut en dépendre (Service.commandant_adjoint). Dans l'interface on affiche
-    toujours le sigle, jamais « chef de groupement » ni « CAN »."""
-
-    class Sigle(models.TextChoices):
-        COMAEQ = "COMAEQ", "COMAEQ"
-        COMOPS = "COMOPS", "COMOPS"
-        COMANAV = "COMANAV", "COMANAV"
-        COMAVIA = "COMAVIA", "COMAVIA"
-
-    # Signification en clair, affichée en complément du sigle (info-bulle).
-    SIGNIFICATIONS = {
-        "COMAEQ": "Commandant adjoint équipage",
-        "COMOPS": "Commandant adjoint opérations",
-        "COMANAV": "Commandant adjoint navire",
-        "COMAVIA": "Commandant adjoint aviation",
-    }
-
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="commandants_adjoints")
-    sigle = models.CharField(max_length=10, choices=Sigle.choices, verbose_name="Sigle")
-    # Titulaire du poste : un utilisateur de rôle ETAT_MAJOR du navire. Poste
-    # vacant toléré (null), et conservé si le titulaire est supprimé.
-    titulaire = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name="commandants_adjoints_titulaire", verbose_name="Titulaire",
-    )
-    # Équipage porteur du poste (double équipage : organisation en miroir, voir
-    # org/miroir.py). Nul = équipage unique implicite (comportement historique).
-    equipage = models.ForeignKey(
-        "Equipage", null=True, blank=True, on_delete=models.CASCADE,
-        related_name="commandants_adjoints", verbose_name="Équipage",
-    )
-
-    class Meta:
-        # Un sigle par équipage (et un seul sans équipage) : la contrainte
-        # conditionnelle couvre le cas NULL, non comparé par SQL.
-        constraints = [
-            models.UniqueConstraint(
-                fields=("ship", "equipage", "sigle"), name="coma_unique_sigle_par_equipage"
-            ),
-            models.UniqueConstraint(
-                fields=("ship", "sigle"), condition=models.Q(equipage__isnull=True),
-                name="coma_unique_sigle_sans_equipage",
-            ),
-        ]
-        ordering = ("ship__name", "sigle")
-        verbose_name = "Poste de commandant adjoint (COMA)"
-        verbose_name_plural = "Postes de commandant adjoint (COMA)"
-
-    # Domaine de responsabilité en clair (relecture métier du 30/09/2026),
-    # affiché avec le sigle pour que l'écran reflète le rôle réel du poste.
-    RESPONSABILITES = {
-        "COMAEQ": "Vie à bord, service courant, coordination du personnel à quai, adjoint protection, conduite nautique",
-        "COMOPS": "Opérations, conduite des opérations, activité à la mer",
-        "COMANAV": "Conservation du bâtiment et des équipements, adjoint sécurité, gestion technique des matériels, "
-                   "logistique opérationnelle",
-        "COMAVIA": "Expertise aviation et sécurité aérienne sur les unités concernées",
-    }
-
-    @property
-    def signification(self):
-        return self.SIGNIFICATIONS[self.sigle]
-
-    @property
-    def responsabilites(self):
-        return self.RESPONSABILITES[self.sigle]
-
-    def clean(self):
-        """Règle du double équipage : le titulaire appartient à l'équipage du
-        poste (voir org/regles_equipage.py). Appelée par l'administration et
-        les formulaires ; `save()` la rejoue pour les autres chemins."""
-        super().clean()
-        if not self.ship_id:
-            return
-        if self.equipage_id and self.equipage.ship_id != self.ship_id:
-            raise ValidationError({"equipage": "Cet équipage n'appartient pas à l'unité du poste."})
-        message = regles_equipage.erreur_titulaire_equipage(self.ship, self.equipage, self.titulaire, self.sigle)
-        if message:
-            raise ValidationError({"titulaire": message})
-
-    def save(self, *args, **kwargs):
-        # Un enregistrement partiel qui ne touche ni le titulaire ni l'équipage
-        # (ex. mise à jour de la date) ne rejoue pas la règle : les titulaires
-        # déjà en place sans équipage restent signalés, jamais modifiés.
-        champs = kwargs.get("update_fields")
-        if champs is None or {"titulaire", "equipage"} & set(champs):
-            self.clean()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.ship} / {self.sigle}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
-
-
-class CommandantEnSecond(TimeStampedModel):
-    """Poste de commandant en second (ou d'officier en second sur un bâtiment
-    commandé par un officier subalterne) : le titulaire a, en LECTURE, la même
-    vision globale que le commandant (page Notion « Organigramme et rôles »,
-    décisions Matrix), sans aucun droit d'écriture supplémentaire et sans
-    nouveau code de rôle. Un poste par navire (par équipage en double
-    équipage). Le libellé est configurable par navire ; jamais « commandant
-    adjoint » seul, « CAN » ni « chef de groupement »."""
-
-    class Libelle(models.TextChoices):
-        COMMANDANT_EN_SECOND = "COMMANDANT_EN_SECOND", "Commandant en second"
-        OFFICIER_EN_SECOND = "OFFICIER_EN_SECOND", "Officier en second"
-
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="commandants_en_second")
-    equipage = models.ForeignKey(
-        "Equipage", null=True, blank=True, on_delete=models.CASCADE,
-        related_name="commandants_en_second", verbose_name="Équipage",
-    )
-    titulaire = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name="postes_en_second", verbose_name="Titulaire",
-    )
-    libelle = models.CharField(
-        max_length=30, choices=Libelle.choices, default=Libelle.COMMANDANT_EN_SECOND, verbose_name="Libellé du poste"
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=("ship", "equipage"), name="en_second_unique_par_equipage"),
-            models.UniqueConstraint(
-                fields=("ship",), condition=models.Q(equipage__isnull=True), name="en_second_unique_sans_equipage"
-            ),
-        ]
-        verbose_name = "Poste de commandant en second"
-        verbose_name_plural = "Postes de commandant en second"
-
-    def clean(self):
-        """Même règle que CommandantAdjoint : en double équipage, le titulaire
-        appartient à l'équipage du poste (org/regles_equipage.py)."""
-        super().clean()
-        if not self.ship_id:
-            return
-        if self.equipage_id and self.equipage.ship_id != self.ship_id:
-            raise ValidationError({"equipage": "Cet équipage n'appartient pas à l'unité du poste."})
-        message = regles_equipage.erreur_titulaire_equipage(
-            self.ship, self.equipage, self.titulaire, self.get_libelle_display()
-        )
-        if message:
-            raise ValidationError({"titulaire": message})
-
-    def save(self, *args, **kwargs):
-        champs = kwargs.get("update_fields")
-        if champs is None or {"titulaire", "equipage"} & set(champs):
-            self.clean()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.ship} / {self.get_libelle_display()}" + (f" ({self.equipage.nom})" if self.equipage_id else "")
-
-
-class SuppleanceCommandant(TimeStampedModel):
-    """Suppléance EXPLICITE du commandant par le commandant en second, sur une
-    période donnée : pendant cette période seulement, le suppléant exerce les
-    droits du commandant sur son navire (son équipage en double équipage).
-    Jamais implicite : hors période, ou après annulation, le poste de commandant
-    en second ne donne aucune écriture supplémentaire. Désignée par le
-    commandant ou l'administrateur d'unité ; désignation, début, fin et
-    annulation sont tracés dans l'AuditLog et notifiés."""
-
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="suppleances_commandant")
-    equipage = models.ForeignKey(
-        "Equipage", null=True, blank=True, on_delete=models.CASCADE,
-        related_name="suppleances_commandant", verbose_name="Équipage",
-    )
-    suppleant = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="suppleances_commandant", verbose_name="Suppléant"
-    )
-    debut = models.DateTimeField(verbose_name="Début de la suppléance")
-    fin = models.DateTimeField(verbose_name="Fin de la suppléance")
-    motif = models.CharField(max_length=200, blank=True, default="", verbose_name="Motif")
-    designe_par = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="suppleances_designees"
-    )
-    annulee_le = models.DateTimeField(null=True, blank=True, verbose_name="Annulée le")
-    annulee_par = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="suppleances_annulees"
-    )
-    debut_trace = models.BooleanField(default=False)
-    fin_tracee = models.BooleanField(default=False)
-
-    class Meta:
-        ordering = ("-debut",)
-        verbose_name = "Suppléance du commandant"
-        verbose_name_plural = "Suppléances du commandant"
-
-    def est_active(self, maintenant=None):
-        maintenant = maintenant or timezone.now()
-        return self.annulee_le is None and self.debut <= maintenant < self.fin
-
-    @property
-    def statut(self):
-        maintenant = timezone.now()
-        if self.annulee_le is not None:
-            return "Annulée"
-        if maintenant < self.debut:
-            return "Programmée"
-        return "En cours" if maintenant < self.fin else "Terminée"
-
-    def __str__(self):
-        return f"Suppléance {self.suppleant} ({self.ship}) du {self.debut:%d/%m/%Y %H:%M} au {self.fin:%d/%m/%Y %H:%M}"
+# Signification et domaine de responsabilité en clair de chaque sigle (relecture
+# métier du 30/09/2026), affichés avec le sigle pour que l'écran reflète le rôle réel.
+SIGNIFICATIONS_COMA = {
+    "COMAEQ": "Commandant adjoint équipage",
+    "COMOPS": "Commandant adjoint opérations",
+    "COMANAV": "Commandant adjoint navire",
+    "COMAVIA": "Commandant adjoint aviation",
+}
+RESPONSABILITES_COMA = {
+    "COMAEQ": "Vie à bord, service courant, coordination du personnel à quai, adjoint protection, conduite nautique",
+    "COMOPS": "Opérations, conduite des opérations, activité à la mer",
+    "COMANAV": "Conservation du bâtiment et des équipements, adjoint sécurité, gestion technique des matériels, "
+               "logistique opérationnelle",
+    "COMAVIA": "Expertise aviation et sécurité aérienne sur les unités concernées",
+}
 
 
 class Service(TimeStampedModel):
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="services")
     name = models.CharField(max_length=255)
-    # Commandant adjoint dont dépend le service (nullable : services existants
-    # sans rattachement tolérés). Doit appartenir au même navire.
-    commandant_adjoint = models.ForeignKey(
-        CommandantAdjoint, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name="services", verbose_name="Poste de commandant adjoint (COMA)",
-    )
-    # Équipage dont dépend le service (double équipage) ; nul = équipage unique.
-    equipage = models.ForeignKey(
-        Equipage, null=True, blank=True, on_delete=models.CASCADE,
-        related_name="services", verbose_name="Équipage",
+    # Commandant adjoint dont dépend le service ; vide = non configuré (repli sur les seuils de rôle).
+    commandant_adjoint = models.CharField(
+        max_length=16, choices=CommandantAdjoint.choices, blank=True, default="", verbose_name="Commandant adjoint"
     )
     archived = models.BooleanField(default=False)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=("ship", "equipage", "name"), name="service_unique_nom_par_equipage"),
-            models.UniqueConstraint(
-                fields=("ship", "name"), condition=models.Q(equipage__isnull=True),
-                name="service_unique_nom_sans_equipage",
-            ),
-        ]
-
-    def clean(self):
-        """Poste du même équipage et changement d'équipage sans conflit (voir
-        org/changement_equipage.py). Appelée par l'administration et les formulaires."""
-        super().clean()
-        if not self.ship_id:
-            return
-        if self.equipage_id and self.equipage.ship_id != self.ship_id:
-            raise ValidationError({"equipage": "Cet équipage n'appartient pas à l'unité du service."})
-        if changement_equipage.equipage_a_change(self):
-            # Le contrôle du changement couvre aussi le poste de commandant adjoint.
-            changement_equipage.verifier_changement(self, self.equipage)
-            return
-        message = regles_equipage.erreur_poste_du_service(self, self.commandant_adjoint)
-        if message:
-            raise ValidationError({"commandant_adjoint": message})
-
-    def save(self, *args, **kwargs):
-        # Le changement d'équipage est atomique sur Service -> Secteurs -> Sections.
-        champs = kwargs.get("update_fields")
-        if champs is not None and "equipage" not in champs:
-            super().save(*args, **kwargs)
-            return
-        changement_equipage.enregistrer_service(self, lambda: super(Service, self).save(*args, **kwargs))
+        unique_together = ("ship", "name")
 
     def __str__(self):
         return f"{self.ship} / {self.name}"
@@ -379,11 +88,6 @@ class Sector(TimeStampedModel):
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="sectors")
     name = models.CharField(max_length=255)
     color = models.CharField(max_length=7, default="#0d6efd")
-    # Copie de l'équipage du service (renseignée à la création et à la duplication).
-    equipage = models.ForeignKey(
-        Equipage, null=True, blank=True, on_delete=models.CASCADE,
-        related_name="secteurs", verbose_name="Équipage",
-    )
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -395,11 +99,6 @@ class Sector(TimeStampedModel):
 class Section(TimeStampedModel):
     sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="sections")
     name = models.CharField(max_length=255)
-    # Copie de l'équipage du secteur (renseignée à la création et à la duplication).
-    equipage = models.ForeignKey(
-        Equipage, null=True, blank=True, on_delete=models.CASCADE,
-        related_name="sections", verbose_name="Équipage",
-    )
     archived = models.BooleanField(default=False)
 
     class Meta:
@@ -443,10 +142,6 @@ class RoleThresholdConfig(TimeStampedModel):
         Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="role_threshold_config"
     )
     thresholds = JSONField(default=dict, blank=True)
-    # Actions d'écriture métier confiées au commandant en second de ce navire
-    # (clés de REGISTRE_DROITS_EN_SECOND, matrix/core/role_thresholds.py) ;
-    # vide par défaut : le poste ne donne alors aucune écriture.
-    droits_en_second = JSONField(default=list, blank=True)
 
     class Meta:
         verbose_name = "Configuration des seuils de rôle"
@@ -493,7 +188,7 @@ class ResponsableClasseNavire(TimeStampedModel):
     nomenclature Marine non fermée) : la responsabilité porte sur la VALEUR
     de classe, pas sur un navire précis — elle couvre donc tout navire
     existant ou futur portant cette classe. Donne accès en LECTURE SEULE au
-    dashboard classe de navire (dashboard/dashboards_transverses_views.py::DashboardClasseNavireView),
+    dashboard classe de navire (dashboard/web_views.py::DashboardClasseNavireView),
     aucun droit d'écriture supplémentaire.
 
     Désignation réservée à MASTER_ADMIN, même seuil configurable que
@@ -512,3 +207,31 @@ class ResponsableClasseNavire(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} — responsable classe ({self.classe_navire})"
+
+
+class ReleveEquipage(TimeStampedModel):
+    """Relève du double équipage : proposée par un commandant, appliquée à la validation de l'autre.
+
+    Une seule proposition en attente par unité ; les décisions passées sont conservées.
+    """
+
+    class Statut(models.TextChoices):
+        EN_ATTENTE = "en_attente", "En attente"
+        VALIDEE = "validee", "Validée"
+        REFUSEE = "refusee", "Refusée"
+        ANNULEE = "annulee", "Annulée"
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="releves")
+    equipage_propose = models.CharField(max_length=8)
+    propose_par = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="releves_proposees")
+    statut = models.CharField(max_length=12, choices=Statut.choices, default=Statut.EN_ATTENTE)
+    decide_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="releves_decidees")
+    decide_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ship"], condition=models.Q(statut="en_attente"), name="une_releve_en_attente_par_unite"
+            )
+        ]

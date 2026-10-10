@@ -15,12 +15,12 @@ from absences.services import (
     peut_valider_absence,
 )
 from accounts.models import TypeAbsence, UserProfile
-from org.models import Equipage, Ship
+from org.models import Ship
 
 User = get_user_model()
 
 
-def marin(nom, role, ship, equipage=None):
+def marin(nom, role, ship, equipage=""):
     user = User.objects.create_user(username=nom, password="pass")
     UserProfile.objects.update_or_create(user=user, defaults={"role": role, "ship": ship, "equipage": equipage})
     return User.objects.get(pk=user.pk)
@@ -29,8 +29,8 @@ def marin(nom, role, ship, equipage=None):
 class AbsencesParEquipageTests(TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="PSP Test", code="PT", classe_navire="PSP", double_equipage=True)
-        self.bleu = Equipage.objects.create(ship=self.ship, nom="Bleu")
-        self.rouge = Equipage.objects.create(ship=self.ship, nom="Rouge")
+        self.bleu = "A"
+        self.rouge = "B"
         self.ship.equipage_a_bord = self.bleu
         self.ship.save()
         self.chef_bleu = marin("chef_bleu", "COMMANDANT", self.ship, self.bleu)

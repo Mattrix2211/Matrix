@@ -5,8 +5,11 @@ from django.views.static import serve as serve_static
 from .views import logout_then_login, SettingsView
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import global_search
-from dashboard.web_views import TableauDeBordView
+from .views import global_search, recherche_rapide
+from .core.brouillons import BrouillonView
+from .core.inactivite import SessionInactiviteView
+from .styleguide import StyleguideView
+from dashboard.web_views import AujourdhuiView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -31,12 +34,12 @@ urlpatterns = [
     path("api/training/", include("training.urls")),
     path("api/threads/", include("threads.urls")),
     path("api/notifications/", include("notifications.urls")),
+    path("notifications/", include("notifications.web_urls")),
     path("api/dashboard/", include("dashboard.urls")),
     path("dashboard/", include("dashboard.web_urls")),
     path("calendar/", include("calendar_app.urls")),
     path("users/", include("accounts.web_urls")),
     path("parametre/", SettingsView.as_view(), name="settings"),
-    path("equipages/", include("org.web_urls")),
     path("maintenance/", include("maintenance.web_urls")),
     path("logistics/", include("logistics.web_urls")),
     path("formations/", include("training.web_urls")),
@@ -45,8 +48,12 @@ urlpatterns = [
     path("rondes/", include("rondes.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),
+    path("brouillons/", BrouillonView.as_view(), name="brouillon"),
+    path("session/", SessionInactiviteView.as_view(), name="session-inactivite"),
+    path("styleguide/", StyleguideView.as_view(), name="styleguide"),
     path("search/", global_search, name="global-search"),
-    path("", TableauDeBordView.as_view(), name="home"),
+    path("search/rapide/", recherche_rapide, name="recherche-rapide"),
+    path("", AujourdhuiView.as_view(), name="home"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 admin.site.site_header = "Matrix Administration"

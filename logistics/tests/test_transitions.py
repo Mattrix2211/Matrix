@@ -40,7 +40,7 @@ class TicketTransitionTests(TestCase):
         from accounts.models import UserProfile
 
         chef = User.objects.create_user(username="chef_ordre_transitions", password="pass")
-        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION"})
+        UserProfile.objects.update_or_create(user=chef, defaults={"role": "CHEF_SECTION", "ship": self.asset.ship})
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Fuite huile")
         self.assertEqual(ticket.status, "REPORTED")
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load icones %}
 {% load asset_extras %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -11,12 +12,12 @@
   <div class="d-flex gap-2">
     {% if pont_precedent %}
       <a href="{% url 'plan-navire-deck' pk=pont_precedent.id %}" class="btn btn-outline-secondary btn-sm" title="Pont précédent">
-        <span class="bi bi-chevron-left"></span> {{ pont_precedent.name }}
+        {% icone "precedent" %} {{ pont_precedent.name }}
       </a>
     {% endif %}
     {% if pont_suivant %}
       <a href="{% url 'plan-navire-deck' pk=pont_suivant.id %}" class="btn btn-outline-secondary btn-sm" title="Pont suivant">
-        {{ pont_suivant.name }} <span class="bi bi-chevron-right"></span>
+        {{ pont_suivant.name }} {% icone "suite" %}
       </a>
     {% endif %}
   </div>
@@ -82,7 +83,7 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="remove_pin" />
               <input type="hidden" name="asset_id" value="{{ m.id }}" />
-              <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirer du plan"><span class="bi bi-trash"></span></button>
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirer du plan">{% icone "suppression" %}</button>
             </form>
           </div>
         </li>

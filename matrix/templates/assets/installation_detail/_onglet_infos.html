@@ -1,37 +1,5 @@
-      <div class="tab-pane fade show active" id="pane-infos" role="tabpanel" aria-labelledby="tab-infos">
-        {# Synthèse d'un coup d'œil : les indicateurs clés avant le détail (principe n°5) #}
-        <div class="row g-2 mb-3" id="synthese-installation">
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 h-100">
-              <div class="small text-muted">Criticité</div>
-              {% if object.critique %}<span class="badge text-bg-danger">Critique</span>{% else %}<span class="badge text-bg-secondary">Standard</span>{% endif %}
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 h-100">
-              <div class="small text-muted">État vibratoire</div>
-              {% if vibration_last_state %}
-                <span class="badge {% if vibration_last_state == 'A' %}text-bg-success{% elif vibration_last_state == 'B' %}text-bg-warning{% else %}text-bg-danger{% endif %}">État {{ vibration_last_state }}</span>
-                {% if vibration_next_days is not None %}<span class="small {% if vibration_next_days < 0 %}text-danger{% else %}text-muted{% endif %}">{% if vibration_next_days < 0 %}en retard de {{ vibration_retard_jours }} j{% else %}prochain dans {{ vibration_next_days }} j{% endif %}</span>{% endif %}
-              {% else %}<span class="text-muted">Aucun relevé</span>{% endif %}
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 h-100">
-              <div class="small text-muted">Dernier isolement</div>
-              {% if isolation_last %}
-                <span class="font-mono">{{ isolation_last.ohms }} Ω</span>
-                {% if isolation_next_days is not None and isolation_next_days < 0 %}<span class="badge text-bg-danger">Relevé en retard</span>{% endif %}
-              {% else %}<span class="text-muted">Aucun relevé</span>{% endif %}
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="border rounded p-2 h-100">
-              <div class="small text-muted">Heures de marche</div>
-              {% if hour_logs %}<span class="font-mono">{{ hours_total }} h</span>{% else %}<span class="text-muted">Aucun relevé</span>{% endif %}
-            </div>
-          </div>
-        </div>
+{% load icones %}      <div class="tab-pane fade show active" id="pane-ensemble" role="tabpanel" aria-labelledby="tab-ensemble">
+        <img class="float-end ms-3 mb-2" alt="QR code : scanner pour ouvrir la checklist du jour" title="À imprimer et apposer sur l'installation" src="/api/assets/installations/{{ object.id }}/qr_png/" height="96" />
         <div class="row g-3">
           <div class="col-md-6">
             <div class="border rounded p-3 h-100">
@@ -55,7 +23,7 @@
             <div class="border rounded p-3 h-100">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">Champs personnalisés</h6>
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInstallationModal"><span class="bi bi-gear"></span> Modifier</button>
+                {% if not equipage_a_terre %}<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInstallationModal">{% icone "parametres" %} Modifier</button>{% endif %}
               </div>
               <div class="mt-3">
                 {% if extra_fields %}
@@ -71,4 +39,25 @@
             </div>
           </div>
         </div>
+        <details class="mx-repliable mt-3">
+          <summary>Sous-équipements <span class="badge text-bg-secondary rounded-pill">{{ object.sous_ensembles.count }}</span></summary>
+          <ul class="mx-repliable__liste">
+            {% for c in object.sous_ensembles.all %}<li><a href="/installations/{{ c.id }}/">{{ c.designation }}</a>{% if c.reference %} <span class="text-muted font-mono">{{ c.reference }}</span>{% endif %}</li>{% empty %}<li class="text-muted">Aucun sous-équipement</li>{% endfor %}
+          </ul>
+        </details>
+        <details class="mx-repliable mt-2" id="documents-installation">
+          <summary>Documents <span class="badge text-bg-secondary rounded-pill">{{ nb_documents }}</span></summary>
+          <ul class="mx-repliable__liste">
+            {% for doc in documents_installation %}<li class="d-flex align-items-center gap-2">
+              {% icone "document" %}
+              <a href="{% url 'installation-document-telecharger' object.pk doc.pk %}">{{ doc.titre }}</a>
+              <span class="badge text-bg-light">{{ doc.get_type_document_display }}</span>
+              {% if doc.notes %}<span class="text-muted small">{{ doc.notes }}</span>{% endif %}
+              {% if peut_supprimer_document and not equipage_a_terre %}<form method="post" action="{% url 'installation-document-supprimer' object.pk doc.pk %}" class="ms-auto" onsubmit="return confirm('Supprimer ce document ?');">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer le document {{ doc.titre }}">{% icone "suppression" %}</button></form>{% endif %}
+            </li>{% endfor %}
+            {% for pj in documents %}<li><a href="{{ pj.file.url }}" target="_blank" rel="noopener">{{ pj.filename }}</a> <span class="text-muted small">pièce jointe</span></li>{% endfor %}
+            {% if not documents_installation and not documents %}<li class="text-muted">Aucun document</li>{% endif %}
+          </ul>
+          {% if peut_ajouter_document and not equipage_a_terre %}<button type="button" class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#addDocumentInstallationModal">{% icone "ajout" %} Ajouter un document</button>{% endif %}
+        </details>
       </div>

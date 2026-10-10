@@ -33,6 +33,7 @@ from .models import (
     FonctionFeuilleService,
     NIVEAU_SUPERVISION_GLOBALE_LISTE,
     RubriqueEnTeteFeuilleService,
+    codes_equipage,
     equipage_de_feuille_pour,
     feuille_du_jour,
     peut_gerer_brouillon_feuille,
@@ -61,7 +62,7 @@ def _redirection_detail(ship, date_, equipage):
     """Retour sur la feuille du jour ; l'équipage n'est passé dans l'adresse que
     s'il y en a un (administrateur général choisissant l'équipage à consulter)."""
     adresse = reverse("feuille-service-detail", kwargs={"ship_id": ship.pk, "date_str": date_.isoformat()})
-    return redirect(f"{adresse}?equipage={equipage.pk}" if equipage else adresse)
+    return redirect(f"{adresse}?equipage={equipage}" if equipage else adresse)
 
 
 class FeuilleServiceIndexView(LoginRequiredMixin, View):
@@ -96,7 +97,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             feuille = feuille_du_jour(ship, date_, equipage)
             if feuille is not None:
                 feuille = FeuilleService.objects.select_related(
-                    "secteur_redacteur", "service_redacteur", "created_by", "equipage",
+                    "secteur_redacteur", "service_redacteur", "created_by",
                 ).get(pk=feuille.pk)
         return ship, date_, feuille, equipage
 
@@ -117,15 +118,17 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         if not self._peut_configurer(request):
             raise PermissionDenied
         feuille = FeuilleService.objects.filter(
-            pk=entier_ou_none(request.POST.get("feuille_id")) or 0, ship=ship, equipage__isnull=True
+            pk=entier_ou_none(request.POST.get("feuille_id")) or 0, ship=ship, equipage=""
         ).first()
-        equipage = ship.equipages.filter(pk=entier_ou_none(request.POST.get("equipage_id")) or 0).first()
-        if not ship.double_equipage or feuille is None or equipage is None:
+        equipage = request.POST.get("equipage", "").strip()
+        if equipage not in codes_equipage(ship):
+            equipage = ""
+        if not ship.double_equipage or feuille is None or not equipage:
             messages.error(request, "Feuille sans équipage ou équipage introuvable sur cette unité.")
         elif FeuilleService.objects.filter(ship=ship, equipage=equipage, date=feuille.date).exists():
             messages.error(
                 request,
-                f"L'équipage {equipage.nom} a déjà une feuille de service au {feuille.date:%d/%m/%Y} : "
+                f"L'équipage {equipage} a déjà une feuille de service au {feuille.date:%d/%m/%Y} : "
                 "rattachez cette feuille à l'autre équipage.",
             )
         else:
@@ -134,22 +137,22 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             AuditLog.objects.create(
                 actor=request.user, action="rattacher_feuille_service",
                 details=f"navire={ship.name}; feuille du {feuille.date.isoformat()} (pk={feuille.pk}); "
-                        f"sans équipage -> {equipage.nom}",
+                        f"sans équipage -> {equipage}",
             )
-            messages.success(request, f"Feuille du {feuille.date:%d/%m/%Y} rattachée à l'équipage {equipage.nom}.")
+            messages.success(request, f"Feuille du {feuille.date:%d/%m/%Y} rattachée à l'équipage {equipage}.")
 
     def _contexte(self, request, ship, date_, feuille, equipage):
         peut_configurer = self._peut_configurer(request)
         # Feuilles à ne pas perdre de vue : sans équipage sur un double équipage
         # (à rattacher), ou d'un autre équipage le même jour sur un équipage unique.
         if ship.double_equipage:
-            feuilles_sans_equipage = FeuilleService.objects.filter(ship=ship, equipage__isnull=True).order_by("-date")[:30]
+            feuilles_sans_equipage = FeuilleService.objects.filter(ship=ship, equipage="").order_by("-date")[:30]
             autres_feuilles = []
         else:
             feuilles_sans_equipage = []
             autres_feuilles = FeuilleService.objects.filter(
-                ship=ship, date=date_, equipage__isnull=False
-            ).exclude(pk=feuille.pk if feuille else 0).select_related("equipage")
+                ship=ship, date=date_
+            ).exclude(equipage="").exclude(pk=feuille.pk if feuille else 0)
         if feuille is not None:
             rubriques = feuille.rubriques_affichees
             personnel = feuille.personnel
@@ -200,9 +203,9 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             "peut_configurer": peut_configurer,
             # Double équipage sans équipage à bord défini : rien n'est affiché
             # au hasard, l'écran demande de corriger la configuration.
-            "etat_incoherent": ship.double_equipage and equipage is None,
+            "etat_incoherent": ship.double_equipage and not equipage,
             "feuilles_sans_equipage": feuilles_sans_equipage,
-            "equipages_rattachement": ship.equipages.all() if ship.double_equipage else [],
+            "equipages_rattachement": codes_equipage(ship) if ship.double_equipage else [],
             "autres_feuilles": autres_feuilles,
         }
 
@@ -215,9 +218,9 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         if action == "rattacher_feuille":
             self._rattacher_feuille(request, ship)
             return _redirection_detail(ship, date_, equipage)
-        if ship.double_equipage and equipage is None:
+        if ship.double_equipage and not equipage:
             messages.error(
-                request, "Aucun équipage à bord n'est défini : corrigez-le d'abord dans la page « Équipages »."
+                request, "Aucun équipage à bord n'est défini : corrigez-le d'abord dans les paramètres de l'unité."
             )
             return _redirection_detail(ship, date_, equipage)
 
@@ -226,7 +229,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 raise PermissionDenied
             if feuille is None:
                 FeuilleService.objects.create(
-                    ship=ship, equipage=equipage if ship.double_equipage else None, date=date_,
+                    ship=ship, equipage=equipage if ship.double_equipage else "", date=date_,
                     created_by=request.user, updated_by=request.user,
                 )
                 messages.success(

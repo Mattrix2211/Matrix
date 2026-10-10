@@ -1,5 +1,5 @@
 """Tests du dashboard transverse par classe de navire
-(dashboard/dashboards_transverses_views.py::DashboardClasseNavireView / Choix) — tâche Notion
+(dashboard/web_views.py::DashboardClasseNavireView / Choix) — tâche Notion
 « Dashboards transverses par spécialité et par classe de navire »."""
 from django.contrib.auth.models import User
 from django.test import TestCase

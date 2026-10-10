@@ -1,13 +1,16 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.validators import valider_document
+from matrix.core.scopes import is_master_admin, navire_q, perimetre_hierarchique_q
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Ship, Service, Section
 
@@ -128,7 +131,7 @@ class ReferentFormationNavire(TimeStampedModel):
     autant le rang de COMMANDANT. Un seul référent par navire (OneToOneField
     sur Ship) ; désigné/retiré uniquement par un rôle de supervision globale
     (cf. peut_valider_formation ci-dessous et
-    training/formation_perimetre.py::_peut_gerer_referent_navire)."""
+    training/web_views.py::_peut_gerer_referent_navire)."""
 
     ship = models.OneToOneField(Ship, on_delete=models.CASCADE, related_name="referent_formation")
     user = models.ForeignKey(
@@ -149,6 +152,8 @@ class ReferentFormationNavire(TimeStampedModel):
 # pour ReferentFormationNavire, pour la mission confiée sur tout le navire),
 # pas pour la position hiérarchique.
 NIVEAU_SUPERVISION_GLOBALE_FORMATION = RoleLevel.COMMANDANT
+# Lecture seule des listes et dossiers de formation : le commandant en second voit comme le commandant.
+NIVEAU_LECTURE_GLOBALE_FORMATION = NIVEAU_VISION_COMMANDEMENT
 
 
 def navire_de(user):
@@ -198,6 +203,56 @@ def peut_valider_formation(user, course, ship):
     if ReferentFormation.objects.filter(course=course, ship=ship, user=user).exists():
         return True
     return ReferentFormationNavire.objects.filter(ship=ship, user=user).exists()
+
+
+def _services_d_un_autre_coma(user, navire):
+    """Ids des services du bâtiment rattachés à un commandant adjoint (avec titulaire actif) autre que `user`."""
+    profil = user.profile
+    ids = []
+    for service in Service.objects.filter(ship=navire).exclude(commandant_adjoint=""):
+        if service.commandant_adjoint != profil.fonction_coma and titulaires_commandant_adjoint(
+            navire, service.commandant_adjoint, profil.equipage
+        ).exists():
+            ids.append(service.pk)
+    return ids
+
+
+def dossiers_formation_visibles_q(user):
+    """Filtre Q (sur TrainingRecord) des dossiers de formation lisibles par
+    `user` : le sien, ceux des marins de son périmètre hiérarchique s'il est
+    chef (CHEF_SECTION et au-dessus), ceux des navires dont il est Personnel
+    BRH, et ceux que ses désignations de référent l'autorisent à valider.
+
+    Le commandant et son second voient tout leur navire (la flotte entière
+    pour l'administrateur général). Un état-major ne voit que les services
+    de son commandant adjoint, ou ceux sans commandant adjoint configuré."""
+    marin = "user__profile__"
+    if is_master_admin(user):
+        return Q()
+    niveau = user_role_level(user)
+    navire = navire_de(user)
+    if niveau >= NIVEAU_LECTURE_GLOBALE_FORMATION and navire is not None:
+        return navire_q(navire.pk, marin) | Q(user=user)
+    q = Q(user=user)
+    if niveau >= RoleLevel.CHEF_SECTION:
+        perimetre = perimetre_hierarchique_q(user, marin)
+        if perimetre is not None:
+            if niveau == RoleLevel.ETAT_MAJOR and navire is not None:
+                autres = _services_d_un_autre_coma(user, navire)
+                if autres:
+                    perimetre &= ~(
+                        Q(**{f"{marin}service_id__in": autres})
+                        | Q(**{f"{marin}sector__service_id__in": autres})
+                        | Q(**{f"{marin}section__sector__service_id__in": autres})
+                    )
+            q |= perimetre
+    for ship_id in PersonnelBRH.objects.filter(user=user).values_list("ship_id", flat=True):
+        q |= navire_q(ship_id, marin)
+    for ship_id in ReferentFormationNavire.objects.filter(user=user).values_list("ship_id", flat=True):
+        q |= navire_q(ship_id, marin)
+    for course_id, ship_id in ReferentFormation.objects.filter(user=user).values_list("course_id", "ship_id"):
+        q |= Q(course_id=course_id) & navire_q(ship_id, marin)
+    return q
 
 
 def _verifier_absence_de_cycle_prerequis(course, nouveaux_ids):
@@ -252,6 +307,8 @@ def _prerequis_manquants(user, course, reference_date=None):
 class TrainingRequirement(TimeStampedModel):
     ROLE_CHOICES = (
         ("COMMANDANT", "Commandant"),
+        ("COMMANDANT_EN_SECOND", "Commandant en second"),
+        ("ETAT_MAJOR", "État-major"),
         ("CHEF_SERVICE", "Chef de service"),
         ("CHEF_SECTEUR", "Chef de secteur"),
         ("CHEF_SECTION", "Chef de section"),
@@ -282,7 +339,7 @@ class TrainingSession(TimeStampedModel):
     # session, distincte de `attendees` (présence/réussite réellement
     # constatée, gérée uniquement par les référents — cf. peut_valider_formation
     # ci-dessus, à ne pas toucher). Un marin ne réserve/annule que SA PROPRE
-    # réservation (contrôle fait dans training/session_actions.py) ; les règles
+    # réservation (contrôle fait dans training/web_views.py) ; les règles
     # métier (capacité, session toujours planifiée, prérequis, session pas
     # encore passée) sont appliquées ci-dessous par _controler_reservation,
     # seul point de passage garanti quel que soit l'appelant.
@@ -308,7 +365,7 @@ class TrainingSession(TimeStampedModel):
         _prerequis_manquants, comme _controler_reservation ci-dessous) — à
         l'exception de la capacité, volontairement PAS revérifiée ici :
         c'est justement parce qu'elle est déjà atteinte que l'appelant
-        (training/session_actions.py::_action_reserver_session) passe par la liste
+        (training/web_views.py::_reserver_session) passe par la liste
         d'attente plutôt que par une réservation directe. Idempotent :
         renvoie l'entrée existante si `user` y figure déjà, ne le met pas en
         double file."""
@@ -333,7 +390,7 @@ class TrainingWaitlistEntry(TimeStampedModel):
     quand un marin tente de réserver une place en libre-service alors que
     `capacite_max` est déjà atteinte, il est mis en attente plutôt que
     simplement refusé (cf. TrainingSession.inscrire_liste_attente ci-dessus,
-    appelée depuis training/session_actions.py::_action_reserver_session). Ordre FIFO
+    appelée depuis training/web_views.py::_reserver_session). Ordre FIFO
     garanti par `created_at` (TimeStampedModel), le plus ancien étant
     toujours le premier de la file.
 
@@ -345,8 +402,8 @@ class TrainingWaitlistEntry(TimeStampedModel):
     pour les réservations, c'est à lui de réserver lui-même. L'entrée est
     retirée dès que ce marin réserve effectivement une place sur cette
     session (cf. action "post_add" du signal ci-dessous), ou qu'il quitte
-    volontairement la liste d'attente (training/session_actions.py::
-    _action_quitter_liste_attente)."""
+    volontairement la liste d'attente (training/web_views.py::
+    _quitter_liste_attente)."""
 
     session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name="liste_attente")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="entrees_liste_attente")
@@ -476,7 +533,7 @@ class DemandePlace(TimeStampedModel, OwnedModel):
     (`nb_places_attribuees`) éventuellement relié à une TrainingSession
     (existante ou créée pour l'occasion). Le chef de secteur affecte ensuite
     des marins de son secteur sur ces places (cf. PlaceAffectee ci-dessous,
-    et training/demande_place_actions.py::_action_affecter_place_demandee).
+    et training/web_views.py::TrainingCourseListView._affecter_place_demandee).
 
     Plusieurs bords peuvent partager la MÊME session, chacun avec son propre
     quota : TrainingSession.capacite_max reste le plafond physique global de
@@ -527,8 +584,8 @@ class PlaceAffectee(TimeStampedModel):
     """Trace qu'un marin occupe une place attribuée à un bord précis via une
     DemandePlace : créé EN MÊME TEMPS que l'ajout du marin à
     TrainingSession.reservations lors d'une affectation partant d'une
-    DemandePlace (cf. _action_affecter_place_demandee), jamais lors d'une
-    affectation/réservation classique (_affecter_session, _action_reserver_session)
+    DemandePlace (cf. _affecter_place_demandee), jamais lors d'une
+    affectation/réservation classique (_affecter_session, _reserver_session)
     qui ne sont pas rattachées à un quota par bord."""
 
     demande_place = models.ForeignKey(DemandePlace, on_delete=models.CASCADE, related_name="places_affectees")
@@ -552,7 +609,7 @@ class PersonnelBRH(TimeStampedModel):
     ReferentFormation ci-dessus, à ne pas confondre avec
     ReferentFormationNavire (référent unique). Désignation réservée à
     COMMANDANT+ (même seuil que la désignation du référent formation navire,
-    cf. training/formation_perimetre.py::_peut_gerer_referent_navire)."""
+    cf. training/web_views.py::_peut_gerer_referent_navire)."""
 
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="personnels_brh")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="navires_brh")
@@ -579,7 +636,7 @@ class CandidatureFormation(TimeStampedModel, OwnedModel):
     navire (PersonnelBRH ci-dessus). Dès que les DEUX sont réunies, le statut
     passe automatiquement à TRANSMITTED (cf. transmettre_si_double_validation
     ci-dessous, appelée explicitement après chaque validation — même principe
-    que training/demande_place_actions.py::_action_attribuer_places qui pose statut="GRANTED"
+    que training/web_views.py::_attribuer_places qui pose statut="GRANTED"
     explicitement) : aucune action manuelle de transmission n'existe.
 
     L'organisme de formation (référent de la formation POUR SON PROPRE

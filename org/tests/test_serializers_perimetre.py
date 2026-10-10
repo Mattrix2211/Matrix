@@ -6,7 +6,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import Roles, UserProfile
-from org.models import Equipage, Section, Sector, SectorConfig, Service, Ship
+from org.models import Section, Sector, SectorConfig, Service, Ship
 
 
 def _client(nom, role, **profil):
@@ -78,47 +78,16 @@ class SerializersOrgPerimetreTests(TestCase):
         r = self.master.post("/api/org/sectors/", {"service": self.service_b.pk, "name": "Légitime"}, format="json")
         self.assertEqual(r.status_code, 201, r.content)
 
-    # --- champs posés par le serveur ----------------------------------------
-
-    def test_equipage_du_secteur_et_de_la_section_non_forgeable(self):
-        ship = Ship.objects.create(name="FREMM", code="FR", double_equipage=True)
-        equipage_bleu = Equipage.objects.create(ship=ship, nom="Bleu")
-        equipage_rouge = Equipage.objects.create(ship=ship, nom="Rouge")
-        service = Service.objects.create(ship=ship, name="Opérations", equipage=equipage_bleu)
-        r = self.master.post(
-            "/api/org/sectors/", {"service": service.pk, "name": "Veille", "equipage": equipage_rouge.pk}, format="json",
-        )
-        self.assertEqual(r.status_code, 201, r.content)
-        self.assertEqual(Sector.objects.get(pk=r.data["id"]).equipage, equipage_bleu)
-        r = self.master.post(
-            "/api/org/sections/",
-            {"sector": r.data["id"], "name": "Quart", "equipage": equipage_rouge.pk}, format="json",
-        )
-        self.assertEqual(r.status_code, 201, r.content)
-        self.assertEqual(Section.objects.get(pk=r.data["id"]).equipage, equipage_bleu)
-
-    def test_double_equipage_du_navire_non_modifiable_par_l_api(self):
-        equipage = Equipage.objects.create(ship=self.ship_a, nom="Bleu")
-        r = self.admin_a.patch(
-            f"/api/org/ships/{self.ship_a.pk}/",
-            {"double_equipage": True, "equipage_a_bord": equipage.pk, "classe_navire": "FDA"}, format="json",
-        )
-        self.assertEqual(r.status_code, 200, r.content)
-        self.ship_a.refresh_from_db()
-        self.assertFalse(self.ship_a.double_equipage)
-        self.assertIsNone(self.ship_a.equipage_a_bord)
-        self.assertEqual(self.ship_a.classe_navire, "FDA")
-
     # --- champs exposés -----------------------------------------------------
 
     def test_champs_explicites_exposes(self):
         r = self.admin_a.get(f"/api/org/ships/{self.ship_a.pk}/")
         self.assertEqual(
             set(r.data),
-            {"id", "name", "code", "type_unite", "classe_navire", "capacite_aviation", "double_equipage",
-             "equipage_a_bord", "equipage_releve", "date_releve", "archived", "created_at", "updated_at"},
+            {"id", "name", "code", "type_unite", "classe_navire", "double_equipage",
+             "equipage_a_bord", "archived", "created_at", "updated_at"},
         )
         r = self.admin_a.get(f"/api/org/sectors/{self.secteur_a1.pk}/")
         self.assertEqual(
-            set(r.data), {"id", "service", "name", "color", "equipage", "archived", "created_at", "updated_at"},
+            set(r.data), {"id", "service", "name", "color", "archived", "created_at", "updated_at"},
         )

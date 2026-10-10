@@ -26,6 +26,7 @@ from django.db import models
 from django.db.utils import OperationalError
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
 
@@ -43,10 +44,13 @@ from matrix.core.export import (
 from matrix.core.mixins import ScopedQuerySetMixin
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.scopes import scope_filters_for_user
+from threads.utils import contexte_discussion
 from org.models import Section, Sector, Service, Ship
 
 from .models import (
+    DocumentInstallation,
     Installation,
     InstallationBigrameChoice,
     InstallationEvent,
@@ -58,8 +62,16 @@ from .models import (
     InstallationVibrationReading,
     Location,
 )
+from . import fiche_adaptation, fiche_validation
+from .documents_installation_web import peut_ajouter_document, peut_supprimer_document
+from .mesures import formater_heures, formater_nombre, formater_ohms, heures_par_gamme, heures_par_releve, resume_heures
 from .trend import jours_avant_franchissement_seuil
 from .web_views import (
+    _droits_liste,
+    _emplacements_visibles,
+    _filtres_actifs,
+    _noms_par_id,
+    _restreindre_au_navire_de_emplacement,
     _afficher_erreur_validation,
     _appliquer_bulk_suppression,
     _appliquer_bulk_update,
@@ -176,7 +188,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx['services'] = Service.objects.select_related('ship').order_by('name')
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
-        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
+        ctx['locations'] = _emplacements_visibles(self.request.user)
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
         # Pré-remplissage du formulaire de création : Navire/Service/Secteur du
         # périmètre de l'utilisateur connecté, pour éviter de ressaisir à la main
@@ -195,6 +207,13 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
         # de création à partir du profil du chef connecté.
         ctx.update(_perimetre_utilisateur(self.request.user))
+        ctx.update(_droits_liste(self.request.user, 'installation_ecriture_simple', 'installation_gestion_avancee'))
+        ctx['filtres_actifs'] = _filtres_actifs(self.request, [
+            ('ship', 'Unité', _noms_par_id(ctx['ships'])),
+            ('service', 'Service', _noms_par_id(ctx['services'])),
+            ('sector', 'Secteur', _noms_par_id(ctx['sectors'])),
+            ('section', 'Section', _noms_par_id(ctx['sections'])),
+        ])
         # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement).
         # Requêtes groupées (installation_id__in=...) plutôt qu'une requête par
         # installation affichée : le nombre de requêtes ne dépend plus de N.
@@ -219,8 +238,16 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             releves_heures_par_installation = defaultdict(list)
             for releve in InstallationHourReading.objects.filter(installation_id__in=installation_ids):
                 releves_heures_par_installation[releve.installation_id].append(releve)
+            references_par_installation = defaultdict(list)
+            fiches_par_installation = defaultdict(list)
+            for fiche in InstallationMaintenance.objects.filter(installation_id__in=installation_ids):
+                fiches_par_installation[fiche.installation_id].append(fiche)
+                if fiche.derniere_echeance_heures is not None:
+                    references_par_installation[fiche.installation_id].append(fiche.derniere_echeance_heures)
         except OperationalError:
             releves_heures_par_installation = {}
+            references_par_installation = {}
+            fiches_par_installation = {}
         for it in installations:
             # Vibrations: dernier état et prochaine échéance
             last_vib = derniers_vibrations.get(it.id)
@@ -241,11 +268,10 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 it.vibration_next_days_card = None
             # Heures de marche: total et depuis dernière visite
             hour_logs = releves_heures_par_installation.get(it.id, [])
-            total = sum(float(r.hours or 0) for r in hour_logs) if hour_logs else 0.0
-            last_visit = next((r for r in hour_logs if getattr(r, 'is_visit', False)), None)
-            since_last = sum(float(r.hours or 0) for r in hour_logs if last_visit and r.date > last_visit.date) if hour_logs and last_visit else total
-            it.hours_total_card = total
-            it.hours_last_visit_card = since_last
+            heures = resume_heures(hour_logs, references_par_installation.get(it.id, ()))
+            it.hours_total_card = heures['total']
+            it.hours_last_visit_card = heures['depuis_visite']
+            it.heures_gammes_card = heures_par_gamme(fiches_par_installation.get(it.id, []), hour_logs)
             # Isolement: dernière mesure
             last_iso = derniers_isolements.get(it.id)
             if last_iso:
@@ -320,9 +346,9 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             items = self.get_queryset().filter(id__in=ids)
             if action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
-                loc = Location.objects.filter(pk=loc_id).first()
+                loc = Location.objects.filter(pk=entier_ou_none(loc_id)).first()
                 return _appliquer_bulk_update(
-                    request, items, 'location', loc,
+                    request, _restreindre_au_navire_de_emplacement(request, items, loc), 'location', loc,
                     action_audit='bulk_update_installation_location', detail_audit=f'location_id={loc_id}',
                     message_succes='Emplacement mis à jour pour {count} installation(s).',
                     redirect_url_name='installation-list',
@@ -476,6 +502,24 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 from .installation_actions import ACTION_HANDLERS
 
 
+def _lignes_releve(releves, formater, *complements):
+    """Lignes du popover d'un indicateur : dernier relevé, date d'ajout puis lignes complémentaires non vides (relevés du plus récent au plus ancien)."""
+    if not releves:
+        return ["Aucun relevé enregistré."]
+    dernier = releves[0]
+    lignes = [f"Dernier relevé : {formater(dernier)} le {dernier.date:%d/%m/%Y}",
+              f"Ajouté le {timezone.localtime(dernier.created_at):%d/%m/%Y à %H:%M}"]
+    return lignes + [c for c in complements if c]
+
+
+def _tendance_heures(valeurs_mensuelles):
+    """Moyenne mensuelle des trois derniers mois complets (la fenêtre de 12 mois finit au mois courant)."""
+    trois_mois = valeurs_mensuelles[-4:-1]
+    if not any(trois_mois):
+        return ""
+    return f"Tendance : environ {formater_nombre(sum(trois_mois) / len(trois_mois))} h / mois"
+
+
 class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
     model = Installation
     template_name = 'assets/installation_detail.html'
@@ -507,7 +551,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
         ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
-        ctx['locations'] = Location.objects.select_related('ship').order_by('ship__name', 'name')
+        ctx['locations'] = _emplacements_visibles(self.request.user)
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, options
         # limitées au même secteur que l'installation courante (même périmètre),
         # en excluant l'installation elle-même et ses sous-ensembles (évite un choix
@@ -539,7 +583,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             maints = list(
                 InstallationMaintenance.objects
                 .filter(installation=self.object)
-                .prefetch_related('attachments')
+                .prefetch_related('attachments', 'versions')
                 .order_by('periodicity', 'title')
             )
         except OperationalError:
@@ -552,7 +596,20 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
                 total = 0
             m.duration_hours = total // 60
             m.duration_minutes = total % 60
+            etats = [v.etat for v in m.versions.all()]
+            m.fiche_en_validation = any(e not in ('validee', 'refusee') for e in etats)
+            m.fiche_renvoyee = 'refusee' in etats
         ctx['maintenances'] = maints
+        ctx['peut_rediger_fiche'] = fiche_validation.peut_rediger(self.request.user, self.object)[0]
+        ctx['fiches_flotte'] = fiche_adaptation.fiches_flotte_proposees(self.object) if ctx['peut_rediger_fiche'] else []
+        # Documents de la fiche : pièces jointes des événements et des entretiens (déjà préchargées)
+        ctx['documents'] = [pj for ev in ctx['events'] for pj in ev.attachments.all()] + \
+                           [pj for m in maints for pj in m.attachments.all()]
+        ctx['documents_installation'] = list(self.object.documents.all())
+        ctx['nb_documents'] = len(ctx['documents_installation']) + len(ctx['documents'])
+        ctx['types_document'] = DocumentInstallation.TYPES
+        ctx['peut_ajouter_document'] = peut_ajouter_document(self.request.user)
+        ctx['peut_supprimer_document'] = peut_supprimer_document(self.request.user)
         # Vibrations: historique
         try:
             vib_logs = list(
@@ -654,14 +711,18 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         except OperationalError:
             logs = []
         ctx['hour_logs'] = logs
-        # Total = somme de toutes les heures relevées
-        ctx['hours_total'] = sum(float(r.hours or 0) for r in logs) if logs else 0
-        # Dernière visite = somme des heures après le dernier relevé marqué visite
-        last_visit = next((r for r in logs if getattr(r, 'is_visit', False)), None)
-        if last_visit:
-            ctx['hours_last_visit'] = sum(float(r.hours or 0) for r in logs if r.date > last_visit.date)
-        else:
-            ctx['hours_last_visit'] = ctx['hours_total']
+        # Les relevés sont des compteurs : total = plus grand compteur, heures depuis
+        # la visite = total - compteur à la dernière visite (cf. assets/mesures.py).
+        heures = resume_heures(
+            logs,
+            self.object.maintenances.filter(derniere_echeance_heures__isnull=False)
+            .values_list('derniere_echeance_heures', flat=True),
+        )
+        ctx['hours_total'] = heures['total']
+        ctx['hours_compteur_visite'] = heures['a_la_visite']
+        ctx['hours_last_visit'] = heures['depuis_visite']
+        ctx['heures_gammes'] = heures_par_gamme(maints, logs)
+        last_visit = next((r for r in logs if r.is_visit), None)
         # Heures du mois en cours (somme par mois)
         today = timezone.localdate()
         first_day = today.replace(day=1)
@@ -678,17 +739,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         for i in range(12):
             y, m = month_add(start_y, start_m, i)
             labels.append(f"{m:02}/{y}")
-        # Répartit chaque relevé dans le bon index 0..11
-        for r in logs:
-            if not getattr(r, 'date', None):
-                continue
-            idx = (r.date.year - start_y) * 12 + (r.date.month - start_m)
+        # Heures d'un mois = écarts entre relevés consécutifs (jamais la somme des compteurs)
+        for date_releve, ecart in heures_par_releve(logs):
+            idx = (date_releve.year - start_y) * 12 + (date_releve.month - start_m)
             if 0 <= idx < 12:
-                try:
-                    values[idx] += float(r.hours or 0.0)
-                except Exception:
-                    pass
-        values = [max(0.0, v) for v in values]
+                values[idx] += float(ecart)
         ctx['hours_month_labels'] = labels
         ctx['hours_month_values'] = values
         ctx['hours_month_labels_json'] = json.dumps(labels)
@@ -701,7 +756,60 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         else:
             visit_label = ""
         ctx['hours_visit_label'] = visit_label
+        ctx.update(self._entete(self.object, ctx))
         return ctx
+
+    def _entete(self, inst, ctx):
+        """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
+        niveau = user_role_level(self.request.user)
+        menu = [
+            {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
+             "url": f"{reverse('anomalie-create')}?installation={inst.pk}"},
+        ]
+        if niveau >= niveau_requis_pour(self.request.user, 'installation_ecriture_simple'):
+            menu.append({"libelle": "Modifier les infos", "icone": "modification", "ecriture": True,
+                         "modale": "editInstallationModal"})
+        if niveau >= niveau_requis_pour(self.request.user, 'installation_gestion_avancee'):
+            menu.append({"libelle": "Supprimer", "icone": "suppression", "ecriture": True, "danger": True,
+                         "modale": "deleteInstallationModal"})
+        etat_vibration = {"A": "ok", "B": "attention", "C": "danger"}.get(ctx['vibration_last_state'])
+        jours = ctx['vibration_next_days']
+        detail_vibration = ""
+        if jours is not None:
+            detail_vibration = f"en retard de {ctx['vibration_retard_jours']} j" if jours < 0 else f"prochain dans {jours} j"
+        isolement = ctx['isolation_last']
+        isolement_en_retard = ctx['isolation_next_days'] is not None and ctx['isolation_next_days'] < 0
+        derive_jours = ctx['isolation_jours_avant_seuil']
+        detail_isolement = "Relevé en retard" if isolement_en_retard else ""
+        if derive_jours is not None:
+            detail_isolement = f"Dérive : seuil dans {derive_jours} j"
+        return {
+            "action_principale": {"libelle": "Signaler une anomalie", "icone": "anomalie", "modale": "addEventModal"},
+            "menu_fiche": menu,
+            "indicateurs_fiche": [
+                {"libelle": "Criticité", "valeur": "Critique" if inst.critique else "Standard",
+                 "etat": "danger" if inst.critique else ""},
+                {"libelle": "État vibratoire", "valeur": f"État {ctx['vibration_last_state']}" if etat_vibration else "Aucun relevé",
+                 "etat": etat_vibration or "", "detail": detail_vibration, "url": "?tab=mesures#mesures-vibration",
+                 "ajout_modale": "addVibrationModal",
+                 "lignes": _lignes_releve(ctx['vibration_logs'], lambda r: f"État {r.state}", f"Prochaine mesure : {detail_vibration}" if detail_vibration else "")},
+                {"libelle": "Dernier isolement", "valeur": formater_ohms(isolement.ohms) if isolement else "Aucun relevé",
+                 "etat": "danger" if isolement_en_retard else "attention" if derive_jours is not None else "",
+                 "detail": detail_isolement, "url": "?tab=mesures#mesures-isolement",
+                 "ajout_modale": "addIsolationModal",
+                 "lignes": _lignes_releve(ctx['isolation_logs'], lambda r: formater_ohms(r.ohms), detail_isolement)},
+                {"libelle": "Heures de marche", "valeur": formater_nombre(ctx['hours_total']) if ctx['hour_logs'] else "Aucun relevé",
+                 "unite": "h" if ctx['hour_logs'] else "",
+                 "detail": f"{formater_heures(ctx['hours_last_visit'])} depuis la dernière visite" if ctx['hour_logs'] else "",
+                 "url": "?tab=mesures#mesures-heures",
+                 "ajout_modale": "addHourReadingModal",
+                 "lignes": _lignes_releve(
+                     ctx['hour_logs'], lambda r: f"{formater_heures(r.hours)} au compteur",
+                     f"Depuis la dernière visite : {formater_heures(ctx['hours_last_visit'])}" if ctx['hour_logs'] else "",
+                     _tendance_heures(ctx['hours_month_values']))},
+            ],
+            **contexte_discussion(inst, 'installation-comment-create'),
+        }
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
@@ -713,7 +821,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
             raise PermissionDenied
         inst = self.get_object()
         tab = (request.POST.get('tab') or '').strip()
-        tab = tab if tab in ('infos','histo','parts','hours','vibration','isolement','entretien') else ''
+        tab = tab if tab in ('ensemble','maintenance','mesures','histo','parts') else ''
         qs = f"?tab={tab}" if tab else ''
         handler = ACTION_HANDLERS.get(action)
         if handler is None:

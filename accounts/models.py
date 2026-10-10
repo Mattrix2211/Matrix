@@ -1,11 +1,9 @@
-from django.core.exceptions import ValidationError
 from django.db import models
 from datetime import date, time
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from org import regles_equipage
-from org.models import Ship, Service, Sector, Section
+from org.models import CommandantAdjoint, Ship, Service, Sector, Section
 from matrix.core.models import TimeStampedModel
 
 User = get_user_model()
@@ -14,11 +12,17 @@ class Roles(models.TextChoices):
     MASTER_ADMIN = "MASTER_ADMIN", "Administrateur général"
     ADMIN_NAVIRE = "ADMIN_NAVIRE", "Administrateur d'unité"
     COMMANDANT = "COMMANDANT", "Commandant"
+    COMMANDANT_EN_SECOND = "COMMANDANT_EN_SECOND", "Commandant en second"
     ETAT_MAJOR = "ETAT_MAJOR", "État-major"
     CHEF_SERVICE = "CHEF_SERVICE", "Chef de service"
     CHEF_SECTEUR = "CHEF_SECTEUR", "Chef de secteur"
     CHEF_SECTION = "CHEF_SECTION", "Chef de section"
     EQUIPIER = "EQUIPIER", "Équipier"
+
+class Themes(models.TextChoices):
+    CLAIR = "clair", "Clair"
+    SOMBRE = "sombre", "Sombre"
+
 
 class UserProfile(TimeStampedModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
@@ -27,6 +31,12 @@ class UserProfile(TimeStampedModel):
     specialite = models.CharField(max_length=128, blank=True, default="")
     fonction_service = models.CharField(max_length=128, blank=True, default="")
     matricule = models.CharField(max_length=64, blank=True, default="")
+    # Équipage (« A », « B »…) pour un bâtiment à double équipage ; vide sinon.
+    equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
+    # Fonction de commandant adjoint (rôle État-major) : sert au routage des visas par service.
+    fonction_coma = models.CharField(
+        max_length=16, choices=CommandantAdjoint.choices, blank=True, default="", verbose_name="Fonction de commandant adjoint"
+    )
     date_naissance = models.DateField(null=True, blank=True)
     # Heure du matin : alertes d'échéance (installations) et digest « Ma journée ».
     notification_time = models.TimeField(default=time(8,0))
@@ -35,16 +45,18 @@ class UserProfile(TimeStampedModel):
     # sert un besoin différent (fin de journée, pas le matin).
     notification_time_soir = models.TimeField(default=time(18,0))
 
+    # Thème d'affichage choisi manuellement par le marin (mode sombre pour l'usage
+    # de nuit, docs/UX.md §17). Clair par défaut.
+    theme = models.CharField(max_length=8, choices=Themes.choices, default=Themes.CLAIR)
+
+    # Barre latérale repliée (docs/UX.md §7) : état mémorisé par marin, et non par
+    # navigateur, car les postes du bord sont partagés. Dépliée par défaut.
+    barre_laterale_repliee = models.BooleanField(default=False)
+
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
-    # Équipage du marin sur un bâtiment à double équipage (org.Equipage) ;
-    # vide pour tous les marins des bâtiments à équipage unique.
-    equipage = models.ForeignKey(
-        "org.Equipage", null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles",
-        verbose_name="Équipage",
-    )
 
     allowed_sectors = models.ManyToManyField(Sector, blank=True, related_name="authorized_profiles")
 
@@ -64,44 +76,6 @@ class UserProfile(TimeStampedModel):
         if self.section_id:
             return self.section.sector.service.ship_id
         return None
-
-    def _equipage_apres_enregistrement(self):
-        """Équipage que le marin aura une fois enregistré : un équipage n'a de
-        sens que sur son propre bâtiment, donc None si le navire a changé."""
-        if self.equipage_id and self.equipage.ship_id != self.navire_id_effectif:
-            return None
-        return self.equipage
-
-    def verifier_postes_coma(self):
-        """Règle du double équipage (décision du 30/09/2026) : un titulaire de
-        poste COMA ou de commandant en second ne change pas d'équipage (ni de
-        bâtiment) tant que son poste n'est pas libéré (org/regles_equipage.py)."""
-        if not self.pk:
-            return
-        avant = type(self).objects.filter(pk=self.pk).values_list("equipage_id", flat=True).first()
-        apres = self._equipage_apres_enregistrement()
-        if avant == (apres.pk if apres else None):
-            return
-        message = regles_equipage.erreur_postes_du_titulaire(self.user, apres)
-        if message:
-            raise ValidationError({"equipage": message})
-
-    def clean(self):
-        super().clean()
-        self.verifier_postes_coma()
-
-    def save(self, *args, **kwargs):
-        champs = kwargs.get("update_fields")
-        if champs is None or {"equipage", "ship", "service", "sector", "section"} & set(champs):
-            self.verifier_postes_coma()
-        # Un équipage n'a de sens que sur son propre bâtiment : si le marin
-        # change de navire, il est détaché de son ancien équipage (double
-        # équipage, org/equipages.py) au lieu de garder un équipage résiduel.
-        if self.equipage_id and self.equipage.ship_id != self.navire_id_effectif:
-            self.equipage = None
-            if champs is not None:
-                kwargs["update_fields"] = set(champs) | {"equipage"}
-        super().save(*args, **kwargs)
 
     @property
     def scope(self):
@@ -171,12 +145,8 @@ class FonctionQuartChoice(models.Model):
 
 
 class TypeAbsence(models.Model):
-    """Référentiel configurable des types d'absence/indisponibilité (ex.
-    permission, mission, maladie, congé...) — même pattern que
-    ServiceFunctionChoice/FonctionQuartChoice ci-dessus : la nomenclature
-    exacte des motifs d'absence n'est pas figée dans le code (CLAUDE.md §6).
-    Utilisé par absences.models.Absence (app dédiée, cf. tâche Notion
-    « Absences et indisponibilités »)."""
+    """Référentiel configurable des types d'absence (permission, mission,
+    maladie, congé...) utilisé par absences.Absence : rien n'est figé dans le code."""
 
     name = models.CharField(max_length=128, unique=True)
     active = models.BooleanField(default=True)
@@ -214,7 +184,7 @@ class ResponsableSpecialite(TimeStampedModel):
     Navire → Service → Secteur → Section et du rôle hiérarchique du marin
     (CLAUDE.md), au même titre que training.ReferentFormation est
     indépendant du rang. Donne accès en LECTURE SEULE au dashboard
-    spécialité (dashboard/dashboards_transverses_views.py::DashboardSpecialiteView) : aucun
+    spécialité (dashboard/web_views.py::DashboardSpecialiteView) : aucun
     droit d'écriture supplémentaire sur les fiches des marins concernés.
 
     Désignation réservée à MASTER_ADMIN (référentiel commun à toute la
@@ -235,28 +205,6 @@ class ResponsableSpecialite(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} — responsable spécialité ({self.specialite})"
-
-
-class ChefResponsableSpecialite(TimeStampedModel):
-    """Chef du responsable de spécialité (page Notion « Organigramme et
-    rôles », circuit des fiches matériel flotte, étape 6). Un chef encadre
-    PLUSIEURS responsables de spécialité mais pas forcément tous : la liste
-    est configurée par les utilisateurs habilités (même seuil que la
-    désignation des responsables, "responsabilite_transverse_gestion").
-    C'est le chef DU responsable concerné qui vise, avant publication au
-    catalogue flotte — cf. accounts/chefs_responsables.py."""
-
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="encadrement_responsables_specialite")
-    responsables = models.ManyToManyField(
-        ResponsableSpecialite, blank=True, related_name="chefs", verbose_name="Responsables encadrés"
-    )
-
-    class Meta:
-        verbose_name = "Chef de responsable de spécialité"
-        verbose_name_plural = "Chefs de responsable de spécialité"
-
-    def __str__(self):
-        return f"{self.user} — chef de responsable(s) de spécialité"
 
 
 @receiver(post_save, sender=User)

@@ -104,7 +104,7 @@
       datasets: [{
         label: 'Tickets ouverts',
         data: {{ tickets_chart_values_json|safe }},
-        backgroundColor: ['#0d6efd', '#6c757d', '#ffc107', '#0dcaf0', '#20c997', '#6610f2'],
+        backgroundColor: [matrixCouleur('--signal-ui'), matrixCouleur('--fog'), matrixCouleur('--amber'), matrixCouleur('--signal'), matrixCouleur('--green-tech'), matrixCouleur('--mist')],
       }]
     },
     options: { responsive: true, maintainAspectRatio: false }

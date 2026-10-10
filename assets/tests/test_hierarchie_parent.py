@@ -19,7 +19,7 @@ class InstallationHierarchieParentTests(TestCase):
         # Suppression réservée à CHEF_SERVICE et au-dessus (T-SEC) : le profil auto-créé
         # par défaut (EQUIPIER) est relevé pour tester le comportement SET_NULL, qui
         # n'est pas propre au rôle testé ici.
-        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
 
     def test_creation_avec_parent(self):
         groupe = Installation.objects.create(
@@ -103,7 +103,7 @@ class AssetHierarchieParentTests(TestCase):
         # Suppression réservée à CHEF_SERVICE et au-dessus (T-SEC) : le profil auto-créé
         # par défaut (EQUIPIER) est relevé pour tester le comportement SET_NULL, qui
         # n'est pas propre au rôle testé ici.
-        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": "CHEF_SERVICE", "ship": self.ship})
 
     def test_creation_avec_parent(self):
         caisse = Asset.objects.create(
@@ -173,7 +173,7 @@ class AssetApiCycleRejectionTests(TestCase):
         self.sector = Sector.objects.create(name="Sec", service=self.service)
         self.asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
         self.chef = User.objects.create_user(username="c3", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION", "ship": self.ship})
         self.client_api = APIClient()
         self.client_api.login(username="c3", password="pass")
 

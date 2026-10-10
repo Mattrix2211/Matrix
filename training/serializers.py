@@ -5,13 +5,10 @@ from .models import ReferentFormation, TrainingCourse, TrainingRequirement, Trai
 class TrainingCourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingCourse
-        fields = (
-            "id", "title", "category", "description", "validity_days", "gere_par_le_bord",
-            "statut_validation", "bareme", "created_by", "updated_by", "created_at", "updated_at",
-        )
+        fields = "__all__"
         # `gere_par_le_bord` et `statut_validation` sont exclusivement
         # pilotés par le Circuit C (chef de secteur -> chef de service,
-        # training/formation_bord_actions.py::_action_proposer_formation_bord
+        # training/web_views.py::TrainingCourseListView._proposer_formation_bord
         # et suivants), qui applique un contrôle de périmètre organisationnel
         # que l'API ne reproduit pas ici — les rendre en lecture seule évite
         # qu'un utilisateur autorisé à écrire sur ce ViewSet (CHEF_SECTION+,
@@ -20,60 +17,35 @@ class TrainingCourseSerializer(serializers.ModelSerializer):
         # signalée par le Tech Lead, tâche Notion Circuit C). Une formation
         # créée via l'API reste donc toujours « organisme » (valeurs par
         # défaut du modèle : gere_par_le_bord=False, statut_validation=ACTIVE).
-        #
-        # `created_by`/`updated_by` sont posés côté serveur (TrainingCourseViewSet) :
-        # `updated_by` désigne le proposeur d'une formation bord, il ne doit
-        # jamais être forgeable.
-        read_only_fields = [
-            "id", "gere_par_le_bord", "statut_validation", "created_by", "updated_by",
-            "created_at", "updated_at",
-        ]
+        read_only_fields = ["gere_par_le_bord", "statut_validation", "created_by", "updated_by"]
 
 class ReferentFormationSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReferentFormation
-        fields = ("id", "course", "ship", "user", "created_at", "updated_at")
-        read_only_fields = ("id", "created_at", "updated_at")
+        fields = "__all__"
 
 class TrainingRequirementSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRequirement
-        fields = (
-            "id", "applies_to_role", "applies_to_ship", "applies_to_service", "applies_to_sector",
-            "applies_to_section", "course", "required", "created_at", "updated_at",
-        )
-        read_only_fields = ("id", "created_at", "updated_at")
+        fields = "__all__"
 
 class TrainingSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingSession
-        fields = (
-            "id", "course", "scheduled_at", "instructor", "attendees", "capacite_max",
-            "reservations", "location", "status", "created_at", "updated_at",
-        )
-        # Les réservations sont libre-service (training/session_actions.py :
-        # un marin ne réserve que pour lui-même, avec contrôle de capacité,
-        # de prérequis...) : jamais modifiables via ce endpoint générique.
-        read_only_fields = ("id", "reservations", "created_at", "updated_at")
+        fields = "__all__"
 
 class TrainingRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingRecord
-        fields = (
-            "id", "user", "course", "completed_at", "expires_at", "validated_by", "attachment",
-            "created_by", "updated_by", "created_at", "updated_at",
-        )
-        # Le valideur est toujours l'utilisateur connecté (TrainingRecordViewSet).
-        read_only_fields = ("id", "validated_by", "created_by", "updated_by", "created_at", "updated_at")
+        fields = "__all__"
+        read_only_fields = ["validated_by", "created_by", "updated_by"]
 
     def validate(self, attrs):
-        # Le marin d'un enregistrement ne change jamais : la permission ne
-        # contrôle que le marin d'origine, réaffecter le dossier à un autre
-        # marin certifierait sa formation sans contrôle de son navire.
-        if self.instance is not None and "user" in attrs and attrs["user"] != self.instance.user:
-            raise serializers.ValidationError(
-                {"user": "Un enregistrement de formation ne peut pas être réaffecté à un autre marin."}
-            )
+        # Marin et formation fixent l'autorité du référent : non réaffectables.
+        if self.instance and any(
+            champ in attrs and attrs[champ] != getattr(self.instance, champ) for champ in ("user", "course")
+        ):
+            raise serializers.ValidationError("Le marin et la formation d'une validation ne peuvent pas être modifiés.")
         # Reproduit ici la règle métier de TrainingRecord.clean() (formations
         # prérequises non validées) : le ViewSet DRF n'appelle pas full_clean()
         # automatiquement, il faut donc revalider explicitement à ce niveau pour

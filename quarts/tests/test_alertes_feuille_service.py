@@ -4,9 +4,9 @@ circuit proposer -> valider, droits et traçabilité."""
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import AuditLog
+from accounts.models import AuditLog, UserProfile
 from notifications.models import Notification
-from org.models import CommandantAdjoint, CommandantEnSecond, RoleThresholdConfig
+from org.models import RoleThresholdConfig
 from quarts import alertes
 from quarts.models import (
     FeuilleService,
@@ -73,7 +73,7 @@ class PublicationTests(AlertesBase):
 
     def test_publication_signale_les_postes_non_armes_sans_reaffecter(self):
         coma = _utilisateur("coma_eq", "ETAT_MAJOR", ship=self.ship)
-        CommandantAdjoint.objects.create(ship=self.ship, sigle="COMAEQ", titulaire=coma)
+        UserProfile.objects.filter(user=coma).update(fonction_coma="COMAEQ")
         feuille = self._feuille()
         feuille.viser_comaeq(self.commandant)
         self.assertTrue(Notification.objects.filter(user=coma, verb__contains="non armés").exists())
@@ -208,12 +208,10 @@ class CircuitModificationTests(AlertesBase):
         self.assertFalse(ScenarioAlerte.objects.exists())
         self.assertEqual(modification.statut, Modification.STATUT_EN_ATTENTE)
 
-    def test_commandant_en_second_valide_seulement_si_le_navire_lui_confie_le_droit(self):
-        second = _utilisateur("second", "ETAT_MAJOR", ship=self.ship)
-        CommandantEnSecond.objects.create(ship=self.ship, titulaire=second)
+    def test_commandant_en_second_ne_valide_pas(self):
+        # Vision du commandant en lecture seule : aucune écriture sur l'organisation d'alerte.
+        second = _utilisateur("second", "COMMANDANT_EN_SECOND", ship=self.ship)
         self.assertFalse(alertes.peut_valider_organisation_alerte(second, self.ship))
-        RoleThresholdConfig.objects.create(ship=self.ship, droits_en_second=["alerte_organisation_validation"])
-        self.assertTrue(alertes.peut_valider_organisation_alerte(second, self.ship))
         self.assertFalse(alertes.peut_valider_organisation_alerte(self.etat_major, self.ship))
 
     def test_autorite_d_un_autre_navire_sans_droit(self):

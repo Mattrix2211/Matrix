@@ -1,0 +1,106 @@
+{% load static %}
+{% load icones %}
+{# Barre supérieure (docs/UX.md §8) : une seule ligne, hauteur fixe --mx-hauteur-navbar. #}
+{# Déconnexion automatique : dialogue et script chargés par base.html (components/inactivite.html). #}
+<header class="navbar navbar-expand navbar-dark bg-dark mx-barre">
+  <div class="container-fluid flex-nowrap">
+    <a class="navbar-brand matrix-logo" href="/" aria-label="Matrix — accueil">
+      <img class="matrix-logo__img" src="{% static 'img/IMG_5292.PNG' %}" alt="Matrix">
+      <svg class="matrix-logo__badge" viewBox="0 0 28 28" aria-hidden="true">
+        {# Pictogramme ancre — MK Design System §9 : flat, --signal, trait ~2px, stroke-linecap round #}
+        <circle cx="14" cy="14" r="14" fill="var(--paper)"></circle>
+        <g fill="none" stroke="var(--signal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="14" cy="7" r="2.2"></circle>
+          <line x1="14" y1="9.2" x2="14" y2="22"></line>
+          <line x1="9" y1="12" x2="19" y2="12"></line>
+          <path d="M7 15c0 4 3 7 7 7s7-3 7-7"></path>
+        </g>
+      </svg>
+    </a>
+    {% if user.is_authenticated %}
+      {% if batiments_selectionnables %}
+        <div class="dropdown mx-barre__contexte">
+          <button class="mx-barre__bouton mx-barre__batiment" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Bâtiment consulté : {% if batiment_courant %}{{ batiment_courant.name }}{% else %}aucun{% endif %}. Changer de bâtiment" title="Changer de bâtiment">
+            {% icone "navire" %}
+            <span class="mx-barre__texte-coupe">{% if batiment_courant %}{{ batiment_courant.name }}{% else %}Choisir un bâtiment{% endif %}</span>
+            {% icone "deplier_liste" %}
+          </button>
+          <form method="post" action="{% url 'choisir-batiment' %}" class="dropdown-menu mx-barre__liste-batiments">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <h2 class="dropdown-header">Bâtiment consulté</h2>
+            {% for batiment in batiments_selectionnables %}
+              <button type="submit" name="batiment" value="{{ batiment.pk }}" class="dropdown-item{% if batiment == batiment_courant %} active{% endif %}"{% if batiment == batiment_courant %} aria-current="true"{% endif %}>
+                {{ batiment.name }}{% if batiment.classe_navire %} <span class="mx-barre__classe">{{ batiment.classe_navire }}</span>{% endif %}
+              </button>
+            {% endfor %}
+          </form>
+        </div>
+      {% elif batiment_courant %}
+        <span class="mx-barre__contexte mx-barre__batiment" title="Bâtiment de rattachement">
+          {% icone "navire" %}
+          <span class="mx-barre__texte-coupe">{{ batiment_courant.name }}</span>
+        </span>
+      {% endif %}
+    {% endif %}
+    {% if user.is_authenticated %}
+      {# Recherche rapide : résultats par catégorie chargés par htmx, clavier géré par js/recherche.js. #}
+      <div class="mx-recherche" data-recherche>
+        <form action="{% url 'global-search' %}" method="get" role="search" class="mx-recherche__form">
+          <label for="recherche-champ" class="visually-hidden">Rechercher dans Matrix</label>
+          {% icone "recherche" "mx-recherche__icone" %}
+          <input id="recherche-champ" name="q" type="text" class="mx-recherche__champ" maxlength="80" autocomplete="off"
+                 placeholder="Rechercher… (/ ou Ctrl+K)" aria-keyshortcuts="/ Control+K"
+                 role="combobox" aria-expanded="false" aria-controls="recherche-panneau" aria-autocomplete="list"
+                 hx-get="{% url 'recherche-rapide' %}" hx-trigger="input changed delay:250ms" hx-target="#recherche-panneau"
+                 hx-swap="innerHTML" hx-sync="this:replace">
+        </form>
+        <div id="recherche-panneau" class="mx-recherche__panneau" hidden></div>
+        <p class="visually-hidden" role="status" aria-live="polite" data-recherche-annonce></p>
+      </div>
+    {% endif %}
+    <ul class="navbar-nav flex-row ms-auto align-items-center mx-barre__outils">
+      {% if user.is_authenticated %}
+        <li class="nav-item mx-cloche">
+          <button type="button" class="mx-barre__bouton" data-bs-toggle="offcanvas" data-bs-target="#centre-notifications" aria-controls="centre-notifications" aria-label="Notifications" title="Notifications">
+            {% icone "notifications" %}
+          </button>
+          {% include "notifications/_compteur.html" with non_lues=notifications_non_lues %}
+        </li>
+        <li class="nav-item">
+          <form method="post" action="{% url 'basculer-theme' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="nav-link theme-toggle" {% if theme_utilisateur == 'sombre' %}title="Passer en mode clair" aria-label="Passer en mode clair"{% else %}title="Passer en mode sombre" aria-label="Passer en mode sombre"{% endif %}>
+              <span class="bi {% if theme_utilisateur == 'sombre' %}bi-sun{% else %}bi-moon-stars{% endif %} nav-icon" aria-hidden="true"></span>
+            </button>
+          </form>
+        </li>
+        <li class="nav-item">
+          <a class="mx-barre__utilisateur" href="{% url 'mon-profil' %}" title="Mon profil — {{ identite_utilisateur.grade }} {{ identite_utilisateur.nom }}, {{ identite_utilisateur.role }}{% if identite_utilisateur.fonction %}, {{ identite_utilisateur.fonction }}{% endif %}" aria-label="Mon profil : {{ identite_utilisateur.grade }} {{ identite_utilisateur.nom }}, {{ identite_utilisateur.role }}">
+            {% icone "utilisateur" "mx-barre__avatar" %}
+            <span class="mx-barre__identite">
+              <span class="mx-barre__nom">{% if identite_utilisateur.grade %}{{ identite_utilisateur.grade }} {% endif %}{{ identite_utilisateur.nom }}</span>
+              <span class="mx-barre__role">{{ identite_utilisateur.role }}{% if identite_utilisateur.fonction %} · {{ identite_utilisateur.fonction }}{% endif %}</span>
+            </span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <form method="post" action="{% url 'logout' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="mx-barre__bouton mx-barre__deconnexion" title="Se déconnecter" aria-label="Se déconnecter">
+              {% icone "deconnexion" %}
+              <span>Déconnexion</span>
+            </button>
+          </form>
+        </li>
+      {% else %}
+        <li class="nav-item">
+          <a class="nav-link" href="/login/" title="Se connecter" aria-label="Se connecter">
+            <span class="bi bi-box-arrow-in-right nav-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Se connecter</span>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+</header>

@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     LocationViewSet, AssetTypeViewSet, ChecklistTemplateViewSet, ChecklistItemTemplateViewSet,
     AssetViewSet, AssetDocumentViewSet, AssetChecklistOverrideViewSet,
+    CategorieCatalogueViewSet, ArticleCatalogueViewSet,
     installation_qr_code, installation_qr_png,
 )
 
@@ -14,6 +15,8 @@ router.register(r'checklist-items', ChecklistItemTemplateViewSet)
 router.register(r'assets', AssetViewSet)
 router.register(r'asset-docs', AssetDocumentViewSet)
 router.register(r'asset-checklist-overrides', AssetChecklistOverrideViewSet)
+router.register(r'catalogue-categories', CategorieCatalogueViewSet)
+router.register(r'catalogue-articles', ArticleCatalogueViewSet)
 
 urlpatterns = router.urls + [
     # Génération QR pour les installations fixes : pas de ViewSet dédié pour

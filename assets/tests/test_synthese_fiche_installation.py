@@ -11,14 +11,14 @@ from assets.models import (
 
 
 class SyntheseFicheInstallationTests(TestCase):
-    """La fiche installation affiche une synthèse visuelle et des compteurs sur les onglets."""
+    """L'en-tête de la fiche installation affiche une synthèse visuelle et des compteurs sur les onglets."""
 
     def setUp(self):
         ship = Ship.objects.create(name="Navire S")
         service = Service.objects.create(name="Srv S", ship=ship)
         sector = Sector.objects.create(name="Sec S", service=service)
         user = User.objects.create_user(username="chef_synthese", password="pass")
-        UserProfile.objects.update_or_create(user=user, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=user, defaults={"role": "CHEF_SERVICE", "ship": ship})
         self.installation = Installation.objects.create(
             designation="Pompe", ship=ship, service=service, sector=sector, critique=True,
         )
@@ -26,7 +26,6 @@ class SyntheseFicheInstallationTests(TestCase):
 
     def test_synthese_affichee_avec_badge_critique(self):
         r = self.client.get(f"/installations/{self.installation.id}/")
-        self.assertContains(r, 'id="synthese-installation"')
         self.assertContains(r, "Critique")
         self.assertContains(r, "Aucun relevé")
 

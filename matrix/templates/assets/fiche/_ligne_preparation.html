@@ -1,0 +1,9 @@
+<div class="row g-2 mb-2 align-items-end" data-ligne>
+  <div class="col-md-2"><label class="form-label small">Nature</label>
+    <select class="form-select form-select-sm" name="prep_type">{% for cle, libelle in types_preparation %}<option value="{{ cle }}"{% if p.type == cle %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><label class="form-label small">Libellé</label><input class="form-control form-control-sm" name="prep_libelle" value="{{ p.libelle }}"></div>
+  <div class="col-md-1"><label class="form-label small">Qté</label><input class="form-control form-control-sm" type="number" min="1" name="prep_quantite" value="{{ p.quantite|default:1 }}"></div>
+  <div class="col-md-3">{% if pieces %}<label class="form-label small">Pièce du stock</label>
+    <select class="form-select form-select-sm" name="prep_piece"><option value="">—</option>{% for s in pieces %}<option value="{{ s.pk }}"{% if p.piece == s.pk %} selected{% endif %}>{{ s.designation }}</option>{% endfor %}</select>{% else %}<input type="hidden" name="prep_piece" value="">{% endif %}</div>
+  <div class="col-md-3 text-md-end">{% include "assets/fiche/_actions_ligne.html" %}</div>
+</div>

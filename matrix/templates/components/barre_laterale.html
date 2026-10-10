@@ -1,0 +1,29 @@
+{% load icones %}
+{# Barre latérale (docs/UX.md §7). Variables : navigation_laterale, barre_laterale_repliee (context processor). #}
+<aside id="barre-laterale" class="mx-lateral{% if barre_laterale_repliee %} mx-lateral--repliee{% endif %}">
+  <nav aria-label="Navigation principale">
+    {% for groupe in navigation_laterale %}
+      <section class="mx-lateral__groupe" aria-labelledby="mx-groupe-{{ forloop.counter }}">
+        <h2 class="mx-lateral__titre" id="mx-groupe-{{ forloop.counter }}">{{ groupe.titre }}</h2>
+        <ul class="mx-lateral__liste">
+          {% for entree in groupe.entrees %}
+            <li>
+              <a class="mx-lateral__lien{% if entree.courante %} mx-lateral__lien--courant{% endif %}" href="{{ entree.url }}" title="{{ entree.libelle }}" aria-label="{{ entree.libelle }}"{% if entree.courante %} aria-current="page"{% endif %}>
+                {% icone entree.icone "mx-lateral__icone" %}
+                <span class="mx-lateral__libelle">{{ entree.libelle }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  </nav>
+  <form method="post" action="{% url 'memoriser-barre-laterale' %}" class="mx-lateral__bascule" data-barre-laterale-bascule>
+    {% csrf_token %}
+    <input type="hidden" name="repliee" value="{% if barre_laterale_repliee %}0{% else %}1{% endif %}">
+    <button type="submit" class="mx-lateral__lien" aria-controls="barre-laterale" aria-expanded="{% if barre_laterale_repliee %}false{% else %}true{% endif %}" title="{% if barre_laterale_repliee %}Déplier le menu{% else %}Replier le menu{% endif %}">
+      {% if barre_laterale_repliee %}{% icone "deplier_menu" "mx-lateral__icone" %}{% else %}{% icone "replier_menu" "mx-lateral__icone" %}{% endif %}
+      <span class="mx-lateral__libelle">{% if barre_laterale_repliee %}Déplier le menu{% else %}Replier le menu{% endif %}</span>
+    </button>
+  </form>
+</aside>

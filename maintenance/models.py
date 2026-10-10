@@ -5,7 +5,8 @@ from django.db.models import JSONField, Q
 from matrix.core.models import TimeStampedModel, OwnedModel
 from assets.models import Asset, ChecklistTemplate, InstallationMaintenance
 from assets.models import AssetType
-from assets.models import InstallationHourReading, ModeDeclenchement
+from assets.mesures import compteur_total
+from assets.models import ModeDeclenchement
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from logistics.models import CorrectiveTicket, TicketStatusLog, destinataires_ticket, niveau_alerte_ticket
@@ -18,6 +19,7 @@ class MaintenancePlan(TimeStampedModel, OwnedModel):
     SCOPE = (
         ("ASSET_TYPE", "Par type d'actif"),
         ("ASSET", "Par actif"),
+        ("FICHE", "Par fiche flotte"),
     )
     scope = models.CharField(max_length=16, choices=SCOPE)
     asset_type = models.ForeignKey(AssetType, null=True, blank=True, on_delete=models.CASCADE, related_name="maintenance_plans")
@@ -26,6 +28,8 @@ class MaintenancePlan(TimeStampedModel, OwnedModel):
     every_n_days = models.PositiveIntegerField(default=90)
     expected_duration_min = models.PositiveIntegerField(default=30)
     checklist_template = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.SET_NULL)
+    # Plan engendré par une fiche flotte de matériel : la fiche (catégorie la plus proche) fait foi.
+    fiche = models.ForeignKey(InstallationMaintenance, null=True, blank=True, on_delete=models.CASCADE, related_name="plans")
     requires_validation = models.BooleanField(default=False)
     validation_role = models.CharField(max_length=32, blank=True, default="CHEF_SECTION")
 
@@ -48,6 +52,7 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
     )
     scheduled_for = models.DateField()
     status = models.CharField(max_length=24, choices=STATUS, default="PLANNED")
+    # 1 à 5 : 5 = le plus critique (trie « À faire »).
     priority = models.PositiveSmallIntegerField(default=3)
     assignees = models.ManyToManyField(User, blank=True, related_name="assigned_occurrences")
 
@@ -61,6 +66,29 @@ class MaintenanceOccurrence(TimeStampedModel, OwnedModel):
                 ),
             ),
         ]
+
+    def version_fiche(self, cache=None):
+        """Version de fiche appliquée : celle figée dans l'exécution, sinon la dernière validée
+        (`cache` : voir assets.fiche_flotte.version_applicable)."""
+        try:
+            execution = self.execution
+        except MaintenanceExecution.DoesNotExist:
+            execution = None
+        if execution and execution.version_fiche_id:
+            return execution.version_fiche
+        if self.installation_maintenance_id:
+            return self.installation_maintenance.version_validee
+        if self.plan_id and self.plan.fiche_id:
+            from assets.fiche_flotte import version_applicable
+
+            return version_applicable(self.asset, self.plan.fiche, cache)
+        modele = self.plan.checklist_template if self.plan_id else None
+        return modele.version_applicable() if modele else None
+
+    def lignes_fiche(self):
+        """Lignes de contrôle et de relevé de la version appliquée, dans l'ordre de la fiche."""
+        version = self.version_fiche()
+        return list(version.items.order_by("order", "pk")) if version else []
 
     @property
     def titre_affiche(self):
@@ -93,6 +121,7 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     measurements = JSONField(default=dict, blank=True)
     conformity = models.CharField(max_length=24, choices=CONFORMITY, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    intervenants = models.ManyToManyField(User, blank=True, related_name="executions_intervenant", verbose_name="Intervenants")
     # Signature de validation (T-FEAT signature) : le passage en "Terminée" (DONE) sur
     # une installation critique exige une ré-authentification légère (mot de passe
     # courant, cf. OccurrenceExecuteView) avant d'être appliqué. AuditLog trace déjà
@@ -103,6 +132,13 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
         related_name="executions_validees", verbose_name="Validé par",
     )
     date_validation = models.DateTimeField(null=True, blank=True, verbose_name="Date de validation")
+    # Version de la fiche suivie lors de cette exécution, figée à la première écriture.
+    version_fiche = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.SET_NULL, related_name="executions", verbose_name="Version de la fiche")
+
+    def save(self, *args, **kwargs):
+        if self.version_fiche_id is None:
+            self.version_fiche = self.occurrence.version_fiche()
+        super().save(*args, **kwargs)
 
 
 def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
@@ -110,8 +146,8 @@ def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
     l'exécution validée (occurrence passée en statut DONE).
 
     - Branche compteur (COMPTEUR / LES_DEUX) : la référence 'derniere_echeance_heures'
-      est alignée sur le dernier relevé d'heures de marche connu, ce qui repousse le
-      prochain déclenchement du seuil configuré.
+      est alignée sur le compteur total courant (le plus grand relevé) : c'est le
+      compteur à la visite, les heures depuis la dernière visite repartent de zéro.
     - Branche calendaire (CALENDRIER / LES_DEUX) : aucune mise à jour de modèle n'est
       nécessaire ici — generate_installation_occurrences relit directement la date de
       cette MaintenanceExecution comme référence pour calculer la prochaine échéance.
@@ -120,16 +156,10 @@ def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
     if maintenance is None:
         return
     if maintenance.mode_declenchement in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX):
-        dernier_releve = (
-            InstallationHourReading.objects.filter(installation=maintenance.installation)
-            .order_by("-date")
-            .first()
-        )
-        if dernier_releve is not None:
-            maintenance.derniere_echeance_heures = dernier_releve.hours
-            InstallationMaintenance.objects.filter(pk=maintenance.pk).update(
-                derniere_echeance_heures=dernier_releve.hours
-            )
+        total = compteur_total(maintenance.installation.hour_readings.all())
+        if total is not None:
+            maintenance.derniere_echeance_heures = total
+            InstallationMaintenance.objects.filter(pk=maintenance.pk).update(derniere_echeance_heures=total)
 
 
 @receiver(post_save, sender=MaintenanceExecution)

@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
-  <h1 class="h3 mb-1"><span class="bi bi-compass" aria-hidden="true"></span> Prêt à appareillage</h1>
+  <h1 class="h3 mb-1">{% icone "ronde" %} Prêt à appareillage</h1>
   <a href="{% url 'historique-appareillage' %}" class="btn btn-outline-secondary btn-sm">
-    <span class="bi bi-clock-history" aria-hidden="true"></span> Historique des sessions
+    {% icone "historique" %} Historique des sessions
   </a>
 </div>
 <p class="text-muted mb-4">Checklist de préparation à un appareillage sur les installations critiques de l'unité.</p>
@@ -20,7 +21,7 @@
 </div>
 {% elif not session %}
 <div class="alert alert-secondary d-flex justify-content-between align-items-center flex-wrap gap-2" role="alert">
-  <div><span class="bi bi-info-circle" aria-hidden="true"></span> Aucune session d'appareillage ouverte actuellement.</div>
+  <div>{% icone "information" %} Aucune session d'appareillage ouverte actuellement.</div>
   {% if peut_ouvrir_session %}
   <form method="post" action="{% url 'session-appareillage-ouvrir' %}">
     {% csrf_token %}

@@ -83,6 +83,8 @@ INSTALLED_APPS = [
     "dashboard.apps.DashboardConfig",
     "calendar_app.apps.CalendarAppConfig",
     "reports.apps.ReportsConfig",
+    # Socle transverse (brouillons enregistrés côté serveur, UX-0.6)
+    "matrix.core.apps.CoreConfig",
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -94,14 +96,15 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Déconnexion automatique après inactivité (matrix/core/inactivite.py)
+    "matrix.core.inactivite.InactiviteMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Modules activables par bâtiment : bloque l'accès direct par URL aux
     # vues web d'un module désactivé sur le navire du marin connecté (voir
     # matrix/core/middleware.py et matrix/core/modules.py).
     "matrix.core.middleware.ModuleActivationMiddleware",
-    # Double équipage : lecture seule pour l'équipage à terre (org/equipages.py).
-    "matrix.core.middleware.LectureSeuleEquipageMiddleware",
+    "matrix.core.middleware.EquipageATerreMiddleware",
 ]
 
 # Correspondance entre les niveaux de messages Django et les classes Bootstrap 5
@@ -130,8 +133,16 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "matrix.context_processors.installations_notifications",
+                "matrix.context_processors.compteur_notifications",
+                "matrix.context_processors.theme_utilisateur",
+                "matrix.context_processors.navigation_laterale",
+                "matrix.context_processors.barre_superieure",
+                "matrix.context_processors.inactivite",
             ],
+            "libraries": {
+                "icones": "matrix.core.balises_icones",
+                "composants": "matrix.core.balises_composants",
+            },
         },
     },
 ]
@@ -186,9 +197,8 @@ LOGOUT_REDIRECT_URL = "/login/"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # Variantes qui refusent l'écriture à l'équipage à terre (double équipage).
-        "matrix.core.authentication.SessionAuthentificationLectureSeule",
-        "matrix.core.authentication.BasicAuthentificationLectureSeule",
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -205,7 +215,23 @@ from celery.schedules import crontab
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+# Brouillons enregistrés automatiquement côté serveur (matrix/core/brouillons.py) :
+# durée de conservation d'un brouillon non repris (en jours, 0 = jamais purgé) et
+# taille maximale du contenu d'un brouillon (en octets). Réglables par variable
+# d'environnement, sans toucher au code.
+BROUILLONS_CONSERVATION_JOURS = int(os.getenv("BROUILLONS_CONSERVATION_JOURS", "30"))
+BROUILLONS_TAILLE_MAX = int(os.getenv("BROUILLONS_TAILLE_MAX", str(256 * 1024)))
+
+# Déconnexion automatique des postes partagés (en secondes) : délai d'inactivité et
+# préavis affiché avant la déconnexion. Valeurs bornées et corrigées par matrix/core/inactivite.py.
+INACTIVITE_DELAI_SECONDES = os.getenv("INACTIVITE_DELAI_SECONDES", "900")
+INACTIVITE_AVERTISSEMENT_SECONDES = os.getenv("INACTIVITE_AVERTISSEMENT_SECONDES", "60")
+
 CELERY_BEAT_SCHEDULE = {
+    "purger_brouillons_daily": {
+        "task": "matrix.core.tasks.purger_brouillons",
+        "schedule": 60 * 60 * 24,
+    },
     "generate_occurrences_daily": {
         "task": "maintenance.tasks.generate_occurrences",
         "schedule": 60 * 60 * 24,
@@ -224,16 +250,6 @@ CELERY_BEAT_SCHEDULE = {
     "marquer_rondes_en_retard_hourly": {
         "task": "rondes.tasks.marquer_rondes_en_retard",
         "schedule": 60 * 60,
-    },
-    # Double équipage : relèves planifiées arrivées à échéance + synthèse de passation.
-    "appliquer_releves_planifiees_daily": {
-        "task": "org.tasks.appliquer_releves_planifiees",
-        "schedule": 60 * 60 * 24,
-    },
-    # Suppléance du commandant : trace et notifie le début et la fin des périodes.
-    "traiter_suppleances_5min": {
-        "task": "org.tasks.traiter_suppleances",
-        "schedule": 60 * 5,
     },
     "notify_expiring_training_daily": {
         "task": "notifications.tasks.notify_expiring_training",

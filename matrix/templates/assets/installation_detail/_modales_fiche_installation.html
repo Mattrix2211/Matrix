@@ -1,4 +1,4 @@
-<div class="modal fade" id="editInstallationModal" tabindex="-1" aria-hidden="true">
+{% load icones %}<div class="modal fade" id="editInstallationModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Modifier l’installation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
@@ -72,7 +72,7 @@
                     <div class="col-12">
                       <div class="d-flex justify-content-between align-items-center">
                         <label class="form-label">Champs personnalisés (Infos)</label>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddCustomEdit"><span class="bi bi-plus-lg"></span> Ajouter un champ</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddCustomEdit">{% icone "ajout" %} Ajouter un champ</button>
                       </div>
                       <div id="customFieldsEdit" class="mt-2"></div>
                       <input type="hidden" name="extra_fields" id="extraFieldsEdit" />

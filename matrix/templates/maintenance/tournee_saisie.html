@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load composants %}
+{% block title %}Compte rendu de tournée{% endblock %}
+{% block content %}
+<div class="mx-cat-exemplaires-entete">
+  <div>
+    <h1 class="h4 mb-1">Compte rendu de tournée</h1>
+    <p class="text-secondary mb-0">Une ligne par équipement, dans l'ordre de la fiche imprimée. Entrée : ligne du dessous · Ctrl+D ou bouton : recopier vers le bas · « Tout conforme » ne touche que les cellules vides · virgule acceptée pour les relevés (rouge si hors plage). Équipement non vu : indiquez le motif et laissez ses contrôles vides. Une ligne entièrement vide est ignorée.</p>
+  </div>
+  <div class="mx-cat-exemplaires-liens">
+    <a class="btn btn-sm btn-outline-secondary" href="{{ imprimer_url }}" target="_blank" rel="noopener">Imprimer la fiche</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'maintenance-occurrences' %}">Retour</a>
+  </div>
+</div>
+
+{% if lecture_seule %}<div class="alert alert-info mt-3">Consultation seule : l'équipage à terre ne saisit pas de compte rendu.</div>{% endif %}
+<form method="post" class="mt-3">
+  {% csrf_token %}
+  {% for g in groupes %}
+  <h2 class="h5 mt-4">{{ g.categorie }}{% if g.modele %} <span class="text-secondary fs-6">· {{ g.modele }}</span>{% endif %}</h2>
+  {% grille id=g.id libelle="Compte rendu de tournée : "|add:g.categorie libelle_ligne="Équipement" colonnes=g.colonnes lignes=g.lignes lecture_seule=lecture_seule libelle_final="Valider la tournée" brouillon=g.brouillon libelle_brouillon="Compte rendu de tournée" %}{% fin_grille %}
+  {% endfor %}
+</form>
+{% if verrouillees %}
+<h2 class="h5 mt-4">Déjà enregistrées</h2>
+<p class="text-secondary">La grille ne réécrit pas ces équipements : pour les modifier, ouvrez leur fiche individuelle (motif obligatoire, avant/après tracé).</p>
+<ul class="list-group mb-3">
+  {% for o in verrouillees %}<li class="list-group-item d-flex justify-content-between align-items-center">
+    <span>{{ o.libelle }} <span class="badge bg-secondary">{{ o.statut }}</span></span>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ o.url }}">Ouvrir la fiche</a>
+  </li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

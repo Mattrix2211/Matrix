@@ -124,5 +124,8 @@ class MonProfilViewTests(TestCase):
         self.assertContains(r, "Électrotechnicien")
         self.assertContains(r, "MAT1234")
         # Aucun formulaire d'édition du rattachement : la gestion reste
-        # centralisée dans l'annuaire (COMMANDANT et au-dessus).
-        self.assertNotContains(r, '<form method="post"')
+        # centralisée dans l'annuaire (COMMANDANT et au-dessus). La bascule du
+        # thème (barre supérieure) est le seul formulaire autorisé.
+        self.assertNotContains(r, 'action="/users/"')
+        self.assertNotContains(r, 'name="role"')
+        self.assertNotContains(r, 'name="ship"')

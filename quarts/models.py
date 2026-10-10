@@ -121,12 +121,13 @@ from django.utils import timezone
 
 from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
+from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_agissant, scope_filters_for_user, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
-from org.models import CommandantAdjoint, Equipage, Sector, Section, Service, Ship
+from org.models import Sector, Section, Service, Ship
 
 User = get_user_model()
 
@@ -136,6 +137,8 @@ User = get_user_model()
 # training.models.NIVEAU_SUPERVISION_GLOBALE_FORMATION, pour rester cohérent
 # avec les autres rôles annexes du projet.
 NIVEAU_SUPERVISION_GLOBALE_LISTE = RoleLevel.COMMANDANT
+# Lecture des listes du navire : le commandant en second voit comme le commandant, sans pouvoir les modifier.
+NIVEAU_LECTURE_GLOBALE_LISTE = NIVEAU_VISION_COMMANDEMENT
 
 # Seuil générique requis pour accéder à l'écran de désignation d'un chef de
 # liste : CHEF_SERVICE et au-dessus, comme d'autres désignations de
@@ -203,48 +206,26 @@ def perimetre_correspond(a, b):
     )
 
 
-def equipage_du_perimetre(ship=None, service=None, sector=None, section=None, createur=None):
-    """Équipage propriétaire d'une liste visant ce périmètre, sur un bâtiment à
-    double équipage (None sur un navire à équipage unique). Un service, un
-    secteur ou une section portent leur équipage (organisation en miroir) ; une
-    liste au niveau de l'unité appartient à l'équipage de son créateur, à défaut
-    à l'équipage à bord. Aucune colonne ajoutée : l'équipage se déduit de
-    l'organisation et des personnes concernées."""
-    hierarchie = service or sector or section
-    if hierarchie is not None:
-        # Après une désactivation du double équipage, les rattachements sont
-        # conservés mais n'ont plus d'effet.
-        equipage = hierarchie.equipage
-        return equipage if equipage is not None and equipage.ship.double_equipage else None
-    if ship is None or not ship.double_equipage:
-        return None
-    from org.equipages import equipage_a_bord
-    profil = getattr(createur, "profile", None)
-    if profil is not None and profil.equipage_id and profil.equipage.ship_id == ship.pk:
-        return profil.equipage
-    return equipage_a_bord(ship)
+def equipage_du_perimetre(createur=None):
+    """Code d'équipage propriétaire d'une nouvelle liste sur un bâtiment à double
+    équipage : l'équipage de son créateur, à défaut celui à bord. Chaîne vide
+    sur un navire à équipage unique (comportement historique)."""
+    return equipage_agissant(createur) or "" if createur is not None else ""
 
 
 def equipage_de_la_liste(liste):
-    """Équipage propriétaire d'une liste existante (voir equipage_du_perimetre)."""
-    return equipage_du_perimetre(liste.ship, liste.service, liste.sector, liste.section, liste.created_by)
+    """Code d'équipage propriétaire d'une liste existante (None si équipage unique)."""
+    return liste.equipage or None
 
 
 def listes_de_l_equipage_q(user):
     """Filtre Q limitant des listes (Quart, ServiceGarde) à l'équipage de
-    `user` ; sans effet sur un navire à équipage unique. Pendant du calcul de
-    equipage_de_la_liste, exprimé en requête."""
+    `user` ; sans effet sur un navire à équipage unique. Les listes sans
+    équipage renseigné (antérieures au double équipage) restent visibles."""
     equipage = equipage_agissant(user)
     if equipage is None:
         return Q()
-    q = (
-        Q(service__equipage=equipage) | Q(sector__equipage=equipage) | Q(section__equipage=equipage)
-        | Q(ship__isnull=False, created_by__profile__equipage=equipage)
-    )
-    from org.equipages import equipage_a_bord
-    if equipage_a_bord(equipage.ship) == equipage:
-        q |= Q(ship__isnull=False, created_by__profile__equipage__isnull=True)
-    return q
+    return Q(equipage=equipage) | Q(equipage="")
 
 
 def perimetre_de_mon_equipage(user, equipage):
@@ -252,7 +233,7 @@ def perimetre_de_mon_equipage(user, equipage):
     bâtiment à double équipage : un chef ne gère, ne publie ni ne désigne rien
     dans l'organisation de l'autre équipage."""
     agissant = equipage_agissant(user)
-    return agissant is None or equipage is None or agissant.pk == equipage.pk
+    return agissant is None or not equipage or agissant == equipage
 
 
 def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=None, section=None):
@@ -261,7 +242,7 @@ def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=No
     nul) : désigné chef de liste pour EXACTEMENT ce périmètre (ChefDeListe),
     ou supervision globale (COMMANDANT et au-dessus). Sur un bâtiment à double
     équipage, toujours dans SON équipage."""
-    if not perimetre_de_mon_equipage(user, equipage_du_perimetre(ship, service, sector, section, user)):
+    if not perimetre_de_mon_equipage(user, equipage_du_perimetre(user)):
         return False
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
         return True
@@ -397,7 +378,7 @@ def marins_du_perimetre(liste):
     else:
         return Q(pk__in=[])
     equipage = equipage_de_la_liste(liste)
-    return q if equipage is None else q & Q(profile__equipage=equipage)
+    return q if not equipage else q & Q(profile__equipage=equipage)
 
 
 class ListeServiceAbstract(TimeStampedModel, OwnedModel):
@@ -423,6 +404,8 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="%(class)ss")
     sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="%(class)ss")
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="%(class)ss")
+    # Équipage (« A », « B »…) propriétaire de la liste sur un bâtiment à double équipage ; vide sinon.
+    equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
     date_debut = models.DateField(verbose_name="Début de période")
     date_fin = models.DateField(verbose_name="Fin de période")
     statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_BROUILLON)
@@ -446,6 +429,12 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
         _valider_perimetre_unique(self.ship_id, self.service_id, self.sector_id, self.section_id, str(self._meta.verbose_name).capitalize())
         if self.date_debut and self.date_fin and self.date_fin < self.date_debut:
             raise ValidationError({"date_fin": "La date de fin ne peut pas précéder la date de début."})
+
+    def save(self, *args, **kwargs):
+        # À la création, la liste appartient à l'équipage de son créateur (double équipage).
+        if self._state.adding and not self.equipage:
+            self.equipage = equipage_du_perimetre(self.created_by)
+        super().save(*args, **kwargs)
 
     @property
     def perimetre(self):
@@ -842,11 +831,10 @@ class EchangeServiceEvenement(TimeStampedModel):
 #   vaut publication, un seul clic)--> PUBLIEE
 #
 # Le visa COMAEQ est routé vers le titulaire actif du poste de COMAEQ
-# (org.CommandantAdjoint) du bâtiment et, en double équipage, de l'équipage
+# (profil de fonction COMAEQ) du bâtiment et, en double équipage, de l'équipage
 # de la feuille (titulaire_comaeq). Poste vacant : escalade tracée dans
 # l'AuditLog et notifiée au commandant du bâtiment, qui peut viser à la place
-# du COMAEQ ; le commandant en second ne le peut que si le bâtiment lui a
-# confié ce droit (REGISTRE_DROITS_EN_SECOND, "feuille_service_visa_comaeq").
+# du COMAEQ ; le commandant en second ne vise pas (vision en lecture seule).
 #
 # Comme pour ListeServiceAbstract, la publication fige un instantané
 # horodaté (VersionFeuilleService) sans jamais réécrire les précédents —
@@ -927,7 +915,7 @@ class FonctionFeuilleService(TimeStampedModel):
         return f"{self.libelle} ({self.ship})"
 
 
-def titulaire_du_jour(fonction, date_, equipage=None):
+def titulaire_du_jour(fonction, date_, equipage=""):
     """Créneau de service de garde correspondant à `fonction`
     (FonctionFeuilleService) le jour `date_`, trouvé EN DIRECT parmi les
     créneaux déjà PUBLIÉS du navire (cf. commentaire de section :
@@ -944,7 +932,7 @@ def titulaire_du_jour(fonction, date_, equipage=None):
     debut_jour = timezone.make_aware(datetime.combine(date_, heure_du_jour.min))
     fin_jour = timezone.make_aware(datetime.combine(date_, heure_du_jour.max))
     creneaux = CreneauServiceGarde.objects.select_related("marin", "marin__profile", "service_garde")
-    if equipage is not None:
+    if equipage:
         creneaux = creneaux.filter(marin__profile__equipage=equipage)
     return (
         creneaux
@@ -962,7 +950,7 @@ def titulaire_du_jour(fonction, date_, equipage=None):
     )
 
 
-def personnel_du_jour(ship, date_, equipage=None):
+def personnel_du_jour(ship, date_, equipage=""):
     """Liste ordonnée (cf. FonctionFeuilleService.Meta.ordering) du personnel
     de service du navire pour `date_` : une entrée par fonction active,
     chacune avec le créneau trouvé (ou None) — cf. titulaire_du_jour."""
@@ -994,9 +982,8 @@ class FeuilleService(TimeStampedModel, OwnedModel):
     )
 
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="feuilles_service")
-    equipage = models.ForeignKey(
-        Equipage, null=True, blank=True, on_delete=models.CASCADE, related_name="feuilles_service",
-        verbose_name="Équipage",
+    equipage = models.CharField(
+        max_length=8, blank=True, default="", verbose_name="Équipage",
         help_text="Renseigné uniquement sur un bâtiment à double équipage.",
     )
     date = models.DateField(verbose_name="Date concernée")
@@ -1036,17 +1023,10 @@ class FeuilleService(TimeStampedModel, OwnedModel):
     motif_retour = models.TextField(blank=True, default="", verbose_name="Motif du dernier renvoi en brouillon")
 
     class Meta:
-        # Deux contraintes, car un équipage nul n'est jamais « égal » à un autre
-        # en base : une feuille par (navire, date) sans équipage, une par
-        # (navire, équipage, date) avec équipage.
+        # Une feuille par (navire, équipage, date) ; équipage vide sur un bâtiment à équipage unique.
         constraints = [
             models.UniqueConstraint(
-                fields=("ship", "date"), condition=Q(equipage__isnull=True),
-                name="feuille_service_unique_navire_date",
-            ),
-            models.UniqueConstraint(
-                fields=("ship", "equipage", "date"), condition=Q(equipage__isnull=False),
-                name="feuille_service_unique_equipage_date",
+                fields=("ship", "equipage", "date"), name="feuille_service_unique_equipage_date",
             ),
         ]
         ordering = ("-date",)
@@ -1054,7 +1034,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         verbose_name_plural = "Feuilles de service"
 
     def __str__(self):
-        equipage = f" (équipage {self.equipage.nom})" if self.equipage_id else ""
+        equipage = f" (équipage {self.equipage})" if self.equipage else ""
         return f"Feuille de service du {self.date:%d/%m/%Y} — {self.ship}{equipage}"
 
     @property
@@ -1099,12 +1079,12 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         }.get(self.statut)
         if verificateur is None:
             return []
-        titulaire = titulaire_comaeq(self) if self.statut == self.STATUT_VISA_COMAEQ else None
-        if titulaire is not None:
-            return [titulaire]
+        titulaires = list(titulaires_comaeq(self)) if self.statut == self.STATUT_VISA_COMAEQ else []
+        if titulaires:
+            return titulaires
         destinataires = [
             u for u in User.objects.filter(is_active=True, profile__ship_id=self.ship_id)
-            .filter(Q() if self.equipage_id is None else Q(profile__equipage_id=self.equipage_id))
+            .filter(Q(profile__equipage=self.equipage) if self.equipage else Q())
             .select_related("profile")
             if verificateur(u, self)
         ]
@@ -1113,10 +1093,9 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         return destinataires
 
     def _notifier_prochain_visa(self):
-        vacant = self.statut == self.STATUT_VISA_COMAEQ and titulaire_comaeq(self) is None
+        vacant = self.statut == self.STATUT_VISA_COMAEQ and not titulaires_comaeq(self).exists()
         if vacant:
-            # Escalade visible : poste de COMAEQ vacant, le visa remonte au
-            # commandant (et au commandant en second s'il en a reçu le droit).
+            # Escalade visible : poste de COMAEQ vacant, le visa remonte au commandant.
             AuditLog.objects.create(
                 actor=None, action="feuille_service_comaeq_vacant",
                 details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
@@ -1419,50 +1398,54 @@ def _est_supervision_globale_feuille(user):
 
 
 def equipage_de_feuille_pour(user, ship, equipage_id=None):
-    """Équipage dont `user` consulte ou rédige la feuille de service sur `ship`.
-    Bâtiment à équipage unique : None, sauf demande explicite d'une feuille
-    historique d'un équipage (`equipage_id`, voir feuille_du_jour). Double
-    équipage : son propre équipage (`equipage_agissant`) ; un administrateur
-    général, qui n'a pas d'équipage, choisit par `equipage_id`, à défaut
-    l'équipage à bord. None si aucun équipage à bord n'est défini : c'est un
-    état incohérent que la vue signale, jamais un choix arbitraire."""
-    numero = entier_ou_none(equipage_id)
-    demande = ship.equipages.filter(pk=numero).first() if numero is not None else None
+    """Code d'équipage dont `user` consulte ou rédige la feuille de service sur
+    `ship`. Bâtiment à équipage unique : None, sauf demande explicite d'une
+    feuille historique d'un équipage (`equipage_id`, voir feuille_du_jour).
+    Double équipage : son propre équipage (`equipage_agissant`) ; un
+    administrateur général, qui n'a pas d'équipage, choisit par `equipage_id`,
+    à défaut l'équipage à bord. None si aucun équipage à bord n'est défini :
+    c'est un état incohérent que la vue signale, jamais un choix arbitraire."""
+    demande = str(equipage_id or "").strip()[:8] or None
     if not ship.double_equipage:
         return demande
-    equipage = equipage_agissant(user)
-    if equipage is not None and equipage.ship_id == ship.pk:
-        return equipage
-    from org.equipages import equipage_a_bord
-    return demande or equipage_a_bord(ship)
+    return equipage_agissant(user) or demande or ship.equipage_a_bord or None
+
+
+def codes_equipage(ship):
+    """Codes d'équipage connus de l'unité : celui à bord et ceux des profils des marins."""
+    from accounts.models import UserProfile
+    codes = set(UserProfile.objects.filter(ship=ship).exclude(equipage="").values_list("equipage", flat=True))
+    if ship.equipage_a_bord:
+        codes.add(ship.equipage_a_bord)
+    return sorted(codes)
 
 
 def feuille_du_jour(ship, date_, equipage):
     """Feuille de service du jour, choix DÉTERMINISTE.
 
-    Double équipage : celle de l'équipage donné, aucune si `equipage` est None
+    Double équipage : celle de l'équipage donné, aucune si `equipage` est vide
     (état incohérent signalé par la vue). Équipage unique, y compris après
     désactivation du double équipage (les feuilles historiques restent
     visibles) : celle de l'équipage demandé s'il y en a un ; sinon la feuille
     sans équipage, puis celle du dernier équipage à bord, puis la plus ancienne."""
     feuilles = FeuilleService.objects.filter(ship=ship, date=date_)
     if ship.double_equipage:
-        return feuilles.filter(equipage=equipage).first() if equipage is not None else None
-    if equipage is not None:
+        return feuilles.filter(equipage=equipage).first() if equipage else None
+    if equipage:
         return feuilles.filter(equipage=equipage).first()
     return sorted(
         feuilles,
-        key=lambda f: (f.equipage_id is not None, f.equipage_id != ship.equipage_a_bord_id, f.pk),
+        key=lambda f: (f.equipage != "", f.equipage != ship.equipage_a_bord, f.pk),
     )[0] if feuilles else None
 
 
 def _dans_mon_equipage(user, feuille):
     """Faux si la feuille est celle de l'autre équipage d'un bâtiment à double
     équipage : chaque équipage gère et vise sa propre feuille."""
-    if feuille.equipage_id is None:
+    if not feuille.equipage:
         return True
     agissant = equipage_agissant(user)
-    return agissant is None or agissant.pk == feuille.equipage_id
+    return agissant is None or agissant == feuille.equipage
 
 
 def peut_rediger_feuille_service(user, ship):
@@ -1507,27 +1490,16 @@ def peut_viser_service(user, feuille):
     return _perimetre_dans_scope_utilisateur(user, None, feuille.service_redacteur, None, None, seuil)
 
 
+def titulaires_comaeq(feuille):
+    """Titulaires actifs de la fonction de COMAEQ du bâtiment (et de l'équipage
+    de la feuille en double équipage) ; vide si le poste est vacant. Jamais le
+    COMAEQ de l'autre équipage."""
+    return titulaires_commandant_adjoint(feuille.ship, "COMAEQ", feuille.equipage)
+
+
 def titulaire_comaeq(feuille):
-    """Titulaire actif du poste de COMAEQ du bâtiment et de l'équipage de la
-    feuille, ou None si le poste est vacant : poste non créé, sans titulaire,
-    titulaire désactivé ou n'appartenant plus au bâtiment ni à l'équipage
-    concerné (double équipage : jamais le COMAEQ de l'autre équipage)."""
-    poste = (
-        CommandantAdjoint.objects.filter(
-            ship_id=feuille.ship_id, equipage_id=feuille.equipage_id, sigle=CommandantAdjoint.Sigle.COMAEQ,
-        )
-        .select_related("titulaire__profile")
-        .first()
-    )
-    titulaire = poste.titulaire if poste else None
-    if titulaire is None or not titulaire.is_active:
-        return None
-    profil = getattr(titulaire, "profile", None)
-    if profil is None or profil.navire_id_effectif != feuille.ship_id:
-        return None
-    if feuille.equipage_id and profil.equipage_id != feuille.equipage_id:
-        return None
-    return titulaire
+    """Premier titulaire actif du poste de COMAEQ, ou None si le poste est vacant."""
+    return titulaires_comaeq(feuille).order_by("pk").first()
 
 
 def _supervision_du_navire_feuille(user, feuille):
@@ -1538,28 +1510,17 @@ def _supervision_du_navire_feuille(user, feuille):
     return user_role_level(user) >= RoleLevel.MASTER_ADMIN or ship_id_for_user(user) == feuille.ship_id
 
 
-def _peut_viser_comaeq_poste_vacant(user, feuille):
-    """Poste de COMAEQ vacant : escalade vers le commandant du bâtiment, et vers
-    le commandant en second seulement si le bâtiment lui a confié ce droit
-    (REGISTRE_DROITS_EN_SECOND) — aucune suppléance implicite."""
-    from org.commandant_en_second import droit_metier_en_second
-    return _supervision_du_navire_feuille(user, feuille) or (
-        ship_id_for_user(user) == feuille.ship_id and droit_metier_en_second(user, "feuille_service_visa_comaeq")
-    )
-
-
 def peut_viser_comaeq(user, feuille):
-    """Visa COMAEQ : réservé au titulaire actif du poste de COMAEQ du bâtiment
-    (de l'équipage de la feuille en double équipage) ; le commandant du
-    bâtiment peut toujours le donner à sa place. Poste vacant : escalade, cf.
-    _peut_viser_comaeq_poste_vacant. Un membre quelconque de l'état-major n'a
-    plus ce droit."""
+    """Visa COMAEQ : réservé aux titulaires actifs de la fonction de COMAEQ du
+    bâtiment (de l'équipage de la feuille en double équipage) ; le commandant
+    du bâtiment peut toujours le donner à sa place, et seul lui le donne quand
+    le poste est vacant (escalade). Un membre quelconque de l'état-major n'a
+    pas ce droit."""
     if not _dans_mon_equipage(user, feuille):
         return False
-    titulaire = titulaire_comaeq(feuille)
-    if titulaire is None:
-        return _peut_viser_comaeq_poste_vacant(user, feuille)
-    return titulaire.pk == user.pk or _supervision_du_navire_feuille(user, feuille)
+    if _supervision_du_navire_feuille(user, feuille):
+        return True
+    return titulaires_comaeq(feuille).filter(pk=user.pk).exists()
 
 
 def peut_lire_feuille_service(user, feuille):
@@ -1570,8 +1531,7 @@ def peut_lire_feuille_service(user, feuille):
         return False
     if feuille.statut == FeuilleService.STATUT_PUBLIEE:
         return _est_supervision_globale_feuille(user) or ship_id_for_user(user) == feuille.ship_id
-    from org.commandant_en_second import a_vision_commandant
-    if a_vision_commandant(user) and ship_id_for_user(user) == feuille.ship_id:
+    if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and ship_id_for_user(user) == feuille.ship_id:
         return True  # commandant en second : lecture des feuilles en cours de circuit
     return (
         peut_gerer_brouillon_feuille(user, feuille)

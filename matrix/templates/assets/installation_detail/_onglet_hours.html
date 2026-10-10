@@ -1,33 +1,50 @@
-      <div class="tab-pane fade" id="pane-hours" role="tabpanel">
+      {% load asset_extras %}
+      <section class="mx-mesure" id="pane-hours" aria-labelledby="mesures-heures">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="mb-0">Heure de marche</h6>
+          <h6 class="mb-0" id="mesures-heures">Heures de marche</h6>
           <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addHourReadingModal">Ajouter</button>
         </div>
         <div class="row g-3 mb-3">
           <div class="col-md-4">
             <div class="border rounded p-3 h-100">
-              <div class="text-muted">Total</div>
-              <div class="fs-5 font-mono">{{ hours_total }} h</div>
+              <div class="text-muted">Heures totales (compteur)</div>
+              <div class="fs-5 font-mono">{{ hours_total|heures_lisibles }}</div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="border rounded p-3 h-100">
-              <div class="text-muted">À la dernière visite</div>
-              <div class="fs-5 font-mono">{{ hours_last_visit }} h</div>
+              <div class="text-muted">Depuis la dernière visite</div>
+              <div class="fs-5 font-mono">{{ hours_last_visit|heures_lisibles }}</div>
+              {% if hour_logs %}<small class="text-muted">Compteur à la visite : {{ hours_compteur_visite|heures_lisibles }}</small>{% endif %}
             </div>
           </div>
           <div class="col-md-4">
             <div class="border rounded p-3 h-100">
               <div class="text-muted">Ce mois</div>
-              <div class="fs-5 font-mono">{{ hours_month }} h</div>
+              <div class="fs-5 font-mono">{{ hours_month|heures_lisibles }}</div>
             </div>
           </div>
         </div>
+        {% if heures_gammes %}
+        <section class="mb-3" aria-label="Heures depuis la dernière visite, par gamme">
+          <h6>Par gamme</h6>
+          <p class="text-muted small">Chaque gamme a sa propre visite : les heures se comptent depuis la dernière visite de cette gamme.</p>
+          {% for g in heures_gammes %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between"><a href="{% url 'fiche-detail' g.fiche.pk %}">{{ g.fiche.title }} · gamme {{ g.gamme }}</a>
+              <span class="font-mono">{{ g.depuis_visite|heures_lisibles }} / {{ g.gamme }}</span></div>
+            <div class="progress" role="progressbar" aria-label="{{ g.fiche.title }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ g.pourcentage|default:0 }}">
+              <div class="progress-bar {% if g.pourcentage >= 100 %}bg-danger{% elif g.pourcentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ g.pourcentage|default:0 }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </section>
+        {% endif %}
         <div class="mb-3">
           <div class="card">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">Heures par mois</span>
+                <span class="fw-semibold">Heures effectuées par mois</span>
                 <small class="text-muted">12 derniers mois</small>
               </div>
               <canvas id="hoursPerMonthChart" style="max-height:260px;"></canvas>
@@ -37,7 +54,7 @@
         
         <div class="table-responsive">
           <table class="table table-sm align-middle">
-            <thead><tr><th style="width:200px;">Date</th><th style="width:180px;">Heures</th><th class="text-end">Utilisateur</th></tr></thead>
+            <thead><tr><th style="width:200px;">Date</th><th style="width:180px;">Compteur total</th><th class="text-end">Utilisateur</th></tr></thead>
             <tbody>
               {% for r in hour_logs %}
                 <tr class="hours-row" style="cursor:pointer;"
@@ -47,7 +64,7 @@
                   data-visit="{% if r.is_visit %}Oui{% else %}Non{% endif %}"
                   data-user="{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}">
                 <td class="font-mono">{{ r.date|date:"j F Y" }}{% if r.is_visit %} <span class="badge text-bg-info ms-1">Visite</span>{% endif %}</td>
-                <td class="font-mono">{{ r.hours }} h</td>
+                <td class="font-mono">{{ r.hours|heures_lisibles:2 }}</td>
                 <td class="text-end">{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}</td>
               </tr>
               {% empty %}
@@ -56,4 +73,4 @@
             </tbody>
           </table>
         </div>
-      </div>
+      </section>

@@ -1,0 +1,23 @@
+{% comment %}
+Panneau latéral (drawer) : plusieurs champs en gardant le contexte de la page —
+filtres, affectation, relevé, discussion, historique court (docs/UX.md §5.1).
+Se ferme toujours sans changer de page : bouton Fermer, clic hors du panneau
+ou Échap (Bootstrap offcanvas).
+Balise : {% load composants %}{% panneau_lateral id="discussion" titre="Discussion" icone="discussion" %}...{% fin_panneau_lateral %}
+Déclencheur : <button data-bs-toggle="offcanvas" data-bs-target="#discussion" aria-controls="discussion">
+Chargement HTMX : avec url="/x/", le corps est chargé par hx-get à chaque ouverture.
+Paramètres :
+  id      : identifiant unique dans la page (obligatoire)
+  titre   : titre du panneau (obligatoire, relié par aria-labelledby)
+  icone   : concept d'icône avant le titre (facultatif)
+  url     : URL du contenu chargé à l'ouverture (facultatif)
+  cote    : "end" (droite, par défaut) ou "start" (gauche)
+  contenu : HTML du corps (fourni par le bloc de la balise)
+  classes : classes CSS supplémentaires
+{% endcomment %}{% load icones %}<div class="offcanvas offcanvas-{{ cote|default:'end' }} mx-panneau {{ classes }}" tabindex="-1" id="{{ id }}" aria-labelledby="{{ id }}-titre">
+  <div class="offcanvas-header">
+    <h2 class="offcanvas-title mx-panneau__titre" id="{{ id }}-titre">{% if icone %}{% icone icone %} {% endif %}{{ titre }}</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+  </div>
+  <div class="offcanvas-body"{% if url %} hx-get="{{ url }}" hx-trigger="show.bs.offcanvas from:#{{ id }}" hx-swap="innerHTML"{% endif %}>{% if url %}<p class="text-secondary mb-0">Chargement…</p>{% else %}{{ contenu }}{% endif %}</div>
+</div>

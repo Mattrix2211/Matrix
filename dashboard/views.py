@@ -30,8 +30,8 @@ class PreventiveWeekChartView(views.APIView):
         return response.Response({
             "labels": labels,
             "datasets": [
-                {"label": "Planifié", "data": planned, "backgroundColor": "#0d6efd"},
-                {"label": "Réalisé", "data": done, "backgroundColor": "#198754"},
+                {"label": "Planifié", "data": planned},
+                {"label": "Réalisé", "data": done},
             ]
         })
 
@@ -49,10 +49,9 @@ class CorrectiveOpenChartView(views.APIView):
         )
         counts_by_status = {row["status"]: row["total"] for row in rows}
         data = [counts_by_status.get(s, 0) for s in open_statuses]
+        libelles = dict(CorrectiveTicket.STATUS)
 
         return response.Response({
-            "labels": open_statuses,
-            "datasets": [
-                {"label": "Tickets ouverts", "data": data, "backgroundColor": ["#0d6efd", "#6c757d", "#ffc107", "#0dcaf0", "#20c997", "#6610f2"]}
-            ]
+            "labels": [libelles[s] for s in open_statuses],
+            "datasets": [{"label": "Tickets ouverts", "data": data}],
         })

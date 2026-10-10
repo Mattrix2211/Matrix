@@ -46,7 +46,7 @@ class OrganisationAlerteView(LoginRequiredMixin, View):
             "scenarios": ship.scenarios_alerte.prefetch_related("postes"),
             "fonctions": FonctionFeuilleService.objects.filter(ship=ship, actif=True),
             "familles": ScenarioAlerte.FAMILLE_CHOICES,
-            "sigles": CommandantAdjoint.Sigle.choices,
+            "sigles": CommandantAdjoint.choices,
             "lignes_vides": range(LIGNES_VIDES),
             "en_attente": modifications.filter(statut=Modification.STATUT_EN_ATTENTE),
             "historique": modifications.exclude(statut=Modification.STATUT_EN_ATTENTE)[:15],

@@ -1,4 +1,4 @@
-"""Tests de la page « Prêt à appareillage » (dashboard/pret_appareillage_views.py) : session
+"""Tests de la page « Prêt à appareillage » (dashboard/web_views.py) : session
 de préparation à un appareillage datée et tracée — création, cochage des
 items (ouvert à tout marin), signature (réservée à CHEF_SECTEUR+), immutabilité
 après clôture, isolation par navire. Cf. tâche Notion « [FEAT] Tableau de bord

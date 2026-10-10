@@ -5,7 +5,7 @@ class RoleLevel(IntEnum):
     """Niveau hiérarchique numérique, du plus bas (Équipier) au plus haut (Administrateur général).
 
     Ordre complet documenté dans CLAUDE.md :
-    MASTER_ADMIN > ADMIN_NAVIRE > COMMANDANT > ETAT_MAJOR > CHEF_SERVICE > CHEF_SECTEUR > CHEF_SECTION > EQUIPIER
+    MASTER_ADMIN > ADMIN_NAVIRE > COMMANDANT > COMMANDANT_EN_SECOND > ETAT_MAJOR > CHEF_SERVICE > CHEF_SECTEUR > CHEF_SECTION > EQUIPIER
     """
 
     EQUIPIER = 1
@@ -13,9 +13,10 @@ class RoleLevel(IntEnum):
     CHEF_SECTEUR = 3
     CHEF_SERVICE = 4
     ETAT_MAJOR = 5
-    COMMANDANT = 6
-    ADMIN_NAVIRE = 7
-    MASTER_ADMIN = 8
+    COMMANDANT_EN_SECOND = 6
+    COMMANDANT = 7
+    ADMIN_NAVIRE = 8
+    MASTER_ADMIN = 9
 
 
 ROLE_TO_LEVEL = {
@@ -24,10 +25,16 @@ ROLE_TO_LEVEL = {
     "CHEF_SECTEUR": RoleLevel.CHEF_SECTEUR,
     "CHEF_SERVICE": RoleLevel.CHEF_SERVICE,
     "ETAT_MAJOR": RoleLevel.ETAT_MAJOR,
+    "COMMANDANT_EN_SECOND": RoleLevel.COMMANDANT_EN_SECOND,
     "COMMANDANT": RoleLevel.COMMANDANT,
     "ADMIN_NAVIRE": RoleLevel.ADMIN_NAVIRE,
     "MASTER_ADMIN": RoleLevel.MASTER_ADMIN,
 }
+
+
+# Le commandant en second a la même vision (lecture) que le commandant ;
+# les écritures « tout-puissantes » restent à RoleLevel.COMMANDANT.
+NIVEAU_VISION_COMMANDEMENT = RoleLevel.COMMANDANT_EN_SECOND
 
 
 def user_role_level(user) -> RoleLevel:
@@ -36,15 +43,4 @@ def user_role_level(user) -> RoleLevel:
     profile = getattr(user, "profile", None)
     if not profile or not profile.role:
         return RoleLevel.EQUIPIER
-    niveau = ROLE_TO_LEVEL.get(profile.role, RoleLevel.EQUIPIER)
-    if niveau == RoleLevel.ETAT_MAJOR:
-        # Suppléance explicite du commandant par le commandant en second, sur
-        # une période désignée (org/suppleance.py) : jamais implicite.
-        # Coût : au plus 2 requêtes par appel pour ces comptes. Volontairement
-        # ni cache inter-requêtes (il prolongerait l'élévation après l'échéance
-        # ou l'annulation) ni mémorisation sur l'objet utilisateur (objet
-        # réutilisable hors requête, résultat qui pourrait devenir périmé).
-        from org.suppleance import suppleance_en_cours
-        if suppleance_en_cours(user) is not None:
-            return RoleLevel.COMMANDANT
-    return niveau
+    return ROLE_TO_LEVEL.get(profile.role, RoleLevel.EQUIPIER)

@@ -34,6 +34,7 @@ class CorrectiveTicketSignalTests(TestCase):
             scope="ASSET", asset=self.asset, name="Contrôle annuel", every_n_days=365,
         )
         self.tech = User.objects.create_user(username="tech2", password="pass")
+        UserProfile.objects.update_or_create(user=self.tech, defaults={"ship": self.ship})
 
     def test_execution_non_conforme_sur_asset_cree_un_ticket_correctif(self):
         """Le signal post_save crée automatiquement un CorrectiveTicket dès qu'une
@@ -126,6 +127,7 @@ class CorrectiveTicketSignalNotificationTests(TestCase):
             scope="ASSET", asset=self.asset, name="Contrôle annuel", every_n_days=365,
         )
         self.tech = User.objects.create_user(username="tech_notif_qr", password="pass")
+        UserProfile.objects.update_or_create(user=self.tech, defaults={"ship": self.ship})
 
         self.chef_secteur = User.objects.create_user(username="chef_secteur_notif_qr", password="pass")
         UserProfile.objects.update_or_create(

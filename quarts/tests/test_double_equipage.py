@@ -8,10 +8,10 @@ from django.test import TestCase
 from django.utils import timezone
 
 from accounts.models import ServiceFunctionChoice, UserProfile
-from org.models import Equipage, Sector, Service, Ship
+from org.models import Sector, Service, Ship
 from quarts.echanges import analyser_echange
 from quarts.web_views import _peut_lire_liste  # noqa: F401  (ordre d'import circulaire)
-from quarts.listes_views import _listes_visibles, _perimetres_org_disponibles
+from quarts.listes_views import _listes_visibles
 from quarts.models import (
     ChefDeListe,
     CreneauServiceGarde,
@@ -27,7 +27,7 @@ from quarts.services import compteurs_equite_perimetre
 User = get_user_model()
 
 
-def marin(nom, role, ship, equipage=None, sector=None):
+def marin(nom, role, ship, equipage="", sector=None):
     user = User.objects.create_user(username=nom, password="pass")
     UserProfile.objects.update_or_create(
         user=user, defaults={"role": role, "ship": None if sector else ship, "sector": sector, "equipage": equipage}
@@ -38,14 +38,12 @@ def marin(nom, role, ship, equipage=None, sector=None):
 class DoubleEquipageBase(TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="FREMM Test", code="FT", classe_navire="FREMM", double_equipage=True)
-        self.bleu = Equipage.objects.create(ship=self.ship, nom="Bleu")
-        self.rouge = Equipage.objects.create(ship=self.ship, nom="Rouge")
+        self.bleu, self.rouge = "A", "B"
         self.ship.equipage_a_bord = self.bleu
         self.ship.save()
-        self.service_bleu = Service.objects.create(ship=self.ship, equipage=self.bleu, name="Pont")
-        self.service_rouge = Service.objects.create(ship=self.ship, equipage=self.rouge, name="Pont")
-        self.secteur_bleu = Sector.objects.create(service=self.service_bleu, equipage=self.bleu, name="Manœuvre")
-        self.secteur_rouge = Sector.objects.create(service=self.service_rouge, equipage=self.rouge, name="Manœuvre")
+        # Organisation commune aux deux équipages : seuls les marins portent l'équipage.
+        self.service_bleu = self.service_rouge = Service.objects.create(ship=self.ship, name="Pont")
+        self.secteur_bleu = self.secteur_rouge = Sector.objects.create(service=self.service_bleu, name="Manœuvre")
         self.a_bleu = marin("a_bleu", "EQUIPIER", self.ship, self.bleu, self.secteur_bleu)
         self.b_bleu = marin("b_bleu", "EQUIPIER", self.ship, self.bleu, self.secteur_bleu)
         self.a_rouge = marin("a_rouge", "EQUIPIER", self.ship, self.rouge, self.secteur_rouge)
@@ -99,10 +97,6 @@ class ListesParEquipageTests(DoubleEquipageBase):
         liste = self.garde(self.cdt_bleu, ship=self.ship)
         self.assertFalse(peut_gerer_liste(self.cdt_rouge, liste))
 
-    def test_creation_refusee_dans_l_organisation_de_l_autre_equipage(self):
-        self.assertTrue(utilisateur_autorise_pour_perimetre(self.cdt_bleu, sector=self.secteur_bleu))
-        self.assertFalse(utilisateur_autorise_pour_perimetre(self.cdt_bleu, sector=self.secteur_rouge))
-
     def test_listes_visibles_bornees_a_l_equipage(self):
         unite_bleu = self.garde(self.cdt_bleu, ship=self.ship)
         unite_rouge = self.garde(self.cdt_rouge, ship=self.ship)
@@ -114,11 +108,6 @@ class ListesParEquipageTests(DoubleEquipageBase):
         liste_service = self.garde(self.cdt_bleu, sector=self.secteur_bleu)
         self.assertEqual(set(_listes_visibles(ServiceGarde, chef)), {liste_service})
 
-    def test_perimetres_proposes_bornes_a_l_equipage(self):
-        valeurs = {p["valeur"] for p in _perimetres_org_disponibles(self.cdt_bleu, borne_par_scope=False)}
-        self.assertIn(f"sector:{self.secteur_bleu.pk}", valeurs)
-        self.assertNotIn(f"sector:{self.secteur_rouge.pk}", valeurs)
-
     def test_designation_de_chef_de_liste_limitee_a_l_equipage(self):
         self.client.force_login(self.cdt_bleu)
         reponse = self.client.post("/quarts/reglages/", {
@@ -126,10 +115,6 @@ class ListesParEquipageTests(DoubleEquipageBase):
         })
         self.assertEqual(reponse.status_code, 302)
         self.assertFalse(ChefDeListe.objects.filter(user=self.a_rouge).exists())
-        self.client.post("/quarts/reglages/", {
-            "action": "designer", "perimetre": f"sector:{self.secteur_rouge.pk}", "user_id": self.a_bleu.pk,
-        })
-        self.assertFalse(ChefDeListe.objects.filter(user=self.a_bleu).exists())
         self.client.post("/quarts/reglages/", {
             "action": "designer", "perimetre": f"sector:{self.secteur_bleu.pk}", "user_id": self.a_bleu.pk,
         })

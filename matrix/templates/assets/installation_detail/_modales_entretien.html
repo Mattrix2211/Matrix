@@ -1,4 +1,4 @@
-{# Modale édition #}
+{% load icones %}{# Modale édition #}
 {# Entretien: Modales et conteneurs hors des onglets #}
 {% for m in maintenances %}
 <div class="modal fade" id="editMaintenanceModal-{{ m.id }}" tabindex="-1" aria-hidden="true">
@@ -9,7 +9,7 @@
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="edit_maintenance" />
-          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="tab" value="maintenance" />
           <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
           <div class="row g-3">
             <div class="col-md-6"><label class="form-label">Périodicité</label>
@@ -82,7 +82,7 @@
                     <form method="post" class="d-inline">
                       {% csrf_token %}
                       <input type="hidden" name="action" value="delete_maintenance_attachment" />
-                      <input type="hidden" name="tab" value="entretien" />
+                      <input type="hidden" name="tab" value="maintenance" />
                       <input type="hidden" name="maintenance_id" value="{{ m.id }}" />
                       <input type="hidden" name="attachment_id" value="{{ att.id }}" />
                       <button class="btn btn-link btn-sm text-danger" title="Supprimer" style="text-decoration:none"><span class="bi bi-x-circle"></span></button>
@@ -133,7 +133,7 @@
         <div class="modal-body">
           {% csrf_token %}
           <input type="hidden" name="action" value="add_maintenance" />
-          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="tab" value="maintenance" />
           <div class="row g-3">
             <div class="col-md-6"><label class="form-label">Périodicité</label>
               <select class="form-select" name="periodicity">
@@ -183,7 +183,7 @@
         <h5 class="modal-title">Détail entretien</h5>
         <div class="ms-auto d-flex align-items-center gap-2">
           <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions"><span class="bi bi-gear"></span></button>
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">{% icone "parametres" %}</button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><button class="dropdown-item" id="mntEditBtn">Modifier</button></li>
               <li><button class="dropdown-item text-danger" id="mntMenuDelete">Supprimer</button></li>
@@ -204,7 +204,7 @@
         <form method="post" id="mntDeleteForm" style="display:none">
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_maintenance" />
-          <input type="hidden" name="tab" value="entretien" />
+          <input type="hidden" name="tab" value="maintenance" />
           <input type="hidden" name="maintenance_id" id="mntDeleteId" />
         </form>
         <hr />

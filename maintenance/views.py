@@ -1,7 +1,6 @@
 from rest_framework import viewsets, permissions, decorators, response, status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 from django.utils import timezone
-from assets.models import Asset, InstallationMaintenance
 from .models import (
     MaintenancePlan,
     MaintenanceOccurrence,
@@ -10,27 +9,15 @@ from .models import (
     mettre_a_jour_echeance_installation,
 )
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
-from matrix.core.mixins import ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-
-def _verifier_cibles_dans_perimetre(user, asset=None, installation_maintenance=None):
-    """Refuse qu'un objet de maintenance vise un matériel ou une maintenance
-    d'installation hors du périmètre de l'appelant (même filtre que la
-    lecture)."""
-    if asset is not None and not Asset.objects.filter(build_scope_q(user, ""), pk=asset.pk).exists():
-        raise PermissionDenied("Ce matériel est hors de votre périmètre.")
-    if installation_maintenance is not None and not InstallationMaintenance.objects.filter(
-        build_scope_q(user, "installation__"), pk=installation_maintenance.pk
-    ).exists():
-        raise PermissionDenied("Cette installation est hors de votre périmètre.")
-
-class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
-    queryset = MaintenancePlan.objects.select_related("asset", "asset_type", "checklist_template").all()
+class MaintenancePlanViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+    queryset = MaintenancePlan.objects.select_related("asset", "asset_type", "checklist_template").filter(fiche__isnull=True)
     serializer_class = MaintenancePlanSerializer
     permission_classes = [RolePermission]
     # Seuil configurable par navire (matrix/core/role_thresholds.py), même
@@ -39,6 +26,12 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     # RolePermission), même valeur par défaut, sans effet sur les autres
     # ViewSets qui restent au seuil générique non configurable.
     role_threshold_action_write = "maintenance_plan_ecriture"
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Un plan porte soit sur un actif précis (asset, qui porte lui-même
@@ -55,16 +48,7 @@ class MaintenancePlanViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-    def perform_create(self, serializer):
-        _verifier_cibles_dans_perimetre(self.request.user, asset=serializer.validated_data.get("asset"))
-        serializer.save(created_by=self.request.user)
-
-    def perform_update(self, serializer):
-        _verifier_cibles_dans_perimetre(self.request.user, asset=serializer.validated_data.get("asset"))
-        serializer.save(updated_by=self.request.user)
-
-
-class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin), même raisonnement que
     # CorrectiveTicketViewSet (logistics/views.py) : une occurrence n'est
     # jamais créée à la main (seule generate_occurrences/Celery le fait, cf.
@@ -80,6 +64,13 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
     permission_classes = [RolePermission]
     # Seuil configurable par navire (matrix/core/role_thresholds.py).
     role_threshold_action_write = "maintenance_execution_ecriture"
+    champs_utilisateurs_perimetre = ("assignees",)
+
+    def champs_serveur_creation(self):
+        return {"created_by": self.request.user}
+
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}
 
     def get_scoped_filters(self):
         # Une occurrence porte soit sur du matériel mobile (asset), soit sur
@@ -90,13 +81,6 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
             "asset__",
             "installation_maintenance__installation__",
         )
-
-    def perform_create(self, serializer):
-        data = serializer.validated_data
-        _verifier_cibles_dans_perimetre(
-            self.request.user, asset=data.get("asset"), installation_maintenance=data.get("installation_maintenance"),
-        )
-        serializer.save(created_by=self.request.user)
 
     def perform_update(self, serializer):
         # "status" est en lecture seule côté serializer (MaintenanceOccurrenceSerializer.
@@ -116,11 +100,7 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
                     )
                 }
             )
-        data = serializer.validated_data
-        _verifier_cibles_dans_perimetre(
-            self.request.user, asset=data.get("asset"), installation_maintenance=data.get("installation_maintenance"),
-        )
-        serializer.save(updated_by=self.request.user)
+        super().perform_update(serializer)
 
     @decorators.action(detail=True, methods=["post"])
     def start(self, request, pk=None):
@@ -166,7 +146,6 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
             )
 
         exec, _ = MaintenanceExecution.objects.get_or_create(occurrence=occ)
-        exec.executed_by = request.user
         exec.completed_at = timezone.now()
         exec.conformity = conformity
         exec.notes = request.data.get("notes", "")
@@ -194,7 +173,7 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, ScopedQuerySetMixi
             mettre_a_jour_echeance_installation(occ)
         return response.Response(MaintenanceExecutionSerializer(exec).data)
 
-class MaintenanceExecutionViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
+class MaintenanceExecutionViewSet(SuppressionInterditeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin) : une exécution porte
     # le résultat réel de l'entretien (conformité, mesures, signature de
     # validation) — même raisonnement que MaintenanceOccurrenceViewSet
@@ -216,12 +195,8 @@ class MaintenanceExecutionViewSet(SuppressionInterditeMixin, ScopedQuerySetMixin
             "occurrence__installation_maintenance__installation__",
         )
 
-    def perform_create(self, serializer):
-        occ = serializer.validated_data["occurrence"]
-        _verifier_cibles_dans_perimetre(
-            self.request.user, asset=occ.asset, installation_maintenance=occ.installation_maintenance,
-        )
-        serializer.save(executed_by=self.request.user, created_by=self.request.user)
+    def champs_serveur_creation(self):
+        return {"executed_by": self.request.user, "created_by": self.request.user}
 
-    def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+    def champs_serveur_modification(self):
+        return {"updated_by": self.request.user}

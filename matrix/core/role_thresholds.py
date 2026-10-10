@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from django.core.cache import cache
 
-from .roles import RoleLevel
+from .roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel
 
 PORTEE_NAVIRE = "SHIP"
 PORTEE_GLOBALE = "GLOBALE"
@@ -52,18 +52,28 @@ REGISTRE_ACTIONS = [
         "Matériel mobile", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
-        "installation_ecriture_simple", "Créer ou modifier une installation",
+        "installation_ecriture_simple", "Créer ou modifier une installation, ajouter un document",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
         "installation_gestion_avancee",
-        "Supprimer une installation ou lancer une action groupée",
+        "Supprimer une installation ou un de ses documents, ou lancer une action groupée",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
         "installation_entretien_gestion",
         "Gérer les tâches d'entretien d'une installation (ajout, modification, suppression, pièce jointe)",
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "fiche_bord_redaction",
+        "Rédiger ou proposer une nouvelle version d'une fiche de maintenance d'installation (chef de section ou de secteur)",
+        "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
+        "fiche_flotte_proposition",
+        "Proposer une fiche de maintenance flotte (matériel ou installation) ou son adaptation (chef de section ou de secteur)",
+        "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
         "rattachement_parent_gestion",
@@ -94,6 +104,11 @@ REGISTRE_ACTIONS = [
         "ronde_gestion",
         "Créer ou modifier un modèle de ronde et ses points de contrôle",
         "Rondes", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
+        "supervision_aujourdhui",
+        "Voir le bloc Supervision (retards, validations, indicateurs du périmètre) de la page Aujourd'hui",
+        "Tableau de bord", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
     ),
     ActionSeuil(
         "thread_ecriture", "Créer ou modifier une discussion",
@@ -127,17 +142,7 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
-        "Modules", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
-    ),
-    ActionSeuil(
-        "commandant_adjoint_gestion",
-        "Configurer les postes COMAEQ, COMOPS, COMANAV et COMAVIA, leurs titulaires et les services qui en dépendent",
-        "Organisation", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
-    ),
-    ActionSeuil(
-        "equipage_gestion",
-        "Gérer le double équipage : activation, rattachement des marins à leur équipage, relève à bord / à terre",
-        "Organisation", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+        "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,
     ),
     ActionSeuil(
         "referentiel_global_ecriture",
@@ -152,33 +157,6 @@ REGISTRE_ACTIONS = [
 ]
 
 REGISTRE_PAR_CLE = {a.cle: a for a in REGISTRE_ACTIONS}
-
-
-@dataclass(frozen=True)
-class DroitEnSecond:
-    cle: str
-    libelle: str
-    categorie: str
-
-
-# Actions d'écriture métier (sécurité, protection, coordination) que le
-# commandant en second peut exercer PAR SA FONCTION, sans suppléance : chaque
-# navire choisit lesquelles lui confier (RoleThresholdConfig.droits_en_second,
-# vide par défaut). Registre alimenté au fur et à mesure que la liste des actions
-# est arrêtée avec les utilisateurs métier ; on ne l'alimente qu'ici.
-REGISTRE_DROITS_EN_SECOND = [
-    DroitEnSecond(
-        "alerte_organisation_validation",
-        "Valider une modification de l'organisation sécurité / protection-défense (il en est le chef)",
-        "Feuille de service",
-    ),
-    DroitEnSecond(
-        "feuille_service_visa_comaeq",
-        "Viser et publier la feuille de service quand le poste de COMAEQ est vacant",
-        "Feuille de service",
-    ),
-]
-REGISTRE_DROITS_EN_SECOND_PAR_CLE = {d.cle: d for d in REGISTRE_DROITS_EN_SECOND}
 
 
 def _cache_key(ship_id):

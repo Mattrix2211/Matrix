@@ -1,0 +1,19 @@
+{% comment %}
+InteractiveCard : élément réellement cliquable, survol léger (docs/UX.md §14).
+Balise : {% load composants %}{% carte_interactive url="/..." titre="..." %}...{% fin_carte_interactive %}
+Paramètres :
+  url        : destination du lien (obligatoire)
+  titre      : titre (obligatoire)
+  sous_titre : ligne de précision (facultatif)
+  icone      : concept d'icône (facultatif)
+  contenu    : HTML complémentaire, sans lien ni bouton imbriqué
+  classes    : classes CSS supplémentaires
+{% endcomment %}{% load icones %}<a href="{{ url }}" class="mx-carte mx-carte--interactive {{ classes }}">
+  {% if icone %}<span class="mx-carte__icone">{% icone icone %}</span>{% endif %}
+  <span class="mx-carte__texte">
+    <span class="mx-carte__titre">{{ titre }}</span>
+    {% if sous_titre %}<span class="mx-carte__sous-titre">{{ sous_titre }}</span>{% endif %}
+    {% if contenu %}<span class="mx-carte__contenu">{{ contenu }}</span>{% endif %}
+  </span>
+  <span class="mx-carte__fleche">{% icone "suite" %}</span>
+</a>

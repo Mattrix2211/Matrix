@@ -1,30 +1,26 @@
 from django.contrib import admin
-from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation, CommandantAdjoint, Equipage
+from matrix.core.equipage import tracer_changement_equipage
+from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "archived", "created_at")
+    list_display = ("name", "code", "double_equipage", "equipage_a_bord", "archived", "created_at")
     search_fields = ("name", "code")
     list_filter = ("archived",)
 
-@admin.register(CommandantAdjoint)
-class CommandantAdjointAdmin(admin.ModelAdmin):
-    # Interface de secours technique : l'interface quotidienne est l'onglet
-    # « Commandants adjoints » de /parametre/.
-    list_display = ("sigle", "ship", "titulaire")
-    list_filter = ("ship", "sigle")
-
-@admin.register(Equipage)
-class EquipageAdmin(admin.ModelAdmin):
-    # Interface de secours technique : l'interface quotidienne est la page
-    # « Équipages » (/equipages/).
-    list_display = ("nom", "ship")
-    list_filter = ("ship",)
+    def save_model(self, request, obj, form, change):
+        avant = None
+        if change:
+            ancien = Ship.objects.get(pk=obj.pk)
+            avant = (ancien.double_equipage, ancien.equipage_a_bord)
+        super().save_model(request, obj, form, change)
+        if avant:
+            tracer_changement_equipage(request.user, obj, avant)
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
     list_display = ("name", "ship", "commandant_adjoint", "archived")
-    list_filter = ("ship", "archived")
+    list_filter = ("ship", "commandant_adjoint", "archived")
 
 @admin.register(Sector)
 class SectorAdmin(admin.ModelAdmin):
@@ -44,7 +40,7 @@ class SectorConfigAdmin(admin.ModelAdmin):
 class RoleThresholdConfigAdmin(admin.ModelAdmin):
     # Interface de gestion réservée aux administrateurs techniques (superusers
     # Django) : l'interface destinée aux ADMIN_NAVIRE/MASTER_ADMIN au quotidien
-    # est l'onglet « Sécurité » de /parametre/ (matrix/settings_views.py::SettingsView),
+    # est l'onglet « Sécurité » de /parametre/ (matrix/views.py::SettingsView),
     # pas ce Django admin brut (principe n°2 CLAUDE.md).
     list_display = ("ship", "updated_at")
 
@@ -52,6 +48,6 @@ class RoleThresholdConfigAdmin(admin.ModelAdmin):
 class ModuleActivationAdmin(admin.ModelAdmin):
     # Même principe que RoleThresholdConfigAdmin ci-dessus : interface de
     # secours technique, l'interface quotidienne est l'onglet « Modules » de
-    # /parametre/ (matrix/settings_views.py::SettingsView).
+    # /parametre/ (matrix/views.py::SettingsView).
     list_display = ("ship", "module", "active", "updated_at")
     list_filter = ("ship", "module", "active")
