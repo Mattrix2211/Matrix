@@ -470,3 +470,47 @@ class ModificationTests(TachesBase):
         self.assertContains(self.client.get(reverse("tache-detail", args=[self.tache.pk])), "Réaffecter ou replanifier")
         self.client.login(username="marin", password="pass")
         self.assertNotContains(self.client.get(reverse("tache-detail", args=[self.tache.pk])), "Réaffecter ou replanifier")
+
+
+class SuiteRelectureTests(TachesBase):
+    def test_partage_modifiable_par_le_marin_et_retire_les_interlocuteurs(self):
+        tache = self._tache(created_by=self.marin, partagee=True)
+        tache.participants.add(self.terre)
+        self.post("marin", "tache-action", [tache.pk], {"action": "ne_plus_partager"})
+        tache.refresh_from_db()
+        self.assertFalse(tache.partagee)
+        self.assertFalse(tache.participants.exists())
+        self.assertNotIn(tache, services.taches_visibles(self.chef))
+        self.post("marin", "tache-action", [tache.pk], {"action": "partager"})
+        tache.refresh_from_db()
+        self.assertTrue(tache.partagee)
+        self.assertIn(tache, services.taches_visibles(self.chef))
+
+    def test_partage_reserve_au_marin_et_aux_taches_personnelles(self):
+        perso = self._tache(created_by=self.marin, partagee=True)
+        attribuee = self._tache()
+        self.post("chef", "tache-action", [perso.pk], {"action": "ne_plus_partager"})
+        self.post("marin", "tache-action", [attribuee.pk], {"action": "ne_plus_partager"})
+        perso.refresh_from_db()
+        self.assertTrue(perso.partagee)
+        with self.assertRaises(PermissionError):
+            services.partager(attribuee, self.marin, False)
+
+    def test_le_chef_ne_peut_pas_se_reaffecter_la_tache(self):
+        tache = self._tache()
+        with self.assertRaises(PermissionError):
+            services.modifier_tache(self.chef, tache, self.chef, tache.echeance, "URGENTE")
+        tache.refresh_from_db()
+        self.assertEqual(tache.assigne, self.marin)
+
+    def test_relances_de_l_ancien_titulaire_soldees_a_la_reaffectation(self):
+        tache = self._tache(echeance=self.aujourdhui - timedelta(days=1))
+        services.relancer_echeances_depassees()
+        autre = self._marin("autre", self.secteur, "EQUIPIER", "A")
+        services.modifier_tache(self.chef, tache, autre, tache.echeance, tache.priorite)
+        self.assertFalse(Notification.objects.filter(user=self.marin, verb__startswith=services.PREFIXE_RELANCE, is_read=False).exists())
+
+    def test_tache_urgente_remonte_dans_aujourdhui(self):
+        normale = self._tache(titre="Normale", echeance=self.aujourdhui + timedelta(days=1))
+        urgente = self._tache(titre="Urgente", echeance=self.aujourdhui + timedelta(days=5), priorite="URGENTE")
+        self.assertEqual([e["objet"] for e in a_faire(self.marin, self.aujourdhui)], [urgente, normale])

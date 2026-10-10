@@ -56,6 +56,12 @@
   <button class="btn btn-primary" type="submit">Publier</button>
 </form>
 
+{% if tache.personnelle and est_assigne and not equipage_a_terre %}
+<form method="post" action="{% url 'tache-action' tache.pk %}" class="mb-4">{% csrf_token %}
+  <input type="hidden" name="action" value="{% if tache.partagee %}ne_plus_partager{% else %}partager{% endif %}">
+  <button class="btn btn-outline-secondary btn-sm" type="submit">{% if tache.partagee %}Reprendre en privé{% else %}Partager avec mes chefs{% endif %}</button>
+</form>
+{% endif %}
 {% if peut_modifier and not equipage_a_terre %}
 <form method="post" action="{% url 'tache-action' tache.pk %}" class="card card-body mb-4">{% csrf_token %}<input type="hidden" name="action" value="modifier">
   <h2 class="h6">Réaffecter ou replanifier</h2>

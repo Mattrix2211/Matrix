@@ -110,7 +110,7 @@ def a_faire(user, aujourdhui):
             detail = f"Blocage à lever · {tache.assigne.get_full_name() or tache.assigne.username}"
         entrees.append(_entree(
             tache, tache.titre, detail, reverse("tache-detail", args=[tache.pk]), "tache",
-            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 0, _echeance(tache.echeance or aujourdhui + timedelta(days=3650)),
+            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 4 if tache.priorite == tache.PRIORITE_URGENTE else 0, _echeance(tache.echeance or aujourdhui + timedelta(days=3650)),
         ))
     for session in formations_du_marin(user):
         if timezone.localtime(session.scheduled_at).date() == aujourdhui:

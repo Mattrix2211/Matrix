@@ -196,6 +196,18 @@ def peut_modifier(user, tache):
     return tache.ouverte and not tache.personnelle and peut_gerer(user, tache)
 
 
+def partager(tache, user, partagee):
+    """Le marin partage sa tâche personnelle avec ses chefs, ou la reprend en privé (les interlocuteurs sont retirés)."""
+    if not tache.personnelle or user.pk != tache.assigne_id:
+        raise PermissionError("Seul le marin peut modifier le partage de sa tâche personnelle.")
+    if tache.partagee == partagee:
+        raise ValidationError("Le partage est déjà dans cet état.")
+    tache.partagee = partagee
+    if not partagee:
+        tache.participants.clear()
+    _enregistrer(tache, user, "partage" if partagee else "retrait_partage", ["partagee"])
+
+
 def modifier_tache(chef, tache, assigne, echeance, priorite):
     """Réaffecte, replanifie ou change la priorité ; chaque changement est tracé dans le fil et l'audit.
 
@@ -205,7 +217,7 @@ def modifier_tache(chef, tache, assigne, echeance, priorite):
         raise PermissionError("Vous ne pouvez pas modifier cette tâche.")
     changements, champs, ancien = [], ["echeance", "priorite"], tache.assigne
     if assigne.pk != tache.assigne_id:
-        if not est_chef_de(chef, assigne):
+        if assigne.pk == chef.pk or not est_chef_de(chef, assigne):
             raise PermissionError("Vous ne pouvez pas confier la tâche à ce marin.")
         tache.assigne = assigne
         tache.statut, tache.motif_blocage = Tache.STATUT_A_FAIRE, ""
@@ -223,6 +235,7 @@ def modifier_tache(chef, tache, assigne, echeance, priorite):
     _enregistrer(tache, chef, "modification", champs, extra=f"; modifications={resume}")
     _message_systeme(tache, f"{_nom(chef)} a modifié la tâche : {resume}.")
     if tache.assigne_id != ancien.pk:
+        _relances(tache).filter(user=ancien, is_read=False).update(is_read=True)
         _notifier(tache, [tache.assigne], f"{_nom(chef)} vous a confié la tâche « {tache.titre} » ({resume}).")
         _notifier(tache, [ancien], f"La tâche « {tache.titre} » ne vous est plus attribuée : {resume}.")
     else:

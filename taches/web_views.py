@@ -19,6 +19,7 @@ from .services import (
     demarrer,
     interlocuteurs_possibles,
     modifier_tache,
+    partager,
     peut_modifier,
     marins_assignables,
     peut_consulter,
@@ -100,7 +101,7 @@ class TacheDetailView(LoginRequiredMixin, View):
 
 
 class TacheActionView(LoginRequiredMixin, View):
-    """Actions de suivi : démarrer, bloquer, rendre compte, lever le blocage, modifier, ajouter un interlocuteur."""
+    """Actions de suivi : démarrer, bloquer, rendre compte, lever le blocage, modifier, partager, ajouter un interlocuteur."""
 
     def post(self, request, pk):
         tache = _tache_visible(request, pk)
@@ -122,6 +123,9 @@ class TacheActionView(LoginRequiredMixin, View):
                     raise ValidationError("Indiquez un marin et une échéance valide (ou aucune).")
                 modifier_tache(request.user, tache, nouveau, echeance, request.POST.get("priorite", ""))
                 messages.success(request, "Tâche modifiée.")
+            elif action in ("partager", "ne_plus_partager"):
+                partager(tache, request.user, action == "partager")
+                messages.success(request, "Partage mis à jour.")
             elif action == "interlocuteur":
                 cible = User.objects.filter(pk=request.POST.get("interlocuteur")).first()
                 if cible is None:
