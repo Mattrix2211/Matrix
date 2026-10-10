@@ -155,31 +155,38 @@ class RelanceEcheanceTests(TachesBase):
 
     def test_relance_unique_par_jour_meme_si_lue(self):
         self._tache(echeance=self.aujourdhui - timedelta(days=2))
-        self.assertEqual(services.relancer_echeances_depassees(), 1)
+        self.assertEqual(services.relancer_echeances_depassees(), 2)
         self.assertEqual(services.relancer_echeances_depassees(), 0)
-        self.relances(self.marin).update(is_read=True)
+        Notification.objects.filter(verb__startswith=services.PREFIXE_RELANCE).update(is_read=True)
         self.assertEqual(services.relancer_echeances_depassees(), 0)
         self.assertEqual(self.relances(self.marin).count(), 1)
+        self.assertEqual(self.relances(self.chef).count(), 1)
 
     def test_nouvelle_relance_le_lendemain_si_non_traitee(self):
         self._tache(echeance=self.aujourdhui - timedelta(days=1))
         services.relancer_echeances_depassees()
         self.relances(self.marin).update(is_read=True)
-        self.assertEqual(services.relancer_echeances_depassees(self.aujourdhui + timedelta(days=1)), 1)
+        self.assertEqual(services.relancer_echeances_depassees(self.aujourdhui + timedelta(days=1)), 2)
         self.assertEqual(self.relances(self.marin).count(), 2)
 
-    def test_pas_de_relance_pour_echeance_future_bloquee_ou_close(self):
+    def test_pas_de_relance_pour_echeance_future_ou_tache_close(self):
         self._tache(echeance=self.aujourdhui)
-        self._tache(echeance=self.aujourdhui - timedelta(days=1), statut=Tache.STATUT_BLOQUEE)
         self._tache(echeance=self.aujourdhui - timedelta(days=1), statut=Tache.STATUT_TERMINEE)
         self.assertEqual(services.relancer_echeances_depassees(), 0)
+
+    def test_blocage_en_retard_releve_les_chefs_du_perimetre_pas_le_marin(self):
+        self._tache(echeance=self.aujourdhui - timedelta(days=1), statut=Tache.STATUT_BLOQUEE, motif_blocage="Vanne")
+        self.assertEqual(services.relancer_echeances_depassees(), 1)
+        self.assertEqual(self.relances(self.chef).count(), 1)
+        self.assertIn("(bloquée)", self.relances(self.chef).get().verb)
+        self.assertFalse(self.relances(self.marin).exists())
 
     def test_relances_soldees_quand_la_tache_est_traitee(self):
         tache = self._tache(echeance=self.aujourdhui - timedelta(days=1))
         services.relancer_echeances_depassees()
         services.rendre_compte(tache, self.marin, "Fait.")
         services.relancer_echeances_depassees()
-        self.assertFalse(self.relances(self.marin).filter(is_read=False).exists())
+        self.assertFalse(Notification.objects.filter(verb__startswith=services.PREFIXE_RELANCE, is_read=False).exists())
 
 
 class AvancementTests(TachesBase):
