@@ -40,6 +40,7 @@ ICONES = {
     "absence": "bi-calendar-x",
     "garde": "bi-shield-check",
     "ronde": "bi-compass",
+    "tache": "bi-check2-square",
     "personnel": "bi-pin-angle",
     # Navigation latérale (§7)
     "aujourdhui": "bi-house-door",

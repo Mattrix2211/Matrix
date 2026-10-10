@@ -91,6 +91,10 @@ REGISTRE_MODULES = [
         "prises en compte par les échanges de service et le calendrier personnel.",
     ),
     ModuleInfo(
+        "taches", "Tâches",
+        "Tâches attribuées par les chefs, fil de discussion contextuel, blocages et comptes rendus.",
+    ),
+    ModuleInfo(
         "rondes", "Rondes",
         "Modèles de ronde et points de contrôle configurables, exécution des rondes.",
     ),

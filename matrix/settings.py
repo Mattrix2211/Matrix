@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "training.apps.TrainingConfig",
     "quarts.apps.QuartsConfig",
     "absences.apps.AbsencesConfig",
+    "taches.apps.TachesConfig",
     "rondes.apps.RondesConfig",
     "threads.apps.ThreadsConfig",
     "notifications.apps.NotificationsConfig",

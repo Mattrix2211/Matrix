@@ -16,6 +16,7 @@ from matrix.core.roles import user_role_level
 from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
+from taches.services import taches_a_suivre
 from training.models import TrainingCourse, TrainingSession
 
 STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
@@ -100,6 +101,17 @@ def a_faire(user, aujourdhui):
             reverse("ronde-detail", args=[ronde.pk]), "ronde", DANGER if en_retard else NORMAL, 0,
             _echeance(ronde.date_prevue),
         ))
+    for tache in taches_a_suivre(user):
+        propre = tache.assigne_id == user.pk
+        en_retard = tache.echeance < aujourdhui
+        if propre:
+            detail = "Tâche en retard" if en_retard else f"Tâche · {tache.get_statut_display()}"
+        else:
+            detail = f"Blocage à lever · {tache.assigne.get_full_name() or tache.assigne.username}"
+        entrees.append(_entree(
+            tache, tache.titre, detail, reverse("tache-detail", args=[tache.pk]), "tache",
+            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 0, _echeance(tache.echeance),
+        ))
     for session in formations_du_marin(user):
         if timezone.localtime(session.scheduled_at).date() == aujourdhui:
             entrees.append(_entree(
@@ -151,7 +163,7 @@ def journee(user, aujourdhui, taches):
         })
     # Sans heure précise : la date seule est connue.
     for entree in taches:
-        if entree["icone"] in ("ronde", "maintenance") and entree["echeance"].date() == aujourdhui:
+        if entree["icone"] in ("ronde", "maintenance", "tache") and entree["echeance"].date() == aujourdhui:
             points.append({
                 "heure": None, "libelle": entree["titre"], "icone": entree["icone"], "url": entree["url"],
             })
