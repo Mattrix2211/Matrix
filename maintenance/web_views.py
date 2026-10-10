@@ -23,6 +23,7 @@ from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_s
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
+from matrix.core.validators import valider_document, message_erreur_fichier
 from accounts.models import AuditLog, Roles, UserProfile
 from notifications.models import Notification, NotificationLevel
 from assets import fiche_signalement
@@ -205,6 +206,10 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(occ.pk))
         msg = Message.objects.create(thread=thread, author=request.user, body=f"Exécution: {conformity} — {synthese['texte']}", is_system=False)
         for f in request.FILES.getlist('photos'):
+            erreur_fichier = message_erreur_fichier(f, valider_document)
+            if erreur_fichier:
+                messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
+                continue
             Attachment.objects.create(message=msg, file=f, name=f.name)
 
         if request.headers.get('HX-Request'):

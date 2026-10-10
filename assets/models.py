@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel, OwnedModel
+from matrix.core.validators import valider_photo, valider_document
 from org.models import Ship, Service, Sector, Section
 
 User = get_user_model()
@@ -61,7 +62,7 @@ class Deck(TimeStampedModel):
     # Optionnelle : un pont peut être créé avant que son plan ne soit
     # téléversé. Même convention que Asset.photo/Installation.photo
     # (FileField, dossier dédié).
-    image = models.FileField(upload_to="deck_images/", null=True, blank=True, verbose_name="Image du plan")
+    image = models.FileField(upload_to="deck_images/", null=True, blank=True, verbose_name="Image du plan", validators=[valider_photo])
 
     class Meta:
         ordering = ["ship__name", "order", "name"]
@@ -248,7 +249,7 @@ class Asset(TimeStampedModel, OwnedModel):
     marque = models.CharField(max_length=255, blank=True, default="")
     gisement = models.CharField(max_length=255, blank=True, default="")
     local = models.CharField(max_length=255, blank=True, default="")
-    photo = models.FileField(upload_to="asset_photos/", null=True, blank=True)
+    photo = models.FileField(upload_to="asset_photos/", null=True, blank=True, validators=[valider_photo])
     location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL, related_name="assets")
     ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="assets")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="assets")
@@ -284,7 +285,7 @@ class Asset(TimeStampedModel, OwnedModel):
     position_y = models.FloatField(null=True, blank=True, verbose_name="Position Y (%)")
 
     # États possibles pour le code couleur de l'épingle sur le plan interactif
-    # (cf. assets/web_views.py::PlanNavireVueDeckView), repris à l'identique de
+    # (cf. assets/plan_navire_views.py::PlanNavireVueDeckView), repris à l'identique de
     # l'ancien Zone.etat_materiel mais calculé pour CE matériel uniquement
     # (une épingle = un seul matériel, plus de regroupement par zone).
     ETAT_OK = "OK"
@@ -335,7 +336,7 @@ class Asset(TimeStampedModel, OwnedModel):
 
 class AssetDocument(TimeStampedModel, OwnedModel):
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="documents")
-    file = models.FileField(upload_to="asset_docs/")
+    file = models.FileField(upload_to="asset_docs/", validators=[valider_document])
     name = models.CharField(max_length=255)
 
 
@@ -347,7 +348,7 @@ class Installation(TimeStampedModel, OwnedModel):
     gisement = models.CharField(max_length=255, blank=True, default="")
     local = models.CharField(max_length=255, blank=True, default="")
     bigrame = models.ForeignKey(InstallationBigrameChoice, null=True, blank=True, on_delete=models.SET_NULL, related_name="installations")
-    photo = models.FileField(upload_to="installation_photos/", null=True, blank=True)
+    photo = models.FileField(upload_to="installation_photos/", null=True, blank=True, validators=[valider_photo])
     location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL, related_name="installations")
     ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="installations")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="installations")
@@ -431,7 +432,7 @@ class DocumentInstallation(TimeStampedModel, OwnedModel):
 class AssetFolder(TimeStampedModel, OwnedModel):
     name = models.CharField(max_length=255)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children')
-    photo = models.FileField(upload_to="folder_photos/", null=True, blank=True)
+    photo = models.FileField(upload_to="folder_photos/", null=True, blank=True, validators=[valider_photo])
 
     class Meta:
         ordering = ["name"]
@@ -454,7 +455,7 @@ class InstallationEvent(TimeStampedModel, OwnedModel):
 
 class InstallationEventAttachment(TimeStampedModel, OwnedModel):
     event = models.ForeignKey(InstallationEvent, on_delete=models.CASCADE, related_name="attachments")
-    file = models.FileField(upload_to="installation_events/")
+    file = models.FileField(upload_to="installation_events/", validators=[valider_document])
     name = models.CharField(max_length=255, blank=True, default="")
 
     def __str__(self):
@@ -476,7 +477,7 @@ class InstallationPart(TimeStampedModel, OwnedModel):
     nno = models.CharField(max_length=255, blank=True, default="")
     reference = models.CharField(max_length=255, blank=True, default="")
     marque = models.CharField(max_length=255, blank=True, default="")
-    photo = models.FileField(upload_to="installation_parts/", null=True, blank=True)
+    photo = models.FileField(upload_to="installation_parts/", null=True, blank=True, validators=[valider_photo])
 
     class Meta:
         ordering = ["name"]
@@ -633,7 +634,7 @@ class InstallationMaintenance(TimeStampedModel, OwnedModel):
 
 class InstallationMaintenanceAttachment(TimeStampedModel, OwnedModel):
     maintenance = models.ForeignKey(InstallationMaintenance, on_delete=models.CASCADE, related_name="attachments")
-    file = models.FileField(upload_to="installation_maintenance/")
+    file = models.FileField(upload_to="installation_maintenance/", validators=[valider_document])
     name = models.CharField(max_length=255, blank=True, default="")
 
     def __str__(self):

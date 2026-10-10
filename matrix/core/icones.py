@@ -36,6 +36,8 @@ ICONES = {
     "ticket": "bi-wrench",
     "formation": "bi-mortarboard",
     "quart": "bi-clock",
+    "feuille_service": "bi-journal-text",
+    "absence": "bi-calendar-x",
     "garde": "bi-shield-check",
     "ronde": "bi-compass",
     "personnel": "bi-pin-angle",

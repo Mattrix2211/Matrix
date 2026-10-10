@@ -64,6 +64,20 @@ class UserProfile(TimeStampedModel):
         return f"{self.user} ({self.role})"
 
     @property
+    def navire_id_effectif(self):
+        """Navire du marin, y compris quand il n'est rattaché que par son
+        service, son secteur ou sa section (champ `ship` laissé vide)."""
+        if self.ship_id:
+            return self.ship_id
+        if self.service_id:
+            return self.service.ship_id
+        if self.sector_id:
+            return self.sector.service.ship_id
+        if self.section_id:
+            return self.section.sector.service.ship_id
+        return None
+
+    @property
     def scope(self):
         if self.section_id:
             return ("section", self.section_id)
@@ -125,6 +139,22 @@ class FonctionQuartChoice(models.Model):
     class Meta:
         verbose_name = "Fonction de quart"
         verbose_name_plural = "Fonctions de quart"
+
+    def __str__(self):
+        return self.name
+
+
+class TypeAbsence(models.Model):
+    """Référentiel configurable des types d'absence (permission, mission,
+    maladie, congé...) utilisé par absences.Absence : rien n'est figé dans le code."""
+
+    name = models.CharField(max_length=128, unique=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Type d'absence"
+        verbose_name_plural = "Types d'absence"
+        ordering = ("name",)
 
     def __str__(self):
         return self.name

@@ -156,6 +156,56 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
     return True, ship, service, sector, section
 
 
+def equipage_agissant(user):
+    """Code d'équipage dans lequel `user` agit sur un bâtiment à double équipage :
+    son propre équipage, ou à défaut (administrateur d'unité, commandant sans
+    équipage renseigné) l'équipage à bord. None si le navire est à équipage
+    unique (comportement inchangé) ou si l'utilisateur voit la flotte entière.
+
+    Extension de scope_filters_for_user : le périmètre navire/service/secteur/
+    section dit SUR QUOI l'utilisateur agit, l'équipage dit AVEC QUI (quarts,
+    listes, échanges, assignations, absences)."""
+    if not getattr(user, "is_authenticated", False) or is_master_admin(user):
+        return None
+    profile = getattr(user, "profile", None)
+    navire_id = profile.navire_id_effectif if profile else None
+    if not navire_id:
+        return None
+    from org.models import Ship
+    ship = Ship.objects.filter(pk=navire_id).first()
+    if ship is None or not ship.double_equipage:
+        return None
+    return profile.equipage or ship.equipage_a_bord or None
+
+
+def equipage_marin_q(user, prefix: str = "profile__") -> Q:
+    """Filtre Q limitant des marins à l'équipage de `user` (Q() vide, donc sans
+    effet, sur un navire à équipage unique). `prefix` : chemin vers le profil
+    depuis le modèle interrogé, comme pour perimetre_navire_q()."""
+    equipage = equipage_agissant(user)
+    return Q() if equipage is None else Q(**{f"{prefix}equipage": equipage})
+
+
+def marins_hors_equipage(user, marins):
+    """Marins de la liste qui ne sont pas de l'équipage de `user` (liste vide
+    sur un navire à équipage unique) : sert à refuser une assignation qui
+    mélangerait les deux équipages d'un bâtiment à double équipage."""
+    autorises = set(
+        get_user_model().objects.filter(equipage_marin_q(user), pk__in=[m.pk for m in marins])
+        .values_list("pk", flat=True)
+    )
+    return [m for m in marins if m.pk not in autorises]
+
+
+def meme_equipage(marin_a, marin_b) -> bool:
+    """Vrai si les deux marins ne sont pas d'équipages différents sur un
+    bâtiment à double équipage. Sur un navire à équipage unique (aucun
+    équipage renseigné), toujours vrai."""
+    profil_a, profil_b = getattr(marin_a, "profile", None), getattr(marin_b, "profile", None)
+    equipage_a = profil_a.equipage if profil_a else ""
+    equipage_b = profil_b.equipage if profil_b else ""
+    return equipage_a == equipage_b
+
 def section_id_for_user(user) -> Optional[int]:
     """Renvoie l'id de la section rattachée au profil de l'utilisateur, ou None
     si aucune section n'est renseignée. Même logique que ship_id_for_user()

@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from matrix.core.models import TimeStampedModel, OwnedModel
+from matrix.core.validators import valider_photo
 from assets.models import Asset, Installation
 from org.models import Ship, Service, Sector, Section
 from accounts.models import Roles, UserProfile
@@ -155,7 +156,7 @@ class StockPiece(TimeStampedModel, OwnedModel):
     # Photo de la pièce, même mécanisme que les autres photos du projet
     # (Asset.photo, Installation.photo, InstallationPart.photo) : pas de nouveau
     # système de pièce jointe.
-    photo = models.FileField(upload_to="stock_photos/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="stock_photos/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo])
     ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Unité")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Service")
     sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Secteur")
@@ -284,7 +285,7 @@ class Anomalie(TimeStampedModel, OwnedModel):
     gravite = models.PositiveSmallIntegerField(default=3, verbose_name="Gravité")
     statut = models.CharField(max_length=20, choices=STATUTS, default="SIGNALEE", verbose_name="Statut")
     localisation = models.CharField(max_length=255, blank=True, default="", verbose_name="Localisation")
-    photo = models.FileField(upload_to="anomalie_photos/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="anomalie_photos/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo])
     # Périmètre organisationnel, déduit de l'équipement lié sinon du profil du
     # déclarant (voir rattacher_a) : sert uniquement au scoping et aux
     # notifications, jamais saisi à la main.

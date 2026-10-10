@@ -4,6 +4,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from matrix.core.models import TimeStampedModel, OwnedModel
+from matrix.core.validators import valider_document
 
 User = get_user_model()
 
@@ -23,5 +24,5 @@ class Message(TimeStampedModel, OwnedModel):
 
 class Attachment(TimeStampedModel, OwnedModel):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="attachments")
-    file = models.FileField(upload_to="thread_attachments/")
+    file = models.FileField(upload_to="thread_attachments/", validators=[valider_document])
     name = models.CharField(max_length=255)

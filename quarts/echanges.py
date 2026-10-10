@@ -4,20 +4,23 @@ affectations sont permutées. Chaque étape est tracée (EchangeServiceEvenement
 + AuditLog) et notifie les personnes concernées.
 
 Le calendrier personnel n'a rien à mettre à jour lui-même : il lit directement
-CreneauServiceGarde.marin (calendar_app/views.py), donc la permutation des deux
+CreneauServiceGarde.marin (calendar_app/evenements_sources.py), donc la permutation des deux
 créneaux suffit à le refléter pour A comme pour B.
 
 Périmètre : échanges entre deux créneaux d'UNE MÊME liste de gardes (même chef
 de liste, mêmes habilitations) — hypothèse de cadrage, non étendue aux quarts.
-Les absences ne sont pas modélisées dans Matrix à ce jour : la détection couvre
-donc les conflits d'affectation (autre garde ou quart au même moment) et les
-habilitations manquantes ; un modèle d'absence pourra s'y brancher plus tard
-dans `analyser_echange`."""
+Sur un bâtiment à double équipage, l'échange reste interne à l'équipage
+(tranche 4 : les deux marins doivent être du même équipage). La détection couvre les conflits d'affectation (autre garde ou quart au même
+moment), les habilitations manquantes, et — depuis la tâche Notion « Absences
+et indisponibilités » — les absences déclarées (`absences.models.Absence`)
+qui chevauchent le tour repris par le marin (cf. `absences_marin` ci-dessous)."""
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from absences.models import Absence
 from accounts.models import AuditLog
+from matrix.core.scopes import meme_equipage
 from notifications.models import Notification, NotificationLevel
 from training.models import TrainingRecord
 
@@ -49,7 +52,7 @@ def _libelle_creneau(creneau):
     return f"« {creneau.poste} » du {timezone.localtime(creneau.debut):%d/%m/%Y %H:%M}"
 
 
-def _conflits_marin(marin, creneau, ignorer_ids):
+def conflits_marin(marin, creneau, ignorer_ids):
     """Autres gardes ou quarts publiés de `marin` chevauchant `creneau`."""
     filtres = dict(marin=marin, debut__lt=creneau.fin, fin__gt=creneau.debut)
     gardes = CreneauServiceGarde.objects.filter(
@@ -59,7 +62,10 @@ def _conflits_marin(marin, creneau, ignorer_ids):
     return list(gardes) + list(quarts)
 
 
-def _habilitations_manquantes(marin, creneau):
+def habilitations_manquantes(marin, creneau):
+    """Habilitations exigées par la liste de garde de `creneau` que `marin` ne
+    possède pas (validation en cours le jour du créneau). Ne s'applique qu'à
+    un CreneauServiceGarde (le seul à porter `formations_requises`)."""
     jour = timezone.localtime(creneau.debut).date()
     manquantes = []
     for formation in creneau.service_garde.formations_requises.all():
@@ -69,6 +75,16 @@ def _habilitations_manquantes(marin, creneau):
         if not valide:
             manquantes.append(formation.title)
     return manquantes
+
+
+def absences_marin(marin, creneau):
+    """Absences déclarées de `marin` (validées ou en attente de validation)
+    qui chevauchent `creneau`, même principe que conflits_marin/
+    habilitations_manquantes ci-dessus — cf. absences/models.py::Absence."""
+    jour_debut = timezone.localtime(creneau.debut).date()
+    jour_fin = timezone.localtime(creneau.fin).date()
+    candidates = Absence.objects.filter(marin=marin, date_debut__lte=jour_fin, date_fin__gte=jour_debut)
+    return [a for a in candidates if a.chevauche_creneau(creneau)]
 
 
 def analyser_echange(echange, verifier_delai=False):
@@ -82,6 +98,8 @@ def analyser_echange(echange, verifier_delai=False):
         problemes.append("Les deux tours doivent appartenir à la même liste de services.")
     if a.service_garde.statut != "PUBLIEE":
         problemes.append("La liste n'est pas publiée : les tours ne sont pas encore définitifs.")
+    if echange.demandeur and echange.cible and not meme_equipage(echange.demandeur, echange.cible):
+        problemes.append("Un échange de service ne peut se faire qu'entre marins d'un même équipage.")
     if a.marin_id != echange.demandeur_id:
         problemes.append(
             f"Le tour {_libelle_creneau(a)} n'est plus affecté à {_nom(echange.demandeur)} : "
@@ -111,16 +129,22 @@ def analyser_echange(echange, verifier_delai=False):
 
     ignorer = [a.pk, b.pk]
     for marin, prend in ((echange.cible, a), (echange.demandeur, b)):
-        for conflit in _conflits_marin(marin, prend, ignorer):
+        for conflit in conflits_marin(marin, prend, ignorer):
             problemes.append(
                 f"Conflit d'affectation : {_nom(marin)} serait déjà affecté(e) à "
                 f"{_libelle_creneau(conflit)} au moment du tour {_libelle_creneau(prend)}."
             )
-        manquantes = _habilitations_manquantes(marin, prend)
+        manquantes = habilitations_manquantes(marin, prend)
         if manquantes:
             problemes.append(
                 f"Habilitation manquante : {_nom(marin)} n'a pas de validation en cours pour "
                 f"« {' », « '.join(manquantes)} » le jour du tour {_libelle_creneau(prend)}."
+            )
+        for absence in absences_marin(marin, prend):
+            precision = "" if absence.statut == Absence.STATUT_VALIDEE else " (déclarée, en attente de validation)"
+            problemes.append(
+                f"Absence : {_nom(marin)} est {absence.type_absence} du {absence.date_debut:%d/%m/%Y} "
+                f"au {absence.date_fin:%d/%m/%Y}{precision} — indisponible pour le tour {_libelle_creneau(prend)}."
             )
     return problemes
 
@@ -275,7 +299,12 @@ def rejeter_echange(echange, user, motif=""):
 @transaction.atomic
 def valider_echange(echange, user):
     """Dernière étape : les conditions sont revérifiées (la situation a pu
-    changer depuis l'accord), puis les deux marins sont permutés."""
+    changer depuis l'accord), puis les deux marins sont permutés. Fige une
+    nouvelle version de la liste (cf. ListeServiceAbstract.creer_version,
+    cahier des charges §31) : un échange validé change l'affectation active
+    d'une liste déjà publiée, exactement le cas d'exemple « v3 + échange
+    validé » du cahier des charges — jamais un écrasement silencieux de
+    l'historique."""
     _echange_en_attente(echange, EchangeService.STATUT_ACCEPTE)
     if not peut_valider_echange(user, echange):
         raise EchangeImpossible("Seul le chef de la liste concernée peut valider cet échange.")
@@ -291,6 +320,7 @@ def valider_echange(echange, user):
     echange.decide_le = timezone.now()
     echange.decide_par = user
     echange.save(update_fields=["statut", "decide_le", "decide_par", "updated_at"])
+    echange.liste.creer_version(user)
     _tracer(
         echange, user, "validation",
         f"{echange.libelle_creneau_demandeur} : {_nom(echange.demandeur)} -> {_nom(echange.cible)} ; "

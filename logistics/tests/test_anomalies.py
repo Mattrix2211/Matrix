@@ -1,17 +1,28 @@
+import io
+
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
+from PIL import Image as PILImage
 
 from accounts.models import AuditLog, UserProfile
 from assets.models import Asset, AssetType, Installation
 from logistics.models import Anomalie, AnomalieStatutLog, CorrectiveTicket
 from notifications.models import Notification
 from org.models import Section, Sector, Service, Ship
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
-@override_settings(MEDIA_ROOT="/tmp/matrix_tests_media")
-class AnomalieTests(TestCase):
+def _png_1x1():
+    # PNG 1x1 généré à la volée par Pillow : doit décoder réellement
+    # (Image.open().verify()), même fixture que test_plan_navire_web.py.
+    tampon = io.BytesIO()
+    PILImage.new("RGB", (1, 1), color=(128, 128, 128)).save(tampon, format="PNG")
+    return tampon.getvalue()
+
+
+class AnomalieTests(MediaRootTemporaireMixin, TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Navire A", code="NA")
         self.service = Service.objects.create(ship=self.ship, name="Service A")
@@ -70,7 +81,10 @@ class AnomalieTests(TestCase):
         self.assertFalse(Anomalie.objects.exists())
 
     def test_photo_et_localisation_enregistrees(self):
-        photo = SimpleUploadedFile("p.png", b"\x89PNG\r\n", content_type="image/png")
+        # Depuis la validation serveur des fichiers téléversés (tâche [SEC]),
+        # un contenu factice comme b"\x89PNG\r\n" est refusé par Pillow
+        # (Image.open().verify()) : il faut un vrai PNG décodable.
+        photo = SimpleUploadedFile("p.png", _png_1x1(), content_type="image/png")
         self._signaler(self.marin, localisation="Coursive bâbord", photo=photo)
         anomalie = Anomalie.objects.get()
         self.assertEqual(anomalie.localisation, "Coursive bâbord")
@@ -140,7 +154,7 @@ class AnomalieTests(TestCase):
         self.assertContains(reponse, 'value="Fuite"')
 
     def test_assistant_conserve_la_photo_entre_les_etapes(self):
-        photo = SimpleUploadedFile("p.png", b"\x89PNG\r\n", content_type="image/png")
+        photo = SimpleUploadedFile("p.png", _png_1x1(), content_type="image/png")
         reponse = self._etape(3, titre="Fuite", photo=photo)
         self.assertEqual(reponse.context["etape"], 4)
         jeton = reponse.context["photo_attente"]
@@ -148,7 +162,7 @@ class AnomalieTests(TestCase):
         self.assertTrue(Anomalie.objects.get().photo)
 
     def test_jeton_de_photo_d_un_autre_marin_ignore(self):
-        photo = SimpleUploadedFile("p.png", b"\x89PNG\r\n", content_type="image/png")
+        photo = SimpleUploadedFile("p.png", _png_1x1(), content_type="image/png")
         jeton = self._etape(3, titre="Fuite", photo=photo).context["photo_attente"]
         self.client.login(username="marin2", password="pass")
         self.client.post(reverse("anomalie-create"), {"etape": "4", "titre": "Fuite", "photo_attente": jeton})

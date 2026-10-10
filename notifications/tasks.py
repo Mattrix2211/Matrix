@@ -15,7 +15,7 @@ from assets.trend import jours_avant_franchissement_seuil
 from calendar_app.views import evenements_utilisateur_jour
 
 # Échéances (en jours avant expiration) auxquelles une formation déclenche une
-# alerte : réutilisé par dashboard/web_views.py pour aligner le seuil "bientôt
+# alerte : réutilisé par training/services.py pour aligner le seuil "bientôt
 # expirée" de la carte "Mes qualifications" sur celui de ces notifications,
 # plutôt que de dupliquer ces valeurs à un autre endroit du code.
 JOURS_ALERTE_EXPIRATION_FORMATION = (30, 60, 90)
@@ -294,10 +294,17 @@ def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
         nb_personnels = len(evenements["personnels"])
         nb_creneaux = len(evenements["creneaux"])
         nb_rondes = len(evenements["rondes"])
-        if not (nb_maintenances or nb_formations or nb_personnels or nb_creneaux or nb_rondes):
+        nb_absences = len(evenements["absences"])
+        # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
+        # service quotidienne ») : mise en avant dans le digest si le marin
+        # est lui-même de service ce jour-là, cf. quarts/services.py.
+        de_service = bool(evenements["feuille_service"] and evenements["feuille_service"]["je_suis_de_service"])
+        if not (nb_maintenances or nb_formations or nb_personnels or nb_creneaux or nb_rondes or nb_absences or de_service):
             continue
 
         parts = []
+        if de_service:
+            parts.append("vous êtes de service")
         if nb_maintenances:
             parts.append(f"{nb_maintenances} maintenance(s)")
         if nb_formations:
@@ -306,6 +313,8 @@ def _digest_journee(offset_jours, champ_heure, prefixe, heure_defaut):
             parts.append(f"{nb_creneaux} créneau(x) de quart/garde")
         if nb_rondes:
             parts.append(f"{nb_rondes} ronde(s)")
+        if nb_absences:
+            parts.append(f"{nb_absences} absence(s)")
         if nb_personnels:
             parts.append(f"{nb_personnels} événement(s) personnel(s)")
         verb = f"{prefixe}: {', '.join(parts)} le {target_date.strftime('%d/%m/%Y')}"

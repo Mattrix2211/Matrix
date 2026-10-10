@@ -1,0 +1,65 @@
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="enregistrer">
+  <input type="hidden" name="ship" value="{{ ship.pk }}">
+  {% if scenario %}<input type="hidden" name="scenario_id" value="{{ scenario.pk }}">{% endif %}
+  <div class="row g-2 mb-2">
+    <div class="col-md-4">
+      <input type="text" name="libelle" value="{{ scenario.libelle }}" class="form-control form-control-sm" placeholder="Nom (ex. Alerte intrus)" required>
+    </div>
+    <div class="col-md-4">
+      <select name="famille" class="form-select form-select-sm" aria-label="Famille">
+        {% for valeur, libelle in familles %}<option value="{{ valeur }}" {% if scenario.famille == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="adjoint_sigle" class="form-select form-select-sm" aria-label="COMA responsable">
+        <option value="">COMA par défaut</option>
+        {% for valeur, libelle in sigles %}<option value="{{ valeur }}" {% if scenario.adjoint_sigle == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <input type="number" min="0" name="ordre" value="{{ scenario.ordre|default:0 }}" class="form-control form-control-sm" aria-label="Ordre">
+    </div>
+    <div class="col-md-1 d-flex align-items-center">
+      <label class="form-check-label small"><input type="checkbox" name="actif" class="form-check-input" {% if not scenario or scenario.actif %}checked{% endif %}> Actif</label>
+    </div>
+  </div>
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Rôle à tenir</th><th>Fonction de service</th><th>Obligatoire</th></tr></thead>
+    <tbody>
+      {% for p in scenario.postes.all %}
+      <tr>
+        <td><input type="text" name="poste_libelle" value="{{ p.libelle }}" class="form-control form-control-sm"></td>
+        <td>
+          <select name="poste_fonction" class="form-select form-select-sm">
+            <option value="">— aucune —</option>
+            {% for f in fonctions %}<option value="{{ f.pk }}" {% if p.fonction_id == f.pk %}selected{% endif %}>{{ f.libelle }}</option>{% endfor %}
+          </select>
+        </td>
+        <td style="width:8rem">
+          <select name="poste_obligatoire" class="form-select form-select-sm">
+            <option value="1" {% if p.obligatoire %}selected{% endif %}>Oui</option>
+            <option value="0" {% if not p.obligatoire %}selected{% endif %}>Non</option>
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+      {% for _ in lignes_vides %}
+      <tr class="table-light">
+        <td><input type="text" name="poste_libelle" class="form-control form-control-sm" placeholder="Nouveau rôle (ex. PC sécu)"></td>
+        <td>
+          <select name="poste_fonction" class="form-select form-select-sm">
+            <option value="">— aucune —</option>
+            {% for f in fonctions %}<option value="{{ f.pk }}">{{ f.libelle }}</option>{% endfor %}
+          </select>
+        </td>
+        <td>
+          <select name="poste_obligatoire" class="form-select form-select-sm"><option value="1">Oui</option><option value="0">Non</option></select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save"></i> {% if peut_valider %}Enregistrer{% else %}Proposer la modification{% endif %}</button>
+</form>

@@ -54,7 +54,8 @@ Le calendrier dit QUAND, la fiche dit COMMENT. Une fiche = une gamme (`assets.In
 | `maintenance` | Plans préventifs, occurrences, exécutions, checklists, signature sur transitions critiques |
 | `logistics` | Tickets correctifs, anomalies, demandes de pièces, stock, REX |
 | `training` | Formations, prérequis, arbre de compétences, référents, sessions, candidatures |
-| `quarts` | Quarts, services et gardes, chef de liste, échanges, équité |
+| `quarts` | Quarts, services et gardes, chef de liste, échanges, équité, feuille de service quotidienne (visa jusqu'au COMAEQ, scénarios d'alerte protection-défense) |
+| `absences` | Absences et indisponibilités des marins, prises en compte par les échanges, la génération des listes et le calendrier |
 | `rondes` | Modèles de rondes, points de contrôle, exécutions |
 | `threads` | Discussions attachées à n'importe quel objet |
 | `notifications` | Alertes in-app + Web Push (niveau danger) |

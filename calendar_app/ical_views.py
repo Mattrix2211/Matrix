@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
@@ -5,6 +7,7 @@ from icalendar import Calendar, Event
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from absences.models import Absence
 from .models import PersonalEvent
 
 def user_ical_feed(request):
@@ -60,6 +63,13 @@ def user_ical_feed(request):
         ev.add('summary', f"Garde: {c.poste}")
         ev.add('dtstart', c.debut)
         ev.add('dtend', c.fin)
+        cal.add_component(ev)
+    # Absences/indisponibilités du marin (permission, mission, maladie...).
+    for a in Absence.objects.filter(marin=request.user).select_related('type_absence'):
+        ev = Event()
+        ev.add('summary', f"Absence: {a.type_absence}")
+        ev.add('dtstart', a.date_debut)
+        ev.add('dtend', a.date_fin + timedelta(days=1))
         cal.add_component(ev)
     # Événements personnels libres du marin (rappels, notes).
     for pe in PersonalEvent.objects.filter(owner=request.user):

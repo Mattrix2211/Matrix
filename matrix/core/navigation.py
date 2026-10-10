@@ -68,6 +68,8 @@ GROUPES = [
     ("Activité", [
         Entree("Rondes", "ronde", "rondes-index", module="rondes"),
         Entree("Quarts et gardes", "quart", "quarts-index", module="quarts"),
+        Entree("Feuille de service", "feuille_service", "feuille-service-index", module="quarts"),
+        Entree("Absences", "absence", "absences-index", module="absences"),
     ]),
     ("Compétences", [
         Entree("Formations", "formation", "formation-list", module="training"),

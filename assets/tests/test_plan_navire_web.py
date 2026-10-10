@@ -15,19 +15,23 @@ from django.test import TestCase
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Deck
 from org.models import Sector, Service, Ship
+from matrix.core.testing import MediaRootTemporaireMixin
 
 
 def _image_1x1_png():
-    # PNG 1x1 minimal valide, suffisant pour valider le champ FileField (aucune
-    # dépendance à une vraie bibliothèque d'images côté test).
-    contenu = bytes.fromhex(
-        "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753"
-        "de0000000c4944415478da6360606060000000050001a5f645400000000049454e44ae426082"
-    )
-    return SimpleUploadedFile("plan.png", contenu, content_type="image/png")
+    # PNG 1x1 valide généré à la volée par Pillow (et non plus un octet figé
+    # à la main) : nécessaire depuis la validation serveur des fichiers
+    # téléversés (tâche [SEC]), qui décode réellement l'image avec
+    # Image.open().verify() — un octet approximatif y échoue (CRC invalide)
+    # même s'il suffisait auparavant à remplir un simple FileField.
+    import io
+    from PIL import Image as PILImage
+    tampon = io.BytesIO()
+    PILImage.new("RGB", (1, 1), color=(128, 128, 128)).save(tampon, format="PNG")
+    return SimpleUploadedFile("plan.png", tampon.getvalue(), content_type="image/png")
 
 
-class PlanNavireRBACTests(TestCase):
+class PlanNavireRBACTests(MediaRootTemporaireMixin, TestCase):
     """Seuls les CHEF_SERVICE et rôles supérieurs accèdent à la configuration
     du plan visuel du navire (cohérent avec les autres actions de
     configuration du matériel, cf. _peut_gerer_rattachement_parent)."""
@@ -63,7 +67,7 @@ class PlanNavireRBACTests(TestCase):
         self.assertContains(r, "Plan du navire")
 
 
-class PlanNavireDeckCRUDTests(TestCase):
+class PlanNavireDeckCRUDTests(MediaRootTemporaireMixin, TestCase):
     """Création/réordonnancement/suppression des ponts, dans le périmètre du
     navire de l'utilisateur connecté."""
 
@@ -117,7 +121,7 @@ class PlanNavireDeckCRUDTests(TestCase):
         self.assertTrue(bool(pont.image))
 
 
-class PlanNavireEpingleCRUDTests(TestCase):
+class PlanNavireEpingleCRUDTests(MediaRootTemporaireMixin, TestCase):
     """Positionnement/repositionnement/retrait des épingles de matériel sur
     le plan d'un pont."""
 
@@ -203,7 +207,7 @@ class PlanNavireEpingleCRUDTests(TestCase):
         self.assertTrue(Asset.objects.filter(pk=self.materiel.pk).exists())
 
 
-class PlanNavirePerimetreTests(TestCase):
+class PlanNavirePerimetreTests(MediaRootTemporaireMixin, TestCase):
     """Un utilisateur ne doit pouvoir configurer que les ponts/matériel du
     navire de son propre périmètre — même logique que le reste du projet
     (cf. assets/tests/test_perimetre_crud_web.py)."""

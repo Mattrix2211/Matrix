@@ -2,8 +2,9 @@
 {% load composants icones %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=liste.nom|default:liste.libelle_type|capfirst badge_libelle=liste.get_statut_display|upper badge_etat=badge_etat action=action indicateurs=indicateurs objet=liste %}
-<p class="text-secondary">{{ liste.fonction }} — {{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}{% if liste.type_service %} — {{ liste.type_service }}{% endif %}{% if liste.statut == 'PUBLIEE' %} — publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}{% endif %}</p>
-{% if action %}<form method="post" id="form-publier" onsubmit="return confirm('Publier cette liste ? Les marins affectés seront notifiés.');">{% csrf_token %}<input type="hidden" name="action" value="publier"></form>{% endif %}
+<p class="text-secondary">{{ liste.fonction }} — {{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}{% if liste.type_service %} — {{ liste.type_service }}{% endif %}{% if liste.statut == 'PUBLIEE' %} — publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}{% elif liste.statut == 'PROPOSEE' %} — proposée le {{ liste.proposee_le|date:"d/m/Y à H:i" }}{% if liste.proposee_par %} par {{ liste.proposee_par }}{% endif %}, en attente de validation{% endif %}</p>
+{% if liste.statut == 'BROUILLON' and not peut_gerer %}<p class="text-secondary small">Liste encore en brouillon : en attente d'une proposition du chef de liste.</p>{% elif liste.statut == 'PROPOSEE' and not peut_publier %}<p class="text-secondary small">Vous n'êtes pas habilité(e) à publier cette liste : en attente d'un publicateur (rôle distinct du chef de liste).</p>{% endif %}
+{% if action %}<form method="post" id="{{ action.formulaire }}" onsubmit="return confirm('{{ action.confirmation }}');">{% csrf_token %}<input type="hidden" name="action" value="{{ action.nom }}"></form>{% endif %}
 
 <ul class="nav nav-tabs mb-3">
   {% for cle, libelle in onglets %}
@@ -178,6 +179,56 @@
     </div>
   </div>
 </div>
+
+{% elif vue == "historique" %}
+<h2 class="h5">Historique des versions</h2>
+<p class="text-muted small mb-2">Chaque publication fige une nouvelle version : les précédentes restent consultables, jamais écrasées.</p>
+{% if liste.statut == 'PUBLIEE' and peut_publier and not equipage_a_terre %}
+<form method="post" class="mb-3" onsubmit="return confirm('Republier cette liste avec les corrections ? Une nouvelle version sera créée, sans effacer l&#39;historique.');">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="publier">
+  <button type="submit" class="btn btn-outline-secondary btn-sm">{% icone "terminee" %} Republier (nouvelle version)</button>
+</form>
+{% endif %}
+<form method="get" class="row g-2 align-items-end mb-3">
+  <input type="hidden" name="vue" value="historique">
+  <div class="col-auto">
+    <label class="form-label small mb-0" for="version-le">Version active à une date donnée</label>
+    <input type="date" id="version-le" name="le" value="{{ date_consultee|date:'Y-m-d' }}" class="form-control form-control-sm">
+  </div>
+  <div class="col-auto"><button type="submit" class="btn btn-outline-secondary btn-sm">Consulter</button></div>
+</form>
+{% if date_consultee %}
+  {% if version_consultee %}
+  <div class="alert alert-info py-2">
+    Au {{ date_consultee|date:"d/m/Y" }}, la version active était la <strong>version {{ version_consultee.numero }}</strong>
+    (publiée le {{ version_consultee.publiee_le|date:"d/m/Y à H:i" }}{% if version_consultee.publiee_par %} par {{ version_consultee.publiee_par }}{% endif %})
+    — {{ version_consultee.creneaux_fige|length }} créneau(x).
+  </div>
+  {% else %}
+  <div class="alert alert-secondary py-2">La liste n'était pas encore publiée au {{ date_consultee|date:"d/m/Y" }}.</div>
+  {% endif %}
+{% endif %}
+{% for v in versions %}
+<details class="border rounded mb-2 p-2">
+  <summary class="fw-semibold">
+    Version {{ v.numero }} — {{ v.publiee_le|date:"d/m/Y à H:i" }}{% if v.publiee_par %} par {{ v.publiee_par }}{% endif %}
+    ({{ v.creneaux_fige|length }} créneau(x))
+  </summary>
+  <div class="table-responsive mt-2">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Poste</th><th>Début</th><th>Fin</th><th>Marin</th></tr></thead>
+      <tbody>
+        {% for c in v.creneaux_fige %}
+        <tr><td>{{ c.poste }}</td><td class="font-mono">{{ c.debut }}</td><td class="font-mono">{{ c.fin }}</td><td>{{ c.marin_nom|default:"Non affecté" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% empty %}
+<p class="text-muted small">Aucune version publiée pour l'instant.</p>
+{% endfor %}
 
 {% elif vue == "parametres" %}
 <div class="card card-body mb-3">

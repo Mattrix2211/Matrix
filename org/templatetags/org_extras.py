@@ -51,6 +51,24 @@ def badge_type_unite(unite):
     )
 
 
+@register.filter
+def coma_du_service(service):
+    """Commandant adjoint dont dépend le service (sigle, signification, responsabilités)
+    et ses titulaires actifs : à afficher dans les écrans de circuit de validation.
+    None si le service n'est rattaché à aucun commandant adjoint."""
+    if service is None or not service.commandant_adjoint:
+        return None
+    from matrix.core.commandants_adjoints import titulaires_du_service
+    from org.models import RESPONSABILITES_COMA, SIGNIFICATIONS_COMA
+    sigle = service.commandant_adjoint
+    return {
+        "sigle": sigle,
+        "signification": SIGNIFICATIONS_COMA.get(sigle, ""),
+        "responsabilites": RESPONSABILITES_COMA.get(sigle, ""),
+        "titulaires": list(titulaires_du_service(service)),
+    }
+
+
 @register.simple_tag
 def unites_groupees_par_type(unites):
     """Regroupe une liste/queryset d'unités par type_unite, dans l'ordre

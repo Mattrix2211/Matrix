@@ -31,7 +31,7 @@ try:
 except ImportError:  # pragma: no cover - openpyxl est listée dans requirements.txt
     # Dépendance optionnelle, même garde-fou que matrix/core/export.py : son
     # absence ne doit jamais empêcher le chargement des URLs de l'app assets
-    # (ce module est importé au niveau module par assets/web_views.py).
+    # (ce module est importé au niveau module par assets/asset_views.py).
     load_workbook = None
     InvalidFileException = Exception
 
@@ -42,7 +42,7 @@ from .models import Asset, AssetType, Location
 
 # En-têtes du fichier Excel attendu, dans cet ordre. Les six premières colonnes
 # reprennent exactement les libellés déjà utilisés par l'export de la liste de
-# matériel (_ENTETES_EXPORT_ASSETS, assets/web_views.py) pour rester cohérent
+# matériel (_ENTETES_EXPORT_ASSETS, assets/asset_views.py) pour rester cohérent
 # avec un format déjà connu des utilisateurs ; les colonnes suivantes ajoutent
 # les champs nécessaires à la création qui ne figurent pas dans l'export.
 ENTETES_MODELE = [

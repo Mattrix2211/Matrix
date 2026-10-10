@@ -46,7 +46,7 @@ class CalendarEventMovePerimetreTests(TestCase):
         # Formation désormais globale (tâche Notion « Formation unique et
         # portable entre navires ») : la session est visible/déplaçable selon
         # l'AFFECTATION PERSONNELLE du marin (attendees/reservations/instructor),
-        # plus par périmètre navire/secteur (cf. calendar_app/views.py::_perimetre_session).
+        # plus par périmètre navire/secteur (cf. calendar_app/deplacement_views.py::_perimetre_session).
         self.formation = TrainingCourse.objects.create(title="Sécurité incendie")
 
         self.session = TrainingSession.objects.create(

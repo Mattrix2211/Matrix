@@ -2,7 +2,7 @@
 au principe fondamental n°5 de CLAUDE.md (« Priorité au visuel ») : courbe de
 tendance de l'isolement (Chart.js) et frise de l'évolution des vibrations
 (SVG/CSS). Le rendu JS/Chart.js lui-même n'est pas testé ici, seul le contexte
-transmis par InstallationDetailView (assets/web_views.py)."""
+transmis par InstallationDetailView (assets/installation_views.py)."""
 import json
 from decimal import Decimal
 

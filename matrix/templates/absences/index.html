@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Mes absences</h1>
+<p class="text-muted">Déclarez une permission, une mission, un arrêt maladie ou toute autre indisponibilité : elle est automatiquement prise en compte par les échanges de service et affichée sur votre calendrier personnel.</p>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <h2 class="h5">Mes absences déclarées</h2>
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Période</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for absence in mes_absences %}
+            <tr>
+              <td>{{ absence.type_absence }}</td>
+              <td>{{ absence.date_debut|date:"d/m/Y" }} au {{ absence.date_fin|date:"d/m/Y" }}</td>
+              <td>
+                {% if absence.statut == "VALIDEE" %}
+                <span class="badge text-bg-success">Validée</span>
+                {% else %}
+                <span class="badge text-bg-warning">Déclarée — en attente</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-4">Aucune absence déclarée.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if absences_equipe %}
+    <h2 class="h5 mt-4">Absences de mon équipe</h2>
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Marin</th>
+              <th>Type</th>
+              <th>Période</th>
+              <th>Statut</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for absence in absences_equipe %}
+            <tr>
+              <td>{{ absence.marin.get_full_name|default:absence.marin.username }}</td>
+              <td>{{ absence.type_absence }}</td>
+              <td>{{ absence.date_debut|date:"d/m/Y" }} au {{ absence.date_fin|date:"d/m/Y" }}</td>
+              <td>
+                {% if absence.statut == "VALIDEE" %}
+                <span class="badge text-bg-success">Validée</span>
+                {% else %}
+                <span class="badge text-bg-warning">Déclarée</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if absence.peut_valider %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="valider">
+                  <input type="hidden" name="absence_id" value="{{ absence.pk }}">
+                  <button type="submit" class="btn btn-sm btn-outline-success">Valider</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <h2 class="h5">Déclarer une absence</h2>
+    <div class="card card-body">
+      <form method="post" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="declarer">
+        {% if peut_declarer_pour_autrui %}
+        <div class="col-12">
+          <label class="form-label">Marin concerné</label>
+          <select name="marin_id" class="form-select">
+            <option value="{{ request.user.pk }}">Moi-même</option>
+            {% for m in marins_perimetre %}
+            <option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="col-12">
+          <label class="form-label">Type d'absence</label>
+          <select name="type_absence" class="form-select" required>
+            {% for t in types_absence %}
+            <option value="{{ t.pk }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Du</label>
+          <input type="date" name="date_debut" class="form-control" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Au</label>
+          <input type="date" name="date_fin" class="form-control" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Précision (facultatif)</label>
+          <textarea name="motif" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-calendar-x"></i> Déclarer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

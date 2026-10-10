@@ -15,6 +15,7 @@ from assets.models import Asset, Installation
 from matrix.core.mixins import build_scope_q
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import scope_filters_for_user
+from matrix.core.validators import valider_photo, message_erreur_fichier
 from notifications.models import Notification
 from threads.utils import ajouter_commentaire, commentaires_de
 
@@ -155,6 +156,8 @@ class AnomalieCreateView(LoginRequiredMixin, View):
         """Chemin de la photo déposée à cette étape ou à une précédente (jeton signé, propre à l'utilisateur)."""
         fichier = request.FILES.get('photo')
         if fichier:
+            if message_erreur_fichier(fichier, valider_photo):
+                return ''
             return default_storage.save(f"anomalie_photos/attente/{fichier.name}", fichier)
         try:
             donnees = signing.loads(request.POST.get('photo_attente', ''), salt=SEL_PHOTO, max_age=86400)
@@ -212,6 +215,8 @@ class AnomalieCreateView(LoginRequiredMixin, View):
             return self._objets(request)[3]
         if etape == 2 and not donnees.get('titre', '').strip():
             return "Merci de donner un titre à l'anomalie."
+        if etape == 3 and message_erreur_fichier(request.FILES.get('photo'), valider_photo):
+            return message_erreur_fichier(request.FILES.get('photo'), valider_photo)
         if etape == 3 and _gravite(donnees) >= GRAVITE_CRITIQUE and not donnees.get('description', '').strip():
             return "Anomalie critique : décrivez la situation pour que les chefs puissent réagir."
         return None

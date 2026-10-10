@@ -6,6 +6,7 @@ from assets.mesures import formater_heures, heures_depuis_visite_maintenance
 from assets.models import InstallationMaintenance, InstallationEvent, ModeDeclenchement
 from notifications.models import Notification, NotificationLevel
 from notifications.utils import add_interval, human_delta
+from matrix.core.equipage import equipage_a_terre_lecture_seule
 
 User = get_user_model()
 
@@ -47,7 +48,10 @@ class Command(BaseCommand):
         def notify(maintenance, verb, level):
             nonlocal created
             for u in users:
-                pref = getattr(getattr(u, 'profile', None), 'notification_time', None)
+                if equipage_a_terre_lecture_seule(u):
+                    # Double équipage : l'équipage à terre n'est pas alerté.
+                    continue
+                pref =getattr(getattr(u, 'profile', None), 'notification_time', None)
                 # défaut 08:00 si non défini
                 target_time = pref or timezone.datetime.strptime('08:00', '%H:%M').time()
                 if (now_local.hour, now_local.minute) != (target_time.hour, target_time.minute):

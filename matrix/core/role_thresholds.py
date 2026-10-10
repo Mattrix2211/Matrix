@@ -115,6 +115,31 @@ REGISTRE_ACTIONS = [
         "Discussions", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "liste_service_publication",
+        "Publier (valider) une liste de quarts ou de services de garde proposée par un chef de liste",
+        "Quarts / Services de garde", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "feuille_service_configuration",
+        "Configurer les rubriques d'en-tête et les fonctions de service de la feuille de service quotidienne",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "feuille_service_visa_secteur",
+        "Viser une feuille de service en tant que chef du secteur rédacteur",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
+    ),
+    ActionSeuil(
+        "feuille_service_visa_service",
+        "Viser une feuille de service en tant que chef du service rédacteur (ex. Pont)",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "alerte_organisation_validation",
+        "Valider une modification de l'organisation sécurité / protection-défense (scénarios d'alerte et postes)",
+        "Feuille de service", PORTEE_NAVIRE, RoleLevel.COMMANDANT,
+    ),
+    ActionSeuil(
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
         "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,

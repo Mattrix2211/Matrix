@@ -17,7 +17,8 @@ from .models import (
 from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q, utilisateurs_visibles_par
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.validators import valider_photo, message_erreur_fichier
+from matrix.core.scopes import equipage_marin_q, scope_filters_for_user
 from notifications.models import Notification
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
@@ -223,7 +224,8 @@ class TicketDetailView(LoginRequiredMixin, View):
         if contexte["peut_assigner"]:
             # Assignables : le périmètre hiérarchique du chef (navire entier dès COMMANDANT), comme l'API.
             contexte["utilisateurs_assignables"] = (
-                utilisateurs_visibles_par(request.user).select_related("profile").order_by("username").distinct()
+                utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user))
+                .select_related("profile").order_by("username").distinct()
             )
         return render(request, self.template_name, contexte)
 
@@ -317,7 +319,7 @@ class TicketAssignView(LoginRequiredMixin, View):
         anciens_assignes = set(ticket.assignees.all())
         ids = request.POST.getlist('assignees')
         # Même filtre que le formulaire (contournement d'un POST direct).
-        utilisateurs = list(utilisateurs_visibles_par(request.user).filter(pk__in=ids).distinct())
+        utilisateurs = list(utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user), pk__in=ids).distinct())
         ticket.assignees.set(utilisateurs)
 
         # Notifie uniquement les marins nouvellement assignés (pas ceux déjà
@@ -762,6 +764,10 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             "asset": asset,
         }
         photo = request.FILES.get('photo')
+        erreur_photo = message_erreur_fichier(photo, valider_photo)
+        if erreur_photo:
+            messages.error(request, erreur_photo)
+            return redirect('stock-piece-list')
 
         if action == 'create_piece':
             piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)

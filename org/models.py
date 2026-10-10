@@ -52,6 +52,23 @@ class CommandantAdjoint(models.TextChoices):
     COMAVIA = "COMAVIA", "COMAVIA (aviation)"
 
 
+# Signification et domaine de responsabilité en clair de chaque sigle (relecture
+# métier du 30/09/2026), affichés avec le sigle pour que l'écran reflète le rôle réel.
+SIGNIFICATIONS_COMA = {
+    "COMAEQ": "Commandant adjoint équipage",
+    "COMOPS": "Commandant adjoint opérations",
+    "COMANAV": "Commandant adjoint navire",
+    "COMAVIA": "Commandant adjoint aviation",
+}
+RESPONSABILITES_COMA = {
+    "COMAEQ": "Vie à bord, service courant, coordination du personnel à quai, adjoint protection, conduite nautique",
+    "COMOPS": "Opérations, conduite des opérations, activité à la mer",
+    "COMANAV": "Conservation du bâtiment et des équipements, adjoint sécurité, gestion technique des matériels, "
+               "logistique opérationnelle",
+    "COMAVIA": "Expertise aviation et sécurité aérienne sur les unités concernées",
+}
+
+
 class Service(TimeStampedModel):
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="services")
     name = models.CharField(max_length=255)

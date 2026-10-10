@@ -5,7 +5,8 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
+from accounts.models import AuditLog, ServiceFunctionChoice, TypeAbsence, UserProfile
+from absences.models import Absence
 from calendar_app.views import evenements_utilisateur_jour
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
@@ -102,6 +103,15 @@ class WorkflowTests(BaseEchangeTests):
         self.assertIn("marin_a -> marin_b", journal.details)
         for user in (self.a, self.b, self.chef):
             self.assertTrue(Notification.objects.filter(user=user, verb__startswith="Échange validé").exists())
+        # L'échange validé fige une nouvelle version de la liste (cahier des
+        # charges §31, exemple « v3 + échange validé ») : l'affectation
+        # d'avant l'échange reste consultable dans l'historique.
+        self.assertEqual(self.garde.versions.count(), 1)
+        creneau_a_fige = next(
+            c for c in self.garde.versions.get().creneaux_fige if c["poste"] == "Officier de quart"
+            and c["debut"] == timezone.localtime(self.creneau_a.debut).strftime("%d/%m/%Y %H:%M")
+        )
+        self.assertEqual(creneau_a_fige["marin_nom"], self.b.get_full_name() or self.b.username)
 
     def test_calendriers_personnels_mis_a_jour(self):
         echange = self._echange_accepte()
@@ -259,6 +269,65 @@ class SituationsImpossiblesTests(BaseEchangeTests):
         self.garde.save()
         with self.assertRaises(EchangeImpossible):
             proposer_echange(self.a, self.creneau_a, self.creneau_b)
+
+
+class AbsenceTests(BaseEchangeTests):
+    """Détection d'une absence pendant l'échange (tâche Notion « Absences et
+    indisponibilités »), point d'extension prévu de analyser_echange
+    documenté au commit 9e9e3f6."""
+
+    def _message(self, exc):
+        return " ".join(exc.exception.problemes)
+
+    def _type_absence(self, nom="Permission"):
+        return TypeAbsence.objects.create(name=nom)
+
+    def test_absence_validee_du_marin_qui_reprendrait_le_tour_bloque_et_explique(self):
+        # B (cible) recevrait le tour de A (creneau_a) : une absence VALIDÉE
+        # de B chevauchant ce tour doit bloquer l'échange, message explicite.
+        jour = timezone.localtime(self.creneau_a.debut).date()
+        Absence.objects.create(
+            marin=self.b, type_absence=self._type_absence(), statut=Absence.STATUT_VALIDEE,
+            date_debut=jour, date_fin=jour,
+        )
+        with self.assertRaises(EchangeImpossible) as ctx:
+            proposer_echange(self.a, self.creneau_a, self.creneau_b)
+        message = self._message(ctx)
+        self.assertIn("Absence", message)
+        self.assertIn("marin_b", message)
+        self.assertNotIn("en attente de validation", message)
+
+    def test_absence_declaree_non_validee_est_signalee_comme_en_attente(self):
+        jour = timezone.localtime(self.creneau_a.debut).date()
+        Absence.objects.create(
+            marin=self.b, type_absence=self._type_absence(), statut=Absence.STATUT_DECLAREE,
+            date_debut=jour, date_fin=jour,
+        )
+        with self.assertRaises(EchangeImpossible) as ctx:
+            proposer_echange(self.a, self.creneau_a, self.creneau_b)
+        self.assertIn("en attente de validation", self._message(ctx))
+
+    def test_absence_hors_periode_ne_bloque_rien(self):
+        jour = timezone.localtime(self.creneau_a.debut).date()
+        Absence.objects.create(
+            marin=self.b, type_absence=self._type_absence(), statut=Absence.STATUT_VALIDEE,
+            date_debut=jour - timedelta(days=10), date_fin=jour - timedelta(days=5),
+        )
+        # Ne lève pas EchangeImpossible : l'absence est hors période.
+        echange = proposer_echange(self.a, self.creneau_a, self.creneau_b)
+        self.assertEqual(echange.statut, EchangeService.STATUT_DEMANDE)
+
+    def test_absence_du_demandeur_bloque_aussi(self):
+        # A (demandeur) recevrait le tour de B (creneau_b) : une absence de A
+        # chevauchant ce tour doit aussi être détectée.
+        jour = timezone.localtime(self.creneau_b.debut).date()
+        Absence.objects.create(
+            marin=self.a, type_absence=self._type_absence("Mission"), statut=Absence.STATUT_VALIDEE,
+            date_debut=jour, date_fin=jour,
+        )
+        with self.assertRaises(EchangeImpossible) as ctx:
+            proposer_echange(self.a, self.creneau_a, self.creneau_b)
+        self.assertIn("marin_a", self._message(ctx))
 
 
 class VuesEchangeTests(BaseEchangeTests):

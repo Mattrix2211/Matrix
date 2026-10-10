@@ -97,7 +97,8 @@ Les tests nécessitent un fichier `.env` local contenant au minimum `DJANGO_DEBU
 - `maintenance` — plans préventifs, occurrences, exécutions guidées, signature de validation (mot de passe) sur les transitions critiques
 - `logistics` — tickets correctifs, demandes de pièces, stock, retours d'expérience (REX)
 - `training` — formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation, réservation self-service de sessions
-- `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, absences, compteur d'équité, génération assistée des listes
+- `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, compteur d'équité, feuille de service quotidienne
+- `absences` — absences et indisponibilités, prises en compte dans les échanges, la génération des listes et le calendrier
 - `rondes` — rondes de contrôle avec points de contrôle configurables et anomalies automatiques
 - `threads` — discussions génériques attachées à n'importe quel objet
 - `notifications` — alertes in-app (info/warning/danger) + Web Push pour le niveau danger
