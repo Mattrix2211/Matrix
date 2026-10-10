@@ -26,6 +26,8 @@ from django.views import View
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
+from matrix.core.contexte_batiment import referentiel_organisation
+from matrix.core.mixins import utilisateurs_visibles_par
 from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_admin, perimetre_navire_q, scope_filters_for_user
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
@@ -110,10 +112,8 @@ def _perimetres_org_disponibles(user, borne_par_scope=True):
     secteurs de StockPieceListView (logistics/web_views.py), généralisé aux
     quatre niveaux navire/service/secteur/section."""
     filtres = scope_filters_for_user(user) if borne_par_scope else {}
-    ships = Ship.objects.all()
-    services = Service.objects.select_related("ship")
-    sectors = Sector.objects.select_related("service", "service__ship")
-    sections = Section.objects.select_related("sector", "sector__service", "sector__service__ship")
+    organisation = referentiel_organisation(user)  # jamais les noms des autres bâtiments
+    ships, services, sectors, sections = (organisation[c] for c in ("ships", "services", "sectors", "sections"))
     if borne_par_scope and not filtres and not is_master_admin(user):
         ships, services, sectors, sections = Ship.objects.none(), Service.objects.none(), Sector.objects.none(), Section.objects.none()
     if filtres:
@@ -749,11 +749,14 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         contexte = {
             "chefs_de_liste": ChefDeListe.objects.select_related(
                 "user", "ship", "service", "sector", "section"
-            ).filter(equipage_marin_q(request.user, "user__profile__")).order_by("user__username"),
+            ).filter(
+                equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
+            ).order_by("user__username"),
             "perimetres_disponibles": _perimetres_org_disponibles(
                 request.user, borne_par_scope=user_role_level(request.user) < NIVEAU_SUPERVISION_GLOBALE_LISTE
             ),
-            "utilisateurs": User.objects.filter(equipage_marin_q(request.user), is_active=True).order_by("username"),
+            "utilisateurs": utilisateurs_visibles_par(request.user).filter(
+                equipage_marin_q(request.user), is_active=True).order_by("username"),
         }
         return render(request, self.template_name, contexte)
 
@@ -769,7 +772,8 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, ship, service, sector, section):
                 raise PermissionDenied
-            candidat = User.objects.filter(equipage_marin_q(request.user), pk=request.POST.get("user_id")).first()
+            candidat = utilisateurs_visibles_par(request.user).filter(
+                equipage_marin_q(request.user), pk=request.POST.get("user_id")).first()
             if candidat is None:
                 messages.error(request, "Marin introuvable.")
                 return redirect("quarts-reglages")
@@ -781,7 +785,10 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             else:
                 messages.info(request, "Cette désignation existe déjà.")
         elif action == "retirer":
-            cdl = ChefDeListe.objects.filter(equipage_marin_q(request.user, "user__profile__"), pk=request.POST.get("pk")).first()
+            cdl = ChefDeListe.objects.filter(
+                equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
+                pk=request.POST.get("pk"),
+            ).first()
             if cdl is None:
                 messages.error(request, "Désignation introuvable.")
                 return redirect("quarts-reglages")

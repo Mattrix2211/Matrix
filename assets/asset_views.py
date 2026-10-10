@@ -38,13 +38,11 @@ from matrix.core.export import (
     reponse_fichier,
     xlsx_disponible,
 )
-from django.db.models import Q
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.contexte_batiment import referentiel_organisation
-from matrix.core.scopes import scope_filters_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document, valider_photo
 from org.models import Section, Sector, Service, Ship
 
@@ -332,7 +330,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx.update(referentiel_organisation(self.request.user))
         ctx['types'] = AssetType.objects.filter(
-            Q(sector__isnull=True) | Q(sector__service__ship__in=ctx['ships'])).order_by('name')
+            models.Q(sector__isnull=True) | models.Q(sector__service__ship__in=ctx['ships'])).order_by('name')
         ctx['locations'] = _emplacements_visibles(self.request.user)
         # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
         # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi

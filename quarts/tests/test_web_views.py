@@ -231,13 +231,14 @@ class DesignationChefDeListeTests(TestCase):
         )
 
         self.candidat = User.objects.create_user(username="candidat_dsg", password="pass")
-        UserProfile.objects.update_or_create(user=self.candidat, defaults={"role": "EQUIPIER"})
+        UserProfile.objects.update_or_create(
+            user=self.candidat, defaults={"role": "EQUIPIER", "ship": self.ship, "sector": self.sector})
 
         self.equipier = User.objects.create_user(username="equipier_dsg", password="pass")
         UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
 
         self.commandant = User.objects.create_user(username="commandant_dsg", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
 
     def test_chef_service_peut_designer_sur_son_propre_perimetre(self):
         self.client.login(username="chef_service_dsg", password="pass")

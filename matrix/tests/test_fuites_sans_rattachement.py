@@ -16,7 +16,7 @@ MARQUEUR = "FUITEZZ"
 PAGES = [
     "/", "/assets/", "/installations/", "/logistics/tickets/", "/logistics/anomalies/", "/logistics/stock/",
     "/maintenance/gestion/plans/",
-    "/maintenance/gestion/occurrences/", "/rondes/", "/rondes/modeles/", "/quarts/", "/formations/", "/calendar/",
+    "/maintenance/gestion/occurrences/", "/quarts/reglages/", "/rondes/", "/rondes/modeles/", "/quarts/", "/formations/", "/calendar/",
     "/search/?q=FUITE", "/users/", "/absences/", "/taches/", "/notifications/",
     "/assets/plan/", "/catalogue/",
 ]

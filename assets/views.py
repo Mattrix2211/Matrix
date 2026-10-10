@@ -12,7 +12,6 @@ from .catalogue_web import journaliser
 from .permissions import CataloguePermission
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
-from matrix.core.scopes import scope_filters_for_user
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
