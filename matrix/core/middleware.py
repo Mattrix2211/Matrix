@@ -31,6 +31,29 @@ class SansNulMiddleware:
         return self.get_response(request)
 
 
+class MotDePasseProvisoireMiddleware:
+    """Tant que le marin n'a pas remplacé son mot de passe provisoire, seules la page de changement,
+    la déconnexion et les fichiers statiques lui sont ouverts (redirection ; 403 pour l'API)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        utilisateur = request.user
+        if utilisateur.is_authenticated and getattr(getattr(utilisateur, "profile", None), "mot_de_passe_provisoire", False):
+            changement = reverse("password_change")
+            libres = (changement, reverse("logout"), "/static/", "/service-worker.js")
+            if not request.path.startswith(libres):
+                if request.path.startswith("/api/"):
+                    return JsonResponse({"detail": "Changement de mot de passe obligatoire."}, status=403)
+                if request.headers.get("HX-Request"):
+                    reponse = HttpResponse(status=204)
+                    reponse["HX-Redirect"] = changement
+                    return reponse
+                return redirect(changement)
+        return self.get_response(request)
+
+
 class IdentitePageMiddleware:
     """Refuse (409) une écriture dont la page a été ouverte pour un autre marin que celui connecté
     (poste partagé : cookies communs à tous les onglets). L'identité vient de l'en-tête

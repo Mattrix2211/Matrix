@@ -126,6 +126,7 @@ class ScopeLeakUsersWebWriteTests(TestCase):
         self.assertTrue(User.objects.filter(pk=self.equipier_b.pk).exists())
 
     def test_set_password_refuse_une_cible_dun_autre_navire(self):
+        UserProfile.objects.filter(user=self.commandant_a).update(role="ADMIN_NAVIRE")  # seul rôle autorisé à réinitialiser
         self.client.login(username="commandant_a_ane", password="pass")
         r = self.client.post(
             "/users/",
@@ -150,6 +151,7 @@ class ScopeLeakUsersWebWriteTests(TestCase):
         self.assertEqual(self.equipier_b.profile.role, "EQUIPIER")
 
     def test_bulk_reset_passwords_refuse_une_cible_dun_autre_navire(self):
+        UserProfile.objects.filter(user=self.commandant_a).update(role="ADMIN_NAVIRE")  # seul rôle autorisé à réinitialiser
         self.client.login(username="commandant_a_ane", password="pass")
         r = self.client.post(
             "/users/",

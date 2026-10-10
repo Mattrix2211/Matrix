@@ -145,6 +145,11 @@ REGISTRE_ACTIONS = [
         "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,
     ),
     ActionSeuil(
+        "mot_de_passe_reinitialisation",
+        "Réinitialiser le mot de passe d'un marin du bâtiment (mot de passe provisoire à changer à la connexion)",
+        "Comptes", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
+    ActionSeuil(
         "tache_attribution",
         "Attribuer une tâche à un marin de son périmètre et suivre l'avancement de l'équipe",
         "Tâches", PORTEE_GLOBALE, RoleLevel.CHEF_SECTION,
