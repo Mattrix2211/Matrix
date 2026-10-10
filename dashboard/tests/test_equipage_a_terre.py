@@ -83,3 +83,32 @@ class EquipageATerreTests(TestCase):
         self.client.login(username="bord", password="pass")
         r = self.client.post(reverse("occurrence-comment-create", args=[self.occ.pk]), {"body": "ok"})
         self.assertNotEqual(r.status_code, 403)
+
+
+class PerimetreExceptionsATerreTests(TestCase):
+    """L'exception /accounts/ ne couvre que l'authentification Django, pas les comptes ni les rôles métier."""
+
+    setUp = EquipageATerreTests.setUp
+    _marin = EquipageATerreTests._marin
+
+    def test_actions_personnelles_autorisees_a_terre(self):
+        self.client.login(username="terre", password="pass")
+        r = self.client.post(reverse("password_change"), {})
+        self.assertNotEqual(r.status_code, 403)
+        r = self.client.post(reverse("basculer-theme"), {})
+        self.assertNotEqual(r.status_code, 403)
+
+    def test_comptes_et_roles_refuses_a_terre(self):
+        self.client.login(username="terre", password="pass")
+        cibles = (
+            ("post", reverse("user-create")),
+            ("post", reverse("user-edit", args=[self.bord.pk])),
+            ("patch", f"/api/accounts/users/{self.bord.pk}/"),
+            ("patch", f"/api/accounts/profiles/{self.bord.profile.pk}/"),
+            ("post", "/api/accounts/role-availability/"),
+        )
+        for methode, url in cibles:
+            with self.subTest(url):
+                r = getattr(self.client, methode)(url, {}, content_type="application/json") if methode == "patch" else self.client.post(url, {})
+                self.assertEqual(r.status_code, 403)
+                self.assertIn("Lecture seule", r.content.decode())
