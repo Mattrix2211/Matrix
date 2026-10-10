@@ -4,7 +4,7 @@ Un chef (CHEF_SECTION+) attribue une tâche à un marin de son périmètre et de
 Le fil de discussion est ouvert à l'assigné, au créateur, aux chefs du périmètre et aux
 interlocuteurs que le chef ajoute (marins du même navire, y compris l'équipage à terre).
 """
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -25,7 +25,6 @@ from threads.utils import ajouter_commentaire
 from .models import ParametresTaches, Tache
 
 User = get_user_model()
-
 
 
 def peut_attribuer(user):
@@ -109,7 +108,7 @@ def interlocuteurs_possibles(tache):
     navire = getattr(tache.assigne.profile, "ship_id", None)
     if navire is None:
         return User.objects.none()
-    return User.objects.filter(profile__ship_id=navire).exclude(
+    return User.objects.filter(profile__ship_id=navire, is_active=True).exclude(
         pk__in=[tache.assigne_id, *tache.participants.values_list("pk", flat=True)]
     ).order_by("username")
 
@@ -133,7 +132,7 @@ def _destinataires(tache, sauf):
     ids = {tache.assigne_id, tache.created_by_id, *tache.participants.values_list("pk", flat=True)}
     ids.discard(sauf.pk)
     ids.discard(None)
-    return User.objects.filter(pk__in=ids)
+    return User.objects.filter(pk__in=ids, is_active=True)
 
 
 def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO):
@@ -268,7 +267,7 @@ def relancer_echeances_depassees(aujourdhui=None):
     creees = 0
     if parametres.jours_entre_relances:
         depuis = aujourdhui - timedelta(days=parametres.jours_entre_relances - 1)
-        debut = timezone.make_aware(timezone.datetime.combine(depuis, timezone.datetime.min.time()))
+        debut = timezone.make_aware(datetime.combine(depuis, time.min))
         for tache in Tache.objects.filter(
             statut__in=Tache.STATUTS_OUVERTS, echeance__lt=aujourdhui, assigne__is_active=True,
         ).select_related("assigne"):
@@ -284,6 +283,8 @@ def relancer_echeances_depassees(aujourdhui=None):
                     NotificationLevel.WARNING,
                 )
                 creees += 1
-    for tache in Tache.objects.filter(statut=Tache.STATUT_TERMINEE):
-        _relances(tache).filter(is_read=False).update(is_read=True)
+    Notification.objects.filter(
+        content_type=ContentType.objects.get_for_model(Tache), verb__startswith=PREFIXE_RELANCE, is_read=False,
+        object_id__in=[str(pk) for pk in Tache.objects.filter(statut=Tache.STATUT_TERMINEE).values_list("pk", flat=True)],
+    ).update(is_read=True)
     return creees

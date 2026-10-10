@@ -54,7 +54,7 @@ class TachesIndexView(LoginRequiredMixin, View):
         return render(request, "taches/index.html", {
             "mes_taches": [t for t in ouvertes if t.assigne_id == request.user.pk],
             "suivies": [t for t in ouvertes if t.assigne_id != request.user.pk],
-            "terminees": [t for t in taches if not t.ouverte][:10],
+            "terminees": sorted((t for t in taches if not t.ouverte), key=lambda t: t.terminee_le or t.updated_at, reverse=True)[:10],
             "marins": marins_assignables(request.user),
             "avancement": avancement_equipe(request.user),
             "aujourdhui": timezone.localdate(),

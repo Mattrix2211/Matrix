@@ -10,7 +10,10 @@ from dashboard.aujourdhui import a_faire
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
 from taches import services
+from types import SimpleNamespace
+
 from matrix.core.role_thresholds import invalidate_cache
+from notifications.liens import liens_accessibles
 from org.models import RoleThresholdConfig
 from taches.models import ParametresTaches, Tache
 from threads.utils import commentaires_de
@@ -276,3 +279,23 @@ class ReglagesTests(TachesBase):
         self.client.post(reverse("settings"), {**donnees, "jours_entre_relances": "abc"})
         self.assertEqual(ParametresTaches.objects.get().jours_entre_relances, 2)
         self.assertContains(self.client.get(reverse("settings"), {"tab": "seuils_role"}), "Jours entre deux relances")
+
+
+class LiensNotificationTests(TachesBase):
+    def test_lien_direct_seulement_pour_qui_voit_la_tache(self):
+        tache = self._tache()
+        services.signaler_blocage(tache, self.marin, "Vanne grippée")
+        for user, attendu in ((self.chef, True), (self.marin, True), (self.voisin, False)):
+            notif = Notification.objects.filter(user=self.chef, object_id=str(tache.pk)).select_related("content_type")
+            liens = liens_accessibles(SimpleNamespace(user=user), list(notif))
+            self.assertEqual(bool(liens), attendu, user.username)
+        self.assertIn(reverse("tache-detail", args=[tache.pk]), liens_accessibles(SimpleNamespace(user=self.chef), list(notif)).values())
+
+    def test_terminees_les_plus_recentes_d_abord(self):
+        ancienne = self._tache(titre="Ancienne", statut=Tache.STATUT_TERMINEE, terminee_le=timezone.now() - timedelta(days=20),
+                               echeance=self.aujourdhui - timedelta(days=30))
+        recente = self._tache(titre="Récente", statut=Tache.STATUT_TERMINEE, terminee_le=timezone.now(),
+                              echeance=self.aujourdhui)
+        self.client.login(username="chef", password="pass")
+        r = self.client.get(reverse("taches-index"))
+        self.assertEqual(r.context["terminees"], [recente, ancienne])

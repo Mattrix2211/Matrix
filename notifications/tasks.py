@@ -86,6 +86,7 @@ def notify_maintenance_echeance_proche(jours=JOURS_ALERTE_ECHEANCE_MAINTENANCE):
             )
     return {"status": "ok"}
 
+
 @shared_task
 def notify_taches_en_retard():
     """Relance quotidienne des tâches attribuées dont l'échéance est dépassée (logique dans taches/services.py)."""

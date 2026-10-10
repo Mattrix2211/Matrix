@@ -13,6 +13,7 @@ def liens_accessibles(request, notifications):
     propositions = {}
     versions = {}
     fiches = {}
+    taches = {}
     for notification in notifications:
         modele = notification.content_type.model if notification.content_type_id else None
         if modele == "installation" and notification.object_id:
@@ -23,6 +24,8 @@ def liens_accessibles(request, notifications):
             versions[notification.pk] = notification.object_id
         elif modele == "installationmaintenance" and notification.object_id:
             fiches[notification.pk] = notification.object_id
+        elif modele == "tache" and notification.object_id:
+            taches[notification.pk] = notification.object_id
         elif notification.verb.startswith("Ma journée"):
             # Digest quotidien : pas d'objet unique, on renvoie vers le calendrier
             liens[notification.pk] = reverse("calendar-index")
@@ -64,6 +67,15 @@ def liens_accessibles(request, notifications):
         for pk_notification, objet in fiches.items():
             if objet in visibles:
                 liens[pk_notification] = reverse("fiche-detail", args=[objet])
+    if taches:
+        # Même périmètre que la fiche de la tâche
+        from taches.services import taches_visibles
+
+        visibles = {str(pk) for pk in taches_visibles(request.user).filter(
+            pk__in=[int(i) for i in taches.values() if i.isdigit()]).values_list("pk", flat=True)}
+        for pk_notification, objet in taches.items():
+            if objet in visibles:
+                liens[pk_notification] = reverse("tache-detail", args=[objet])
     return liens
 
 
