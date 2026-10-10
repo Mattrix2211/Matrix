@@ -1400,6 +1400,13 @@ def _est_supervision_globale_feuille(user):
     return user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FEUILLE_SERVICE
 
 
+def _supervision_sur_navire(user, ship_id):
+    """Commandant (ou plus) DU navire concerné ; seul l'administrateur général agit sur tous les navires."""
+    if not _est_supervision_globale_feuille(user):
+        return False
+    return user_role_level(user) >= RoleLevel.MASTER_ADMIN or ship_id_for_user(user) == ship_id
+
+
 def equipage_de_feuille_pour(user, ship, equipage_id=None):
     """Code d'équipage dont `user` consulte ou rédige la feuille de service sur
     `ship`. Bâtiment à équipage unique : None, sauf demande explicite d'une
@@ -1464,7 +1471,7 @@ def peut_rediger_feuille_service(user, ship):
     qu'elle ne modélise pas ; le circuit de visa (secteur/service/COMAEQ)
     garantit de toute façon qu'une feuille mal rédigée ne peut pas être
     publiée sans contrôle."""
-    return _est_supervision_globale_feuille(user) or ship_id_for_user(user) == ship.pk
+    return _supervision_sur_navire(user, ship.pk) or ship_id_for_user(user) == ship.pk
 
 
 def peut_gerer_brouillon_feuille(user, feuille):
@@ -1473,13 +1480,13 @@ def peut_gerer_brouillon_feuille(user, feuille):
     supervision globale."""
     if feuille.statut != FeuilleService.STATUT_BROUILLON or not _dans_mon_equipage(user, feuille):
         return False
-    return _est_supervision_globale_feuille(user) or feuille.created_by_id == user.pk
+    return _supervision_sur_navire(user, feuille.ship_id) or feuille.created_by_id == user.pk
 
 
 def peut_viser_secteur(user, feuille):
     if not _dans_mon_equipage(user, feuille):
         return False
-    if _est_supervision_globale_feuille(user):
+    if _supervision_sur_navire(user, feuille.ship_id):
         return True
     if feuille.secteur_redacteur_id is None:
         return False
@@ -1490,7 +1497,7 @@ def peut_viser_secteur(user, feuille):
 def peut_viser_service(user, feuille):
     if not _dans_mon_equipage(user, feuille):
         return False
-    if _est_supervision_globale_feuille(user):
+    if _supervision_sur_navire(user, feuille.ship_id):
         return True
     if feuille.service_redacteur_id is None:
         return False
@@ -1513,9 +1520,7 @@ def titulaire_comaeq(feuille):
 def _supervision_du_navire_feuille(user, feuille):
     """Commandant (ou plus) du bâtiment de la feuille ; l'administrateur
     général agit sur tous les bâtiments."""
-    if not _est_supervision_globale_feuille(user):
-        return False
-    return user_role_level(user) >= RoleLevel.MASTER_ADMIN or ship_id_for_user(user) == feuille.ship_id
+    return _supervision_sur_navire(user, feuille.ship_id)
 
 
 def peut_viser_comaeq(user, feuille):
@@ -1538,7 +1543,7 @@ def peut_lire_feuille_service(user, feuille):
     if not _dans_mon_equipage(user, feuille):
         return False
     if feuille.statut == FeuilleService.STATUT_PUBLIEE:
-        return _est_supervision_globale_feuille(user) or ship_id_for_user(user) == feuille.ship_id
+        return _supervision_sur_navire(user, feuille.ship_id) or ship_id_for_user(user) == feuille.ship_id
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and ship_id_for_user(user) == feuille.ship_id:
         return True  # commandant en second : lecture des feuilles en cours de circuit
     return (

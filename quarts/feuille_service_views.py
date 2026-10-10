@@ -89,6 +89,9 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
 
     def _charger(self, request, ship_id, date_str):
         ship = get_object_or_404(Ship, pk=ship_id)
+        # Une feuille de service n'est visible que depuis son propre navire (sauf administrateur général).
+        if not peut_rediger_feuille_service(request.user, ship):
+            raise PermissionDenied
         date_ = parse_date(date_str)
         # Double équipage : une feuille par équipage, celle de l'équipage de l'appelant.
         equipage = equipage_de_feuille_pour(request.user, ship, request.GET.get("equipage"))
