@@ -10,9 +10,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from absences.models import Absence
 from accounts.models import (
     FonctionQuartChoice, GradeChoice, ResponsableSpecialite, Roles, ServiceFunctionChoice,
-    SpecialityChoice,
+    SpecialityChoice, TypeAbsence,
 )
 from assets.models import (
     ArticleCatalogue, Asset, AssetType, CategorieCatalogue, ChecklistItemTemplate, ChecklistTemplate,
@@ -554,6 +555,9 @@ class Command(BaseCommand):
         if not Tache.objects.filter(titre="Mettre à jour le registre des rondes machines").exists():
             taches_services.creer_tache(
                 chef, self.equipier_a2, "Mettre à jour le registre des rondes machines", self.aujourdhui - timedelta(days=2))
+        permission, _ = TypeAbsence.objects.get_or_create(name="Permission")
+        Absence.objects.get_or_create(marin=self.equipier_a, type_absence=permission, date_debut=demain, defaults=dict(
+            date_fin=demain + timedelta(days=1), statut=Absence.STATUT_VALIDEE, created_by=chef))
         if not Tache.objects.filter(titre="Vérifier l'étalonnage des sondes de température").exists():
             tache = taches_services.creer_tache(
                 User.objects.get(username="chef_secteur_elec_a"), self.equipier_elec, "Vérifier l'étalonnage des sondes de température", hier)

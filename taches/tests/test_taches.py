@@ -9,6 +9,8 @@ from django.utils import timezone
 from dashboard.aujourdhui import a_faire
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
+from absences.models import Absence
+from accounts.models import TypeAbsence
 from taches import services
 from types import SimpleNamespace
 
@@ -208,6 +210,28 @@ class AvancementTests(TachesBase):
         self.assertEqual(a["total"], 4)
         self.assertEqual(a["retards"], [retard])
         self.assertEqual(a["blocages"], [bloquee])
+
+    def test_charge_par_marin_avec_les_marins_disponibles(self):
+        self._tache(statut=Tache.STATUT_EN_COURS)
+        self._tache(echeance=self.aujourdhui - timedelta(days=1))
+        nouveau = self._marin("nouveau", self.secteur, "EQUIPIER", "A")
+        a = services.avancement_equipe(self.chef)
+        self.assertEqual([(c["marin"], c["ouvertes"], c["retards"]) for c in a["charges"]], [(self.marin, 2, 1), (nouveau, 0, 0)])
+        self.assertEqual(a["charge_max"], 2)
+        self.assertNotIn(self.chef, [c["marin"] for c in a["charges"]])
+        self.assertNotIn(self.voisin, [c["marin"] for c in a["charges"]])
+
+    def test_conflit_echeance_pendant_une_absence(self):
+        permission = TypeAbsence.objects.create(name="Permission")
+        dans = self._tache(echeance=self.aujourdhui + timedelta(days=2))
+        self._tache(echeance=self.aujourdhui + timedelta(days=9))
+        absence = Absence.objects.create(
+            marin=self.marin, type_absence=permission, date_debut=self.aujourdhui, date_fin=self.aujourdhui + timedelta(days=3))
+        Absence.objects.create(
+            marin=self.voisin, type_absence=permission, date_debut=self.aujourdhui, date_fin=self.aujourdhui + timedelta(days=3))
+        a = services.avancement_equipe(self.chef)
+        self.assertEqual(a["conflits"], [{"tache": dans, "absence": absence}])
+        self.assertEqual(a["charges"][0]["absent_jusqu_au"], absence.date_fin)
 
     def test_marin_sans_vue_equipe_et_pas_de_ses_propres_taches(self):
         self._tache()

@@ -16,6 +16,28 @@
     <span class="badge text-bg-danger">En retard {{ avancement.retards|length }}</span>
   </p>
   {% endif %}
+  {% if avancement.charges %}
+  <h3 class="h6">Charge par marin</h3>
+  <ul class="list-unstyled">
+    {% for c in avancement.charges %}
+    <li class="d-flex align-items-center gap-2 mb-1">
+      <span style="min-width:9rem">{{ c.marin.get_full_name|default:c.marin.username }}</span>
+      <div class="progress flex-grow-1" role="img" aria-label="{{ c.ouvertes }} tâche(s) ouverte(s)" style="height:.75rem">
+        {% if c.ouvertes %}<div class="progress-bar {% if c.retards %}bg-danger{% elif c.bloquees %}bg-warning{% else %}bg-primary{% endif %}" style="width:{% widthratio c.ouvertes avancement.charge_max 100 %}%"></div>{% endif %}
+      </div>
+      <span class="small text-muted" style="min-width:12rem">{% if c.ouvertes %}{{ c.ouvertes }} ouverte{{ c.ouvertes|pluralize }}{% if c.retards %}, {{ c.retards }} en retard{% endif %}{% if c.bloquees %}, {{ c.bloquees }} bloquée{{ c.bloquees|pluralize }}{% endif %}{% else %}Disponible{% endif %}{% if c.absent_jusqu_au %} · absent jusqu'au {{ c.absent_jusqu_au|date:"d/m" }}{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if avancement.conflits %}
+  <h3 class="h6">Échéances pendant une absence</h3>
+  <ul class="list-unstyled">
+    {% for k in avancement.conflits %}
+    <li class="mb-1"><a href="{% url 'tache-detail' k.tache.pk %}">{{ k.tache.titre }}</a> · {{ k.tache.assigne.get_full_name|default:k.tache.assigne.username }} <span class="text-danger">— échéance le {{ k.tache.echeance|date:"d/m/Y" }}, {{ k.absence.type_absence.name }} du {{ k.absence.date_debut|date:"d/m" }} au {{ k.absence.date_fin|date:"d/m" }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
   {% if avancement.blocages %}
   <h3 class="h6">Blocages à lever</h3>
   <ul class="list-unstyled">

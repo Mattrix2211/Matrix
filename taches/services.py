@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 
+from absences.models import Absence
 from absences.services import marin_dans_perimetre
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
@@ -76,9 +77,10 @@ def taches_supervisees(user):
 
 
 def avancement_equipe(user, aujourdhui=None):
-    """Synthèse pour le chef : tâches par statut, retards et blocages en attente de levée.
+    """Synthèse pour le chef : tâches par statut, charge par marin, retards, blocages et conflits d'absence.
 
     Les tâches terminées ne comptent que sur la durée réglée (jours_terminees_affichees).
+    Un conflit est une tâche ouverte dont l'échéance tombe pendant une absence déclarée ou validée de son marin.
     """
     aujourdhui = aujourdhui or timezone.localdate()
     depuis = timezone.now() - timedelta(days=ParametresTaches.courants().jours_terminees_affichees)
@@ -88,11 +90,32 @@ def avancement_equipe(user, aujourdhui=None):
     for t in ouvertes:
         comptes[t.statut] += 1
     comptes[Tache.STATUT_TERMINEE] = taches.filter(statut=Tache.STATUT_TERMINEE, terminee_le__gte=depuis).count()
+
+    marins = list(marins_assignables(user))
+    absences = list(Absence.objects.filter(
+        marin__in=marins, date_fin__gte=aujourdhui).select_related("type_absence").order_by("date_debut"))
+    charges = []
+    for marin in marins:
+        siennes = [t for t in ouvertes if t.assigne_id == marin.pk]
+        absent = next((a for a in absences if a.marin_id == marin.pk and a.date_debut <= aujourdhui), None)
+        charges.append({
+            "marin": marin, "ouvertes": len(siennes), "retards": sum(t.echeance < aujourdhui for t in siennes),
+            "bloquees": sum(t.statut == Tache.STATUT_BLOQUEE for t in siennes), "absent_jusqu_au": absent and absent.date_fin,
+        })
+    charges.sort(key=lambda c: (-c["ouvertes"], c["marin"].username))
+    conflits = [
+        {"tache": t, "absence": a}
+        for t in ouvertes for a in absences
+        if a.marin_id == t.assigne_id and a.date_debut <= t.echeance <= a.date_fin
+    ]
     return {
         "comptes": comptes,
         "total": sum(comptes.values()),
         "retards": [t for t in ouvertes if t.echeance < aujourdhui],
         "blocages": [t for t in ouvertes if t.statut == Tache.STATUT_BLOQUEE],
+        "charges": charges,
+        "charge_max": max((c["ouvertes"] for c in charges), default=0),
+        "conflits": conflits,
     }
 
 
