@@ -44,7 +44,7 @@ Le calendrier dit QUAND, la fiche dit COMMENT. Une fiche = une gamme (`assets.In
 - **Signalement** (`assets/fiche_signalement.py`, `SignalementFiche`) depuis l'écran d'exécution : fiche du bord, chef de secteur ; fiche flotte, responsable de spécialité, qui ouvre une nouvelle version depuis le signalement.
 - **Comparaison** publiée/proposition : `assets/fiche_comparaison.py`, affichée sur l'écran de visa. « À faire » de la page Aujourd'hui : `versions_a_viser`.
 
-## 4. Les 13 apps Django
+## 4. Les 14 apps Django
 
 | App | Rôle |
 |-----|------|
@@ -56,6 +56,7 @@ Le calendrier dit QUAND, la fiche dit COMMENT. Une fiche = une gamme (`assets.In
 | `training` | Formations, prérequis, arbre de compétences, référents, sessions, candidatures |
 | `quarts` | Quarts, services et gardes, chef de liste, échanges, équité, feuille de service quotidienne (visa jusqu'au COMAEQ, scénarios d'alerte protection-défense) |
 | `absences` | Absences et indisponibilités des marins, prises en compte par les échanges, la génération des listes et le calendrier |
+| `taches` | Tâches attribuées par un chef ou créées par le marin, blocage, compte rendu, fil de discussion, relances d'échéance, vue d'avancement, réglages de la flotte |
 | `rondes` | Modèles de rondes, points de contrôle, exécutions |
 | `threads` | Discussions attachées à n'importe quel objet |
 | `notifications` | Alertes in-app + Web Push (niveau danger) |
@@ -71,6 +72,7 @@ URLs : `/api/*` = DRF (`views.py`), `/` = templates (`web_views.py`).
 - **Inspection → ticket** : occurrence du jour (« Aujourd'hui », fiche, ou QR en option) → checklist → `MaintenanceExecution` → si `NON_CONFORME`, création auto d'un `CorrectiveTicket`.
 - **Ticket correctif** : `REPORTED → DIAGNOSED → WAITING_PARTS → IN_REPAIR → TESTING → RETURNED_TO_SERVICE → CLOSED`. Mot de passe sur `RETURNED_TO_SERVICE` si installation `critique` ; REX obligatoire à `CLOSED`.
 - **Formations** : prérequis anti-cycle ; validation réservée aux référents de CETTE formation ou à COMMANDANT+ ; arbre de compétences 100 % CSS/HTML/SVG ; réservation self-service d'une place de session (distincte de la validation).
+- **Tâches** : un chef (seuil réglable) attribue à un marin de son périmètre et de son équipage ; `À faire → En cours → Bloquée → Terminée`, blocage avec motif et fil `threads`, interlocuteurs du navire en lecture seule hors du fil (exception `/taches/commentaire/` du middleware équipage à terre). Relances quotidiennes via `Notification` (`notifications.tasks.notify_taches_en_retard`), réglages dans `taches.ParametresTaches`. Parcours de démonstration : `docs/DEMO.md`.
 
 ## 6. Hooks (`.claude/hooks/`)
 
