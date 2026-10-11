@@ -149,6 +149,21 @@
     {% fin_surface %}
   </div>
 </div>
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    {% surface titre="Qualifications à renouveler" icone="formation" %}
+      {% for q in supervision.qualifications %}
+        {% if not lecture_seule %}
+          {% carte_action titre=q.titre libelle="Ouvrir" url=q.url classes=q.expiree|yesno:"mx-aujourdhui__tache--danger,mx-aujourdhui__tache--attention" %}{{ q.detail }}{% fin_carte_action %}
+        {% else %}
+          <div class="mx-carte mx-carte--action"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ q.titre }}</span><span class="mx-carte__contenu">{{ q.detail }}</span></div></div>
+        {% endif %}
+      {% empty %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Qualifications à jour" texte="Aucune qualification de votre périmètre n'arrive à échéance." %}
+      {% endfor %}
+    {% fin_surface %}
+  </div>
+</div>
 {% endif %}
 
 {% include "dashboard/_pilotage.html" %}

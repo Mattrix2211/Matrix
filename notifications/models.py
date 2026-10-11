@@ -27,6 +27,9 @@ class Notification(TimeStampedModel):
     target = GenericForeignKey('content_type', 'object_id')
     # Destination sans objet précis (liste, réglage) : chemin interne ; la page applique elle-même ses droits.
     url = models.CharField(max_length=200, blank=True, default="")
+    # Alerte qui réclame une action : « lue » ne la solde pas, seule la résolution de la source la traite.
+    action_requise = models.BooleanField(default=False)
+    traitee_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)

@@ -16,7 +16,7 @@ from .services import compter_non_lues
 LIMITE_AFFICHEE = 50
 PAR_PAGE = 20
 
-# Gravité décroissante : urgent, important, information
+# Actions à traiter d'abord, puis gravité décroissante : urgent, important, information
 _RANG_NIVEAU = Case(
     When(level=NotificationLevel.DANGER, then=Value(0)),
     When(level=NotificationLevel.WARNING, then=Value(1)),
@@ -45,7 +45,8 @@ def _contexte_liste(request, **extra):
         Notification.objects.filter(user=request.user)
         .select_related("content_type")
         .annotate(rang=_RANG_NIVEAU)
-        .order_by("rang", "-created_at")[:LIMITE_AFFICHEE]
+        .order_by(Case(When(action_requise=True, traitee_le__isnull=True, then=Value(0)), default=Value(1), output_field=IntegerField()),
+                  "rang", "-created_at")[:LIMITE_AFFICHEE]
     )
     _enrichir(request, notifications)
     return {"notifications": notifications, "non_lues": compter_non_lues(request.user), **extra}

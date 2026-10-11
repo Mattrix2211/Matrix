@@ -43,6 +43,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-secondary">{% icone "marquer_lu" %} Marquer comme lu</button>
               </form>
             {% else %}<span class="mx-notif__lue">Lue</span>{% endif %}
+            {% if n.action_requise %}{% if n.traitee_le %}<span class="mx-notif__lue">{% icone "terminee" %} Traitée</span>{% else %}<span class="mx-badge mx-badge--attention">À traiter</span>{% endif %}{% endif %}
           </div>
         </li>
       {% endfor %}

@@ -21,6 +21,8 @@ class Message(TimeStampedModel, OwnedModel):
     author = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     body = models.TextField()
     is_system = models.BooleanField(default=False)
+    # Marins interpellés par @identifiant : une réponse est attendue d'eux dans le fil.
+    mentions = models.ManyToManyField(User, blank=True, related_name="mentions_recues")
 
 class Attachment(TimeStampedModel, OwnedModel):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="attachments")

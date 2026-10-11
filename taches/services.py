@@ -20,6 +20,7 @@ from matrix.core.role_thresholds import seuil_role
 from matrix.core.roles import user_role_level
 from matrix.core.scopes import equipage_marin_q
 from notifications.models import Notification, NotificationLevel
+from notifications.services import traiter_actions
 from threads.models import Message, Thread
 from threads.utils import ajouter_commentaire
 
@@ -158,9 +159,9 @@ def _destinataires(tache, sauf):
     return User.objects.filter(pk__in=ids, is_active=True)
 
 
-def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO):
+def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO, action=False):
     for user in destinataires:
-        Notification.objects.create(user=user, verb=verb, level=niveau, target=tache)
+        Notification.objects.create(user=user, verb=verb, level=niveau, target=tache, action_requise=action)
 
 
 def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True):
@@ -177,7 +178,7 @@ def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Ta
     _tracer(tache, chef, "creation")
     if not personnelle:
         delai = f" (échéance {echeance:%d/%m/%Y})" if echeance else ""
-        _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} »{delai}.")
+        _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} »{delai}.", action=True)
     return tache
 
 
@@ -235,8 +236,8 @@ def modifier_tache(chef, tache, assigne, echeance, priorite):
     _enregistrer(tache, chef, "modification", champs, extra=f"; modifications={resume}")
     _message_systeme(tache, f"{_nom(chef)} a modifié la tâche : {resume}.")
     if tache.assigne_id != ancien.pk:
-        _relances(tache).filter(user=ancien, is_read=False).update(is_read=True)
-        _notifier(tache, [tache.assigne], f"{_nom(chef)} vous a confié la tâche « {tache.titre} » ({resume}).")
+        traiter_actions(tache, [ancien])
+        _notifier(tache, [tache.assigne], f"{_nom(chef)} vous a confié la tâche « {tache.titre} » ({resume}).", action=True)
         _notifier(tache, [ancien], f"La tâche « {tache.titre} » ne vous est plus attribuée : {resume}.")
     else:
         _notifier(tache, [tache.assigne], f"{_nom(chef)} a modifié « {tache.titre} » : {resume}.")
@@ -311,6 +312,7 @@ def rendre_compte(tache, user, compte_rendu):
     tache.terminee_le = timezone.now()
     _enregistrer(tache, user, "compte_rendu", ["statut", "compte_rendu", "terminee_le"])
     _message_systeme(tache, f"{_nom(user)} a rendu compte : {compte_rendu}")
+    traiter_actions(tache)
     _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a terminé « {tache.titre} » et rendu compte.")
 
 
@@ -362,11 +364,9 @@ def relancer_echeances_depassees(aujourdhui=None):
                 _notifier(
                     tache, [user],
                     f"{PREFIXE_RELANCE}{etat} : « {tache.titre} »{qui}, échéance dépassée de {jours} j.",
-                    NotificationLevel.WARNING,
+                    NotificationLevel.WARNING, action=True,
                 )
                 creees += 1
-    Notification.objects.filter(
-        content_type=ContentType.objects.get_for_model(Tache), verb__startswith=PREFIXE_RELANCE, is_read=False,
-        object_id__in=[str(pk) for pk in Tache.objects.filter(statut=Tache.STATUT_TERMINEE).values_list("pk", flat=True)],
-    ).update(is_read=True)
+    for terminee in Tache.objects.filter(statut=Tache.STATUT_TERMINEE, terminee_le__gte=timezone.now() - timedelta(days=2)):
+        traiter_actions(terminee, prefixe_verbe=PREFIXE_RELANCE)
     return creees

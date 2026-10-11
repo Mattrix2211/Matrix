@@ -6,3 +6,6 @@ class ThreadsConfig(AppConfig):
     name = "threads"
     verbose_name = "Fils de discussion"
     path = os.path.dirname(os.path.abspath(__file__))
+
+    def ready(self):
+        from . import mentions  # noqa: F401  (branche le signal)

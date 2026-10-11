@@ -1,5 +1,6 @@
 """Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié, frise « Ma journée » et bloc « Supervision »."""
 from datetime import datetime, time, timedelta
+from types import SimpleNamespace
 
 from django.db.models import Q
 from django.urls import reverse
@@ -10,14 +11,18 @@ from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
-from matrix.core.mixins import build_scope_q
+from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from notifications.liens import liens_accessibles
+from notifications.models import Notification
+from threads.mentions import PREFIXE_MENTION
 from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
 from taches.services import taches_a_suivre
-from training.models import TrainingCourse, TrainingSession
+from training.models import TrainingCourse, TrainingRecord, TrainingSession
+from training.services import qualifications_validees_de
 
 STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
 STATUTS_TICKET_TERMINES = ["CLOSED", "CANCELLED"]
@@ -35,6 +40,22 @@ def formations_du_marin(user):
         .distinct()
         .order_by("scheduled_at")
     )
+
+
+def qualifications_a_renouveler(user, aujourdhui):
+    """Dernière qualification de chaque formation, expirée ou échue dans la fenêtre d'alerte."""
+    return [q for q in qualifications_validees_de(user, aujourdhui) if q.badge_libelle != "À jour"]
+
+
+def reponses_attendues(user):
+    """Mentions sans réponse du marin, avec leur lien quand l'objet lui est accessible."""
+    alertes = list(
+        Notification.objects.filter(user=user, action_requise=True, traitee_le__isnull=True,
+                                    verb__startswith=PREFIXE_MENTION)
+        .select_related("content_type").order_by("-created_at")
+    )
+    liens = liens_accessibles(SimpleNamespace(user=user), alertes)
+    return [(alerte, liens[alerte.pk]) for alerte in alertes if alerte.pk in liens and alerte.target is not None]
 
 
 def _entree(objet, titre, detail, url, icone, niveau, criticite, echeance):
@@ -131,6 +152,19 @@ def a_faire(user, aujourdhui):
             f"{reverse('fiche-detail', args=[version.fiche_id])}?v={version.numero}", "document", ATTENTION, 0,
             _echeance(version.updated_at),
         ))
+    for qualification in qualifications_a_renouveler(user, aujourdhui):
+        expiree = qualification.expires_at < aujourdhui
+        entrees.append(_entree(
+            qualification, qualification.course.title,
+            f"Qualification {'expirée' if expiree else 'à renouveler'} · échéance {qualification.expires_at:%d/%m/%Y}",
+            reverse("formation-detail", args=[qualification.course_id]), "formation",
+            DANGER if expiree else ATTENTION, 0, _echeance(qualification.expires_at),
+        ))
+    for alerte, url in reponses_attendues(user):
+        entrees.append(_entree(
+            alerte, str(alerte.target), alerte.verb.removeprefix(f"{PREFIXE_MENTION} : "), url, "discussion",
+            ATTENTION, 0, _echeance(alerte.created_at),
+        ))
     entrees.sort(key=lambda e: (_RANG_NIVEAU[e["niveau"]], -e["criticite"], e["echeance"]))
     return entrees
 
@@ -182,6 +216,23 @@ def peut_superviser(user):
     return is_master_admin(user) or bool(scope_filters_for_user(user))
 
 
+def qualifications_equipe(user, aujourdhui):
+    """Qualifications expirées ou à renouveler des marins du périmètre du chef (hors lui-même)."""
+    from notifications.tasks import JOURS_ALERTE_EXPIRATION_FORMATION
+
+    limite = aujourdhui + timedelta(days=max(JOURS_ALERTE_EXPIRATION_FORMATION))
+    derniere = {}
+    for q in (TrainingRecord.objects.filter(user__in=utilisateurs_visibles_par(user).filter(is_active=True).exclude(pk=user.pk))
+              .select_related("user", "course").order_by("-completed_at", "-created_at")):
+        derniere.setdefault((q.user_id, q.course_id), q)
+    echues = sorted((q for q in derniere.values() if q.expires_at <= limite), key=lambda q: q.expires_at)
+    return [
+        {"titre": q.course.title, "url": reverse("formation-detail", args=[q.course_id]), "expiree": q.expires_at < aujourdhui,
+         "detail": f"{q.user.get_full_name() or q.user.get_username()} · {'expirée' if q.expires_at < aujourdhui else 'échéance'} le {q.expires_at:%d/%m/%Y}"}
+        for q in echues
+    ]
+
+
 def _noms(occurrence):
     noms = [a.last_name or a.get_username() for a in occurrence.assignees.all()]
     return ", ".join(noms) if noms else "non assignée"
@@ -228,7 +279,10 @@ def supervision(user, aujourdhui):
     formations_a_valider = sum(
         1 for c in propositions.select_related("updated_by__profile") if peut_valider_proposition_bord(user, c.updated_by)
     )
+    qualifications = qualifications_equipe(user, aujourdhui)
     return {
+        "qualifications": qualifications[:LIGNES_SUPERVISION],
+        "qualifications_total": len(qualifications),
         "retards": lignes_retard,
         "retards_total": retards_total,
         "retards_pct": round(retards_total / actives * 100) if actives else 0,

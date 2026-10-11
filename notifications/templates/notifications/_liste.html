@@ -20,6 +20,7 @@
             {% if not n.is_read %}
               <button type="button" class="btn btn-sm btn-outline-secondary" hx-post="{% url 'notifications-lue' n.pk %}" hx-target="#notif-liste" hx-swap="outerHTML">{% icone "marquer_lu" %} Marquer comme lu</button>
             {% else %}<span class="mx-notif__lue">Lue</span>{% endif %}
+            {% if n.action_requise %}{% if n.traitee_le %}<span class="mx-notif__lue">{% icone "terminee" %} Traitée</span>{% else %}<span class="mx-badge mx-badge--attention">À traiter</span>{% endif %}{% endif %}
           </div>
         </li>
       {% endfor %}
