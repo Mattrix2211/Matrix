@@ -59,6 +59,8 @@ class CentreEcheancesTests(TachesBase):
         self.assertEqual(Notification.objects.filter(user=self.marin, action_requise=True).count(), 1)
 
     def test_mention_sans_acces_a_l_objet_ne_cree_pas_d_alerte(self):
+        # Même secteur : le collègue est visible de l'auteur, mais la tâche privée ne lui est pas ouverte.
+        collegue = self._marin("collegue", self.secteur, "EQUIPIER", "A")
         tache = self._tache(partagee=False, assigne=self.marin)
-        ajouter_commentaire(tache, self.marin, "@voisin tu peux voir ?")
-        self.assertFalse(Notification.objects.filter(user=self.voisin).exists())
+        ajouter_commentaire(tache, self.marin, "@collegue tu peux voir ?")
+        self.assertFalse(Notification.objects.filter(user=collegue).exists())
