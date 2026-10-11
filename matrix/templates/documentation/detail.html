@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">{{ document.titre }}
+  {% if document.origine == "OFFICIELLE" %}<span class="badge text-bg-primary">Procédure officielle</span>{% else %}<span class="badge text-bg-secondary">Note locale — non réglementaire</span>{% endif %}
+  {% if document.archive %}<span class="badge text-bg-dark">Archivé</span>{% endif %}</h1>
+<p class="text-muted small">{{ document.domaine|default:"Sans domaine" }} · pour {{ document.cible_libelle }}{% if document.reference_source %} · source : {{ document.reference_source }}{% endif %}{% if document.prochaine_revision %} · révision prévue le {{ document.prochaine_revision|date:"d/m/Y" }}{% endif %}</p>
+{% if applicable %}
+<div class="card mb-3"><div class="card-header small">Version applicable : <strong>v{{ applicable.numero }}</strong>, publiée le {{ applicable.date_effet|date:"d/m/Y" }}{% if applicable.valide_par %} · validée par {{ applicable.valide_par.get_full_name|default:applicable.valide_par.username }}{% endif %}</div>
+  <div class="card-body">{{ applicable.contenu|linebreaksbr }}{% if applicable.fichier %}<p class="mt-2 mb-0"><a href="{{ applicable.fichier.url }}" target="_blank" rel="noopener">Fichier joint</a></p>{% endif %}</div></div>
+{% else %}<div class="alert alert-secondary">Aucune version publiée pour l'instant.</div>{% endif %}
+
+{% for v in ouvertes %}
+<div class="card mb-3 border-warning"><div class="card-header small">{{ v.get_etat_display }} · v{{ v.numero }} · {{ v.auteur.get_full_name|default:v.auteur.username }}{% if v.resume %} · {{ v.resume }}{% endif %}</div>
+  <div class="card-body">{{ v.contenu|linebreaksbr }}
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      {% if v.etat == "BROUILLON" %}<form method="post" action="{% url 'document-action' document.pk %}">{% csrf_token %}<input type="hidden" name="action" value="soumettre"><input type="hidden" name="version" value="{{ v.pk }}"><button class="btn btn-primary btn-sm" type="submit">Soumettre à validation</button></form>{% endif %}
+      {% if v.etat == "SOUMISE" and peut_valider and v.auteur_id != moi.pk %}
+        <form method="post" action="{% url 'document-action' document.pk %}">{% csrf_token %}<input type="hidden" name="action" value="valider"><input type="hidden" name="version" value="{{ v.pk }}"><button class="btn btn-success btn-sm" type="submit">Valider et publier</button></form>
+        <form method="post" action="{% url 'document-action' document.pk %}" class="d-flex gap-2">{% csrf_token %}<input type="hidden" name="action" value="refuser"><input type="hidden" name="version" value="{{ v.pk }}"><input class="form-control form-control-sm" name="motif" placeholder="Motif du refus" required aria-label="Motif du refus"><button class="btn btn-outline-danger btn-sm" type="submit">Refuser</button></form>
+      {% endif %}
+    </div></div></div>
+{% endfor %}
+
+{% if peut_proposer %}
+<form method="post" action="{% url 'document-action' document.pk %}" enctype="multipart/form-data" class="card card-body mb-3">{% csrf_token %}<input type="hidden" name="action" value="proposer">
+  <h2 class="h6">Proposer une amélioration (la version applicable reste en vigueur jusqu'à validation)</h2>
+  <input class="form-control mb-2" name="resume" maxlength="300" placeholder="Ce qui change" aria-label="Ce qui change">
+  <textarea class="form-control mb-2" name="contenu" rows="6" aria-label="Nouveau contenu">{{ applicable.contenu }}</textarea>
+  <input class="form-control mb-2" type="file" name="fichier" aria-label="Fichier joint">
+  <button class="btn btn-outline-primary" type="submit">Proposer</button>
+</form>
+{% endif %}
+{% if historique %}
+<h2 class="h6">Historique des versions</h2>
+<ul class="small">{% for v in historique %}<li>v{{ v.numero }} · {{ v.get_etat_display }} · {{ v.created_at|date:"d/m/Y" }} · {{ v.auteur.get_full_name|default:v.auteur.username }}{% if v.motif_refus %} · refus : {{ v.motif_refus }}{% endif %}</li>{% endfor %}</ul>
+{% endif %}
+{% if peut_valider and not document.archive %}<form method="post" action="{% url 'document-action' document.pk %}">{% csrf_token %}<input type="hidden" name="action" value="archiver"><button class="btn btn-outline-secondary btn-sm" type="submit">Archiver le document</button></form>{% endif %}
+{% endblock %}

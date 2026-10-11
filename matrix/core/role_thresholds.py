@@ -175,6 +175,16 @@ REGISTRE_ACTIONS = [
         "Postes du bord", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
+        "documentation_redaction",
+        "Rédiger et soumettre à validation un document ou une nouvelle version",
+        "Documentation", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
+        "documentation_validation",
+        "Valider et publier un document ou une nouvelle version, archiver un document",
+        "Documentation", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,

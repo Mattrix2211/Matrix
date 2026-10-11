@@ -97,6 +97,12 @@ def marins(user, terme, avec_identifiants=False):
     return qs
 
 
+def documents(user, terme):
+    from documentation.services import documents_visibles
+
+    return documents_visibles(user).filter(_ou(terme, "titre", "domaine", "versions__contenu")).distinct().order_by("titre")
+
+
 def _sous_titre(*morceaux):
     return " · ".join(str(m) for m in morceaux if m)
 
@@ -118,6 +124,10 @@ def _ligne_ticket(t, user):
 
 def _ligne_anomalie(a, user):
     return a.titre, _sous_titre(a.localisation, a.get_statut_display()), reverse("anomalie-detail", args=[a.pk])
+
+
+def _ligne_document(d, user):
+    return d.titre, _sous_titre(d.domaine, d.get_origine_display()), reverse("document-detail", args=[d.pk])
 
 
 def _ligne_formation(f, user):
@@ -162,6 +172,8 @@ CATEGORIES = [
     Categorie("tickets", "Tickets correctifs", "ticket", tickets, _ligne_ticket, module="logistics"),
     Categorie("anomalies", "Anomalies", "anomalie", anomalies, _ligne_anomalie, module="logistics"),
     Categorie("formations", "Formations", "formation", formations, _ligne_formation, module="training"),
+    Categorie("documents", "Documents", "document", documents, _ligne_document,
+              module="documentation", liste="documentation-index"),
     Categorie("marins", "Marins", "annuaire", marins, _ligne_marin),
 ]
 

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load icones %}
+{% load icones documentation_extras %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=tache.titre sous_titre="Tâche" objet=tache %}
 {% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=tache:{{ tache.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
@@ -10,6 +10,7 @@
   · Assignée à <strong>{{ tache.assigne.get_full_name|default:tache.assigne.username }}</strong>
   · {% if tache.echeance %}Échéance le {{ tache.echeance|date:"d/m/Y" }}{% else %}Sans échéance{% endif %}</p>
 {% if tache.description %}<p>{{ tache.description|linebreaksbr }}</p>{% endif %}
+{% documents_associes_a tache %}
 
 {% if tache.statut == "BLOQUEE" %}
 <div class="alert alert-warning"><strong>Bloquée :</strong> {{ tache.motif_blocage|linebreaksbr }}

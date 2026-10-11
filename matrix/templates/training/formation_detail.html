@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% load icones %}
+{% load icones documentation_extras %}
 {% block content %}
 <nav class="small mb-2" aria-label="Fil d'Ariane"><a href="{% url 'formation-list' %}">Formations</a></nav>
 {% include "components/fiche_entete.html" with titre=formation.title sous_titre=formation.category|default:"Non catégorisée" badge_libelle=formation.mon_etat_libelle badge_etat=formation.mon_etat action=action_principale menu=menu_fiche menu_libelle="Autres actions sur cette formation" indicateurs=indicateurs_fiche objet=formation %}
+{% documents_associes_a formation %}
 
 {% if formation.prerequis_manquants %}
 <div class="mx-derive mb-3">

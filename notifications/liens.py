@@ -200,6 +200,13 @@ def _evenements_programme(request, ids):
                      lambda o: reverse("evenement-detail", args=[o]))
 
 
+def _documents(request, ids):
+    from documentation.services import documents_visibles
+
+    return _visibles(ids, documents_visibles(request.user).filter(pk__in=_entiers(ids.values())),
+                     lambda o: reverse("document-detail", args=[o]))
+
+
 def _demandes(request, ids):
     from demandes.services import demandes_visibles
 
@@ -210,6 +217,7 @@ def _demandes(request, ids):
 _RESOLVEURS = {
     "demande": _demandes,
     "annonce": _annonces,
+    "document": _documents,
     "evenementprogramme": _evenements_programme,
     "installation": _installations,
     "propositionarticle": _propositions,

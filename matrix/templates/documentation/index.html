@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Documentation et procédures</h1>
+  {% if peut_rediger %}<a class="btn btn-primary" href="{% url 'document-nouveau' %}">Rédiger un document</a>{% endif %}
+</div>
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-6"><label class="visually-hidden" for="id_q">Rechercher</label><input class="form-control" id="id_q" name="q" value="{{ recherche }}" placeholder="Rechercher un titre, un domaine ou un texte" maxlength="80"></div>
+  <div class="col-md-4"><label class="visually-hidden" for="id_domaine">Domaine</label>
+    <select class="form-select" id="id_domaine" name="domaine"><option value="">Tous les domaines</option>{% for d in domaines %}<option value="{{ d }}" {% if d == domaine %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><button class="btn btn-outline-secondary w-100" type="submit">Filtrer</button></div>
+</form>
+{% if a_reviser %}
+<div class="alert alert-warning py-2"><strong>À réviser :</strong> {% for d in a_reviser %}<a href="{% url 'document-detail' d.pk %}">{{ d.titre }}</a> ({{ d.prochaine_revision|date:"d/m/Y" }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>
+{% endif %}
+<div class="list-group">
+  {% for d in documents %}
+  <a class="list-group-item list-group-item-action" href="{% url 'document-detail' d.pk %}">
+    <div class="d-flex justify-content-between"><strong>{{ d.titre }}</strong>
+      <span>{% if d.origine == "OFFICIELLE" %}<span class="badge text-bg-primary">Officielle</span>{% else %}<span class="badge text-bg-secondary">Note locale</span>{% endif %}
+        {% if d.en_attente %}<span class="badge text-bg-warning">Proposition en attente</span>{% endif %}{% if d.archive %}<span class="badge text-bg-dark">Archivé</span>{% endif %}</span></div>
+    <div class="small text-muted">{{ d.domaine|default:"Sans domaine" }} · {{ d.cible_libelle }} · {% if d.applicable %}version {{ d.applicable.numero }} du {{ d.applicable.date_effet|date:"d/m/Y" }}{% else %}non publié{% endif %}</div>
+  </a>
+  {% empty %}<div class="list-group-item text-muted">Aucun document.</div>{% endfor %}
+</div>
+{% endblock %}

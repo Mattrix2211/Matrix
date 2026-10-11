@@ -95,6 +95,10 @@ REGISTRE_MODULES = [
         "Tâches attribuées par les chefs, fil de discussion contextuel, blocages et comptes rendus.",
     ),
     ModuleInfo(
+        "documentation", "Documentation et procédures",
+        "Bibliothèque de procédures et de notes contextualisées, validées et versionnées.",
+    ),
+    ModuleInfo(
         "postes", "Postes du bord",
         "Postes à pourvoir, titulaires et formations exigées ; les qualifications manquantes sont signalées sans bloquer l'affectation.",
     ),
