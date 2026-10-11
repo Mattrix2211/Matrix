@@ -51,3 +51,14 @@ class CentreEcheancesTests(TachesBase):
         lignes = supervision(commandant, self.aujourdhui)["qualifications"]
         self.assertEqual([l["titre"] for l in lignes], ["Secourisme"])
         self.assertTrue(lignes[0]["expiree"])
+
+    def test_mention_repetee_une_seule_alerte(self):
+        tache = self._tache()
+        ajouter_commentaire(tache, self.chef, "@marin un point ?")
+        ajouter_commentaire(tache, self.chef, "@marin relance")
+        self.assertEqual(Notification.objects.filter(user=self.marin, action_requise=True).count(), 1)
+
+    def test_mention_sans_acces_a_l_objet_ne_cree_pas_d_alerte(self):
+        tache = self._tache(partagee=False, assigne=self.marin)
+        ajouter_commentaire(tache, self.marin, "@voisin tu peux voir ?")
+        self.assertFalse(Notification.objects.filter(user=self.voisin).exists())
