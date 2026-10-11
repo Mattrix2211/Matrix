@@ -262,9 +262,14 @@ def signaler_blocage(tache, user, motif):
     tache.motif_blocage = motif
     _enregistrer(tache, user, "blocage", ["statut", "motif_blocage"])
     _message_systeme(tache, f"{_nom(user)} signale un blocage : {motif}")
+    # Dès le blocage : les acteurs du dossier, puis les chefs du périmètre qui peuvent le lever (alerte d'action).
+    acteurs = list(_destinataires(tache, user))
+    verbe = f"{PREFIXE_BLOCAGE} {_nom(user)} est bloqué sur « {tache.titre} » : {motif}"
+    _notifier(tache, acteurs, verbe, NotificationLevel.WARNING, action=True)
+    deja = {a.pk for a in acteurs}
     _notifier(
-        tache, _destinataires(tache, user),
-        f"{_nom(user)} est bloqué sur « {tache.titre} » : {motif}", NotificationLevel.WARNING,
+        tache, [c for c in _destinataires_relance(tache, ParametresTaches.courants()) if c.pk not in deja and c.pk != user.pk],
+        verbe, NotificationLevel.WARNING, action=True,
     )
 
 
@@ -297,6 +302,7 @@ def reprendre(tache, chef):
         raise ValidationError("La tâche n'est pas bloquée.")
     tache.statut = Tache.STATUT_EN_COURS
     _enregistrer(tache, chef, "reprise", ["statut"])
+    traiter_actions(tache, prefixe_verbe=PREFIXE_BLOCAGE)
     _message_systeme(tache, f"{_nom(chef)} lève le blocage : la tâche reprend.")
     _notifier(tache, [tache.assigne], f"Blocage levé sur « {tache.titre} » : vous pouvez reprendre.")
 
@@ -321,6 +327,7 @@ def rendre_compte(tache, user, compte_rendu):
 
 
 PREFIXE_RELANCE = "Tâche en retard"
+PREFIXE_BLOCAGE = "Blocage :"
 
 
 def _relances(tache):
