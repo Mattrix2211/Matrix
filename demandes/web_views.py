@@ -9,6 +9,7 @@ from django.utils.dateparse import parse_date
 from django.views import View
 
 from notifications.liens import lien_objet
+from taches.services import peut_consulter as peut_consulter_tache
 from threads.utils import commentaires_de
 
 from .models import Demande
@@ -123,7 +124,7 @@ class DemandeDetailView(LoginRequiredMixin, View):
             "demande": demande,
             "commentaires": commentaires_de(demande),
             "interlocuteurs": demande.interlocuteurs.all(),
-            "actions": demande.actions.select_related("assigne"),
+            "actions": [(t, peut_consulter_tache(request.user, t)) for t in demande.actions.select_related("assigne")],
             "objet": demande.objet,
             "lien_objet": lien_objet(request.user, demande.objet) if demande.objet else None,
             "transitions": [(code, libelle) for code, libelle in Demande.ETAT_CHOICES if code in transitions],

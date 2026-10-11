@@ -11,6 +11,7 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
+from matrix.core.scopes import equipage_marin_q, marins_hors_equipage
 from matrix.core.roles import ROLE_TO_LEVEL, RoleLevel, user_role_level
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
@@ -47,7 +48,12 @@ def _nom(user):
 
 def peut_gerer_perimetre(user, demande):
     """Chef habilité (seuil des tâches) dont le périmètre couvre le déclarant."""
-    return peut_attribuer(user) and Demande.objects.filter(build_scope_q(user, ""), pk=demande.pk).exists()
+    return peut_attribuer(user) and Demande.objects.filter(_perimetre_chef(user), pk=demande.pk).exists()
+
+
+def _perimetre_chef(user):
+    """Périmètre d'un chef : son niveau organisationnel et, à double équipage, son équipage."""
+    return build_scope_q(user, "") & equipage_marin_q(user, "declarant__profile__")
 
 
 def est_acteur(user, demande):
@@ -66,7 +72,7 @@ def peut_piloter(user, demande):
 def demandes_visibles(user):
     base = Q(declarant=user) | Q(responsable=user) | Q(interlocuteurs=user)
     if peut_attribuer(user):
-        base |= build_scope_q(user, "")
+        base |= _perimetre_chef(user)
     return Demande.objects.filter(base).distinct()
 
 
@@ -159,7 +165,8 @@ def repondre(demande, user, corps):
     if not corps:
         raise ValidationError("Le message ne peut pas être vide.")
     ajouter_commentaire(demande, user, corps)
-    traiter_actions(demande, [user])
+    if demande.etat != Demande.ETAT_RESOLU:  # en « résolu », la clôture reste attendue du déclarant
+        traiter_actions(demande, [user])
     if user.pk == demande.declarant_id and demande.etat == Demande.ETAT_EN_ATTENTE:
         _changer(demande, user, Demande.ETAT_OUVERT, "Information fournie.")
     attend_le_declarant = demande.etat == Demande.ETAT_EN_ATTENTE
@@ -256,6 +263,8 @@ def creer_action(demande, user, assigne, titre, echeance=None):
     navire = getattr(demande.declarant.profile, "ship_id", None)
     if not User.objects.filter(pk=assigne.pk, profile__ship_id=navire, is_active=True).exists():
         raise ValidationError("Choisissez un marin du bâtiment.")
+    if marins_hors_equipage(demande.declarant, [assigne]):
+        raise ValidationError("Choisissez un marin de l'équipage du déclarant.")
     if equipage_a_terre_lecture_seule(assigne):
         raise ValidationError("Ce marin est à terre : assignez l'action à l'équipage à bord.")
     tache = Tache(

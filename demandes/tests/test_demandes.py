@@ -110,3 +110,29 @@ class DroitsTests(DemandesBase):
         self.assertContains(self.client.get(reverse("demande-detail", args=[self.demande.pk])), "Bruit anormal")
         self.assertContains(self.client.get(reverse("demande-nouvelle") + f"?objet=tache:{self.tache.pk}"), "Signaler une difficulté")
         self.assertEqual(self.client.get(reverse("demande-nouvelle") + "?objet=tache:99999").status_code, 404)
+
+
+class DoubleEquipageTests(DemandesBase):
+    def test_chef_hors_perimetre_ou_de_l_autre_equipage_refuse(self):
+        autre_secteur = self._marin("chef_elec", self.voisin.profile.sector, "CHEF_SECTION", "A")
+        chef_terre = self._marin("chef_terre", self.secteur, "CHEF_SECTION", "B")
+        for intrus in (autre_secteur, chef_terre):
+            self.assertFalse(services.peut_consulter(intrus, self.demande))
+            self.assertFalse(services.demandes_visibles(intrus).filter(pk=self.demande.pk).exists())
+            self.assertFalse(services.peut_piloter(intrus, self.demande))
+            self.client.force_login(intrus)
+            self.assertEqual(self.client.get(reverse("demande-detail", args=[self.demande.pk])).status_code, 404)
+            self.assertEqual(self.client.post(reverse("demande-action", args=[self.demande.pk]),
+                                              {"action": "creer_action", "titre": "x", "assigne": self.marin.pk}).status_code, 404)
+
+    def test_action_refusee_vers_l_autre_equipage(self):
+        with self.assertRaises(ValidationError):
+            services.creer_action(self.demande, self.chef, self.terre, "Action")
+
+    def test_lien_de_l_action_masque_a_l_interlocuteur_a_terre(self):
+        services.ajouter_interlocuteur(self.demande, self.chef, self.terre)
+        action = services.creer_action(self.demande, self.chef, self.marin, "Remplacer le roulement")
+        self.client.force_login(self.terre)
+        page = self.client.get(reverse("demande-detail", args=[self.demande.pk]))
+        self.assertContains(page, "Remplacer le roulement")
+        self.assertNotContains(page, reverse("tache-detail", args=[action.pk]))

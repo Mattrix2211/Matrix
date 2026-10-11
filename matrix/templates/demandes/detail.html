@@ -18,7 +18,7 @@
     <div class="card card-body mb-3">
       <h2 class="h6">Actions décidées</h2>
       <ul class="list-unstyled small mb-0">
-        {% for t in actions %}<li class="mb-1"><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a> · {{ t.assigne.get_full_name|default:t.assigne.username }} · {% include "taches/_statut.html" %}</li>
+        {% for t, lisible in actions %}<li class="mb-1">{% if lisible %}<a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a>{% else %}{{ t.titre }}{% endif %} · {{ t.assigne.get_full_name|default:t.assigne.username }} · {% include "taches/_statut.html" %}</li>
         {% empty %}<li class="text-muted">Aucune action pour l'instant.</li>{% endfor %}
       </ul>
     </div>
