@@ -4,6 +4,7 @@
 {% include "components/fiche_entete.html" with titre=object.designation sous_titre=object.sector action=action_principale menu=menu_fiche menu_libelle="Autres actions sur cette installation" indicateurs=indicateurs_fiche objet=object historique_url="?tab=histo" %}
 {% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=installation:{{ object.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
 {% documents_associes_a object %}
+{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=installation:{{ object.pk }}">Proposer un RETEX</a></p>{% endif %}
 
 <div class="card">
   {% if object.photo %}

@@ -95,6 +95,10 @@ REGISTRE_MODULES = [
         "Tâches attribuées par les chefs, fil de discussion contextuel, blocages et comptes rendus.",
     ),
     ModuleInfo(
+        "retex", "RETEX",
+        "Retours d'expérience : un cas significatif devient un enseignement validé, routé par domaine, avec des actions suivies.",
+    ),
+    ModuleInfo(
         "documentation", "Documentation et procédures",
         "Bibliothèque de procédures et de notes contextualisées, validées et versionnées.",
     ),

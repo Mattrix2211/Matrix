@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Domaines et routage des RETEX</h1>
+<p class="text-muted">Le domaine détermine le COMA référent et l'organisme destinataire proposé. Ajoutez ou adaptez-les à votre bâtiment.</p>
+<table class="table table-sm"><thead><tr><th>Domaine</th><th>COMA référent</th><th>Organisme destinataire</th></tr></thead>
+  <tbody>{% for d in domaines %}<tr><td>{{ d.nom }}</td><td>{{ d.coma }}</td><td>{{ d.organisme }}</td></tr>{% endfor %}</tbody></table>
+<form method="post" class="row g-2">{% csrf_token %}
+  <div class="col-md-4"><input class="form-control" name="nom" maxlength="80" placeholder="Domaine" aria-label="Domaine" required></div>
+  <div class="col-md-3"><input class="form-control" name="coma" maxlength="40" placeholder="COMA référent" aria-label="COMA référent"></div>
+  <div class="col-md-3"><input class="form-control" name="organisme" maxlength="120" placeholder="Organisme destinataire" aria-label="Organisme"></div>
+  <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Ajouter</button></div>
+</form>
+<p class="mt-3"><a href="{% url 'retex-index' %}">Retour aux RETEX</a></p>
+{% endblock %}

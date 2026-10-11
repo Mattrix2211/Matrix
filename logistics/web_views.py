@@ -210,6 +210,10 @@ class TicketDetailView(LoginRequiredMixin, View):
                 "libelle": "Compte rendu d'intervention", "icone": "maintenance", "ecriture": True,
                 "url": reverse('correctif-compte-rendu', args=[ticket.pk]),
             })
+        contexte["menu_fiche"].append({
+            "libelle": "Proposer un RETEX", "icone": "historique",
+            "url": f"{reverse('retex-nouveau')}?source=correctiveticket:{ticket.pk}",
+        })
         contexte["indicateurs_fiche"] = [
             {"libelle": "Gravité", "valeur": f"{ticket.severity}/5",
              "etat": "danger" if ticket.severity >= 4 else "attention" if ticket.severity == 3 else "ok"},

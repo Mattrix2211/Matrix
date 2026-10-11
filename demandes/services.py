@@ -95,9 +95,9 @@ def interlocuteurs_possibles(demande):
     return User.objects.filter(profile__ship_id=navire, is_active=True).exclude(pk__in=deja).order_by("username")
 
 
-def trouver_objet(modele, pk):
-    """Objet signalable désigné par « modèle:identifiant », ou None."""
-    if modele not in OBJETS_SIGNALABLES:
+def trouver_objet(modele, pk, autorises=OBJETS_SIGNALABLES):
+    """Objet désigné par « modèle:identifiant » parmi les modèles `autorises`, ou None."""
+    if modele not in autorises:
         return None
     type_objet = ContentType.objects.filter(model=modele).first()
     if type_objet is None:

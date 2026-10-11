@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     "programme.apps.ProgrammeConfig",
     "postes.apps.PostesConfig",
     "documentation.apps.DocumentationConfig",
+    "retex.apps.RetexConfig",
     "rondes.apps.RondesConfig",
     "threads.apps.ThreadsConfig",
     "notifications.apps.NotificationsConfig",

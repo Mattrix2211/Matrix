@@ -11,6 +11,7 @@
   · {% if tache.echeance %}Échéance le {{ tache.echeance|date:"d/m/Y" }}{% else %}Sans échéance{% endif %}</p>
 {% if tache.description %}<p>{{ tache.description|linebreaksbr }}</p>{% endif %}
 {% documents_associes_a tache %}
+{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=tache:{{ tache.pk }}">Proposer un RETEX</a></p>{% endif %}
 
 {% if tache.statut == "BLOQUEE" %}
 <div class="alert alert-warning"><strong>Bloquée :</strong> {{ tache.motif_blocage|linebreaksbr }}

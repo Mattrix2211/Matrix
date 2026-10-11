@@ -207,6 +207,14 @@ def _documents(request, ids):
                      lambda o: reverse("document-detail", args=[o]))
 
 
+def _retex(request, ids):
+    from retex.models import Retex
+    from retex.services import peut_consulter
+
+    retex = {str(r.pk): r for r in Retex.objects.filter(pk__in=_entiers(ids.values()))}
+    return {n: reverse("retex-detail", args=[o]) for n, o in ids.items() if o in retex and peut_consulter(request.user, retex[o])}
+
+
 def _demandes(request, ids):
     from demandes.services import demandes_visibles
 
@@ -217,6 +225,7 @@ def _demandes(request, ids):
 _RESOLVEURS = {
     "demande": _demandes,
     "annonce": _annonces,
+    "retex": _retex,
     "document": _documents,
     "evenementprogramme": _evenements_programme,
     "installation": _installations,

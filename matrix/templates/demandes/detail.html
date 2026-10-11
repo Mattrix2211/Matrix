@@ -2,6 +2,7 @@
 {% load icones %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=demande.titre sous_titre="Demande bord–terre" objet=demande %}
+{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=demande:{{ demande.pk }}">Proposer un RETEX</a></p>{% endif %}
 <div class="row g-4">
   <div class="col-lg-4">
     <div class="card card-body mb-3">
