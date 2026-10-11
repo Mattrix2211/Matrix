@@ -585,7 +585,7 @@ class Command(BaseCommand):
         tache = Tache.objects.get(titre="Contrôler le graissage des paliers de la ligne d'arbre")
         if not Demande.objects.filter(titre="Fuite persistante sur un graisseur").exists():
             demande = demandes_services.creer_demande(
-                self.equipier_a, tache, "Fuite persistante sur un graisseur",
+                tache.assigne, tache, "Fuite persistante sur un graisseur",
                 "Le graisseur du palier n°2 fuit malgré le resserrage.", chef)
             demandes_services.ajouter_interlocuteur(demande, chef, ivan)
             demandes_services.repondre(demande, ivan, "Un joint équivalent est disponible au magasin de l'équipage B, je vous l'envoie.")
