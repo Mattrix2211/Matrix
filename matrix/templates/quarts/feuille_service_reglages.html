@@ -36,7 +36,7 @@
               <td><input type="text" name="rubrique_{{ r.pk }}_valeur_fixe" value="{{ r.valeur_fixe }}" class="form-control form-control-sm" placeholder="Si rubrique fixe"></td>
               <td class="text-center"><input type="checkbox" name="rubrique_{{ r.pk }}_actif" {% if r.actif %}checked{% endif %} class="form-check-input"></td>
               <td>
-                <button type="submit" form="supprimer-rubrique-{{ r.pk }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                <button type="submit" form="supprimer-rubrique-{{ r.pk }}" class="btn btn-sm btn-outline-danger" aria-label="Supprimer"><i class="bi bi-trash"></i></button>
               </td>
             </tr>
             {% endfor %}
@@ -86,7 +86,7 @@
               <td><input type="text" name="fonction_{{ f.pk }}_libelle" value="{{ f.libelle }}" class="form-control form-control-sm" required></td>
               <td><input type="text" name="fonction_{{ f.pk }}_poste_recherche" value="{{ f.poste_recherche }}" class="form-control form-control-sm" placeholder="Identique au libellé si vide"></td>
               <td class="text-center"><input type="checkbox" name="fonction_{{ f.pk }}_actif" {% if f.actif %}checked{% endif %} class="form-check-input"></td>
-              <td><button type="submit" form="supprimer-fonction-{{ f.pk }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
+              <td><button type="submit" form="supprimer-fonction-{{ f.pk }}" class="btn btn-sm btn-outline-danger" aria-label="Supprimer"><i class="bi bi-trash"></i></button></td>
             </tr>
             {% endfor %}
             <tr class="table-light">

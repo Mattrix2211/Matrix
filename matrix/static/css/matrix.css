@@ -178,6 +178,8 @@ code, pre, kbd, .font-mono {
 .text-primary { color: var(--lien) !important; }
 .text-warning { color: var(--attention-texte) !important; }
 .text-secondary { color: var(--text-sec) !important; }
+/* Focus clavier visible sur tout élément interactif (contraste 3:1 de --focus). */
+a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .bg-primary { background-color: var(--signal) !important; }
 .border-primary { border-color: var(--signal) !important; }
 .form-check-input:checked {
