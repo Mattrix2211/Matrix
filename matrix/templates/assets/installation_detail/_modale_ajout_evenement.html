@@ -8,6 +8,8 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="add_event" />
           <div class="mb-3"><label class="form-label">Date</label><input type="text" class="form-control" name="date" inputmode="numeric" maxlength="10" placeholder="JJ/MM/AAAA" /></div>
+          <div class="mb-3"><label class="form-label">Type</label>
+            <select class="form-select" name="type_evenement"><option value="EVENEMENT">Événement</option><option value="MODIFICATION_TECHNIQUE">Modification technique (pièce remplacée, évolution)</option></select></div>
           <div class="mb-3"><label class="form-label">Événement</label><input class="form-control" name="label" required /></div>
           <div class="mb-3"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="4"></textarea></div>
           <div class="mb-3"><label class="form-label">Pièces jointes</label>

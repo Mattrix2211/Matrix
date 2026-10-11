@@ -182,8 +182,12 @@ def _action_add_event(view, request, inst, qs):
         messages.error(request, "Le champ 'Événement' est requis.")
         return redirect(f"/installations/{inst.id}/{qs}")
     ev_date = _parse_datetime_jjmmaaaa_minuit(date_str)
+    type_evenement = request.POST.get('type_evenement', '')
+    if type_evenement not in dict(InstallationEvent.TYPE_CHOICES):
+        type_evenement = InstallationEvent.TYPE_EVENEMENT
     ev = InstallationEvent.objects.create(
         installation=inst,
+        type_evenement=type_evenement,
         label=label,
         notes=notes,
         date=ev_date or timezone.now(),
@@ -196,8 +200,8 @@ def _action_add_event(view, request, inst, qs):
             messages.error(request, f"{getattr(f, 'name', 'fichier')} : {erreur_fichier}")
             continue
         InstallationEventAttachment.objects.create(event=ev, file=f, created_by=request.user, updated_by=request.user)
-    AuditLog.objects.create(actor=request.user, action='add_installation_event', details=f'installation_id={inst.id}, event_id={ev.id}')
-    messages.success(request, 'Événement ajouté.')
+    AuditLog.objects.create(actor=request.user, action='add_installation_event', details=f'installation_id={inst.id}, event_id={ev.id}, type={type_evenement}')
+    messages.success(request, 'Modification technique enregistrée.' if type_evenement == InstallationEvent.TYPE_MODIFICATION else 'Événement ajouté.')
     return redirect(f"/installations/{inst.id}/{qs}")
 
 

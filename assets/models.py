@@ -444,7 +444,12 @@ class AssetFolder(TimeStampedModel, OwnedModel):
 
 # Historique des installations
 class InstallationEvent(TimeStampedModel, OwnedModel):
+    TYPE_EVENEMENT = "EVENEMENT"
+    TYPE_MODIFICATION = "MODIFICATION_TECHNIQUE"
+    TYPE_CHOICES = ((TYPE_EVENEMENT, "Événement"), (TYPE_MODIFICATION, "Modification technique"))
+
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="events")
+    type_evenement = models.CharField(max_length=24, choices=TYPE_CHOICES, default=TYPE_EVENEMENT, verbose_name="Type")
     date = models.DateTimeField(default=timezone.now)
     label = models.CharField(max_length=255)
     notes = models.TextField(blank=True, default="")

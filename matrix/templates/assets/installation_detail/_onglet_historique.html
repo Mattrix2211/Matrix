@@ -10,7 +10,7 @@
               {% for ev in events %}
               <tr data-bs-toggle="modal" data-bs-target="#eventDetailModal-{{ ev.id }}" style="cursor:pointer;">
                 <td class="font-mono">{{ ev.date|date:"d/m/Y" }}</td>
-                <td>{{ ev.label }}</td>
+                <td>{{ ev.label }}{% if ev.type_evenement == "MODIFICATION_TECHNIQUE" %} <span class="badge text-bg-warning">Modification technique</span>{% endif %}</td>
                 <td>{% if ev.created_by %}{{ ev.created_by.get_full_name|default:ev.created_by.username }}{% else %}—{% endif %}</td>
                 <td>
                   <div class="d-flex flex-wrap gap-1">
