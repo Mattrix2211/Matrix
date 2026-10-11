@@ -139,6 +139,7 @@ def _filtre_visibles(user):
     visees = Q(ship_id=ship) & (Q(service__isnull=True) | Q(service_id=service)) \
         & (Q(sector__isnull=True) | Q(sector_id=sector)) & (Q(section__isnull=True) | Q(section_id=section))
     visees &= Q(equipage="") | Q(equipage=getattr(profil, "equipage", "") or "\0")
+    visees &= Q(date_effet__lte=timezone.localdate())  # avant sa date d'effet, seuls l'auteur et les gérants la voient
     return (visees if ship else Q(pk__in=[])) | Q(auteur=user)
 
 
@@ -256,7 +257,10 @@ def lecture_de(user, annonce):
 
 def marquer_lue(user, annonce):
     """Ouvrir l'annonce suffit quand aucun accusé n'est requis."""
-    LectureAnnonce.objects.get_or_create(annonce=annonce, user=user, defaults={"version_lue": annonce.version})
+    lecture, _ = LectureAnnonce.objects.get_or_create(annonce=annonce, user=user, defaults={"version_lue": annonce.version})
+    if lecture.version_lue < annonce.version:
+        lecture.version_lue = annonce.version
+        lecture.save(update_fields=["version_lue", "updated_at"])
 
 
 def accuser(user, annonce):
@@ -264,6 +268,8 @@ def accuser(user, annonce):
         raise PermissionError("Cette annonce ne vous est pas destinée.")
     if not annonce.accuse_requis:
         raise ValidationError("Aucun accusé n'est demandé pour cette annonce.")
+    if not annonce.active_au(timezone.localdate()):
+        raise ValidationError("Cette annonce n'est pas en cours.")
     LectureAnnonce.objects.update_or_create(
         annonce=annonce, user=user, defaults={"accuse": True, "version_lue": annonce.version},
     )

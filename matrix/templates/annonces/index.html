@@ -19,6 +19,12 @@
   </a>
   {% empty %}<div class="list-group-item text-muted">Aucune annonce en cours.</div>{% endfor %}
 </div>
+{% if programmees %}
+<h2 class="h5">Programmées</h2>
+<ul class="list-unstyled">
+  {% for a in programmees %}<li><a href="{% url 'annonce-detail' a.pk %}">{{ a.titre }}</a> <span class="small text-muted">· visible le {{ a.date_effet|date:"d/m/Y" }}</span></li>{% endfor %}
+</ul>
+{% endif %}
 {% if archives %}
 <h2 class="h5">Archives</h2>
 <ul class="list-unstyled">

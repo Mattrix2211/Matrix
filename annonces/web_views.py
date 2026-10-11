@@ -13,6 +13,7 @@ from notifications.models import NotificationLevel
 from .models import Annonce
 from .services import (
     accuser,
+    annonces_gerees,
     annonces_visibles,
     archiver,
     cibles_autorisees,
@@ -57,7 +58,7 @@ class AnnoncesIndexView(LoginRequiredMixin, View):
     def get(self, request):
         niveau = request.GET.get("niveau", "")
         aujourdhui = timezone.localdate()
-        visibles = annonces_visibles(request.user).select_related("auteur")
+        visibles = (annonces_visibles(request.user) | annonces_gerees(request.user)).distinct().select_related("auteur")
         if niveau in NotificationLevel.values:
             visibles = visibles.filter(niveau=niveau)
         else:
@@ -70,7 +71,9 @@ class AnnoncesIndexView(LoginRequiredMixin, View):
                 lecture and lecture.accuse and lecture.version_lue >= annonce.version)
             annonce.non_lue = lecture is None and annonce.auteur_id != request.user.pk
         return render(request, "annonces/index.html", {
-            "annonces": actives, "archives": [a for a in visibles if not a.active_au(aujourdhui)][:20],
+            "annonces": actives,
+            "programmees": [a for a in visibles if not a.archivee and a.date_effet > aujourdhui],
+            "archives": [a for a in visibles if a.archivee or (a.date_fin and a.date_fin < aujourdhui)][:20],
             "niveau": niveau, "niveaux": NotificationLevel.choices,
             "peut_publier": peut_publier(request.user),
         })

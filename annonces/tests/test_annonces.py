@@ -143,3 +143,31 @@ class PagesTests(AnnoncesBase):
         self.assertEqual(self.client.post(reverse("annonce-nouvelle"), {
             "titre": "Hors périmètre", "corps": "x", "niveau": "info", "cible": f"service:{self.pont.pk}"}).status_code, 302)
         self.assertFalse(Annonce.objects.filter(titre="Hors périmètre").exists())
+
+
+class VisibiliteTemporelleTests(AnnoncesBase):
+    def test_annonce_programmee_invisible_pour_un_destinataire(self):
+        annonce = services.publier(self.cdt, "Demain", "x", "info", f"ship:{self.navire.pk}", date_effet=self.jour + timedelta(days=2))
+        self.assertFalse(services.peut_consulter(self.marin, annonce))
+        self.client.force_login(self.marin)
+        self.assertNotContains(self.client.get(reverse("annonces-index")), "Demain")
+        self.assertEqual(self.client.get(reverse("annonce-detail", args=[annonce.pk])).status_code, 404)
+        self.client.force_login(self.cdt)
+        self.assertContains(self.client.get(reverse("annonces-index")), "Programmées")
+        self.assertEqual(self.client.get(reverse("annonce-detail", args=[annonce.pk])).status_code, 200)
+
+    def test_version_lue_suit_la_modification_sans_accuse(self):
+        annonce = services.publier(self.cdt, "Info", "v1", "info", f"ship:{self.navire.pk}")
+        self.client.force_login(self.marin)
+        self.client.get(reverse("annonce-detail", args=[annonce.pk]))
+        services.modifier(self.cdt, annonce, "Info", "v2", "info")
+        annonce.refresh_from_db()
+        self.assertIn(annonce, services.a_lire(self.marin, self.jour))
+        self.client.get(reverse("annonce-detail", args=[annonce.pk]))
+        self.assertEqual(services.a_lire(self.marin, self.jour), [])
+
+    def test_accuse_refuse_sur_annonce_archivee(self):
+        annonce = services.publier(self.cdt, "Vieille", "x", "info", f"ship:{self.navire.pk}", accuse_requis=True)
+        services.archiver(self.cdt, annonce)
+        with self.assertRaises(ValidationError):
+            services.accuser(self.marin, annonce)
