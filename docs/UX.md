@@ -170,9 +170,9 @@ Pour une série de matériels de la même catégorie : **grille de comptes rendu
 Barre latérale **rétractable**, avec libellés texte (pas seulement des icônes) :
 
 - **Personnel** — Aujourd'hui, Calendrier
-- **Équipements** — Matériels, Installations, Plan du navire
-- **Maintenance** — Maintenance, Tickets correctifs, Anomalies
-- **Activité** — Rondes, Quarts et gardes
+- **Équipements** — Matériels, Installations, Catalogue, Plan du navire, Configurer le plan du navire (selon les droits)
+- **Maintenance** — Maintenance, Tickets correctifs, Anomalies, Logistique
+- **Activité** — Tâches, Annonces, Demandes bord–terre, Rondes, Quarts et gardes, Feuille de service, Absences
 - **Compétences** — Formations
 - **Supervision** (selon les droits) — Prêt à appareiller, Flotte, Spécialités, Classes de navire
 - **Administration** (selon les droits) — Annuaire, Paramètres
