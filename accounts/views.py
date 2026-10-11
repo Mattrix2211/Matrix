@@ -44,6 +44,8 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         qs = UserProfile.objects.select_related("user", "ship", "service", "sector", "section").all()
         if is_master_admin(self.request.user):
             return qs
+        # Un compte superutilisateur reste hors de portée d'un administrateur de bord, comme dans l'annuaire web.
+        qs = qs.exclude(user__is_superuser=True)
         if user_role_level(self.request.user) >= NIVEAU_VISION_COMMANDEMENT:
             return qs.filter(perimetre_navire_q(self.request.user, ""))
         return qs.filter(build_scope_q(self.request.user, ""))

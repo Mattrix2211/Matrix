@@ -74,3 +74,26 @@ class BatimentCourantTests(TestCase):
         page = self._liste()
         self.assertTrue("ALSACE-X" in page)
         self.assertFalse("PROVENCE-X" in page)
+
+
+class VisibiliteChefDeServiceTests(TestCase):
+    def test_chef_de_service_voit_un_marin_rattache_au_seul_secteur(self):
+        from matrix.core.mixins import utilisateurs_visibles_par
+        from org.models import Sector, Service
+
+        navire = Ship.objects.create(name="Visibilité", code="VI")
+        service = Service.objects.create(ship=navire, name="Énergie")
+        secteur = Sector.objects.create(service=service, name="Propulsion")
+        autre_service = Service.objects.create(ship=navire, name="Pont")
+        chef = User.objects.create_user("chef_vis", password="pass")
+        chef.profile.role, chef.profile.ship, chef.profile.service = "CHEF_SERVICE", navire, service
+        chef.profile.save()
+        marin = User.objects.create_user("marin_secteur", password="pass")
+        marin.profile.ship, marin.profile.sector = navire, secteur
+        marin.profile.save()
+        voisin = User.objects.create_user("marin_pont", password="pass")
+        voisin.profile.ship, voisin.profile.service = navire, autre_service
+        voisin.profile.save()
+        visibles = set(utilisateurs_visibles_par(chef))
+        self.assertIn(marin, visibles)
+        self.assertNotIn(voisin, visibles)

@@ -40,6 +40,14 @@ class AdminNavireLimitesTests(TestCase):
         r = self._api().patch(f"/api/accounts/profiles/{self.maitre.profile.pk}/", {"ship": self.navire.pk}, format="json")
         self.assertEqual(r.status_code, 403)
 
+    def test_api_ne_montre_ni_ne_modifie_un_superutilisateur(self):
+        super_bord = self._marin("super_lim", "EQUIPIER")
+        super_bord.is_superuser = True
+        super_bord.save()
+        client = self._api()
+        self.assertEqual(client.patch(f"/api/accounts/profiles/{super_bord.profile.pk}/", {"role": "EQUIPIER"}, format="json").status_code, 404)
+        self.assertNotIn(super_bord.profile.pk, [p["id"] for p in client.get("/api/accounts/profiles/").json()])
+
     def test_api_autorise_un_role_inferieur_ou_egal(self):
         for role in ("COMMANDANT", "ADMIN_NAVIRE"):
             r = self._api().patch(f"/api/accounts/profiles/{self.equipier.profile.pk}/", {"role": role}, format="json")

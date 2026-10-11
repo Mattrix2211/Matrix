@@ -7,7 +7,7 @@ from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
 from .roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
-from .scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
+from .scopes import is_master_admin, perimetre_hierarchique_q, perimetre_navire_q, scope_filters_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,9 @@ def utilisateurs_visibles_par(user):
         return User.objects.all()
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
         return User.objects.filter(perimetre_navire_q(user, "profile__"))
-    return User.objects.filter(build_scope_q(user, "profile__"))
+    # Tout ce qui est rattaché en dessous du niveau de l'utilisateur (un chef de service voit aussi les marins de ses secteurs).
+    perimetre = perimetre_hierarchique_q(user, "profile__")
+    return User.objects.filter(perimetre if perimetre is not None else build_scope_q(user, "profile__"))
 
 
 class SuppressionInterditeMixin:
