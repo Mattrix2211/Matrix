@@ -334,7 +334,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     "notify_taches_en_retard_daily": {
         "task": "notifications.tasks.notify_taches_en_retard",
-        "schedule": 60 * 60 * 24,
+        "schedule": crontab(hour=7, minute=0),  # horaire fixe : ne dérive pas au redémarrage de beat
     },
     "notify_ma_journee_minute": {
         "task": "notifications.tasks.notify_ma_journee",

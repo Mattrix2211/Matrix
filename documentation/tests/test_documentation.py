@@ -102,6 +102,23 @@ class VisibiliteTests(DocsBase):
         self.assertNotContains(page, "interne confidentiel")
 
 
+class RechercheTests(DocsBase):
+    def test_la_recherche_ignore_les_propositions_et_les_versions_non_publiees(self):
+        document = self._publie()
+        services.proposer_amelioration(self.chef, document, "mot-secret-de-proposition", "")
+        self.client.force_login(self.marin)
+        self.assertNotContains(self.client.get(reverse("documentation-index") + "?q=mot-secret"), "Consignes de démarrage")
+        self.assertEqual([g for g in rechercher(self.marin, "mot-secret") if g["cle"] == "documents"], [])
+        self.assertContains(self.client.get(reverse("documentation-index") + "?q=vanne"), "Consignes de démarrage")
+
+    def test_actions_refusees_sur_document_archive_et_a_terre(self):
+        document = self._publie()
+        proposition = services.proposer_amelioration(self.marin, document, "v2", "")
+        services.archiver(self.chef, document)
+        with self.assertRaises(ValidationError):
+            services.valider(self.chef2, proposition)
+
+
 class ContexteTests(DocsBase):
     def test_document_affiche_au_contexte_d_une_tache_et_lien_controle(self):
         document = self._publie()

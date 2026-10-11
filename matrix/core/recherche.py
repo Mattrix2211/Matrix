@@ -98,9 +98,9 @@ def marins(user, terme, avec_identifiants=False):
 
 
 def documents(user, terme):
-    from documentation.services import documents_visibles
+    from documentation.services import rechercher as rechercher_documents
 
-    return documents_visibles(user).filter(_ou(terme, "titre", "domaine", "versions__contenu")).distinct().order_by("titre")
+    return rechercher_documents(user, terme).order_by("titre")
 
 
 def _sous_titre(*morceaux):

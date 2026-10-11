@@ -142,7 +142,7 @@ def a_faire(user, aujourdhui):
             detail = f"Blocage à lever · {tache.assigne.get_full_name() or tache.assigne.username}"
         entrees.append(_entree(
             tache, tache.titre, detail, reverse("tache-detail", args=[tache.pk]), "tache",
-            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 4 if tache.priorite == tache.PRIORITE_URGENTE else 0, _echeance(tache.echeance or aujourdhui + timedelta(days=3650)),
+            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 4 if tache.priorite == tache.PRIORITE_URGENTE else 0, _echeance(tache.echeance) if tache.echeance else None,
         ))
     for session in formations_du_marin(user):
         if timezone.localtime(session.scheduled_at).date() == aujourdhui:
@@ -189,7 +189,8 @@ def a_faire(user, aujourdhui):
             alerte, str(alerte.target), alerte.verb.removeprefix(f"{PREFIXE_MENTION} : "), url, "discussion",
             ATTENTION, 0, _echeance(alerte.created_at),
         ))
-    entrees.sort(key=lambda e: (_RANG_NIVEAU[e["niveau"]], -e["criticite"], e["echeance"]))
+    # Sans échéance : après les autres à criticité égale.
+    entrees.sort(key=lambda e: (_RANG_NIVEAU[e["niveau"]], -e["criticite"], e["echeance"] is None, e["echeance"] or 0))
     return entrees
 
 
@@ -221,7 +222,7 @@ def journee(user, aujourdhui, taches):
         })
     # Sans heure précise : la date seule est connue.
     for entree in taches:
-        if entree["icone"] in ("ronde", "maintenance", "tache") and entree["echeance"].date() == aujourdhui:
+        if entree["icone"] in ("ronde", "maintenance", "tache") and entree["echeance"] and entree["echeance"].date() == aujourdhui:
             points.append({
                 "heure": None, "libelle": entree["titre"], "icone": entree["icone"], "url": entree["url"],
             })

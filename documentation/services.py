@@ -130,6 +130,8 @@ def creer_document(user, titre, cible, contenu, domaine="", origine=Document.ORI
 
 
 def soumettre(user, version):
+    if equipage_a_terre_lecture_seule(user):
+        raise PermissionError("Votre équipage est à terre : la soumission est réservée à l'équipage à bord.")
     if version.etat != VersionDocument.ETAT_BROUILLON:
         raise ValidationError("Seul un brouillon peut être soumis.")
     if user.pk != version.auteur_id and not peut_valider(user, version.document):
@@ -162,7 +164,7 @@ def proposer_amelioration(user, document, contenu, resume="", fichier=None):
 
 def valider(user, version):
     document = version.document
-    if version.etat != VersionDocument.ETAT_SOUMISE:
+    if version.etat != VersionDocument.ETAT_SOUMISE or document.archive:
         raise ValidationError("Cette version n'est pas soumise à validation.")
     if not peut_valider(user, document):
         raise PermissionError("Vous ne pouvez pas valider ce document.")
@@ -241,3 +243,13 @@ def documents_liables(user, objet):
         content_type=ContentType.objects.get_for_model(objet), object_id=str(objet.pk)).values("document_id")
     publiee = Exists(VersionDocument.objects.filter(document=OuterRef("pk"), etat=VersionDocument.ETAT_PUBLIEE))
     return list(Document.objects.filter(_gere(user), archive=False).filter(publiee).exclude(pk__in=deja)[:50])
+
+
+def rechercher(user, terme):
+    """Documents lisibles dont le titre, le domaine ou le texte de la version PUBLIÉE contient `terme`.
+
+    Les brouillons, propositions et versions obsolètes ne servent jamais à la recherche : ils ne sont pas lisibles de tous."""
+    return documents_visibles(user).filter(
+        Q(titre__icontains=terme) | Q(domaine__icontains=terme)
+        | Q(versions__etat=VersionDocument.ETAT_PUBLIEE, versions__contenu__icontains=terme)
+    ).distinct()

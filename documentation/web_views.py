@@ -2,7 +2,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -52,9 +51,8 @@ class BibliothequeView(LoginRequiredMixin, View):
     def get(self, request):
         recherche = (request.GET.get("q") or "").strip()[:80]
         domaine = (request.GET.get("domaine") or "").strip()
-        documents = services.documents_visibles(request.user).prefetch_related("versions")
-        if recherche:
-            documents = documents.filter(Q(titre__icontains=recherche) | Q(domaine__icontains=recherche) | Q(versions__contenu__icontains=recherche)).distinct()
+        documents = (services.rechercher(request.user, recherche) if recherche else services.documents_visibles(request.user))
+        documents = documents.select_related("ship", "service", "sector", "section").prefetch_related("versions")
         if domaine:
             documents = documents.filter(domaine=domaine)
         documents = list(documents)
