@@ -160,6 +160,16 @@ REGISTRE_ACTIONS = [
         "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
+        "programme_saisie",
+        "Saisir le programme du bâtiment (escales, arrêts techniques, exercices, réunions) et déléguer ce droit",
+        "Programme du bâtiment", PORTEE_NAVIRE, RoleLevel.ETAT_MAJOR,
+    ),
+    ActionSeuil(
+        "programme_types",
+        "Configurer les types d'événements du programme du bâtiment",
+        "Programme du bâtiment", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,

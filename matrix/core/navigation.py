@@ -68,6 +68,7 @@ GROUPES = [
     ("Activité", [
         Entree("Tâches", "tache", "taches-index", module="taches"),
         Entree("Annonces", "annonce", "annonces-index", module="annonces"),
+        Entree("Programme du bâtiment", "calendrier", "programme-index", module="programme"),
         Entree("Demandes bord–terre", "discussion", "demandes-index", module="demandes"),
         Entree("Rondes", "ronde", "rondes-index", module="rondes"),
         Entree("Quarts et gardes", "quart", "quarts-index", module="quarts"),

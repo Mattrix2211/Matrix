@@ -82,7 +82,7 @@ def peut_publier(user):
     return bool(cibles_autorisees(user))
 
 
-def _resoudre_cible(cible):
+def resoudre_cible(cible):
     """Annonce(ship, service, sector, section) pour une clé « type:identifiant »."""
     modele, _, pk = (cible or "").partition(":")
     classe = {"ship": Ship, "service": Service, "sector": Sector, "section": Section}.get(modele)
@@ -104,11 +104,11 @@ def _resoudre_cible(cible):
     return champs
 
 
-def _cible_permise(user, cible):
+def cible_permise(user, cible):
     return any(cle == cible for cle, _ in cibles_autorisees(user))
 
 
-def _filtre_public(annonce):
+def filtre_public(annonce):
     """Q (sur User) des marins visés par l'annonce."""
     if annonce.section_id:
         public = Q(profile__section_id=annonce.section_id)
@@ -125,7 +125,7 @@ def _filtre_public(annonce):
 
 
 def destinataires(annonce):
-    return User.objects.filter(_filtre_public(annonce), is_active=True).distinct()
+    return User.objects.filter(filtre_public(annonce), is_active=True).distinct()
 
 
 def _concerne(user, annonce):
@@ -184,14 +184,14 @@ def _valider(titre, corps, niveau, date_effet, date_fin):
 def publier(auteur, titre, corps, niveau, cible, equipage="", accuse_requis=False, date_effet=None, date_fin=None):
     if not peut_publier(auteur):
         raise PermissionError("Vous ne pouvez pas publier d'annonce.")
-    if not _cible_permise(auteur, cible):
+    if not cible_permise(auteur, cible):
         raise PermissionError("Ce public est hors de votre périmètre.")
     date_effet = date_effet or timezone.localdate()
     _valider(titre, corps, niveau, date_effet, date_fin)
     annonce = Annonce(
         titre=titre.strip(), corps=corps.strip(), niveau=niveau, accuse_requis=accuse_requis, date_effet=date_effet,
         date_fin=date_fin, equipage=equipage.strip(), auteur=auteur, created_by=auteur, updated_by=auteur,
-        **_resoudre_cible(cible),
+        **resoudre_cible(cible),
     )
     annonce.save()
     VersionAnnonce.objects.create(annonce=annonce, numero=1, titre=annonce.titre, corps=annonce.corps, niveau=niveau, auteur=auteur)

@@ -13,6 +13,7 @@ from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import build_scope_q
 from matrix.core.icones import classe_icone
+from programme.services import evenements_periode as evenements_programme
 from .evenements_sources import (
     _absences_periode,
     _appliquer_filtres_occurrences,
@@ -113,6 +114,7 @@ _CONCEPT_ICONE_PAR_TYPE = {
     "tache": "tache",
     "personal": "personnel",
     "absence": "absence",
+    "programme": "calendrier",
 }
 
 
@@ -342,6 +344,19 @@ def calendar_events(request):
                     "peut_agir": pe.owner_id == request.user.id,
                 },
                 **couleur,
+            })
+    # Programme du bâtiment : escales, arrêts techniques, exercices, réunions qui visent le marin.
+    if not filters.get("type") or filters["type"] == "programme":
+        for evt in evenements_programme(request.user, start, end):
+            events.append({
+                "id": f"prg-{evt.id}",
+                "title": f"{evt.type.nom} - {evt.titre}",
+                "start": evt.debut.isoformat(),
+                "end": (evt.fin or evt.debut).isoformat(),
+                "url": f"/programme/{evt.id}/",
+                "editable": False,
+                "extendedProps": {"type": "programme", "status": None, "peut_agir": False},
+                "backgroundColor": evt.type.couleur, "borderColor": evt.type.couleur, "textColor": "#fff",
             })
     for evenement in events:
         concept = _CONCEPT_ICONE_PAR_TYPE.get(evenement["extendedProps"]["type"])

@@ -37,7 +37,8 @@ Tous les comptes ont le mot de passe « pass » (sauf `admin` : « admin »). Co
 3. **Jade assigne une action** : une tâche liée au dossier apparaît chez Karim dans « Aujourd'hui ».
 4. **Karim termine l'action** ; Jade passe le dossier à « Résolu » ; Karim confirme la clôture. Tout reste dans le fil et le journal d'audit.
 5. **Annonce** : le commandant (`cdt_a`) publie une annonce Important avec accusé requis ; Karim la voit dans « Aujourd'hui », clique « J'ai pris connaissance » ; le commandant suit lus / accusés / non-lus.
-6. **Mentions** : `@identifiant` dans un fil crée une réponse attendue du marin cité, soldée quand il répond. Les qualifications expirantes d'un marin apparaissent chez lui et chez son chef.
+6. **Programme du bâtiment** : le commandant en second saisit un exercice (« Programme du bâtiment », ciblage bâtiment ou service) ; il apparaît dans le calendrier de chaque marin visé ; un changement d'horaire prévient le public ; l'état-major peut déléguer la saisie (Réglages du programme).
+7. **Mentions** : `@identifiant` dans un fil crée une réponse attendue du marin cité, soldée quand il répond. Les qualifications expirantes d'un marin apparaissent chez lui et chez son chef.
 
 ## Variantes à montrer
 

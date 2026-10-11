@@ -193,6 +193,13 @@ def _annonces(request, ids):
     return _visibles(ids, ouvertes, lambda o: reverse("annonce-detail", args=[o]))
 
 
+def _evenements_programme(request, ids):
+    from programme.services import evenements_visibles
+
+    return _visibles(ids, evenements_visibles(request.user).filter(pk__in=_entiers(ids.values())),
+                     lambda o: reverse("evenement-detail", args=[o]))
+
+
 def _demandes(request, ids):
     from demandes.services import demandes_visibles
 
@@ -203,6 +210,7 @@ def _demandes(request, ids):
 _RESOLVEURS = {
     "demande": _demandes,
     "annonce": _annonces,
+    "evenementprogramme": _evenements_programme,
     "installation": _installations,
     "propositionarticle": _propositions,
     "checklisttemplate": _versions,

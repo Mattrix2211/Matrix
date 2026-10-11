@@ -95,6 +95,10 @@ REGISTRE_MODULES = [
         "Tâches attribuées par les chefs, fil de discussion contextuel, blocages et comptes rendus.",
     ),
     ModuleInfo(
+        "programme", "Programme du bâtiment",
+        "Escales, arrêts techniques, exercices et réunions ciblés par périmètre, intégrés au calendrier.",
+    ),
+    ModuleInfo(
         "annonces", "Annonces",
         "Diffusion descendante Information / Important / Urgent ciblée par périmètre, avec accusé de lecture facultatif.",
     ),

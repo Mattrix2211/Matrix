@@ -12,6 +12,8 @@ from django.utils import timezone
 
 from absences.models import Absence
 from annonces import services as annonces_services
+from programme import services as programme_services
+from programme.models import EvenementProgramme
 from annonces.models import Annonce
 from demandes import services as demandes_services
 from demandes.models import Demande
@@ -69,6 +71,7 @@ class Command(BaseCommand):
         self._formations()
         self._taches()
         self._demande_et_annonce()
+        self._programme()
         self._notifications_et_brouillons()
         self.stdout.write(self.style.SUCCESS("Données de démonstration prêtes. Comptes (mot de passe « pass ») :"))
         for ligne in self.comptes:
@@ -591,6 +594,16 @@ class Command(BaseCommand):
             annonces_services.publier(
                 self.cdt_a, "Exercice incendie jeudi 14 h", "Rassemblement pont principal, tenue de travail.",
                 NotificationLevel.WARNING, f"ship:{self.bre.pk}", accuse_requis=True)
+
+    # ---------- Programme du bâtiment ----------
+
+    def _programme(self):
+        if EvenementProgramme.objects.filter(titre="Exercice incendie général").exists():
+            return
+        exercice = programme_services.types_du_navire(self.bre.pk).get(nom="Exercice")
+        programme_services.creer_evenement(
+            self.second_a, "Exercice incendie général", exercice.pk, timezone.now().replace(hour=14, minute=0) + timedelta(days=2),
+            None, f"ship:{self.bre.pk}", lieu="Pont principal")
 
     # ---------- Notifications et brouillons ----------
 
