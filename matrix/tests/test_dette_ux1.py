@@ -97,3 +97,18 @@ class VisibiliteChefDeServiceTests(TestCase):
         visibles = set(utilisateurs_visibles_par(chef))
         self.assertIn(marin, visibles)
         self.assertNotIn(voisin, visibles)
+
+
+    def test_marin_rattache_au_seul_navire_ne_voit_pas_tout_le_batiment(self):
+        from matrix.core.mixins import utilisateurs_visibles_par
+        from org.models import Service
+
+        navire = Ship.objects.create(name="Navire seul", code="NS")
+        service = Service.objects.create(ship=navire, name="Pont")
+        simple = User.objects.create_user("simple_navire", password="pass")
+        simple.profile.role, simple.profile.ship = "CHEF_SECTION", navire
+        simple.profile.save()
+        autre = User.objects.create_user("autre_service", password="pass")
+        autre.profile.service = service  # rattaché au service seul, sans champ navire direct
+        autre.profile.save()
+        self.assertNotIn(autre, set(utilisateurs_visibles_par(simple)))

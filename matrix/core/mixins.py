@@ -74,8 +74,9 @@ def utilisateurs_visibles_par(user):
         return User.objects.all()
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
         return User.objects.filter(perimetre_navire_q(user, "profile__"))
-    # Tout ce qui est rattaché en dessous du niveau de l'utilisateur (un chef de service voit aussi les marins de ses secteurs).
-    perimetre = perimetre_hierarchique_q(user, "profile__")
+    # Un chef de service voit aussi les marins de ses secteurs ; le niveau « navire » reste réservé au commandement.
+    niveau = user.profile.scope[0] if getattr(user, "profile", None) else None
+    perimetre = perimetre_hierarchique_q(user, "profile__") if niveau in ("service", "sector", "section") else None
     return User.objects.filter(perimetre if perimetre is not None else build_scope_q(user, "profile__"))
 
 
