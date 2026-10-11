@@ -83,7 +83,7 @@ class TourneeTests(TestCase):
         })
         self.assertEqual(r.status_code, 302)
         ex_a = MaintenanceExecution.objects.get(occurrence=self.a)
-        self.assertEqual(ex_a.measurements["Pression"], 12.5)
+        self.assertEqual(ex_a.measurements[str(self.pression.cle)], 12.5)
         self.assertEqual(ex_a.conformity, "CONFORME")
         self.a.refresh_from_db(); self.b.refresh_from_db(); self.c.refresh_from_db()
         self.assertEqual((self.a.status, self.b.status, self.c.status), ("DONE", "WAITING_VALIDATION", "PLANNED"))
@@ -198,7 +198,7 @@ class TourneeTests(TestCase):
 
     def test_virgule_decimale_acceptee(self):
         self._poster({self.a: {f"i{self.etat.pk}": "conforme", f"i{self.pression.pk}": "12,75"}})
-        self.assertEqual(MaintenanceExecution.objects.get(occurrence=self.a).measurements["Pression"], 12.75)
+        self.assertEqual(MaintenanceExecution.objects.get(occurrence=self.a).measurements[str(self.pression.cle)], 12.75)
 
     def test_valeur_hors_plage_est_a_surveiller(self):
         self._poster({self.a: {f"i{self.etat.pk}": "conforme", f"i{self.pression.pk}": "99"}})

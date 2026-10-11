@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static icones %}
+{% block content %}
+{% include "components/fiche_entete.html" with titre=equipement.designation|default:equipement sous_titre="Compte rendu d'intervention corrective" menu=menu_fiche menu_libelle="Autres actions" objet=cr %}
+
+{% if correction_reservee %}
+  <div class="alert alert-info">Ce compte rendu est terminé. Seul un chef de secteur peut le corriger (motif obligatoire, saisie d'origine conservée).</div>
+{% endif %}
+{% if erreurs %}
+  <div class="alert alert-danger"><ul class="mb-0">{% for e in erreurs %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+{% if fiches and not lecture_seule %}
+<div class="mx-surface mb-3">
+  <p class="mb-2"><strong>Suivre une fiche ?</strong> Facultatif : la panne peut aussi être décrite sans fiche. Choisissez avant de saisir.</p>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-sm {% if not version %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?{% if installation %}installation={{ installation.pk }}{% elif not ticket %}asset={{ asset.pk }}{% endif %}">Sans fiche</a>
+    {% for v in fiches %}<a class="btn btn-sm {% if version and version.pk == v.pk %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?{% if not ticket %}{% if installation %}installation={{ installation.pk }}{% else %}asset={{ asset.pk }}{% endif %}&amp;{% endif %}fiche={{ v.pk }}">{{ v.name }}</a>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<form id="formulaire-execution" method="post" data-compte-rendu
+      data-brouillon="correctif:{{ ticket.pk|default:equipement.pk }}" data-brouillon-libelle="Compte rendu correctif : {{ equipement }}">
+  {% csrf_token %}
+  <input type="hidden" name="jeton" value="{{ jeton }}">
+  {% if not ticket %}<input type="hidden" name="{% if installation %}installation{% else %}asset{% endif %}" value="{{ equipement.pk }}">{% endif %}
+  {% if version and not cr %}<input type="hidden" name="fiche" value="{{ version.pk }}">{% endif %}
+  <fieldset class="mx-cr" {% if lecture_seule %}disabled{% endif %}>
+
+  <div class="card mb-3"><div class="card-header">Panne et réparation</div><div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="constat">Constat{% if not ticket %} <span class="text-muted small">(obligatoire : il décrit la panne)</span>{% endif %}</label>
+      <textarea class="form-control" id="constat" name="constat" rows="2" maxlength="5000"{% if not ticket %} required{% endif %}>{{ valeurs.constat }}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="diagnostic">Diagnostic</label>
+      <textarea class="form-control" id="diagnostic" name="diagnostic" rows="2" maxlength="5000">{{ valeurs.diagnostic }}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="action">Action réalisée</label>
+      <textarea class="form-control" id="action" name="action" rows="2" maxlength="5000">{{ valeurs.action }}</textarea>
+      <div class="form-text">Le diagnostic et l'action alimentent le retour d'expérience du ticket.</div>
+    </div>
+    {% if not ticket %}
+    <div class="col-md-3">
+      <label class="form-label" for="gravite">Gravité de la panne</label>
+      <select class="form-select" id="gravite" name="gravite">{% for n in "12345" %}<option value="{{ n }}"{% if valeurs.gravite == n %} selected{% endif %}>{{ n }}/5</option>{% endfor %}</select>
+    </div>
+    {% endif %}
+  </div></div>
+
+  {% if items %}{% include "maintenance/_lignes_saisie.html" %}{% endif %}
+
+  {% if peut_prelever %}
+  <div class="card mb-3"><div class="card-header">Pièces consommées</div><div class="card-body">
+    {% if pieces_prelevees %}
+      <p class="mb-2">Déjà prélevées : {% for p in pieces_prelevees %}{{ p.quantite }} × {{ p.reference }} ({{ p.designation }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+    {% endif %}
+    {% for _ in lignes_pieces %}
+    <div class="row g-2 mb-2">
+      <div class="col-md-8"><label class="visually-hidden" for="piece_{{ forloop.counter }}">Pièce</label>
+        <select class="form-select form-select-sm" id="piece_{{ forloop.counter }}" name="piece_id"><option value="">— Pièce du stock —</option>
+          {% for p in pieces %}<option value="{{ p.pk }}">{{ p.reference }} — {{ p.designation }} ({{ p.quantite }} en stock)</option>{% endfor %}</select></div>
+      <div class="col-md-2"><label class="visually-hidden" for="piece_qte_{{ forloop.counter }}">Quantité</label>
+        <input class="form-control form-control-sm" id="piece_qte_{{ forloop.counter }}" name="piece_qte" type="number" min="1" max="100000" placeholder="Quantité"></div>
+    </div>
+    {% endfor %}
+    <div class="form-text">Le stock est décrémenté à l'enregistrement, avec trace dans le fil du ticket.</div>
+  </div></div>
+  {% endif %}
+
+  <div class="card mb-3"><div class="card-header">Intervention</div><div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <span class="form-label d-block">Intervenants</span>
+        {% for i in intervenants %}
+          <div class="form-check"><input class="form-check-input" type="checkbox" name="intervenants" value="{{ i.user.pk }}" id="intervenant_{{ i.user.pk }}"{% if i.coche %} checked{% endif %}>
+          <label class="form-check-label" for="intervenant_{{ i.user.pk }}">{{ i.user.get_full_name|default:i.user.username }}</label></div>
+        {% endfor %}
+      </div>
+      <div class="col-md-3"><label class="form-label" for="debut">Début</label><input class="form-control" type="datetime-local" id="debut" name="debut" value="{{ valeurs.debut }}"></div>
+      <div class="col-md-3"><label class="form-label" for="fin">Fin</label><input class="form-control" type="datetime-local" id="fin" name="fin" value="{{ valeurs.fin }}"></div>
+      <div class="col-md-2"><span class="form-label d-block">Temps passé</span><span class="font-mono" data-duree></span></div>
+      <div class="col-md-3"><label class="form-label" for="estime">Durée estimée (min)</label><input class="form-control" type="number" min="0" max="100000" id="estime" name="estime" value="{{ valeurs.estime }}"></div>
+    </div>
+    <div class="mt-3">
+      <label class="form-label" for="notes">Observations</label>
+      <textarea class="form-control" id="notes" name="notes" rows="3">{{ valeurs.notes }}</textarea>
+    </div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Déclaration de conformité</div><div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="conformity">Conformité finale</label>
+        <select class="form-select" id="conformity" name="conformity" required>
+          <option value="">—</option>
+          <option value="CONFORME"{% if valeurs.conformity == 'CONFORME' %} selected{% endif %}>Conforme (remis en état)</option>
+          <option value="A_SURVEILLER"{% if valeurs.conformity == 'A_SURVEILLER' %} selected{% endif %}>À surveiller</option>
+          <option value="NON_CONFORME"{% if valeurs.conformity == 'NON_CONFORME' %} selected{% endif %}>Non conforme</option>
+        </select>
+      </div>
+      {% if deja_termine %}
+      <div class="col-md-8">
+        <label class="form-label" for="motif">Motif de la modification</label>
+        <input class="form-control" type="text" id="motif" name="motif" maxlength="1000" required>
+        <div class="form-text">Ce compte rendu est déjà terminé : la modification est tracée avec les valeurs avant et après.</div>
+      </div>
+      {% endif %}
+    </div>
+  </div></div>
+  </fieldset>
+
+  {% if not lecture_seule %}
+  <div class="mx-barre-action" role="region" aria-label="Actions du compte rendu">
+    <div class="mx-barre-action__etat">
+      <strong data-barre-operations>{{ operations.faites }} / {{ operations.total }} opérations réalisées</strong>
+      <span class="text-muted" data-barre-resume>{{ resume.texte }}</span>
+    </div>
+    <div class="mx-barre-action__boutons">
+      <a class="btn btn-outline-secondary" href="{% if ticket %}{% url 'ticket-detail' ticket.pk %}{% else %}/{% endif %}">Annuler</a>
+      <button type="submit" class="btn btn-primary">{% icone "terminee" %} Enregistrer le compte rendu</button>
+    </div>
+  </div>
+  {% endif %}
+</form>
+<script src="{% static 'js/compte_rendu.js' %}"></script>
+{% endblock %}

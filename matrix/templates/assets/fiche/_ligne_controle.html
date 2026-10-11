@@ -2,11 +2,13 @@
   <input type="hidden" name="ligne_cle" value="{{ l.cle|default:'' }}">
   <div class="col-md-2"><label class="form-label small">Type</label>
     <select class="form-select form-select-sm" name="ligne_type"><option value="checkbox"{% if l.field_type != "number" %} selected{% endif %}>Contrôle</option><option value="number"{% if l.field_type == "number" %} selected{% endif %}>Relevé</option></select></div>
-  <div class="col-md-3"><label class="form-label small">Point</label><input class="form-control form-control-sm" name="ligne_label" value="{{ l.label }}"></div>
+  <div class="col-md-2"><label class="form-label small">Point</label><input class="form-control form-control-sm" name="ligne_label" value="{{ l.label }}"></div>
   <div class="col-md-1"><label class="form-label small">Unité</label><input class="form-control form-control-sm" name="ligne_unite" value="{{ l.unit }}"></div>
   <div class="col-md-1"><label class="form-label small">Min</label><input class="form-control form-control-sm" name="ligne_min" inputmode="decimal" value="{{ l.valeur_min|default_if_none:''|stringformat:'s' }}"></div>
   <div class="col-md-1"><label class="form-label small">Max</label><input class="form-control form-control-sm" name="ligne_max" inputmode="decimal" value="{{ l.valeur_max|default_if_none:''|stringformat:'s' }}"></div>
+  <div class="col-md-2"><label class="form-label small" title="Reporte le relevé dans les mesures de l'installation à la clôture du compte rendu">Alimente</label>
+    <select class="form-select form-select-sm" name="ligne_releve"><option value="">—</option>{% for code, libelle in types_releve %}<option value="{{ code }}"{% if l.releve == code %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
   <div class="col-md-1"><label class="form-label small">Obligatoire</label>
     <select class="form-select form-select-sm" name="ligne_obligatoire"><option value="0">Non</option><option value="1"{% if l.required %} selected{% endif %}>Oui</option></select></div>
-  <div class="col-md-3 text-md-end">{% include "assets/fiche/_actions_ligne.html" %}</div>
+  <div class="col-md-2 text-md-end">{% include "assets/fiche/_actions_ligne.html" %}</div>
 </div>

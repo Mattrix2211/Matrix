@@ -1380,3 +1380,22 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
 
 /* Visible seulement à l'impression (matrix/static/css/impression.css). */
 .mx-impression-entete { display: none; }
+.mx-cr-dernier { flex-basis: 100%; text-align: right; }
+
+/* Historique d'un équipement : frise chronologique des comptes rendus */
+.mx-histo-filtres { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin-bottom: var(--s4); }
+.mx-histo-gammes { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.mx-histo { list-style: none; margin: 0; padding: 0 0 0 var(--s4); border-left: 3px solid var(--border); }
+.mx-histo__entree { position: relative; padding: 0 0 var(--s4) var(--s3); }
+.mx-histo__repere { position: absolute; left: calc(-1 * var(--s4) - 9px); top: 4px; width: 15px; height: 15px; border-radius: 50%; background: var(--text-ter); border: 3px solid var(--surface); }
+.mx-histo__entree--ok .mx-histo__repere { background: var(--green-tech); }
+.mx-histo__entree--attention .mx-histo__repere { background: var(--amber); }
+.mx-histo__entree--danger .mx-histo__repere { background: var(--red); }
+.mx-histo__entree--danger .mx-histo__corps { border-left: 4px solid var(--red); background: var(--surface); }
+.mx-histo__corps { padding: var(--s2) var(--s3); border-radius: var(--r-lg); }
+.mx-histo__tete { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.mx-histo__meta { margin: var(--s1) 0; color: var(--text-sec); font-size: .875rem; }
+.mx-histo__alerte { color: var(--red-texte); }
+.mx-histo__detail { margin: var(--s1) 0; font-size: .875rem; }
+.mx-histo__correction { margin-top: var(--s2); padding: var(--s2) var(--s3); border-left: 3px solid var(--amber); font-size: .875rem; }
+.mx-histo-graphique { position: relative; height: 220px; }

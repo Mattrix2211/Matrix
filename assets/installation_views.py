@@ -32,6 +32,7 @@ from django.views.generic import DetailView, ListView
 
 from accounts.models import AuditLog
 from logistics.models import StockPiece
+from maintenance import historique
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -571,6 +572,8 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         # StockPiece (logistics), affiché ici en lecture seule dans l'onglet
         # « Pièces », la gestion du stock se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(installation=self.object).order_by('reference')
+        ctx['historique_recent'] = historique.recents(self.request.user, installation=self.object)
+        ctx['historique_url'] = reverse('historique-installation', args=[self.object.pk])
         ctx['extra_fields'] = list(self.object.extra_fields.all())
         # Entretien: liste des tâches d'entretien définies sur l'installation
         try:
@@ -759,6 +762,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         menu = [
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?installation={inst.pk}"},
+        ]
+        menu += [
+            {"libelle": "Historique et relevés", "icone": "historique", "url": reverse('historique-installation', args=[inst.pk])},
+            {"libelle": "Compte rendu d'intervention corrective", "icone": "maintenance", "ecriture": True,
+             "url": f"{reverse('correctif-nouveau')}?installation={inst.pk}"},
         ]
         if niveau >= niveau_requis_pour(self.request.user, 'installation_ecriture_simple'):
             menu.append({"libelle": "Modifier les infos", "icone": "modification", "ecriture": True,

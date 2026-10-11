@@ -84,6 +84,8 @@
             var alerte = ligne.querySelector('[data-alerte]');
             if (alerte) alerte.hidden = !(sorti || illisible);
             if (alerte) alerte.textContent = illisible ? 'Valeur illisible' : 'Hors plage';
+            var proposition = ligne.querySelector('[data-proposition]');
+            if (proposition) proposition.hidden = !sorti;
           }
         }
       });

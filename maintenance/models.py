@@ -117,8 +117,11 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     executed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="executions")
+    # Indexés par la `cle` de la ligne de fiche ; les anciens comptes rendus restent indexés par libellé.
     results = JSONField(default=dict, blank=True)
     measurements = JSONField(default=dict, blank=True)
+    # Saisie du marin à la clôture, conservée quand un chef corrige le compte rendu.
+    saisie_origine = JSONField(null=True, blank=True)
     conformity = models.CharField(max_length=24, choices=CONFORMITY, blank=True, default="")
     notes = models.TextField(blank=True, default="")
     intervenants = models.ManyToManyField(User, blank=True, related_name="executions_intervenant", verbose_name="Intervenants")
@@ -139,6 +142,51 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
         if self.version_fiche_id is None:
             self.version_fiche = self.occurrence.version_fiche()
         super().save(*args, **kwargs)
+
+
+class ModificationCompteRendu(TimeStampedModel):
+    """Correction d'un compte rendu terminé : qui, quand, pourquoi, valeurs avant et après (par libellé de ligne)."""
+    execution = models.ForeignKey(MaintenanceExecution, null=True, blank=True, on_delete=models.CASCADE, related_name="modifications")
+    correctif = models.ForeignKey("CompteRenduCorrectif", null=True, blank=True, on_delete=models.CASCADE, related_name="modifications")
+    auteur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    motif = models.TextField()
+    modifications = JSONField(default=dict)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                name="modification_cr_une_seule_cible",
+                condition=(Q(execution__isnull=False, correctif__isnull=True) | Q(execution__isnull=True, correctif__isnull=False)),
+            ),
+        ]
+
+
+class CompteRenduCorrectif(TimeStampedModel, OwnedModel):
+    """Compte rendu d'une intervention corrective, avec ou sans fiche ; le ticket garde son propre cycle de vie."""
+    ticket = models.OneToOneField(CorrectiveTicket, on_delete=models.CASCADE, related_name="compte_rendu")
+    # Jeton du formulaire : un double envoi ne crée pas deux comptes rendus.
+    jeton = models.UUIDField(null=True, blank=True, unique=True, editable=False)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    executed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    intervenants = models.ManyToManyField(User, blank=True, related_name="comptes_rendus_correctifs", verbose_name="Intervenants")
+    duree_estimee_min = models.PositiveIntegerField(null=True, blank=True, verbose_name="Durée estimée (min)")
+    constat = models.TextField(blank=True, default="")
+    diagnostic = models.TextField(blank=True, default="")
+    action_realisee = models.TextField(blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    conformity = models.CharField(max_length=24, choices=MaintenanceExecution.CONFORMITY, blank=True, default="")
+    # Fiche suivie, le cas échéant : ses lignes sont saisies comme dans un compte rendu préventif.
+    version_fiche = models.ForeignKey(ChecklistTemplate, null=True, blank=True, on_delete=models.SET_NULL, related_name="comptes_rendus_correctifs")
+    results = JSONField(default=dict, blank=True)
+    measurements = JSONField(default=dict, blank=True)
+    # Pièces prélevées dans le stock : [{"piece", "reference", "designation", "quantite", "lot"}].
+    pieces = JSONField(default=list, blank=True)
+    saisie_origine = JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-completed_at"]
 
 
 def mettre_a_jour_echeance_installation(occ: "MaintenanceOccurrence") -> None:
