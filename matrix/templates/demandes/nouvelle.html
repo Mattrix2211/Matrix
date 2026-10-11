@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Signaler une difficulté</h1>
+<p>Sur : <a href="{{ lien }}"><strong>{{ objet }}</strong></a></p>
+<form method="post" class="card card-body mb-4">{% csrf_token %}
+  <input type="hidden" name="objet" value="{{ source }}">
+  <div class="mb-3"><label class="form-label" for="id_titre">Résumé</label>
+    <input class="form-control" id="id_titre" name="titre" maxlength="200" required></div>
+  <div class="mb-3"><label class="form-label" for="id_description">Ce que vous constatez</label>
+    <textarea class="form-control" id="id_description" name="description" rows="4"></textarea></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-5"><label class="form-label" for="id_responsable">Responsable du dossier</label>
+      <select class="form-select" id="id_responsable" name="responsable" required>
+        <option value="">Choisir un chef…</option>
+        {% for u in responsables %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+      </select></div>
+    <div class="col-md-3"><label class="form-label" for="id_priorite">Priorité</label>
+      <select class="form-select" id="id_priorite" name="priorite">{% for code, libelle in priorites %}<option value="{{ code }}">{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label" for="id_echeance">Réponse souhaitée avant le (facultatif)</label>
+      <input class="form-control" type="date" id="id_echeance" name="echeance"></div>
+  </div>
+  <div><button class="btn btn-primary" type="submit">Signaler</button> <a class="btn btn-link" href="{{ lien }}">Annuler</a></div>
+</form>
+{% endblock %}

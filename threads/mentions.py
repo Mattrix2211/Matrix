@@ -35,9 +35,10 @@ def traiter_mentions(sender, instance, created, **kwargs):
     noms = set(_MENTION.findall(instance.body))
     if not noms:
         return
-    cites = list(
-        utilisateurs_visibles_par(auteur).filter(username__in=noms, is_active=True).exclude(pk=auteur.pk)
-    )
+    candidats = utilisateurs_visibles_par(auteur)
+    if hasattr(objet, "acteurs"):  # dossier à plusieurs acteurs : ses participants sont citables
+        candidats = candidats | objet.acteurs()
+    cites = list(candidats.filter(username__in=noms, is_active=True).exclude(pk=auteur.pk).distinct())
     instance.mentions.set(cites)
     for user in cites:
         # Une seule alerte en attente par marin et par objet, même cité plusieurs fois.

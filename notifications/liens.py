@@ -5,6 +5,7 @@ Chaque type d'objet a un résolveur qui reprend le contrôle d'accès de sa fich
 Une notification sans objet peut porter un chemin interne (`url`) vers une page qui
 applique elle-même ses droits."""
 import uuid
+from types import SimpleNamespace
 
 from django.urls import reverse
 
@@ -26,6 +27,14 @@ def liens_accessibles(request, notifications):
     for modele, ids in groupes.items():
         liens.update(_RESOLVEURS[modele](request, ids))
     return liens
+
+
+def lien_objet(utilisateur, objet):
+    """URL de `objet` si `utilisateur` y a accès, sinon None (même contrôle que les notifications)."""
+    resolveur = _RESOLVEURS.get(objet._meta.model_name)
+    if resolveur is None:
+        return None
+    return resolveur(SimpleNamespace(user=utilisateur), {0: str(objet.pk)}).get(0)
 
 
 def _chemin_sur(chemin):
@@ -177,7 +186,15 @@ def _seances(request, ids):
     return _formations(request, ids, lambda o: str(cours.get(int(o), "")) if str(o).isdigit() else "")
 
 
+def _demandes(request, ids):
+    from demandes.services import demandes_visibles
+
+    return _visibles(ids, demandes_visibles(request.user).filter(pk__in=_entiers(ids.values())),
+                     lambda o: reverse("demande-detail", args=[o]))
+
+
 _RESOLVEURS = {
+    "demande": _demandes,
     "installation": _installations,
     "propositionarticle": _propositions,
     "checklisttemplate": _versions,

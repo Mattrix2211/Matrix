@@ -9,6 +9,7 @@ from django.utils import timezone
 from assets.fiche_validation import versions_a_viser
 from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
+from demandes.models import Demande
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
@@ -45,6 +46,15 @@ def formations_du_marin(user):
 def qualifications_a_renouveler(user, aujourdhui):
     """Dernière qualification de chaque formation, expirée ou échue dans la fenêtre d'alerte."""
     return [q for q in qualifications_validees_de(user, aujourdhui) if q.badge_libelle != "À jour"]
+
+
+def demandes_a_traiter(user):
+    """Dossiers où `user` doit agir : responsable (hors résolu), ou déclarant quand on attend sa réponse ou sa clôture."""
+    return [
+        d for d in Demande.objects.filter(Q(responsable=user) | Q(declarant=user)).exclude(etat=Demande.ETAT_CLOS)
+        if (d.responsable_id == user.pk and d.etat != Demande.ETAT_RESOLU)
+        or (d.declarant_id == user.pk and d.etat in (Demande.ETAT_EN_ATTENTE, Demande.ETAT_RESOLU))
+    ]
 
 
 def reponses_attendues(user):
@@ -151,6 +161,12 @@ def a_faire(user, aujourdhui):
             version, version.name, f"Fiche à valider · {version.get_etat_display()}",
             f"{reverse('fiche-detail', args=[version.fiche_id])}?v={version.numero}", "document", ATTENTION, 0,
             _echeance(version.updated_at),
+        ))
+    for demande in demandes_a_traiter(user):
+        entrees.append(_entree(
+            demande, demande.titre, f"Demande · {demande.get_etat_display()}", reverse("demande-detail", args=[demande.pk]),
+            "discussion", ATTENTION if demande.etat == demande.ETAT_EN_ATTENTE else NORMAL,
+            4 if demande.priorite == demande.PRIORITE_URGENTE else 0, _echeance(demande.echeance or demande.updated_at),
         ))
     for qualification in qualifications_a_renouveler(user, aujourdhui):
         expiree = qualification.expires_at < aujourdhui

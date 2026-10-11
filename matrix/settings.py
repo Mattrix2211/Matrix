@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "quarts.apps.QuartsConfig",
     "absences.apps.AbsencesConfig",
     "taches.apps.TachesConfig",
+    "demandes.apps.DemandesConfig",
     "rondes.apps.RondesConfig",
     "threads.apps.ThreadsConfig",
     "notifications.apps.NotificationsConfig",

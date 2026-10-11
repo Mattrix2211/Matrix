@@ -1,0 +1,1 @@
+<span class="badge {% if d.etat == 'OUVERT' %}text-bg-primary{% elif d.etat == 'EN_TRAITEMENT' %}text-bg-info{% elif d.etat == 'EN_ATTENTE' %}text-bg-warning{% elif d.etat == 'RESOLU' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ d.get_etat_display }}</span>

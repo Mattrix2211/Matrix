@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0">{{ anomalie.titre }} {% include 'logistics/_anomalie_badge.html' %}</h1>
   <a class="btn btn-outline-secondary btn-sm" href="{% url 'anomalie-list' %}">Retour</a>
 </div>
 <div class="text-muted small mb-3 font-mono">
-  Signalée le {{ anomalie.created_at|date:"d/m/Y H:i" }} par {{ anomalie.created_by.get_full_name|default:anomalie.created_by.username|default:"—" }} · gravité {{ anomalie.gravite }}/5
+  {% if not equipage_a_terre %}<a class="btn btn-outline-warning btn-sm me-2" href="{% url 'demande-nouvelle' %}?objet=anomalie:{{ anomalie.pk }}">{% icone "discussion" %} Signaler une difficulté</a>{% endif %}Signalée le {{ anomalie.created_at|date:"d/m/Y H:i" }} par {{ anomalie.created_by.get_full_name|default:anomalie.created_by.username|default:"—" }} · gravité {{ anomalie.gravite }}/5
 </div>
 
 {# Frise des statuts : étape courante mise en avant #}

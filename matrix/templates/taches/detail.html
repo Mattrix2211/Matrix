@@ -2,6 +2,7 @@
 {% load icones %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=tache.titre sous_titre="Tâche" objet=tache %}
+{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=tache:{{ tache.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
 <p>{% include "taches/_statut.html" with t=tache %}
   {% if en_retard %}<span class="badge text-bg-danger">En retard</span>{% endif %}
   {% if tache.priorite == "URGENTE" and tache.ouverte %}<span class="badge text-bg-danger">Urgente</span>{% endif %}

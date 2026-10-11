@@ -313,6 +313,10 @@ def rendre_compte(tache, user, compte_rendu):
     _enregistrer(tache, user, "compte_rendu", ["statut", "compte_rendu", "terminee_le"])
     _message_systeme(tache, f"{_nom(user)} a rendu compte : {compte_rendu}")
     traiter_actions(tache)
+    if tache.demande_id:
+        from demandes.services import action_terminee  # import différé : demandes dépend de taches
+
+        action_terminee(tache)
     _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a terminé « {tache.titre} » et rendu compte.")
 
 

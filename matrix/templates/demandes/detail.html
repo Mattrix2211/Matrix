@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load icones %}
+{% block content %}
+{% include "components/fiche_entete.html" with titre=demande.titre sous_titre="Demande bord–terre" objet=demande %}
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card card-body mb-3">
+      <h2 class="h6">Dossier</h2>
+      <p class="mb-1">{% include "demandes/_etat.html" with d=demande %}
+        {% if demande.priorite == "URGENTE" and demande.ouverte %}<span class="badge text-bg-danger">Urgente</span>{% endif %}</p>
+      <p class="mb-1 small">Sur : {% if lien_objet %}<a href="{{ lien_objet }}">{{ objet }}</a>{% else %}{{ objet|default:"élément supprimé" }}{% endif %}</p>
+      <p class="mb-1 small">Signalée par <strong>{{ demande.declarant.get_full_name|default:demande.declarant.username }}</strong> le {{ demande.created_at|date:"d/m/Y" }}</p>
+      <p class="mb-1 small">Responsable : <strong>{{ demande.responsable.get_full_name|default:demande.responsable.username }}</strong></p>
+      <p class="mb-1 small">{% if demande.echeance %}Réponse souhaitée avant le {{ demande.echeance|date:"d/m/Y" }}{% else %}Sans échéance{% endif %}</p>
+      <p class="mb-0 small text-muted">Interlocuteurs : {% for u in interlocuteurs %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}aucun{% endfor %}</p>
+      {% if demande.description %}<hr><p class="mb-0">{{ demande.description|linebreaksbr }}</p>{% endif %}
+    </div>
+    <div class="card card-body mb-3">
+      <h2 class="h6">Actions décidées</h2>
+      <ul class="list-unstyled small mb-0">
+        {% for t in actions %}<li class="mb-1"><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a> · {{ t.assigne.get_full_name|default:t.assigne.username }} · {% include "taches/_statut.html" %}</li>
+        {% empty %}<li class="text-muted">Aucune action pour l'instant.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    {% if transitions %}
+    <form method="post" action="{% url 'demande-action' demande.pk %}" class="card card-body mb-3">{% csrf_token %}<input type="hidden" name="action" value="etat">
+      <label class="form-label" for="id_note">Changer l'état (une précision est obligatoire pour « en attente d'information »)</label>
+      <textarea class="form-control mb-2" id="id_note" name="note" rows="2"></textarea>
+      <div class="d-flex flex-wrap gap-2">
+        {% for code, libelle in transitions %}<button class="btn btn-outline-primary btn-sm" type="submit" name="etat" value="{{ code }}">{{ libelle }}</button>{% endfor %}
+      </div>
+    </form>
+    {% endif %}
+    <h2 class="h5">Fil de la demande</h2>
+    <ul class="list-unstyled mb-3">
+      {% for message in commentaires %}
+      <li class="mb-2 pb-2 border-bottom">
+        {% if message.is_system %}<span class="badge bg-secondary">Suivi</span>{% else %}<span class="badge bg-info text-dark">{{ message.author.get_full_name|default:message.author.username|default:"Utilisateur supprimé" }}</span>{% endif %}
+        <span class="text-muted small ms-2">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+        <div class="{% if message.is_system %}fst-italic text-muted{% endif %}">{{ message.body|linebreaksbr }}</div>
+      </li>
+      {% empty %}<li class="text-muted">Aucun message.</li>{% endfor %}
+    </ul>
+    {% if peut_repondre %}
+    <form method="post" action="{% url 'demande-commentaire' demande.pk %}" class="mb-4">{% csrf_token %}
+      <label class="form-label" for="id_reponse">Répondre (citez un participant avec @identifiant)</label>
+      <textarea class="form-control mb-2" id="id_reponse" name="body" rows="3" required></textarea>
+      <button class="btn btn-primary" type="submit">Publier</button>
+    </form>
+    {% endif %}
+    {% if peut_piloter %}
+    <form method="post" action="{% url 'demande-action' demande.pk %}" class="card card-body mb-3">{% csrf_token %}<input type="hidden" name="action" value="creer_action">
+      <h2 class="h6">Assigner une action</h2>
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4"><label class="form-label" for="id_act_titre">Action</label><input class="form-control" id="id_act_titre" name="titre" maxlength="200" required></div>
+        <div class="col-md-3"><label class="form-label" for="id_act_assigne">Marin</label>
+          <select class="form-select" id="id_act_assigne" name="assigne">{% for m in marins %}<option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
+        <div class="col-md-3"><label class="form-label" for="id_act_echeance">Échéance</label><input class="form-control" type="date" id="id_act_echeance" name="echeance"></div>
+        <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Assigner</button></div>
+      </div>
+    </form>
+    <div class="row g-3">
+      {% if candidats %}
+      <form method="post" action="{% url 'demande-action' demande.pk %}" class="col-md-6">{% csrf_token %}<input type="hidden" name="action" value="interlocuteur">
+        <label class="form-label" for="id_interlocuteur">Ajouter un interlocuteur</label>
+        <div class="input-group"><select class="form-select" id="id_interlocuteur" name="interlocuteur">{% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
+          <button class="btn btn-outline-secondary" type="submit">Ajouter</button></div>
+      </form>
+      {% endif %}
+      <form method="post" action="{% url 'demande-action' demande.pk %}" class="col-md-6">{% csrf_token %}<input type="hidden" name="action" value="reaffecter">
+        <label class="form-label" for="id_reaffecter">Confier à un autre responsable</label>
+        <div class="input-group"><select class="form-select" id="id_reaffecter" name="responsable">{% for u in responsables %}<option value="{{ u.pk }}" {% if u.pk == demande.responsable_id %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
+          <button class="btn btn-outline-secondary" type="submit">Confier</button></div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

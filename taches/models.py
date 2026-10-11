@@ -48,6 +48,10 @@ class Tache(TimeStampedModel, OwnedModel):
     motif_blocage = models.TextField(blank=True, default="", verbose_name="Motif du blocage")
     compte_rendu = models.TextField(blank=True, default="", verbose_name="Compte rendu")
     terminee_le = models.DateTimeField(null=True, blank=True)
+    # Action décidée dans le fil d'une demande bord–terre.
+    demande = models.ForeignKey(
+        "demandes.Demande", null=True, blank=True, on_delete=models.SET_NULL, related_name="actions",
+    )
 
     class Meta:
         ordering = (models.F("echeance").asc(nulls_last=True), "pk")
