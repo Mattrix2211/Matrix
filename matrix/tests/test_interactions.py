@@ -40,6 +40,8 @@ class MenuContextuelTests(SimpleTestCase):
         self.assertIn('href="/i/"', html)
         self.assertIn('hx-post="/s/"', html)
         self.assertIn("mx-menu__item--danger", html)
+        self.assertIn('hx-confirm="Confirmer : Supprimer ?"', html)
+        self.assertIn('data-bs-popper-config=', html)
         self.assertNotIn("btn-primary", html)
 
     def test_libelle_echappe(self):
