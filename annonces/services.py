@@ -132,32 +132,43 @@ def _concerne(user, annonce):
     return destinataires(annonce).filter(pk=user.pk).exists()
 
 
-def _filtre_visibles(user):
-    """Q (sur Annonce) : annonces qui visent `user`, ou qu'il a publiées."""
+def filtre_ciblage(user):
+    """Q (sur un modèle ciblé : ship, service, sector, section, equipage) des objets qui visent `user`."""
     ship, service, sector, section = chaine(user)
     profil = getattr(user, "profile", None)
     visees = Q(ship_id=ship) & (Q(service__isnull=True) | Q(service_id=service)) \
         & (Q(sector__isnull=True) | Q(sector_id=sector)) & (Q(section__isnull=True) | Q(section_id=section))
     visees &= Q(equipage="") | Q(equipage=getattr(profil, "equipage", "") or "\0")
-    visees &= Q(date_effet__lte=timezone.localdate())  # avant sa date d'effet, seuls l'auteur et les gérants la voient
-    return (visees if ship else Q(pk__in=[])) | Q(auteur=user)
+    return visees if ship else Q(pk__in=[])
+
+
+def _filtre_visibles(user):
+    """Q (sur Annonce) : annonces qui visent `user`, ou qu'il a publiées."""
+    visees = filtre_ciblage(user) & Q(date_effet__lte=timezone.localdate())  # avant sa date d'effet, seuls l'auteur et les gérants la voient
+    return visees | Q(auteur=user)
 
 
 def annonces_visibles(user):
     return Annonce.objects.filter(_filtre_visibles(user)).distinct()
 
 
+def filtre_gestion(user):
+    """Q (sur un modèle ciblé) des objets rattachés aux nœuds que `user` peut viser, dans son bâtiment."""
+    cles = [cle for cle, _ in cibles_autorisees(user)]
+    filtre = Q(pk__in=[])
+    ship = chaine(user)[0]
+    for modele in ("ship", "service", "sector", "section"):
+        ids = [int(c.split(":")[1]) for c in cles if c.startswith(f"{modele}:")]
+        if ids:
+            filtre |= Q(**{f"{modele}_id__in": ids}) & (Q(ship_id=ship) if modele != "ship" else Q())
+    return filtre
+
+
 def annonces_gerees(user):
     """Annonces dont `user` suit la lecture : celles qu'il a publiées et celles de son périmètre de publication."""
     if not peut_publier(user):
         return Annonce.objects.none()
-    cles = [cle for cle, _ in cibles_autorisees(user)]
-    filtre = Q(auteur=user)
-    for modele in ("ship", "service", "sector", "section"):
-        ids = [int(c.split(":")[1]) for c in cles if c.startswith(f"{modele}:")]
-        if ids:
-            filtre |= Q(**{f"{modele}_id__in": ids}) & (Q(**{"ship_id": chaine(user)[0]}) if modele != "ship" else Q())
-    return Annonce.objects.filter(filtre).distinct()
+    return Annonce.objects.filter(Q(auteur=user) | filtre_gestion(user)).distinct()
 
 
 def peut_consulter(user, annonce):

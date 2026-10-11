@@ -106,3 +106,14 @@ class DroitsEtVisibiliteTests(PostesBase):
         self.assertEqual(reponse.status_code, 302)
         self.client.force_login(self.marin)
         self.assertEqual(self.client.get(reverse("poste-nouveau")).status_code, 404)
+
+
+class ChefHorsPerimetreTests(PostesBase):
+    def test_chef_du_pont_affecte_sur_un_poste_energie_ne_voit_que_sa_ligne(self):
+        poste = self._poste()
+        chef_pont = self._marin("chef_pont2", self.pont, None, "CHEF_SERVICE")
+        services.affecter(self.chef, poste, chef_pont)
+        services.affecter(self.chef, poste, self.marin)
+        ligne = services.tableau_effectifs(chef_pont)[0]
+        self.assertEqual([t["user"] for t in ligne["titulaires"]], [chef_pont])
+        self.assertEqual(len(services.tableau_effectifs(self.chef)[0]["titulaires"]), 2)

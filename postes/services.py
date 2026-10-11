@@ -94,8 +94,9 @@ def retirer(user, poste, marin):
 def tableau_effectifs(user):
     """Une ligne par poste visible : titulaires, effectif pourvu et qualifications manquantes de chacun.
 
-    Un chef voit tous les titulaires de son périmètre ; un marin ne voit que ses propres postes et son propre état."""
+    Un chef voit tous les titulaires des postes de son périmètre ; sinon, seulement sa propre ligne."""
     chef = user_role_level(user) >= RoleLevel.CHEF_SECTION
+    cles = {cle for cle, _ in cibles_autorisees(user)} if chef else set()
     postes = list(postes_visibles(user).select_related("ship", "service", "sector", "section").prefetch_related(
         "formations", "affectations__user"))
     marins = {a.user_id for p in postes for a in p.affectations.all()}
@@ -107,12 +108,13 @@ def tableau_effectifs(user):
     lignes = []
     for poste in postes:
         titulaires = []
+        voit_tous = _noeud(poste) in cles  # décidé poste par poste : un chef affecté ailleurs ne voit que sa ligne
         for a in poste.affectations.all():
-            if not chef and a.user_id != user.pk:
+            if not voit_tous and a.user_id != user.pk:
                 continue
             manquantes = [f for f in poste.formations.all() if f.pk not in valides.get(a.user_id, set())]
             titulaires.append({"user": a.user, "manquantes": manquantes})
-        affectes = poste.affectations.count()
+        affectes = len(poste.affectations.all())
         lignes.append({
             "poste": poste, "titulaires": titulaires, "affectes": affectes,
             "non_pourvu": max(poste.effectif - affectes, 0), "sous_qualifies": sum(1 for t in titulaires if t["manquantes"]),

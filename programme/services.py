@@ -5,7 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog
-from annonces.services import chaine, cible_permise, cibles_autorisees, destinataires, resoudre_cible
+from annonces.services import chaine, cible_permise, cibles_autorisees, destinataires, filtre_ciblage, resoudre_cible
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
@@ -137,12 +137,9 @@ def lier_tache(user, evenement, tache_id):
 
 def evenements_visibles(user):
     """Événements qui visent `user`, ou qu'il a saisis ; l'état-major voit tout son bâtiment."""
-    ship, service, sector, section = chaine(user)
-    profil = getattr(user, "profile", None)
-    visees = Q(ship_id=ship) & (Q(service__isnull=True) | Q(service_id=service)) \
-        & (Q(sector__isnull=True) | Q(sector_id=sector)) & (Q(section__isnull=True) | Q(section_id=section))
-    visees &= Q(equipage="") | Q(equipage=getattr(profil, "equipage", "") or "\0")
-    filtre = (visees if ship else Q(pk__in=[])) | Q(auteur=user)
+    ship = chaine(user)[0]
+    visees = filtre_ciblage(user)
+    filtre = visees | Q(auteur=user)
     if ship and est_etat_major(user):
         filtre |= Q(ship_id=ship)
     return EvenementProgramme.objects.filter(filtre).distinct()
