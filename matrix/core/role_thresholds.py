@@ -170,6 +170,11 @@ REGISTRE_ACTIONS = [
         "Programme du bâtiment", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
     ),
     ActionSeuil(
+        "poste_gestion",
+        "Créer les postes du bord, définir leurs formations exigées et y affecter des marins",
+        "Postes du bord", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,

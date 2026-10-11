@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Postes du bord</h1>
+  {% if peut_gerer %}<a class="btn btn-primary" href="{% url 'poste-nouveau' %}">Créer un poste</a>{% endif %}
+</div>
+<p class="text-muted">Tableau d'effectifs : un marin peut tenir un poste sans toutes les qualifications exigées ; le manque est seulement signalé.</p>
+<div class="row g-3 mb-3">
+  <div class="col-sm-4"><div class="card card-body py-2"><div class="small text-muted">Postes</div><div class="h3 mb-0">{{ lignes|length }}</div></div></div>
+  <div class="col-sm-4"><div class="card card-body py-2"><div class="small text-muted">Places non pourvues</div><div class="h3 mb-0 {% if total_non_pourvus %}text-danger{% endif %}">{{ total_non_pourvus }}</div></div></div>
+  <div class="col-sm-4"><div class="card card-body py-2"><div class="small text-muted">Titulaires sous-qualifiés</div><div class="h3 mb-0 {% if total_sous_qualifies %}text-warning{% endif %}">{{ total_sous_qualifies }}</div></div></div>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+  <thead><tr><th>Poste</th><th>Rattachement</th><th>Titulaires</th><th>Pourvu</th></tr></thead>
+  <tbody>
+  {% for l in lignes %}
+    <tr>
+      <td><a href="{% url 'poste-detail' l.poste.pk %}">{{ l.poste.intitule }}</a></td>
+      <td class="small text-muted">{{ l.poste.cible_libelle }}</td>
+      <td class="small">{% for t in l.titulaires %}{{ t.user.get_full_name|default:t.user.username }}{% if t.manquantes %} <span class="badge text-bg-warning" title="Manque : {% for f in t.manquantes %}{{ f.title }}{% if not forloop.last %}, {% endif %}{% endfor %}">{{ t.manquantes|length }} qualif. manquante{{ t.manquantes|length|pluralize }}</span>{% endif %}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}</td>
+      <td>{{ l.affectes }} / {{ l.poste.effectif }}{% if l.non_pourvu %} <span class="badge text-bg-danger">{{ l.non_pourvu }} non pourvu{{ l.non_pourvu|pluralize }}</span>{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Aucun poste.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+{% endblock %}

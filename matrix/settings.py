@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     "demandes.apps.DemandesConfig",
     "annonces.apps.AnnoncesConfig",
     "programme.apps.ProgrammeConfig",
+    "postes.apps.PostesConfig",
     "rondes.apps.RondesConfig",
     "threads.apps.ThreadsConfig",
     "notifications.apps.NotificationsConfig",

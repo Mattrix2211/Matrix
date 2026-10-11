@@ -51,6 +51,7 @@ urlpatterns = [
     path("demandes/", include("demandes.web_urls")),
     path("annonces/", include("annonces.web_urls")),
     path("programme/", include("programme.web_urls")),
+    path("postes/", include("postes.web_urls")),
     path("rondes/", include("rondes.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),

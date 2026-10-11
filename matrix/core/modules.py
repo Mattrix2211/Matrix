@@ -95,6 +95,10 @@ REGISTRE_MODULES = [
         "Tâches attribuées par les chefs, fil de discussion contextuel, blocages et comptes rendus.",
     ),
     ModuleInfo(
+        "postes", "Postes du bord",
+        "Postes à pourvoir, titulaires et formations exigées ; les qualifications manquantes sont signalées sans bloquer l'affectation.",
+    ),
+    ModuleInfo(
         "programme", "Programme du bâtiment",
         "Escales, arrêts techniques, exercices et réunions ciblés par périmètre, intégrés au calendrier.",
     ),

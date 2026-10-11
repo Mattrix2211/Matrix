@@ -77,6 +77,7 @@ GROUPES = [
     ]),
     ("Compétences", [
         Entree("Formations", "formation", "formation-list", module="training"),
+        Entree("Postes du bord", "utilisateur", "postes-index", module="postes"),
     ]),
     ("Supervision", [
         Entree("Prêt à appareiller", "pret_appareillage", "pret-appareillage",
