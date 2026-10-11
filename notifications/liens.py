@@ -186,6 +186,13 @@ def _seances(request, ids):
     return _formations(request, ids, lambda o: str(cours.get(int(o), "")) if str(o).isdigit() else "")
 
 
+def _annonces(request, ids):
+    from annonces.services import annonces_gerees, annonces_visibles
+
+    ouvertes = (annonces_visibles(request.user) | annonces_gerees(request.user)).filter(pk__in=_entiers(ids.values()))
+    return _visibles(ids, ouvertes, lambda o: reverse("annonce-detail", args=[o]))
+
+
 def _demandes(request, ids):
     from demandes.services import demandes_visibles
 
@@ -195,6 +202,7 @@ def _demandes(request, ids):
 
 _RESOLVEURS = {
     "demande": _demandes,
+    "annonce": _annonces,
     "installation": _installations,
     "propositionarticle": _propositions,
     "checklisttemplate": _versions,

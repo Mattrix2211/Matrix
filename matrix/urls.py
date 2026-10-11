@@ -49,6 +49,7 @@ urlpatterns = [
     path("absences/", include("absences.web_urls")),
     path("taches/", include("taches.web_urls")),
     path("demandes/", include("demandes.web_urls")),
+    path("annonces/", include("annonces.web_urls")),
     path("rondes/", include("rondes.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),

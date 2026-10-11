@@ -18,6 +18,7 @@ ICONES = {
     "piece": "bi-box",
     "historique": "bi-clock-history",
     "discussion": "bi-chat-left-text",
+    "annonce": "bi-megaphone",
     "impression": "bi-printer",
     "document": "bi-file-earmark-text",
     # Actions courantes

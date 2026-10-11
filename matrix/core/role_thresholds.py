@@ -155,6 +155,11 @@ REGISTRE_ACTIONS = [
         "Tâches", PORTEE_GLOBALE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
+        "annonce_publication",
+        "Publier une annonce à son périmètre (bâtiment, service, secteur, section, équipage)",
+        "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
         "referentiel_global_ecriture",
         "Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte)",
         "Référentiels globaux", PORTEE_GLOBALE, RoleLevel.MASTER_ADMIN,

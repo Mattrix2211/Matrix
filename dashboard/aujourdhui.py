@@ -9,6 +9,7 @@ from django.utils import timezone
 from assets.fiche_validation import versions_a_viser
 from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
+from annonces.services import a_lire as annonces_a_lire
 from demandes.models import Demande
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
@@ -161,6 +162,13 @@ def a_faire(user, aujourdhui):
             version, version.name, f"Fiche à valider · {version.get_etat_display()}",
             f"{reverse('fiche-detail', args=[version.fiche_id])}?v={version.numero}", "document", ATTENTION, 0,
             _echeance(version.updated_at),
+        ))
+    for annonce in annonces_a_lire(user, aujourdhui):
+        entrees.append(_entree(
+            annonce, annonce.titre, f"Annonce · {annonce.get_niveau_display()}{' · accusé requis' if annonce.accuse_requis else ''}",
+            reverse("annonce-detail", args=[annonce.pk]), "annonce",
+            DANGER if annonce.niveau == "danger" else ATTENTION if annonce.niveau == "warning" or annonce.accuse_requis else NORMAL,
+            4 if annonce.niveau == "danger" else 0, _echeance(annonce.date_effet),
         ))
     for demande in demandes_a_traiter(user):
         entrees.append(_entree(

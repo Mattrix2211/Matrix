@@ -95,6 +95,10 @@ REGISTRE_MODULES = [
         "Tâches attribuées par les chefs, fil de discussion contextuel, blocages et comptes rendus.",
     ),
     ModuleInfo(
+        "annonces", "Annonces",
+        "Diffusion descendante Information / Important / Urgent ciblée par périmètre, avec accusé de lecture facultatif.",
+    ),
+    ModuleInfo(
         "demandes", "Demandes bord–terre",
         "Signalement d'une difficulté sur un objet, réponse des interlocuteurs désignés, actions et clôture traçable.",
     ),

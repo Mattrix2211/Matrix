@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     "absences.apps.AbsencesConfig",
     "taches.apps.TachesConfig",
     "demandes.apps.DemandesConfig",
+    "annonces.apps.AnnoncesConfig",
     "rondes.apps.RondesConfig",
     "threads.apps.ThreadsConfig",
     "notifications.apps.NotificationsConfig",
@@ -322,6 +323,10 @@ CELERY_BEAT_SCHEDULE = {
     # déclenchement toutes les minutes suffit à respecter des préférences
     # différentes d'un marin à l'autre (même principe que les alertes
     # d'échéance d'installations ci-dessus).
+    "diffuser_annonces_hourly": {
+        "task": "annonces.tasks.diffuser_annonces",
+        "schedule": 60 * 60,
+    },
     "notify_taches_en_retard_daily": {
         "task": "notifications.tasks.notify_taches_en_retard",
         "schedule": 60 * 60 * 24,

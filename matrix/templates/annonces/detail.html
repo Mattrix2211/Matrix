@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">{% include "annonces/_niveau.html" with a=annonce %} {{ annonce.titre }}</h1>
+<p class="text-muted small">Publiée par {{ annonce.auteur.get_full_name|default:annonce.auteur.username }} · pour {{ annonce.cible_libelle }} · à partir du {{ annonce.date_effet|date:"d/m/Y" }}{% if annonce.date_fin %} jusqu'au {{ annonce.date_fin|date:"d/m/Y" }}{% endif %} · version {{ annonce.version }}{% if annonce.archivee %} · <strong>archivée</strong>{% endif %}</p>
+<div class="card card-body mb-3">{{ annonce.corps|linebreaksbr }}</div>
+{% if peut_accuser %}
+  {% if accuse_fait %}<p class="text-success">Prise de connaissance enregistrée.</p>
+  {% else %}<form method="post" action="{% url 'annonce-action' annonce.pk %}" class="mb-4">{% csrf_token %}<input type="hidden" name="action" value="accuser"><button class="btn btn-success" type="submit">J'ai pris connaissance</button></form>{% endif %}
+{% endif %}
+{% if peut_gerer %}
+<div class="card card-body mb-3">
+  <h2 class="h6">Suivi de lecture</h2>
+  <p class="mb-2 small">{{ compte.Accusé }} accusé(s) · {{ compte.Lu }} lu(s) · {{ compte_non_lus }} non lu(s)</p>
+  <ul class="list-unstyled small mb-0">{% for l in suivi %}<li>{{ l.user.get_full_name|default:l.user.username }} — {{ l.etat }}</li>{% empty %}<li class="text-muted">Aucun destinataire.</li>{% endfor %}</ul>
+</div>
+{% if not annonce.archivee %}
+<form method="post" action="{% url 'annonce-action' annonce.pk %}" class="card card-body mb-3">{% csrf_token %}<input type="hidden" name="action" value="modifier">
+  <h2 class="h6">Modifier (une nouvelle version est publiée, l'ancienne reste consultable)</h2>
+  <input class="form-control mb-2" name="titre" value="{{ annonce.titre }}" maxlength="200" required>
+  <textarea class="form-control mb-2" name="corps" rows="4" required>{{ annonce.corps }}</textarea>
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3"><select class="form-select" name="niveau" aria-label="Niveau">{% for code, libelle in niveaux %}<option value="{{ code }}" {% if code == annonce.niveau %}selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><input class="form-control" type="date" name="date_fin" value="{{ annonce.date_fin|date:'Y-m-d' }}" aria-label="Visible jusqu'au"></div>
+    <div class="col-md-6"><button class="btn btn-outline-primary" type="submit">Publier la nouvelle version</button></div>
+  </div>
+</form>
+<form method="post" action="{% url 'annonce-action' annonce.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="action" value="archiver"><button class="btn btn-outline-secondary btn-sm" type="submit">Archiver</button></form>
+{% endif %}
+<h2 class="h6">Versions</h2>
+<ul class="small">{% for v in versions %}<li>v{{ v.numero }} · {{ v.created_at|date:"d/m/Y H:i" }} · {{ v.auteur.get_full_name|default:v.auteur.username }} — {{ v.titre }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

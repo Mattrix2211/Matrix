@@ -156,7 +156,7 @@ class ModuleActivationMiddleware:
 CHEMINS_ECRITURE_A_TERRE = (
     "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
     "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/",
-    "/calendar/personnel/", "/taches/commentaire/", "/demandes/",
+    "/calendar/personnel/", "/taches/commentaire/", "/demandes/", "/annonces/",
 )
 # Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
 ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")
