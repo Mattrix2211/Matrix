@@ -96,6 +96,17 @@ class SaisieEtDroitsTests(ProgrammeBase):
 
 
 class PagesEtCalendrierTests(ProgrammeBase):
+    def test_tache_liee_invisible_pour_un_marin_sans_acces(self):
+        from taches.models import Tache
+
+        evt = services.creer_evenement(self.second, "Exercice", self._type(), self.demain, None, f"ship:{self.navire.pk}")
+        tache = Tache.objects.create(titre="Tâche confidentielle XYZ", assigne=self.marin, created_by=self.second, partagee=False)
+        services.lier_tache(self.second, evt, tache.pk)
+        self.client.force_login(self.matelot_pont)
+        self.assertNotContains(self.client.get(reverse("evenement-detail", args=[evt.pk])), "confidentielle XYZ")
+        self.client.force_login(self.marin)
+        self.assertContains(self.client.get(reverse("evenement-detail", args=[evt.pk])), "confidentielle XYZ")
+
     def test_pages_et_acces(self):
         evt = services.creer_evenement(self.second, "Exercice", self._type(), self.demain, None, f"service:{self.energie.pk}")
         self.client.force_login(self.marin)

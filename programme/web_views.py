@@ -92,7 +92,7 @@ class EvenementDetailView(LoginRequiredMixin, View):
         deja = evenement.taches.values_list("pk", flat=True)
         return render(request, "programme/detail.html", {
             "evenement": evenement, "peut_gerer": gerer,
-            "taches": evenement.taches.select_related("assigne"),
+            "taches": evenement.taches.filter(pk__in=taches_visibles(request.user).values("pk")).select_related("assigne"),
             "taches_liables": taches_visibles(request.user).exclude(pk__in=deja).filter(statut__in=("A_FAIRE", "EN_COURS", "BLOQUEE"))[:50] if gerer else [],
             "debut_saisie": timezone.localtime(evenement.debut).strftime("%Y-%m-%dT%H:%M"),
             "fin_saisie": timezone.localtime(evenement.fin).strftime("%Y-%m-%dT%H:%M") if evenement.fin else "",
