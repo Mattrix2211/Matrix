@@ -65,6 +65,27 @@ class MotDePasseProvisoireMiddleware:
         return self.get_response(request)
 
 
+class BatimentCourantMiddleware:
+    """Publie le bâtiment choisi dans le sélecteur (utilisateur à terre) pour filtrer les listes de la requête."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from .contexte_batiment import CLE_SESSION, batiment_filtre, selecteur_batiment
+
+        courant = None
+        if request.user.is_authenticated and not request.path.startswith("/api/"):
+            choisi = request.session.get(CLE_SESSION)
+            if choisi and any(b.pk == choisi for b in selecteur_batiment(request.user)):
+                courant = choisi
+        jeton = batiment_filtre.set(courant)
+        try:
+            return self.get_response(request)
+        finally:
+            batiment_filtre.reset(jeton)
+
+
 class IdentitePageMiddleware:
     """Refuse (409) une écriture dont la page a été ouverte pour un autre marin que celui connecté
     (poste partagé : cookies communs à tous les onglets). L'identité vient de l'en-tête

@@ -39,14 +39,19 @@ def build_scope_q(user, *lookup_paths):
     filters = scope_filters_for_user(user)
     suffixe = ""
     if not filters:
-        if is_master_admin(user):
-            return Q()
         # Import différé : contexte_batiment importe scopes (cycle).
-        from .contexte_batiment import batiments_du_perimetre
-        filters = {"ship_id": list(batiments_du_perimetre(user).values_list("pk", flat=True))}
-        if not filters["ship_id"]:
-            return Q(pk__in=[])
-        suffixe = "__in"
+        from .contexte_batiment import batiment_filtre, batiments_du_perimetre
+        courant = batiment_filtre.get()
+        if is_master_admin(user):
+            if courant is None:
+                return Q()
+            filters = {"ship_id": courant}
+        else:
+            ids = list(batiments_du_perimetre(user).values_list("pk", flat=True))
+            if not ids:
+                return Q(pk__in=[])
+            filters = {"ship_id": [courant] if courant in ids else ids}
+            suffixe = "__in"
     (key, value), = filters.items()
     q = Q()
     matched = False

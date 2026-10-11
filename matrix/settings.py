@@ -107,6 +107,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Écriture refusée si la page a été ouverte pour un autre marin (poste partagé)
     "matrix.core.middleware.IdentitePageMiddleware",
+    # Bâtiment choisi dans le sélecteur : borne les listes de l'utilisateur à terre
+    "matrix.core.middleware.BatimentCourantMiddleware",
     # Mot de passe provisoire : changement obligatoire avant toute autre page
     "matrix.core.middleware.MotDePasseProvisoireMiddleware",
     # Modules activables par bâtiment : bloque l'accès direct par URL aux

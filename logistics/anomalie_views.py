@@ -47,7 +47,7 @@ def anomalies_visibles(user):
             filtre |= Q(section_id=section_id)
         return Anomalie.objects.filter(filtre)
     if is_master_admin(user):
-        return Anomalie.objects.all()
+        return Anomalie.objects.filter(build_scope_q(user, ""))  # flotte, ou bâtiment courant
     return Anomalie.objects.filter(Q(created_by=user) | build_scope_q(user, ""))
 
 
