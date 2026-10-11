@@ -30,6 +30,15 @@ Tous les comptes ont le mot de passe « pass » (sauf `admin` : « admin »). Co
 6. **Karim rend compte** : la tâche passe à « Terminée » et Jade est notifiée.
 7. **Jade consulte l'avancement de l'équipe** (haut de la page Tâches) : répartition par statut, charge par marin, retards, blocages à lever et échéances tombant pendant une absence.
 
+## Parcours bord–terre et annonces
+
+1. **Karim signale une difficulté** depuis la fiche de sa tâche (« Signaler une difficulté ») : résumé, responsable (Jade), priorité. Le dossier est déjà en démonstration : « Fuite persistante sur un graisseur ».
+2. **Jade, responsable, ajoute Ivan** (équipage à terre) comme interlocuteur du dossier. Ivan lit et répond dans ce dossier seulement.
+3. **Jade assigne une action** : une tâche liée au dossier apparaît chez Karim dans « Aujourd'hui ».
+4. **Karim termine l'action** ; Jade passe le dossier à « Résolu » ; Karim confirme la clôture. Tout reste dans le fil et le journal d'audit.
+5. **Annonce** : le commandant (`cdt_a`) publie une annonce Important avec accusé requis ; Karim la voit dans « Aujourd'hui », clique « J'ai pris connaissance » ; le commandant suit lus / accusés / non-lus.
+6. **Mentions** : `@identifiant` dans un fil crée une réponse attendue du marin cité, soldée quand il répond. Les qualifications expirantes d'un marin apparaissent chez lui et chez son chef.
+
 ## Variantes à montrer
 
 - **Réaffecter ou replanifier** : sur la fiche, le formulaire « Réaffecter ou replanifier » change le marin, l'échéance ou la priorité ; chaque changement est consigné dans le fil et dans le journal d'audit, l'ancien et le nouveau titulaire sont notifiés.
@@ -40,6 +49,8 @@ Tous les comptes ont le mot de passe « pass » (sauf `admin` : « admin »). Co
 ## Données fictives créées
 
 Quatre tâches pour la Bretagne : une à jouer en direct (Karim), une en retard (Lina), une bloquée avec fil ouvert à l'équipage B (Lina), une terminée (secteur électricité), plus une tâche personnelle privée de Karim et une permission de Karim le lendemain de l'échéance de sa tâche.
+
+Une demande en traitement avec réponse d'Ivan, et une annonce « Exercice incendie jeudi 14 h » à accuser.
 
 ## Limites connues
 

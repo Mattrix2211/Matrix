@@ -11,6 +11,10 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from absences.models import Absence
+from annonces import services as annonces_services
+from annonces.models import Annonce
+from demandes import services as demandes_services
+from demandes.models import Demande
 from accounts.models import (
     FonctionQuartChoice, GradeChoice, ResponsableSpecialite, Roles, ServiceFunctionChoice,
     SpecialityChoice, TypeAbsence,
@@ -64,6 +68,7 @@ class Command(BaseCommand):
         self._quarts()
         self._formations()
         self._taches()
+        self._demande_et_annonce()
         self._notifications_et_brouillons()
         self.stdout.write(self.style.SUCCESS("Données de démonstration prêtes. Comptes (mot de passe « pass ») :"))
         for ligne in self.comptes:
@@ -568,6 +573,24 @@ class Command(BaseCommand):
                 User.objects.get(username="chef_secteur_elec_a"), self.equipier_elec, "Vérifier l'étalonnage des sondes de température", hier)
             taches_services.demarrer(tache, self.equipier_elec)
             taches_services.rendre_compte(tache, self.equipier_elec, "Quatre sondes vérifiées, écart inférieur à 0,5 °C.")
+
+    # ---------- Demande bord–terre et annonce ----------
+
+    def _demande_et_annonce(self):
+        # Une demande en traitement avec réponse de l'équipage à terre, une annonce à accuser.
+        chef, ivan = User.objects.get(username="chef_section_a"), User.objects.get(username="chef_secteur_b")
+        tache = Tache.objects.get(titre="Contrôler le graissage des paliers de la ligne d'arbre")
+        if not Demande.objects.filter(titre="Fuite persistante sur un graisseur").exists():
+            demande = demandes_services.creer_demande(
+                self.equipier_a, tache, "Fuite persistante sur un graisseur",
+                "Le graisseur du palier n°2 fuit malgré le resserrage.", chef)
+            demandes_services.ajouter_interlocuteur(demande, chef, ivan)
+            demandes_services.repondre(demande, ivan, "Un joint équivalent est disponible au magasin de l'équipage B, je vous l'envoie.")
+            demandes_services.changer_etat(demande, chef, Demande.ETAT_EN_TRAITEMENT)
+        if not Annonce.objects.filter(titre="Exercice incendie jeudi 14 h").exists():
+            annonces_services.publier(
+                self.cdt_a, "Exercice incendie jeudi 14 h", "Rassemblement pont principal, tenue de travail.",
+                NotificationLevel.WARNING, f"ship:{self.bre.pk}", accuse_requis=True)
 
     # ---------- Notifications et brouillons ----------
 
