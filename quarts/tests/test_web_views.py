@@ -330,6 +330,12 @@ class PlanningEtOngletsTests(TestCase):
             with self.subTest(vue=vue):
                 self.assertContains(self.client.get(f"/quarts/garde/{self.garde.pk}/?vue={vue}"), texte)
 
+    def test_onglets_charges_en_htmx(self):
+        self.client.login(username="cdl_planning", password="pass")
+        r = self.client.get(f"/quarts/garde/{self.garde.pk}/")
+        self.assertContains(r, 'id="liste-onglets"')
+        self.assertContains(r, 'hx-get="?vue=equite"')
+
     def test_quart_na_pas_donglet_echanges_ni_equite(self):
         quart = Quart.objects.create(sector=self.sector, date_debut=timezone.localdate(), date_fin=timezone.localdate())
         self.client.login(username="cdl_planning", password="pass")

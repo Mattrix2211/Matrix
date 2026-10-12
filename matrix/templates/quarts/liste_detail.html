@@ -6,9 +6,11 @@
 {% if liste.statut == 'BROUILLON' and not peut_gerer %}<p class="text-secondary small">Liste encore en brouillon : en attente d'une proposition du chef de liste.</p>{% elif liste.statut == 'PROPOSEE' and not peut_publier %}<p class="text-secondary small">Vous n'êtes pas habilité(e) à publier cette liste : en attente d'un publicateur (rôle distinct du chef de liste).</p>{% endif %}
 {% if action %}<form method="post" id="{{ action.formulaire }}" onsubmit="return confirm('{{ action.confirmation }}');">{% csrf_token %}<input type="hidden" name="action" value="{{ action.nom }}"></form>{% endif %}
 
+{# Onglets chargés en HTMX (lien classique en repli) : seule la zone des onglets est remplacée. #}
+<div id="liste-onglets">
 <ul class="nav nav-tabs mb-3">
   {% for cle, libelle in onglets %}
-  <li class="nav-item"><a class="nav-link{% if vue == cle %} active{% endif %}" href="?vue={{ cle }}"{% if vue == cle %} aria-current="page"{% endif %}>{{ libelle }}</a></li>
+  <li class="nav-item"><a class="nav-link{% if vue == cle %} active{% endif %}" href="?vue={{ cle }}" hx-get="?vue={{ cle }}" hx-target="#liste-onglets" hx-select="#liste-onglets" hx-swap="outerHTML" hx-push-url="true"{% if vue == cle %} aria-current="page"{% endif %}>{{ libelle }}</a></li>
   {% endfor %}
 </ul>
 
@@ -258,4 +260,5 @@
 </div>
 {% endif %}
 {% endif %}
+</div>
 {% endblock %}
