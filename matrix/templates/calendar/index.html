@@ -80,6 +80,7 @@
         <label class="form-label mb-1" for="filtre-user">Utilisateur</label>
         <select name="user" id="filtre-user" class="form-select form-select-sm">
           <option value="">Tous</option>
+          {% if peut_equipe %}<option value="equipe" {% if active_filters.user == 'equipe' %}selected{% endif %}>Mon équipe</option>{% endif %}
           {% for u in users %}
             <option value="{{ u.id }}" {% if active_filters.user|default:''|stringformat:'s' == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
           {% endfor %}

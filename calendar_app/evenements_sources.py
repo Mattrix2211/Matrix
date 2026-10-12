@@ -3,6 +3,8 @@ périmètre, créneaux, absences, rondes, événements personnels) et agrégatio
 personnelle d'une journée. Partagé par la vue HTML (index_views.py), l'API
 JSON FullCalendar (api_views.py) et le digest « Ma journée »
 (notifications.tasks) — découpage de calendar_app/views.py par sous-domaine."""
+from datetime import timedelta
+
 from django.db.models import Q
 
 from maintenance.models import MaintenanceOccurrence
@@ -195,3 +197,40 @@ def _appliquer_filtres_tickets(qs, filters):
     if filters.get("sector"):
         qs = qs.filter(Q(asset__sector_id=filters["sector"]) | Q(installation__sector_id=filters["sector"]))
     return qs
+
+
+def evenements_equipe(user, debut, fin, couleur):
+    """Événements FullCalendar des marins sous `user` : tâches (retards en évidence), absences, quarts et gardes.
+
+    `couleur(type, statut=None)` fournit les teintes du calendrier. Lecture seule : aucun événement n'est modifiable ici."""
+    from django.urls import reverse
+    from django.utils import timezone
+
+    from taches.services import marins_assignables
+
+    equipe = {m.pk: (m.last_name or m.username) for m in marins_assignables(user)}
+    aujourdhui = timezone.localdate()
+    evenements = []
+
+    def ajouter(identifiant, titre, debut_iso, fin_iso, url, type_evenement, statut=None, teinte=None):
+        evenements.append({
+            "id": identifiant, "title": titre, "start": debut_iso, "end": fin_iso, "url": url, "editable": False,
+            "extendedProps": {"type": type_evenement, "status": statut, "peut_agir": False}, **(teinte or couleur(type_evenement)),
+        })
+
+    for tache in Tache.objects.filter(
+            assigne_id__in=equipe, statut__in=Tache.STATUTS_OUVERTS, partagee=True, echeance__range=(debut, fin)):
+        retard = tache.echeance < aujourdhui
+        ajouter(f"eqt-{tache.pk}", f"{equipe[tache.assigne_id]} · {tache.titre}", tache.echeance.isoformat(), tache.echeance.isoformat(),
+                reverse("tache-detail", args=[tache.pk]), "tache", tache.statut,
+                {"backgroundColor": "#dc3545", "borderColor": "#b02a37", "textColor": "#fff"} if retard else None)
+    for absence in _absences_periode(debut, fin, None, user).filter(marin_id__in=equipe):
+        ajouter(f"eqa-{absence.pk}", f"{equipe[absence.marin_id]} · {absence.type_absence}", absence.date_debut.isoformat(),
+                (absence.date_fin + timedelta(days=1)).isoformat(), reverse("absences-index"), "absence", absence.statut)
+    for creneau in _creneaux_quart_assignes(debut, fin, None, user).filter(marin_id__in=equipe):
+        ajouter(f"eqq-{creneau.pk}", f"{equipe[creneau.marin_id]} · Quart {creneau.poste}", creneau.debut.isoformat(),
+                creneau.fin.isoformat(), reverse("quarts-index"), "quart")
+    for creneau in _creneaux_garde_assignes(debut, fin, None, user).filter(marin_id__in=equipe):
+        ajouter(f"eqg-{creneau.pk}", f"{equipe[creneau.marin_id]} · Garde {creneau.poste}", creneau.debut.isoformat(),
+                creneau.fin.isoformat(), reverse("quarts-index"), "service_garde")
+    return evenements

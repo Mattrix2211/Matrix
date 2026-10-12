@@ -13,6 +13,7 @@ from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import build_scope_q
 from matrix.core.icones import classe_icone
+from taches.services import peut_attribuer
 from programme.services import evenements_periode as evenements_programme
 from .evenements_sources import (
     _absences_periode,
@@ -21,6 +22,7 @@ from .evenements_sources import (
     _creneaux_garde_assignes,
     _creneaux_quart_assignes,
     _evenements_personnels,
+    evenements_equipe,
     _peut_agir_occurrence,
     _peut_agir_ticket,
     _rondes_a_faire,
@@ -136,6 +138,16 @@ def calendar_events(request):
         "type": request.GET.get("type") or None,
         "status": request.GET.get("status") or None,
     }
+    # « Mon équipe » : valeur spéciale du filtre Utilisateur, réservée à qui peut attribuer des tâches.
+    if filters.get("user") == "equipe":
+        if not peut_attribuer(request.user):
+            raise PermissionDenied
+        equipe = evenements_equipe(request.user, start, end, _couleur_evenement)
+        for evenement in equipe:
+            concept = _CONCEPT_ICONE_PAR_TYPE.get(evenement["extendedProps"]["type"])
+            if concept:
+                evenement["extendedProps"]["icone"] = classe_icone(concept)
+        return JsonResponse(equipe, safe=False)
     events = []
     niveau_role = user_role_level(request.user)
     # Occurrences de maintenance préventive : matériel mobile (asset) ou installation fixe.

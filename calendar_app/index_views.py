@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
+from taches.services import peut_attribuer
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.shortcuts import render
@@ -88,7 +89,8 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "events": events,
             **{cle: valeur for cle, valeur in referentiel_organisation(request.user).items() if cle != "sections"},
             "users": utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user)).order_by("username"),
-            "active_filters": filters,
+            "active_filters": {**filters, "user": request.GET.get("user") or None},
+            "peut_equipe": peut_attribuer(request.user),
             "mes_evenements_personnels": PersonalEvent.objects.filter(
                 owner=request.user, starts_at__gte=timezone.now()
             ).order_by("starts_at")[:20],
@@ -100,7 +102,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "ship": request.GET.get("ship") or None,
             "service": request.GET.get("service") or None,
             "sector": request.GET.get("sector") or None,
-            "user": request.GET.get("user") or None,
+            "user": (request.GET.get("user") if request.GET.get("user") != "equipe" else "") or None,  # « équipe » : API seulement
             "type": request.GET.get("type") or None,
             "status": request.GET.get("status") or None,
         }
