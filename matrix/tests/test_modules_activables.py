@@ -85,7 +85,10 @@ class OngletModulesPermissionsTests(TestCase):
         self.url = reverse("settings")
         self.ship = Ship.objects.create(name="Frégate Permissions", code="FR-PERM")
         self.admin = User.objects.create_superuser(username="admin_mod", password="pass", email="a@a.fr")
+        # Les identifiants de navire se répètent d'un test à l'autre : on repart de caches vides.
+        invalidate_role_thresholds_cache(self.ship.id)
         self.addCleanup(invalidate_cache, self.ship.id)
+        self.addCleanup(invalidate_role_thresholds_cache, self.ship.id)
 
     def _marin(self, username, role, ship=None):
         user = User.objects.create_user(username=username, password="pass")
