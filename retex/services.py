@@ -1,6 +1,7 @@
 """Règles métier du RETEX : proposition depuis une source, routage par domaine, décision, publication et actions."""
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import AuditLog
@@ -82,7 +83,10 @@ def proposer(user, titre, constat, enseignement, domaine_id, organisme="", cause
         raise PermissionError("Votre équipage est à terre : la proposition est réservée à l'équipage à bord.")
     if source is not None and lien_objet(user, source) is None:
         raise PermissionError("Vous n'avez pas accès à cette source.")
-    domaine = domaines_du_navire(ship).filter(pk=domaine_id or None).first()
+    try:
+        domaine = domaines_du_navire(ship).filter(pk=domaine_id or None).first()
+    except (ValueError, TypeError):
+        domaine = None
     if domaine is None:
         raise ValidationError("Choisissez le domaine du RETEX.")
     if not titre.strip() or not constat.strip() or not enseignement.strip():
@@ -129,8 +133,9 @@ def valider(user, retex, motif=""):
     if not peut_valider(user, retex):
         raise PermissionError("Vous ne pouvez pas valider ce RETEX.")
     retex.etat, retex.decide_par, retex.decide_le, retex.motif_decision = Retex.ETAT_VALIDE, user, timezone.now(), motif.strip()
-    _publier(retex, user)
-    retex.save()
+    with transaction.atomic():  # le document publié et la décision vont ensemble
+        _publier(retex, user)
+        retex.save()
     _tracer(retex, user, "valide")
     traiter_actions(retex)
     if retex.auteur_id:

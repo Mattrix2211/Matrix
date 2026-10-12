@@ -81,6 +81,8 @@ class ParcoursTests(RetexBase):
             services.proposer(self.marin, "x", "", "y", self.domaine.pk)
         with self.assertRaises(ValidationError):
             services.proposer(self.marin, "x", "y", "z", 99999)
+        with self.assertRaises(ValidationError):
+            services.proposer(self.marin, "x", "y", "z", "pas-un-nombre")
         privee = Tache.objects.create(titre="Privée", assigne=self.chef, created_by=self.chef, partagee=False)
         with self.assertRaises(PermissionError):
             self._propose(source=privee)
