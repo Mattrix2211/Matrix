@@ -1406,3 +1406,5 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
 .mx-histo-graphique { position: relative; height: 220px; }
 
 .mx-formations-gestion > summary { cursor: pointer; }
+.mx-parametres__lien--sous { padding-left: var(--s4, 1.5rem); font-size: .85rem; }
+.mx-panneau.mx-panneau--large { --bs-offcanvas-width: min(560px, 100vw); }

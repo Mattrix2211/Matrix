@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load icones %}
+{% load icones composants %}
 {% load org_extras %}
 {% block content %}
 <h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules or peut_voir_equipage %}Paramètres{% else %}Mes notifications{% endif %}</h1>
@@ -13,20 +13,20 @@
     <a class="mx-parametres__lien {% if active_tab == 'installations' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=installations">Installations</a>
   </div>
   {% endif %}
-  {% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_voir_equipage %}
+  {% if user.is_superuser or peut_gerer_responsables or peut_voir_equipage %}
   <div>
     <h2 class="mx-parametres__groupe-titre">Utilisateurs et droits</h2>
-    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'utilisateurs' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=utilisateurs">Référentiels et rôles</a>{% endif %}
-    {% if peut_gerer_seuils %}<a class="mx-parametres__lien {% if active_tab == 'seuils_role' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Seuils de rôle</a>{% endif %}
+    {% if peut_voir_equipage %}<a class="mx-parametres__lien {% if active_tab == 'equipage' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=equipage{% if equipage_ship %}&ship={{ equipage_ship.id }}{% endif %}">Utilisateurs</a>{% endif %}
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'utilisateurs' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=utilisateurs">Rôles</a>{% endif %}
     {% if user.is_superuser or peut_gerer_responsables %}<a class="mx-parametres__lien {% if active_tab == 'responsables' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=responsables">Responsables</a>{% endif %}
-    {% if peut_voir_equipage %}<a class="mx-parametres__lien {% if active_tab == 'equipage' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=equipage{% if equipage_ship %}&ship={{ equipage_ship.id }}{% endif %}">Équipage</a>{% endif %}
   </div>
   {% endif %}
   <div>
     <h2 class="mx-parametres__groupe-titre">Application</h2>
-    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'generale' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=generale">Générale et sécurité</a>{% endif %}
     {% if peut_gerer_modules %}<a class="mx-parametres__lien {% if active_tab == 'modules' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a>{% endif %}
     <a class="mx-parametres__lien {% if active_tab == 'notifications' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=notifications">Notifications</a>
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'generale' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=generale">Sécurité</a>{% endif %}
+    {% if peut_gerer_seuils %}<a class="mx-parametres__lien mx-parametres__lien--sous {% if active_tab == 'seuils_role' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Seuils de rôle</a>{% endif %}
   </div>
   {% if user.is_superuser %}
   <div>
@@ -843,7 +843,7 @@
             <td class="font-mono">{{ sh.code }}</td>
             <td>{{ sh|badge_type_unite }}</td>
             <td>
-              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}" data-classe-navire="{{ sh.classe_navire }}">Modifier</button>
+              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="offcanvas" data-bs-target="#editShipPanneau" aria-controls="editShipPanneau" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}" data-classe-navire="{{ sh.classe_navire }}">Modifier</button>
               <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>
               <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer l'unité {{ sh.name }}">Supprimer</button>
             </td>
@@ -1005,49 +1005,36 @@
   </div>
 </div>
 
-{# Modal édition unité #}
-<div class="modal fade" id="editShipModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Modifier l'unité</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form method="post" id="editShipForm">
-        <div class="modal-body">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="edit_ship" />
-          <input type="hidden" name="next_tab" value="navires" />
-          <input type="hidden" name="pk" id="editShipPk" />
-          <div class="mb-3">
-            <label class="form-label">Nom</label>
-            <input class="form-control" name="name" id="editShipName" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Code</label>
-            <input class="form-control" name="code" id="editShipCode" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Type d'unité</label>
-            <select class="form-select" name="type_unite" id="editShipTypeUnite">
-              {% for valeur, libelle in type_unite_choices %}
-                <option value="{{ valeur }}">{{ libelle }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Classe de navire</label>
-            <input class="form-control" name="classe_navire" id="editShipClasseNavire" placeholder="Optionnel, ex : Frégate La Fayette" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
-        </div>
-      </form>
-    </div>
+{# Panneau latéral d'édition d'unité #}
+{% panneau_lateral id="editShipPanneau" titre="Modifier l'unité" icone="configuration" classes="mx-panneau--large" %}
+<form method="post" id="editShipForm" class="d-grid gap-3">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="edit_ship" />
+  <input type="hidden" name="next_tab" value="navires" />
+  <input type="hidden" name="pk" id="editShipPk" />
+  <div>
+    <label class="form-label" for="editShipName">Nom</label>
+    <input class="form-control" name="name" id="editShipName" />
   </div>
-</div>
+  <div>
+    <label class="form-label" for="editShipCode">Code</label>
+    <input class="form-control" name="code" id="editShipCode" />
+  </div>
+  <div>
+    <label class="form-label" for="editShipTypeUnite">Type d'unité</label>
+    <select class="form-select" name="type_unite" id="editShipTypeUnite">
+      {% for valeur, libelle in type_unite_choices %}
+        <option value="{{ valeur }}">{{ libelle }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="form-label" for="editShipClasseNavire">Classe de navire</label>
+    <input class="form-control" name="classe_navire" id="editShipClasseNavire" placeholder="Optionnel, ex : Frégate La Fayette" />
+  </div>
+  <div><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+</form>
+{% fin_panneau_lateral %}
 
 {# Modal duplication unité #}
 <div class="modal fade" id="duplicateShipModal" tabindex="-1" aria-hidden="true">
@@ -1095,8 +1082,8 @@
       document.getElementById('confirmLabel').textContent = label || 'Êtes-vous sûr ?';
     });
 
-    var editModal = document.getElementById('editShipModal');
-    editModal.addEventListener('show.bs.modal', function (event) {
+    var editModal = document.getElementById('editShipPanneau');
+    editModal.addEventListener('show.bs.offcanvas', function (event) {
       var button = event.relatedTarget;
       var pk = button.getAttribute('data-pk');
       var name = button.getAttribute('data-name');

@@ -30,6 +30,22 @@ class NavigationParametresTests(TestCase):
             self.assertEqual(page.status_code, 200, onglet)
             self.assertContains(page, "mx-parametres__lien--actif")
 
+    def test_libelles_conformes_ux_20_8(self):
+        self.client.login(username="root_nav", password="pass")
+        page = self.client.get(self.url)
+        for libelle in (">Utilisateurs</a>", ">Rôles</a>", ">Sécurité</a>", ">Seuils de rôle</a>"):
+            self.assertContains(page, libelle)
+        for ancien in ("Référentiels et rôles", "Générale et sécurité"):
+            self.assertNotContains(page, ancien)
+
+    def test_modification_d_unite_en_panneau_lateral_pas_en_modale(self):
+        self.client.login(username="root_nav", password="pass")
+        Ship.objects.create(name="Navire param", code="NV-PRM")
+        page = self.client.get(self.url, {"tab": "navires"})
+        self.assertContains(page, 'id="editShipPanneau"')
+        self.assertNotContains(page, 'id="editShipModal"')
+        self.assertContains(page, 'id="duplicateShipModal"')
+
     def test_responsables_separes_des_referentiels(self):
         self.client.login(username="root_nav", password="pass")
         self.assertContains(self.client.get(self.url, {"tab": "responsables"}), "Responsables de spécialité")
