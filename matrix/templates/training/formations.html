@@ -242,7 +242,7 @@
 </div>
 {% endif %}
 
-{% if peut_demander_places %}
+{% if peut_demander_places and mes_demandes_places %}
 <div class="card mb-3">
   <div class="card-body">
     <h6 class="fw-bold mb-3"><i class="bi bi-send"></i> Mes demandes de places</h6>
@@ -296,8 +296,6 @@
           {% endif %}
         </div>
       {% endfor %}
-    {% else %}
-      <p class="small text-muted mb-0">Aucune demande de places pour l'instant — utilisez le bouton « Demander des places » sur la fiche d'une formation.</p>
     {% endif %}
   </div>
 </div>

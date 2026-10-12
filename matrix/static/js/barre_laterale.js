@@ -3,7 +3,11 @@
 (function () {
   var form = document.querySelector('[data-barre-laterale-bascule]');
   var barre = document.getElementById('barre-laterale');
-  if (!form || !barre) return;
+  if (!barre) return;
+  // Écran bas : l'entrée courante reste visible dans le menu défilant.
+  var courante = barre.querySelector('[aria-current="page"]');
+  if (courante && courante.scrollIntoView) courante.scrollIntoView({ block: 'nearest' });
+  if (!form) return;
   var bouton = form.querySelector('button');
   var champ = form.querySelector('input[name="repliee"]');
   var libelle = form.querySelector('.mx-lateral__libelle');
