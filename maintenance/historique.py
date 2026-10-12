@@ -24,14 +24,24 @@ ETATS_BADGE = {"CONFORME": "ok", "A_SURVEILLER": "attention", "NON_CONFORME": "d
 TENDANCES = {"hausse": ("↗", "en hausse"), "baisse": ("↘", "en baisse"), "stable": ("→", "stable")}
 
 
-def sources_de(installation=None, asset=None, exclure_execution=None):
-    """Comptes rendus terminés de l'équipement (préventifs puis correctifs), du plus ancien au plus récent."""
+def _requetes_comptes_rendus():
+    """Comptes rendus terminés, préventifs puis correctifs, avec leurs liaisons préchargées."""
     preventifs = MaintenanceExecution.objects.filter(completed_at__isnull=False).select_related(
         "occurrence__plan", "occurrence__installation_maintenance", "version_fiche__fiche", "executed_by",
     ).prefetch_related("intervenants", "version_fiche__items", "modifications__auteur", "occurrence__assignees")
     correctifs = CompteRenduCorrectif.objects.filter(completed_at__isnull=False).select_related(
         "ticket", "version_fiche__fiche", "executed_by",
     ).prefetch_related("intervenants", "version_fiche__items", "modifications__auteur", "ticket__assignees")
+    return preventifs, correctifs
+
+
+def _chronologie(preventifs, correctifs):
+    return sorted([*preventifs, *correctifs], key=lambda s: (s.completed_at, s.pk if isinstance(s, MaintenanceExecution) else 0))
+
+
+def sources_de(installation=None, asset=None, exclure_execution=None):
+    """Comptes rendus terminés de l'équipement (préventifs puis correctifs), du plus ancien au plus récent."""
+    preventifs, correctifs = _requetes_comptes_rendus()
     if installation is not None:
         preventifs = preventifs.filter(occurrence__installation_maintenance__installation=installation)
         correctifs = correctifs.filter(ticket__installation=installation)
@@ -40,7 +50,16 @@ def sources_de(installation=None, asset=None, exclure_execution=None):
         correctifs = correctifs.filter(ticket__asset=asset)
     if exclure_execution is not None:
         preventifs = preventifs.exclude(pk=exclure_execution)
-    return sorted([*preventifs, *correctifs], key=lambda s: (s.completed_at, s.pk if isinstance(s, MaintenanceExecution) else 0))
+    return _chronologie(preventifs, correctifs)
+
+
+def sources_du_perimetre(occurrences, tickets, depuis):
+    """Comptes rendus terminés depuis `depuis` des occurrences et tickets donnés (querysets déjà bornés au périmètre)."""
+    preventifs, correctifs = _requetes_comptes_rendus()
+    return _chronologie(
+        preventifs.filter(occurrence__in=occurrences, completed_at__gte=depuis),
+        correctifs.filter(ticket__in=tickets, completed_at__gte=depuis),
+    )
 
 
 def formater_duree(minutes):

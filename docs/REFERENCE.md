@@ -54,6 +54,13 @@ Tout vient des comptes rendus : aucune double saisie.
 - **Correction d'un compte rendu terminé** : seuil `maintenance_compte_rendu_correction` (chef de secteur par défaut), motif obligatoire. La saisie du marin reste dans `saisie_origine`, chaque correction dans `ModificationCompteRendu` et l'`AuditLog` ; l'API ne réécrit plus un compte rendu terminé. Le chef de secteur est notifié à chaque compte rendu (sans visa), le marin d'origine à chaque correction.
 - **Correctif** : `CompteRenduCorrectif` (`maintenance/correctif_web.py`), avec ou sans fiche, pour un ticket existant ou une panne imprévue (le ticket est alors ouvert). Pièces prélevées via `logistics/stock.py` (chef de section et au-dessus), diagnostic et action repris dans `diagnostic_final` et `solution` du ticket.
 
+### Vue COMANAV (`dashboard/comanav.py`)
+
+- **Qui est le COMANAV** : aucune modélisation nouvelle, c'est le titulaire actif de la fonction `COMANAV` (`ETAT_MAJOR` + `UserProfile.fonction_coma`, `est_titulaire` dans `matrix/core/commandants_adjoints.py`). Accès : COMANAV, commandant, commandant en second, admin du navire (rattachés à un bâtiment) et administrateur général ; sinon 403. Entrée « Vue COMANAV » du groupe Supervision, visible ssi l'accès est accordé (`peut_voir_vue_comanav`).
+- **Périmètre** : le bâtiment de l'utilisateur (`navire_q`), jamais son service ; l'administrateur général consulte le bâtiment courant de la barre supérieure. Étanchéité par équipage via `assignes_equipage_q` / `equipage_tickets_q`.
+- **Blocs** : interventions (`maintenance/historique.sources_du_perimetre` et `frise`), dérives (`assets/mesures.derives_de`, aussi utilisée par `detect_installation_drift`), indisponibilités (matériels hors service ou défectueux, installations critiques en retard), gestion technique (fiches et propositions d'article à viser, `versions_a_viser`), chaîne sécurité (anomalies ouvertes, rondes en retard, qualifications à renouveler), logistique (tickets en attente de pièces, stock sous seuil). Les agrégats de la Vue flotte (`_agrege_maintenance_ticket_stock`, `_disponibilite_par_navire`) sont réutilisés tels quels. Chaque indicateur renvoie vers la liste existante, filtrée quand elle sait l'être.
+- **Hors périmètre** : règles PEPIN / CRAT / RAV-C / SITINDIS et visa du COMA sur les comptes rendus. Aucune catégorie « sécurité » n'existe sur les anomalies, rondes ou formations : les compteurs de la chaîne sécurité portent sur toutes les anomalies et qualifications du bâtiment.
+
 ## 4. Les 14 apps Django
 
 | App | Rôle |

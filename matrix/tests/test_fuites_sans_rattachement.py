@@ -18,7 +18,7 @@ PAGES = [
     "/maintenance/gestion/plans/",
     "/maintenance/gestion/occurrences/", "/quarts/reglages/", "/rondes/", "/rondes/modeles/", "/quarts/", "/formations/", "/calendar/",
     "/search/?q=FUITE", "/users/", "/absences/", "/taches/", "/demandes/", "/annonces/", "/programme/", "/postes/", "/documentation/", "/retex/", "/notifications/",
-    "/assets/plan/", "/catalogue/",
+    "/assets/plan/", "/catalogue/", "/dashboard/comanav/",
 ]
 RACINES_API = ["accounts", "org", "assets", "maintenance", "logistics", "training", "threads", "notifications", "dashboard"]
 

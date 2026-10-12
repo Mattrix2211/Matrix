@@ -18,6 +18,7 @@ from dashboard.templatetags.dashboard_extras import (
     peut_voir_dashboard_classe_navire,
     peut_voir_dashboard_specialite,
     peut_voir_pret_appareillage,
+    peut_voir_vue_comanav,
     peut_voir_vue_flotte,
 )
 from matrix.core.modules import module_actif_pour_user
@@ -85,6 +86,7 @@ GROUPES = [
         Entree("Prêt à appareiller", "pret_appareillage", "pret-appareillage",
                droit=peut_voir_pret_appareillage),
         Entree("Flotte", "flotte", "vue-flotte", droit=peut_voir_vue_flotte),
+        Entree("Vue COMANAV", "navire", "vue-comanav", droit=peut_voir_vue_comanav),
         Entree("Spécialités", "specialite", "dashboard-specialite-choix",
                droit=peut_voir_dashboard_specialite),
         Entree("Classes de navire", "classe_navire", "dashboard-classe-navire-choix", droit=peut_voir_dashboard_classe_navire),

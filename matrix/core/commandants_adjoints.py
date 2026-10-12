@@ -53,3 +53,11 @@ def titulaires_du_service(service, equipage=""):
 def est_commandant_adjoint_du_service(user, service, equipage=""):
     """Vrai si `user` est titulaire du commandant adjoint dont dépend `service`."""
     return titulaires_du_service(service, equipage).filter(pk=user.pk).exists()
+
+
+def est_titulaire(user, code):
+    """Vrai si `user` est titulaire actif de la fonction de commandant adjoint `code` sur son bâtiment."""
+    profil = getattr(user, "profile", None)
+    return bool(
+        user.is_active and profil and profil.role == Roles.ETAT_MAJOR and profil.ship_id and profil.fonction_coma == code
+    )

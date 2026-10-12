@@ -10,9 +10,8 @@ from training.models import TrainingRecord
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import StockPiece
 from accounts.models import UserProfile, Roles
-from assets.models import Installation, InstallationMaintenance, ModeDeclenchement
-from assets.mesures import reference_visite_maintenance
-from assets.trend import jours_avant_franchissement_seuil
+from assets.models import Installation, InstallationMaintenance
+from assets.mesures import derives_de
 from calendar_app.views import evenements_utilisateur_jour
 from taches.services import relancer_echeances_depassees
 
@@ -245,36 +244,20 @@ def detect_installation_drift():
     for installation in Installation.objects.select_related("service", "sector", "section").prefetch_related(
         "isolation_readings", "maintenances", "hour_readings"
     ):
-        # Isolement (Ohms) : dérive à la baisse vers le seuil minimal.
-        object_id = f"{installation.id}:DERIVE_ISOLEMENT"
-        jours = None
-        if installation.isolation_seuil_ohms:
-            releves = [(r.date, float(r.ohms)) for r in installation.isolation_readings.all()]
-            jours = jours_avant_franchissement_seuil(
-                releves, float(installation.isolation_seuil_ohms), sens="BAISSE"
-            )
-        verb = f"Dérive détectée sur l'isolement de {installation.designation} : seuil estimé atteint dans {jours} j"
-        _signaler_ou_resoudre_derive(
-            inst_ct, object_id, _destinataires_installation(installation), verb, jours is not None
-        )
-
-        # Heures de marche : dérive à la hausse vers le seuil de chaque entretien au compteur.
-        releves = list(installation.hour_readings.all())
-        releves_heures = [(r.date, float(r.hours)) for r in releves]
-        for maintenance in installation.maintenances.all():
-            if maintenance.mode_declenchement not in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX):
-                continue
-            if not maintenance.seuil_heures:
-                continue
-            seuil = float(reference_visite_maintenance(maintenance, releves)) + float(maintenance.seuil_heures)
-            jours = jours_avant_franchissement_seuil(releves_heures, seuil, sens="HAUSSE")
-            object_id = f"{maintenance.id}:DERIVE_HEURES"
-            verb = (
-                f"Dérive détectée sur les heures de marche de {installation.designation} : "
-                f"entretien '{maintenance.title}' - seuil estimé atteint dans {jours} j"
-            )
+        for genre, objet, jours in derives_de(installation):
+            if genre == "ISOLEMENT":
+                object_id = f"{installation.id}:DERIVE_ISOLEMENT"
+                verb = f"Dérive détectée sur l'isolement de {installation.designation} : seuil estimé atteint dans {jours} j"
+                content_type = inst_ct
+            else:
+                object_id = f"{objet.id}:DERIVE_HEURES"
+                verb = (
+                    f"Dérive détectée sur les heures de marche de {installation.designation} : "
+                    f"entretien '{objet.title}' - seuil estimé atteint dans {jours} j"
+                )
+                content_type = maint_ct
             _signaler_ou_resoudre_derive(
-                maint_ct, object_id, _destinataires_installation(installation), verb, jours is not None
+                content_type, object_id, _destinataires_installation(installation), verb, jours is not None
             )
 
     return {"status": "ok"}

@@ -106,7 +106,7 @@ class NavigationLateraleTests(TestCase):
         supervision = [g for g in self._nav(admin) if g["titre"] == "Supervision"][0]
         self.assertEqual(
             [e["libelle"] for e in supervision["entrees"]],
-            ["Prêt à appareiller", "Flotte", "Spécialités", "Classes de navire"],
+            ["Prêt à appareiller", "Flotte", "Vue COMANAV", "Spécialités", "Classes de navire"],
         )
 
     def test_pret_a_appareiller_visible_de_tout_marin(self):

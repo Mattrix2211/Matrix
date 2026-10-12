@@ -19,7 +19,7 @@ from matrix.core.roles import user_role_level
 from notifications.liens import liens_accessibles
 from notifications.models import Notification
 from threads.mentions import PREFIXE_MENTION
-from matrix.core.scopes import assignes_equipage_q, is_master_admin, scope_filters_for_user
+from matrix.core.scopes import assignes_equipage_q, is_master_admin, navire_q, scope_filters_for_user
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
 from taches.services import taches_a_suivre
@@ -241,15 +241,17 @@ def peut_superviser(user):
     return is_master_admin(user) or bool(scope_filters_for_user(user))
 
 
-def qualifications_equipe(user, aujourdhui):
-    """Qualifications expirées ou à renouveler des marins du périmètre du chef (hors lui-même)."""
+def qualifications_equipe(user, aujourdhui, navire=None):
+    """Qualifications expirées ou à renouveler des marins du périmètre du chef (hors lui-même), bornées à `navire` si donné."""
     from notifications.tasks import JOURS_ALERTE_EXPIRATION_FORMATION
 
     limite = aujourdhui + timedelta(days=max(JOURS_ALERTE_EXPIRATION_FORMATION))
     derniere = {}
-    for q in (TrainingRecord.objects.filter(dossiers_formation_visibles_q(user),
-                                            user__in=utilisateurs_visibles_par(user).filter(is_active=True).exclude(pk=user.pk))
-              .select_related("user", "course").order_by("-completed_at", "-created_at")):
+    dossiers = TrainingRecord.objects.filter(dossiers_formation_visibles_q(user),
+                                             user__in=utilisateurs_visibles_par(user).filter(is_active=True).exclude(pk=user.pk))
+    if navire is not None:
+        dossiers = dossiers.filter(navire_q(navire.pk, "user__profile__"))
+    for q in dossiers.select_related("user", "course").order_by("-completed_at", "-created_at"):
         derniere.setdefault((q.user_id, q.course_id), q)
     echues = sorted((q for q in derniere.values() if q.expires_at <= limite), key=lambda q: q.expires_at)
     return [

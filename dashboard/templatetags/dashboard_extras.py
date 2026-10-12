@@ -1,6 +1,7 @@
 from django import template
 
 from accounts.models import SpecialityChoice
+from dashboard.comanav import peut_voir_vue_comanav as _peut_voir_vue_comanav
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin
 from org.models import Ship
@@ -55,3 +56,9 @@ def peut_voir_dashboard_classe_navire(user):
     if is_master_admin(user):
         return Ship.objects.exclude(classe_navire="").exists()  # sinon la page répond 403
     return user.classes_navire_dont_il_est_responsable.exists()
+
+
+@register.filter
+def peut_voir_vue_comanav(user):
+    """Vrai si l'utilisateur peut ouvrir la Vue COMANAV (règle de dashboard.comanav)."""
+    return bool(getattr(user, "is_authenticated", False)) and _peut_voir_vue_comanav(user)

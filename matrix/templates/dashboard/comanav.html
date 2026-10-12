@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load composants icones %}
+{% block content %}
+<h1 class="h3 mb-1">Vue COMANAV</h1>
+{% if not navire %}
+<p class="text-muted mb-4">Conservation du bâtiment et des équipements.</p>
+{% include "components/etat_vide.html" with icone="navire" titre="Aucun bâtiment sélectionné" texte="Choisissez un bâtiment dans la barre supérieure pour afficher sa vue d'ensemble." %}
+{% else %}
+<p class="text-muted mb-4">{{ navire.name }} · conservation du bâtiment et des équipements, sécurité, gestion technique des matériels et logistique.</p>
+{% for bloc in blocs %}
+{% surface titre=bloc.titre icone=bloc.icone classes="mb-4" %}
+  <div class="mx-fiche__indicateurs mb-3">
+    {% for i in bloc.indicateurs %}
+    <a class="mx-fiche__indicateur" href="{{ i.url }}">{% include "components/metric.html" with libelle=i.libelle valeur=i.valeur etat=i.etat detail=i.detail %}</a>
+    {% endfor %}
+  </div>
+  {% for j in bloc.jauges %}
+  <div class="mb-3">{% include "components/jauge.html" with libelle=j.libelle valeur=j.valeur etat=j.etat %}</div>
+  {% endfor %}
+  {% for ligne in bloc.lignes %}
+  {% carte_action titre=ligne.titre libelle="Ouvrir" url=ligne.url %}{{ ligne.detail }}{% fin_carte_action %}
+  {% empty %}
+  {% if bloc.vide %}{% include "components/etat_vide.html" with icone=bloc.vide.icone titre=bloc.vide.titre texte=bloc.vide.texte %}{% endif %}
+  {% endfor %}
+{% fin_surface %}
+{% endfor %}
+{% endif %}
+{% endblock %}

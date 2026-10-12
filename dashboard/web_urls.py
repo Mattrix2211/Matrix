@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .comanav import VueComanavView
 from .web_views import (
     DashboardClasseNavireChoixView,
     DashboardClasseNavireView,
@@ -16,6 +17,7 @@ from .web_views import (
 
 urlpatterns = [
     path("flotte/", VueFlotteView.as_view(), name="vue-flotte"),
+    path("comanav/", VueComanavView.as_view(), name="vue-comanav"),
     path("specialite/", DashboardSpecialiteChoixView.as_view(), name="dashboard-specialite-choix"),
     path("specialite/<int:pk>/", DashboardSpecialiteView.as_view(), name="dashboard-specialite"),
     path("classe-navire/", DashboardClasseNavireChoixView.as_view(), name="dashboard-classe-navire-choix"),
