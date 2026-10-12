@@ -18,6 +18,7 @@ from taches.services import avancement_equipe, demarrer, est_chef_de, peut_consu
 from threads.utils import ajouter_commentaire, commentaires_de
 from training.models import TrainingSession
 
+from .evenements_sources import sessions_visibles
 from .sources import SOURCES
 
 LIBELLE_SOURCE = {s.cle: s.libelle for s in SOURCES}
@@ -62,7 +63,7 @@ def _fiche(type_evenement, user, pk):
             "url": reverse("evenement-detail", args=[pk]),
         }
     if type_evenement == "training":
-        objet = get_object_or_404(TrainingSession.objects.select_related("course", "instructor"), pk=pk)
+        objet = get_object_or_404(sessions_visibles(user, TrainingSession.objects.select_related("course", "instructor")), pk=pk)
         return objet, {
             "titre": str(objet.course), "responsable": _nom(objet.instructor),
             "date": f"Le {timezone.localtime(objet.scheduled_at):%d/%m/%Y %H:%M}", "url": "/training/",

@@ -40,7 +40,7 @@ class FormateurCalendrierTests(TestCase):
         self.date_filtre = timezone.localdate() + timedelta(days=2)
 
     def test_calendar_events_json_affiche_la_session_du_formateur(self):
-        self.client.login(username="stagiaire", password="pass")
+        self.client.login(username="formateur", password="pass")
         url = reverse("calendar-events") + (
             f"?view=day&date={self.date_filtre.isoformat()}&user={self.formateur.pk}"
         )
@@ -52,7 +52,7 @@ class FormateurCalendrierTests(TestCase):
         self.assertEqual(training_events[0]["id"], f"trn-{self.session.pk}")
 
     def test_calendar_index_affiche_la_session_du_formateur(self):
-        self.client.login(username="stagiaire", password="pass")
+        self.client.login(username="formateur", password="pass")
         url = reverse("calendar-index") + (
             f"?view=day&date={self.date_filtre.isoformat()}&user={self.formateur.pk}"
         )

@@ -19,6 +19,22 @@ from matrix.core.scopes import equipage_marin_q
 from .models import PersonalEvent
 
 
+def marins_visibles(user):
+    """Marins dont `user` voit les affectations : lui-même, plus son équipe s'il peut attribuer des tâches."""
+    from django.contrib.auth.models import User
+
+    from taches.services import marins_assignables
+
+    return User.objects.filter(Q(pk=user.pk) | Q(pk__in=marins_assignables(user).values("pk")))
+
+
+def sessions_visibles(user, qs=None):
+    """Sessions de formation où `user` ou un marin de son équipe est affecté (présent, inscrit ou formateur)."""
+    marins = marins_visibles(user)
+    qs = TrainingSession.objects.all() if qs is None else qs
+    return qs.filter(Q(attendees__in=marins) | Q(reservations__in=marins) | Q(instructor__in=marins)).distinct()
+
+
 def _appliquer_filtres_occurrences(qs, filters):
     """Applique les filtres navire/service/secteur/assigné choisis dans les
     menus déroulants du calendrier à un queryset d'occurrences de
@@ -96,9 +112,9 @@ def _absences_periode(start, end, user=None, pour=None):
     )
     if user is not None:
         qs = qs.filter(marin=user)
-    elif pour is not None:
-        # Vue d'équipe : double équipage, seul l'équipage de `pour` est montré.
-        qs = qs.filter(equipage_marin_q(pour, "marin__profile__"))
+    if pour is not None:
+        # Jamais au-delà de soi-même et de son équipe, même avec un filtre utilisateur.
+        qs = qs.filter(marin__in=marins_visibles(pour))
     return qs
 
 

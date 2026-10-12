@@ -22,6 +22,7 @@ from .evenements_sources import (
     _appliquer_filtres_tickets,
     _creneaux_garde_assignes,
     _creneaux_quart_assignes,
+    sessions_visibles,
     _evenements_personnels,
 )
 from .models import PersonalEvent
@@ -153,7 +154,9 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         # Formation désormais globale (plus de secteur, cf. _perimetre_session
         # ci-dessus) : le filtre "sector" du calendrier ne s'applique plus aux
         # sessions de formation, uniquement aux autres types d'événements.
-        ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
+        ses_qs = sessions_visibles(request.user, TrainingSession.objects.select_related("course", "instructor")).filter(
+            scheduled_at__date__range=(start, end)
+        )
         if filters.get("user"):
             ses_qs = ses_qs.filter(
                 Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"]) | Q(instructor__id=filters["user"])
