@@ -37,7 +37,7 @@ from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
 from matrix.core.export import rendre_csv_sections, rendre_xlsx_sections
 from matrix.core.scopes import scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
-from training.models import TrainingRecord
+from training.models import TrainingRecord, dossiers_formation_visibles_q
 
 # Statuts considérés comme clos : à exclure des listes "en cours"/"ouverts".
 STATUTS_TICKET_FERMES = ("CLOSED", "CANCELLED")
@@ -230,7 +230,8 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     date_limite = today + timedelta(days=JOURS_ALERTE_QUALIFICATION)
     qualifications_proches_expiration = list(
         TrainingRecord.objects.filter(
-            expires_at__gte=today, expires_at__lte=date_limite, **filtre_qualifications
+            dossiers_formation_visibles_q(utilisateur),
+            expires_at__gte=today, expires_at__lte=date_limite, **filtre_qualifications,
         )
         .select_related("user", "user__profile", "course")
         .order_by("expires_at")
@@ -527,14 +528,16 @@ def construire_contexte_periode(
     }
     qualifications_obtenues = list(
         TrainingRecord.objects.filter(
-            completed_at__range=(date_debut, date_fin), **filtre_qualifications
+            dossiers_formation_visibles_q(utilisateur),
+            completed_at__range=(date_debut, date_fin), **filtre_qualifications,
         )
         .select_related("user", "user__profile", "course")
         .order_by("completed_at")
     )
     qualifications_expirees = list(
         TrainingRecord.objects.filter(
-            expires_at__range=(date_debut, date_fin), **filtre_qualifications
+            dossiers_formation_visibles_q(utilisateur),
+            expires_at__range=(date_debut, date_fin), **filtre_qualifications,
         )
         .select_related("user", "user__profile", "course")
         .order_by("expires_at")

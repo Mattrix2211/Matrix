@@ -23,7 +23,7 @@ from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
 from taches.services import taches_a_suivre
-from training.models import TrainingCourse, TrainingRecord, TrainingSession
+from training.models import TrainingCourse, TrainingRecord, TrainingSession, dossiers_formation_visibles_q
 from training.services import qualifications_validees_de
 
 STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
@@ -247,7 +247,8 @@ def qualifications_equipe(user, aujourdhui):
 
     limite = aujourdhui + timedelta(days=max(JOURS_ALERTE_EXPIRATION_FORMATION))
     derniere = {}
-    for q in (TrainingRecord.objects.filter(user__in=utilisateurs_visibles_par(user).filter(is_active=True).exclude(pk=user.pk))
+    for q in (TrainingRecord.objects.filter(dossiers_formation_visibles_q(user),
+                                            user__in=utilisateurs_visibles_par(user).filter(is_active=True).exclude(pk=user.pk))
               .select_related("user", "course").order_by("-completed_at", "-created_at")):
         derniere.setdefault((q.user_id, q.course_id), q)
     echues = sorted((q for q in derniere.values() if q.expires_at <= limite), key=lambda q: q.expires_at)
