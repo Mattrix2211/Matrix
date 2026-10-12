@@ -1401,3 +1401,5 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
 .mx-histo__detail { margin: var(--s1) 0; font-size: .875rem; }
 .mx-histo__correction { margin-top: var(--s2); padding: var(--s2) var(--s3); border-left: 3px solid var(--amber); font-size: .875rem; }
 .mx-histo-graphique { position: relative; height: 220px; }
+
+.mx-formations-gestion > summary { cursor: pointer; }
