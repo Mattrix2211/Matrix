@@ -110,7 +110,7 @@
     </section>
 
     {% if not equipage_a_terre %}
-    <section class="mx-surface mb-3">
+    <section class="mx-surface mb-3{% if not formation.ma_candidature %} no-print{% endif %}">
       <h2 class="mx-surface__titre">Candidature</h2>
       {% if formation.ma_candidature %}
         <p class="mb-0">
@@ -130,7 +130,7 @@
     </section>
 
     {% if peut_demander_places %}
-    <section class="mx-surface mb-3">
+    <section class="mx-surface mb-3 no-print">
       <h2 class="mx-surface__titre">Demander des places</h2>
       <form method="post" action="{% url 'formation-list' %}" class="d-flex gap-1">
         {% csrf_token %}
@@ -143,7 +143,7 @@
     {% endif %}
 
     {% if peut_gerer_prerequis or formation.gere_par_le_bord and peut_proposer_formation_bord %}
-    <section class="mx-surface mb-3">
+    <section class="mx-surface mb-3 no-print">
       <h2 class="mx-surface__titre">Gestion</h2>
       <div class="d-flex flex-wrap gap-2">
         {% if peut_gerer_prerequis %}

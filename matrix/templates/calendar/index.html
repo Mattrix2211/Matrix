@@ -338,6 +338,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
   calendar.render();
+  // Le calendrier se redimensionne à la largeur de la page imprimée.
+  window.addEventListener("beforeprint", function () { calendar.updateSize(); });
+  window.addEventListener("afterprint", function () { calendar.updateSize(); });
 
   // --- Popover de détail rapide au clic sur un événement ------------------
   // Libellés français des statuts par type d'événement, pour affichage dans
