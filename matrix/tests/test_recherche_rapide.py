@@ -246,8 +246,8 @@ class PerformanceTests(RechercheRapideTestCase):
         self.client.get(reverse(URL), {"q": "ZEBRE"})  # amorce le cache des modules
         with CaptureQueriesContext(connection) as requetes:
             self.client.get(reverse(URL), {"q": "ZEBRE"})
-        # session + utilisateur + profil + navire + 6 catégories + marge.
-        self.assertLessEqual(len(requetes), 11, [q["sql"][:80] for q in requetes])
+        # session + utilisateur + profil + navire + 6 catégories + chaîne de périmètre + 4 niveaux de gestion documentaire.
+        self.assertLessEqual(len(requetes), 16, [q["sql"][:80] for q in requetes])
 
 
 class AccessibiliteTests(RechercheRapideTestCase):

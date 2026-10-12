@@ -28,17 +28,27 @@ def chaine(user):
     profil = getattr(user, "profile", None)
     if profil is None:
         return (None,) * 4
-    section = profil.section
-    sector = profil.sector or (section.sector if section else None)
-    service = profil.service or (sector.service if sector else None)
-    ship = profil.ship or (service.ship if service else None)
-    return tuple(getattr(x, "pk", None) for x in (ship, service, sector, section))
+    if hasattr(profil, "_chaine"):  # mémorisée sur le profil : une requête par requête HTTP
+        return profil._chaine
+    p = type(profil).objects.select_related(
+        "ship", "service__ship", "sector__service__ship", "section__sector__service__ship").get(pk=profil.pk)
+    section = p.section
+    sector = p.sector or (section.sector if section else None)
+    service = p.service or (sector.service if sector else None)
+    ship = p.ship or (service.ship if service else None)
+    profil._chaine = tuple(getattr(x, "pk", None) for x in (ship, service, sector, section))
+    return profil._chaine
 
 
-def _noeuds(ship_ids, service_id=None, sector_id=None, section_id=None):
-    """Nœuds ciblables sous un niveau de périmètre : [(clé, libellé)]."""
+def _noeuds(ship_ids, service_id=None, sector_id=None, section_id=None, libelles=True):
+    """Nœuds ciblables sous un niveau de périmètre : [(clé, libellé)] ; sans libellés, une requête d'identifiants par niveau."""
+    def liste(cle, prefixe, qs):
+        if not libelles:
+            return [(f"{cle}:{pk}", "") for pk in qs.values_list("pk", flat=True)]
+        return [(f"{cle}:{n.pk}", f"{prefixe}{n}") for n in qs]
+
     if section_id:
-        return [(f"section:{s.pk}", f"Section {s}") for s in Section.objects.filter(pk=section_id)]
+        return liste("section", "Section ", Section.objects.filter(pk=section_id))
     if sector_id:
         secteurs = Sector.objects.filter(pk=sector_id)
         sections = Section.objects.filter(sector_id=sector_id)
@@ -51,28 +61,28 @@ def _noeuds(ship_ids, service_id=None, sector_id=None, section_id=None):
         services = Service.objects.filter(ship_id__in=ship_ids)
         secteurs = Sector.objects.filter(service__ship_id__in=ship_ids)
         sections = Section.objects.filter(sector__service__ship_id__in=ship_ids)
-    noeuds = [(f"ship:{n.pk}", f"Tout le bâtiment {n}") for n in Ship.objects.filter(pk__in=ship_ids)] if not (sector_id or service_id) else []
-    noeuds += [(f"service:{n.pk}", f"Service {n}") for n in services]
-    noeuds += [(f"sector:{n.pk}", f"Secteur {n}") for n in secteurs]
-    noeuds += [(f"section:{n.pk}", f"Section {n}") for n in sections]
+    noeuds = liste("ship", "Tout le bâtiment ", Ship.objects.filter(pk__in=ship_ids)) if not (sector_id or service_id) else []
+    noeuds += liste("service", "Service ", services)
+    noeuds += liste("sector", "Secteur ", secteurs)
+    noeuds += liste("section", "Section ", sections)
     return noeuds
 
 
-def cibles_autorisees(user):
+def cibles_autorisees(user, libelles=True):
     """Cibles que `user` peut viser : son niveau de périmètre et tout ce qui en dépend."""
     if is_master_admin(user):
         ship_id = getattr(getattr(user, "profile", None), "ship_id", None)
-        return _noeuds([ship_id] if ship_id else list(Ship.objects.values_list("pk", flat=True)))
+        return _noeuds([ship_id] if ship_id else list(Ship.objects.values_list("pk", flat=True)), libelles=libelles)
     niveau, ident = user.profile.scope if getattr(user, "profile", None) else (None, None)
     ship_id = user.profile.ship_id if niveau else None
     if niveau == "ship":
-        return _noeuds([ident])
+        return _noeuds([ident], libelles=libelles)
     if niveau == "service":
-        return _noeuds([ship_id], service_id=ident)
+        return _noeuds([ship_id], service_id=ident, libelles=libelles)
     if niveau == "sector":
-        return _noeuds([ship_id], sector_id=ident)
+        return _noeuds([ship_id], sector_id=ident, libelles=libelles)
     if niveau == "section":
-        return _noeuds([ship_id], section_id=ident)
+        return _noeuds([ship_id], section_id=ident, libelles=libelles)
     return []
 
 
@@ -154,7 +164,7 @@ def annonces_visibles(user):
 
 def filtre_gestion(user):
     """Q (sur un modèle ciblé) des objets rattachés aux nœuds que `user` peut viser, dans son bâtiment."""
-    cles = [cle for cle, _ in cibles_autorisees(user)]
+    cles = [cle for cle, _ in cibles_autorisees(user, libelles=False)]
     filtre = Q(pk__in=[])
     ship = chaine(user)[0]
     for modele in ("ship", "service", "sector", "section"):

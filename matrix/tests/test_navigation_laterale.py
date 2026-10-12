@@ -60,7 +60,7 @@ class NavigationLateraleTests(TestCase):
 
     def test_module_desactive_masque_ses_entrees_et_le_groupe_vide(self):
         user = self._marin("module_nav", "EQUIPIER")
-        for module in ("rondes", "quarts", "absences", "taches"):
+        for module in ("rondes", "quarts", "absences", "taches", "annonces", "programme", "demandes"):
             ModuleActivation.objects.create(ship=self.ship, module=module, active=False)
         invalidate_cache(self.ship.id)
         groupes = self._nav(user)
@@ -101,6 +101,8 @@ class NavigationLateraleTests(TestCase):
 
     def test_libelles_du_chapitre_7_en_supervision(self):
         admin = User.objects.create_superuser(username="sup_nav", password="pass", email="s@s.fr")
+        SpecialityChoice.objects.create(name="Spé sup")
+        Ship.objects.filter(pk=self.ship.pk).update(classe_navire="Frégate")
         supervision = [g for g in self._nav(admin) if g["titre"] == "Supervision"][0]
         self.assertEqual(
             [e["libelle"] for e in supervision["entrees"]],
