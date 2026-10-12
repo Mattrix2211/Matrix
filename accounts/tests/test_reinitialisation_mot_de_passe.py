@@ -130,3 +130,17 @@ class ChangementObligatoireTests(TestCase):
             "old_password": "Provisoire-123!", "new_password1": "123", "new_password2": "123"})
         self.marin.refresh_from_db()
         self.assertTrue(self.marin.profile.mot_de_passe_provisoire)
+
+
+class RoutesExposeesTests(TestCase):
+    def test_reinitialisation_par_courriel_retiree_connexion_et_changement_conservees(self):
+        for chemin in ("/accounts/password_reset/", "/accounts/password_reset/done/", "/accounts/reset/x/y/", "/accounts/reset/done/"):
+            self.assertEqual(self.client.get(chemin).status_code, 404, chemin)
+        self.assertEqual(self.client.get("/accounts/login/").status_code, 200)
+        self.assertEqual(reverse("password_change"), "/accounts/password_change/")
+
+    def test_formulaire_de_changement_style(self):
+        User.objects.create_user(username="m1", password="pass")
+        self.client.login(username="m1", password="pass")
+        page = self.client.get(reverse("password_change"))
+        self.assertContains(page, 'class="form-control"', count=3)

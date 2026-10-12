@@ -145,6 +145,22 @@ class PagesTests(AnnoncesBase):
         self.assertFalse(Annonce.objects.filter(titre="Hors périmètre").exists())
 
 
+class EquipagesProposesTests(AnnoncesBase):
+    def test_formulaire_propose_les_equipages_reels(self):
+        self.marin.profile.equipage = "B"
+        self.marin.profile.save()
+        self.navire.equipage_a_bord = "A"
+        self.navire.save()
+        self.assertEqual(services.equipages_du_navire(self.cdt), ["A", "B"])
+        self.client.force_login(self.cdt)
+        page = self.client.get(reverse("annonce-nouvelle"))
+        self.assertContains(page, '<option value="">Tous les équipages</option>', html=False)
+        self.assertContains(page, '<option value="B">')
+
+    def test_navire_sans_equipage_ne_propose_que_tous(self):
+        self.assertEqual(services.equipages_du_navire(self.cdt), [])
+
+
 class VisibiliteTemporelleTests(AnnoncesBase):
     def test_annonce_programmee_invisible_pour_un_destinataire(self):
         annonce = services.publier(self.cdt, "Demain", "x", "info", f"ship:{self.navire.pk}", date_effet=self.jour + timedelta(days=2))

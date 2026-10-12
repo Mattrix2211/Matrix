@@ -92,6 +92,17 @@ def peut_publier(user):
     return bool(cibles_autorisees(user))
 
 
+def equipages_du_navire(user):
+    """Équipages réels du bâtiment du marin : ceux de ses marins et celui à bord."""
+    navire = getattr(getattr(user, "profile", None), "ship", None)
+    if navire is None:
+        return []
+    codes = set(User.objects.filter(profile__ship=navire).exclude(profile__equipage="").values_list("profile__equipage", flat=True))
+    if navire.equipage_a_bord:
+        codes.add(navire.equipage_a_bord)
+    return sorted(codes)
+
+
 def resoudre_cible(cible):
     """Annonce(ship, service, sector, section) pour une clé « type:identifiant »."""
     modele, _, pk = (cible or "").partition(":")

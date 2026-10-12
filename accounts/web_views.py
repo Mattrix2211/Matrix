@@ -705,6 +705,12 @@ class ChangerMotDePasseView(LoginRequiredMixin, PasswordChangeView):
     template_name = "registration/password_change_form.html"
     success_url = reverse_lazy("home")
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for champ in form.fields.values():
+            champ.widget.attrs["class"] = "form-control"
+        return form
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["provisoire"] = bool(getattr(self.request.user.profile, "mot_de_passe_provisoire", False))

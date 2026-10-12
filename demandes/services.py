@@ -12,7 +12,8 @@ from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import equipage_marin_q, marins_hors_equipage
-from matrix.core.roles import ROLE_TO_LEVEL, RoleLevel, user_role_level
+from matrix.core.role_thresholds import niveau_requis_pour
+from matrix.core.roles import ROLE_TO_LEVEL
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
 from notifications.services import traiter_actions
@@ -27,7 +28,6 @@ User = get_user_model()
 
 # Objets sur lesquels on peut signaler une difficulté : ceux dont la fiche est accessible par lien.
 OBJETS_SIGNALABLES = ("tache", "installation", "anomalie", "correctiveticket", "trainingcourse")
-ROLES_RESPONSABLES = [code for code, niveau in ROLE_TO_LEVEL.items() if niveau >= RoleLevel.CHEF_SECTION]
 
 # Transitions permises : (état de départ) -> états d'arrivée, par rôle dans le dossier.
 TRANSITIONS_RESPONSABLE = {
@@ -81,8 +81,10 @@ def responsables_possibles(declarant):
     navire = getattr(declarant.profile, "ship_id", None)
     if navire is None:
         return User.objects.none()
+    seuil = niveau_requis_pour(declarant, "tache_attribution")
+    roles = [code for code, niveau in ROLE_TO_LEVEL.items() if niveau >= seuil]
     return User.objects.filter(
-        profile__ship_id=navire, profile__role__in=ROLES_RESPONSABLES, is_active=True,
+        profile__ship_id=navire, profile__role__in=roles, is_active=True,
     ).exclude(pk=declarant.pk).order_by("username")
 
 
@@ -164,13 +166,16 @@ def repondre(demande, user, corps):
     corps = corps.strip()
     if not corps:
         raise ValidationError("Le message ne peut pas être vide.")
-    ajouter_commentaire(demande, user, corps)
+    message = ajouter_commentaire(demande, user, corps)
+    cites = set(message.mentions.values_list("pk", flat=True))  # déjà alertés par la mention
     if demande.etat != Demande.ETAT_RESOLU:  # en « résolu », la clôture reste attendue du déclarant
         traiter_actions(demande, [user])
     if user.pk == demande.declarant_id and demande.etat == Demande.ETAT_EN_ATTENTE:
         _changer(demande, user, Demande.ETAT_OUVERT, "Information fournie.")
     attend_le_declarant = demande.etat == Demande.ETAT_EN_ATTENTE
     for destinataire in _autres_acteurs(demande, user):
+        if destinataire.pk in cites:
+            continue
         _notifier(
             demande, [destinataire], f"{_nom(user)} a répondu sur « {demande.titre} ».",
             NotificationLevel.WARNING if attend_le_declarant and destinataire.pk == demande.declarant_id else NotificationLevel.INFO,

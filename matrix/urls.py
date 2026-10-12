@@ -24,9 +24,9 @@ urlpatterns = [
         name="service-worker",
     ),
     path("accounts/password_change/", ChangerMotDePasseView.as_view(), name="password_change"),
-    path("accounts/", include("django.contrib.auth.urls")),
-    # Raccourcis conviviaux
-    path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
+    # Pas de réinitialisation par e-mail (inutilisable à bord) : seules la connexion et le changement sont exposés.
+    path("accounts/login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
+    path("login/", auth_views.LoginView.as_view(template_name="registration/login.html")),
     path("logout/", logout_then_login, name="logout"),
     path("api/accounts/", include("accounts.urls")),
     path("api/org/", include("org.urls")),

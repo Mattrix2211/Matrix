@@ -6,6 +6,8 @@ from dashboard.aujourdhui import a_faire
 from demandes import services
 from demandes.models import Demande
 from notifications.models import Notification
+from matrix.core.role_thresholds import invalidate_cache
+from org.models import RoleThresholdConfig
 from taches.services import rendre_compte
 from taches.tests.test_taches import TachesBase
 from threads.utils import commentaires_de
@@ -136,3 +138,22 @@ class DoubleEquipageTests(DemandesBase):
         page = self.client.get(reverse("demande-detail", args=[self.demande.pk]))
         self.assertContains(page, "Remplacer le roulement")
         self.assertNotContains(page, reverse("tache-detail", args=[action.pk]))
+
+
+class ResponsablesEtMentionsTests(DemandesBase):
+    def test_responsables_suivent_le_seuil_d_attribution(self):
+        self.assertIn(self.chef, services.responsables_possibles(self.marin))
+        RoleThresholdConfig.objects.create(ship=None, thresholds={"tache_attribution": "CHEF_SERVICE"})
+        invalidate_cache(None)
+        self.addCleanup(invalidate_cache, None)
+        self.assertNotIn(self.chef, services.responsables_possibles(self.marin))
+        RoleThresholdConfig.objects.filter(ship=None).update(thresholds={"tache_attribution": "EQUIPIER"})
+        invalidate_cache(None)
+        self.assertIn(self.voisin, services.responsables_possibles(self.marin))
+
+    def test_mention_et_reponse_ne_notifient_qu_une_fois(self):
+        services.repondre(self.demande, self.marin, f"@{self.chef.username} peux-tu regarder ?")
+        self.assertFalse(Notification.objects.filter(user=self.chef, verb__contains="a répondu").exists())
+        self.assertTrue(Notification.objects.filter(user=self.chef, verb__startswith="Réponse attendue").exists())
+        services.repondre(self.demande, self.marin, "Merci")
+        self.assertTrue(Notification.objects.filter(user=self.chef, verb__contains="a répondu").exists())

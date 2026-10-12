@@ -17,6 +17,7 @@ from .services import (
     annonces_visibles,
     archiver,
     cibles_autorisees,
+    equipages_du_navire,
     lecture_de,
     marquer_lue,
     modifier,
@@ -82,7 +83,7 @@ class AnnoncesIndexView(LoginRequiredMixin, View):
 class AnnonceNouvelleView(LoginRequiredMixin, View):
     def _contexte(self, request):
         return {"cibles": cibles_autorisees(request.user), "niveaux": NotificationLevel.choices,
-                "aujourdhui": timezone.localdate()}
+                "equipages": equipages_du_navire(request.user), "aujourdhui": timezone.localdate()}
 
     def get(self, request):
         if not peut_publier(request.user):
