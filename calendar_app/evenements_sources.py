@@ -79,9 +79,9 @@ def _creneaux_quart_assignes(start, end, user=None, pour=None):
     )
     if user is not None:
         qs = qs.filter(marin=user)
-    elif pour is not None:
-        # Vue d'équipe : double équipage, seul l'équipage de `pour` est montré.
-        qs = qs.filter(equipage_marin_q(pour, "marin__profile__"))
+    if pour is not None:
+        # Jamais au-delà de soi-même et de son équipe (et de son équipage à double équipage).
+        qs = qs.filter(marin__in=marins_visibles(pour)).filter(equipage_marin_q(pour, "marin__profile__"))
     return qs
 
 
@@ -96,9 +96,9 @@ def _creneaux_garde_assignes(start, end, user=None, pour=None):
     )
     if user is not None:
         qs = qs.filter(marin=user)
-    elif pour is not None:
-        # Vue d'équipe : double équipage, seul l'équipage de `pour` est montré.
-        qs = qs.filter(equipage_marin_q(pour, "marin__profile__"))
+    if pour is not None:
+        # Jamais au-delà de soi-même et de son équipe (et de son équipage à double équipage).
+        qs = qs.filter(marin__in=marins_visibles(pour)).filter(equipage_marin_q(pour, "marin__profile__"))
     return qs
 
 

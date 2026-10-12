@@ -15,6 +15,7 @@ from matrix.core.mixins import build_scope_q
 from matrix.core.icones import classe_icone
 from taches.services import peut_attribuer
 from programme.services import evenements_periode as evenements_programme
+from .deplacement_views import _perimetre_session
 from .sources import CONCEPT_ICONE_PAR_TYPE, COULEUR_PAR_TYPE
 from .evenements_sources import (
     _absences_periode,
@@ -211,6 +212,10 @@ def calendar_events(request):
         ses_qs = ses_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "training":
         ses_qs = ses_qs.none()
+    # Déplaçable seulement dans les cas acceptés par calendar_event_move.
+    ids_session_deplacables = set()
+    if niveau_role >= RoleLevel.CHEF_SECTION:
+        ids_session_deplacables = set(_perimetre_session(ses_qs, request.user).values_list("pk", flat=True))
     for s in ses_qs:
         course_title = getattr(s.course, "title", None) or getattr(s.course, "name", str(s.course))
         couleur = _couleur_evenement("training")
@@ -220,7 +225,7 @@ def calendar_events(request):
             "start": s.scheduled_at.isoformat(),
             "end": s.scheduled_at.isoformat(),
             "url": "/training/",
-            "editable": niveau_role >= RoleLevel.CHEF_SECTION,
+            "editable": s.pk in ids_session_deplacables,
             # Pas d'action rapide proposée pour une session de formation
             # depuis le popover : la validation d'une formation dépend du
             # marin concerné (peut_valider_formation exige un navire précis
