@@ -1368,6 +1368,9 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
   .form-check-input::after { content: ""; position: absolute; inset: -10px; }
   .mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment, .theme-toggle, .mx-recherche__champ { min-height: 44px; min-width: 44px; }
   .mx-liste-carte__titre, .mx-aujourdhui__tache a, .mx-journee__libelle { display: inline-block; padding: var(--s3) 0; }
+  .btn-close { min-width: 44px; min-height: 44px; background-origin: content-box; padding: 16px; }
+  .navbar-brand.matrix-logo { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; }
+  .fc .fc-daygrid-day-number { min-height: 32px; min-width: 32px; padding: 6px; }
 }
 
 /* Résultat de contrôle (rondes) : texte --ink sur le vert, blanc sur le rouge plein, contrastes AA. */
