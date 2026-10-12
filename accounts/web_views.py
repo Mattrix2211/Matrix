@@ -59,10 +59,13 @@ def _utilisateurs_gerables_par(acting_user):
     User = get_user_model()
     qs = User.objects.all()
     if not is_master_admin(acting_user):
-        # Un profil MASTER_ADMIN n'est jamais modifiable par un administrateur de bord.
-        qs = qs.filter(perimetre_navire_q(acting_user, "profile__")).exclude(
-            Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True)
-        )
+        # Jamais de compte maître, ni de compte dont le rôle n'est pas
+        # gérable par le rôle de l'appelant (même matrice que l'API) ; soi-même reste éditable.
+        profil = getattr(acting_user, "profile", None)
+        gerables = ManageUsersPermission.MANAGE_MAP.get(profil.role if profil else None, set())
+        qs = qs.filter(
+            perimetre_navire_q(acting_user, "profile__"), Q(profile__role__in=gerables) | Q(pk=acting_user.pk),
+        ).exclude(Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True))
     return qs
 
 
@@ -79,7 +82,7 @@ def _referentiels_formulaire(user):
         "roles": [
             {"code": code, "label": label}
             for code, label in Roles.choices
-            if code != "MASTER_ADMIN" and actifs.get(code, True)
+            if code != "MASTER_ADMIN" and actifs.get(code, True) and _role_attribution_autorisee(user, code)
         ],
     }
     if is_master_admin(user):
@@ -141,7 +144,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # COMMANDANT pouvait consulter le personnel d'un autre navire via ce
         # paramètre d'URL).
         if not is_master_admin(self.request.user):
-            qs = qs.filter(perimetre_navire_q(self.request.user, "profile__"))
+            qs = qs.filter(perimetre_navire_q(self.request.user, "profile__")).exclude(is_superuser=True)
         ship_id = self.request.GET.get("ship")
         if ship_id:
             qs = qs.filter(profile__ship_id=ship_id)
@@ -151,6 +154,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["peut_gerer"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
         ctx["peut_reinitialiser"] = peut_reinitialiser(self.request.user)
+        # Actions proposées seulement sur les comptes que le serveur accepterait de modifier.
+        ctx["gerables_ids"] = set(
+            _utilisateurs_gerables_par(self.request.user).filter(pk__in=[u.pk for u in ctx["users"]]).values_list("pk", flat=True)
+        )
         ctx.update(_referentiels_formulaire(self.request.user))
         ctx["sans_equipage"] = [
             u for u in ctx["users"] if u.profile.ship_id and equipage_manquant(u.profile.ship, u.profile.equipage)
@@ -233,9 +240,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
+                    ancien_role = profile.role
                     profile.role = role
                     profile.save(update_fields=["role"])
-                    AuditLog.objects.create(actor=request.user, action="bulk_update_role", target_user=user, details=f"role={role}")
+                    AuditLog.objects.create(actor=request.user, action="bulk_update_role", target_user=user, details=f"role={ancien_role} -> {role}")
                 messages.success(request, f"Rôle mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_ship":
                 ship_id = request.POST.get("ship_id")
@@ -475,6 +483,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 user.last_name = request.POST.get("last_name", user.last_name).strip()
                 user.save()
                 profile, _ = UserProfile.objects.get_or_create(user=user)
+                ancien_role = profile.role
                 if role:
                     profile.role = role
                 fonction_service = request.POST.get("fonction_service", "")
@@ -502,6 +511,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 profile.section = section
                 profile.save()
                 AuditLog.objects.create(actor=request.user, action="edit_user", target_user=user, details="profil mis à jour")
+                if profile.role != ancien_role:
+                    AuditLog.objects.create(actor=request.user, action="changement_role", target_user=user, details=f"role={ancien_role} -> {profile.role}")
                 messages.success(request, f"Utilisateur {user.username} mis à jour.")
             except User.DoesNotExist:
                 pass

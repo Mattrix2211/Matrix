@@ -57,11 +57,11 @@ class FormulaireUtilisateurTests(TestCase):
 
     def test_role_hors_liste_propose_sans_etre_modifie(self):
         # Un rôle désactivé n'est pas écrasé par le premier choix de la liste
-        RoleAvailability.objects.create(code=Roles.ADMIN_NAVIRE, active=False)
+        RoleAvailability.objects.create(code=Roles.COMMANDANT, active=False)
         admin = self._marin("adm_frm", Roles.ADMIN_NAVIRE, self.navire)
-        self.client.login(username="cdt_frm", password="pass")
-        page = self.client.get(reverse("user-edit", args=[admin.pk]))
-        self.assertContains(page, '<option value="" selected>Administrateur d&#x27;unité (inchangé)</option>', html=False)
+        self.client.login(username="adm_frm", password="pass")
+        page = self.client.get(reverse("user-edit", args=[self.cdt.pk]))
+        self.assertContains(page, '<option value="" selected>Commandant (inchangé)</option>', html=False)
 
     def test_equipage_verrouille_pour_soi_meme(self):
         self.client.login(username="cdt_frm", password="pass")

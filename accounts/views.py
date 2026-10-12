@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions
 from django.contrib.auth.models import User
-from .models import UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
+from .models import AuditLog, UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from .serializers import (
     UserSerializer,
     UserProfileSerializer,
@@ -49,6 +49,15 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         if user_role_level(self.request.user) >= NIVEAU_VISION_COMMANDEMENT:
             return qs.filter(perimetre_navire_q(self.request.user, ""))
         return qs.filter(build_scope_q(self.request.user, ""))
+
+    def perform_update(self, serializer):
+        ancien_role = serializer.instance.role
+        profil = serializer.save()
+        if profil.role != ancien_role:
+            AuditLog.objects.create(
+                actor=self.request.user, action="changement_role", target_user=profil.user,
+                details=f"role={ancien_role} -> {profil.role}",
+            )
 
 
 # Les trois ViewSets ci-dessous exposent des référentiels GLOBAUX, communs à

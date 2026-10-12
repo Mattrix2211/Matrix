@@ -24,7 +24,7 @@ from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, Resp
 from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
-from matrix.core.mixins import build_scope_q
+from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
 from matrix.core.roles import RoleLevel, user_role_level
@@ -347,6 +347,8 @@ class SettingsView(LoginRequiredMixin, View):
                     'modules_lignes': _lignes_modules(mon_ship_id),
                 })
             if active_tab == 'responsables':
+                # Marins du périmètre de l'appelant seulement (pas toute la flotte).
+                visibles = utilisateurs_visibles_par(request.user)
                 # Seules les données nécessaires à la désignation de
                 # responsables transverses sont exposées ici (pas les
                 # référentiels Grades/Fonctions/Rôles, qui restent réservés au
@@ -354,10 +356,10 @@ class SettingsView(LoginRequiredMixin, View):
                 # responsables déjà désignés.
                 context.update({
                     'specialites': SpecialityChoice.objects.order_by('name'),
-                    'responsables_specialite': ResponsableSpecialite.objects.select_related(
+                    'responsables_specialite': ResponsableSpecialite.objects.filter(user__in=visibles).select_related(
                         'specialite', 'user'
                     ).order_by('specialite__name', 'user__last_name', 'user__first_name'),
-                    'responsables_classe_navire': ResponsableClasseNavire.objects.select_related('user').order_by(
+                    'responsables_classe_navire': ResponsableClasseNavire.objects.filter(user__in=visibles).select_related('user').order_by(
                         'classe_navire', 'user__last_name', 'user__first_name'
                     ),
                     'classes_navire_disponibles': list(
@@ -365,7 +367,7 @@ class SettingsView(LoginRequiredMixin, View):
                             'classe_navire', flat=True
                         ).distinct().order_by('classe_navire')
                     ),
-                    'marins_disponibles': User.objects.order_by('last_name', 'first_name', 'username'),
+                    'marins_disponibles': visibles.order_by('last_name', 'first_name', 'username'),
                 })
             return render(request, self.template_name, context)
 
@@ -640,7 +642,7 @@ class SettingsView(LoginRequiredMixin, View):
             user_id = request.POST.get('user_id')
             try:
                 specialite = SpecialityChoice.objects.get(pk=specialite_id)
-                marin = User.objects.get(pk=user_id)
+                marin = utilisateurs_visibles_par(request.user).get(pk=user_id)
                 _, cree = ResponsableSpecialite.objects.get_or_create(specialite=specialite, user=marin)
                 if cree:
                     messages.success(
@@ -657,13 +659,13 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.error(request, "Spécialité ou marin introuvable.")
         elif action == 'retirer_responsable_specialite':
             pk = request.POST.get('pk')
-            ResponsableSpecialite.objects.filter(pk=pk).delete()
+            ResponsableSpecialite.objects.filter(pk=pk, user__in=utilisateurs_visibles_par(request.user)).delete()
             messages.success(request, "Responsable de spécialité retiré.")
             AuditLog.objects.create(actor=request.user, action='retirer_responsable_specialite', details=f'pk={pk}')
         elif action == 'add_responsable_classe' and name:
             user_id = request.POST.get('user_id')
             try:
-                marin = User.objects.get(pk=user_id)
+                marin = utilisateurs_visibles_par(request.user).get(pk=user_id)
                 _, cree = ResponsableClasseNavire.objects.get_or_create(classe_navire=name, user=marin)
                 if cree:
                     messages.success(
@@ -680,7 +682,7 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.error(request, "Marin introuvable.")
         elif action == 'retirer_responsable_classe':
             pk = request.POST.get('pk')
-            ResponsableClasseNavire.objects.filter(pk=pk).delete()
+            ResponsableClasseNavire.objects.filter(pk=pk, user__in=utilisateurs_visibles_par(request.user)).delete()
             messages.success(request, "Responsable de classe de navire retiré.")
             AuditLog.objects.create(actor=request.user, action='retirer_responsable_classe', details=f'pk={pk}')
         elif action == 'delete_fonction':

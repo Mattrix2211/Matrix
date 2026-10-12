@@ -81,7 +81,7 @@
   <tbody>
     {% for u in users %}
       <tr>
-        {% if peut_gerer and not equipage_a_terre %}<td class="mx-annuaire__case"><input type="checkbox" value="{{ u.id }}" class="row-select" aria-label="Sélectionner {{ u.username }}" /></td>{% endif %}
+        {% if peut_gerer and not equipage_a_terre %}<td class="mx-annuaire__case">{% if u.id in gerables_ids %}<input type="checkbox" value="{{ u.id }}" class="row-select" aria-label="Sélectionner {{ u.username }}" />{% endif %}</td>{% endif %}
         <td>{% if u.get_full_name %}<strong>{{ u.get_full_name }}</strong> <span class="font-mono text-muted">{{ u.username }}</span>{% else %}<span class="font-mono">{{ u.username }}</span>{% endif %}</td>
         <td>{{ u.profile.get_role_display|default:"—" }}</td>
         <td>{{ u.profile.grade|default:"—" }}</td>
@@ -93,14 +93,16 @@
         <td>{% if u.profile.service %}{{ u.profile.service.name }}{% if u.profile.sector %} › {{ u.profile.sector.name }}{% if u.profile.section %} › {{ u.profile.section.name }}{% endif %}{% endif %}{% elif u.profile.sector %}{{ u.profile.sector.name }}{% else %}—{% endif %}</td>
         {% if peut_gerer and not equipage_a_terre %}
         <td class="mx-annuaire__menu">
+          {% if u.id in gerables_ids %}
           {% menu_contextuel libelle="Actions sur "|add:u.username %}
             {% url 'user-edit' u.id as url_modifier %}
             {% include "components/menu_item.html" with libelle="Modifier" url=url_modifier icone="modification" %}
-            {% if peut_reinitialiser %}
+            {% if peut_reinitialiser and u.id != request.user.id %}
             <li><button type="button" class="dropdown-item mx-menu__item" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-pk="{{ u.id }}" data-username="{{ u.username }}">{% icone "mot_de_passe" %}<span>Réinitialiser le mot de passe</span></button></li>
             {% endif %}
             <li><button type="button" class="dropdown-item mx-menu__item mx-menu__item--danger" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_user" data-pk="{{ u.id }}" data-label="Supprimer l'utilisateur {{ u.username }}">{% icone "suppression" %}<span>Supprimer</span></button></li>
           {% fin_menu_contextuel %}
+          {% endif %}
         </td>
         {% endif %}
       </tr>
