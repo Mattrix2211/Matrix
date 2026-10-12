@@ -26,7 +26,7 @@ from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.brouillons import brouillons_a_reprendre
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
@@ -470,11 +470,20 @@ def _points_de_vigilance_navire(ship_id):
     return items
 
 
-def _items_groupes_par_categorie(session):
+def _occurrences_masquees(user):
+    """Vrai si les items issus d'occurrences de maintenance sont cachés à ce marin :
+    équipage à terre (double équipage) hors commandement."""
+    return equipage_a_terre_lecture_seule(user) and user_role_level(user) < NIVEAU_VISION_COMMANDEMENT
+
+
+def _items_groupes_par_categorie(session, user):
     """Items d'une session d'appareillage regroupés par catégorie, dans l'ordre
     d'affichage du template (mêmes quatre familles que _points_de_vigilance_navire
-    ci-dessus)."""
-    items = list(session.items.select_related("verifie_par").order_by("libelle"))
+    ci-dessus), sans les occurrences pour qui n'y a pas droit."""
+    items = session.items.select_related("verifie_par").order_by("libelle")
+    if _occurrences_masquees(user):
+        items = items.exclude(categorie=ItemAppareillage.CATEGORIE_OCCURRENCE)
+    items = list(items)
     groupes = []
     for code, libelle in ItemAppareillage.CATEGORIES:
         items_categorie = [item for item in items if item.categorie == code]
@@ -541,7 +550,7 @@ class PretAppareillageView(LoginRequiredMixin, TemplateView):
         )
         contexte["session"] = session
         if session:
-            contexte["items_par_categorie"] = _items_groupes_par_categorie(session)
+            contexte["items_par_categorie"] = _items_groupes_par_categorie(session, user)
         return contexte
 
 
@@ -602,6 +611,8 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
 
         if not _meme_navire_ou_master_admin(request.user, item.session.ship_id):
             raise PermissionDenied("Hors de votre périmètre.")
+        if item.categorie == ItemAppareillage.CATEGORIE_OCCURRENCE and _occurrences_masquees(request.user):
+            raise PermissionDenied("Hors de votre périmètre.")
         if not item.session.est_ouverte:
             return HttpResponseBadRequest("Session déjà clôturée : plus aucune modification n'est possible.")
 
@@ -616,7 +627,7 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
         session = item.session
         contexte = {
             "session": session,
-            "items_par_categorie": _items_groupes_par_categorie(session),
+            "items_par_categorie": _items_groupes_par_categorie(session, request.user),
             "peut_signer": user_role_level(request.user) >= RoleLevel.CHEF_SECTEUR,
         }
         return render(request, "dashboard/_checklist_appareillage.html", contexte)
@@ -704,7 +715,7 @@ class SessionAppareillageDetailView(LoginRequiredMixin, TemplateView):
             raise PermissionDenied("Hors de votre périmètre.")
 
         contexte["session"] = session
-        contexte["items_par_categorie"] = _items_groupes_par_categorie(session)
+        contexte["items_par_categorie"] = _items_groupes_par_categorie(session, self.request.user)
         # Lecture seule dans cette vue historique : la signature ne se fait que
         # depuis la page principale (PretAppareillageView), tant que la session
         # est encore ouverte.
