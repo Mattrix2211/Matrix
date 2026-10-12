@@ -101,7 +101,7 @@ class IdentitePageMiddleware:
     def __call__(self, request):
         if (request.method not in self.METHODES_SURES and request.user.is_authenticated
                 and not request.path.startswith(("/api/", "/admin/", "/brouillons/"))
-                and request.path not in (reverse("logout"), reverse("login"))):
+                and request.path not in (reverse("logout"), reverse("login"), "/login/")):
             attendu = request.headers.get("X-Mx-Utilisateur")
             if attendu is None and request.content_type in ("application/x-www-form-urlencoded", "multipart/form-data"):
                 try:
