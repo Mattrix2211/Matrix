@@ -187,12 +187,18 @@ def equipage_marin_q(user, prefix: str = "profile__") -> Q:
 
 
 def assignes_equipage_q(user, modele, champ: str) -> Q:
-    """Filtre Q cachant les objets (tickets, occurrences, rondes) dont tous les
-    assignés sont d'un autre équipage que celui de `user`. Un objet non assigné,
-    ou assigné à un marin sans équipage, reste visible. Q() vide sur un navire
-    à équipage unique. `champ` : FK ou ManyToMany vers l'utilisateur."""
+    """Filtre Q d'étanchéité par équipage des tickets, occurrences et rondes.
+
+    Seul l'équipage à terre (lecture seule) est borné : il ne voit pas les objets dont
+    tous les assignés sont de l'autre équipage. L'équipage à bord lit tout (continuité
+    de relève), ainsi que le commandement à terre (supervision). Non assigné ou assigné
+    sans équipage : visible. Q() vide sur équipage unique. `champ` : FK ou ManyToMany
+    vers l'utilisateur."""
+    from .equipage import equipage_a_terre_lecture_seule
+    from .roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
+
     equipage = equipage_agissant(user)
-    if equipage is None:
+    if equipage is None or not equipage_a_terre_lecture_seule(user) or user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
         return Q()
     des_notres = modele.objects.filter(**{f"{champ}__profile__equipage__in": [equipage, ""]}).values("pk")
     assignes = modele.objects.filter(**{f"{champ}__isnull": False}).values("pk")

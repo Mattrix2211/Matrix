@@ -58,24 +58,33 @@ class EtancheiteParEquipageTests(DoubleEquipageBase):
         return client.get(url)
 
     def test_tickets_api_et_web(self):
-        self.assertEqual(_ids(self._api(self.a_bleu, "/api/logistics/tickets/")), {str(self.t_bleu.pk), str(self.t_libre.pk)})
+        tous = {str(self.t_bleu.pk), str(self.t_rouge.pk), str(self.t_libre.pk)}
+        # L'équipage à bord (A) lit tout ; l'équipage à terre (B) ne lit que ses objets et les non assignés.
+        self.assertEqual(_ids(self._api(self.a_bleu, "/api/logistics/tickets/")), tous)
+        self.assertEqual(_ids(self._api(self.cdt_rouge, "/api/logistics/tickets/")), tous)
         self.assertEqual(_ids(self._api(self.a_rouge, "/api/logistics/tickets/")), {str(self.t_rouge.pk), str(self.t_libre.pk)})
-        self.client.force_login(self.a_bleu)
+        self.client.force_login(self.a_rouge)
         self.assertEqual(self.client.get("/logistics/tickets/").status_code, 200)
-        self.assertEqual(self.client.get(f"/logistics/tickets/{self.t_rouge.pk}/").status_code, 400)
+        self.assertEqual(self.client.get(f"/logistics/tickets/{self.t_bleu.pk}/").status_code, 400)
+        self.client.force_login(self.a_bleu)
+        self.assertEqual(self.client.get(f"/logistics/tickets/{self.t_rouge.pk}/").status_code, 200)
 
     def test_occurrences_api(self):
-        attendu = {str(self.o_bleu.pk), str(self.o_libre.pk)}
-        self.assertEqual(_ids(self._api(self.a_bleu, "/api/maintenance/occurrences/")), attendu)
+        tous = {str(self.o_bleu.pk), str(self.o_rouge.pk), str(self.o_libre.pk)}
+        self.assertEqual(_ids(self._api(self.a_bleu, "/api/maintenance/occurrences/")), tous)
+        self.assertEqual(_ids(self._api(self.cdt_rouge, "/api/maintenance/occurrences/")), tous)
+        self.assertEqual(
+            _ids(self._api(self.a_rouge, "/api/maintenance/occurrences/")), {str(self.o_rouge.pk), str(self.o_libre.pk)}
+        )
 
     def test_rondes_visibles(self):
-        self.assertEqual(set(rondes_visibles(self.a_bleu)), {self.r_bleu, self.r_libre})
+        self.assertEqual(set(rondes_visibles(self.a_bleu)), {self.r_bleu, self.r_rouge, self.r_libre})
+        self.assertEqual(set(rondes_visibles(self.cdt_rouge)), {self.r_bleu, self.r_rouge, self.r_libre})
         self.assertEqual(set(rondes_visibles(self.a_rouge)), {self.r_rouge, self.r_libre})
+        self.client.force_login(self.a_rouge)
+        self.assertEqual(self.client.get(f"/rondes/{self.r_bleu.pk}/").status_code, 404)
         self.client.force_login(self.a_bleu)
-        self.assertEqual(self.client.get(f"/rondes/{self.r_rouge.pk}/").status_code, 404)
-
-    def test_equipage_a_terre_garde_la_lecture_de_son_equipage(self):
-        self.assertIn(str(self.t_rouge.pk), _ids(self._api(self.a_rouge, "/api/logistics/tickets/")))
+        self.assertEqual(self.client.get(f"/rondes/{self.r_rouge.pk}/").status_code, 200)
 
     def test_objet_multi_assigne_visible_une_seule_fois(self):
         self.t_bleu.assignees.add(self.a_rouge, self.b_bleu)
@@ -98,22 +107,27 @@ class EtancheiteParEquipageTests(DoubleEquipageBase):
         self.assertIn(str(self.t_libre.pk), _ids(self._api(self.a_rouge, "/api/logistics/tickets/")))
 
     def test_discussions_recherche_executions_et_tournee(self):
-        ajouter_commentaire(self.o_rouge, self.a_rouge, "secret rouge")
-        ajouter_commentaire(self.o_bleu, self.a_bleu, "propre bleu")
-        donnees = self._api(self.a_bleu, "/api/threads/messages/").json()
-        corps = {m["body"] for m in (donnees["results"] if isinstance(donnees, dict) else donnees)}
-        self.assertEqual(corps, {"propre bleu"})
-        self.assertEqual(Message.objects.count(), 2)
-        self.t_rouge.description = "pompe fuyarde rouge"
-        self.t_rouge.save()
-        self.assertFalse(recherche.tickets(self.a_bleu, "fuyarde").exists())
-        self.assertTrue(recherche.tickets(self.a_rouge, "fuyarde").exists())
+        ajouter_commentaire(self.o_rouge, self.a_rouge, "propre rouge")
+        ajouter_commentaire(self.o_bleu, self.a_bleu, "secret bleu")
+
+        def corps(user):
+            donnees = self._api(user, "/api/threads/messages/").json()
+            return {m["body"] for m in (donnees["results"] if isinstance(donnees, dict) else donnees)}
+
+        self.assertEqual(corps(self.a_rouge), {"propre rouge"})
+        self.assertEqual(corps(self.a_bleu), {"propre rouge", "secret bleu"})
+        self.t_bleu.description = "pompe fuyarde bleue"
+        self.t_bleu.save()
+        self.assertFalse(recherche.tickets(self.a_rouge, "fuyarde").exists())
+        self.assertTrue(recherche.tickets(self.a_bleu, "fuyarde").exists())
+        self.assertTrue(recherche.tickets(self.cdt_rouge, "fuyarde").exists())
         e_bleu = MaintenanceExecution.objects.create(occurrence=self.o_bleu)
         e_rouge = MaintenanceExecution.objects.create(occurrence=self.o_rouge)
-        self.assertEqual(_ids(self._api(self.a_bleu, "/api/maintenance/executions/")), {str(e_bleu.pk)})
-        self.assertNotIn(str(e_rouge.pk), _ids(self._api(self.a_bleu, "/api/maintenance/executions/")))
+        self.assertEqual(_ids(self._api(self.a_rouge, "/api/maintenance/executions/")), {str(e_rouge.pk)})
+        self.assertEqual(_ids(self._api(self.a_bleu, "/api/maintenance/executions/")), {str(e_bleu.pk), str(e_rouge.pk)})
         ids = [self.o_bleu.pk, self.o_rouge.pk, self.o_libre.pk]
-        self.assertEqual({o.pk for o in charger(self.a_bleu, ids)}, {self.o_bleu.pk, self.o_libre.pk})
+        self.assertEqual({o.pk for o in charger(self.a_rouge, ids)}, {self.o_rouge.pk, self.o_libre.pk})
+        self.assertEqual({o.pk for o in charger(self.a_bleu, ids)}, set(ids))
 
     def test_equipage_unique_inchange(self):
         navire = Ship.objects.create(name="Unique", code="UQ")
