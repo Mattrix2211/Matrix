@@ -27,7 +27,9 @@ class AnnuaireUtilisateursPermissionsTests(TestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_role_commandant_en_second_visible_dans_l_annuaire(self):
-        self.client.login(username="cmd_annuaire", password="pass")
+        # Le commandant ne désigne pas le commandant en second : l'administrateur le voit et peut l'attribuer.
+        User.objects.create_superuser(username="admin_annuaire", password="pass", email="a@a.fr")
+        self.client.login(username="admin_annuaire", password="pass")
         self.assertContains(self.client.get("/users/"), "Commandant en second")
 
     def test_anonyme_redirige_vers_connexion(self):
