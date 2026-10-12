@@ -429,7 +429,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const panneau = document.getElementById('panneau-detail');
     const corps = panneau.querySelector('.offcanvas-body');
     corps.innerHTML = '<p class="text-secondary mb-0">Chargement…</p>';
-    htmx.ajax('GET', `/calendar/detail/${type}/${pk}/`, { target: corps, swap: 'innerHTML' });
+    htmx.ajax('GET', `/calendar/detail/${type}/${pk}/`, { target: corps, swap: 'innerHTML' })
+      .catch(function () { corps.innerHTML = '<p class="text-danger mb-0" role="alert">Ce détail n\'est pas disponible.</p>'; });
     bootstrap.Offcanvas.getOrCreateInstance(panneau).show();
     return true;
   }
