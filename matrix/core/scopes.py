@@ -186,6 +186,18 @@ def equipage_marin_q(user, prefix: str = "profile__") -> Q:
     return Q() if equipage is None else Q(**{f"{prefix}equipage": equipage})
 
 
+def assignes_equipage_q(user, modele, champ: str) -> Q:
+    """Filtre Q cachant les objets (tickets, occurrences, rondes) dont tous les
+    assignés sont d'un autre équipage que celui de `user`. Un objet non assigné,
+    ou assigné à un marin sans équipage, reste visible. Q() vide sur un navire
+    à équipage unique. `champ` : FK ou ManyToMany vers l'utilisateur."""
+    equipage = equipage_agissant(user)
+    if equipage is None:
+        return Q()
+    des_notres = modele.objects.filter(**{f"{champ}__profile__equipage__in": [equipage, ""]}).values("pk")
+    return Q(**{f"{champ}__isnull": True}) | Q(pk__in=des_notres)
+
+
 def marins_hors_equipage(user, marins):
     """Marins de la liste qui ne sont pas de l'équipage de `user` (liste vide
     sur un navire à équipage unique) : sert à refuser une assignation qui

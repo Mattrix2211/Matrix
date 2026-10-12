@@ -19,6 +19,7 @@ from assets.models import Asset, AssetType, ChecklistTemplate
 from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
+from .perimetre import perimetre_occurrences_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none, sans_nul
@@ -73,7 +74,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             occ = MaintenanceOccurrence.objects.select_related(
                 'plan', 'asset', 'plan__checklist_template',
                 'installation_maintenance', 'installation_maintenance__installation',
-            ).filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__")).get(pk=pk)
+            ).filter(perimetre_occurrences_q(request.user)).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return None, None, HttpResponseBadRequest('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
@@ -356,7 +357,7 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
         # pouvait y poster un commentaire (T-SEC, fuite de périmètre).
         try:
             occ = MaintenanceOccurrence.objects.filter(
-                build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
+                perimetre_occurrences_q(request.user)
             ).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return HttpResponseBadRequest('Occurrence introuvable')
@@ -589,7 +590,7 @@ class MaintenanceOccurrenceListView(LoginRequiredMixin, ScopedQuerySetMixin, Lis
         # Même chemin que MaintenanceOccurrenceViewSet (maintenance/views.py) :
         # une occurrence porte soit sur du matériel mobile, soit sur une
         # installation fixe, jamais les deux à la fois.
-        return build_scope_q(self.request.user, "asset__", "installation_maintenance__installation__")
+        return perimetre_occurrences_q(self.request.user)
 
     def get_queryset(self):
         qs = (
@@ -640,7 +641,7 @@ class MaintenanceOccurrenceSelfAssignView(LoginRequiredMixin, View):
     qui reste réservée aux chefs)."""
 
     def post(self, request, pk):
-        filtres = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
+        filtres = perimetre_occurrences_q(request.user)
         try:
             occ = MaintenanceOccurrence.objects.filter(filtres).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
@@ -699,7 +700,7 @@ class OccurrenceImprimerView(LoginRequiredMixin, View):
                 "installation_maintenance", "installation_maintenance__installation",
             )
             .prefetch_related("assignees")
-            .filter(build_scope_q(request.user, "asset__", "installation_maintenance__installation__"))
+            .filter(perimetre_occurrences_q(request.user))
             .filter(pk__in=identifiants)
             .order_by("scheduled_for", "pk")
         )

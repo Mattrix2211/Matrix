@@ -33,6 +33,7 @@ from .stock import StockInsuffisant, prelever
 from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, contexte_discussion
+from logistics.perimetre import perimetre_tickets_q
 
 
 
@@ -77,7 +78,7 @@ class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # Un ticket correctif porte sur un matériel mobile (asset), qui porte
         # lui-même les 4 champs de périmètre — même logique que
         # CorrectiveTicketViewSet côté API (logistics/views.py).
-        return build_scope_q(self.request.user, "asset__", "installation__")
+        return perimetre_tickets_q(self.request.user)
 
     def _vue_perimetre_autorisee(self):
         return user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
@@ -187,7 +188,7 @@ class TicketDetailView(LoginRequiredMixin, View):
         try:
             ticket = (
                 CorrectiveTicket.objects.select_related('asset', 'installation')
-                .filter(build_scope_q(request.user, "asset__", "installation__"))
+                .filter(perimetre_tickets_q(request.user))
                 .get(pk=pk)
             )
         except CorrectiveTicket.DoesNotExist:
@@ -320,7 +321,7 @@ class TicketAssignView(LoginRequiredMixin, View):
         # modifier ses assignés (T-SEC).
         try:
             ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
-                build_scope_q(request.user, "asset__", "installation__")
+                perimetre_tickets_q(request.user)
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
@@ -368,7 +369,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
         # connaissant l'identifiant d'un ticket d'un autre navire pouvait le
         # faire transitionner, y compris le remettre en service (T-SEC).
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         new_status = request.POST.get('status')
@@ -438,7 +439,7 @@ class TicketCommentCreateView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         corps = request.POST.get('body', '').strip()
@@ -459,7 +460,7 @@ class PartRequestCreateView(LoginRequiredMixin, View):
         # connaissant l'identifiant d'un ticket d'un autre navire pouvait lui
         # créer une demande de pièces (IDOR).
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         pr = PartRequest.objects.create(ticket=ticket, requested_by=request.user if request.user.is_authenticated else None, needed_by_date=request.POST.get('needed_by_date') or None)
@@ -551,7 +552,7 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
             raise PermissionDenied
         try:
             ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
-                build_scope_q(request.user, "asset__", "installation__")
+                perimetre_tickets_q(request.user)
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')

@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, decorators, response, status
 from rest_framework.exceptions import ValidationError
+from django.db.models import Q
 from django.utils import timezone
 from .models import (
     MaintenancePlan,
@@ -9,9 +10,11 @@ from .models import (
     mettre_a_jour_echeance_installation,
 )
 from .compte_rendu import instantane
+from .perimetre import perimetre_occurrences_q
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from matrix.core.permissions import RolePermission
+from matrix.core.scopes import assignes_equipage_q
 from accounts.models import AuditLog
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -77,11 +80,7 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePeri
         # Une occurrence porte soit sur du matériel mobile (asset), soit sur
         # une installation fixe (installation_maintenance) — jamais les deux
         # à la fois (contrainte occurrence_liee_a_asset_xor_installation).
-        return build_scope_q(
-            self.request.user,
-            "asset__",
-            "installation_maintenance__installation__",
-        )
+        return perimetre_occurrences_q(self.request.user)
 
     def perform_update(self, serializer):
         # "status" est en lecture seule côté serializer (MaintenanceOccurrenceSerializer.
@@ -201,7 +200,9 @@ class MaintenanceExecutionViewSet(SuppressionInterditeMixin, EcritureDansLePerim
             self.request.user,
             "occurrence__asset__",
             "occurrence__installation_maintenance__installation__",
-        )
+        ) & Q(occurrence__in=MaintenanceOccurrence.objects.filter(
+            assignes_equipage_q(self.request.user, MaintenanceOccurrence, "assignees")
+        ))
 
     def champs_serveur_creation(self):
         return {"executed_by": self.request.user, "created_by": self.request.user}

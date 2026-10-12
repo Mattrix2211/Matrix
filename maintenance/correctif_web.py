@@ -38,6 +38,7 @@ from .formats import lire_datetime, valeur_datetime
 from .historique import derniers_releves
 from .models import CompteRenduCorrectif, ModificationCompteRendu
 from .web_views import _etat_saisie
+from logistics.perimetre import perimetre_tickets_q
 
 LONGUEUR_TEXTE = 5000
 MAX_PIECES = 5
@@ -106,7 +107,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
                 raise Http404("Équipement introuvable")
             return None, None, installation, asset
         ticket = (CorrectiveTicket.objects.select_related("asset__article_catalogue__categorie", "installation")
-                  .filter(build_scope_q(user, "asset__", "installation__")).filter(pk=ticket_pk).first())
+                  .filter(perimetre_tickets_q(user)).filter(pk=ticket_pk).first())
         if ticket is None:
             raise Http404("Ticket introuvable")
         if user not in ticket.assignees.all() and user_role_level(user) < niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers"):

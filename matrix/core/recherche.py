@@ -23,6 +23,7 @@ from matrix.core.modules import module_actif_pour_user
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q
 from training.models import TrainingCourse
+from logistics.perimetre import perimetre_tickets_q
 
 MIN_CARACTERES = 2
 MAX_CARACTERES = 80
@@ -66,7 +67,7 @@ def tickets(user, terme):
     # Même filtre que la fiche détail d'un ticket.
     # L'identifiant (UUID) n'est jamais affiché : on ne cherche que la description.
     return (
-        CorrectiveTicket.objects.filter(build_scope_q(user, "asset__", "installation__"))
+        CorrectiveTicket.objects.filter(perimetre_tickets_q(user))
         .filter(description__icontains=terme)
         .select_related("asset__asset_type", "installation").order_by("-reported_at")
     )
