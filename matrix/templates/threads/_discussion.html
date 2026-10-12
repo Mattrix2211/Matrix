@@ -1,6 +1,7 @@
 {% comment %}
 Corps du panneau Discussion d'une fiche (inclus par components/fiche_entete.html).
-Variables : commentaires (messages du fil), commentaire_action_url (adresse d'ajout).
+Variables : commentaires (messages du fil), commentaire_action_url (adresse d'ajout),
+commentaire_hx_cible (facultatif : envoi HTMX, le fragment renvoyé remplace cette cible).
 {% endcomment %}
 {% if commentaires %}
 <ul class="list-unstyled mb-3">
@@ -20,7 +21,7 @@ Variables : commentaires (messages du fil), commentaire_action_url (adresse d'aj
 <p class="text-muted mb-3">Aucun commentaire pour le moment.</p>
 {% endif %}
 {% if not equipage_a_terre %}
-<form method="post" action="{{ commentaire_action_url }}">
+<form method="post" action="{{ commentaire_action_url }}"{% if commentaire_hx_cible %} hx-post="{{ commentaire_action_url }}" hx-target="{{ commentaire_hx_cible }}" hx-swap="innerHTML"{% endif %}>
   {% csrf_token %}
   <label class="form-label small mb-1" for="id_commentaire_body">Ajouter un commentaire</label>
   <textarea class="form-control mb-2" id="id_commentaire_body" name="body" rows="3" placeholder="Votre commentaire de suivi..." required></textarea>

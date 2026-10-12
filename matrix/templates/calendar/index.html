@@ -124,6 +124,8 @@
     </div>
   {% fin_panneau_lateral %}
 
+  {% panneau_lateral id="panneau-detail" titre="Détail" icone="calendrier" %}{% fin_panneau_lateral %}
+
   {% if not equipage_a_terre %}
   {% panneau_lateral id="panneau-evenement" titre="Événement personnel" icone="personnel" %}
     <form method="post" action="{% url 'calendar-personal-save' %}" id="form-evenement-personnel" class="mb-4">
@@ -284,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // via un bouton dédié dans le popover, pour qui a une URL de fiche
       // (absente pour un événement personnel, qui n'en a pas).
       info.jsEvent.preventDefault();
-      ouvrirPopoverEvenement(info);
+      if (!ouvrirPanneauDetail(info.event.id)) ouvrirPopoverEvenement(info);
     },
     eventDidMount: function (info) {
       const props = info.event.extendedProps;
@@ -413,6 +415,24 @@ document.addEventListener('DOMContentLoaded', function () {
     actionSuppressionEnAttente = null;
   });
   // --------------------------------------------------------------------
+
+  // Types dont le détail s'ouvre dans le panneau latéral (préfixe d'identifiant -> type serveur).
+  const TYPES_PANNEAU_DETAIL = {
+    tch: 'tache', eqt: 'tache', qrt: 'quart', eqq: 'quart', svc: 'service_garde', eqg: 'service_garde',
+    prg: 'programme', trn: 'training', abs: 'absence', eqa: 'absence'
+  };
+
+  function ouvrirPanneauDetail(idEvenement) {
+    const [prefixe, pk] = idEvenement.split('-');
+    const type = TYPES_PANNEAU_DETAIL[prefixe];
+    if (!type) return false;
+    const panneau = document.getElementById('panneau-detail');
+    const corps = panneau.querySelector('.offcanvas-body');
+    corps.innerHTML = '<p class="text-secondary mb-0">Chargement…</p>';
+    htmx.ajax('GET', `/calendar/detail/${type}/${pk}/`, { target: corps, swap: 'innerHTML' });
+    bootstrap.Offcanvas.getOrCreateInstance(panneau).show();
+    return true;
+  }
 
   let popoverActif = null;
   let elementDeclencheur = null;

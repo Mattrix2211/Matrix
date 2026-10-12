@@ -1,0 +1,29 @@
+{% comment %}
+Corps du panneau de détail d'un événement du calendrier (fragment HTMX, remplace le contenu du panneau).
+Variables : titre, source, date, responsable, url (fiche complète), type, pk, avec_fil, commentaires,
+tache / peut_demarrer / avancement (tâches seulement).
+{% endcomment %}{% load icones %}
+{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} py-2 small" role="alert">{{ message }}</div>{% endfor %}
+<h3 class="h5 mb-1">{{ titre }}</h3>
+<p class="mb-2"><span class="badge text-bg-secondary">{{ source }}</span>
+  {% if tache %}{% include "taches/_statut.html" with t=tache %}{% endif %}</p>
+<dl class="small mb-3">
+  <dt>Date</dt><dd>{{ date }}</dd>
+  {% if responsable %}<dt>Responsable</dt><dd>{{ responsable }}</dd>{% endif %}
+</dl>
+{% if tache %}
+  {% if tache.description %}<p class="small">{{ tache.description|linebreaksbr }}</p>{% endif %}
+  {% if tache.statut == "BLOQUEE" %}<div class="alert alert-warning small"><strong>Bloquée :</strong> {{ tache.motif_blocage|linebreaksbr }}</div>{% endif %}
+  {% if peut_demarrer and not equipage_a_terre %}
+  <form hx-post="{% url 'calendar-detail-demarrer' pk %}" hx-target="closest .offcanvas-body" hx-swap="innerHTML" class="mb-3">
+    {% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Démarrer la tâche</button>
+  </form>
+  {% endif %}
+  {% if avancement %}{% include "taches/_avancement.html" %}{% endif %}
+{% endif %}
+<p class="mb-4"><a class="btn btn-outline-primary btn-sm" href="{{ url }}">Ouvrir la fiche complète</a></p>
+{% if avec_fil %}
+<h4 class="h6">{% icone "discussion" %} Discussion</h4>
+{% url "calendar-detail-commentaire" type pk as action_commentaire %}
+{% include "threads/_discussion.html" with commentaire_action_url=action_commentaire commentaire_hx_cible="closest .offcanvas-body" %}
+{% endif %}
