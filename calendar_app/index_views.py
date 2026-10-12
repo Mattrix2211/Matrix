@@ -12,7 +12,7 @@ from django.views.generic import TemplateView
 
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import utilisateurs_visibles_par
-from matrix.core.scopes import equipage_marin_q
+from matrix.core.scopes import assignes_equipage_q, equipage_marin_q
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
@@ -119,7 +119,9 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "installation_maintenance__installation__ship",
             "installation_maintenance__installation__service",
             "installation_maintenance__installation__sector",
-        ).filter(scheduled_for__range=(start, end))
+        ).filter(
+            assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
+        )
         occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
         for occ in occ_qs:
             events.append({
@@ -133,6 +135,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
 
         # Tickets (logistique) planifiés: on affiche tous, ou ceux avec statut PLANNED/IN_REPAIR/TESTING si on avait des dates; ici, on ne dispose pas d’échéance => montrer ouverts
         ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])  # proxy
+        ticket_qs = ticket_qs.filter(assignes_equipage_q(request.user, CorrectiveTicket, "assignees"))
         ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
         for t in ticket_qs:
             events.append({

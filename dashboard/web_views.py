@@ -27,7 +27,7 @@ from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiec
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.brouillons import brouillons_a_reprendre
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
+from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
 from quarts.services import compteur_equite_marin
@@ -56,8 +56,8 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         batiments = batiments_suivis(utilisateur)
         if batiments:
             contexte["aujourdhui"] = aujourdhui
-            contexte["a_faire"] = a_faire_terre(batiments)
-            contexte["cartes"] = cartes_batiments(batiments, aujourdhui)
+            contexte["a_faire"] = a_faire_terre(batiments, utilisateur)
+            contexte["cartes"] = cartes_batiments(batiments, aujourdhui, utilisateur)
             contexte["choix_possible"] = len(batiments) > 1
             contexte["salutation"] = utilisateur.last_name or utilisateur.get_username()
             return contexte
@@ -225,6 +225,8 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
             )
             filtre_ticket = Q(**{f"asset__{champ}": perimetre_id}) | Q(**{f"installation__{champ}": perimetre_id})
             filtre_stock = Q(**{champ: perimetre_id})
+        filtre_occurrence &= assignes_equipage_q(user, MaintenanceOccurrence, "assignees")
+        filtre_ticket &= assignes_equipage_q(user, CorrectiveTicket, "assignees")
 
         contexte.update(_agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_stock))
         contexte["aucun_perimetre"] = False
@@ -768,7 +770,7 @@ def _classes_navire_responsable_de(user):
     )
 
 
-def _agrege_technique_marins(marins_ids):
+def _agrege_technique_marins(marins_ids, user):
     """Vue TECHNIQUE d'un dashboard spécialité (cadrage du 12/09/2026, point 2) :
     maintenances et tickets correctifs assignés aux marins de cette spécialité,
     sur toute la flotte. Aucun lien direct n'existe en base entre une spécialité
@@ -780,7 +782,9 @@ def _agrege_technique_marins(marins_ids):
     Le stock (StockPiece) n'a pas de notion d'assigné : il n'entre pas dans
     cette vue par spécialité, à la différence de la Vue flotte et du dashboard
     classe de navire, tous deux scopés par navire/secteur/section."""
-    occurrences = MaintenanceOccurrence.objects.filter(assignees__id__in=marins_ids).distinct()
+    occurrences = MaintenanceOccurrence.objects.filter(
+        assignes_equipage_q(user, MaintenanceOccurrence, "assignees"), assignees__id__in=marins_ids
+    ).distinct()
     maintenances_en_retard = occurrences.filter(status="OVERDUE").count()
     total_actives = occurrences.exclude(status__in=_STATUTS_MAINTENANCE_TERMINES).count()
     maintenances_en_retard_pct = (
@@ -791,7 +795,9 @@ def _agrege_technique_marins(marins_ids):
     # agrégée par statut, avec Count(distinct=True) car le filtre sur assignees
     # (M2M) peut dupliquer les lignes d'un ticket ayant plusieurs assignés.
     totaux_par_statut = dict(
-        CorrectiveTicket.objects.filter(assignees__id__in=marins_ids, status__in=STATUTS_TICKET_OUVERTS)
+        CorrectiveTicket.objects.filter(
+            assignes_equipage_q(user, CorrectiveTicket, "assignees"), assignees__id__in=marins_ids, status__in=STATUTS_TICKET_OUVERTS
+        )
         .values("status")
         .annotate(total=Count("id", distinct=True))
         .values_list("status", "total")
@@ -817,7 +823,7 @@ def _agrege_technique_marins(marins_ids):
     }
 
 
-def _disponibilite_par_navire(navires):
+def _disponibilite_par_navire(navires, user):
     """Comparatif de disponibilité opérationnelle entre les navires d'une classe
     (cadrage du 12/09/2026, point 3) : taux de pannes, maintenance en retard,
     installations critiques hors service — PAS l'équité des quarts/gardes
@@ -835,7 +841,7 @@ def _disponibilite_par_navire(navires):
         filtre_occurrence = Q(asset__ship_id=navire.id) | Q(
             installation_maintenance__installation__ship_id=navire.id
         )
-        occurrences = MaintenanceOccurrence.objects.filter(filtre_occurrence)
+        occurrences = MaintenanceOccurrence.objects.filter(filtre_occurrence, assignes_equipage_q(user, MaintenanceOccurrence, "assignees"))
         maintenances_en_retard = occurrences.filter(status="OVERDUE").count()
         total_actives = occurrences.exclude(status__in=_STATUTS_MAINTENANCE_TERMINES).count()
         maintenances_en_retard_pct = (
@@ -847,13 +853,13 @@ def _disponibilite_par_navire(navires):
         # ouverts que le reste des dashboards, STATUTS_TICKET_OUVERTS).
         total_assets = Asset.objects.filter(ship_id=navire.id).count()
         tickets_ouverts = CorrectiveTicket.objects.filter(
-            asset__ship_id=navire.id, status__in=STATUTS_TICKET_OUVERTS
+            assignes_equipage_q(user, CorrectiveTicket, "assignees"), asset__ship_id=navire.id, status__in=STATUTS_TICKET_OUVERTS
         ).count()
         taux_pannes_pct = round(tickets_ouverts / total_assets * 100) if total_assets else 0
 
         installations_critiques = Installation.objects.filter(ship_id=navire.id, critique=True)
         installations_critiques_hors_service = (
-            installations_critiques.filter(maintenances__occurrences__status="OVERDUE").distinct().count()
+            installations_critiques.filter(maintenances__occurrences__in=occurrences.filter(status="OVERDUE")).distinct().count()
         )
 
         comparatif.append({
@@ -917,7 +923,7 @@ class DashboardSpecialiteView(LoginRequiredMixin, TemplateView):
 
         # Vue technique (cadrage 12/09/2026, point 2) : maintenances/tickets
         # correctifs assignés aux marins de cette spécialité, toute la flotte.
-        contexte.update(_agrege_technique_marins([marin.id for marin in marins]))
+        contexte.update(_agrege_technique_marins([marin.id for marin in marins], user))
 
         # Répartition par navire (principe n°5 CLAUDE.md : un graphique plutôt
         # qu'une colonne de chiffres).
@@ -995,12 +1001,14 @@ class DashboardClasseNavireView(LoginRequiredMixin, TemplateView):
         )
         filtre_ticket = Q(asset__ship_id__in=ship_ids) | Q(installation__ship_id__in=ship_ids)
         filtre_stock = Q(ship_id__in=ship_ids)
+        filtre_occurrence &= assignes_equipage_q(user, MaintenanceOccurrence, "assignees")
+        filtre_ticket &= assignes_equipage_q(user, CorrectiveTicket, "assignees")
         contexte.update(_agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_stock))
 
         # Comparatif de disponibilité opérationnelle PAR NAVIRE (cadrage
         # 12/09/2026, point 3) : le cœur de ce dashboard pour un responsable de
         # classe, en complément des totaux agrégés ci-dessus.
-        comparatif = _disponibilite_par_navire(navires)
+        comparatif = _disponibilite_par_navire(navires, user)
         contexte["comparatif_navires"] = comparatif
         contexte["comparatif_chart_labels_json"] = json.dumps([r["navire"].name for r in comparatif])
         contexte["comparatif_taux_pannes_json"] = json.dumps([r["taux_pannes_pct"] for r in comparatif])

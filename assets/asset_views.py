@@ -26,6 +26,8 @@ from django.views.generic.detail import SingleObjectMixin
 
 from accounts.models import AuditLog
 from logistics.models import CorrectiveTicket, StockPiece
+from logistics.perimetre import equipage_tickets_q
+from matrix.core.scopes import assignes_equipage_q
 from maintenance import historique
 from maintenance.models import MaintenanceOccurrence
 from reports.services import STATUTS_TICKET_FERMES
@@ -147,6 +149,7 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         # les clés étrangères ne trouverait jamais de correspondance entre navires.
         ctx['pannes_deja_rencontrees'] = (
             CorrectiveTicket.objects.filter(
+                equipage_tickets_q(self.request.user),
                 status='CLOSED',
                 asset__asset_type__name=self.object.asset_type.name,
                 asset__asset_type__category=self.object.asset_type.category,
@@ -167,7 +170,8 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
 
     def _entete(self, asset):
         """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
-        premier_ticket = asset.tickets.first()
+        tickets = asset.tickets.filter(equipage_tickets_q(self.request.user))
+        premier_ticket = tickets.first()
         menu = [
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?asset={asset.pk}"},
@@ -186,8 +190,10 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         if self.request.user.is_staff:
             menu.append({"libelle": "Ouvrir dans l'administration", "icone": "parametres",
                          "url": f"/admin/assets/asset/{asset.pk}/change/"})
-        tickets_ouverts = asset.tickets.exclude(status__in=STATUTS_TICKET_FERMES).count()
-        en_retard = MaintenanceOccurrence.objects.filter(asset=asset, status="OVERDUE").count()
+        tickets_ouverts = tickets.exclude(status__in=STATUTS_TICKET_FERMES).count()
+        en_retard = MaintenanceOccurrence.objects.filter(
+            assignes_equipage_q(self.request.user, MaintenanceOccurrence, "assignees"), asset=asset, status="OVERDUE"
+        ).count()
         return {
             "action_principale": {"libelle": "Signaler une anomalie", "icone": "anomalie", "modale": "signalerAnomalieModal"},
             "menu_fiche": menu,

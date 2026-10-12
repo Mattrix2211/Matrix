@@ -19,7 +19,7 @@ from matrix.core.roles import user_role_level
 from notifications.liens import liens_accessibles
 from notifications.models import Notification
 from threads.mentions import PREFIXE_MENTION
-from matrix.core.scopes import is_master_admin, scope_filters_for_user
+from matrix.core.scopes import assignes_equipage_q, is_master_admin, scope_filters_for_user
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
 from taches.services import taches_a_suivre
@@ -271,6 +271,7 @@ def supervision(user, aujourdhui):
     occurrences = (
         MaintenanceOccurrence.objects.filter(
             build_scope_q(user, "asset__", "installation_maintenance__installation__"),
+            assignes_equipage_q(user, MaintenanceOccurrence, "assignees"),
         ).exclude(status__in=STATUTS_MAINTENANCE_TERMINES)
     )
     en_attente = occurrences.filter(status="WAITING_VALIDATION")

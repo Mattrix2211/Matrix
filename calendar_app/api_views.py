@@ -12,6 +12,7 @@ from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import build_scope_q
+from matrix.core.scopes import assignes_equipage_q
 from matrix.core.icones import classe_icone
 from taches.services import peut_attribuer
 from programme.services import evenements_periode as evenements_programme
@@ -136,7 +137,9 @@ def calendar_events(request):
         "installation_maintenance__installation__ship",
         "installation_maintenance__installation__service",
         "installation_maintenance__installation__sector",
-    ).prefetch_related("assignees").filter(scheduled_for__range=(start, end))
+    ).prefetch_related("assignees").filter(
+        assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
+    )
     occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
     if filters.get("status"):
         occ_qs = occ_qs.filter(status=filters["status"])
@@ -167,6 +170,7 @@ def calendar_events(request):
         })
     # Tickets correctifs planifiés
     ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])
+    ticket_qs = ticket_qs.filter(assignes_equipage_q(request.user, CorrectiveTicket, "assignees"))
     ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
     if filters.get("status"):
         ticket_qs = ticket_qs.filter(status=filters["status"])

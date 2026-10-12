@@ -35,7 +35,8 @@ from assets.models import (
 from logistics.models import CorrectiveTicket, PartLineItem, StockPiece
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
 from matrix.core.export import rendre_csv_sections, rendre_xlsx_sections
-from matrix.core.scopes import scope_filters_for_user
+from logistics.perimetre import equipage_tickets_q
+from matrix.core.scopes import assignes_equipage_q, scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
 from training.models import TrainingRecord, dossiers_formation_visibles_q
 
@@ -177,7 +178,8 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     # naturellement en premier.
     occurrences = (
         MaintenanceOccurrence.objects.filter(
-            installation_maintenance__installation_id__in=installation_ids
+            assignes_equipage_q(utilisateur, MaintenanceOccurrence, "assignees"),
+            installation_maintenance__installation_id__in=installation_ids,
         )
         .exclude(status__in=STATUTS_OCCURRENCE_TERMINEES)
         .select_related("installation_maintenance", "installation_maintenance__installation")
@@ -212,7 +214,7 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     ]
 
     # Tickets correctifs ouverts sur le matériel mobile du périmètre.
-    filtre_tickets = _q_perimetre_tickets(filtre_scope)
+    filtre_tickets = _q_perimetre_tickets(filtre_scope) & equipage_tickets_q(utilisateur)
     tickets_ouverts = list(
         CorrectiveTicket.objects.filter(filtre_tickets)
         .exclude(status__in=STATUTS_TICKET_FERMES)
@@ -416,6 +418,7 @@ def construire_contexte_periode(
     # fenêtre, hors annulées, comparées à leur exécution réelle.
     occurrences_periode = (
         MaintenanceOccurrence.objects.filter(
+            assignes_equipage_q(utilisateur, MaintenanceOccurrence, "assignees"),
             installation_maintenance__installation_id__in=installation_ids,
             scheduled_for__range=(date_debut, date_fin),
         )
@@ -456,7 +459,7 @@ def construire_contexte_periode(
     )
 
     # Tickets correctifs sur le matériel mobile du périmètre.
-    filtre_tickets = _q_perimetre_tickets(filtre_scope)
+    filtre_tickets = _q_perimetre_tickets(filtre_scope) & equipage_tickets_q(utilisateur)
     tickets_ouverts_periode = list(
         CorrectiveTicket.objects.filter(
             filtre_tickets, reported_at__date__range=(date_debut, date_fin)
@@ -513,7 +516,9 @@ def construire_contexte_periode(
     )
 
     # Pièces consommées : PartLineItem passées en statut CONSUMED sur la fenêtre.
-    filtre_pieces = _q_perimetre_tickets(filtre_scope, "part_request__ticket__")
+    filtre_pieces = _q_perimetre_tickets(filtre_scope, "part_request__ticket__") & equipage_tickets_q(
+        utilisateur, "part_request__ticket__"
+    )
     pieces_consommees = list(
         PartLineItem.objects.filter(
             filtre_pieces, status="CONSUMED", received_at__range=(date_debut, date_fin)
