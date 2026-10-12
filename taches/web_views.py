@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -33,6 +34,8 @@ from .services import (
 
 User = get_user_model()
 
+LIMITE_TERMINEES = 10  # nombre de tâches terminées listées sur la page
+
 
 def _erreurs(request, exc):
     if isinstance(exc, PermissionError):
@@ -43,8 +46,11 @@ def _erreurs(request, exc):
                 messages.error(request, erreur)
 
 
-def _tache_visible(request, pk):
-    tache = get_object_or_404(Tache.objects.select_related("assigne", "created_by"), pk=pk)
+def _tache_visible(request, pk, verrou=False):
+    taches = Tache.objects.select_related("assigne", "created_by")
+    if verrou:  # évite qu'une action concurrente rouvre une tâche tout juste terminée
+        taches = taches.select_for_update(of=("self",))
+    tache = get_object_or_404(taches, pk=pk)
     if not peut_consulter(request.user, tache):
         raise Http404
     return tache
@@ -57,7 +63,7 @@ class TachesIndexView(LoginRequiredMixin, View):
         return render(request, "taches/index.html", {
             "mes_taches": [t for t in ouvertes if t.assigne_id == request.user.pk],
             "suivies": [t for t in ouvertes if t.assigne_id != request.user.pk],
-            "terminees": sorted((t for t in taches if not t.ouverte), key=lambda t: t.terminee_le or t.updated_at, reverse=True)[:10],
+            "terminees": sorted((t for t in taches if not t.ouverte), key=lambda t: t.terminee_le or t.updated_at, reverse=True)[:LIMITE_TERMINEES],
             "marins": marins_assignables(request.user),
             "avancement": avancement_equipe(request.user),
             "aujourdhui": timezone.localdate(),
@@ -103,8 +109,9 @@ class TacheDetailView(LoginRequiredMixin, View):
 class TacheActionView(LoginRequiredMixin, View):
     """Actions de suivi : démarrer, bloquer, rendre compte, lever le blocage, modifier, partager, ajouter un interlocuteur."""
 
+    @transaction.atomic
     def post(self, request, pk):
-        tache = _tache_visible(request, pk)
+        tache = _tache_visible(request, pk, verrou=True)
         action = request.POST.get("action")
         try:
             if action == "demarrer":
