@@ -333,6 +333,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "annonces.tasks.diffuser_annonces",
         "schedule": 60 * 60,
     },
+    "rappeler_accuses_annonces_daily": {
+        "task": "annonces.tasks.rappeler_accuses_annonces",
+        "schedule": crontab(hour=7, minute=15),
+    },
     "notify_taches_en_retard_daily": {
         "task": "notifications.tasks.notify_taches_en_retard",
         "schedule": crontab(hour=7, minute=0),  # horaire fixe : ne dérive pas au redémarrage de beat

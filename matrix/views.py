@@ -19,6 +19,7 @@ from assets.models import InstallationBigrameChoice, Installation
 from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
+from annonces.models import ParametresAnnonces
 from taches.models import ParametresTaches
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
@@ -463,6 +464,7 @@ class SettingsView(LoginRequiredMixin, View):
                 'seuils_lignes': _lignes_seuils(selected_ship.id if selected_ship else None, 'SHIP'),
                 'seuils_lignes_globales': _lignes_seuils(None, PORTEE_GLOBALE),
                 'parametres_taches': ParametresTaches.courants(),
+                'parametres_annonces': ParametresAnnonces.courants(),
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
             })
@@ -814,6 +816,28 @@ class SettingsView(LoginRequiredMixin, View):
                                 f"{parametres.relancer_chef_attributeur}, {parametres.relancer_chefs_si_blocage}, {jours_terminees})",
                     )
                     messages.success(request, "Réglages des tâches enregistrés.")
+        elif action == 'update_parametres_annonces':
+            # Délai du rappel d'accusé de réception des annonces, commun à toute la flotte.
+            next_tab = 'seuils_role'
+            if not is_master_admin(request.user):
+                messages.error(request, "Seuls les administrateurs généraux peuvent modifier les réglages des annonces de la flotte.")
+            else:
+                parametres = ParametresAnnonces.objects.first() or ParametresAnnonces()
+                try:
+                    jours = int(request.POST.get('jours_rappel_accuse', ''))
+                except ValueError:
+                    jours = -1
+                if not 0 <= jours <= 365:
+                    messages.error(request, "Indiquez un délai en jours valide (0 à 365).")
+                else:
+                    avant = parametres.jours_rappel_accuse
+                    parametres.jours_rappel_accuse = jours
+                    parametres.save()
+                    AuditLog.objects.create(
+                        actor=request.user, action='update_parametres_annonces',
+                        details=f"jours_rappel_accuse: {avant} -> {jours}",
+                    )
+                    messages.success(request, "Réglages des annonces enregistrés.")
         elif action == 'toggle_module':
             # Onglet Modules : bascule activé/désactivé d'un module applicatif
             # pour un navire. Accessible à un rôle habilité par le seuil

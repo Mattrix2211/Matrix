@@ -66,3 +66,20 @@ class LectureAnnonce(TimeStampedModel):
 
     class Meta:
         unique_together = ("annonce", "user")
+
+
+class ParametresAnnonces(TimeStampedModel):
+    """Réglages des annonces communs à toute la flotte (un seul enregistrement, modifié dans les Réglages)."""
+    jours_rappel_accuse = models.PositiveSmallIntegerField(
+        default=2, verbose_name="Jours avant le rappel d'accusé de réception (0 : pas de rappel)")
+
+    class Meta:
+        verbose_name = "Réglages des annonces"
+        verbose_name_plural = "Réglages des annonces"
+
+    def __str__(self):
+        return "Réglages des annonces"
+
+    @classmethod
+    def courants(cls):
+        return cls.objects.first() or cls()

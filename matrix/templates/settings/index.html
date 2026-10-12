@@ -575,6 +575,22 @@
       </div>
     </div>
   </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Annonces : rappel d'accusé de réception (toute la flotte)</div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_parametres_annonces" />
+          <input type="hidden" name="next_tab" value="seuils_role" />
+          <div class="col-md-4"><label class="form-label" for="id_jours_rappel_accuse">Jours avant le rappel</label>
+            <input class="form-control" type="number" min="0" max="365" id="id_jours_rappel_accuse" name="jours_rappel_accuse" value="{{ parametres_annonces.jours_rappel_accuse }}" />
+            <div class="form-text">Rappel unique aux destinataires qui n'ont pas accusé réception. 0 : aucun rappel.</div></div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
   {% endif %}
   <div class="col-12">
     <p class="text-muted">Chaque modification est historisée (auteur, date, ancienne et nouvelle valeur){% if user.is_superuser %} — consultable dans l'onglet Journal{% endif %}.</p>

@@ -1,5 +1,8 @@
 """Règles métier des annonces : ciblage par périmètre, publication, diffusion, lecture et accusé."""
+from datetime import datetime, time, timedelta
+
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
@@ -13,10 +16,11 @@ from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
 from org.models import Section, Sector, Service, Ship
 
-from .models import Annonce, LectureAnnonce, VersionAnnonce
+from .models import Annonce, LectureAnnonce, ParametresAnnonces, VersionAnnonce
 
 User = get_user_model()
 PREFIXE = "Annonce"
+PREFIXE_RAPPEL = "Rappel d'accusé"
 
 
 def _nom(user):
@@ -281,6 +285,32 @@ def diffuser_du_jour():
     for annonce in a_diffuser:
         diffuser(annonce)
     return a_diffuser.count()
+
+
+def rappeler_accuses(aujourdhui=None):
+    """Rappelle une seule fois chaque destinataire n'ayant pas accusé une annonce en cours, N jours après sa diffusion.
+
+    Le rappel mémorisé est la notification elle-même : la tâche quotidienne reste idempotente."""
+    delai = ParametresAnnonces.courants().jours_rappel_accuse
+    if not delai:
+        return 0
+    aujourdhui = aujourdhui or timezone.localdate()
+    seuil = timezone.make_aware(datetime.combine(aujourdhui - timedelta(days=delai), time.max))
+    creees = 0
+    for annonce in Annonce.objects.filter(
+        accuse_requis=True, archivee=False, date_effet__lte=aujourdhui, diffusee_le__lte=seuil,
+    ).filter(Q(date_fin__isnull=True) | Q(date_fin__gte=aujourdhui)):
+        accuses = set(annonce.lectures.filter(accuse=True, version_lue__gte=annonce.version).values_list("user_id", flat=True))
+        deja = set(Notification.objects.filter(
+            content_type=ContentType.objects.get_for_model(annonce), object_id=str(annonce.pk),
+            verb__startswith=PREFIXE_RAPPEL).values_list("user_id", flat=True))
+        a_relancer = destinataires(annonce).exclude(pk=annonce.auteur_id).exclude(pk__in=accuses | deja)
+        creees += len(creer_notifications_en_masse(
+            Notification(user=u, verb=f"{PREFIXE_RAPPEL} : {annonce.titre}", level=NotificationLevel.WARNING,
+                         target=annonce, action_requise=True)
+            for u in a_relancer
+        ))
+    return creees
 
 
 def lecture_de(user, annonce):
