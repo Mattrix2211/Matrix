@@ -60,3 +60,16 @@ class VueEquipeTests(TestCase):
         self.client.force_login(self.chef)
         self.assertContains(self.client.get(reverse("calendar-index")), 'value="equipe"')
         self.assertEqual(self.client.get(reverse("calendar-index") + "?user=equipe").status_code, 200)
+
+
+class LegendeTests(TestCase):
+    def test_legende_et_couleurs_viennent_de_la_meme_configuration(self):
+        from calendar_app.api_views import _couleur_evenement
+        from calendar_app.sources import SOURCES
+
+        marin = User.objects.create_user(username="legende", password="pass")
+        self.client.force_login(marin)
+        page = self.client.get(reverse("calendar-index")).content.decode()
+        for source in SOURCES:
+            self.assertTrue(source.libelle in page and source.fond in page)
+            self.assertEqual(_couleur_evenement(source.cle)["backgroundColor"], source.fond)

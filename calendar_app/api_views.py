@@ -15,6 +15,7 @@ from matrix.core.mixins import build_scope_q
 from matrix.core.icones import classe_icone
 from taches.services import peut_attribuer
 from programme.services import evenements_periode as evenements_programme
+from .sources import CONCEPT_ICONE_PAR_TYPE, COULEUR_PAR_TYPE
 from .evenements_sources import (
     _absences_periode,
     _appliquer_filtres_occurrences,
@@ -89,35 +90,11 @@ _COULEUR_STATUT_MAINTENANCE = {
     "CANCELLED":          {"backgroundColor": "#adb5bd", "borderColor": "#9aa0a6", "textColor": "#333"},
     "WAITING_VALIDATION": {"backgroundColor": "#0dcaf0", "borderColor": "#0aa8cc", "textColor": "#000"},
 }
-_COULEUR_PAR_TYPE = {
-    "maintenance":   {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
-    "ticket":        {"backgroundColor": "#b8500a", "borderColor": "#964008", "textColor": "#fff"},
-    "training":      {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
-    "personal":      {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
-    # Teintes assombries par rapport à un simple "teal"/"pink" Bootstrap : un
-    # texte blanc sur #20c997/#d63384 ne respecte pas le contraste WCAG AA
-    # (ratio < 4.5:1) — #0b7285/#a61e4d passent largement (ratio > 5:1).
-    "quart":         {"backgroundColor": "#0b7285", "borderColor": "#095c6b", "textColor": "#fff"},
-    "service_garde": {"backgroundColor": "#a61e4d", "borderColor": "#84173d", "textColor": "#fff"},
-    "tache":         {"backgroundColor": "#2b6a3f", "borderColor": "#1f4f2e", "textColor": "#fff"},
-    "ronde":         {"backgroundColor": "#5f3dc4", "borderColor": "#4c2fa0", "textColor": "#fff"},
-    "absence":       {"backgroundColor": "#7c4a03", "borderColor": "#5c3702", "textColor": "#fff"},
-}
+_COULEUR_PAR_TYPE = COULEUR_PAR_TYPE
 
 # Concept d'icône (table centrale matrix/core/icones.py) par type d'événement :
 # le gabarit du calendrier affiche l'icône devant le titre (aucun emoji).
-_CONCEPT_ICONE_PAR_TYPE = {
-    "maintenance": "maintenance",
-    "ticket": "ticket",
-    "training": "formation",
-    "quart": "quart",
-    "service_garde": "garde",
-    "ronde": "ronde",
-    "tache": "tache",
-    "personal": "personnel",
-    "absence": "absence",
-    "programme": "calendrier",
-}
+_CONCEPT_ICONE_PAR_TYPE = CONCEPT_ICONE_PAR_TYPE
 
 
 def _couleur_evenement(ev_type, status=None):

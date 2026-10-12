@@ -27,16 +27,10 @@
 
   {# Légende #}
   <div class="d-flex flex-wrap gap-3 mb-2 small">
-    <span class="badge" style="background:#0d6efd">{% icone "maintenance" %} Maintenance</span>
+    {% for source in sources %}<span class="badge" style="background:{{ source.fond }};color:{{ source.texte }}">{% icone source.icone %} {{ source.libelle }}</span>
+    {% endfor %}
     <span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span>
     <span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span>
-    <span class="badge" style="background:#b8500a">{% icone "ticket" %} Ticket</span>
-    <span class="badge" style="background:#198754">{% icone "formation" %} Formation</span>
-    <span class="badge" style="background:#0b7285">{% icone "quart" %} Quart</span>
-    <span class="badge" style="background:#a61e4d">{% icone "garde" %} Garde</span>
-    <span class="badge" style="background:#5f3dc4">{% icone "ronde" %} Ronde</span>
-    <span class="badge" style="background:#2b6a3f">{% icone "tache" %} Tâche</span>
-    <span class="badge" style="background:#6f42c1">{% icone "personnel" %} Personnel</span>
   </div>
 
   <div id="cal-erreur" class="alert alert-danger d-none">Impossible de charger les événements.</div>
@@ -97,6 +91,7 @@
           <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>Ronde</option>
           <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>Garde</option>
           <option value="tache" {% if active_filters.type == 'tache' %}selected{% endif %}>Tâche</option>
+          <option value="absence" {% if active_filters.type == 'absence' %}selected{% endif %}>Absence</option>
           <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>Personnel</option>
           <option value="programme" {% if active_filters.type == 'programme' %}selected{% endif %}>Programme du bâtiment</option>
         </select>
