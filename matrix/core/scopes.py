@@ -195,7 +195,9 @@ def assignes_equipage_q(user, modele, champ: str) -> Q:
     if equipage is None:
         return Q()
     des_notres = modele.objects.filter(**{f"{champ}__profile__equipage__in": [equipage, ""]}).values("pk")
-    return Q(**{f"{champ}__isnull": True}) | Q(pk__in=des_notres)
+    assignes = modele.objects.filter(**{f"{champ}__isnull": False}).values("pk")
+    # Sous-requêtes seulement : une jointure sur le ManyToMany dupliquerait les objets multi-assignés.
+    return ~Q(pk__in=assignes) | Q(pk__in=des_notres)
 
 
 def marins_hors_equipage(user, marins):

@@ -119,12 +119,12 @@ def _rondes(request, ids):
 def _occurrences(request, ids):
     # Même contrôle que la page de compte rendu : périmètre, puis assigné ou niveau suffisant
     from maintenance.models import MaintenanceOccurrence
-    from matrix.core.mixins import build_scope_q
+    from maintenance.perimetre import perimetre_occurrences_q
     from matrix.core.role_thresholds import niveau_requis_pour
     from matrix.core.roles import user_role_level
 
     occurrences = MaintenanceOccurrence.objects.filter(
-        build_scope_q(request.user, "asset__", "installation_maintenance__installation__"),
+        perimetre_occurrences_q(request.user),
         pk__in=_entiers(ids.values()),
     )
     if user_role_level(request.user) < niveau_requis_pour(request.user, "maintenance_occurrence_gestion_tiers"):
@@ -153,10 +153,10 @@ def _anomalies(request, ids):
 
 def _tickets(request, ids):
     from logistics.models import CorrectiveTicket
-    from matrix.core.mixins import build_scope_q
+    from logistics.perimetre import perimetre_tickets_q
 
     tickets = CorrectiveTicket.objects.filter(
-        build_scope_q(request.user, "asset__", "installation__"), pk__in=_uuids(ids.values()))
+        perimetre_tickets_q(request.user), pk__in=_uuids(ids.values()))
     return _visibles(ids, tickets, lambda o: reverse("ticket-detail", args=[o]))
 
 

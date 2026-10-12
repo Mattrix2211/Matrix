@@ -4,11 +4,12 @@ from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import Thread, Message, Attachment
 from .serializers import ThreadSerializer, MessageSerializer, AttachmentSerializer
-from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin
 from matrix.core.permissions import IsAuthorOrReadOnly, RolePermission
 from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from accounts.models import AuditLog
 from logistics.perimetre import perimetre_tickets_q
+from maintenance.perimetre import perimetre_occurrences_q
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -52,9 +53,7 @@ def _filtre_perimetre_threads(user, prefix=""):
     from maintenance.models import MaintenanceOccurrence
 
     ids_tickets = CorrectiveTicket.objects.filter(perimetre_tickets_q(user)).values_list("pk", flat=True)
-    ids_occurrences = MaintenanceOccurrence.objects.filter(
-        build_scope_q(user, "asset__", "installation_maintenance__installation__")
-    ).values_list("pk", flat=True)
+    ids_occurrences = MaintenanceOccurrence.objects.filter(perimetre_occurrences_q(user)).values_list("pk", flat=True)
     ct_ticket = ContentType.objects.get_for_model(CorrectiveTicket)
     ct_occurrence = ContentType.objects.get_for_model(MaintenanceOccurrence)
     return (

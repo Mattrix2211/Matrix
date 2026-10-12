@@ -3,14 +3,20 @@ un bâtiment à équipage unique garde son comportement."""
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from assets.models import Asset, AssetType
 from logistics.models import CorrectiveTicket
-from maintenance.models import MaintenanceOccurrence, MaintenancePlan
+from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
+from maintenance.tournee import charger
 from org.models import Sector, Service, Ship
+from logistics.perimetre import perimetre_tickets_q
 from quarts.tests.test_double_equipage import DoubleEquipageBase, marin
+from matrix.core import recherche
 from rondes.models import Ronde
+from threads.models import Message
+from threads.utils import ajouter_commentaire
 from rondes.services import rondes_visibles
 
 User = get_user_model()
@@ -70,6 +76,44 @@ class EtancheiteParEquipageTests(DoubleEquipageBase):
 
     def test_equipage_a_terre_garde_la_lecture_de_son_equipage(self):
         self.assertIn(str(self.t_rouge.pk), _ids(self._api(self.a_rouge, "/api/logistics/tickets/")))
+
+    def test_objet_multi_assigne_visible_une_seule_fois(self):
+        self.t_bleu.assignees.add(self.a_rouge, self.b_bleu)
+        self.o_bleu.assignees.add(self.a_rouge, self.b_bleu)
+        ids = _ids(self._api(self.a_rouge, "/api/logistics/tickets/"))
+        self.assertIn(str(self.t_bleu.pk), ids)
+        qs = CorrectiveTicket.objects.filter(perimetre_tickets_q(self.a_rouge))
+        self.assertEqual(qs.filter(pk=self.t_bleu.pk).count(), 1)
+        self.assertEqual(qs.count(), len(set(qs.values_list("pk", flat=True))))
+        self.client.force_login(self.a_rouge)
+        reponse = self.client.post(reverse("occurrence-comment-create", args=[self.o_bleu.pk]), {"body": "ok"})
+        self.assertNotEqual(reponse.status_code, 500)
+        occurrences = _ids(self._api(self.a_rouge, "/api/maintenance/occurrences/"))
+        self.assertEqual(occurrences, {str(self.o_bleu.pk), str(self.o_rouge.pk), str(self.o_libre.pk)})
+
+    def test_assigne_sans_equipage_reste_visible(self):
+        neutre = marin("neutre", "EQUIPIER", self.ship, "", self.secteur_bleu)
+        self.t_libre.assignees.add(neutre)
+        self.assertIn(str(self.t_libre.pk), _ids(self._api(self.a_bleu, "/api/logistics/tickets/")))
+        self.assertIn(str(self.t_libre.pk), _ids(self._api(self.a_rouge, "/api/logistics/tickets/")))
+
+    def test_discussions_recherche_executions_et_tournee(self):
+        ajouter_commentaire(self.o_rouge, self.a_rouge, "secret rouge")
+        ajouter_commentaire(self.o_bleu, self.a_bleu, "propre bleu")
+        donnees = self._api(self.a_bleu, "/api/threads/messages/").json()
+        corps = {m["body"] for m in (donnees["results"] if isinstance(donnees, dict) else donnees)}
+        self.assertEqual(corps, {"propre bleu"})
+        self.assertEqual(Message.objects.count(), 2)
+        self.t_rouge.description = "pompe fuyarde rouge"
+        self.t_rouge.save()
+        self.assertFalse(recherche.tickets(self.a_bleu, "fuyarde").exists())
+        self.assertTrue(recherche.tickets(self.a_rouge, "fuyarde").exists())
+        e_bleu = MaintenanceExecution.objects.create(occurrence=self.o_bleu)
+        e_rouge = MaintenanceExecution.objects.create(occurrence=self.o_rouge)
+        self.assertEqual(_ids(self._api(self.a_bleu, "/api/maintenance/executions/")), {str(e_bleu.pk)})
+        self.assertNotIn(str(e_rouge.pk), _ids(self._api(self.a_bleu, "/api/maintenance/executions/")))
+        ids = [self.o_bleu.pk, self.o_rouge.pk, self.o_libre.pk]
+        self.assertEqual({o.pk for o in charger(self.a_bleu, ids)}, {self.o_bleu.pk, self.o_libre.pk})
 
     def test_equipage_unique_inchange(self):
         navire = Ship.objects.create(name="Unique", code="UQ")
