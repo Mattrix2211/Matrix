@@ -12,6 +12,9 @@ from training.models import TrainingCourse, TrainingSession
 
 
 class PerimetreCreneauxTests(TestCase):
+    """Les créneaux d'une liste publiée sont visibles par qui peut lire cette
+    liste (règle de /quarts/) ; une liste hors périmètre n'apparaît jamais."""
+
     def setUp(self):
         self.navire = Ship.objects.create(name="Créneaux", code="CR")
         service = Service.objects.create(ship=self.navire, name="Énergie")
@@ -19,18 +22,24 @@ class PerimetreCreneauxTests(TestCase):
         autre = Sector.objects.create(service=service, name="Électricité")
         self.chef = self._marin("chef", self.secteur, "CHEF_SECTION")
         self.marin = self._marin("marin", self.secteur, "EQUIPIER")
+        self.collegue = self._marin("collegue", self.secteur, "EQUIPIER")
         self.voisin = self._marin("voisin", autre, "EQUIPIER")
         self.jour = timezone.localdate()
-        debut = timezone.make_aware(timezone.datetime.combine(self.jour, timezone.datetime.min.time().replace(hour=8)))
-        quart = Quart.objects.create(sector=self.secteur, date_debut=self.jour, date_fin=self.jour, statut=Quart.STATUT_PUBLIEE)
-        garde = ServiceGarde.objects.create(
-            sector=self.secteur, date_debut=self.jour, date_fin=self.jour, statut=ServiceGarde.STATUT_PUBLIEE)
+        self.debut = timezone.make_aware(timezone.datetime.combine(self.jour, timezone.datetime.min.time().replace(hour=8)))
         self.quarts, self.gardes = {}, {}
-        for marin in (self.marin, self.voisin):
+        # Listes du secteur Propulsion (lisibles par marin et chef), puis d'Électricité (hors périmètre).
+        self._listes(self.secteur, (self.marin, self.collegue))
+        self._listes(autre, (self.voisin,))
+
+    def _listes(self, secteur, marins):
+        quart = Quart.objects.create(sector=secteur, date_debut=self.jour, date_fin=self.jour, statut=Quart.STATUT_PUBLIEE)
+        garde = ServiceGarde.objects.create(
+            sector=secteur, date_debut=self.jour, date_fin=self.jour, statut=ServiceGarde.STATUT_PUBLIEE)
+        for marin in marins:
             self.quarts[marin.username] = CreneauQuart.objects.create(
-                quart=quart, poste="Barre", debut=debut, fin=debut + timedelta(hours=4), marin=marin)
+                quart=quart, poste="Barre", debut=self.debut, fin=self.debut + timedelta(hours=4), marin=marin)
             self.gardes[marin.username] = CreneauServiceGarde.objects.create(
-                service_garde=garde, poste="Garde", debut=debut, fin=debut + timedelta(hours=4), marin=marin)
+                service_garde=garde, poste="Garde", debut=self.debut, fin=self.debut + timedelta(hours=4), marin=marin)
 
     def _marin(self, nom, secteur, role, equipage=""):
         user = User.objects.create_user(username=nom, password="pass")
@@ -54,23 +63,29 @@ class PerimetreCreneauxTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         return {e["id"]: e for e in reponse.json()}
 
-    def test_marin_ne_voit_que_ses_creneaux(self):
+    def _ids(self, *marins):
+        return ({f"qrt-{self.quarts[m.username].pk}" for m in marins}
+                | {f"svc-{self.gardes[m.username].pk}" for m in marins})
+
+    def test_marin_voit_les_creneaux_de_la_liste_qu_il_peut_lire(self):
+        # Changement : un collègue de la même liste publiée est désormais visible (règle de lecture de /quarts/).
+        ids = self._evenements(self.marin).keys()
+        self.assertTrue(self._ids(self.marin, self.collegue) <= ids)
+
+    def test_marin_ne_voit_rien_hors_perimetre(self):
         for extra in ({}, {"user": self.voisin.pk}):
             ids = self._evenements(self.marin, **extra).keys()
-            self.assertNotIn(f"qrt-{self.quarts['voisin'].pk}", ids)
-            self.assertNotIn(f"svc-{self.gardes['voisin'].pk}", ids)
-        ids = self._evenements(self.marin).keys()
-        self.assertIn(f"qrt-{self.quarts['marin'].pk}", ids)
-        self.assertIn(f"svc-{self.gardes['marin'].pk}", ids)
+            self.assertFalse(self._ids(self.voisin) & ids)
 
-    def test_chef_voit_son_equipe_mais_pas_hors_perimetre(self):
+    def test_filtre_user_s_ajoute_a_la_regle_de_lecture(self):
+        ids = self._evenements(self.marin, user=self.collegue.pk).keys()
+        self.assertTrue(self._ids(self.collegue) <= ids)
+        self.assertFalse(self._ids(self.marin, self.voisin) & ids)
+
+    def test_chef_voit_son_secteur_mais_pas_hors_perimetre(self):
         for extra in ({}, {"user": self.voisin.pk}):
-            ids = self._evenements(self.chef, **extra).keys()
-            self.assertNotIn(f"qrt-{self.quarts['voisin'].pk}", ids)
-            self.assertNotIn(f"svc-{self.gardes['voisin'].pk}", ids)
-        ids = self._evenements(self.chef).keys()
-        self.assertIn(f"qrt-{self.quarts['marin'].pk}", ids)
-        self.assertIn(f"svc-{self.gardes['marin'].pk}", ids)
+            self.assertFalse(self._ids(self.voisin) & self._evenements(self.chef, **extra).keys())
+        self.assertTrue(self._ids(self.marin, self.collegue) <= self._evenements(self.chef).keys())
 
     def test_page_calendrier_filtre_aussi(self):
         self.client.force_login(self.marin)
@@ -80,24 +95,28 @@ class PerimetreCreneauxTests(TestCase):
         self.assertNotIn("quart", types)
         self.assertNotIn("service_garde", types)
 
+    def test_liste_en_brouillon_invisible(self):
+        Quart.objects.filter(sector=self.secteur).update(statut=Quart.STATUT_BROUILLON)
+        ids = self._evenements(self.marin).keys()
+        self.assertFalse({f"qrt-{self.quarts[n].pk}" for n in ("marin", "collegue")} & ids)
+
     def test_master_admin_voit_les_creneaux_de_la_flotte(self):
         admin = self._amiral()
         ids = self._evenements(admin).keys()
-        self.assertIn(f"qrt-{self.quarts['voisin'].pk}", ids)
-        self.assertIn(f"svc-{self.gardes['voisin'].pk}", ids)
+        self.assertTrue(self._ids(self.marin, self.collegue, self.voisin) <= ids)
 
     def test_double_equipage_isole_les_equipages(self):
         self.navire.double_equipage, self.navire.equipage_a_bord = True, "ROUGE"
         self.navire.save()
-        for nom, equipage in (("chef", "ROUGE"), ("marin", "ROUGE"), ("voisin", "BLEU")):
+        for nom, equipage in (("chef", "ROUGE"), ("marin", "ROUGE"), ("collegue", "BLEU")):
             p = User.objects.get(username=nom).profile
-            p.equipage, p.sector = equipage, self.secteur
+            p.equipage = equipage
             p.save()
-        # Voisin dans le même secteur que le chef : seul l'équipage l'écarte.
+        # Collègue dans la même liste que le chef : seul l'équipage l'écarte.
         ids = self._evenements(self.chef).keys()
         self.assertIn(f"qrt-{self.quarts['marin'].pk}", ids)
-        self.assertNotIn(f"qrt-{self.quarts['voisin'].pk}", ids)
-        self.assertNotIn(f"svc-{self.gardes['voisin'].pk}", ids)
+        self.assertNotIn(f"qrt-{self.quarts['collegue'].pk}", ids)
+        self.assertNotIn(f"svc-{self.gardes['collegue'].pk}", ids)
 
 
 class SessionsDeplacablesTests(TestCase):

@@ -10,6 +10,7 @@ from django.db.models import Q
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from quarts.web_views import listes_publiees_lisibles
 from quarts.services import feuille_service_du_jour_pour
 from rondes.services import rondes_ouvertes_du_marin
 from absences.models import Absence
@@ -80,8 +81,9 @@ def _creneaux_quart_assignes(start, end, user=None, pour=None):
     if user is not None:
         qs = qs.filter(marin=user)
     if pour is not None:
-        # Jamais au-delà de soi-même et de son équipe (et de son équipage à double équipage).
-        qs = qs.filter(marin__in=marins_visibles(pour)).filter(equipage_marin_q(pour, "marin__profile__"))
+        # Listes lisibles comme dans /quarts/, plus ses propres créneaux ; borné à l'équipage.
+        qs = qs.filter(Q(quart__in=listes_publiees_lisibles(Quart, pour)) | Q(marin=pour)).filter(
+            equipage_marin_q(pour, "marin__profile__"))
     return qs
 
 
@@ -97,8 +99,9 @@ def _creneaux_garde_assignes(start, end, user=None, pour=None):
     if user is not None:
         qs = qs.filter(marin=user)
     if pour is not None:
-        # Jamais au-delà de soi-même et de son équipe (et de son équipage à double équipage).
-        qs = qs.filter(marin__in=marins_visibles(pour)).filter(equipage_marin_q(pour, "marin__profile__"))
+        # Listes lisibles comme dans /quarts/, plus ses propres créneaux ; borné à l'équipage.
+        qs = qs.filter(Q(service_garde__in=listes_publiees_lisibles(ServiceGarde, pour)) | Q(marin=pour)).filter(
+            equipage_marin_q(pour, "marin__profile__"))
     return qs
 
 
