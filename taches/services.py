@@ -164,7 +164,13 @@ def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO, action=
         Notification.objects.create(user=user, verb=verb, level=niveau, target=tache, action_requise=action)
 
 
-def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True):
+def taches_liees_a(user, annonce):
+    """Tâches issues d'une annonce que `user` assigne ou a créées (jamais celles des autres)."""
+    return taches_visibles(user).filter(annonce=annonce).filter(
+        Q(assigne=user) | Q(created_by=user)).select_related("assigne")
+
+
+def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True, annonce=None):
     """Un chef attribue une tâche ; un marin peut aussi se créer la sienne (privée sauf partage de sa part)."""
     personnelle = chef.pk == assigne.pk
     if not personnelle and not est_chef_de(chef, assigne):
@@ -172,10 +178,11 @@ def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Ta
     tache = Tache(
         titre=titre.strip(), description=description.strip(), echeance=echeance, priorite=priorite,
         partagee=partagee if personnelle else True, assigne=assigne, created_by=chef, updated_by=chef,
+        annonce=annonce,
     )
     tache.full_clean(exclude=["assigne"])
     tache.save()
-    _tracer(tache, chef, "creation")
+    _tracer(tache, chef, "creation", f"; annonce={annonce.pk}" if annonce else "")
     if not personnelle:
         delai = f" (échéance {echeance:%d/%m/%Y})" if echeance else ""
         _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} »{delai}.", action=True)

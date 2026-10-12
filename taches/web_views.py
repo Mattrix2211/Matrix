@@ -10,6 +10,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views import View
 
+from annonces.models import Annonce
+from annonces.services import peut_consulter as annonce_consultable
 from threads.utils import commentaires_de
 
 from .models import Tache
@@ -56,8 +58,17 @@ def _tache_visible(request, pk, verrou=False):
     return tache
 
 
+def _annonce_source(request, pk):
+    """Annonce d'origine d'une tâche : consultable par l'utilisateur, qui doit pouvoir attribuer."""
+    annonce = Annonce.objects.filter(pk=pk).first() if str(pk).isdigit() else None
+    if annonce is None or not annonce_consultable(request.user, annonce) or not marins_assignables(request.user).exists():
+        return None
+    return annonce
+
+
 class TachesIndexView(LoginRequiredMixin, View):
     def get(self, request):
+        source = _annonce_source(request, request.GET.get("annonce", ""))
         taches = list(taches_visibles(request.user).select_related("assigne"))
         ouvertes = [t for t in taches if t.ouverte]
         return render(request, "taches/index.html", {
@@ -67,6 +78,7 @@ class TachesIndexView(LoginRequiredMixin, View):
             "marins": marins_assignables(request.user),
             "avancement": avancement_equipe(request.user),
             "aujourdhui": timezone.localdate(),
+            "annonce_source": source,
         })
 
     def post(self, request):
@@ -77,10 +89,17 @@ class TachesIndexView(LoginRequiredMixin, View):
         if assigne is None or (saisie and echeance is None) or not request.POST.get("titre", "").strip():
             messages.error(request, "Le titre et le marin sont obligatoires, l'échéance doit être une date valide.")
             return redirect("taches-index")
+        source = None
+        if request.POST.get("annonce"):
+            source = _annonce_source(request, request.POST["annonce"])
+            if source is None:
+                messages.error(request, "Annonce d'origine introuvable ou non accessible.")
+                return redirect("taches-index")
         try:
             tache = creer_tache(
                 request.user, assigne, request.POST["titre"], echeance, request.POST.get("description", ""),
                 priorite=request.POST.get("priorite", Tache.PRIORITE_NORMALE), partagee=request.POST.get("partagee") == "on",
+                annonce=source,
             )
         except (PermissionError, ValidationError) as exc:
             _erreurs(request, exc)
@@ -95,6 +114,7 @@ class TacheDetailView(LoginRequiredMixin, View):
         gerer = peut_gerer(request.user, tache)
         return render(request, "taches/detail.html", {
             "tache": tache,
+            "annonce_source": tache.annonce if tache.annonce_id and annonce_consultable(request.user, tache.annonce) else None,
             "commentaires": commentaires_de(tache),
             "participants": tache.participants.all(),
             "est_assigne": request.user.pk == tache.assigne_id,

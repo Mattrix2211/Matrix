@@ -3,6 +3,13 @@
 <h1 class="h3 mb-1">{% include "annonces/_niveau.html" with a=annonce %} {{ annonce.titre }}</h1>
 <p class="text-muted small">Publiée par {{ annonce.auteur.get_full_name|default:annonce.auteur.username }} · pour {{ annonce.cible_libelle }} · à partir du {{ annonce.date_effet|date:"d/m/Y" }}{% if annonce.date_fin %} jusqu'au {{ annonce.date_fin|date:"d/m/Y" }}{% endif %} · version {{ annonce.version }}{% if annonce.archivee %} · <strong>archivée</strong>{% endif %}</p>
 <div class="card card-body mb-3">{{ annonce.corps|linebreaksbr }}</div>
+{% if peut_creer_tache and not equipage_a_terre %}<p><a class="btn btn-outline-primary btn-sm" href="{% url 'taches-index' %}?annonce={{ annonce.pk }}">Créer une tâche à partir de cette annonce</a></p>{% endif %}
+{% if taches_liees %}
+<div class="card card-body mb-3">
+  <h2 class="h6">Tâches liées</h2>
+  <ul class="list-unstyled small mb-0">{% for t in taches_liees %}<li><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a> — {{ t.assigne.get_full_name|default:t.assigne.username }} · {{ t.get_statut_display }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
 {% if peut_accuser %}
   {% if accuse_fait %}<p class="text-success">Prise de connaissance enregistrée.</p>
   {% else %}<form method="post" action="{% url 'annonce-action' annonce.pk %}" class="mb-4">{% csrf_token %}<input type="hidden" name="action" value="accuser"><button class="btn btn-success" type="submit">J'ai pris connaissance</button></form>{% endif %}

@@ -9,6 +9,7 @@
   {% if tache.personnelle %}<span class="badge text-bg-light border">Personnelle · {% if tache.partagee %}visible de vos chefs{% else %}privée{% endif %}</span>{% endif %}
   · Assignée à <strong>{{ tache.assigne.get_full_name|default:tache.assigne.username }}</strong>
   · {% if tache.echeance %}Échéance le {{ tache.echeance|date:"d/m/Y" }}{% else %}Sans échéance{% endif %}</p>
+{% if annonce_source %}<p class="small text-muted">Issue de l'annonce : <a href="{% url 'annonce-detail' annonce_source.pk %}">{{ annonce_source.titre }}</a></p>{% endif %}
 {% if tache.description %}<p>{{ tache.description|linebreaksbr }}</p>{% endif %}
 {% documents_associes_a tache %}
 {% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=tache:{{ tache.pk }}">Proposer un RETEX</a></p>{% endif %}

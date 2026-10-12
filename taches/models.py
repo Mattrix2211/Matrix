@@ -52,6 +52,10 @@ class Tache(TimeStampedModel, OwnedModel):
     demande = models.ForeignKey(
         "demandes.Demande", null=True, blank=True, on_delete=models.SET_NULL, related_name="actions",
     )
+    # Annonce dont la tâche est issue.
+    annonce = models.ForeignKey(
+        "annonces.Annonce", null=True, blank=True, on_delete=models.SET_NULL, related_name="taches_liees",
+    )
 
     class Meta:
         ordering = (models.F("echeance").asc(nulls_last=True), "pk")

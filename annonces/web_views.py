@@ -9,6 +9,7 @@ from django.utils.dateparse import parse_date
 from django.views import View
 
 from notifications.models import NotificationLevel
+from taches.services import marins_assignables, taches_liees_a
 
 from .models import Annonce
 from .services import (
@@ -120,6 +121,8 @@ class AnnonceDetailView(LoginRequiredMixin, View):
             "compte": {etat: sum(1 for l in suivi if l["etat"] == etat) for etat in ("Accusé", "Lu")},
             "compte_non_lus": sum(1 for l in suivi if l["etat"] == "Non lu"),
             "niveaux": NotificationLevel.choices,
+            "taches_liees": taches_liees_a(request.user, annonce),
+            "peut_creer_tache": marins_assignables(request.user).exists(),
         })
 
 
