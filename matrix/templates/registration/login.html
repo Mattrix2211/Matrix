@@ -34,12 +34,12 @@
         <form method="post" action="{% url 'login' %}">
           {% csrf_token %}
           <div class="mb-3">
-            <label class="form-label">Utilisateur</label>
-            {{ form.username }}
+            <label class="form-label" for="id_username">Utilisateur</label>
+            <input type="text" name="username" id="id_username" class="form-control" autocomplete="username" autocapitalize="none" autofocus required value="{{ form.username.value|default:'' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Mot de passe</label>
-            {{ form.password }}
+            <label class="form-label" for="id_password">Mot de passe</label>
+            <input type="password" name="password" id="id_password" class="form-control" autocomplete="current-password" required>
           </div>
           <input type="hidden" name="next" value="{{ next }}">
           <button class="btn btn-primary w-100" type="submit">Se connecter</button>
