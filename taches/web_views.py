@@ -60,7 +60,7 @@ def _tache_visible(request, pk, verrou=False):
 
 def _annonce_source(request, pk):
     """Annonce d'origine d'une tâche : consultable par l'utilisateur, qui doit pouvoir attribuer."""
-    annonce = Annonce.objects.filter(pk=pk).first() if str(pk).isdigit() else None
+    annonce = Annonce.objects.filter(pk=pk).first() if str(pk).isascii() and str(pk).isdigit() else None
     if annonce is None or not annonce_consultable(request.user, annonce) or not marins_assignables(request.user).exists():
         return None
     return annonce

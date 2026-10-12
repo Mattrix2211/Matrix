@@ -31,6 +31,12 @@ class AnnonceTacheTests(AnnoncesBase):
         detail = self.client.get(reverse("annonce-detail", args=[self.annonce.pk]))
         self.assertContains(detail, "Créer une tâche à partir de cette annonce")
 
+    def test_identifiant_annonce_non_ascii_ignore_sans_erreur(self):
+        self.client.force_login(self.chef_energie)
+        r = self.client.get(reverse("taches-index"), {"annonce": "\u00b2"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.context["annonce_source"])
+
     def test_bouton_et_prerempli_absents_sans_droit_d_attribution(self):
         self.client.force_login(self.marin)
         self.assertNotContains(self.client.get(reverse("annonce-detail", args=[self.annonce.pk])), "Créer une tâche")
