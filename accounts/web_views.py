@@ -331,10 +331,16 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     AuditLog.objects.create(actor=request.user, action="bulk_update_specialite", target_user=user, details=f"specialite={specialite}")
                 messages.success(request, f"Spécialité mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_delete_users":
+                # L'appelant ne peut jamais se supprimer lui-même.
+                if users.filter(pk=request.user.pk).exists():
+                    users = users.exclude(pk=request.user.pk)
+                    count = users.count()
+                    messages.error(request, "Vous ne pouvez pas supprimer votre propre compte : il a été ignoré.")
                 for user in users:
                     AuditLog.objects.create(actor=request.user, action="bulk_delete_user", target_user=user, details=f"username={user.username}")
                 users.delete()
-                messages.success(request, f"{count} utilisateur(s) supprimé(s).")
+                if count:
+                    messages.success(request, f"{count} utilisateur(s) supprimé(s).")
             elif action == "bulk_reset_passwords":
                 if not peut_reinitialiser(request.user):
                     raise PermissionDenied
@@ -428,6 +434,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         elif action == "delete_user":
             pk = request.POST.get("pk")
             User = get_user_model()
+            if str(request.user.pk) == str(pk):
+                messages.error(request, "Vous ne pouvez pas supprimer votre propre compte.")
+                return redirect("user-directory")
             # Résolution de la cible bornée au périmètre navire de l'appelant
             # (cf. _utilisateurs_gerables_par) : un id hors périmètre lève
             # User.DoesNotExist, exactement comme si le compte n'existait pas.

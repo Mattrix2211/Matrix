@@ -136,6 +136,46 @@ class AnnuaireEtEditionTests(MatriceDroitsBase):
         self.assertTrue(AuditLog.objects.filter(action="changement_role", target_user=cible, details="role=CHEF_SECTION -> CHEF_SECTEUR").exists())
 
 
+class SuppressionDeSoiTests(MatriceDroitsBase):
+    def test_suppression_de_soi_refusee(self):
+        self.connecter("commandant")
+        moi = self.acteurs["commandant"]
+        reponse = self.client.post(reverse("user-directory"), {"action": "delete_user", "pk": moi.pk}, follow=True)
+        self.assertTrue(User.objects.filter(pk=moi.pk).exists())
+        self.assertFalse(AuditLog.objects.filter(action="delete_user", target_user=moi).exists())
+        self.assertContains(reponse, "ne pouvez pas supprimer votre propre compte")
+
+    def test_suppression_groupee_ignore_l_appelant(self):
+        self.connecter("commandant")
+        moi, autre = self.acteurs["commandant"], self.acteurs["equipier"]
+        reponse = self.client.post(
+            reverse("user-directory"), {"action": "bulk_delete_users", "selected_ids": [moi.pk, autre.pk]}, follow=True,
+        )
+        self.assertTrue(User.objects.filter(pk=moi.pk).exists())
+        self.assertFalse(User.objects.filter(pk=autre.pk).exists())
+        self.assertContains(reponse, "ne pouvez pas supprimer votre propre compte")
+
+    def test_menu_supprimer_absent_sur_sa_propre_ligne(self):
+        self.connecter("commandant")
+        html = self.client.get(reverse("user-directory")).content.decode()
+        self.assertNotIn(f'data-action="delete_user" data-pk="{self.acteurs["commandant"].pk}"', html)
+        self.assertIn(f'data-action="delete_user" data-pk="{self.acteurs["equipier"].pk}"', html)
+
+
+class AnnuaireDoubleEquipageTests(MatriceDroitsBase):
+    def test_admin_du_navire_voit_les_deux_equipages_mais_pas_un_autre_navire(self):
+        self.a.double_equipage = True
+        self.a.save()
+        for cle, equipage in (("equipier", "A"), ("chef", "B")):
+            profil = self.acteurs[cle].profile
+            profil.equipage = equipage
+            profil.save()
+        self.connecter("admin_a")
+        noms = {u.username for u in self.client.get(reverse("user-directory")).context["users"]}
+        self.assertTrue({"equipier_mx", "chef_mx"} <= noms)
+        self.assertNotIn("equipier_b_mx", noms)
+
+
 class ReinitialisationMatriceTests(MatriceDroitsBase):
     def reinitialiser(self, acteur, cible):
         self.connecter(acteur)

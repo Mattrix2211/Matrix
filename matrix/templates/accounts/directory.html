@@ -100,7 +100,9 @@
             {% if peut_reinitialiser and u.id != request.user.id %}
             <li><button type="button" class="dropdown-item mx-menu__item" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-pk="{{ u.id }}" data-username="{{ u.username }}">{% icone "mot_de_passe" %}<span>Réinitialiser le mot de passe</span></button></li>
             {% endif %}
+            {% if u.id != request.user.id %}
             <li><button type="button" class="dropdown-item mx-menu__item mx-menu__item--danger" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_user" data-pk="{{ u.id }}" data-label="Supprimer l'utilisateur {{ u.username }}">{% icone "suppression" %}<span>Supprimer</span></button></li>
+            {% endif %}
           {% fin_menu_contextuel %}
           {% endif %}
         </td>
