@@ -20,7 +20,7 @@
     {% if user.is_authenticated %}
       {% if batiments_selectionnables %}
         <div class="dropdown mx-barre__contexte">
-          <button class="mx-barre__bouton mx-barre__batiment" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Bâtiment consulté : {% if batiment_courant %}{{ batiment_courant.name }}{% else %}aucun{% endif %}. Changer de bâtiment" title="Changer de bâtiment">
+          <button class="mx-barre__bouton mx-barre__batiment" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Bâtiment consulté : {% if batiment_courant %}{{ batiment_courant.name }}{% else %}aucun{% endif %}. Changer de bâtiment" title="{% if batiment_courant %}{{ batiment_courant.name }} — {% endif %}Changer de bâtiment">
             {% icone "navire" %}
             <span class="mx-barre__texte-coupe">{% if batiment_courant %}{{ batiment_courant.name }}{% else %}Choisir un bâtiment{% endif %}</span>
             {% icone "deplier_liste" %}
@@ -37,7 +37,7 @@
           </form>
         </div>
       {% elif batiment_courant %}
-        <span class="mx-barre__contexte mx-barre__batiment" title="Bâtiment de rattachement">
+        <span class="mx-barre__contexte mx-barre__batiment" title="Bâtiment de rattachement : {{ batiment_courant.name }}">
           {% icone "navire" %}
           <span class="mx-barre__texte-coupe">{{ batiment_courant.name }}</span>
         </span>
