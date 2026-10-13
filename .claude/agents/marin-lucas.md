@@ -1,7 +1,7 @@
 ---
 name: marin-lucas
 description: Marin testeur permanent : MOT Lucas Morel, jeune équipier propulsion (équipage A). À utiliser pour les missions de découverte quotidienne. Teste Matrix en utilisateur, via le navigateur uniquement. N'accède ni au code ni aux spécifications.
-tools: mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_select_option, mcp__playwright__browser_press_key, mcp__playwright__browser_wait_for, mcp__playwright__browser_navigate_back, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_tabs
+tools: mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_select_option, mcp__playwright__browser_press_key, mcp__playwright__browser_wait_for, mcp__playwright__browser_navigate_back, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_tabs, mcp__playwright__browser_close
 model: sonnet
 ---
 

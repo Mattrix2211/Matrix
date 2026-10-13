@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y", "@playwright/mcp@0.0.83",
+        "--headless", "--isolated", "--no-sandbox",
+        "--browser", "chromium",
+        "--executable-path", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+        "--viewport-size", "1366x768",
+        "--allowed-origins", "http://127.0.0.1:8000",
+        "--block-service-workers",
+        "--output-dir", "/tmp/matrix-recette/navigateur"
+      ]
+    }
+  }
+}
