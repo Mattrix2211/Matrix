@@ -3,7 +3,7 @@ from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
 from matrix.core.inactivite import delai_avertissement, delai_inactivite
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.navigation import construire_navigation
-from notifications.models import Notification
+from notifications.services import compter_non_lues
 
 
 def compteur_notifications(request):
@@ -12,7 +12,7 @@ def compteur_notifications(request):
     utilisateur = getattr(request, "user", None)
     if not utilisateur or not utilisateur.is_authenticated:
         return {}
-    return {"notifications_non_lues": Notification.objects.filter(user=utilisateur, is_read=False).count()}
+    return {"notifications_non_lues": compter_non_lues(utilisateur)}
 
 
 def theme_utilisateur(request):
@@ -26,8 +26,8 @@ def navigation_laterale(request):
     """Barre latérale (docs/UX.md §7) : groupes visibles selon les droits et les
     modules du bâtiment, entrée courante, état replié mémorisé dans le profil."""
     utilisateur = getattr(request, "user", None)
-    if not utilisateur or not utilisateur.is_authenticated:
-        return {}
+    if not utilisateur or not utilisateur.is_authenticated or request.headers.get("HX-Request"):
+        return {}  # un fragment HTMX n'affiche pas la barre : inutile de la calculer
     profil = getattr(utilisateur, "profile", None)
     return {
         "navigation_laterale": construire_navigation(utilisateur, request.path),
@@ -47,6 +47,9 @@ def barre_superieure(request):
         role = Roles.MASTER_ADMIN.label
     else:
         role = profil.get_role_display() if profil and profil.role else Roles.EQUIPIER.label
+    a_terre = profil.equipage if equipage_a_terre_lecture_seule(utilisateur) else ""
+    if request.headers.get("HX-Request"):
+        return {"equipage_a_terre": a_terre}  # seul le mode lecture seule sert aux fragments
     batiments = selecteur_batiment(utilisateur)
     return {
         "identite_utilisateur": {
@@ -58,7 +61,7 @@ def barre_superieure(request):
         "batiment_courant": batiment_courant(request, batiments),
         "batiments_selectionnables": batiments,
         # Équipage à terre : bandeau « Lecture seule » permanent (docs/UX.md §11.4).
-        "equipage_a_terre": profil.equipage if equipage_a_terre_lecture_seule(utilisateur) else "",
+        "equipage_a_terre": a_terre,
     }
 
 

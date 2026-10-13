@@ -179,7 +179,7 @@ class SeuilGeneriqueChefNePermetPlusDeValiderTests(TestCase):
         ReferentFormation.objects.create(course=self.course, ship=self.ship, user=self.referent)
 
         self.commandant = User.objects.create_user(username="commandant_tp6", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
 
     def _creer_chef(self, username, role):
         user = User.objects.create_user(username=username, password="pass")

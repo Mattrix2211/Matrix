@@ -11,6 +11,6 @@ Paramètres :
   contenu : entrées <li> (fournies par le bloc de la balise)
   classes : classes CSS supplémentaires
 {% endcomment %}{% load icones %}<div class="dropdown mx-menu {{ classes }}">
-  <button type="button" class="btn btn-sm btn-outline-secondary mx-menu__declencheur" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="{{ libelle }}" title="{{ libelle }}">{% icone "menu_actions" %}</button>
+  <button type="button" class="btn btn-sm btn-outline-secondary mx-menu__declencheur" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-haspopup="true" aria-label="{{ libelle }}" title="{{ libelle }}">{% icone "menu_actions" %}</button>
   <ul class="dropdown-menu dropdown-menu-end">{{ contenu }}</ul>
 </div>

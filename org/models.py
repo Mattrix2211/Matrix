@@ -235,3 +235,43 @@ class ReleveEquipage(TimeStampedModel):
                 fields=["ship"], condition=models.Q(statut="en_attente"), name="une_releve_en_attente_par_unite"
             )
         ]
+
+
+class SynthesePassation(TimeStampedModel):
+    """Synthèse de passation du bâtiment à la relève, figée à sa génération et conservée.
+
+    Une seule par relève validée (`releve` unique) ; le contenu est un instantané JSON, jamais recalculé.
+    """
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="syntheses_passation")
+    releve = models.OneToOneField(
+        ReleveEquipage, null=True, blank=True, on_delete=models.SET_NULL, related_name="synthese"
+    )
+    equipage_sortant = models.CharField(max_length=8, blank=True, default="")
+    equipage_montant = models.CharField(max_length=8)
+    auteur = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="syntheses_passation")
+    contenu = JSONField(default=dict)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Synthèse de passation"
+        verbose_name_plural = "Synthèses de passation"
+
+    def __str__(self):
+        return f"Passation {self.equipage_sortant or '?'} → {self.equipage_montant} sur {self.ship} ({self.created_at:%d/%m/%Y})"
+
+
+class ParametresPassation(TimeStampedModel):
+    """Réglage de la synthèse de passation, commun à la flotte (un seul enregistrement, modifié dans les Réglages)."""
+    active = models.BooleanField(default=True, verbose_name="Synthèse de passation à la relève")
+
+    class Meta:
+        verbose_name = "Réglage de la synthèse de passation"
+        verbose_name_plural = "Réglage de la synthèse de passation"
+
+    def __str__(self):
+        return "Réglage de la synthèse de passation"
+
+    @classmethod
+    def courants(cls):
+        return cls.objects.first() or cls()

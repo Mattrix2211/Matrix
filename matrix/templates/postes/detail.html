@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">{{ poste.intitule }}</h1>
+<p class="text-muted small">{{ poste.cible_libelle }} · {{ ligne.affectes }} / {{ poste.effectif }} pourvu{% if ligne.non_pourvu %} · <span class="text-danger">{{ ligne.non_pourvu }} place{{ ligne.non_pourvu|pluralize }} à pourvoir</span>{% endif %}</p>
+<div class="card card-body mb-3">
+  <h2 class="h6">Formations exigées</h2>
+  <p class="mb-0 small">{% for f in poste.formations.all %}<a href="{% url 'formation-detail' f.pk %}">{{ f.title }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">Aucune formation exigée.</span>{% endfor %}</p>
+  {% if peut_gerer %}
+  <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="action" value="formations">
+    <select class="form-select mb-2" name="formations" multiple size="5" aria-label="Formations exigées">{% for f in formations %}<option value="{{ f.pk }}" {% if f.pk in exigees %}selected{% endif %}>{{ f.title }}</option>{% endfor %}</select>
+    <button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer les formations</button></form>
+  {% endif %}
+</div>
+<div class="card card-body mb-3">
+  <h2 class="h6">Titulaires</h2>
+  <ul class="list-unstyled mb-2">
+    {% for t in ligne.titulaires %}
+    <li class="mb-1">{{ t.user.get_full_name|default:t.user.username }}
+      {% if t.manquantes %}<span class="badge text-bg-warning">Qualifications manquantes</span>
+        <span class="small">{% for f in t.manquantes %}<a href="{% url 'formation-detail' f.pk %}">{{ f.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+      {% else %}<span class="badge text-bg-success">Qualifié</span>{% endif %}
+      {% if peut_gerer %}<form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="retirer"><input type="hidden" name="marin" value="{{ t.user.pk }}"><button class="btn btn-link btn-sm" type="submit">Retirer</button></form>{% endif %}</li>
+    {% empty %}<li class="text-muted">Personne n'est affecté.</li>{% endfor %}
+  </ul>
+  {% if peut_gerer %}
+  <form method="post" class="input-group">{% csrf_token %}<input type="hidden" name="action" value="affecter">
+    <select class="form-select" name="marin" aria-label="Marin à affecter">{% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
+    <button class="btn btn-outline-primary" type="submit">Affecter</button></form>
+  <p class="form-text">L'affectation n'est jamais bloquée : les qualifications manquantes sont seulement signalées ici et dans le tableau des effectifs.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -15,7 +15,7 @@ from django.views.generic import ListView, View
 
 from matrix.core.commandants_adjoints import est_commandant_adjoint_du_service, service_de, titulaires_du_service
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import perimetre_hierarchique_q, ship_id_for_user
+from matrix.core.scopes import is_master_admin, perimetre_hierarchique_q, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document
 from notifications.models import Notification
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -325,9 +325,10 @@ def filtres_perimetre_marin(user):
     n'importe où EN DESSOUS de ce niveau dans la hiérarchie, via un Q
     combinant chaque chemin possible.
 
-    Renvoie un objet Q, ou None si le périmètre est vide (supervision
-    globale, COMMANDANT et au-dessus, qui voient tous les marins)."""
-    return perimetre_hierarchique_q(user, "profile__")
+    Renvoie un objet Q, ou None pour l'administrateur général (tous les
+    marins) ; un utilisateur sans rattachement ne voit personne."""
+    q = perimetre_hierarchique_q(user, "profile__")
+    return Q(pk__in=[]) if q is None and not is_master_admin(user) else q
 
 
 def _marins_validables(user):
@@ -971,6 +972,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             Notification.objects.create(
                 user=candidat,
                 verb=f"Vous avez été désigné référent formation de l'unité {navire.name}.",
+                url=reverse("formation-list"),
             )
         messages.success(
             request,
@@ -1024,6 +1026,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             Notification.objects.create(
                 user=candidat,
                 verb=f"Vous avez été désigné personnel BRH de l'unité {navire.name}.",
+                url=reverse("formation-list"),
             )
         messages.success(
             request,
@@ -1105,6 +1108,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 f"Réservation confirmée: {session.course.title} — session du "
                 f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}"
             ),
+            target=session,
         )
         messages.success(
             request,
@@ -1230,6 +1234,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 f"Une place vous a été réservée: {session.course.title} — session du "
                 f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}"
             ),
+            target=session,
         )
         messages.success(
             request,
@@ -1366,6 +1371,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                     f"Demande de places accordée : {nb} place(s) pour « {demande.course.title} » "
                     f"({demande.ship.name})."
                 ),
+                target=demande.course,
             )
         messages.success(request, f"{nb} place(s) attribuée(s) pour « {demande.course.title} ».")
         return redirect("formation-list")
@@ -1392,6 +1398,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             Notification.objects.create(
                 user_id=demande.created_by_id,
                 verb=f"Demande de places refusée pour « {demande.course.title} » ({demande.ship.name}).",
+                target=demande.course,
             )
         messages.success(request, "Demande refusée.")
         return redirect("formation-list")
@@ -1460,6 +1467,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 f"Une place vous a été réservée: {session.course.title} — session du "
                 f"{timezone.localtime(session.scheduled_at):%d/%m/%Y à %H:%M}"
             ),
+            target=session,
         )
         messages.success(
             request,
@@ -1522,6 +1530,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             Notification.objects.create(
                 user=candidature.marin,
                 verb=f"Votre candidature à « {candidature.course.title} » a été transmise à l'organisme de formation.",
+                target=candidature.course,
             )
             messages.success(
                 request,
@@ -1555,6 +1564,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             user=candidature.marin,
             level="warning",
             verb=f"Votre candidature à « {candidature.course.title} » a été refusée par votre hiérarchie.",
+            target=candidature.course,
         )
         messages.success(request, "Candidature refusée.")
         return redirect("formation-list")
@@ -1586,6 +1596,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             Notification.objects.create(
                 user=candidature.marin,
                 verb=f"Votre candidature à « {candidature.course.title} » a été transmise à l'organisme de formation.",
+                target=candidature.course,
             )
             messages.success(
                 request,
@@ -1620,6 +1631,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             user=candidature.marin,
             level="warning",
             verb=f"Votre candidature à « {candidature.course.title} » a été refusée par le BRH.",
+            target=candidature.course,
         )
         messages.success(request, "Candidature refusée.")
         return redirect("formation-list")
@@ -1663,6 +1675,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         Notification.objects.create(
             user=candidature.marin,
             verb=f"Vous avez été sélectionné(e) pour le stage « {candidature.course.title} ».",
+            target=candidature.course,
         )
         messages.success(request, "Candidature sélectionnée.")
         return redirect("formation-list")
@@ -1697,6 +1710,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             user=candidature.marin,
             level="warning",
             verb=f"Votre candidature à « {candidature.course.title} » a été refusée par l'organisme de formation.",
+            target=candidature.course,
         )
         messages.success(request, "Candidature refusée.")
         return redirect("formation-list")
@@ -1841,6 +1855,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             Notification.objects.create(
                 user_id=course.updated_by_id,
                 verb=f"Votre proposition de formation « {course.title} » a été validée par le chef de service.",
+                target=course,
             )
         messages.success(request, f"Formation « {course.title} » validée et désormais active.")
         return redirect("formation-list")
@@ -1872,6 +1887,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 user_id=course.updated_by_id,
                 level="warning",
                 verb=f"Votre proposition de formation « {course.title} » a été refusée par le chef de service.",
+                target=course,
             )
         messages.success(request, "Proposition de formation refusée.")
         return redirect("formation-list")
@@ -2033,6 +2049,7 @@ class ValiderFormationView(LoginRequiredMixin, View):
                 f"Formation « {course.title} » validée : expire le "
                 f"{expires_at.strftime('%d/%m/%Y')}."
             ),
+            target=course,
         )
         # Niveau 25 = validation réussie (constante de niveau la plus élevée du
         # module de messages Django, juste au-dessus du niveau d'information).

@@ -91,6 +91,34 @@ REGISTRE_MODULES = [
         "prises en compte par les échanges de service et le calendrier personnel.",
     ),
     ModuleInfo(
+        "taches", "Tâches",
+        "Tâches attribuées par les chefs, fil de discussion contextuel, blocages et comptes rendus.",
+    ),
+    ModuleInfo(
+        "retex", "RETEX",
+        "Retours d'expérience : un cas significatif devient un enseignement validé, routé par domaine, avec des actions suivies.",
+    ),
+    ModuleInfo(
+        "documentation", "Documentation et procédures",
+        "Bibliothèque de procédures et de notes contextualisées, validées et versionnées.",
+    ),
+    ModuleInfo(
+        "postes", "Postes du bord",
+        "Postes à pourvoir, titulaires et formations exigées ; les qualifications manquantes sont signalées sans bloquer l'affectation.",
+    ),
+    ModuleInfo(
+        "programme", "Programme du bâtiment",
+        "Escales, arrêts techniques, exercices et réunions ciblés par périmètre, intégrés au calendrier.",
+    ),
+    ModuleInfo(
+        "annonces", "Annonces",
+        "Diffusion descendante Information / Important / Urgent ciblée par périmètre, avec accusé de lecture facultatif.",
+    ),
+    ModuleInfo(
+        "demandes", "Demandes bord–terre",
+        "Signalement d'une difficulté sur un objet, réponse des interlocuteurs désignés, actions et clôture traçable.",
+    ),
+    ModuleInfo(
         "rondes", "Rondes",
         "Modèles de ronde et points de contrôle configurables, exécution des rondes.",
     ),

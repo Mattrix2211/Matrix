@@ -60,6 +60,16 @@ def _peut_lire_liste(user, liste):
     return User.objects.filter(marins_du_perimetre(liste), pk=user.pk).exists()
 
 
+def listes_publiees_lisibles(model, user):
+    """Listes PUBLIÉES que `user` peut lire (forme requête de `_peut_lire_liste`) :
+    supervision globale sur son navire, sinon listes qui le concernent."""
+    from .listes_views import _listes_publiees_me_concernant, _listes_visibles
+
+    if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_LISTE:
+        return _listes_visibles(model, user).filter(statut=model.STATUT_PUBLIEE)
+    return _listes_publiees_me_concernant(model, user)
+
+
 # Réimports pour compatibilité (voir docstring de ce fichier ci-dessus) :
 # placés après _peut_lire_liste ci-dessus, car listes_views et echanges_views
 # la réimportent depuis CE module.

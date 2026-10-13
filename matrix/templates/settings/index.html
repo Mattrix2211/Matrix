@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load icones %}
+{% load icones composants %}
 {% load org_extras %}
 {% block content %}
 <h1 class="h3 mb-3">{% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_gerer_modules or peut_voir_equipage %}Paramètres{% else %}Mes notifications{% endif %}</h1>
@@ -13,20 +13,20 @@
     <a class="mx-parametres__lien {% if active_tab == 'installations' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=installations">Installations</a>
   </div>
   {% endif %}
-  {% if user.is_superuser or peut_gerer_seuils or peut_gerer_responsables or peut_voir_equipage %}
+  {% if user.is_superuser or peut_gerer_responsables or peut_voir_equipage %}
   <div>
     <h2 class="mx-parametres__groupe-titre">Utilisateurs et droits</h2>
-    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'utilisateurs' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=utilisateurs">Référentiels et rôles</a>{% endif %}
-    {% if peut_gerer_seuils %}<a class="mx-parametres__lien {% if active_tab == 'seuils_role' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Seuils de rôle</a>{% endif %}
+    {% if peut_voir_equipage %}<a class="mx-parametres__lien {% if active_tab == 'equipage' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=equipage{% if equipage_ship %}&ship={{ equipage_ship.id }}{% endif %}">Utilisateurs</a>{% endif %}
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'utilisateurs' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=utilisateurs">Rôles</a>{% endif %}
     {% if user.is_superuser or peut_gerer_responsables %}<a class="mx-parametres__lien {% if active_tab == 'responsables' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=responsables">Responsables</a>{% endif %}
-    {% if peut_voir_equipage %}<a class="mx-parametres__lien {% if active_tab == 'equipage' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=equipage{% if equipage_ship %}&ship={{ equipage_ship.id }}{% endif %}">Équipage</a>{% endif %}
   </div>
   {% endif %}
   <div>
     <h2 class="mx-parametres__groupe-titre">Application</h2>
-    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'generale' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=generale">Générale et sécurité</a>{% endif %}
     {% if peut_gerer_modules %}<a class="mx-parametres__lien {% if active_tab == 'modules' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=modules{% if modules_ship %}&ship={{ modules_ship.id }}{% endif %}">Modules</a>{% endif %}
     <a class="mx-parametres__lien {% if active_tab == 'notifications' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=notifications">Notifications</a>
+    {% if user.is_superuser %}<a class="mx-parametres__lien {% if active_tab == 'generale' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=generale">Sécurité</a>{% endif %}
+    {% if peut_gerer_seuils %}<a class="mx-parametres__lien mx-parametres__lien--sous {% if active_tab == 'seuils_role' %}mx-parametres__lien--actif{% endif %}" href="/parametre/?tab=seuils_role{% if seuils_ship %}&ship={{ seuils_ship.id }}{% endif %}">Seuils de rôle</a>{% endif %}
   </div>
   {% if user.is_superuser %}
   <div>
@@ -505,8 +505,8 @@
   {% if peut_editer_global %}
   <div class="col-12">
     <div class="card">
-      <div class="card-header">Référentiels communs à toute la flotte
-        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Référentiels globaux" data-bs-content="Ces référentiels (grades, spécialités...) ne sont rattachés à aucune unité précise : leur seuil s'applique à toute la flotte, réservé aux administrateurs généraux.">
+      <div class="card-header">Réglages communs à toute la flotte (référentiels, tâches)
+        <button type="button" class="btn btn-sm btn-link" data-bs-toggle="popover" title="Référentiels globaux" data-bs-content="Ces référentiels (grades, spécialités...) ne sont rattachés à aucune unité précise : leur seuil s'applique à toute la flotte, réservé aux administrateurs généraux. Il en va de même pour l'attribution des tâches.">
           {% icone "information" %}
         </button>
       </div>
@@ -548,6 +548,62 @@
           {% endfor %}
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Tâches : relances et affichage (toute la flotte)</div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_parametres_taches" />
+          <input type="hidden" name="next_tab" value="seuils_role" />
+          <div class="col-md-3"><label class="form-label" for="id_jours_relances">Jours entre deux relances</label>
+            <input class="form-control" type="number" min="0" max="365" id="id_jours_relances" name="jours_entre_relances" value="{{ parametres_taches.jours_entre_relances }}" />
+            <div class="form-text">0 : aucune relance.</div></div>
+          <div class="col-md-3"><label class="form-label" for="id_jours_terminees">Jours d'affichage des terminées</label>
+            <input class="form-control" type="number" min="1" max="365" id="id_jours_terminees" name="jours_terminees_affichees" value="{{ parametres_taches.jours_terminees_affichees }}" />
+            <div class="form-text">Dans la vue d'avancement du chef.</div></div>
+          <div class="col-md-6">
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_rel_assigne" name="relancer_assigne" {% if parametres_taches.relancer_assigne %}checked{% endif %} /><label class="form-check-label" for="id_rel_assigne">Relancer le marin assigné</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_rel_chef" name="relancer_chef_attributeur" {% if parametres_taches.relancer_chef_attributeur %}checked{% endif %} /><label class="form-check-label" for="id_rel_chef">Relancer le chef qui a attribué la tâche</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_rel_blocage" name="relancer_chefs_si_blocage" {% if parametres_taches.relancer_chefs_si_blocage %}checked{% endif %} /><label class="form-check-label" for="id_rel_blocage">Relancer les chefs du périmètre pour un blocage en retard</label></div>
+          </div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Annonces : rappel d'accusé de réception (toute la flotte)</div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_parametres_annonces" />
+          <input type="hidden" name="next_tab" value="seuils_role" />
+          <div class="col-md-4"><label class="form-label" for="id_jours_rappel_accuse">Jours avant le rappel</label>
+            <input class="form-control" type="number" min="0" max="365" id="id_jours_rappel_accuse" name="jours_rappel_accuse" value="{{ parametres_annonces.jours_rappel_accuse }}" />
+            <div class="form-text">Rappel unique aux destinataires qui n'ont pas accusé réception. 0 : aucun rappel.</div></div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Synthèse de passation à la relève (toute la flotte)</div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_parametres_passation" />
+          <input type="hidden" name="next_tab" value="seuils_role" />
+          <div class="col-12">
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_passation_active" name="active" {% if parametres_passation.active %}checked{% endif %} /><label class="form-check-label" for="id_passation_active">Activer la synthèse de passation</label></div>
+            <div class="form-text">Activée par défaut. Désactivée, la relève ne génère aucune synthèse et les pages de passation sont fermées (les synthèses existantes sont conservées).</div></div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button></div>
+        </form>
       </div>
     </div>
   </div>
@@ -654,6 +710,20 @@
     </div>
   </div>
   {% endif %}
+  {% if equipage_effectifs %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Effectifs par équipage</div>
+      <div class="card-body">
+        {% for e in equipage_effectifs %}
+        <p class="mb-2"><strong>Équipage {{ e.code }}</strong>{% if e.a_bord %} <span class="badge text-bg-primary">À bord</span>{% else %} <span class="badge text-bg-secondary">À terre</span>{% endif %} · {{ e.marins|length }} marin{{ e.marins|length|pluralize }} :
+          {% for m in e.marins %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+        {% endfor %}
+        <p class="text-muted small mb-0">L'équipage d'un marin se modifie depuis sa fiche dans l'annuaire des utilisateurs (administrateur de l'unité).</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <div class="col-12">
     <div class="card">
       <div class="card-header">Relève — {{ equipage_ship.name }}</div>
@@ -704,6 +774,23 @@
         <p class="text-muted small mt-2 mb-0">La relève prend effet quand le commandant de l'autre équipage la valide.</p>
         {% else %}
         <p class="text-muted mb-0">La relève est proposée et validée par les commandants des deux équipages.</p>
+        {% endif %}
+        {% if passation_activee %}
+        <h3 class="h6 mt-3">Synthèses de passation</h3>
+        {% for s in syntheses_passation %}
+        <p class="mb-1"><a href="{% url 'passation' s.pk %}">Équipage {{ s.equipage_sortant|default:"?" }} → {{ s.equipage_montant }}</a> · générée le {{ s.created_at|date:"d/m/Y H:i" }}</p>
+        {% empty %}
+        <p class="text-muted small mb-1">Aucune synthèse : elle est créée automatiquement à chaque relève validée.</p>
+        {% endfor %}
+        {% if passation_generable %}
+        <form method="post" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="generer_passation" />
+          <input type="hidden" name="next_tab" value="equipage" />
+          <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
+          <button class="btn btn-outline-primary btn-sm" type="submit">Générer la synthèse de passation</button>
+        </form>
+        {% endif %}
         {% endif %}
       </div>
     </div>
@@ -819,7 +906,7 @@
             <td class="font-mono">{{ sh.code }}</td>
             <td>{{ sh|badge_type_unite }}</td>
             <td>
-              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editShipModal" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}" data-classe-navire="{{ sh.classe_navire }}">Modifier</button>
+              <button class="btn btn-outline-secondary btn-sm me-2" data-bs-toggle="offcanvas" data-bs-target="#editShipPanneau" aria-controls="editShipPanneau" data-pk="{{ sh.id }}" data-name="{{ sh.name }}" data-code="{{ sh.code }}" data-type-unite="{{ sh.type_unite }}" data-classe-navire="{{ sh.classe_navire }}">Modifier</button>
               <button class="btn btn-outline-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#duplicateShipModal" data-source-pk="{{ sh.id }}" data-name="{{ sh.name }}">Dupliquer</button>
               <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_ship" data-pk="{{ sh.id }}" data-label="Supprimer l'unité {{ sh.name }}">Supprimer</button>
             </td>
@@ -981,49 +1068,36 @@
   </div>
 </div>
 
-{# Modal édition unité #}
-<div class="modal fade" id="editShipModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Modifier l'unité</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form method="post" id="editShipForm">
-        <div class="modal-body">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="edit_ship" />
-          <input type="hidden" name="next_tab" value="navires" />
-          <input type="hidden" name="pk" id="editShipPk" />
-          <div class="mb-3">
-            <label class="form-label">Nom</label>
-            <input class="form-control" name="name" id="editShipName" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Code</label>
-            <input class="form-control" name="code" id="editShipCode" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Type d'unité</label>
-            <select class="form-select" name="type_unite" id="editShipTypeUnite">
-              {% for valeur, libelle in type_unite_choices %}
-                <option value="{{ valeur }}">{{ libelle }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Classe de navire</label>
-            <input class="form-control" name="classe_navire" id="editShipClasseNavire" placeholder="Optionnel, ex : Frégate La Fayette" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
-        </div>
-      </form>
-    </div>
+{# Panneau latéral d'édition d'unité #}
+{% panneau_lateral id="editShipPanneau" titre="Modifier l'unité" icone="configuration" classes="mx-panneau--large" %}
+<form method="post" id="editShipForm" class="d-grid gap-3">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="edit_ship" />
+  <input type="hidden" name="next_tab" value="navires" />
+  <input type="hidden" name="pk" id="editShipPk" />
+  <div>
+    <label class="form-label" for="editShipName">Nom</label>
+    <input class="form-control" name="name" id="editShipName" />
   </div>
-</div>
+  <div>
+    <label class="form-label" for="editShipCode">Code</label>
+    <input class="form-control" name="code" id="editShipCode" />
+  </div>
+  <div>
+    <label class="form-label" for="editShipTypeUnite">Type d'unité</label>
+    <select class="form-select" name="type_unite" id="editShipTypeUnite">
+      {% for valeur, libelle in type_unite_choices %}
+        <option value="{{ valeur }}">{{ libelle }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="form-label" for="editShipClasseNavire">Classe de navire</label>
+    <input class="form-control" name="classe_navire" id="editShipClasseNavire" placeholder="Optionnel, ex : Frégate La Fayette" />
+  </div>
+  <div><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+</form>
+{% fin_panneau_lateral %}
 
 {# Modal duplication unité #}
 <div class="modal fade" id="duplicateShipModal" tabindex="-1" aria-hidden="true">
@@ -1071,8 +1145,8 @@
       document.getElementById('confirmLabel').textContent = label || 'Êtes-vous sûr ?';
     });
 
-    var editModal = document.getElementById('editShipModal');
-    editModal.addEventListener('show.bs.modal', function (event) {
+    var editModal = document.getElementById('editShipPanneau');
+    editModal.addEventListener('show.bs.offcanvas', function (event) {
       var button = event.relatedTarget;
       var pk = button.getAttribute('data-pk');
       var name = button.getAttribute('data-name');

@@ -11,7 +11,7 @@ from accounts.models import AuditLog
 
 from .models import (
     ChecklistItemTemplate, ChecklistTemplate, EvenementProposition, FicheEtape, FichePreparation, InstallationMaintenance,
-    ModeDeclenchement,
+    ModeDeclenchement, TypeReleve,
 )
 from .proposition_article import ErreurCircuit
 from .mesures import formater_nombre
@@ -95,6 +95,8 @@ def verifier_contenu(contenu, installation, fiche=None):
         if ligne.get("cle") and (ligne["cle"] not in connues or ligne["cle"] in vues):
             raise ErreurCircuit("Identifiant de ligne inconnu ou en double : rechargez l'assistant.")
         vues.add(ligne.get("cle"))
+        if ligne.get("releve", "") not in TypeReleve.values + [""]:
+            raise ErreurCircuit("Type de relevé inconnu.")
         mini, maxi = ligne.get("valeur_min"), ligne.get("valeur_max")
         if mini is not None and maxi is not None and mini > maxi:
             raise ErreurCircuit(f"« {ligne['label']} » : le minimum dépasse le maximum.")
@@ -109,8 +111,8 @@ def contenu_de(version):
         preparations=[{"type": p.type, "libelle": p.libelle, "quantite": p.quantite, "piece": p.piece_id}
                       for p in version.preparations.all()],
         etapes=[{"texte": e.texte, "attention": e.attention} for e in version.etapes.all()],
-        lignes=[{"cle": i.cle, "label": i.label, "field_type": i.field_type, "unit": i.unit, "required": i.required,
-                 "valeur_min": i.valeur_min, "valeur_max": i.valeur_max}
+        lignes=[{"cle": i.cle, "label": i.label, "field_type": i.field_type, "unit": i.unit, "releve": i.releve,
+                 "required": i.required, "valeur_min": i.valeur_min, "valeur_max": i.valeur_max}
                 for i in version.items.order_by("order", "pk")],
     )
     return contenu
@@ -133,7 +135,7 @@ def _ecrire_contenu(version, contenu):
         FicheEtape.objects.create(version=version, ordre=ordre, texte=e["texte"], attention=e.get("attention", ""))
     for ordre, ligne in enumerate(contenu["lignes"]):
         champs = {"order": ordre, "label": ligne["label"], "field_type": ligne["field_type"], "unit": ligne.get("unit", ""),
-                  "required": ligne.get("required", False), "valeur_min": ligne.get("valeur_min"),
+                  "releve": ligne.get("releve", ""), "required": ligne.get("required", False), "valeur_min": ligne.get("valeur_min"),
                   "valeur_max": ligne.get("valeur_max")}
         cle = ligne.get("cle")
         if cle in ancien:

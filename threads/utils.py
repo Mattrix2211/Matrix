@@ -10,6 +10,8 @@ eux-mêmes, elles se contentent de lire/écrire les messages une fois l'accès
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 
+from matrix.core.saisie import sans_nul
+
 from .models import Message, Thread
 
 
@@ -33,7 +35,7 @@ def ajouter_commentaire(obj, auteur, corps):
     (logistics/views.py)."""
     content_type = ContentType.objects.get_for_model(obj)
     thread, _ = Thread.objects.get_or_create(content_type=content_type, object_id=str(obj.pk))
-    return Message.objects.create(thread=thread, author=auteur, body=corps, is_system=False)
+    return Message.objects.create(thread=thread, author=auteur, body=sans_nul(corps), is_system=False)
 
 
 def contexte_discussion(obj, nom_url):

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Créer un poste</h1>
+<form method="post" class="card card-body mb-4">{% csrf_token %}
+  <div class="row g-3 mb-3">
+    <div class="col-md-6"><label class="form-label" for="id_intitule">Intitulé</label><input class="form-control" id="id_intitule" name="intitule" maxlength="120" required></div>
+    <div class="col-md-3"><label class="form-label" for="id_effectif">Effectif requis</label><input class="form-control" type="number" min="1" id="id_effectif" name="effectif" value="1"></div>
+    <div class="col-md-3"><label class="form-label" for="id_equipage">Équipage (facultatif)</label><input class="form-control" id="id_equipage" name="equipage" maxlength="8"></div>
+  </div>
+  <div class="mb-3"><label class="form-label" for="id_cible">Rattachement</label>
+    <select class="form-select" id="id_cible" name="cible" required>{% for cle, libelle in cibles %}<option value="{{ cle }}">{{ libelle }}</option>{% endfor %}</select></div>
+  <div class="mb-3"><label class="form-label" for="id_formations">Formations exigées</label>
+    <select class="form-select" id="id_formations" name="formations" multiple size="6">{% for f in formations %}<option value="{{ f.pk }}">{{ f.title }}</option>{% endfor %}</select></div>
+  <div><button class="btn btn-primary" type="submit">Créer</button> <a class="btn btn-link" href="{% url 'postes-index' %}">Annuler</a></div>
+</form>
+{% endblock %}

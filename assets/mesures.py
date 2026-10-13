@@ -9,6 +9,8 @@ from decimal import Decimal
 
 from django.utils.formats import number_format
 
+from .trend import jours_avant_franchissement_seuil
+
 ZERO = Decimal("0")
 
 
@@ -44,6 +46,32 @@ def heures_depuis_visite_maintenance(maintenance, releves):
     if total is None:
         return None
     return max(ZERO, total - reference_visite_maintenance(maintenance, releves))
+
+
+def derives_de(installation):
+    """Dérives de l'installation vers un seuil : liste de (genre, objet, jours), `jours` valant None sans dérive.
+
+    Isolement (installation, seuil minimal) et heures de marche (une entrée par entretien au compteur).
+    Source commune de l'alerte de dérive et de la vue du COMANAV ; relevés et entretiens à précharger.
+    """
+    from .models import ModeDeclenchement
+
+    resultat = []
+    jours = None
+    if installation.isolation_seuil_ohms:
+        releves = [(r.date, float(r.ohms)) for r in installation.isolation_readings.all()]
+        jours = jours_avant_franchissement_seuil(releves, float(installation.isolation_seuil_ohms), sens="BAISSE")
+    resultat.append(("ISOLEMENT", installation, jours))
+    releves = list(installation.hour_readings.all())
+    releves_heures = [(r.date, float(r.hours)) for r in releves]
+    for maintenance in installation.maintenances.all():
+        if maintenance.mode_declenchement not in (ModeDeclenchement.COMPTEUR, ModeDeclenchement.LES_DEUX):
+            continue
+        if not maintenance.seuil_heures:
+            continue
+        seuil = float(reference_visite_maintenance(maintenance, releves)) + float(maintenance.seuil_heures)
+        resultat.append(("HEURES", maintenance, jours_avant_franchissement_seuil(releves_heures, seuil, sens="HAUSSE")))
+    return resultat
 
 
 def heures_par_gamme(maintenances, releves):

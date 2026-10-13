@@ -1,0 +1,16 @@
+{% if documents or candidats %}
+<div class="card card-body mb-3">
+  <h2 class="h6">Documents associés</h2>
+  <ul class="list-unstyled small mb-0">
+    {% for d in documents %}<li><a href="{% url 'document-detail' d.pk %}">{{ d.titre }}</a> {% if d.origine == "OFFICIELLE" %}<span class="badge text-bg-primary">Officielle</span>{% else %}<span class="badge text-bg-secondary">Note locale</span>{% endif %}</li>
+    {% empty %}<li class="text-muted">Aucun document associé.</li>{% endfor %}
+  </ul>
+  {% if peut_lier and candidats %}
+  <form method="post" action="{% url 'document-lier' %}" class="input-group input-group-sm mt-2">{% csrf_token %}
+    <input type="hidden" name="objet" value="{{ reference }}"><input type="hidden" name="suite" value="{{ request.path }}">
+    <select class="form-select" name="document" aria-label="Document à associer">{% for d in candidats %}<option value="{{ d.pk }}">{{ d.titre }}</option>{% endfor %}</select>
+    <button class="btn btn-outline-secondary" type="submit">Associer</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}

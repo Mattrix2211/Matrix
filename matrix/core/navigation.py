@@ -18,6 +18,7 @@ from dashboard.templatetags.dashboard_extras import (
     peut_voir_dashboard_classe_navire,
     peut_voir_dashboard_specialite,
     peut_voir_pret_appareillage,
+    peut_voir_vue_comanav,
     peut_voir_vue_flotte,
 )
 from matrix.core.modules import module_actif_pour_user
@@ -47,7 +48,7 @@ def _url_parametres(user):
 
 
 GROUPES = [
-    ("Personnel", [
+    ("Mon quotidien", [
         Entree("Aujourd'hui", "aujourdhui", "home"),
         Entree("Calendrier", "calendrier", "calendar-index"),
     ]),
@@ -66,6 +67,10 @@ GROUPES = [
         Entree("Logistique", "logistique", "stock-piece-list", module="logistics"),
     ]),
     ("Activité", [
+        Entree("Tâches", "tache", "taches-index", module="taches"),
+        Entree("Annonces", "annonce", "annonces-index", module="annonces"),
+        Entree("Programme du bâtiment", "calendrier", "programme-index", module="programme"),
+        Entree("Demandes bord–terre", "discussion", "demandes-index", module="demandes"),
         Entree("Rondes", "ronde", "rondes-index", module="rondes"),
         Entree("Quarts et gardes", "quart", "quarts-index", module="quarts"),
         Entree("Feuille de service", "feuille_service", "feuille-service-index", module="quarts"),
@@ -73,11 +78,15 @@ GROUPES = [
     ]),
     ("Compétences", [
         Entree("Formations", "formation", "formation-list", module="training"),
+        Entree("Postes du bord", "utilisateur", "postes-index", module="postes"),
+        Entree("Documentation", "document", "documentation-index", module="documentation"),
+        Entree("RETEX", "historique", "retex-index", module="retex"),
     ]),
     ("Supervision", [
         Entree("Prêt à appareiller", "pret_appareillage", "pret-appareillage",
                droit=peut_voir_pret_appareillage),
         Entree("Flotte", "flotte", "vue-flotte", droit=peut_voir_vue_flotte),
+        Entree("Vue COMANAV", "navire", "vue-comanav", droit=peut_voir_vue_comanav),
         Entree("Spécialités", "specialite", "dashboard-specialite-choix",
                droit=peut_voir_dashboard_specialite),
         Entree("Classes de navire", "classe_navire", "dashboard-classe-navire-choix", droit=peut_voir_dashboard_classe_navire),

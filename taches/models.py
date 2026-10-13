@@ -1,0 +1,150 @@
+"""Tâche générique attribuée par un chef à un marin de son périmètre.
+
+Le fil de discussion est le `Thread` générique de l'app `threads`, rattaché à la tâche.
+"""
+from django.conf import settings
+from django.db import models
+
+from matrix.core.models import OwnedModel, TimeStampedModel
+from matrix.core.validators import valider_document
+
+
+class LotTaches(TimeStampedModel, OwnedModel):
+    """Regroupement des tâches individuelles issues d'une même attribution à une unité (section, secteur, service)."""
+    libelle = models.CharField(max_length=200, verbose_name="Unité")
+    titre = models.CharField(max_length=200, verbose_name="Titre")
+
+    class Meta:
+        verbose_name = "Lot de tâches"
+        verbose_name_plural = "Lots de tâches"
+
+    def __str__(self):
+        return f"{self.titre} ({self.libelle})"
+
+
+class Tache(TimeStampedModel, OwnedModel):
+    STATUT_A_FAIRE = "A_FAIRE"
+    STATUT_EN_COURS = "EN_COURS"
+    STATUT_BLOQUEE = "BLOQUEE"
+    STATUT_TERMINEE = "TERMINEE"
+    STATUT_CHOICES = (
+        (STATUT_A_FAIRE, "À faire"),
+        (STATUT_EN_COURS, "En cours"),
+        (STATUT_BLOQUEE, "Bloquée"),
+        (STATUT_TERMINEE, "Terminée"),
+    )
+    STATUTS_OUVERTS = (STATUT_A_FAIRE, STATUT_EN_COURS, STATUT_BLOQUEE)
+
+    PRIORITE_NORMALE = "NORMALE"
+    PRIORITE_URGENTE = "URGENTE"
+    PRIORITE_CHOICES = (
+        (PRIORITE_NORMALE, "Normale"),
+        (PRIORITE_URGENTE, "Urgente"),
+    )
+
+    titre = models.CharField(max_length=200, verbose_name="Titre")
+    description = models.TextField(blank=True, default="", verbose_name="Consigne")
+    echeance = models.DateField(null=True, blank=True, verbose_name="Échéance")
+    statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_A_FAIRE)
+    priorite = models.CharField(max_length=8, choices=PRIORITE_CHOICES, default=PRIORITE_NORMALE, verbose_name="Priorité")
+    partagee = models.BooleanField(
+        default=True, verbose_name="Visible des chefs",
+        help_text="Une tâche personnelle reste privée tant que le marin ne la partage pas.",
+    )
+    assigne = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="taches_assignees",
+        verbose_name="Assignée à",
+    )
+    participants = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name="taches_suivies",
+        verbose_name="Interlocuteurs du fil",
+    )
+    motif_blocage = models.TextField(blank=True, default="", verbose_name="Motif du blocage")
+    compte_rendu = models.TextField(blank=True, default="", verbose_name="Compte rendu")
+    terminee_le = models.DateTimeField(null=True, blank=True)
+    # Action décidée dans le fil d'une demande bord–terre.
+    demande = models.ForeignKey(
+        "demandes.Demande", null=True, blank=True, on_delete=models.SET_NULL, related_name="actions",
+    )
+    # Annonce dont la tâche est issue.
+    annonce = models.ForeignKey(
+        "annonces.Annonce", null=True, blank=True, on_delete=models.SET_NULL, related_name="taches_liees",
+    )
+    lot = models.ForeignKey(LotTaches, null=True, blank=True, on_delete=models.SET_NULL, related_name="taches")
+
+    class Meta:
+        ordering = (models.F("echeance").asc(nulls_last=True), "pk")
+        verbose_name = "Tâche"
+        verbose_name_plural = "Tâches"
+
+    def __str__(self):
+        return self.titre
+
+    @property
+    def personnelle(self):
+        return self.assigne_id == self.created_by_id
+
+    def en_retard_au(self, jour):
+        return self.ouverte and self.echeance is not None and self.echeance < jour
+
+    @property
+    def ouverte(self):
+        return self.statut in self.STATUTS_OUVERTS
+
+    @property
+    def avancement_checklist(self):
+        """(éléments faits, total) ; s'appuie sur le prefetch `elements_checklist` quand il existe."""
+        elements = self.elements_checklist.all()
+        return sum(e.fait for e in elements), len(elements)
+
+
+class ElementChecklistTache(TimeStampedModel):
+    tache = models.ForeignKey(Tache, on_delete=models.CASCADE, related_name="elements_checklist")
+    texte = models.CharField(max_length=200, verbose_name="Élément")
+    fait = models.BooleanField(default=False)
+    ordre = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("ordre", "pk")
+        verbose_name = "Élément de checklist"
+        verbose_name_plural = "Éléments de checklist"
+
+    def __str__(self):
+        return self.texte
+
+
+class PieceJointeTache(TimeStampedModel, OwnedModel):
+    tache = models.ForeignKey(Tache, on_delete=models.CASCADE, related_name="pieces_jointes")
+    fichier = models.FileField(upload_to="taches_pieces_jointes/", validators=[valider_document])
+    nom = models.CharField(max_length=255)
+
+    class Meta:
+        ordering = ("created_at", "pk")
+        verbose_name = "Pièce jointe de tâche"
+        verbose_name_plural = "Pièces jointes de tâche"
+
+    def __str__(self):
+        return self.nom
+
+
+class ParametresTaches(TimeStampedModel):
+    """Réglages des tâches communs à toute la flotte (un seul enregistrement, modifié dans les Réglages)."""
+    jours_entre_relances = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Jours entre deux relances (0 : pas de relance)")
+    relancer_assigne = models.BooleanField(default=True, verbose_name="Relancer le marin assigné")
+    relancer_chef_attributeur = models.BooleanField(default=True, verbose_name="Relancer le chef qui a attribué la tâche")
+    relancer_chefs_si_blocage = models.BooleanField(
+        default=True, verbose_name="Relancer les chefs du périmètre pour un blocage en retard")
+    jours_terminees_affichees = models.PositiveSmallIntegerField(
+        default=30, verbose_name="Jours d'affichage des tâches terminées dans la vue d'avancement")
+
+    class Meta:
+        verbose_name = "Réglages des tâches"
+        verbose_name_plural = "Réglages des tâches"
+
+    def __str__(self):
+        return "Réglages des tâches"
+
+    @classmethod
+    def courants(cls):
+        return cls.objects.first() or cls()

@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
+{% load icones %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=object.designation|default:object sous_titre=object.asset_type.name badge_libelle=object.get_status_display action=action_principale menu=menu_fiche menu_libelle="Autres actions sur ce matériel" indicateurs=indicateurs_fiche objet=object %}
+{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=asset:{{ object.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
 <div id="result" class="mb-3"></div>
 
 <div class="mb-3">
@@ -103,6 +105,15 @@
   {% else %}
   <p class="text-muted">Aucune pièce en stock liée à ce matériel.</p>
   {% endif %}
+</div>
+
+<hr class="my-4" />
+<div>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 mb-0">Historique de cet exemplaire</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ historique_url }}">Frise complète et relevés</a>
+  </div>
+  {% include "maintenance/_frise.html" with entrees=historique_recent %}
 </div>
 
 <hr class="my-4" />

@@ -159,3 +159,28 @@ class InstallationMaintenanceModeDeclenchementTests(TestCase):
         self.maintenance.refresh_from_db()
         self.assertEqual(self.maintenance.title, "Graissage renforcé")
         self.assertEqual(InstallationEvent.objects.filter(installation=self.installation).count(), 0)
+
+
+class ModificationTechniqueTests(InstallationMaintenanceModeDeclenchementTests):
+    """Une modification technique s'enregistre dans l'historique de l'installation, tracée à l'audit."""
+
+    def test_modification_technique_dans_l_historique_et_l_audit(self):
+        from accounts.models import AuditLog
+
+        self.client.login(username="cs2", password="pass")
+        r = self.client.post(self.url, {
+            "action": "add_event", "type_evenement": "MODIFICATION_TECHNIQUE", "date": "10/10/2026",
+            "label": "Remplacement du roulement par le modèle B", "notes": "Référence SKF 6205", "tab": "histo",
+        })
+        self.assertEqual(r.status_code, 302)
+        evenement = InstallationEvent.objects.get(installation=self.installation)
+        self.assertEqual(evenement.type_evenement, InstallationEvent.TYPE_MODIFICATION)
+        self.assertEqual(evenement.created_by.username, "cs2")
+        self.assertTrue(AuditLog.objects.filter(action="add_installation_event", details__contains="MODIFICATION_TECHNIQUE").exists())
+        page = self.client.get(self.url).content.decode()
+        self.assertTrue("Remplacement du roulement" in page and "Modification technique" in page)
+
+    def test_type_inconnu_retombe_sur_evenement(self):
+        self.client.login(username="cs2", password="pass")
+        self.client.post(self.url, {"action": "add_event", "type_evenement": "n'importe quoi", "label": "Contrôle", "tab": "histo"})
+        self.assertEqual(InstallationEvent.objects.get().type_evenement, InstallationEvent.TYPE_EVENEMENT)

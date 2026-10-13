@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Réglages du programme</h1>
+{% if peut_deleguer %}
+<div class="card card-body mb-4">
+  <h2 class="h6">Délégations de saisie</h2>
+  <p class="small text-muted">Un marin délégué saisit des événements dans son propre périmètre (ex. un chef de service pour les réunions de son service).</p>
+  <ul class="list-unstyled">
+    {% for d in delegations %}<li class="mb-1">{{ d.user.get_full_name|default:d.user.username }}
+      <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="retirer"><input type="hidden" name="delegation" value="{{ d.pk }}"><button class="btn btn-link btn-sm" type="submit">Retirer</button></form></li>
+    {% empty %}<li class="text-muted">Aucune délégation.</li>{% endfor %}
+  </ul>
+  <form method="post" class="input-group">{% csrf_token %}<input type="hidden" name="action" value="deleguer">
+    <select class="form-select" name="user" aria-label="Marin à qui déléguer">{% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
+    <button class="btn btn-outline-primary" type="submit">Déléguer</button></form>
+</div>
+{% endif %}
+{% if peut_types %}
+<div class="card card-body mb-4">
+  <h2 class="h6">Types d'événements</h2>
+  <ul class="list-unstyled">
+    {% for t in types %}<li class="mb-1"><span class="badge" style="background-color:{{ t.couleur }}">{{ t.nom }}</span>{% if not t.actif %} <span class="small text-muted">désactivé</span>{% endif %}
+      <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="type_basculer"><input type="hidden" name="type" value="{{ t.pk }}"><button class="btn btn-link btn-sm" type="submit">{% if t.actif %}Désactiver{% else %}Réactiver{% endif %}</button></form></li>{% endfor %}
+  </ul>
+  <form method="post" class="row g-2">{% csrf_token %}<input type="hidden" name="action" value="type_ajouter">
+    <div class="col-md-5"><input class="form-control" name="nom" maxlength="60" placeholder="Nouveau type" aria-label="Nom du type" required></div>
+    <div class="col-md-2"><input class="form-control form-control-color" type="color" name="couleur" value="#0d6efd" aria-label="Couleur"></div>
+    <div class="col-md-3"><button class="btn btn-outline-primary" type="submit">Ajouter</button></div>
+  </form>
+</div>
+{% endif %}
+<a href="{% url 'programme-index' %}">Retour au programme</a>
+{% endblock %}

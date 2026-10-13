@@ -3,17 +3,37 @@ périmètre, créneaux, absences, rondes, événements personnels) et agrégatio
 personnelle d'une journée. Partagé par la vue HTML (index_views.py), l'API
 JSON FullCalendar (api_views.py) et le digest « Ma journée »
 (notifications.tasks) — découpage de calendar_app/views.py par sous-domaine."""
+from datetime import timedelta
+
 from django.db.models import Q
 
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from quarts.web_views import listes_publiees_lisibles
 from quarts.services import feuille_service_du_jour_pour
 from rondes.services import rondes_ouvertes_du_marin
 from absences.models import Absence
+from taches.models import Tache
 from matrix.core.roles import RoleLevel
 from matrix.core.scopes import equipage_marin_q
 from .models import PersonalEvent
+
+
+def marins_visibles(user):
+    """Marins dont `user` voit les affectations : lui-même, plus son équipe s'il peut attribuer des tâches."""
+    from django.contrib.auth.models import User
+
+    from taches.services import marins_assignables
+
+    return User.objects.filter(Q(pk=user.pk) | Q(pk__in=marins_assignables(user).values("pk")))
+
+
+def sessions_visibles(user, qs=None):
+    """Sessions de formation où `user` ou un marin de son équipe est affecté (présent, inscrit ou formateur)."""
+    marins = marins_visibles(user)
+    qs = TrainingSession.objects.all() if qs is None else qs
+    return qs.filter(Q(attendees__in=marins) | Q(reservations__in=marins) | Q(instructor__in=marins)).distinct()
 
 
 def _appliquer_filtres_occurrences(qs, filters):
@@ -60,9 +80,10 @@ def _creneaux_quart_assignes(start, end, user=None, pour=None):
     )
     if user is not None:
         qs = qs.filter(marin=user)
-    elif pour is not None:
-        # Vue d'équipe : double équipage, seul l'équipage de `pour` est montré.
-        qs = qs.filter(equipage_marin_q(pour, "marin__profile__"))
+    if pour is not None:
+        # Listes lisibles comme dans /quarts/, plus ses propres créneaux ; borné à l'équipage.
+        qs = qs.filter(Q(quart__in=listes_publiees_lisibles(Quart, pour)) | Q(marin=pour)).filter(
+            equipage_marin_q(pour, "marin__profile__"))
     return qs
 
 
@@ -77,9 +98,10 @@ def _creneaux_garde_assignes(start, end, user=None, pour=None):
     )
     if user is not None:
         qs = qs.filter(marin=user)
-    elif pour is not None:
-        # Vue d'équipe : double équipage, seul l'équipage de `pour` est montré.
-        qs = qs.filter(equipage_marin_q(pour, "marin__profile__"))
+    if pour is not None:
+        # Listes lisibles comme dans /quarts/, plus ses propres créneaux ; borné à l'équipage.
+        qs = qs.filter(Q(service_garde__in=listes_publiees_lisibles(ServiceGarde, pour)) | Q(marin=pour)).filter(
+            equipage_marin_q(pour, "marin__profile__"))
     return qs
 
 
@@ -93,9 +115,9 @@ def _absences_periode(start, end, user=None, pour=None):
     )
     if user is not None:
         qs = qs.filter(marin=user)
-    elif pour is not None:
-        # Vue d'équipe : double équipage, seul l'équipage de `pour` est montré.
-        qs = qs.filter(equipage_marin_q(pour, "marin__profile__"))
+    if pour is not None:
+        # Jamais au-delà de soi-même et de son équipe, même avec un filtre utilisateur.
+        qs = qs.filter(marin__in=marins_visibles(pour))
     return qs
 
 
@@ -104,6 +126,11 @@ def _rondes_a_faire(user, start, end):
     périmètre) prévues sur la période — même principe que les autres
     affectations personnelles du calendrier."""
     return rondes_ouvertes_du_marin(user).filter(date_prevue__range=(start, end))
+
+
+def _taches_a_faire(user, start, end):
+    """Tâches ouvertes attribuées au marin et échues sur la période."""
+    return Tache.objects.filter(assigne=user, statut__in=Tache.STATUTS_OUVERTS, echeance__range=(start, end))
 
 
 def _evenements_personnels(user, start, end):
@@ -144,13 +171,14 @@ def evenements_utilisateur_jour(user, day):
     creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user))
     rondes = list(_rondes_a_faire(user, day, day))
     absences = list(_absences_periode(day, day, user))
+    taches = list(_taches_a_faire(user, day, day))
     # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
     # service quotidienne ») : mise en évidence dans « Ma journée » si le
     # marin est lui-même de service ce jour-là — cf. quarts/services.py.
     feuille_service = feuille_service_du_jour_pour(user, day)
     return {
         "maintenances": maintenances, "formations": formations, "personnels": personnels,
-        "creneaux": creneaux, "rondes": rondes, "absences": absences, "feuille_service": feuille_service,
+        "creneaux": creneaux, "rondes": rondes, "taches": taches, "absences": absences, "feuille_service": feuille_service,
     }
 
 
@@ -188,3 +216,40 @@ def _appliquer_filtres_tickets(qs, filters):
     if filters.get("sector"):
         qs = qs.filter(Q(asset__sector_id=filters["sector"]) | Q(installation__sector_id=filters["sector"]))
     return qs
+
+
+def evenements_equipe(user, debut, fin, couleur):
+    """Événements FullCalendar des marins sous `user` : tâches (retards en évidence), absences, quarts et gardes.
+
+    `couleur(type, statut=None)` fournit les teintes du calendrier. Lecture seule : aucun événement n'est modifiable ici."""
+    from django.urls import reverse
+    from django.utils import timezone
+
+    from taches.services import marins_assignables
+
+    equipe = {m.pk: (m.last_name or m.username) for m in marins_assignables(user)}
+    aujourdhui = timezone.localdate()
+    evenements = []
+
+    def ajouter(identifiant, titre, debut_iso, fin_iso, url, type_evenement, statut=None, teinte=None):
+        evenements.append({
+            "id": identifiant, "title": titre, "start": debut_iso, "end": fin_iso, "url": url, "editable": False,
+            "extendedProps": {"type": type_evenement, "status": statut, "peut_agir": False}, **(teinte or couleur(type_evenement)),
+        })
+
+    for tache in Tache.objects.filter(
+            assigne_id__in=equipe, statut__in=Tache.STATUTS_OUVERTS, partagee=True, echeance__range=(debut, fin)):
+        retard = tache.echeance < aujourdhui
+        ajouter(f"eqt-{tache.pk}", f"{equipe[tache.assigne_id]} · {tache.titre}", tache.echeance.isoformat(), tache.echeance.isoformat(),
+                reverse("tache-detail", args=[tache.pk]), "tache", tache.statut,
+                {"backgroundColor": "#dc3545", "borderColor": "#b02a37", "textColor": "#fff"} if retard else None)
+    for absence in _absences_periode(debut, fin, None, user).filter(marin_id__in=equipe):
+        ajouter(f"eqa-{absence.pk}", f"{equipe[absence.marin_id]} · {absence.type_absence}", absence.date_debut.isoformat(),
+                (absence.date_fin + timedelta(days=1)).isoformat(), reverse("absences-index"), "absence", absence.statut)
+    for creneau in _creneaux_quart_assignes(debut, fin, None, user).filter(marin_id__in=equipe):
+        ajouter(f"eqq-{creneau.pk}", f"{equipe[creneau.marin_id]} · Quart {creneau.poste}", creneau.debut.isoformat(),
+                creneau.fin.isoformat(), reverse("quarts-index"), "quart")
+    for creneau in _creneaux_garde_assignes(debut, fin, None, user).filter(marin_id__in=equipe):
+        ajouter(f"eqg-{creneau.pk}", f"{equipe[creneau.marin_id]} · Garde {creneau.poste}", creneau.debut.isoformat(),
+                creneau.fin.isoformat(), reverse("quarts-index"), "service_garde")
+    return evenements

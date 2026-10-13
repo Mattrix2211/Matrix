@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.views.static import serve as serve_static
 from .views import logout_then_login, SettingsView
+from accounts.web_views import ChangerMotDePasseView
 from django.conf import settings
 from django.conf.urls.static import static
 from .views import global_search, recherche_rapide
@@ -22,9 +23,10 @@ urlpatterns = [
         {"document_root": settings.BASE_DIR / "matrix" / "static" / "js", "path": "service-worker.js"},
         name="service-worker",
     ),
-    path("accounts/", include("django.contrib.auth.urls")),
-    # Raccourcis conviviaux
-    path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
+    path("accounts/password_change/", ChangerMotDePasseView.as_view(), name="password_change"),
+    # Pas de réinitialisation par e-mail (inutilisable à bord) : seules la connexion et le changement sont exposés.
+    path("accounts/login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
+    path("login/", auth_views.LoginView.as_view(template_name="registration/login.html")),
     path("logout/", logout_then_login, name="logout"),
     path("api/accounts/", include("accounts.urls")),
     path("api/org/", include("org.urls")),
@@ -45,6 +47,13 @@ urlpatterns = [
     path("formations/", include("training.web_urls")),
     path("quarts/", include("quarts.web_urls")),
     path("absences/", include("absences.web_urls")),
+    path("taches/", include("taches.web_urls")),
+    path("demandes/", include("demandes.web_urls")),
+    path("annonces/", include("annonces.web_urls")),
+    path("programme/", include("programme.web_urls")),
+    path("postes/", include("postes.web_urls")),
+    path("documentation/", include("documentation.web_urls")),
+    path("retex/", include("retex.web_urls")),
     path("rondes/", include("rondes.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),

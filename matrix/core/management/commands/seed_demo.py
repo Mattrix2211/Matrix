@@ -10,9 +10,16 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from absences.models import Absence
+from annonces import services as annonces_services
+from programme import services as programme_services
+from programme.models import EvenementProgramme
+from annonces.models import Annonce
+from demandes import services as demandes_services
+from demandes.models import Demande
 from accounts.models import (
     FonctionQuartChoice, GradeChoice, ResponsableSpecialite, Roles, ServiceFunctionChoice,
-    SpecialityChoice,
+    SpecialityChoice, TypeAbsence,
 )
 from assets.models import (
     ArticleCatalogue, Asset, AssetType, CategorieCatalogue, ChecklistItemTemplate, ChecklistTemplate,
@@ -23,8 +30,9 @@ from assets.models import (
 from assets import fiche_maintenance
 from matrix.core.models import Brouillon
 from logistics.models import (
-    Anomalie, CorrectiveTicket, PartLineItem, PartRequest, StockPiece, TicketStatusLog,
+    Anomalie, CorrectiveTicket, MouvementStock, PartLineItem, PartRequest, StockPiece, TicketStatusLog,
 )
+from logistics.stock import enregistrer_mouvement
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
 from notifications.models import Notification, NotificationLevel
 from org.models import ReleveEquipage, ResponsableClasseNavire, Sector, Section, Service, Ship
@@ -33,6 +41,8 @@ from quarts.models import (
 )
 from rondes.models import PointControle, RondeModele
 from rondes import services as rondes_services
+from taches import services as taches_services
+from taches.models import Tache
 from threads.models import Message, Thread
 from training.models import (
     ReferentFormation, TrainingCourse, TrainingRecord, TrainingRequirement, TrainingSession,
@@ -60,6 +70,9 @@ class Command(BaseCommand):
         self._rondes()
         self._quarts()
         self._formations()
+        self._taches()
+        self._demande_et_annonce()
+        self._programme()
         self._notifications_et_brouillons()
         self.stdout.write(self.style.SUCCESS("Données de démonstration prêtes. Comptes (mot de passe « pass ») :"))
         for ligne in self.comptes:
@@ -297,9 +310,11 @@ class Command(BaseCommand):
                 critique=designation.startswith("Compresseur")))
         # Stock sous le seuil.
         for ref, des, qte, mini, crit in [("JNT-10", "Joint de pompe", 2, 6, 1), ("FLT-22", "Filtre à huile", 0, 4, 0), ("COU-05", "Courroie", 9, 4, None)]:
-            StockPiece.objects.get_or_create(ship=ship, reference=ref, defaults=dict(
-                designation=des, quantite=qte, quantite_minimale=mini, quantite_critique=crit,
+            piece, creee = StockPiece.objects.get_or_create(ship=ship, reference=ref, defaults=dict(
+                designation=des, quantite_minimale=mini, quantite_critique=crit,
                 service=s["Propulsion"], sector=moteurs, emplacement="Magasin machine"))
+            if creee and qte:
+                enregistrer_mouvement(self.chef_secteur_a, piece, MouvementStock.INVENTAIRE, qte, motif="Inventaire initial")
 
     def _releves(self):
         ge, pompe, red = self.inst["GE-1"], self.inst["POMPE-RB"], self.inst["RED-1"]
@@ -480,18 +495,24 @@ class Command(BaseCommand):
                     quart=brouillon, poste="Machine avant", marin=equipe[i % 3] if i < 5 else None,
                     debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)),
                     fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)) + timedelta(hours=4))
-        publie, cree = Quart.objects.get_or_create(nom="Quarts machine — cette semaine", sector=moteurs, defaults=dict(
-            date_debut=debut, date_fin=debut + timedelta(days=6), fonction=self.fonctions_quart["Barre"], duree_creneau_heures=4,
-            created_by=self.chef_secteur_a))
+        # Planning publié du service Propulsion : trois quarts de 8 h par jour, toute la semaine,
+        # visible au calendrier des marins affectés et de leurs chefs.
+        chef_service = User.objects.get(username="chef_service_a")
+        Quart.objects.filter(nom="Quarts machine — cette semaine").delete()  # ancienne version du jeu de démo
+        publie, cree = Quart.objects.get_or_create(
+            nom="Planning Propulsion — cette semaine", service=self.bre_s["Propulsion"], defaults=dict(
+                date_debut=debut, date_fin=debut + timedelta(days=6), fonction=self.fonctions_quart["Barre"],
+                duree_creneau_heures=8, created_by=chef_service))
         if cree:
-            for i in range(12):
+            equipe_quart = equipe + [User.objects.get(username="chef_section_a")]
+            for i in range(21):
                 jour = debut + timedelta(days=i // 3)
                 heure = 8 * (i % 3)
                 CreneauQuart.objects.create(
-                    quart=publie, poste="Barre" if i % 2 else "Veille", marin=equipe[i % 3],
+                    quart=publie, poste=["Veille", "Barre", "Machine avant"][i % 3], marin=equipe_quart[i % 4],
                     debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)),
                     fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)) + timedelta(hours=8))
-            publie.publier(self.chef_secteur_a)
+            publie.publier(chef_service)
         garde, cree = ServiceGarde.objects.get_or_create(nom="Garde de nuit — Propulsion", service=self.bre_s["Propulsion"], defaults=dict(
             date_debut=debut, date_fin=debut + timedelta(days=6), type_service="Garde de nuit", duree_creneau_heures=12,
             fonction=ServiceFunctionChoice.objects.get(name="Chef de garde"), created_by=self.chef_secteur_a))
@@ -530,6 +551,68 @@ class Command(BaseCommand):
                                           completed_at=self.aujourdhui - timedelta(days=100), expires_at=self.aujourdhui + timedelta(days=630))
         ReferentFormation.objects.get_or_create(course=cours["Lutte contre l'incendie"], ship=self.bre, user=self.chef_secteur_a)
         TrainingRequirement.objects.get_or_create(course=cours["Lutte contre l'incendie"], applies_to_role="EQUIPIER", applies_to_ship=self.bre)
+
+    # ---------- Tâches ----------
+
+    def _taches(self):
+        # À jouer en direct (À faire), en retard (relance), bloquée avec fil ouvert à l'équipage B, cycle complet terminé,
+        # tâche personnelle privée.
+        chef, ivan = User.objects.get(username="chef_section_a"), User.objects.get(username="chef_secteur_b")
+        demain, hier = self.aujourdhui + timedelta(days=1), self.aujourdhui - timedelta(days=1)
+        if not Tache.objects.filter(titre="Contrôler le graissage des paliers de la ligne d'arbre").exists():
+            taches_services.creer_tache(
+                chef, self.equipier_a, "Contrôler le graissage des paliers de la ligne d'arbre", demain,
+                "Relever l'état des graisseurs et signaler toute fuite.")
+        if not Tache.objects.filter(titre="Remplacer le filtre du circuit d'huile").exists():
+            tache = taches_services.creer_tache(
+                chef, self.equipier_a2, "Remplacer le filtre du circuit d'huile", self.aujourdhui + timedelta(days=3))
+            taches_services.demarrer(tache, self.equipier_a2)
+            taches_services.signaler_blocage(tache, self.equipier_a2, "Filtre de rechange introuvable en magasin.")
+            taches_services.ajouter_participant(tache, chef, ivan)
+            taches_services.repondre(tache, ivan, "Une référence équivalente est au magasin de l'équipage B, je la fais passer.")
+        if not Tache.objects.filter(titre="Mettre à jour le registre des rondes machines").exists():
+            taches_services.creer_tache(
+                chef, self.equipier_a2, "Mettre à jour le registre des rondes machines", self.aujourdhui - timedelta(days=2))
+        if not Tache.objects.filter(titre="Préparer mon dossier de formation incendie").exists():
+            taches_services.creer_tache(
+                self.equipier_a, self.equipier_a, "Préparer mon dossier de formation incendie", self.aujourdhui + timedelta(days=5),
+                priorite=Tache.PRIORITE_URGENTE)
+        permission, _ = TypeAbsence.objects.get_or_create(name="Permission")
+        Absence.objects.get_or_create(marin=self.equipier_a, type_absence=permission, date_debut=demain, defaults=dict(
+            date_fin=demain + timedelta(days=1), statut=Absence.STATUT_VALIDEE, created_by=chef))
+        if not Tache.objects.filter(titre="Vérifier l'étalonnage des sondes de température").exists():
+            tache = taches_services.creer_tache(
+                User.objects.get(username="chef_secteur_elec_a"), self.equipier_elec, "Vérifier l'étalonnage des sondes de température", hier)
+            taches_services.demarrer(tache, self.equipier_elec)
+            taches_services.rendre_compte(tache, self.equipier_elec, "Quatre sondes vérifiées, écart inférieur à 0,5 °C.")
+
+    # ---------- Demande bord–terre et annonce ----------
+
+    def _demande_et_annonce(self):
+        # Une demande en traitement avec réponse de l'équipage à terre, une annonce à accuser.
+        chef, ivan = User.objects.get(username="chef_section_a"), User.objects.get(username="chef_secteur_b")
+        tache = Tache.objects.get(titre="Contrôler le graissage des paliers de la ligne d'arbre")
+        if not Demande.objects.filter(titre="Fuite persistante sur un graisseur").exists():
+            demande = demandes_services.creer_demande(
+                tache.assigne, tache, "Fuite persistante sur un graisseur",
+                "Le graisseur du palier n°2 fuit malgré le resserrage.", chef)
+            demandes_services.ajouter_interlocuteur(demande, chef, ivan)
+            demandes_services.repondre(demande, ivan, "Un joint équivalent est disponible au magasin de l'équipage B, je vous l'envoie.")
+            demandes_services.changer_etat(demande, chef, Demande.ETAT_EN_TRAITEMENT)
+        if not Annonce.objects.filter(titre="Exercice incendie jeudi 14 h").exists():
+            annonces_services.publier(
+                self.cdt_a, "Exercice incendie jeudi 14 h", "Rassemblement pont principal, tenue de travail.",
+                NotificationLevel.WARNING, f"ship:{self.bre.pk}", accuse_requis=True)
+
+    # ---------- Programme du bâtiment ----------
+
+    def _programme(self):
+        if EvenementProgramme.objects.filter(titre="Exercice incendie général").exists():
+            return
+        exercice = programme_services.types_du_navire(self.bre.pk).get(nom="Exercice")
+        programme_services.creer_evenement(
+            self.second_a, "Exercice incendie général", exercice.pk, timezone.now().replace(hour=14, minute=0) + timedelta(days=2),
+            None, f"ship:{self.bre.pk}", lieu="Pont principal")
 
     # ---------- Notifications et brouillons ----------
 

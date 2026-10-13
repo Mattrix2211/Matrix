@@ -7,12 +7,19 @@ création en masse de `Notification` doit donc passer par
 """
 import logging
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.utils import timezone
 
 from .models import Notification, NotificationLevel
 from .push import envoyer_notification_push
 
 logger = logging.getLogger(__name__)
+
+
+def compter_non_lues(utilisateur):
+    """Notifications non lues du marin : unique source du compteur de la barre et du centre."""
+    return Notification.objects.filter(user=utilisateur, is_read=False).count()
 
 
 def creer_notifications_en_masse(notifications):
@@ -37,3 +44,16 @@ def _pousser(notifications):
             envoyer_notification_push(notification)
         except Exception:  # un échec du push ne doit jamais bloquer ni annuler les notifications
             logger.exception("Échec de l'envoi Web Push de la notification %s", notification.pk)
+
+
+def traiter_actions(objet, utilisateurs=None, prefixe_verbe=""):
+    """Solde les alertes d'action en attente portant sur `objet` (source résolue) ; l'historique reste.
+
+    `utilisateurs` limite aux destinataires concernés ; `prefixe_verbe` à un type d'alerte."""
+    alertes = Notification.objects.filter(
+        content_type=ContentType.objects.get_for_model(objet), object_id=str(objet.pk),
+        action_requise=True, traitee_le__isnull=True, verb__startswith=prefixe_verbe,
+    )
+    if utilisateurs is not None:
+        alertes = alertes.filter(user__in=utilisateurs)
+    return alertes.update(traitee_le=timezone.now(), is_read=True)

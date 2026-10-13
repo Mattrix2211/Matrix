@@ -16,14 +16,20 @@ bord (``dashboard.web_views``), sans système parallèle :
 Tout autre utilisateur n'a que son bâtiment de rattachement (même périmètre
 « navire » que ``scope_filters_for_user``).
 
-À ce jour, ce choix n'est lu que par la barre supérieure : aucune vue métier ne
-filtre encore sur ``batiment_courant`` (voir la tâche de suite dans Notion).
+Les listes bornées par ``build_scope_q`` (matériels, installations, tickets,
+anomalies, stock…) se limitent au bâtiment courant d'un utilisateur à terre :
+``BatimentCourantMiddleware`` en publie l'identifiant pour la durée de la requête.
+Les tableaux de bord de spécialité et de classe restent transverses.
 """
+from contextvars import ContextVar
+
 from org.models import Ship
 from matrix.core.scopes import is_master_admin
 from training.models import navire_de
 
 CLE_SESSION = "batiment_courant_id"
+# Bâtiment choisi pour la requête en cours ; None hors requête web (tâches, scripts, tests).
+batiment_filtre = ContextVar("batiment_filtre", default=None)
 
 
 def batiments_du_perimetre(user):
@@ -39,6 +45,21 @@ def batiments_du_perimetre(user):
     if classes:
         filtre = actives.filter(classe_navire__in=classes) | filtre
     return filtre.filter(archived=False).distinct().order_by("name")
+
+
+def referentiel_organisation(user):
+    """Bâtiments du périmètre de l'utilisateur et leur organisation (services, secteurs, sections),
+    pour les listes déroulantes de filtre : jamais les noms des autres bâtiments."""
+    from org.models import Section, Sector, Service
+
+    navires = batiments_du_perimetre(user)
+    return {
+        "ships": navires,
+        "services": Service.objects.filter(ship__in=navires).select_related("ship").order_by("name"),
+        "sectors": Sector.objects.filter(service__ship__in=navires).select_related("service", "service__ship").order_by("name"),
+        "sections": Section.objects.filter(sector__service__ship__in=navires).select_related(
+            "sector", "sector__service", "sector__service__ship").order_by("name"),
+    }
 
 
 def selecteur_batiment(user):

@@ -12,7 +12,12 @@ from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.mixins import build_scope_q
+from matrix.core.scopes import assignes_equipage_q
 from matrix.core.icones import classe_icone
+from taches.services import peut_attribuer
+from programme.services import evenements_periode as evenements_programme
+from .deplacement_views import _perimetre_session
+from .sources import CONCEPT_ICONE_PAR_TYPE, COULEUR_PAR_TYPE
 from .evenements_sources import (
     _absences_periode,
     _appliquer_filtres_occurrences,
@@ -20,9 +25,12 @@ from .evenements_sources import (
     _creneaux_garde_assignes,
     _creneaux_quart_assignes,
     _evenements_personnels,
+    evenements_equipe,
+    sessions_visibles,
     _peut_agir_occurrence,
     _peut_agir_ticket,
     _rondes_a_faire,
+    _taches_a_faire,
 )
 
 
@@ -85,32 +93,11 @@ _COULEUR_STATUT_MAINTENANCE = {
     "CANCELLED":          {"backgroundColor": "#adb5bd", "borderColor": "#9aa0a6", "textColor": "#333"},
     "WAITING_VALIDATION": {"backgroundColor": "#0dcaf0", "borderColor": "#0aa8cc", "textColor": "#000"},
 }
-_COULEUR_PAR_TYPE = {
-    "maintenance":   {"backgroundColor": "#0d6efd", "borderColor": "#0a58ca", "textColor": "#fff"},
-    "ticket":        {"backgroundColor": "#b8500a", "borderColor": "#964008", "textColor": "#fff"},
-    "training":      {"backgroundColor": "#198754", "borderColor": "#146c43", "textColor": "#fff"},
-    "personal":      {"backgroundColor": "#6f42c1", "borderColor": "#59339d", "textColor": "#fff"},
-    # Teintes assombries par rapport à un simple "teal"/"pink" Bootstrap : un
-    # texte blanc sur #20c997/#d63384 ne respecte pas le contraste WCAG AA
-    # (ratio < 4.5:1) — #0b7285/#a61e4d passent largement (ratio > 5:1).
-    "quart":         {"backgroundColor": "#0b7285", "borderColor": "#095c6b", "textColor": "#fff"},
-    "service_garde": {"backgroundColor": "#a61e4d", "borderColor": "#84173d", "textColor": "#fff"},
-    "ronde":         {"backgroundColor": "#5f3dc4", "borderColor": "#4c2fa0", "textColor": "#fff"},
-    "absence":       {"backgroundColor": "#7c4a03", "borderColor": "#5c3702", "textColor": "#fff"},
-}
+_COULEUR_PAR_TYPE = COULEUR_PAR_TYPE
 
 # Concept d'icône (table centrale matrix/core/icones.py) par type d'événement :
 # le gabarit du calendrier affiche l'icône devant le titre (aucun emoji).
-_CONCEPT_ICONE_PAR_TYPE = {
-    "maintenance": "maintenance",
-    "ticket": "ticket",
-    "training": "formation",
-    "quart": "quart",
-    "service_garde": "garde",
-    "ronde": "ronde",
-    "personal": "personnel",
-    "absence": "absence",
-}
+_CONCEPT_ICONE_PAR_TYPE = CONCEPT_ICONE_PAR_TYPE
 
 
 def _couleur_evenement(ev_type, status=None):
@@ -131,6 +118,16 @@ def calendar_events(request):
         "type": request.GET.get("type") or None,
         "status": request.GET.get("status") or None,
     }
+    # « Mon équipe » : valeur spéciale du filtre Utilisateur, réservée à qui peut attribuer des tâches.
+    if filters.get("user") == "equipe":
+        if not peut_attribuer(request.user):
+            raise PermissionDenied
+        equipe = evenements_equipe(request.user, start, end, _couleur_evenement)
+        for evenement in equipe:
+            concept = _CONCEPT_ICONE_PAR_TYPE.get(evenement["extendedProps"]["type"])
+            if concept:
+                evenement["extendedProps"]["icone"] = classe_icone(concept)
+        return JsonResponse(equipe, safe=False)
     events = []
     niveau_role = user_role_level(request.user)
     # Occurrences de maintenance préventive : matériel mobile (asset) ou installation fixe.
@@ -140,7 +137,9 @@ def calendar_events(request):
         "installation_maintenance__installation__ship",
         "installation_maintenance__installation__service",
         "installation_maintenance__installation__sector",
-    ).prefetch_related("assignees").filter(scheduled_for__range=(start, end))
+    ).prefetch_related("assignees").filter(
+        assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
+    )
     occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
     if filters.get("status"):
         occ_qs = occ_qs.filter(status=filters["status"])
@@ -171,6 +170,7 @@ def calendar_events(request):
         })
     # Tickets correctifs planifiés
     ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])
+    ticket_qs = ticket_qs.filter(assignes_equipage_q(request.user, CorrectiveTicket, "assignees"))
     ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
     if filters.get("status"):
         ticket_qs = ticket_qs.filter(status=filters["status"])
@@ -205,7 +205,9 @@ def calendar_events(request):
     # Formation désormais globale (plus de secteur, cf. _perimetre_session
     # ci-dessus) : le filtre "sector" du calendrier ne s'applique plus aux
     # sessions de formation, uniquement aux autres types d'événements.
-    ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
+    ses_qs = sessions_visibles(request.user, TrainingSession.objects.select_related("course", "instructor")).filter(
+        scheduled_at__date__range=(start, end)
+    )
     if filters.get("user"):
         ses_qs = ses_qs.filter(
             Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"]) | Q(instructor__id=filters["user"])
@@ -214,6 +216,10 @@ def calendar_events(request):
         ses_qs = ses_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "training":
         ses_qs = ses_qs.none()
+    # Déplaçable seulement dans les cas acceptés par calendar_event_move.
+    ids_session_deplacables = set()
+    if niveau_role >= RoleLevel.CHEF_SECTION:
+        ids_session_deplacables = set(_perimetre_session(ses_qs, request.user).values_list("pk", flat=True))
     for s in ses_qs:
         course_title = getattr(s.course, "title", None) or getattr(s.course, "name", str(s.course))
         couleur = _couleur_evenement("training")
@@ -223,7 +229,7 @@ def calendar_events(request):
             "start": s.scheduled_at.isoformat(),
             "end": s.scheduled_at.isoformat(),
             "url": "/training/",
-            "editable": niveau_role >= RoleLevel.CHEF_SECTION,
+            "editable": s.pk in ids_session_deplacables,
             # Pas d'action rapide proposée pour une session de formation
             # depuis le popover : la validation d'une formation dépend du
             # marin concerné (peut_valider_formation exige un navire précis
@@ -299,6 +305,19 @@ def calendar_events(request):
                 "extendedProps": {"type": "ronde", "status": ronde.statut, "peut_agir": False},
                 **_couleur_evenement("ronde"),
             })
+    # Tâches attribuées par un chef : échéance sur le calendrier du marin.
+    if not filters.get("type") or filters["type"] == "tache":
+        for tache in _taches_a_faire(request.user, start, end):
+            events.append({
+                "id": f"tch-{tache.id}",
+                "title": tache.titre,
+                "start": tache.echeance.isoformat(),
+                "end": tache.echeance.isoformat(),
+                "url": f"/taches/{tache.id}/",
+                "editable": False,
+                "extendedProps": {"type": "tache", "status": tache.statut, "peut_agir": False},
+                **_couleur_evenement("tache"),
+            })
     # Événements personnels libres : uniquement ceux du marin connecté,
     # affichés à côté des événements auto-générés sur son calendrier.
     if not filters.get("type") or filters["type"] == "personal":
@@ -326,6 +345,19 @@ def calendar_events(request):
                     "peut_agir": pe.owner_id == request.user.id,
                 },
                 **couleur,
+            })
+    # Programme du bâtiment : escales, arrêts techniques, exercices, réunions qui visent le marin.
+    if not filters.get("type") or filters["type"] == "programme":
+        for evt in evenements_programme(request.user, start, end):
+            events.append({
+                "id": f"prg-{evt.id}",
+                "title": f"{evt.type.nom} - {evt.titre}",
+                "start": evt.debut.isoformat(),
+                "end": (evt.fin or evt.debut).isoformat(),
+                "url": f"/programme/{evt.id}/",
+                "editable": False,
+                "extendedProps": {"type": "programme", "status": None, "peut_agir": False},
+                "backgroundColor": evt.type.couleur, "borderColor": evt.type.couleur, "textColor": "#fff",
             })
     for evenement in events:
         concept = _CONCEPT_ICONE_PAR_TYPE.get(evenement["extendedProps"]["type"])

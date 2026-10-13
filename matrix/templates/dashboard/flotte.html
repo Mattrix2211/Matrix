@@ -91,10 +91,7 @@
 {% if tickets_par_statut and total_tickets_ouverts %}
 <script>
 (function(){
-  // Même composant Chart.js que le tableau de bord personnel
-  // (dashboard/index.html, chartCorrective) : cohérence visuelle entre les deux
-  // écrans (principe n°5 CLAUDE.md), alimenté ici directement par le contexte
-  // déjà scopé au navire plutôt que par l'API globale.
+  // Même doughnut que _pilotage.html (chartCorrective), alimenté ici par le contexte de la vue.
   var ctx = document.getElementById('chartTicketsFlotte');
   if (!ctx || !window.Chart) return;
   new Chart(ctx, {

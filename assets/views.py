@@ -12,7 +12,6 @@ from .catalogue_web import journaliser
 from .permissions import CataloguePermission
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
-from matrix.core.scopes import scope_filters_for_user
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -184,9 +183,7 @@ def _installation_scopee_ou_404(request, pk):
     """Récupère une installation par pk en appliquant le périmètre de
     l'utilisateur (scope_filters_for_user, même système que ScopedQuerySetMixin
     côté DRF) — une installation hors périmètre est traitée comme introuvable."""
-    filtres = scope_filters_for_user(request.user)
-    queryset = Installation.objects.filter(**filtres) if filtres else Installation.objects.all()
-    return get_object_or_404(queryset, pk=pk)
+    return get_object_or_404(Installation.objects.filter(build_scope_q(request.user, "")), pk=pk)
 
 
 @login_required

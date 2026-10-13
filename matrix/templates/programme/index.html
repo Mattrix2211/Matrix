@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Programme du bâtiment</h1>
+  <div class="d-flex gap-2">
+    {% if peut_regler %}<a class="btn btn-outline-secondary" href="{% url 'programme-reglages' %}">Réglages</a>{% endif %}
+    {% if peut_saisir %}<a class="btn btn-primary" href="{% url 'evenement-nouveau' %}">Ajouter un événement</a>{% endif %}
+  </div>
+</div>
+<p class="text-muted">Escales, arrêts techniques, exercices et réunions qui vous concernent ; ils apparaissent aussi dans le calendrier.</p>
+<h2 class="h5">À venir</h2>
+<div class="list-group mb-4">
+  {% for e in a_venir %}
+  <a class="list-group-item list-group-item-action" href="{% url 'evenement-detail' e.pk %}">
+    <div class="d-flex justify-content-between"><strong><span class="badge" style="background-color:{{ e.type.couleur }}">{{ e.type.nom }}</span> {{ e.titre }}{% if e.annule %} <span class="badge text-bg-secondary">Annulé</span>{% endif %}</strong>
+      <span class="small text-muted">{{ e.debut|date:"d/m/Y H:i" }}</span></div>
+    <div class="small text-muted">{{ e.cible_libelle }}{% if e.lieu %} · {{ e.lieu }}{% endif %}</div>
+  </a>
+  {% empty %}<div class="list-group-item text-muted">Rien de programmé.</div>{% endfor %}
+</div>
+{% if recents %}
+<h2 class="h5">Derniers jours</h2>
+<ul class="list-unstyled">{% for e in recents %}<li><a href="{% url 'evenement-detail' e.pk %}">{{ e.titre }}</a> <span class="small text-muted">· {{ e.debut|date:"d/m/Y" }}</span></li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

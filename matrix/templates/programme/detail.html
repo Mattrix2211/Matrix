@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1"><span class="badge" style="background-color:{{ evenement.type.couleur }}">{{ evenement.type.nom }}</span> {{ evenement.titre }}{% if evenement.annule %} <span class="badge text-bg-secondary">Annulé</span>{% endif %}</h1>
+<p class="text-muted small">{{ evenement.debut|date:"d/m/Y H:i" }}{% if evenement.fin %} → {{ evenement.fin|date:"d/m/Y H:i" }}{% endif %} · pour {{ evenement.cible_libelle }}{% if evenement.lieu %} · {{ evenement.lieu }}{% endif %} · saisi par {{ evenement.auteur.get_full_name|default:evenement.auteur.username }}</p>
+{% if evenement.description %}<div class="card card-body mb-3">{{ evenement.description|linebreaksbr }}</div>{% endif %}
+<div class="card card-body mb-3">
+  <h2 class="h6">Tâches préparatoires</h2>
+  <ul class="list-unstyled small mb-2">
+    {% for t in taches %}<li><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a> · {{ t.assigne.get_full_name|default:t.assigne.username }} · {{ t.get_statut_display }}</li>
+    {% empty %}<li class="text-muted">Aucune tâche liée.</li>{% endfor %}
+  </ul>
+  {% if peut_gerer and not evenement.annule and taches_liables %}
+  <form method="post" action="{% url 'evenement-action' evenement.pk %}" class="input-group">{% csrf_token %}<input type="hidden" name="action" value="lier_tache">
+    <select class="form-select" name="tache" aria-label="Tâche à lier">{% for t in taches_liables %}<option value="{{ t.pk }}">{{ t.titre }}</option>{% endfor %}</select>
+    <button class="btn btn-outline-secondary" type="submit">Lier une tâche</button></form>
+  {% endif %}
+</div>
+{% if peut_gerer and not evenement.annule %}
+<form method="post" action="{% url 'evenement-action' evenement.pk %}" class="card card-body mb-3">{% csrf_token %}<input type="hidden" name="action" value="modifier">
+  <h2 class="h6">Modifier (un changement d'horaire prévient le public visé)</h2>
+  <input class="form-control mb-2" name="titre" value="{{ evenement.titre }}" maxlength="200" required aria-label="Titre">
+  <div class="row g-2 mb-2">
+    <div class="col-md-4"><input class="form-control" type="datetime-local" name="debut" value="{{ debut_saisie }}" required aria-label="Début"></div>
+    <div class="col-md-4"><input class="form-control" type="datetime-local" name="fin" value="{{ fin_saisie }}" aria-label="Fin"></div>
+    <div class="col-md-4"><input class="form-control" name="lieu" value="{{ evenement.lieu }}" maxlength="120" aria-label="Lieu"></div>
+  </div>
+  <textarea class="form-control mb-2" name="description" rows="3" aria-label="Détails">{{ evenement.description }}</textarea>
+  <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
+</form>
+<form method="post" action="{% url 'evenement-action' evenement.pk %}">{% csrf_token %}<input type="hidden" name="action" value="annuler"><button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Annuler cet événement ?')">Annuler l'événement</button></form>
+{% endif %}
+{% endblock %}

@@ -18,6 +18,7 @@ ICONES = {
     "piece": "bi-box",
     "historique": "bi-clock-history",
     "discussion": "bi-chat-left-text",
+    "annonce": "bi-megaphone",
     "impression": "bi-printer",
     "document": "bi-file-earmark-text",
     # Actions courantes
@@ -40,6 +41,7 @@ ICONES = {
     "absence": "bi-calendar-x",
     "garde": "bi-shield-check",
     "ronde": "bi-compass",
+    "tache": "bi-check2-square",
     "personnel": "bi-pin-angle",
     # Navigation latérale (§7)
     "aujourdhui": "bi-house-door",
@@ -61,6 +63,8 @@ ICONES = {
     "deconnexion": "bi-box-arrow-right",
     "deplier_liste": "bi-chevron-down",
     "recherche": "bi-search",
+    "menu": "bi-list",
+    "fermer": "bi-x-lg",
     # Centre de notifications
     "notifications": "bi-bell",
     "marquer_lu": "bi-check2",

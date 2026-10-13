@@ -18,7 +18,7 @@ from django.utils import timezone
 from django.views.generic import View
 
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.mixins import build_scope_q
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 
 from .models import Asset, Installation
@@ -37,8 +37,7 @@ class StartVisualCheckView(LoginRequiredMixin, View):
         # Périmètre : même filtre que ScanQRView (scope_filters_for_user) — sans
         # lui, un chef de section connaissant l'identifiant d'un matériel d'un
         # autre navire pouvait déclencher un contrôle visuel dessus (T-SEC).
-        filtres = scope_filters_for_user(request.user)
-        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        assets = Asset.objects.filter(build_scope_q(request.user, ""))
         try:
             asset = assets.get(pk=pk)
         except Asset.DoesNotExist:
@@ -72,12 +71,11 @@ class ScanQRView(LoginRequiredMixin, View):
         # Périmètre : réutilise scope_filters_for_user (même système que
         # ScopedQuerySetMixin côté API) — un équipement hors périmètre est
         # traité comme introuvable, pas de nouveau contrôle d'accès.
-        filtres = scope_filters_for_user(request.user)
-        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        assets = Asset.objects.filter(build_scope_q(request.user, ""))
         asset = assets.filter(pk=pk).first()
         if asset is not None:
             return self._rediriger(request, asset=asset)
-        installations = Installation.objects.filter(**filtres) if filtres else Installation.objects.all()
+        installations = Installation.objects.filter(build_scope_q(request.user, ""))
         installation = installations.filter(pk=pk).first()
         if installation is not None:
             return self._rediriger(request, installation=installation)

@@ -253,8 +253,7 @@ class VueFlotteAgregationTests(TestCase):
         self.assertEqual(response.context["pieces_sous_seuil_pct"], 50)
 
     def test_donnees_json_du_graphique_tickets_par_statut(self):
-        # Alimente le doughnut Chart.js réutilisé de dashboard/index.html : les
-        # deux listes JSON doivent correspondre exactement à tickets_par_statut.
+        # Alimente le doughnut de flotte.html : les deux listes JSON doivent correspondre à tickets_par_statut.
         CorrectiveTicket.objects.create(asset=self.asset_a, description="Panne 1", status="REPORTED")
         CorrectiveTicket.objects.create(asset=self.asset_a, description="Panne 2", status="IN_REPAIR")
 

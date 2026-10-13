@@ -1,12 +1,119 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse, QueryDict
+from django.urls import reverse
 from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS
 
 from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
+
+
+def _sans_nul(parametres):
+    propres = QueryDict(mutable=True, encoding=parametres.encoding)
+    for cle, valeurs in parametres.lists():
+        propres.setlist(cle.replace("\x00", ""), [v.replace("\x00", "") for v in valeurs])
+    return propres
+
+
+def utilisateur_de_requete(request):
+    """Utilisateur de la session ; l'API accepte aussi l'authentification Basic, résolue ici."""
+    if request.user.is_authenticated or not request.path.startswith("/api/"):
+        return request.user
+    try:
+        resultat = BasicAuthentication().authenticate(request)
+    except AuthenticationFailed:
+        return request.user
+    return resultat[0] if resultat else request.user
+
+
+class SansNulMiddleware:
+    """Retire le caractère NUL des paramètres d'URL : PostgreSQL le refuse dans toute requête
+    texte (erreur 500), ce que SQLite laisse passer en développement. Les formulaires Django
+    le rejettent déjà eux-mêmes."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if "%00" in request.META.get("QUERY_STRING", "").lower():
+            request.GET = _sans_nul(request.GET)
+        return self.get_response(request)
+
+
+class MotDePasseProvisoireMiddleware:
+    """Tant que le marin n'a pas remplacé son mot de passe provisoire, seules la page de changement,
+    la déconnexion et les fichiers statiques lui sont ouverts (redirection ; 403 pour l'API)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        utilisateur = utilisateur_de_requete(request)
+        if utilisateur.is_authenticated and getattr(getattr(utilisateur, "profile", None), "mot_de_passe_provisoire", False):
+            changement = reverse("password_change")
+            libres = (changement, reverse("logout"), "/static/", "/service-worker.js")
+            if not request.path.startswith(libres):
+                if request.path.startswith("/api/"):
+                    return JsonResponse({"detail": "Changement de mot de passe obligatoire."}, status=403)
+                if request.headers.get("HX-Request"):
+                    reponse = HttpResponse(status=204)
+                    reponse["HX-Redirect"] = changement
+                    return reponse
+                return redirect(changement)
+        return self.get_response(request)
+
+
+class BatimentCourantMiddleware:
+    """Publie le bâtiment choisi dans le sélecteur (utilisateur à terre) pour filtrer les listes de la requête."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from .contexte_batiment import CLE_SESSION, batiment_filtre, selecteur_batiment
+
+        courant = None
+        if request.user.is_authenticated and not request.path.startswith("/api/"):
+            choisi = request.session.get(CLE_SESSION)
+            if choisi and any(b.pk == choisi for b in selecteur_batiment(request.user)):
+                courant = choisi
+        jeton = batiment_filtre.set(courant)
+        try:
+            return self.get_response(request)
+        finally:
+            batiment_filtre.reset(jeton)
+
+
+class IdentitePageMiddleware:
+    """Refuse (409) une écriture dont la page a été ouverte pour un autre marin que celui connecté
+    (poste partagé : cookies communs à tous les onglets). L'identité vient de l'en-tête
+    ``X-Mx-Utilisateur`` (htmx, fetch) ou du champ ``mx_utilisateur`` (formulaire) ajoutés par
+    identite.js ; sans identité (page ancienne, sans JavaScript), la requête passe. Les brouillons
+    contrôlent eux-mêmes l'identité (réponses JSON)."""
+
+    METHODES_SURES = ("GET", "HEAD", "OPTIONS", "TRACE")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if (request.method not in self.METHODES_SURES and request.user.is_authenticated
+                and not request.path.startswith(("/api/", "/admin/", "/brouillons/"))
+                and request.path not in (reverse("logout"), reverse("login"), "/login/")):
+            attendu = request.headers.get("X-Mx-Utilisateur")
+            if attendu is None and request.content_type in ("application/x-www-form-urlencoded", "multipart/form-data"):
+                try:
+                    attendu = request.POST.get("mx_utilisateur")
+                except Exception:
+                    attendu = None
+            if attendu is not None and attendu != str(request.user.pk):
+                return HttpResponse(
+                    "Une autre session est ouverte sur ce poste : rechargez la page.",
+                    status=409, content_type="text/plain; charset=utf-8",
+                )
+        return self.get_response(request)
 
 
 class ModuleActivationMiddleware:
@@ -70,7 +177,7 @@ class ModuleActivationMiddleware:
 CHEMINS_ECRITURE_A_TERRE = (
     "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
     "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/",
-    "/calendar/personnel/",
+    "/calendar/personnel/", "/taches/commentaire/", "/demandes/", "/annonces/",
 )
 # Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
 ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")
@@ -89,7 +196,7 @@ class EquipageATerreMiddleware:
 
     def __call__(self, request):
         if request.method not in SAFE_METHODS and not self._exemptee(request):
-            if equipage_a_terre_lecture_seule(self._utilisateur(request)):
+            if equipage_a_terre_lecture_seule(utilisateur_de_requete(request)):
                 if request.path.startswith("/api/"):
                     return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
                 return render(request, "403.html", {"message_refus": MESSAGE_LECTURE_SEULE}, status=403)
@@ -100,14 +207,3 @@ class EquipageATerreMiddleware:
         if request.path == "/parametre/":
             return request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
         return request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
-
-    @staticmethod
-    def _utilisateur(request):
-        """Utilisateur de la session ; l'API accepte aussi l'authentification Basic, résolue ici."""
-        if request.user.is_authenticated or not request.path.startswith("/api/"):
-            return request.user
-        try:
-            resultat = BasicAuthentication().authenticate(request)
-        except AuthenticationFailed:
-            return request.user
-        return resultat[0] if resultat else request.user

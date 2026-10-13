@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">{{ retex.titre }} <span class="badge {% if retex.etat == 'VALIDE' %}text-bg-success{% elif retex.etat == 'REFUSE' %}text-bg-danger{% elif retex.etat == 'CLOS' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">{{ retex.get_etat_display }}</span></h1>
+<p class="text-muted small">{{ retex.domaine.nom }}{% if retex.domaine.coma %} · COMA référent : {{ retex.domaine.coma }}{% endif %}{% if retex.organisme %} · organisme destinataire : {{ retex.organisme }}{% endif %} · diffusion : {{ retex.get_diffusion_display }}{% if retex.portee %} · portée : {{ retex.portee }}{% endif %} · proposé par {{ retex.auteur.get_full_name|default:retex.auteur.username }}
+  {% if retex.source_libelle %}· source : {% if lien_source %}<a href="{{ lien_source }}">{{ retex.source_libelle }}</a>{% else %}{{ retex.source_libelle }}{% endif %}{% endif %}</p>
+<div class="card card-body mb-3">
+  <h2 class="h6">Constat</h2><p>{{ retex.constat|linebreaksbr }}</p>
+  {% if retex.causes %}<h2 class="h6">Causes et analyses</h2><p>{{ retex.causes|linebreaksbr }}</p>{% endif %}
+  <h2 class="h6">Enseignement</h2><p>{{ retex.enseignement|linebreaksbr }}</p>
+  {% if retex.recommandation %}<h2 class="h6">Recommandation</h2><p class="mb-0">{{ retex.recommandation|linebreaksbr }}</p>{% endif %}
+</div>
+{% if retex.motif_decision %}<div class="alert alert-secondary py-2"><strong>{{ retex.decide_par.get_full_name|default:retex.decide_par.username }} :</strong> {{ retex.motif_decision }}</div>{% endif %}
+{% if retex.document %}<p><a href="{% url 'document-detail' retex.document.pk %}">Voir l'enseignement publié dans la documentation</a></p>{% endif %}
+{% if retex.etat == "PROPOSE" and peut_decider %}
+<div class="card card-body mb-3"><h2 class="h6">Décision</h2>
+  <form method="post" action="{% url 'retex-action' retex.pk %}" class="mb-2">{% csrf_token %}<input type="hidden" name="action" value="valider"><input class="form-control mb-2" name="motif" placeholder="Remarque (facultative)" aria-label="Remarque"><button class="btn btn-success btn-sm" type="submit">Valider et publier</button></form>
+  <form method="post" action="{% url 'retex-action' retex.pk %}" class="d-flex gap-2">{% csrf_token %}<input type="hidden" name="action" value="refuser"><input class="form-control form-control-sm" name="motif" placeholder="Motif du refus" required aria-label="Motif du refus"><button class="btn btn-outline-danger btn-sm" type="submit">Refuser</button></form>
+</div>
+{% elif retex.etat == "PROPOSE" and valideurs %}<p class="small text-muted">En attente d'examen par : {% for u in valideurs %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+{% if retex.etat == "VALIDE" or retex.etat == "CLOS" %}
+<div class="card card-body mb-3"><h2 class="h6">Actions décidées</h2>
+  <ul class="list-unstyled small">{% for t in actions %}<li>{{ t.titre }} · {{ t.assigne.get_full_name|default:t.assigne.username }} · {{ t.get_statut_display }}{% if t.echeance %} · échéance {{ t.echeance|date:"d/m/Y" }}{% endif %}</li>{% empty %}<li class="text-muted">Aucune action.</li>{% endfor %}</ul>
+  {% if peut_decider and retex.etat == "VALIDE" %}
+  <form method="post" action="{% url 'retex-action' retex.pk %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="creer_action">
+    <div class="col-md-4"><input class="form-control" name="titre" maxlength="200" placeholder="Action" required aria-label="Action"></div>
+    <div class="col-md-3"><select class="form-select" name="assigne" aria-label="Responsable">{% for m in marins %}<option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><input class="form-control" type="date" name="echeance" aria-label="Échéance"></div>
+    <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Assigner</button></div>
+  </form>
+  <form method="post" action="{% url 'retex-action' retex.pk %}" class="mt-2">{% csrf_token %}<input type="hidden" name="action" value="clore"><button class="btn btn-outline-secondary btn-sm" type="submit">Clore le RETEX</button></form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

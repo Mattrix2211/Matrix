@@ -171,8 +171,10 @@ def equipage_agissant(user):
     navire_id = profile.navire_id_effectif if profile else None
     if not navire_id:
         return None
-    from org.models import Ship
-    ship = Ship.objects.filter(pk=navire_id).first()
+    ship = profile.ship if profile.ship_id == navire_id else None
+    if ship is None:
+        from org.models import Ship
+        ship = Ship.objects.filter(pk=navire_id).first()
     if ship is None or not ship.double_equipage:
         return None
     return profile.equipage or ship.equipage_a_bord or None
@@ -184,6 +186,26 @@ def equipage_marin_q(user, prefix: str = "profile__") -> Q:
     depuis le modèle interrogé, comme pour perimetre_navire_q()."""
     equipage = equipage_agissant(user)
     return Q() if equipage is None else Q(**{f"{prefix}equipage": equipage})
+
+
+def assignes_equipage_q(user, modele, champ: str) -> Q:
+    """Filtre Q d'étanchéité par équipage des tickets, occurrences et rondes.
+
+    Seul l'équipage à terre (lecture seule) est borné : il ne voit pas les objets dont
+    tous les assignés sont de l'autre équipage. L'équipage à bord lit tout (continuité
+    de relève), ainsi que le commandement à terre (supervision). Non assigné ou assigné
+    sans équipage : visible. Q() vide sur équipage unique. `champ` : FK ou ManyToMany
+    vers l'utilisateur."""
+    from .equipage import equipage_a_terre_lecture_seule
+    from .roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
+
+    equipage = equipage_agissant(user)
+    if equipage is None or not equipage_a_terre_lecture_seule(user) or user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
+        return Q()
+    des_notres = modele.objects.filter(**{f"{champ}__profile__equipage__in": [equipage, ""]}).values("pk")
+    assignes = modele.objects.filter(**{f"{champ}__isnull": False}).values("pk")
+    # Sous-requêtes seulement : une jointure sur le ManyToMany dupliquerait les objets multi-assignés.
+    return ~Q(pk__in=assignes) | Q(pk__in=des_notres)
 
 
 def marins_hors_equipage(user, marins):

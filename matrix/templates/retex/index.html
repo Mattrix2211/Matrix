@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">RETEX</h1>
+  <div class="d-flex gap-2">{% if peut_configurer %}<a class="btn btn-outline-secondary" href="{% url 'retex-domaines' %}">Domaines et routage</a>{% endif %}
+    <a class="btn btn-primary" href="{% url 'retex-nouveau' %}">Proposer un RETEX</a></div>
+</div>
+<p class="text-muted">Un cas significatif devient un enseignement validé, publié dans la documentation, avec des actions suivies. Pour proposer un RETEX à partir d'une tâche, d'un ticket, d'une anomalie ou d'une demande, utilisez « Proposer un RETEX » sur sa fiche.</p>
+{% if a_examiner %}
+<h2 class="h5">À examiner</h2>
+<div class="list-group mb-4">{% for r in a_examiner %}<a class="list-group-item list-group-item-action" href="{% url 'retex-detail' r.pk %}"><strong>{{ r.titre }}</strong> <span class="small text-muted">· {{ r.domaine.nom }} · {{ r.auteur.get_full_name|default:r.auteur.username }}</span></a>{% endfor %}</div>
+{% endif %}
+<h2 class="h5">Tous les RETEX</h2>
+<div class="list-group">
+  {% for r in retex %}<a class="list-group-item list-group-item-action" href="{% url 'retex-detail' r.pk %}"><div class="d-flex justify-content-between"><strong>{{ r.titre }}</strong><span class="badge {% if r.etat == 'VALIDE' %}text-bg-success{% elif r.etat == 'REFUSE' %}text-bg-danger{% elif r.etat == 'CLOS' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">{{ r.get_etat_display }}</span></div>
+    <div class="small text-muted">{{ r.domaine.nom }}{% if r.organisme %} → {{ r.organisme }}{% endif %}{% if r.source_libelle %} · source : {{ r.source_libelle }}{% endif %}</div></a>
+  {% empty %}<div class="list-group-item text-muted">Aucun RETEX.</div>{% endfor %}
+</div>
+{% endblock %}

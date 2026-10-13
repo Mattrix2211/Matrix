@@ -6,7 +6,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel, OwnedModel
-from matrix.core.validators import valider_photo, valider_document
+from matrix.core.validators import (
+    valider_document, valider_document_installation, valider_photo, valider_photo_catalogue,
+)
 from org.models import Ship, Service, Sector, Section
 
 User = get_user_model()
@@ -174,6 +176,13 @@ class ChecklistTemplate(TimeStampedModel):
     def __str__(self):
         return f"{self.name} ({self.sector})" if self.sector_id else self.name
 
+class TypeReleve(models.TextChoices):
+    """Mesure d'installation qu'un relevé de fiche alimente à la clôture du compte rendu."""
+    HEURES = "heures", "Heures de marche"
+    ISOLEMENT = "isolement", "Isolement (Ω)"
+    VIBRATIONS = "vibrations", "Vibrations (A, B ou C)"
+
+
 class ChecklistItemTemplate(TimeStampedModel):
     CHECK_TYPES = (
         ("checkbox", "Case à cocher"),
@@ -189,6 +198,8 @@ class ChecklistItemTemplate(TimeStampedModel):
     required = models.BooleanField(default=False)
     requires_photo = models.BooleanField(default=False)
     unit = models.CharField(max_length=50, blank=True, default="")
+    # Relevé qui alimente aussi les mesures de l'installation (heures, isolement, vibrations).
+    releve = models.CharField(max_length=12, choices=TypeReleve.choices, blank=True, default="")
     # Plage attendue d'un relevé numérique (contrôle immédiat à la saisie du compte rendu).
     valeur_min = models.FloatField(null=True, blank=True, verbose_name="Valeur minimale")
     valeur_max = models.FloatField(null=True, blank=True, verbose_name="Valeur maximale")
@@ -417,7 +428,7 @@ class DocumentInstallation(TimeStampedModel, OwnedModel):
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="documents")
     titre = models.CharField(max_length=255, verbose_name="Titre")
     type_document = models.CharField(max_length=20, choices=TYPES, default="autre", verbose_name="Type")
-    fichier = models.FileField(upload_to="installation_docs/", verbose_name="Fichier")
+    fichier = models.FileField(upload_to="installation_docs/", verbose_name="Fichier", validators=[valider_document_installation])
     notes = models.TextField(blank=True, default="", verbose_name="Notes")
 
     class Meta:
@@ -442,7 +453,12 @@ class AssetFolder(TimeStampedModel, OwnedModel):
 
 # Historique des installations
 class InstallationEvent(TimeStampedModel, OwnedModel):
+    TYPE_EVENEMENT = "EVENEMENT"
+    TYPE_MODIFICATION = "MODIFICATION_TECHNIQUE"
+    TYPE_CHOICES = ((TYPE_EVENEMENT, "Événement"), (TYPE_MODIFICATION, "Modification technique"))
+
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="events")
+    type_evenement = models.CharField(max_length=24, choices=TYPE_CHOICES, default=TYPE_EVENEMENT, verbose_name="Type")
     date = models.DateTimeField(default=timezone.now)
     label = models.CharField(max_length=255)
     notes = models.TextField(blank=True, default="")
@@ -490,6 +506,10 @@ class InstallationIsolationReading(TimeStampedModel, OwnedModel):
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="isolation_readings")
     date = models.DateField(default=timezone.localdate)
     ohms = models.DecimalField(max_digits=12, decimal_places=2)
+    execution = models.ForeignKey(
+        "maintenance.MaintenanceExecution", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Compte rendu d'origine",
+    )
     note = models.TextField(blank=True, default="")
 
     class Meta:
@@ -504,6 +524,10 @@ class InstallationHourReading(TimeStampedModel, OwnedModel):
     date = models.DateField(default=timezone.localdate)
     hours = models.DecimalField(max_digits=10, decimal_places=2)
     is_visit = models.BooleanField(default=False)
+    execution = models.ForeignKey(
+        "maintenance.MaintenanceExecution", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Compte rendu d'origine",
+    )
 
     class Meta:
         ordering = ["-date"]
@@ -525,6 +549,10 @@ class InstallationVibrationReading(TimeStampedModel, OwnedModel):
     installation = models.ForeignKey(Installation, on_delete=models.CASCADE, related_name="vibration_readings")
     date = models.DateField(default=timezone.localdate)
     state = models.CharField(max_length=1, choices=STATE_CHOICES)
+    execution = models.ForeignKey(
+        "maintenance.MaintenanceExecution", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Compte rendu d'origine",
+    )
     note = models.TextField(blank=True, default="")
 
     class Meta:
@@ -670,7 +698,7 @@ class CategorieCatalogue(TimeStampedModel, OwnedModel):
     specialite = models.ForeignKey("accounts.SpecialityChoice", on_delete=models.PROTECT, related_name="categories_catalogue", verbose_name="Spécialité")
     ordre = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
     icone = models.CharField(max_length=64, blank=True, default="", verbose_name="Icône")
-    photo = models.FileField(upload_to="catalogue_categories/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="catalogue_categories/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo_catalogue])
     actif = models.BooleanField(default=True, verbose_name="Active")
 
     class Meta:
@@ -703,7 +731,7 @@ class ArticleCatalogue(TimeStampedModel, OwnedModel):
     marque = models.CharField(max_length=255, blank=True, default="", verbose_name="Marque")
     reference = models.CharField(max_length=255, blank=True, default="", verbose_name="Modèle / référence")
     nno = models.CharField(max_length=255, blank=True, default="", verbose_name="NNO")
-    photo = models.FileField(upload_to="catalogue_articles/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="catalogue_articles/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo_catalogue])
     caracteristiques = JSONField(default=dict, blank=True, verbose_name="Caractéristiques")
     duree_vie_mois = models.PositiveIntegerField(null=True, blank=True, verbose_name="Durée de vie ou de péremption type (mois)")
     actif = models.BooleanField(default=True, verbose_name="Actif")
@@ -765,7 +793,7 @@ class PropositionArticle(TimeStampedModel, OwnedModel):
     marque = models.CharField(max_length=255, blank=True, default="", verbose_name="Marque")
     reference = models.CharField(max_length=255, blank=True, default="", verbose_name="Modèle / référence")
     nno = models.CharField(max_length=255, blank=True, default="", verbose_name="NNO")
-    photo = models.FileField(upload_to="catalogue_propositions/", null=True, blank=True, verbose_name="Photo")
+    photo = models.FileField(upload_to="catalogue_propositions/", null=True, blank=True, verbose_name="Photo", validators=[valider_photo_catalogue])
     caracteristiques = JSONField(default=dict, blank=True, verbose_name="Caractéristiques")
     duree_vie_mois = models.PositiveIntegerField(null=True, blank=True, verbose_name="Durée de vie ou de péremption type (mois)")
     motif_refus = models.TextField(blank=True, default="")

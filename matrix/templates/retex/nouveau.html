@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Proposer un RETEX</h1>
+{% if source %}<p>Source : <a href="{{ lien_source }}"><strong>{{ source }}</strong></a> (lien conservé ; rien n'est recopié de son historique).</p>{% endif %}
+<form method="post" class="card card-body mb-4">{% csrf_token %}
+  <input type="hidden" name="source" value="{{ source_ref }}">
+  <div class="mb-3"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" value="{{ source|default:'' }}" required></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-5"><label class="form-label" for="id_domaine">Domaine (détermine le COMA référent)</label>
+      <select class="form-select" id="id_domaine" name="domaine" required>{% for d in domaines %}<option value="{{ d.pk }}">{{ d.nom }}{% if d.coma %} — {{ d.coma }}{% endif %}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label" for="id_organisme">Organisme destinataire (facultatif)</label><input class="form-control" id="id_organisme" name="organisme" maxlength="120" placeholder="Celui du domaine par défaut"></div>
+    <div class="col-md-3"><label class="form-label" for="id_diffusion">Diffusion</label><select class="form-select" id="id_diffusion" name="diffusion">{% for code, libelle in diffusions %}<option value="{{ code }}">{{ libelle }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="mb-3"><label class="form-label" for="id_constat">Constat</label><textarea class="form-control" id="id_constat" name="constat" rows="4" required>{{ constat_initial }}</textarea></div>
+  <div class="mb-3"><label class="form-label" for="id_causes">Causes et analyses (si établies)</label><textarea class="form-control" id="id_causes" name="causes" rows="3"></textarea></div>
+  <div class="mb-3"><label class="form-label" for="id_enseignement">Enseignement</label><textarea class="form-control" id="id_enseignement" name="enseignement" rows="3" required></textarea></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-7"><label class="form-label" for="id_reco">Recommandation</label><input class="form-control" id="id_reco" name="recommandation"></div>
+    <div class="col-md-5"><label class="form-label" for="id_portee">Portée envisagée</label><input class="form-control" id="id_portee" name="portee" maxlength="200"></div>
+  </div>
+  <div><button class="btn btn-primary" type="submit">Proposer</button> <a class="btn btn-link" href="{% url 'retex-index' %}">Annuler</a></div>
+</form>
+{% endblock %}

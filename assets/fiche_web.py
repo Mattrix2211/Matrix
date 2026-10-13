@@ -23,7 +23,7 @@ from . import fiche_adaptation, fiche_comparaison, fiche_flotte, fiche_maintenan
 from .mesures import formater_heures, heures_depuis_visite_maintenance
 from .models import (
     CategorieCatalogue, ChecklistTemplate, FichePreparation, Installation, InstallationHourReading, InstallationMaintenance,
-    ModeDeclenchement,
+    ModeDeclenchement, TypeReleve,
 )
 from .proposition_article import ErreurCircuit
 
@@ -87,6 +87,13 @@ def _sans_nul(post):
     return copie
 
 
+def _type_ligne(type_saisi, releve):
+    """Les vibrations se saisissent en texte (A, B ou C), les autres relevés en nombre."""
+    if releve == TypeReleve.VIBRATIONS:
+        return "text"
+    return "number" if type_saisi == "number" or releve else "checkbox"
+
+
 def lire_formulaire(post):
     """Contenu d'une version lu dans le formulaire de l'assistant (les lignes vides sont ignorées)."""
     post = _sans_nul(post)
@@ -109,12 +116,13 @@ def lire_formulaire(post):
                          for t, a in zip(post.getlist("etape_texte"), post.getlist("etape_attention")) if t.strip()]
     libelles = post.getlist("ligne_label")
     obligatoires = (post.getlist("ligne_obligatoire") + [""] * len(libelles))[:len(libelles)]
+    releves = (post.getlist("ligne_releve") + [""] * len(libelles))[:len(libelles)]
     contenu["lignes"] = [
-        {"cle": _cle(cle), "label": lab.strip(), "field_type": "number" if t == "number" else "checkbox", "unit": u.strip(),
+        {"cle": _cle(cle), "label": lab.strip(), "field_type": _type_ligne(t, releve), "unit": u.strip(), "releve": releve,
          "required": oblig == "1", "valeur_min": _flottant(mn), "valeur_max": _flottant(mx)}
-        for cle, t, lab, u, mn, mx, oblig in zip(post.getlist("ligne_cle"), post.getlist("ligne_type"), libelles,
-                                                 post.getlist("ligne_unite"), post.getlist("ligne_min"), post.getlist("ligne_max"),
-                                                 obligatoires)
+        for cle, t, lab, u, mn, mx, oblig, releve in zip(post.getlist("ligne_cle"), post.getlist("ligne_type"), libelles,
+                                                         post.getlist("ligne_unite"), post.getlist("ligne_min"),
+                                                         post.getlist("ligne_max"), obligatoires, releves)
         if lab.strip()]
     return contenu
 
@@ -254,7 +262,7 @@ class _AssistantBase(LoginRequiredMixin, View):
         return render(request, "assets/fiche/assistant.html", {
             "contenu": contenu, "erreur": erreur,
             "modes": ModeDeclenchement.choices, "unites": InstallationMaintenance.UNITE_INTERVALLE_CHOICES,
-            "types_preparation": FichePreparation.Type.choices, "calendaire_seul": False,
+            "types_preparation": FichePreparation.Type.choices, "types_releve": TypeReleve.choices, "calendaire_seul": False,
             "qualifications": TrainingCourse.objects.order_by("title"), "pieces": [],
             **contexte,
         })

@@ -1,14 +1,16 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import ListView, TemplateView
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
+from django.contrib.auth.views import PasswordChangeView
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from .services import peut_reinitialiser, reinitialiser_mot_de_passe
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
@@ -57,10 +59,13 @@ def _utilisateurs_gerables_par(acting_user):
     User = get_user_model()
     qs = User.objects.all()
     if not is_master_admin(acting_user):
-        # Un profil MASTER_ADMIN n'est jamais modifiable par un administrateur de bord.
-        qs = qs.filter(perimetre_navire_q(acting_user, "profile__")).exclude(
-            Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True)
-        )
+        # Jamais de compte maître, ni de compte dont le rôle n'est pas
+        # gérable par le rôle de l'appelant (même matrice que l'API) ; soi-même reste éditable.
+        profil = getattr(acting_user, "profile", None)
+        gerables = ManageUsersPermission.MANAGE_MAP.get(profil.role if profil else None, set())
+        qs = qs.filter(
+            perimetre_navire_q(acting_user, "profile__"), Q(profile__role__in=gerables) | Q(pk=acting_user.pk),
+        ).exclude(Q(profile__role=Roles.MASTER_ADMIN) | Q(is_superuser=True))
     return qs
 
 
@@ -77,7 +82,7 @@ def _referentiels_formulaire(user):
         "roles": [
             {"code": code, "label": label}
             for code, label in Roles.choices
-            if code != "MASTER_ADMIN" and actifs.get(code, True)
+            if code != "MASTER_ADMIN" and actifs.get(code, True) and _role_attribution_autorisee(user, code)
         ],
     }
     if is_master_admin(user):
@@ -95,6 +100,13 @@ def _referentiels_formulaire(user):
     ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
     ctx["specialites"] = SpecialityChoice.objects.filter(active=True).order_by("name")
     return ctx
+
+
+def _page_mots_de_passe_provisoires(request, provisoires):
+    """Affiche une seule fois les mots de passe provisoires (jamais redirigé, jamais mis en cache)."""
+    reponse = render(request, "accounts/mots_de_passe_provisoires.html", {"provisoires": provisoires})
+    reponse["Cache-Control"] = "no-store"
+    return reponse
 
 
 class UserDirectoryView(LoginRequiredMixin, ListView):
@@ -132,7 +144,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # COMMANDANT pouvait consulter le personnel d'un autre navire via ce
         # paramètre d'URL).
         if not is_master_admin(self.request.user):
-            qs = qs.filter(perimetre_navire_q(self.request.user, "profile__"))
+            qs = qs.filter(perimetre_navire_q(self.request.user, "profile__")).exclude(is_superuser=True)
         ship_id = self.request.GET.get("ship")
         if ship_id:
             qs = qs.filter(profile__ship_id=ship_id)
@@ -141,6 +153,11 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["peut_gerer"] = user_role_level(self.request.user) >= RoleLevel.COMMANDANT
+        ctx["peut_reinitialiser"] = peut_reinitialiser(self.request.user)
+        # Actions proposées seulement sur les comptes que le serveur accepterait de modifier.
+        ctx["gerables_ids"] = set(
+            _utilisateurs_gerables_par(self.request.user).filter(pk__in=[u.pk for u in ctx["users"]]).values_list("pk", flat=True)
+        )
         ctx.update(_referentiels_formulaire(self.request.user))
         ctx["sans_equipage"] = [
             u for u in ctx["users"] if u.profile.ship_id and equipage_manquant(u.profile.ship, u.profile.equipage)
@@ -223,9 +240,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
+                    ancien_role = profile.role
                     profile.role = role
                     profile.save(update_fields=["role"])
-                    AuditLog.objects.create(actor=request.user, action="bulk_update_role", target_user=user, details=f"role={role}")
+                    AuditLog.objects.create(actor=request.user, action="bulk_update_role", target_user=user, details=f"role={ancien_role} -> {role}")
                 messages.success(request, f"Rôle mis à jour pour {count} utilisateur(s).")
             elif action == "bulk_update_ship":
                 ship_id = request.POST.get("ship_id")
@@ -313,24 +331,26 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     AuditLog.objects.create(actor=request.user, action="bulk_update_specialite", target_user=user, details=f"specialite={specialite}")
                 messages.success(request, f"Spécialité mise à jour pour {count} utilisateur(s).")
             elif action == "bulk_delete_users":
+                # L'appelant ne peut jamais se supprimer lui-même.
+                if users.filter(pk=request.user.pk).exists():
+                    users = users.exclude(pk=request.user.pk)
+                    count = users.count()
+                    messages.error(request, "Vous ne pouvez pas supprimer votre propre compte : il a été ignoré.")
                 for user in users:
                     AuditLog.objects.create(actor=request.user, action="bulk_delete_user", target_user=user, details=f"username={user.username}")
                 users.delete()
-                messages.success(request, f"{count} utilisateur(s) supprimé(s).")
+                if count:
+                    messages.success(request, f"{count} utilisateur(s) supprimé(s).")
             elif action == "bulk_reset_passwords":
-                import secrets, string
-                def generate_password(length=14):
-                    alphabet = string.ascii_letters + string.digits + "!@$%*#?"
-                    pw = ''.join(secrets.choice(alphabet) for _ in range(length))
-                    if (any(c.islower() for c in pw) and any(c.isupper() for c in pw) and any(c.isdigit() for c in pw) and any(c in "!@$%*#?" for c in pw)):
-                        return pw
-                    return generate_password(length)
-                for user in users:
-                    password = generate_password()
-                    user.set_password(password)
-                    user.save()
-                    AuditLog.objects.create(actor=request.user, action="bulk_reset_password", target_user=user, details="password set")
-                messages.success(request, f"Mot de passe réinitialisé pour {count} utilisateur(s).")
+                if not peut_reinitialiser(request.user):
+                    raise PermissionDenied
+                provisoires = [
+                    (u, reinitialiser_mot_de_passe(request.user, u)) for u in users if u.pk != request.user.pk
+                ]
+                if not provisoires:
+                    messages.warning(request, "Aucun marin de votre bâtiment à réinitialiser.")
+                    return redirect("user-directory")
+                return _page_mots_de_passe_provisoires(request, provisoires)
             return redirect("user-directory")
         if action == "create_user":
             email = request.POST.get("email", "").strip()
@@ -414,6 +434,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         elif action == "delete_user":
             pk = request.POST.get("pk")
             User = get_user_model()
+            if str(request.user.pk) == str(pk):
+                messages.error(request, "Vous ne pouvez pas supprimer votre propre compte.")
+                return redirect("user-directory")
             # Résolution de la cible bornée au périmètre navire de l'appelant
             # (cf. _utilisateurs_gerables_par) : un id hors périmètre lève
             # User.DoesNotExist, exactement comme si le compte n'existait pas.
@@ -469,6 +492,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 user.last_name = request.POST.get("last_name", user.last_name).strip()
                 user.save()
                 profile, _ = UserProfile.objects.get_or_create(user=user)
+                ancien_role = profile.role
                 if role:
                     profile.role = role
                 fonction_service = request.POST.get("fonction_service", "")
@@ -496,34 +520,23 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 profile.section = section
                 profile.save()
                 AuditLog.objects.create(actor=request.user, action="edit_user", target_user=user, details="profil mis à jour")
+                if profile.role != ancien_role:
+                    AuditLog.objects.create(actor=request.user, action="changement_role", target_user=user, details=f"role={ancien_role} -> {profile.role}")
                 messages.success(request, f"Utilisateur {user.username} mis à jour.")
             except User.DoesNotExist:
                 pass
         elif action == "set_password":
-            pk = request.POST.get("pk")
-            password = request.POST.get("password", "").strip()
-            # pas d'envoi d'email
-            User = get_user_model()
-            # Résolution de la cible bornée au périmètre navire de l'appelant
-            # (cf. _utilisateurs_gerables_par).
+            if not peut_reinitialiser(request.user):
+                raise PermissionDenied
             try:
-                user = _utilisateurs_gerables_par(request.user).get(pk=pk)
-                # Génère un mot de passe si vide
-                if not password:
-                    import secrets, string
-                    def generate_password(length=14):
-                        alphabet = string.ascii_letters + string.digits + "!@$%*#?"
-                        pw = ''.join(secrets.choice(alphabet) for _ in range(length))
-                        if (any(c.islower() for c in pw) and any(c.isupper() for c in pw) and any(c.isdigit() for c in pw) and any(c in "!@$%*#?" for c in pw)):
-                            return pw
-                        return generate_password(length)
-                    password = generate_password()
-                user.set_password(password)
-                user.save()
-                AuditLog.objects.create(actor=request.user, action="set_password", target_user=user, details="password set")
-                messages.success(request, "Mot de passe défini.")
-            except User.DoesNotExist:
-                pass
+                cible = _utilisateurs_gerables_par(request.user).get(pk=request.POST.get("pk"))
+            except (get_user_model().DoesNotExist, ValueError):
+                messages.error(request, "Marin introuvable dans votre bâtiment.")
+                return redirect("user-directory")
+            if cible.pk == request.user.pk:
+                messages.error(request, "Pour votre propre compte, changez votre mot de passe depuis votre profil.")
+                return redirect("user-directory")
+            return _page_mots_de_passe_provisoires(request, [(cible, reinitialiser_mot_de_passe(request.user, cible))])
         return redirect("user-directory")
 
 
@@ -685,3 +698,27 @@ class UserSettingsView(LoginRequiredMixin, ListView):
                 pass
         from django.shortcuts import redirect
         return redirect("settings-users")
+
+
+class ChangerMotDePasseView(LoginRequiredMixin, PasswordChangeView):
+    """Changement du mot de passe ; lève l'obligation posée par une réinitialisation."""
+    template_name = "registration/password_change_form.html"
+    success_url = reverse_lazy("home")
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for champ in form.fields.values():
+            champ.widget.attrs["class"] = "form-control"
+        return form
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["provisoire"] = bool(getattr(self.request.user.profile, "mot_de_passe_provisoire", False))
+        return ctx
+
+    def form_valid(self, form):
+        reponse = super().form_valid(form)
+        UserProfile.objects.filter(user=self.request.user).update(mot_de_passe_provisoire=False)
+        AuditLog.objects.create(actor=self.request.user, action="changement_mot_de_passe", target_user=self.request.user)
+        messages.success(self.request, "Mot de passe modifié.")
+        return reponse

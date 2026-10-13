@@ -1,16 +1,24 @@
 """Documents d'installation : droits, périmètre, validation du fichier, téléchargement, équipage à terre."""
+import io
 import tempfile
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from accounts.models import AuditLog, UserProfile
 from assets.models import DocumentInstallation, Installation
 from org.models import Sector, Service, Ship
 
 PDF = b"%PDF-1.4 contenu"
+
+
+def _image(format_):
+    tampon = io.BytesIO()
+    Image.new("RGB", (2, 2), color=(10, 20, 30)).save(tampon, format=format_)
+    return tampon.getvalue()
 
 
 class DocumentsInstallationTests(TestCase):
@@ -76,8 +84,8 @@ class DocumentsInstallationTests(TestCase):
         self.assertFalse(DocumentInstallation.objects.exists())
 
     def test_extensions_autorisees(self):
-        contenus = {"a.pdf": PDF, "a.png": b"\x89PNG\r\n\x1a\n0", "a.jpg": b"\xff\xd8\xff0", "a.jpeg": b"\xff\xd8\xff0",
-                    "a.webp": b"RIFF0000WEBP", "a.txt": b"texte", "a.docx": b"PK\x03\x040", "a.xlsx": b"PK\x03\x040"}
+        contenus = {"a.pdf": PDF, "a.png": _image("PNG"), "a.jpg": _image("JPEG"), "a.jpeg": _image("JPEG"),
+                    "a.webp": _image("WEBP"), "a.txt": b"texte", "a.docx": b"PK\x03\x040", "a.xlsx": b"PK\x03\x040"}
         for nom, contenu in contenus.items():
             self._ajouter(self.chef_section, nom=nom, contenu=contenu)
         self.assertEqual(DocumentInstallation.objects.count(), len(contenus))

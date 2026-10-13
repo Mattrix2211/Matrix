@@ -35,9 +35,10 @@ from assets.models import (
 from logistics.models import CorrectiveTicket, PartLineItem, StockPiece
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
 from matrix.core.export import rendre_csv_sections, rendre_xlsx_sections
-from matrix.core.scopes import scope_filters_for_user
+from logistics.perimetre import equipage_tickets_q
+from matrix.core.scopes import assignes_equipage_q, scope_filters_for_user
 from org.models import Section, Sector, Service, Ship
-from training.models import TrainingRecord
+from training.models import TrainingRecord, dossiers_formation_visibles_q
 
 # Statuts considérés comme clos : à exclure des listes "en cours"/"ouverts".
 STATUTS_TICKET_FERMES = ("CLOSED", "CANCELLED")
@@ -65,6 +66,13 @@ def pdf_disponible() -> bool:
     """Indique si le rendu PDF est disponible (WeasyPrint installé, bibliothèques
     natives GTK présentes sur la machine)."""
     return weasyprint is not None
+
+
+def html_vers_pdf(html: str) -> bytes | None:
+    """PDF d'un document HTML autonome, ou None sans WeasyPrint (l'appelant se rabat sur la page web)."""
+    if not pdf_disponible():
+        return None
+    return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
 
 
 def _dernier_par_installation(queryset, champ_installation="installation_id"):
@@ -177,7 +185,8 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     # naturellement en premier.
     occurrences = (
         MaintenanceOccurrence.objects.filter(
-            installation_maintenance__installation_id__in=installation_ids
+            assignes_equipage_q(utilisateur, MaintenanceOccurrence, "assignees"),
+            installation_maintenance__installation_id__in=installation_ids,
         )
         .exclude(status__in=STATUTS_OCCURRENCE_TERMINEES)
         .select_related("installation_maintenance", "installation_maintenance__installation")
@@ -212,7 +221,7 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     ]
 
     # Tickets correctifs ouverts sur le matériel mobile du périmètre.
-    filtre_tickets = _q_perimetre_tickets(filtre_scope)
+    filtre_tickets = _q_perimetre_tickets(filtre_scope) & equipage_tickets_q(utilisateur)
     tickets_ouverts = list(
         CorrectiveTicket.objects.filter(filtre_tickets)
         .exclude(status__in=STATUTS_TICKET_FERMES)
@@ -230,7 +239,8 @@ def construire_contexte_instantane(scope_type: str, scope_id, utilisateur) -> di
     date_limite = today + timedelta(days=JOURS_ALERTE_QUALIFICATION)
     qualifications_proches_expiration = list(
         TrainingRecord.objects.filter(
-            expires_at__gte=today, expires_at__lte=date_limite, **filtre_qualifications
+            dossiers_formation_visibles_q(utilisateur),
+            expires_at__gte=today, expires_at__lte=date_limite, **filtre_qualifications,
         )
         .select_related("user", "user__profile", "course")
         .order_by("expires_at")
@@ -415,6 +425,7 @@ def construire_contexte_periode(
     # fenêtre, hors annulées, comparées à leur exécution réelle.
     occurrences_periode = (
         MaintenanceOccurrence.objects.filter(
+            assignes_equipage_q(utilisateur, MaintenanceOccurrence, "assignees"),
             installation_maintenance__installation_id__in=installation_ids,
             scheduled_for__range=(date_debut, date_fin),
         )
@@ -455,7 +466,7 @@ def construire_contexte_periode(
     )
 
     # Tickets correctifs sur le matériel mobile du périmètre.
-    filtre_tickets = _q_perimetre_tickets(filtre_scope)
+    filtre_tickets = _q_perimetre_tickets(filtre_scope) & equipage_tickets_q(utilisateur)
     tickets_ouverts_periode = list(
         CorrectiveTicket.objects.filter(
             filtre_tickets, reported_at__date__range=(date_debut, date_fin)
@@ -512,7 +523,9 @@ def construire_contexte_periode(
     )
 
     # Pièces consommées : PartLineItem passées en statut CONSUMED sur la fenêtre.
-    filtre_pieces = _q_perimetre_tickets(filtre_scope, "part_request__ticket__")
+    filtre_pieces = _q_perimetre_tickets(filtre_scope, "part_request__ticket__") & equipage_tickets_q(
+        utilisateur, "part_request__ticket__"
+    )
     pieces_consommees = list(
         PartLineItem.objects.filter(
             filtre_pieces, status="CONSUMED", received_at__range=(date_debut, date_fin)
@@ -527,14 +540,16 @@ def construire_contexte_periode(
     }
     qualifications_obtenues = list(
         TrainingRecord.objects.filter(
-            completed_at__range=(date_debut, date_fin), **filtre_qualifications
+            dossiers_formation_visibles_q(utilisateur),
+            completed_at__range=(date_debut, date_fin), **filtre_qualifications,
         )
         .select_related("user", "user__profile", "course")
         .order_by("completed_at")
     )
     qualifications_expirees = list(
         TrainingRecord.objects.filter(
-            expires_at__range=(date_debut, date_fin), **filtre_qualifications
+            dossiers_formation_visibles_q(utilisateur),
+            expires_at__range=(date_debut, date_fin), **filtre_qualifications,
         )
         .select_related("user", "user__profile", "course")
         .order_by("expires_at")

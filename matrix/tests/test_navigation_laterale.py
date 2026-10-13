@@ -1,5 +1,6 @@
 """Barre latérale (docs/UX.md §7) : visibilité par rôle et par module,
 entrée courante, état replié mémorisé par marin, aucun lien mort."""
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase
 from django.urls import resolve, reverse
@@ -55,12 +56,12 @@ class NavigationLateraleTests(TestCase):
         admin = User.objects.create_superuser(username="admin_nav", password="pass", email="a@a.fr")
         self.assertEqual(
             _titres(self._nav(admin)),
-            ["Personnel", "Équipements", "Maintenance", "Activité", "Compétences", "Supervision", "Administration"],
+            ["Mon quotidien", "Équipements", "Maintenance", "Activité", "Compétences", "Supervision", "Administration"],
         )
 
     def test_module_desactive_masque_ses_entrees_et_le_groupe_vide(self):
         user = self._marin("module_nav", "EQUIPIER")
-        for module in ("rondes", "quarts", "absences"):
+        for module in ("rondes", "quarts", "absences", "taches", "annonces", "programme", "demandes"):
             ModuleActivation.objects.create(ship=self.ship, module=module, active=False)
         invalidate_cache(self.ship.id)
         groupes = self._nav(user)
@@ -101,10 +102,12 @@ class NavigationLateraleTests(TestCase):
 
     def test_libelles_du_chapitre_7_en_supervision(self):
         admin = User.objects.create_superuser(username="sup_nav", password="pass", email="s@s.fr")
+        SpecialityChoice.objects.create(name="Spé sup")
+        Ship.objects.filter(pk=self.ship.pk).update(classe_navire="Frégate")
         supervision = [g for g in self._nav(admin) if g["titre"] == "Supervision"][0]
         self.assertEqual(
             [e["libelle"] for e in supervision["entrees"]],
-            ["Prêt à appareiller", "Flotte", "Spécialités", "Classes de navire"],
+            ["Prêt à appareiller", "Flotte", "Vue COMANAV", "Spécialités", "Classes de navire"],
         )
 
     def test_pret_a_appareiller_visible_de_tout_marin(self):
@@ -206,3 +209,46 @@ class EtatBarreLateraleTests(TestCase):
         self.assertEqual(self.client.post(self.url, {"repliee": "1"}).status_code, 302)
         self.client.force_login(self.marin)
         self.assertEqual(self.client.get(self.url).status_code, 405)
+
+
+class TiroirTelephoneTests(TestCase):
+    """Sous 768 px, la barre latérale est un tiroir ouvert par le bouton « Menu »."""
+
+    def setUp(self):
+        self.ship = Ship.objects.create(name="Frégate Tiroir", code="FR-TIR")
+        self.marin = User.objects.create_user(username="tiroir_a", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
+
+    def _page(self):
+        self.client.force_login(self.marin)
+        return self.client.get("/").content.decode()
+
+    def test_bouton_menu_pilote_le_tiroir_avec_aria(self):
+        html = self._page()
+        bouton = html.split("mx-barre__menu", 1)[0].rsplit("<button", 1)[1] + html.split("mx-barre__menu", 1)[1].split(">", 1)[0]
+        for attendu in ('data-bs-toggle="offcanvas"', 'data-bs-target="#barre-laterale"',
+                        'aria-controls="barre-laterale"', 'aria-expanded="false"', 'aria-label="Menu"'):
+            self.assertIn(attendu, bouton)
+
+    def test_tiroir_focalisable_libelle_et_bouton_fermer(self):
+        html = self._page()
+        aside = html.split('<aside id="barre-laterale"', 1)[1].split(">", 1)[0]
+        self.assertIn('tabindex="-1"', aside)
+        self.assertIn('aria-label="Menu principal"', aside)
+        self.assertIn('data-bs-dismiss="offcanvas"', html)
+        self.assertIn('aria-label="Fermer le menu"', html)
+
+    def test_recherche_en_icone_avec_aria(self):
+        html = self._page()
+        self.assertIn("data-recherche-ouvrir", html)
+        self.assertIn('aria-controls="recherche-racine"', html)
+        self.assertIn('id="recherche-racine"', html)
+
+    def test_visiteur_anonyme_sans_bouton_menu(self):
+        self.assertNotIn("mx-barre__menu", self.client.get("/login/").content.decode())
+
+    def test_css_tiroir_sous_768px_et_zones_tactiles(self):
+        css = (settings.BASE_DIR / "matrix" / "static" / "css" / "matrix.css").read_text(encoding="utf-8")
+        self.assertIn("translateX(-100%)", css)
+        self.assertIn("@media (max-width: 767.98px)", css)
+        self.assertIn("min-height: 44px", css.split("Barre supérieure sur téléphone", 1)[1])

@@ -9,6 +9,11 @@ from rest_framework.test import APIClient
 from accounts.models import UserProfile
 from org.models import Section, Sector, Service, Ship
 from training.models import PersonnelBRH, TrainingCourse, TrainingRecord
+from training.web_views import (
+    _marins_perimetre_hierarchie,
+    _peut_valider_candidature_hierarchie,
+    filtres_perimetre_marin,
+)
 
 
 class LectureDossiersFormationTests(TestCase):
@@ -87,3 +92,28 @@ class LectureDossiersFormationTests(TestCase):
         formation = next(f for f in r.context["formations"] if f.pk == self.cours.pk)
         self.assertEqual(formation.nb_a_jour, 0)
         self.assertEqual(formation.dernieres_validations, [])
+
+
+class PerimetreMarinSansRattachementTests(TestCase):
+    """Un chef sans rattachement ne valide et ne liste aucun marin."""
+
+    def setUp(self):
+        navire = Ship.objects.create(name="Navire sans rattachement", code="SRA")
+        self.marin = User.objects.create_user(username="marin_sra", password="pass")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": navire})
+        self.chef = User.objects.create_user(username="chef_sra", password="pass")
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
+        self.chef = User.objects.get(pk=self.chef.pk)
+        self.master = User.objects.create_user(username="master_sra", password="pass")
+        UserProfile.objects.update_or_create(user=self.master, defaults={"role": "MASTER_ADMIN"})
+        self.master = User.objects.get(pk=self.master.pk)
+
+    def test_chef_sans_rattachement_ne_voit_aucun_marin(self):
+        self.assertFalse(_marins_perimetre_hierarchie(self.chef).filter(pk=self.marin.pk).exists())
+
+    def test_chef_sans_rattachement_ne_valide_aucune_candidature(self):
+        self.assertFalse(_peut_valider_candidature_hierarchie(self.chef, self.marin))
+
+    def test_administrateur_general_garde_la_flotte_entiere(self):
+        self.assertIsNone(filtres_perimetre_marin(self.master))
+        self.assertTrue(_peut_valider_candidature_hierarchie(self.master, self.marin))

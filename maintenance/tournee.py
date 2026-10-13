@@ -9,6 +9,7 @@ from django.urls import reverse
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.scopes import assignes_equipage_q
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 
 from .compte_rendu import ETATS, lignes_de_saisie, lire_saisie, resume
@@ -89,7 +90,7 @@ def charger(user, ids):
             "plan", "plan__checklist_template", "plan__fiche", "asset", "asset__asset_type", "asset__ship", "asset__location",
             "asset__plan_deck", "asset__article_catalogue", "asset__article_catalogue__categorie", "execution__version_fiche",
         ).prefetch_related("assignees")
-        .filter(build_scope_q(user, "asset__"), pk__in=ids, asset__isnull=False)
+        .filter(build_scope_q(user, "asset__"), assignes_equipage_q(user, MaintenanceOccurrence, "assignees"), pk__in=ids, asset__isnull=False)
     )
 
 

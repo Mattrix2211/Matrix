@@ -18,7 +18,7 @@ class CreationAssetSansSecteurTests(TestCase):
         AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
 
         self.chef = User.objects.create_user(username="chef_sans_secteur", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship, "service": self.service})
         self.client.login(username="chef_sans_secteur", password="pass")
 
     def test_aucun_secteur_ni_type_fournis_ne_cree_pas_de_materiel(self):

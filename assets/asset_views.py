@@ -26,6 +26,9 @@ from django.views.generic.detail import SingleObjectMixin
 
 from accounts.models import AuditLog
 from logistics.models import CorrectiveTicket, StockPiece
+from logistics.perimetre import equipage_tickets_q
+from matrix.core.scopes import assignes_equipage_q
+from maintenance import historique
 from maintenance.models import MaintenanceOccurrence
 from reports.services import STATUTS_TICKET_FERMES
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -38,11 +41,11 @@ from matrix.core.export import (
     reponse_fichier,
     xlsx_disponible,
 )
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.validators import message_erreur_fichier, valider_document, valider_photo
 from org.models import Section, Sector, Service, Ship
 
@@ -146,6 +149,7 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         # les clés étrangères ne trouverait jamais de correspondance entre navires.
         ctx['pannes_deja_rencontrees'] = (
             CorrectiveTicket.objects.filter(
+                equipage_tickets_q(self.request.user),
                 status='CLOSED',
                 asset__asset_type__name=self.object.asset_type.name,
                 asset__asset_type__category=self.object.asset_type.category,
@@ -158,13 +162,16 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         # StockPiece (logistics), affiché ici en lecture seule, la gestion du stock
         # se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(asset=self.object).order_by('reference')
+        ctx['historique_recent'] = historique.recents(self.request.user, asset=self.object)
+        ctx['historique_url'] = reverse('historique-materiel', args=[self.object.pk])
         ctx['peremption_depassee'] = bool(self.object.date_peremption and self.object.date_peremption < timezone.localdate())
         ctx.update(self._entete(self.object))
         return ctx
 
     def _entete(self, asset):
         """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
-        premier_ticket = asset.tickets.first()
+        tickets = asset.tickets.filter(equipage_tickets_q(self.request.user))
+        premier_ticket = tickets.first()
         menu = [
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?asset={asset.pk}"},
@@ -172,14 +179,21 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
         if user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION:
             menu.append({"libelle": "Démarrer un contrôle visuel", "icone": "maintenance", "ecriture": True,
                          "hx_post": reverse('asset-start-visual', args=[asset.pk]), "hx_cible": "#result"})
+        menu += [
+            {"libelle": "Historique et relevés", "icone": "historique", "url": reverse('historique-materiel', args=[asset.pk])},
+            {"libelle": "Compte rendu d'intervention corrective", "icone": "maintenance", "ecriture": True,
+             "url": f"{reverse('correctif-nouveau')}?asset={asset.pk}"},
+        ]
         if premier_ticket:
             menu.append({"libelle": "Voir le ticket récent", "icone": "ticket",
                          "url": reverse('ticket-detail', args=[premier_ticket.pk])})
         if self.request.user.is_staff:
             menu.append({"libelle": "Ouvrir dans l'administration", "icone": "parametres",
                          "url": f"/admin/assets/asset/{asset.pk}/change/"})
-        tickets_ouverts = asset.tickets.exclude(status__in=STATUTS_TICKET_FERMES).count()
-        en_retard = MaintenanceOccurrence.objects.filter(asset=asset, status="OVERDUE").count()
+        tickets_ouverts = tickets.exclude(status__in=STATUTS_TICKET_FERMES).count()
+        en_retard = MaintenanceOccurrence.objects.filter(
+            assignes_equipage_q(self.request.user, MaintenanceOccurrence, "assignees"), asset=asset, status="OVERDUE"
+        ).count()
         return {
             "action_principale": {"libelle": "Signaler une anomalie", "icone": "anomalie", "modale": "signalerAnomalieModal"},
             "menu_fiche": menu,
@@ -303,7 +317,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             qs = qs.filter(location_id=location_id)
         if folder_id:
             qs = qs.filter(folder_id=folder_id)
-        elif not q and not location_id:
+        elif not q and not location_id and not status:
             # Vue racine (aucun dossier sélectionné, pas de recherche globale, pas
             # de filtre par emplacement) : n'affiche que les matériels non classés
             # dans un dossier, symétrique au filtrage déjà appliqué aux dossiers
@@ -328,11 +342,9 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['services'] = Service.objects.select_related('ship').order_by('name')
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
-        ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
-        ctx['types'] = AssetType.objects.order_by('name')
+        ctx.update(referentiel_organisation(self.request.user))
+        ctx['types'] = AssetType.objects.filter(
+            models.Q(sector__isnull=True) | models.Q(sector__service__ship__in=ctx['ships'])).order_by('name')
         ctx['locations'] = _emplacements_visibles(self.request.user)
         # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
         # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi
@@ -346,8 +358,8 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
         ctx['assets_pour_parent'] = (
-            Asset.objects.select_related('sector', 'asset_type').order_by('designation')
-            if ctx['peut_gerer_parent'] else Asset.objects.none()
+            Asset.objects.filter(build_scope_q(self.request.user, "")).select_related('sector', 'asset_type')
+            .order_by('designation') if ctx['peut_gerer_parent'] else Asset.objects.none()
         )
         ctx.update(_droits_liste(self.request.user, 'asset_ecriture_simple', 'asset_gestion_avancee'))
         ctx['filtres_actifs'] = _filtres_actifs(self.request, [
@@ -385,7 +397,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # navire/service/secteur/section manuels, cf. get_queryset ci-dessus,
             # destinés à un usage de gestion transverse) — sécurité appliquée
             # explicitement ici, indépendamment de get_queryset().
-            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            qs = self.get_queryset().filter(build_scope_q(request.user, ""))
             lignes = _lignes_export_assets(qs)
             if format_export == 'xlsx':
                 contenu = rendre_xlsx(_ENTETES_EXPORT_ASSETS, lignes, titre_feuille='Matériels')
@@ -606,7 +618,8 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 if not type_id:
                     messages.error(request, "Aucun type disponible pour le secteur sélectionné.")
                     return _redirect_liste_materiel(request)
-                at = AssetType.objects.get(pk=type_id)
+                # Les types sont propres à un secteur : celui d'un autre bâtiment est refusé.
+                at = AssetType.objects.get(pk=type_id, sector__service__ship_id=ship_id or 0)
                 asset = Asset(
                     asset_type=at,
                     internal_id=internal_id,
@@ -707,9 +720,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 type_id = request.POST.get('asset_type_id')
                 if type_id:
                     try:
-                        asset.asset_type = AssetType.objects.get(pk=type_id)
+                        asset.asset_type = AssetType.objects.get(pk=type_id, sector__service__ship_id=ship_id or 0)
                     except AssetType.DoesNotExist:
-                        pass
+                        messages.error(request, 'Type de matériel introuvable pour cette unité.')
+                        return _redirect_liste_materiel(request)
                 photo = request.FILES.get('photo')
                 if photo:
                     asset.photo = photo

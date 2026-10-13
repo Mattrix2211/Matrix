@@ -13,8 +13,8 @@ from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.validators import valider_document_installation
 
-from .fichiers import valider_document
 from .models import DocumentInstallation, Installation
 
 
@@ -54,7 +54,7 @@ class DocumentInstallationAjouterView(_DocumentInstallationView):
                 raise ValidationError("Choisissez un fichier.")
             if len(titre) > 255:
                 raise ValidationError("Titre trop long (255 caractères au plus).")
-            valider_document(fichier)
+            valider_document_installation(fichier)
         except ValidationError as erreur:
             messages.error(request, " ".join(erreur.messages))
             return self.retour(installation)

@@ -38,7 +38,7 @@ class ValidationPhotoAssetTests(MediaRootTemporaireMixin, TestCase):
         self.asset_type = AssetType.objects.create(name="Multimètre", category="Mesure", sector=self.sector)
 
         self.chef = User.objects.create_user(username="chef_photo", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE"})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SERVICE", "ship": self.ship, "service": self.service})
         self.client.login(username="chef_photo", password="pass")
 
     def _creer(self, photo):

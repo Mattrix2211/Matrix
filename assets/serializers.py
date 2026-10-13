@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
-from matrix.core.scopes import resoudre_affectation_dans_perimetre, scope_filters_for_user
+from matrix.core.scopes import is_master_admin, resoudre_affectation_dans_perimetre
 from matrix.core.serializers import ReferencesDansPerimetreMixin
 from .models import Location, AssetType, ChecklistTemplate, ChecklistItemTemplate, AssetChecklistOverride, Asset, AssetDocument, CategorieCatalogue, ArticleCatalogue
 from .permissions import peut_gerer_catalogue
@@ -89,7 +89,7 @@ class AssetSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer)
         # administrateur général), aucune restriction, comme pour la lecture.
         acting_user = getattr(self.context.get("request"), "user", None)
         champs = ("ship", "service", "sector", "section")
-        if acting_user is not None and scope_filters_for_user(acting_user) and any(attrs.get(c) is not None for c in champs):
+        if acting_user is not None and not is_master_admin(acting_user) and any(attrs.get(c) is not None for c in champs):
             ok, *_ = resoudre_affectation_dans_perimetre(
                 acting_user, **{f"{c}_id": attrs[c].id if attrs.get(c) is not None else None for c in champs}
             )

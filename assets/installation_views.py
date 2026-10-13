@@ -32,6 +32,8 @@ from django.views.generic import DetailView, ListView
 
 from accounts.models import AuditLog
 from logistics.models import StockPiece
+from maintenance import historique
+from maintenance.perimetre import installations_en_retard
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -41,11 +43,11 @@ from matrix.core.export import (
     reponse_fichier,
     xlsx_disponible,
 )
-from matrix.core.mixins import ScopedQuerySetMixin
+from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
-from matrix.core.scopes import scope_filters_for_user
+from matrix.core.contexte_batiment import referentiel_organisation
 from threads.utils import contexte_discussion
 from org.models import Section, Sector, Service, Ship
 
@@ -170,6 +172,10 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         sector_id = self.request.GET.get('sector')
         section_id = self.request.GET.get('section')
         q = self.request.GET.get('q', '').strip()
+        if self.request.GET.get('critique') == '1':
+            qs = qs.filter(critique=True)
+        if self.request.GET.get('retard') == '1':
+            qs = qs.filter(pk__in=installations_en_retard(self.request.user, timezone.localdate()).values('pk'))
         if ship_id:
             qs = qs.filter(ship_id=ship_id)
         if service_id:
@@ -184,10 +190,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['services'] = Service.objects.select_related('ship').order_by('name')
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
-        ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
+        ctx.update(referentiel_organisation(self.request.user))
         ctx['locations'] = _emplacements_visibles(self.request.user)
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
         # Pré-remplissage du formulaire de création : Navire/Service/Secteur du
@@ -201,8 +204,8 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # côté client par secteur (data-sector) pour éviter un rattachement cross-navire.
         ctx['peut_gerer_parent'] = _peut_gerer_rattachement_parent(self.request.user)
         ctx['installations_pour_parent'] = (
-            Installation.objects.select_related('sector').order_by('designation')
-            if ctx['peut_gerer_parent'] else Installation.objects.none()
+            Installation.objects.filter(build_scope_q(self.request.user, "")).select_related('sector')
+            .order_by('designation') if ctx['peut_gerer_parent'] else Installation.objects.none()
         )
         # Pré-remplissage du périmètre (navire/service/secteur/section) du formulaire
         # de création à partir du profil du chef connecté.
@@ -213,6 +216,8 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             ('service', 'Service', _noms_par_id(ctx['services'])),
             ('sector', 'Secteur', _noms_par_id(ctx['sectors'])),
             ('section', 'Section', _noms_par_id(ctx['sections'])),
+            ('critique', 'Installation', {'1': 'critique'}),
+            ('retard', 'Échéance', {'1': 'en retard'}),
         ])
         # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement).
         # Requêtes groupées (installation_id__in=...) plutôt qu'une requête par
@@ -305,7 +310,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre : même garde-fou que AssetListView.get — l'export ne doit
             # JAMAIS dépasser le périmètre de l'utilisateur, même si l'affichage
             # de cette liste n'est pas lui-même restreint par périmètre.
-            qs = self.get_queryset().filter(**scope_filters_for_user(request.user))
+            qs = self.get_queryset().filter(build_scope_q(request.user, ""))
             lignes = _lignes_export_installations(qs)
             if format_export == 'xlsx':
                 contenu = rendre_xlsx(
@@ -546,10 +551,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['ships'] = Ship.objects.order_by('name')
-        ctx['services'] = Service.objects.select_related('ship').order_by('name')
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('name')
-        ctx['sections'] = Section.objects.select_related('sector', 'sector__service', 'sector__service__ship').order_by('name')
+        ctx.update(referentiel_organisation(self.request.user))
         ctx['bigrames'] = InstallationBigrameChoice.objects.filter(active=True).order_by('name')
         ctx['locations'] = _emplacements_visibles(self.request.user)
         # Rattachement parent (T3) : réservé aux CHEF_SERVICE et au-dessus, options
@@ -577,6 +579,8 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         # StockPiece (logistics), affiché ici en lecture seule dans l'onglet
         # « Pièces », la gestion du stock se faisant depuis /logistics/stock/.
         ctx['pieces_stock'] = StockPiece.objects.filter(installation=self.object).order_by('reference')
+        ctx['historique_recent'] = historique.recents(self.request.user, installation=self.object)
+        ctx['historique_url'] = reverse('historique-installation', args=[self.object.pk])
         ctx['extra_fields'] = list(self.object.extra_fields.all())
         # Entretien: liste des tâches d'entretien définies sur l'installation
         try:
@@ -765,6 +769,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
         menu = [
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?installation={inst.pk}"},
+        ]
+        menu += [
+            {"libelle": "Historique et relevés", "icone": "historique", "url": reverse('historique-installation', args=[inst.pk])},
+            {"libelle": "Compte rendu d'intervention corrective", "icone": "maintenance", "ecriture": True,
+             "url": f"{reverse('correctif-nouveau')}?installation={inst.pk}"},
         ]
         if niveau >= niveau_requis_pour(self.request.user, 'installation_ecriture_simple'):
             menu.append({"libelle": "Modifier les infos", "icone": "modification", "ecriture": True,

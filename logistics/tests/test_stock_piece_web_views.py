@@ -111,12 +111,11 @@ class StockPieceListViewTests(MediaRootTemporaireMixin, TestCase):
         self.client.login(username="chef", password="pass")
         response = self.client.post(self.url, {
             "action": "edit_piece", "pk": self.piece_dans_perimetre.pk,
-            "reference": "REF-001", "designation": "Joint torique", "quantite": "8",
-            "quantite_minimale": "5", "sector_id": self.secteur.id,
+            "reference": "REF-001", "designation": "Joint torique", "quantite_minimale": "5", "sector_id": self.secteur.id,
         }, follow=True)
         self.assertEqual(response.status_code, 200)
         self.piece_dans_perimetre.refresh_from_db()
-        self.assertEqual(self.piece_dans_perimetre.quantite, 8)
+        self.assertEqual(self.piece_dans_perimetre.quantite_minimale, 5)
 
     def test_creation_sans_secteur_est_refusee(self):
         self.client.login(username="chef", password="pass")

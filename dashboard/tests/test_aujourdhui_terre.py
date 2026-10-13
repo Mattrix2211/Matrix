@@ -62,7 +62,7 @@ class AujourdhuiTerreTests(TestCase):
         ticket = CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="BLOCKED")
         CorrectiveTicket.objects.create(asset=self.assets[self.ship_c], description="HS", status="BLOCKED")
         CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="REPORTED")
-        urls = [e["url"] for e in a_faire_terre(batiments_suivis(self.ssf))]
+        urls = [e["url"] for e in a_faire_terre(batiments_suivis(self.ssf), self.ssf)]
         self.assertEqual(urls, [None, reverse("ticket-detail", args=[ticket.pk])])
 
     def test_liens_generes_suivis_a_terre(self):
@@ -99,7 +99,7 @@ class AujourdhuiTerreTests(TestCase):
     def test_a_terre_aucun_bouton_valider_meme_avec_droit(self):
         self._avec_droit_de_gestion(self.ssf)
         attente = self._occurrence(self.ship_a, 1, "WAITING_VALIDATION")
-        self.assertIsNone(a_faire_terre(batiments_suivis(self.ssf))[0]["url"])
+        self.assertIsNone(a_faire_terre(batiments_suivis(self.ssf), self.ssf)[0]["url"])
         self.client.login(username="ssf", password="pass")
         self.assertNotContains(self.client.get(reverse("home")), "Valider")
         r = self.client.post(reverse("occurrence-execute", args=[attente.pk]), {"conformity": "CONFORME"})
@@ -113,7 +113,7 @@ class AujourdhuiTerreTests(TestCase):
         Anomalie.objects.create(titre="Fuite", ship=self.ship_a)
         self.assets[self.ship_a].status = "OUT_OF_SERVICE"
         self.assets[self.ship_a].save()
-        cartes = cartes_batiments(batiments_suivis(self.ssf), self.aujourdhui)
+        cartes = cartes_batiments(batiments_suivis(self.ssf), self.aujourdhui, self.ssf)
         self.assertEqual(
             [b["libelle"] for b in cartes[0]["badges"]],
             ["1 en retard", "1 anomalie(s) ouverte(s)", "1 indisponible(s)"],
@@ -122,7 +122,7 @@ class AujourdhuiTerreTests(TestCase):
 
     def test_badge_ticket_bloque_coherent_avec_a_faire(self):
         CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="Pièce", status="BLOCKED")
-        cartes = cartes_batiments(batiments_suivis(self.ssf), self.aujourdhui)
+        cartes = cartes_batiments(batiments_suivis(self.ssf), self.aujourdhui, self.ssf)
         self.assertEqual(cartes[1]["badges"], [{"etat": "attention", "libelle": "1 ticket(s) bloqué(s)"}])
 
     def test_page_a_terre_et_page_de_bord_inchangee(self):

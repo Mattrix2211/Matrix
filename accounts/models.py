@@ -52,6 +52,10 @@ class UserProfile(TimeStampedModel):
     # Barre latérale repliée (docs/UX.md §7) : état mémorisé par marin, et non par
     # navigateur, car les postes du bord sont partagés. Dépliée par défaut.
     barre_laterale_repliee = models.BooleanField(default=False)
+    mot_de_passe_provisoire = models.BooleanField(
+        default=False, verbose_name="Mot de passe provisoire",
+        help_text="Le marin doit choisir un nouveau mot de passe à sa prochaine connexion.",
+    )
 
     ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")

@@ -1,4 +1,6 @@
 """Double équipage : l'équipage à terre consulte le bâtiment en lecture seule."""
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
@@ -7,7 +9,9 @@ from accounts.models import AuditLog, Roles
 from matrix.core.scopes import is_master_admin
 from notifications.models import Notification
 
-ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve", "valider_releve_secours")
+logger = logging.getLogger(__name__)
+
+ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve", "valider_releve_secours", "generer_passation")
 # Le commandant en second supplée le commandant de son équipage.
 ROLES_COMMANDEMENT = (Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND)
 MESSAGE_EQUIPAGE_OBLIGATOIRE = "L'équipage est obligatoire sur un bâtiment à double équipage."
@@ -87,6 +91,7 @@ def proposer_releve(auteur, navire, equipage):
         Notification.objects.create(
             user=cdt,
             verb=f"Relève proposée sur {navire.name} : l'équipage {equipage} à bord. Votre validation est attendue.",
+            url="/parametre/?tab=equipage",
         )
     return proposition, ""
 
@@ -179,6 +184,7 @@ def valider_releve_secours(auteur, proposition, motif):
                     "Validation de secours par l'administrateur général (aucun commandant ni second disponible "
                     "pour valider), tracée dans le journal d'audit."
                 ),
+                url="/parametre/?tab=equipage",
             )
     return ""
 
@@ -203,10 +209,23 @@ def _appliquer_decision(auteur, proposition, accepter, action_validation, comple
         proposition.statut = proposition.Statut.REFUSEE
         AuditLog.objects.create(actor=auteur, action="releve_refusee", details=details)
     proposition.save()
+    if accepter:
+        from dashboard.passation import generer_passation
+
+        # La relève reste validée même si la synthèse échoue ; le bouton manuel permet de la regénérer.
+        try:
+            with transaction.atomic():
+                generer_passation(auteur, navire, proposition, avant[1])
+        except Exception:
+            logger.exception("Synthèse de passation non générée (relève %s)", proposition.pk)
+            AuditLog.objects.create(
+                actor=auteur, action="passation_echec", details=f"navire={navire.name}; releve={proposition.pk}"
+            )
     if notifier_proposant and proposition.propose_par:
         Notification.objects.create(
             user=proposition.propose_par,
             verb=f"Relève sur {navire.name} {'validée' if accepter else 'refusée'} par {auteur.get_full_name() or auteur.username}.",
+            url="/parametre/?tab=equipage",
         )
     return ""
 

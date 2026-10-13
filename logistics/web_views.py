@@ -2,23 +2,23 @@ from django.views import View
 from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.urls import reverse
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Q
 from .models import (
-    CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
+    CorrectiveTicket, MouvementStock, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
     destinataires_ticket, niveau_alerte_ticket,
 )
-from threads.models import Message, Thread
 from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.contexte_batiment import referentiel_organisation
+from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q, utilisateurs_visibles_par
 from matrix.core.validators import valider_photo, message_erreur_fichier
-from matrix.core.scopes import equipage_marin_q, scope_filters_for_user
+from matrix.core.scopes import equipage_marin_q, is_master_admin, scope_filters_for_user
 from notifications.models import Notification
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
@@ -30,9 +30,11 @@ from matrix.core.export import (
     xlsx_disponible,
 )
 from accounts.models import AuditLog
+from .stock import SortieDejaEnregistree, StockInsuffisant, enregistrer_mouvement, prelever, sortie_pour_ligne_consommee
 from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, contexte_discussion
+from logistics.perimetre import perimetre_tickets_q
 
 
 
@@ -48,7 +50,7 @@ def _secteur_dans_perimetre(user, sector_id):
     confiance au menu déroulant du formulaire, contournable par un POST direct."""
     filters = scope_filters_for_user(user)
     if not filters:
-        return Sector.objects.filter(pk=sector_id).exists()
+        return is_master_admin(user) and Sector.objects.filter(pk=sector_id).exists()
     (key, value), = filters.items()
     if key == "sector_id":
         return str(value) == str(sector_id)
@@ -77,7 +79,7 @@ class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # Un ticket correctif porte sur un matériel mobile (asset), qui porte
         # lui-même les 4 champs de périmètre — même logique que
         # CorrectiveTicketViewSet côté API (logistics/views.py).
-        return build_scope_q(self.request.user, "asset__", "installation__")
+        return perimetre_tickets_q(self.request.user)
 
     def _vue_perimetre_autorisee(self):
         return user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
@@ -187,7 +189,7 @@ class TicketDetailView(LoginRequiredMixin, View):
         try:
             ticket = (
                 CorrectiveTicket.objects.select_related('asset', 'installation')
-                .filter(build_scope_q(request.user, "asset__", "installation__"))
+                .filter(perimetre_tickets_q(request.user))
                 .get(pk=pk)
             )
         except CorrectiveTicket.DoesNotExist:
@@ -205,6 +207,15 @@ class TicketDetailView(LoginRequiredMixin, View):
         contexte["titre_fiche"] = ticket.installation.designation if ticket.installation else str(ticket.asset)
         # L'action principale est l'étape suivante, au centre de la fiche (zone workflow), pas dans l'en-tête.
         contexte["menu_fiche"] = [{"libelle": "Voir la fiche de l'actif", "icone": "materiel", "url": url_actif}]
+        if request.user in ticket.assignees.all() or user_role_level(request.user) >= niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers'):
+            contexte["menu_fiche"].append({
+                "libelle": "Compte rendu d'intervention", "icone": "maintenance", "ecriture": True,
+                "url": reverse('correctif-compte-rendu', args=[ticket.pk]),
+            })
+        contexte["menu_fiche"].append({
+            "libelle": "Proposer un RETEX", "icone": "historique",
+            "url": f"{reverse('retex-nouveau')}?source=correctiveticket:{ticket.pk}",
+        })
         contexte["indicateurs_fiche"] = [
             {"libelle": "Gravité", "valeur": f"{ticket.severity}/5",
              "etat": "danger" if ticket.severity >= 4 else "attention" if ticket.severity == 3 else "ok"},
@@ -216,10 +227,9 @@ class TicketDetailView(LoginRequiredMixin, View):
         # périmètre de l'appelant (scope_filters_for_user, même filtre que
         # StockPieceListView) et déjà en stock, pour éviter de proposer une
         # pièce impossible à prélever.
-        contexte["peut_prelever_stock"] = contexte["peut_assigner"]
+        contexte["peut_prelever_stock"] = user_role_level(request.user) >= niveau_requis_pour(request.user, "stock_ecriture")
         if contexte["peut_prelever_stock"]:
-            filtres_stock = scope_filters_for_user(request.user)
-            pieces_qs = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+            pieces_qs = StockPiece.objects.filter(build_scope_q(request.user, ""))
             contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
         if contexte["peut_assigner"]:
             # Assignables : le périmètre hiérarchique du chef (navire entier dès COMMANDANT), comme l'API.
@@ -241,8 +251,7 @@ class TicketCreateView(LoginRequiredMixin, View):
     def post(self, request, asset_pk):
         # Périmètre : un marin ne peut signaler une anomalie que sur un matériel
         # de son propre périmètre — même filtre que ScopedQuerySetMixin/AssetViewSet.
-        filtres = scope_filters_for_user(request.user)
-        assets = Asset.objects.filter(**filtres) if filtres else Asset.objects.all()
+        assets = Asset.objects.filter(build_scope_q(request.user, ""))
         try:
             asset = assets.get(pk=asset_pk)
         except Asset.DoesNotExist:
@@ -292,6 +301,7 @@ class TicketCreateView(LoginRequiredMixin, View):
                 user=profile.user,
                 level=niveau_alerte,
                 verb=f"Anomalie signalée sur {asset} : {description}",
+                target=ticket,
             )
 
         messages.success(request, "Anomalie signalée : le ticket correctif a été créé.")
@@ -312,7 +322,7 @@ class TicketAssignView(LoginRequiredMixin, View):
         # modifier ses assignés (T-SEC).
         try:
             ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
-                build_scope_q(request.user, "asset__", "installation__")
+                perimetre_tickets_q(request.user)
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
@@ -333,6 +343,7 @@ class TicketAssignView(LoginRequiredMixin, View):
             Notification.objects.create(
                 user=marin,
                 verb=f"Vous avez été assigné(e) au ticket correctif : {ticket.equipement} — {ticket.description[:80]}",
+                target=ticket,
             )
 
         messages.info(request, "Assignation du ticket mise à jour.")
@@ -359,7 +370,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
         # connaissant l'identifiant d'un ticket d'un autre navire pouvait le
         # faire transitionner, y compris le remettre en service (T-SEC).
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         new_status = request.POST.get('status')
@@ -429,7 +440,7 @@ class TicketCommentCreateView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         corps = request.POST.get('body', '').strip()
@@ -450,7 +461,7 @@ class PartRequestCreateView(LoginRequiredMixin, View):
         # connaissant l'identifiant d'un ticket d'un autre navire pouvait lui
         # créer une demande de pièces (IDOR).
         try:
-            ticket = CorrectiveTicket.objects.filter(build_scope_q(request.user, "asset__", "installation__")).get(pk=pk)
+            ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
         pr = PartRequest.objects.create(ticket=ticket, requested_by=request.user if request.user.is_authenticated else None, needed_by_date=request.POST.get('needed_by_date') or None)
@@ -504,6 +515,17 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
         status = request.POST.get('status')
         if not status:
             return HttpResponseBadRequest('Statut requis')
+        if status == 'CONSUMED' and line.status != 'CONSUMED':
+            if user_role_level(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
+                messages.warning(request, "Aucune sortie de stock enregistrée : la gestion du stock est réservée à un niveau supérieur au vôtre.")
+            else:
+                stock = StockPiece.objects.filter(build_scope_q(request.user, ""))
+                try:
+                    sortie_pour_ligne_consommee(request.user, line, stock)
+                except StockInsuffisant as exc:
+                    messages.warning(request, f"Stock insuffisant pour {exc.reference} : aucune sortie de stock enregistrée pour cette ligne.")
+                except SortieDejaEnregistree as exc:
+                    messages.warning(request, f"Une sortie de {exc.reference} est déjà enregistrée pour ce ticket : aucune sortie en double.")
         line.status = status
         line.save(update_fields=['status'])
         if request.headers.get('HX-Request'):
@@ -531,24 +553,21 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
     prélever une pièce d'un autre secteur/bâtiment en postant directement son
     identifiant, hors du menu déroulant du formulaire.
 
-    Traçabilité volontairement simple à ce stade (décision produit) : la
-    quantité est décrémentée directement sur StockPiece et un message système
-    est ajouté au fil de suivi du ticket — pas de nouveau modèle de mouvement
-    de stock formel.
+    Traçabilité : le prélèvement est un mouvement de sortie lié au ticket
+    (logistics/stock.py) et un message système est ajouté au fil du ticket.
     """
 
     def post(self, request, pk):
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if user_role_level(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
             raise PermissionDenied
         try:
             ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
-                build_scope_q(request.user, "asset__", "installation__")
+                perimetre_tickets_q(request.user)
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
 
-        filtres_stock = scope_filters_for_user(request.user)
-        pieces = StockPiece.objects.filter(**filtres_stock) if filtres_stock else StockPiece.objects.all()
+        pieces = StockPiece.objects.filter(build_scope_q(request.user, ""))
         try:
             piece = pieces.get(pk=request.POST.get('piece_id'))
         except (StockPiece.DoesNotExist, ValueError):
@@ -569,40 +588,15 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
             )
             return redirect('ticket-detail', pk=ticket.pk)
 
-        # Mise à jour atomique conditionnelle (T-CONC) : deux prélèvements
-        # concurrents sur la même pièce pourraient sinon tous les deux lire la
-        # même quantité disponible avant d'écrire, et la perdre en écrasant
-        # l'écriture de l'autre (perte de mise à jour). Le contrôle
-        # "quantite > piece.quantite" ci-dessus reste utile pour un message
-        # d'erreur rapide dans le cas courant, mais seule cette écriture
-        # conditionnelle en base (WHERE quantite >= quantite demandée)
-        # garantit qu'on ne prélève jamais plus que le stock réellement
-        # disponible au moment de l'écriture.
-        with transaction.atomic():
-            lignes_modifiees = StockPiece.objects.filter(
-                pk=piece.pk, quantite__gte=quantite,
-            ).update(
-                quantite=F('quantite') - quantite,
-                updated_by=request.user,
-                updated_at=timezone.now(),
-            )
-        if not lignes_modifiees:
+        try:
+            prelever(request.user, piece, quantite, ticket)
+        except StockInsuffisant:
             messages.error(
                 request,
                 f"Stock insuffisant : la quantité disponible pour {piece.reference} "
                 "a changé entre-temps, réessayez.",
             )
             return redirect('ticket-detail', pk=ticket.pk)
-
-        # Trace du prélèvement : message système dans le fil de suivi du ticket,
-        # même mécanisme que les transitions de statut
-        # (CorrectiveTicketViewSet.transition, logistics/views.py).
-        ct = ContentType.objects.get_for_model(CorrectiveTicket)
-        thread, _ = Thread.objects.get_or_create(content_type=ct, object_id=str(ticket.pk))
-        Message.objects.create(
-            thread=thread, author=request.user, is_system=True,
-            body=f"Prélèvement stock : {quantite} x {piece.reference} ({piece.designation})",
-        )
 
         messages.success(request, f"{quantite} unité(s) de {piece.reference} prélevée(s) du stock.")
         return redirect('ticket-detail', pk=ticket.pk)
@@ -631,15 +625,16 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['peut_gerer'] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
-        ctx['sectors'] = Sector.objects.select_related('service', 'service__ship').order_by('service__ship__name', 'service__name', 'name')
-        ctx['sections'] = Section.objects.select_related('sector').order_by('sector__name', 'name')
+        ctx['peut_gerer'] = user_role_level(self.request.user) >= niveau_requis_pour(self.request.user, 'stock_ecriture')
+        organisation = referentiel_organisation(self.request.user)
+        ctx['sectors'] = organisation['sectors'].order_by('service__ship__name', 'service__name', 'name')
+        ctx['sections'] = organisation['sections'].order_by('sector__name', 'name')
         # Équipement affiliable (T-FEAT stock détaillé) : listés une seule fois,
         # avec leur secteur en attribut, pour filtrer côté client selon le secteur
         # choisi (même principe que le filtrage des sections). Le contrôle réel
         # d'appartenance au secteur est fait côté serveur (voir post()).
-        ctx['installations'] = Installation.objects.select_related('sector').order_by('designation')
-        ctx['assets_materiel'] = Asset.objects.select_related('sector', 'asset_type').order_by('designation')
+        ctx['installations'] = Installation.objects.filter(build_scope_q(self.request.user, "")).select_related('sector').order_by('designation')
+        ctx['assets_materiel'] = Asset.objects.filter(build_scope_q(self.request.user, "")).select_related('sector', 'asset_type').order_by('designation')
         ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
         ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
         ctx['xlsx_disponible'] = xlsx_disponible()
@@ -681,7 +676,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if user_role_level(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
             raise PermissionDenied
         action = request.POST.get('action')
         if action not in ('create_piece', 'edit_piece'):
@@ -709,7 +704,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         section = Section.objects.filter(pk=request.POST.get('section_id'), sector=sector).first()
 
         try:
-            quantite = int(request.POST.get('quantite') or 0)
+            quantite_initiale = max(int(request.POST.get('quantite') or 0), 0)
             quantite_minimale = int(request.POST.get('quantite_minimale') or 0)
         except ValueError:
             messages.error(request, "Les quantités doivent être des nombres entiers.")
@@ -751,7 +746,6 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             "reference": reference,
             "designation": designation,
             "nno": request.POST.get('nno', '').strip(),
-            "quantite": max(quantite, 0),
             "quantite_minimale": max(quantite_minimale, 0),
             "quantite_critique": quantite_critique,
             "emplacement": request.POST.get('emplacement', '').strip(),
@@ -770,7 +764,12 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             return redirect('stock-piece-list')
 
         if action == 'create_piece':
-            piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+            with transaction.atomic():
+                piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+                if quantite_initiale:
+                    enregistrer_mouvement(
+                        request.user, piece, MouvementStock.INVENTAIRE, quantite_initiale, motif="Inventaire initial",
+                    )
             if photo:
                 piece.photo = photo
                 piece.save(update_fields=['photo'])

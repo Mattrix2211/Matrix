@@ -1,6 +1,11 @@
 {% load icones %}
 {# Barre latérale (docs/UX.md §7). Variables : navigation_laterale, barre_laterale_repliee (context processor). #}
-<aside id="barre-laterale" class="mx-lateral{% if barre_laterale_repliee %} mx-lateral--repliee{% endif %}">
+{# Petit écran : tiroir (offcanvas Bootstrap) ouvert par le bouton « Menu » de la barre supérieure. #}
+<aside id="barre-laterale" class="mx-lateral{% if barre_laterale_repliee %} mx-lateral--repliee{% endif %}" tabindex="-1" aria-label="Menu principal">
+  <div class="mx-lateral__entete">
+    <a class="mx-lateral__marque" href="/" aria-label="Matrix — accueil">Matrix</a>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#barre-laterale" aria-label="Fermer le menu"></button>
+  </div>
   <nav aria-label="Navigation principale">
     {% for groupe in navigation_laterale %}
       <section class="mx-lateral__groupe" aria-labelledby="mx-groupe-{{ forloop.counter }}">

@@ -72,3 +72,7 @@ body { background: var(--imp-papier) !important; color: var(--imp-encre) !import
 .fiche-tournee .fiche-col-case { width: auto; }
 .fiche-tournee .fiche-col-observation { width: 30%; }
 .fiche-tournee-lieu { display: block; font-size: 8pt; font-weight: 400; }
+
+/* Calendrier : largeur utile de l'A4, recalculée par FullCalendar (ResizeObserver). */
+#calendar { width: 172mm !important; }
+.fc .fc-scroller { overflow: visible !important; }

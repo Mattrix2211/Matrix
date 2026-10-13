@@ -7,7 +7,7 @@ from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
 from .roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
-from .scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
+from .scopes import is_master_admin, perimetre_hierarchique_q, perimetre_navire_q, scope_filters_for_user, ship_id_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +39,19 @@ def build_scope_q(user, *lookup_paths):
     filters = scope_filters_for_user(user)
     suffixe = ""
     if not filters:
-        if is_master_admin(user):
-            return Q()
         # Import différé : contexte_batiment importe scopes (cycle).
-        from .contexte_batiment import batiments_du_perimetre
-        filters = {"ship_id": list(batiments_du_perimetre(user).values_list("pk", flat=True))}
-        if not filters["ship_id"]:
-            return Q(pk__in=[])
-        suffixe = "__in"
+        from .contexte_batiment import batiment_filtre, batiments_du_perimetre
+        courant = batiment_filtre.get()
+        if is_master_admin(user):
+            if courant is None:
+                return Q()
+            filters = {"ship_id": courant}
+        else:
+            ids = list(batiments_du_perimetre(user).values_list("pk", flat=True))
+            if not ids:
+                return Q(pk__in=[])
+            filters = {"ship_id": [courant] if courant in ids else ids}
+            suffixe = "__in"
     (key, value), = filters.items()
     q = Q()
     matched = False
@@ -67,9 +72,13 @@ def utilisateurs_visibles_par(user):
     User = get_user_model()
     if is_master_admin(user):
         return User.objects.all()
-    if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
+    # Un commandement à terre sans navire retombe sur les bâtiments qu'il suit (build_scope_q).
+    if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and ship_id_for_user(user):
         return User.objects.filter(perimetre_navire_q(user, "profile__"))
-    return User.objects.filter(build_scope_q(user, "profile__"))
+    # Un chef de service voit aussi les marins de ses secteurs ; le niveau « navire » reste réservé au commandement.
+    niveau = user.profile.scope[0] if getattr(user, "profile", None) else None
+    perimetre = perimetre_hierarchique_q(user, "profile__") if niveau in ("service", "sector", "section") else None
+    return User.objects.filter(perimetre if perimetre is not None else build_scope_q(user, "profile__"))
 
 
 class SuppressionInterditeMixin:
@@ -124,8 +133,13 @@ class ScopedQuerySetMixin:
             return qs.filter(filters)
 
         if not filters:
-            # Sans périmètre : flotte entière pour un MASTER_ADMIN, rien pour les autres.
-            return qs if is_master_admin(self.request.user) else qs.none()
+            # Sans rattachement : flotte entière pour un MASTER_ADMIN, bâtiments suivis pour un
+            # utilisateur à terre (comme build_scope_q), rien pour les autres.
+            if is_master_admin(self.request.user):
+                return qs
+            if hasattr(qs.model, "ship"):
+                return qs.filter(build_scope_q(self.request.user, ""))
+            return qs.none()
 
         # Ne garder que les filtres correspondant à un champ direct du modèle
         applicable = {k: v for k, v in filters.items() if hasattr(qs.model, k.replace("_id", ""))}

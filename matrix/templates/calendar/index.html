@@ -2,6 +2,7 @@
 {% load static icones composants %}
 {% block content %}
 <div class="container-fluid py-3">
+  {% if request.GET.user == "equipe" %}{% include "components/parcours.html" with courante="equipe" %}{% else %}{% include "components/parcours.html" with courante="quotidien" %}{% endif %}
   <div class="mx-cal-entete mb-2">
     <h1 class="h3 mb-0">Calendrier</h1>
     <div class="mx-cal-commandes">
@@ -27,15 +28,10 @@
 
   {# Légende #}
   <div class="d-flex flex-wrap gap-3 mb-2 small">
-    <span class="badge" style="background:#0d6efd">{% icone "maintenance" %} Maintenance</span>
+    {% for source in sources %}<span class="badge" style="background:{{ source.fond }};color:{{ source.texte }}">{% icone source.icone %} {{ source.libelle }}</span>
+    {% endfor %}
     <span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span>
     <span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span>
-    <span class="badge" style="background:#b8500a">{% icone "ticket" %} Ticket</span>
-    <span class="badge" style="background:#198754">{% icone "formation" %} Formation</span>
-    <span class="badge" style="background:#0b7285">{% icone "quart" %} Quart</span>
-    <span class="badge" style="background:#a61e4d">{% icone "garde" %} Garde</span>
-    <span class="badge" style="background:#5f3dc4">{% icone "ronde" %} Ronde</span>
-    <span class="badge" style="background:#6f42c1">{% icone "personnel" %} Personnel</span>
   </div>
 
   <div id="cal-erreur" class="alert alert-danger d-none">Impossible de charger les événements.</div>
@@ -79,6 +75,7 @@
         <label class="form-label mb-1" for="filtre-user">Utilisateur</label>
         <select name="user" id="filtre-user" class="form-select form-select-sm">
           <option value="">Tous</option>
+          {% if peut_equipe %}<option value="equipe" {% if active_filters.user == 'equipe' %}selected{% endif %}>Mon équipe</option>{% endif %}
           {% for u in users %}
             <option value="{{ u.id }}" {% if active_filters.user|default:''|stringformat:'s' == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
           {% endfor %}
@@ -94,7 +91,10 @@
           <option value="quart" {% if active_filters.type == 'quart' %}selected{% endif %}>Quart</option>
           <option value="ronde" {% if active_filters.type == 'ronde' %}selected{% endif %}>Ronde</option>
           <option value="service_garde" {% if active_filters.type == 'service_garde' %}selected{% endif %}>Garde</option>
+          <option value="tache" {% if active_filters.type == 'tache' %}selected{% endif %}>Tâche</option>
+          <option value="absence" {% if active_filters.type == 'absence' %}selected{% endif %}>Absence</option>
           <option value="personal" {% if active_filters.type == 'personal' %}selected{% endif %}>Personnel</option>
+          <option value="programme" {% if active_filters.type == 'programme' %}selected{% endif %}>Programme du bâtiment</option>
         </select>
       </div>
       <div>
@@ -124,6 +124,8 @@
       <button type="button" class="btn btn-outline-secondary btn-sm align-self-start" id="btnReinitialiserFiltres">Réinitialiser les filtres</button>
     </div>
   {% fin_panneau_lateral %}
+
+  {% panneau_lateral id="panneau-detail" titre="Détail" icone="calendrier" %}{% fin_panneau_lateral %}
 
   {% if not equipage_a_terre %}
   {% panneau_lateral id="panneau-evenement" titre="Événement personnel" icone="personnel" %}
@@ -285,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // via un bouton dédié dans le popover, pour qui a une URL de fiche
       // (absente pour un événement personnel, qui n'en a pas).
       info.jsEvent.preventDefault();
-      ouvrirPopoverEvenement(info);
+      if (!ouvrirPanneauDetail(info.event.id)) ouvrirPopoverEvenement(info);
     },
     eventDidMount: function (info) {
       const props = info.event.extendedProps;
@@ -339,6 +341,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
   calendar.render();
+  // Le calendrier se redimensionne à la largeur de la page imprimée.
+  window.addEventListener("beforeprint", function () { calendar.updateSize(); });
+  window.addEventListener("afterprint", function () { calendar.updateSize(); });
 
   // --- Popover de détail rapide au clic sur un événement ------------------
   // Libellés français des statuts par type d'événement, pour affichage dans
@@ -411,6 +416,25 @@ document.addEventListener('DOMContentLoaded', function () {
     actionSuppressionEnAttente = null;
   });
   // --------------------------------------------------------------------
+
+  // Types dont le détail s'ouvre dans le panneau latéral (préfixe d'identifiant -> type serveur).
+  const TYPES_PANNEAU_DETAIL = {
+    tch: 'tache', eqt: 'tache', qrt: 'quart', eqq: 'quart', svc: 'service_garde', eqg: 'service_garde',
+    prg: 'programme', trn: 'training', abs: 'absence', eqa: 'absence'
+  };
+
+  function ouvrirPanneauDetail(idEvenement) {
+    const [prefixe, pk] = idEvenement.split('-');
+    const type = TYPES_PANNEAU_DETAIL[prefixe];
+    if (!type) return false;
+    const panneau = document.getElementById('panneau-detail');
+    const corps = panneau.querySelector('.offcanvas-body');
+    corps.innerHTML = '<p class="text-secondary mb-0">Chargement…</p>';
+    htmx.ajax('GET', `/calendar/detail/${type}/${pk}/`, { target: corps, swap: 'innerHTML' })
+      .catch(function () { corps.innerHTML = '<p class="text-danger mb-0" role="alert">Ce détail n\'est pas disponible.</p>'; });
+    bootstrap.Offcanvas.getOrCreateInstance(panneau).show();
+    return true;
+  }
 
   let popoverActif = null;
   let elementDeclencheur = null;

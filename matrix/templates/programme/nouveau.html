@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-3">Ajouter au programme</h1>
+<form method="post" class="card card-body mb-4">{% csrf_token %}
+  <div class="mb-3"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" required></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-4"><label class="form-label" for="id_type">Type</label>
+      <select class="form-select" id="id_type" name="type" required>{% for t in types %}<option value="{{ t.pk }}">{{ t.nom }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label" for="id_debut">Début</label><input class="form-control" type="datetime-local" id="id_debut" name="debut" required></div>
+    <div class="col-md-4"><label class="form-label" for="id_fin">Fin (facultative)</label><input class="form-control" type="datetime-local" id="id_fin" name="fin"></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-5"><label class="form-label" for="id_cible">Public visé</label>
+      <select class="form-select" id="id_cible" name="cible" required>{% for cle, libelle in cibles %}<option value="{{ cle }}">{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label" for="id_equipage">Équipage (facultatif)</label><input class="form-control" id="id_equipage" name="equipage" maxlength="8"></div>
+    <div class="col-md-4"><label class="form-label" for="id_lieu">Lieu (facultatif)</label><input class="form-control" id="id_lieu" name="lieu" maxlength="120"></div>
+  </div>
+  <div class="mb-3"><label class="form-label" for="id_description">Détails</label><textarea class="form-control" id="id_description" name="description" rows="3"></textarea></div>
+  <div><button class="btn btn-primary" type="submit">Ajouter</button> <a class="btn btn-link" href="{% url 'programme-index' %}">Annuler</a></div>
+</form>
+{% endblock %}

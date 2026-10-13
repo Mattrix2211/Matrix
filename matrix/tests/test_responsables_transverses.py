@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from accounts.models import ResponsableSpecialite, SpecialityChoice, UserProfile
 from matrix.core.role_thresholds import invalidate_cache
-from org.models import ResponsableClasseNavire, RoleThresholdConfig
+from org.models import ResponsableClasseNavire, RoleThresholdConfig, Ship
 
 
 class GestionResponsablesTransversesTests(TestCase):
@@ -22,7 +22,8 @@ class GestionResponsablesTransversesTests(TestCase):
         self.url = reverse("settings")
         self.specialite = SpecialityChoice.objects.create(name="Électricité")
         self.marin = User.objects.create_user(username="marin_elec", password="pass")
-        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER"})
+        self.navire = Ship.objects.create(name="Navire RT", code="RT")
+        UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.navire})
         self.admin = User.objects.create_superuser(username="admin_rt", password="pass", email="a@a.fr")
 
     def test_utilisateur_role_insuffisant_refuse_par_defaut_sans_seuil_abaisse(self):
@@ -48,7 +49,7 @@ class GestionResponsablesTransversesTests(TestCase):
         COMMANDANT peut désigner ET retirer un responsable, alors qu'un rôle
         inférieur (CHEF_SERVICE) reste bloqué."""
         commandant = User.objects.create_user(username="commandant_rt", password="pass")
-        UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT", "ship": self.navire})
         chef_service = User.objects.create_user(username="chef_service_rt", password="pass")
         UserProfile.objects.update_or_create(user=chef_service, defaults={"role": "CHEF_SERVICE"})
 
@@ -163,7 +164,7 @@ class GestionResponsablesTransversesTests(TestCase):
         la main — la section responsables doit être réellement présente dans
         le HTML rendu, avec les données nécessaires à la désignation."""
         commandant = User.objects.create_user(username="commandant_get", password="pass")
-        UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT", "ship": self.navire})
         RoleThresholdConfig.objects.create(
             ship=None, thresholds={"responsabilite_transverse_gestion": "COMMANDANT"},
         )

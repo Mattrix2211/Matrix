@@ -12,7 +12,7 @@ import io
 
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from PIL import Image as PILImage
 
 from matrix.core.validators import (
@@ -21,7 +21,9 @@ from matrix.core.validators import (
     ValidateurFichierTeleverse,
     message_erreur_fichier,
     valider_document,
+    valider_document_installation,
     valider_photo,
+    valider_photo_catalogue,
 )
 
 
@@ -181,3 +183,46 @@ class ValidateurFichierTeleverseTests(SimpleTestCase):
         a = ValidateurFichierTeleverse(EXTENSIONS_DOCUMENTS, 123, True)
         b = ValidateurFichierTeleverse(EXTENSIONS_DOCUMENTS, 123, True)
         self.assertEqual(a, b)
+
+
+class PolitiqueCommuneTests(SimpleTestCase):
+    """Les anciens contrôles propres aux documents d'installation et aux photos du catalogue,
+    désormais portés par la politique commune : aucun chemin ne devient plus permissif."""
+
+    def test_document_installation_formats_historiques_seulement(self):
+        for nom, contenu in {"plan.pdf": b"%PDF-1.4 x", "notes.txt": b"texte", "t.xlsx": b"PK\x03\x04x"}.items():
+            valider_document_installation(SimpleUploadedFile(nom, contenu))
+        for nom in ("ancien.doc", "tableau.xls", "plan.odt", "export.csv", "image.gif", "image.bmp", "page.html", "image.svg"):
+            with self.subTest(nom=nom), self.assertRaises(ValidationError):
+                valider_document_installation(SimpleUploadedFile(nom, b"contenu"))
+
+    def test_document_installation_faux_contenus_refuses(self):
+        for nom, contenu in {
+            "faux.pdf": b"MZ\x90\x00" + b"\x00" * 64, "faux.docx": b"pas une archive", "faux.xlsx": b"%PDF-1.4",
+            "avec_prefixe.pdf": b"\n\n%PDF-1.4",
+        }.items():
+            with self.subTest(nom=nom), self.assertRaises(ValidationError):
+                valider_document_installation(SimpleUploadedFile(nom, contenu))
+
+    def test_document_installation_image_corrompue_refusee(self):
+        with self.assertRaises(ValidationError):
+            valider_document_installation(SimpleUploadedFile("plan.png", b"\x89PNG\r\n\x1a\n" + b"corrompu"))
+
+    @override_settings(DOCUMENT_TAILLE_MAX_MO=1)
+    def test_taille_des_documents_reglable(self):
+        valider_document_installation(SimpleUploadedFile("petit.pdf", b"%PDF-1.4 " + b"x" * 1000))
+        with self.assertRaises(ValidationError):
+            valider_document_installation(SimpleUploadedFile("gros.pdf", b"%PDF-1.4 " + b"x" * (1024 * 1024 + 1)))
+        with self.assertRaises(ValidationError):
+            valider_document(SimpleUploadedFile("gros.pdf", b"%PDF-1.4 " + b"x" * (1024 * 1024 + 1)))
+
+    def test_photo_catalogue_formats_et_poids(self):
+        valider_photo_catalogue(_image_valide("photo.png"))
+        with self.assertRaises(ValidationError):
+            valider_photo_catalogue(SimpleUploadedFile("anim.gif", b"GIF89a"))
+        with self.assertRaises(ValidationError):
+            valider_photo_catalogue(_executable_renomme())
+        gros = SimpleUploadedFile("lourde.png", _PNG_1X1)
+        gros.size = 6 * 1024 * 1024
+        with self.assertRaises(ValidationError):
+            valider_photo_catalogue(gros)

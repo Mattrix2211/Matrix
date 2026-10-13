@@ -4,6 +4,12 @@
 {# Déconnexion automatique : dialogue et script chargés par base.html (components/inactivite.html). #}
 <header class="navbar navbar-expand navbar-dark bg-dark mx-barre">
   <div class="container-fluid flex-nowrap">
+    {% if user.is_authenticated and navigation_laterale %}
+      {# Petit écran : la barre latérale devient un tiroir ouvert par ce bouton (js/barre_laterale.js). #}
+      <button type="button" class="mx-barre__bouton mx-barre__menu" data-bs-toggle="offcanvas" data-bs-target="#barre-laterale" aria-controls="barre-laterale" aria-expanded="false" aria-label="Menu" title="Menu">
+        {% icone "menu" %}
+      </button>
+    {% endif %}
     <a class="navbar-brand matrix-logo" href="/" aria-label="Matrix — accueil">
       <img class="matrix-logo__img" src="{% static 'img/IMG_5292.PNG' %}" alt="Matrix">
       <svg class="matrix-logo__badge" viewBox="0 0 28 28" aria-hidden="true">
@@ -20,9 +26,9 @@
     {% if user.is_authenticated %}
       {% if batiments_selectionnables %}
         <div class="dropdown mx-barre__contexte">
-          <button class="mx-barre__bouton mx-barre__batiment" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Bâtiment consulté : {% if batiment_courant %}{{ batiment_courant.name }}{% else %}aucun{% endif %}. Changer de bâtiment" title="Changer de bâtiment">
+          <button class="mx-barre__bouton mx-barre__batiment" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Bâtiment consulté : {% if batiment_courant %}{{ batiment_courant.name }}{% else %}aucun{% endif %}. Changer de bâtiment" title="{% if batiment_courant %}{{ batiment_courant.name }} — {% endif %}Changer de bâtiment">
             {% icone "navire" %}
-            <span class="mx-barre__texte-coupe">{% if batiment_courant %}{{ batiment_courant.name }}{% else %}Choisir un bâtiment{% endif %}</span>
+            <span class="mx-barre__texte-coupe mx-barre__masque-mobile">{% if batiment_courant %}{{ batiment_courant.name }}{% else %}Choisir un bâtiment{% endif %}</span>
             {% icone "deplier_liste" %}
           </button>
           <form method="post" action="{% url 'choisir-batiment' %}" class="dropdown-menu mx-barre__liste-batiments">
@@ -37,15 +43,18 @@
           </form>
         </div>
       {% elif batiment_courant %}
-        <span class="mx-barre__contexte mx-barre__batiment" title="Bâtiment de rattachement">
+        <span class="mx-barre__contexte mx-barre__batiment" title="Bâtiment de rattachement : {{ batiment_courant.name }}">
           {% icone "navire" %}
-          <span class="mx-barre__texte-coupe">{{ batiment_courant.name }}</span>
+          <span class="mx-barre__texte-coupe mx-barre__masque-mobile">{{ batiment_courant.name }}</span>
         </span>
       {% endif %}
     {% endif %}
     {% if user.is_authenticated %}
       {# Recherche rapide : résultats par catégorie chargés par htmx, clavier géré par js/recherche.js. #}
-      <div class="mx-recherche" data-recherche>
+      <div class="mx-recherche" id="recherche-racine" data-recherche>
+        <button type="button" class="mx-barre__bouton mx-recherche__fermer" data-recherche-fermer aria-label="Fermer la recherche" title="Fermer la recherche">
+          {% icone "fermer" %}
+        </button>
         <form action="{% url 'global-search' %}" method="get" role="search" class="mx-recherche__form">
           <label for="recherche-champ" class="visually-hidden">Rechercher dans Matrix</label>
           {% icone "recherche" "mx-recherche__icone" %}
@@ -61,6 +70,11 @@
     {% endif %}
     <ul class="navbar-nav flex-row ms-auto align-items-center mx-barre__outils">
       {% if user.is_authenticated %}
+        <li class="nav-item mx-barre__recherche">
+          <button type="button" class="mx-barre__bouton" data-recherche-ouvrir aria-controls="recherche-racine" aria-expanded="false" aria-label="Rechercher" title="Rechercher">
+            {% icone "recherche" %}
+          </button>
+        </li>
         <li class="nav-item mx-cloche">
           <button type="button" class="mx-barre__bouton" data-bs-toggle="offcanvas" data-bs-target="#centre-notifications" aria-controls="centre-notifications" aria-label="Notifications" title="Notifications">
             {% icone "notifications" %}
@@ -78,7 +92,7 @@
         <li class="nav-item">
           <a class="mx-barre__utilisateur" href="{% url 'mon-profil' %}" title="Mon profil — {{ identite_utilisateur.grade }} {{ identite_utilisateur.nom }}, {{ identite_utilisateur.role }}{% if identite_utilisateur.fonction %}, {{ identite_utilisateur.fonction }}{% endif %}" aria-label="Mon profil : {{ identite_utilisateur.grade }} {{ identite_utilisateur.nom }}, {{ identite_utilisateur.role }}">
             {% icone "utilisateur" "mx-barre__avatar" %}
-            <span class="mx-barre__identite">
+            <span class="mx-barre__identite mx-barre__masque-tablette">
               <span class="mx-barre__nom">{% if identite_utilisateur.grade %}{{ identite_utilisateur.grade }} {% endif %}{{ identite_utilisateur.nom }}</span>
               <span class="mx-barre__role">{{ identite_utilisateur.role }}{% if identite_utilisateur.fonction %} · {{ identite_utilisateur.fonction }}{% endif %}</span>
             </span>
@@ -89,7 +103,7 @@
             {% csrf_token %}
             <button type="submit" class="mx-barre__bouton mx-barre__deconnexion" title="Se déconnecter" aria-label="Se déconnecter">
               {% icone "deconnexion" %}
-              <span>Déconnexion</span>
+              <span class="mx-barre__masque-tablette">Déconnexion</span>
             </button>
           </form>
         </li>

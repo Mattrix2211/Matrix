@@ -9,6 +9,7 @@
     {% if profil.service %} · {{ profil.service.name }}{% endif %}
   </p>
 </header>
+{% include "components/parcours.html" with courante="quotidien" %}
 
 <div class="row g-4 mt-1">
   <div class="col-lg-7">
@@ -56,6 +57,7 @@
       {% else %}
         {% include "components/etat_vide.html" with icone="calendrier" titre="Rien de prévu aujourd'hui" %}
       {% endif %}
+      <a href="{% url 'calendar-index' %}" class="small">Voir mon calendrier et mes échéances</a>
     {% fin_surface %}
   </div>
 </div>
@@ -103,16 +105,22 @@
   {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}{% fin_attention %}
 {% endif %}
 <div class="row g-3 mt-1 mb-3">
-  <div class="col-6 col-md-3">
-    {% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'maintenance-occurrences' %}?retard=1">{% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}</a>
   </div>
-  <div class="col-6 col-md-3">
-    {% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{{ supervision.anomalies_url }}">{% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}</a>
   </div>
-  <div class="col-6 col-md-3">
-    {% include "components/metric.html" with libelle="Équipements indisponibles" icone="materiel" valeur=supervision.indisponibles etat=supervision.indisponibles|yesno:"danger,ok" %}
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'asset-list' %}?status=OUT_OF_SERVICE">{% include "components/metric.html" with libelle="Matériels hors service" icone="materiel" valeur=supervision.hors_service etat=supervision.hors_service|yesno:"danger,ok" %}</a>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'asset-list' %}?status=FAULTY">{% include "components/metric.html" with libelle="Matériels défectueux" icone="materiel" valeur=supervision.defectueux etat=supervision.defectueux|yesno:"danger,ok" %}</a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'installation-list' %}?critique=1&amp;retard=1">{% include "components/metric.html" with libelle="Installations critiques en retard" icone="installation" valeur=supervision.installations_en_retard etat=supervision.installations_en_retard|yesno:"danger,ok" %}</a>
+  </div>
+  <div class="col-6 col-md-4">
     {% include "components/jauge.html" with libelle="Part de maintenances en retard" valeur=supervision.retards_pct etat=supervision.retards_total|yesno:"danger,ok" %}
   </div>
 </div>
@@ -143,9 +151,32 @@
         {% url 'formation-list' as url_formations %}
         {% carte_action titre="Formations proposées par le bord" libelle="Examiner" url=url_formations classes="mx-aujourdhui__tache--attention" %}{{ supervision.formations_a_valider }} à examiner{% fin_carte_action %}
       {% endif %}
+      {% if supervision.echanges_a_valider and not lecture_seule %}
+        {% url 'echanges-index' as url_echanges %}
+        {% carte_action titre="Échanges de service" libelle="Examiner" url=url_echanges classes="mx-aujourdhui__tache--attention" %}{{ supervision.echanges_a_valider }} à valider{% fin_carte_action %}
+      {% endif %}
+      {% if supervision.candidatures_a_valider and not lecture_seule %}
+        {% url 'formation-list' as url_candidatures %}
+        {% carte_action titre="Candidatures à une formation" libelle="Examiner" url=url_candidatures classes="mx-aujourdhui__tache--attention" %}{{ supervision.candidatures_a_valider }} à examiner{% fin_carte_action %}
+      {% endif %}
       {% if not supervision.validations_total %}
         {% include "components/etat_vide.html" with icone="terminee" titre="Rien à valider" texte="Aucune validation n'attend votre décision." %}
       {% endif %}
+    {% fin_surface %}
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    {% surface titre="Qualifications à renouveler" icone="formation" %}
+      {% for q in supervision.qualifications %}
+        {% if not lecture_seule %}
+          {% carte_action titre=q.titre libelle="Ouvrir" url=q.url classes=q.expiree|yesno:"mx-aujourdhui__tache--danger,mx-aujourdhui__tache--attention" %}{{ q.detail }}{% fin_carte_action %}
+        {% else %}
+          <div class="mx-carte mx-carte--action"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ q.titre }}</span><span class="mx-carte__contenu">{{ q.detail }}</span></div></div>
+        {% endif %}
+      {% empty %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Qualifications à jour" texte="Aucune qualification de votre périmètre n'arrive à échéance." %}
+      {% endfor %}
     {% fin_surface %}
   </div>
 </div>

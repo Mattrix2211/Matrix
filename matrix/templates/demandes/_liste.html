@@ -1,0 +1,20 @@
+<div class="card mb-3">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Demande</th><th>Sur</th><th>Responsable</th><th>État</th></tr></thead>
+      <tbody>
+        {% for d in demandes %}
+        <tr>
+          <td><a href="{% url 'demande-detail' d.pk %}">{{ d.titre }}</a>{% if d.priorite == "URGENTE" and d.ouverte %} <span class="badge text-bg-danger">Urgente</span>{% endif %}
+            <div class="small text-muted">Signalée par {{ d.declarant.get_full_name|default:d.declarant.username }}</div></td>
+          <td>{{ d.objet|default:"—" }}</td>
+          <td>{{ d.responsable.get_full_name|default:d.responsable.username }}</td>
+          <td>{% include "demandes/_etat.html" %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted py-4">{{ vide }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

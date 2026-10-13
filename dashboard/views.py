@@ -4,6 +4,8 @@ from django.utils import timezone
 from datetime import timedelta
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS
+from logistics.perimetre import perimetre_tickets_q
+from maintenance.perimetre import perimetre_occurrences_q
 
 class PreventiveWeekChartView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -16,7 +18,7 @@ class PreventiveWeekChartView(views.APIView):
         # Une seule requête agrégée : nombre d'occurrences planifiées et réalisées
         # par jour, plutôt qu'une requête .count() par jour et par métrique.
         rows = (
-            MaintenanceOccurrence.objects.filter(scheduled_for__in=days)
+            MaintenanceOccurrence.objects.filter(perimetre_occurrences_q(request.user), scheduled_for__in=days)
             .values("scheduled_for")
             .annotate(
                 planned=Count("id"),
@@ -43,7 +45,7 @@ class CorrectiveOpenChartView(views.APIView):
 
         # Une seule requête agrégée par statut, plutôt qu'une requête .count() par statut.
         rows = (
-            CorrectiveTicket.objects.filter(status__in=open_statuses)
+            CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user), status__in=open_statuses)
             .values("status")
             .annotate(total=Count("id"))
         )

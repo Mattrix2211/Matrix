@@ -302,16 +302,7 @@ class TrainingRequirementViewSet(viewsets.ModelViewSet):
     permission_classes = [TrainingRequirementPermission]
 
     def get_queryset(self):
-        # Aucun filtre de périmètre n'était appliqué avant cette correction :
-        # n'importe quel utilisateur authentifié pouvait lister/consulter via
-        # l'API les exigences de formation de TOUS les navires (audit
-        # sécurité scoping API, tâche Notion « Audit complet du scoping par
-        # périmètre »). Une exigence sans aucun rattachement (applies_to_*
-        # tous vides) vaut pour toute la flotte et reste visible de tous ;
-        # les autres ne le sont que pour le navire qu'elles ciblent
-        # (perimetre_navire_q parcourt les 4 niveaux de rattachement
-        # possibles, même logique que pour le personnel de l'annuaire,
-        # matrix/core/scopes.py).
+        # Une exigence sans rattachement vaut pour toute la flotte et reste visible de tous.
         qs = super().get_queryset()
         user = self.request.user
         if not user.is_authenticated:
@@ -330,13 +321,11 @@ class TrainingRequirementViewSet(viewsets.ModelViewSet):
 
 
 class TrainingRecordPermission(RolePermission):
-    """Seuls les référents désignés pour la formation concernée, POUR LE NAVIRE
-    DU MARIN CIBLÉ (ou un rôle de supervision globale — cf.
-    training.models.peut_valider_formation), peuvent créer, modifier ou
-    supprimer un enregistrement de validation (TrainingRecord). La lecture
-    reste ouverte à tout utilisateur connecté : le statut de qualification
-    d'un marin doit rester consultable partout, conformément à la
-    portabilité du module Formations (CLAUDE.md)."""
+    """Écriture (création, modification, suppression) réservée aux référents
+    désignés de la formation POUR LE NAVIRE DU MARIN CIBLÉ, ou à la supervision
+    globale (peut_valider_formation). La lecture exige seulement d'être
+    connecté ici ; le périmètre des dossiers visibles est appliqué par le
+    queryset (dossiers_formation_visibles_q)."""
 
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:

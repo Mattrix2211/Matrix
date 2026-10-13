@@ -1,0 +1,18 @@
+{% for bloc in synthese.contenu.blocs %}
+<section class="mx-surface mb-3 passation-bloc">
+  <h2 class="h5">{{ bloc.titre }} <span class="badge text-bg-secondary">{{ bloc.total }}</span></h2>
+  {% if not bloc.total %}
+  <p class="text-muted mb-0">{{ bloc.vide }}</p>
+  {% else %}
+  {% for groupe in bloc.groupes %}{% if groupe.total %}
+  {% if bloc.groupes|length > 1 or groupe.titre != bloc.titre %}<h3 class="h6 mt-2">{{ groupe.titre }} ({{ groupe.total }})</h3>{% endif %}
+  <ul class="list-unstyled mb-1">
+    {% for l in groupe.lignes %}
+    <li class="mb-1">{% if pdf %}<strong>{{ l.titre }}</strong>{% else %}<a href="{{ l.url }}"><strong>{{ l.titre }}</strong></a>{% endif %}{% if l.detail %} — <span class="text-muted">{{ l.detail }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% if groupe.plus %}<p class="small text-muted">… et {{ groupe.plus }} autre{{ groupe.plus|pluralize }}.</p>{% endif %}
+  {% endif %}{% endfor %}
+  {% endif %}
+</section>
+{% endfor %}

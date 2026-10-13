@@ -86,6 +86,11 @@ REGISTRE_ACTIONS = [
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
+        "stock_ecriture",
+        "Gérer le stock de pièces : créer ou modifier une pièce, prélever, saisir un mouvement ou un inventaire",
+        "Stock", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
         "maintenance_execution_ecriture",
         "Créer ou modifier une occurrence ou une exécution de maintenance",
         "Maintenance", PORTEE_NAVIRE, RoleLevel.EQUIPIER,
@@ -94,6 +99,11 @@ REGISTRE_ACTIONS = [
         "maintenance_occurrence_gestion_tiers",
         "Exécuter ou commenter une maintenance qui n'est pas la sienne",
         "Maintenance", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
+        "maintenance_compte_rendu_correction",
+        "Corriger un compte rendu de maintenance terminé (motif obligatoire, saisie d'origine conservée)",
+        "Maintenance", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
     ),
     ActionSeuil(
         "maintenance_plan_ecriture",
@@ -143,6 +153,51 @@ REGISTRE_ACTIONS = [
         "module_gestion",
         "Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages)",
         "Modules", PORTEE_NAVIRE, NIVEAU_VISION_COMMANDEMENT,
+    ),
+    ActionSeuil(
+        "mot_de_passe_reinitialisation",
+        "Réinitialiser le mot de passe d'un marin du bâtiment (mot de passe provisoire à changer à la connexion)",
+        "Comptes", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
+    ActionSeuil(
+        "tache_attribution",
+        "Attribuer une tâche à un marin de son périmètre et suivre l'avancement de l'équipe",
+        "Tâches", PORTEE_GLOBALE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
+        "annonce_publication",
+        "Publier une annonce à son périmètre (bâtiment, service, secteur, section, équipage)",
+        "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "programme_saisie",
+        "Saisir le programme du bâtiment (escales, arrêts techniques, exercices, réunions) et déléguer ce droit",
+        "Programme du bâtiment", PORTEE_NAVIRE, RoleLevel.ETAT_MAJOR,
+    ),
+    ActionSeuil(
+        "programme_types",
+        "Configurer les types d'événements du programme du bâtiment",
+        "Programme du bâtiment", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
+    ActionSeuil(
+        "poste_gestion",
+        "Créer les postes du bord, définir leurs formations exigées et y affecter des marins",
+        "Postes du bord", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "documentation_redaction",
+        "Rédiger et soumettre à validation un document ou une nouvelle version",
+        "Documentation", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
+        "documentation_validation",
+        "Valider et publier un document ou une nouvelle version, archiver un document",
+        "Documentation", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+    ),
+    ActionSeuil(
+        "retex_validation",
+        "Valider, refuser ou clore un RETEX et en décider les actions",
+        "RETEX", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
         "referentiel_global_ecriture",

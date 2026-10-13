@@ -21,19 +21,23 @@ from logistics.models import CorrectiveTicket
 from matrix.core.mixins import build_scope_q
 from matrix.core.modules import module_actif_pour_user
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
-from matrix.core.scopes import is_master_admin, perimetre_navire_q, scope_filters_for_user
+from matrix.core.scopes import is_master_admin, perimetre_navire_q
+from taches.services import taches_visibles
 from training.models import TrainingCourse
+from logistics.perimetre import perimetre_tickets_q
 
 MIN_CARACTERES = 2
 MAX_CARACTERES = 80
 PAR_CATEGORIE = 5
-_CONTROLES = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+_NUL_ET_LARGEUR_NULLE = re.compile(r"[\x00\u200b-\u200f\u2060\ufeff]")
+_CONTROLES = re.compile(r"[\x01-\x1f\x7f-\x9f]")
 
 
 def normaliser(brut):
     """Terme nettoyé et borné ; chaîne vide s'il est trop court pour chercher."""
-    # Les caractères de contrôle (dont \x00) feraient échouer PostgreSQL.
-    terme = _CONTROLES.sub("", brut or "").strip()[:MAX_CARACTERES].strip()
+    # NUL ferait échouer PostgreSQL et la largeur nulle fausserait la longueur : on les retire ;
+    # les autres contrôles (tabulation, saut de ligne) séparent des mots.
+    terme = " ".join(_CONTROLES.sub(" ", _NUL_ET_LARGEUR_NULLE.sub("", brut or "")).split())[:MAX_CARACTERES].strip()
     return terme if len(terme) >= MIN_CARACTERES else ""
 
 
@@ -46,7 +50,7 @@ def _ou(terme, *champs):
 
 def installations(user, terme):
     return (
-        Installation.objects.filter(**scope_filters_for_user(user))
+        Installation.objects.filter(build_scope_q(user, ""))
         .filter(_ou(terme, "designation", "reference", "local"))
         .select_related("sector").order_by("designation")
     )
@@ -54,7 +58,7 @@ def installations(user, terme):
 
 def materiels(user, terme):
     return (
-        Asset.objects.filter(**scope_filters_for_user(user))
+        Asset.objects.filter(build_scope_q(user, ""))
         .filter(_ou(terme, "designation", "internal_id", "serial_number", "nno", "reference", "local"))
         .select_related("asset_type").order_by("internal_id", "designation")
     )
@@ -62,8 +66,9 @@ def materiels(user, terme):
 
 def tickets(user, terme):
     # Même filtre que la fiche détail d'un ticket.
+    # L'identifiant (UUID) n'est jamais affiché : on ne cherche que la description.
     return (
-        CorrectiveTicket.objects.filter(build_scope_q(user, "asset__", "installation__"))
+        CorrectiveTicket.objects.filter(perimetre_tickets_q(user))
         .filter(description__icontains=terme)
         .select_related("asset__asset_type", "installation").order_by("-reported_at")
     )
@@ -80,16 +85,32 @@ def formations(user, terme):
     ).order_by("title")
 
 
-def marins(user, terme):
+def taches(user, terme):
+    # Mêmes tâches que la liste ; la tâche privée d'un marin n'apparaît jamais chez autrui.
+    return (
+        taches_visibles(user).filter(Q(partagee=True) | Q(assigne=user))
+        .filter(_ou(terme, "titre", "description")).select_related("assigne").order_by("-updated_at")
+    )
+
+
+def marins(user, terme, avec_identifiants=False):
     # Tout marin cherche dans son navire ; sans navire rattaché, aucun résultat
-    # (jamais toute la flotte), sauf maître ou superutilisateur.
+    # (jamais toute la flotte), sauf maître ou superutilisateur. La recherche rapide
+    # ne cherche jamais l'identifiant de connexion (il ne s'affiche pas et servirait
+    # d'oracle) ; la page complète, qui affiche identifiant et e-mail, les cherche.
+    champs = ("first_name", "last_name", "username", "email") if avec_identifiants else ("first_name", "last_name")
     qs = get_user_model().objects.select_related("profile").filter(
-        # Jamais l'identifiant de connexion : il ne s'affiche pas et servirait d'oracle.
-        _ou(terme, "first_name", "last_name"), is_active=True,
+        _ou(terme, *champs), is_active=True,
     ).order_by("last_name", "username")
     if not is_master_admin(user):
         qs = qs.filter(perimetre_navire_q(user, "profile__"))
     return qs
+
+
+def documents(user, terme):
+    from documentation.services import rechercher as rechercher_documents
+
+    return rechercher_documents(user, terme).order_by("titre")
 
 
 def _sous_titre(*morceaux):
@@ -113,6 +134,15 @@ def _ligne_ticket(t, user):
 
 def _ligne_anomalie(a, user):
     return a.titre, _sous_titre(a.localisation, a.get_statut_display()), reverse("anomalie-detail", args=[a.pk])
+
+
+def _ligne_tache(t, user):
+    qui = "" if t.assigne_id == user.pk else t.assigne.get_full_name() or t.assigne.username
+    return t.titre, _sous_titre(t.get_statut_display(), qui, f"échéance {t.echeance:%d/%m/%Y}" if t.echeance else ""), reverse("tache-detail", args=[t.pk])
+
+
+def _ligne_document(d, user):
+    return d.titre, _sous_titre(d.domaine, d.get_origine_display()), reverse("document-detail", args=[d.pk])
 
 
 def _ligne_formation(f, user):
@@ -157,6 +187,9 @@ CATEGORIES = [
     Categorie("tickets", "Tickets correctifs", "ticket", tickets, _ligne_ticket, module="logistics"),
     Categorie("anomalies", "Anomalies", "anomalie", anomalies, _ligne_anomalie, module="logistics"),
     Categorie("formations", "Formations", "formation", formations, _ligne_formation, module="training"),
+    Categorie("documents", "Documents", "document", documents, _ligne_document,
+              module="documentation", liste="documentation-index"),
+    Categorie("taches", "Tâches", "tache", taches, _ligne_tache, module="taches"),
     Categorie("marins", "Marins", "annuaire", marins, _ligne_marin),
 ]
 

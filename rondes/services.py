@@ -12,7 +12,7 @@ from accounts.models import AuditLog
 from logistics.models import Anomalie, AnomalieStatutLog, STATUTS_ANOMALIE_OUVERTS, destinataires_anomalie, niveau_alerte_ticket
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.scopes import is_master_admin
+from matrix.core.scopes import assignes_equipage_q, is_master_admin
 from notifications.models import Notification, NotificationLevel
 
 from matrix.core.equipage import equipage_a_terre_lecture_seule
@@ -105,7 +105,7 @@ def modeles_gerables(user):
 
 
 def rondes_visibles(user):
-    return Ronde.objects.filter(perimetre_couvrant_q(user)).select_related("ship", "service", "sector", "modele")
+    return Ronde.objects.filter(perimetre_couvrant_q(user), assignes_equipage_q(user, Ronde, "assigne_a")).select_related("ship", "service", "sector", "modele")
 
 
 def peut_gerer_modeles(user):
@@ -170,7 +170,7 @@ def _notifier_ronde(ronde, verbe, niveau):
     else:
         destinataires = [p.user for p in destinataires_ronde(ronde)]
     for user in destinataires:
-        Notification.objects.create(user=user, verb=verbe, level=niveau)
+        Notification.objects.create(user=user, verb=verbe, level=niveau, target=ronde)
 
 
 def ronde_ouverte_du_modele(modele):
@@ -244,7 +244,7 @@ def _creer_anomalie(resultat, ronde, user):
     niveau = niveau_alerte_ticket(anomalie.gravite)
     for profil in destinataires_anomalie(anomalie):
         if profil.user_id != user.id:
-            Notification.objects.create(user=profil.user, level=niveau, verb=f"Anomalie signalée : {anomalie.titre}")
+            Notification.objects.create(user=profil.user, level=niveau, verb=f"Anomalie signalée : {anomalie.titre}", target=anomalie)
     return anomalie
 
 

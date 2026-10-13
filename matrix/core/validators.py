@@ -20,6 +20,7 @@ optionnel) : son import n'a donc pas besoin d'être protégé ici.
 """
 from __future__ import annotations
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.deconstruct import deconstructible
 from PIL import Image, UnidentifiedImageError
@@ -39,7 +40,20 @@ EXTENSIONS_DOCUMENTS = EXTENSIONS_IMAGES + (
 # besoin de fichiers plus lourds, et cela évite qu'un envoi malencontreux ne
 # sature le stockage du bâtiment.
 TAILLE_MAX_IMAGE = 10 * 1024 * 1024  # 10 Mo
-TAILLE_MAX_DOCUMENT = 20 * 1024 * 1024  # 20 Mo
+TAILLE_MAX_DOCUMENT = 20 * 1024 * 1024  # 20 Mo, réglable par DOCUMENT_TAILLE_MAX_MO
+
+# Formats des documents d'installation (plans, notices) : liste volontairement plus courte que
+# celle des pièces jointes, sans formats anciens ni OpenDocument.
+EXTENSIONS_DOCUMENTS_INSTALLATION = ("pdf", "png", "jpg", "jpeg", "webp", "txt", "docx", "xlsx")
+# Photos du catalogue : pas de GIF ni de BMP, poids limité.
+EXTENSIONS_PHOTOS_CATALOGUE = ("jpg", "jpeg", "png", "webp")
+TAILLE_MAX_PHOTO_CATALOGUE = 5 * 1024 * 1024  # 5 Mo
+
+
+def taille_document_max():
+    """Taille maximale d'un document en octets : réglage DOCUMENT_TAILLE_MAX_MO, sinon 20 Mo."""
+    mo = getattr(settings, "DOCUMENT_TAILLE_MAX_MO", None)
+    return mo * 1024 * 1024 if mo else TAILLE_MAX_DOCUMENT
 
 # Signatures d'en-tête (« magic bytes ») des documents non-image. Implémentées
 # ici plutôt que via python-magic/libmagic : aucune dépendance système à
@@ -80,7 +94,6 @@ def _ressemble_a_un_executable_windows(entete):
     )
 
 
-# Le PDF tolère quelques octets avant « %PDF- » : on cherche dans le début.
 _OCTETS_LUS_ENTETE = 1024
 
 
@@ -112,13 +125,15 @@ class ValidateurFichierTeleverse:
                 code=self.code,
             )
 
+        # Une limite égale à TAILLE_MAX_DOCUMENT suit le réglage DOCUMENT_TAILLE_MAX_MO (migrations déjà écrites).
+        maximum = taille_document_max() if self.taille_max_octets == TAILLE_MAX_DOCUMENT else self.taille_max_octets
         taille = getattr(fichier, "size", None)
-        if taille is not None and taille > self.taille_max_octets:
+        if taille is not None and taille > maximum:
             raise ValidationError(
                 "Fichier trop volumineux (%(taille)s Mo). Taille maximale autorisée : %(max)s Mo."
                 % {
                     "taille": round(taille / (1024 * 1024), 1),
-                    "max": round(self.taille_max_octets / (1024 * 1024), 1),
+                    "max": round(maximum / (1024 * 1024), 1),
                 },
                 code=self.code,
             )
@@ -163,7 +178,7 @@ class ValidateurFichierTeleverse:
                 or _ressemble_a_un_executable_windows(entete)
             )
         elif extension == "pdf":
-            conforme = any(s in entete for s in SIGNATURES_DOCUMENTS["pdf"])
+            conforme = entete.startswith(SIGNATURES_DOCUMENTS["pdf"])
         elif extension in SIGNATURES_DOCUMENTS:
             conforme = entete.startswith(SIGNATURES_DOCUMENTS[extension])
         else:
@@ -191,6 +206,10 @@ class ValidateurFichierTeleverse:
 # (toujours une image) ou une pièce jointe/document (image ou bureautique).
 valider_photo = ValidateurFichierTeleverse(EXTENSIONS_IMAGES, TAILLE_MAX_IMAGE, verifier_image=True)
 valider_document = ValidateurFichierTeleverse(EXTENSIONS_DOCUMENTS, TAILLE_MAX_DOCUMENT, verifier_image=True)
+valider_document_installation = ValidateurFichierTeleverse(
+    EXTENSIONS_DOCUMENTS_INSTALLATION, TAILLE_MAX_DOCUMENT, verifier_image=True)
+valider_photo_catalogue = ValidateurFichierTeleverse(
+    EXTENSIONS_PHOTOS_CATALOGUE, TAILLE_MAX_PHOTO_CATALOGUE, verifier_image=True)
 
 
 def message_erreur_fichier(fichier, validateur=valider_photo):

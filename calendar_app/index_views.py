@@ -2,14 +2,17 @@
 from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
+from taches.services import peut_attribuer
+from .sources import SOURCES
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import TemplateView
 
-from matrix.core.scopes import equipage_marin_q
-from org.models import Ship, Service, Sector
+from matrix.core.contexte_batiment import referentiel_organisation
+from matrix.core.mixins import utilisateurs_visibles_par
+from matrix.core.scopes import assignes_equipage_q, equipage_marin_q
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
@@ -19,6 +22,7 @@ from .evenements_sources import (
     _appliquer_filtres_tickets,
     _creneaux_garde_assignes,
     _creneaux_quart_assignes,
+    sessions_visibles,
     _evenements_personnels,
 )
 from .models import PersonalEvent
@@ -85,11 +89,11 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "start": start,
             "end": end,
             "events": events,
-            "ships": Ship.objects.all(),
-            "services": Service.objects.select_related("ship").all(),
-            "sectors": Sector.objects.select_related("service", "service__ship").all(),
-            "users": User.objects.filter(equipage_marin_q(request.user)).order_by("username"),
-            "active_filters": filters,
+            **{cle: valeur for cle, valeur in referentiel_organisation(request.user).items() if cle != "sections"},
+            "users": utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user)).order_by("username"),
+            "active_filters": {**filters, "user": request.GET.get("user") or None},
+            "peut_equipe": peut_attribuer(request.user),
+            "sources": SOURCES,
             "mes_evenements_personnels": PersonalEvent.objects.filter(
                 owner=request.user, starts_at__gte=timezone.now()
             ).order_by("starts_at")[:20],
@@ -101,7 +105,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "ship": request.GET.get("ship") or None,
             "service": request.GET.get("service") or None,
             "sector": request.GET.get("sector") or None,
-            "user": request.GET.get("user") or None,
+            "user": (request.GET.get("user") if request.GET.get("user") != "equipe" else "") or None,  # « équipe » : API seulement
             "type": request.GET.get("type") or None,
             "status": request.GET.get("status") or None,
         }
@@ -115,7 +119,9 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "installation_maintenance__installation__ship",
             "installation_maintenance__installation__service",
             "installation_maintenance__installation__sector",
-        ).filter(scheduled_for__range=(start, end))
+        ).filter(
+            assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
+        )
         occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
         for occ in occ_qs:
             events.append({
@@ -129,6 +135,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
 
         # Tickets (logistique) planifiés: on affiche tous, ou ceux avec statut PLANNED/IN_REPAIR/TESTING si on avait des dates; ici, on ne dispose pas d’échéance => montrer ouverts
         ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])  # proxy
+        ticket_qs = ticket_qs.filter(assignes_equipage_q(request.user, CorrectiveTicket, "assignees"))
         ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
         for t in ticket_qs:
             events.append({
@@ -150,7 +157,9 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         # Formation désormais globale (plus de secteur, cf. _perimetre_session
         # ci-dessus) : le filtre "sector" du calendrier ne s'applique plus aux
         # sessions de formation, uniquement aux autres types d'événements.
-        ses_qs = TrainingSession.objects.select_related("course", "instructor").filter(scheduled_at__date__range=(start, end))
+        ses_qs = sessions_visibles(request.user, TrainingSession.objects.select_related("course", "instructor")).filter(
+            scheduled_at__date__range=(start, end)
+        )
         if filters.get("user"):
             ses_qs = ses_qs.filter(
                 Q(attendees__id=filters["user"]) | Q(reservations__id=filters["user"]) | Q(instructor__id=filters["user"])

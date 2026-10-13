@@ -1,22 +1,33 @@
 """Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié, frise « Ma journée » et bloc « Supervision »."""
 from datetime import datetime, time, timedelta
+from types import SimpleNamespace
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
 
 from assets.fiche_validation import versions_a_viser
 from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
-from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
+from annonces.services import a_lire as annonces_a_lire
+from demandes.models import Demande
+from logistics.anomalie_views import STATUT_OUVERTES, _est_chef, anomalies_visibles
+from logistics.models import STATUTS_ANOMALIE_OUVERTS, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
-from matrix.core.mixins import build_scope_q
+from maintenance.perimetre import installations_en_retard as installations_en_retard_du_perimetre, retard_q
+from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
-from matrix.core.scopes import is_master_admin, scope_filters_for_user
+from notifications.liens import liens_accessibles
+from notifications.models import Notification
+from threads.mentions import PREFIXE_MENTION
+from matrix.core.scopes import assignes_equipage_q, is_master_admin, navire_q, scope_filters_for_user
+from quarts.echanges import echanges_a_valider as echanges_a_valider_de
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
-from training.models import TrainingCourse, TrainingSession
+from taches.services import taches_a_suivre
+from training.models import CandidatureFormation, TrainingCourse, TrainingRecord, TrainingSession, dossiers_formation_visibles_q
+from training.services import qualifications_validees_de
 
 STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
 STATUTS_TICKET_TERMINES = ["CLOSED", "CANCELLED"]
@@ -34,6 +45,31 @@ def formations_du_marin(user):
         .distinct()
         .order_by("scheduled_at")
     )
+
+
+def qualifications_a_renouveler(user, aujourdhui):
+    """Dernière qualification de chaque formation, expirée ou échue dans la fenêtre d'alerte."""
+    return [q for q in qualifications_validees_de(user, aujourdhui) if q.badge_libelle != "À jour"]
+
+
+def demandes_a_traiter(user):
+    """Dossiers où `user` doit agir : responsable (hors résolu), ou déclarant quand on attend sa réponse ou sa clôture."""
+    return [
+        d for d in Demande.objects.filter(Q(responsable=user) | Q(declarant=user)).exclude(etat=Demande.ETAT_CLOS)
+        if (d.responsable_id == user.pk and d.etat != Demande.ETAT_RESOLU)
+        or (d.declarant_id == user.pk and d.etat in (Demande.ETAT_EN_ATTENTE, Demande.ETAT_RESOLU))
+    ]
+
+
+def reponses_attendues(user):
+    """Mentions sans réponse du marin, avec leur lien quand l'objet lui est accessible."""
+    alertes = list(
+        Notification.objects.filter(user=user, action_requise=True, traitee_le__isnull=True,
+                                    verb__startswith=PREFIXE_MENTION)
+        .select_related("content_type").order_by("-created_at")
+    )
+    liens = liens_accessibles(SimpleNamespace(user=user), alertes)
+    return [(alerte, liens[alerte.pk]) for alerte in alertes if alerte.pk in liens and alerte.target is not None]
 
 
 def _entree(objet, titre, detail, url, icone, niveau, criticite, echeance):
@@ -100,6 +136,20 @@ def a_faire(user, aujourdhui):
             reverse("ronde-detail", args=[ronde.pk]), "ronde", DANGER if en_retard else NORMAL, 0,
             _echeance(ronde.date_prevue),
         ))
+    for tache in taches_a_suivre(user):
+        propre = tache.assigne_id == user.pk
+        en_retard = tache.en_retard_au(aujourdhui)
+        if propre:
+            detail = "Tâche en retard" if en_retard else f"Tâche · {tache.get_statut_display()}"
+        else:
+            detail = f"Blocage à lever · {tache.assigne.get_full_name() or tache.assigne.username}"
+        faits, total = tache.avancement_checklist
+        if total:
+            detail += f" · checklist {faits}/{total}"
+        entrees.append(_entree(
+            tache, tache.titre, detail, reverse("tache-detail", args=[tache.pk]), "tache",
+            DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 4 if tache.priorite == tache.PRIORITE_URGENTE else 0, _echeance(tache.echeance) if tache.echeance else None,
+        ))
     for session in formations_du_marin(user):
         if timezone.localtime(session.scheduled_at).date() == aujourdhui:
             entrees.append(_entree(
@@ -119,7 +169,34 @@ def a_faire(user, aujourdhui):
             f"{reverse('fiche-detail', args=[version.fiche_id])}?v={version.numero}", "document", ATTENTION, 0,
             _echeance(version.updated_at),
         ))
-    entrees.sort(key=lambda e: (_RANG_NIVEAU[e["niveau"]], -e["criticite"], e["echeance"]))
+    for annonce in annonces_a_lire(user, aujourdhui):
+        entrees.append(_entree(
+            annonce, annonce.titre, f"Annonce · {annonce.get_niveau_display()}{' · accusé requis' if annonce.accuse_requis else ''}",
+            reverse("annonce-detail", args=[annonce.pk]), "annonce",
+            DANGER if annonce.niveau == "danger" else ATTENTION if annonce.niveau == "warning" or annonce.accuse_requis else NORMAL,
+            4 if annonce.niveau == "danger" else 0, _echeance(annonce.date_effet),
+        ))
+    for demande in demandes_a_traiter(user):
+        entrees.append(_entree(
+            demande, demande.titre, f"Demande · {demande.get_etat_display()}", reverse("demande-detail", args=[demande.pk]),
+            "discussion", ATTENTION if demande.etat == demande.ETAT_EN_ATTENTE else NORMAL,
+            4 if demande.priorite == demande.PRIORITE_URGENTE else 0, _echeance(demande.echeance or demande.updated_at),
+        ))
+    for qualification in qualifications_a_renouveler(user, aujourdhui):
+        expiree = qualification.expires_at < aujourdhui
+        entrees.append(_entree(
+            qualification, qualification.course.title,
+            f"Qualification {'expirée' if expiree else 'à renouveler'} · échéance {qualification.expires_at:%d/%m/%Y}",
+            reverse("formation-detail", args=[qualification.course_id]), "formation",
+            DANGER if expiree else ATTENTION, 0, _echeance(qualification.expires_at),
+        ))
+    for alerte, url in reponses_attendues(user):
+        entrees.append(_entree(
+            alerte, str(alerte.target), alerte.verb.removeprefix(f"{PREFIXE_MENTION} : "), url, "discussion",
+            ATTENTION, 0, _echeance(alerte.created_at),
+        ))
+    # Sans échéance : après les autres à criticité égale.
+    entrees.sort(key=lambda e: (_RANG_NIVEAU[e["niveau"]], -e["criticite"], e["echeance"] is None, e["echeance"] or 0))
     return entrees
 
 
@@ -151,7 +228,7 @@ def journee(user, aujourdhui, taches):
         })
     # Sans heure précise : la date seule est connue.
     for entree in taches:
-        if entree["icone"] in ("ronde", "maintenance") and entree["echeance"].date() == aujourdhui:
+        if entree["icone"] in ("ronde", "maintenance", "tache") and entree["echeance"] and entree["echeance"].date() == aujourdhui:
             points.append({
                 "heure": None, "libelle": entree["titre"], "icone": entree["icone"], "url": entree["url"],
             })
@@ -170,6 +247,26 @@ def peut_superviser(user):
     return is_master_admin(user) or bool(scope_filters_for_user(user))
 
 
+def qualifications_equipe(user, aujourdhui, navire=None):
+    """Qualifications expirées ou à renouveler des marins du périmètre du chef (hors lui-même), bornées à `navire` si donné."""
+    from notifications.tasks import JOURS_ALERTE_EXPIRATION_FORMATION
+
+    limite = aujourdhui + timedelta(days=max(JOURS_ALERTE_EXPIRATION_FORMATION))
+    derniere = {}
+    dossiers = TrainingRecord.objects.filter(dossiers_formation_visibles_q(user),
+                                             user__in=utilisateurs_visibles_par(user).filter(is_active=True).exclude(pk=user.pk))
+    if navire is not None:
+        dossiers = dossiers.filter(navire_q(navire.pk, "user__profile__"))
+    for q in dossiers.select_related("user", "course").order_by("-completed_at", "-created_at"):
+        derniere.setdefault((q.user_id, q.course_id), q)
+    echues = sorted((q for q in derniere.values() if q.expires_at <= limite), key=lambda q: q.expires_at)
+    return [
+        {"titre": q.course.title, "url": reverse("formation-detail", args=[q.course_id]), "expiree": q.expires_at < aujourdhui,
+         "detail": f"{q.user.get_full_name() or q.user.get_username()} · {'expirée' if q.expires_at < aujourdhui else 'échéance'} le {q.expires_at:%d/%m/%Y}"}
+        for q in echues
+    ]
+
+
 def _noms(occurrence):
     noms = [a.last_name or a.get_username() for a in occurrence.assignees.all()]
     return ", ".join(noms) if noms else "non assignée"
@@ -182,11 +279,11 @@ def supervision(user, aujourdhui):
     occurrences = (
         MaintenanceOccurrence.objects.filter(
             build_scope_q(user, "asset__", "installation_maintenance__installation__"),
+            assignes_equipage_q(user, MaintenanceOccurrence, "assignees"),
         ).exclude(status__in=STATUTS_MAINTENANCE_TERMINES)
     )
     en_attente = occurrences.filter(status="WAITING_VALIDATION")
-    # Une occurrence en attente de validation n'est pas un retard de l'équipe.
-    retards = occurrences.filter(Q(status="OVERDUE") | Q(scheduled_for__lt=aujourdhui)).exclude(status="WAITING_VALIDATION")
+    retards = occurrences.filter(retard_q(aujourdhui))
     retards_total, actives = retards.count(), occurrences.count()
     liaisons = ("asset", "installation_maintenance__installation")
     # Même règle que la fiche d'exécution : assigné, ou seuil de gestion des maintenances d'autrui.
@@ -208,7 +305,9 @@ def supervision(user, aujourdhui):
         for occ in en_attente.select_related(*liaisons).prefetch_related("assignees").order_by("scheduled_for")[:LIGNES_SUPERVISION]
     ]
     # Import différé : training.web_views est une couche de vues, chargée seulement ici.
-    from training.web_views import peut_valider_proposition_bord
+    from training.web_views import (
+        NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE, _marins_perimetre_hierarchie, peut_valider_proposition_bord,
+    )
     propositions = TrainingCourse.objects.filter(gere_par_le_bord=True, statut_validation="WAITING_VALIDATION")
     if not is_master_admin(user):
         # Bornage au navire du chef : le seuil COMMANDANT+ de la validation ne borne pas lui-même.
@@ -216,13 +315,35 @@ def supervision(user, aujourdhui):
     formations_a_valider = sum(
         1 for c in propositions.select_related("updated_by__profile") if peut_valider_proposition_bord(user, c.updated_by)
     )
+    echanges_a_valider = len(echanges_a_valider_de(user))
+    candidatures_a_valider = (
+        CandidatureFormation.objects.filter(
+            statut="PENDING_APPROVAL", hierarchie_validee_par__isnull=True,
+            marin_id__in=_marins_perimetre_hierarchie(user).values("pk"),
+        ).count()
+        if user_role_level(user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE else 0
+    )
+    # Installation sans statut propre : une installation critique dont une échéance est en retard compte comme indisponible.
+    installations_en_retard = installations_en_retard_du_perimetre(user, aujourdhui).filter(critique=True).count()
+    materiels = dict(
+        Asset.objects.filter(build_scope_q(user, ""), status__in=STATUTS_ASSET_INDISPONIBLES)
+        .values("status").annotate(n=Count("pk")).values_list("status", "n")
+    )
+    qualifications = qualifications_equipe(user, aujourdhui)
     return {
+        "qualifications": qualifications[:LIGNES_SUPERVISION],
+        "qualifications_total": len(qualifications),
         "retards": lignes_retard,
         "retards_total": retards_total,
         "retards_pct": round(retards_total / actives * 100) if actives else 0,
         "validations": lignes_validation,
-        "validations_total": en_attente.count() + formations_a_valider,
+        "validations_total": en_attente.count() + formations_a_valider + echanges_a_valider + candidatures_a_valider,
         "formations_a_valider": formations_a_valider,
-        "anomalies_ouvertes": Anomalie.objects.filter(build_scope_q(user, ""), statut__in=STATUTS_ANOMALIE_OUVERTS).count(),
-        "indisponibles": Asset.objects.filter(build_scope_q(user, ""), status__in=STATUTS_ASSET_INDISPONIBLES).count(),
+        "echanges_a_valider": echanges_a_valider,
+        "candidatures_a_valider": candidatures_a_valider,
+        "installations_en_retard": installations_en_retard,
+        "anomalies_ouvertes": anomalies_visibles(user).filter(statut__in=STATUTS_ANOMALIE_OUVERTS).count(),
+        "anomalies_url": f"{reverse('anomalie-list')}?statut={STATUT_OUVERTES}" + ("&vue=perimetre" if _est_chef(user) else ""),
+        "hors_service": materiels.get("OUT_OF_SERVICE", 0),
+        "defectueux": materiels.get("FAULTY", 0),
     }
