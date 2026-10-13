@@ -22,6 +22,14 @@ class StockInsuffisant(Exception):
         self.disponible = disponible
 
 
+class SortieDejaEnregistree(Exception):
+    """Une sortie existe déjà pour cette pièce et ce ticket (évite un double comptage)."""
+
+    def __init__(self, reference):
+        super().__init__(reference)
+        self.reference = reference
+
+
 class MotifRequis(Exception):
     """Un inventaire ou une correction exige un motif."""
 
@@ -78,7 +86,8 @@ def sortie_pour_ligne_consommee(user, ligne, pieces):
     """Sortie de stock quand une ligne de demande de pièces passe à « Consommée ».
 
     La pièce est retrouvée par sa référence parmi `pieces` (queryset déjà dans le périmètre) ;
-    sans correspondance unique, ou si la ligne a déjà généré une sortie, rien n'est écrit.
+    sans correspondance unique, ou si la ligne a déjà généré une sortie, rien n'est écrit ;
+    une sortie déjà faite pour ce ticket et cette pièce lève SortieDejaEnregistree.
     Retourne le mouvement, ou None.
     """
     if ligne.mouvements_stock.filter(type=MouvementStock.SORTIE).exists():
@@ -87,6 +96,8 @@ def sortie_pour_ligne_consommee(user, ligne, pieces):
     if len(candidates) != 1:
         return None
     ticket = ligne.part_request.ticket
+    if MouvementStock.objects.filter(type=MouvementStock.SORTIE, ticket=ticket, piece=candidates[0]).exists():
+        raise SortieDejaEnregistree(candidates[0].reference)
     return enregistrer_mouvement(
         user, candidates[0], MouvementStock.SORTIE, ligne.qty,
         motif=f"Pièce consommée (demande de pièces du ticket {ticket.pk})", ticket=ticket, ligne_pieces=ligne,

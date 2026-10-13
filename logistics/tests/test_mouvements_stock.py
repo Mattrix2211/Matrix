@@ -130,6 +130,31 @@ class SortieAutomatiqueTests(BaseMouvements):
         self.assertEqual(self.piece.mouvements.count(), 1)
 
 
+    def test_ligne_consommee_apres_prelevement_du_meme_ticket_ne_sort_pas_deux_fois(self):
+        enregistrer_mouvement(self.chef, self.piece, MouvementStock.ENTREE, 5)
+        prelever(self.chef, self.piece, 2, self.ticket)
+        ligne = self._ligne()
+        self.client.force_login(self.chef)
+        reponse = self.client.post(reverse("part-line-status", args=[ligne.pk]), {"status": "CONSUMED"}, follow=True)
+        self.assertContains(reponse, "aucune sortie en double")
+        self.assertEqual(self.piece.mouvements.filter(type=MouvementStock.SORTIE).count(), 1)
+        self.assertEqual(self.recharger().quantite, 3)
+
+    def test_seuil_stock_releve_message_explicite_sans_sortie(self):
+        from org.models import RoleThresholdConfig
+        from matrix.core.role_thresholds import invalidate_cache
+        RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"stock_ecriture": "CHEF_SERVICE"})
+        UserProfile.objects.filter(user=self.chef).update(ship=self.navire)
+        invalidate_cache(self.navire.pk)
+        self.addCleanup(invalidate_cache, self.navire.pk)
+        enregistrer_mouvement(self.chef, self.piece, MouvementStock.ENTREE, 5)
+        ligne = self._ligne()
+        self.client.force_login(self.chef)
+        reponse = self.client.post(reverse("part-line-status", args=[ligne.pk]), {"status": "CONSUMED"}, follow=True)
+        self.assertContains(reponse, "gestion du stock est réservée")
+        self.assertEqual(self.recharger().quantite, 5)
+
+
 class SaisieManuelleTests(BaseMouvements):
     def url(self, piece=None):
         return reverse("stock-piece-mouvements", args=[(piece or self.piece).pk])

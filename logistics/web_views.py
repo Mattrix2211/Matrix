@@ -30,7 +30,7 @@ from matrix.core.export import (
     xlsx_disponible,
 )
 from accounts.models import AuditLog
-from .stock import StockInsuffisant, enregistrer_mouvement, prelever, sortie_pour_ligne_consommee
+from .stock import SortieDejaEnregistree, StockInsuffisant, enregistrer_mouvement, prelever, sortie_pour_ligne_consommee
 from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -515,12 +515,17 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
         status = request.POST.get('status')
         if not status:
             return HttpResponseBadRequest('Statut requis')
-        if status == 'CONSUMED' and line.status != 'CONSUMED' and user_role_level(request.user) >= niveau_requis_pour(request.user, 'stock_ecriture'):
-            stock = StockPiece.objects.filter(build_scope_q(request.user, ""))
-            try:
-                sortie_pour_ligne_consommee(request.user, line, stock)
-            except StockInsuffisant as exc:
-                messages.warning(request, f"Stock insuffisant pour {exc.reference} : aucune sortie de stock enregistrée pour cette ligne.")
+        if status == 'CONSUMED' and line.status != 'CONSUMED':
+            if user_role_level(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
+                messages.warning(request, "Aucune sortie de stock enregistrée : la gestion du stock est réservée à un niveau supérieur au vôtre.")
+            else:
+                stock = StockPiece.objects.filter(build_scope_q(request.user, ""))
+                try:
+                    sortie_pour_ligne_consommee(request.user, line, stock)
+                except StockInsuffisant as exc:
+                    messages.warning(request, f"Stock insuffisant pour {exc.reference} : aucune sortie de stock enregistrée pour cette ligne.")
+                except SortieDejaEnregistree as exc:
+                    messages.warning(request, f"Une sortie de {exc.reference} est déjà enregistrée pour ce ticket : aucune sortie en double.")
         line.status = status
         line.save(update_fields=['status'])
         if request.headers.get('HX-Request'):
