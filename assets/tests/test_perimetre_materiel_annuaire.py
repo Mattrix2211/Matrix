@@ -24,7 +24,7 @@ class SeuilsEcritureMaterielTests(TestCase):
         self.equipier = User.objects.create_user(username="equipier_mat", password="pass")
         UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
         self.chef_secteur = User.objects.create_user(username="chef_secteur_mat", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef_secteur, defaults={"role": "CHEF_SECTEUR"})
+        UserProfile.objects.update_or_create(user=self.chef_secteur, defaults={"role": "CHEF_SECTEUR", "ship": self.ship, "service": self.service, "sector": self.sector})
 
     def test_equipier_ne_peut_pas_creer_de_dossier(self):
         self.client.login(username="equipier_mat", password="pass")
