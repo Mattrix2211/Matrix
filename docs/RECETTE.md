@@ -12,6 +12,12 @@ Parcours Formation : catalogue (cartes par catégorie, filtres, gestion de l'uni
 
 Onze pages parcourues : zones cliquables de 44 px (règle `pointer: coarse`), rien d'essentiel au survol. Hors règle : liens dans le texte courant et barres d'événements du calendrier.
 
+## Téléphone (375×667, 390×844) et tablette étroite (768×1024)
+
+Comptes chef de section, équipier, COMANAV et administrateur : toutes les pages du menu (24 à 30 selon le compte, dont Aujourd'hui, Calendrier, Matériels, Tâches, Annonces, Quarts, Formations, Annuaire, Paramètres, Vue COMANAV) : aucun débordement horizontal, aucune erreur console, en clair comme en sombre.
+
+À contrôler : le bouton « Menu » ouvre le tiroir (`aria-expanded`), Échap, la croix et le clic sur le fond le ferment ; la recherche est une icône qui déplie le champ (Échap ferme le panneau puis le champ) ; sélecteur de bâtiment, notifications, thème et profil restent accessibles en icônes de 44 px. À 768 px, la barre latérale reste fixe et l'identité passe en icône. Desktop (≥ 768 px) inchangé à 1366×768.
+
 ## Impression A4
 
 Formations, quarts, feuille de service, tâches, matériels, calendrier : interface masquée, en-tête bâtiment / date / utilisateur, noir et blanc. Calendrier à la largeur de la page. À contrôler sur une impression réelle du navigateur.

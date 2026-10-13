@@ -658,6 +658,33 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
 .mx-barre__liste-batiments { min-width: 16rem; }
 .mx-barre .dropdown-item.active { background: var(--signal-ui); color: var(--paper); }
 
+/* Tablette étroite : identité et « Déconnexion » en icône (nom complet en infobulle). */
+@media (max-width: 991.98px) {
+  .mx-barre__masque-tablette { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* Barre supérieure sur téléphone : icônes seules, recherche dépliable, bouton Menu. */
+.mx-barre__menu, .mx-barre__recherche, .mx-recherche__fermer { display: none; }
+@media (max-width: 767.98px) {
+  .mx-barre .container-fluid { gap: var(--s1); padding-left: var(--s2); padding-right: var(--s2); }
+  .mx-barre__outils { gap: var(--s1); }
+  .mx-barre__menu, .mx-barre__recherche { display: inline-flex; }
+  .mx-barre .mx-barre__menu + .matrix-logo { display: none; }
+  .mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment, .theme-toggle { min-height: 44px; min-width: 44px; justify-content: center; padding-left: var(--s2); padding-right: var(--s2); }
+  .mx-barre__masque-mobile { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .mx-barre__contexte { flex: 0 0 auto; }
+  .mx-recherche { display: none; }
+  .mx-recherche.mx-recherche--ouverte {
+    display: flex; align-items: center; gap: var(--s1);
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1050; max-width: none;
+    height: var(--mx-hauteur-navbar); padding: 0 var(--s2); background: rgb(var(--bs-dark-rgb));
+  }
+  .mx-recherche.mx-recherche--ouverte .mx-recherche__fermer { display: inline-flex; flex: 0 0 auto; }
+  .mx-recherche.mx-recherche--ouverte .mx-recherche__form { flex: 1 1 auto; min-width: 0; }
+  .mx-recherche.mx-recherche--ouverte .mx-recherche__champ { min-height: 44px; }
+  .mx-recherche.mx-recherche--ouverte .mx-recherche__panneau { left: 0; right: 0; width: auto; max-height: calc(100vh - var(--mx-hauteur-navbar) - var(--s4)); }
+}
+
 /* Cloche et centre de notifications (docs/UX.md §23) — UX-1.3 */
 .mx-cloche { position: relative; }
 .mx-cloche__compteur { position: absolute; top: 0; right: 0; pointer-events: none; }
@@ -1055,15 +1082,36 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
 .mx-lateral--repliee .mx-lateral__lien { justify-content: center; padding-left: var(--s1); padding-right: var(--s1); }
 .mx-lateral--repliee .mx-lateral__groupe + .mx-lateral__groupe { border-top: 1px solid var(--border); padding-top: var(--s2); }
 
-/* Écrans étroits : la barre passe au-dessus du contenu, toujours dépliée (le
-   bouton de bascule n'a plus d'objet et disparaît). */
+/* Écrans étroits : la barre devient un tiroir (offcanvas Bootstrap piloté par
+   js/barre_laterale.js), toujours dépliée ; le bouton de bascule disparaît. */
+.mx-lateral__entete { display: none; }
 @media (max-width: 767.98px) {
   .mx-coque { flex-direction: column; align-items: stretch; }
-  .mx-lateral, .mx-lateral--repliee { position: static; width: auto; flex-basis: auto; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .mx-lateral, .mx-lateral--repliee {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 1045;
+    width: min(18rem, 85vw); flex-basis: auto; height: auto; max-width: 100%;
+    padding: 0 var(--s2) var(--s3);
+    border-right: 1px solid var(--border);
+    box-shadow: var(--shadow-md, 0 8px 24px rgba(0, 0, 0, .25));
+    visibility: hidden; transform: translateX(-100%); transition: transform .3s ease-in-out;
+    outline: 0;
+  }
+  .mx-lateral.showing, .mx-lateral.show:not(.hiding) { transform: none; }
+  .mx-lateral.showing, .mx-lateral.show, .mx-lateral.hiding { visibility: visible; }
+  .mx-lateral__entete { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; min-height: var(--mx-hauteur-navbar); padding: 0 var(--s2); }
+  .mx-lateral__marque { font: 700 1.1rem/1 var(--f-display); color: var(--text); text-decoration: none; }
+  .mx-lateral__entete .btn-close { min-width: 44px; min-height: 44px; background-origin: content-box; padding: 16px; }
   .mx-lateral__bascule { display: none; }
+  /* En-têtes de page titre + boutons : les boutons passent à la ligne au lieu de déborder. */
+  .mx-coque__contenu .d-flex.justify-content-between { flex-wrap: wrap; gap: var(--s2); }
+  /* Les textes .visually-hidden (position absolue) d'un tableau défilant ne doivent pas élargir la page. */
+  .table-responsive { position: relative; }
+  .mx-lateral__lien, .mx-lateral--repliee .mx-lateral__lien { min-height: 44px; justify-content: flex-start; padding: var(--s2); }
   .mx-lateral--repliee .mx-lateral__libelle,
   .mx-lateral--repliee .mx-lateral__titre { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
-  .mx-lateral--repliee .mx-lateral__lien { justify-content: flex-start; padding: var(--s2); }
+}
+@media (max-width: 767.98px) and (prefers-reduced-motion: reduce) {
+  .mx-lateral { transition: none; }
 }
 
 /* Recherche rapide de la barre supérieure (docs/UX.md §21). */

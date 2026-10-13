@@ -63,6 +63,8 @@ ICONES = {
     "deconnexion": "bi-box-arrow-right",
     "deplier_liste": "bi-chevron-down",
     "recherche": "bi-search",
+    "menu": "bi-list",
+    "fermer": "bi-x-lg",
     # Centre de notifications
     "notifications": "bi-bell",
     "marquer_lu": "bi-check2",

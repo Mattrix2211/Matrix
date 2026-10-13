@@ -179,6 +179,8 @@ Barre latérale **rétractable**, avec libellés texte (pas seulement des icône
 
 Les groupes et entrées s'affichent selon les droits et les modules activés pour le bâtiment.
 
+**Téléphone (< 768 px)** : la barre latérale devient un tiroir (offcanvas Bootstrap) ouvert par le bouton « Menu » de la barre supérieure ; Échap, la croix ou le fond le ferment.
+
 ---
 
 ## 8. Barre supérieure
@@ -192,6 +194,8 @@ Uniquement les fonctions globales :
 - bascule **mode clair / mode sombre** (§17).
 
 Les modules métier ne sont plus alignés sous forme d'icônes dans la barre supérieure.
+
+**Téléphone (< 768 px)** : bouton « Menu » à gauche, textes masqués (bâtiment, identité, « Déconnexion » : libellés conservés pour les lecteurs d'écran et en infobulle), recherche en icône qui déplie le champ sur toute la largeur, zones tactiles de 44 px. Entre 768 et 991 px, identité et « Déconnexion » passent en icône.
 
 ---
 

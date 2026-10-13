@@ -1,12 +1,25 @@
 // Barre latérale : replier / déplier sans recharger la page, état mémorisé dans le
 // profil du marin. Sans JavaScript, le formulaire fonctionne tel quel (rechargement).
+// Sur téléphone, elle sert de tiroir (offcanvas Bootstrap) ouvert par le bouton « Menu ».
 (function () {
   var form = document.querySelector('[data-barre-laterale-bascule]');
   var barre = document.getElementById('barre-laterale');
   if (!barre) return;
+  var declencheur = document.querySelector('[data-bs-target="#barre-laterale"][aria-expanded]');
+  function synchroniser(ouvert) { if (declencheur) declencheur.setAttribute('aria-expanded', ouvert ? 'true' : 'false'); }
+  barre.addEventListener('show.bs.offcanvas', function () {
+    synchroniser(true);
+    // Un seul panneau à la fois : les notifications se ferment.
+    var notifications = document.querySelector('#centre-notifications.show');
+    var instance = notifications && window.bootstrap && bootstrap.Offcanvas.getInstance(notifications);
+    if (instance) instance.hide();
+  });
+  barre.addEventListener('hidden.bs.offcanvas', function () { synchroniser(false); });
   // Écran bas : l'entrée courante reste visible dans le menu défilant.
   var courante = barre.querySelector('[aria-current="page"]');
-  if (courante && courante.scrollIntoView) courante.scrollIntoView({ block: 'nearest' });
+  function montrerCourante() { if (courante && courante.scrollIntoView) courante.scrollIntoView({ block: 'nearest' }); }
+  montrerCourante();
+  barre.addEventListener('shown.bs.offcanvas', montrerCourante);
   if (!form) return;
   var bouton = form.querySelector('button');
   var champ = form.querySelector('input[name="repliee"]');

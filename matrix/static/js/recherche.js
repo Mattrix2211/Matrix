@@ -40,6 +40,24 @@
     actif = -1;
   }
 
+  // Téléphone : la recherche est une icône qui déplie le champ sur toute la barre.
+  var ouvrirBouton = document.querySelector('[data-recherche-ouvrir]');
+  var fermerBouton = racine.querySelector('[data-recherche-fermer]');
+  function basculerChamp(ouvert) {
+    racine.classList.toggle('mx-recherche--ouverte', ouvert);
+    if (ouvrirBouton) ouvrirBouton.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+    if (ouvert) champ.focus(); else if (ouvrirBouton) ouvrirBouton.focus();
+  }
+  if (ouvrirBouton) ouvrirBouton.addEventListener('click', function () { basculerChamp(true); });
+  if (fermerBouton) fermerBouton.addEventListener('click', function () { fermer(); basculerChamp(false); });
+  // Phase de capture : Échap ferme d'abord le panneau, puis le champ déplié.
+  racine.addEventListener('keydown', function (evt) {
+    if (evt.key === 'Escape' && panneau.hidden && racine.classList.contains('mx-recherche--ouverte')) {
+      evt.stopPropagation();
+      basculerChamp(false);
+    }
+  }, true);
+
   // Le raccourci ne doit jamais voler la frappe : champ de saisie, grille ou fenêtre ouverte.
   function dansZoneDeSaisie(cible) {
     return !!(cible && cible.closest && (cible.isContentEditable ||
