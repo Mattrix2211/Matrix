@@ -3,11 +3,14 @@
 Doit aussi passer sur PostgreSQL (qui refuse les valeurs NUL dans les filtres).
 """
 from django.urls import reverse
+from django.utils import timezone
 
 from annonces import services
 from annonces.models import Annonce
 from annonces.tests.test_annonces import AnnoncesBase
+from documentation.models import Document
 from org.models import Ship
+from programme.models import EvenementProgramme, TypeProgramme
 
 
 class CiblageEquipageTests(AnnoncesBase):
@@ -50,3 +53,22 @@ class CiblageEquipageTests(AnnoncesBase):
                 self.assertEqual(self.client.get(adresse).status_code, 200)
         self.assertContains(self.client.get(reverse("annonces-index")), "Pour tous")
         self.assertNotContains(self.client.get(reverse("annonces-index")), "Équipage A")
+
+    def test_programme_calendrier_et_documentation_pour_marin_sans_equipage(self):
+        type_ = TypeProgramme.objects.create(ship=self.navire, nom="Exercice", couleur="#123456")
+        maintenant = timezone.now()
+        EvenementProgramme.objects.create(
+            titre="Visible de tous", type=type_, debut=maintenant, ship=self.navire, auteur=self.cdt)
+        EvenementProgramme.objects.create(
+            titre="Équipage A seul", type=type_, debut=maintenant, ship=self.navire, equipage="A", auteur=self.cdt)
+        Document.objects.create(titre="Doc du bord", ship=self.navire)
+        self.client.force_login(self.marin)
+        jour = timezone.localdate().isoformat()
+        programme = self.client.get(reverse("programme-index"))
+        self.assertContains(programme, "Visible de tous")
+        self.assertNotContains(programme, "Équipage A seul")
+        calendrier = self.client.get(reverse("calendar-events"), {"start": jour, "end": jour})
+        self.assertEqual(calendrier.status_code, 200)
+        self.assertContains(calendrier, "Visible de tous")
+        self.assertNotContains(calendrier, "Équipage A seul")
+        self.assertEqual(self.client.get(reverse("documentation-index")).status_code, 200)
