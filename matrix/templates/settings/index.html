@@ -710,6 +710,20 @@
     </div>
   </div>
   {% endif %}
+  {% if equipage_effectifs %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Effectifs par équipage</div>
+      <div class="card-body">
+        {% for e in equipage_effectifs %}
+        <p class="mb-2"><strong>Équipage {{ e.code }}</strong>{% if e.a_bord %} <span class="badge text-bg-primary">À bord</span>{% else %} <span class="badge text-bg-secondary">À terre</span>{% endif %} · {{ e.marins|length }} marin{{ e.marins|length|pluralize }} :
+          {% for m in e.marins %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+        {% endfor %}
+        <p class="text-muted small mb-0">L'équipage d'un marin se modifie depuis sa fiche dans l'annuaire des utilisateurs (administrateur de l'unité).</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <div class="col-12">
     <div class="card">
       <div class="card-header">Relève — {{ equipage_ship.name }}</div>

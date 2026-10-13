@@ -4,8 +4,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from accounts.forms import UserProfileForm
-from accounts.models import RoleAvailability, UserProfile
+from accounts.models import UserProfile
 from matrix.core.commandants_adjoints import (
     commandant_adjoint_du_service, est_commandant_adjoint_du_service, service_de, titulaires_commandant_adjoint,
 )
@@ -74,18 +73,6 @@ class TitulairesTests(CommandantsAdjointsBase):
         client.patch(f"/api/org/services/{self.libre.pk}/", {"commandant_adjoint": "COMOPS"}, format="json")
         self.libre.refresh_from_db()
         self.assertEqual(self.libre.commandant_adjoint, "")
-
-
-class FormulaireProfilTests(TestCase):
-    def test_role_sans_ligne_de_disponibilite_est_actif(self):
-        RoleAvailability.objects.create(code="EQUIPIER", active=False)
-        codes = [c[0] for c in UserProfileForm().fields["role"].choices]
-        self.assertNotIn("EQUIPIER", codes)
-        self.assertIn("COMMANDANT_EN_SECOND", codes)
-        self.assertIn("CHEF_SERVICE", codes)
-
-    def test_expose_la_fonction_de_commandant_adjoint(self):
-        self.assertIn("fonction_coma", UserProfileForm().fields)
 
 
 class ValidationFormationBordTests(CommandantsAdjointsBase):

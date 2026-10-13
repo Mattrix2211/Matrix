@@ -112,3 +112,42 @@ class VisibiliteChefDeServiceTests(TestCase):
         autre.profile.service = service  # rattaché au service seul, sans champ navire direct
         autre.profile.save()
         self.assertNotIn(autre, set(utilisateurs_visibles_par(simple)))
+
+
+class BandeauLectureSeuleTests(TestCase):
+    """Le bandeau « Lecture seule » est permanent pour l'équipage à terre, sur toutes les pages."""
+
+    PAGES = ["/", "/assets/", "/logistics/tickets/", "/quarts/", "/formations/", "/calendar/", "/taches/", "/annonces/", "/notifications/"]
+
+    def setUp(self):
+        self.navire = Ship.objects.create(name="Bâtiment double", code="BD2", double_equipage=True, equipage_a_bord="A")
+        self.terre = User.objects.create_user(username="marin_b", password="pass")
+        self.terre.profile.ship, self.terre.profile.equipage = self.navire, "B"
+        self.terre.profile.save()
+        self.bord = User.objects.create_user(username="marin_a", password="pass")
+        self.bord.profile.ship, self.bord.profile.equipage = self.navire, "A"
+        self.bord.profile.save()
+
+    def test_bandeau_sur_chaque_page_a_terre_et_absent_a_bord(self):
+        for page in self.PAGES:
+            with self.subTest(page=page):
+                self.client.force_login(self.terre)
+                self.assertContains(self.client.get(page, follow=True), "Lecture seule — Équipage B à terre")
+                self.client.force_login(self.bord)
+                self.assertNotContains(self.client.get(page, follow=True), "Lecture seule — Équipage")
+
+
+class EffectifsParEquipageTests(TestCase):
+    def test_parametres_listent_les_marins_par_equipage(self):
+        navire = Ship.objects.create(name="Bâtiment double", code="BD3", double_equipage=True, equipage_a_bord="A")
+        admin = User.objects.create_user(username="adm", password="pass")
+        admin.profile.role, admin.profile.ship, admin.profile.equipage = "ADMIN_NAVIRE", navire, "A"
+        admin.profile.save()
+        marin = User.objects.create_user(username="marin_terre_b", password="pass")
+        marin.profile.ship, marin.profile.equipage = navire, "B"
+        marin.profile.save()
+        self.client.force_login(admin)
+        page = self.client.get(f"/parametre/?tab=equipage&ship={navire.pk}")
+        self.assertContains(page, "Effectifs par équipage")
+        self.assertEqual({e["code"]: [m.username for m in e["marins"]] for e in page.context["equipage_effectifs"]},
+                         {"A": ["adm"], "B": ["marin_terre_b"]})

@@ -1,3 +1,5 @@
+from itertools import groupby
+
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
@@ -86,9 +88,16 @@ def _lignes_equipage(navire, utilisateur):
     codes = UserProfile.objects.filter(ship=navire).exclude(equipage='').values_list(
         'equipage', flat=True).distinct().order_by('equipage')
     releve = releve_en_attente(navire)
+    marins = User.objects.filter(is_active=True, profile__ship=navire).exclude(profile__equipage='').select_related('profile').order_by(
+        'profile__equipage', 'last_name', 'username')
+    effectifs = [
+        {'code': code, 'a_bord': code == navire.equipage_a_bord, 'marins': list(groupe)}
+        for code, groupe in groupby(marins, key=lambda m: m.profile.equipage)
+    ]
     return {
         'equipage_ship': navire,
         'equipage_codes': list(codes),
+        'equipage_effectifs': effectifs,
         'equipage_sans': list(marins_sans_equipage(navire)),
         'releve': releve,
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
