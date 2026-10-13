@@ -2,12 +2,13 @@
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
+from assets.models import Asset, AssetType
 from dashboard.aujourdhui import a_faire
 from demandes import services
 from demandes.models import Demande
 from notifications.models import Notification
 from matrix.core.role_thresholds import invalidate_cache
-from org.models import RoleThresholdConfig
+from org.models import RoleThresholdConfig, Sector, Service
 from taches.services import rendre_compte
 from taches.tests.test_taches import TachesBase
 from threads.utils import commentaires_de
@@ -112,6 +113,33 @@ class DroitsTests(DemandesBase):
         self.assertContains(self.client.get(reverse("demande-detail", args=[self.demande.pk])), "Bruit anormal")
         self.assertContains(self.client.get(reverse("demande-nouvelle") + f"?objet=tache:{self.tache.pk}"), "Signaler une difficulté")
         self.assertEqual(self.client.get(reverse("demande-nouvelle") + "?objet=tache:99999").status_code, 404)
+
+
+class SignalerEquipementTests(DemandesBase):
+    def _materiel(self, secteur, navire):
+        type_asset = AssetType.objects.create(name=f"Pompe {secteur.pk}", category="MCO", sector=secteur)
+        return Asset.objects.create(asset_type=type_asset, internal_id=f"P-{secteur.pk}", ship=navire,
+                                    service=secteur.service, sector=secteur)
+
+    def test_signalement_depuis_la_fiche_equipement(self):
+        materiel = self._materiel(self.secteur, self.navire)
+        self.client.force_login(self.marin)
+        fiche = self.client.get(reverse("asset-detail", args=[materiel.pk]))
+        self.assertContains(fiche, f"?objet=asset:{materiel.pk}")
+        self.assertEqual(self.client.get(reverse("demande-nouvelle") + f"?objet=asset:{materiel.pk}").status_code, 200)
+        demande = services.creer_demande(self.marin, materiel, "Fuite", "", self.chef)
+        self.assertEqual(demande.objet, materiel)
+
+    def test_equipement_hors_perimetre_refuse(self):
+        autre_navire = self.etranger.profile.ship
+        service = Service.objects.create(ship=autre_navire, name="Autre service")
+        materiel_autre_navire = self._materiel(Sector.objects.create(service=service, name="Autre secteur"), autre_navire)
+        materiel_voisin = self._materiel(self.voisin.profile.sector, self.navire)
+        self.client.force_login(self.marin)
+        for materiel in (materiel_autre_navire, materiel_voisin):
+            with self.assertRaises(PermissionError):
+                services.creer_demande(self.marin, materiel, "x", "", self.chef)
+            self.assertEqual(self.client.get(reverse("demande-nouvelle") + f"?objet=asset:{materiel.pk}").status_code, 404)
 
 
 class DoubleEquipageTests(DemandesBase):

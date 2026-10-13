@@ -835,7 +835,7 @@ class SettingsView(LoginRequiredMixin, View):
             if not is_master_admin(request.user):
                 messages.error(request, "Seuls les administrateurs généraux peuvent modifier les réglages des annonces de la flotte.")
             else:
-                parametres = ParametresAnnonces.objects.first() or ParametresAnnonces()
+                parametres = ParametresAnnonces.courants()
                 try:
                     jours = int(request.POST.get('jours_rappel_accuse', ''))
                 except ValueError:

@@ -74,6 +74,16 @@ def _installations(request, ids):
                      lambda o: reverse("installation-detail", args=[o]))
 
 
+def _materiels(request, ids):
+    # Même périmètre que la fiche du matériel
+    from assets.asset_views import AssetDetailView
+
+    vue = AssetDetailView()
+    vue.request = request
+    return _visibles(ids, vue.get_queryset().filter(pk__in=_uuids(ids.values())),
+                     lambda o: reverse("asset-detail", args=[o]))
+
+
 def _propositions(request, ids):
     # Même périmètre que la page de la proposition d'article
     from assets.proposition_article import propositions_visibles
@@ -238,6 +248,7 @@ _RESOLVEURS = {
     "document": _documents,
     "evenementprogramme": _evenements_programme,
     "installation": _installations,
+    "asset": _materiels,
     "propositionarticle": _propositions,
     "checklisttemplate": _versions,
     "installationmaintenance": _fiches,

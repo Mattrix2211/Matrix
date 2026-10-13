@@ -5,9 +5,10 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from annonces import services
 from assets.models import Asset, AssetType
 from logistics.models import Anomalie, CorrectiveTicket
-from notifications.liens import liens_accessibles
+from notifications.liens import lien_objet, liens_accessibles
 from notifications.models import Notification, NotificationLevel
 from notifications.services import compter_non_lues
 from org.models import Sector, Service, Ship
@@ -34,6 +35,13 @@ class LiensDirectsTests(TestCase):
         profil.save()
         return user
 
+    def _etranger(self):
+        user = User.objects.create_user(username="etranger_l", password="pass")
+        profil = user.profile
+        profil.role, profil.ship = "CHEF_SECTEUR", Ship.objects.create(name="Navire M", code="NVM")
+        profil.save()
+        return user
+
     def lien(self, user, cible=None, **champs):
         notification = Notification.objects.create(user=user, verb="Information", target=cible, **champs)
         notification = Notification.objects.select_related("content_type").get(pk=notification.pk)
@@ -42,6 +50,22 @@ class LiensDirectsTests(TestCase):
     def test_ticket_visible_du_perimetre_seulement(self):
         self.assertEqual(self.lien(self.marin, self.ticket), reverse("ticket-detail", args=[self.ticket.pk]))
         self.assertIsNone(self.lien(self.voisin, self.ticket))
+
+    def test_materiel_visible_du_perimetre_seulement(self):
+        self.assertEqual(self.lien(self.marin, self.asset), reverse("asset-detail", args=[self.asset.pk]))
+        self.assertIsNone(self.lien(self.voisin, self.asset))
+        etranger = self._etranger()
+        self.assertIsNone(self.lien(etranger, self.asset))
+        self.assertEqual(lien_objet(self.marin, self.asset), reverse("asset-detail", args=[self.asset.pk]))
+        self.assertIsNone(lien_objet(etranger, self.asset))
+
+    def test_annonce_visible_du_destinataire_seulement(self):
+        commandant = self._marin("cdt_l", self.secteur)
+        commandant.profile.role, commandant.profile.sector, commandant.profile.service = "COMMANDANT", None, None
+        commandant.profile.save()
+        annonce = services.publier(commandant, "Exercice", "Jeudi", "info", f"ship:{self.navire.pk}")
+        self.assertEqual(self.lien(self.marin, annonce), reverse("annonce-detail", args=[annonce.pk]))
+        self.assertIsNone(self.lien(self._etranger(), annonce))
 
     def test_anomalie_et_ronde(self):
         anomalie = Anomalie.objects.create(titre="Odeur", description="x", created_by=self.marin, ship=self.navire)

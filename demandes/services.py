@@ -27,7 +27,7 @@ from .models import Demande
 User = get_user_model()
 
 # Objets sur lesquels on peut signaler une difficulté : ceux dont la fiche est accessible par lien.
-OBJETS_SIGNALABLES = ("tache", "installation", "anomalie", "correctiveticket", "trainingcourse")
+OBJETS_SIGNALABLES = ("tache", "installation", "asset", "anomalie", "correctiveticket", "trainingcourse")
 
 # Transitions permises : (état de départ) -> états d'arrivée, par rôle dans le dossier.
 TRANSITIONS_RESPONSABLE = {
