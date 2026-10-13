@@ -394,9 +394,6 @@ _BADGE_STATUT_OCCURRENCE = {
     "CANCELLED": "bg-secondary",
 }
 
-# Statuts qui ne comptent jamais comme "en retard" (une occurrence terminée
-# ou annulée n'a plus d'échéance à tenir), utilisé à la fois pour le badge
-# visuel et pour le filtre "retard" du tableau de pilotage.
 
 
 def _periodicite_lisible(nombre_de_jours):

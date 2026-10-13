@@ -161,7 +161,7 @@ class SupervisionTests(TestCase):
         debut = timezone.now() + timedelta(days=5)
         a, b = (CreneauServiceGarde.objects.create(
             service_garde=garde, poste="Permanence", debut=debut + timedelta(days=i), fin=debut + timedelta(days=i, hours=24),
-            marin=self._marin(f"garde_{secteur.pk}_{i}", "EQUIPIER", secteur),
+            marin=self._marin(f"garde_{secteur.pk}_{i}_{EchangeService.objects.count()}", "EQUIPIER", secteur),
         ) for i in (0, 1))
         return EchangeService.objects.create(
             creneau_demandeur=a, creneau_cible=b, demandeur=a.marin, cible=b.marin, statut=EchangeService.STATUT_ACCEPTE,
@@ -274,3 +274,23 @@ class CompteursEtListesCiblesTests(TestCase):
         self.assertEqual((s["echanges_a_valider"], len([e for e in echanges if e.peut_trancher])), (1, 1))
         candidatures = self._contexte(reverse("formation-list"))["candidatures_hierarchie_a_traiter"]
         self.assertEqual((s["candidatures_a_valider"], len(candidatures)), (1, 1))
+
+    def test_requetes_des_echanges_constantes(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        ChefDeListe.objects.create(user=self.chef, sector=self.secteur_a)
+        for _ in range(2):
+            self._echange_accepte(self.secteur_a)
+        with CaptureQueriesContext(connection) as deux_echanges:
+            self._valides(2)
+        for _ in range(8):
+            self._echange_accepte(self.secteur_a)
+        with CaptureQueriesContext(connection) as dix_echanges:
+            self._valides(10)
+        self.assertLessEqual(len(dix_echanges) - len(deux_echanges), 1)
+
+    def _valides(self, attendu):
+        from quarts.echanges import echanges_a_valider
+
+        self.assertEqual(len(echanges_a_valider(self.chef)), attendu)

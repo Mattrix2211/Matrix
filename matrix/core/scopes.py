@@ -171,8 +171,10 @@ def equipage_agissant(user):
     navire_id = profile.navire_id_effectif if profile else None
     if not navire_id:
         return None
-    from org.models import Ship
-    ship = Ship.objects.filter(pk=navire_id).first()
+    ship = profile.ship if profile.ship_id == navire_id else None
+    if ship is None:
+        from org.models import Ship
+        ship = Ship.objects.filter(pk=navire_id).first()
     if ship is None or not ship.double_equipage:
         return None
     return profile.equipage or ship.equipage_a_bord or None

@@ -255,7 +255,7 @@ def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=No
     )
     return any(
         (cdl.ship_id, cdl.service_id, cdl.sector_id, cdl.section_id) == cible
-        for cdl in ChefDeListe.objects.filter(user=user)
+        for cdl in user.designations_chef_de_liste.all()  # profite d'un prefetch_related éventuel
     )
 
 

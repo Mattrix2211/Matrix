@@ -15,7 +15,7 @@ moment), les habilitations manquantes, et — depuis la tâche Notion « Absence
 et indisponibilités » — les absences déclarées (`absences.models.Absence`)
 qui chevauchent le tour repris par le marin (cf. `absences_marin` ci-dessous)."""
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, prefetch_related_objects
 from django.utils import timezone
 
 from absences.models import Absence
@@ -195,6 +195,8 @@ def echanges_a_valider(user):
         echanges = echanges.filter(
             navire_q(navire, "creneau_demandeur__service_garde__") | navire_q(navire, "creneau_cible__service_garde__")
         )
+    # Désignations chargées une fois : peut_valider_echange les relit pour chaque échange.
+    prefetch_related_objects([user], "designations_chef_de_liste")
     return [e for e in echanges if peut_valider_echange(user, e)]
 
 
