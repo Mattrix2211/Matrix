@@ -26,6 +26,8 @@ from .evenements_sources import (
     _creneaux_quart_assignes,
     _evenements_personnels,
     evenements_equipe,
+    occurrences_visibles,
+    tickets_visibles,
     sessions_visibles,
     _peut_agir_occurrence,
     _peut_agir_ticket,
@@ -140,7 +142,7 @@ def calendar_events(request):
     ).prefetch_related("assignees").filter(
         assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
     )
-    occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
+    occ_qs = _appliquer_filtres_occurrences(occurrences_visibles(request.user, occ_qs), filters)
     if filters.get("status"):
         occ_qs = occ_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "maintenance":
@@ -171,7 +173,7 @@ def calendar_events(request):
     # Tickets correctifs planifiés
     ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])
     ticket_qs = ticket_qs.filter(assignes_equipage_q(request.user, CorrectiveTicket, "assignees"))
-    ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
+    ticket_qs = _appliquer_filtres_tickets(tickets_visibles(request.user, ticket_qs), filters)
     if filters.get("status"):
         ticket_qs = ticket_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "ticket":
