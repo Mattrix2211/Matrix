@@ -1,15 +1,15 @@
 # Matrice de couverture
 
-Légende : **P** prévu · **E** exécuté · **R** réussi · **X** échoué · **NT** non testé · **IV** impossible à vérifier avec les outils disponibles. Les statuts de cette table sont mis à jour dans `rapports/` ; l'état au SHA `59dd2f2` est dans `rapports/2026-10-13-passage-A-preparation.md`.
+Légende : **P** prévu · **E** exécuté · **R** réussi · **X** échoué · **NT** non testé · **IV** impossible à vérifier avec les outils disponibles. Les statuts de cette table sont mis à jour dans `rapports/` ; le détail au SHA `59dd2f2` est dans `rapports/2026-10-13-passage-A-preparation.md`.
 
 ## Technique (équipe A)
 
 | Id | Domaine | Contrôle | Agent | Statut |
 |---|---|---|---|---|
-| INT-01 | Tests Django | Suite complète sur SQLite | qa-integration | voir rapport |
-| INT-02 | Migrations | `makemigrations --check`, migration depuis zéro, `seed_demo` relançable | qa-integration | voir rapport |
-| INT-03 | PostgreSQL | Migrations et suite ciblée sur PostgreSQL (non éprouvées selon la PR) | qa-integration | voir rapport |
-| INT-04 | Migration de données | `logistics` 0013 (stocks) et retour arrière | qa-integration | P |
+| INT-01 | Tests Django | Suite complète sur SQLite | coordinateur | **E, R** (2 833 OK) |
+| INT-02 | Migrations | `makemigrations --check`, migration depuis zéro, `seed_demo` relançable | coordinateur | **E, R** |
+| INT-03 | PostgreSQL | Migrations et suite ciblée sur PostgreSQL (non éprouvées selon la PR) | coordinateur | migrations **E, R** ; 8 apps ciblées **E, X** (ANO-001) |
+| INT-04 | Migration de données | `logistics` 0013 (stocks) et retour arrière | qa-integration | retour arrière PostgreSQL **E, R** ; contenu des stocks après reprise NT |
 | INT-05 | Cohérence | Tâche ↔ calendrier ↔ notification ↔ « Aujourd'hui » ↔ audit | qa-integration | P |
 | INT-06 | Traçabilité | `AuditLog` sur tâches, listes, relève ; aucun écrasement silencieux | qa-integration | P |
 | INT-07 | Transitions | Tâches, maintenances, listes de quarts, relève A/B, demandes, annonces | qa-integration | P |
