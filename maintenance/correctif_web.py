@@ -25,7 +25,7 @@ from logistics.stock import StockInsuffisant, prelever
 from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none, sans_nul
 from matrix.core.scopes import scope_filters_for_user
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -152,7 +152,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
         if user not in candidats:
             candidats.append(user)
         coches = valeurs["intervenants"]
-        peut_prelever = user_role_level(user) >= RoleLevel.CHEF_SECTION
+        peut_prelever = user_role_level(user) >= niveau_requis_pour(user, "stock_ecriture")
         deja_termine = cr is not None
         peut_corriger = user_role_level(user) >= niveau_requis_pour(user, "maintenance_compte_rendu_correction")
         if peut_prelever:
@@ -241,7 +241,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
         if demandes is None:
             erreurs.append("Une ligne de pièce est illisible : choisissez une pièce et une quantité entière.")
             demandes = []
-        if demandes and user_role_level(user) < RoleLevel.CHEF_SECTION:
+        if demandes and user_role_level(user) < niveau_requis_pour(user, "stock_ecriture"):
             raise PermissionDenied
 
         pieces = []

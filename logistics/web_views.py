@@ -7,9 +7,10 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.urls import reverse
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Q
 from .models import (
-    CorrectiveTicket, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
+    CorrectiveTicket, MouvementStock, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
     destinataires_ticket, niveau_alerte_ticket,
 )
 from matrix.core.roles import user_role_level, RoleLevel
@@ -29,7 +30,7 @@ from matrix.core.export import (
     xlsx_disponible,
 )
 from accounts.models import AuditLog
-from .stock import StockInsuffisant, prelever
+from .stock import StockInsuffisant, enregistrer_mouvement, prelever, sortie_pour_ligne_consommee
 from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -226,7 +227,7 @@ class TicketDetailView(LoginRequiredMixin, View):
         # périmètre de l'appelant (scope_filters_for_user, même filtre que
         # StockPieceListView) et déjà en stock, pour éviter de proposer une
         # pièce impossible à prélever.
-        contexte["peut_prelever_stock"] = contexte["peut_assigner"]
+        contexte["peut_prelever_stock"] = user_role_level(request.user) >= niveau_requis_pour(request.user, "stock_ecriture")
         if contexte["peut_prelever_stock"]:
             pieces_qs = StockPiece.objects.filter(build_scope_q(request.user, ""))
             contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
@@ -514,6 +515,12 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
         status = request.POST.get('status')
         if not status:
             return HttpResponseBadRequest('Statut requis')
+        if status == 'CONSUMED' and line.status != 'CONSUMED' and user_role_level(request.user) >= niveau_requis_pour(request.user, 'stock_ecriture'):
+            stock = StockPiece.objects.filter(build_scope_q(request.user, ""))
+            try:
+                sortie_pour_ligne_consommee(request.user, line, stock)
+            except StockInsuffisant as exc:
+                messages.warning(request, f"Stock insuffisant pour {exc.reference} : aucune sortie de stock enregistrée pour cette ligne.")
         line.status = status
         line.save(update_fields=['status'])
         if request.headers.get('HX-Request'):
@@ -541,14 +548,12 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
     prélever une pièce d'un autre secteur/bâtiment en postant directement son
     identifiant, hors du menu déroulant du formulaire.
 
-    Traçabilité volontairement simple à ce stade (décision produit) : la
-    quantité est décrémentée directement sur StockPiece et un message système
-    est ajouté au fil de suivi du ticket — pas de nouveau modèle de mouvement
-    de stock formel.
+    Traçabilité : le prélèvement est un mouvement de sortie lié au ticket
+    (logistics/stock.py) et un message système est ajouté au fil du ticket.
     """
 
     def post(self, request, pk):
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if user_role_level(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
             raise PermissionDenied
         try:
             ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
@@ -615,7 +620,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['peut_gerer'] = user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION
+        ctx['peut_gerer'] = user_role_level(self.request.user) >= niveau_requis_pour(self.request.user, 'stock_ecriture')
         organisation = referentiel_organisation(self.request.user)
         ctx['sectors'] = organisation['sectors'].order_by('service__ship__name', 'service__name', 'name')
         ctx['sections'] = organisation['sections'].order_by('sector__name', 'name')
@@ -666,7 +671,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if user_role_level(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
             raise PermissionDenied
         action = request.POST.get('action')
         if action not in ('create_piece', 'edit_piece'):
@@ -694,7 +699,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         section = Section.objects.filter(pk=request.POST.get('section_id'), sector=sector).first()
 
         try:
-            quantite = int(request.POST.get('quantite') or 0)
+            quantite_initiale = max(int(request.POST.get('quantite') or 0), 0)
             quantite_minimale = int(request.POST.get('quantite_minimale') or 0)
         except ValueError:
             messages.error(request, "Les quantités doivent être des nombres entiers.")
@@ -736,7 +741,6 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             "reference": reference,
             "designation": designation,
             "nno": request.POST.get('nno', '').strip(),
-            "quantite": max(quantite, 0),
             "quantite_minimale": max(quantite_minimale, 0),
             "quantite_critique": quantite_critique,
             "emplacement": request.POST.get('emplacement', '').strip(),
@@ -755,7 +759,12 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             return redirect('stock-piece-list')
 
         if action == 'create_piece':
-            piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+            with transaction.atomic():
+                piece = StockPiece.objects.create(created_by=request.user, updated_by=request.user, **champs)
+                if quantite_initiale:
+                    enregistrer_mouvement(
+                        request.user, piece, MouvementStock.INVENTAIRE, quantite_initiale, motif="Inventaire initial",
+                    )
             if photo:
                 piece.photo = photo
                 piece.save(update_fields=['photo'])

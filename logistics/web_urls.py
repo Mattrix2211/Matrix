@@ -3,6 +3,7 @@ from .anomalie_views import (
     AnomalieListView, AnomalieCreateView, AnomalieDetailView, AnomalieTransitionView,
     AnomalieConvertirView, AnomalieCommentView,
 )
+from .mouvements_web import StockPieceMouvementsView
 from .web_views import (
     TicketListView, TicketDetailView, TicketCreateView, TicketAssignView, TicketTransitionView,
     TicketCommentCreateView, PartRequestCreateView,
@@ -28,4 +29,5 @@ urlpatterns = [
     path('part-request/<int:pr_id>/line/create/', PartLineItemCreateView.as_view(), name='part-line-create'),
     path('part-line/<int:line_id>/status/', PartLineItemUpdateStatusView.as_view(), name='part-line-status'),
     path('stock/', StockPieceListView.as_view(), name='stock-piece-list'),
+    path('stock/<int:pk>/mouvements/', StockPieceMouvementsView.as_view(), name='stock-piece-mouvements'),
 ]

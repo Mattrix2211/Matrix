@@ -42,7 +42,7 @@
       <tbody>
         {% for p in pieces %}
         <tr style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#detailPieceModal"
-          data-pk="{{ p.id }}" data-reference="{{ p.reference }}" data-designation="{{ p.designation }}"
+          data-pk="{{ p.id }}" data-mouvements-url="{% url 'stock-piece-mouvements' p.id %}" data-reference="{{ p.reference }}" data-designation="{{ p.designation }}"
           data-nno="{{ p.nno }}"
           data-emplacement="{{ p.emplacement }}" data-note="{{ p.note }}"
           data-quantite="{{ p.quantite }}" data-quantite-minimale="{{ p.quantite_minimale }}"
@@ -110,6 +110,7 @@
         </div>
       </div>
       <div class="modal-footer">
+        <a class="btn btn-outline-primary" id="detailLienMouvements" href="#">Historique et mouvements</a>
         {% if peut_gerer %}
         <button type="button" class="btn btn-outline-secondary" id="detailBtnModifier">
           {% icone "modification" %} Modifier
@@ -135,7 +136,7 @@
             <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" required></div>
             <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" required></div>
             <div class="col-6"><label class="form-label">NNO (optionnel)</label><input class="form-control font-mono" name="nno" placeholder="Numéro de Nomenclature OTAN"></div>
-            <div class="col-4"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" value="0" required></div>
+            <div class="col-4"><label class="form-label">Quantité initiale</label><input type="number" min="0" class="form-control font-mono" name="quantite" value="0" required></div>
             <div class="col-4"><label class="form-label">Seuil minimal (alerte bas)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" value="0" required></div>
             <div class="col-4"><label class="form-label">Seuil critique (optionnel)</label><input type="number" min="0" class="form-control font-mono" name="quantite_critique" placeholder="Ex : 1"></div>
             <div class="col-12"><label class="form-label">Emplacement</label><input class="form-control" name="emplacement" placeholder="Ex : Magasin bâbord"></div>
@@ -190,9 +191,9 @@
             <div class="col-6"><label class="form-label">Référence</label><input class="form-control font-mono" name="reference" id="modifierReference" required></div>
             <div class="col-6"><label class="form-label">Désignation</label><input class="form-control" name="designation" id="modifierDesignation" required></div>
             <div class="col-6"><label class="form-label">NNO (optionnel)</label><input class="form-control font-mono" name="nno" id="modifierNno" placeholder="Numéro de Nomenclature OTAN"></div>
-            <div class="col-4"><label class="form-label">Quantité</label><input type="number" min="0" class="form-control font-mono" name="quantite" id="modifierQuantite" required></div>
-            <div class="col-4"><label class="form-label">Seuil minimal (alerte bas)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" id="modifierQuantiteMinimale" required></div>
-            <div class="col-4"><label class="form-label">Seuil critique (optionnel)</label><input type="number" min="0" class="form-control font-mono" name="quantite_critique" id="modifierQuantiteCritique" placeholder="Ex : 1"></div>
+            <div class="col-12 small text-muted">La quantité ne se modifie que par un mouvement (entrée, inventaire, correction) depuis « Historique et mouvements ».</div>
+            <div class="col-6"><label class="form-label">Seuil minimal (alerte bas)</label><input type="number" min="0" class="form-control font-mono" name="quantite_minimale" id="modifierQuantiteMinimale" required></div>
+            <div class="col-6"><label class="form-label">Seuil critique (optionnel)</label><input type="number" min="0" class="form-control font-mono" name="quantite_critique" id="modifierQuantiteCritique" placeholder="Ex : 1"></div>
             <div class="col-12"><label class="form-label">Emplacement</label><input class="form-control" name="emplacement" id="modifierEmplacement"></div>
             <div class="col-6">
               <label class="form-label">Secteur</label>
@@ -288,7 +289,6 @@ les vérifications "if (element)" ci-dessous s'adaptent à leur absence.
       document.getElementById('modifierDesignation').value = b.getAttribute('data-designation') || '';
       document.getElementById('modifierNno').value = b.getAttribute('data-nno') || '';
       document.getElementById('modifierEmplacement').value = b.getAttribute('data-emplacement') || '';
-      document.getElementById('modifierQuantite').value = b.getAttribute('data-quantite') || 0;
       document.getElementById('modifierQuantiteMinimale').value = b.getAttribute('data-quantite-minimale') || 0;
       document.getElementById('modifierQuantiteCritique').value = b.getAttribute('data-quantite-critique') || '';
       document.getElementById('modifierNote').value = b.getAttribute('data-note') || '';
@@ -317,6 +317,7 @@ les vérifications "if (element)" ci-dessous s'adaptent à leur absence.
         document.getElementById('detailSeuilCritique').textContent = b.getAttribute('data-quantite-critique') || 'Non défini (0 par défaut)';
         document.getElementById('detailEmplacement').textContent = b.getAttribute('data-emplacement') || '—';
         document.getElementById('detailPerimetre').textContent = b.getAttribute('data-perimetre') || '—';
+        document.getElementById('detailLienMouvements').href = b.getAttribute('data-mouvements-url');
         document.getElementById('detailNote').textContent = b.getAttribute('data-note') || 'Aucune';
 
         var equipementLabel = b.getAttribute('data-equipement-label');

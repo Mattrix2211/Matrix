@@ -86,6 +86,11 @@ REGISTRE_ACTIONS = [
         "Installations", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
     ),
     ActionSeuil(
+        "stock_ecriture",
+        "Gérer le stock de pièces : créer ou modifier une pièce, prélever, saisir un mouvement ou un inventaire",
+        "Stock", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
+    ),
+    ActionSeuil(
         "maintenance_execution_ecriture",
         "Créer ou modifier une occurrence ou une exécution de maintenance",
         "Maintenance", PORTEE_NAVIRE, RoleLevel.EQUIPIER,

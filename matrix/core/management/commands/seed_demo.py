@@ -30,8 +30,9 @@ from assets.models import (
 from assets import fiche_maintenance
 from matrix.core.models import Brouillon
 from logistics.models import (
-    Anomalie, CorrectiveTicket, PartLineItem, PartRequest, StockPiece, TicketStatusLog,
+    Anomalie, CorrectiveTicket, MouvementStock, PartLineItem, PartRequest, StockPiece, TicketStatusLog,
 )
+from logistics.stock import enregistrer_mouvement
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
 from notifications.models import Notification, NotificationLevel
 from org.models import ReleveEquipage, ResponsableClasseNavire, Sector, Section, Service, Ship
@@ -309,9 +310,11 @@ class Command(BaseCommand):
                 critique=designation.startswith("Compresseur")))
         # Stock sous le seuil.
         for ref, des, qte, mini, crit in [("JNT-10", "Joint de pompe", 2, 6, 1), ("FLT-22", "Filtre à huile", 0, 4, 0), ("COU-05", "Courroie", 9, 4, None)]:
-            StockPiece.objects.get_or_create(ship=ship, reference=ref, defaults=dict(
-                designation=des, quantite=qte, quantite_minimale=mini, quantite_critique=crit,
+            piece, creee = StockPiece.objects.get_or_create(ship=ship, reference=ref, defaults=dict(
+                designation=des, quantite_minimale=mini, quantite_critique=crit,
                 service=s["Propulsion"], sector=moteurs, emplacement="Magasin machine"))
+            if creee and qte:
+                enregistrer_mouvement(self.chef_secteur_a, piece, MouvementStock.INVENTAIRE, qte, motif="Inventaire initial")
 
     def _releves(self):
         ge, pompe, red = self.inst["GE-1"], self.inst["POMPE-RB"], self.inst["RED-1"]

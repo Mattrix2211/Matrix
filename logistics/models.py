@@ -212,8 +212,61 @@ class StockPiece(TimeStampedModel, OwnedModel):
     def equipement_lie(self):
         return self.installation or self.asset
 
+    def quantite_calculee(self):
+        """Somme des mouvements : doit toujours égaler `quantite`."""
+        return self.mouvements.aggregate(total=models.Sum("quantite"))["total"] or 0
+
     def __str__(self):
         return f"{self.reference} - {self.designation}"
+
+
+class MouvementStock(TimeStampedModel):
+    """Mouvement de stock d'une pièce : la source de vérité de sa quantité.
+
+    `StockPiece.quantite` n'est qu'une copie du solde, maintenue par
+    logistics/stock.py dans la même transaction (lecture rapide, tris et
+    alertes). Un mouvement n'est jamais modifié ni supprimé : une erreur se
+    corrige par un nouveau mouvement.
+    """
+    ENTREE, SORTIE, INVENTAIRE, CORRECTION = "ENTREE", "SORTIE", "INVENTAIRE", "CORRECTION"
+    TYPES = (
+        (ENTREE, "Entrée"),
+        (SORTIE, "Sortie"),
+        (INVENTAIRE, "Inventaire"),
+        (CORRECTION, "Correction"),
+    )
+    piece = models.ForeignKey(StockPiece, on_delete=models.PROTECT, related_name="mouvements", verbose_name="Pièce")
+    type = models.CharField(max_length=12, choices=TYPES, verbose_name="Type")
+    # Variation signée : positive pour une entrée, négative pour une sortie ;
+    # pour un inventaire, c'est l'écart entre le comptage et le stock attendu.
+    quantite = models.IntegerField(verbose_name="Variation")
+    solde_apres = models.PositiveIntegerField(verbose_name="Solde après le mouvement")
+    auteur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Auteur")
+    motif = models.CharField(max_length=255, blank=True, default="", verbose_name="Motif")
+    ticket = models.ForeignKey(
+        CorrectiveTicket, null=True, blank=True, on_delete=models.SET_NULL, related_name="mouvements_stock",
+        verbose_name="Ticket correctif",
+    )
+    ligne_pieces = models.ForeignKey(
+        PartLineItem, null=True, blank=True, on_delete=models.SET_NULL, related_name="mouvements_stock",
+        verbose_name="Ligne de demande de pièces",
+    )
+
+    class Meta:
+        verbose_name = "Mouvement de stock"
+        verbose_name_plural = "Mouvements de stock"
+        ordering = ["created_at", "pk"]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Un mouvement de stock n'est jamais modifié : saisissez une correction.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Un mouvement de stock n'est jamais supprimé : saisissez une correction.")
+
+    def __str__(self):
+        return f"{self.get_type_display()} {self.quantite:+d} - {self.piece}"
 
 
 def destinataires_ticket(asset):
