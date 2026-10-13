@@ -38,6 +38,7 @@
               </div>
             {% endfor %}
           </div>
+          {% if peut_gerer_referent_navire %}
           <hr>
           <p class="small text-muted">
             Référents habilités à valider cette formation, POUR VOTRE UNITÉ
@@ -54,6 +55,7 @@
               <span class="small text-muted">Aucun utilisateur trouvé sur votre unité.</span>
             {% endfor %}
           </div>
+          {% endif %}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>

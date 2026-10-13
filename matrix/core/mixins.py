@@ -206,3 +206,42 @@ class EcritureDansLePerimetreMixin:
 
     def perform_update(self, serializer):
         self._enregistrer_dans_le_perimetre(serializer, **self.champs_serveur_modification())
+
+
+class EcritureTraceeMixin:
+    """À placer en tête des bases d'un ViewSet : chaque création, modification et
+    suppression est inscrite à l'AuditLog (`<domaine_audit>.creation|modification|suppression`),
+    avec les champs changés (avant -> après) ou, pour une suppression, les marins rattachés."""
+
+    domaine_audit = ""
+
+    def _tracer(self, verbe, objet, complement=""):
+        from accounts.models import AuditLog
+        AuditLog.objects.create(
+            actor=self.request.user, action=f"{self.domaine_audit}.{verbe}",
+            details=f"{objet._meta.verbose_name} « {objet} » ({objet.pk}){complement}"[:2000],
+        )
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            super().perform_create(serializer)
+            self._tracer("creation", serializer.instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        champs = {f.name for f in instance._meta.concrete_fields}
+        changes = [
+            f"{champ}: {getattr(instance, champ)} -> {valeur}"
+            for champ, valeur in serializer.validated_data.items()
+            if champ in champs and getattr(instance, champ) != valeur
+        ]
+        with transaction.atomic():
+            super().perform_update(serializer)
+            self._tracer("modification", serializer.instance, f" ; {' ; '.join(changes)}" if changes else "")
+
+    def perform_destroy(self, instance):
+        profils = getattr(instance, "profiles", None)
+        complement = f" ; marins rattachés: {profils.count()}" if profils is not None else ""
+        with transaction.atomic():
+            self._tracer("suppression", instance, complement)
+            super().perform_destroy(instance)

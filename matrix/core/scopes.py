@@ -46,6 +46,30 @@ def ship_id_for_user(user) -> Optional[int]:
     return ship.id if ship else None
 
 
+def agit_sur_navire(user, ship_id) -> bool:
+    """Vrai si `user` peut agir sur le bâtiment `ship_id` : le sien (rattachement
+    direct ou par sa hiérarchie), ou tous pour l'administrateur général. Brique
+    commune des « supervisions globales » : un grade élevé ne sort jamais de son bâtiment."""
+    if is_master_admin(user):
+        return True
+    profile = getattr(user, "profile", None)
+    navire = profile.navire_id_effectif if profile else None
+    return navire is not None and navire == ship_id
+
+
+def navire_id_du_perimetre(ship=None, service=None, sector=None, section=None) -> Optional[int]:
+    """Id du bâtiment d'un périmètre organisationnel (un seul des quatre niveaux est renseigné)."""
+    if ship is not None:
+        return ship.pk
+    if service is not None:
+        return service.ship_id
+    if sector is not None:
+        return sector.service.ship_id
+    if section is not None:
+        return section.sector.service.ship_id
+    return None
+
+
 def sector_id_for_user(user) -> Optional[int]:
     """Renvoie l'id du secteur rattaché au profil de l'utilisateur, ou None si
     aucun secteur n'est renseigné. Même logique que ship_id_for_user() ci-dessus,

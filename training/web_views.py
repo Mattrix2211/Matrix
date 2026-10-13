@@ -37,7 +37,9 @@ from .models import (
     _prerequis_manquants,
     dossiers_formation_visibles_q,
     navire_de,
+    peut_designer_referent,
     peut_valider_formation,
+    supervision_formation_sur,
 )
 from .services import (
     CATEGORIE_NON_RENSEIGNEE,
@@ -169,7 +171,7 @@ def _peut_valider_candidature_brh(user, ship):
     PersonnelBRH POUR CE NAVIRE, ou supervision globale (COMMANDANT+, même
     seuil que peut_valider_formation). `ship` est toujours celui du marin
     candidat (navire_de), jamais celui de l'appelant."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+    if supervision_formation_sur(user, ship):
         return True
     if ship is None:
         return False
@@ -220,7 +222,7 @@ def peut_valider_proposition_bord(user, proposeur):
     TrainingCourseViewSet — une formation WAITING_VALIDATION/REFUSED ne doit
     être visible, via l'API comme via le web, qu'à son proposeur et à ses
     validateurs compétents (cf. commentaire Tech Lead, tâche Notion Circuit C)."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+    if supervision_formation_sur(user, navire_de(proposeur) if proposeur is not None else None):
         return True
     if user_role_level(user) < NIVEAU_REQUIS_VALIDATION_FORMATION_BORD:
         return False
@@ -262,9 +264,9 @@ def peut_modifier_formation_bord(user, course):
     le premier refus du Tech Lead portait sur la visibilité en lecture,
     le second sur l'écriture (PATCH) — cette fonction couvre désormais les
     deux entrées (web ET API) au même périmètre, sans dupliquer la règle."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
-        return True
     proposeur_origine = course.updated_by
+    if supervision_formation_sur(user, navire_de(proposeur_origine) if proposeur_origine is not None else None):
+        return True
     if proposeur_origine is None:
         return False
     if user.pk == proposeur_origine.pk:
@@ -826,6 +828,9 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         if action == "update_prerequisites":
             if not _peut_gerer_prerequis(request.user):
                 raise PermissionDenied
+            # Désigner des référents est réservé au commandement de l'unité, pas à tout chef.
+            if "referents" in request.POST and not supervision_formation_sur(request.user, navire_de(request.user)):
+                raise PermissionDenied
             pk = _entier_ou_none(request.POST.get("pk"))
             # Formation ACTIVE uniquement (correctif QA — Circuit C, gap
             # supplémentaire trouvé dans le même esprit que les 4 signalés) :
@@ -886,13 +891,21 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 navire = navire_de(request.user)
                 if navire is not None:
                     referent_ids = _identifiants_valides(request.POST.getlist("referents"))
-                    referents_valides = User.objects.filter(
-                        _utilisateurs_du_navire_q(navire), pk__in=referent_ids
-                    )
+                    referents_valides = [
+                        u for u in User.objects.filter(_utilisateurs_du_navire_q(navire), pk__in=referent_ids)
+                        if peut_designer_referent(request.user, navire, u)
+                    ]
+                    avant = sorted(ReferentFormation.objects.filter(course=course, ship=navire).values_list("user_id", flat=True))
                     ReferentFormation.objects.filter(course=course, ship=navire).delete()
                     ReferentFormation.objects.bulk_create([
                         ReferentFormation(course=course, ship=navire, user=u) for u in referents_valides
                     ])
+                    apres = sorted(u.pk for u in referents_valides)
+                    if avant != apres:
+                        AuditLog.objects.create(
+                            actor=request.user, action="training.referents",
+                            details=f"formation={course.pk}; navire={navire.pk}; avant={avant}; apres={apres}",
+                        )
             messages.success(request, "Prérequis mis à jour.")
             return redirect("formation-list")
         if action == "reserver_session":
@@ -968,6 +981,10 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             messages.error(request, "Marin introuvable dans votre unité.")
             return redirect("formation-list")
         ReferentFormationNavire.objects.update_or_create(ship=navire, defaults={"user": candidat})
+        AuditLog.objects.create(
+            actor=request.user, action="training.referent_navire", target_user=candidat,
+            details=f"navire={navire.pk}; designation",
+        )
         if candidat != request.user:
             Notification.objects.create(
                 user=candidat,
@@ -987,7 +1004,13 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             raise PermissionDenied
         ship_id = ship_id_for_user(request.user)
         if ship_id:
-            ReferentFormationNavire.objects.filter(ship_id=ship_id).delete()
+            retire = ReferentFormationNavire.objects.filter(ship_id=ship_id).first()
+            if retire is not None:
+                AuditLog.objects.create(
+                    actor=request.user, action="training.referent_navire", target_user=retire.user,
+                    details=f"navire={ship_id}; retrait",
+                )
+                retire.delete()
         messages.success(request, "Référent formation de l'unité retiré.")
         return redirect("formation-list")
 

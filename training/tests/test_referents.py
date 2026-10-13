@@ -44,7 +44,7 @@ class PeutValiderFormationTests(TestCase):
         UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SECTEUR"})
 
         self.commandant = User.objects.create_user(username="commandant", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
 
         # Le signal de création automatique du profil (accounts/models.py)
         # met en cache un profil EQUIPIER par défaut sur l'instance User créée
@@ -65,8 +65,11 @@ class PeutValiderFormationTests(TestCase):
     def test_chef_non_referent_ne_peut_pas_valider_meme_de_rang_superieur(self):
         self.assertFalse(peut_valider_formation(self.chef_non_referent, self.course, self.ship))
 
-    def test_role_supervision_globale_passe_outre(self):
+    def test_commandant_passe_outre_sur_son_batiment_seulement(self):
         self.assertTrue(peut_valider_formation(self.commandant, self.course, self.ship))
+        autre_navire = Ship.objects.create(name="Autre navire réf cdt", code="ACDT")
+        self.assertFalse(peut_valider_formation(self.commandant, self.course, autre_navire))
+        self.assertFalse(peut_valider_formation(self.commandant, self.course, None))
 
 
 class APIRecordScopingTests(TestCase):
@@ -89,7 +92,7 @@ class APIRecordScopingTests(TestCase):
         UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SECTEUR", "ship": self.ship})
 
         self.commandant = User.objects.create_user(username="api_commandant", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
 
     def _payload(self):
         return {
@@ -110,7 +113,7 @@ class APIRecordScopingTests(TestCase):
         self.assertEqual(r.status_code, 403)
         self.assertFalse(TrainingRecord.objects.filter(user=self.marin, course=self.course).exists())
 
-    def test_supervision_globale_peut_creer_un_enregistrement(self):
+    def test_commandant_du_batiment_peut_creer_un_enregistrement(self):
         self.client.login(username="api_commandant", password="pass")
         r = self.client.post("/api/training/records/", data=self._payload(), content_type="application/json")
         self.assertEqual(r.status_code, 201, r.content)
@@ -188,7 +191,7 @@ class APISessionAttendeesScopingTests(TestCase):
         UserProfile.objects.update_or_create(user=self.chef_non_referent, defaults={"role": "CHEF_SERVICE"})
 
         self.commandant = User.objects.create_user(username="ses_commandant", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
 
         # Le signal de création automatique du profil (accounts/models.py)
         # met en cache un profil EQUIPIER par défaut sur l'instance User créée
@@ -259,7 +262,7 @@ class APISessionAttendeesScopingTests(TestCase):
         )
         self.assertEqual(r.status_code, 403)
 
-    def test_supervision_globale_peut_gerer_les_presences(self):
+    def test_commandant_du_batiment_peut_gerer_les_presences(self):
         self.client.login(username="ses_commandant", password="pass")
         r = self.client.patch(
             f"/api/training/sessions/{self.session.id}/",
@@ -285,13 +288,13 @@ class APIReferentFormationScopingTests(TestCase):
         self.course = TrainingCourse.objects.create(title="Amarrage niveau 1")
 
         self.chef = User.objects.create_user(username="chef_api_ref", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION", "ship": self.ship})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "COMMANDANT", "ship": self.ship})
 
         self.marin = User.objects.create_user(username="marin_api_ref", password="pass")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "ship": self.ship})
 
         self.commandant = User.objects.create_user(username="commandant_api_ref", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "MASTER_ADMIN"})
 
     def test_chef_peut_designer_un_referent_sur_son_propre_navire(self):
         self.client.login(username="chef_api_ref", password="pass")
@@ -345,16 +348,18 @@ class APIReferentFormationScopingTests(TestCase):
         self.assertEqual(r.status_code, 404, r.content)
         self.assertTrue(ReferentFormation.objects.filter(pk=referent_existant.id).exists())
 
-    def test_supervision_globale_peut_designer_un_referent_sur_nimporte_quel_navire(self):
+    def test_administrateur_general_peut_designer_un_referent_sur_nimporte_quel_navire(self):
+        marin_autre = User.objects.create_user(username="marin_autre_api_ref", password="pass")
+        UserProfile.objects.update_or_create(user=marin_autre, defaults={"role": "EQUIPIER", "ship": self.autre_ship})
         self.client.login(username="commandant_api_ref", password="pass")
         r = self.client.post(
             "/api/training/referents/",
-            data={"course": self.course.id, "ship": self.autre_ship.id, "user": self.marin.id},
+            data={"course": self.course.id, "ship": self.autre_ship.id, "user": marin_autre.id},
             content_type="application/json",
         )
         self.assertEqual(r.status_code, 201, r.content)
         self.assertTrue(
-            ReferentFormation.objects.filter(course=self.course, ship=self.autre_ship, user=self.marin).exists()
+            ReferentFormation.objects.filter(course=self.course, ship=self.autre_ship, user=marin_autre).exists()
         )
 
 
@@ -388,7 +393,7 @@ class APIReferentFormationLectureScopingTests(TestCase):
         )
 
         self.commandant = User.objects.create_user(username="commandant_lecture_ref", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "MASTER_ADMIN"})
 
     def test_liste_des_referents_ne_contient_pas_ceux_dun_autre_navire(self):
         self.client.login(username="chef_lecture_ref", password="pass")
@@ -403,7 +408,7 @@ class APIReferentFormationLectureScopingTests(TestCase):
         r = self.client.get(f"/api/training/referents/{self.referent_b.id}/")
         self.assertEqual(r.status_code, 404)
 
-    def test_supervision_globale_voit_les_referents_de_toute_la_flotte(self):
+    def test_administrateur_general_voit_les_referents_de_toute_la_flotte(self):
         self.client.login(username="commandant_lecture_ref", password="pass")
         r = self.client.get("/api/training/referents/")
         self.assertEqual(r.status_code, 200)
@@ -414,7 +419,7 @@ class APIReferentFormationLectureScopingTests(TestCase):
 
 class VueGestionReferentsTests(TestCase):
     """Désignation des référents depuis la modale web de formations.html,
-    réservée au même seuil que la gestion des prérequis (CHEF_SECTION),
+    réservée au commandement de l'unité (COMMANDANT et au-dessus),
     TOUJOURS scopée au navire de L'APPELANT (ReferentFormation) : un chef ne
     désigne des référents que pour son propre navire, jamais pour un autre
     navire proposant la même formation globale."""
@@ -425,7 +430,7 @@ class VueGestionReferentsTests(TestCase):
         self.course = TrainingCourse.objects.create(title="Amarrage niveau 1")
 
         self.chef = User.objects.create_user(username="chef_ref_web", password="pass")
-        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "CHEF_SECTION", "ship": self.ship})
+        UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "COMMANDANT", "ship": self.ship})
 
         self.marin_navire = User.objects.create_user(username="marin_navire_ref", password="pass")
         UserProfile.objects.update_or_create(user=self.marin_navire, defaults={"role": "EQUIPIER", "ship": self.ship})
