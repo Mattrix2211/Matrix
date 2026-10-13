@@ -83,3 +83,11 @@ def _declarer(nom):
 
 for _nom in ("surface", "carte_interactive", "carte_action", "attention", "modale", "panneau_lateral", "menu_contextuel", "assistant", "grille"):
     _declarer(_nom)
+
+
+@register.filter
+def peut_piloter_equipe(user):
+    """Vrai si le marin peut attribuer des tâches (donc voir « Mon équipe » et « Synthèse »)."""
+    from taches.services import peut_attribuer
+
+    return peut_attribuer(user)

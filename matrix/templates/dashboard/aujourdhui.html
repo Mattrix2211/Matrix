@@ -9,6 +9,7 @@
     {% if profil.service %} · {{ profil.service.name }}{% endif %}
   </p>
 </header>
+{% include "components/parcours.html" with courante="quotidien" %}
 
 <div class="row g-4 mt-1">
   <div class="col-lg-7">
@@ -56,6 +57,7 @@
       {% else %}
         {% include "components/etat_vide.html" with icone="calendrier" titre="Rien de prévu aujourd'hui" %}
       {% endif %}
+      <a href="{% url 'calendar-index' %}" class="small">Voir mon calendrier et mes échéances</a>
     {% fin_surface %}
   </div>
 </div>

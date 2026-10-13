@@ -495,18 +495,24 @@ class Command(BaseCommand):
                     quart=brouillon, poste="Machine avant", marin=equipe[i % 3] if i < 5 else None,
                     debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)),
                     fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)) + timedelta(hours=4))
-        publie, cree = Quart.objects.get_or_create(nom="Quarts machine — cette semaine", sector=moteurs, defaults=dict(
-            date_debut=debut, date_fin=debut + timedelta(days=6), fonction=self.fonctions_quart["Barre"], duree_creneau_heures=4,
-            created_by=self.chef_secteur_a))
+        # Planning publié du service Propulsion : trois quarts de 8 h par jour, toute la semaine,
+        # visible au calendrier des marins affectés et de leurs chefs.
+        chef_service = User.objects.get(username="chef_service_a")
+        Quart.objects.filter(nom="Quarts machine — cette semaine").delete()  # ancienne version du jeu de démo
+        publie, cree = Quart.objects.get_or_create(
+            nom="Planning Propulsion — cette semaine", service=self.bre_s["Propulsion"], defaults=dict(
+                date_debut=debut, date_fin=debut + timedelta(days=6), fonction=self.fonctions_quart["Barre"],
+                duree_creneau_heures=8, created_by=chef_service))
         if cree:
-            for i in range(12):
+            equipe_quart = equipe + [User.objects.get(username="chef_section_a")]
+            for i in range(21):
                 jour = debut + timedelta(days=i // 3)
                 heure = 8 * (i % 3)
                 CreneauQuart.objects.create(
-                    quart=publie, poste="Barre" if i % 2 else "Veille", marin=equipe[i % 3],
+                    quart=publie, poste=["Veille", "Barre", "Machine avant"][i % 3], marin=equipe_quart[i % 4],
                     debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)),
                     fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)) + timedelta(hours=8))
-            publie.publier(self.chef_secteur_a)
+            publie.publier(chef_service)
         garde, cree = ServiceGarde.objects.get_or_create(nom="Garde de nuit — Propulsion", service=self.bre_s["Propulsion"], defaults=dict(
             date_debut=debut, date_fin=debut + timedelta(days=6), type_service="Garde de nuit", duree_creneau_heures=12,
             fonction=ServiceFunctionChoice.objects.get(name="Chef de garde"), created_by=self.chef_secteur_a))

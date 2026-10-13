@@ -1,6 +1,7 @@
 {% with c=avancement.comptes n=avancement.total %}
-<div class="card card-body mb-4">
+<div class="card card-body mb-4" id="synthese">
   <h2 class="h5">Avancement de l'équipe</h2>
+  <p class="small text-muted mb-2">Synthèse du chef : blocages à lever et retards. <a href="{% url 'demandes-index' %}">Voir le suivi des difficultés</a> · <a href="{% url 'calendar-index' %}?user=equipe">planning de l'équipe</a>.</p>
   {% if n %}
   <div class="progress mb-2" role="img" aria-label="Répartition des tâches par statut" style="height:1.5rem">
     {% if c.TERMINEE %}<div class="progress-bar bg-success" style="width:{% widthratio c.TERMINEE n 100 %}%">{{ c.TERMINEE }}</div>{% endif %}

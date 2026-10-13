@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block content %}
+{% include "components/parcours.html" with courante="suivi" %}
 <h1 class="h3 mb-3">Demandes bord–terre</h1>
-<p class="text-muted">Une difficulté se signale depuis la tâche, l'installation ou l'anomalie concernée (bouton « Signaler une difficulté »).</p>
+<p class="text-muted">Suivi des difficultés remontées du bord vers la terre : conversation sur l'objet concerné et compte rendu de l'action. Une difficulté se signale depuis la tâche, l'installation ou l'anomalie concernée (bouton « Signaler une difficulté »).</p>
 <h2 class="h5">À traiter</h2>
 {% include "demandes/_liste.html" with demandes=a_traiter vide="Rien n'attend votre réponse." %}
 <h2 class="h5">Mes signalements</h2>

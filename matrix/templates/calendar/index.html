@@ -2,6 +2,7 @@
 {% load static icones composants %}
 {% block content %}
 <div class="container-fluid py-3">
+  {% if request.GET.user == "equipe" %}{% include "components/parcours.html" with courante="equipe" %}{% else %}{% include "components/parcours.html" with courante="quotidien" %}{% endif %}
   <div class="mx-cal-entete mb-2">
     <h1 class="h3 mb-0">Calendrier</h1>
     <div class="mx-cal-commandes">

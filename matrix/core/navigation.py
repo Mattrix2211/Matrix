@@ -48,7 +48,7 @@ def _url_parametres(user):
 
 
 GROUPES = [
-    ("Personnel", [
+    ("Mon quotidien", [
         Entree("Aujourd'hui", "aujourdhui", "home"),
         Entree("Calendrier", "calendrier", "calendar-index"),
     ]),

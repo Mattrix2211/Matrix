@@ -56,7 +56,7 @@ class NavigationLateraleTests(TestCase):
         admin = User.objects.create_superuser(username="admin_nav", password="pass", email="a@a.fr")
         self.assertEqual(
             _titres(self._nav(admin)),
-            ["Personnel", "Équipements", "Maintenance", "Activité", "Compétences", "Supervision", "Administration"],
+            ["Mon quotidien", "Équipements", "Maintenance", "Activité", "Compétences", "Supervision", "Administration"],
         )
 
     def test_module_desactive_masque_ses_entrees_et_le_groupe_vide(self):
