@@ -105,16 +105,22 @@
   {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}{% fin_attention %}
 {% endif %}
 <div class="row g-3 mt-1 mb-3">
-  <div class="col-6 col-md-3">
-    {% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'maintenance-occurrences' %}?retard=1">{% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}</a>
   </div>
-  <div class="col-6 col-md-3">
-    {% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'anomalie-list' %}?vue=perimetre">{% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}</a>
   </div>
-  <div class="col-6 col-md-3">
-    {% include "components/metric.html" with libelle="Équipements indisponibles" icone="materiel" valeur=supervision.indisponibles etat=supervision.indisponibles|yesno:"danger,ok" %}
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'asset-list' %}?status=OUT_OF_SERVICE">{% include "components/metric.html" with libelle="Matériels hors service" icone="materiel" valeur=supervision.hors_service etat=supervision.hors_service|yesno:"danger,ok" %}</a>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'asset-list' %}?status=FAULTY">{% include "components/metric.html" with libelle="Matériels défectueux" icone="materiel" valeur=supervision.defectueux etat=supervision.defectueux|yesno:"danger,ok" %}</a>
+  </div>
+  <div class="col-6 col-md-4">
+    <a class="mx-fiche__indicateur d-block" href="{% url 'installation-list' %}">{% include "components/metric.html" with libelle="Installations critiques en retard" icone="installation" valeur=supervision.installations_en_retard etat=supervision.installations_en_retard|yesno:"danger,ok" %}</a>
+  </div>
+  <div class="col-6 col-md-4">
     {% include "components/jauge.html" with libelle="Part de maintenances en retard" valeur=supervision.retards_pct etat=supervision.retards_total|yesno:"danger,ok" %}
   </div>
 </div>
@@ -144,6 +150,14 @@
       {% if supervision.formations_a_valider and not lecture_seule %}
         {% url 'formation-list' as url_formations %}
         {% carte_action titre="Formations proposées par le bord" libelle="Examiner" url=url_formations classes="mx-aujourdhui__tache--attention" %}{{ supervision.formations_a_valider }} à examiner{% fin_carte_action %}
+      {% endif %}
+      {% if supervision.echanges_a_valider and not lecture_seule %}
+        {% url 'echanges-index' as url_echanges %}
+        {% carte_action titre="Échanges de service" libelle="Examiner" url=url_echanges classes="mx-aujourdhui__tache--attention" %}{{ supervision.echanges_a_valider }} à valider{% fin_carte_action %}
+      {% endif %}
+      {% if supervision.candidatures_a_valider and not lecture_seule %}
+        {% url 'formation-list' as url_candidatures %}
+        {% carte_action titre="Candidatures à une formation" libelle="Examiner" url=url_candidatures classes="mx-aujourdhui__tache--attention" %}{{ supervision.candidatures_a_valider }} à examiner{% fin_carte_action %}
       {% endif %}
       {% if not supervision.validations_total %}
         {% include "components/etat_vide.html" with icone="terminee" titre="Rien à valider" texte="Aucune validation n'attend votre décision." %}

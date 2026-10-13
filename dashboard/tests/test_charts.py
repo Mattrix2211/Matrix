@@ -30,6 +30,8 @@ class PreventiveWeekChartViewTests(TestCase):
             scope="ASSET", asset=self.asset, name="Plan A", every_n_days=30
         )
         self.user = User.objects.create_user(username="marin", password="pass")
+        self.user.profile.ship = ship
+        self.user.profile.save()
         self.client = APIClient()
         self.client.login(username="marin", password="pass")
 
@@ -107,6 +109,8 @@ class CorrectiveOpenChartViewTests(TestCase):
             asset_type=asset_type, ship=ship, service=service, sector=sector
         )
         self.user = User.objects.create_user(username="marin", password="pass")
+        self.user.profile.ship = ship
+        self.user.profile.save()
         self.client = APIClient()
         self.client.login(username="marin", password="pass")
 
@@ -145,3 +149,45 @@ class CorrectiveOpenChartViewTests(TestCase):
             1,
             "Une seule requête agrégée doit interroger CorrectiveTicket",
         )
+
+    def test_tickets_d_un_autre_batiment_non_comptes(self):
+        autre = Ship.objects.create(name="Ship B", code="B")
+        service = Service.objects.create(ship=autre, name="Tech B")
+        secteur = Sector.objects.create(service=service, name="Elec B")
+        type_b = AssetType.objects.create(name="TypeB", category="Cat", sector=secteur)
+        asset_b = Asset.objects.create(asset_type=type_b, ship=autre, service=service, sector=secteur)
+        CorrectiveTicket.objects.create(asset=asset_b, description="Panne B", status="REPORTED")
+        data = self.client.get("/api/dashboard/corrective_open/").json()
+        self.assertEqual(sum(data["datasets"][0]["data"]), 3)
+
+    def test_marin_sans_rattachement_ne_voit_aucun_ticket(self):
+        User.objects.create_user(username="isole", password="pass")
+        client = APIClient()
+        client.login(username="isole", password="pass")
+        data = client.get("/api/dashboard/corrective_open/").json()
+        self.assertEqual(sum(data["datasets"][0]["data"]), 0)
+
+
+class PreventiveWeekPerimetreTests(TestCase):
+    def test_occurrences_d_un_autre_batiment_non_comptees(self):
+        def occurrence(code):
+            navire = Ship.objects.create(name=f"Ship {code}", code=code)
+            service = Service.objects.create(ship=navire, name=f"Tech {code}")
+            secteur = Sector.objects.create(service=service, name=f"Elec {code}")
+            asset = Asset.objects.create(
+                asset_type=AssetType.objects.create(name=f"Type{code}", category="Cat", sector=secteur),
+                ship=navire, service=service, sector=secteur,
+            )
+            plan = MaintenancePlan.objects.create(scope="ASSET", asset=asset, name=f"Plan {code}", every_n_days=30)
+            MaintenanceOccurrence.objects.create(plan=plan, asset=asset, scheduled_for=timezone.localdate(), status="PLANNED")
+            return navire
+
+        mien = occurrence("M")
+        occurrence("V")
+        marin = User.objects.create_user(username="marin_m", password="pass")
+        marin.profile.ship = mien
+        marin.profile.save()
+        client = APIClient()
+        client.login(username="marin_m", password="pass")
+        data = client.get("/api/dashboard/preventive_week/").json()
+        self.assertEqual(sum(data["datasets"][0]["data"]), 1)

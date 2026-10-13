@@ -6,13 +6,15 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from assets.models import Asset, AssetType
+from accounts.models import ServiceFunctionChoice
+from assets.models import Asset, AssetType, Installation
 from dashboard.aujourdhui import peut_superviser, supervision
 from logistics.models import Anomalie
 from matrix.core.role_thresholds import invalidate_cache
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from org.models import RoleThresholdConfig, Sector, Service, Ship
-from training.models import TrainingCourse
+from quarts.models import ChefDeListe, CreneauServiceGarde, EchangeService, ServiceGarde
+from training.models import CandidatureFormation, TrainingCourse
 
 
 class SupervisionTests(TestCase):
@@ -99,7 +101,7 @@ class SupervisionTests(TestCase):
         self.assertEqual(s["retards_total"], 2)
         self.assertEqual(s["retards_pct"], 67)
         self.assertEqual(s["anomalies_ouvertes"], 1)
-        self.assertEqual(s["indisponibles"], 1)
+        self.assertEqual((s["hors_service"], s["defectueux"]), (0, 1))
 
     def test_validations_en_attente_du_perimetre(self):
         attente = self._occurrence(self.asset_a, 1, "WAITING_VALIDATION")
@@ -150,3 +152,59 @@ class SupervisionTests(TestCase):
         )
         commandant = self._marin("commandant", "COMMANDANT", self.secteur_a)
         self.assertEqual(supervision(commandant, self.aujourdhui)["formations_a_valider"], 0)
+
+    def _echange_accepte(self, secteur):
+        garde = ServiceGarde.objects.create(
+            sector=secteur, fonction=ServiceFunctionChoice.objects.get_or_create(name="Permanence")[0],
+            date_debut=self.aujourdhui, date_fin=self.aujourdhui + timedelta(days=30), statut=ServiceGarde.STATUT_PUBLIEE,
+        )
+        debut = timezone.now() + timedelta(days=5)
+        a, b = (CreneauServiceGarde.objects.create(
+            service_garde=garde, poste="Permanence", debut=debut + timedelta(days=i), fin=debut + timedelta(days=i, hours=24),
+            marin=self._marin(f"garde_{secteur.pk}_{i}", "EQUIPIER", secteur),
+        ) for i in (0, 1))
+        return EchangeService.objects.create(
+            creneau_demandeur=a, creneau_cible=b, demandeur=a.marin, cible=b.marin, statut=EchangeService.STATUT_ACCEPTE,
+        )
+
+    def test_echange_de_service_a_valider_compte_dans_le_perimetre_seulement(self):
+        ChefDeListe.objects.create(user=self.chef_a, sector=self.secteur_a)
+        self._echange_accepte(self.secteur_a)
+        self._echange_accepte(self.secteur_b)
+        s = supervision(self.chef_a, self.aujourdhui)
+        self.assertEqual(s["echanges_a_valider"], 1)
+        self.assertEqual(s["validations_total"], 1)
+
+    def test_candidature_a_valider_comptee_dans_le_perimetre_seulement(self):
+        cours = TrainingCourse.objects.create(title="Secourisme")
+        CandidatureFormation.objects.create(course=cours, marin=self.equipier)
+        CandidatureFormation.objects.create(course=cours, marin=self._marin("autre_secteur", "EQUIPIER", self.secteur_b))
+        s = supervision(self.chef_a, self.aujourdhui)
+        self.assertEqual(s["candidatures_a_valider"], 1)
+        self.assertEqual(s["validations_total"], 1)
+
+    def test_installation_critique_en_retard_comptee_dans_le_perimetre_seulement(self):
+        from assets.models import InstallationMaintenance
+
+        for secteur in (self.secteur_a, self.secteur_b):
+            installation = Installation.objects.create(
+                designation=f"Groupe {secteur.name}", ship=self.navire, service=self.service, sector=secteur, critique=True,
+            )
+            fiche = InstallationMaintenance.objects.create(installation=installation, periodicity="3 mois", title="Révision")
+            MaintenanceOccurrence.objects.create(
+                installation_maintenance=fiche, scheduled_for=self.aujourdhui - timedelta(days=2), status="OVERDUE",
+            )
+        self.assertEqual(supervision(self.chef_a, self.aujourdhui)["installations_en_retard"], 1)
+
+    def test_indicateurs_renvoient_vers_les_listes_filtrees(self):
+        page = self._page(self.chef_a).content.decode()
+        for lien in (f"{reverse('maintenance-occurrences')}?retard=1", f"{reverse('asset-list')}?status=OUT_OF_SERVICE",
+                     f"{reverse('asset-list')}?status=FAULTY", f"{reverse('anomalie-list')}?vue=perimetre"):
+            self.assertIn(lien, page)
+
+    def test_batiments_suivis_calcules_une_seule_fois_par_requete(self):
+        from unittest import mock
+
+        with mock.patch("dashboard.web_views.batiments_suivis", return_value=[]) as appel:
+            self._page(self.chef_a)
+        self.assertEqual(appel.call_count, 1)

@@ -2,12 +2,12 @@
 from datetime import datetime, time, timedelta
 from types import SimpleNamespace
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
 
 from assets.fiche_validation import versions_a_viser
-from assets.models import Asset
+from assets.models import Asset, Installation
 from assets.proposition_article import propositions_a_viser
 from annonces.services import a_lire as annonces_a_lire
 from demandes.models import Demande
@@ -20,10 +20,11 @@ from notifications.liens import liens_accessibles
 from notifications.models import Notification
 from threads.mentions import PREFIXE_MENTION
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, navire_q, scope_filters_for_user
-from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
+from quarts.echanges import peut_valider_echange
+from quarts.models import CreneauQuart, CreneauServiceGarde, EchangeService, ListeServiceAbstract
 from rondes.services import rondes_du_marin
 from taches.services import taches_a_suivre
-from training.models import TrainingCourse, TrainingRecord, TrainingSession, dossiers_formation_visibles_q
+from training.models import CandidatureFormation, TrainingCourse, TrainingRecord, TrainingSession, dossiers_formation_visibles_q
 from training.services import qualifications_validees_de
 
 STATUTS_MAINTENANCE_TERMINES = ["DONE", "CANCELLED"]
@@ -303,13 +304,34 @@ def supervision(user, aujourdhui):
         for occ in en_attente.select_related(*liaisons).prefetch_related("assignees").order_by("scheduled_for")[:LIGNES_SUPERVISION]
     ]
     # Import différé : training.web_views est une couche de vues, chargée seulement ici.
-    from training.web_views import peut_valider_proposition_bord
+    from training.web_views import (
+        NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE, _marins_perimetre_hierarchie, peut_valider_proposition_bord,
+    )
     propositions = TrainingCourse.objects.filter(gere_par_le_bord=True, statut_validation="WAITING_VALIDATION")
     if not is_master_admin(user):
         # Bornage au navire du chef : le seuil COMMANDANT+ de la validation ne borne pas lui-même.
         propositions = propositions.filter(updated_by__profile__ship=user.profile.ship)
     formations_a_valider = sum(
         1 for c in propositions.select_related("updated_by__profile") if peut_valider_proposition_bord(user, c.updated_by)
+    )
+    echanges = EchangeService.objects.filter(statut=EchangeService.STATUT_ACCEPTE).select_related(
+        "creneau_demandeur__service_garde", "creneau_cible__service_garde"
+    )
+    echanges_a_valider = sum(1 for e in echanges if peut_valider_echange(user, e))
+    candidatures_a_valider = (
+        CandidatureFormation.objects.filter(
+            statut="PENDING_APPROVAL", hierarchie_validee_par__isnull=True,
+            marin_id__in=_marins_perimetre_hierarchie(user).values("pk"),
+        ).count()
+        if user_role_level(user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE else 0
+    )
+    # Installation sans statut propre : une installation critique dont une échéance est en retard compte comme indisponible.
+    installations_en_retard = Installation.objects.filter(
+        build_scope_q(user, ""), critique=True, maintenances__occurrences__in=occurrences.filter(status="OVERDUE")
+    ).distinct().count()
+    materiels = dict(
+        Asset.objects.filter(build_scope_q(user, ""), status__in=STATUTS_ASSET_INDISPONIBLES)
+        .values("status").annotate(n=Count("pk")).values_list("status", "n")
     )
     qualifications = qualifications_equipe(user, aujourdhui)
     return {
@@ -319,8 +341,12 @@ def supervision(user, aujourdhui):
         "retards_total": retards_total,
         "retards_pct": round(retards_total / actives * 100) if actives else 0,
         "validations": lignes_validation,
-        "validations_total": en_attente.count() + formations_a_valider,
+        "validations_total": en_attente.count() + formations_a_valider + echanges_a_valider + candidatures_a_valider,
         "formations_a_valider": formations_a_valider,
+        "echanges_a_valider": echanges_a_valider,
+        "candidatures_a_valider": candidatures_a_valider,
+        "installations_en_retard": installations_en_retard,
         "anomalies_ouvertes": Anomalie.objects.filter(build_scope_q(user, ""), statut__in=STATUTS_ANOMALIE_OUVERTS).count(),
-        "indisponibles": Asset.objects.filter(build_scope_q(user, ""), status__in=STATUTS_ASSET_INDISPONIBLES).count(),
+        "hors_service": materiels.get("OUT_OF_SERVICE", 0),
+        "defectueux": materiels.get("FAULTY", 0),
     }

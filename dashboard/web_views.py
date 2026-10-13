@@ -42,8 +42,13 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
 
     template_name = "dashboard/aujourdhui.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        # Calculé une fois pour le gabarit et le contexte.
+        self.batiments = batiments_suivis(request.user) if request.user.is_authenticated else []
+        return super().dispatch(request, *args, **kwargs)
+
     def get_template_names(self):
-        if batiments_suivis(self.request.user):
+        if self.batiments:
             return ["dashboard/aujourdhui_terre.html"]
         return super().get_template_names()
 
@@ -53,7 +58,7 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         utilisateur = self.request.user
         aujourdhui = timezone.localdate()
         # Utilisateur à terre : vue flotte à la place de l'espace personnel de bord.
-        batiments = batiments_suivis(utilisateur)
+        batiments = self.batiments
         if batiments:
             contexte["aujourdhui"] = aujourdhui
             contexte["a_faire"] = a_faire_terre(batiments, utilisateur)
@@ -280,10 +285,8 @@ def _agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_st
 
     contexte["tickets_par_statut"] = tickets_par_statut
     contexte["total_tickets_ouverts"] = sum(t["total"] for t in tickets_par_statut)
-    # Données du doughnut Chart.js (principe n°5 CLAUDE.md) : même composant que
-    # dashboard/aujourdhui.html (chartCorrective), mais alimenté directement par le
-    # contexte déjà scopé au navire plutôt qu'un appel à l'API globale
-    # /api/dashboard/corrective_open/ (non scopée navire, incohérente ici).
+    # Données du doughnut : même composant que _pilotage.html (chartCorrective), alimenté
+    # ici par le contexte de la vue plutôt que par /api/dashboard/corrective_open/.
     contexte["tickets_chart_labels_json"] = json.dumps(
         [t["libelle"] for t in tickets_par_statut]
     )
