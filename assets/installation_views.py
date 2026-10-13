@@ -33,6 +33,7 @@ from django.views.generic import DetailView, ListView
 from accounts.models import AuditLog
 from logistics.models import StockPiece
 from maintenance import historique
+from maintenance.perimetre import installations_en_retard
 from matrix.core.export import (
     CSV_CONTENT_TYPE,
     XLSX_CONTENT_TYPE,
@@ -171,6 +172,10 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         sector_id = self.request.GET.get('sector')
         section_id = self.request.GET.get('section')
         q = self.request.GET.get('q', '').strip()
+        if self.request.GET.get('critique') == '1':
+            qs = qs.filter(critique=True)
+        if self.request.GET.get('retard') == '1':
+            qs = qs.filter(pk__in=installations_en_retard(self.request.user, timezone.localdate()).values('pk'))
         if ship_id:
             qs = qs.filter(ship_id=ship_id)
         if service_id:
@@ -211,6 +216,8 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             ('service', 'Service', _noms_par_id(ctx['services'])),
             ('sector', 'Secteur', _noms_par_id(ctx['sectors'])),
             ('section', 'Section', _noms_par_id(ctx['sections'])),
+            ('critique', 'Installation', {'1': 'critique'}),
+            ('retard', 'Échéance', {'1': 'en retard'}),
         ])
         # Prépare les métriques pour affichage sur les cartes (vibration, heures, isolement).
         # Requêtes groupées (installation_id__in=...) plutôt qu'une requête par

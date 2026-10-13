@@ -7,12 +7,14 @@ from django.urls import reverse
 from django.utils import timezone
 
 from assets.fiche_validation import versions_a_viser
-from assets.models import Asset, Installation
+from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
 from annonces.services import a_lire as annonces_a_lire
 from demandes.models import Demande
-from logistics.models import STATUTS_ANOMALIE_OUVERTS, Anomalie, CorrectiveTicket
+from logistics.anomalie_views import STATUT_OUVERTES, _est_chef, anomalies_visibles
+from logistics.models import STATUTS_ANOMALIE_OUVERTS, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
+from maintenance.perimetre import installations_en_retard as installations_en_retard_du_perimetre, retard_q
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
@@ -20,8 +22,8 @@ from notifications.liens import liens_accessibles
 from notifications.models import Notification
 from threads.mentions import PREFIXE_MENTION
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, navire_q, scope_filters_for_user
-from quarts.echanges import peut_valider_echange
-from quarts.models import CreneauQuart, CreneauServiceGarde, EchangeService, ListeServiceAbstract
+from quarts.echanges import echanges_a_valider as echanges_a_valider_de
+from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
 from rondes.services import rondes_du_marin
 from taches.services import taches_a_suivre
 from training.models import CandidatureFormation, TrainingCourse, TrainingRecord, TrainingSession, dossiers_formation_visibles_q
@@ -281,8 +283,7 @@ def supervision(user, aujourdhui):
         ).exclude(status__in=STATUTS_MAINTENANCE_TERMINES)
     )
     en_attente = occurrences.filter(status="WAITING_VALIDATION")
-    # Une occurrence en attente de validation n'est pas un retard de l'équipe.
-    retards = occurrences.filter(Q(status="OVERDUE") | Q(scheduled_for__lt=aujourdhui)).exclude(status="WAITING_VALIDATION")
+    retards = occurrences.filter(retard_q(aujourdhui))
     retards_total, actives = retards.count(), occurrences.count()
     liaisons = ("asset", "installation_maintenance__installation")
     # Même règle que la fiche d'exécution : assigné, ou seuil de gestion des maintenances d'autrui.
@@ -314,10 +315,7 @@ def supervision(user, aujourdhui):
     formations_a_valider = sum(
         1 for c in propositions.select_related("updated_by__profile") if peut_valider_proposition_bord(user, c.updated_by)
     )
-    echanges = EchangeService.objects.filter(statut=EchangeService.STATUT_ACCEPTE).select_related(
-        "creneau_demandeur__service_garde", "creneau_cible__service_garde"
-    )
-    echanges_a_valider = sum(1 for e in echanges if peut_valider_echange(user, e))
+    echanges_a_valider = len(echanges_a_valider_de(user))
     candidatures_a_valider = (
         CandidatureFormation.objects.filter(
             statut="PENDING_APPROVAL", hierarchie_validee_par__isnull=True,
@@ -326,9 +324,7 @@ def supervision(user, aujourdhui):
         if user_role_level(user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE else 0
     )
     # Installation sans statut propre : une installation critique dont une échéance est en retard compte comme indisponible.
-    installations_en_retard = Installation.objects.filter(
-        build_scope_q(user, ""), critique=True, maintenances__occurrences__in=occurrences.filter(status="OVERDUE")
-    ).distinct().count()
+    installations_en_retard = installations_en_retard_du_perimetre(user, aujourdhui).filter(critique=True).count()
     materiels = dict(
         Asset.objects.filter(build_scope_q(user, ""), status__in=STATUTS_ASSET_INDISPONIBLES)
         .values("status").annotate(n=Count("pk")).values_list("status", "n")
@@ -346,7 +342,8 @@ def supervision(user, aujourdhui):
         "echanges_a_valider": echanges_a_valider,
         "candidatures_a_valider": candidatures_a_valider,
         "installations_en_retard": installations_en_retard,
-        "anomalies_ouvertes": Anomalie.objects.filter(build_scope_q(user, ""), statut__in=STATUTS_ANOMALIE_OUVERTS).count(),
+        "anomalies_ouvertes": anomalies_visibles(user).filter(statut__in=STATUTS_ANOMALIE_OUVERTS).count(),
+        "anomalies_url": f"{reverse('anomalie-list')}?statut={STATUT_OUVERTES}" + ("&vue=perimetre" if _est_chef(user) else ""),
         "hors_service": materiels.get("OUT_OF_SERVICE", 0),
         "defectueux": materiels.get("FAULTY", 0),
     }

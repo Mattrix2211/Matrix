@@ -317,7 +317,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             qs = qs.filter(location_id=location_id)
         if folder_id:
             qs = qs.filter(folder_id=folder_id)
-        elif not q and not location_id:
+        elif not q and not location_id and not status:
             # Vue racine (aucun dossier sélectionné, pas de recherche globale, pas
             # de filtre par emplacement) : n'affiche que les matériels non classés
             # dans un dossier, symétrique au filtrage déjà appliqué aux dossiers

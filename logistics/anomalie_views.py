@@ -20,9 +20,12 @@ from notifications.models import Notification
 from threads.utils import ajouter_commentaire, commentaires_de
 
 from .models import (
-    Anomalie, AnomalieStatutLog, CorrectiveTicket, TicketStatusLog,
+    STATUTS_ANOMALIE_OUVERTS, Anomalie, AnomalieStatutLog, CorrectiveTicket, TicketStatusLog,
     destinataires_anomalie, niveau_alerte_ticket, perimetre_du_profil,
 )
+
+
+STATUT_OUVERTES = "ouvertes"  # filtre « toutes les anomalies non traitées »
 
 
 def _est_chef(user):
@@ -99,7 +102,9 @@ class AnomalieListView(LoginRequiredMixin, View):
             for code, libelle in Anomalie.STATUTS
         ]
         statut = request.GET.get('statut')
-        if statut in dict(Anomalie.STATUTS):
+        if statut == STATUT_OUVERTES:
+            base = base.filter(statut__in=STATUTS_ANOMALIE_OUVERTS)
+        elif statut in dict(Anomalie.STATUTS):
             base = base.filter(statut=statut)
         else:
             statut = ''

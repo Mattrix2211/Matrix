@@ -109,7 +109,7 @@
     <a class="mx-fiche__indicateur d-block" href="{% url 'maintenance-occurrences' %}?retard=1">{% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}</a>
   </div>
   <div class="col-6 col-md-4">
-    <a class="mx-fiche__indicateur d-block" href="{% url 'anomalie-list' %}?vue=perimetre">{% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}</a>
+    <a class="mx-fiche__indicateur d-block" href="{{ supervision.anomalies_url }}">{% include "components/metric.html" with libelle="Anomalies ouvertes" icone="anomalie" valeur=supervision.anomalies_ouvertes etat=supervision.anomalies_ouvertes|yesno:"attention,ok" %}</a>
   </div>
   <div class="col-6 col-md-4">
     <a class="mx-fiche__indicateur d-block" href="{% url 'asset-list' %}?status=OUT_OF_SERVICE">{% include "components/metric.html" with libelle="Matériels hors service" icone="materiel" valeur=supervision.hors_service etat=supervision.hors_service|yesno:"danger,ok" %}</a>
@@ -118,7 +118,7 @@
     <a class="mx-fiche__indicateur d-block" href="{% url 'asset-list' %}?status=FAULTY">{% include "components/metric.html" with libelle="Matériels défectueux" icone="materiel" valeur=supervision.defectueux etat=supervision.defectueux|yesno:"danger,ok" %}</a>
   </div>
   <div class="col-6 col-md-4">
-    <a class="mx-fiche__indicateur d-block" href="{% url 'installation-list' %}">{% include "components/metric.html" with libelle="Installations critiques en retard" icone="installation" valeur=supervision.installations_en_retard etat=supervision.installations_en_retard|yesno:"danger,ok" %}</a>
+    <a class="mx-fiche__indicateur d-block" href="{% url 'installation-list' %}?critique=1&amp;retard=1">{% include "components/metric.html" with libelle="Installations critiques en retard" icone="installation" valeur=supervision.installations_en_retard etat=supervision.installations_en_retard|yesno:"danger,ok" %}</a>
   </div>
   <div class="col-6 col-md-4">
     {% include "components/jauge.html" with libelle="Part de maintenances en retard" valeur=supervision.retards_pct etat=supervision.retards_total|yesno:"danger,ok" %}

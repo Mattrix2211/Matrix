@@ -199,7 +199,7 @@ class SupervisionTests(TestCase):
     def test_indicateurs_renvoient_vers_les_listes_filtrees(self):
         page = self._page(self.chef_a).content.decode()
         for lien in (f"{reverse('maintenance-occurrences')}?retard=1", f"{reverse('asset-list')}?status=OUT_OF_SERVICE",
-                     f"{reverse('asset-list')}?status=FAULTY", f"{reverse('anomalie-list')}?vue=perimetre"):
+                     f"{reverse('asset-list')}?status=FAULTY", f"{reverse('anomalie-list')}?statut=ouvertes&amp;vue=perimetre", f"{reverse('installation-list')}?critique=1&amp;retard=1"):
             self.assertIn(lien, page)
 
     def test_batiments_suivis_calcules_une_seule_fois_par_requete(self):
@@ -208,3 +208,69 @@ class SupervisionTests(TestCase):
         with mock.patch("dashboard.web_views.batiments_suivis", return_value=[]) as appel:
             self._page(self.chef_a)
         self.assertEqual(appel.call_count, 1)
+
+
+class CompteursEtListesCiblesTests(TestCase):
+    """Chaque indicateur annonce le nombre de lignes de la liste filtrée vers laquelle il renvoie."""
+
+    _marin, _asset, _occurrence, _echange_accepte = (
+        SupervisionTests._marin, SupervisionTests._asset, SupervisionTests._occurrence, SupervisionTests._echange_accepte,
+    )
+
+    def setUp(self):
+        SupervisionTests.setUp(self)
+        self.chef = self._marin("chef_liste_cible", "CHEF_SERVICE", self.secteur_a)
+        self.client.force_login(self.chef)
+
+    def _contexte(self, url):
+        return self.client.get(url).context
+
+    def test_maintenances_en_retard(self):
+        self._occurrence(self.asset_a, -2, "OVERDUE")
+        self._occurrence(self.asset_a, -1)
+        self._occurrence(self.asset_a, -3, "WAITING_VALIDATION")
+        self._occurrence(self.asset_a, 2)
+        s = supervision(self.chef, self.aujourdhui)
+        liste = self._contexte(f"{reverse('maintenance-occurrences')}?retard=1")["occurrences"]
+        self.assertEqual((s["retards_total"], len(liste)), (2, 2))
+
+    def test_anomalies_ouvertes(self):
+        for statut in ("SIGNALEE", "TRAITEE"):
+            Anomalie.objects.create(titre="A", statut=statut, ship=self.navire, service=self.service, sector=self.secteur_a)
+        s = supervision(self.chef, self.aujourdhui)
+        liste = self._contexte(s["anomalies_url"])["anomalies"]
+        self.assertEqual((s["anomalies_ouvertes"], len(liste)), (1, 1))
+
+    def test_materiels_hors_service_et_defectueux(self):
+        self._asset(self.secteur_a, "OUT_OF_SERVICE")
+        self._asset(self.secteur_a, "FAULTY")
+        s = supervision(self.chef, self.aujourdhui)
+        for cle, statut in (("hors_service", "OUT_OF_SERVICE"), ("defectueux", "FAULTY")):
+            liste = self._contexte(f"{reverse('asset-list')}?status={statut}")["assets"]
+            self.assertEqual((s[cle], len(liste)), (1, 1), cle)
+
+    def test_installations_critiques_en_retard(self):
+        from assets.models import InstallationMaintenance
+
+        for designation, critique in (("Critique", True), ("Ordinaire", False)):
+            installation = Installation.objects.create(
+                designation=designation, ship=self.navire, service=self.service, sector=self.secteur_a, critique=critique,
+            )
+            fiche = InstallationMaintenance.objects.create(installation=installation, periodicity="3 mois", title="Révision")
+            MaintenanceOccurrence.objects.create(
+                installation_maintenance=fiche, scheduled_for=self.aujourdhui - timedelta(days=2), status="PLANNED",
+            )
+        s = supervision(self.chef, self.aujourdhui)
+        liste = self._contexte(f"{reverse('installation-list')}?critique=1&retard=1")["installations"]
+        self.assertEqual((s["installations_en_retard"], len(liste)), (1, 1))
+
+    def test_echanges_et_candidatures_comme_les_pages_cibles(self):
+        ChefDeListe.objects.create(user=self.chef, sector=self.secteur_a)
+        self._echange_accepte(self.secteur_a)
+        self._echange_accepte(self.secteur_b)
+        CandidatureFormation.objects.create(course=TrainingCourse.objects.create(title="Secourisme"), marin=self.equipier)
+        s = supervision(self.chef, self.aujourdhui)
+        echanges = self._contexte(reverse("echanges-index"))["a_traiter"]
+        self.assertEqual((s["echanges_a_valider"], len([e for e in echanges if e.peut_trancher])), (1, 1))
+        candidatures = self._contexte(reverse("formation-list"))["candidatures_hierarchie_a_traiter"]
+        self.assertEqual((s["candidatures_a_valider"], len(candidatures)), (1, 1))

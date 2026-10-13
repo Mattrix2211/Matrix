@@ -19,7 +19,7 @@ from assets.models import Asset, AssetType, ChecklistTemplate
 from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
-from .perimetre import perimetre_occurrences_q
+from .perimetre import STATUTS_SANS_RETARD, perimetre_occurrences_q, retard_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none, sans_nul
@@ -397,7 +397,6 @@ _BADGE_STATUT_OCCURRENCE = {
 # Statuts qui ne comptent jamais comme "en retard" (une occurrence terminée
 # ou annulée n'a plus d'échéance à tenir), utilisé à la fois pour le badge
 # visuel et pour le filtre "retard" du tableau de pilotage.
-_STATUTS_SANS_RETARD = ("DONE", "CANCELLED")
 
 
 def _periodicite_lisible(nombre_de_jours):
@@ -609,7 +608,7 @@ class MaintenanceOccurrenceListView(LoginRequiredMixin, ScopedQuerySetMixin, Lis
             # statut OVERDUE : ce dernier n'est mis à jour qu'une fois par
             # heure par compute_overdue (Celery), le filtre "retard" doit
             # rester exact même entre deux passages de la tâche.
-            qs = qs.filter(scheduled_for__lt=timezone.localdate()).exclude(status__in=_STATUTS_SANS_RETARD)
+            qs = qs.filter(retard_q(timezone.localdate()))
         return qs
 
     def get_context_data(self, **kwargs):
@@ -621,7 +620,7 @@ class MaintenanceOccurrenceListView(LoginRequiredMixin, ScopedQuerySetMixin, Lis
         aujourdhui = timezone.localdate()
         for occ in ctx["occurrences"]:
             occ.badge_classe = _BADGE_STATUT_OCCURRENCE.get(occ.status, "bg-secondary")
-            occ.en_retard = occ.scheduled_for < aujourdhui and occ.status not in _STATUTS_SANS_RETARD
+            occ.en_retard = occ.scheduled_for < aujourdhui and occ.status not in STATUTS_SANS_RETARD
             occ.suis_assigne = self.request.user in occ.assignees.all()
         ctx["tournee_ids"] = ",".join(
             str(o.pk) for o in ctx["occurrences"] if o.asset_id and o.status not in ("DONE", "CANCELLED")

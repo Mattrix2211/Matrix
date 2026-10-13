@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from absences.models import Absence
 from accounts.models import AuditLog
-from matrix.core.scopes import meme_equipage
+from matrix.core.scopes import is_master_admin, meme_equipage, navire_q, ship_id_for_user
 from notifications.models import Notification, NotificationLevel
 from training.models import TrainingRecord
 
@@ -180,6 +180,22 @@ def _resume(echange):
 
 def peut_valider_echange(user, echange):
     return echange.liste is not None and peut_gerer_liste(user, echange.liste)
+
+
+def echanges_a_valider(user):
+    """Échanges acceptés que `user` doit trancher (même règle que `peut_trancher` de la page des échanges),
+    recherchés parmi les listes de son navire seulement."""
+    echanges = EchangeService.objects.filter(statut=EchangeService.STATUT_ACCEPTE).select_related(
+        *(f"{c}__service_garde__{n}" for c in ("creneau_demandeur", "creneau_cible") for n in ("ship", "service", "sector", "section"))
+    )
+    if not is_master_admin(user):
+        navire = ship_id_for_user(user)
+        if navire is None:
+            return []
+        echanges = echanges.filter(
+            navire_q(navire, "creneau_demandeur__service_garde__") | navire_q(navire, "creneau_cible__service_garde__")
+        )
+    return [e for e in echanges if peut_valider_echange(user, e)]
 
 
 def _echanges_en_cours_des_creneaux(*creneaux):
