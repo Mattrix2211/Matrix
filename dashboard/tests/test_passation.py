@@ -1,5 +1,6 @@
 """Synthèse de passation à la relève du double équipage."""
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -14,7 +15,7 @@ from dashboard.passation import generer_passation_manuelle, syntheses_visibles
 from demandes.models import Demande
 from logistics.models import Anomalie, CorrectiveTicket, StockPiece
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
-from matrix.core.equipage import decider_releve, proposer_releve
+from matrix.core.equipage import decider_releve, proposer_releve, valider_releve_secours
 from notifications.liens import lien_objet
 from notifications.models import Notification
 from org.models import ReleveEquipage, Sector, Service, Ship, SynthesePassation
@@ -216,3 +217,27 @@ class DroitsTests(PassationBase):
         self.assertIn(pdf.status_code, (200, 404))
         if pdf.status_code == 200:
             self.assertEqual(pdf["Content-Type"], "application/pdf")
+
+
+class EchecGenerationTests(PassationBase):
+    def verifier_releve_intacte(self, proposition):
+        proposition.refresh_from_db()
+        self.navire.refresh_from_db()
+        self.assertEqual(proposition.statut, ReleveEquipage.Statut.VALIDEE)
+        self.assertEqual(self.navire.equipage_a_bord, "B")
+        self.assertEqual(SynthesePassation.objects.count(), 0)
+        self.assertTrue(AuditLog.objects.filter(action="passation_echec").exists())
+
+    def test_echec_n_annule_pas_la_releve(self):
+        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B")
+        with mock.patch("dashboard.passation.contenu_passation", side_effect=RuntimeError), self.assertLogs("matrix.core.equipage", "ERROR"):
+            self.assertEqual(decider_releve(self.cdt_b, proposition, True), "")
+        self.verifier_releve_intacte(proposition)
+
+    def test_echec_n_annule_pas_la_validation_de_secours(self):
+        admin = User.objects.create_superuser("admin_s", password="pass")
+        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B")
+        UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
+        with mock.patch("dashboard.passation.contenu_passation", side_effect=RuntimeError), self.assertLogs("matrix.core.equipage", "ERROR"):
+            self.assertEqual(valider_releve_secours(admin, proposition, "Aucun commandant"), "")
+        self.verifier_releve_intacte(proposition)

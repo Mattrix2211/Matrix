@@ -1,4 +1,6 @@
 """Double équipage : l'équipage à terre consulte le bâtiment en lecture seule."""
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
@@ -6,6 +8,8 @@ from django.utils import timezone
 from accounts.models import AuditLog, Roles
 from matrix.core.scopes import is_master_admin
 from notifications.models import Notification
+
+logger = logging.getLogger(__name__)
 
 ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve", "valider_releve_secours", "generer_passation")
 # Le commandant en second supplée le commandant de son équipage.
@@ -208,7 +212,15 @@ def _appliquer_decision(auteur, proposition, accepter, action_validation, comple
     if accepter:
         from dashboard.passation import generer_passation
 
-        generer_passation(auteur, navire, proposition, avant[1])
+        # La relève reste validée même si la synthèse échoue ; le bouton manuel permet de la regénérer.
+        try:
+            with transaction.atomic():
+                generer_passation(auteur, navire, proposition, avant[1])
+        except Exception:
+            logger.exception("Synthèse de passation non générée (relève %s)", proposition.pk)
+            AuditLog.objects.create(
+                actor=auteur, action="passation_echec", details=f"navire={navire.name}; releve={proposition.pk}"
+            )
     if notifier_proposant and proposition.propose_par:
         Notification.objects.create(
             user=proposition.propose_par,

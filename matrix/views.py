@@ -21,13 +21,13 @@ from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
 from annonces.models import ParametresAnnonces
 from taches.models import ParametresTaches
+from dashboard.passation import generer_passation_manuelle, peut_generer_passation, syntheses_visibles
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
 from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import is_master_admin, ship_id_for_user
-from dashboard.passation import generer_passation_manuelle, peut_generer_passation, syntheses_visibles
 from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (

@@ -6,7 +6,9 @@ L'équipage montant lit tout (continuité de relève) : aucune étanchéité par
 """
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.urls import reverse
@@ -24,7 +26,7 @@ from maintenance.models import MaintenanceOccurrence
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import is_master_admin, navire_q
 from notifications.models import Notification
-from org.models import SynthesePassation
+from org.models import ReleveEquipage, SynthesePassation
 from quarts.models import Quart, ServiceGarde
 from reports.services import html_vers_pdf, pdf_disponible
 from taches.models import Tache
@@ -231,16 +233,12 @@ def contenu_passation(user, navire):
 
 def releve_courante(navire):
     """Dernière relève validée qui a mis l'équipage actuel à bord, ou None."""
-    from org.models import ReleveEquipage
-
     return ReleveEquipage.objects.filter(
         ship=navire, statut=ReleveEquipage.Statut.VALIDEE, equipage_propose=navire.equipage_a_bord
     ).order_by("-decide_le", "-pk").first()
 
 
 def _chefs_equipage(navire, equipage):
-    from django.contrib.auth import get_user_model
-
     marins = get_user_model().objects.filter(is_active=True, profile__ship=navire, profile__equipage=equipage)
     return [m for m in marins if peut_attribuer(m)]
 
@@ -255,10 +253,15 @@ def generer_passation(auteur, navire, releve, equipage_sortant):
     existante = SynthesePassation.objects.filter(releve=releve).first() if releve else None
     if existante:
         return existante, False
-    synthese = SynthesePassation.objects.create(
-        ship=navire, releve=releve, equipage_sortant=equipage_sortant, equipage_montant=navire.equipage_a_bord,
-        auteur=auteur, contenu=contenu_passation(auteur, navire),
-    )
+    try:
+        with transaction.atomic():
+            synthese = SynthesePassation.objects.create(
+                ship=navire, releve=releve, equipage_sortant=equipage_sortant, equipage_montant=navire.equipage_a_bord,
+                auteur=auteur, contenu=contenu_passation(auteur, navire),
+            )
+    except IntegrityError:
+        # Double clic : une autre requête a créé la synthèse de cette relève.
+        return SynthesePassation.objects.get(releve=releve), False
     AuditLog.objects.create(
         actor=auteur, action="passation_generee",
         details=f"navire={navire.name}; equipage_sortant={equipage_sortant or '—'}; equipage_montant={synthese.equipage_montant}",
