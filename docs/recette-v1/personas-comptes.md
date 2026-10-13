@@ -9,7 +9,7 @@ Le rôle technique (`RoleLevel`) et la fonction (chef de liste, référent forma
 | Persona (Notion) | Compte de démo (prénom affiché, grade fixture) | Rôle / rattachement dans le code | Écart avec Notion |
 |---|---|---|---|
 | MOT Lucas Morel, équipier | `equipier_a` (Karim, Matelot) | `EQUIPIER`, Propulsion › Moteurs › section Moteurs bâbord, équipage A | Identité différente (attendu). Cohérent. |
-| QM1 Julien Martin, équipier expérimenté | `equipier_a2` (Lina, Matelot) | `EQUIPIER`, même section, équipage A | **Qualifications « explicitement déclarées » : non établies** (aucune qualification propre à ce compte repérée dans `seed_demo`). **Pas de maintenance attribuée** à ce compte : les occurrences assignées vont à `equipier_incendie_a` ; ses tâches de démo sont « en retard » et « bloquée ». La mission Julien de Notion (maintenance pompe incendie) n'a donc pas de jeu de données. |
+| QM1 Julien Martin, équipier expérimenté | `equipier_a3` (Julien, Quartier-maître, Mécanique) — créé par `seed_recette` | `EQUIPIER`, Propulsion › Moteurs › section Moteurs bâbord, équipage A | **Écart R-01 levé** : qualifications déclarées (« Entretien des pompes d'incendie », requise par la fiche de maintenance, et « Conduite du réseau incendie », proche de l'échéance) ; contrôle trimestriel de la « Pompe d'incendie principale » attribué, avec procédure publiée consultable depuis l'installation. `equipier_a2` (Lina) reste sans données propres. |
 | PM Claire Bernard, chef de section | `chef_section_a` (Jade, Quartier-maître) | `CHEF_SECTION`, section Moteurs bâbord, équipage A | Grade fixture différent (PM vs QM), sans effet sur les droits. |
 | LV Antoine Le Goff, chef de service | `chef_service_a` (Gaël, Maître) | `CHEF_SERVICE`, Propulsion, équipage A | Grade fixture différent (sans effet). |
 
@@ -25,14 +25,18 @@ Le rôle technique (`RoleLevel`) et la fonction (chef de liste, référent forma
 | Commandant en second | `second_a` (Cécile) | `COMMANDANT_EN_SECOND`, équipage A | Cohérent. |
 | Commandants A/B | `cdt_a` (Anne), `cdt_b` (Benoît) | `COMMANDANT`, équipages A et B | Cohérent. |
 | Soutien à terre | `terre_classe` (Tessa), `terre_securite` (Ugo), `terre_chef_securite` (Vera) | `CHEF_SERVICE`, sans navire (« à terre ») | Le rôle technique est `CHEF_SERVICE` : à vérifier que la distinction avec la chaîne embarquée repose bien sur l'absence de navire et non sur le rôle. |
-| Référent formation | `chef_secteur_a` pour « Lutte contre l'incendie » (`ReferentFormation`) | Fonction rattachée à un cours et à un navire | Notion demande de ne pas présumer son existence : **il existe** dans les fixtures mais cumulé avec chef de secteur/chef de liste. Un référent « pur » (grade quelconque, sans rôle de chef) n'existe pas : fixture de test à créer **après accord**. |
+| Référent formation | `referent_formation_a` (Solène, Second-maître) — créé par `seed_recette` | `EQUIPIER`, Sécurité › Pompiers, équipage A ; `ReferentFormation` de « Conduite du réseau incendie » (Bretagne) uniquement | **Écart R-03 levé** : référent « pur », ni chef de secteur ni `ChefDeListe`. Une candidature à instruire dans son ressort et une candidature hors ressort (« Travaux en hauteur ») existent. `chef_secteur_a` reste référent de « Lutte contre l'incendie » (cumul de fonctions, à ne pas confondre). |
 | Autres | `coma_comops`, `chef_secteur_elec_a`, `chef_secteur_incendie_a`, `equipier_incendie_a`, `marin_b` (équipier B), `admin_navire`, `admin`, bâtiment Normandie (`cdt_nor`, `chef_secteur_nor`, `equipier_nor`) | Présents | Normandie répond à l'exigence « autre bâtiment ». |
+
+## Données de recette (`seed_recette`)
+
+`python manage.py seed_recette` complète `seed_demo` (lancé automatiquement s'il manque) avec des données fictives préfixées `[Recette]`, même mot de passe de démonstration. Elle est idempotente, additive (aucun objet de démonstration modifié) et ne s'exécute qu'avec `DJANGO_DEBUG=1` ou `MATRIX_RECETTE=1`. Elle ajoute les comptes `equipier_a3` et `referent_formation_a`, la maintenance de la pompe d'incendie avec sa documentation, des tâches en retard ou proches, des absences, un conflit de planning (absence de Julien sur un quart publié), des notifications, des annonces à accuser, une demande et un fil de discussion, pour Bretagne (équipages A et B), l'Énergie › Électricité et la Normandie.
 
 ## Écarts entre sources à arbitrer (ne sont pas des défauts avérés)
 
 1. **Synthèse de passation.** La page Notion « Décisions » (état au 10/10, PR #6/#7) indique que la synthèse de passation automatique planifiée a été retirée et que sa reprise exige une nouvelle décision métier. La PR #8 livre `SynthesePassation` et `ParametresPassation` (org), générée à la validation de la relève et « activée par défaut ». La PR dit relayer une décision métier ; **à faire confirmer par le Product Owner** que cette décision postérieure couvre bien cette implémentation.
 2. **Double équipage.** Notion : pas de modèle `org.Equipage` ; le code utilise les codes A/B du profil (`equipage`). Conforme à la page Notion. Les notions d'organisation « en miroir » restent hors V1.
-3. **Maintenance de Julien** : voir plus haut (fixture manquante).
+3. **Maintenance de Julien** : jeu de données fourni par `seed_recette` (voir plus haut).
 4. **Aucune hypothèse** n'est faite sur la pratique interne réelle de la Marine : toute question de ce type est relayée au Product Owner.
 
 ## Permissions réellement implémentées : où vérifier
