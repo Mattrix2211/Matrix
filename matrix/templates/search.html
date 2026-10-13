@@ -2,7 +2,7 @@
 {% block content %}
 <h1 class="h4">Recherche</h1>
 <form class="row g-2 mb-3">
-  <div class="col-auto"><input class="form-control" type="text" name="q" value="{{ q }}" placeholder="Rechercher matériel, installations, tickets, formations, documents, personnes, anomalies, rondes, échanges de service"></div>
+  <div class="col-auto"><input class="form-control" type="text" name="q" value="{{ q }}" placeholder="Rechercher matériel, installations, tickets, formations, documents, personnes, anomalies, rondes, échanges de service, tâches"></div>
   <div class="col-auto"><button class="btn btn-primary">Rechercher</button></div>
 {% if q %}<div class="col-12 text-muted">Résultats pour "{{ q }}"</div>{% endif %}
 </form>
@@ -113,6 +113,17 @@
         <span class="badge {% if e.statut == 'VALIDE' %}text-bg-success{% elif e.statut == 'REFUSE' or e.statut == 'REJETE' %}text-bg-danger{% elif e.statut == 'ANNULE' %}text-bg-secondary{% else %}text-bg-info{% endif %}">{{ e.get_statut_display }}</span>
       </li>
       {% empty %}<li class="list-group-item text-muted">Aucun</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="col-md-4">
+    <h2 class="h6">Tâches</h2>
+    <ul class="list-group">
+      {% for t in taches %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a>
+        <span class="badge text-bg-secondary">{{ t.get_statut_display }}</span>
+      </li>
+      {% empty %}<li class="list-group-item text-muted">Aucune</li>{% endfor %}
     </ul>
   </div>
 </div>

@@ -22,6 +22,7 @@ from matrix.core.mixins import build_scope_q
 from matrix.core.modules import module_actif_pour_user
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q
+from taches.services import taches_visibles
 from training.models import TrainingCourse
 from logistics.perimetre import perimetre_tickets_q
 
@@ -84,6 +85,14 @@ def formations(user, terme):
     ).order_by("title")
 
 
+def taches(user, terme):
+    # Mêmes tâches que la liste ; la tâche privée d'un marin n'apparaît jamais chez autrui.
+    return (
+        taches_visibles(user).filter(Q(partagee=True) | Q(assigne=user))
+        .filter(_ou(terme, "titre", "description")).select_related("assigne").order_by("-updated_at")
+    )
+
+
 def marins(user, terme, avec_identifiants=False):
     # Tout marin cherche dans son navire ; sans navire rattaché, aucun résultat
     # (jamais toute la flotte), sauf maître ou superutilisateur. La recherche rapide
@@ -125,6 +134,11 @@ def _ligne_ticket(t, user):
 
 def _ligne_anomalie(a, user):
     return a.titre, _sous_titre(a.localisation, a.get_statut_display()), reverse("anomalie-detail", args=[a.pk])
+
+
+def _ligne_tache(t, user):
+    qui = "" if t.assigne_id == user.pk else t.assigne.get_full_name() or t.assigne.username
+    return t.titre, _sous_titre(t.get_statut_display(), qui, f"échéance {t.echeance:%d/%m/%Y}" if t.echeance else ""), reverse("tache-detail", args=[t.pk])
 
 
 def _ligne_document(d, user):
@@ -175,6 +189,7 @@ CATEGORIES = [
     Categorie("formations", "Formations", "formation", formations, _ligne_formation, module="training"),
     Categorie("documents", "Documents", "document", documents, _ligne_document,
               module="documentation", liste="documentation-index"),
+    Categorie("taches", "Tâches", "tache", taches, _ligne_tache, module="taches"),
     Categorie("marins", "Marins", "annuaire", marins, _ligne_marin),
 ]
 

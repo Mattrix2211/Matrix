@@ -6,5 +6,6 @@ urlpatterns = [
     path("", web_views.TachesIndexView.as_view(), name="taches-index"),
     path("<int:pk>/", web_views.TacheDetailView.as_view(), name="tache-detail"),
     path("<int:pk>/action/", web_views.TacheActionView.as_view(), name="tache-action"),
+    path("<int:pk>/fichier/<int:piece_pk>/", web_views.TachePieceJointeView.as_view(), name="tache-piece-jointe"),
     path("commentaire/<int:pk>/", web_views.TacheCommentaireView.as_view(), name="tache-commentaire"),
 ]

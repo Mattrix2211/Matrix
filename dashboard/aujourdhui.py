@@ -140,6 +140,9 @@ def a_faire(user, aujourdhui):
             detail = "Tâche en retard" if en_retard else f"Tâche · {tache.get_statut_display()}"
         else:
             detail = f"Blocage à lever · {tache.assigne.get_full_name() or tache.assigne.username}"
+        faits, total = tache.avancement_checklist
+        if total:
+            detail += f" · checklist {faits}/{total}"
         entrees.append(_entree(
             tache, tache.titre, detail, reverse("tache-detail", args=[tache.pk]), "tache",
             DANGER if en_retard and propre else ATTENTION if not propre else NORMAL, 4 if tache.priorite == tache.PRIORITE_URGENTE else 0, _echeance(tache.echeance) if tache.echeance else None,

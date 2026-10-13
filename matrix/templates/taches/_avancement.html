@@ -16,6 +16,18 @@
     <span class="badge text-bg-danger">En retard {{ avancement.retards|length }}</span>
   </p>
   {% endif %}
+  {% if avancement.lots %}
+  <h3 class="h6">Attributions à une unité</h3>
+  <ul class="list-unstyled">
+    {% for lot in avancement.lots %}
+    <li class="d-flex align-items-center gap-2 mb-1">
+      <span style="min-width:14rem">{{ lot.titre }} <span class="text-muted">· {{ lot.libelle }}</span></span>
+      <div class="progress flex-grow-1" role="img" aria-label="{{ lot.terminees }} terminées sur {{ lot.total }}" style="height:.75rem"><div class="progress-bar bg-success" style="width:{% widthratio lot.terminees lot.total 100 %}%"></div></div>
+      <span class="small text-muted" style="min-width:8rem">{{ lot.terminees }}/{{ lot.total }} terminées</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
   {% if avancement.charges %}
   <h3 class="h6">Charge par marin</h3>
   <ul class="list-unstyled">

@@ -14,6 +14,54 @@
 {% documents_associes_a tache %}
 {% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=tache:{{ tache.pk }}">Proposer un RETEX</a></p>{% endif %}
 
+<section class="card card-body mb-4" aria-labelledby="titre-checklist">
+  {% with c=tache.avancement_checklist %}<h2 class="h5" id="titre-checklist">Checklist{% if c.1 %} <span class="badge text-bg-light border">{{ c.0 }}/{{ c.1 }}</span>{% endif %}</h2>
+  {% if c.1 %}<div class="progress mb-2" role="img" aria-label="{{ c.0 }} éléments faits sur {{ c.1 }}" style="height:.5rem"><div class="progress-bar bg-success" style="width:{% widthratio c.0 c.1 100 %}%"></div></div>{% endif %}{% endwith %}
+  <ul class="list-unstyled mb-2">
+    {% for e in elements %}
+    <li class="d-flex align-items-center gap-2 mb-1">
+      {% if peut_editer_checklist and not equipage_a_terre %}
+      <form method="post" action="{% url 'tache-action' tache.pk %}" class="d-flex align-items-center gap-2 flex-grow-1">{% csrf_token %}<input type="hidden" name="action" value="checklist_basculer"><input type="hidden" name="element" value="{{ e.pk }}">
+        <button class="btn btn-sm {% if e.fait %}btn-success{% else %}btn-outline-secondary{% endif %}" type="submit" aria-label="{% if e.fait %}Décocher{% else %}Cocher{% endif %} : {{ e.texte }}">{% if e.fait %}&#10003;{% else %}&nbsp;&nbsp;{% endif %}</button>
+        <span class="{% if e.fait %}text-decoration-line-through text-muted{% endif %}">{{ e.texte }}</span>
+      </form>
+      <form method="post" action="{% url 'tache-action' tache.pk %}">{% csrf_token %}<input type="hidden" name="action" value="checklist_supprimer"><input type="hidden" name="element" value="{{ e.pk }}"><button class="btn btn-sm btn-link text-danger" type="submit">Retirer</button></form>
+      {% else %}
+      <span aria-hidden="true">{% if e.fait %}&#10003;{% else %}&#9744;{% endif %}</span><span class="{% if e.fait %}text-decoration-line-through text-muted{% endif %}">{{ e.texte }}</span>
+      {% endif %}
+    </li>
+    {% empty %}<li class="text-muted">Aucun élément.</li>{% endfor %}
+  </ul>
+  {% if peut_editer_checklist and not equipage_a_terre %}
+  <form method="post" action="{% url 'tache-action' tache.pk %}" class="row g-2">{% csrf_token %}<input type="hidden" name="action" value="checklist_ajouter">
+    <div class="col"><label class="visually-hidden" for="id_element">Nouvel élément</label><input class="form-control" id="id_element" name="texte" maxlength="200" placeholder="Nouvel élément" required></div>
+    <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Ajouter</button></div>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card card-body mb-4" aria-labelledby="titre-pieces">
+  <h2 class="h5" id="titre-pieces">Pièces jointes</h2>
+  <ul class="list-unstyled mb-2">
+    {% for p, supprimable in pieces %}
+    <li class="d-flex align-items-center gap-2 mb-1">
+      <a href="{% url 'tache-piece-jointe' tache.pk p.pk %}">{{ p.nom }}</a>
+      <span class="text-muted small">{{ p.created_by.get_full_name|default:p.created_by.username|default:"—" }} · {{ p.created_at|date:"d/m/Y" }}</span>
+      {% if supprimable and not equipage_a_terre %}
+      <form method="post" action="{% url 'tache-action' tache.pk %}">{% csrf_token %}<input type="hidden" name="action" value="piece_supprimer"><input type="hidden" name="piece" value="{{ p.pk }}"><button class="btn btn-sm btn-link text-danger" type="submit">Supprimer</button></form>
+      {% endif %}
+    </li>
+    {% empty %}<li class="text-muted">Aucun fichier.</li>{% endfor %}
+  </ul>
+  {% if peut_joindre and not equipage_a_terre %}
+  <form method="post" action="{% url 'tache-action' tache.pk %}" enctype="multipart/form-data" class="row g-2">{% csrf_token %}<input type="hidden" name="action" value="joindre">
+    <div class="col"><label class="visually-hidden" for="id_fichier">Fichier à joindre</label><input class="form-control" type="file" id="id_fichier" name="fichier" required></div>
+    <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Joindre</button></div>
+    <div class="form-text">Images, PDF et documents bureautiques.</div>
+  </form>
+  {% endif %}
+</section>
+
 {% if tache.statut == "BLOQUEE" %}
 <div class="alert alert-warning"><strong>Bloquée :</strong> {{ tache.motif_blocage|linebreaksbr }}
   {% if peut_gerer and not equipage_a_terre %}

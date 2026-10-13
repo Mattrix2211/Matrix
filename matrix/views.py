@@ -109,15 +109,12 @@ def global_search(request):
     # correctifs, personnes, formations, documents, anomalies), plus deux
     # types livrés depuis (modèles de ronde/rondes, échanges de service) hors
     # de l'énumération initiale mais tout aussi cherchables au quotidien.
-    # Volontairement hors périmètre de cette itération (cf. commentaire
-    # Notion de la tâche) : tâches (aucun modèle "Tâche" unique n'existe — un
-    # marin suit ses échéances via son espace personnel, pas via un objet
-    # cherchable dédié), événements de calendrier et discussions — pour
+    # Volontairement hors périmètre de cette itération : événements de calendrier et discussions — pour
     # éviter la sur-ingénierie et prioriser les types les plus utiles au
     # quotidien en premier.
     q = recherche.normaliser(request.GET.get('q'))
     assets = tickets = users = installations = formations = documents = []
-    anomalies = ronde_modeles = rondes = echanges = []
+    anomalies = ronde_modeles = rondes = echanges = taches = []
     if q:
         # Une catégorie d'un module désactivé pour le navire du marin n'est pas interrogée.
         def actif(cle):
@@ -136,6 +133,8 @@ def global_search(request):
             anomalies = recherche.anomalies(request.user, q)[:20]
         if actif('training'):
             formations = recherche.formations(request.user, q)[:20]
+        if actif('taches'):
+            taches = recherche.taches(request.user, q)[:20]
         # Mêmes personnes que la recherche rapide (navire du marin), identifiant et e-mail en plus.
         users = recherche.marins(request.user, q, avec_identifiants=True)[:20]
         # Rondes : périmètre "couvrant" propre à l'app rondes (un chef de
@@ -164,7 +163,7 @@ def global_search(request):
     return render(request, 'search.html', {
         "q": q, "assets": assets, "tickets": tickets, "users": users,
         "installations": installations, "formations": formations, "documents": documents,
-        "anomalies": anomalies, "ronde_modeles": ronde_modeles, "rondes": rondes, "echanges": echanges,
+        "anomalies": anomalies, "ronde_modeles": ronde_modeles, "rondes": rondes, "echanges": echanges, "taches": taches,
     })
 
 

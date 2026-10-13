@@ -9,7 +9,9 @@ from datetime import datetime, time, timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Max, Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from absences.models import Absence
@@ -19,12 +21,13 @@ from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import seuil_role
 from matrix.core.roles import user_role_level
 from matrix.core.scopes import equipage_marin_q
+from matrix.core.validators import valider_document
 from notifications.models import Notification, NotificationLevel
 from notifications.services import traiter_actions
 from threads.models import Message, Thread
 from threads.utils import ajouter_commentaire
 
-from .models import ParametresTaches, Tache
+from .models import ElementChecklistTache, LotTaches, ParametresTaches, PieceJointeTache, Tache
 
 User = get_user_model()
 
@@ -61,7 +64,8 @@ def taches_visibles(user):
 
 def taches_a_suivre(user):
     """Tâches ouvertes dont `user` doit s'occuper : les siennes, et celles qu'il supervise lorsqu'elles sont bloquées."""
-    ouvertes = taches_visibles(user).filter(statut__in=Tache.STATUTS_OUVERTS).select_related("assigne")
+    ouvertes = (taches_visibles(user).filter(statut__in=Tache.STATUTS_OUVERTS)
+                .select_related("assigne").prefetch_related("elements_checklist"))
     return [
         t for t in ouvertes
         if t.assigne_id == user.pk or (t.statut == Tache.STATUT_BLOQUEE and peut_gerer(user, t))
@@ -86,7 +90,7 @@ def avancement_equipe(user, aujourdhui=None):
     aujourdhui = aujourdhui or timezone.localdate()
     depuis = timezone.now() - timedelta(days=ParametresTaches.courants().jours_terminees_affichees)
     taches = taches_supervisees(user).select_related("assigne")
-    ouvertes = [t for t in taches if t.ouverte]
+    ouvertes = list(taches.filter(statut__in=Tache.STATUTS_OUVERTS).prefetch_related("elements_checklist"))
     comptes = {statut: 0 for statut, _ in Tache.STATUT_CHOICES}
     for t in ouvertes:
         comptes[t.statut] += 1
@@ -117,7 +121,19 @@ def avancement_equipe(user, aujourdhui=None):
         "charges": charges,
         "charge_max": max((c["ouvertes"] for c in charges), default=0),
         "conflits": conflits,
+        "lots": _avancement_lots(user),
     }
+
+
+def _avancement_lots(user):
+    """Attributions à une unité encore en cours : tâches terminées sur total, pour les marins supervisés."""
+    lots = {}
+    lignes = taches_supervisees(user).filter(lot__isnull=False).values_list("lot_id", "lot__titre", "lot__libelle", "statut")
+    for lot_id, titre, libelle, statut in lignes:
+        lot = lots.setdefault(lot_id, {"pk": lot_id, "titre": titre, "libelle": libelle, "total": 0, "terminees": 0})
+        lot["total"] += 1
+        lot["terminees"] += statut == Tache.STATUT_TERMINEE
+    return sorted((lot for lot in lots.values() if lot["terminees"] < lot["total"]), key=lambda lot: -lot["pk"])
 
 
 def marins_assignables(user):
@@ -170,23 +186,135 @@ def taches_liees_a(user, annonce):
         Q(assigne=user) | Q(created_by=user)).select_related("assigne")
 
 
-def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True, annonce=None):
-    """Un chef attribue une tâche ; un marin peut aussi se créer la sienne (privée sauf partage de sa part)."""
+def creer_tache(chef, assigne, titre, echeance=None, description="", priorite=Tache.PRIORITE_NORMALE, partagee=True, annonce=None,
+                lot=None, elements=()):
+    """Un chef attribue une tâche ; un marin peut aussi se créer la sienne (privée sauf partage de sa part).
+
+    `elements` : textes de la checklist initiale."""
     personnelle = chef.pk == assigne.pk
     if not personnelle and not est_chef_de(chef, assigne):
         raise PermissionError("Vous ne pouvez pas attribuer de tâche à ce marin.")
     tache = Tache(
         titre=titre.strip(), description=description.strip(), echeance=echeance, priorite=priorite,
         partagee=partagee if personnelle else True, assigne=assigne, created_by=chef, updated_by=chef,
-        annonce=annonce,
+        annonce=annonce, lot=lot,
     )
     tache.full_clean(exclude=["assigne"])
     tache.save()
     _tracer(tache, chef, "creation", f"; annonce={annonce.pk}" if annonce else "")
+    textes = _textes_checklist(elements)
+    ElementChecklistTache.objects.bulk_create(
+        ElementChecklistTache(tache=tache, texte=texte, ordre=i) for i, texte in enumerate(textes, 1))
     if not personnelle:
         delai = f" (échéance {echeance:%d/%m/%Y})" if echeance else ""
         _notifier(tache, [assigne], f"{_nom(chef)} vous a attribué la tâche « {tache.titre} »{delai}.", action=True)
     return tache
+
+
+def _textes_checklist(elements):
+    """Textes non vides, tronqués à la longueur du champ."""
+    return [t for t in (e.strip()[:ElementChecklistTache._meta.get_field("texte").max_length] for e in elements) if t]
+
+
+_UNITES = {"section": "section", "secteur": "sector", "service": "service"}
+
+
+def unites_assignables(user):
+    """Unités (section, secteur, service) comptant des marins du périmètre de `user` : [(clé, libellé, nb de marins)]."""
+    comptes = {}
+    for marin in marins_assignables(user).select_related("profile__section", "profile__sector", "profile__service"):
+        for type_, champ in _UNITES.items():
+            unite = getattr(marin.profile, champ, None)
+            if unite is not None:
+                cle = f"{type_}:{unite.pk}"
+                libelle, nombre = comptes.get(cle, (f"{unite.name} ({type_})", 0))
+                comptes[cle] = (libelle, nombre + 1)
+    return [(cle, libelle, nombre) for cle, (libelle, nombre) in sorted(comptes.items(), key=lambda c: c[1][0])]
+
+
+def attribuer_a_unite(chef, cle_unite, titre, echeance=None, description="", priorite=Tache.PRIORITE_NORMALE, elements=()):
+    """Une tâche individuelle par marin de l'unité, dans le périmètre et l'équipage du chef, liées par un lot."""
+    type_, _, pk = cle_unite.partition(":")
+    if type_ not in _UNITES or not (pk.isascii() and pk.isdigit()):
+        raise ValidationError("Unité inconnue.")
+    libelle = next((lib for cle, lib, _ in unites_assignables(chef) if cle == cle_unite), None)
+    if libelle is None:
+        raise PermissionError("Cette unité n'est pas dans votre périmètre.")
+    marins = marins_assignables(chef).filter(**{f"profile__{_UNITES[type_]}": int(pk)})
+    with transaction.atomic():
+        lot = LotTaches.objects.create(libelle=libelle, titre=titre.strip()[:200], created_by=chef, updated_by=chef)
+        taches = [
+            creer_tache(chef, marin, titre, echeance, description, priorite, lot=lot, elements=elements) for marin in marins
+        ]
+        AuditLog.objects.create(
+            actor=chef, action="tache_attribution_unite", details=f"lot={lot.pk}; unite={cle_unite}; taches={len(taches)}")
+    return lot, taches
+
+
+def peut_editer_checklist(user, tache):
+    return tache.ouverte and user.pk in (tache.assigne_id, tache.created_by_id)
+
+
+def _controler_checklist(tache, user):
+    if not peut_editer_checklist(user, tache):
+        raise PermissionError("Seuls le marin assigné et le créateur modifient la checklist d'une tâche ouverte.")
+
+
+def ajouter_element(tache, user, texte):
+    _controler_checklist(tache, user)
+    texte = texte.strip()
+    if not texte:
+        raise ValidationError("Saisissez le texte de l'élément.")
+    ordre = tache.elements_checklist.aggregate(m=Max("ordre"))["m"] or 0
+    element = ElementChecklistTache(tache=tache, texte=texte, ordre=ordre + 1)
+    element.full_clean(exclude=["tache"])
+    element.save()
+    _tracer(tache, user, "checklist_ajout", f"; element={element.pk}")
+
+
+def basculer_element(tache, user, element_pk):
+    _controler_checklist(tache, user)
+    element = get_object_or_404(tache.elements_checklist, pk=element_pk)
+    element.fait = not element.fait
+    element.save(update_fields=["fait", "updated_at"])
+    _tracer(tache, user, "checklist_fait" if element.fait else "checklist_defait", f"; element={element.pk}")
+
+
+def supprimer_element(tache, user, element_pk):
+    _controler_checklist(tache, user)
+    element = get_object_or_404(tache.elements_checklist, pk=element_pk)
+    _tracer(tache, user, "checklist_suppression", f"; element={element.pk}")
+    element.delete()
+
+
+def peut_joindre(user, tache):
+    return tache.ouverte and peut_consulter(user, tache)
+
+
+def peut_supprimer_piece(user, piece):
+    return user.pk in (piece.created_by_id, piece.tache.created_by_id)
+
+
+def joindre_fichier(tache, user, fichier):
+    """Ajoute une pièce jointe après contrôle d'extension, de taille et de contenu (validateur commun des documents)."""
+    if not peut_joindre(user, tache):
+        raise PermissionError("Vous ne pouvez pas joindre de fichier à cette tâche.")
+    if not fichier:
+        raise ValidationError("Choisissez un fichier.")
+    valider_document(fichier)
+    piece = PieceJointeTache.objects.create(
+        tache=tache, fichier=fichier, nom=fichier.name.replace("\\", "/").rsplit("/", 1)[-1][:255], created_by=user, updated_by=user)
+    _tracer(tache, user, "piece_jointe_ajout", f"; piece={piece.pk}")
+    return piece
+
+
+def supprimer_piece(tache, user, piece_pk):
+    piece = get_object_or_404(tache.pieces_jointes.select_related("tache"), pk=piece_pk)
+    if not peut_supprimer_piece(user, piece):
+        raise PermissionError("Seul l'auteur du fichier ou le créateur de la tâche peut le supprimer.")
+    _tracer(tache, user, "piece_jointe_suppression", f"; piece={piece.pk}")
+    piece.fichier.delete(save=False)
+    piece.delete()
 
 
 def _enregistrer(tache, acteur, action, champs, extra=""):

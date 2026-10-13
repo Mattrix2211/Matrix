@@ -5,7 +5,7 @@
       <tbody>
         {% for t in taches %}
         <tr>
-          <td><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a>{% if t.priorite == "URGENTE" and t.ouverte %} <span class="badge text-bg-danger">Urgente</span>{% endif %}{% if t.personnelle %} <span class="badge text-bg-light border">Personnelle{% if not t.partagee %} · privée{% endif %}</span>{% endif %}</td>
+          <td><a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a>{% if t.priorite == "URGENTE" and t.ouverte %} <span class="badge text-bg-danger">Urgente</span>{% endif %}{% with c=t.avancement_checklist %}{% if c.1 %} <span class="badge text-bg-light border" title="Checklist">{{ c.0 }}/{{ c.1 }}</span>{% endif %}{% endwith %}{% if t.personnelle %} <span class="badge text-bg-light border">Personnelle{% if not t.partagee %} · privée{% endif %}</span>{% endif %}</td>
           {% if avec_marin %}<td>{{ t.assigne.get_full_name|default:t.assigne.username }}</td>{% endif %}
           <td>{% if t.echeance %}{{ t.echeance|date:"d/m/Y" }}{% else %}<span class="text-muted">Sans échéance</span>{% endif %}{% if t.ouverte and t.echeance and t.echeance < aujourdhui %} <span class="badge text-bg-danger">En retard</span>{% endif %}</td>
           <td>{% include "taches/_statut.html" %}</td>

@@ -6,6 +6,20 @@ from django.conf import settings
 from django.db import models
 
 from matrix.core.models import OwnedModel, TimeStampedModel
+from matrix.core.validators import valider_document
+
+
+class LotTaches(TimeStampedModel, OwnedModel):
+    """Regroupement des tâches individuelles issues d'une même attribution à une unité (section, secteur, service)."""
+    libelle = models.CharField(max_length=200, verbose_name="Unité")
+    titre = models.CharField(max_length=200, verbose_name="Titre")
+
+    class Meta:
+        verbose_name = "Lot de tâches"
+        verbose_name_plural = "Lots de tâches"
+
+    def __str__(self):
+        return f"{self.titre} ({self.libelle})"
 
 
 class Tache(TimeStampedModel, OwnedModel):
@@ -56,6 +70,7 @@ class Tache(TimeStampedModel, OwnedModel):
     annonce = models.ForeignKey(
         "annonces.Annonce", null=True, blank=True, on_delete=models.SET_NULL, related_name="taches_liees",
     )
+    lot = models.ForeignKey(LotTaches, null=True, blank=True, on_delete=models.SET_NULL, related_name="taches")
 
     class Meta:
         ordering = (models.F("echeance").asc(nulls_last=True), "pk")
@@ -75,6 +90,41 @@ class Tache(TimeStampedModel, OwnedModel):
     @property
     def ouverte(self):
         return self.statut in self.STATUTS_OUVERTS
+
+    @property
+    def avancement_checklist(self):
+        """(éléments faits, total) ; s'appuie sur le prefetch `elements_checklist` quand il existe."""
+        elements = self.elements_checklist.all()
+        return sum(e.fait for e in elements), len(elements)
+
+
+class ElementChecklistTache(TimeStampedModel):
+    tache = models.ForeignKey(Tache, on_delete=models.CASCADE, related_name="elements_checklist")
+    texte = models.CharField(max_length=200, verbose_name="Élément")
+    fait = models.BooleanField(default=False)
+    ordre = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("ordre", "pk")
+        verbose_name = "Élément de checklist"
+        verbose_name_plural = "Éléments de checklist"
+
+    def __str__(self):
+        return self.texte
+
+
+class PieceJointeTache(TimeStampedModel, OwnedModel):
+    tache = models.ForeignKey(Tache, on_delete=models.CASCADE, related_name="pieces_jointes")
+    fichier = models.FileField(upload_to="taches_pieces_jointes/", validators=[valider_document])
+    nom = models.CharField(max_length=255)
+
+    class Meta:
+        ordering = ("created_at", "pk")
+        verbose_name = "Pièce jointe de tâche"
+        verbose_name_plural = "Pièces jointes de tâche"
+
+    def __str__(self):
+        return self.nom
 
 
 class ParametresTaches(TimeStampedModel):
