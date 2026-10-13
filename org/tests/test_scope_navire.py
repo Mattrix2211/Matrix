@@ -55,16 +55,16 @@ class ScopeNavireTests(TestCase):
         self.assertIn("Service A", noms)
         self.assertNotIn("Service B", noms)
 
-    def test_chef_section_ne_peut_pas_creer_un_service_sur_un_autre_navire(self):
-        self.client.login(username="chef_a", password="pass")
+    def test_admin_navire_ne_peut_pas_creer_un_service_sur_un_autre_navire(self):
+        self.client.login(username="admin_a", password="pass")
         resp = self.client.post(
             "/api/org/services/", {"ship": self.navire_b.id, "name": "Intrus"}, format="json"
         )
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(Service.objects.filter(name="Intrus").exists())
 
-    def test_chef_section_ne_peut_pas_creer_un_secteur_sur_un_autre_navire(self):
-        self.client.login(username="chef_a", password="pass")
+    def test_admin_navire_ne_peut_pas_creer_un_secteur_sur_un_autre_navire(self):
+        self.client.login(username="admin_a", password="pass")
         resp = self.client.post(
             "/api/org/sectors/", {"service": self.service_b.id, "name": "Intrus"}, format="json"
         )
@@ -136,11 +136,12 @@ class ScopeNavireTests(TestCase):
         self.assertEqual(resp.status_code, 204)
         self.assertFalse(Ship.objects.filter(pk=self.navire_b.id).exists())
 
-    def test_chef_section_peut_toujours_supprimer_un_service_de_son_propre_navire(self):
-        """Régression : la restriction ajoutée sur destroy() ne doit pas revenir
-        sur la capacité déjà existante d'un CHEF_SECTION à gérer (créer/modifier/
-        supprimer) l'organisation de SON PROPRE navire."""
+    def test_seule_l_administration_supprime_un_service_de_son_propre_navire(self):
         self.client.login(username="chef_a", password="pass")
+        resp = self.client.delete(f"/api/org/services/{self.service_a.id}/")
+        self.assertEqual(resp.status_code, 403)
+        self.assertTrue(Service.objects.filter(pk=self.service_a.id).exists())
+        self.client.login(username="admin_a", password="pass")
         resp = self.client.delete(f"/api/org/services/{self.service_a.id}/")
         self.assertEqual(resp.status_code, 204)
         self.assertFalse(Service.objects.filter(pk=self.service_a.id).exists())

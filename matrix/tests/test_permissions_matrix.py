@@ -564,9 +564,9 @@ class PlanNaviePositionMatriceTests(MatricePermissionsTestCase):
 class TrainingCourseMatriceTests(MatricePermissionsTestCase):
     """Formation (catalogue général, non gérée par un bord) : lecture (liste
     et détail) ouverte à tout rôle (catalogue global, RolePermission laisse
-    passer les méthodes sûres sans condition), création/modification soumises
-    au seuil générique d'écriture CHEF_SECTION+ (RolePermission par défaut,
-    training/views.py::TrainingCourseViewSet). L'action métier sensible de ce
+    passer les méthodes sûres sans condition), création/modification réservées
+    à l'administration de l'unité (ADMIN_NAVIRE+, comme la création web :
+    le catalogue est commun à toute la flotte). L'action métier sensible de ce
     domaine — la validation d'une formation pour un marin (TrainingRecord) —
     n'est pas régie par ce seuil générique mais par le contrôle par référent
     (peut_valider_formation), déjà testé sur les 8 rôles dans
@@ -600,7 +600,7 @@ class TrainingCourseMatriceTests(MatricePermissionsTestCase):
                 return False
             self.assertEqual(r.status_code, 201)
             return TrainingCourse.objects.filter(title=f"Formation créée par {role.name}").exists()
-        self.assert_seuil(RoleLevel.CHEF_SECTION, executer, api=True)
+        self.assert_seuil(RoleLevel.ADMIN_NAVIRE, executer, api=True)
 
     def test_modification_formation_generique(self):
         def executer(client, role):
@@ -610,7 +610,7 @@ class TrainingCourseMatriceTests(MatricePermissionsTestCase):
                 format="json",
             )
             return r.status_code != 403
-        self.assert_seuil(RoleLevel.CHEF_SECTION, executer, api=True)
+        self.assert_seuil(RoleLevel.ADMIN_NAVIRE, executer, api=True)
 
 
 class PersonalEventMatriceTests(MatricePermissionsTestCase):
