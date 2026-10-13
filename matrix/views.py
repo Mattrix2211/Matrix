@@ -21,8 +21,8 @@ from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
 from annonces.models import ParametresAnnonces
 from taches.models import ParametresTaches
-from dashboard.passation import generer_passation_manuelle, peut_generer_passation, syntheses_visibles
-from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation
+from dashboard.passation import generer_passation_manuelle, passation_activee, peut_generer_passation, syntheses_visibles
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, ParametresPassation
 from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
@@ -93,6 +93,7 @@ def _lignes_equipage(navire, utilisateur):
         'releve': releve,
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
         'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
+        'passation_activee': passation_activee(),
         'syntheses_passation': list(syntheses_visibles(utilisateur).filter(ship=navire)[:5]),
         'passation_generable': peut_generer_passation(utilisateur, navire) and navire.double_equipage,
     }
@@ -467,6 +468,7 @@ class SettingsView(LoginRequiredMixin, View):
                 'seuils_lignes_globales': _lignes_seuils(None, PORTEE_GLOBALE),
                 'parametres_taches': ParametresTaches.courants(),
                 'parametres_annonces': ParametresAnnonces.courants(),
+                'parametres_passation': ParametresPassation.courants(),
                 'peut_editer_global': True,
                 'roles_pour_seuils': ROLES_POUR_SEUILS,
             })
@@ -840,6 +842,20 @@ class SettingsView(LoginRequiredMixin, View):
                         details=f"jours_rappel_accuse: {avant} -> {jours}",
                     )
                     messages.success(request, "Réglages des annonces enregistrés.")
+        elif action == 'update_parametres_passation':
+            next_tab = 'seuils_role'
+            if not is_master_admin(request.user):
+                messages.error(request, "Seuls les administrateurs généraux peuvent modifier ce réglage de la flotte.")
+            else:
+                parametres = ParametresPassation.objects.first() or ParametresPassation()
+                avant = parametres.active
+                parametres.active = request.POST.get('active') == 'on'
+                parametres.save()
+                AuditLog.objects.create(
+                    actor=request.user, action='update_parametres_passation',
+                    details=f"active: {avant} -> {parametres.active}",
+                )
+                messages.success(request, "Réglage de la synthèse de passation enregistré.")
         elif action == 'toggle_module':
             # Onglet Modules : bascule activé/désactivé d'un module applicatif
             # pour un navire. Accessible à un rôle habilité par le seuil

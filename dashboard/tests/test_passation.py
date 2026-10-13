@@ -18,7 +18,7 @@ from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from matrix.core.equipage import decider_releve, proposer_releve, valider_releve_secours
 from notifications.liens import lien_objet
 from notifications.models import Notification
-from org.models import ReleveEquipage, Sector, Service, Ship, SynthesePassation
+from org.models import ParametresPassation, ReleveEquipage, Sector, Service, Ship, SynthesePassation
 from quarts.models import CreneauServiceGarde, ServiceGarde
 from taches.models import Tache
 from training.models import TrainingCourse, TrainingRecord
@@ -39,7 +39,10 @@ def bloc(synthese, cle):
 
 
 class PassationBase(TestCase):
+    activee = True
+
     def setUp(self):
+        ParametresPassation.objects.create(active=self.activee)
         self.navire = Ship.objects.create(name="Bretagne", code="BRE", double_equipage=True, equipage_a_bord="A")
         self.service = Service.objects.create(ship=self.navire, name="Énergie")
         self.secteur = Sector.objects.create(service=self.service, name="Tableaux")
@@ -241,3 +244,44 @@ class EchecGenerationTests(PassationBase):
         with mock.patch("dashboard.passation.contenu_passation", side_effect=RuntimeError), self.assertLogs("matrix.core.equipage", "ERROR"):
             self.assertEqual(valider_releve_secours(admin, proposition, "Aucun commandant"), "")
         self.verifier_releve_intacte(proposition)
+
+
+class DesactiveeTests(PassationBase):
+    activee = False
+
+    def test_releve_sans_synthese_ni_notification_ni_trace(self):
+        self.relever()
+        self.assertEqual(self.navire.equipage_a_bord, "B")
+        self.assertEqual(SynthesePassation.objects.count(), 0)
+        self.assertEqual(Notification.objects.filter(user__in=(self.cdt_b, self.chef_b), verb__contains="passation").count(), 0)
+        self.assertFalse(AuditLog.objects.filter(action__startswith="passation").exists())
+
+    def test_active_par_defaut_sans_reglage_enregistre(self):
+        ParametresPassation.objects.all().delete()
+        self.assertTrue(ParametresPassation.courants().active)
+        self.relever()
+        self.assertEqual(SynthesePassation.objects.count(), 1)
+
+    def test_bouton_manuel_refuse_et_pages_fermees(self):
+        self.relever()
+        self.client.force_login(self.cdt_a)
+        self.client.post("/parametre/", {"action": "generer_passation", "next_tab": "equipage"})
+        self.assertEqual(SynthesePassation.objects.count(), 0)
+        self.assertNotContains(self.client.get("/parametre/?tab=equipage"), "Générer la synthèse de passation")
+        synthese = SynthesePassation.objects.create(ship=self.navire, equipage_sortant="A", equipage_montant="B")
+        self.assertEqual(self.client.get(reverse("passation", args=[synthese.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("passation-pdf", args=[synthese.pk])).status_code, 404)
+        ParametresPassation.objects.update(active=True)
+        self.assertEqual(self.client.get(reverse("passation", args=[synthese.pk])).status_code, 200)
+
+    def test_activation_reservee_a_l_administrateur_general_et_tracee(self):
+        self.client.force_login(self.cdt_a)
+        self.client.post("/parametre/", {"action": "update_parametres_passation", "active": "on", "next_tab": "seuils_role"})
+        self.assertFalse(ParametresPassation.courants().active)
+        admin = User.objects.create_superuser("admin_p", password="pass")
+        self.client.force_login(admin)
+        self.client.post("/parametre/", {"action": "update_parametres_passation", "active": "on", "next_tab": "seuils_role"})
+        self.assertTrue(ParametresPassation.courants().active)
+        self.client.post("/parametre/", {"action": "update_parametres_passation", "next_tab": "seuils_role"})
+        self.assertFalse(ParametresPassation.courants().active)
+        self.assertTrue(AuditLog.objects.filter(action="update_parametres_passation").exists())

@@ -591,6 +591,22 @@
       </div>
     </div>
   </div>
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Synthèse de passation à la relève (toute la flotte)</div>
+      <div class="card-body">
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_parametres_passation" />
+          <input type="hidden" name="next_tab" value="seuils_role" />
+          <div class="col-12">
+            <div class="form-check"><input class="form-check-input" type="checkbox" id="id_passation_active" name="active" {% if parametres_passation.active %}checked{% endif %} /><label class="form-check-label" for="id_passation_active">Activer la synthèse de passation</label></div>
+            <div class="form-text">Activée par défaut. Désactivée, la relève ne génère aucune synthèse et les pages de passation sont fermées (les synthèses existantes sont conservées).</div></div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit">Enregistrer</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
   {% endif %}
   <div class="col-12">
     <p class="text-muted">Chaque modification est historisée (auteur, date, ancienne et nouvelle valeur){% if user.is_superuser %} — consultable dans l'onglet Journal{% endif %}.</p>
@@ -745,6 +761,7 @@
         {% else %}
         <p class="text-muted mb-0">La relève est proposée et validée par les commandants des deux équipages.</p>
         {% endif %}
+        {% if passation_activee %}
         <h3 class="h6 mt-3">Synthèses de passation</h3>
         {% for s in syntheses_passation %}
         <p class="mb-1"><a href="{% url 'passation' s.pk %}">Équipage {{ s.equipage_sortant|default:"?" }} → {{ s.equipage_montant }}</a> · générée le {{ s.created_at|date:"d/m/Y H:i" }}</p>
@@ -759,6 +776,7 @@
           <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
           <button class="btn btn-outline-primary btn-sm" type="submit">Générer la synthèse de passation</button>
         </form>
+        {% endif %}
         {% endif %}
       </div>
     </div>

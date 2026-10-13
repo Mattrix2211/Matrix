@@ -26,7 +26,7 @@ from maintenance.models import MaintenanceOccurrence
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import is_master_admin, navire_q
 from notifications.models import Notification
-from org.models import ReleveEquipage, SynthesePassation
+from org.models import ParametresPassation, ReleveEquipage, SynthesePassation
 from quarts.models import Quart, ServiceGarde
 from reports.services import html_vers_pdf, pdf_disponible
 from taches.models import Tache
@@ -34,6 +34,11 @@ from taches.services import peut_attribuer
 
 JOURS_A_VENIR = 14
 LIGNES_PAR_GROUPE = 30
+
+
+def passation_activee():
+    """Activée par défaut ; l'administrateur général peut la désactiver pour la flotte."""
+    return ParametresPassation.courants().active
 
 
 def peut_generer_passation(user, navire):
@@ -248,7 +253,7 @@ def generer_passation(auteur, navire, releve, equipage_sortant):
 
     Idempotent : une relève a au plus une synthèse. Sans effet (None) sur un bâtiment à équipage unique.
     """
-    if not navire.double_equipage or not navire.equipage_a_bord:
+    if not passation_activee() or not navire.double_equipage or not navire.equipage_a_bord:
         return None, False
     existante = SynthesePassation.objects.filter(releve=releve).first() if releve else None
     if existante:
@@ -276,6 +281,8 @@ def generer_passation(auteur, navire, releve, equipage_sortant):
 
 def generer_passation_manuelle(auteur, navire):
     """Bouton du commandement : synthèse de la relève en cours si elle n'existe pas encore ; renvoie (synthèse, erreur)."""
+    if not passation_activee():
+        return None, "La synthèse de passation est désactivée (Réglages, onglet Seuils par rôle)."
     if not peut_generer_passation(auteur, navire):
         return None, "Seul le commandement de l'unité peut générer la synthèse de passation."
     if not navire.double_equipage or not navire.equipage_a_bord:
@@ -297,6 +304,8 @@ class PassationView(LoginRequiredMixin, DetailView):
     context_object_name = "synthese"
 
     def get_queryset(self):
+        if not passation_activee():
+            raise Http404("La synthèse de passation est désactivée.")
         return syntheses_visibles(self.request.user).select_related("ship", "auteur")
 
     def get_context_data(self, **kwargs):

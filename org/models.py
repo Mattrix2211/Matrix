@@ -259,3 +259,19 @@ class SynthesePassation(TimeStampedModel):
 
     def __str__(self):
         return f"Passation {self.equipage_sortant or '?'} → {self.equipage_montant} sur {self.ship} ({self.created_at:%d/%m/%Y})"
+
+
+class ParametresPassation(TimeStampedModel):
+    """Réglage de la synthèse de passation, commun à la flotte (un seul enregistrement, modifié dans les Réglages)."""
+    active = models.BooleanField(default=True, verbose_name="Synthèse de passation à la relève")
+
+    class Meta:
+        verbose_name = "Réglage de la synthèse de passation"
+        verbose_name_plural = "Réglage de la synthèse de passation"
+
+    def __str__(self):
+        return "Réglage de la synthèse de passation"
+
+    @classmethod
+    def courants(cls):
+        return cls.objects.first() or cls()
