@@ -27,7 +27,6 @@ from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none, sans_nul
-from matrix.core.scopes import scope_filters_for_user
 from threads.utils import ajouter_commentaire, contexte_discussion
 
 from .compte_rendu import (
@@ -156,8 +155,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
         deja_termine = cr is not None
         peut_corriger = user_role_level(user) >= niveau_requis_pour(user, "maintenance_compte_rendu_correction")
         if peut_prelever:
-            filtres = scope_filters_for_user(user)
-            pieces = (StockPiece.objects.filter(**filtres) if filtres else StockPiece.objects.all()).filter(quantite__gt=0).order_by("reference")
+            pieces = StockPiece.objects.filter(build_scope_q(user, ""), quantite__gt=0).order_by("reference")
         else:
             pieces = []
         anomalie = f"{reverse('anomalie-create')}?{'installation' if installation else 'asset'}={equipement.pk}"
@@ -246,8 +244,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
 
         pieces = []
         if not erreurs and demandes:
-            filtres = scope_filters_for_user(user)
-            disponibles = StockPiece.objects.filter(**filtres) if filtres else StockPiece.objects.all()
+            disponibles = StockPiece.objects.filter(build_scope_q(user, ""))
             par_id = {p.pk: p for p in disponibles.filter(pk__in=[d[0] for d in demandes])}
             demande_par_piece = {}
             for pk, quantite in demandes:

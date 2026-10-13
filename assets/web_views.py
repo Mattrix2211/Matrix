@@ -27,10 +27,11 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 
 from accounts.models import AuditLog
+from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none
-from matrix.core.scopes import is_master_admin, scope_filters_for_user
+from matrix.core.scopes import is_master_admin
 from org.models import Section, Sector, Service, Ship
 
 from .models import Asset, AssetFolder, Location
@@ -124,7 +125,12 @@ def _org_dans_perimetre(user, model, cible_id):
     profil = getattr(user, 'profile', None)
     niveau, valeur = profil.scope if profil else (None, None)
     if niveau is None:
-        return model.objects.filter(pk=cible_id).exists()
+        # Sans rattachement : flotte entière pour l'administrateur général, bâtiments suivis pour un utilisateur à terre.
+        if is_master_admin(user):
+            return model.objects.filter(pk=cible_id).exists()
+        from matrix.core.contexte_batiment import referentiel_organisation
+        cle = {Ship: 'ships', Service: 'services', Sector: 'sectors', Section: 'sections'}[model]
+        return referentiel_organisation(user)[cle].filter(pk=cible_id).exists()
     # Pour chaque modèle cible, chemin permettant de vérifier que la cible
     # contient (ou est) le périmètre de l'appelant, quel que soit le niveau
     # relatif : ancêtre (ex: Ship pour un appelant scopé "service"), lui-même,
@@ -166,8 +172,11 @@ def _emplacements_visibles(user):
     emplacements = Location.objects.select_related('ship').order_by('ship__name', 'name')
     profil = getattr(user, 'profile', None)
     niveau, valeur = profil.scope if profil else (None, None)
-    if is_master_admin(user) or niveau is None:
+    if is_master_admin(user):
         return emplacements
+    if niveau is None:
+        from matrix.core.contexte_batiment import batiments_du_perimetre
+        return emplacements.filter(ship__in=batiments_du_perimetre(user))
     champ = {
         'ship': 'id', 'service': 'services__id',
         'sector': 'services__sectors__id', 'section': 'services__sectors__sections__id',
@@ -197,10 +206,9 @@ def _dossiers_et_descendants(dossier):
 
 def _materiel_hors_perimetre(user, dossier):
     """Vrai si l'arborescence du dossier contient un matériel hors du périmètre de l'utilisateur."""
-    filtres = scope_filters_for_user(user)
-    if is_master_admin(user) or not filtres:
+    if is_master_admin(user):
         return False
-    return Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exclude(**filtres).exists()
+    return Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exclude(build_scope_q(user, '')).exists()
 
 
 def _dossier_gerable(user, dossier):

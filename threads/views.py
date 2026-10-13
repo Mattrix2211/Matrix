@@ -16,37 +16,14 @@ class DefaultPermission(permissions.IsAuthenticated):
 
 
 def _filtre_perimetre_threads(user, prefix=""):
-    """Thread est générique (GenericForeignKey vers n'importe quel modèle,
-    cf. threads/utils.py, threads/models.py) : il ne porte lui-même aucun
-    champ de périmètre, ni de relation classique exploitable par
-    build_scope_q. Avant cette correction, ThreadViewSet/MessageViewSet/
-    AttachmentViewSet ne filtraient DU TOUT par périmètre : n'importe quel
-    utilisateur authentifié pouvait lire, via l'API brute, les fils de
-    discussion (et pièces jointes) de tickets correctifs ou d'occurrences de
-    maintenance d'un AUTRE navire — alors que les pages web équivalentes
-    (logistics/web_views.py, maintenance/web_views.py) ne les affichent
-    qu'après avoir déjà vérifié le périmètre sur l'objet parent
-    (threads/utils.py, docstring de module) — faille corrigée ici (audit
-    sécurité scoping API, tâche Notion « Audit complet du scoping par
-    périmètre »).
+    """Filtre Q des fils visibles. Thread est générique (GenericForeignKey) : on résout le
+    périmètre sur les types réellement discutés (tickets, occurrences) ; tout autre type
+    reste masqué. `prefix` : « thread__ » pour Message, « message__thread__ » pour Attachment.
 
-    On résout donc le périmètre en amont, pour chaque type d'objet
-    EFFECTIVEMENT rattaché à un fil de discussion dans l'appli (ticket
-    correctif, occurrence de maintenance) : un utilisateur scopé ne voit que
-    les fils portant sur un objet de son périmètre. Un fil rattaché à un
-    autre type de contenu (cas générique prévu par l'app mais non encore
-    utilisé en pratique en dehors des tests, cf. threads/tests/
-    test_permissions.py) reste invisible à un utilisateur scopé plutôt que
-    montré sans contrôle : mieux vaut masquer que fuiter.
-
-    `prefix` permet d'appliquer ce filtre à Message ("thread__") et
-    Attachment ("message__thread__"), qui ne portent pas eux-mêmes le
-    content_type/object_id mais y accèdent via leur fil.
-
-    Sans périmètre défini : None (aucun filtre) pour un MASTER_ADMIN, aucun
-    résultat pour les autres."""
-    if not scope_filters_for_user(user):
-        return None if is_master_admin(user) else Q(pk__in=[])
+    Sans rattachement : None (aucun filtre) pour un MASTER_ADMIN ; un utilisateur à terre
+    garde les fils des bâtiments qu'il suit (build_scope_q), les autres rien."""
+    if not scope_filters_for_user(user) and is_master_admin(user):
+        return None
     # Import différé : évite tout risque de cycle d'import au chargement du
     # module (logistics/maintenance n'importent jamais threads.views).
     from logistics.models import CorrectiveTicket

@@ -110,3 +110,132 @@ class FuitesSansRattachementTests(TestCase):
         for url in ("/assets/", "/installations/", "/logistics/stock/", "/logistics/anomalies/?vue=perimetre"):
             with self.subTest(url=url):
                 self.assertIn(MARQUEUR, self._contenu(url))
+
+
+class PerimetreATerreTests(TestCase):
+    """Un utilisateur à terre (responsable de classe, sans navire) lit les bâtiments qu'il suit, jamais les autres."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.contenttypes.models import ContentType
+        from org.models import ResponsableClasseNavire
+        from threads.models import Thread
+
+        def navire(code, classe):
+            n = Ship.objects.create(name=f"Bât {code}", code=code, classe_navire=classe)
+            s = Service.objects.create(ship=n, name=f"Serv {code}")
+            sec = Sector.objects.create(service=s, name=f"Sect {code}")
+            t = AssetType.objects.create(name=f"Type {code}", category="MCO", sector=sec)
+            a = Asset.objects.create(asset_type=t, internal_id=f"A-{code}", designation=f"Mat {code}", ship=n, service=s, sector=sec)
+            tk = CorrectiveTicket.objects.create(asset=a, description=f"Ticket {code}")
+            fil = Thread.objects.create(content_type=ContentType.objects.get_for_model(CorrectiveTicket), object_id=str(tk.pk))
+            piece = StockPiece.objects.create(reference=f"P-{code}", designation=f"Pièce {code}", quantite=3, ship=n, service=s, sector=sec)
+            return n, a, tk, fil, piece, t
+
+        cls.suivi = navire("SUI", "FREMM")
+        cls.autre = navire("AUT", "FLO")
+        cls.terre = User.objects.create_user(username="terre_classe", password="pass")
+        cls.terre.profile.role = "CHEF_SECTION"
+        cls.terre.profile.save()
+        ResponsableClasseNavire.objects.create(classe_navire="FREMM", user=cls.terre)
+
+    def _ids(self, url):
+        self.client.force_login(self.terre)
+        donnees = self.client.get(url).json()
+        return {str(e["id"]) for e in (donnees["results"] if isinstance(donnees, dict) else donnees)}
+
+    def test_api_materiel_borne_aux_batiments_suivis(self):
+        ids = self._ids("/api/assets/assets/")
+        self.assertIn(str(self.suivi[1].pk), ids)
+        self.assertNotIn(str(self.autre[1].pk), ids)
+
+    def test_api_fils_de_discussion_bornes_aux_batiments_suivis(self):
+        ids = self._ids("/api/threads/threads/")
+        self.assertIn(str(self.suivi[3].pk), ids)
+        self.assertNotIn(str(self.autre[3].pk), ids)
+
+    def test_compte_rendu_correctif_ne_propose_que_le_stock_suivi(self):
+        self.client.force_login(self.terre)
+        contexte = self.client.get(reverse("correctif-compte-rendu", args=[self.suivi[2].pk])).context
+        self.assertEqual({p.pk for p in contexte["pieces"]}, {self.suivi[4].pk})
+
+    def test_creation_de_materiel_refuse_hors_batiments_suivis(self):
+        from assets.web_views import _org_dans_perimetre
+        self.assertTrue(_org_dans_perimetre(self.terre, Ship, self.suivi[0].pk))
+        self.assertFalse(_org_dans_perimetre(self.terre, Ship, self.autre[0].pk))
+        self.assertFalse(_org_dans_perimetre(self._sans_rattachement(), Ship, self.suivi[0].pk))
+
+    def test_emplacements_visibles_bornes_aux_batiments_suivis(self):
+        from assets.models import Location
+        from assets.web_views import _emplacements_visibles
+
+        Location.objects.create(ship=self.suivi[0], name="Local suivi")
+        Location.objects.create(ship=self.autre[0], name="Local autre")
+        self.assertEqual(list(_emplacements_visibles(self.terre).values_list("name", flat=True)), ["Local suivi"])
+        self.assertFalse(_emplacements_visibles(self._sans_rattachement()).exists())
+
+    def test_dossier_de_materiel_d_un_autre_batiment_hors_perimetre(self):
+        from assets.models import AssetFolder
+        from assets.web_views import _materiel_hors_perimetre
+
+        dossier = AssetFolder.objects.create(name="Dossier")
+        Asset.objects.filter(pk=self.autre[1].pk).update(folder=dossier)
+        self.assertTrue(_materiel_hors_perimetre(self.terre, dossier))
+        self.assertTrue(_materiel_hors_perimetre(self._sans_rattachement(), dossier))
+
+    def _sans_rattachement(self):
+        return User.objects.create_user(username="sans_rattachement", password="pass")
+
+    def test_utilisateurs_visibles_d_un_commandement_a_terre_sans_navire(self):
+        from matrix.core.mixins import utilisateurs_visibles_par
+
+        marin = User.objects.create_user(username="marin_suivi", password="pass")
+        marin.profile.ship = self.suivi[0]
+        marin.profile.save()
+        etranger = User.objects.create_user(username="marin_autre", password="pass")
+        etranger.profile.ship = self.autre[0]
+        etranger.profile.save()
+        self.terre.profile.role = "COMMANDANT"
+        self.terre.profile.save()
+        visibles = set(utilisateurs_visibles_par(self.terre).values_list("username", flat=True))
+        self.assertIn("marin_suivi", visibles)
+        self.assertNotIn("marin_autre", visibles)
+
+
+class AssetTypeAutreBatimentTests(TestCase):
+    """Un type de matériel est propre à un secteur : celui d'un autre bâtiment est refusé à la création et à la modification."""
+
+    def setUp(self):
+        def navire(code):
+            n = Ship.objects.create(name=f"Bât {code}", code=code)
+            s = Service.objects.create(ship=n, name=f"Serv {code}")
+            sec = Sector.objects.create(service=s, name=f"Sect {code}")
+            return n, s, sec, AssetType.objects.create(name=f"Type {code}", category="MCO", sector=sec)
+
+        self.mien, self.voisin = navire("MIE"), navire("VOI")
+        self.chef = User.objects.create_user(username="chef_mien", password="pass")
+        profil = self.chef.profile
+        profil.role, profil.ship = "ADMIN_NAVIRE", self.mien[0]
+        profil.save()
+        self.client.force_login(self.chef)
+
+    def _poster(self, action, type_materiel, **extra):
+        donnees = {
+            "action": action, "asset_type_id": type_materiel.pk, "internal_id": "X-1", "designation": "Matériel test",
+            "ship_id": self.mien[0].pk, "service_id": self.mien[1].pk, "sector_id": self.mien[2].pk, "status": "OK", "criticality": 1,
+        }
+        donnees.update(extra)
+        return self.client.post(reverse("asset-list"), donnees)
+
+    def test_creation_avec_type_d_un_autre_batiment_refusee(self):
+        self._poster("create_asset", self.voisin[3])
+        self.assertFalse(Asset.objects.filter(internal_id="X-1").exists())
+        self._poster("create_asset", self.mien[3])
+        self.assertTrue(Asset.objects.filter(internal_id="X-1", asset_type=self.mien[3]).exists())
+
+    def test_modification_avec_type_d_un_autre_batiment_refusee(self):
+        self._poster("create_asset", self.mien[3])
+        asset = Asset.objects.get(internal_id="X-1")
+        self._poster("edit_asset", self.voisin[3], pk=asset.pk)
+        asset.refresh_from_db()
+        self.assertEqual(asset.asset_type, self.mien[3])

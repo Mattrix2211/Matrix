@@ -618,7 +618,8 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 if not type_id:
                     messages.error(request, "Aucun type disponible pour le secteur sélectionné.")
                     return _redirect_liste_materiel(request)
-                at = AssetType.objects.get(pk=type_id)
+                # Les types sont propres à un secteur : celui d'un autre bâtiment est refusé.
+                at = AssetType.objects.get(pk=type_id, sector__service__ship_id=ship_id or 0)
                 asset = Asset(
                     asset_type=at,
                     internal_id=internal_id,
@@ -719,9 +720,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 type_id = request.POST.get('asset_type_id')
                 if type_id:
                     try:
-                        asset.asset_type = AssetType.objects.get(pk=type_id)
+                        asset.asset_type = AssetType.objects.get(pk=type_id, sector__service__ship_id=ship_id or 0)
                     except AssetType.DoesNotExist:
-                        pass
+                        messages.error(request, 'Type de matériel introuvable pour cette unité.')
+                        return _redirect_liste_materiel(request)
                 photo = request.FILES.get('photo')
                 if photo:
                     asset.photo = photo

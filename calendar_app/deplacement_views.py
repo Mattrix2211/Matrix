@@ -11,22 +11,15 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from matrix.core.roles import user_role_level, RoleLevel
-from matrix.core.scopes import is_master_admin, scope_filters_for_user
 from matrix.core.mixins import build_scope_q
 from accounts.models import AuditLog
 from .models import PersonalEvent
 
 
 def _perimetre_ticket(qs, user):
-    """Restreint un queryset de tickets correctifs au périmètre (navire/
-    service/secteur/section) de l'utilisateur, via le matériel mobile (asset)
-    ou l'installation fixe visés, qui portent tous deux les 4 champs de périmètre. Réutilise scope_filters_for_user
-    (aucun nouveau système de périmètre)."""
-    filtres = scope_filters_for_user(user)
-    if not filtres:
-        return qs if is_master_admin(user) else qs.none()
-    (cle, valeur), = filtres.items()
-    return qs.filter(Q(**{f"asset__{cle}": valeur}) | Q(**{f"installation__{cle}": valeur}))
+    """Restreint des tickets correctifs au périmètre de l'utilisateur, via le matériel
+    mobile ou l'installation fixe visés (build_scope_q)."""
+    return qs.filter(build_scope_q(user, "asset__", "installation__"))
 
 
 def _perimetre_session(qs, user):

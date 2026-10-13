@@ -7,7 +7,7 @@ from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
 from .roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
-from .scopes import is_master_admin, perimetre_hierarchique_q, perimetre_navire_q, scope_filters_for_user
+from .scopes import is_master_admin, perimetre_hierarchique_q, perimetre_navire_q, scope_filters_for_user, ship_id_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,8 @@ def utilisateurs_visibles_par(user):
     User = get_user_model()
     if is_master_admin(user):
         return User.objects.all()
-    if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
+    # Un commandement à terre sans navire retombe sur les bâtiments qu'il suit (build_scope_q).
+    if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and ship_id_for_user(user):
         return User.objects.filter(perimetre_navire_q(user, "profile__"))
     # Un chef de service voit aussi les marins de ses secteurs ; le niveau « navire » reste réservé au commandement.
     niveau = user.profile.scope[0] if getattr(user, "profile", None) else None
@@ -132,8 +133,13 @@ class ScopedQuerySetMixin:
             return qs.filter(filters)
 
         if not filters:
-            # Sans périmètre : flotte entière pour un MASTER_ADMIN, rien pour les autres.
-            return qs if is_master_admin(self.request.user) else qs.none()
+            # Sans rattachement : flotte entière pour un MASTER_ADMIN, bâtiments suivis pour un
+            # utilisateur à terre (comme build_scope_q), rien pour les autres.
+            if is_master_admin(self.request.user):
+                return qs
+            if hasattr(qs.model, "ship"):
+                return qs.filter(build_scope_q(self.request.user, ""))
+            return qs.none()
 
         # Ne garder que les filtres correspondant à un champ direct du modèle
         applicable = {k: v for k, v in filters.items() if hasattr(qs.model, k.replace("_id", ""))}
