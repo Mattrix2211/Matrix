@@ -745,6 +745,21 @@
         {% else %}
         <p class="text-muted mb-0">La relève est proposée et validée par les commandants des deux équipages.</p>
         {% endif %}
+        <h3 class="h6 mt-3">Synthèses de passation</h3>
+        {% for s in syntheses_passation %}
+        <p class="mb-1"><a href="{% url 'passation' s.pk %}">Équipage {{ s.equipage_sortant|default:"?" }} → {{ s.equipage_montant }}</a> · générée le {{ s.created_at|date:"d/m/Y H:i" }}</p>
+        {% empty %}
+        <p class="text-muted small mb-1">Aucune synthèse : elle est créée automatiquement à chaque relève validée.</p>
+        {% endfor %}
+        {% if passation_generable %}
+        <form method="post" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="generer_passation" />
+          <input type="hidden" name="next_tab" value="equipage" />
+          <input type="hidden" name="ship_id" value="{{ equipage_ship.id }}" />
+          <button class="btn btn-outline-primary btn-sm" type="submit">Générer la synthèse de passation</button>
+        </form>
+        {% endif %}
       </div>
     </div>
   </div>

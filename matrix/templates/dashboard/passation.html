@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Synthèse de passation — {{ synthese.ship.name }}</h1>
+    <p class="text-muted mb-0">Équipage {{ synthese.equipage_sortant|default:"sortant" }} → équipage {{ synthese.equipage_montant }} à bord · figée le {{ genere_le|date:"d/m/Y à H:i" }}{% if synthese.auteur %} par {{ synthese.auteur.get_full_name|default:synthese.auteur.username }}{% endif %}.</p>
+  </div>
+  <div class="no-print d-flex gap-2">
+    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Imprimer</button>
+    {% if pdf_disponible %}<a class="btn btn-outline-secondary" href="{% url 'passation-pdf' synthese.pk %}">Exporter en PDF</a>{% endif %}
+  </div>
+</div>
+{% include "dashboard/_passation_blocs.html" %}
+{% endblock %}

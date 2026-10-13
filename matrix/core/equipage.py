@@ -7,7 +7,7 @@ from accounts.models import AuditLog, Roles
 from matrix.core.scopes import is_master_admin
 from notifications.models import Notification
 
-ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve", "valider_releve_secours")
+ACTIONS_RELEVE = ("proposer_releve", "decider_releve", "annuler_releve", "valider_releve_secours", "generer_passation")
 # Le commandant en second supplée le commandant de son équipage.
 ROLES_COMMANDEMENT = (Roles.COMMANDANT, Roles.COMMANDANT_EN_SECOND)
 MESSAGE_EQUIPAGE_OBLIGATOIRE = "L'équipage est obligatoire sur un bâtiment à double équipage."
@@ -205,6 +205,10 @@ def _appliquer_decision(auteur, proposition, accepter, action_validation, comple
         proposition.statut = proposition.Statut.REFUSEE
         AuditLog.objects.create(actor=auteur, action="releve_refusee", details=details)
     proposition.save()
+    if accepter:
+        from dashboard.passation import generer_passation
+
+        generer_passation(auteur, navire, proposition, avant[1])
     if notifier_proposant and proposition.propose_par:
         Notification.objects.create(
             user=proposition.propose_par,

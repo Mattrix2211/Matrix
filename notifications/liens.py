@@ -222,7 +222,16 @@ def _demandes(request, ids):
                      lambda o: reverse("demande-detail", args=[o]))
 
 
+def _passations(request, ids):
+    # Même périmètre que la page de la synthèse
+    from dashboard.passation import syntheses_visibles
+
+    return _visibles(ids, syntheses_visibles(request.user).filter(pk__in=_entiers(ids.values())),
+                     lambda o: reverse("passation", args=[o]))
+
+
 _RESOLVEURS = {
+    "synthesepassation": _passations,
     "demande": _demandes,
     "annonce": _annonces,
     "retex": _retex,

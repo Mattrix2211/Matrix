@@ -68,6 +68,13 @@ def pdf_disponible() -> bool:
     return weasyprint is not None
 
 
+def html_vers_pdf(html: str) -> bytes | None:
+    """PDF d'un document HTML autonome, ou None sans WeasyPrint (l'appelant se rabat sur la page web)."""
+    if not pdf_disponible():
+        return None
+    return weasyprint.HTML(string=html, base_url=_BASE_URL_STATIQUE).write_pdf()
+
+
 def _dernier_par_installation(queryset, champ_installation="installation_id"):
     """Retourne {installation_id: dernier enregistrement} à partir d'un queryset
     déjà trié du plus récent au plus ancien (ordering par défaut des modèles de

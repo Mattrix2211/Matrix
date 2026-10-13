@@ -27,6 +27,7 @@ from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import is_master_admin, ship_id_for_user
+from dashboard.passation import generer_passation_manuelle, peut_generer_passation, syntheses_visibles
 from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
@@ -92,6 +93,8 @@ def _lignes_equipage(navire, utilisateur):
         'releve': releve,
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
         'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
+        'syntheses_passation': list(syntheses_visibles(utilisateur).filter(ship=navire)[:5]),
+        'passation_generable': peut_generer_passation(utilisateur, navire) and navire.double_equipage,
     }
 
 
@@ -891,6 +894,11 @@ class SettingsView(LoginRequiredMixin, View):
                 else:
                     proposition, erreur = proposer_releve(request.user, navire, nouvel)
                 succes = "Relève proposée : l'autre commandant doit la valider."
+            elif action == 'generer_passation':
+                synthese, erreur = generer_passation_manuelle(request.user, navire)
+                succes = "Synthèse de passation disponible." if synthese else ""
+                if synthese:
+                    return redirect('passation', pk=synthese.pk)
             elif proposition is None:
                 erreur, succes = "Aucune relève en attente.", ""
             elif action == 'annuler_releve':
