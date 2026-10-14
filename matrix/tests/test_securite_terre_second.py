@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connection
+from django.db.models import Q
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -42,13 +43,13 @@ class Base(TestCase):
         cls.tache_ouverte = Tache.objects.get(titre__startswith="Contrôler le graissage")
         cls.tache_bloquee = Tache.objects.get(statut="BLOQUEE")
         cls.demande = Demande.objects.get()
-        cls.ticket = CorrectiveTicket.objects.filter(status="REPORTED").first()
-        cls.anomalie = Anomalie.objects.filter(statut="SIGNALEE").first()
-        cls.piece = StockPiece.objects.order_by("pk").first()
-        cls.materiel = Asset.objects.order_by("pk").first()
+        cls.ticket = CorrectiveTicket.objects.filter(Q(asset__ship=cls.bre) | Q(installation__ship=cls.bre), status="REPORTED").order_by("description").first()
+        cls.anomalie = Anomalie.objects.filter(statut="SIGNALEE").order_by("pk").first()
+        cls.piece = StockPiece.objects.filter(ship=cls.bre).order_by("pk").first()
+        cls.materiel = Asset.objects.filter(ship=cls.bre).order_by("internal_id").first()
         cls.installation = Installation.objects.get(designation="Pompe de graissage")
-        cls.occurrence = MaintenanceOccurrence.objects.filter(status="PLANNED").first()
-        cls.type_absence = TypeAbsence.objects.first()
+        cls.occurrence = MaintenanceOccurrence.objects.filter(status="PLANNED").order_by("pk").first()
+        cls.type_absence = TypeAbsence.objects.order_by("pk").first()
 
     def client_de(self, compte):
         client = Client()
@@ -540,7 +541,7 @@ class CircuitsCatalogueFlotteTests(Base):
         self.assertEqual(article.status_code, 201)
 
     def test_pas_de_redaction_de_fiche_d_installation_du_bord(self):
-        fiche = InstallationMaintenance.objects.filter(niveau="BORD").first()
+        fiche = InstallationMaintenance.objects.filter(niveau="BORD", installation__ship=self.bre).order_by("installation__designation", "created_at").first()
         urls = [(f"/installations/{self.installation.pk}/fiches/nouvelle/", self.donnees_fiche())]
         if fiche:
             urls += [(f"/fiches/{fiche.pk}/modifier/", self.donnees_fiche()), (f"/fiches/{fiche.pk}/dupliquer/", {"installation": str(self.installation.pk)})]
