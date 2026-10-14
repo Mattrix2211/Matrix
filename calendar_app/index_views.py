@@ -22,34 +22,18 @@ from .evenements_sources import (
     _appliquer_filtres_tickets,
     _creneaux_garde_assignes,
     _creneaux_quart_assignes,
+    occurrences_visibles,
     sessions_visibles,
+    tickets_visibles,
     _evenements_personnels,
 )
 from .models import PersonalEvent
 
 
 class CalendarView(LoginRequiredMixin, TemplateView):
-    """Calendrier central unique (colonne vertébrale, CLAUDE.md) : PAS de
-    restriction automatique de périmètre à l'affichage, quel que soit le
-    rôle — tout le monde voit tout par défaut ("vue globale"), et bascule en
-    "vue personnelle" en choisissant son propre nom dans le filtre
-    "Utilisateur" (ou en consultant "Ma journée"/le tableau de bord). C'est
-    volontaire : un CHEF_SERVICE planifiant une session de formation doit
-    voir TOUTES les sessions déjà programmées sur le calendrier (disponibilité
-    des salles/formateurs), pas seulement celles où il est lui-même affecté.
-
-    Sur les autres types d'événements (maintenance, tickets), les menus
-    déroulants navire/service/secteur restent en plus disponibles pour
-    affiner la vue globale par périmètre organisationnel — mais n'ont plus
-    d'effet sur les sessions de formation depuis qu'une formation
-    (TrainingCourse) est une fiche globale partagée par tous les navires
-    (portabilité des qualifications) : une session de formation ne se
-    rattache plus à un périmètre organisationnel précis, seule l'affectation
-    personnelle du marin (attendees/reservations/instructor, cf.
-    _perimetre_session ci-dessus) a un sens pour elle. La vue globale reste
-    donc utile pour la formation comme pour les autres types d'événements —
-    seul son critère de filtrage change (affectation personnelle plutôt que
-    périmètre organisationnel)."""
+    """Calendrier central unique (colonne vertébrale, CLAUDE.md). Maintenance et tickets sont bornés
+    au périmètre du marin (ou à ses assignations) ; les sessions de formation suivent l'affectation
+    personnelle (cf. sessions_visibles). Les menus navire/service/secteur affinent ce périmètre."""
 
     template_name = "calendar/index.html"
 
@@ -122,7 +106,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         ).filter(
             assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
         )
-        occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
+        occ_qs = _appliquer_filtres_occurrences(occurrences_visibles(request.user, occ_qs), filters)
         for occ in occ_qs:
             events.append({
                 "type": "maintenance",
@@ -136,7 +120,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         # Tickets (logistique) planifiés: on affiche tous, ou ceux avec statut PLANNED/IN_REPAIR/TESTING si on avait des dates; ici, on ne dispose pas d’échéance => montrer ouverts
         ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])  # proxy
         ticket_qs = ticket_qs.filter(assignes_equipage_q(request.user, CorrectiveTicket, "assignees"))
-        ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
+        ticket_qs = _appliquer_filtres_tickets(tickets_visibles(request.user, ticket_qs), filters)
         for t in ticket_qs:
             events.append({
                 "type": "ticket",

@@ -84,10 +84,8 @@ class PeutAgirMaintenanceTests(TestCase):
         occ_event = _evenement(evenements, "maintenance")
         self.assertTrue(occ_event["extendedProps"]["peut_agir"])
 
-    def test_peut_agir_faux_si_chef_section_hors_perimetre(self):
-        """Un CHEF_SECTION d'un autre secteur, non assigné, ne doit pas
-        pouvoir agir : le périmètre prime sur le seul niveau de rôle, comme
-        pour OccurrenceExecuteView."""
+    def test_occurrence_absente_pour_chef_section_hors_perimetre(self):
+        """Un CHEF_SECTION d'un autre bâtiment, non assigné, ne voit même pas l'occurrence."""
         autre_secteur = Sector.objects.create(
             service=Service.objects.create(ship=Ship.objects.create(name="Navire B", code="NAV-PB"), name="Service B"),
             name="Secteur B",
@@ -96,8 +94,7 @@ class PeutAgirMaintenanceTests(TestCase):
         UserProfile.objects.filter(user=chef_ailleurs).update(role="CHEF_SECTION", sector=autre_secteur)
         self.client.login(username="chef_ailleurs", password="pass")
         evenements = self.client.get(self.url).json()
-        occ_event = _evenement(evenements, "maintenance")
-        self.assertFalse(occ_event["extendedProps"]["peut_agir"])
+        self.assertEqual([e for e in evenements if e["extendedProps"]["type"] == "maintenance"], [])
 
 
 class PeutAgirTicketTests(TestCase):
