@@ -82,7 +82,7 @@ class ApiSessionsEtFormationsChampsTests(TestCase):
         self.navire = Ship.objects.create(name="Navire A trs", code="A-TRS")
         self.autre_navire = Ship.objects.create(name="Navire B trs", code="B-TRS")
         self.cours = TrainingCourse.objects.create(title="Cours trs", validity_days=365)
-        self.chef = self._marin("chef_trs", "CHEF_SECTION", self.navire)
+        self.chef = self._marin("chef_trs", "ADMIN_NAVIRE", self.navire)
         self.equipier = self._marin("equipier_trs", "EQUIPIER", self.navire)
         self.etranger = self._marin("etranger_trs", "EQUIPIER", self.autre_navire)
         self.client = APIClient()

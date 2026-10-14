@@ -126,7 +126,10 @@ from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.saisie import entier_ou_none
-from matrix.core.scopes import equipage_agissant, is_master_admin, scope_filters_for_user, ship_id_for_user
+from matrix.core.scopes import (
+    agit_sur_navire, equipage_agissant, is_master_admin, navire_id_du_perimetre, scope_filters_for_user,
+    ship_id_for_user,
+)
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Section, Service, Ship
 
@@ -237,15 +240,23 @@ def perimetre_de_mon_equipage(user, equipage):
     return agissant is None or not equipage or agissant == equipage
 
 
+def supervision_liste_sur(user, ship=None, service=None, sector=None, section=None):
+    """Vrai si `user` supervise les listes de ce périmètre : niveau COMMANDANT et
+    bâtiment du périmètre le sien (l'administrateur général : tous)."""
+    return user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE and agit_sur_navire(
+        user, navire_id_du_perimetre(ship, service, sector, section)
+    )
+
+
 def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=None, section=None):
     """Vrai si `user` peut créer/modifier/publier une liste (Quart ou
     ServiceGarde) pour le périmètre donné (exactement un des quatre non
     nul) : désigné chef de liste pour EXACTEMENT ce périmètre (ChefDeListe),
-    ou supervision globale (COMMANDANT et au-dessus). Sur un bâtiment à double
-    équipage, toujours dans SON équipage."""
+    ou supervision du commandement SUR SON bâtiment (COMMANDANT et au-dessus).
+    Sur un bâtiment à double équipage, toujours dans SON équipage."""
     if not perimetre_de_mon_equipage(user, equipage_du_perimetre(user)):
         return False
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+    if supervision_liste_sur(user, ship, service, sector, section):
         return True
     cible = (
         ship.pk if ship else None,
@@ -329,7 +340,7 @@ def peut_publier_liste(user, liste):
     cascade implicite, même principe que peut_gerer_liste)."""
     if not perimetre_de_mon_equipage(user, equipage_de_la_liste(liste)):
         return False
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+    if supervision_liste_sur(user, liste.ship, liste.service, liste.sector, liste.section):
         return True
     seuil = niveau_requis_pour(user, "liste_service_publication")
     return _perimetre_dans_scope_utilisateur(user, liste.ship, liste.service, liste.sector, liste.section, seuil)
@@ -1408,9 +1419,7 @@ def _est_supervision_globale_feuille(user):
 
 def _supervision_sur_navire(user, ship_id):
     """Commandant (ou plus) DU navire concerné ; seul l'administrateur général agit sur tous les navires."""
-    if not _est_supervision_globale_feuille(user):
-        return False
-    return user_role_level(user) >= RoleLevel.MASTER_ADMIN or ship_id_for_user(user) == ship_id
+    return _est_supervision_globale_feuille(user) and agit_sur_navire(user, ship_id)
 
 
 def equipage_de_feuille_pour(user, ship, equipage_id=None):

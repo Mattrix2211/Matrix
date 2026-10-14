@@ -50,7 +50,9 @@ class UpdatePrerequisitesIdentifiantsNonNumeriquesTests(TestCase):
         self.assertEqual(self.f2.prerequisites.count(), 0)
 
     def test_referent_non_numerique_refuse_proprement(self):
-        self.client.login(username="chef_durcissement", password="pass")
+        commandant = User.objects.create_user(username="cdt_durcissement", password="pass")
+        UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
+        self.client.login(username="cdt_durcissement", password="pass")
         r = self.client.post("/formations/", {
             "action": "update_prerequisites",
             "pk": self.f2.id,

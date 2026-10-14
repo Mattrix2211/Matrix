@@ -10,7 +10,7 @@ from .serializers import (
 )
 from .catalogue_web import journaliser
 from .permissions import CataloguePermission
-from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureTraceeMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -27,10 +27,13 @@ def _construire_qr_png(url):
     img.save(buf, format="PNG")
     return buf.getvalue()
 
-class LocationViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class LocationViewSet(EcritureTraceeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = Location.objects.select_related("ship", "parent").all()
     serializer_class = LocationSerializer
     permission_classes = [RolePermission]
+    # Les lieux font partie de la structure de l'unité ; l'interface web les crée à la volée.
+    role_threshold_action_write = "structure_navire_ecriture"
+    domaine_audit = "assets"
 
     def get_scoped_filters(self):
         # Un lieu (compartiment du navire) n'est rattaché qu'au navire
@@ -53,6 +56,7 @@ class AssetTypeViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetType.objects.select_related("sector", "sector__service", "sector__service__ship").all()
     serializer_class = AssetTypeSerializer
     permission_classes = [RolePermission]
+    role_threshold_action_delete = "asset_gestion_avancee"
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "category"]
 
@@ -77,6 +81,7 @@ class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = ChecklistTemplate.objects.filter(fiche__isnull=True).select_related("sector", "asset_type").prefetch_related("items")
     serializer_class = ChecklistTemplateSerializer
     permission_classes = [RolePermission]
+    role_threshold_action_delete = "asset_gestion_avancee"
 
     def get_scoped_filters(self):
         # Un modèle de checklist est toujours rattaché à un secteur précis

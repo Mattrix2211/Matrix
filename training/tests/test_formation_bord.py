@@ -204,11 +204,17 @@ class ValidationPropositionBordTests(TestCase):
         self.course.refresh_from_db()
         self.assertEqual(self.course.statut_validation, "WAITING_VALIDATION")
 
-    def test_validation_par_supervision_globale(self):
-        commandant = User.objects.create_user(username="commandant_val", password="pass")
+    def test_validation_par_le_commandant_du_batiment_seulement(self):
+        voisin = User.objects.create_user(username="commandant_val_voisin", password="pass")
         UserProfile.objects.update_or_create(
-            user=commandant, defaults={"role": "COMMANDANT", "ship": Ship.objects.create(name="Autre navire", code="AUTVAL")},
+            user=voisin, defaults={"role": "COMMANDANT", "ship": Ship.objects.create(name="Autre navire", code="AUTVAL")},
         )
+        self.client.login(username="commandant_val_voisin", password="pass")
+        self.client.post("/formations/", {"action": "valider_formation_bord", "pk": self.course.id})
+        self.course.refresh_from_db()
+        self.assertEqual(self.course.statut_validation, "WAITING_VALIDATION")
+        commandant = User.objects.create_user(username="commandant_val", password="pass")
+        UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
         self.client.login(username="commandant_val", password="pass")
         r = self.client.post("/formations/", {
             "action": "valider_formation_bord", "pk": self.course.id,
@@ -384,20 +390,23 @@ class FuiteInterNavireModificationBordTests(TestCase):
         self.course.refresh_from_db()
         self.assertEqual(self.course.title, "Modifiée par le chef de service du même navire")
 
-    def test_commandant_supervision_globale_peut_toujours_modifier(self):
-        commandant = User.objects.create_user(username="commandant_inter", password="pass")
-        UserProfile.objects.update_or_create(
-            user=commandant, defaults={"role": "COMMANDANT", "ship": Ship.objects.create(name="Navire C", code="INTERC")},
-        )
+    def test_commandant_du_batiment_peut_modifier_mais_pas_celui_d_un_autre(self):
+        for nom, navire in (("commandant_inter_autre", self.ship_b), ("commandant_inter", self.ship_a)):
+            commandant = User.objects.create_user(username=nom, password="pass")
+            UserProfile.objects.update_or_create(user=commandant, defaults={"role": "COMMANDANT", "ship": navire})
+        self.client.login(username="commandant_inter_autre", password="pass")
+        self.client.post("/formations/", {
+            "action": "proposer_formation_bord", "pk": self.course.id, "title": "Piratée par un autre bâtiment",
+        })
+        self.course.refresh_from_db()
+        self.assertEqual(self.course.title, "Formation bord du navire A")
         self.client.login(username="commandant_inter", password="pass")
         r = self.client.post("/formations/", {
-            "action": "proposer_formation_bord",
-            "pk": self.course.id,
-            "title": "Modifiée par supervision globale",
+            "action": "proposer_formation_bord", "pk": self.course.id, "title": "Modifiée par le commandement",
         })
         self.assertEqual(r.status_code, 302)
         self.course.refresh_from_db()
-        self.assertEqual(self.course.title, "Modifiée par supervision globale")
+        self.assertEqual(self.course.title, "Modifiée par le commandement")
 
 
 class FormationBordEnServiceTests(TestCase):

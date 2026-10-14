@@ -34,7 +34,7 @@ class ScopeTrainingRequirementTests(TestCase):
         UserProfile.objects.update_or_create(user=self.chef_a, defaults={"role": "CHEF_SECTION", "ship": self.ship_a})
 
         self.commandant = User.objects.create_user(username="commandant_exigence", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "MASTER_ADMIN"})
 
         self.client.login(username="chef_exigence_a", password="pass")
 
@@ -96,7 +96,7 @@ class ScopeTrainingRequirementTests(TestCase):
         )
         self.assertEqual(r.status_code, 201, r.content)
 
-    def test_supervision_globale_voit_tout_et_peut_creer_une_exigence_flotte_entiere(self):
+    def test_administrateur_general_voit_tout_et_cree_une_exigence_flotte_entiere(self):
         self.client.logout()
         self.client.login(username="commandant_exigence", password="pass")
         r = self.client.get("/api/training/requirements/")
