@@ -31,13 +31,6 @@ def equipage_a_terre_lecture_seule(user):
     return profil.equipage != navire.equipage_a_bord
 
 
-def suivi_a_terre_sans_validation(user):
-    """Responsable de classe ou de spécialité à terre : il consulte et commente, il ne valide pas."""
-    from training.models import navire_de
-
-    return not is_master_admin(user) and navire_de(user) is None
-
-
 def equipage_modifiable_par(acteur, cible):
     """Nul ne change son propre équipage (sauf l'administrateur général) : cela contournerait la lecture seule."""
     return is_master_admin(acteur) or acteur.pk != cible.pk

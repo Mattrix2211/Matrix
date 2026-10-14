@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.generic import ListView, View
 
 from matrix.core.commandants_adjoints import est_commandant_adjoint_du_service, service_de, titulaires_du_service
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_hierarchique_q, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document
 from notifications.models import Notification
@@ -86,7 +86,7 @@ NIVEAU_REQUIS_VALIDATION = RoleLevel.CHEF_SECTION
 
 
 def _peut_gerer_prerequis(user):
-    return user_role_level(user) >= NIVEAU_REQUIS_GESTION_PREREQUIS
+    return niveau_ecriture(user) >= NIVEAU_REQUIS_GESTION_PREREQUIS
 
 
 def _peut_creer_formation(user):
@@ -100,7 +100,7 @@ def _peut_valider_formation(user):
     reposer QUE sur le vrai contrôle d'accès par référent
     (training.models.peut_valider_formation, cf. NIVEAU_REQUIS_VALIDATION
     ci-dessus)."""
-    return user_role_level(user) >= NIVEAU_REQUIS_VALIDATION
+    return niveau_ecriture(user) >= NIVEAU_REQUIS_VALIDATION
 
 
 def _est_referent_formation(user):
@@ -141,7 +141,7 @@ NIVEAU_REQUIS_DEMANDE_PLACES = RoleLevel.CHEF_SECTION
 
 
 def _peut_demander_places(user):
-    return user_role_level(user) >= NIVEAU_REQUIS_DEMANDE_PLACES
+    return niveau_ecriture(user) >= NIVEAU_REQUIS_DEMANDE_PLACES
 
 
 # Seuil de rôle requis pour valider une CandidatureFormation (Circuit B) en
@@ -157,7 +157,7 @@ def _peut_valider_candidature_hierarchie(user, marin):
     candidature individuelle (Circuit B) du `marin` donné : seuil générique
     CHEF_SECTION+ ET marin dans le périmètre organisationnel de l'appelant
     (filtres_perimetre_marin, même fonction que pour le Circuit A)."""
-    if user_role_level(user) < NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE:
+    if niveau_ecriture(user) < NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE:
         return False
     q_perimetre = filtres_perimetre_marin(user)
     if q_perimetre is None:
@@ -198,7 +198,7 @@ NIVEAU_REQUIS_PROPOSITION_FORMATION_BORD = RoleLevel.CHEF_SECTEUR
 
 
 def _peut_proposer_formation_bord(user):
-    return user_role_level(user) >= NIVEAU_REQUIS_PROPOSITION_FORMATION_BORD
+    return niveau_ecriture(user) >= NIVEAU_REQUIS_PROPOSITION_FORMATION_BORD
 
 
 # Seuil de rôle à partir duquel une proposition de formation « bord » est
@@ -711,7 +711,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         # distinctes, une par niveau de validation (hiérarchie, BRH,
         # organisme), chacune filtrée selon l'autorité réelle de l'appelant
         # (même principe que demandes_a_traiter ci-dessus pour le Circuit A).
-        if user_role_level(self.request.user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE:
+        if niveau_ecriture(self.request.user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE:
             marins_perimetre_ids = _marins_perimetre_hierarchie(self.request.user).values_list("pk", flat=True)
             ctx["candidatures_hierarchie_a_traiter"] = list(
                 CandidatureFormation.objects.filter(
@@ -1811,7 +1811,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
             course = TrainingCourse()
 
         statut_cible = (
-            "ACTIVE" if user_role_level(request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
+            "ACTIVE" if niveau_ecriture(request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
             else "WAITING_VALIDATION"
         )
         course.title = titre

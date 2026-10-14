@@ -10,7 +10,7 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture
 from matrix.core.scopes import is_master_admin, navire_q
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
@@ -91,7 +91,7 @@ def cibles_autorisees(user, libelles=True):
 
 
 def peut_publier(user):
-    if equipage_a_terre_lecture_seule(user) or user_role_level(user) < niveau_requis_pour(user, "annonce_publication"):
+    if equipage_a_terre_lecture_seule(user) or niveau_ecriture(user) < niveau_requis_pour(user, "annonce_publication"):
         return False
     return bool(cibles_autorisees(user))
 

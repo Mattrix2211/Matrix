@@ -13,7 +13,7 @@ from accounts.models import AuditLog
 from org.models import Sector
 from assets.models import Asset, Installation
 from matrix.core.mixins import build_scope_q
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from matrix.core.scopes import is_master_admin
 from matrix.core.validators import valider_photo, message_erreur_fichier
 from notifications.models import Notification
@@ -30,6 +30,10 @@ STATUT_OUVERTES = "ouvertes"  # filtre « toutes les anomalies non traitées »
 
 def _est_chef(user):
     return user_role_level(user) >= RoleLevel.CHEF_SECTION
+
+
+def _peut_traiter(user):
+    return niveau_ecriture(user) >= RoleLevel.CHEF_SECTION
 
 
 def _section_id_du_profil(user):
@@ -285,7 +289,7 @@ class AnomalieDetailView(LoginRequiredMixin, View):
         return render(request, self.template_name, {
             'anomalie': anomalie,
             'statuts': Anomalie.STATUTS,
-            'peut_traiter': _est_chef(request.user),
+            'peut_traiter': _peut_traiter(request.user),
             'historique': anomalie.status_logs.select_related('user'),
             'commentaires': commentaires_de(anomalie),
         })
@@ -296,7 +300,7 @@ class AnomalieTransitionView(LoginRequiredMixin, View):
     le périmètre couvre l'anomalie. Notifie le déclarant."""
 
     def post(self, request, pk):
-        if not _est_chef(request.user):
+        if not _peut_traiter(request.user):
             raise PermissionDenied
         anomalie = _anomalie_visible_ou_404(request.user, pk)
         nouveau = request.POST.get('statut')
@@ -332,7 +336,7 @@ class AnomalieConvertirView(LoginRequiredMixin, View):
     déjà été convertie."""
 
     def post(self, request, pk):
-        if not _est_chef(request.user):
+        if not _peut_traiter(request.user):
             raise PermissionDenied
         anomalie = _anomalie_visible_ou_404(request.user, pk)
         if anomalie.ticket_id:

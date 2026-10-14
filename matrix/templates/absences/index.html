@@ -83,7 +83,7 @@
     {% endif %}
   </div>
 
-  <div class="col-lg-5">
+  {% if not soutien_a_terre %}<div class="col-lg-5">
     <h2 class="h5">Déclarer une absence</h2>
     <div class="card card-body">
       <form method="post" class="row g-2">
@@ -125,6 +125,6 @@
         </div>
       </form>
     </div>
-  </div>
+  </div>{% endif %}
 </div>
 {% endblock %}

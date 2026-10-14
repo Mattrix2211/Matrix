@@ -17,7 +17,7 @@ from maintenance.models import MaintenanceOccurrence
 from maintenance.perimetre import installations_en_retard as installations_en_retard_du_perimetre, retard_q
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture, user_role_level
 from notifications.liens import liens_accessibles
 from notifications.models import Notification
 from threads.mentions import PREFIXE_MENTION
@@ -287,7 +287,7 @@ def supervision(user, aujourdhui):
     retards_total, actives = retards.count(), occurrences.count()
     liaisons = ("asset", "installation_maintenance__installation")
     # Même règle que la fiche d'exécution : assigné, ou seuil de gestion des maintenances d'autrui.
-    gere_les_tiers = user_role_level(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers")
+    gere_les_tiers = niveau_ecriture(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers")
     lignes_retard = [
         {
             "titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]),
@@ -321,7 +321,7 @@ def supervision(user, aujourdhui):
             statut="PENDING_APPROVAL", hierarchie_validee_par__isnull=True,
             marin_id__in=_marins_perimetre_hierarchie(user).values("pk"),
         ).count()
-        if user_role_level(user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE else 0
+        if niveau_ecriture(user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE else 0
     )
     # Installation sans statut propre : une installation critique dont une échéance est en retard compte comme indisponible.
     installations_en_retard = installations_en_retard_du_perimetre(user, aujourdhui).filter(critique=True).count()

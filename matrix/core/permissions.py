@@ -1,5 +1,5 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-from .roles import user_role_level, RoleLevel
+from .roles import niveau_ecriture, RoleLevel
 from .role_thresholds import seuil_role, ship_id_de
 from django.contrib.auth import get_user_model
 from accounts.models import Roles
@@ -46,15 +46,14 @@ class RolePermission(BasePermission):
             return request.user.is_authenticated
         if request.user.is_superuser:
             return True
-        lvl = user_role_level(request.user)
-        return lvl >= self._seuil_requis(request, view)
+        return niveau_ecriture(request.user) >= self._seuil_requis(request, view)
 
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
             return True
         if request.user.is_superuser:
             return True
-        lvl = user_role_level(request.user)
+        lvl = niveau_ecriture(request.user)
         # Autorise les assignés à modifier leurs propres occurrences/exécutions de maintenance
         model_name = obj.__class__.__name__
         if model_name == 'MaintenanceOccurrence':

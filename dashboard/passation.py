@@ -30,7 +30,7 @@ from org.models import ParametresPassation, ReleveEquipage, SynthesePassation
 from quarts.models import Quart, ServiceGarde
 from reports.services import html_vers_pdf, pdf_disponible
 from taches.models import Tache
-from taches.services import peut_attribuer
+from taches.services import peut_superviser
 
 JOURS_A_VENIR = 14
 LIGNES_PAR_GROUPE = 30
@@ -60,7 +60,7 @@ def syntheses_visibles(user):
     du_navire = SynthesePassation.objects.filter(ship_id=navire_id)
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
         return du_navire
-    if profil.equipage and peut_attribuer(user):
+    if profil.equipage and peut_superviser(user):
         return du_navire.filter(Q(equipage_sortant=profil.equipage) | Q(equipage_montant=profil.equipage))
     return SynthesePassation.objects.none()
 
@@ -245,7 +245,7 @@ def releve_courante(navire):
 
 def _chefs_equipage(navire, equipage):
     marins = get_user_model().objects.filter(is_active=True, profile__ship=navire, profile__equipage=equipage)
-    return [m for m in marins if peut_attribuer(m)]
+    return [m for m in marins if peut_superviser(m)]
 
 
 def generer_passation(auteur, navire, releve, equipage_sortant):

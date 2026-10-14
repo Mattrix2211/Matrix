@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from matrix.core.scopes import equipage_marin_q
 from notifications.models import Notification
 
@@ -56,7 +56,7 @@ def peut_gerer_absence_de(user, marin):
     marin."""
     if user.pk == marin.pk:
         return True
-    return user_role_level(user) >= NIVEAU_REQUIS_GESTION_ABSENCE and marin_dans_perimetre(user, marin)
+    return niveau_ecriture(user) >= NIVEAU_REQUIS_GESTION_ABSENCE and marin_dans_perimetre(user, marin)
 
 
 def peut_valider_absence(user, absence):
@@ -65,7 +65,7 @@ def peut_valider_absence(user, absence):
     absence validée par soi-même n'aurait aucune valeur de contrôle)."""
     if user.pk == absence.marin_id:
         return False
-    return user_role_level(user) >= NIVEAU_REQUIS_GESTION_ABSENCE and marin_dans_perimetre(user, absence.marin)
+    return niveau_ecriture(user) >= NIVEAU_REQUIS_GESTION_ABSENCE and marin_dans_perimetre(user, absence.marin)
 
 
 def marins_de_mon_perimetre(user):
@@ -126,7 +126,7 @@ def declarer_absence(auteur, marin, type_absence, date_debut, date_fin, motif=""
             c for c in User.objects.filter(
                 build_scope_q(marin, "profile__"), equipage_marin_q(marin)
             ).exclude(pk=marin.pk)
-            if user_role_level(c) >= NIVEAU_REQUIS_GESTION_ABSENCE
+            if niveau_ecriture(c) >= NIVEAU_REQUIS_GESTION_ABSENCE
         ]
         for chef in chefs:
             Notification.objects.create(

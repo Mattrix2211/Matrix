@@ -19,7 +19,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import View
 
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_photo
@@ -34,7 +34,7 @@ def _peut_configurer_plan_navire(user):
     "plan_navire_configuration") peuvent configurer les ponts et zones du
     plan visuel du navire : une action de configuration structurante, pas
     une simple consultation."""
-    return user_role_level(user) >= niveau_requis_pour(user, "plan_navire_configuration")
+    return niveau_ecriture(user) >= niveau_requis_pour(user, "plan_navire_configuration")
 
 
 def _valider_coordonnee_pourcent(valeur):

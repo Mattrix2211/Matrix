@@ -21,9 +21,9 @@ Connexion sur `/login/`. Tous les comptes ont le mot de passe **« pass »**, sa
 | `equipier_a2` (Lina) | Équipier, équipage A | Tâche en retard et tâche bloquée |
 | `chef_secteur_b` (Ivan) | Chef de secteur, équipage B à terre | Répond dans le fil, lecture seule ailleurs |
 | `cdt_a` / `cdt_b` | Commandants, équipages A et B | Annonce avec accusé ; validation de la relève |
-| `second_a` (Cécile) | Commandant en second | Programme du bâtiment, stock sous le seuil |
+| `second_a` (Cécile) | Commandant en second | Vision du bâtiment (stock sous le seuil), programme du bâtiment ; pas d'écriture sur les tâches, tickets, absences ni stock |
 | `coma_comanav` (Denis) | État-major COMANAV | Vue COMANAV du bâtiment |
-| `terre_classe` (Tessa) | Suivi de la classe FREMM, à terre | Tableaux de bord de classe |
+| `terre_classe` (Tessa) | Suivi de la classe FREMM, à terre | Tableaux de bord de classe, réponses dans les fils ; aucune modification des données du bord |
 | `admin` | Administrateur général | Réglages (seuils de rôle, annonces, passation) |
 
 Autres comptes : `coma_comaeq`, `coma_comops`, `chef_secteur_elec_a`, `equipier_elec_a`, `equipier_incendie_a`, `marin_b`, `admin_navire`, `terre_securite`, `terre_chef_securite`, ainsi que la frégate Normandie (`cdt_nor`, `chef_secteur_nor`, `equipier_nor`) et l'unité historique BordOps I.

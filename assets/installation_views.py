@@ -45,7 +45,7 @@ from matrix.core.export import (
 )
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.contexte_batiment import referentiel_organisation
 from threads.utils import contexte_discussion
@@ -338,7 +338,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
         cle_seuil = self.ACTION_VERS_SEUIL.get(action)
-        if cle_seuil is not None and user_role_level(request.user) < niveau_requis_pour(request.user, cle_seuil):
+        if cle_seuil is not None and niveau_ecriture(request.user) < niveau_requis_pour(request.user, cle_seuil):
             raise PermissionDenied
         if action in (
             'bulk_update_location', 'bulk_update_ship', 'bulk_update_service',
@@ -765,7 +765,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def _entete(self, inst, ctx):
         """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
-        niveau = user_role_level(self.request.user)
+        niveau = niveau_ecriture(self.request.user)
         menu = [
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?installation={inst.pk}"},
@@ -822,11 +822,11 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
-        if action in self.MAINTENANCE_WRITE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_entretien_gestion'):
+        if action in self.MAINTENANCE_WRITE_ACTIONS and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'installation_entretien_gestion'):
             raise PermissionDenied
-        if action in self.INSTALLATION_WRITE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_ecriture_simple'):
+        if action in self.INSTALLATION_WRITE_ACTIONS and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'installation_ecriture_simple'):
             raise PermissionDenied
-        if action in self.INSTALLATION_DELETE_ACTIONS and user_role_level(request.user) < niveau_requis_pour(request.user, 'installation_gestion_avancee'):
+        if action in self.INSTALLATION_DELETE_ACTIONS and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'installation_gestion_avancee'):
             raise PermissionDenied
         inst = self.get_object()
         tab = (request.POST.get('tab') or '').strip()

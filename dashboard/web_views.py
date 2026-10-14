@@ -26,7 +26,7 @@ from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.brouillons import brouillons_a_reprendre
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, niveau_ecriture, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
@@ -524,8 +524,8 @@ class PretAppareillageView(LoginRequiredMixin, TemplateView):
         contexte = super().get_context_data(**kwargs)
         user = self.request.user
 
-        contexte["peut_ouvrir_session"] = user_role_level(user) >= RoleLevel.CHEF_SECTEUR
-        contexte["peut_signer"] = user_role_level(user) >= RoleLevel.CHEF_SECTEUR
+        contexte["peut_ouvrir_session"] = niveau_ecriture(user) >= RoleLevel.CHEF_SECTEUR
+        contexte["peut_signer"] = niveau_ecriture(user) >= RoleLevel.CHEF_SECTEUR
 
         if is_master_admin(user):
             # Une session porte sur un seul navire : un MASTER_ADMIN (rattaché à
@@ -571,7 +571,7 @@ class SessionAppareillageOuvrirView(LoginRequiredMixin, View):
 
     def post(self, request):
         user = request.user
-        if user_role_level(user) < RoleLevel.CHEF_SECTEUR:
+        if niveau_ecriture(user) < RoleLevel.CHEF_SECTEUR:
             raise PermissionDenied("Réservé aux chefs de secteur et aux rôles supérieurs.")
 
         ship_id = ship_id_for_user(user)
@@ -631,7 +631,7 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
         contexte = {
             "session": session,
             "items_par_categorie": _items_groupes_par_categorie(session, request.user),
-            "peut_signer": user_role_level(request.user) >= RoleLevel.CHEF_SECTEUR,
+            "peut_signer": niveau_ecriture(request.user) >= RoleLevel.CHEF_SECTEUR,
         }
         return render(request, "dashboard/_checklist_appareillage.html", contexte)
 
@@ -652,7 +652,7 @@ class SessionAppareillageSignerView(LoginRequiredMixin, View):
         user = request.user
         if not _meme_navire_ou_master_admin(user, session.ship_id):
             raise PermissionDenied("Hors de votre périmètre.")
-        if user_role_level(user) < RoleLevel.CHEF_SECTEUR:
+        if niveau_ecriture(user) < RoleLevel.CHEF_SECTEUR:
             raise PermissionDenied("Réservé aux chefs de secteur et aux rôles supérieurs.")
         if not session.est_ouverte:
             messages.warning(request, "Cette session est déjà clôturée.")

@@ -22,10 +22,11 @@ from assets import fiche_flotte
 from assets.models import Asset, Installation
 from logistics.models import CorrectiveTicket, StockPiece, TicketStatusLog
 from logistics.stock import StockInsuffisant, prelever
-from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
+from matrix.core.equipage import equipage_a_terre_lecture_seule
+from matrix.core.scopes import soutien_a_terre
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture, user_role_level
 from matrix.core.saisie import entier_ou_none, sans_nul
 from threads.utils import ajouter_commentaire, contexte_discussion
 
@@ -93,8 +94,9 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
     template_name = "maintenance/correctif.html"
 
     @staticmethod
-    def _charger(request, ticket_pk):
-        """(ticket, compte rendu, installation, matériel) dans le périmètre de l'appelant ; 404 hors périmètre."""
+    def _charger(request, ticket_pk, ecriture=False):
+        """(ticket, compte rendu, installation, matériel) dans le périmètre de l'appelant ; 404 hors périmètre.
+        `ecriture` exige le droit d'écrire (le grade seul suffit pour consulter)."""
         user = request.user
         if ticket_pk is None:
             source = request.POST if request.method == "POST" else request.GET
@@ -109,7 +111,8 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
                   .filter(perimetre_tickets_q(user)).filter(pk=ticket_pk).first())
         if ticket is None:
             raise Http404("Ticket introuvable")
-        if user not in ticket.assignees.all() and user_role_level(user) < niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers"):
+        niveau = niveau_ecriture(user) if ecriture else user_role_level(user)
+        if user not in ticket.assignees.all() and niveau < niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers"):
             raise PermissionDenied
         cr = CompteRenduCorrectif.objects.filter(ticket=ticket).first()
         return ticket, cr, ticket.installation, ticket.asset
@@ -151,9 +154,10 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
         if user not in candidats:
             candidats.append(user)
         coches = valeurs["intervenants"]
-        peut_prelever = user_role_level(user) >= niveau_requis_pour(user, "stock_ecriture")
+        peut_prelever = niveau_ecriture(user) >= niveau_requis_pour(user, "stock_ecriture")
         deja_termine = cr is not None
-        peut_corriger = user_role_level(user) >= niveau_requis_pour(user, "maintenance_compte_rendu_correction")
+        peut_corriger = niveau_ecriture(user) >= niveau_requis_pour(user, "maintenance_compte_rendu_correction")
+        peut_saisir = ticket is None or user in ticket.assignees.all() or niveau_ecriture(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers")
         if peut_prelever:
             pieces = StockPiece.objects.filter(build_scope_q(user, ""), quantite__gt=0).order_by("reference")
         else:
@@ -168,7 +172,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
             "fiches": _fiches_possibles(installation, asset) if cr is None else [],
             "jeton": uuid.uuid4(), "deja_termine": deja_termine, "peut_prelever": peut_prelever, "pieces": pieces,
             "pieces_prelevees": cr.pieces if cr else [], "lignes_pieces": range(MAX_PIECES if peut_prelever else 0),
-            "lecture_seule": equipage_a_terre_lecture_seule(user) or (deja_termine and not peut_corriger),
+            "lecture_seule": equipage_a_terre_lecture_seule(user) or soutien_a_terre(user) or not peut_saisir or (deja_termine and not peut_corriger),
             "correction_reservee": deja_termine and not peut_corriger,
             "menu_fiche": [
                 {"libelle": "Historique et relevés de l'équipement", "icone": "historique",
@@ -180,11 +184,11 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
 
     def post(self, request, ticket_pk=None):
         user = request.user
-        if equipage_a_terre_lecture_seule(user) or suivi_a_terre_sans_validation(user):
+        if equipage_a_terre_lecture_seule(user) or soutien_a_terre(user):
             raise PermissionDenied
-        ticket, cr, installation, asset = self._charger(request, ticket_pk)
+        ticket, cr, installation, asset = self._charger(request, ticket_pk, ecriture=True)
         deja_termine = cr is not None
-        if deja_termine and user_role_level(user) < niveau_requis_pour(user, "maintenance_compte_rendu_correction"):
+        if deja_termine and niveau_ecriture(user) < niveau_requis_pour(user, "maintenance_compte_rendu_correction"):
             if cr.executed_by_id != user.pk:
                 raise PermissionDenied
             messages.warning(request, "Ce compte rendu est déjà enregistré : seule une correction par un chef de secteur peut le modifier.")
@@ -239,7 +243,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
         if demandes is None:
             erreurs.append("Une ligne de pièce est illisible : choisissez une pièce et une quantité entière.")
             demandes = []
-        if demandes and user_role_level(user) < niveau_requis_pour(user, "stock_ecriture"):
+        if demandes and niveau_ecriture(user) < niveau_requis_pour(user, "stock_ecriture"):
             raise PermissionDenied
 
         pieces = []

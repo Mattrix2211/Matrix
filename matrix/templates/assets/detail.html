@@ -2,7 +2,7 @@
 {% load icones %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=object.designation|default:object sous_titre=object.asset_type.name badge_libelle=object.get_status_display action=action_principale menu=menu_fiche menu_libelle="Autres actions sur ce matériel" indicateurs=indicateurs_fiche objet=object %}
-{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=asset:{{ object.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
+{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=asset:{{ object.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
 <div id="result" class="mb-3"></div>
 
 <div class="mb-3">
