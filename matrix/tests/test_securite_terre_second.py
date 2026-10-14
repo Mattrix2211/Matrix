@@ -15,14 +15,14 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from absences.models import Absence
-from accounts.models import ResponsableSpecialite, TypeAbsence
-from assets.models import Asset, CategorieCatalogue, Installation
+from accounts.models import ResponsableSpecialite, TypeAbsence, UserProfile
+from assets.models import ArticleCatalogue, Asset, CategorieCatalogue, ChecklistTemplate, Installation, InstallationMaintenance
 from demandes.models import Demande
 from logistics.models import Anomalie, CorrectiveTicket, StockPiece
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from matrix.core.scopes import soutien_a_terre
-from org.models import Ship
+from org.models import ReleveEquipage, Ship
 from programme.models import EvenementProgramme, TypeProgramme
 from taches.models import Tache
 from threads.models import Message, Thread
@@ -390,3 +390,180 @@ class ChaineEmbarqueeSansRegressionTests(Base):
     def test_ecriture_des_comptes_embarques_n_est_pas_bloquee_par_la_garde_du_soutien(self):
         for compte in ("cdt_a", "second_a", "chef_section_a", "equipier_a", "admin_navire"):
             self.assertEqual(self.client_de(compte).post("/users/theme/", {"theme": "sombre"}).status_code, 302, compte)
+
+
+def creer_marin(nom, role, **rattachement):
+    utilisateur = User.objects.create_user(username=nom, password="pass")
+    UserProfile.objects.update_or_create(user=utilisateur, defaults={"role": role, **rattachement})
+    return User.objects.get(pk=utilisateur.pk)
+
+
+class SansBatimentNiChargeTests(Base):
+    """Un commandant ou un second sans bâtiment ni charge à terre n'est pas du soutien et n'écrit nulle part."""
+
+    def test_ni_soutien_ni_ecriture_ni_lecture_du_bord(self):
+        for compte, role in (("cdt_isole", "COMMANDANT"), ("second_isole", "COMMANDANT_EN_SECOND")):
+            utilisateur = creer_marin(compte, role)
+            self.assertFalse(soutien_a_terre(utilisateur), compte)
+            client = self.client_de(compte)
+            for nom, url, donnees in self.requetes_web():
+                avant = self.etat()
+                reponse = client.post(url, donnees)
+                self.assertIn(reponse.status_code, (302, 400, 403, 404), f"{compte} : {nom}")
+                self.assertEqual(self.etat(), avant, f"{compte} : {nom}")
+            for nom, methode, url, donnees in self.requetes_api():
+                avant = self.etat()
+                reponse = self.envoyer(client, methode, url, donnees)
+                self.assertIn(reponse.status_code, (400, 403, 404), f"{compte} : {nom}")
+                self.assertEqual(self.etat(), avant, f"{compte} : {nom}")
+            self.assertEqual(client.get("/api/assets/assets/").json(), [], compte)
+            self.assertNotContains(client.get("/taches/"), self.tache_ouverte.titre)
+
+
+class EquipageBACommandementTests(Base):
+    """B : le commandement de l'équipage à terre garde la relève sous lecture seule, rien d'autre."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.second_b = creer_marin("second_b", "COMMANDANT_EN_SECOND", ship=cls.bre, equipage="B")
+
+    def setUp(self):
+        ReleveEquipage.objects.all().delete()
+
+    def relever(self, compte, action, **plus):
+        return self.client_de(compte).post("/parametre/", {"action": action, **plus})
+
+    def en_attente(self):
+        return ReleveEquipage.objects.filter(ship=self.bre, statut=ReleveEquipage.Statut.EN_ATTENTE).first()
+
+    def test_ni_soutien_ni_ecriture_hors_releve(self):
+        for compte in ("cdt_b", "second_b"):
+            self.assertFalse(soutien_a_terre(User.objects.get(username=compte)), compte)
+            client = self.client_de(compte)
+            avant = self.etat()
+            reponse = client.post("/taches/", {"assigne": self.equipier.pk, "titre": "Intrus"})
+            self.assertEqual(reponse.status_code, 403, compte)
+            self.assertEqual(self.etat(), avant, compte)
+
+    def test_proposer_et_annuler_la_releve_sous_lecture_seule(self):
+        for compte in ("cdt_b", "second_b"):
+            self.assertEqual(self.relever(compte, "proposer_releve", equipage="B").status_code, 302, compte)
+            self.assertEqual(self.en_attente().propose_par.username, compte)
+            self.relever(compte, "annuler_releve")
+            self.assertIsNone(self.en_attente(), compte)
+
+    def test_decider_la_releve_sous_lecture_seule(self):
+        self.relever("second_a", "proposer_releve", equipage="B")
+        self.relever("cdt_b", "decider_releve", decision="valider")
+        self.bre.refresh_from_db()
+        self.assertEqual(self.bre.equipage_a_bord, "B")
+
+    def test_le_second_a_bord_decide_et_propose_mais_pas_sa_propre_proposition(self):
+        self.relever("cdt_b", "proposer_releve", equipage="B")
+        self.relever("second_a", "decider_releve", decision="valider")
+        self.bre.refresh_from_db()
+        self.assertEqual(self.bre.equipage_a_bord, "B")
+        self.bre.equipage_a_bord = "A"
+        self.bre.save()
+        self.relever("second_a", "proposer_releve", equipage="B")
+        proposition = self.en_attente()
+        self.assertEqual(proposition.propose_par.username, "second_a")
+        self.relever("second_a", "decider_releve", decision="valider")
+        self.assertEqual(self.en_attente().pk, proposition.pk)
+
+    def test_equipier_et_chef_de_section_ne_decident_pas(self):
+        self.relever("cdt_b", "proposer_releve", equipage="B")
+        proposition = self.en_attente()
+        for compte in ("equipier_a", "chef_section_a"):
+            self.relever(compte, "decider_releve", decision="valider")
+            self.relever(compte, "annuler_releve")
+            self.assertEqual(self.en_attente().pk, proposition.pk, compte)
+        self.bre.refresh_from_db()
+        self.assertEqual(self.bre.equipage_a_bord, "A")
+
+
+class CircuitsCatalogueFlotteTests(Base):
+    """C : au niveau HTTP, le responsable de spécialité et son chef tiennent leurs circuits du catalogue flotte."""
+
+    def donnees_fiche(self, **plus):
+        return {"name": "Contrôle trimestriel", "mode_declenchement": "CALENDRIER", "intervalle": "3", "unite_intervalle": "M",
+                "duree_estimee_min": "30", "nb_personnes": "1", "etape_texte": ["Contrôler"], "etape_attention": [""],
+                "ligne_cle": [""], "ligne_type": ["checkbox"], "ligne_label": ["Goupille"], "ligne_unite": [""],
+                "ligne_min": [""], "ligne_max": [""], "ligne_obligatoire": ["1"], **plus}
+
+    def visas_du_bord(self, url_viser, objet, etapes=3):
+        for compte in ("chef_secteur_a", "chef_service_a", "coma_comanav")[:etapes]:
+            objet.refresh_from_db()
+            self.client_de(compte).post(url_viser, {"etape": objet.etat})
+        objet.refresh_from_db()
+
+    def test_fiche_flotte_verifiee_puis_visee(self):
+        categorie = CategorieCatalogue.objects.get(nom="Extincteurs")
+        self.assertEqual(self.client_de("chef_section_a").post(
+            reverse("fiche-flotte-nouvelle", args=[categorie.pk]), self.donnees_fiche()).status_code, 302)
+        version = ChecklistTemplate.objects.get(name="Contrôle trimestriel", fiche__niveau="FLOTTE")
+        self.visas_du_bord(reverse("fiche-viser", args=[version.pk]), version)
+        self.assertEqual(version.etat, ChecklistTemplate.Etat.VERIFICATION)
+        resp = self.client_de("terre_securite")
+        self.assertEqual(resp.post(reverse("fiche-flotte-verifier", args=[version.pk]), self.donnees_fiche(resume_modifications="")).status_code, 302)
+        version.refresh_from_db()
+        self.assertEqual(version.etat, ChecklistTemplate.Etat.VISA_CHEF_SPECIALITE)
+        self.client_de("terre_chef_securite").post(reverse("fiche-viser", args=[version.pk]), {"etape": version.etat})
+        version.refresh_from_db()
+        self.assertEqual(version.etat, ChecklistTemplate.Etat.VALIDEE)
+
+    def test_proposition_d_article_verifiee_puis_visee(self):
+        from assets.models import PropositionArticle
+
+        categorie = CategorieCatalogue.objects.get(nom="Extincteurs")
+        self.client_de("chef_section_a").post(reverse("catalogue-proposition-nouvelle"), {
+            "designation": "Extincteur poudre 6 kg", "categorie": str(categorie.pk), "marque": "Sicli"})
+        proposition = PropositionArticle.objects.get(designation="Extincteur poudre 6 kg")
+        self.visas_du_bord(reverse("catalogue-proposition-viser", args=[proposition.pk]), proposition)
+        self.assertEqual(proposition.etat, ChecklistTemplate.Etat.VERIFICATION)
+        self.client_de("terre_securite").post(reverse("catalogue-proposition-verifier", args=[proposition.pk]), {
+            "designation": proposition.designation, "categorie": str(categorie.pk), "marque": "Sicli"})
+        proposition.refresh_from_db()
+        self.assertEqual(proposition.etat, ChecklistTemplate.Etat.VISA_CHEF_SPECIALITE)
+        self.client_de("terre_chef_securite").post(reverse("catalogue-proposition-viser", args=[proposition.pk]), {"etape": proposition.etat})
+        self.assertTrue(ArticleCatalogue.objects.filter(designation="Extincteur poudre 6 kg").exists())
+
+    def test_api_du_catalogue_repond_au_responsable(self):
+        client = self.client_de("terre_securite")
+        specialite = ResponsableSpecialite.objects.get(user__username="terre_securite").specialite
+        cree = self.envoyer(client, "post", "/api/assets/catalogue-categories/", {"nom": "API", "specialite": specialite.pk, "ordre": 1})
+        self.assertEqual(cree.status_code, 201)
+        self.assertEqual(client.get("/api/assets/catalogue-articles/").status_code, 200)
+        categorie = CategorieCatalogue.objects.get(nom="Extincteurs")
+        article = self.envoyer(client, "post", "/api/assets/catalogue-articles/", {"categorie": str(categorie.pk), "designation": "Article API"})
+        self.assertEqual(article.status_code, 201)
+
+    def test_pas_de_redaction_de_fiche_d_installation_du_bord(self):
+        fiche = InstallationMaintenance.objects.filter(niveau="BORD").first()
+        urls = [(f"/installations/{self.installation.pk}/fiches/nouvelle/", self.donnees_fiche())]
+        if fiche:
+            urls += [(f"/fiches/{fiche.pk}/modifier/", self.donnees_fiche()), (f"/fiches/{fiche.pk}/dupliquer/", {"installation": str(self.installation.pk)})]
+        for compte in ("terre_securite", "terre_chef_securite"):
+            client = self.client_de(compte)
+            for url, donnees in urls:
+                avant = self.etat()
+                self.assertIn(client.post(url, donnees).status_code, (302, 403, 404), f"{compte} {url}")
+                self.assertEqual(self.etat(), avant, f"{compte} {url}")
+
+
+class GestionDesComptesParApiTests(Base):
+    """F7 : le second ne gère aucun compte par l'API, comme l'annuaire web."""
+
+    def test_le_second_ne_change_pas_un_role(self):
+        profil = self.equipier2.profile
+        client = self.client_de("second_a")
+        avant = self.etat()
+        reponse = self.envoyer(client, "patch", f"/api/accounts/profiles/{profil.pk}/", {"role": "CHEF_SECTION"})
+        self.assertEqual(reponse.status_code, 403)
+        self.assertEqual(self.etat(), avant)
+
+    def test_le_commandant_garde_la_gestion(self):
+        profil = self.equipier2.profile
+        reponse = self.envoyer(self.client_de("cdt_a"), "patch", f"/api/accounts/profiles/{profil.pk}/", {"role": "CHEF_SECTION"})
+        self.assertEqual(reponse.status_code, 200)

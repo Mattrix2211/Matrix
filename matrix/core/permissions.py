@@ -88,7 +88,7 @@ class ManageUsersPermission(BasePermission):
       UserProfileSerializer.validate() : cette permission ne porte que sur le
       RÔLE gérable)
     - COMMANDANT: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
-    - COMMANDANT_EN_SECOND: peut gérer ETAT_MAJOR, CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
+    - COMMANDANT_EN_SECOND: ne gère aucun compte (vision seulement, comme l'annuaire web)
     - ETAT_MAJOR: peut gérer CHEF_SERVICE, CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - CHEF_SERVICE: peut gérer CHEF_SECTEUR, CHEF_SECTION, EQUIPIER
     - CHEF_SECTEUR: peut gérer CHEF_SECTION, EQUIPIER
@@ -101,7 +101,6 @@ class ManageUsersPermission(BasePermission):
             Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER, Roles.ADMIN_NAVIRE,
         },
         Roles.COMMANDANT: {Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
-        Roles.COMMANDANT_EN_SECOND: {Roles.ETAT_MAJOR, Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.ETAT_MAJOR: {Roles.CHEF_SERVICE, Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SERVICE: {Roles.CHEF_SECTEUR, Roles.CHEF_SECTION, Roles.EQUIPIER},
         Roles.CHEF_SECTEUR: {Roles.CHEF_SECTION, Roles.EQUIPIER},
