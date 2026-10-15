@@ -1,6 +1,10 @@
 """Lecture défensive des paramètres de requête."""
 from datetime import datetime
 
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils.text import capfirst
+
 ENTIER_MAX = 2**63 - 1  # borne des clés primaires entières
 
 
@@ -27,3 +31,14 @@ def formater_date_fr(date):
 def sans_nul(texte):
     """Texte débarrassé des caractères NUL, que PostgreSQL refuse (erreur serveur sinon)."""
     return str(texte or "").replace("\x00", "")
+
+
+def verifier_longueurs(modele, **valeurs):
+    """Refuse en français un texte plus long que sa colonne : PostgreSQL le rejette (erreur 500), SQLite l'accepte."""
+    erreurs = {}
+    for nom, valeur in valeurs.items():
+        champ = modele._meta.get_field(nom)
+        if isinstance(champ, models.CharField) and isinstance(valeur, str) and len(valeur) > champ.max_length:
+            erreurs[nom] = [f"« {capfirst(str(champ.verbose_name))} » est limité à {champ.max_length} caractères ({len(valeur)} saisis)."]
+    if erreurs:
+        raise ValidationError(erreurs)

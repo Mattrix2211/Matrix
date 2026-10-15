@@ -1,5 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
@@ -8,13 +8,14 @@ from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from .services import peut_reinitialiser, reinitialiser_mot_de_passe
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
+from matrix.core.saisie import entier_ou_none, verifier_longueurs
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
     is_master_admin,
@@ -40,6 +41,19 @@ def _role_attribution_autorisee(acting_user, role_cible):
     acting_role = profile.role if profile else None
     allowed = ManageUsersPermission.MANAGE_MAP.get(acting_role, set())
     return role_cible in allowed
+
+
+def _longueurs_refusees(request, valeurs_compte, valeurs_profil):
+    """Message en français et True si un texte dépasse la longueur de sa colonne (PostgreSQL refuserait l'enregistrement)."""
+    try:
+        verifier_longueurs(get_user_model(), **valeurs_compte)
+        verifier_longueurs(UserProfile, **valeurs_profil)
+    except ValidationError as exc:
+        for erreurs in exc.message_dict.values():
+            for erreur in erreurs:
+                messages.error(request, erreur)
+        return True
+    return False
 
 
 def _utilisateurs_gerables_par(acting_user):
@@ -385,6 +399,11 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             if equipage_manquant(ship, equipage):
                 messages.error(request, MESSAGE_EQUIPAGE_OBLIGATOIRE)
                 return redirect("user-directory")
+            if _longueurs_refusees(
+                request, {"email": email, "first_name": first_name, "last_name": last_name},
+                {"fonction_service": fonction_service, "grade": grade, "specialite": specialite, "matricule": matricule, "equipage": equipage},
+            ):
+                return redirect("user-directory")
             if role:
                 User = get_user_model()
                 # Identifiant = prenom.nom (slugifié), avec suffixe numérique si collision
@@ -394,7 +413,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     base_parts.append(slugify(first_name))
                 if last_name:
                     base_parts.append(slugify(last_name))
-                base = ".".join(base_parts) if base_parts else "utilisateur"
+                base = (".".join(base_parts) if base_parts else "utilisateur")[:140]  # identifiant limité à 150 caractères
                 username = base
                 if User.objects.filter(username=username).exists():
                     i = 2
@@ -432,7 +451,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 AuditLog.objects.create(actor=request.user, action="create_user", target_user=user, details=f"role={role}; ship_id={ship_id}")
                 messages.success(request, f"Utilisateur {user.username} créé avec succès.")
         elif action == "delete_user":
-            pk = request.POST.get("pk")
+            pk = entier_ou_none(request.POST.get("pk"))
             User = get_user_model()
             if str(request.user.pk) == str(pk):
                 messages.error(request, "Vous ne pouvez pas supprimer votre propre compte.")
@@ -447,7 +466,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             except User.DoesNotExist:
                 pass
         elif action == "edit_user":
-            pk = request.POST.get("pk")
+            pk = entier_ou_none(request.POST.get("pk"))
             role = request.POST.get("role")
             if role and not _role_attribution_autorisee(request.user, role):
                 messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
@@ -490,6 +509,13 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 user.email = request.POST.get("email", user.email).strip()
                 user.first_name = request.POST.get("first_name", user.first_name).strip()
                 user.last_name = request.POST.get("last_name", user.last_name).strip()
+                if _longueurs_refusees(
+                    request, {"username": user.username, "email": user.email, "first_name": user.first_name, "last_name": user.last_name},
+                    {"fonction_service": request.POST.get("fonction_service", ""), "grade": request.POST.get("grade", "").strip(),
+                     "specialite": request.POST.get("specialite", "").strip(), "matricule": request.POST.get("matricule", "").strip(),
+                     "equipage": equipage},
+                ):
+                    return redirect("user-directory")
                 user.save()
                 profile, _ = UserProfile.objects.get_or_create(user=user)
                 ancien_role = profile.role
@@ -607,7 +633,7 @@ class BasculerThemeView(LoginRequiredMixin, View):
         retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
         if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
             retour = "/"
-        return redirect(retour)
+        return HttpResponseRedirect(retour)
 
 
 class ChoisirBatimentView(LoginRequiredMixin, View):
@@ -629,7 +655,7 @@ class ChoisirBatimentView(LoginRequiredMixin, View):
         retour = request.POST.get("next") or request.META.get("HTTP_REFERER") or "/"
         if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
             retour = "/"
-        return redirect(retour)
+        return HttpResponseRedirect(retour)
 
 
 class MemoriserBarreLateraleView(LoginRequiredMixin, View):
@@ -648,7 +674,7 @@ class MemoriserBarreLateraleView(LoginRequiredMixin, View):
         retour = request.META.get("HTTP_REFERER") or "/"
         if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
             retour = "/"
-        return redirect(retour)
+        return HttpResponseRedirect(retour)
 
 
 class UserSettingsView(LoginRequiredMixin, ListView):

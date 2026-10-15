@@ -1,7 +1,14 @@
 """Middlewares transverses de Matrix."""
+import logging
+from decimal import InvalidOperation
+
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse, QueryDict
+from django.core.exceptions import ValidationError
+from django.db import DataError
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, QueryDict
 from django.urls import reverse
+from django.utils.deprecation import MiddlewareMixin
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -9,12 +16,24 @@ from rest_framework.permissions import SAFE_METHODS
 
 from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
 
+logger = logging.getLogger(__name__)
+
+# Messages Python, Django et psycopg2 pour un identifiant, un entier, un décimal ou un NUL mal saisi.
+EXTRAITS_VALEUR_INVALIDE = (
+    "expected a number", "invalid literal for int()", "could not convert string to float", "NUL (0x00)",
+)
+
 
 def _sans_nul(parametres):
     propres = QueryDict(mutable=True, encoding=parametres.encoding)
     for cle, valeurs in parametres.lists():
         propres.setlist(cle.replace("\x00", ""), [v.replace("\x00", "") for v in valeurs])
+    propres._mutable = False
     return propres
+
+
+def _contient_nul(parametres):
+    return any("\x00" in cle or any("\x00" in v for v in valeurs) for cle, valeurs in parametres.lists())
 
 
 def utilisateur_de_requete(request):
@@ -29,17 +48,62 @@ def utilisateur_de_requete(request):
 
 
 class SansNulMiddleware:
-    """Retire le caractère NUL des paramètres d'URL : PostgreSQL le refuse dans toute requête
-    texte (erreur 500), ce que SQLite laisse passer en développement. Les formulaires Django
-    le rejettent déjà eux-mêmes."""
+    """Retire le caractère NUL des paramètres d'URL et des formulaires envoyés (POST) : PostgreSQL
+    le refuse dans toute requête texte (erreur 500), ce que SQLite laisse passer en développement."""
+
+    TYPES_FORMULAIRE = ("application/x-www-form-urlencoded", "multipart/form-data")
 
     def __init__(self, get_response):
         self.get_response = get_response
 
+    @staticmethod
+    def _nettoyer_a_la_lecture(request):
+        """Nettoie le corps à son analyse (pas avant : lire request.POST d'avance interdirait request.body)."""
+        analyser = request._load_post_and_files
+
+        def analyser_et_nettoyer():
+            analyser()
+            if _contient_nul(request._post):
+                request._post = _sans_nul(request._post)
+
+        request._load_post_and_files = analyser_et_nettoyer
+
     def __call__(self, request):
         if "%00" in request.META.get("QUERY_STRING", "").lower():
             request.GET = _sans_nul(request.GET)
+        if request.method == "POST" and request.content_type in self.TYPES_FORMULAIRE:
+            self._nettoyer_a_la_lecture(request)
         return self.get_response(request)
+
+
+class ErreurSaisieMiddleware(MiddlewareMixin):
+    """Filet commun : une saisie qu'aucune vue n'a contrôlée (identifiant non numérique, texte trop long,
+    date invalide) donne un message à l'utilisateur et non une erreur 500."""
+
+    @staticmethod
+    def _est_erreur_de_saisie(exception):
+        if isinstance(exception, (DataError, ValidationError, OverflowError, InvalidOperation)):
+            return True
+        return isinstance(exception, ValueError) and any(extrait in str(exception) for extrait in EXTRAITS_VALEUR_INVALIDE)
+
+    def process_exception(self, request, exception):
+        if not self._est_erreur_de_saisie(exception):
+            return None
+        logger.warning("Saisie refusée sur %s %s : %r", request.method, request.path, exception)
+        message = "Saisie refusée : une valeur est invalide ou trop longue. Vérifiez les champs et recommencez."
+        if request.path.startswith("/api/") or "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse({"detail": message}, status=400)
+        if request.method in ("GET", "HEAD"):
+            return HttpResponseBadRequest(message, content_type="text/plain; charset=utf-8")
+        messages.error(request, message)
+        retour = request.headers.get("Referer", "")
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        if request.headers.get("HX-Request"):
+            reponse = HttpResponse(status=204)
+            reponse["HX-Redirect"] = retour
+            return reponse
+        return HttpResponseRedirect(retour)
 
 
 class MotDePasseProvisoireMiddleware:

@@ -15,6 +15,7 @@ from django.views.generic import ListView, View
 
 from matrix.core.commandants_adjoints import est_commandant_adjoint_du_service, service_de, titulaires_du_service
 from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import is_master_admin, perimetre_hierarchique_q, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_document
 from notifications.models import Notification
@@ -379,24 +380,13 @@ def _marins_perimetre_hierarchie(user):
     return marins.filter(q)
 
 
-def _entier_ou_none(valeur):
-    """Convertit une valeur postée en entier, ou renvoie None si elle est vide
-    ou non numérique — évite un ValueError non attrapé (donc une erreur 500)
-    quand un POST forgé envoie une valeur non numérique dans un champ
-    normalement issu d'un <select> HTML (ex. identifiant de formation)."""
-    try:
-        return int(valeur)
-    except (TypeError, ValueError):
-        return None
-
-
 def _identifiants_valides(valeurs):
     """Filtre une liste d'identifiants postés (ex. request.POST.getlist) pour ne
     garder que ceux convertibles en entier — même principe que
-    _entier_ou_none, appliqué à une liste utilisée ensuite dans un filtre
+    entier_ou_none, appliqué à une liste utilisée ensuite dans un filtre
     pk__in, qui lève le même ValueError non attrapé si une valeur n'est pas
     numérique."""
-    return [v for v in valeurs if _entier_ou_none(v) is not None]
+    return [v for v in valeurs if entier_ou_none(v) is not None]
 
 
 def _parse_datetime_local(date_str):
@@ -826,7 +816,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         if action == "update_prerequisites":
             if not _peut_gerer_prerequis(request.user):
                 raise PermissionDenied
-            pk = _entier_ou_none(request.POST.get("pk"))
+            pk = entier_ou_none(request.POST.get("pk"))
             # Formation ACTIVE uniquement (correctif QA — Circuit C, gap
             # supplémentaire trouvé dans le même esprit que les 4 signalés) :
             # une formation « bord » en attente de validation ou refusée ne
@@ -959,7 +949,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         # Ne fait pas confiance au formulaire : seuls les utilisateurs
         # visibles sur ce navire peuvent être désignés (revalidation côté
         # serveur, même principe que pour les référents par formation).
-        candidat_id = _entier_ou_none(request.POST.get("referent_navire_id"))
+        candidat_id = entier_ou_none(request.POST.get("referent_navire_id"))
         candidat = (
             User.objects.filter(_utilisateurs_du_navire_q(navire), pk=candidat_id).first()
             if candidat_id is not None else None
@@ -1007,7 +997,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         # Ne fait pas confiance au formulaire : seuls les utilisateurs
         # visibles sur ce navire peuvent être désignés (même principe que
         # _set_referent_navire ci-dessus).
-        candidat_id = _entier_ou_none(request.POST.get("brh_id"))
+        candidat_id = entier_ou_none(request.POST.get("brh_id"))
         candidat = (
             User.objects.filter(_utilisateurs_du_navire_q(navire), pk=candidat_id).first()
             if candidat_id is not None else None
@@ -1039,7 +1029,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         navire de l'appelant."""
         if not _peut_gerer_brh(request.user):
             raise PermissionDenied
-        brh_id = _entier_ou_none(request.POST.get("brh_id"))
+        brh_id = entier_ou_none(request.POST.get("brh_id"))
         ship_id = ship_id_for_user(request.user)
         if brh_id is not None and ship_id:
             PersonnelBRH.objects.filter(pk=brh_id, ship_id=ship_id).delete()
@@ -1067,7 +1057,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         libérée doit pouvoir la réserver normalement, même s'il figure
         encore dans la file (son entrée est retirée automatiquement, cf.
         training/models.py::_controler_reservation, action post_add)."""
-        session_id = _entier_ou_none(request.POST.get("session_id"))
+        session_id = entier_ou_none(request.POST.get("session_id"))
         session = (
             TrainingSession.objects.select_related("course").filter(pk=session_id).first()
             if session_id is not None else None
@@ -1123,7 +1113,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         La notification au premier de la liste d'attente (s'il y en a une) est
         déclenchée automatiquement par ce même signal (action post_remove),
         pas ici : seule source de vérité, quel que soit l'appelant."""
-        session_id = _entier_ou_none(request.POST.get("session_id"))
+        session_id = entier_ou_none(request.POST.get("session_id"))
         session = TrainingSession.objects.select_related("course").filter(pk=session_id).first() \
             if session_id is not None else None
         if session is None:
@@ -1147,7 +1137,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         attendre qu'une place ne se libère — aucune règle métier
         supplémentaire à appliquer (contrairement à l'annulation d'une
         réservation ferme), l'entrée est simplement supprimée."""
-        session_id = _entier_ou_none(request.POST.get("session_id"))
+        session_id = entier_ou_none(request.POST.get("session_id"))
         supprimees, _ = TrainingWaitlistEntry.objects.filter(
             session_id=session_id, user=request.user
         ).delete()
@@ -1180,8 +1170,8 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         (training/models.py::_controler_reservation), seule source de vérité,
         qui se déclenche ici aussi car l'ajout se fait toujours par le même
         ManyToManyField, quel que soit l'appelant."""
-        session_id = _entier_ou_none(request.POST.get("session_id"))
-        marin_id = _entier_ou_none(request.POST.get("marin_id"))
+        session_id = entier_ou_none(request.POST.get("session_id"))
+        marin_id = entier_ou_none(request.POST.get("marin_id"))
         session = (
             TrainingSession.objects.select_related("course").filter(pk=session_id).first()
             if session_id is not None else None
@@ -1255,7 +1245,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         if navire is None:
             messages.error(request, "Aucune unité rattachée à votre profil.")
             return redirect("formation-list")
-        course_id = _entier_ou_none(request.POST.get("course_id"))
+        course_id = entier_ou_none(request.POST.get("course_id"))
         # Formation ACTIVE uniquement (correctif QA — Circuit C) : une
         # formation « bord » en attente de validation ou refusée reste
         # invisible/inutilisable pour tout le monde sauf le proposeur/
@@ -1267,7 +1257,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         if course is None:
             messages.error(request, "Formation introuvable.")
             return redirect("formation-list")
-        nb = _entier_ou_none(request.POST.get("nb_places_demandees"))
+        nb = entier_ou_none(request.POST.get("nb_places_demandees"))
         if not nb or nb <= 0:
             messages.error(request, "Le nombre de places demandées doit être un nombre positif.")
             return redirect("formation-list")
@@ -1280,7 +1270,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
     def _annuler_demande_place(self, request):
         """Annulation par le demandeur (created_by) de SA PROPRE demande,
         uniquement tant qu'elle n'a pas encore été traitée par l'organisme."""
-        demande_id = _entier_ou_none(request.POST.get("demande_id"))
+        demande_id = entier_ou_none(request.POST.get("demande_id"))
         demande = DemandePlace.objects.filter(pk=demande_id).first() if demande_id is not None else None
         if demande is None:
             messages.error(request, "Demande introuvable.")
@@ -1302,7 +1292,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         renseigne le nombre de places attribuées et relie une TrainingSession
         (existante, choisie parmi les sessions de la même formation, ou
         nouvellement créée), puis passe le statut à GRANTED."""
-        demande_id = _entier_ou_none(request.POST.get("demande_id"))
+        demande_id = entier_ou_none(request.POST.get("demande_id"))
         demande = (
             DemandePlace.objects.select_related("course", "ship").filter(pk=demande_id).first()
             if demande_id is not None else None
@@ -1325,12 +1315,12 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         if not peut_valider_formation(request.user, demande.course, navire_organisme):
             raise PermissionDenied
 
-        nb = _entier_ou_none(request.POST.get("nb_places_attribuees"))
+        nb = entier_ou_none(request.POST.get("nb_places_attribuees"))
         if not nb or nb <= 0:
             messages.error(request, "Le nombre de places attribuées doit être un nombre positif.")
             return redirect("formation-list")
 
-        session_id = _entier_ou_none(request.POST.get("session_id"))
+        session_id = entier_ou_none(request.POST.get("session_id"))
         session = None
         if session_id is not None:
             # Ne fait pas confiance au formulaire : la session choisie doit
@@ -1352,7 +1342,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                     course=demande.course,
                     scheduled_at=scheduled_at,
                     location=request.POST.get("nouvelle_session_lieu", "").strip(),
-                    capacite_max=_entier_ou_none(capacite_brut) if capacite_brut else None,
+                    capacite_max=entier_ou_none(capacite_brut) if capacite_brut else None,
                 )
 
         demande.nb_places_attribuees = nb
@@ -1379,7 +1369,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
     def _refuser_demande_place(self, request):
         """Refus d'une demande par l'organisme de formation (même autorisation
         que l'attribution, cf. _attribuer_places)."""
-        demande_id = _entier_ou_none(request.POST.get("demande_id"))
+        demande_id = entier_ou_none(request.POST.get("demande_id"))
         demande = (
             DemandePlace.objects.select_related("course", "ship").filter(pk=demande_id).first()
             if demande_id is not None else None
@@ -1417,8 +1407,8 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         compté par bord) est contrôlé ICI, EN PLUS du plafond physique global
         de la session déjà appliqué par le signal m2m existant
         (training/models.py::_controler_reservation, non dupliqué)."""
-        demande_id = _entier_ou_none(request.POST.get("demande_id"))
-        marin_id = _entier_ou_none(request.POST.get("marin_id"))
+        demande_id = entier_ou_none(request.POST.get("demande_id"))
+        marin_id = entier_ou_none(request.POST.get("marin_id"))
         demande = (
             DemandePlace.objects.select_related("course", "session").filter(pk=demande_id).first()
             if demande_id is not None else None
@@ -1482,7 +1472,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         catalogue. Un seul dépôt actif à la fois par formation (bloque un
         doublon tant qu'une candidature précédente n'est pas allée à son
         terme, refus compris)."""
-        course_id = _entier_ou_none(request.POST.get("course_id"))
+        course_id = entier_ou_none(request.POST.get("course_id"))
         # Formation ACTIVE uniquement (correctif QA — Circuit C) : une
         # formation « bord » en attente de validation ou refusée reste
         # invisible/inutilisable pour tout le monde sauf le proposeur/
@@ -1509,7 +1499,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         Dès que la validation BRH est également réunie, le statut passe
         automatiquement à TRANSMITTED (cf.
         CandidatureFormation.transmettre_si_double_validation)."""
-        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature_id = entier_ou_none(request.POST.get("candidature_id"))
         candidature = (
             CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
             if candidature_id is not None else None
@@ -1545,7 +1535,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         """Refus par la hiérarchie : arrête définitivement la candidature,
         sans attendre la validation BRH (même autorisation que la
         validation, cf. _valider_candidature_hierarchie)."""
-        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature_id = entier_ou_none(request.POST.get("candidature_id"))
         candidature = (
             CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
             if candidature_id is not None else None
@@ -1574,7 +1564,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         personnel BRH désigné pour le navire du candidat (ou supervision
         globale). Dès que la validation hiérarchie est également réunie, le
         statut passe automatiquement à TRANSMITTED."""
-        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature_id = entier_ou_none(request.POST.get("candidature_id"))
         candidature = (
             CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
             if candidature_id is not None else None
@@ -1611,7 +1601,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         """Refus par le BRH : arrête définitivement la candidature, sans
         attendre la validation hiérarchie (même autorisation que la
         validation, cf. _valider_candidature_brh)."""
-        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature_id = entier_ou_none(request.POST.get("candidature_id"))
         candidature = (
             CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
             if candidature_id is not None else None
@@ -1643,7 +1633,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         validation hiérarchie + BRH réunie). La réussite effective du stage
         sera ensuite actée séparément par un TrainingRecord classique
         (ValiderFormationView), pas ici."""
-        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature_id = entier_ou_none(request.POST.get("candidature_id"))
         candidature = (
             CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
             if candidature_id is not None else None
@@ -1683,7 +1673,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
     def _refuser_candidature_organisme(self, request):
         """Refus par l'organisme de formation d'une candidature TRANSMITTED
         (même autorisation que la sélection, cf. _selectionner_candidature)."""
-        candidature_id = _entier_ou_none(request.POST.get("candidature_id"))
+        candidature_id = entier_ou_none(request.POST.get("candidature_id"))
         candidature = (
             CandidatureFormation.objects.select_related("course", "marin").filter(pk=candidature_id).first()
             if candidature_id is not None else None
@@ -1753,7 +1743,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
                 messages.error(request, "La durée de validité doit être un nombre de jours positif.")
                 return redirect("formation-list")
 
-        pk = _entier_ou_none(request.POST.get("pk"))
+        pk = entier_ou_none(request.POST.get("pk"))
         course = None
         if pk is not None:
             # Modification d'une formation bord existante uniquement — jamais
@@ -1830,7 +1820,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         d'une formation « bord » en attente — fait passer la formation en
         ACTIVE, désormais visible dans le catalogue (cf.
         _peut_valider_proposition_bord)."""
-        pk = _entier_ou_none(request.POST.get("pk"))
+        pk = entier_ou_none(request.POST.get("pk"))
         course = (
             TrainingCourse.objects.filter(pk=pk, statut_validation="WAITING_VALIDATION")
             .select_related("updated_by").first()
@@ -1865,7 +1855,7 @@ class TrainingCourseListView(LoginRequiredMixin, ListView):
         validation, cf. _valider_formation_bord) : la formation reste hors du
         catalogue (statut REFUSED), le chef de secteur pouvant la reprendre
         et la soumettre à nouveau (cf. _proposer_formation_bord)."""
-        pk = _entier_ou_none(request.POST.get("pk"))
+        pk = entier_ou_none(request.POST.get("pk"))
         course = (
             TrainingCourse.objects.filter(pk=pk, statut_validation="WAITING_VALIDATION")
             .select_related("updated_by").first()
@@ -1978,7 +1968,7 @@ class ValiderFormationView(LoginRequiredMixin, View):
             return redirect("formation-list")
 
         try:
-            marin = User.objects.get(pk=marin_id, is_active=True)
+            marin = User.objects.get(pk=entier_ou_none(marin_id), is_active=True)
         except User.DoesNotExist:
             messages.error(request, "Marin introuvable.")
             return redirect("formation-list")
@@ -1988,7 +1978,7 @@ class ValiderFormationView(LoginRequiredMixin, View):
             # formation « bord » en attente de validation ou refusée reste
             # invisible/inutilisable pour tout le monde sauf le proposeur/
             # validateur concerné, même en devinant son identifiant.
-            course = TrainingCourse.objects.get(pk=course_id, statut_validation="ACTIVE")
+            course = TrainingCourse.objects.get(pk=entier_ou_none(course_id), statut_validation="ACTIVE")
         except TrainingCourse.DoesNotExist:
             messages.error(request, "Formation introuvable.")
             return redirect("formation-list")

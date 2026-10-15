@@ -11,6 +11,7 @@ from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import verifier_longueurs
 from matrix.core.scopes import is_master_admin, navire_q
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
@@ -209,9 +210,10 @@ def _tracer(annonce, acteur, action):
     AuditLog.objects.create(actor=acteur, action=f"annonce_{action}", details=f"annonce={annonce.pk}; version={annonce.version}")
 
 
-def _valider(titre, corps, niveau, date_effet, date_fin):
+def _valider(titre, corps, niveau, date_effet, date_fin, equipage=""):
     if not titre.strip() or not corps.strip():
         raise ValidationError("Le titre et le message sont obligatoires.")
+    verifier_longueurs(Annonce, titre=titre.strip(), equipage=equipage.strip())
     if niveau not in NotificationLevel.values:
         raise ValidationError("Niveau inconnu.")
     if date_fin and date_fin < date_effet:
@@ -224,7 +226,7 @@ def publier(auteur, titre, corps, niveau, cible, equipage="", accuse_requis=Fals
     if not cible_permise(auteur, cible):
         raise PermissionError("Ce public est hors de votre périmètre.")
     date_effet = date_effet or timezone.localdate()
-    _valider(titre, corps, niveau, date_effet, date_fin)
+    _valider(titre, corps, niveau, date_effet, date_fin, equipage)
     annonce = Annonce(
         titre=titre.strip(), corps=corps.strip(), niveau=niveau, accuse_requis=accuse_requis, date_effet=date_effet,
         date_fin=date_fin, equipage=equipage.strip(), auteur=auteur, created_by=auteur, updated_by=auteur,

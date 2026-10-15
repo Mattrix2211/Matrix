@@ -11,6 +11,7 @@ from django.views import View
 
 from annonces.services import cibles_autorisees
 from demandes.services import trouver_objet
+from matrix.core.saisie import entier_ou_none
 from matrix.core.validators import valider_document
 
 from . import services
@@ -79,9 +80,14 @@ class DocumentNouveauView(LoginRequiredMixin, View):
                 request.user, request.POST.get("titre", ""), request.POST.get("cible", ""), request.POST.get("contenu", ""),
                 request.POST.get("domaine", ""), request.POST.get("origine", ""), request.POST.get("reference_source", ""),
                 request.POST.get("equipage", ""), _date(request.POST.get("prochaine_revision")), _fichier(request))
-        except (PermissionError, ValidationError) as exc:
+        except PermissionError as exc:
             _erreurs(request, exc)
             return redirect("document-nouveau")
+        except ValidationError as exc:
+            _erreurs(request, exc)
+            # Le formulaire est réaffiché avec la saisie, sans rien perdre.
+            return render(request, "documentation/nouveau.html", {
+                "cibles": cibles_autorisees(request.user), "origines": Document.ORIGINE_CHOICES, "saisie": request.POST})
         messages.success(request, "Brouillon enregistré : soumettez-le à validation pour le publier.")
         return redirect("document-detail", pk=document.pk)
 
@@ -139,7 +145,7 @@ class DocumentLierView(LoginRequiredMixin, View):
     def post(self, request):
         suite = request.POST.get("suite", "")
         retour = suite if url_has_allowed_host_and_scheme(suite, allowed_hosts=None) and suite.startswith("/") else reverse("documentation-index")
-        document = get_object_or_404(Document, pk=request.POST.get("document") or None)
+        document = get_object_or_404(Document, pk=entier_ou_none(request.POST.get("document")))
         if not services.peut_consulter(request.user, document):
             raise Http404
         modele, _, pk = request.POST.get("objet", "").partition(":")

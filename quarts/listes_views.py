@@ -26,6 +26,7 @@ from django.views import View
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import utilisateurs_visibles_par
 from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_admin, perimetre_navire_q, scope_filters_for_user
@@ -696,7 +697,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
 
     def _supprimer_creneau(self, request, liste):
         creneau = self.creneau_model.objects.filter(
-            pk=request.POST.get("creneau_id"), **{self.fk_attr: liste}
+            pk=entier_ou_none(request.POST.get("creneau_id")), **{self.fk_attr: liste}
         ).first()
         if creneau is None:
             messages.error(request, "Créneau introuvable.")

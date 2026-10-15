@@ -2,19 +2,19 @@
 {% block content %}
 <h1 class="h3 mb-3">Publier une annonce</h1>
 <form method="post" class="card card-body mb-4">{% csrf_token %}
-  <div class="mb-3"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" required></div>
-  <div class="mb-3"><label class="form-label" for="id_corps">Message</label><textarea class="form-control" id="id_corps" name="corps" rows="5" required></textarea></div>
+  <div class="mb-3"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" value="{{ saisie.titre }}" required></div>
+  <div class="mb-3"><label class="form-label" for="id_corps">Message</label><textarea class="form-control" id="id_corps" name="corps" rows="5" required>{{ saisie.corps }}</textarea></div>
   <div class="row g-3 mb-3">
     <div class="col-md-3"><label class="form-label" for="id_niveau">Niveau</label>
-      <select class="form-select" id="id_niveau" name="niveau">{% for code, libelle in niveaux %}<option value="{{ code }}">{{ libelle }}</option>{% endfor %}</select></div>
+      <select class="form-select" id="id_niveau" name="niveau">{% for code, libelle in niveaux %}<option value="{{ code }}"{% if saisie.niveau == code %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
     <div class="col-md-5"><label class="form-label" for="id_cible">Public visé</label>
-      <select class="form-select" id="id_cible" name="cible" required>{% for cle, libelle in cibles %}<option value="{{ cle }}">{{ libelle }}</option>{% endfor %}</select></div>
-    <div class="col-md-4"><label class="form-label" for="id_equipage">Équipage (facultatif)</label><select class="form-select" id="id_equipage" name="equipage"><option value="">Tous les équipages</option>{% for code in equipages %}<option value="{{ code }}">Équipage {{ code }}</option>{% endfor %}</select></div>
+      <select class="form-select" id="id_cible" name="cible" required>{% for cle, libelle in cibles %}<option value="{{ cle }}"{% if saisie.cible == cle %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label" for="id_equipage">Équipage (facultatif)</label><select class="form-select" id="id_equipage" name="equipage"><option value="">Tous les équipages</option>{% for code in equipages %}<option value="{{ code }}"{% if saisie.equipage == code %} selected{% endif %}>Équipage {{ code }}</option>{% endfor %}</select></div>
   </div>
   <div class="row g-3 mb-3">
-    <div class="col-md-3"><label class="form-label" for="id_date_effet">Visible à partir du</label><input class="form-control" type="date" id="id_date_effet" name="date_effet" value="{{ aujourdhui|date:'Y-m-d' }}"></div>
-    <div class="col-md-3"><label class="form-label" for="id_date_fin">Visible jusqu'au (facultatif)</label><input class="form-control" type="date" id="id_date_fin" name="date_fin"></div>
-    <div class="col-md-6 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="id_accuse" name="accuse_requis"><label class="form-check-label" for="id_accuse">Accusé de lecture requis (« J'ai pris connaissance »)</label></div></div>
+    <div class="col-md-3"><label class="form-label" for="id_date_effet">Visible à partir du</label><input class="form-control" type="date" id="id_date_effet" name="date_effet" value="{% if saisie %}{{ saisie.date_effet }}{% else %}{{ aujourdhui|date:'Y-m-d' }}{% endif %}"></div>
+    <div class="col-md-3"><label class="form-label" for="id_date_fin">Visible jusqu'au (facultatif)</label><input class="form-control" type="date" id="id_date_fin" name="date_fin" value="{{ saisie.date_fin }}"></div>
+    <div class="col-md-6 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="id_accuse" name="accuse_requis"{% if saisie.accuse_requis %} checked{% endif %}><label class="form-check-label" for="id_accuse">Accusé de lecture requis (« J'ai pris connaissance »)</label></div></div>
   </div>
   <p class="form-text">Si l'annonce demande un travail, assignez plutôt une tâche : un accusé de lecture ne prouve pas l'exécution.</p>
   <div><button class="btn btn-primary" type="submit">Publier</button> <a class="btn btn-link" href="{% url 'annonces-index' %}">Annuler</a></div>

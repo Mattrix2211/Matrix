@@ -9,6 +9,7 @@ from django.utils.dateparse import parse_date
 from django.views import View
 
 from annonces.services import chaine
+from matrix.core.saisie import entier_ou_none
 from notifications.liens import lien_objet
 
 from . import services
@@ -107,7 +108,7 @@ class RetexActionView(LoginRequiredMixin, View):
             elif action == "clore":
                 services.clore(request.user, retex)
             elif action == "creer_action":
-                assigne = User.objects.filter(pk=request.POST.get("assigne") or None).first()
+                assigne = User.objects.filter(pk=entier_ou_none(request.POST.get("assigne"))).first()
                 if assigne is None:
                     raise ValidationError("Indiquez le marin responsable de l'action.")
                 saisie = (request.POST.get("echeance") or "").strip()
