@@ -13,6 +13,7 @@ from .models import (
     CorrectiveTicket, MouvementStock, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
     destinataires_ticket, niveau_alerte_ticket,
 )
+from matrix.core.saisie import entier_ou_none
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -485,11 +486,15 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
             ).get(pk=pr_id)
         except PartRequest.DoesNotExist:
             return HttpResponseBadRequest('Demande introuvable')
+        quantite = entier_ou_none(request.POST.get('qty') or 1)
+        if quantite is None:
+            messages.error(request, "La quantité doit être un nombre entier.")
+            return redirect('ticket-detail', pk=pr.ticket.pk)
         PartLineItem.objects.create(
             part_request=pr,
             reference=request.POST.get('reference', ''),
             description=request.POST.get('description', ''),
-            qty=int(request.POST.get('qty', '1') or 1),
+            qty=quantite,
         )
         if request.headers.get('HX-Request'):
             part_requests = pr.ticket.part_requests.prefetch_related('lines').all()
@@ -688,7 +693,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             messages.error(request, "La référence et la désignation sont obligatoires.")
             return redirect('stock-piece-list')
 
-        sector = Sector.objects.select_related('service', 'service__ship').filter(pk=request.POST.get('sector_id')).first()
+        sector = Sector.objects.select_related('service', 'service__ship').filter(pk=entier_ou_none(request.POST.get('sector_id'))).first()
         if not sector:
             messages.error(request, "Le secteur est obligatoire.")
             return redirect('stock-piece-list')

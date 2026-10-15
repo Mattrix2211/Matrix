@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
 from annonces.services import cibles_autorisees
+from matrix.core.saisie import entier_ou_none
 from training.models import TrainingCourse
 
 from . import services
@@ -43,12 +44,16 @@ class PosteNouveauView(LoginRequiredMixin, View):
             "cibles": cibles_autorisees(request.user), "formations": TrainingCourse.objects.order_by("title")})
 
     def post(self, request):
+        effectif = entier_ou_none(request.POST.get("effectif") or 1)
+        if effectif is None:
+            messages.error(request, "L'effectif doit être un nombre entier.")
+            return redirect("poste-nouveau")
         try:
             poste = services.creer_poste(
                 request.user, request.POST.get("intitule", ""), request.POST.get("cible", ""),
-                int(request.POST.get("effectif") or 1), request.POST.get("equipage", ""), request.POST.getlist("formations"))
-        except (PermissionError, ValidationError, ValueError) as exc:
-            _erreurs(request, exc if not isinstance(exc, ValueError) else ValidationError("Effectif invalide."))
+                effectif, request.POST.get("equipage", ""), request.POST.getlist("formations"))
+        except (PermissionError, ValidationError) as exc:
+            _erreurs(request, exc)
             return redirect("poste-nouveau")
         messages.success(request, "Poste créé.")
         return redirect("poste-detail", pk=poste.pk)

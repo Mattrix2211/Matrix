@@ -1,10 +1,8 @@
 """Middlewares transverses de Matrix."""
 import logging
-from decimal import InvalidOperation
 
 from django.contrib import messages
-from django.core.exceptions import ValidationError
-from django.db import DataError
+from django.db import DataError, connection
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, QueryDict
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
@@ -18,10 +16,8 @@ from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
 
 logger = logging.getLogger(__name__)
 
-# Messages Python, Django et psycopg2 pour un identifiant, un entier, un décimal ou un NUL mal saisi.
-EXTRAITS_VALEUR_INVALIDE = (
-    "expected a number", "invalid literal for int()", "could not convert string to float", "NUL (0x00)",
-)
+# psycopg2 signale le NUL par un ValueError sans type propre (psycopg 3 lève un DataError).
+EXTRAIT_NUL = "NUL (0x00)"
 
 
 def _sans_nul(parametres):
@@ -77,20 +73,34 @@ class SansNulMiddleware:
 
 
 class ErreurSaisieMiddleware(MiddlewareMixin):
-    """Filet commun : une saisie qu'aucune vue n'a contrôlée (identifiant non numérique, texte trop long,
-    date invalide) donne un message à l'utilisateur et non une erreur 500."""
+    """Dernier recours pour deux erreurs de saisie attendues, reconnues à leur type : texte trop long pour sa
+    colonne (DataError) et caractère NUL. Toute autre exception reste une erreur 500 visible : les vues
+    contrôlent elles-mêmes leurs entiers, dates et longueurs avant d'écrire. Si la requête a déjà écrit en
+    base, l'erreur reste aussi visible (500) : un message « recommencez » risquerait de créer des doublons."""
+
+    ECRITURES = ("INSERT", "UPDATE", "DELETE")
+
+    def __call__(self, request):
+        request._ecriture_en_base = False
+
+        def surveiller(execute, sql, params, many, context):
+            resultat = execute(sql, params, many, context)
+            if sql.lstrip()[:6].upper() in self.ECRITURES:
+                request._ecriture_en_base = True
+            return resultat
+
+        with connection.execute_wrapper(surveiller):
+            return super().__call__(request)
 
     @staticmethod
     def _est_erreur_de_saisie(exception):
-        if isinstance(exception, (DataError, ValidationError, OverflowError, InvalidOperation)):
-            return True
-        return isinstance(exception, ValueError) and any(extrait in str(exception) for extrait in EXTRAITS_VALEUR_INVALIDE)
+        return isinstance(exception, DataError) or (isinstance(exception, ValueError) and EXTRAIT_NUL in str(exception))
 
     def process_exception(self, request, exception):
-        if not self._est_erreur_de_saisie(exception):
+        if not self._est_erreur_de_saisie(exception) or request._ecriture_en_base:
             return None
-        logger.warning("Saisie refusée sur %s %s : %r", request.method, request.path, exception)
-        message = "Saisie refusée : une valeur est invalide ou trop longue. Vérifiez les champs et recommencez."
+        logger.warning("Saisie refusée sur %s %s", request.method, request.path, exc_info=exception)
+        message = "Saisie refusée : une valeur est invalide ou trop longue. Rien n'a été enregistré : vérifiez les champs et recommencez."
         if request.path.startswith("/api/") or "application/json" in request.headers.get("Accept", ""):
             return JsonResponse({"detail": message}, status=400)
         if request.method in ("GET", "HEAD"):

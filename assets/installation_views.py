@@ -46,7 +46,7 @@ from matrix.core.export import (
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
-from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
+from matrix.core.saisie import identifiant_d_url, uuid_ou_none, uuids_valides, date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.contexte_batiment import referentiel_organisation
 from threads.utils import contexte_discussion
 from org.models import Section, Sector, Service, Ship
@@ -167,10 +167,10 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # Périmètre appliqué par ScopedQuerySetMixin (même système que l'API) avant les
         # filtres de recherche/tri propres à cette vue.
         qs = super().get_queryset().select_related('ship', 'service', 'sector', 'section', 'location').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'designation')
-        ship_id = self.request.GET.get('ship')
-        service_id = self.request.GET.get('service')
-        sector_id = self.request.GET.get('sector')
-        section_id = self.request.GET.get('section')
+        ship_id = identifiant_d_url(self.request.GET.get('ship'))
+        service_id = identifiant_d_url(self.request.GET.get('service'))
+        sector_id = identifiant_d_url(self.request.GET.get('sector'))
+        section_id = identifiant_d_url(self.request.GET.get('section'))
         q = self.request.GET.get('q', '').strip()
         if self.request.GET.get('critique') == '1':
             qs = qs.filter(critique=True)
@@ -348,7 +348,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre : seules les installations du périmètre de l'appelant sont
             # chargées (self.get_queryset(), scopé via ScopedQuerySetMixin) — un
             # identifiant posté hors périmètre est simplement ignoré.
-            items = self.get_queryset().filter(id__in=ids)
+            items = self.get_queryset().filter(id__in=uuids_valides(ids))
             if action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
                 loc = Location.objects.filter(pk=entier_ou_none(loc_id)).first()
@@ -361,7 +361,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
                 return _appliquer_bulk_update(
-                    request, items, 'ship', Ship.objects.filter(pk=ship_id).first(),
+                    request, items, 'ship', Ship.objects.filter(pk=entier_ou_none(ship_id)).first(),
                     action_audit='bulk_update_installation_ship', detail_audit=f'ship_id={ship_id}',
                     message_succes='Unité mise à jour pour {count} installation(s).',
                     redirect_url_name='installation-list',
@@ -370,7 +370,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
                 return _appliquer_bulk_update(
-                    request, items, 'service', Service.objects.filter(pk=service_id).first(),
+                    request, items, 'service', Service.objects.filter(pk=entier_ou_none(service_id)).first(),
                     action_audit='bulk_update_installation_service', detail_audit=f'service_id={service_id}',
                     message_succes='Service mis à jour pour {count} installation(s).',
                     redirect_url_name='installation-list',
@@ -379,7 +379,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
                 return _appliquer_bulk_update(
-                    request, items, 'sector', Sector.objects.filter(pk=sector_id).first(),
+                    request, items, 'sector', Sector.objects.filter(pk=entier_ou_none(sector_id)).first(),
                     action_audit='bulk_update_installation_sector', detail_audit=f'sector_id={sector_id}',
                     message_succes='Secteur mis à jour pour {count} installation(s).',
                     redirect_url_name='installation-list',
@@ -388,7 +388,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
                 return _appliquer_bulk_update(
-                    request, items, 'section', Section.objects.filter(pk=section_id).first(),
+                    request, items, 'section', Section.objects.filter(pk=entier_ou_none(section_id)).first(),
                     action_audit='bulk_update_installation_section', detail_audit=f'section_id={section_id}',
                     message_succes='Section mise à jour pour {count} installation(s).',
                     redirect_url_name='installation-list',
@@ -447,16 +447,19 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             if photo:
                 it.photo = photo
             if ship_id:
-                it.ship = Ship.objects.filter(pk=ship_id).first()
+                it.ship = Ship.objects.filter(pk=entier_ou_none(ship_id)).first()
             if service_id:
-                it.service = Service.objects.filter(pk=service_id).first()
+                it.service = Service.objects.filter(pk=entier_ou_none(service_id)).first()
             if sector_id:
-                it.sector = Sector.objects.filter(pk=sector_id).first()
+                it.sector = Sector.objects.filter(pk=entier_ou_none(sector_id)).first()
             if section_id:
-                it.section = Section.objects.filter(pk=section_id).first()
+                it.section = Section.objects.filter(pk=entier_ou_none(section_id)).first()
+            if it.ship_id is None:
+                messages.error(request, "L'unité est obligatoire.")
+                return redirect('installation-list')
             it.location = _resoudre_emplacement(request, it.ship)
             if bigrame_id:
-                it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first()
+                it.bigrame = InstallationBigrameChoice.objects.filter(pk=entier_ou_none(bigrame_id)).first()
             if iso_period in ('M','T','A'):
                 it.iso_periodicity = iso_period
             erreur_parent = _resoudre_parent_valide(request, it, Installation)
@@ -491,7 +494,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         elif action == 'delete_installation':
             pk = request.POST.get('pk')
             # Périmètre : une installation hors périmètre est traitée comme introuvable.
-            supprimees = self.get_queryset().filter(pk=pk).delete()[0]
+            supprimees = self.get_queryset().filter(pk=uuid_ou_none(pk)).delete()[0]
             if supprimees:
                 messages.success(request, 'Installation supprimée.')
             else:

@@ -9,7 +9,7 @@ from annonces.services import chaine, cible_permise, cibles_autorisees, destinat
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
-from matrix.core.saisie import verifier_longueurs
+from matrix.core.saisie import entier_ou_none, verifier_longueurs
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse
 from taches.services import taches_visibles
@@ -169,7 +169,7 @@ def deleguer(user, cible):
 def retirer_delegation(user, delegation_id):
     if not peut_deleguer(user):
         raise PermissionError("Seul l'état-major peut retirer une délégation.")
-    delegation = DelegationProgramme.objects.filter(pk=delegation_id, ship_id=_navire_id(user)).first()
+    delegation = DelegationProgramme.objects.filter(pk=entier_ou_none(delegation_id), ship_id=_navire_id(user)).first()
     if delegation:
         AuditLog.objects.create(actor=user, action="programme_delegation", target_user=delegation.user, details="retirée")
         delegation.delete()

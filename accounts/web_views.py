@@ -15,7 +15,7 @@ from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionC
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
-from matrix.core.saisie import entier_ou_none, verifier_longueurs
+from matrix.core.saisie import entier_ou_none, entiers_valides, identifiant_d_url, verifier_longueurs
 from matrix.core.permissions import ManageUsersPermission
 from matrix.core.scopes import (
     is_master_admin,
@@ -159,7 +159,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         # paramètre d'URL).
         if not is_master_admin(self.request.user):
             qs = qs.filter(perimetre_navire_q(self.request.user, "profile__")).exclude(is_superuser=True)
-        ship_id = self.request.GET.get("ship")
+        ship_id = identifiant_d_url(self.request.GET.get("ship"))
         if ship_id:
             qs = qs.filter(profile__ship_id=ship_id)
         return qs
@@ -241,7 +241,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
         action = request.POST.get("action")
         # Actions groupées
         if action in ("bulk_update_role", "bulk_update_ship", "bulk_update_fonction", "bulk_update_service", "bulk_update_sector", "bulk_update_section", "bulk_update_grade", "bulk_update_specialite", "bulk_delete_users", "bulk_reset_passwords"):
-            ids = request.POST.getlist("selected_ids")
+            ids = entiers_valides(request.POST.getlist("selected_ids"))
             # Périmètre navire appliqué avant toute exécution : un id hors du
             # navire de l'appelant (COMMANDANT/ADMIN_NAVIRE) est ignoré, comme
             # s'il n'existait pas (cf. _utilisateurs_gerables_par ci-dessus).

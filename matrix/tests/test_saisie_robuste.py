@@ -3,11 +3,13 @@
 PostgreSQL les refuse avec une erreur serveur là où SQLite les accepte : chaque cas doit donner
 un message à l'utilisateur (ou une réponse 400), jamais une erreur 500."""
 from datetime import timedelta
+from decimal import InvalidOperation
+from unittest import skipUnless
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db import DataError
-from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.db import DataError, connection
+from django.test import RequestFactory, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -19,6 +21,7 @@ from documentation.models import Document
 from matrix.core.middleware import ErreurSaisieMiddleware
 from matrix.core.saisie import verifier_longueurs
 from org.models import Ship
+from quarts.models import RubriqueEnTeteFeuilleService
 from taches.models import Tache
 from taches.tests.test_taches import TachesBase
 
@@ -176,14 +179,61 @@ class IdentifiantsNonNumeriquesTests(SaisieBase):
     def test_calendrier_periode_invalide(self):
         self.client.force_login(self.marin)
         for parametres in ({"start": "abc"}, {"start": "2026-10-01"}, {"end": "2026-10-01"}, {"start": "abc", "end": "def"},
-                           {"date": "abc"}, {"ship": "abc"}, {"user": "abc"}):
-            reponse = self.client.get(reverse("calendar-events"), parametres)
-            self.assertLess(reponse.status_code, 500, parametres)
+                           {"date": "abc"}):
+            self.assertEqual(self.client.get(reverse("calendar-events"), parametres).status_code, 200, parametres)
+
+    def test_calendrier_filtre_non_numerique_refuse_en_400(self):
+        self.client.force_login(self.marin)
+        for filtre in ("ship", "service", "sector", "user"):
+            reponse = self.client.get(reverse("calendar-events"), {filtre: "abc"})
+            self.assertEqual(reponse.status_code, 400, filtre)
+            self.assertIn("identifiant numérique", reponse.json()["detail"])
+        self.assertEqual(self.client.get(reverse("calendar-index"), {"ship": "abc"}).status_code, 400)
+
+    def test_filtres_d_url_non_numeriques_de_listes_refuses_en_400(self):
+        self.client.force_login(self.cdt)
+        for nom in ("asset-list", "installation-list", "user-directory"):
+            self.assertEqual(self.client.get(reverse(nom), {"ship": "abc"}).status_code, 400, nom)
+
+    def test_identifiants_de_formulaires_d_actifs_non_numeriques(self):
+        for donnees in ({"action": "bulk_update_ship", "selected_ids": "abc", "ship_id": "abc"},
+                        {"action": "delete_asset", "pk": "abc"}, {"action": "edit_asset", "pk": "abc", "ship_id": "abc"},
+                        {"action": "move_asset_to_folder", "asset_id": "abc", "folder_id": "abc"}):
+            self.assertLess(self.poster(self.cdt, "asset-list", donnees).status_code, 500, donnees)
+        for donnees in ({"action": "bulk_delete_installations", "selected_ids": "abc"}, {"action": "delete_installation", "pk": "abc"}):
+            self.assertLess(self.poster(self.cdt, "installation-list", donnees).status_code, 500, donnees)
+        self.assertLess(self.poster(self.cdt, "user-directory", {"action": "bulk_update_ship", "selected_ids": "abc", "ship_id": "abc"}).status_code, 500)
+
+    def test_ordre_non_numerique_de_la_feuille_de_service_n_ecrit_rien(self):
+        reponse = self.poster(self.cdt, "feuille-service-reglages", {
+            "action": "enregistrer_rubriques", "ship": self.navire.pk, "nouvelle_rubrique_libelle": "Météo", "nouvelle_rubrique_ordre": "abc"})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertFalse(RubriqueEnTeteFeuilleService.objects.exists())
+        reponse = self.poster(self.cdt, "feuille-service-reglages", {"action": "supprimer_rubrique", "ship": "abc", "pk": "abc"})
+        self.assertEqual(reponse.status_code, 404)
+
+    def test_effectif_d_un_poste_non_numerique(self):
+        reponse = self.poster(self.cdt, "poste-nouveau", {"intitule": "Chef de quart", "cible": f"ship:{self.navire.pk}", "effectif": "abc"})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertIn("effectif", " ".join(self.messages(reponse)).lower())
 
 
 class AutresSaisiesMalFormeesTests(SaisieBase):
     def test_entier_non_numerique_dans_un_formulaire_donne_un_message(self):
         reponse = self.poster(self.cdt, "asset-list", {"action": "create_asset", "criticality": "abc", "internal_id": "A1"})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertIn("criticité", " ".join(self.messages(reponse)))
+
+    def test_type_et_unite_invalides_a_la_creation_de_materiel(self):
+        reponse = self.poster(self.cdt, "asset-list", {
+            "action": "create_asset", "asset_type_id": "abc", "internal_id": "A1", "ship_id": self.navire.pk})
+        self.assertEqual(reponse.status_code, 302)
+        reponse = self.poster(self.cdt, "installation-list", {"action": "create_installation", "designation": "Groupe"})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertIn("unité", " ".join(self.messages(reponse)))
+
+    def test_secteur_non_numerique_d_une_piece_de_stock(self):
+        reponse = self.poster(self.cdt, "stock-piece-list", {"action": "create_piece", "reference": "R1", "designation": "Joint", "sector_id": "abc"})
         self.assertEqual(reponse.status_code, 302)
 
     def test_retour_relatif_du_changement_de_theme(self):
@@ -194,9 +244,17 @@ class AutresSaisiesMalFormeesTests(SaisieBase):
         reponse = self.poster(self.marin, "push-subscribe", {"endpoint": "https://push.example/1", "keys": "abc"})
         self.assertEqual(reponse.status_code, 400)
 
-    def test_nul_dans_une_requete_api(self):
-        reponse = self.poster(self.marin, "push-unsubscribe", {"endpoint": "https://push.example/\x001"})
-        self.assertLess(reponse.status_code, 500)
+
+@skipUnless(connection.vendor == "postgresql", "Le NUL n'est refusé que par PostgreSQL.")
+class JsonAvecNulTests(TransactionTestCase):
+    """Hors transaction de test : l'erreur SQL y laisse la base utilisable, comme en production."""
+
+    def test_json_avec_nul_donne_400_sans_fuite(self):
+        marin = User.objects.create_user(username="marin_json", password="pass")
+        self.client.force_login(marin)
+        reponse = self.client.post(reverse("push-unsubscribe"), {"endpoint": "https://push.example/\u00001"}, content_type="application/json")
+        self.assertEqual(reponse.status_code, 400)
+        self.assertNotIn("NUL", reponse.content.decode())
 
 
 class ProgrammeSansBatimentTests(TestCase):
@@ -211,19 +269,24 @@ class ProgrammeSansBatimentTests(TestCase):
         self.assertFalse(admin.profile.ship_id)
 
 
-class FiletSaisieTests(SimpleTestCase):
-    """Le filet commun convertit les erreurs de saisie non contrôlées par une vue."""
+class FiletSaisieTests(TestCase):
+    """Le filet ne retient que DataError et le NUL, tant que rien n'a été écrit ; le reste reste une erreur 500."""
 
-    def reponse(self, exception, methode="post", chemin="/taches/", **entetes):
+    def reponse(self, exception, methode="post", chemin="/taches/", ecrire=False, **entetes):
         requete = getattr(RequestFactory(), methode)(chemin, **entetes)
         requete._messages = type("Stock", (), {"add": lambda self, *a, **k: None})()  # le filet n'y ajoute qu'un message
-        return ErreurSaisieMiddleware(lambda r: None).process_exception(requete, exception)
+        resultat = []
 
-    def test_erreurs_de_saisie_redirigees_avec_message(self):
-        for exception in (
-            DataError("value too long"), ValidationError("Date invalide"), OverflowError("trop grand"),
-            ValueError("Field 'id' expected a number but got 'abc'."),
-        ):
+        def vue(r):
+            if ecrire:
+                User.objects.create(username="ecrit_avant_l_erreur")
+            resultat.append(ErreurSaisieMiddleware(vue).process_exception(r, exception))
+
+        ErreurSaisieMiddleware(vue)(requete)
+        return resultat[0]
+
+    def test_texte_trop_long_et_nul_redirigent_avec_message(self):
+        for exception in (DataError("value too long"), ValueError("A string literal cannot contain NUL (0x00) characters.")):
             reponse = self.reponse(exception, HTTP_REFERER="http://testserver/taches/")
             self.assertEqual((reponse.status_code, reponse["Location"]), (302, "http://testserver/taches/"))
 
@@ -234,6 +297,15 @@ class FiletSaisieTests(SimpleTestCase):
         self.assertEqual(self.reponse(DataError("x"), "get").status_code, 400)
         self.assertEqual(self.reponse(DataError("x"), chemin="/api/assets/").status_code, 400)
 
-    def test_autres_erreurs_non_masquees(self):
-        for exception in (ValueError("autre"), KeyError("x"), RuntimeError("panne")):
-            self.assertIsNone(self.reponse(exception))
+    def test_erreurs_de_programmation_ne_sont_pas_masquees(self):
+        for exception in (ValueError("autre"), ValueError("invalid literal for int() with base 10: 'abc'"), ValidationError("Date invalide"),
+                          OverflowError("trop grand"), InvalidOperation(), KeyError("x"), RuntimeError("panne")):
+            self.assertIsNone(self.reponse(exception), repr(exception))
+
+    def test_erreur_apres_une_ecriture_reste_visible(self):
+        self.assertIsNone(self.reponse(DataError("x"), ecrire=True))
+
+    def test_journal_avec_trace_complete(self):
+        with self.assertLogs("matrix.core.middleware", "WARNING") as journal:
+            self.reponse(DataError("x"))
+        self.assertIsNotNone(journal.records[0].exc_info)

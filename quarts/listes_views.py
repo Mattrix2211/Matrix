@@ -788,7 +788,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         elif action == "retirer":
             cdl = ChefDeListe.objects.filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
-                pk=request.POST.get("pk"),
+                pk=entier_ou_none(request.POST.get("pk")),
             ).first()
             if cdl is None:
                 messages.error(request, "Désignation introuvable.")

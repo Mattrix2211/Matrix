@@ -50,6 +50,7 @@ from .models import (
     InstallationVibrationReading,
     ModeDeclenchement,
 )
+from matrix.core.saisie import entier_ou_none
 from matrix.core.validators import valider_photo, valider_document, message_erreur_fichier
 from .web_views import _afficher_erreur_validation, _org_dans_perimetre, _resoudre_emplacement, _resoudre_parent_valide
 
@@ -121,7 +122,7 @@ def _action_edit_installation(view, request, inst, qs):
         it.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
         it.section = Section.objects.filter(pk=section_id).first() if section_id else None
         it.location = _resoudre_emplacement(request, it.ship)
-        it.bigrame = InstallationBigrameChoice.objects.filter(pk=bigrame_id).first() if bigrame_id else None
+        it.bigrame = InstallationBigrameChoice.objects.filter(pk=entier_ou_none(bigrame_id)).first() if bigrame_id else None
         # Périodicité isolement
         iso_period = (request.POST.get('iso_periodicity') or '').strip().upper()
         if iso_period in ('M', 'T', 'A'):
@@ -262,17 +263,14 @@ def _action_add_maintenance(view, request, inst, qs):
     title = (request.POST.get('title') or '').strip()
     description = (request.POST.get('description') or '').strip()
     # Parse durée HH:MM -> minutes
-    try:
-        hours = int((request.POST.get('planned_duration_hours') or '0') or 0)
-    except Exception:
-        hours = 0
-    try:
-        minutes = int((request.POST.get('planned_duration_minutes') or '0') or 0)
-    except Exception:
-        minutes = 0
+    hours = entier_ou_none(request.POST.get('planned_duration_hours') or 0)
+    minutes = entier_ou_none(request.POST.get('planned_duration_minutes') or 0)
+    people = entier_ou_none(request.POST.get('people_count') or 1)
+    if None in (hours, minutes, people):
+        messages.error(request, "La durée (heures, minutes) et le nombre de personnes doivent être des nombres entiers.")
+        return redirect(f"/installations/{inst.id}/{qs}")
     minutes = max(0, min(59, minutes))
     duration = max(0, hours * 60 + minutes)
-    people = int((request.POST.get('people_count') or '1') or 1)
     competence = (request.POST.get('competence') or 'BORD').strip().upper()
     if competence not in ('BORD', 'SLM', 'INDUSTRIEL'):
         competence = 'BORD'
@@ -362,20 +360,14 @@ def _action_edit_maintenance(view, request, inst, qs):
     m.periodicity = (request.POST.get('periodicity') or m.periodicity or '').strip()
     m.title = (request.POST.get('title') or m.title or '').strip()
     m.description = (request.POST.get('description') or m.description or '').strip()
-    try:
-        hours = int((request.POST.get('planned_duration_hours') or '') or 0)
-    except Exception:
-        hours = m.planned_duration_min // 60
-    try:
-        minutes = int((request.POST.get('planned_duration_minutes') or '') or 0)
-    except Exception:
-        minutes = m.planned_duration_min % 60
+    hours = entier_ou_none(request.POST.get('planned_duration_hours') or 0)
+    minutes = entier_ou_none(request.POST.get('planned_duration_minutes') or 0)
+    people = entier_ou_none(request.POST.get('people_count') or m.people_count)
+    if None in (hours, minutes, people):
+        messages.error(request, "La durée (heures, minutes) et le nombre de personnes doivent être des nombres entiers.")
+        return redirect(f"/installations/{inst.id}/{qs}")
     minutes = max(0, min(59, minutes))
     m.planned_duration_min = max(0, hours * 60 + minutes)
-    try:
-        people = int((request.POST.get('people_count') or '') or m.people_count)
-    except Exception:
-        people = m.people_count
     m.people_count = max(1, people)
     comp = (request.POST.get('competence') or m.competence or '').strip().upper()
     m.competence = comp if comp in ('BORD', 'SLM', 'INDUSTRIEL') else m.competence
@@ -389,19 +381,21 @@ def _action_edit_maintenance(view, request, inst, qs):
         m.mode_declenchement = nouveau_mode
     intervalle_raw = (request.POST.get('intervalle') or '').strip()
     if intervalle_raw:
-        try:
-            m.intervalle = max(1, int(intervalle_raw))
-        except ValueError:
-            pass
+        intervalle = entier_ou_none(intervalle_raw)
+        if intervalle is None:
+            messages.error(request, "L'intervalle doit être un nombre entier.")
+            return redirect(f"/installations/{inst.id}/{qs}")
+        m.intervalle = max(1, intervalle)
     unite = (request.POST.get('unite_intervalle') or '').strip().upper()
     if unite in dict(InstallationMaintenance.UNITE_INTERVALLE_CHOICES):
         m.unite_intervalle = unite
     seuil_raw = (request.POST.get('seuil_heures') or '').strip()
     if seuil_raw:
-        try:
-            m.seuil_heures = max(0, int(seuil_raw))
-        except ValueError:
-            pass
+        seuil = entier_ou_none(seuil_raw)
+        if seuil is None:
+            messages.error(request, "Le seuil en heures doit être un nombre entier.")
+            return redirect(f"/installations/{inst.id}/{qs}")
+        m.seuil_heures = seuil
     m.updated_by = request.user
     try:
         with transaction.atomic():

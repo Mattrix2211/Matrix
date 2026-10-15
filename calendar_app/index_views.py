@@ -6,6 +6,7 @@ from taches.services import peut_attribuer
 from .sources import SOURCES
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
+from django.http import HttpResponseBadRequest
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import TemplateView
@@ -24,6 +25,7 @@ from .evenements_sources import (
     _creneaux_quart_assignes,
     sessions_visibles,
     _evenements_personnels,
+    filtre_identifiant_invalide,
 )
 from .models import PersonalEvent
 
@@ -65,6 +67,9 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                 base = today
 
         filters = self._parse_filters(request)
+        invalide = filtre_identifiant_invalide(filters)
+        if invalide:
+            return HttpResponseBadRequest(f"Filtre « {invalide} » invalide : un identifiant numérique est attendu.")
 
         if view == "day":
             start, end = base, base

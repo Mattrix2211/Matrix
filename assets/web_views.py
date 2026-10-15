@@ -164,7 +164,7 @@ def _org_dans_perimetre(user, model, cible_id):
     champ = chemins.get(model, {}).get(niveau)
     if champ is None:
         return False
-    return model.objects.filter(pk=cible_id, **{champ: valeur}).exists()
+    return model.objects.filter(pk=entier_ou_none(cible_id), **{champ: valeur}).exists()
 
 
 def _emplacements_visibles(user):
