@@ -225,13 +225,18 @@ class DeconnexionNavigateurTests(InactiviteTestCase):
         self.assertFalse(AuditLog.objects.filter(action="session_expiree").exists())
 
     def test_retour_invalide_refuse(self):
-        invalides = ("https://evil.example/", "//evil.example/", "javascript:alert(1)", "/a\x00b", "/" + "a" * 2000)
+        invalides = ("https://evil.example/", "//evil.example/", "javascript:alert(1)", "/" + "a" * 2000)
         for suivant in invalides:
             self.client.force_login(self.marin)
             self.client.get(reverse("home"))
             self.vieillir(DELAI_DEFAUT + 5)
             reponse = self.client.post(reverse("logout"), {"next": suivant})
             self.assertEqual(reponse["Location"], "/accounts/login/?expire=1", repr(suivant)[:30])
+
+    def test_retour_avec_nul_nettoye_avant_controle(self):
+        self.client.get(reverse("home"))
+        reponse = self.client.post(reverse("logout"), {"next": "/a\x00b"})
+        self.assertIn("next=%2Fab", reponse["Location"])
 
     def test_retour_limite_accepte(self):
         self.client.get(reverse("home"))
