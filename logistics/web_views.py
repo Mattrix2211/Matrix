@@ -574,8 +574,8 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
 
         pieces = StockPiece.objects.filter(build_scope_q(request.user, ""))
         try:
-            piece = pieces.get(pk=request.POST.get('piece_id'))
-        except (StockPiece.DoesNotExist, ValueError):
+            piece = pieces.get(pk=entier_ou_none(request.POST.get('piece_id')))
+        except StockPiece.DoesNotExist:
             messages.error(request, "Pièce introuvable ou hors de votre périmètre.")
             return redirect('ticket-detail', pk=ticket.pk)
 
@@ -706,7 +706,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             return redirect('stock-piece-list')
         # La section doit appartenir au secteur choisi, sinon on l'ignore plutôt que
         # de créer une hiérarchie incohérente (Section -> Sector -> Service -> Ship).
-        section = Section.objects.filter(pk=request.POST.get('section_id'), sector=sector).first()
+        section = Section.objects.filter(pk=entier_ou_none(request.POST.get('section_id')), sector=sector).first()
 
         try:
             quantite_initiale = max(int(request.POST.get('quantite') or 0), 0)

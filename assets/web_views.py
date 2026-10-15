@@ -30,7 +30,7 @@ from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
-from matrix.core.saisie import entier_ou_none
+from matrix.core.saisie import entier_ou_none, uuid_ou_none
 from matrix.core.scopes import is_master_admin
 from org.models import Section, Sector, Service, Ship
 
@@ -73,7 +73,7 @@ def _resoudre_parent_valide(request, objet, model):
     if not parent_id:
         objet.parent = None
         return None
-    parent = _parent_candidats(model, objet.sector_id, {objet.pk}).filter(pk=parent_id).first()
+    parent = _parent_candidats(model, objet.sector_id, {objet.pk}).filter(pk=uuid_ou_none(parent_id)).first()
     if parent is None:
         return "Rattachement invalide : l'équipement sélectionné ne fait pas partie du même secteur."
     objet.parent = parent
@@ -122,6 +122,9 @@ def _org_dans_perimetre(user, model, cible_id):
     principe que _resoudre_parent_valide pour le champ parent_id)."""
     if not cible_id:
         return True
+    cible_id = entier_ou_none(cible_id)
+    if cible_id is None:
+        return False
     profil = getattr(user, 'profile', None)
     niveau, valeur = profil.scope if profil else (None, None)
     if niveau is None:
@@ -164,7 +167,7 @@ def _org_dans_perimetre(user, model, cible_id):
     champ = chemins.get(model, {}).get(niveau)
     if champ is None:
         return False
-    return model.objects.filter(pk=entier_ou_none(cible_id), **{champ: valeur}).exists()
+    return model.objects.filter(pk=cible_id, **{champ: valeur}).exists()
 
 
 def _emplacements_visibles(user):

@@ -555,8 +555,8 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             if not peut_reinitialiser(request.user):
                 raise PermissionDenied
             try:
-                cible = _utilisateurs_gerables_par(request.user).get(pk=request.POST.get("pk"))
-            except (get_user_model().DoesNotExist, ValueError):
+                cible = _utilisateurs_gerables_par(request.user).get(pk=entier_ou_none(request.POST.get("pk")))
+            except get_user_model().DoesNotExist:
                 messages.error(request, "Marin introuvable dans votre bâtiment.")
                 return redirect("user-directory")
             if cible.pk == request.user.pk:

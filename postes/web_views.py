@@ -83,12 +83,12 @@ class PosteDetailView(LoginRequiredMixin, View):
         action = request.POST.get("action")
         try:
             if action == "affecter":
-                marin = User.objects.filter(pk=request.POST.get("marin") or None).first()
+                marin = User.objects.filter(pk=entier_ou_none(request.POST.get("marin"))).first()
                 if marin is None:
                     raise ValidationError("Marin introuvable.")
                 services.affecter(request.user, poste, marin)
             elif action == "retirer":
-                services.retirer(request.user, poste, get_object_or_404(User, pk=request.POST.get("marin")))
+                services.retirer(request.user, poste, get_object_or_404(User, pk=entier_ou_none(request.POST.get("marin"))))
             elif action == "formations":
                 services.modifier_formations(request.user, poste, request.POST.getlist("formations"))
             else:

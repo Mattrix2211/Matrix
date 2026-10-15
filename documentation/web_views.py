@@ -120,7 +120,7 @@ class DocumentActionView(LoginRequiredMixin, View):
                 services.proposer_amelioration(request.user, document, request.POST.get("contenu", ""), request.POST.get("resume", ""), _fichier(request))
                 messages.success(request, "Proposition transmise : la version applicable reste en vigueur jusqu'à validation.")
             elif action in ("soumettre", "valider", "refuser"):
-                version = get_object_or_404(VersionDocument, pk=request.POST.get("version"), document=document)
+                version = get_object_or_404(VersionDocument, pk=entier_ou_none(request.POST.get("version")), document=document)
                 if version.etat == VersionDocument.ETAT_BROUILLON and version.auteur_id != request.user.pk and not peut_valider(request.user, document):
                     raise Http404
                 if action == "soumettre":

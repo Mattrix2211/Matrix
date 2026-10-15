@@ -22,7 +22,7 @@ from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from .perimetre import STATUTS_SANS_RETARD, perimetre_occurrences_q, retard_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
 from matrix.core.roles import user_role_level
-from matrix.core.saisie import entier_ou_none, sans_nul
+from matrix.core.saisie import entier_ou_none, sans_nul, uuid_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.validators import valider_document, message_erreur_fichier
 from accounts.models import AuditLog
@@ -513,12 +513,12 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
         scope = request.POST.get("scope")
         asset = asset_type = None
         if scope == "ASSET":
-            asset = _assets_disponibles(request.user).filter(pk=request.POST.get("asset_id")).first()
+            asset = _assets_disponibles(request.user).filter(pk=uuid_ou_none(request.POST.get("asset_id"))).first()
             if not asset:
                 messages.error(request, "Le matériel choisi est introuvable ou hors de votre périmètre.")
                 return redirect("maintenance-plans")
         elif scope == "ASSET_TYPE":
-            asset_type = _asset_types_disponibles(request.user).filter(pk=request.POST.get("asset_type_id")).first()
+            asset_type = _asset_types_disponibles(request.user).filter(pk=entier_ou_none(request.POST.get("asset_type_id"))).first()
             if not asset_type:
                 messages.error(request, "Le type de matériel choisi est introuvable ou hors de votre périmètre.")
                 return redirect("maintenance-plans")
