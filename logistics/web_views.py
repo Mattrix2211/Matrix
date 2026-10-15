@@ -486,7 +486,7 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
             ).get(pk=pr_id)
         except PartRequest.DoesNotExist:
             return HttpResponseBadRequest('Demande introuvable')
-        quantite = entier_ou_none(request.POST.get('qty') or 1)
+        quantite = entier_ou_none(request.POST.get('qty') or '1')
         if quantite is None:
             messages.error(request, "La quantité doit être un nombre entier.")
             return redirect('ticket-detail', pk=pr.ticket.pk)

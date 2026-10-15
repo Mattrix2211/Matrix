@@ -44,7 +44,7 @@ class PosteNouveauView(LoginRequiredMixin, View):
             "cibles": cibles_autorisees(request.user), "formations": TrainingCourse.objects.order_by("title")})
 
     def post(self, request):
-        effectif = entier_ou_none(request.POST.get("effectif") or 1)
+        effectif = entier_ou_none(request.POST.get("effectif") or "1")
         if effectif is None:
             messages.error(request, "L'effectif doit être un nombre entier.")
             return redirect("poste-nouveau")

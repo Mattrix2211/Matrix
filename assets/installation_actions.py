@@ -263,9 +263,9 @@ def _action_add_maintenance(view, request, inst, qs):
     title = (request.POST.get('title') or '').strip()
     description = (request.POST.get('description') or '').strip()
     # Parse durée HH:MM -> minutes
-    hours = entier_ou_none(request.POST.get('planned_duration_hours') or 0)
-    minutes = entier_ou_none(request.POST.get('planned_duration_minutes') or 0)
-    people = entier_ou_none(request.POST.get('people_count') or 1)
+    hours = entier_ou_none(request.POST.get('planned_duration_hours') or '0')
+    minutes = entier_ou_none(request.POST.get('planned_duration_minutes') or '0')
+    people = entier_ou_none(request.POST.get('people_count') or '1')
     if None in (hours, minutes, people):
         messages.error(request, "La durée (heures, minutes) et le nombre de personnes doivent être des nombres entiers.")
         return redirect(f"/installations/{inst.id}/{qs}")
@@ -360,9 +360,9 @@ def _action_edit_maintenance(view, request, inst, qs):
     m.periodicity = (request.POST.get('periodicity') or m.periodicity or '').strip()
     m.title = (request.POST.get('title') or m.title or '').strip()
     m.description = (request.POST.get('description') or m.description or '').strip()
-    hours = entier_ou_none(request.POST.get('planned_duration_hours') or 0)
-    minutes = entier_ou_none(request.POST.get('planned_duration_minutes') or 0)
-    people = entier_ou_none(request.POST.get('people_count') or m.people_count)
+    hours = entier_ou_none(request.POST.get('planned_duration_hours') or '0')
+    minutes = entier_ou_none(request.POST.get('planned_duration_minutes') or '0')
+    people = entier_ou_none(request.POST.get('people_count') or str(m.people_count))
     if None in (hours, minutes, people):
         messages.error(request, "La durée (heures, minutes) et le nombre de personnes doivent être des nombres entiers.")
         return redirect(f"/installations/{inst.id}/{qs}")

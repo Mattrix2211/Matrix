@@ -589,7 +589,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             gisement = request.POST.get('gisement', '').strip()
             local = request.POST.get('local', '').strip()
             status = request.POST.get('status') or 'OK'
-            criticality = entier_ou_none(request.POST.get('criticality') or 1)
+            criticality = entier_ou_none(request.POST.get('criticality') or '1')
             if criticality is None:
                 messages.error(request, "La criticité doit être un nombre entier.")
                 return _redirect_liste_materiel(request)
@@ -714,7 +714,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 asset.gisement = request.POST.get('gisement', asset.gisement).strip()
                 asset.local = request.POST.get('local', asset.local).strip()
                 asset.status = request.POST.get('status', asset.status)
-                criticite = entier_ou_none(request.POST.get('criticality') or asset.criticality)
+                criticite = entier_ou_none(request.POST.get('criticality') or str(asset.criticality))
                 if criticite is None:
                     messages.error(request, "La criticité doit être un nombre entier.")
                     return _redirect_liste_materiel(request)
