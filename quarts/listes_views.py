@@ -378,7 +378,7 @@ class CreerListeView(LoginRequiredMixin, View):
             contexte["synthese"] = {
                 "type": "Quart (rotation de postes)" if est_quart else "Service à quai / garde",
                 "perimetre": _libelle_perimetre(ship or service or sector or section),
-                "fonction": fonctions.filter(pk=valeurs.get("fonction_quart" if est_quart else "fonction_service") or 0).first(),
+                "fonction": fonctions.filter(pk=entier_ou_none(valeurs.get("fonction_quart" if est_quart else "fonction_service"))).first(),
                 "date_debut": parse_date(valeurs.get("date_debut", "")),
                 "date_fin": parse_date(valeurs.get("date_fin", "")),
             }
@@ -400,6 +400,8 @@ class CreerListeView(LoginRequiredMixin, View):
             champ = "fonction_quart" if valeurs.get("type_liste") == "creer_quart" else "fonction_service"
             if not valeurs.get(champ):
                 return "La fonction est obligatoire."
+            if entier_ou_none(valeurs.get(champ)) is None:
+                return "La fonction choisie est invalide."
         return None
 
     def get(self, request):

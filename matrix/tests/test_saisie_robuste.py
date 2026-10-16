@@ -236,6 +236,17 @@ class AutresSaisiesMalFormeesTests(SaisieBase):
         reponse = self.poster(self.cdt, "stock-piece-list", {"action": "create_piece", "reference": "R1", "designation": "Joint", "sector_id": "abc"})
         self.assertEqual(reponse.status_code, 302)
 
+    def test_fonction_non_numerique_de_l_assistant_de_liste(self):
+        from quarts.listes_views import CreerListeView
+
+        for type_liste, champ in (("creer_quart", "fonction_quart"), ("creer_service_garde", "fonction_service")):
+            erreur = CreerListeView()._controler("regles", {"type_liste": type_liste, champ: "abc"}, [])
+            self.assertEqual(erreur, "La fonction choisie est invalide.")
+            for etape in ("3", "4", "99"):
+                reponse = self.poster(self.cdt, "quarts-creer", {
+                    "etape": etape, "type_liste": type_liste, champ: "abc", "date_debut": "2026-11-01", "date_fin": "2026-11-30"})
+                self.assertEqual(reponse.status_code, 400, (type_liste, etape))
+
     def test_retour_relatif_du_changement_de_theme(self):
         reponse = self.poster(self.marin, "basculer-theme", {"next": "abc"})
         self.assertEqual((reponse.status_code, reponse["Location"]), (302, "abc"))

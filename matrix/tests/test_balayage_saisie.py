@@ -22,7 +22,11 @@ NOMS_EXPLICITES = {
     "interlocuteur", "responsable", "document", "tache", "piece", "fonction", "course", "poste", "navire", "type",
     "folder", "location", "parent", "batiment", "cible", "perimetre", "objet", "equipement", "specialite",
 }
-MOTIF_ID = re.compile(r"(^|_)(id|ids|pk)$")
+# Paramètres de structure d'un assistant en plusieurs étapes : ils restent valides pour que la requête
+# aille jusqu'aux contrôles d'identifiants des étapes suivantes (« etape » : règles puis vérification).
+COMPAGNONS = {"type_liste": "creer_quart", "date_debut": "2026-11-01", "date_fin": "2026-11-30"}
+ETAPES = ("3", "4")
+MOTIF_ID = re.compile(r"(^|_)(id|ids|pk)$|fonction|ordre|rang|numero|cible|perimetre")
 LECTURE_PARAMETRE = re.compile(
     r"(?:POST|GET|data|donnees|valeurs)(?:\.get|\.getlist)?\(\s*['\"](\w+)['\"]|(?:POST|GET)\[['\"](\w+)['\"]\]")
 TOUS_LES_ACTIONS = re.compile(r"action\s+in\s+\(([^)]*)\)", re.S)
@@ -81,7 +85,10 @@ def _parametres_et_actions(url):
     """(paramètres et actions de l'application, paramètres et actions du seul module de la vue)."""
     module = _module_de_la_vue(url)
     propre = Path(module.__file__).read_text(errors="ignore") if getattr(module, "__file__", None) else ""
-    return _extraire(_sources_de_l_app(url)), _extraire(propre)
+    compagnons = {nom: valeur for nom, valeur in COMPAGNONS.items() if f'"{nom}"' in propre or f"'{nom}'" in propre}
+    if '"etape"' in propre:
+        compagnons["etape"] = ETAPES
+    return _extraire(_sources_de_l_app(url)), _extraire(propre), compagnons
 
 
 class BalayageIdentifiantsTests(TestCase):
@@ -98,15 +105,17 @@ class BalayageIdentifiantsTests(TestCase):
         for compte in ("admin", "chef_section_a"):
             client = Client(raise_request_exception=True)
             client.login(username=compte, password="admin" if compte == "admin" else "pass")
-            for url, (noms, actions), (noms_propres, actions_propres) in plan:
+            for url, (noms, actions), (noms_propres, actions_propres), compagnons in plan:
                 if not noms:
                     continue
                 # Tous les paramètres ensemble pour chaque valeur hostile, puis un par un dans le module de la vue.
                 essais = [({n: valeur for n in noms}, "tous", actions) for valeur in ("abc", "9" * 30, "a\x00b")]
                 essais += [({n: "abc"}, n, actions_propres) for n in noms_propres]
-                for donnees, etiquette, liste_actions in essais:
+                variantes = [dict(compagnons, etape=e) for e in ETAPES] if "etape" in compagnons else [compagnons]
+                essais = [(donnees, etiquette, liste_actions, base) for donnees, etiquette, liste_actions in essais for base in variantes]
+                for donnees, etiquette, liste_actions, base in essais:
                     for action in (liste_actions or [None]):
-                        corps = {**donnees, **({"action": action} if action else {})}
+                        corps = {**donnees, **base, **({"action": action} if action else {})}
                         for methode in ("get", "post"):
                             if methode == "get" and action:
                                 continue
