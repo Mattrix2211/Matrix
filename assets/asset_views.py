@@ -44,7 +44,7 @@ from matrix.core.export import (
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import RoleLevel, user_role_level
-from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
+from matrix.core.saisie import identifiant_d_url, message_longueurs, uuid_ou_none, uuids_valides, date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.validators import message_erreur_fichier, valider_document, valider_photo
 from org.models import Section, Sector, Service, Ship
@@ -289,17 +289,17 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # (matrix/templates/assets/list.html) — sans cela, une requête AssetDocument
         # est exécutée par matériel affiché (N+1).
         qs = super().get_queryset().select_related('asset_type', 'ship', 'service', 'sector', 'section', 'location', 'folder').prefetch_related('documents').order_by('ship__name', 'service__name', 'sector__name', 'section__name', 'asset_type__name')
-        ship_id = self.request.GET.get('ship')
-        service_id = self.request.GET.get('service')
-        sector_id = self.request.GET.get('sector')
-        section_id = self.request.GET.get('section')
+        ship_id = identifiant_d_url(self.request.GET.get('ship'))
+        service_id = identifiant_d_url(self.request.GET.get('service'))
+        sector_id = identifiant_d_url(self.request.GET.get('sector'))
+        section_id = identifiant_d_url(self.request.GET.get('section'))
         status = self.request.GET.get('status')
-        asset_type_id = self.request.GET.get('type')
-        folder_id = self.request.GET.get('folder')
+        asset_type_id = identifiant_d_url(self.request.GET.get('type'))
+        folder_id = identifiant_d_url(self.request.GET.get('folder'))
         # Filtre par emplacement (Location) : utilisé notamment par le clic sur
         # une zone du plan visuel du navire (PlanNavireVueDeckView), qui renvoie
         # ici avec ?location=<id> plutôt que d'ouvrir un nouvel écran de liste.
-        location_id = self.request.GET.get('location')
+        location_id = identifiant_d_url(self.request.GET.get('location'))
         q = self.request.GET.get('q', '').strip()
         if ship_id:
             qs = qs.filter(ship_id=ship_id)
@@ -349,7 +349,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # Emplacement actif du filtre ?location=, affiché en bandeau (cf. list.html)
         # pour que l'utilisateur venant du plan visuel du navire comprenne pourquoi
         # la liste est restreinte, avec un lien pour revenir à la vue complète.
-        location_id = self.request.GET.get('location')
+        location_id = identifiant_d_url(self.request.GET.get('location'))
         ctx['filtre_location'] = Location.objects.filter(pk=location_id).first() if location_id else None
         ctx['export_url_csv'] = construire_url_export(self.request, 'csv')
         ctx['export_url_xlsx'] = construire_url_export(self.request, 'xlsx')
@@ -371,7 +371,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             ('status', 'Statut', dict(Asset.STATUS)),
         ])
         # Navigation par dossiers
-        current_folder_id = self.request.GET.get('folder')
+        current_folder_id = identifiant_d_url(self.request.GET.get('folder'))
         current_folder = AssetFolder.objects.filter(pk=current_folder_id).select_related('parent').first() if current_folder_id else None
         ctx['current_folder'] = current_folder
         if current_folder:
@@ -431,7 +431,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             'bulk_update_service', 'bulk_update_sector', 'bulk_update_section',
             'bulk_delete_assets'
         ):
-            ids = request.POST.getlist('selected_ids')
+            ids = uuids_valides(request.POST.getlist('selected_ids'))
             # Périmètre : seuls les matériels du périmètre de l'appelant sont chargés
             # (self.get_queryset(), scopé via ScopedQuerySetMixin) — un identifiant posté
             # hors périmètre est simplement ignoré, comme s'il n'existait pas.
@@ -456,7 +456,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_ship':
                 ship_id = request.POST.get('ship_id')
                 return _appliquer_bulk_update(
-                    request, assets, 'ship', Ship.objects.filter(pk=ship_id).first(),
+                    request, assets, 'ship', Ship.objects.filter(pk=entier_ou_none(ship_id)).first(),
                     action_audit='bulk_update_asset_ship', detail_audit=f'ship_id={ship_id}',
                     message_succes='Unité mise à jour pour {count} matériel(s).',
                     redirect_url_name='asset-list',
@@ -465,7 +465,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_service':
                 service_id = request.POST.get('service_id')
                 return _appliquer_bulk_update(
-                    request, assets, 'service', Service.objects.filter(pk=service_id).first(),
+                    request, assets, 'service', Service.objects.filter(pk=entier_ou_none(service_id)).first(),
                     action_audit='bulk_update_asset_service', detail_audit=f'service_id={service_id}',
                     message_succes='Service mis à jour pour {count} matériel(s).',
                     redirect_url_name='asset-list',
@@ -474,7 +474,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_sector':
                 sector_id = request.POST.get('sector_id')
                 return _appliquer_bulk_update(
-                    request, assets, 'sector', Sector.objects.filter(pk=sector_id).first(),
+                    request, assets, 'sector', Sector.objects.filter(pk=entier_ou_none(sector_id)).first(),
                     action_audit='bulk_update_asset_sector', detail_audit=f'sector_id={sector_id}',
                     message_succes='Secteur mis à jour pour {count} matériel(s).',
                     redirect_url_name='asset-list',
@@ -483,7 +483,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             elif action == 'bulk_update_section':
                 section_id = request.POST.get('section_id')
                 return _appliquer_bulk_update(
-                    request, assets, 'section', Section.objects.filter(pk=section_id).first(),
+                    request, assets, 'section', Section.objects.filter(pk=entier_ou_none(section_id)).first(),
                     action_audit='bulk_update_asset_section', detail_audit=f'section_id={section_id}',
                     message_succes='Section mise à jour pour {count} matériel(s).',
                     redirect_url_name='asset-list',
@@ -515,6 +515,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 erreur_photo = message_erreur_fichier(photo, valider_photo)
                 if erreur_photo:
                     messages.error(request, erreur_photo)
+                    return _redirect_liste_materiel(request)
+                depassement = message_longueurs(AssetFolder, name=name)
+                if depassement:
+                    messages.error(request, depassement)
                     return _redirect_liste_materiel(request)
                 fld = AssetFolder.objects.create(name=name)
                 if photo:
@@ -559,8 +563,8 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             asset_id = request.POST.get('asset_id')
             folder_id = request.POST.get('folder_id')
             try:
-                a = self.get_queryset().get(pk=asset_id)
-                a.folder = AssetFolder.objects.filter(pk=folder_id).first() if folder_id else None
+                a = self.get_queryset().get(pk=uuid_ou_none(asset_id))
+                a.folder = AssetFolder.objects.filter(pk=entier_ou_none(folder_id)).first() if folder_id else None
                 a.save(update_fields=['folder'])
                 return JsonResponse({'ok': True})
             except Asset.DoesNotExist:
@@ -585,7 +589,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             gisement = request.POST.get('gisement', '').strip()
             local = request.POST.get('local', '').strip()
             status = request.POST.get('status') or 'OK'
-            criticality = int(request.POST.get('criticality') or 1)
+            criticality = entier_ou_none(request.POST.get('criticality') or '1')
+            if criticality is None:
+                messages.error(request, "La criticité doit être un nombre entier.")
+                return _redirect_liste_materiel(request)
             ship_id = request.POST.get('ship_id')
             service_id = request.POST.get('service_id')
             sector_id = request.POST.get('sector_id')
@@ -619,7 +626,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                     messages.error(request, "Aucun type disponible pour le secteur sélectionné.")
                     return _redirect_liste_materiel(request)
                 # Les types sont propres à un secteur : celui d'un autre bâtiment est refusé.
-                at = AssetType.objects.get(pk=type_id, sector__service__ship_id=ship_id or 0)
+                at = AssetType.objects.get(pk=entier_ou_none(type_id), sector__service__ship_id=ship_id or 0)
                 asset = Asset(
                     asset_type=at,
                     internal_id=internal_id,
@@ -637,13 +644,13 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 if photo:
                     asset.photo = photo
                 if ship_id:
-                    asset.ship = Ship.objects.filter(pk=ship_id).first()
+                    asset.ship = Ship.objects.filter(pk=entier_ou_none(ship_id)).first()
                 if service_id:
-                    asset.service = Service.objects.filter(pk=service_id).first()
+                    asset.service = Service.objects.filter(pk=entier_ou_none(service_id)).first()
                 if sector_id:
-                    asset.sector = Sector.objects.filter(pk=sector_id).first()
+                    asset.sector = Sector.objects.filter(pk=entier_ou_none(sector_id)).first()
                 if section_id:
-                    asset.section = Section.objects.filter(pk=section_id).first()
+                    asset.section = Section.objects.filter(pk=entier_ou_none(section_id)).first()
                 asset.location = _resoudre_emplacement(request, asset.ship)
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
@@ -658,7 +665,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 # Associer au dossier courant si présent
                 if folder_id:
                     try:
-                        asset.folder = AssetFolder.objects.filter(pk=folder_id).first()
+                        asset.folder = AssetFolder.objects.filter(pk=entier_ou_none(folder_id)).first()
                         asset.save(update_fields=['folder'])
                     except Exception:
                         pass
@@ -697,7 +704,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 # Périmètre : le matériel visé doit appartenir au périmètre de l'appelant
                 # (self.get_queryset(), scopé) — un identifiant hors périmètre est traité
                 # comme introuvable plutôt que d'être chargé via le manager brut.
-                asset = self.get_queryset().get(pk=pk)
+                asset = self.get_queryset().get(pk=uuid_ou_none(pk))
                 asset.internal_id = request.POST.get('internal_id', asset.internal_id).strip()
                 asset.serial_number = request.POST.get('serial_number', asset.serial_number).strip()
                 asset.designation = request.POST.get('designation', asset.designation).strip()
@@ -707,7 +714,11 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 asset.gisement = request.POST.get('gisement', asset.gisement).strip()
                 asset.local = request.POST.get('local', asset.local).strip()
                 asset.status = request.POST.get('status', asset.status)
-                asset.criticality = int(request.POST.get('criticality') or asset.criticality)
+                criticite = entier_ou_none(request.POST.get('criticality') or str(asset.criticality))
+                if criticite is None:
+                    messages.error(request, "La criticité doit être un nombre entier.")
+                    return _redirect_liste_materiel(request)
+                asset.criticality = criticite
                 try:
                     for nom in ('date_mise_en_service', 'date_dernier_controle', 'date_peremption'):
                         setattr(asset, nom, date_fr_ou_none(request.POST.get(nom, formater_date_fr(getattr(asset, nom)))))
@@ -720,17 +731,17 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 type_id = request.POST.get('asset_type_id')
                 if type_id:
                     try:
-                        asset.asset_type = AssetType.objects.get(pk=type_id, sector__service__ship_id=ship_id or 0)
+                        asset.asset_type = AssetType.objects.get(pk=entier_ou_none(type_id), sector__service__ship_id=ship_id or 0)
                     except AssetType.DoesNotExist:
                         messages.error(request, 'Type de matériel introuvable pour cette unité.')
                         return _redirect_liste_materiel(request)
                 photo = request.FILES.get('photo')
                 if photo:
                     asset.photo = photo
-                asset.ship = Ship.objects.filter(pk=ship_id).first() if ship_id else None
-                asset.service = Service.objects.filter(pk=service_id).first() if service_id else None
-                asset.sector = Sector.objects.filter(pk=sector_id).first() if sector_id else None
-                asset.section = Section.objects.filter(pk=section_id).first() if section_id else None
+                asset.ship = Ship.objects.filter(pk=entier_ou_none(ship_id)).first() if ship_id else None
+                asset.service = Service.objects.filter(pk=entier_ou_none(service_id)).first() if service_id else None
+                asset.sector = Sector.objects.filter(pk=entier_ou_none(sector_id)).first() if sector_id else None
+                asset.section = Section.objects.filter(pk=entier_ou_none(section_id)).first() if section_id else None
                 asset.location = _resoudre_emplacement(request, asset.ship)
                 erreur_parent = _resoudre_parent_valide(request, asset, Asset)
                 if erreur_parent:
@@ -756,7 +767,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         elif action == 'delete_asset':
             pk = request.POST.get('pk')
             # Périmètre : un matériel hors périmètre est traité comme introuvable.
-            supprimes = self.get_queryset().filter(pk=pk).delete()[0]
+            supprimes = self.get_queryset().filter(pk=uuid_ou_none(pk)).delete()[0]
             if supprimes:
                 messages.success(request, 'Matériel supprimé.')
             else:
@@ -765,8 +776,8 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             pk = request.POST.get('pk')
             doc_id = request.POST.get('document_id')
             try:
-                asset = self.get_queryset().get(pk=pk)
-                AssetDocument.objects.filter(pk=doc_id, asset=asset).delete()
+                asset = self.get_queryset().get(pk=uuid_ou_none(pk))
+                AssetDocument.objects.filter(pk=entier_ou_none(doc_id), asset=asset).delete()
                 messages.success(request, 'Document supprimé.')
             except Asset.DoesNotExist:
                 messages.error(request, 'Matériel introuvable.')

@@ -43,18 +43,10 @@ from matrix.core.mixins import EcritureDansLePerimetreMixin
 from matrix.core.permissions import RolePermission
 from matrix.core.roles import user_role_level
 from matrix.core.scopes import perimetre_navire_q, resoudre_affectation_dans_perimetre, ship_id_for_user
+from matrix.core.saisie import entier_ou_none
 
 User = get_user_model()
 
-
-def _entier_ou_none(valeur):
-    """Convertit `valeur` en entier si possible, sinon None — évite une
-    ValueError sur un payload malformé (même principe que la fonction
-    homonyme de training/web_views.py)."""
-    try:
-        return int(valeur)
-    except (TypeError, ValueError):
-        return None
 
 class DefaultPermission(permissions.IsAuthenticated):
     pass
@@ -186,7 +178,7 @@ class ReferentFormationPermission(RolePermission):
         if user_role_level(request.user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
             return True
         navire = navire_de(request.user)
-        return navire is not None and _entier_ou_none(request.data.get("ship")) == navire.id
+        return navire is not None and entier_ou_none(request.data.get("ship")) == navire.id
 
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
@@ -202,7 +194,7 @@ class ReferentFormationPermission(RolePermission):
         # (champ `ship` présent dans le payload), ce nouveau navire doit lui
         # aussi être celui de l'appelant.
         if "ship" in request.data:
-            return _entier_ou_none(request.data.get("ship")) == navire.id
+            return entier_ou_none(request.data.get("ship")) == navire.id
         return True
 
 
@@ -275,7 +267,7 @@ class TrainingRequirementPermission(RolePermission):
 
         def _id_demande(champ_payload, champ_modele):
             if champ_payload in data:
-                return _entier_ou_none(data.get(champ_payload))
+                return entier_ou_none(data.get(champ_payload))
             return getattr(existant, champ_modele, None) if existant else None
 
         ship_id = _id_demande("applies_to_ship", "applies_to_ship_id")
@@ -336,8 +328,8 @@ class TrainingRecordPermission(RolePermission):
             # PUT/PATCH/DELETE : le contrôle porte sur l'objet existant,
             # tranché par has_object_permission ci-dessous.
             return True
-        course = TrainingCourse.objects.filter(pk=request.data.get("course")).first()
-        marin = User.objects.filter(pk=request.data.get("user")).first()
+        course = TrainingCourse.objects.filter(pk=entier_ou_none(request.data.get("course"))).first()
+        marin = User.objects.filter(pk=entier_ou_none(request.data.get("user"))).first()
         if course is None or marin is None:
             # Formation ou marin absent/invalide : on laisse le serializer
             # renvoyer une erreur de validation explicite plutôt qu'un refus
@@ -399,7 +391,7 @@ class TrainingSessionPermission(RolePermission):
             return True
         if "attendees" not in request.data:
             return super().has_permission(request, view)
-        course = TrainingCourse.objects.filter(pk=request.data.get("course")).first()
+        course = TrainingCourse.objects.filter(pk=entier_ou_none(request.data.get("course"))).first()
         if course is not None:
             ids = _ids_postes(request.data.get("attendees"))
             if not self._autorise_pour_marins(request.user, course, ids):

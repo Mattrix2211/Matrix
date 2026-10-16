@@ -98,9 +98,13 @@ class AnnonceNouvelleView(LoginRequiredMixin, View):
                 request.POST.get("niveau", ""), request.POST.get("cible", ""), request.POST.get("equipage", ""),
                 bool(request.POST.get("accuse_requis")), _date(request.POST.get("date_effet")), _date(request.POST.get("date_fin")),
             )
-        except (PermissionError, ValidationError) as exc:
+        except PermissionError as exc:
             _erreurs(request, exc)
             return redirect("annonce-nouvelle")
+        except ValidationError as exc:
+            _erreurs(request, exc)
+            # Le formulaire est réaffiché avec la saisie, sans rien perdre.
+            return render(request, "annonces/nouvelle.html", {**self._contexte(request), "saisie": request.POST})
         messages.success(request, "Annonce publiée.")
         return redirect("annonce-detail", pk=annonce.pk)
 

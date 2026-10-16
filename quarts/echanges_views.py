@@ -17,6 +17,8 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.views import View
 
+from matrix.core.saisie import entier_ou_none
+
 from .echanges import (
     EchangeImpossible,
     accepter_echange,
@@ -44,8 +46,8 @@ class ProposerEchangeView(LoginRequiredMixin, View):
         liste = ServiceGarde.objects.filter(pk=pk).first()
         if liste is None or not _peut_lire_liste(request.user, liste):
             return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
-        mon_tour = liste.creneaux.filter(pk=request.POST.get("creneau_id")).first()
-        son_tour = liste.creneaux.filter(pk=request.POST.get("cible_creneau_id")).first()
+        mon_tour = liste.creneaux.filter(pk=entier_ou_none(request.POST.get("creneau_id"))).first()
+        son_tour = liste.creneaux.filter(pk=entier_ou_none(request.POST.get("cible_creneau_id"))).first()
         if mon_tour is None or son_tour is None:
             messages.error(request, "Choisissez votre tour et le tour contre lequel l'échanger.")
             return redirect("garde-detail", pk=liste.pk)

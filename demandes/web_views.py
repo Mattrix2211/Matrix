@@ -10,6 +10,7 @@ from django.views import View
 
 from notifications.liens import lien_objet
 from taches.services import peut_consulter as peut_consulter_tache
+from matrix.core.saisie import entier_ou_none
 from threads.utils import commentaires_de
 
 from .models import Demande
@@ -98,7 +99,7 @@ class DemandeNouvelleView(LoginRequiredMixin, View):
         source = request.POST.get("objet", "")
         objet = self._objet(request, source)
         try:
-            responsable = User.objects.filter(pk=request.POST.get("responsable") or None).first()
+            responsable = User.objects.filter(pk=entier_ou_none(request.POST.get("responsable"))).first()
             demande = creer_demande(
                 request.user, objet, request.POST.get("titre", ""), request.POST.get("description", ""), responsable,
                 _date(request.POST.get("echeance", "")), request.POST.get("priorite") or Demande.PRIORITE_NORMALE,
@@ -148,17 +149,17 @@ class DemandeActionView(LoginRequiredMixin, View):
             if action == "etat":
                 changer_etat(demande, request.user, request.POST.get("etat", ""), request.POST.get("note", ""))
             elif action == "reaffecter":
-                nouveau = User.objects.filter(pk=request.POST.get("responsable") or None).first()
+                nouveau = User.objects.filter(pk=entier_ou_none(request.POST.get("responsable"))).first()
                 if nouveau is None:
                     raise ValidationError("Responsable introuvable.")
                 reaffecter(demande, request.user, nouveau)
             elif action == "interlocuteur":
-                cible = User.objects.filter(pk=request.POST.get("interlocuteur") or None).first()
+                cible = User.objects.filter(pk=entier_ou_none(request.POST.get("interlocuteur"))).first()
                 if cible is None:
                     raise ValidationError("Interlocuteur introuvable.")
                 ajouter_interlocuteur(demande, request.user, cible)
             elif action == "creer_action":
-                assigne = User.objects.filter(pk=request.POST.get("assigne") or None).first()
+                assigne = User.objects.filter(pk=entier_ou_none(request.POST.get("assigne"))).first()
                 if assigne is None:
                     raise ValidationError("Indiquez le marin qui réalisera l'action.")
                 creer_action(demande, request.user, assigne, request.POST.get("titre", ""), _date(request.POST.get("echeance", "")))

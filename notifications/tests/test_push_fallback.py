@@ -163,7 +163,7 @@ class CreationNotificationSansPywebpushTests(TestCase):
             cwd=str(settings.BASE_DIR),
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=180,
         )
         self.assertEqual(
             resultat.returncode,

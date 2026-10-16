@@ -26,6 +26,7 @@ from django.views import View
 
 from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none, entiers_valides
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import utilisateurs_visibles_par
 from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_admin, perimetre_navire_q, scope_filters_for_user
@@ -310,11 +311,11 @@ def _creer_liste(request, action, retour_erreur):
     # une liste de quarts choisit une FonctionQuartChoice, une liste de
     # garde réutilise le référentiel ServiceFunctionChoice déjà existant.
     if action == "creer_quart":
-        fonction = FonctionQuartChoice.objects.filter(pk=request.POST.get("fonction_quart"), active=True).first()
+        fonction = FonctionQuartChoice.objects.filter(pk=entier_ou_none(request.POST.get("fonction_quart")), active=True).first()
         liste = Quart(fonction=fonction, **champs_communs)
         url_name = "quart-detail"
     else:
-        fonction = ServiceFunctionChoice.objects.filter(pk=request.POST.get("fonction_service"), active=True).first()
+        fonction = ServiceFunctionChoice.objects.filter(pk=entier_ou_none(request.POST.get("fonction_service")), active=True).first()
         liste = ServiceGarde(fonction=fonction, **champs_communs)
         url_name = "garde-detail"
 
@@ -377,7 +378,7 @@ class CreerListeView(LoginRequiredMixin, View):
             contexte["synthese"] = {
                 "type": "Quart (rotation de postes)" if est_quart else "Service à quai / garde",
                 "perimetre": _libelle_perimetre(ship or service or sector or section),
-                "fonction": fonctions.filter(pk=valeurs.get("fonction_quart" if est_quart else "fonction_service") or 0).first(),
+                "fonction": fonctions.filter(pk=entier_ou_none(valeurs.get("fonction_quart" if est_quart else "fonction_service"))).first(),
                 "date_debut": parse_date(valeurs.get("date_debut", "")),
                 "date_fin": parse_date(valeurs.get("date_fin", "")),
             }
@@ -399,6 +400,8 @@ class CreerListeView(LoginRequiredMixin, View):
             champ = "fonction_quart" if valeurs.get("type_liste") == "creer_quart" else "fonction_service"
             if not valeurs.get(champ):
                 return "La fonction est obligatoire."
+            if entier_ou_none(valeurs.get(champ)) is None:
+                return "La fonction choisie est invalide."
         return None
 
     def get(self, request):
@@ -696,7 +699,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
 
     def _supprimer_creneau(self, request, liste):
         creneau = self.creneau_model.objects.filter(
-            pk=request.POST.get("creneau_id"), **{self.fk_attr: liste}
+            pk=entier_ou_none(request.POST.get("creneau_id")), **{self.fk_attr: liste}
         ).first()
         if creneau is None:
             messages.error(request, "Créneau introuvable.")
@@ -718,7 +721,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             return
         liste.delai_minimal_echange_heures = delai
         liste.save(update_fields=["delai_minimal_echange_heures", "updated_at"])
-        liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=request.POST.getlist("formations_requises")))
+        liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=entiers_valides(request.POST.getlist("formations_requises"))))
         messages.success(request, "Règles d'échange enregistrées.")
 
 
@@ -773,7 +776,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             if not _perimetre_autorise_pour_designation(request.user, ship, service, sector, section):
                 raise PermissionDenied
             candidat = utilisateurs_visibles_par(request.user).filter(
-                equipage_marin_q(request.user), pk=request.POST.get("user_id")).first()
+                equipage_marin_q(request.user), pk=entier_ou_none(request.POST.get("user_id"))).first()
             if candidat is None:
                 messages.error(request, "Marin introuvable.")
                 return redirect("quarts-reglages")
@@ -787,7 +790,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         elif action == "retirer":
             cdl = ChefDeListe.objects.filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
-                pk=request.POST.get("pk"),
+                pk=entier_ou_none(request.POST.get("pk")),
             ).first()
             if cdl is None:
                 messages.error(request, "Désignation introuvable.")

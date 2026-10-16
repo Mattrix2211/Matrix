@@ -1,7 +1,12 @@
 """Middlewares transverses de Matrix."""
+import logging
+
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse, QueryDict
+from django.db import DataError, connection
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, QueryDict
 from django.urls import reverse
+from django.utils.deprecation import MiddlewareMixin
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -9,12 +14,22 @@ from rest_framework.permissions import SAFE_METHODS
 
 from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
 
+logger = logging.getLogger(__name__)
+
+# psycopg2 signale le NUL par un ValueError sans type propre (psycopg 3 lève un DataError).
+EXTRAIT_NUL = "NUL (0x00)"
+
 
 def _sans_nul(parametres):
     propres = QueryDict(mutable=True, encoding=parametres.encoding)
     for cle, valeurs in parametres.lists():
         propres.setlist(cle.replace("\x00", ""), [v.replace("\x00", "") for v in valeurs])
+    propres._mutable = False
     return propres
+
+
+def _contient_nul(parametres):
+    return any("\x00" in cle or any("\x00" in v for v in valeurs) for cle, valeurs in parametres.lists())
 
 
 def utilisateur_de_requete(request):
@@ -29,17 +44,76 @@ def utilisateur_de_requete(request):
 
 
 class SansNulMiddleware:
-    """Retire le caractère NUL des paramètres d'URL : PostgreSQL le refuse dans toute requête
-    texte (erreur 500), ce que SQLite laisse passer en développement. Les formulaires Django
-    le rejettent déjà eux-mêmes."""
+    """Retire le caractère NUL des paramètres d'URL et des formulaires envoyés (POST) : PostgreSQL
+    le refuse dans toute requête texte (erreur 500), ce que SQLite laisse passer en développement."""
+
+    TYPES_FORMULAIRE = ("application/x-www-form-urlencoded", "multipart/form-data")
 
     def __init__(self, get_response):
         self.get_response = get_response
 
+    @staticmethod
+    def _nettoyer_a_la_lecture(request):
+        """Nettoie le corps à son analyse (pas avant : lire request.POST d'avance interdirait request.body)."""
+        analyser = request._load_post_and_files
+
+        def analyser_et_nettoyer():
+            analyser()
+            if _contient_nul(request._post):
+                request._post = _sans_nul(request._post)
+
+        request._load_post_and_files = analyser_et_nettoyer
+
     def __call__(self, request):
         if "%00" in request.META.get("QUERY_STRING", "").lower():
             request.GET = _sans_nul(request.GET)
+        if request.method == "POST" and request.content_type in self.TYPES_FORMULAIRE:
+            self._nettoyer_a_la_lecture(request)
         return self.get_response(request)
+
+
+class ErreurSaisieMiddleware(MiddlewareMixin):
+    """Dernier recours pour deux erreurs de saisie attendues, reconnues à leur type : texte trop long pour sa
+    colonne (DataError) et caractère NUL. Toute autre exception reste une erreur 500 visible : les vues
+    contrôlent elles-mêmes leurs entiers, dates et longueurs avant d'écrire. Si la requête a déjà écrit en
+    base, l'erreur reste aussi visible (500) : un message « recommencez » risquerait de créer des doublons."""
+
+    ECRITURES = ("INSERT", "UPDATE", "DELETE")
+
+    def __call__(self, request):
+        request._ecriture_en_base = False
+
+        def surveiller(execute, sql, params, many, context):
+            resultat = execute(sql, params, many, context)
+            if sql.lstrip()[:6].upper() in self.ECRITURES:
+                request._ecriture_en_base = True
+            return resultat
+
+        with connection.execute_wrapper(surveiller):
+            return super().__call__(request)
+
+    @staticmethod
+    def _est_erreur_de_saisie(exception):
+        return isinstance(exception, DataError) or (isinstance(exception, ValueError) and EXTRAIT_NUL in str(exception))
+
+    def process_exception(self, request, exception):
+        if not self._est_erreur_de_saisie(exception) or request._ecriture_en_base:
+            return None
+        logger.warning("Saisie refusée sur %s %s", request.method, request.path, exc_info=exception)
+        message = "Saisie refusée : une valeur est invalide ou trop longue. Rien n'a été enregistré : vérifiez les champs et recommencez."
+        if request.path.startswith("/api/") or "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse({"detail": message}, status=400)
+        if request.method in ("GET", "HEAD"):
+            return HttpResponseBadRequest(message, content_type="text/plain; charset=utf-8")
+        messages.error(request, message)
+        retour = request.headers.get("Referer", "")
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        if request.headers.get("HX-Request"):
+            reponse = HttpResponse(status=204)
+            reponse["HX-Redirect"] = retour
+            return reponse
+        return HttpResponseRedirect(retour)
 
 
 class MotDePasseProvisoireMiddleware:

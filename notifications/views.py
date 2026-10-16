@@ -43,7 +43,9 @@ class PushSubscribeView(APIView):
     def post(self, request):
         data = request.data
         endpoint = data.get("endpoint")
-        keys = data.get("keys") or {}
+        keys = data.get("keys")
+        if not isinstance(keys, dict):
+            keys = {}
         p256dh = keys.get("p256dh")
         auth = keys.get("auth")
         if not endpoint or not p256dh or not auth:

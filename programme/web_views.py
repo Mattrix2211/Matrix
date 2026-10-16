@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views import View
 
 from annonces.services import cibles_autorisees
+from matrix.core.saisie import entier_ou_none
 from taches.services import taches_visibles
 
 from . import services
@@ -144,7 +145,7 @@ class ProgrammeReglagesView(LoginRequiredMixin, View):
         action = request.POST.get("action")
         try:
             if action == "deleguer":
-                cible = User.objects.filter(pk=request.POST.get("user") or None).first()
+                cible = User.objects.filter(pk=entier_ou_none(request.POST.get("user"))).first()
                 if cible is None:
                     raise ValidationError("Marin introuvable.")
                 services.deleguer(request.user, cible)

@@ -72,6 +72,9 @@ class NotifyOverdueOccurrencesTests(TestCase):
             for user in self.users:
                 Notification.objects.create(user=user, verb=f"Occurrence en retard: {occ.id}")
 
+        # Appel à blanc : réchauffe le cache ContentType pour ne pas dépendre de l'ordre des tests.
+        notify_overdue_occurrences()
+
         with CaptureQueriesContext(connection) as ctx:
             notify_overdue_occurrences()
         requetes_pour_5 = len(ctx.captured_queries)

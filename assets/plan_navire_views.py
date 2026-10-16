@@ -20,6 +20,7 @@ from django.urls import reverse
 from django.views.generic import View
 
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none, message_longueurs, uuid_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from matrix.core.validators import message_erreur_fichier, valider_photo
@@ -113,23 +114,25 @@ class PlanNavireListView(LoginRequiredMixin, View):
             nom = request.POST.get('name', '').strip()
             if not nom:
                 messages.error(request, "Le nom du pont est obligatoire.")
+            elif message_longueurs(Deck, name=nom):
+                messages.error(request, message_longueurs(Deck, name=nom))
             else:
                 ordre_max = Deck.objects.filter(ship=navire).aggregate(m=Max('order'))['m'] or 0
                 Deck.objects.create(ship=navire, name=nom, order=ordre_max + 1)
                 messages.success(request, "Pont créé.")
         elif action == 'rename_deck':
-            pont = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).first()
+            pont = Deck.objects.filter(pk=entier_ou_none(request.POST.get('pk')), ship=navire).first()
             nom = request.POST.get('name', '').strip()
             if pont and nom:
                 pont.name = nom
                 pont.save(update_fields=['name'])
                 messages.success(request, "Pont renommé.")
         elif action == 'delete_deck':
-            supprimes, _detail = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).delete()
+            supprimes, _detail = Deck.objects.filter(pk=entier_ou_none(request.POST.get('pk')), ship=navire).delete()
             if supprimes:
                 messages.success(request, "Pont supprimé.")
         elif action in ('move_up', 'move_down'):
-            pont = Deck.objects.filter(pk=request.POST.get('pk'), ship=navire).first()
+            pont = Deck.objects.filter(pk=entier_ou_none(request.POST.get('pk')), ship=navire).first()
             if pont:
                 ponts = list(Deck.objects.filter(ship=navire).order_by('order', 'name'))
                 idx = next((i for i, p in enumerate(ponts) if p.pk == pont.pk), None)
@@ -227,7 +230,7 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
         elif action == 'place_pin':
             self._positionner_materiel(request, pont)
         elif action == 'remove_pin':
-            materiel = Asset.objects.filter(pk=request.POST.get('asset_id'), ship=pont.ship, plan_deck=pont).first()
+            materiel = Asset.objects.filter(pk=uuid_ou_none(request.POST.get('asset_id')), ship=pont.ship, plan_deck=pont).first()
             if materiel:
                 materiel.plan_deck = None
                 materiel.position_x = None
@@ -238,7 +241,7 @@ class PlanNavireDeckView(LoginRequiredMixin, View):
         return redirect('plan-navire-deck', pk=pont.pk)
 
     def _positionner_materiel(self, request, pont):
-        materiel = Asset.objects.filter(pk=request.POST.get('asset_id'), ship=pont.ship).first()
+        materiel = Asset.objects.filter(pk=uuid_ou_none(request.POST.get('asset_id')), ship=pont.ship).first()
         if materiel is None:
             messages.error(request, "Matériel introuvable ou hors de votre unité.")
             return

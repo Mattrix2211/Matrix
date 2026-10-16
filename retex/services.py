@@ -11,6 +11,7 @@ from documentation.models import Document, VersionDocument
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour, seuil_role
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import verifier_longueurs
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
@@ -195,6 +196,7 @@ def ajouter_domaine(user, nom, coma, organisme):
         raise PermissionError("Vous ne pouvez pas configurer les domaines.")
     if not nom.strip():
         raise ValidationError("Indiquez le nom du domaine.")
+    verifier_longueurs(DomaineRetex, nom=nom.strip(), coma=coma.strip(), organisme=organisme.strip())
     domaines_du_navire(ship)
     DomaineRetex.objects.update_or_create(
         ship_id=ship, nom=nom.strip(), defaults={"coma": coma.strip(), "organisme": organisme.strip(), "actif": True})

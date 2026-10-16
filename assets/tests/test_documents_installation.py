@@ -104,7 +104,8 @@ class DocumentsInstallationTests(TestCase):
         doc = self._document()
         self.client.force_login(self.equipier)
         r = self.client.get(reverse("installation-document-telecharger", args=[self.installation.pk, doc.pk]))
-        self.addCleanup(r.close)  # Windows : le PDF doit être fermé avant la suppression du dossier temporaire
+        # Lire le flux le ferme proprement ; response.close() ferait fermer la connexion de test.
+        self.addCleanup(lambda: b"".join(r.streaming_content))
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r["Content-Disposition"].startswith("attachment"))
         self.assertEqual(r["X-Content-Type-Options"], "nosniff")
@@ -167,7 +168,7 @@ class DocumentsInstallationTests(TestCase):
         self.assertNotContains(fiche, "Ajouter un document")
         self.assertNotContains(fiche, "/supprimer/")
         telechargement = self.client.get(reverse("installation-document-telecharger", args=[installation.pk, doc.pk]))
-        self.addCleanup(telechargement.close)
+        self.addCleanup(lambda: b"".join(telechargement.streaming_content))
         self.assertEqual(telechargement.status_code, 200)
         r = self.client.post(reverse("installation-document-ajouter", args=[installation.pk]),
                              {"fichier": SimpleUploadedFile("p.pdf", PDF)})
