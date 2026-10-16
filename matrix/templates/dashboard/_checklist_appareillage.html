@@ -37,7 +37,7 @@ session, items_par_categorie, peut_signer.
     <ul class="list-group list-group-flush">
       {% for item in groupe.items %}
       <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-        {% if session.est_ouverte %}
+        {% if session.est_ouverte and not lecture_seule_appareillage %}
         <form hx-post="{% url 'item-appareillage-cocher' item.id %}" hx-target="#session-appareillage" hx-swap="outerHTML" class="d-flex align-items-center gap-2 flex-grow-1">
           {% csrf_token %}
           <button type="submit" class="btn btn-sm {% if item.est_verifie %}btn-success{% else %}btn-outline-secondary{% endif %}" aria-pressed="{% if item.est_verifie %}true{% else %}false{% endif %}" aria-label="{% if item.est_verifie %}Décocher{% else %}Cocher{% endif %} : {{ item.libelle }}">

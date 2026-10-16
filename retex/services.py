@@ -10,7 +10,7 @@ from demandes.services import OBJETS_SIGNALABLES
 from documentation.models import Document, VersionDocument
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour, seuil_role
-from matrix.core.roles import niveau_ecriture
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, niveau_ecriture, user_role_level
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
@@ -61,7 +61,9 @@ def valideurs(retex):
 
 
 def peut_consulter(user, retex):
-    return user.pk == retex.auteur_id or peut_valider(user, retex) or (
+    # Le commandant en second lit tous les RETEX de son bâtiment (vision transverse), sans les décider.
+    vision = user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and chaine(user)[0] == retex.ship_id
+    return user.pk == retex.auteur_id or peut_valider(user, retex) or vision or (
         retex.etat == Retex.ETAT_VALIDE and chaine(user)[0] == retex.ship_id)
 
 

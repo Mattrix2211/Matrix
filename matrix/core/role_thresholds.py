@@ -36,6 +36,8 @@ class ActionSeuil:
     categorie: str
     portee: str
     defaut: RoleLevel
+    # Exception explicite : le commandant en second garde cette action selon son grade (le seuil reste réglable).
+    ouverte_au_second: bool = False
 
 
 # Registre central : une entrée par action dont le seuil est désormais
@@ -177,7 +179,7 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "annonce_publication",
         "Publier une annonce à son périmètre (bâtiment, service, secteur, section, équipage)",
-        "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+        "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE, ouverte_au_second=True,
     ),
     ActionSeuil(
         "programme_saisie",
@@ -281,6 +283,17 @@ def ship_id_de(user):
     est importé très tôt, par de nombreuses apps)."""
     from .scopes import ship_id_for_user
     return ship_id_for_user(user)
+
+
+def niveau_pour_action(user, cle_action):
+    """Niveau de `user` à comparer au seuil de l'action : son niveau d'écriture, ou son grade pour le
+    commandant en second sur une action qui lui est explicitement ouverte."""
+    from .roles import ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
+
+    profile = getattr(user, "profile", None)
+    if REGISTRE_PAR_CLE[cle_action].ouverte_au_second and profile and profile.role in ROLES_SANS_ECRITURE_HERITEE:
+        return user_role_level(user)
+    return niveau_ecriture(user)
 
 
 def niveau_requis_pour(user, cle_action):

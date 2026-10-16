@@ -224,7 +224,7 @@ def peut_valider_proposition_bord(user, proposeur):
     validateurs compétents (cf. commentaire Tech Lead, tâche Notion Circuit C)."""
     if supervision_formation_sur(user, navire_de(proposeur) if proposeur is not None else None):
         return True
-    if user_role_level(user) < NIVEAU_REQUIS_VALIDATION_FORMATION_BORD:
+    if niveau_ecriture(user) < NIVEAU_REQUIS_VALIDATION_FORMATION_BORD:
         return False
     if proposeur is None:
         return False

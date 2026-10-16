@@ -26,7 +26,7 @@ from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.brouillons import brouillons_a_reprendre
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, niveau_ecriture, user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
@@ -495,6 +495,12 @@ def _items_groupes_par_categorie(session, user):
     return groupes
 
 
+def _appareillage_en_lecture_seule(user):
+    """Le commandant en second consulte la session d'appareillage sans la cocher ni la signer."""
+    profil = getattr(user, "profile", None)
+    return bool(profil and profil.role in ROLES_SANS_ECRITURE_HERITEE and not user.is_superuser)
+
+
 def _meme_navire_ou_master_admin(user, ship_id):
     """Vrai si l'utilisateur appartient au même navire que celui de la session/
     de l'item consulté, ou s'il a un accès flotte entière (MASTER_ADMIN/
@@ -526,6 +532,7 @@ class PretAppareillageView(LoginRequiredMixin, TemplateView):
 
         contexte["peut_ouvrir_session"] = niveau_ecriture(user) >= RoleLevel.CHEF_SECTEUR
         contexte["peut_signer"] = niveau_ecriture(user) >= RoleLevel.CHEF_SECTEUR
+        contexte["lecture_seule_appareillage"] = _appareillage_en_lecture_seule(user)
 
         if is_master_admin(user):
             # Une session porte sur un seul navire : un MASTER_ADMIN (rattaché à
@@ -612,7 +619,7 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
         except ItemAppareillage.DoesNotExist:
             return HttpResponseBadRequest("Item introuvable.")
 
-        if not _meme_navire_ou_master_admin(request.user, item.session.ship_id):
+        if not _meme_navire_ou_master_admin(request.user, item.session.ship_id) or _appareillage_en_lecture_seule(request.user):
             raise PermissionDenied("Hors de votre périmètre.")
         if item.categorie == ItemAppareillage.CATEGORIE_OCCURRENCE and _occurrences_masquees(request.user):
             raise PermissionDenied("Hors de votre périmètre.")
@@ -632,6 +639,7 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
             "session": session,
             "items_par_categorie": _items_groupes_par_categorie(session, request.user),
             "peut_signer": niveau_ecriture(request.user) >= RoleLevel.CHEF_SECTEUR,
+            "lecture_seule_appareillage": _appareillage_en_lecture_seule(request.user),
         }
         return render(request, "dashboard/_checklist_appareillage.html", contexte)
 

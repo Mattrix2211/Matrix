@@ -98,11 +98,14 @@ def habilite_coma(user, proposition):
     titulaires = titulaires_du_service(proposition.service, proposition.equipage)
     if titulaires.exists():
         return titulaires.filter(pk=user.pk).exists()
-    # Repli sans titulaire : même règle que la validation d'une formation du bord, limitée au bâtiment.
+    # Repli sans titulaire : même règle que la validation d'une formation du bord, limitée au bâtiment ;
+    # le commandant en second y garde son visa, nommé par le circuit (jamais par son seul grade ailleurs).
     from training.web_views import peut_valider_proposition_bord
 
-    return (ship_id_for_user(user) == proposition.ship_id
-            and peut_valider_proposition_bord(user, proposition.created_by))
+    if ship_id_for_user(user) != proposition.ship_id:
+        return False
+    profil = getattr(user, "profile", None)
+    return bool(profil and profil.role == Roles.COMMANDANT_EN_SECOND) or peut_valider_proposition_bord(user, proposition.created_by)
 
 
 def _habilite(user, proposition):

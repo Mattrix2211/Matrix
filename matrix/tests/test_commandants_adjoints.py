@@ -102,11 +102,11 @@ class ValidationFormationBordTests(CommandantsAdjointsBase):
         UserProfile.objects.filter(user=self.comaeq).update(fonction_coma="")
         self.assertTrue(peut_valider_proposition_bord(self.em_simple, self.proposeur))
 
-    def test_commandant_valide_toujours_second_selon_le_seuil_actuel(self):
+    def test_commandant_valide_le_second_ne_valide_pas_au_seul_motif_du_grade(self):
         cdt = self._marin("cdt", "COMMANDANT", ship=self.navire)
         second = self._marin("second", "COMMANDANT_EN_SECOND", ship=self.navire)
         self.assertTrue(peut_valider_proposition_bord(cdt, self.proposeur))
-        self.assertTrue(peut_valider_proposition_bord(second, self.proposeur))
+        self.assertFalse(peut_valider_proposition_bord(second, self.proposeur))
 
 
 class VisibiliteDossiersTests(CommandantsAdjointsBase):
