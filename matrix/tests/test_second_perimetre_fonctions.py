@@ -1,4 +1,4 @@
-"""Commandant en second : publication d'annonces bornée, autres fonctions en lecture, visa COMA conservé.
+"""Commandant en second : publication d'annonces bornée, autres fonctions en lecture, aucun visa COMA de repli.
 Comptes et données de seed_demo."""
 from datetime import timedelta
 
@@ -6,13 +6,14 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import AuditLog
+from accounts.models import AuditLog, UserProfile
 from annonces import services as annonces
 from annonces.models import Annonce, LectureAnnonce, ParametresAnnonces
 from assets.models import CategorieCatalogue, PropositionArticle
 from assets.proposition_article import habilite_coma
 from dashboard.models import ItemAppareillage, SessionAppareillage
 from demandes import services as demandes
+from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import invalidate_cache
 from matrix.core.roles import RoleLevel, niveau_ecriture
 from matrix.tests.test_securite_terre_second import Base
@@ -189,16 +190,43 @@ class DemandeEtVisaDuSecondTests(Base):
             proposition.refresh_from_db()
         return proposition
 
-    def test_repli_sur_le_grade_ferme_et_visa_coma_du_second_conserve(self):
+    def test_titulaire_present_lui_seul_vise(self):
         proposition = self.proposition_au_visa_coma()
         second = User.objects.get(username="second_a")
-        # Avec un titulaire COMA, seul lui vise : ni le grade ni le second.
         self.assertFalse(habilite_coma(second, proposition))
         self.assertTrue(habilite_coma(User.objects.get(username="coma_comanav"), proposition))
-        # Sans titulaire, le second garde son visa nommé par le circuit ; le grade seul ne valide rien d'autre.
-        Service.objects.filter(pk=proposition.service_id).update(commandant_adjoint="COMAVIA")
-        proposition.refresh_from_db()
-        self.assertTrue(habilite_coma(second, proposition))
+        self.assertFalse(habilite_coma(User.objects.get(username="coma_comaeq"), proposition))
         self.assertFalse(habilite_coma(User.objects.get(username="equipier_a"), proposition))
         self.assertFalse(peut_valider_proposition_bord(second, self.chef_section))
         self.assertTrue(peut_valider_proposition_bord(User.objects.get(username="cdt_a"), self.chef_section))
+
+    def test_sans_titulaire_visa_en_attente_le_second_ne_vise_pas(self):
+        proposition = self.proposition_au_visa_coma()
+        UserProfile.objects.filter(fonction_coma="COMANAV").update(fonction_coma="")
+        second = User.objects.get(username="second_a")
+        self.assertFalse(habilite_coma(second, proposition))
+        self.client_de("second_a").post(reverse("catalogue-proposition-viser", args=[proposition.pk]), {"etape": proposition.etat})
+        proposition.refresh_from_db()
+        self.assertEqual(proposition.etat, PropositionArticle.Etat.VISA_COMA)
+        page = self.client_de("chef_section_a").get(reverse("catalogue-proposition", args=[proposition.pk]))
+        self.assertContains(page, "Aucun COMANAV compétent n&#x27;est désigné pour le service")
+        self.assertContains(page, "visa en attente")
+
+    def test_second_d_un_equipage_b_a_terre_ne_vise_pas(self):
+        proposition = self.proposition_au_visa_coma()
+        Ship.objects.filter(pk=self.bre.pk).update(equipage_a_bord="B")
+        second_a = User.objects.get(username="second_a")
+        self.assertFalse(habilite_coma(second_a, proposition))
+        self.assertTrue(equipage_a_terre_lecture_seule(second_a))
+
+
+class AnnonceSecondALaTerreTests(Base):
+    def test_second_de_l_equipage_a_terre_ne_publie_pas_alors_que_celui_du_bord_publie(self):
+        donnees = {"titre": "Annonce second", "corps": "Texte.", "niveau": "info", "cible": f"ship:{self.bre.pk}", "equipage": ""}
+        self.client_de("second_a").post(reverse("annonce-nouvelle"), donnees)
+        self.assertTrue(Annonce.objects.filter(titre="Annonce second").exists())
+        Ship.objects.filter(pk=self.bre.pk).update(equipage_a_bord="B")
+        second_a_terre = User.objects.get(username="second_a")
+        self.assertFalse(annonces.peut_publier(second_a_terre))
+        self.client_de("second_a").post(reverse("annonce-nouvelle"), {**donnees, "titre": "Annonce à terre"})
+        self.assertFalse(Annonce.objects.filter(titre="Annonce à terre").exists())

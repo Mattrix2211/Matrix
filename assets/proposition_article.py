@@ -10,11 +10,11 @@ from django.db import transaction
 from django.db.models import Q
 
 from accounts.models import AuditLog, Roles
-from matrix.core.commandants_adjoints import service_de, titulaires_du_service
+from matrix.core.commandants_adjoints import message_absence_coma, service_de, titulaires_du_service
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.saisie import sans_nul
-from matrix.core.scopes import is_master_admin, ship_id_for_user
+from matrix.core.scopes import is_master_admin
 from notifications.models import Notification
 
 from .models import ArticleCatalogue, ChefResponsableSpecialite, EvenementProposition, PropositionArticle
@@ -95,17 +95,8 @@ def _etapes_de(proposition, user):
 
 
 def habilite_coma(user, proposition):
-    titulaires = titulaires_du_service(proposition.service, proposition.equipage)
-    if titulaires.exists():
-        return titulaires.filter(pk=user.pk).exists()
-    # Repli sans titulaire : même règle que la validation d'une formation du bord, limitée au bâtiment ;
-    # le commandant en second y garde son visa, nommé par le circuit (jamais par son seul grade ailleurs).
-    from training.web_views import peut_valider_proposition_bord
-
-    if ship_id_for_user(user) != proposition.ship_id:
-        return False
-    profil = getattr(user, "profile", None)
-    return bool(profil and profil.role == Roles.COMMANDANT_EN_SECOND) or peut_valider_proposition_bord(user, proposition.created_by)
+    """Seul le commandant adjoint désigné du service (et de l'équipage) vise ; aucun repli par le grade."""
+    return titulaires_du_service(proposition.service, proposition.equipage).filter(pk=user.pk).exists()
 
 
 def _habilite(user, proposition):
@@ -151,11 +142,7 @@ def _pool(proposition):
     if etat == Etat.VISA_SERVICE:
         return actifs.filter(profile__role=Roles.CHEF_SERVICE, profile__service_id=proposition.service_id)
     if etat == Etat.VISA_COMA:
-        titulaires = titulaires_du_service(proposition.service, proposition.equipage)
-        if titulaires.exists():
-            return titulaires
-        return actifs.filter(profile__ship_id=proposition.ship_id, profile__role__in=[
-            Roles.CHEF_SERVICE, Roles.ETAT_MAJOR, Roles.COMMANDANT_EN_SECOND, Roles.COMMANDANT, Roles.ADMIN_NAVIRE])
+        return titulaires_du_service(proposition.service, proposition.equipage)
     if etat == Etat.VERIFICATION:
         return actifs.filter(specialites_dont_il_est_responsable__specialite_id=proposition.categorie.specialite_id)
     if etat == Etat.VISA_CHEF_SPECIALITE:
@@ -176,6 +163,9 @@ def message_blocage(proposition):
     if proposition.etat == Etat.VISA_CHEF_SPECIALITE:
         return ("Aucun chef n'est désigné pour le responsable de spécialité qui a vérifié cet article : "
                 "l'administrateur doit le renseigner.")
+    absence = message_absence_coma(proposition.service, proposition.equipage) if proposition.etat == Etat.VISA_COMA else ""
+    if absence:
+        return absence
     return f"Aucun valideur disponible pour l'étape « {proposition.get_etat_display()} » : signalez-le au commandant ou à l'administrateur."
 
 

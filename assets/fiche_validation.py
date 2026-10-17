@@ -16,7 +16,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog, Roles, SpecialityChoice
-from matrix.core.commandants_adjoints import service_de, titulaires_du_service
+from matrix.core.commandants_adjoints import message_absence_coma, service_de, titulaires_du_service
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -223,11 +223,7 @@ def _candidats(version, etat):
         return actifs.filter(pk=chef.pk) if chef else actifs.none()
     if version.ship_id is None:
         return actifs.none()
-    titulaires = titulaires_du_service(version.service, version.equipage)
-    if titulaires.exists():
-        return titulaires
-    return actifs.filter(profile__ship_id=version.ship_id, profile__role__in=[
-        Roles.CHEF_SERVICE, Roles.ETAT_MAJOR, Roles.COMMANDANT_EN_SECOND, Roles.COMMANDANT, Roles.ADMIN_NAVIRE])
+    return titulaires_du_service(version.service, version.equipage)
 
 
 def valideurs(version):
@@ -245,6 +241,9 @@ def message_blocage(version, candidats=None):
         return ""
     if version.etat == Etat.VISA_CHEF_SPECIALITE:
         return "Aucun chef n'est désigné pour le responsable de spécialité de cette fiche : l'administrateur doit le renseigner."
+    absence = message_absence_coma(version.service, version.equipage) if version.etat == Etat.VISA_COMA else ""
+    if absence:
+        return absence
     return f"Aucun valideur disponible pour l'étape « {version.get_etat_display()} » : signalez-le au commandant ou à l'administrateur."
 
 

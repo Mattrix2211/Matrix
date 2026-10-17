@@ -28,6 +28,8 @@ Connexion sur `/login/`. Tous les comptes ont le mot de passe **« pass »**, sa
 
 Autres comptes : `coma_comaeq`, `coma_comops`, `chef_secteur_elec_a`, `equipier_elec_a`, `equipier_incendie_a`, `marin_b`, `admin_navire`, `terre_securite`, `terre_chef_securite`, ainsi que la frégate Normandie (`cdt_nor`, `chef_secteur_nor`, `equipier_nor`) et l'unité historique BordOps I.
 
+**Visas COMA** : seul le commandant adjoint désigné pour le service et l'équipage vise (jamais le commandant en second). Dans la démonstration, seul l'équipage A de la Bretagne a des titulaires COMA ; pour l'équipage B ou la Normandie, le visa COMA d'une fiche ou d'un article reste en attente avec le message « Aucun COMA compétent n'est désigné… ».
+
 ## Les quatre vues du quotidien
 
 Un fil de quatre liens (« Mon quotidien · Mon équipe · Suivi · Synthèse ») s'affiche en haut des pages concernées. « Mon équipe » et « Synthèse » n'apparaissent que pour qui peut attribuer des tâches.

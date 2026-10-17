@@ -98,9 +98,10 @@ class ValidationFormationBordTests(CommandantsAdjointsBase):
         self.assertTrue(peut_valider_proposition_bord(self.em_simple, self.proposeur_libre))
         self.assertTrue(peut_valider_proposition_bord(self.chef_service_libre, self.proposeur_libre))
 
-    def test_coma_configure_sans_titulaire_repli_sur_le_seuil_actuel(self):
+    def test_coma_configure_sans_titulaire_l_etat_major_generique_ne_valide_pas(self):
         UserProfile.objects.filter(user=self.comaeq).update(fonction_coma="")
-        self.assertTrue(peut_valider_proposition_bord(self.em_simple, self.proposeur))
+        self.assertFalse(peut_valider_proposition_bord(self.em_simple, self.proposeur))
+        self.assertTrue(peut_valider_proposition_bord(self.chef_service, self.proposeur))
 
     def test_commandant_valide_le_second_ne_valide_pas_au_seul_motif_du_grade(self):
         cdt = self._marin("cdt", "COMMANDANT", ship=self.navire)

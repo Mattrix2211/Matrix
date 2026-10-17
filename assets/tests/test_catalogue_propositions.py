@@ -260,35 +260,62 @@ class ComaEtRepliTests(BasePropositions):
         self.viser(self.comanav, p)
         self.assertEqual(self.etat(p), Etat.VERIFICATION)
 
-    def test_repli_sans_commandant_adjoint_configure(self):
+    def _proposition_au_visa_coma_service_libre(self):
         chef_secteur = self._u("chef_secteur_libre", "CHEF_SECTEUR", ship=self.ship, service=self.libre, sector=self.secteur_libre)
         chef_service = self._u("chef_service_libre", "CHEF_SERVICE", ship=self.ship, service=self.libre)
-        commandant = self._u("cdt", "COMMANDANT", ship=self.ship)
         p = self.proposer(chef_secteur)
         self.viser(chef_service, p)
         self.assertEqual(self.etat(p), Etat.VISA_COMA)
-        # Repli : seuil de rôle de la validation d'une formation du bord ; le chef de service a déjà visé.
-        self.viser(chef_service, p)
-        self.assertEqual(self.etat(p), Etat.VISA_COMA)
-        self.viser(commandant, p)
-        self.assertEqual(self.etat(p), Etat.VERIFICATION)
+        return PropositionArticle.objects.get(pk=p.pk)
 
-    def test_repli_commandant_d_un_autre_batiment_exclu(self):
+    def test_sans_commandant_adjoint_configure_le_visa_reste_en_attente(self):
+        p = self._proposition_au_visa_coma_service_libre()
+        second = self._u("second", "COMMANDANT_EN_SECOND", ship=self.ship)
+        commandant = self._u("cdt", "COMMANDANT", ship=self.ship)
+        admin = self._u("adm", "ADMIN_NAVIRE", ship=self.ship)
+        for intrus in (second, commandant, admin, self.chef_service, self.comaeq):
+            self.assertFalse(circuit.peut_agir(intrus, p)[0], intrus.username)
+            self.viser(intrus, p)
+            self.assertEqual(self.etat(p), Etat.VISA_COMA, intrus.username)
+        self.assertEqual(circuit.valideurs(p), [])
+        self.assertIn("Aucun commandant adjoint n'est désigné pour le service « Divers »", circuit.message_blocage(p))
+
+    def test_message_visible_du_proposeur_quand_aucun_coma_n_est_designe(self):
+        p = self._proposition_au_visa_coma_service_libre()
+        self.client.force_login(p.created_by)
+        page = self.client.get(reverse("catalogue-proposition", args=[p.pk]))
+        self.assertContains(page, "visa en attente")
+
+    def test_coma_configure_sans_titulaire_le_second_ne_prend_pas_le_relais(self):
+        User.objects.filter(pk=self.comaeq.pk).update(is_active=False)
+        second = self._u("second", "COMMANDANT_EN_SECOND", ship=self.ship)
+        p = self.proposer(self.chef_secteur)
+        self.viser(self.chef_service, p)
+        p = PropositionArticle.objects.get(pk=p.pk)
+        self.assertFalse(circuit.peut_agir(second, p)[0])
+        self.viser(second, p)
+        self.assertEqual(self.etat(p), Etat.VISA_COMA)
+        self.assertIn("Aucun COMAEQ compétent n'est désigné pour le service « Machine »", circuit.message_blocage(p))
+
+    def test_un_coma_d_un_autre_service_ne_vise_pas(self):
+        p = self.proposer(self.chef_secteur)
+        self.viser(self.chef_service, p)
+        self.viser(self.comanav, p)
+        self.assertEqual(self.etat(p), Etat.VISA_COMA)
+
+    def test_commandant_d_un_autre_batiment_exclu(self):
         autre = Ship.objects.create(name="Autre", code="AUT")
         etranger = self._u("cdt_autre", "COMMANDANT", ship=autre)
-        chef_secteur = self._u("chef_secteur_libre", "CHEF_SECTEUR", ship=self.ship, service=self.libre, sector=self.secteur_libre)
-        chef_service = self._u("chef_service_libre", "CHEF_SERVICE", ship=self.ship, service=self.libre)
-        p = self.proposer(chef_secteur)
-        self.viser(chef_service, p)
+        p = self._proposition_au_visa_coma_service_libre()
         self.viser(etranger, p)
         self.assertEqual(self.etat(p), Etat.VISA_COMA)
 
-    def test_titulaire_inactif_bascule_sur_le_repli_et_signale_l_absence_de_valideur(self):
+    def test_titulaire_inactif_signale_l_absence_de_valideur(self):
         User.objects.filter(pk__in=[self.comaeq.pk, self.comanav.pk]).update(is_active=False)
         p = self.proposer(self.chef_secteur)
         self.viser(self.chef_service, p)
         p = PropositionArticle.objects.get(pk=p.pk)
-        self.assertIn("Aucun valideur disponible", circuit.message_blocage(p))
+        self.assertIn("visa en attente", circuit.message_blocage(p))
 
 
 class PerimetreTests(BasePropositions):
