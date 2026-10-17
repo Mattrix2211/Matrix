@@ -1,7 +1,7 @@
 """Routage du visa de la feuille de service vers le titulaire du poste de COMAEQ
 (tâche Notion « Router le visa de la feuille de service quotidienne vers le
 titulaire COMAEQ ») : titulaire (fonction de commandant adjoint COMAEQ) du
-bâtiment/équipage de la feuille, poste vacant -> escalade au commandant,
+bâtiment/équipage de la feuille, poste vacant -> visa exceptionnel du commandant,
 traçabilité et notifications."""
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -39,8 +39,8 @@ class VisaComaeqEquipageUniqueTests(TestCase):
         self.assertTrue(peut_viser_comaeq(self.comaeq, self.feuille))
         self.assertFalse(peut_viser_comaeq(self.comops, self.feuille))
 
-    def test_le_commandant_du_batiment_peut_viser_pas_celui_d_un_autre(self):
-        self.assertTrue(peut_viser_comaeq(self.commandant, self.feuille))
+    def test_le_commandant_ne_vise_pas_tant_qu_un_titulaire_existe(self):
+        self.assertFalse(peut_viser_comaeq(self.commandant, self.feuille))
         self.assertFalse(peut_viser_comaeq(self.cdt_autre, self.feuille))
 
     def test_seul_le_titulaire_est_notifie(self):
