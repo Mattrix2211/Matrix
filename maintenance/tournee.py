@@ -8,7 +8,7 @@ from django.urls import reverse
 
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture
 from matrix.core.scopes import assignes_equipage_q
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 
@@ -41,7 +41,7 @@ def adresse(nom_url, occurrences):
 def peut_ecrire(user, occ):
     """Mêmes droits que le compte rendu individuel : assigné, ou seuil de gestion des tiers."""
     return (user in occ.assignees.all()
-            or user_role_level(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers"))
+            or niveau_ecriture(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers"))
 
 
 def categorie_de(asset):

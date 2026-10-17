@@ -88,6 +88,6 @@ for _nom in ("surface", "carte_interactive", "carte_action", "attention", "modal
 @register.filter
 def peut_piloter_equipe(user):
     """Vrai si le marin peut attribuer des tâches (donc voir « Mon équipe » et « Synthèse »)."""
-    from taches.services import peut_attribuer
+    from taches.services import peut_superviser
 
-    return peut_attribuer(user)
+    return peut_superviser(user)

@@ -10,7 +10,7 @@ from demandes.services import OBJETS_SIGNALABLES
 from documentation.models import Document, VersionDocument
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour, seuil_role
-from matrix.core.roles import user_role_level
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, niveau_ecriture, user_role_level
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
@@ -46,7 +46,7 @@ def peut_valider(user, retex):
     return (
         not equipage_a_terre_lecture_seule(user)
         and chaine(user)[0] == retex.ship_id
-        and user_role_level(user) >= niveau_requis_pour(user, "retex_validation")
+        and niveau_ecriture(user) >= niveau_requis_pour(user, "retex_validation")
     )
 
 
@@ -54,14 +54,16 @@ def valideurs(retex):
     """Habilités du bâtiment ; ceux dont la fonction cite le COMA référent du domaine passent en premier."""
     seuil = seuil_role("retex_validation", retex.ship_id)
     habilites = [u for u in User.objects.filter(profile__ship_id=retex.ship_id, is_active=True)
-                 if user_role_level(u) >= seuil and not equipage_a_terre_lecture_seule(u)]
+                 if niveau_ecriture(u) >= seuil and not equipage_a_terre_lecture_seule(u)]
     coma = retex.domaine.coma.lower()
     habilites.sort(key=lambda u: (coma not in (u.profile.fonction_service or "").lower(), u.username))
     return habilites
 
 
 def peut_consulter(user, retex):
-    return user.pk == retex.auteur_id or peut_valider(user, retex) or (
+    # Le commandant en second lit tous les RETEX de son bâtiment (vision transverse), sans les décider.
+    vision = user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and chaine(user)[0] == retex.ship_id
+    return user.pk == retex.auteur_id or peut_valider(user, retex) or vision or (
         retex.etat == Retex.ETAT_VALIDE and chaine(user)[0] == retex.ship_id)
 
 
@@ -191,7 +193,7 @@ def clore(user, retex):
 
 def ajouter_domaine(user, nom, coma, organisme):
     ship = chaine(user)[0]
-    if ship is None or user_role_level(user) < niveau_requis_pour(user, "retex_validation") or equipage_a_terre_lecture_seule(user):
+    if ship is None or niveau_ecriture(user) < niveau_requis_pour(user, "retex_validation") or equipage_a_terre_lecture_seule(user):
         raise PermissionError("Vous ne pouvez pas configurer les domaines.")
     if not nom.strip():
         raise ValidationError("Indiquez le nom du domaine.")

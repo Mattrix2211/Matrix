@@ -44,7 +44,7 @@ from .web_views import (
 )
 from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureTraceeMixin
 from matrix.core.permissions import RolePermission
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture, user_role_level
 from matrix.core.scopes import is_master_admin, perimetre_navire_q, resoudre_affectation_dans_perimetre
 
 User = get_user_model()
@@ -154,7 +154,7 @@ class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
         # seule côté serializer (Meta.read_only_fields) : ce sont ces kwargs
         # explicites de .save() qui les pilotent, jamais le payload posté.
         statut_cible = (
-            "ACTIVE" if user_role_level(self.request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
+            "ACTIVE" if niveau_ecriture(self.request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
             else "WAITING_VALIDATION"
         )
         self._tracer("modification", serializer.save(statut_validation=statut_cible, updated_by=self.request.user))

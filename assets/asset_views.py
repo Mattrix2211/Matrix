@@ -43,7 +43,7 @@ from matrix.core.export import (
 )
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture
 from matrix.core.saisie import date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.validators import message_erreur_fichier, valider_document, valider_photo
@@ -108,7 +108,7 @@ def _peut_gerer_materiel(user):
     rend le seuil configurable par navire (bug corrigé après refus du Tech
     Lead : un doublon avec ce seuil codé en dur rendait la configuration sans
     effet réel sur ces actions)."""
-    return user_role_level(user) >= RoleLevel.CHEF_SECTION
+    return niveau_ecriture(user) >= RoleLevel.CHEF_SECTION
 
 
 def _redirect_liste_materiel(request):
@@ -176,7 +176,7 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?asset={asset.pk}"},
         ]
-        if user_role_level(self.request.user) >= RoleLevel.CHEF_SECTION:
+        if niveau_ecriture(self.request.user) >= RoleLevel.CHEF_SECTION:
             menu.append({"libelle": "Démarrer un contrôle visuel", "icone": "maintenance", "ecriture": True,
                          "hx_post": reverse('asset-start-visual', args=[asset.pk]), "hx_cible": "#result"})
         menu += [
@@ -423,7 +423,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
         cle_seuil = self.ACTION_VERS_SEUIL.get(action)
-        if cle_seuil is not None and user_role_level(request.user) < niveau_requis_pour(request.user, cle_seuil):
+        if cle_seuil is not None and niveau_ecriture(request.user) < niveau_requis_pour(request.user, cle_seuil):
             raise PermissionDenied
         # Bulk actions
         if action in (

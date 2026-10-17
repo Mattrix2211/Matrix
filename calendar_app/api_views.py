@@ -10,11 +10,11 @@ from django.utils import timezone
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
-from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import niveau_ecriture, RoleLevel
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import assignes_equipage_q
 from matrix.core.icones import classe_icone
-from taches.services import peut_attribuer
+from taches.services import peut_superviser
 from programme.services import evenements_periode as evenements_programme
 from .deplacement_views import _perimetre_session
 from .sources import CONCEPT_ICONE_PAR_TYPE, COULEUR_PAR_TYPE
@@ -120,7 +120,7 @@ def calendar_events(request):
     }
     # « Mon équipe » : valeur spéciale du filtre Utilisateur, réservée à qui peut attribuer des tâches.
     if filters.get("user") == "equipe":
-        if not peut_attribuer(request.user):
+        if not peut_superviser(request.user):
             raise PermissionDenied
         equipe = evenements_equipe(request.user, start, end, _couleur_evenement)
         for evenement in equipe:
@@ -129,7 +129,7 @@ def calendar_events(request):
                 evenement["extendedProps"]["icone"] = classe_icone(concept)
         return JsonResponse(equipe, safe=False)
     events = []
-    niveau_role = user_role_level(request.user)
+    niveau_role = niveau_ecriture(request.user)
     # Occurrences de maintenance préventive : matériel mobile (asset) ou installation fixe.
     occ_qs = MaintenanceOccurrence.objects.select_related(
         "asset", "asset__ship", "asset__service", "asset__sector",

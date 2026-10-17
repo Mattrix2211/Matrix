@@ -11,7 +11,7 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from logistics.models import Anomalie, AnomalieStatutLog, STATUTS_ANOMALIE_OUVERTS, destinataires_anomalie, niveau_alerte_ticket
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin
 from notifications.models import Notification, NotificationLevel
 
@@ -73,7 +73,7 @@ def perimetres_gerables(user):
         ships, services_qs, sectors = Ship.objects.all(), Service.objects.all(), Sector.objects.all()
     else:
         ship_id, service_id, sector_id = _position(user)
-        niveau = user_role_level(user)
+        niveau = niveau_ecriture(user)
         ships = Ship.objects.filter(pk=ship_id) if niveau >= RoleLevel.ETAT_MAJOR else Ship.objects.none()
         if niveau >= RoleLevel.ETAT_MAJOR:
             services_qs = Service.objects.filter(ship_id=ship_id)
@@ -109,7 +109,7 @@ def rondes_visibles(user):
 
 
 def peut_gerer_modeles(user):
-    return user_role_level(user) >= niveau_requis_pour(user, CLE_SEUIL_GESTION)
+    return niveau_ecriture(user) >= niveau_requis_pour(user, CLE_SEUIL_GESTION)
 
 
 def rondes_ouvertes_du_marin(user):

@@ -13,12 +13,12 @@ from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import equipage_marin_q, marins_hors_equipage
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import ROLE_TO_LEVEL
+from matrix.core.roles import ROLE_TO_LEVEL, ROLES_SANS_ECRITURE_HERITEE
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
 from notifications.services import traiter_actions
 from taches.models import Tache
-from taches.services import peut_attribuer
+from taches.services import peut_attribuer, peut_superviser
 from threads.models import Message, Thread
 from threads.utils import ajouter_commentaire
 
@@ -46,9 +46,13 @@ def _nom(user):
     return (user.get_full_name() or user.username) if user else "un marin supprimé"
 
 
-def peut_gerer_perimetre(user, demande):
-    """Chef habilité (seuil des tâches) dont le périmètre couvre le déclarant."""
-    return peut_attribuer(user) and Demande.objects.filter(_perimetre_chef(user), pk=demande.pk).exists()
+def _dans_perimetre_chef(user, demande):
+    return Demande.objects.filter(_perimetre_chef(user), pk=demande.pk).exists()
+
+
+def peut_superviser_perimetre(user, demande):
+    """Lecture : chef (seuil des tâches) dont le périmètre couvre le déclarant."""
+    return peut_superviser(user) and _dans_perimetre_chef(user, demande)
 
 
 def _perimetre_chef(user):
@@ -61,17 +65,19 @@ def est_acteur(user, demande):
 
 
 def peut_consulter(user, demande):
-    return est_acteur(user, demande) or peut_gerer_perimetre(user, demande)
+    return est_acteur(user, demande) or peut_superviser_perimetre(user, demande)
 
 
 def peut_piloter(user, demande):
-    """Responsable ou chef du périmètre : ajoute des interlocuteurs, crée des actions, réaffecte."""
-    return demande.ouverte and (user.pk == demande.responsable_id or peut_gerer_perimetre(user, demande))
+    """Responsable ou chef du périmètre (avec droit d'écriture) : ajoute des interlocuteurs, crée des actions, réaffecte."""
+    return demande.ouverte and (
+        user.pk == demande.responsable_id or (peut_attribuer(user) and _dans_perimetre_chef(user, demande))
+    )
 
 
 def demandes_visibles(user):
     base = Q(declarant=user) | Q(responsable=user) | Q(interlocuteurs=user)
-    if peut_attribuer(user):
+    if peut_superviser(user):
         base |= _perimetre_chef(user)
     return Demande.objects.filter(base).distinct()
 
@@ -82,7 +88,7 @@ def responsables_possibles(declarant):
     if navire is None:
         return User.objects.none()
     seuil = niveau_requis_pour(declarant, "tache_attribution")
-    roles = [code for code, niveau in ROLE_TO_LEVEL.items() if niveau >= seuil]
+    roles = [code for code, niveau in ROLE_TO_LEVEL.items() if niveau >= seuil and code not in ROLES_SANS_ECRITURE_HERITEE]
     return User.objects.filter(
         profile__ship_id=navire, profile__role__in=roles, is_active=True,
     ).exclude(pk=declarant.pk).order_by("username")

@@ -12,7 +12,8 @@ from django.utils import timezone
 from django.views import View
 
 from accounts.models import AuditLog
-from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
+from matrix.core.equipage import equipage_a_terre_lecture_seule
+from matrix.core.scopes import soutien_a_terre
 from matrix.core.saisie import sans_nul
 from threads.utils import ajouter_commentaire
 
@@ -65,7 +66,7 @@ class TourneeSaisieView(LoginRequiredMixin, View):
 
     @staticmethod
     def _lecture_seule(user):
-        return equipage_a_terre_lecture_seule(user) or suivi_a_terre_sans_validation(user)
+        return equipage_a_terre_lecture_seule(user) or soutien_a_terre(user)
 
     def _lot(self, request, ids):
         """(à renseigner, verrouillées) : les équipements que l'appelant peut saisir, et ceux déjà

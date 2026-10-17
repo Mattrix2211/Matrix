@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
-from taches.services import peut_attribuer
+from taches.services import peut_superviser
 from .sources import SOURCES
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
@@ -92,7 +92,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             **{cle: valeur for cle, valeur in referentiel_organisation(request.user).items() if cle != "sections"},
             "users": utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user)).order_by("username"),
             "active_filters": {**filters, "user": request.GET.get("user") or None},
-            "peut_equipe": peut_attribuer(request.user),
+            "peut_equipe": peut_superviser(request.user),
             "sources": SOURCES,
             "mes_evenements_personnels": PersonalEvent.objects.filter(
                 owner=request.user, starts_at__gte=timezone.now()
