@@ -52,6 +52,7 @@ class Command(SeedDemo):
         self.aujourdhui = timezone.localdate()
         self._charger()
         self._comptes_recette()
+        self._coma_recette()
         self._formations_recette()
         self._pompe_incendie()
         self._planning_et_absences()
@@ -110,6 +111,23 @@ class Command(SeedDemo):
                           sector=self.pompiers, section=self.section_pompiers, equipage="A", grade="Second-maître",
                           specialite="Sécurité")
         self.u.update(equipier_a3=self.a3, referent_formation_a=self.referent)
+
+    def _coma_recette(self):
+        """COMA fictifs de l'équipage B (Bretagne) et de la Normandie, désignés par `fonction_coma` comme en démonstration.
+
+        Volontairement sans titulaire : COMOPS de l'équipage B (service Opérations), pour tester un visa en attente.
+        """
+        u = self._utilisateur
+        u("coma_comanav_b", Roles.ETAT_MAJOR, "Thibault", ship=self.bre, equipage="B", fonction_coma="COMANAV",
+          grade="Capitaine de corvette")
+        u("coma_comaeq_b", Roles.ETAT_MAJOR, "Margaux", ship=self.bre, equipage="B", fonction_coma="COMAEQ",
+          grade="Lieutenant de vaisseau")
+        # La Normandie n'a que Propulsion en démonstration : on y ajoute un service Sécurité dépendant du COMAEQ.
+        Service.objects.get_or_create(ship=self.nor, name="Sécurité", defaults={"commandant_adjoint": "COMAEQ"})
+        u("coma_comanav_nor", Roles.ETAT_MAJOR, "Olivier", ship=self.nor, fonction_coma="COMANAV", grade="Capitaine de corvette")
+        u("coma_comaeq_nor", Roles.ETAT_MAJOR, "Pauline", ship=self.nor, fonction_coma="COMAEQ", grade="Lieutenant de vaisseau")
+        self.u.update({nom: User.objects.get(username=nom) for nom in (
+            "coma_comanav_b", "coma_comaeq_b", "coma_comanav_nor", "coma_comaeq_nor")})
 
     # ---------- Formations, qualifications et candidatures ----------
 

@@ -14,6 +14,8 @@ from annonces.models import Annonce
 from documentation.services import documents_associes
 from maintenance.models import MaintenanceOccurrence
 from notifications.models import Notification
+from matrix.core.commandants_adjoints import titulaires_du_service
+from org.models import Service
 from quarts.models import ChefDeListe, CreneauQuart
 from taches.models import Tache
 from training.models import CandidatureFormation, ReferentFormation, peut_valider_formation
@@ -124,3 +126,43 @@ class JeuMinimalTests(TestCase):
         for compte in ("marin_b", "equipier_elec_a", "equipier_nor"):
             self.assertTrue(Tache.objects.filter(assigne__username=compte, titre__startswith="[Recette]").exists(), compte)
         self.assertTrue(Absence.objects.filter(marin__username="equipier_nor").exists())
+
+
+@override_settings(DEBUG=True)
+class ComaRecetteTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        _lancer("seed_demo")
+        _lancer("seed_recette")
+
+    def test_rattachements(self):
+        attendus = {
+            "coma_comanav_b": ("BRE", "B", "COMANAV"), "coma_comaeq_b": ("BRE", "B", "COMAEQ"),
+            "coma_comanav_nor": ("NOR", "", "COMANAV"), "coma_comaeq_nor": ("NOR", "", "COMAEQ"),
+        }
+        for nom, (navire, equipage, fonction) in attendus.items():
+            profil = User.objects.get(username=nom).profile
+            self.assertEqual((profil.role, profil.ship.code, profil.equipage, profil.fonction_coma),
+                             ("ETAT_MAJOR", navire, equipage, fonction), nom)
+
+    def test_titulaires_par_service_et_equipage(self):
+        def titulaires(navire, service, equipage=""):
+            return set(titulaires_du_service(Service.objects.get(ship__code=navire, name=service), equipage)
+                       .values_list("username", flat=True))
+        self.assertEqual(titulaires("BRE", "Propulsion", "B"), {"coma_comanav_b"})
+        self.assertEqual(titulaires("BRE", "Sécurité", "B"), {"coma_comaeq_b"})
+        self.assertEqual(titulaires("BRE", "Propulsion", "A"), {"coma_comanav"})
+        self.assertEqual(titulaires("NOR", "Propulsion"), {"coma_comanav_nor"})
+        self.assertEqual(titulaires("NOR", "Sécurité"), {"coma_comaeq_nor"})
+
+    def test_service_volontairement_sans_titulaire(self):
+        operations = Service.objects.get(ship__code="BRE", name="Opérations")
+        self.assertEqual(operations.commandant_adjoint, "COMOPS")
+        self.assertFalse(titulaires_du_service(operations, "B").exists())
+        self.assertTrue(titulaires_du_service(operations, "A").exists())
+
+    def test_additif_et_idempotent_sur_les_coma(self):
+        avant = _compteurs()
+        _lancer("seed_recette")
+        self.assertEqual(avant, _compteurs())
+        self.assertEqual(User.objects.filter(profile__fonction_coma__gt="", profile__ship__code="NOR").count(), 2)
