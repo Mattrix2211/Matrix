@@ -23,6 +23,7 @@ from dashboard.templatetags.dashboard_extras import (
 )
 from matrix.core.modules import module_actif_pour_user
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
+from matrix.core.scopes import is_master_admin, ship_id_for_user
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,11 @@ class Entree:
 
 def _commandant_ou_plus(user):
     return user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT
+
+
+def _a_un_batiment_ou_admin_general(user):
+    # Même droit que la feuille de service : membre du bâtiment ou administrateur général.
+    return ship_id_for_user(user) is not None or is_master_admin(user)
 
 
 def _url_parametres(user):
@@ -73,7 +79,8 @@ GROUPES = [
         Entree("Demandes bord–terre", "discussion", "demandes-index", module="demandes"),
         Entree("Rondes", "ronde", "rondes-index", module="rondes"),
         Entree("Quarts et gardes", "quart", "quarts-index", module="quarts"),
-        Entree("Feuille de service", "feuille_service", "feuille-service-index", module="quarts"),
+        Entree("Feuille de service", "feuille_service", "feuille-service-index", module="quarts",
+               droit=_a_un_batiment_ou_admin_general),
         Entree("Absences", "absence", "absences-index", module="absences"),
     ]),
     ("Compétences", [

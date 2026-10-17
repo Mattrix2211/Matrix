@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
 {% include "components/parcours.html" with courante="synthese" %}
-<h1 class="h3 mb-3">Tâches</h1>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <h1 class="h3 mb-0">Tâches</h1>
+  {% if marins and not equipage_a_terre %}<a class="btn btn-primary" href="#attribuer-tache">Attribuer une tâche</a>{% endif %}
+</div>
 <p class="text-muted">Les tâches qui vous sont attribuées, avec leur échéance, leur fil de discussion et leur compte rendu.</p>
 
 {% if avancement.total or avancement.charges %}
@@ -17,7 +20,7 @@
 {% endif %}
 
 {% if marins and not equipage_a_terre %}
-<h2 class="h5 mt-4">Attribuer une tâche</h2>
+<h2 class="h5 mt-4" id="attribuer-tache">Attribuer une tâche</h2>
 <form method="post" class="card card-body mb-3">
   {% csrf_token %}
   {% if annonce_source %}<input type="hidden" name="annonce" value="{{ annonce_source.pk }}"><p class="small text-muted mb-2">Tâche issue de l'annonce « {{ annonce_source.titre }} ».</p>{% endif %}

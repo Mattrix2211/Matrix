@@ -17,7 +17,14 @@
   barre.addEventListener('hidden.bs.offcanvas', function () { synchroniser(false); });
   // Écran bas : l'entrée courante reste visible dans le menu défilant.
   var courante = barre.querySelector('[aria-current="page"]');
-  function montrerCourante() { if (courante && courante.scrollIntoView) courante.scrollIntoView({ block: 'nearest' }); }
+  // Défilement direct : scrollIntoView déplacerait le point de départ de la touche Tab (lien d'évitement).
+  function montrerCourante() {
+    var menu = barre.querySelector('nav');
+    if (!courante || !menu) return;
+    var c = courante.getBoundingClientRect(), m = menu.getBoundingClientRect();
+    if (c.bottom > m.bottom) menu.scrollTop += c.bottom - m.bottom;
+    else if (c.top < m.top) menu.scrollTop -= m.top - c.top;
+  }
   montrerCourante();
   barre.addEventListener('shown.bs.offcanvas', montrerCourante);
   if (!form) return;

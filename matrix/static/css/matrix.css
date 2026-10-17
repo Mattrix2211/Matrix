@@ -175,6 +175,17 @@ code, pre, kbd, .font-mono {
   --bs-btn-active-border-color: var(--signal);
   --bs-btn-active-color: var(--ink);
 }
+/* Texte d'attention lisible (≥ 4,5:1) ; l'ambre plein reste pour la bordure et le survol. */
+.btn-outline-warning {
+  --bs-btn-color: var(--attention-texte);
+  --bs-btn-border-color: var(--amber);
+  --bs-btn-hover-bg: var(--amber);
+  --bs-btn-hover-border-color: var(--amber);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-active-bg: var(--amber);
+  --bs-btn-active-border-color: var(--amber);
+  --bs-btn-active-color: var(--ink);
+}
 .text-primary { color: var(--lien) !important; }
 .text-warning { color: var(--attention-texte) !important; }
 .text-secondary { color: var(--text-sec) !important; }
@@ -241,6 +252,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 /* Statuts — vert unique --green-tech pour Matrix (validations, systèmes) */
 .badge.bg-success, .text-bg-success {
   background-color: var(--green-tech) !important;
+  color: var(--ink) !important; /* blanc sur ce vert : 2,62:1 */
 }
 .text-success { color: var(--green-tech) !important; }
 .badge.bg-warning, .text-bg-warning { background-color: var(--amber) !important; }
@@ -1456,3 +1468,11 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
 .mx-formations-gestion > summary { cursor: pointer; }
 .mx-parametres__lien--sous { padding-left: var(--s4, 1.5rem); font-size: .85rem; }
 .mx-panneau.mx-panneau--large { --bs-offcanvas-width: min(560px, 100vw); }
+
+/* Lien d'évitement : invisible hors focus clavier, puis posé par-dessus la barre. */
+.mx-evitement:focus {
+  position: fixed; top: var(--s2); left: var(--s2); z-index: 2000;
+  padding: var(--s2) var(--s4); background: var(--ink); color: var(--paper);
+  border-radius: var(--r-md); text-decoration: none;
+}
+main:focus { outline: none; }
