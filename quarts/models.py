@@ -123,7 +123,6 @@ from django.utils import timezone
 from accounts.models import AuditLog, FonctionQuartChoice, Roles, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
-from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.saisie import entier_ou_none
@@ -1489,6 +1488,22 @@ def _dans_mon_equipage(user, feuille):
     return agissant is None or agissant == feuille.equipage
 
 
+def peut_ecrire_pour_equipage(user, ship, equipage):
+    """Écriture sur la feuille d'un équipage : réservée à ses membres (en mer ou à terre).
+
+    Sur un double équipage, ni l'administrateur ni un profil sans équipage n'écrivent
+    pour un équipage dont ils ne sont pas ; équipage unique : sans effet."""
+    if not ship.double_equipage:
+        return True
+    profil = getattr(user, "profile", None)
+    return bool(profil and not is_master_admin(user) and profil.equipage and profil.equipage == equipage)
+
+
+def _equipage_proprietaire(user, feuille):
+    """Défense en profondeur : l'équipage du marin est celui de la feuille chargée en base."""
+    return peut_ecrire_pour_equipage(user, feuille.ship, feuille.equipage)
+
+
 def peut_rediger_feuille_service(user, ship):
     """Quiconque appartient au navire peut créer/modifier le brouillon de la
     feuille de service. Hypothèse de cadrage à signaler : en réalité seul le
@@ -1504,13 +1519,13 @@ def peut_gerer_brouillon_feuille(user, feuille):
     """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la
     reproposer après un renvoi : réservé à son rédacteur d'origine ou à la
     supervision globale."""
-    if feuille.statut != FeuilleService.STATUT_BROUILLON or not _dans_mon_equipage(user, feuille):
+    if feuille.statut != FeuilleService.STATUT_BROUILLON or not _equipage_proprietaire(user, feuille):
         return False
     return _supervision_sur_navire(user, feuille.ship_id) or feuille.created_by_id == user.pk
 
 
 def peut_viser_secteur(user, feuille):
-    if not _dans_mon_equipage(user, feuille):
+    if not _equipage_proprietaire(user, feuille):
         return False
     if _supervision_sur_navire(user, feuille.ship_id):
         return True
@@ -1521,7 +1536,7 @@ def peut_viser_secteur(user, feuille):
 
 
 def peut_viser_service(user, feuille):
-    if not _dans_mon_equipage(user, feuille):
+    if not _equipage_proprietaire(user, feuille):
         return False
     if _supervision_sur_navire(user, feuille.ship_id):
         return True
@@ -1559,7 +1574,7 @@ def peut_viser_comaeq(user, feuille):
     """Visa COMAEQ : réservé au titulaire actif de la fonction de COMAEQ du
     bâtiment (de l'équipage de la feuille en double équipage). Seul un poste
     VACANT ouvre le visa exceptionnel au commandant de cet équipage."""
-    if equipage_a_terre_lecture_seule(user):
+    if not _dans_mon_equipage(user, feuille) or not _equipage_proprietaire(user, feuille):
         return False
     titulaires = titulaires_comaeq(feuille)
     if titulaires.exists():

@@ -59,11 +59,12 @@ class VisaComaeqVacantTests(TestCase):
         self._poste_pourvu("B")
         self.assertTrue(peut_viser_comaeq(self.cdt_a, self.feuille))
 
-    def test_commandant_d_un_equipage_a_terre_ne_vise_pas(self):
+    def test_commandant_de_l_equipage_a_terre_vise_sa_propre_feuille_vacante(self):
         feuille_b = FeuilleService.objects.create(
             ship=self.ship, equipage="B", date=timezone.localdate(), statut=FeuilleService.STATUT_VISA_COMAEQ,
         )
-        self.assertFalse(peut_viser_comaeq(self.cdt_b, feuille_b))
+        self.assertTrue(peut_viser_comaeq(self.cdt_b, feuille_b))
+        self.assertFalse(peut_viser_comaeq(self.cdt_a, feuille_b))
 
     def test_visa_exceptionnel_trace_et_marque_dans_l_historique(self):
         self.feuille.viser_comaeq(self.cdt_a)
