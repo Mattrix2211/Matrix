@@ -23,6 +23,7 @@ from django.views import View
 from accounts.models import AuditLog
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.contexte_batiment import batiment_courant
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from org.models import Ship
@@ -57,6 +58,17 @@ def _navires_disponibles_feuille_service(user):
     return Ship.objects.filter(pk=ship_id) if ship_id else Ship.objects.none()
 
 
+def navire_feuille_service_par_defaut(request):
+    """Navire du profil ; à défaut, bâtiment courant de l'administrateur général
+    (jamais un navire arbitraire : la feuille se consulte depuis son propre bâtiment)."""
+    ship_id = ship_id_for_user(request.user)
+    if ship_id:
+        return Ship.objects.filter(pk=ship_id).first()
+    if is_master_admin(request.user):
+        return batiment_courant(request) or Ship.objects.filter(archived=False).order_by("name").first()
+    return None
+
+
 def _redirection_detail(ship, date_, equipage):
     """Retour sur la feuille du jour ; l'équipage n'est passé dans l'adresse que
     s'il y en a un (administrateur général choisissant l'équipage à consulter)."""
@@ -66,10 +78,10 @@ def _redirection_detail(ship, date_, equipage):
 
 class FeuilleServiceIndexView(LoginRequiredMixin, View):
     """Point d'entrée du module : redirige vers la feuille du jour du navire
-    de l'utilisateur."""
+    de l'utilisateur (administrateur général sans navire : bâtiment courant)."""
 
     def get(self, request):
-        navire = _navires_disponibles_feuille_service(request.user).first()
+        navire = navire_feuille_service_par_defaut(request)
         if navire is None:
             messages.error(request, "Aucune unité n'est associée à votre profil.")
             return redirect("home")
