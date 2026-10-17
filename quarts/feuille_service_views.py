@@ -39,6 +39,7 @@ from .models import (
     peut_gerer_brouillon_feuille,
     peut_lire_feuille_service,
     peut_rediger_feuille_service,
+    peut_ecrire_pour_equipage,
     peut_viser_comaeq,
     titulaire_comaeq,
     peut_viser_secteur,
@@ -239,7 +240,9 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             return _redirection_detail(ship, date_, equipage)
 
         if action == "creer":
-            if not peut_rediger_feuille_service(request.user, ship):
+            if not peut_rediger_feuille_service(request.user, ship) or not peut_ecrire_pour_equipage(
+                request.user, ship, equipage
+            ):
                 raise PermissionDenied
             if feuille is None:
                 FeuilleService.objects.create(

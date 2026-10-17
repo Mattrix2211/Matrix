@@ -1,7 +1,7 @@
 """Middlewares transverses de Matrix."""
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, QueryDict
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -188,11 +188,24 @@ CHEMINS_ECRITURE_SOUTIEN = (
     *CHEMINS_PERSONNELS, "/taches/commentaire/", "/catalogue/", "/fiches/", "/api/assets/catalogue-",
     "/api/threads/messages/", "/api/threads/attachments/",
 )
+# Détail de SA feuille de service (chaque équipage, à bord ou à terre, a la sienne) : seules ces actions du
+# formulaire sont exemptées ; la vue revérifie fonction, bâtiment et équipage propriétaire de la feuille.
+ACTIONS_FEUILLE_SERVICE_A_TERRE = (
+    "creer", "enregistrer_entete", "proposer", "viser_secteur", "viser_service", "viser_comaeq", "renvoyer",
+)
 # Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
 ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")
 
 MESSAGE_LECTURE_SEULE = "Lecture seule : votre équipage est à terre, cette action est réservée à l'équipage à bord."
 MESSAGE_SOUTIEN_A_TERRE = "Soutien à terre : vous consultez et commentez, la modification des données du bord est réservée à l'équipage embarqué."
+
+
+def _est_detail_feuille_service(chemin):
+    """Vrai pour la seule route du détail d'une feuille (jamais réglages ni alertes)."""
+    try:
+        return resolve(chemin).url_name == "feuille-service-detail"
+    except Resolver404:
+        return False
 
 
 class EquipageATerreMiddleware:
@@ -220,6 +233,8 @@ class EquipageATerreMiddleware:
         if equipage_a_terre_lecture_seule(utilisateur):
             if request.path == "/parametre/":
                 permis = request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
+            elif _est_detail_feuille_service(request.path_info):
+                permis = request.POST.get("action") in ACTIONS_FEUILLE_SERVICE_A_TERRE
             else:
                 permis = request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
             return "" if permis else MESSAGE_LECTURE_SEULE

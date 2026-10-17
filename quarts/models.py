@@ -120,7 +120,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
+from accounts.models import AuditLog, FonctionQuartChoice, Roles, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -849,9 +849,10 @@ class EchangeServiceEvenement(TimeStampedModel):
 #
 # Le visa COMAEQ est routé vers le titulaire actif du poste de COMAEQ
 # (profil de fonction COMAEQ) du bâtiment et, en double équipage, de l'équipage
-# de la feuille (titulaire_comaeq). Poste vacant : escalade tracée dans
-# l'AuditLog et notifiée au commandant du bâtiment, qui peut viser à la place
-# du COMAEQ ; le commandant en second ne vise pas (vision en lecture seule).
+# de la feuille (titulaire_comaeq), seul habilité à viser. Poste VACANT (aucun
+# titulaire configuré, un titulaire simplement absent ne compte pas) : le
+# commandant de cet équipage peut viser à titre exceptionnel, visa tracé dans
+# l'AuditLog et dans la version publiée ; ni le second ni un autre grade.
 #
 # Comme pour ListeServiceAbstract, la publication fige un instantané
 # horodaté (VersionFeuilleService) sans jamais réécrire les précédents —
@@ -1116,14 +1117,14 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             AuditLog.objects.create(
                 actor=None, action="feuille_service_comaeq_vacant",
                 details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
-                        "visa escaladé au commandant.",
+                        "visa exceptionnel du commandant.",
             )
         for destinataire in self.validateurs_a_notifier():
             Notification.objects.create(
                 user=destinataire,
                 verb=(
                     f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
-                    "elle attend votre visa."
+                    "elle attend votre visa exceptionnel de commandant."
                     if vacant else
                     f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) attend votre visa."
                 ),
@@ -1179,20 +1180,28 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         d'après le circuit décrit par Matthis (CLAUDE.md §2)."""
         self.visa_comaeq_le = timezone.now()
         self.visa_comaeq_par = user
-        AuditLog.objects.create(
-            actor=user, action="feuille_service_visa_comaeq",
-            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le COMAEQ.",
-        )
-        self._publier(user)
+        exceptionnel = not titulaires_comaeq(self).filter(pk=user.pk).exists()
+        if exceptionnel:
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_visa_comaeq_exceptionnel",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
+                        "visa exceptionnel du commandant.",
+            )
+        else:
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_visa_comaeq",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le COMAEQ.",
+            )
+        self._publier(user, visa_exceptionnel=exceptionnel)
 
-    def _publier(self, user):
+    def _publier(self, user, visa_exceptionnel=False):
         self.statut = self.STATUT_PUBLIEE
         self.publiee_le = timezone.now()
         self.publiee_par = user
         self.save(update_fields=[
             "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par", "updated_at",
         ])
-        version = self.creer_version(user)
+        version = self.creer_version(user, visa_exceptionnel)
         AuditLog.objects.create(
             actor=user, action="feuille_service_publiee",
             details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) publiée, version {version.numero}.",
@@ -1235,7 +1244,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
             )
 
-    def creer_version(self, user):
+    def creer_version(self, user, visa_exceptionnel=False):
         """Fige un instantané horodaté de l'en-tête ET du personnel de
         service au moment de la publication (cahier des charges §31) — cf.
         commentaire de section sur le choix de ne pas réutiliser
@@ -1256,6 +1265,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 for e in self.personnel
             ],
             "alertes": figer_alertes(etat_alertes(self.ship, self.date, self.equipage)),
+            "visa_exceptionnel": visa_exceptionnel,
         }
         return self.versions.create(
             numero=dernier_numero + 1, publiee_le=timezone.now(), publiee_par=user, contenu_fige=contenu,
@@ -1478,6 +1488,22 @@ def _dans_mon_equipage(user, feuille):
     return agissant is None or agissant == feuille.equipage
 
 
+def peut_ecrire_pour_equipage(user, ship, equipage):
+    """Écriture sur la feuille d'un équipage : réservée à ses membres (en mer ou à terre).
+
+    Sur un double équipage, ni l'administrateur ni un profil sans équipage n'écrivent
+    pour un équipage dont ils ne sont pas ; équipage unique : sans effet."""
+    if not ship.double_equipage:
+        return True
+    profil = getattr(user, "profile", None)
+    return bool(profil and not is_master_admin(user) and profil.equipage and profil.equipage == equipage)
+
+
+def _equipage_proprietaire(user, feuille):
+    """Défense en profondeur : l'équipage du marin est celui de la feuille chargée en base."""
+    return peut_ecrire_pour_equipage(user, feuille.ship, feuille.equipage)
+
+
 def peut_rediger_feuille_service(user, ship):
     """Quiconque appartient au navire peut créer/modifier le brouillon de la
     feuille de service. Hypothèse de cadrage à signaler : en réalité seul le
@@ -1493,13 +1519,13 @@ def peut_gerer_brouillon_feuille(user, feuille):
     """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la
     reproposer après un renvoi : réservé à son rédacteur d'origine ou à la
     supervision globale."""
-    if feuille.statut != FeuilleService.STATUT_BROUILLON or not _dans_mon_equipage(user, feuille):
+    if feuille.statut != FeuilleService.STATUT_BROUILLON or not _equipage_proprietaire(user, feuille):
         return False
     return _supervision_sur_navire(user, feuille.ship_id) or feuille.created_by_id == user.pk
 
 
 def peut_viser_secteur(user, feuille):
-    if not _dans_mon_equipage(user, feuille):
+    if not _equipage_proprietaire(user, feuille):
         return False
     if _supervision_sur_navire(user, feuille.ship_id):
         return True
@@ -1510,7 +1536,7 @@ def peut_viser_secteur(user, feuille):
 
 
 def peut_viser_service(user, feuille):
-    if not _dans_mon_equipage(user, feuille):
+    if not _equipage_proprietaire(user, feuille):
         return False
     if _supervision_sur_navire(user, feuille.ship_id):
         return True
@@ -1532,23 +1558,28 @@ def titulaire_comaeq(feuille):
     return titulaires_comaeq(feuille).order_by("pk").first()
 
 
-def _supervision_du_navire_feuille(user, feuille):
-    """Commandant (ou plus) du bâtiment de la feuille ; l'administrateur
-    général agit sur tous les bâtiments."""
-    return _supervision_sur_navire(user, feuille.ship_id)
+def commandant_habilite_si_comaeq_vacant(user, feuille):
+    """Commandant (et lui seul) de l'équipage de la feuille, sur le bâtiment de la feuille.
+
+    Ni le second, ni l'administrateur."""
+    profil = getattr(user, "profile", None)
+    if profil is None or not user.is_active or profil.role != Roles.COMMANDANT or profil.ship_id != feuille.ship_id:
+        return False
+    if feuille.ship.double_equipage:
+        return profil.equipage == (feuille.equipage or feuille.ship.equipage_a_bord)
+    return True
 
 
 def peut_viser_comaeq(user, feuille):
-    """Visa COMAEQ : réservé aux titulaires actifs de la fonction de COMAEQ du
-    bâtiment (de l'équipage de la feuille en double équipage) ; le commandant
-    du bâtiment peut toujours le donner à sa place, et seul lui le donne quand
-    le poste est vacant (escalade). Un membre quelconque de l'état-major n'a
-    pas ce droit."""
-    if not _dans_mon_equipage(user, feuille):
+    """Visa COMAEQ : réservé au titulaire actif de la fonction de COMAEQ du
+    bâtiment (de l'équipage de la feuille en double équipage). Seul un poste
+    VACANT ouvre le visa exceptionnel au commandant de cet équipage."""
+    if not _dans_mon_equipage(user, feuille) or not _equipage_proprietaire(user, feuille):
         return False
-    if _supervision_du_navire_feuille(user, feuille):
-        return True
-    return titulaires_comaeq(feuille).filter(pk=user.pk).exists()
+    titulaires = titulaires_comaeq(feuille)
+    if titulaires.exists():
+        return titulaires.filter(pk=user.pk).exists()
+    return commandant_habilite_si_comaeq_vacant(user, feuille)
 
 
 def peut_lire_feuille_service(user, feuille):
@@ -1559,6 +1590,8 @@ def peut_lire_feuille_service(user, feuille):
         return False
     if feuille.statut == FeuilleService.STATUT_PUBLIEE:
         return _supervision_sur_navire(user, feuille.ship_id) or ship_id_for_user(user) == feuille.ship_id
+    if _supervision_sur_navire(user, feuille.ship_id):
+        return True  # supervision : lecture seule, indépendante des droits d'écriture
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and ship_id_for_user(user) == feuille.ship_id:
         return True  # commandant en second : lecture des feuilles en cours de circuit
     return (
