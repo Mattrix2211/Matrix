@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from absences.models import Absence
 from annonces.models import Annonce
@@ -16,7 +17,7 @@ from maintenance.models import MaintenanceOccurrence
 from notifications.models import Notification
 from matrix.core.commandants_adjoints import titulaires_du_service
 from org.models import Service
-from quarts.models import ChefDeListe, CreneauQuart
+from quarts.models import ChefDeListe, CreneauQuart, FeuilleService, peut_viser_comaeq, titulaires_comaeq
 from taches.models import Tache
 from training.models import CandidatureFormation, ReferentFormation, peut_valider_formation
 
@@ -166,3 +167,14 @@ class ComaRecetteTests(TestCase):
         _lancer("seed_recette")
         self.assertEqual(avant, _compteurs())
         self.assertEqual(User.objects.filter(profile__fonction_coma__gt="", profile__ship__code="NOR").count(), 2)
+
+    def test_feuilles_de_service_recette(self):
+        jour = timezone.localdate()
+        feuille_b = FeuilleService.objects.get(ship__code="BRE", equipage="B", date=jour)
+        self.assertEqual(feuille_b.statut, FeuilleService.STATUT_VISA_COMAEQ)
+        self.assertEqual(set(titulaires_comaeq(feuille_b).values_list("username", flat=True)), {"coma_comaeq_b"})
+        # Vacance distincte : aucun COMAEQ, le commandant du bâtiment est le validateur exceptionnel.
+        feuille_dix = FeuilleService.objects.get(ship__code="DIX", date=jour)
+        self.assertFalse(titulaires_comaeq(feuille_dix).exists())
+        self.assertEqual(feuille_dix.created_by.username, "cdt_dix")
+        self.assertTrue(peut_viser_comaeq(User.objects.get(username="cdt_dix"), feuille_dix))

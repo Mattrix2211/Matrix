@@ -27,7 +27,7 @@ from maintenance.models import MaintenanceOccurrence
 from matrix.core.management.commands.seed_demo import Command as SeedDemo
 from notifications.models import Notification, NotificationLevel
 from org.models import Section, Sector, Service, Ship
-from quarts.models import CreneauQuart, Quart
+from quarts.models import CreneauQuart, FeuilleService, Quart
 from taches import services as taches_services
 from taches.models import Tache
 from threads.models import Message, Thread
@@ -53,6 +53,7 @@ class Command(SeedDemo):
         self._charger()
         self._comptes_recette()
         self._coma_recette()
+        self._feuilles_service_recette()
         self._formations_recette()
         self._pompe_incendie()
         self._planning_et_absences()
@@ -128,6 +129,18 @@ class Command(SeedDemo):
         u("coma_comaeq_nor", Roles.ETAT_MAJOR, "Pauline", ship=self.nor, fonction_coma="COMAEQ", grade="Lieutenant de vaisseau")
         self.u.update({nom: User.objects.get(username=nom) for nom in (
             "coma_comanav_b", "coma_comaeq_b", "coma_comanav_nor", "coma_comaeq_nor")})
+
+    def _feuilles_service_recette(self):
+        """Feuilles du jour en attente du visa COMAEQ : équipage B (COMAEQ désigné) et bâtiment à poste vacant."""
+        FeuilleService.objects.get_or_create(
+            ship=self.bre, equipage="B", date=self.aujourdhui,
+            defaults=dict(statut=FeuilleService.STATUT_VISA_COMAEQ, created_by=self.u["marin_b"]))
+        # Cas de vacance distinct : aucun COMAEQ sur ce bâtiment, le commandant vise à titre exceptionnel.
+        dixmude, _ = Ship.objects.get_or_create(name="Dixmude", code="DIX", defaults=dict(classe_navire="BPC"))
+        cdt = self._utilisateur("cdt_dix", Roles.COMMANDANT, "Roland", ship=dixmude, grade="Capitaine de vaisseau")
+        FeuilleService.objects.get_or_create(
+            ship=dixmude, equipage="", date=self.aujourdhui,
+            defaults=dict(statut=FeuilleService.STATUT_VISA_COMAEQ, created_by=cdt))
 
     # ---------- Formations, qualifications et candidatures ----------
 
