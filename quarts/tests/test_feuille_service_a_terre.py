@@ -5,7 +5,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import AuditLog, UserProfile
-from org.models import ReleveEquipage, Sector, Service, Ship
+from matrix.core.equipage import decider_releve, proposer_releve
+from org.models import Sector, Service, Ship
 from quarts.models import FeuilleService, peut_viser_comaeq, peut_viser_secteur, peut_viser_service
 
 
@@ -125,11 +126,24 @@ class FeuilleParEquipageTests(TestCase):
                 for f in FeuilleService.objects.order_by("equipage")
             ]
         avant = etat()
-        self.ship.equipage_a_bord = "B"
-        self.ship.save()
-        ReleveEquipage.objects.filter(ship=self.ship).delete()
+        proposition, erreur = proposer_releve(User.objects.get(username="cdt_A"), self.ship, "B")
+        self.assertEqual(erreur, "")
+        self.assertEqual(decider_releve(User.objects.get(username="cdt_B"), proposition, True), "")
+        self.ship.refresh_from_db()
+        self.assertEqual(self.ship.equipage_a_bord, "B")
         self.assertEqual(avant, etat())
         # Après la relève, la feuille B en cours se vise par son COMAEQ, celle de A reste publiée.
         self._post("comaeq_B", "viser_comaeq")
         self.assertEqual(self._feuille("A").statut, FeuilleService.STATUT_PUBLIEE)
         self.assertEqual(self._feuille("B").statut, FeuilleService.STATUT_PUBLIEE)
+
+    def test_administrateur_general_lit_sans_pouvoir_ecrire(self):
+        self._circuit("A")
+        FeuilleService.objects.create(ship=self.ship, equipage="B", date=self.jour, created_by=self.maitre)
+        self.client.force_login(self.maitre)
+        for suffixe in ("", "?equipage=A", "?equipage=B"):
+            reponse = self.client.get(self.url + suffixe)
+            self.assertEqual(reponse.status_code, 200, suffixe)
+            for action in ("proposer", "viser_secteur", "viser_service", "viser_comaeq", "enregistrer_entete"):
+                self.assertNotContains(reponse, f'value="{action}"')
+            self.assertIn(self.client.post(self.url + suffixe, {"action": "viser_service"}).status_code, (400, 403))

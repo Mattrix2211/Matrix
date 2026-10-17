@@ -1590,6 +1590,8 @@ def peut_lire_feuille_service(user, feuille):
         return False
     if feuille.statut == FeuilleService.STATUT_PUBLIEE:
         return _supervision_sur_navire(user, feuille.ship_id) or ship_id_for_user(user) == feuille.ship_id
+    if _supervision_sur_navire(user, feuille.ship_id):
+        return True  # supervision : lecture seule, indépendante des droits d'écriture
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and ship_id_for_user(user) == feuille.ship_id:
         return True  # commandant en second : lecture des feuilles en cours de circuit
     return (
