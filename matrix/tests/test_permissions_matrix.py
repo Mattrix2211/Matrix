@@ -382,17 +382,17 @@ class CorrectiveTicketMatriceTests(MatricePermissionsTestCase):
             return r.status_code != 403
         self.assert_seuil(RoleLevel.CHEF_SECTION, executer)
 
-    def test_remise_en_service_exige_une_signature_quel_que_soit_le_role(self):
+    def test_remise_en_service_exige_une_confirmation_quel_que_soit_le_role(self):
         """Action métier sensible : la remise en service (RETURNED_TO_SERVICE)
-        exige le mot de passe de l'appelant, en plus du seuil CHEF_SECTION déjà
-        vérifié ci-dessus — un CHEF_SERVICE avec un mot de passe erroné ne doit
-        ni changer le statut ni enregistrer de signature."""
+        exige la confirmation de l'appelant, en plus du seuil CHEF_SECTION déjà
+        vérifié ci-dessus — un CHEF_SERVICE sans confirmation ne doit ni changer
+        le statut ni enregistrer de validation."""
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Panne à réparer")
         chef = self.users[RoleLevel.CHEF_SERVICE]
         client = self.client_pour(RoleLevel.CHEF_SERVICE)
 
         r = client.post(f"/logistics/tickets/{ticket.id}/transition/", {
-            "status": "RETURNED_TO_SERVICE", "mot_de_passe": "mauvais_mot_de_passe",
+            "status": "RETURNED_TO_SERVICE",
         })
         self.assertEqual(r.status_code, 302)
         ticket.refresh_from_db()
@@ -400,7 +400,7 @@ class CorrectiveTicketMatriceTests(MatricePermissionsTestCase):
         self.assertIsNone(ticket.valide_par)
 
         r = client.post(f"/logistics/tickets/{ticket.id}/transition/", {
-            "status": "RETURNED_TO_SERVICE", "mot_de_passe": "pass",
+            "status": "RETURNED_TO_SERVICE", "confirmation": "1",
         })
         self.assertEqual(r.status_code, 302)
         ticket.refresh_from_db()
