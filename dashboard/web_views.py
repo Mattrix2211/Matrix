@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
-from accounts.models import ResponsableSpecialite, SpecialityChoice
+from accounts.models import AuditLog, ResponsableSpecialite, SpecialityChoice
 from assets.models import Asset, Installation, InstallationMaintenance
 from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee, supervision
 from matrix.core.equipage import equipage_a_terre_lecture_seule
@@ -26,6 +26,7 @@ from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.brouillons import brouillons_a_reprendre
+from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
@@ -637,11 +638,9 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
 
 
 class SessionAppareillageSignerView(LoginRequiredMixin, View):
-    """Signe et clôture une session d'appareillage — réservée à CHEF_SECTEUR et
-    aux rôles supérieurs (spec PO). Réutilise exactement le pattern de
-    signature déjà en place sur MaintenanceExecution (maintenance/web_views.py
-    ::OccurrenceExecuteView) : vérification par mot de passe
-    (request.user.check_password), rien de nouveau inventé."""
+    """Valide et clôture une session d'appareillage — réservée à CHEF_SECTEUR et
+    aux rôles supérieurs. Atteste la clôture de la session de vérification, pas
+    l'aptitude du bâtiment ; exige la confirmation explicite du valideur."""
 
     def post(self, request, pk):
         try:
@@ -658,8 +657,9 @@ class SessionAppareillageSignerView(LoginRequiredMixin, View):
             messages.warning(request, "Cette session est déjà clôturée.")
             return redirect("pret-appareillage")
 
-        if not user.check_password(request.POST.get("mot_de_passe", "")):
-            messages.error(request, "Mot de passe incorrect : la session n'a pas été signée.")
+        if not confirmation_web(request.POST):
+            tracer_refus(user, "pret_appareillage", CANAL_WEB, f"session_appareillage={session.pk}")
+            messages.error(request, MESSAGE_REFUS)
             return redirect("pret-appareillage")
 
         maintenant = timezone.now()
@@ -669,7 +669,12 @@ class SessionAppareillageSignerView(LoginRequiredMixin, View):
         session.updated_by = user
         session.save(update_fields=["valide_par", "date_validation", "cloturee_le", "updated_by", "updated_at"])
 
-        messages.success(request, "Session d'appareillage signée et clôturée.")
+        AuditLog.objects.create(
+            actor=user, action="session_appareillage_validation",
+            details=f"session_appareillage={session.pk}; navire={session.ship_id}"
+            + details_confirmation("pret_appareillage", CANAL_WEB),
+        )
+        messages.success(request, "Session d'appareillage validée et clôturée.")
         return redirect("pret-appareillage")
 
 

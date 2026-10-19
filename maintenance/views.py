@@ -12,6 +12,9 @@ from .models import (
 from .compte_rendu import instantane
 from .perimetre import perimetre_occurrences_q
 from .serializers import MaintenancePlanSerializer, MaintenanceOccurrenceSerializer, MaintenanceExecutionSerializer
+from matrix.core.confirmations import (
+    CANAL_API, MESSAGE_REFUS_API, confirmation_api, details_confirmation, texte_confirmation, tracer_refus,
+)
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 from matrix.core.scopes import assignes_equipage_q
@@ -87,9 +90,8 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePeri
         # Meta.read_only_fields) : un PATCH/PUT générique qui tente malgré tout de le
         # changer est explicitement refusé plutôt que silencieusement ignoré, pour
         # guider vers les actions dédiées start()/complete() — seul chemin qui
-        # applique la signature de validation sur installation critique. Sans ce
-        # garde-fou, `PATCH /api/maintenance-occurrences/{pk}/ {"status": "DONE"}`
-        # contournait totalement le contrôle mot de passe de complete().
+        # applique la confirmation de validation sur installation critique. Sans ce
+        # garde-fou, un PATCH du statut contournerait la confirmation de complete().
         nouveau_statut = self.request.data.get("status")
         if nouveau_statut and nouveau_statut != serializer.instance.status:
             raise ValidationError(
@@ -131,18 +133,17 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePeri
         occ = self.get_object()
         conformity = request.data.get("conformity", "")
 
-        # Passage en "Terminée" (DONE) d'une installation critique : geste engageant
-        # qui exige une ré-authentification légère (mot de passe courant), exactement
-        # comme OccurrenceExecuteView.post (maintenance/web_views.py) — sans ce
-        # contrôle, l'API offrait un moyen de contourner la signature de validation.
+        # Passage en "Terminée" (DONE) d'une installation critique : exige la
+        # confirmation explicite, comme OccurrenceExecuteView.post (maintenance/web_views.py).
         # Une occurrence NON_CONFORME repasse en WAITING_VALIDATION (pas DONE) et
         # n'est donc pas concernée.
         installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
         exige_validation = bool(installation and installation.critique) and conformity != "NON_CONFORME"
-        if exige_validation and not request.user.check_password(request.data.get("mot_de_passe", "")):
+        if exige_validation and not confirmation_api(request.data):
+            tracer_refus(request.user, "maintenance_critique", CANAL_API, f"occurrence={occ.pk}")
             return response.Response(
-                {"detail": "Mot de passe incorrect : l'exécution n'a pas été validée."},
-                status=status.HTTP_403_FORBIDDEN,
+                {"detail": MESSAGE_REFUS_API.format(texte=texte_confirmation("maintenance_critique")[1])},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         exec, _ = MaintenanceExecution.objects.get_or_create(occurrence=occ)
@@ -168,13 +169,13 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePeri
         OccurrenceStatusLog.objects.create(
             occurrence=occ, old_status=ancien_statut, new_status=occ.status, user=request.user,
         )
-        # Action sensible (§30 cahier des charges) : passage en "Terminée" d'une
-        # installation critique exige la signature de validation vérifiée
-        # ci-dessus — l'entrée d'audit distingue ce cas via exige_validation.
+        # Action sensible (§30 cahier des charges) : l'entrée d'audit distingue la
+        # validation critique et porte le texte confirmé.
         AuditLog.objects.create(
             actor=request.user,
             action="occurrence_status_change" if not exige_validation else "occurrence_validation_critique",
-            details=f"occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}",
+            details=f"occurrence={occ.pk}; {ancien_statut} -> {occ.status}; conformite={conformity}"
+            + (details_confirmation("maintenance_critique", CANAL_API) if exige_validation else ""),
         )
         if occ.status == "DONE":
             mettre_a_jour_echeance_installation(occ)

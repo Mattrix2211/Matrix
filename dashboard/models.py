@@ -24,10 +24,10 @@ class SessionAppareillage(TimeStampedModel, OwnedModel):
     façon simple entre SQLite dev et PostgreSQL prod) — même choix que le reste
     de l'app pour les règles métier non triviales à exprimer en base.
 
-    La signature réutilise exactement le pattern déjà en place sur
-    MaintenanceExecution (maintenance/models.py) : valide_par (FK) + date_validation
-    (DateTimeField), vérifiés par mot de passe (request.user.check_password),
-    pas de nouveau mécanisme."""
+    La validation réutilise le pattern de MaintenanceExecution (maintenance/models.py) :
+    valide_par (FK) + date_validation, posés côté serveur après confirmation explicite
+    (matrix/core/confirmations.py). Elle atteste la clôture de la session, pas l'aptitude
+    du bâtiment à appareiller."""
 
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="sessions_appareillage")
     ouverte_le = models.DateTimeField(auto_now_add=True, verbose_name="Ouverte le")

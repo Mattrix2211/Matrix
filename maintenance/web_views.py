@@ -18,6 +18,7 @@ from .models import (
 from assets.models import Asset, AssetType, ChecklistTemplate
 from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, contexte_discussion
+from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from .perimetre import STATUTS_SANS_RETARD, perimetre_occurrences_q, retard_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
@@ -181,12 +182,13 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
                 erreurs.append("Le motif de la modification est obligatoire.")
             erreurs += releves.verifier(items, results, mesures)
 
-        # Mot de passe (signature) seulement à la clôture d'une installation critique ; une
+        # Confirmation seulement à la clôture d'une installation critique ; une
         # occurrence non conforme repasse en WAITING_VALIDATION et n'est pas concernée.
         installation, _ = _sujet(occ)
         exige_validation = (not en_direct) and bool(installation and installation.critique) and conformity != 'NON_CONFORME'
-        if exige_validation and not request.user.check_password(request.POST.get('mot_de_passe', '')):
-            erreurs.append("Mot de passe incorrect : l'exécution n'a pas été validée.")
+        if exige_validation and not confirmation_web(request.POST):
+            tracer_refus(request.user, 'maintenance_critique', CANAL_WEB, f'occurrence={occ.pk}')
+            erreurs.append(MESSAGE_REFUS)
 
         intervenants = _intervenants_choisis(request, occ)
         if not erreurs:
@@ -265,6 +267,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         exec_obj.save()
         exec_obj.intervenants.set(intervenants)
 
+        trace = details_confirmation('maintenance_critique', CANAL_WEB) if exige_validation else ''
         ancien_statut = occ_verrouillee.status
         if en_direct:
             nouveau_statut = 'IN_PROGRESS'
@@ -279,12 +282,12 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             AuditLog.objects.create(
                 actor=user,
                 action='occurrence_validation_critique' if exige_validation else 'occurrence_status_change',
-                details=f'occurrence={occ.pk}; {ancien_statut} -> {nouveau_statut}; conformite={conformity}',
+                details=f'occurrence={occ.pk}; {ancien_statut} -> {nouveau_statut}; conformite={conformity}' + trace,
             )
         elif exige_validation:
             AuditLog.objects.create(
                 actor=user, action='occurrence_validation_critique',
-                details=f'occurrence={occ.pk}; {ancien_statut} -> {nouveau_statut}; conformite={conformity}',
+                details=f'occurrence={occ.pk}; {ancien_statut} -> {nouveau_statut}; conformite={conformity}' + trace,
             )
         if en_direct:
             return exec_obj, original, True

@@ -53,26 +53,26 @@ class AuditLogTicketTests(TestCase):
         self.assertIn("REPORTED -> DIAGNOSED", entree.details)
 
     def test_remise_en_service_genere_une_entree_daudit_distincte_de_validation(self):
-        # La remise en service (transition engageante, mot de passe requis)
+        # La remise en service (transition engageante, confirmation requise)
         # doit être identifiable dans le journal comme une VALIDATION,
         # distincte d'un simple changement de statut — même logique que la
-        # signature de validation déjà appliquée au ticket lui-même.
+        # validation déjà appliquée au ticket lui-même.
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Fuite", status="TESTING")
         url = reverse("ticket-transition", args=[ticket.id])
         self.client.post(
-            url, {"status": "RETURNED_TO_SERVICE", "mot_de_passe": "MotDePasseCorrect1"}, follow=True,
+            url, {"status": "RETURNED_TO_SERVICE", "confirmation": "1"}, follow=True,
         )
         entree = AuditLog.objects.get(action="ticket_validation_critique")
         self.assertEqual(entree.actor, self.chef)
         self.assertIn(str(ticket.pk), entree.details)
 
-    def test_mot_de_passe_incorrect_ne_genere_aucune_entree_daudit(self):
+    def test_confirmation_absente_ne_genere_aucune_entree_daudit(self):
         # Sans écriture effective en base, aucune entrée d'audit ne doit être
         # créée : une entrée d'audit doit toujours correspondre à une action
         # réellement appliquée.
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Fuite", status="TESTING")
         url = reverse("ticket-transition", args=[ticket.id])
         self.client.post(
-            url, {"status": "RETURNED_TO_SERVICE", "mot_de_passe": "faux"}, follow=True,
+            url, {"status": "RETURNED_TO_SERVICE"}, follow=True,
         )
         self.assertFalse(AuditLog.objects.filter(action__startswith="ticket_").exists())

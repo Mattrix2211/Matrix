@@ -1,5 +1,5 @@
 """Tickets correctifs visant une installation fixe (et non un matériel mobile) :
-périmètre, workflow (mot de passe à la remise en service, REX à la fermeture),
+périmètre, workflow (confirmation à la remise en service, REX à la fermeture),
 listes, rapports et tableaux de bord."""
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -67,13 +67,13 @@ class TicketInstallationTests(_JeuDeDonnees):
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.status, "TESTING")
 
-    def test_remise_en_service_exige_le_mot_de_passe(self):
+    def test_remise_en_service_exige_la_confirmation(self):
         self.client.login(username="chef", password="Motdepasse1")
         url = reverse("ticket-transition", args=[self.ticket.pk])
-        self.client.post(url, {"status": "RETURNED_TO_SERVICE", "mot_de_passe": "faux"})
+        self.client.post(url, {"status": "RETURNED_TO_SERVICE"})
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.status, "TESTING")
-        self.client.post(url, {"status": "RETURNED_TO_SERVICE", "mot_de_passe": "Motdepasse1"})
+        self.client.post(url, {"status": "RETURNED_TO_SERVICE", "confirmation": "1"})
         self.ticket.refresh_from_db()
         self.assertEqual((self.ticket.status, self.ticket.valide_par), ("RETURNED_TO_SERVICE", self.chef))
 

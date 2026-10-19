@@ -13,6 +13,7 @@ from .models import (
     CorrectiveTicket, MouvementStock, PartRequest, PartLineItem, TicketStatusLog, StockPiece,
     destinataires_ticket, niveau_alerte_ticket,
 )
+from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
 from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -377,12 +378,10 @@ class TicketTransitionView(LoginRequiredMixin, View):
         if not new_status:
             return HttpResponseBadRequest('Statut requis')
 
-        # Remise en service : geste engageant qui exige une ré-authentification légère
-        # (mot de passe courant de l'appelant, comme un "sudo" léger) avant toute
-        # écriture. Vérifié en tout premier, pour ne strictement rien modifier au
-        # ticket si le mot de passe saisi est incorrect.
-        if new_status == 'RETURNED_TO_SERVICE' and not request.user.check_password(request.POST.get('mot_de_passe', '')):
-            erreur_fermeture = "Mot de passe incorrect : la remise en service n'a pas été validée."
+        # Remise en service : confirmation explicite vérifiée avant toute écriture.
+        if new_status == 'RETURNED_TO_SERVICE' and not confirmation_web(request.POST):
+            tracer_refus(request.user, 'remise_en_service', CANAL_WEB, f'ticket={ticket.pk}')
+            erreur_fermeture = MESSAGE_REFUS
             messages.error(request, erreur_fermeture)
             if request.headers.get('HX-Request'):
                 return render(request, 'logistics/_status.html', contexte_statut_ticket(ticket, request.user, erreur_fermeture))
@@ -401,8 +400,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
             old = ticket.status
             ticket.status = new_status
             if new_status == 'RETURNED_TO_SERVICE':
-                # Mot de passe déjà vérifié plus haut : on enregistre la signature de
-                # validation en même temps que la transition.
+                # Confirmation déjà vérifiée plus haut : valideur et date posés côté serveur.
                 ticket.valide_par = request.user
                 ticket.date_validation = timezone.now()
                 champs += ['valide_par', 'date_validation']
@@ -413,13 +411,13 @@ class TicketTransitionView(LoginRequiredMixin, View):
             messages.error(request, erreur_fermeture)
         else:
             TicketStatusLog.objects.create(ticket=ticket, old_status=old, new_status=new_status, user=request.user if request.user.is_authenticated else None)
-            # Action sensible (§30 cahier des charges) : la remise en service
-            # exige la signature de validation vérifiée plus haut — l'entrée
-            # d'audit distingue ce cas des autres transitions.
+            # Action sensible (§30 cahier des charges) : l'entrée d'audit distingue
+            # la remise en service et porte le texte confirmé.
             AuditLog.objects.create(
                 actor=request.user if request.user.is_authenticated else None,
                 action='ticket_status_change' if new_status != 'RETURNED_TO_SERVICE' else 'ticket_validation_critique',
-                details=f'ticket={ticket.pk}; {old} -> {new_status}',
+                details=f'ticket={ticket.pk}; {old} -> {new_status}'
+                + (details_confirmation('remise_en_service', CANAL_WEB) if new_status == 'RETURNED_TO_SERVICE' else ''),
             )
 
         if request.headers.get('HX-Request'):
