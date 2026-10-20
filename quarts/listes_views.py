@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -691,8 +692,9 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 for erreur in erreurs:
                     messages.error(request, erreur)
             return
-        creneau.save()
-        liste.tracer_modification_creneau(request.user, creneau, ajoute=True)
+        with transaction.atomic():
+            creneau.save()
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=True)
         messages.success(request, "Créneau ajouté.")
 
     def _supprimer_creneau(self, request, liste):
@@ -702,10 +704,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if creneau is None:
             messages.error(request, "Créneau introuvable.")
             return
-        if self.fk_attr == "service_garde":
-            annuler_echanges_du_creneau(creneau, request.user)
-        liste.tracer_modification_creneau(request.user, creneau, ajoute=False)
-        creneau.delete()
+        with transaction.atomic():
+            if self.fk_attr == "service_garde":
+                annuler_echanges_du_creneau(creneau, request.user)
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=False)
+            creneau.delete()
         messages.info(request, "Créneau supprimé.")
 
     def _regler_echanges(self, request, liste):

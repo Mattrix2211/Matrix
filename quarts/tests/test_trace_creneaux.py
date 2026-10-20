@@ -1,6 +1,7 @@
 """Traçabilité des créneaux ajoutés/supprimés sur une liste publiée
 (AuditLog + notification du marin) ; rien pour un brouillon."""
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -35,6 +36,10 @@ class TraceCreneauxTests(TestCase):
             fonction=ServiceFunctionChoice.objects.create(name="Permanence"),
         )
 
+    def _vider(self):
+        AuditLog.objects.all().delete()
+        Notification.objects.all().delete()
+
     def _liste(self, type_liste, statut):
         liste = self.quart if type_liste == "quart" else self.garde
         liste.statut = statut
@@ -59,26 +64,30 @@ class TraceCreneauxTests(TestCase):
     def test_ajout_sur_liste_publiee_trace_et_notifie(self):
         for type_liste in ("quart", "garde"):
             with self.subTest(type_liste):
+                self._vider()
                 liste = self._liste(type_liste, Quart.STATUT_PUBLIEE)
                 self._ajouter(type_liste, liste, self.marin, note="Relève")
                 journal = AuditLog.objects.get(action="liste_service_creneau_ajoute", details__startswith=f"{liste.libelle_type()} #{liste.pk} ")
                 self.assertIn("Passerelle", journal.details)
                 self.assertIn("Jean Dupont", journal.details)
                 self.assertIn("Relève", journal.details)
-                notif = Notification.objects.filter(user=self.marin, verb__contains="affecté(e)").latest("pk")
+                notif = Notification.objects.get(user=self.marin)
                 self.assertIn("Modification de la liste publiée", notif.verb)
 
     def test_ajout_sur_brouillon_ne_trace_rien(self):
         for type_liste in ("quart", "garde"):
             with self.subTest(type_liste):
+                self._vider()
                 liste = self._liste(type_liste, Quart.STATUT_BROUILLON)
                 self._ajouter(type_liste, liste, self.marin)
-        self.assertFalse(AuditLog.objects.filter(action__startswith="liste_service_creneau").exists())
-        self.assertFalse(Notification.objects.filter(user=self.marin).exists())
+                self.assertEqual(liste.creneaux.count(), 1)
+                self.assertFalse(AuditLog.objects.filter(action__startswith="liste_service_creneau").exists())
+                self.assertFalse(Notification.objects.filter(user=self.marin).exists())
 
     def test_suppression_conserve_les_details_et_notifie(self):
         for type_liste, modele, attr in (("quart", CreneauQuart, "quart"), ("garde", CreneauServiceGarde, "service_garde")):
             with self.subTest(type_liste):
+                self._vider()
                 liste = self._liste(type_liste, Quart.STATUT_PUBLIEE)
                 debut = timezone.now() + timedelta(hours=5)
                 creneau = modele.objects.create(
@@ -89,10 +98,11 @@ class TraceCreneauxTests(TestCase):
                 journal = AuditLog.objects.get(action="liste_service_creneau_supprime", details__startswith=f"{liste.libelle_type()} #{liste.pk} ")
                 self.assertIn("Veille", journal.details)
                 self.assertIn("Jean Dupont", journal.details)
-                self.assertTrue(Notification.objects.filter(user=self.marin, verb__contains="retiré(e)").exists())
+                self.assertIn("retiré(e)", Notification.objects.get(user=self.marin).verb)
 
     def test_creneau_sans_marin_trace_sans_notification(self):
         liste = self._liste("quart", Quart.STATUT_PUBLIEE)
+        self._vider()
         self._ajouter("quart", liste)
         journal = AuditLog.objects.get(action="liste_service_creneau_ajoute")
         self.assertIn("non affecté", journal.details)
@@ -100,18 +110,32 @@ class TraceCreneauxTests(TestCase):
 
     def test_pas_de_notification_a_soi_meme(self):
         liste = self._liste("quart", Quart.STATUT_PUBLIEE)
+        self._vider()
         self._ajouter("quart", liste, self.cdl)
         self.assertTrue(AuditLog.objects.filter(action="liste_service_creneau_ajoute").exists())
         self.assertFalse(Notification.objects.filter(user=self.cdl).exists())
 
     def test_reglage_des_echanges_sur_liste_publiee_est_trace(self):
         liste = self._liste("garde", ServiceGarde.STATUT_PUBLIEE)
+        self._vider()
         self.client.post(reverse("garde-detail", args=[liste.pk]), {"action": "regler_echanges", "delai_minimal_echange_heures": 12})
         self.assertTrue(AuditLog.objects.filter(action="liste_service_echanges_regles").exists())
         liste = self._liste("garde", ServiceGarde.STATUT_BROUILLON)
-        AuditLog.objects.all().delete()
+        self._vider()
         self.client.post(reverse("garde-detail", args=[liste.pk]), {"action": "regler_echanges", "delai_minimal_echange_heures": 6})
         self.assertFalse(AuditLog.objects.filter(action="liste_service_echanges_regles").exists())
+
+    def test_echec_de_la_trace_ne_modifie_rien(self):
+        liste = self._liste("quart", Quart.STATUT_PUBLIEE)
+        debut = timezone.now() + timedelta(hours=5)
+        creneau = CreneauQuart.objects.create(
+            poste="Veille", debut=debut, fin=debut + timedelta(hours=4), marin=self.marin, quart=liste,
+        )
+        self.client.raise_request_exception = False
+        with patch.object(Quart, "tracer_modification_creneau", side_effect=RuntimeError("panne")):
+            self._supprimer("quart", liste, creneau)
+            self._ajouter("quart", liste, self.marin)
+        self.assertEqual(list(liste.creneaux.all()), [creneau])
 
 
 class TraceCreneauxAdminTests(TestCase):
