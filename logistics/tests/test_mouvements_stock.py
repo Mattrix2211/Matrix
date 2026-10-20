@@ -1,4 +1,6 @@
 """Mouvements de stock : quantité calculée, sortie automatique, refus de stock négatif, droits, traçabilité, périmètre."""
+import threading
+
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
@@ -240,6 +242,76 @@ class CreationPieceTests(BaseMouvements):
         })
         piece = self.recharger()
         self.assertEqual((piece.designation, piece.quantite), ("Joint bis", 4))
+
+    def test_fiche_ouverte_avant_un_mouvement_ne_l_ecrase_pas(self):
+        # Scénario D-08 : quantité 9, mouvement +5, puis enregistrement d'une fiche ouverte avant.
+        enregistrer_mouvement(self.chef, self.piece, MouvementStock.ENTREE, 9)
+        fiche_perimee = StockPiece.objects.get(pk=self.piece.pk)
+        enregistrer_mouvement(self.chef, self.piece, MouvementStock.ENTREE, 5)
+        self.client.force_login(self.chef)
+        self.client.post(reverse("stock-piece-list"), {
+            "action": "edit_piece", "pk": fiche_perimee.pk, "reference": "JNT-1", "designation": "Joint ter",
+            "quantite": str(fiche_perimee.quantite), "quantite_minimale": "2", "sector_id": self.secteur.pk,
+        })
+        piece = self.recharger()
+        self.assertEqual((piece.designation, piece.quantite), ("Joint ter", 14))
+        self.assertEqual(piece.quantite, piece.quantite_calculee())
+
+    def test_inventaire_apres_modification_de_fiche_garde_l_invariant(self):
+        enregistrer_mouvement(self.chef, self.piece, MouvementStock.ENTREE, 9)
+        self.client.force_login(self.chef)
+        self.client.post(reverse("stock-piece-list"), {
+            "action": "edit_piece", "pk": self.piece.pk, "reference": "JNT-1", "designation": "Joint",
+            "quantite_minimale": "2", "sector_id": self.secteur.pk,
+        })
+        enregistrer_mouvement(self.chef, self.piece, MouvementStock.INVENTAIRE, 7, motif="Comptage")
+        piece = self.recharger()
+        self.assertEqual((piece.quantite, piece.quantite_calculee()), (7, 7))
+
+
+class ConcurrenceStockTests(TransactionTestCase):
+    """Vrais accès concurrents (deux connexions) : propre à PostgreSQL, SQLite verrouillant la base entière."""
+
+    def test_mouvements_et_fiches_concurrents_gardent_l_invariant(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Concurrence réelle testée sur PostgreSQL seulement.")
+        navire, service, secteur = _navire("CC")
+        chef = _marin("chef_cc", "CHEF_SECTION", secteur)
+        piece = StockPiece.objects.create(reference="CC-1", designation="Joint", ship=navire, service=service, sector=secteur)
+        erreurs = []
+
+        def mouvements():
+            try:
+                for _ in range(10):
+                    enregistrer_mouvement(chef, StockPiece.objects.get(pk=piece.pk), MouvementStock.ENTREE, 1)
+            except Exception as exc:  # remonté dans le thread principal
+                erreurs.append(exc)
+            finally:
+                connection.close()
+
+        def fiches():
+            from django.test import Client
+            try:
+                client = Client()
+                client.force_login(chef)
+                for i in range(10):
+                    client.post(reverse("stock-piece-list"), {
+                        "action": "edit_piece", "pk": piece.pk, "reference": "CC-1", "designation": f"Joint {i}",
+                        "quantite": "0", "quantite_minimale": "2", "sector_id": secteur.pk,
+                    })
+            except Exception as exc:
+                erreurs.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=f) for f in (mouvements, mouvements, fiches, fiches)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(erreurs, [])
+        piece.refresh_from_db()
+        self.assertEqual((piece.quantite, piece.quantite_calculee()), (20, 20))
 
 
 class MigrationInventaireInitialTests(TransactionTestCase):
