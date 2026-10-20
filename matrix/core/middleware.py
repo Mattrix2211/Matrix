@@ -192,6 +192,7 @@ CHEMINS_ECRITURE_SOUTIEN = (
 # formulaire sont exemptées ; la vue revérifie fonction, bâtiment et équipage propriétaire de la feuille.
 ACTIONS_FEUILLE_SERVICE_A_TERRE = (
     "creer", "enregistrer_entete", "proposer", "viser_secteur", "viser_service", "viser_comaeq", "renvoyer",
+    "resynchroniser",
 )
 # Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
 ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")

@@ -217,7 +217,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             "versions": feuille.versions.all() if feuille is not None else None,
             "version_de_reference": feuille.version_de_reference if feuille is not None else None,
             "structure_divergente": (
-                feuille is not None and feuille.statut == FeuilleService.STATUT_BROUILLON
+                feuille is not None and feuille.statut != FeuilleService.STATUT_PUBLIEE
                 and feuille.structure_divergente
             ),
             "peut_configurer": peut_configurer,

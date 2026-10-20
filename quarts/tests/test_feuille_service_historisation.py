@@ -197,6 +197,16 @@ class FeuilleSansInstantaneTests(HistorisationBase):
         self.assertContains(self.client.get(self.url), "sans version conservée")
 
 
+class BandeauMigrationTests(HistorisationBase):
+    def test_bandeau_dit_que_la_structure_est_celle_de_la_migration(self):
+        structure = dict(self.feuille.structure_figee, origine="migration")
+        FeuilleService.objects.filter(pk=self.feuille.pk).update(structure_figee=structure)
+        self.client.login(username="bsc", password="pass")
+        self.assertContains(self.client.get(self.url), "pas d'après la structure d'origine")
+        self._modifier_les_reglages()
+        self.assertContains(self.client.get(self.url), "pas sur sa structure d'origine")
+
+
 class MigrationHistorisationTests(TransactionTestCase):
     """Migration de données testée de bout en bout : identités, re-clefage, figement."""
 

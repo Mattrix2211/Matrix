@@ -70,7 +70,7 @@
 {% endif %}
 {% if structure_divergente %}
 <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <span><i class="bi bi-exclamation-triangle"></i> Les rubriques ou fonctions du bâtiment ont changé depuis la création de ce brouillon. Il garde sa structure d'origine tant que vous ne la resynchronisez pas ; les saisies des rubriques conservées sont gardées.</span>
+  <span><i class="bi bi-exclamation-triangle"></i> Les rubriques ou fonctions du bâtiment ont changé depuis {% if feuille.structure_figee.origine == 'migration' %}la migration (cette feuille a été figée sur les réglages de cette date, pas sur sa structure d'origine){% else %}la création de cette feuille{% endif %}. {% if feuille.statut == 'BROUILLON' %}Elle garde sa structure tant que vous ne la resynchronisez pas ; les saisies des rubriques conservées sont gardées.{% else %}Elle garde sa structure : pour la mettre à jour, renvoyez-la en brouillon puis resynchronisez-la.{% endif %}</span>
   {% if peut_gerer_brouillon %}
   <form method="post" onsubmit="return confirm('Resynchroniser la structure du brouillon avec les réglages actuels ?');">
     {% csrf_token %}<input type="hidden" name="action" value="resynchroniser">
@@ -78,6 +78,8 @@
   </form>
   {% endif %}
 </div>
+{% elif feuille.structure_figee.origine == 'migration' and feuille.statut != 'PUBLIEE' %}
+<div class="alert alert-info"><i class="bi bi-info-circle"></i> Structure figée à la date de la migration d'après les réglages d'alors, pas d'après la structure d'origine de la feuille.</div>
 {% endif %}
 
 <div class="row g-4 mt-1">
