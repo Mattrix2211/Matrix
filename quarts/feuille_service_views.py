@@ -340,10 +340,16 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         elif action == "viser_comaeq":
             if feuille.statut != FeuilleService.STATUT_VISA_COMAEQ or not peut_viser_comaeq(request.user, feuille):
                 raise PermissionDenied
-            feuille.viser_comaeq(request.user)
-            messages.success(
-                request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
-            )
+            if feuille.viser_comaeq(request.user):
+                messages.success(
+                    request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
+                )
+            else:
+                messages.error(
+                    request,
+                    "Les affectations ont changé depuis les visas : publication refusée, les visas sont invalidés "
+                    "et la feuille repasse en brouillon pour être revisée.",
+                )
         elif action == "renvoyer":
             verificateur = {
                 FeuilleService.STATUT_VISA_SECTEUR: peut_viser_secteur,

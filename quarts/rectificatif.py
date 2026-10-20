@@ -87,6 +87,15 @@ def notifier_rectificatif(feuille, version, remplace, redacteur):
         Notification.objects.create(user=destinataire, verb=verb, level=NotificationLevel.INFO, url=url)
 
 
+def empreinte_contenu(feuille):
+    """Empreinte des affectations et alertes effectives (identifiants des marins, pas leurs noms)."""
+    contenu = feuille.contenu_courant()
+    base = [[e["uid"], e["marin_id"]] for e in contenu["personnel"]] + [
+        [s["scenario"], p["role"], p["marin_id"]] for s in contenu["alertes"] for p in s["postes"]
+    ]
+    return hashlib.sha1(json.dumps(base).encode()).hexdigest()
+
+
 def signaler_divergence(feuille):
     """Prévient, une seule fois par divergence, les responsables de la feuille de
     son équipage (rédacteur et COMAEQ) qu'un rectificatif est à préparer. Sans
@@ -141,12 +150,18 @@ def signaler_divergences_apres_echange(echange):
         ship_id=ship_id, date__range=(debut, fin), versions__isnull=False,
     ).distinct()
     for feuille in feuilles:
-        try:
-            signaler_divergence(feuille)
-        except Exception as erreur:
-            logger.exception("Signalement de divergence impossible (feuille %s)", feuille.pk)
-            AuditLog.objects.create(
-                actor=None, action="feuille_service_signalement_echoue",
-                details=f"Feuille de service du {feuille.date:%d/%m/%Y} ({feuille.ship}) : signalement du "
-                        f"rectificatif à préparer impossible après l'échange {echange.pk} ({erreur.__class__.__name__}).",
-            )
+        signaler_sans_risque(feuille, f"après l'échange {echange.pk}")
+
+
+def signaler_sans_risque(feuille, contexte):
+    """Signale la divergence ; une erreur est journalisée (logger + AuditLog) et
+    laisse l'empreinte non marquée, pour qu'un nouveau passage retente."""
+    try:
+        signaler_divergence(feuille)
+    except Exception as erreur:
+        logger.exception("Signalement de divergence impossible (feuille %s)", feuille.pk)
+        AuditLog.objects.create(
+            actor=None, action="feuille_service_signalement_echoue",
+            details=f"Feuille de service du {feuille.date:%d/%m/%Y} ({feuille.ship}) : signalement du rectificatif "
+                    f"à préparer impossible {contexte} ({erreur.__class__.__name__} : {erreur}).",
+        )

@@ -24,6 +24,7 @@ from quarts.models import (
     ServiceGarde,
     peut_lire_feuille_service,
 )
+from django.core.management import call_command
 from quarts.rectificatif import divergences_effectives, signaler_divergence
 from quarts.services import feuille_service_du_jour_pour
 from quarts.tests.test_feuille_service import FeuilleServiceTestsBase, _utilisateur
@@ -387,14 +388,32 @@ class EchangeValideTests(RectificatifBase):
         autre.refresh_from_db()
         self.assertEqual(autre.divergence_signalee, "")
 
-    def test_une_erreur_de_signalement_ne_fait_pas_echouer_l_echange(self):
+    def test_une_erreur_de_signalement_est_tracee_puis_retentee(self):
+        from quarts import rectificatif
         from quarts.models import EchangeService
-        with mock.patch("quarts.rectificatif.signaler_divergence", side_effect=RuntimeError("panne")):
+        reel = rectificatif.signaler_divergence
+        appels = []
+
+        def panne_une_fois(feuille):
+            appels.append(feuille.pk)
+            if len(appels) == 1:
+                raise RuntimeError("panne")
+            return reel(feuille)
+
+        with mock.patch("quarts.rectificatif.signaler_divergence", side_effect=panne_une_fois):
             self._valider(self.creneau, self._autre_poste(), self.marin_service, self.relais)
-        self.assertEqual(EchangeService.objects.get().statut, EchangeService.STATUT_VALIDE)
-        self.creneau.refresh_from_db()
-        self.assertEqual(self.creneau.marin, self.relais)
-        self.assertTrue(AuditLog.objects.filter(action="feuille_service_signalement_echoue").exists())
+            self.assertEqual(EchangeService.objects.get().statut, EchangeService.STATUT_VALIDE)
+            self.creneau.refresh_from_db()
+            self.assertEqual(self.creneau.marin, self.relais)
+            trace = AuditLog.objects.get(action="feuille_service_signalement_echoue")
+            self.assertIn("RuntimeError", trace.details)
+            self.assertIn(f"{self.jour:%d/%m/%Y}", trace.details)
+            self.feuille.refresh_from_db()
+            self.assertEqual(self.feuille.divergence_signalee, "")
+            self.assertFalse(self._notifs().exists())
+            call_command("signaler_divergences_feuilles")
+            call_command("signaler_divergences_feuilles")
+        self.assertEqual(sorted(self._notifs().values_list("user__username", flat=True)), ["bsc", "etat_major"])
 
     def test_echange_apres_proposition_puis_apres_visa_service_figé_au_dernier_titulaire(self):
         autre = _utilisateur("marin_autre", "EQUIPIER", ship=self.ship)
@@ -428,41 +447,215 @@ class EchangeValideTests(RectificatifBase):
 
 @skipUnless(connection.vendor == "postgresql", "Verrous de ligne : PostgreSQL requis")
 class ConcurrencePublicationTests(TransactionTestCase):
+    """Course réelle (threads) entre la publication d'un rectificatif et la validation d'un échange."""
+
     def setUp(self):
         FeuilleServiceTestsBase.setUp(self)
-        self._publier_tour = lambda **kw: FeuilleServiceTestsBase._publier_tour(self, **kw)
         self.relais = _utilisateur("marin_relais", "EQUIPIER", ship=self.ship)
-        self.creneau = self._publier_tour(marin=self.marin_service)
+        self.autre = _utilisateur("marin_autre", "EQUIPIER", ship=self.ship)
+        creneau = FeuilleServiceTestsBase._publier_tour(self, marin=self.marin_service)
+        self.creneau = creneau
+        self.autre_creneau = CreneauServiceGarde.objects.create(
+            service_garde=creneau.service_garde, poste="Autre poste", debut=creneau.debut, fin=creneau.fin,
+            marin=self.autre,
+        )
         self.feuille = FeuilleService.objects.create(
             ship=self.ship, date=self.jour, created_by=self.equipier, updated_by=self.equipier,
         )
         self.feuille.proposer(self.chef_service)
         self.feuille.viser_service(self.chef_service)
+        self.feuille.viser_comaeq(self.etat_major)
+        # Rectificatif prêt pour le visa COMAEQ, titulaire effectif = relais.
+        creneau.marin = self.relais
+        creneau.save(update_fields=["marin", "updated_at"])
+        self.feuille.refresh_from_db()
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        from quarts.echanges import accepter_echange, proposer_echange
+        with mock.patch("quarts.echanges.analyser_echange", return_value=[]):
+            self.echange = proposer_echange(self.relais, creneau, self.autre_creneau, "test")
+            accepter_echange(self.echange, self.autre)
+        self.echange.refresh_from_db()
+        self.erreurs = []
 
-    def test_la_publication_attend_la_validation_de_l_echange_en_cours(self):
-        erreurs = []
-
-        def publier():
+    def _fil(self, cible):
+        def executer():
             try:
-                FeuilleService.objects.get(pk=self.feuille.pk).viser_comaeq(self.etat_major)
-            except Exception as e:  # pragma: no cover
-                erreurs.append(e)
+                cible()
+            except Exception as erreur:  # pragma: no cover
+                self.erreurs.append(erreur)
             finally:
                 connection.close()
+        return threading.Thread(target=executer)
 
-        from django.db import transaction
-        with transaction.atomic():
-            FeuilleService.objects.select_for_update().get(pk=self.feuille.pk)
-            self.creneau.marin = self.relais
-            self.creneau.save(update_fields=["marin", "updated_at"])
-            fil = threading.Thread(target=publier)
-            fil.start()
+    def _valider_echange(self):
+        from quarts.echanges import valider_echange
+        with mock.patch("quarts.echanges.analyser_echange", return_value=[]), \
+                mock.patch("quarts.echanges.peut_valider_echange", return_value=True):
+            valider_echange(self.echange, self.chef_service)
+
+    def _publier(self):
+        FeuilleService.objects.get(pk=self.feuille.pk).viser_comaeq(self.etat_major)
+
+    def _notifs(self):
+        return Notification.objects.filter(verb__icontains="rectificatif à préparer")
+
+    def test_publication_la_premiere_l_echange_est_signale_avec_la_nouvelle_version(self):
+        lu, p = threading.Event(), None
+        reel = FeuilleService.contenu_courant
+
+        def contenu_ralenti(feuille):
+            resultat = reel(feuille)
+            if threading.current_thread() is p:
+                lu.set()
+                time.sleep(1.5)
+            return resultat
+
+        def echange():
+            lu.wait(15)
+            self._valider_echange()
+
+        p = self._fil(self._publier)
+        e = self._fil(echange)
+        with mock.patch.object(FeuilleService, "contenu_courant", contenu_ralenti):
+            p.start(); e.start(); p.join(60); e.join(60)
+        self.assertEqual(self.erreurs, [])
+        feuille = FeuilleService.objects.get(pk=self.feuille.pk)
+        self.assertEqual(feuille.statut, FeuilleService.STATUT_PUBLIEE)
+        # Le titulaire effectif à l'instant de la lecture (relais) est publié ; l'échange validé ensuite est signalé.
+        self.assertEqual(feuille.versions.first().contenu_fige["personnel"][0]["marin"], "marin_relais")
+        self.assertEqual(feuille.versions.first().numero, 2)
+        self.assertEqual(sorted(self._notifs().values_list("user__username", flat=True)), ["bsc", "etat_major"])
+        self.assertIn("version 2", self._notifs().first().verb)
+        self.assertNotEqual(feuille.divergence_signalee, "")
+
+    def test_echange_le_premier_la_publication_perimee_est_refusee(self):
+        verrou_pris = threading.Event()
+        reel = __import__("quarts.rectificatif", fromlist=["x"]).signaler_divergence
+
+        def signaler_lentement(feuille):
+            reel(feuille)
+            verrou_pris.set()
             time.sleep(1.5)
-            self.assertTrue(fil.is_alive(), "la publication aurait dû attendre le verrou de la feuille")
-        fil.join(30)
-        self.assertEqual(erreurs, [])
-        version = self.feuille.versions.get()
-        self.assertEqual(version.contenu_fige["personnel"][0]["marin"], "marin_relais")
+
+        def publier():
+            verrou_pris.wait(15)
+            self._publier()
+
+        e = self._fil(self._valider_echange)
+        p = self._fil(publier)
+        with mock.patch("quarts.rectificatif.signaler_divergence", signaler_lentement):
+            e.start(); p.start(); e.join(60); p.join(60)
+        self.assertEqual(self.erreurs, [])
+        feuille = FeuilleService.objects.get(pk=self.feuille.pk)
+        self.assertEqual(feuille.statut, FeuilleService.STATUT_BROUILLON)
+        self.assertEqual(feuille.versions.count(), 1)
+        self.assertEqual(feuille.rectificatif_ouvert_par, self.equipier)
+        self.assertTrue(AuditLog.objects.filter(action="feuille_service_visa_perime").exists())
+        # Nouvelle séquence de visa : la version publiée porte le dernier titulaire.
+        feuille.proposer(self.chef_service)
+        feuille.viser_service(self.chef_service)
+        self.assertTrue(feuille.viser_comaeq(self.etat_major))
+        self.assertEqual(feuille.versions.first().contenu_fige["personnel"][0]["marin"], "marin_autre")
+
+
+class VisaPerimeTests(RectificatifBase):
+    def _rectificatif_au_visa_comaeq(self):
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+
+    def test_echange_apres_le_visa_service_refuse_la_publication_puis_nouvelle_sequence(self):
+        self._rectificatif_au_visa_comaeq()
+        self._echange(self.commandant)
+        self.assertFalse(self.feuille.viser_comaeq(self.etat_major))
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.statut, FeuilleService.STATUT_BROUILLON)
+        self.assertIsNone(self.feuille.visa_service_le)
+        self.assertEqual(self.feuille.empreinte_visee, "")
+        self.assertEqual(self.feuille.versions.count(), 1)
+        self.assertTrue(AuditLog.objects.filter(action="feuille_service_visa_perime").exists())
+        self.assertTrue(Notification.objects.filter(user=self.equipier, verb__icontains="revisée").exists())
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        self.assertTrue(self.feuille.viser_comaeq(self.etat_major))
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.versions.first().contenu_fige["personnel"][0]["marin"], "commandant")
+
+    def test_echange_avant_le_visa_publie_normalement(self):
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.chef_service)
+        self._echange(self.commandant)
+        self.feuille.viser_service(self.chef_service)
+        self.assertTrue(self.feuille.viser_comaeq(self.etat_major))
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.versions.first().contenu_fige["personnel"][0]["marin"], "commandant")
+
+    def test_la_vue_affiche_le_refus(self):
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        self._echange(self.commandant)
+        reponse = self._post("etat_major", "viser_comaeq")
+        self.assertEqual(reponse.status_code, 302)
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.statut, FeuilleService.STATUT_BROUILLON)
+        self.assertEqual(self.feuille.versions.count(), 1)
+
+
+class EtatDeDivergencePreserveTests(RectificatifBase):
+    """Ni le renvoi, ni le visa périmé, ni une erreur de publication n'effacent l'état nécessaire au rectificatif."""
+
+    def _etat(self):
+        self.feuille.refresh_from_db()
+        return (
+            self.feuille.divergence_signalee, self.feuille.rectificatif_ouvert_par_id,
+            self.feuille.versions.count(), [(d["libelle"], d["avant"], d["apres"]) for d in divergences_effectives(self.feuille)],
+        )
+
+    def _preparer(self):
+        self._echange(self.relais)
+        signaler_divergence(self.feuille)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        return self._etat()
+
+    def test_renvoi_et_reproposition(self):
+        avant = self._preparer()
+        self.feuille.proposer(self.equipier)
+        self.feuille.renvoyer(self.chef_secteur, "À revoir")
+        self.assertEqual(self._etat(), avant)
+
+    def test_annulation_par_visa_perime(self):
+        avant = self._preparer()
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        self._echange(self.commandant)
+        self.assertFalse(self.feuille.viser_comaeq(self.etat_major))
+        apres = self._etat()
+        self.assertEqual(apres[:3], avant[:3])
+        self.assertTrue(apres[3])
+
+    def test_erreur_a_la_publication(self):
+        avant = self._preparer()
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        with mock.patch.object(FeuilleService, "creer_version", side_effect=RuntimeError("échec")):
+            with self.assertRaises(RuntimeError):
+                self.feuille.viser_comaeq(self.etat_major)
+        self.assertEqual(self._etat(), avant)
+        self.assertEqual(self.feuille.statut, FeuilleService.STATUT_VISA_COMAEQ)
+
+    def test_la_publication_remet_a_zero_seulement_apres_succes(self):
+        self._preparer()
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        self.assertTrue(self.feuille.viser_comaeq(self.etat_major))
+        self.feuille.refresh_from_db()
+        self.assertEqual((self.feuille.divergence_signalee, self.feuille.rectificatif_ouvert_par_id), ("", None))
 
 
 class DroitsRectificatifTests(RectificatifBase):

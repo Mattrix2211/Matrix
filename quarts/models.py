@@ -1105,6 +1105,10 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Publiée par",
     )
     motif_retour = models.TextField(blank=True, default="", verbose_name="Motif du dernier renvoi en brouillon")
+    empreinte_visee = models.CharField(
+        max_length=40, blank=True, default="", verbose_name="Empreinte du contenu visé",
+        help_text="Affectations et alertes au dernier visa ; la publication est refusée si elles ont changé depuis.",
+    )
     divergence_signalee = models.CharField(
         max_length=40, blank=True, default="", verbose_name="Divergence déjà signalée",
         help_text="Empreinte de la dernière divergence notifiée aux responsables ; évite les doublons.",
@@ -1334,8 +1338,10 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         self.statut = self.STATUT_VISA_SERVICE if saute_visa_secteur else self.STATUT_VISA_SECTEUR
         self.proposee_le = timezone.now()
         self.proposee_par = user
+        self.empreinte_visee = self._empreinte_contenu()
         self.save(update_fields=[
-            "secteur_redacteur", "service_redacteur", "statut", "proposee_le", "proposee_par", "updated_at",
+            "secteur_redacteur", "service_redacteur", "statut", "proposee_le", "proposee_par", "empreinte_visee",
+            "updated_at",
         ])
         AuditLog.objects.create(
             actor=user, action="feuille_service_proposee",
@@ -1347,7 +1353,8 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         self.visa_secteur_le = timezone.now()
         self.visa_secteur_par = user
         self.statut = self.STATUT_VISA_SERVICE
-        self.save(update_fields=["visa_secteur_le", "visa_secteur_par", "statut", "updated_at"])
+        self.empreinte_visee = self._empreinte_contenu()
+        self.save(update_fields=["visa_secteur_le", "visa_secteur_par", "statut", "empreinte_visee", "updated_at"])
         AuditLog.objects.create(
             actor=user, action="feuille_service_visa_secteur",
             details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de secteur.",
@@ -1358,32 +1365,52 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         self.visa_service_le = timezone.now()
         self.visa_service_par = user
         self.statut = self.STATUT_VISA_COMAEQ
-        self.save(update_fields=["visa_service_le", "visa_service_par", "statut", "updated_at"])
+        self.empreinte_visee = self._empreinte_contenu()
+        self.save(update_fields=["visa_service_le", "visa_service_par", "statut", "empreinte_visee", "updated_at"])
         AuditLog.objects.create(
             actor=user, action="feuille_service_visa_service",
             details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de service.",
         )
         self._notifier_prochain_visa()
 
+    def _empreinte_contenu(self):
+        from .rectificatif import empreinte_contenu
+        return empreinte_contenu(self)
+
     def viser_comaeq(self, user):
         """Dernier visa : vaut publication immédiate, un seul clic — aucun
         acteur distinct n'intervient entre le visa COMAEQ et la publication
-        d'après le circuit décrit par Matthis (CLAUDE.md §2)."""
-        self.visa_comaeq_le = timezone.now()
-        self.visa_comaeq_par = user
-        exceptionnel = not titulaires_comaeq(self).filter(pk=user.pk).exists()
-        if exceptionnel:
-            AuditLog.objects.create(
-                actor=user, action="feuille_service_visa_comaeq_exceptionnel",
-                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
-                        "visa exceptionnel du commandant.",
-            )
-        else:
-            AuditLog.objects.create(
-                actor=user, action="feuille_service_visa_comaeq",
-                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le COMAEQ.",
-            )
-        self._publier(user, visa_exceptionnel=exceptionnel)
+        d'après le circuit décrit par Matthis (CLAUDE.md §2). Refusé (False) si
+        les affectations ou alertes ont changé depuis le dernier visa : la
+        feuille repasse en brouillon, jamais de publication d'un contenu non visé."""
+        with transaction.atomic():
+            verrou = FeuilleService.objects.select_for_update().get(pk=self.pk)
+            if verrou.empreinte_visee and verrou.empreinte_visee != self._empreinte_contenu():
+                AuditLog.objects.create(
+                    actor=user, action="feuille_service_visa_perime",
+                    details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : affectations modifiées depuis "
+                            "les visas, publication refusée et visas invalidés.",
+                )
+                self.renvoyer(
+                    user, "Les affectations ont changé depuis les visas : la feuille doit être revisée.",
+                )
+                return False
+            self.visa_comaeq_le = timezone.now()
+            self.visa_comaeq_par = user
+            exceptionnel = not titulaires_comaeq(self).filter(pk=user.pk).exists()
+            if exceptionnel:
+                AuditLog.objects.create(
+                    actor=user, action="feuille_service_visa_comaeq_exceptionnel",
+                    details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
+                            "visa exceptionnel du commandant.",
+                )
+            else:
+                AuditLog.objects.create(
+                    actor=user, action="feuille_service_visa_comaeq",
+                    details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le COMAEQ.",
+                )
+            self._publier(user, visa_exceptionnel=exceptionnel)
+        return True
 
     def _publier(self, user, visa_exceptionnel=False):
         # Statut, version et audit passent ensemble ou pas du tout. Le verrou de la
@@ -1424,7 +1451,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
 
     CHAMPS_CIRCUIT = (
         "statut", "visa_secteur_le", "visa_secteur_par", "visa_service_le", "visa_service_par",
-        "visa_comaeq_le", "visa_comaeq_par", "proposee_le", "proposee_par", "motif_retour",
+        "visa_comaeq_le", "visa_comaeq_par", "proposee_le", "proposee_par", "motif_retour", "empreinte_visee",
     )
 
     def _reinitialiser_circuit(self, motif=""):
@@ -1434,6 +1461,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         self.visa_comaeq_le = self.visa_comaeq_par = None
         self.proposee_le = self.proposee_par = None
         self.motif_retour = motif
+        self.empreinte_visee = ""
 
     def ouvrir_rectificatif(self, user):
         """Rouvre en brouillon une feuille publiée dont les affectations effectives
