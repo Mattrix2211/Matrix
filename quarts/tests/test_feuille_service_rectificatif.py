@@ -2,6 +2,7 @@
 immuable, l'écart avec le planning effectif est signalé, un rectificatif suit
 le circuit de visa et ne remplace la version qu'à sa publication."""
 from datetime import datetime, timedelta
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -232,6 +233,49 @@ class RectificatifTests(RectificatifBase):
         self.client.post(self.url, {"action": "enregistrer_entete", f"rubrique_{self.rubrique_quotidienne.uid}": "Lundi"})
         entete = self.feuille.versions.get().contenu_fige["entete"]
         self.assertEqual([e["valeur"] for e in entete if e["libelle"] == "Type de journée"], [""])
+
+
+class FausseDivergenceEtFuiteTests(RectificatifBase):
+    def test_changement_de_grade_ou_de_nom_n_est_pas_une_divergence(self):
+        UserProfile.objects.filter(user=self.marin_service).update(grade="CNE")
+        User.objects.filter(pk=self.marin_service.pk).update(first_name="Paul", last_name="Durand")
+        self.assertEqual(divergences_effectives(self.feuille), [])
+        self.assertNotContains(self._page("bsc"), "ont changé depuis la publication")
+
+    def test_ancienne_version_sans_identifiant_compare_le_texte(self):
+        version = self.feuille.versions.get()
+        for e in version.contenu_fige["personnel"]:
+            e.pop("marin_id")
+        version.save(update_fields=["contenu_fige"])
+        self.assertEqual(divergences_effectives(self.feuille), [])
+        self._echange(self.relais)
+        self.assertTrue(divergences_effectives(self.feuille))
+
+    def test_motif_de_renvoi_et_structure_invisibles_d_un_non_acteur(self):
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.equipier)
+        self.feuille.renvoyer(self.chef_secteur, "MOTIFSECRET")
+        self.fonction.libelle = "Fonction modifiée"
+        self.fonction.save()
+        page = self._page("marin_service")
+        self.assertNotContains(page, "MOTIFSECRET")
+        self.assertNotContains(page, "ont changé depuis la création")
+        self.assertContains(self._page("bsc"), "MOTIFSECRET")
+
+    def test_echec_de_creation_de_version_laisse_la_feuille_inchangee(self):
+        feuille = FeuilleService.objects.create(
+            ship=self.ship, date=self.jour + timedelta(days=1), created_by=self.equipier,
+        )
+        feuille.proposer(self.chef_service)
+        feuille.viser_service(self.chef_service)
+        with mock.patch.object(FeuilleService, "creer_version", side_effect=RuntimeError("échec")):
+            with self.assertRaises(RuntimeError):
+                feuille.viser_comaeq(self.etat_major)
+        feuille.refresh_from_db()
+        self.assertEqual(feuille.statut, FeuilleService.STATUT_VISA_COMAEQ)
+        self.assertFalse(feuille.versions.exists())
+        self.assertIsNone(feuille.publiee_le)
 
 
 class DroitsRectificatifTests(RectificatifBase):

@@ -68,7 +68,7 @@
   </form>
   {% endif %}
 </div>
-{% elif feuille.motif_retour and feuille.statut == 'BROUILLON' %}
+{% elif feuille.motif_retour and feuille.statut == 'BROUILLON' and not lecture_reference %}
 <div class="alert alert-warning"><i class="bi bi-arrow-counterclockwise"></i> Renvoyée pour correction : {{ feuille.motif_retour }}</div>
 {% endif %}
 
@@ -107,7 +107,7 @@
   </form>
   {% endif %}
 </div>
-{% elif feuille.structure_figee.origine == 'migration' and feuille.statut != 'PUBLIEE' %}
+{% elif feuille.structure_figee.origine == 'migration' and feuille.statut != 'PUBLIEE' and not lecture_reference %}
 <div class="alert alert-info"><i class="bi bi-info-circle"></i> Structure figée à la date de la migration d'après les réglages d'alors, pas d'après la structure d'origine de la feuille.</div>
 {% endif %}
 

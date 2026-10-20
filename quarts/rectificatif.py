@@ -9,7 +9,6 @@ publication."""
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from accounts.models import AuditLog
 from notifications.models import Notification, NotificationLevel
 
 User = get_user_model()
@@ -41,7 +40,14 @@ def differences_affectations(ancien, nouveau):
     for cle, (libelle, marin_avant, id_avant) in avant.items():
         # Version ancienne sans identifiant de fonction : repli sur le libellé.
         suivant = apres.get(cle) or apres.get(("fonction", libelle))
-        if suivant is not None and suivant[1] != marin_avant:
+        # Même titulaire = même marin ; le texte (grade, nom) ne sert qu'aux anciennes versions sans identifiant.
+        if suivant is None:
+            continue
+        if id_avant is not None and suivant[2] is not None:
+            change = id_avant != suivant[2]
+        else:
+            change = suivant[1] != marin_avant
+        if change:
             differences.append({
                 "libelle": libelle, "avant": marin_avant, "apres": suivant[1],
                 "marins": {i for i in (id_avant, suivant[2]) if i},
@@ -57,15 +63,10 @@ def divergences_effectives(feuille):
     return differences_affectations(version.contenu_fige, feuille.contenu_courant())
 
 
-def notifier_rectificatif(feuille, version, remplace, user, redacteur):
-    """À la publication d'un rectificatif seulement : trace et prévient les
-    titulaires dont l'affectation change et le rédacteur."""
+def notifier_rectificatif(feuille, version, remplace, redacteur):
+    """À la publication d'un rectificatif seulement : prévient les titulaires
+    dont l'affectation change et le rédacteur."""
     date = f"{feuille.date:%d/%m/%Y}"
-    AuditLog.objects.create(
-        actor=user, action="feuille_service_rectificatif_publie",
-        details=f"Feuille de service du {date} ({feuille.ship}) : version rectificative {version.numero} publiée, "
-                f"elle remplace la version {remplace.numero}.",
-    )
     titre = f"Feuille de service du {date} : version rectificative n°{version.numero} publiée, elle remplace la version {remplace.numero}"
     url = reverse("feuille-service-detail", args=[feuille.ship_id, f"{feuille.date:%Y-%m-%d}"])
     touches = {

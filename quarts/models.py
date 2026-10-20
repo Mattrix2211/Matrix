@@ -118,7 +118,7 @@ from datetime import datetime, time as heure_du_jour
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -1384,23 +1384,27 @@ class FeuilleService(TimeStampedModel, OwnedModel):
     def _publier(self, user, visa_exceptionnel=False):
         remplace = self.version_publiee if self.rectificatif_en_cours else None
         redacteur = self.redacteur
-        self.statut = self.STATUT_PUBLIEE
-        self.publiee_le = timezone.now()
-        self.publiee_par = user
-        self.rectificatif_ouvert_par = None
-        self.save(update_fields=[
-            "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par",
-            "rectificatif_ouvert_par", "updated_at",
-        ])
-        version = self.creer_version(user, visa_exceptionnel, remplace)
+        # Statut, version et audit passent ensemble ou pas du tout.
+        with transaction.atomic():
+            self.statut = self.STATUT_PUBLIEE
+            self.publiee_le = timezone.now()
+            self.publiee_par = user
+            self.rectificatif_ouvert_par = None
+            self.save(update_fields=[
+                "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par",
+                "rectificatif_ouvert_par", "updated_at",
+            ])
+            version = self.creer_version(user, visa_exceptionnel, remplace)
+            AuditLog.objects.create(
+                actor=user,
+                action="feuille_service_rectificatif_publie" if remplace is not None else "feuille_service_publiee",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) publiée, version {version.numero}"
+                        + (f", rectificative : remplace la version {remplace.numero}." if remplace is not None else "."),
+            )
         if remplace is not None:
             from .rectificatif import notifier_rectificatif
-            notifier_rectificatif(self, version, remplace, user, redacteur)
+            notifier_rectificatif(self, version, remplace, redacteur)
         else:
-            AuditLog.objects.create(
-                actor=user, action="feuille_service_publiee",
-                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) publiée, version {version.numero}.",
-            )
             for marin in self.marins_de_la_fraction():
                 Notification.objects.create(
                     user=marin,

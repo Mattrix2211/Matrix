@@ -243,7 +243,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             "versions": feuille.versions.all() if feuille is not None else None,
             "structure_divergente": (
                 feuille is not None and feuille.statut != FeuilleService.STATUT_PUBLIEE
-                and feuille.structure_divergente
+                and not lecture_reference and feuille.structure_divergente
             ),
             "peut_configurer": peut_configurer,
             # Double équipage sans équipage à bord défini : rien n'est affiché
