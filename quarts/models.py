@@ -1105,6 +1105,10 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Publiée par",
     )
     motif_retour = models.TextField(blank=True, default="", verbose_name="Motif du dernier renvoi en brouillon")
+    divergence_signalee = models.CharField(
+        max_length=40, blank=True, default="", verbose_name="Divergence déjà signalée",
+        help_text="Empreinte de la dernière divergence notifiée aux responsables ; évite les doublons.",
+    )
     rectificatif_ouvert_par = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
         verbose_name="Rectificatif ouvert par",
@@ -1390,9 +1394,10 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             self.publiee_le = timezone.now()
             self.publiee_par = user
             self.rectificatif_ouvert_par = None
+            self.divergence_signalee = ""
             self.save(update_fields=[
                 "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par",
-                "rectificatif_ouvert_par", "updated_at",
+                "rectificatif_ouvert_par", "divergence_signalee", "updated_at",
             ])
             version = self.creer_version(user, visa_exceptionnel, remplace)
             AuditLog.objects.create(

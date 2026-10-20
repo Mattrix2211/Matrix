@@ -21,7 +21,7 @@ from quarts.models import (
     ServiceGarde,
     peut_lire_feuille_service,
 )
-from quarts.rectificatif import divergences_effectives
+from quarts.rectificatif import divergences_effectives, signaler_divergence
 from quarts.services import feuille_service_du_jour_pour
 from quarts.tests.test_feuille_service import FeuilleServiceTestsBase, _utilisateur
 
@@ -278,6 +278,64 @@ class FausseDivergenceEtFuiteTests(RectificatifBase):
         self.assertIsNone(feuille.publiee_le)
 
 
+class SignalementDivergenceTests(RectificatifBase):
+    def _notifs(self):
+        return Notification.objects.filter(verb__icontains="rectificatif à préparer")
+
+    def test_signal_cible_une_seule_fois(self):
+        self._echange(self.relais)
+        signaler_divergence(self.feuille)
+        signaler_divergence(self.feuille)
+        # Rédacteur de la feuille et COMAEQ, pas l'équipage ni les titulaires touchés.
+        self.assertEqual(
+            sorted(self._notifs().values_list("user__username", flat=True)), ["bsc", "etat_major"]
+        )
+        notif = self._notifs().first()
+        self.assertEqual(notif.url, self.url)
+        self.assertFalse(Notification.objects.filter(user=self.marin_service, verb__icontains="rectificatif").exists())
+        self.assertNotIn("MOTIF", notif.verb)
+
+    def test_nouveau_signal_si_la_divergence_change_et_aucun_apres_resorption(self):
+        self._echange(self.relais)
+        signaler_divergence(self.feuille)
+        self._echange(self.marin_service)
+        signaler_divergence(self.feuille)
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.divergence_signalee, "")
+        self._echange(self.relais)
+        signaler_divergence(self.feuille)
+        self.assertEqual(self._notifs().filter(user=self.equipier).count(), 2)
+
+    def test_pas_de_signal_pendant_un_rectificatif_ni_apres_sa_publication(self):
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        signaler_divergence(self.feuille)
+        self.assertFalse(self._notifs().exists())
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        self.feuille.viser_comaeq(self.etat_major)
+        signaler_divergence(self.feuille)
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.divergence_signalee, "")
+        self.assertFalse(self._notifs().exists())
+
+    def test_echange_valide_declenche_le_signal(self):
+        from quarts.echanges import accepter_echange, proposer_echange, valider_echange
+        garde = self.creneau.service_garde
+        debut = self.creneau.debut
+        autre = CreneauServiceGarde.objects.create(
+            service_garde=garde, poste="Autre poste", debut=debut, fin=self.creneau.fin, marin=self.relais,
+        )
+        # Tours du jour déjà commencés, chef de liste hors sujet : on neutralise ces seuls contrôles.
+        with mock.patch("quarts.echanges.analyser_echange", return_value=[]), \
+                mock.patch("quarts.echanges.peut_valider_echange", return_value=True):
+            echange = proposer_echange(self.marin_service, self.creneau, autre, "test")
+            accepter_echange(echange, self.relais)
+            echange.refresh_from_db()
+            valider_echange(echange, self.chef_service)
+        self.assertEqual(self._notifs().filter(user=self.equipier).count(), 1)
+
+
 class DroitsRectificatifTests(RectificatifBase):
     def test_marin_d_un_autre_navire_ne_peut_ni_lire_ni_ouvrir(self):
         _utilisateur("etranger", "EQUIPIER", ship=self.autre_ship)
@@ -378,3 +436,12 @@ class DoubleEquipageRectificatifTests(TestCase):
         self._post("chef_B", "proposer")
         self._post("chef_B", "viser_service")
         self.assertEqual(self._post("comaeq_A", "viser_comaeq").status_code, 403)
+
+    def test_signal_cible_sur_l_equipage_concerne(self):
+        self._echange("B")
+        for e in ("A", "B"):
+            signaler_divergence(FeuilleService.objects.get(ship=self.ship, equipage=e, date=self.jour))
+        destinataires = set(
+            Notification.objects.filter(verb__icontains="rectificatif à préparer").values_list("user__username", flat=True)
+        )
+        self.assertEqual(destinataires, {"redacteur_B", "comaeq_B"})

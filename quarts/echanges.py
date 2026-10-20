@@ -35,6 +35,9 @@ from .models import (
 )
 
 
+from .rectificatif import signaler_divergences_apres_echange
+
+
 class EchangeImpossible(Exception):
     """Levée quand une action est refusée ; `problemes` explique pourquoi,
     en français, à l'utilisateur."""
@@ -339,6 +342,7 @@ def valider_echange(echange, user):
     echange.decide_par = user
     echange.save(update_fields=["statut", "decide_le", "decide_par", "updated_at"])
     echange.liste.creer_version(user)
+    signaler_divergences_apres_echange(echange)
     _tracer(
         echange, user, "validation",
         f"{echange.libelle_creneau_demandeur} : {_nom(echange.demandeur)} -> {_nom(echange.cible)} ; "
