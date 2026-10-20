@@ -83,6 +83,7 @@ côté application).
 python manage.py generate_vapid_keys
 ```
 Renseigner les variables d'environnement `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_ADMIN_EMAIL` affichées par la commande. Sans clés VAPID configurées, le Web Push est simplement désactivé (aucune erreur). Nécessite HTTPS ou `localhost` côté navigateur.
+L'envoi est borné par `WEBPUSH_DELAI_MAX` (secondes, 3 par défaut, tous appareils confondus) : un appareil injoignable ne bloque jamais l'action métier.
 
 ## Tests
 ```bash
