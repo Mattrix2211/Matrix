@@ -1386,10 +1386,12 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         self._publier(user, visa_exceptionnel=exceptionnel)
 
     def _publier(self, user, visa_exceptionnel=False):
-        remplace = self.version_publiee if self.rectificatif_en_cours else None
-        redacteur = self.redacteur
-        # Statut, version et audit passent ensemble ou pas du tout.
+        # Statut, version et audit passent ensemble ou pas du tout. Le verrou de la
+        # ligne sérialise la lecture du planning avec la validation d'un échange.
         with transaction.atomic():
+            FeuilleService.objects.select_for_update().filter(pk=self.pk).first()
+            remplace = self.version_publiee if self.rectificatif_en_cours else None
+            redacteur = self.redacteur
             self.statut = self.STATUT_PUBLIEE
             self.publiee_le = timezone.now()
             self.publiee_par = user

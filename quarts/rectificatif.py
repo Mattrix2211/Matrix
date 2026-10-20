@@ -8,14 +8,18 @@ circuit de visa habituel ; l'ancienne version n'est « remplacée » qu'à sa
 publication."""
 import hashlib
 import json
+import logging
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.models import AuditLog
 from notifications.models import Notification, NotificationLevel
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def _affectations(contenu, avec_cles_de_repli=False):
@@ -87,37 +91,62 @@ def signaler_divergence(feuille):
     """Prévient, une seule fois par divergence, les responsables de la feuille de
     son équipage (rédacteur et COMAEQ) qu'un rectificatif est à préparer. Sans
     nouvelle notification tant que la divergence ne change pas ; l'empreinte est
-    remise à zéro quand l'écart disparaît ou que le rectificatif est publié."""
-    from .models import titulaires_comaeq
-    differences = divergences_effectives(feuille)
-    empreinte = hashlib.sha1(json.dumps(
-        sorted((d["libelle"], sorted(d["marins"])) for d in differences)
-    ).encode()).hexdigest() if differences else ""
-    if empreinte == feuille.divergence_signalee:
-        return
-    feuille.divergence_signalee = empreinte
-    feuille.save(update_fields=["divergence_signalee", "updated_at"])
-    if not empreinte or feuille.rectificatif_en_cours:
-        return
-    destinataires = {u.pk: u for u in titulaires_comaeq(feuille)}
-    if feuille.redacteur is not None and feuille.redacteur.is_active:
-        destinataires[feuille.redacteur.pk] = feuille.redacteur
-    equipage = f" (équipage {feuille.equipage})" if feuille.equipage else ""
-    url = reverse("feuille-service-detail", args=[feuille.ship_id, f"{feuille.date:%Y-%m-%d}"])
-    for destinataire in destinataires.values():
-        Notification.objects.create(
-            user=destinataire, level=NotificationLevel.WARNING, url=url,
-            verb=f"Feuille de service du {feuille.date:%d/%m/%Y}{equipage} : rectificatif à préparer, les affectations "
-                 f"effectives ont changé depuis la publication de la version {feuille.version_publiee.numero}.",
-        )
+    remise à zéro quand l'écart disparaît ou que le rectificatif est publié.
+    La feuille est verrouillée puis relue : une publication concurrente est attendue."""
+    from .models import FeuilleService, titulaires_comaeq
+    with transaction.atomic():
+        feuille = FeuilleService.objects.select_for_update().get(pk=feuille.pk)
+        differences = divergences_effectives(feuille)
+        empreinte = hashlib.sha1(json.dumps(
+            sorted((d["libelle"], sorted(d["marins"])) for d in differences)
+        ).encode()).hexdigest() if differences else ""
+        if empreinte == feuille.divergence_signalee:
+            return
+        feuille.divergence_signalee = empreinte
+        feuille.save(update_fields=["divergence_signalee", "updated_at"])
+        if not empreinte or feuille.rectificatif_en_cours:
+            return
+        destinataires = {u.pk: u for u in titulaires_comaeq(feuille)}
+        if feuille.redacteur is not None and feuille.redacteur.is_active:
+            destinataires[feuille.redacteur.pk] = feuille.redacteur
+        equipage = f" (équipage {feuille.equipage})" if feuille.equipage else ""
+        url = reverse("feuille-service-detail", args=[feuille.ship_id, f"{feuille.date:%Y-%m-%d}"])
+        for destinataire in destinataires.values():
+            Notification.objects.create(
+                user=destinataire, level=NotificationLevel.WARNING, url=url,
+                verb=f"Feuille de service du {feuille.date:%d/%m/%Y}{equipage} : rectificatif à préparer, les affectations "
+                     f"effectives ont changé depuis la publication de la version {feuille.version_publiee.numero}.",
+            )
+
+
+def _ship_id_de_la_liste(liste):
+    return (
+        liste.ship_id
+        or (liste.service.ship_id if liste.service_id else None)
+        or (liste.sector.service.ship_id if liste.sector_id else None)
+        or (liste.section.sector.service.ship_id if liste.section_id else None)
+    )
 
 
 def signaler_divergences_apres_echange(echange):
-    """Après un échange validé : examine les feuilles déjà publiées des jours des deux créneaux."""
+    """Après un échange validé : examine les feuilles déjà publiées du même
+    bâtiment, aux jours des deux créneaux. Une erreur de signalement est tracée
+    et ne fait jamais échouer la validation de l'échange."""
     from .models import FeuilleService
     creneaux = (echange.creneau_demandeur, echange.creneau_cible)
     debut = min(timezone.localdate(c.debut) for c in creneaux)
     fin = max(timezone.localdate(c.fin) for c in creneaux)
-    feuilles = FeuilleService.objects.filter(date__range=(debut, fin), versions__isnull=False).distinct()
+    ship_id = _ship_id_de_la_liste(echange.liste)
+    feuilles = FeuilleService.objects.filter(
+        ship_id=ship_id, date__range=(debut, fin), versions__isnull=False,
+    ).distinct()
     for feuille in feuilles:
-        signaler_divergence(feuille)
+        try:
+            signaler_divergence(feuille)
+        except Exception as erreur:
+            logger.exception("Signalement de divergence impossible (feuille %s)", feuille.pk)
+            AuditLog.objects.create(
+                actor=None, action="feuille_service_signalement_echoue",
+                details=f"Feuille de service du {feuille.date:%d/%m/%Y} ({feuille.ship}) : signalement du "
+                        f"rectificatif à préparer impossible après l'échange {echange.pk} ({erreur.__class__.__name__}).",
+            )

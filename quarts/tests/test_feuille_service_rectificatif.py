@@ -1,11 +1,14 @@
 """Feuilles publiées figées et versions rectificatives : la version publiée est
 immuable, l'écart avec le planning effectif est signalé, un rectificatif suit
 le circuit de visa et ne remplace la version qu'à sa publication."""
+import threading
+import time
 from datetime import datetime, timedelta
-from unittest import mock
+from unittest import mock, skipUnless
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.db import connection
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -336,6 +339,132 @@ class SignalementDivergenceTests(RectificatifBase):
         self.assertEqual(self._notifs().filter(user=self.equipier).count(), 1)
 
 
+class EchangeValideTests(RectificatifBase):
+    """Échanges validés via la vraie procédure (délai et chef de liste neutralisés)."""
+
+    def _valider(self, creneau_a, creneau_b, demandeur, cible):
+        from quarts.echanges import accepter_echange, proposer_echange, valider_echange
+        with mock.patch("quarts.echanges.analyser_echange", return_value=[]), \
+                mock.patch("quarts.echanges.peut_valider_echange", return_value=True):
+            echange = proposer_echange(demandeur, creneau_a, creneau_b, "test")
+            accepter_echange(echange, cible)
+            echange.refresh_from_db()
+            valider_echange(echange, self.chef_service)
+
+    def _autre_poste(self):
+        return CreneauServiceGarde.objects.create(
+            service_garde=self.creneau.service_garde, poste="Autre poste", debut=self.creneau.debut,
+            fin=self.creneau.fin, marin=self.relais,
+        )
+
+    def _feuille_publiee_autre_navire(self):
+        fonction = FonctionFeuilleService.objects.create(ship=self.autre_ship, libelle="Officier de garde", ordre=1)
+        redacteur = _utilisateur("redacteur_autre", "EQUIPIER", ship=self.autre_ship)
+        titulaire = _utilisateur("titulaire_autre", "EQUIPIER", ship=self.autre_ship)
+        relais = _utilisateur("relais_autre", "EQUIPIER", ship=self.autre_ship)
+        garde = ServiceGarde.objects.create(
+            ship=self.autre_ship, fonction=self.fonction_choice, date_debut=self.jour, date_fin=self.jour,
+            statut=ServiceGarde.STATUT_PUBLIEE,
+        )
+        creneau = CreneauServiceGarde.objects.create(
+            service_garde=garde, poste=fonction.libelle, debut=self.creneau.debut, fin=self.creneau.fin, marin=titulaire,
+        )
+        feuille = FeuilleService.objects.create(ship=self.autre_ship, date=self.jour, created_by=redacteur)
+        feuille.creer_version(redacteur)
+        FeuilleService.objects.filter(pk=feuille.pk).update(statut=FeuilleService.STATUT_PUBLIEE)
+        creneau.marin = relais
+        creneau.save(update_fields=["marin", "updated_at"])
+        return feuille
+
+    def test_un_echange_n_evalue_pas_les_feuilles_d_un_autre_batiment(self):
+        autre = self._feuille_publiee_autre_navire()
+        self.assertTrue(divergences_effectives(autre))
+        self._valider(self.creneau, self._autre_poste(), self.marin_service, self.relais)
+        self.assertEqual(
+            sorted(Notification.objects.filter(verb__icontains="rectificatif à préparer").values_list("user__username", flat=True)),
+            ["bsc", "etat_major"],
+        )
+        autre.refresh_from_db()
+        self.assertEqual(autre.divergence_signalee, "")
+
+    def test_une_erreur_de_signalement_ne_fait_pas_echouer_l_echange(self):
+        from quarts.models import EchangeService
+        with mock.patch("quarts.rectificatif.signaler_divergence", side_effect=RuntimeError("panne")):
+            self._valider(self.creneau, self._autre_poste(), self.marin_service, self.relais)
+        self.assertEqual(EchangeService.objects.get().statut, EchangeService.STATUT_VALIDE)
+        self.creneau.refresh_from_db()
+        self.assertEqual(self.creneau.marin, self.relais)
+        self.assertTrue(AuditLog.objects.filter(action="feuille_service_signalement_echoue").exists())
+
+    def test_echange_apres_proposition_puis_apres_visa_service_figé_au_dernier_titulaire(self):
+        autre = _utilisateur("marin_autre", "EQUIPIER", ship=self.ship)
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.chef_service)
+        self._echange(autre)
+        self.feuille.viser_service(self.chef_service)
+        self._echange(self.marin_service)
+        self.feuille.viser_comaeq(self.etat_major)
+        self.assertEqual(self.feuille.versions.first().contenu_fige["personnel"][0]["marin"], "marin_service")
+
+    def test_echange_avant_puis_apres_publication(self):
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+        self.feuille.viser_comaeq(self.etat_major)
+        self.assertEqual(divergences_effectives(self.feuille), [])
+        # Échange après publication : divergence mesurée contre la NOUVELLE version.
+        self._echange(self.marin_service)
+        signaler_divergence(self.feuille)
+        diff = divergences_effectives(self.feuille)
+        self.assertEqual([(d["avant"], d["apres"]) for d in diff][0], ("marin_relais", "marin_service"))
+        self.assertEqual(self._notifs().filter(user=self.equipier).count(), 1)
+        self.assertIn("version 2", self._notifs().first().verb)
+
+    def _notifs(self):
+        return Notification.objects.filter(verb__icontains="rectificatif à préparer")
+
+
+@skipUnless(connection.vendor == "postgresql", "Verrous de ligne : PostgreSQL requis")
+class ConcurrencePublicationTests(TransactionTestCase):
+    def setUp(self):
+        FeuilleServiceTestsBase.setUp(self)
+        self._publier_tour = lambda **kw: FeuilleServiceTestsBase._publier_tour(self, **kw)
+        self.relais = _utilisateur("marin_relais", "EQUIPIER", ship=self.ship)
+        self.creneau = self._publier_tour(marin=self.marin_service)
+        self.feuille = FeuilleService.objects.create(
+            ship=self.ship, date=self.jour, created_by=self.equipier, updated_by=self.equipier,
+        )
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+
+    def test_la_publication_attend_la_validation_de_l_echange_en_cours(self):
+        erreurs = []
+
+        def publier():
+            try:
+                FeuilleService.objects.get(pk=self.feuille.pk).viser_comaeq(self.etat_major)
+            except Exception as e:  # pragma: no cover
+                erreurs.append(e)
+            finally:
+                connection.close()
+
+        from django.db import transaction
+        with transaction.atomic():
+            FeuilleService.objects.select_for_update().get(pk=self.feuille.pk)
+            self.creneau.marin = self.relais
+            self.creneau.save(update_fields=["marin", "updated_at"])
+            fil = threading.Thread(target=publier)
+            fil.start()
+            time.sleep(1.5)
+            self.assertTrue(fil.is_alive(), "la publication aurait dû attendre le verrou de la feuille")
+        fil.join(30)
+        self.assertEqual(erreurs, [])
+        version = self.feuille.versions.get()
+        self.assertEqual(version.contenu_fige["personnel"][0]["marin"], "marin_relais")
+
+
 class DroitsRectificatifTests(RectificatifBase):
     def test_marin_d_un_autre_navire_ne_peut_ni_lire_ni_ouvrir(self):
         _utilisateur("etranger", "EQUIPIER", ship=self.autre_ship)
@@ -445,3 +574,21 @@ class DoubleEquipageRectificatifTests(TestCase):
             Notification.objects.filter(verb__icontains="rectificatif à préparer").values_list("user__username", flat=True)
         )
         self.assertEqual(destinataires, {"redacteur_B", "comaeq_B"})
+
+    def test_echange_valide_via_la_procedure_ne_signale_que_l_equipage_concerne(self):
+        from quarts.echanges import accepter_echange, proposer_echange, valider_echange
+        autre = CreneauServiceGarde.objects.create(
+            service_garde=self.creneaux["A"].service_garde, poste="Autre poste", debut=self.creneaux["A"].debut,
+            fin=self.creneaux["A"].fin, marin=self.marins["relais_A"],
+        )
+        with mock.patch("quarts.echanges.analyser_echange", return_value=[]), \
+                mock.patch("quarts.echanges.peut_valider_echange", return_value=True):
+            echange = proposer_echange(self.marins["titulaire_A"], self.creneaux["A"], autre, "test")
+            accepter_echange(echange, self.marins["relais_A"])
+            echange.refresh_from_db()
+            valider_echange(echange, self.marins["chef_A"])
+        destinataires = set(
+            Notification.objects.filter(verb__icontains="rectificatif à préparer").values_list("user__username", flat=True)
+        )
+        self.assertEqual(destinataires, {"redacteur_A", "comaeq_A"})
+        self.assertEqual(FeuilleService.objects.get(ship=self.ship, equipage="B", date=self.jour).divergence_signalee, "")
