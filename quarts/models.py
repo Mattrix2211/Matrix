@@ -112,6 +112,8 @@ que par qui gère ou peut publier la liste (pas ouvert à tout marin lecteur
 d'une liste publiée).
 """
 from django.urls import reverse
+import uuid
+from dataclasses import dataclass
 from datetime import datetime, time as heure_du_jour
 
 from django.contrib.auth import get_user_model
@@ -882,6 +884,8 @@ class RubriqueEnTeteFeuilleService(TimeStampedModel):
         (TYPE_QUOTIDIENNE, "Saisie chaque jour"),
     )
 
+    # Identité technique stable : survit au renommage, c'est elle que les feuilles figent.
+    uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="rubriques_feuille_service")
     ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
     libelle = models.CharField(max_length=128, verbose_name="Libellé")
@@ -907,6 +911,7 @@ class FonctionFeuilleService(TimeStampedModel):
     casse) — laissé vide, il vaut `libelle` (cas le plus courant où le
     libellé affiché et le poste saisi dans les tours coïncident)."""
 
+    uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="fonctions_feuille_service")
     ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
     libelle = models.CharField(max_length=128, verbose_name="Fonction")
@@ -978,6 +983,54 @@ def personnel_du_jour(ship, date_, equipage=""):
     ]
 
 
+@dataclass(frozen=True)
+class RubriqueFigee:
+    """Rubrique telle que figée sur une feuille (même interface de lecture que la rubrique configurée)."""
+    uid: str
+    libelle: str
+    ordre: int = 0
+    type_saisie: str = RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE
+    valeur_fixe: str = ""
+
+    TYPE_FIXE = RubriqueEnTeteFeuilleService.TYPE_FIXE
+
+
+@dataclass(frozen=True)
+class FonctionFigee:
+    """Fonction figée sur une feuille ; `ship_id` et `poste_a_rechercher` suffisent à retrouver le titulaire."""
+    uid: str
+    libelle: str
+    ship_id: int
+    poste_recherche: str = ""
+
+    def poste_a_rechercher(self):
+        return (self.poste_recherche or self.libelle).strip()
+
+
+def structure_courante(ship_id):
+    """Rubriques et fonctions actives du bâtiment, sous la forme figée sur une feuille."""
+    return {
+        "origine": "creation",
+        "figee_le": timezone.now().isoformat(),
+        "rubriques": [
+            {
+                "uid": str(r.uid), "libelle": r.libelle, "ordre": r.ordre,
+                "type_saisie": r.type_saisie, "valeur_fixe": r.valeur_fixe,
+            }
+            for r in RubriqueEnTeteFeuilleService.objects.filter(ship_id=ship_id, actif=True)
+        ],
+        "fonctions": [
+            {"uid": str(f.uid), "libelle": f.libelle, "ordre": f.ordre, "poste_recherche": f.poste_recherche}
+            for f in FonctionFeuilleService.objects.filter(ship_id=ship_id, actif=True)
+        ],
+    }
+
+
+def _contenu_structure(structure):
+    """Partie comparable d'une structure (sans date ni origine)."""
+    return {cle: structure.get(cle) for cle in ("rubriques", "fonctions")}
+
+
 class FeuilleService(TimeStampedModel, OwnedModel):
     """Feuille de service quotidienne d'un navire (rubriques d'en-tête +
     personnel de service), à quai (V1). Une par (navire, date) : publiée la
@@ -1008,7 +1061,11 @@ class FeuilleService(TimeStampedModel, OwnedModel):
     statut = models.CharField(max_length=16, choices=STATUT_CHOICES, default=STATUT_BROUILLON)
     valeurs_entete = models.JSONField(
         default=dict, blank=True, verbose_name="Valeurs des rubriques d'en-tête",
-        help_text="Dictionnaire {id de la rubrique : valeur saisie} pour les rubriques « saisie chaque jour ».",
+        help_text="Dictionnaire {uid de la rubrique : valeur saisie} pour les rubriques « saisie chaque jour ».",
+    )
+    structure_figee = models.JSONField(
+        null=True, blank=True, verbose_name="Structure figée (rubriques et fonctions)",
+        help_text="Rubriques et fonctions du bâtiment à la création de la feuille ; vide : feuille antérieure à l'historisation.",
     )
     # Périmètre du rédacteur au moment de la proposition (snapshot) : détermine
     # qui doit viser en secteur/service — cf. commentaire de section.
@@ -1055,24 +1112,116 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         equipage = f" (équipage {self.equipage})" if self.equipage else ""
         return f"Feuille de service du {self.date:%d/%m/%Y} — {self.ship}{equipage}"
 
+    def save(self, *args, **kwargs):
+        # Une feuille naît avec la structure du bâtiment du moment : les réglages
+        # ultérieurs ne la modifient plus (sauf resynchronisation d'un brouillon).
+        if self._state.adding and self.structure_figee is None:
+            self.structure_figee = structure_courante(self.ship_id)
+        super().save(*args, **kwargs)
+
+    @property
+    def sans_instantane(self):
+        """Feuille créée avant l'historisation : sa structure d'origine n'a pas été conservée."""
+        return self.structure_figee is None
+
+    @property
+    def version_de_reference(self):
+        """Dernière version publiée d'une feuille sans instantané : seule trace fidèle de ce qui a été diffusé."""
+        if not self.sans_instantane or self.statut != self.STATUT_PUBLIEE:
+            return None
+        return self.versions.order_by("-numero").first()
+
     @property
     def rubriques_affichees(self):
-        """Rubriques actives du navire avec leur valeur pour CETTE feuille :
-        la valeur fixe du navire pour une rubrique FIXE (toujours à jour,
-        jamais figée par feuille), la valeur saisie pour une rubrique
-        QUOTIDIENNE."""
-        resultat = []
-        for rubrique in RubriqueEnTeteFeuilleService.objects.filter(ship_id=self.ship_id, actif=True):
-            valeur = (
-                rubrique.valeur_fixe if rubrique.type_saisie == rubrique.TYPE_FIXE
-                else self.valeurs_entete.get(str(rubrique.pk), "")
-            )
-            resultat.append({"rubrique": rubrique, "valeur": valeur})
-        return resultat
+        """Rubriques de CETTE feuille avec leur valeur : structure figée (valeur
+        fixe comprise) ; feuille publiée sans instantané : contenu de sa
+        dernière version ; autre feuille sans instantané : réglages actuels."""
+        version = self.version_de_reference
+        if version is not None:
+            return [
+                {
+                    "rubrique": RubriqueFigee(uid=e.get("uid") or "", libelle=e["libelle"]),
+                    "valeur": e.get("valeur", ""),
+                }
+                for e in version.contenu_fige.get("entete", [])
+            ]
+        if self.structure_figee is None:
+            rubriques = [
+                RubriqueFigee(str(r.uid), r.libelle, r.ordre, r.type_saisie, r.valeur_fixe)
+                for r in RubriqueEnTeteFeuilleService.objects.filter(ship_id=self.ship_id, actif=True)
+            ]
+        else:
+            rubriques = [RubriqueFigee(**r) for r in self.structure_figee["rubriques"]]
+        return [
+            {
+                "rubrique": r,
+                "valeur": r.valeur_fixe if r.type_saisie == RubriqueFigee.TYPE_FIXE
+                else self.valeurs_entete.get(r.uid, ""),
+            }
+            for r in rubriques
+        ]
 
     @property
     def personnel(self):
-        return personnel_du_jour(self.ship, self.date, self.equipage)
+        """Fonctions de la feuille avec leur titulaire du jour, retrouvé en direct
+        (un échange de service validé reste visible). Feuille publiée sans
+        instantané : titulaires figés dans sa dernière version."""
+        version = self.version_de_reference
+        if version is not None:
+            return [
+                {
+                    "fonction": FonctionFigee(
+                        uid=e.get("uid") or "", libelle=e["fonction"], ship_id=self.ship_id,
+                    ),
+                    "creneau": None,
+                    "marin_fige": e.get("marin", ""),
+                }
+                for e in version.contenu_fige.get("personnel", [])
+            ]
+        if self.structure_figee is None:
+            return personnel_du_jour(self.ship, self.date, self.equipage)
+        return [
+            {
+                "fonction": fonction,
+                "creneau": titulaire_du_jour(fonction, self.date, self.equipage),
+            }
+            for fonction in (
+                FonctionFigee(
+                    uid=f["uid"], libelle=f["libelle"], ship_id=self.ship_id,
+                    poste_recherche=f.get("poste_recherche", ""),
+                )
+                for f in self.structure_figee["fonctions"]
+            )
+        ]
+
+    @property
+    def structure_divergente(self):
+        """Vrai si les réglages du bâtiment ont changé depuis la création de la feuille."""
+        if self.structure_figee is None:
+            return False
+        return _contenu_structure(self.structure_figee) != _contenu_structure(structure_courante(self.ship_id))
+
+    def resynchroniser_structure(self, user):
+        """Brouillon seulement : reprend les réglages actuels du bâtiment. Les
+        saisies des rubriques toujours présentes sont conservées ; les autres
+        sont retirées et inscrites au journal, jamais perdues en silence."""
+        nouvelle = structure_courante(self.ship_id)
+        nouvelle["origine"] = "resynchronisation"
+        conservees = {
+            r["uid"] for r in nouvelle["rubriques"] if r["type_saisie"] == RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE
+        }
+        libelles = {r["uid"]: r["libelle"] for r in (self.structure_figee or {}).get("rubriques", [])}
+        retirees = {cle: v for cle, v in self.valeurs_entete.items() if cle not in conservees and v}
+        self.valeurs_entete = {cle: v for cle, v in self.valeurs_entete.items() if cle in conservees}
+        self.structure_figee = nouvelle
+        self.save(update_fields=["structure_figee", "valeurs_entete", "updated_at"])
+        perdues = [f"{libelles.get(cle, cle)} = {v}" for cle, v in retirees.items()]
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_structure_resynchronisee",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : structure resynchronisée avec "
+                    "les réglages du bâtiment" + (f" ; saisies retirées : {'; '.join(perdues)}." if perdues else "."),
+        )
+        return perdues
 
     def marins_de_la_fraction(self):
         """Marins de la fraction de service du jour (titulaires trouvés dans
@@ -1252,9 +1401,13 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         from .alertes import etat_alertes, figer_alertes
         dernier_numero = self.versions.aggregate(models.Max("numero"))["numero__max"] or 0
         contenu = {
-            "entete": [{"libelle": e["rubrique"].libelle, "valeur": e["valeur"]} for e in self.rubriques_affichees],
+            "entete": [
+                {"uid": e["rubrique"].uid, "libelle": e["rubrique"].libelle, "valeur": e["valeur"]}
+                for e in self.rubriques_affichees
+            ],
             "personnel": [
                 {
+                    "uid": e["fonction"].uid,
                     "fonction": e["fonction"].libelle,
                     "marin": (
                         f"{e['creneau'].marin.profile.grade} "

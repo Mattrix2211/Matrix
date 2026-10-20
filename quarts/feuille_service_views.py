@@ -215,6 +215,11 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 or peut_valider_organisation_alerte(request.user, ship)
             ),
             "versions": feuille.versions.all() if feuille is not None else None,
+            "version_de_reference": feuille.version_de_reference if feuille is not None else None,
+            "structure_divergente": (
+                feuille is not None and feuille.statut == FeuilleService.STATUT_BROUILLON
+                and feuille.structure_divergente
+            ),
             "peut_configurer": peut_configurer,
             # Double équipage sans équipage à bord défini : rien n'est affiché
             # au hasard, l'écran demande de corriger la configuration.
@@ -261,16 +266,23 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             if not peut_gerer_brouillon_feuille(request.user, feuille):
                 raise PermissionDenied
             valeurs = dict(feuille.valeurs_entete)
-            for rubrique in RubriqueEnTeteFeuilleService.objects.filter(
-                ship=ship, type_saisie=RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE
-            ):
-                cle = f"rubrique_{rubrique.pk}"
-                if cle in request.POST:
-                    valeurs[str(rubrique.pk)] = request.POST.get(cle, "").strip()
+            # Seules les rubriques figées sur la feuille sont saisissables, pas celles des réglages actuels.
+            for entree in feuille.rubriques_affichees:
+                rubrique = entree["rubrique"]
+                cle = f"rubrique_{rubrique.uid}"
+                if rubrique.type_saisie == RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE and cle in request.POST:
+                    valeurs[rubrique.uid] = request.POST.get(cle, "").strip()
             feuille.valeurs_entete = valeurs
             feuille.updated_by = request.user
             feuille.save(update_fields=["valeurs_entete", "updated_by", "updated_at"])
             messages.success(request, "En-tête enregistré.")
+        elif action == "resynchroniser":
+            if not peut_gerer_brouillon_feuille(request.user, feuille):
+                raise PermissionDenied
+            retirees = feuille.resynchroniser_structure(request.user)
+            messages.success(request, "Structure resynchronisée avec les réglages actuels du bâtiment.")
+            if retirees:
+                messages.warning(request, "Saisies retirées (rubriques supprimées ou devenues fixes) : " + "; ".join(retirees))
         elif action == "proposer":
             if feuille.statut != FeuilleService.STATUT_BROUILLON or not peut_gerer_brouillon_feuille(
                 request.user, feuille
@@ -379,7 +391,9 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
                 ),
                 valeur_fixe=request.POST.get("nouvelle_rubrique_valeur_fixe", "").strip(),
             )
-        messages.success(request, "Rubriques d'en-tête enregistrées.")
+        messages.success(
+            request, "Rubriques d'en-tête enregistrées (les feuilles déjà créées ne changent pas ; un brouillon peut être resynchronisé)."
+        )
 
     def _enregistrer_fonctions(self, request, ship):
         for fonction in FonctionFeuilleService.objects.filter(ship=ship):
@@ -398,4 +412,6 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
                 ordre=int(request.POST.get("nouvelle_fonction_ordre") or 0),
                 poste_recherche=request.POST.get("nouvelle_fonction_poste_recherche", "").strip(),
             )
-        messages.success(request, "Fonctions de service enregistrées.")
+        messages.success(
+            request, "Fonctions de service enregistrées (les feuilles déjà créées ne changent pas ; un brouillon peut être resynchronisé)."
+        )
