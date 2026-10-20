@@ -77,6 +77,13 @@ class SignatureValidationExecutionTests(TestCase):
         self.assertTrue(AuditLog.objects.filter(action="validation_critique_refusee").exists())
         self.assertFalse(AuditLog.objects.filter(action="occurrence_validation_critique").exists())
 
+    def test_conformite_non_choisie_ne_trace_pas_de_refus_de_confirmation(self):
+        occ = self._creer_occurrence(self.installation_critique)
+        self.client.login(username="tech_signature", password="MotDePasseCorrect1")
+        r = self.client.post(reverse("occurrence-execute", args=[occ.id]), {"conformity": ""})
+        self.assertNotContains(r, "Confirmation requise")
+        self.assertFalse(AuditLog.objects.filter(action="validation_critique_refusee").exists())
+
     def test_ancien_mot_de_passe_ne_vaut_pas_confirmation(self):
         occ = self._creer_occurrence(self.installation_critique)
         self.client.login(username="tech_signature", password="MotDePasseCorrect1")
@@ -191,6 +198,13 @@ class SignatureValidationAPIExecutionTests(TestCase):
                 self.assertEqual(self.occ.status, "ASSIGNED")
                 self.assertFalse(MaintenanceExecution.objects.filter(occurrence=self.occ).exists())
         self.assertFalse(AuditLog.objects.filter(action="occurrence_validation_critique").exists())
+
+    def test_deja_terminee_donne_409_avant_la_confirmation(self):
+        self.client.post(self.url, {"conformity": "CONFORME", "confirmation": True}, format="json")
+        AuditLog.objects.all().delete()
+        r = self.client.post(self.url, {"conformity": "CONFORME"}, format="json")
+        self.assertEqual(r.status_code, 409)
+        self.assertFalse(AuditLog.objects.filter(action="validation_critique_refusee").exists())
 
     def test_refusee_sans_droit_avant_la_confirmation(self):
         autre = User.objects.create_user(username="autre_signature_api", password="MotDePasseCorrect1")

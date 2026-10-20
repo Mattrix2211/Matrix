@@ -339,7 +339,7 @@ class InstallationMaintenanceMatriceTests(MatricePermissionsTestCase):
 class CorrectiveTicketMatriceTests(MatricePermissionsTestCase):
     """Ticket correctif : signalement ouvert à tout marin connecté (EQUIPIER
     compris), transitions de statut réservées à CHEF_SECTION+, remise en
-    service protégée en plus par une signature (mot de passe), quel que soit
+    service protégée en plus par une confirmation explicite, quel que soit
     le rôle de l'appelant (logistics/web_views.py)."""
 
     @classmethod

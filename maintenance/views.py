@@ -137,6 +137,11 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePeri
         # confirmation explicite, comme OccurrenceExecuteView.post (maintenance/web_views.py).
         # Une occurrence NON_CONFORME repasse en WAITING_VALIDATION (pas DONE) et
         # n'est donc pas concernée.
+        if MaintenanceExecution.objects.filter(occurrence=occ, completed_at__isnull=False).exists():
+            return response.Response(
+                {"detail": "Compte rendu déjà terminé : corrigez-le depuis son écran, avec un motif."},
+                status=status.HTTP_409_CONFLICT,
+            )
         installation = occ.installation_maintenance.installation if occ.installation_maintenance_id else None
         exige_validation = bool(installation and installation.critique) and conformity != "NON_CONFORME"
         if exige_validation and not confirmation_api(request.data):
@@ -147,11 +152,6 @@ class MaintenanceOccurrenceViewSet(SuppressionInterditeMixin, EcritureDansLePeri
             )
 
         exec, _ = MaintenanceExecution.objects.get_or_create(occurrence=occ)
-        if exec.completed_at:
-            return response.Response(
-                {"detail": "Compte rendu déjà terminé : corrigez-le depuis son écran, avec un motif."},
-                status=status.HTTP_409_CONFLICT,
-            )
         exec.completed_at = timezone.now()
         exec.conformity = conformity
         exec.notes = request.data.get("notes", "")

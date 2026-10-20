@@ -14,7 +14,7 @@ TEXTES = {
     "maintenance_critique": (1, "Je confirme avoir vérifié les informations et valide la clôture de cette maintenance."),
     "remise_en_service": (1, "Je confirme avoir vérifié les informations et valide la remise en service."),
     "pret_appareillage": (
-        1, "Je confirme avoir vérifié les informations de cette session de préparation à l'appareillage et la clôture.",
+        1, "Je confirme avoir vérifié les informations de cette session de préparation à l'appareillage et en valide la clôture.",
     ),
 }
 

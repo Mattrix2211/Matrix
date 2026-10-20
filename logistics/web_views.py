@@ -383,6 +383,9 @@ class TicketTransitionView(LoginRequiredMixin, View):
             tracer_refus(request.user, 'remise_en_service', CANAL_WEB, f'ticket={ticket.pk}')
             erreur_fermeture = MESSAGE_REFUS
             messages.error(request, erreur_fermeture)
+            # Saisie conservée à l'affichage, sans enregistrement.
+            ticket.diagnostic_final = request.POST.get('diagnostic_final', '').strip()
+            ticket.solution = request.POST.get('solution', '').strip()
             if request.headers.get('HX-Request'):
                 return render(request, 'logistics/_status.html', contexte_statut_ticket(ticket, request.user, erreur_fermeture))
             return redirect('ticket-detail', pk=ticket.pk)

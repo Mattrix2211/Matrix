@@ -58,6 +58,17 @@ class SignatureValidationRemiseEnServiceTests(TestCase):
         self.assertFalse(AuditLog.objects.filter(action="ticket_validation_critique").exists())
         self.assertTrue(AuditLog.objects.filter(action="validation_critique_refusee").exists())
 
+    def test_refus_conserve_diagnostic_et_solution_saisis(self):
+        r = self.client.post(
+            self.url,
+            {"status": "RETURNED_TO_SERVICE", "diagnostic_final": "Joint HS", "solution": "Joint changé"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertContains(r, "Joint HS")
+        self.assertContains(r, "Joint changé")
+        self.ticket.refresh_from_db()
+        self.assertEqual((self.ticket.diagnostic_final, self.ticket.solution), ("", ""))
+
     def test_remise_en_service_refusee_sans_droit_avant_la_confirmation(self):
         marin = User.objects.create_user(username="marin_signature", password="MotDePasseCorrect1")
         UserProfile.objects.filter(user=marin).update(role="EQUIPIER", sector=self.secteur)

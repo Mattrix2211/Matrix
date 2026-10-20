@@ -186,7 +186,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         # occurrence non conforme repasse en WAITING_VALIDATION et n'est pas concernée.
         installation, _ = _sujet(occ)
         exige_validation = (not en_direct) and bool(installation and installation.critique) and conformity != 'NON_CONFORME'
-        if exige_validation and not confirmation_web(request.POST):
+        if exige_validation and conformity in dict(MaintenanceExecution.CONFORMITY) and not confirmation_web(request.POST):
             tracer_refus(request.user, 'maintenance_critique', CANAL_WEB, f'occurrence={occ.pk}')
             erreurs.append(MESSAGE_REFUS)
 
