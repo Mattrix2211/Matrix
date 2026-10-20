@@ -831,14 +831,11 @@ class EchangeServiceEvenement(TimeStampedModel):
 # de CETTE granularité fine (chaque ligne de la feuille = un poste précis) :
 # la correspondance se fait donc sur `poste` (FonctionFeuilleService.
 # poste_recherche, comparé sans casse), pas sur `ServiceGarde.fonction`.
-# Seuls les créneaux d'une liste PUBLIÉE comptent, et le calcul est fait EN
-# DIRECT à chaque affichage (jamais figé sur la feuille elle-même) : si un
-# échange de service est validé après publication de la feuille, la page
-# reflète immédiatement le nouveau titulaire sans action sur la feuille — la
-# trace de l'échange reste dans EchangeServiceEvenement (quarts/echanges.py),
-# pas dupliquée ici (CLAUDE.md §2 : pas de sur-ingénierie pour une simple
-# lecture). Seul l'INSTANTANÉ figé à la publication (VersionFeuilleService)
-# ne bouge plus après coup, comme n'importe quel historique.
+# Seuls les créneaux d'une liste PUBLIÉE comptent. Ce calcul en direct sert à
+# la copie de travail ; une fois publiée, la feuille se lit dans sa VERSION
+# figée (VersionFeuilleService). Un échange de service validé après publication
+# n'y change rien : l'écart avec le planning effectif est signalé (cf.
+# quarts/rectificatif.py) jusqu'à la publication d'une version rectificative.
 #
 # Circuit de validation (décision de Matthis du 24/09/2026, même esprit que
 # la fiche d'installation — page Notion « Organigramme et rôles », section 4
@@ -978,9 +975,21 @@ def personnel_du_jour(ship, date_, equipage=""):
     de service du navire pour `date_` : une entrée par fonction active,
     chacune avec le créneau trouvé (ou None) — cf. titulaire_du_jour."""
     return [
-        {"fonction": fonction, "creneau": titulaire_du_jour(fonction, date_, equipage)}
+        _entree_personnel(fonction, titulaire_du_jour(fonction, date_, equipage))
         for fonction in FonctionFeuilleService.objects.filter(ship=ship, actif=True)
     ]
+
+
+def _entree_personnel(fonction, creneau):
+    return {"fonction": fonction, "creneau": creneau, "marin_id": creneau.marin_id if creneau else None}
+
+
+def nom_titulaire(creneau):
+    """Grade et nom du titulaire d'un créneau, vide si personne n'est désigné."""
+    if not creneau or not creneau.marin_id:
+        return ""
+    marin = creneau.marin
+    return f"{marin.profile.grade} {marin.get_full_name() or marin.username}".strip()
 
 
 @dataclass(frozen=True)
@@ -1096,6 +1105,11 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Publiée par",
     )
     motif_retour = models.TextField(blank=True, default="", verbose_name="Motif du dernier renvoi en brouillon")
+    rectificatif_ouvert_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+        verbose_name="Rectificatif ouvert par",
+        help_text="Rédacteur du rectificatif en cours ; vide hors rectificatif.",
+    )
 
     class Meta:
         # Une feuille par (navire, équipage, date) ; équipage vide sur un bâtiment à équipage unique.
@@ -1125,26 +1139,25 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         return self.structure_figee is None
 
     @property
-    def version_de_reference(self):
-        """Dernière version publiée d'une feuille sans instantané : seule trace fidèle de ce qui a été diffusé."""
-        if not self.sans_instantane or self.statut != self.STATUT_PUBLIEE:
-            return None
-        return self.versions.order_by("-numero").first()
+    def version_publiee(self):
+        """Dernière version publiée : le document de référence lu par les marins."""
+        return self.versions.first()
 
     @property
-    def rubriques_affichees(self):
-        """Rubriques de CETTE feuille avec leur valeur : structure figée (valeur
-        fixe comprise) ; feuille publiée sans instantané : contenu de sa
-        dernière version ; autre feuille sans instantané : réglages actuels."""
-        version = self.version_de_reference
-        if version is not None:
-            return [
-                {
-                    "rubrique": RubriqueFigee(uid=e.get("uid") or "", libelle=e["libelle"]),
-                    "valeur": e.get("valeur", ""),
-                }
-                for e in version.contenu_fige.get("entete", [])
-            ]
+    def rectificatif_en_cours(self):
+        """Feuille déjà publiée qui repasse dans le circuit : sa copie de travail
+        prépare un rectificatif, la dernière version reste la référence."""
+        return self.statut != self.STATUT_PUBLIEE and self.versions.exists()
+
+    @property
+    def redacteur(self):
+        """Rédacteur du rectificatif en cours, à défaut celui de la feuille."""
+        return self.rectificatif_ouvert_par or self.created_by
+
+    @property
+    def rubriques_travail(self):
+        """Rubriques de la copie de travail avec leur valeur : structure figée
+        (valeur fixe comprise) ; feuille sans instantané : réglages actuels."""
         if self.structure_figee is None:
             rubriques = [
                 RubriqueFigee(str(r.uid), r.libelle, r.ordre, r.type_saisie, r.valeur_fixe)
@@ -1162,29 +1175,13 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         ]
 
     @property
-    def personnel(self):
-        """Fonctions de la feuille avec leur titulaire du jour, retrouvé en direct
-        (un échange de service validé reste visible). Feuille publiée sans
-        instantané : titulaires figés dans sa dernière version."""
-        version = self.version_de_reference
-        if version is not None:
-            return [
-                {
-                    "fonction": FonctionFigee(
-                        uid=e.get("uid") or "", libelle=e["fonction"], ship_id=self.ship_id,
-                    ),
-                    "creneau": None,
-                    "marin_fige": e.get("marin", ""),
-                }
-                for e in version.contenu_fige.get("personnel", [])
-            ]
+    def personnel_travail(self):
+        """Fonctions de la copie de travail avec leur titulaire du jour, retrouvé
+        en direct dans le planning publié."""
         if self.structure_figee is None:
             return personnel_du_jour(self.ship, self.date, self.equipage)
         return [
-            {
-                "fonction": fonction,
-                "creneau": titulaire_du_jour(fonction, self.date, self.equipage),
-            }
+            _entree_personnel(fonction, titulaire_du_jour(fonction, self.date, self.equipage))
             for fonction in (
                 FonctionFigee(
                     uid=f["uid"], libelle=f["libelle"], ship_id=self.ship_id,
@@ -1193,6 +1190,47 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 for f in self.structure_figee["fonctions"]
             )
         ]
+
+    @property
+    def rubriques_de_reference(self):
+        """En-tête tel que publié (dernière version) ; sans version, copie de travail."""
+        version = self.version_publiee
+        if version is None:
+            return self.rubriques_travail
+        return [
+            {
+                "rubrique": RubriqueFigee(uid=e.get("uid") or "", libelle=e["libelle"]),
+                "valeur": e.get("valeur", ""),
+            }
+            for e in version.contenu_fige.get("entete", [])
+        ]
+
+    @property
+    def personnel_de_reference(self):
+        """Titulaires tels que publiés (dernière version), jamais le planning en
+        direct ; sans version, copie de travail."""
+        version = self.version_publiee
+        if version is None:
+            return self.personnel_travail
+        return [
+            {
+                "fonction": FonctionFigee(uid=e.get("uid") or "", libelle=e["fonction"], ship_id=self.ship_id),
+                "creneau": None,
+                "marin_fige": e.get("marin", ""),
+                "marin_id": e.get("marin_id"),
+            }
+            for e in version.contenu_fige.get("personnel", [])
+        ]
+
+    @property
+    def rubriques_affichees(self):
+        """Feuille publiée : sa version ; sinon la copie de travail."""
+        return self.rubriques_de_reference if self.statut == self.STATUT_PUBLIEE else self.rubriques_travail
+
+    @property
+    def personnel(self):
+        """Feuille publiée : titulaires de sa version ; sinon copie de travail."""
+        return self.personnel_de_reference if self.statut == self.STATUT_PUBLIEE else self.personnel_travail
 
     @property
     def structure_divergente(self):
@@ -1228,7 +1266,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         le personnel de service), sans doublon — jamais tout l'équipage
         (cf. tâche Notion)."""
         ids, marins = set(), []
-        for entree in self.personnel:
+        for entree in self.personnel_travail:
             creneau = entree["creneau"]
             if creneau and creneau.marin_id and creneau.marin_id not in ids:
                 ids.add(creneau.marin_id)
@@ -1255,8 +1293,8 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             .select_related("profile")
             if verificateur(u, self)
         ]
-        if not destinataires and self.created_by_id:
-            destinataires = [self.created_by]
+        if not destinataires and self.redacteur is not None:
+            destinataires = [self.redacteur]
         return destinataires
 
     def _notifier_prochain_visa(self):
@@ -1344,26 +1382,64 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         self._publier(user, visa_exceptionnel=exceptionnel)
 
     def _publier(self, user, visa_exceptionnel=False):
+        remplace = self.version_publiee if self.rectificatif_en_cours else None
+        redacteur = self.redacteur
         self.statut = self.STATUT_PUBLIEE
         self.publiee_le = timezone.now()
         self.publiee_par = user
+        self.rectificatif_ouvert_par = None
         self.save(update_fields=[
-            "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par", "updated_at",
+            "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par",
+            "rectificatif_ouvert_par", "updated_at",
         ])
-        version = self.creer_version(user, visa_exceptionnel)
-        AuditLog.objects.create(
-            actor=user, action="feuille_service_publiee",
-            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) publiée, version {version.numero}.",
-        )
-        for marin in self.marins_de_la_fraction():
-            Notification.objects.create(
-                user=marin,
-                verb=f"Feuille de service du {self.date:%d/%m/%Y} publiée : vous êtes de service.",
-                level=NotificationLevel.INFO,
-                url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
+        version = self.creer_version(user, visa_exceptionnel, remplace)
+        if remplace is not None:
+            from .rectificatif import notifier_rectificatif
+            notifier_rectificatif(self, version, remplace, user, redacteur)
+        else:
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_publiee",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) publiée, version {version.numero}.",
             )
+            for marin in self.marins_de_la_fraction():
+                Notification.objects.create(
+                    user=marin,
+                    verb=f"Feuille de service du {self.date:%d/%m/%Y} publiée : vous êtes de service.",
+                    level=NotificationLevel.INFO,
+                    url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
+                )
         from .alertes import signaler_postes_non_armes
         signaler_postes_non_armes(self, user)
+
+    CHAMPS_CIRCUIT = (
+        "statut", "visa_secteur_le", "visa_secteur_par", "visa_service_le", "visa_service_par",
+        "visa_comaeq_le", "visa_comaeq_par", "proposee_le", "proposee_par", "motif_retour",
+    )
+
+    def _reinitialiser_circuit(self, motif=""):
+        self.statut = self.STATUT_BROUILLON
+        self.visa_secteur_le = self.visa_secteur_par = None
+        self.visa_service_le = self.visa_service_par = None
+        self.visa_comaeq_le = self.visa_comaeq_par = None
+        self.proposee_le = self.proposee_par = None
+        self.motif_retour = motif
+
+    def ouvrir_rectificatif(self, user):
+        """Rouvre en brouillon une feuille publiée dont les affectations effectives
+        ont changé. La dernière version reste la référence publiée : elle n'est
+        remplacée qu'à la publication du rectificatif. Retourne les différences."""
+        from .rectificatif import divergences_effectives
+        differences = divergences_effectives(self)
+        self._reinitialiser_circuit()
+        self.rectificatif_ouvert_par = user
+        self.save(update_fields=[*self.CHAMPS_CIRCUIT, "rectificatif_ouvert_par", "updated_at"])
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_rectificatif_ouvert",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : rectificatif ouvert, la version "
+                    f"{self.version_publiee.numero} reste la référence publiée. Différences : "
+                    + "; ".join(f"{d['libelle']} ({d['avant'] or 'à définir'} -> {d['apres'] or 'à définir'})" for d in differences),
+        )
+        return differences
 
     def renvoyer(self, user, motif):
         """Renvoie la feuille en BROUILLON depuis n'importe quel palier de
@@ -1371,57 +1447,51 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         corrige avant de reproposer — le circuit recommence entièrement
         (aucun visa déjà donné n'est conservé), plus simple à suivre qu'un
         redémarrage partiel (CLAUDE.md §2)."""
-        self.statut = self.STATUT_BROUILLON
-        self.visa_secteur_le = self.visa_secteur_par = None
-        self.visa_service_le = self.visa_service_par = None
-        self.visa_comaeq_le = self.visa_comaeq_par = None
-        self.proposee_le = self.proposee_par = None
-        self.motif_retour = motif
-        self.save(update_fields=[
-            "statut", "visa_secteur_le", "visa_secteur_par", "visa_service_le", "visa_service_par",
-            "visa_comaeq_le", "visa_comaeq_par", "proposee_le", "proposee_par", "motif_retour", "updated_at",
-        ])
+        self._reinitialiser_circuit(motif)
+        self.save(update_fields=[*self.CHAMPS_CIRCUIT, "updated_at"])
         AuditLog.objects.create(
             actor=user, action="feuille_service_renvoyee",
             details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) renvoyée en brouillon : {motif}",
         )
-        if self.created_by_id:
+        if self.redacteur is not None:
             Notification.objects.create(
-                user=self.created_by,
+                user=self.redacteur,
                 verb=f"Feuille de service du {self.date:%d/%m/%Y} renvoyée pour correction : {motif}",
                 level=NotificationLevel.WARNING,
                 url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
             )
 
-    def creer_version(self, user, visa_exceptionnel=False):
-        """Fige un instantané horodaté de l'en-tête ET du personnel de
-        service au moment de la publication (cahier des charges §31) — cf.
-        commentaire de section sur le choix de ne pas réutiliser
-        VersionListeAbstract tel quel."""
+    def contenu_courant(self):
+        """Contenu tel qu'il serait figé maintenant : copie de travail et planning effectif."""
         from .alertes import etat_alertes, figer_alertes
-        dernier_numero = self.versions.aggregate(models.Max("numero"))["numero__max"] or 0
-        contenu = {
+        return {
             "entete": [
                 {"uid": e["rubrique"].uid, "libelle": e["rubrique"].libelle, "valeur": e["valeur"]}
-                for e in self.rubriques_affichees
+                for e in self.rubriques_travail
             ],
             "personnel": [
                 {
                     "uid": e["fonction"].uid,
                     "fonction": e["fonction"].libelle,
-                    "marin": (
-                        f"{e['creneau'].marin.profile.grade} "
-                        f"{e['creneau'].marin.get_full_name() or e['creneau'].marin.username}".strip()
-                        if e["creneau"] and e["creneau"].marin_id else ""
-                    ),
+                    "poste": e["fonction"].poste_a_rechercher(),
+                    "marin": nom_titulaire(e["creneau"]),
+                    "marin_id": e["marin_id"],
                 }
-                for e in self.personnel
+                for e in self.personnel_travail
             ],
             "alertes": figer_alertes(etat_alertes(self.ship, self.date, self.equipage)),
-            "visa_exceptionnel": visa_exceptionnel,
         }
+
+    def creer_version(self, user, visa_exceptionnel=False, remplace=None):
+        """Fige un instantané horodaté de l'en-tête, du personnel de service et
+        des alertes au moment de la publication (cahier des charges §31) — cf.
+        commentaire de section sur le choix de ne pas réutiliser
+        VersionListeAbstract tel quel. `remplace` : version que ce rectificatif remplace."""
+        dernier_numero = self.versions.aggregate(models.Max("numero"))["numero__max"] or 0
+        contenu = {**self.contenu_courant(), "visa_exceptionnel": visa_exceptionnel}
         return self.versions.create(
             numero=dernier_numero + 1, publiee_le=timezone.now(), publiee_par=user, contenu_fige=contenu,
+            remplace_numero=remplace.numero if remplace is not None else None,
         )
 
     def version_a_la_date(self, date_):
@@ -1444,6 +1514,19 @@ class VersionFeuilleService(TimeStampedModel):
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Publiée par",
     )
     contenu_fige = models.JSONField(default=dict, verbose_name="Contenu figé (en-tête + personnel)")
+    remplace_numero = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="Version remplacée",
+        help_text="Renseigné sur une version rectificative : numéro de la version qu'elle remplace.",
+    )
+
+    @property
+    def est_rectificative(self):
+        return self.remplace_numero is not None
+
+    @property
+    def est_remplacee(self):
+        """Une version n'est remplacée qu'une fois la suivante publiée."""
+        return self.feuille.versions.filter(numero__gt=self.numero).exists()
 
     class Meta:
         ordering = ("-numero",)
@@ -1670,11 +1753,22 @@ def peut_rediger_feuille_service(user, ship):
 
 def peut_gerer_brouillon_feuille(user, feuille):
     """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la
-    reproposer après un renvoi : réservé à son rédacteur d'origine ou à la
-    supervision globale."""
+    reproposer après un renvoi : réservé à son rédacteur (celui du rectificatif
+    en cours, le cas échéant) ou à la supervision globale."""
     if feuille.statut != FeuilleService.STATUT_BROUILLON or not _equipage_proprietaire(user, feuille):
         return False
-    return _supervision_sur_navire(user, feuille.ship_id) or feuille.created_by_id == user.pk
+    redacteur = feuille.redacteur
+    return _supervision_sur_navire(user, feuille.ship_id) or (redacteur is not None and redacteur.pk == user.pk)
+
+
+def peut_ouvrir_rectificatif(user, feuille):
+    """Ouvrir un rectificatif : même règle que la création du brouillon de
+    l'équipage propriétaire, sur une feuille publiée sans rectificatif en cours."""
+    return (
+        feuille.statut == FeuilleService.STATUT_PUBLIEE
+        and peut_rediger_feuille_service(user, feuille.ship)
+        and _equipage_proprietaire(user, feuille)
+    )
 
 
 def peut_viser_secteur(user, feuille):
@@ -1736,13 +1830,20 @@ def peut_viser_comaeq(user, feuille):
 
 
 def peut_lire_feuille_service(user, feuille):
-    """Lecture : ouverte à tout marin du navire une fois PUBLIÉE (« tous les
-    marins la lisent », cf. tâche Notion) ; réservée aux acteurs du circuit
-    tant qu'elle est en brouillon ou en cours de visa."""
+    """Lecture : ouverte à tout marin du navire dès qu'une version est PUBLIÉE
+    (« tous les marins la lisent », cf. tâche Notion), y compris pendant un
+    rectificatif ; sinon réservée aux acteurs du circuit."""
     if not _dans_mon_equipage(user, feuille):
         return False
-    if feuille.statut == FeuilleService.STATUT_PUBLIEE:
+    if feuille.statut == FeuilleService.STATUT_PUBLIEE or feuille.versions.exists():
         return _supervision_sur_navire(user, feuille.ship_id) or ship_id_for_user(user) == feuille.ship_id
+    return peut_voir_travail_feuille(user, feuille)
+
+
+def peut_voir_travail_feuille(user, feuille):
+    """Copie de travail (brouillon, visas, rectificatif) : acteurs du circuit seulement."""
+    if not _dans_mon_equipage(user, feuille):
+        return False
     if _supervision_sur_navire(user, feuille.ship_id):
         return True  # supervision : lecture seule, indépendante des droits d'écriture
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT and ship_id_for_user(user) == feuille.ship_id:

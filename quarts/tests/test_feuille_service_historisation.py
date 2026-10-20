@@ -100,10 +100,13 @@ class StructureFigeeTests(HistorisationBase):
         self.assertEqual(personnel[0]["uid"], str(self.fonction.uid))
         self.assertEqual(personnel[0]["fonction"], "Officier de garde")
 
-    def test_le_titulaire_d_un_echange_reste_visible_sur_la_feuille_publiee(self):
-        self._publier_tour(marin=self.marin_service)
+    def test_un_echange_apres_publication_ne_change_pas_les_titulaires_publies(self):
+        creneau = self._publier_tour(marin=self.marin_service)
         self._publier()
-        self.assertEqual(self.feuille.personnel[0]["creneau"].marin, self.marin_service)
+        creneau.marin = self.chef_service
+        creneau.save(update_fields=["marin", "updated_at"])
+        self.assertEqual(self.feuille.personnel[0]["marin_fige"], "marin_service")
+        self.assertEqual(self.feuille.personnel_travail[0]["creneau"].marin, self.chef_service)
 
 
 class ResynchronisationTests(HistorisationBase):
@@ -180,7 +183,7 @@ class FeuilleSansInstantaneTests(HistorisationBase):
         self._publier()
         self._rendre_historique()
         self._modifier_les_reglages()
-        self.assertEqual(self.feuille.version_de_reference.numero, 1)
+        self.assertEqual(self.feuille.version_publiee.numero, 1)
         self.assertEqual(
             [(e["rubrique"].libelle, e["valeur"]) for e in self.feuille.rubriques_affichees],
             [("Mesures de sécurité", "Vigipirate renforcé"), ("Type de journée", "Dimanche")],
