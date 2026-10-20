@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from unittest import mock, skipUnless
 
 from django.contrib.auth.models import User
+from django.contrib.messages import get_messages
 from django.db import connection
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
@@ -25,7 +26,7 @@ from quarts.models import (
     peut_lire_feuille_service,
 )
 from django.core.management import call_command
-from quarts.rectificatif import divergences_effectives, signaler_divergence
+from quarts.rectificatif import MESSAGE_CONTENU_CHANGE, divergences_effectives, jeton_visa, signaler_divergence
 from quarts.services import feuille_service_du_jour_pour
 from quarts.tests.test_feuille_service import FeuilleServiceTestsBase, _utilisateur, jeton_visa_affiche
 
@@ -533,6 +534,33 @@ class ConcurrencePublicationTests(TransactionTestCase):
         self.assertIn("version 2", self._notifs().first().verb)
         self.assertNotEqual(feuille.divergence_signalee, "")
 
+    def test_source_modifiee_pendant_la_lecture_est_detectee(self):
+        lu, appels, p = threading.Event(), [], None
+        reel = FeuilleService.contenu_courant
+
+        def contenu_ralenti(feuille):
+            resultat = reel(feuille)
+            if threading.current_thread() is p:
+                appels.append(1)
+                if len(appels) == 1:
+                    lu.set()
+                    time.sleep(1.5)
+            return resultat
+
+        def modifier():
+            lu.wait(15)
+            CreneauServiceGarde.objects.filter(pk=self.creneau.pk).update(marin=self.autre)
+
+        p = self._fil(self._publier)
+        m = self._fil(modifier)
+        with mock.patch.object(FeuilleService, "contenu_courant", contenu_ralenti):
+            p.start(); m.start(); p.join(60); m.join(60)
+        self.assertEqual(self.erreurs, [])
+        feuille = FeuilleService.objects.get(pk=self.feuille.pk)
+        self.assertEqual(feuille.statut, FeuilleService.STATUT_BROUILLON)
+        self.assertEqual(feuille.versions.count(), 1)
+        self.assertTrue(AuditLog.objects.filter(action="feuille_service_visa_perime").exists())
+
     def test_echange_le_premier_la_publication_perimee_est_refusee(self):
         verrou_pris = threading.Event()
         reel = __import__("quarts.rectificatif", fromlist=["x"]).signaler_divergence
@@ -608,6 +636,124 @@ class VisaPerimeTests(RectificatifBase):
         self.feuille.refresh_from_db()
         self.assertEqual(self.feuille.statut, FeuilleService.STATUT_BROUILLON)
         self.assertEqual(self.feuille.versions.count(), 1)
+
+
+class PublicationControleeTests(RectificatifBase):
+    def _au_visa_comaeq(self):
+        self._echange(self.relais)
+        self.feuille.ouvrir_rectificatif(self.equipier)
+        self.feuille.proposer(self.chef_service)
+        self.feuille.viser_service(self.chef_service)
+
+    def _verifier_refus(self):
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.statut, FeuilleService.STATUT_BROUILLON)
+        self.assertEqual(self.feuille.versions.count(), 1)
+        self.assertIsNone(self.feuille.visa_service_le)
+
+    def test_empreinte_vide_refuse_et_renvoie_en_brouillon(self):
+        self._au_visa_comaeq()
+        FeuilleService.objects.filter(pk=self.feuille.pk).update(empreinte_visee="")
+        self.assertFalse(self.feuille.viser_comaeq(self.etat_major))
+        self._verifier_refus()
+        self.assertTrue(self.feuille.rectificatif_en_cours)
+        self.assertTrue(AuditLog.objects.filter(action="feuille_service_visa_perime").exists())
+        self.assertTrue(Notification.objects.filter(user=self.equipier, verb__contains=MESSAGE_CONTENU_CHANGE).exists())
+
+    def test_empreinte_vide_ne_touche_pas_une_feuille_deja_publiee(self):
+        FeuilleService.objects.filter(pk=self.feuille.pk).update(empreinte_visee="")
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.statut, FeuilleService.STATUT_PUBLIEE)
+        with self.assertRaises(ValueError):
+            self.feuille._publier(self.etat_major)
+        self.feuille.refresh_from_db()
+        self.assertEqual((self.feuille.statut, self.feuille.versions.count()), (FeuilleService.STATUT_PUBLIEE, 1))
+
+    def test_appel_direct_du_service_avec_empreinte_perimee_est_refuse(self):
+        self._au_visa_comaeq()
+        self._echange(self.commandant)
+        self.assertFalse(self.feuille._publier(self.etat_major))
+        self._verifier_refus()
+
+    def test_modification_du_planning_hors_echange_entre_visa_et_publication(self):
+        self._au_visa_comaeq()
+        CreneauServiceGarde.objects.filter(pk=self.creneau.pk).update(marin=self.commandant)
+        self.assertFalse(self.feuille.viser_comaeq(self.etat_major))
+        self._verifier_refus()
+
+    def test_changement_de_configuration_d_alerte_entre_visa_et_publication(self):
+        self._au_visa_comaeq()
+        ScenarioAlerte.objects.filter(pk=self.scenario.pk).update(actif=False)
+        self.assertFalse(self.feuille.viser_comaeq(self.etat_major))
+        self._verifier_refus()
+
+    def test_la_version_figee_est_celle_qui_a_ete_visee(self):
+        self._au_visa_comaeq()
+        visee = self.feuille.empreinte_visee
+        self.assertTrue(self.feuille.viser_comaeq(self.etat_major))
+        from quarts.rectificatif import empreinte_de
+        self.assertEqual(empreinte_de(self.feuille.versions.first().contenu_fige), visee)
+
+    def test_message_unique_partout(self):
+        self._au_visa_comaeq()
+        self._echange(self.commandant)
+        reponse = self._post("etat_major", "viser_comaeq")
+        self.assertEqual(reponse.status_code, 302)
+        self.client.force_login(self.etat_major)
+        textes = [str(m) for m in get_messages(reponse.wsgi_request)]
+        self.assertIn(MESSAGE_CONTENU_CHANGE, textes)
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.motif_retour, MESSAGE_CONTENU_CHANGE)
+        self.assertIn(MESSAGE_CONTENU_CHANGE, AuditLog.objects.get(action="feuille_service_visa_perime").details)
+        self.assertIn(MESSAGE_CONTENU_CHANGE, Notification.objects.get(user=self.equipier, verb__contains="renvoyée").verb)
+
+    # --- jeton de visa signé ---
+    def _poster(self, jeton):
+        self.client.force_login(self.etat_major)
+        return self.client.post(self.url, {"action": "viser_comaeq", "jeton_visa": jeton}, follow=True)
+
+    def _textes(self, reponse):
+        return [str(m) for m in reponse.context["messages"]]
+
+    def test_jeton_nominal(self):
+        self._au_visa_comaeq()
+        self._poster(jeton_visa(self.feuille, self.etat_major))
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.versions.count(), 2)
+
+    def test_jeton_absent_falsifie_ou_d_autrui_refuses_sans_effet(self):
+        self._au_visa_comaeq()
+        valide = jeton_visa(self.feuille, self.etat_major)
+        autre_feuille = FeuilleService.objects.create(ship=self.ship, date=self.jour + timedelta(days=1))
+        for jeton in (
+            "", valide[:-2] + ("AA" if not valide.endswith("AA") else "BB"),
+            jeton_visa(self.feuille, self.commandant), jeton_visa(autre_feuille, self.etat_major),
+        ):
+            reponse = self._poster(jeton)
+            self.assertIn("Formulaire de visa invalide ou expiré. Actualisez la feuille avant de la viser.", self._textes(reponse))
+            self.feuille.refresh_from_db()
+            self.assertEqual(self.feuille.statut, FeuilleService.STATUT_VISA_COMAEQ)
+            self.assertEqual(self.feuille.versions.count(), 1)
+
+    def test_jeton_expire(self):
+        self._au_visa_comaeq()
+        jeton = jeton_visa(self.feuille, self.etat_major)
+        with mock.patch("django.core.signing.time.time", return_value=time.time() + 3600):
+            reponse = self._poster(jeton)
+        self.assertIn("Formulaire de visa invalide ou expiré. Actualisez la feuille avant de la viser.", self._textes(reponse))
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.versions.count(), 1)
+
+    def test_contenu_modifie_apres_affichage(self):
+        self._au_visa_comaeq()
+        self.client.force_login(self.etat_major)
+        from quarts.tests.test_feuille_service import jeton_visa_affiche
+        jeton = jeton_visa_affiche(self.client, self.url)
+        self.assertTrue(jeton)
+        self._echange(self.commandant)
+        reponse = self._poster(jeton)
+        self.assertIn(MESSAGE_CONTENU_CHANGE, self._textes(reponse))
+        self._verifier_refus()
 
 
 class EtatDeDivergencePreserveTests(RectificatifBase):
