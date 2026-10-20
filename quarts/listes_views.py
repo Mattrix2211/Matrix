@@ -24,7 +24,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views import View
 
-from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
+from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import utilisateurs_visibles_par
@@ -692,6 +692,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                     messages.error(request, erreur)
             return
         creneau.save()
+        liste.tracer_modification_creneau(request.user, creneau, ajoute=True)
         messages.success(request, "Créneau ajouté.")
 
     def _supprimer_creneau(self, request, liste):
@@ -703,6 +704,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             return
         if self.fk_attr == "service_garde":
             annuler_echanges_du_creneau(creneau, request.user)
+        liste.tracer_modification_creneau(request.user, creneau, ajoute=False)
         creneau.delete()
         messages.info(request, "Créneau supprimé.")
 
@@ -719,6 +721,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         liste.delai_minimal_echange_heures = delai
         liste.save(update_fields=["delai_minimal_echange_heures", "updated_at"])
         liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=request.POST.getlist("formations_requises")))
+        if liste.statut == liste.STATUT_PUBLIEE:
+            AuditLog.objects.create(
+                actor=request.user, action="liste_service_echanges_regles",
+                details=f"{liste.libelle_type()} #{liste.pk} ({liste.perimetre}) : règles d'échange modifiées (délai {delai} h).",
+            )
         messages.success(request, "Règles d'échange enregistrées.")
 
 

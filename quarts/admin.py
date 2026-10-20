@@ -25,6 +25,26 @@ class ChefDeListeAdmin(AdminScopedMixin, admin.ModelAdmin):
     search_fields = ("user__username",)
 
 
+class TraceCreneauxAdminMixin:
+    """Trace (AuditLog + notification) les créneaux ajoutés ou supprimés
+    depuis l'admin sur une liste publiée."""
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model not in (CreneauQuart, CreneauServiceGarde):
+            return super().save_formset(request, form, formset, change)
+        liste = form.instance
+        instances = formset.save(commit=False)
+        for creneau in formset.deleted_objects:
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=False)
+            creneau.delete()
+        for creneau in instances:
+            nouveau = creneau._state.adding
+            creneau.save()
+            if nouveau:
+                liste.tracer_modification_creneau(request.user, creneau, ajoute=True)
+        formset.save_m2m()
+
+
 class CreneauQuartInline(admin.TabularInline):
     model = CreneauQuart
     extra = 0
@@ -45,7 +65,7 @@ class VersionQuartInline(admin.TabularInline):
 
 
 @admin.register(Quart)
-class QuartAdmin(AdminScopedMixin, admin.ModelAdmin):
+class QuartAdmin(TraceCreneauxAdminMixin, AdminScopedMixin, admin.ModelAdmin):
     list_display = ("nom", "fonction", "ship", "service", "sector", "section", "date_debut", "date_fin", "statut")
     list_filter = ("statut", "fonction", "ship", "service", "sector")
     inlines = [CreneauQuartInline, VersionQuartInline]
@@ -70,7 +90,7 @@ class VersionServiceGardeInline(admin.TabularInline):
 
 
 @admin.register(ServiceGarde)
-class ServiceGardeAdmin(AdminScopedMixin, admin.ModelAdmin):
+class ServiceGardeAdmin(TraceCreneauxAdminMixin, AdminScopedMixin, admin.ModelAdmin):
     list_display = ("nom", "fonction", "type_service", "ship", "service", "sector", "section", "date_debut", "date_fin", "statut")
     list_filter = ("statut", "fonction", "ship", "service", "sector")
     inlines = [CreneauServiceGardeInline, VersionServiceGardeInline]
