@@ -11,6 +11,7 @@ import json
 import logging
 
 from django.contrib.auth import get_user_model
+from django.core import signing
 from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
@@ -87,13 +88,41 @@ def notifier_rectificatif(feuille, version, remplace, redacteur):
         Notification.objects.create(user=destinataire, verb=verb, level=NotificationLevel.INFO, url=url)
 
 
-def empreinte_contenu(feuille):
-    """Empreinte des affectations et alertes effectives (identifiants des marins, pas leurs noms)."""
-    contenu = feuille.contenu_courant()
+MESSAGE_CONTENU_CHANGE = (
+    "Une information a changé depuis le visa. Actualisez la feuille et procédez à une nouvelle validation."
+)
+SEL_JETON_VISA = "quarts.visa_comaeq"
+DUREE_JETON_VISA = 30 * 60
+
+
+def empreinte_de(contenu):
+    """Empreinte des affectations et alertes d'un contenu (identifiants des marins, pas leurs noms)."""
     base = [[e["uid"], e["marin_id"]] for e in contenu["personnel"]] + [
         [s["scenario"], p["role"], p["marin_id"]] for s in contenu["alertes"] for p in s["postes"]
     ]
     return hashlib.sha1(json.dumps(base).encode()).hexdigest()
+
+
+def empreinte_contenu(feuille):
+    return empreinte_de(feuille.contenu_courant())
+
+
+def jeton_visa(feuille, user):
+    """Valeur signée côté serveur : contenu affiché au COMAEQ, liée à la feuille et à l'utilisateur."""
+    return signing.dumps(
+        {"f": feuille.pk, "u": user.pk, "e": empreinte_contenu(feuille)}, salt=SEL_JETON_VISA,
+    )
+
+
+def empreinte_du_jeton(jeton, feuille, user):
+    """Empreinte signée, ou None si la signature est absente, falsifiée, expirée ou d'une autre feuille/utilisateur."""
+    try:
+        donnees = signing.loads(jeton or "", salt=SEL_JETON_VISA, max_age=DUREE_JETON_VISA)
+    except signing.BadSignature:
+        return None
+    if donnees.get("f") != feuille.pk or donnees.get("u") != user.pk:
+        return None
+    return donnees.get("e")
 
 
 def signaler_divergence(feuille):

@@ -53,7 +53,7 @@ from .models import (
     peut_voir_travail_feuille,
     personnel_du_jour,
 )
-from .rectificatif import divergences_effectives
+from .rectificatif import MESSAGE_CONTENU_CHANGE, divergences_effectives, empreinte_du_jeton, jeton_visa
 
 
 def _navires_disponibles_feuille_service(user):
@@ -223,6 +223,11 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
                 and peut_viser_comaeq(request.user, feuille)
             ),
+            "jeton_visa": (
+                jeton_visa(feuille, request.user)
+                if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
+                and peut_viser_comaeq(request.user, feuille) else ""
+            ),
             "comaeq_titulaire": (
                 titulaire_comaeq(feuille)
                 if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ else None
@@ -340,16 +345,17 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         elif action == "viser_comaeq":
             if feuille.statut != FeuilleService.STATUT_VISA_COMAEQ or not peut_viser_comaeq(request.user, feuille):
                 raise PermissionDenied
-            if feuille.viser_comaeq(request.user):
+            empreinte = empreinte_du_jeton(request.POST.get("jeton_visa"), feuille, request.user)
+            if empreinte is None:
+                messages.error(
+                    request, "Formulaire de visa invalide ou expiré. Actualisez la feuille avant de la viser."
+                )
+            elif feuille.viser_comaeq(request.user, empreinte):
                 messages.success(
                     request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
                 )
             else:
-                messages.error(
-                    request,
-                    "Les affectations ont changé depuis les visas : publication refusée, les visas sont invalidés "
-                    "et la feuille repasse en brouillon pour être revisée.",
-                )
+                messages.error(request, MESSAGE_CONTENU_CHANGE)
         elif action == "renvoyer":
             verificateur = {
                 FeuilleService.STATUT_VISA_SECTEUR: peut_viser_secteur,

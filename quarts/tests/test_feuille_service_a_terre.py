@@ -7,6 +7,7 @@ from django.utils import timezone
 from accounts.models import AuditLog, UserProfile
 from matrix.core.equipage import decider_releve, proposer_releve
 from org.models import Sector, Service, Ship
+from quarts.tests.test_feuille_service import jeton_visa_affiche
 from quarts.models import FeuilleService, RubriqueEnTeteFeuilleService, peut_viser_comaeq, peut_viser_secteur, peut_viser_service
 
 
@@ -37,6 +38,8 @@ class FeuilleParEquipageTests(TestCase):
 
     def _post(self, nom, action, suffixe="", **donnees):
         self.client.force_login(User.objects.get(username=nom))
+        if action == "viser_comaeq" and "jeton_visa" not in donnees:
+            donnees["jeton_visa"] = jeton_visa_affiche(self.client, self.url + suffixe)
         return self.client.post(self.url + suffixe, {"action": action, **donnees})
 
     def _feuille(self, e):

@@ -1377,48 +1377,46 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         from .rectificatif import empreinte_contenu
         return empreinte_contenu(self)
 
-    def viser_comaeq(self, user):
-        """Dernier visa : vaut publication immédiate, un seul clic — aucun
-        acteur distinct n'intervient entre le visa COMAEQ et la publication
-        d'après le circuit décrit par Matthis (CLAUDE.md §2). Refusé (False) si
-        les affectations ou alertes ont changé depuis le dernier visa : la
-        feuille repasse en brouillon, jamais de publication d'un contenu non visé."""
+    def viser_comaeq(self, user, empreinte_affichee=None):
+        """Dernier visa : vaut publication immédiate, un seul clic. Retourne False
+        si la publication est refusée (cf. _publier)."""
+        return self._publier(user, empreinte_affichee)
+
+    def _publier(self, user, empreinte_affichee=None):
+        """Visa COMAEQ et publication, pour tous les appelants. Sous le verrou de la
+        feuille, les données sont relues, UNE représentation du contenu est
+        construite, son empreinte doit être celle du dernier visa valide (et celle
+        affichée au COMAEQ si elle est fournie) ; cette même représentation est figée
+        dans la version. Sinon : aucune version, visas invalidés, retour en brouillon,
+        retourne False. Limite : une source (tour, configuration d'alerte) modifiée et
+        validée après la seconde lecture et avant la fin de la transaction n'est pas
+        bloquée (pas de verrou sur les sources) ; l'écart serait signalé ensuite."""
+        from .rectificatif import empreinte_de
         with transaction.atomic():
-            verrou = FeuilleService.objects.select_for_update().get(pk=self.pk)
-            if verrou.empreinte_visee and verrou.empreinte_visee != self._empreinte_contenu():
-                AuditLog.objects.create(
-                    actor=user, action="feuille_service_visa_perime",
-                    details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : affectations modifiées depuis "
-                            "les visas, publication refusée et visas invalidés.",
-                )
-                self.renvoyer(
-                    user, "Les affectations ont changé depuis les visas : la feuille doit être revisée.",
-                )
+            FeuilleService.objects.select_for_update().get(pk=self.pk)
+            self.refresh_from_db(fields=["statut", "valeurs_entete", "structure_figee", "empreinte_visee", "rectificatif_ouvert_par"])
+            if self.statut != self.STATUT_VISA_COMAEQ:
+                raise ValueError("Cette feuille n'attend pas de publication.")
+            contenu = self.contenu_courant()
+            empreinte = empreinte_de(contenu)
+            if (
+                not self.empreinte_visee or self.empreinte_visee != empreinte
+                or (empreinte_affichee is not None and empreinte_affichee != empreinte)
+                or empreinte_de(self.contenu_courant()) != empreinte  # source modifiée pendant la lecture
+            ):
+                self._refuser_visa_perime(user)
                 return False
+            remplace = self.version_publiee if self.rectificatif_en_cours else None
+            redacteur = self.redacteur
             self.visa_comaeq_le = timezone.now()
             self.visa_comaeq_par = user
             exceptionnel = not titulaires_comaeq(self).filter(pk=user.pk).exists()
-            if exceptionnel:
-                AuditLog.objects.create(
-                    actor=user, action="feuille_service_visa_comaeq_exceptionnel",
-                    details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
-                            "visa exceptionnel du commandant.",
-                )
-            else:
-                AuditLog.objects.create(
-                    actor=user, action="feuille_service_visa_comaeq",
-                    details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le COMAEQ.",
-                )
-            self._publier(user, visa_exceptionnel=exceptionnel)
-        return True
-
-    def _publier(self, user, visa_exceptionnel=False):
-        # Statut, version et audit passent ensemble ou pas du tout. Le verrou de la
-        # ligne sérialise la lecture du planning avec la validation d'un échange.
-        with transaction.atomic():
-            FeuilleService.objects.select_for_update().filter(pk=self.pk).first()
-            remplace = self.version_publiee if self.rectificatif_en_cours else None
-            redacteur = self.redacteur
+            AuditLog.objects.create(
+                actor=user,
+                action="feuille_service_visa_comaeq_exceptionnel" if exceptionnel else "feuille_service_visa_comaeq",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : "
+                        + ("poste de COMAEQ vacant, visa exceptionnel du commandant." if exceptionnel else "visée par le COMAEQ."),
+            )
             self.statut = self.STATUT_PUBLIEE
             self.publiee_le = timezone.now()
             self.publiee_par = user
@@ -1428,7 +1426,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 "statut", "visa_comaeq_le", "visa_comaeq_par", "publiee_le", "publiee_par",
                 "rectificatif_ouvert_par", "divergence_signalee", "updated_at",
             ])
-            version = self.creer_version(user, visa_exceptionnel, remplace)
+            version = self.creer_version(user, exceptionnel, remplace, contenu)
             AuditLog.objects.create(
                 actor=user,
                 action="feuille_service_rectificatif_publie" if remplace is not None else "feuille_service_publiee",
@@ -1448,6 +1446,17 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                 )
         from .alertes import signaler_postes_non_armes
         signaler_postes_non_armes(self, user)
+        return True
+
+    def _refuser_visa_perime(self, user):
+        """Contenu différent de celui visé : les visas sont invalidés (retour en brouillon, historique conservé)."""
+        from .rectificatif import MESSAGE_CONTENU_CHANGE
+        AuditLog.objects.create(
+            actor=user, action="feuille_service_visa_perime",
+            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : publication refusée, visas "
+                    f"invalidés. {MESSAGE_CONTENU_CHANGE}",
+        )
+        self.renvoyer(user, MESSAGE_CONTENU_CHANGE)
 
     CHAMPS_CIRCUIT = (
         "statut", "visa_secteur_le", "visa_secteur_par", "visa_service_le", "visa_service_par",
@@ -1521,13 +1530,14 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             "alertes": figer_alertes(etat_alertes(self.ship, self.date, self.equipage)),
         }
 
-    def creer_version(self, user, visa_exceptionnel=False, remplace=None):
+    def creer_version(self, user, visa_exceptionnel=False, remplace=None, contenu=None):
         """Fige un instantané horodaté de l'en-tête, du personnel de service et
         des alertes au moment de la publication (cahier des charges §31) — cf.
         commentaire de section sur le choix de ne pas réutiliser
-        VersionListeAbstract tel quel. `remplace` : version que ce rectificatif remplace."""
+        VersionListeAbstract tel quel. `remplace` : version que ce rectificatif remplace ;
+        `contenu` : représentation déjà construite à figer telle quelle."""
         dernier_numero = self.versions.aggregate(models.Max("numero"))["numero__max"] or 0
-        contenu = {**self.contenu_courant(), "visa_exceptionnel": visa_exceptionnel}
+        contenu = {**(contenu or self.contenu_courant()), "visa_exceptionnel": visa_exceptionnel}
         return self.versions.create(
             numero=dernier_numero + 1, publiee_le=timezone.now(), publiee_par=user, contenu_fige=contenu,
             remplace_numero=remplace.numero if remplace is not None else None,

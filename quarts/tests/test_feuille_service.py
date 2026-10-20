@@ -3,6 +3,7 @@ service quotidienne — personnel de service et en-tête (à quai) ») : personn
 calculé automatiquement depuis les tours publiés, circuit de visa à 3
 paliers (secteur -> service -> COMAEQ), historique des versions,
 notifications et permissions."""
+import re
 from datetime import datetime, timedelta
 
 from django.contrib.auth.models import User
@@ -23,6 +24,13 @@ from quarts.models import (
     peut_viser_service,
     personnel_du_jour,
 )
+
+
+def jeton_visa_affiche(client, url):
+    """Jeton signé du formulaire de visa COMAEQ tel que rendu à l'utilisateur connecté (vide s'il n'y a pas de formulaire)."""
+    page = client.get(url)
+    trouve = re.search(r'name="jeton_visa" value="([^"]*)"', page.content.decode()) if page.status_code == 200 else None
+    return trouve.group(1) if trouve else ""
 
 
 def _utilisateur(username, role, ship=None, service=None, sector=None):
@@ -234,7 +242,7 @@ class WebViewsFeuilleServiceTests(FeuilleServiceTestsBase):
         self.assertEqual(FeuilleService.objects.get().statut, FeuilleService.STATUT_VISA_COMAEQ)
 
         self.client.login(username="etat_major", password="pass")
-        r = self.client.post(self.url, {"action": "viser_comaeq"})
+        r = self.client.post(self.url, {"action": "viser_comaeq", "jeton_visa": jeton_visa_affiche(self.client, self.url)})
         self.assertEqual(r.status_code, 302, r.content)
         self.assertEqual(FeuilleService.objects.get().statut, FeuilleService.STATUT_PUBLIEE)
 

@@ -71,11 +71,16 @@ class PublicationTests(AlertesBase):
     def _feuille(self):
         return FeuilleService.objects.create(ship=self.ship, date=self.jour, created_by=self.equipier)
 
+    def _publier(self, feuille):
+        feuille.proposer(self.commandant)
+        feuille.viser_service(self.commandant)
+        feuille.viser_comaeq(self.commandant)
+
     def test_publication_signale_les_postes_non_armes_sans_reaffecter(self):
         coma = _utilisateur("coma_eq", "ETAT_MAJOR", ship=self.ship)
         UserProfile.objects.filter(user=coma).update(fonction_coma="COMAEQ")
         feuille = self._feuille()
-        feuille.viser_comaeq(self.commandant)
+        self._publier(feuille)
         self.assertTrue(Notification.objects.filter(user=coma, verb__contains="non armés").exists())
         self.assertTrue(Notification.objects.filter(user=self.equipier, verb__contains="non armés").exists())
         self.assertTrue(AuditLog.objects.filter(action="feuille_service_postes_alerte_non_armes").exists())
@@ -83,13 +88,13 @@ class PublicationTests(AlertesBase):
 
     def test_publication_sans_probleme_ne_notifie_pas(self):
         self._publier_tour(marin=self.marin_service)
-        self._feuille().viser_comaeq(self.commandant)
+        self._publier(self._feuille())
         self.assertFalse(AuditLog.objects.filter(action="feuille_service_postes_alerte_non_armes").exists())
 
     def test_version_figee_contient_les_alertes(self):
         self._publier_tour(marin=self.marin_service)
         feuille = self._feuille()
-        feuille.viser_comaeq(self.commandant)
+        self._publier(feuille)
         figees = feuille.versions.first().contenu_fige["alertes"]
         self.assertEqual(figees[0]["scenario"], "Alerte intrus")
         self.assertIn("marin_service", figees[0]["postes"][0]["marin"])

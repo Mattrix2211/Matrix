@@ -27,7 +27,7 @@ from quarts.models import (
 from django.core.management import call_command
 from quarts.rectificatif import divergences_effectives, signaler_divergence
 from quarts.services import feuille_service_du_jour_pour
-from quarts.tests.test_feuille_service import FeuilleServiceTestsBase, _utilisateur
+from quarts.tests.test_feuille_service import FeuilleServiceTestsBase, _utilisateur, jeton_visa_affiche
 
 
 class RectificatifBase(FeuilleServiceTestsBase):
@@ -58,7 +58,10 @@ class RectificatifBase(FeuilleServiceTestsBase):
 
     def _post(self, username, action):
         self.client.force_login(User.objects.get(username=username))
-        return self.client.post(self.url, {"action": action})
+        donnees = {"action": action}
+        if action == "viser_comaeq":
+            donnees["jeton_visa"] = jeton_visa_affiche(self.client, self.url)
+        return self.client.post(self.url, donnees)
 
     def _circuit_rectificatif(self):
         self._post("bsc", "proposer")
@@ -577,7 +580,7 @@ class VisaPerimeTests(RectificatifBase):
         self.assertEqual(self.feuille.empreinte_visee, "")
         self.assertEqual(self.feuille.versions.count(), 1)
         self.assertTrue(AuditLog.objects.filter(action="feuille_service_visa_perime").exists())
-        self.assertTrue(Notification.objects.filter(user=self.equipier, verb__icontains="revisée").exists())
+        self.assertTrue(Notification.objects.filter(user=self.equipier, verb__icontains="Une information a changé depuis le visa").exists())
         self.feuille.proposer(self.chef_service)
         self.feuille.viser_service(self.chef_service)
         self.assertTrue(self.feuille.viser_comaeq(self.etat_major))
@@ -718,7 +721,10 @@ class DoubleEquipageRectificatifTests(TestCase):
 
     def _post(self, nom, action, suffixe=""):
         self.client.force_login(self.marins[nom])
-        return self.client.post(self.url + suffixe, {"action": action})
+        donnees = {"action": action}
+        if action == "viser_comaeq":
+            donnees["jeton_visa"] = jeton_visa_affiche(self.client, self.url + suffixe)
+        return self.client.post(self.url + suffixe, donnees)
 
     def _echange(self, e):
         c = self.creneaux[e]

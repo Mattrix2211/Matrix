@@ -274,7 +274,7 @@
     {% endif %}
     {% if peut_viser_comaeq %}
     <form method="post" class="d-inline" onsubmit="return confirm('Viser en tant que COMAEQ et publier la feuille ? La fraction de service sera notifiée.');">
-      {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq"><input type="hidden" name="jeton_visa" value="{{ jeton_visa }}">
       <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Viser et publier (COMAEQ)</button>
     </form>
     {% endif %}
