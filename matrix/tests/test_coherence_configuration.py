@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.db import connection
+from django.db.models.signals import pre_save
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -206,6 +207,30 @@ class CheminsDeModificationTests(TestCase):
         RoleThresholdConfig.objects.filter(pk=config.pk).update(ship=self.ship)
         self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
         self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT_EN_SECOND)
+
+    def test_lecteur_intercale_avant_l_ecriture_d_un_changement_de_navire(self):
+        # Un lecteur passe entre le pre_save et l'UPDATE : il ne doit pas figer l'ancienne
+        # donnée de l'ancien navire sous une version déjà incrémentée.
+        config = RoleThresholdConfig.objects.create(ship=self.ship, thresholds={ACTION: "COMMANDANT"})
+        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)
+
+        def lecteur(sender, instance, **kwargs):
+            self.assertEqual(self.seuil(), RoleLevel.COMMANDANT)  # base encore inchangée
+
+        pre_save.connect(lecteur, sender=RoleThresholdConfig)
+        self.addCleanup(pre_save.disconnect, lecteur, sender=RoleThresholdConfig)
+        config.ship = self.autre
+        config.save()
+        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT)
+
+    def test_bulk_update_avec_changement_de_navire(self):
+        config = RoleThresholdConfig.objects.create(ship=self.ship, thresholds={ACTION: "COMMANDANT"})
+        self.chauffer()
+        config.ship = self.autre
+        RoleThresholdConfig.objects.bulk_update([config], ["ship"])
+        self.assertEqual(self.seuil(), RoleLevel.COMMANDANT_EN_SECOND)
+        self.assertEqual(self.seuil(self.autre), RoleLevel.COMMANDANT)
 
     def test_chargement_de_fixture(self):
         self.chauffer()

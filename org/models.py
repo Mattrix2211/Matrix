@@ -167,9 +167,12 @@ class ConfigurationQuerySet(models.QuerySet):
         return objs
 
     def bulk_update(self, objs, *args, **kwargs):
+        objs = list(objs)
         with transaction.atomic():
+            anciens = self.model.objects.filter(pk__in=[o.pk for o in objs]).values_list("ship_id", flat=True)
+            ship_ids = {o.ship_id for o in objs} | set(anciens)
             lignes = super().bulk_update(objs, *args, **kwargs)
-            self._versionner(o.ship_id for o in objs)
+            self._versionner(ship_ids)
         return lignes
 
 
@@ -250,13 +253,13 @@ CLES_VERSION = {RoleThresholdConfig: cle_seuils, ModuleActivation: cle_modules}
 
 @receiver(pre_save, sender=RoleThresholdConfig)
 @receiver(pre_save, sender=ModuleActivation)
-def versionner_ancien_navire(sender, instance, raw=False, **kwargs):
-    """Une ligne rattachée à un autre navire (admin) invalide aussi l'ancien."""
-    if raw or instance.pk is None:
-        return
-    anciens = list(sender.objects.filter(pk=instance.pk).values_list("ship_id", flat=True))
-    if anciens and anciens[0] != instance.ship_id:
-        incrementer(CLES_VERSION[sender](anciens[0]))
+def memoriser_ancien_navire(sender, instance, raw=False, **kwargs):
+    """Retient le navire d'origine : il est versionné après l'écriture (post_save)."""
+    instance._ancien_ship_id = None
+    if not raw and instance.pk is not None:
+        anciens = list(sender.objects.filter(pk=instance.pk).values_list("ship_id", flat=True))
+        if anciens and anciens[0] != instance.ship_id:
+            instance._ancien_ship_id = (anciens[0],)
 
 
 @receiver(post_save, sender=RoleThresholdConfig)
@@ -264,7 +267,12 @@ def versionner_ancien_navire(sender, instance, raw=False, **kwargs):
 @receiver(post_save, sender=ModuleActivation)
 @receiver(post_delete, sender=ModuleActivation)
 def versionner_configuration(sender, instance, **kwargs):
+    # Toujours APRÈS l'écriture : un lecteur ne peut pas figer l'ancienne donnée sous la nouvelle version.
     incrementer(CLES_VERSION[sender](instance.ship_id))
+    ancien = getattr(instance, "_ancien_ship_id", None)
+    if ancien:
+        incrementer(CLES_VERSION[sender](ancien[0]))
+        instance._ancien_ship_id = None
 
 
 class ResponsableClasseNavire(TimeStampedModel):
