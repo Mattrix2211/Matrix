@@ -21,8 +21,7 @@ avant — aucune régression.
 """
 from dataclasses import dataclass
 
-from django.core.cache import cache
-
+from .config_version import cle_seuils, incrementer, valeurs_validees
 from .roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel
 
 PORTEE_NAVIRE = "SHIP"
@@ -226,32 +225,23 @@ REGISTRE_ACTIONS = [
 REGISTRE_PAR_CLE = {a.cle: a for a in REGISTRE_ACTIONS}
 
 
-def _cache_key(ship_id):
-    return f"seuils_role:{ship_id if ship_id is not None else 'global'}"
-
-
 def invalidate_cache(ship_id):
-    """Invalide le cache des seuils d'un navire (ou de la configuration
-    globale si ship_id est None) — à appeler après tout enregistrement
-    d'une RoleThresholdConfig."""
-    cache.delete(_cache_key(ship_id))
+    """Force la revalidation des seuils d'un navire (ou de la configuration
+    globale si ship_id est None) dans tous les processus. Inutile après un
+    enregistrement : la version est incrémentée automatiquement."""
+    incrementer(cle_seuils(ship_id))
 
 
 def _thresholds_for(ship_id):
     """Dictionnaire {cle_action: 'NOM_ROLE'} pour le navire donné (ou pour
-    la configuration globale si ship_id est None), avec cache : un seuil de
-    rôle change rarement, inutile de re-requêter la base à chaque contrôle
-    de permission. Pas d'expiration : le cache est invalidé explicitement
-    (invalidate_cache) à chaque sauvegarde de configuration."""
-    cle = _cache_key(ship_id)
-    valeurs = cache.get(cle)
-    if valeurs is not None:
-        return valeurs
-    from org.models import RoleThresholdConfig
-    config = RoleThresholdConfig.objects.filter(ship_id=ship_id).first()
-    valeurs = dict(config.thresholds) if config else {}
-    cache.set(cle, valeurs, None)
-    return valeurs
+    la configuration globale si ship_id est None), en cache local validé par
+    la version en base (cf. config_version.py)."""
+    def charger():
+        from org.models import RoleThresholdConfig
+        config = RoleThresholdConfig.objects.filter(ship_id=ship_id).first()
+        return dict(config.thresholds) if config else {}
+
+    return valeurs_validees(cle_seuils(ship_id), charger)
 
 
 def seuil_role(cle_action, ship_id=None):

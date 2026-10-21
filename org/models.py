@@ -1,9 +1,14 @@
-from django.db import models
+import uuid
+
+from django.db import models, transaction
+from django.db.models.signals import post_delete, post_save, pre_save
+from django.dispatch import receiver
 from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import JSONField
+from matrix.core.config_version import cle_modules, cle_seuils, incrementer
 from matrix.core.models import TimeStampedModel
 
 User = get_user_model()
@@ -118,6 +123,64 @@ class SectorConfig(TimeStampedModel):
         return f"Config {self.sector}"
 
 
+class VersionConfiguration(models.Model):
+    """Version d'un réglage mis en cache (seuils ou modules d'un navire).
+
+    Incrémentée à chaque modification du réglage : les processus invalident leur
+    cache local dès qu'elle change (matrix/core/config_version.py). Une ligne
+    absente vaut version 0."""
+    cle = models.CharField(max_length=64, unique=True)
+    valeur = models.BigIntegerField(default=0)
+    jeton = models.UUIDField(default=uuid.uuid4)
+
+    class Meta:
+        verbose_name = "Version de configuration"
+        verbose_name_plural = "Versions de configuration"
+
+    def __str__(self):
+        return f"{self.cle} = {self.valeur}"
+
+
+class ConfigurationQuerySet(models.QuerySet):
+    """Les écritures en masse ne déclenchent aucun signal : elles incrémentent
+    elles-mêmes la version, dans la même transaction."""
+    fonction_cle = None  # définie par chaque modèle : cle_seuils ou cle_modules
+
+    def _versionner(self, ship_ids):
+        for ship_id in set(ship_ids):
+            incrementer(self.fonction_cle(ship_id))
+
+    def update(self, **kwargs):
+        with transaction.atomic():
+            ship_ids = set(self.values_list("ship_id", flat=True))
+            nouveau = kwargs.get("ship_id", kwargs.get("ship"))
+            if "ship_id" in kwargs or "ship" in kwargs:
+                ship_ids.add(getattr(nouveau, "pk", nouveau))
+            lignes = super().update(**kwargs)
+            self._versionner(ship_ids)
+        return lignes
+
+    def bulk_create(self, objs, *args, **kwargs):
+        with transaction.atomic():
+            objs = super().bulk_create(objs, *args, **kwargs)
+            self._versionner(o.ship_id for o in objs)
+        return objs
+
+    def bulk_update(self, objs, *args, **kwargs):
+        with transaction.atomic():
+            lignes = super().bulk_update(objs, *args, **kwargs)
+            self._versionner(o.ship_id for o in objs)
+        return lignes
+
+
+class SeuilsQuerySet(ConfigurationQuerySet):
+    fonction_cle = staticmethod(cle_seuils)
+
+
+class ModulesQuerySet(ConfigurationQuerySet):
+    fonction_cle = staticmethod(cle_modules)
+
+
 class RoleThresholdConfig(TimeStampedModel):
     """Seuils de rôle minimal requis par action, configurables par navire.
 
@@ -142,6 +205,8 @@ class RoleThresholdConfig(TimeStampedModel):
         Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="role_threshold_config"
     )
     thresholds = JSONField(default=dict, blank=True)
+
+    objects = SeuilsQuerySet.as_manager()
 
     class Meta:
         verbose_name = "Configuration des seuils de rôle"
@@ -169,6 +234,8 @@ class ModuleActivation(TimeStampedModel):
     module = models.CharField(max_length=50, verbose_name="Module")
     active = models.BooleanField(default=True)
 
+    objects = ModulesQuerySet.as_manager()
+
     class Meta:
         unique_together = ("ship", "module")
         verbose_name = "Activation de module"
@@ -176,6 +243,28 @@ class ModuleActivation(TimeStampedModel):
 
     def __str__(self):
         return f"{self.ship} — {self.module} ({'activé' if self.active else 'désactivé'})"
+
+
+CLES_VERSION = {RoleThresholdConfig: cle_seuils, ModuleActivation: cle_modules}
+
+
+@receiver(pre_save, sender=RoleThresholdConfig)
+@receiver(pre_save, sender=ModuleActivation)
+def versionner_ancien_navire(sender, instance, raw=False, **kwargs):
+    """Une ligne rattachée à un autre navire (admin) invalide aussi l'ancien."""
+    if raw or instance.pk is None:
+        return
+    anciens = list(sender.objects.filter(pk=instance.pk).values_list("ship_id", flat=True))
+    if anciens and anciens[0] != instance.ship_id:
+        incrementer(CLES_VERSION[sender](anciens[0]))
+
+
+@receiver(post_save, sender=RoleThresholdConfig)
+@receiver(post_delete, sender=RoleThresholdConfig)
+@receiver(post_save, sender=ModuleActivation)
+@receiver(post_delete, sender=ModuleActivation)
+def versionner_configuration(sender, instance, **kwargs):
+    incrementer(CLES_VERSION[sender](instance.ship_id))
 
 
 class ResponsableClasseNavire(TimeStampedModel):
