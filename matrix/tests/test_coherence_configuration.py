@@ -2,13 +2,15 @@
 est vue dès la lecture suivante par tous les processus, par tous les chemins
 de modification (version de configuration, matrix/core/config_version.py)."""
 import json
-import multiprocessing
 import os
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from unittest import mock
 
 from celery import shared_task
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.db import connection
@@ -20,32 +22,33 @@ from matrix.core.config_version import _contexte, cle_modules, cle_seuils, ferme
 from matrix.core.modules import module_actif
 from matrix.core.role_thresholds import seuil_role
 from matrix.core.roles import RoleLevel
-from matrix.tests.processus_config import serveur
 from org.models import ModuleActivation, RoleThresholdConfig, Ship, VersionConfiguration
 
 ACTION = "module_gestion"  # défaut : NIVEAU_VISION_COMMANDEMENT (6)
 
 
 class ProcessusIndependant:
-    """Pilote un vrai processus Python/Django (spawn), avec son propre cache local."""
+    """Pilote un vrai processus Python/Django, avec son propre cache local."""
 
-    def __init__(self, contexte):
-        self.parent, enfant = contexte.Pipe()
-        self.processus = contexte.Process(target=serveur, args=(enfant,), daemon=True)
-        self.processus.start()
+    def __init__(self):
+        self.processus = subprocess.Popen(
+            [sys.executable, "-m", "matrix.tests.processus_config"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, cwd=settings.BASE_DIR,
+        )
 
     def __call__(self, nom, *args, en_tache=False):
-        self.parent.send((nom, args, en_tache))
-        if not self.parent.poll(300):
-            raise TimeoutError(nom)
-        statut, resultat = self.parent.recv()
+        self.processus.stdin.write(json.dumps([nom, args, en_tache]) + "\n")
+        self.processus.stdin.flush()
+        statut, resultat = json.loads(self.processus.stdout.readline())
         if statut != "ok":
             raise AssertionError(resultat)
         return resultat
 
     def arreter(self):
-        self.parent.send(("arreter", (), False))
-        self.processus.join(30)
+        self.processus.stdin.write(json.dumps(["arreter", [], False]) + "\n")
+        self.processus.stdin.close()
+        self.processus.wait(30)
+        self.processus.stdout.close()
 
 
 class DeuxProcessusTests(SimpleTestCase):
@@ -64,9 +67,8 @@ class DeuxProcessusTests(SimpleTestCase):
         patch = mock.patch.dict(os.environ, env)
         patch.start()
         cls.addClassCleanup(patch.stop)
-        contexte = multiprocessing.get_context("spawn")
-        cls.a = ProcessusIndependant(contexte)
-        cls.b = ProcessusIndependant(contexte)
+        cls.a = ProcessusIndependant()
+        cls.b = ProcessusIndependant()
         cls.addClassCleanup(cls.a.arreter)
         cls.addClassCleanup(cls.b.arreter)
         cls.b("preparer")

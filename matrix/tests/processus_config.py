@@ -1,10 +1,13 @@
-"""Processus Django indépendant, piloté par le test de cohérence multi-processus.
+"""Processus Django indépendant, piloté par le test de cohérence multi-processus
+(lignes JSON sur stdin/stdout ; `python -m matrix.tests.processus_config`).
 
 Chaque commande reçue s'exécute comme une requête (ou une tâche Celery) : le
 cache local du processus est donc celui d'un vrai worker web ou Celery."""
 
 
-def serveur(connexion):
+def serveur(entree, sortie):
+    import json
+
     import django
 
     django.setup()
@@ -44,8 +47,8 @@ def serveur(connexion):
         "creer_navire": creer_navire, "lire_seuil": lire_seuil, "ecrire_seuil": ecrire_seuil, "lire_module": lire_module,
         "basculer_module": basculer_module, "nettoyer": nettoyer,
     }
-    while True:
-        nom, args, en_tache = connexion.recv()
+    for ligne in entree:
+        nom, args, en_tache = json.loads(ligne)
         if nom == "arreter":
             return
         try:
@@ -63,6 +66,16 @@ def serveur(connexion):
                         task_postrun.send(sender=None)
                     else:
                         fermer_contexte()
-            connexion.send(("ok", resultat))
+            reponse = ["ok", resultat]
         except Exception as erreur:  # remonté au test parent
-            connexion.send(("erreur", repr(erreur)))
+            reponse = ["erreur", repr(erreur)]
+        sortie.write(json.dumps(reponse) + "\n")
+        sortie.flush()
+
+
+if __name__ == "__main__":
+    import sys
+
+    canal = sys.stdout
+    sys.stdout = sys.stderr  # l'affichage éventuel ne doit pas polluer le canal de réponses
+    serveur(sys.stdin, canal)
