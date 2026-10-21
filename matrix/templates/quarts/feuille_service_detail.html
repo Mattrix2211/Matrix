@@ -63,6 +63,25 @@
 <div class="alert alert-warning"><i class="bi bi-arrow-counterclockwise"></i> Renvoyée pour correction : {{ feuille.motif_retour }}</div>
 {% endif %}
 
+{% if version_de_reference %}
+<div class="alert alert-info"><i class="bi bi-info-circle"></i> Feuille publiée avant l'historisation : l'en-tête et le personnel affichés sont ceux figés dans la version {{ version_de_reference.numero }} ({{ version_de_reference.publiee_le|date:"d/m/Y à H:i" }}). Un échange de service ultérieur n'y apparaît pas.</div>
+{% elif feuille and feuille.sans_instantane %}
+<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Feuille antérieure à l'historisation, sans version conservée : sa structure d'origine est inconnue, l'affichage suit les réglages actuels du bâtiment et ne prouve pas ce qui a été diffusé.</div>
+{% endif %}
+{% if structure_divergente %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <span><i class="bi bi-exclamation-triangle"></i> Les rubriques ou fonctions du bâtiment ont changé depuis {% if feuille.structure_figee.origine == 'migration' %}la migration (cette feuille a été figée sur les réglages de cette date, pas sur sa structure d'origine){% else %}la création de cette feuille{% endif %}. {% if feuille.statut == 'BROUILLON' %}Elle garde sa structure tant que vous ne la resynchronisez pas ; les saisies des rubriques conservées sont gardées.{% else %}Elle garde sa structure : pour la mettre à jour, renvoyez-la en brouillon puis resynchronisez-la.{% endif %}</span>
+  {% if peut_gerer_brouillon %}
+  <form method="post" onsubmit="return confirm('Resynchroniser la structure du brouillon avec les réglages actuels ?');">
+    {% csrf_token %}<input type="hidden" name="action" value="resynchroniser">
+    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-repeat"></i> Resynchroniser</button>
+  </form>
+  {% endif %}
+</div>
+{% elif feuille.structure_figee.origine == 'migration' and feuille.statut != 'PUBLIEE' %}
+<div class="alert alert-info"><i class="bi bi-info-circle"></i> Structure figée à la date de la migration d'après les réglages d'alors, pas d'après la structure d'origine de la feuille.</div>
+{% endif %}
+
 <div class="row g-4 mt-1">
   <div class="col-lg-6">
     <h2 class="h5">En-tête</h2>
@@ -77,7 +96,7 @@
           {% if e.rubrique.type_saisie == 'FIXE' %}
           <div class="font-mono">{{ e.valeur|default:"—" }} <span class="text-muted small">(valeur fixe du navire)</span></div>
           {% else %}
-          <input type="text" name="rubrique_{{ e.rubrique.pk }}" value="{{ e.valeur }}" class="form-control form-control-sm">
+          <input type="text" name="rubrique_{{ e.rubrique.uid }}" value="{{ e.valeur }}" class="form-control form-control-sm">
           {% endif %}
         </div>
         {% empty %}
@@ -114,6 +133,8 @@
                 {% if e.creneau and e.creneau.marin %}
                   {{ e.creneau.marin.profile.grade }} {{ e.creneau.marin.get_full_name|default:e.creneau.marin.username }}
                   {% if e.creneau.marin_id == request.user.pk %}<span class="badge text-bg-success ms-1">Vous</span>{% endif %}
+                {% elif e.marin_fige %}
+                  {{ e.marin_fige }}
                 {% else %}
                   <span class="text-muted">À définir</span>
                 {% endif %}

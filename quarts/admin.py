@@ -112,4 +112,5 @@ class VersionFeuilleServiceInline(admin.TabularInline):
 class FeuilleServiceAdmin(AdminScopedMixin, admin.ModelAdmin):
     list_display = ("date", "ship", "equipage", "statut", "secteur_redacteur", "service_redacteur")
     list_filter = ("statut", "ship")
+    readonly_fields = ("structure_figee",)
     inlines = [VersionFeuilleServiceInline]

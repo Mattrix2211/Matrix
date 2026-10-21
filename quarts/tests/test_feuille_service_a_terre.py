@@ -7,7 +7,7 @@ from django.utils import timezone
 from accounts.models import AuditLog, UserProfile
 from matrix.core.equipage import decider_releve, proposer_releve
 from org.models import Sector, Service, Ship
-from quarts.models import FeuilleService, peut_viser_comaeq, peut_viser_secteur, peut_viser_service
+from quarts.models import FeuilleService, RubriqueEnTeteFeuilleService, peut_viser_comaeq, peut_viser_secteur, peut_viser_service
 
 
 class FeuilleParEquipageTests(TestCase):
@@ -147,3 +147,33 @@ class FeuilleParEquipageTests(TestCase):
             for action in ("proposer", "viser_secteur", "viser_service", "viser_comaeq", "enregistrer_entete"):
                 self.assertNotContains(reponse, f'value="{action}"')
             self.assertIn(self.client.post(self.url + suffixe, {"action": "viser_service"}).status_code, (400, 403))
+
+    def _divergence(self):
+        self._post("redacteur_A", "creer")
+        self._post("redacteur_B", "creer")
+        RubriqueEnTeteFeuilleService.objects.create(ship=self.ship, libelle="Ajoutée après")
+
+    def test_redacteur_a_terre_resynchronise_son_brouillon(self):
+        self._divergence()
+        reponse = self._post("redacteur_B", "resynchroniser")
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(self._feuille("B").structure_figee["origine"], "resynchronisation")
+        self.assertTrue(AuditLog.objects.filter(
+            action="feuille_service_structure_resynchronisee", actor__username="redacteur_B").exists())
+
+    def test_pas_de_resynchronisation_croisee_entre_equipages(self):
+        self._divergence()
+        self.assertEqual(self._post("redacteur_A", "resynchroniser", "?equipage=B").status_code, 302)
+        self.assertEqual(self._feuille("B").structure_figee["origine"], "creation")
+        self.assertEqual(self._feuille("A").structure_figee["origine"], "resynchronisation")
+        for nom in ("admin_navire", "maitre", "comaeq_B"):
+            self.assertEqual(self._post(nom, "resynchroniser").status_code, 403, nom)
+        self.assertEqual(self._feuille("B").structure_figee["origine"], "creation")
+
+    def test_bandeau_informatif_en_visa_sans_bouton(self):
+        self._divergence()
+        self._post("redacteur_B", "proposer")
+        self.client.force_login(User.objects.get(username="chef_secteur_B"))
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("ont changé depuis la création", page)
+        self.assertNotIn('value="resynchroniser"', page)

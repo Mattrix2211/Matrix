@@ -181,7 +181,7 @@ class WorkflowFeuilleServiceTests(FeuilleServiceTestsBase):
         )
 
     def test_creer_version_fige_entete_et_personnel(self):
-        self.feuille.valeurs_entete = {str(self.rubrique_quotidienne.pk): "Dimanche au port base"}
+        self.feuille.valeurs_entete = {str(self.rubrique_quotidienne.uid): "Dimanche au port base"}
         self.feuille.save(update_fields=["valeurs_entete"])
         self.feuille.proposer(self.chef_service)
         self.feuille.viser_service(self.chef_service)
@@ -190,6 +190,10 @@ class WorkflowFeuilleServiceTests(FeuilleServiceTestsBase):
         libelles_entete = [e["libelle"] for e in version.contenu_fige["entete"]]
         self.assertIn("Mesures de sécurité", libelles_entete)
         self.assertIn("Type de journée", libelles_entete)
+        self.assertIn(
+            {"uid": str(self.rubrique_quotidienne.uid), "libelle": "Type de journée", "valeur": "Dimanche au port base"},
+            version.contenu_fige["entete"],
+        )
         fonctions_personnel = [p["fonction"] for p in version.contenu_fige["personnel"]]
         self.assertIn("Officier de garde", fonctions_personnel)
 
