@@ -113,6 +113,7 @@ d'une liste publiée).
 """
 from django.urls import reverse
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, time as heure_du_jour
 
@@ -1041,6 +1042,10 @@ def _contenu_structure(structure):
     return {cle: structure.get(cle) for cle in ("rubriques", "fonctions")}
 
 
+class TransitionDejaEffectuee(ValueError):
+    """L'étape du circuit de visa a déjà été franchie (double soumission, action concurrente)."""
+
+
 class FeuilleService(TimeStampedModel, OwnedModel):
     """Feuille de service quotidienne d'un navire (rubriques d'en-tête +
     personnel de service), à quai (V1). Une par (navire, date) : publiée la
@@ -1306,6 +1311,17 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             destinataires = [self.redacteur]
         return destinataires
 
+    @contextmanager
+    def _transition(self, *statuts):
+        """Sous le verrou de la feuille, relit le statut : une double soumission
+        (ou une action concurrente) ne rejoue pas l'étape déjà faite."""
+        with transaction.atomic():
+            FeuilleService.objects.select_for_update().get(pk=self.pk)
+            self.refresh_from_db(fields=["statut"])
+            if self.statut not in statuts:
+                raise TransitionDejaEffectuee("Cette étape de la feuille a déjà été effectuée.")
+            yield
+
     def _notifier_prochain_visa(self):
         vacant = self.statut == self.STATUT_VISA_COMAEQ and not titulaires_comaeq(self).exists()
         if vacant:
@@ -1332,47 +1348,50 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         """BROUILLON -> premier palier de visa : secteur du rédacteur, SAUF
         si le rédacteur est déjà chef de secteur ou plus, auquel cas le visa
         secteur est sauté (cf. commentaire de section)."""
-        profile = user.profile
-        self.secteur_redacteur = profile.sector or (profile.section.sector if profile.section_id else None)
-        self.service_redacteur = self.secteur_redacteur.service if self.secteur_redacteur else profile.service
-        saute_visa_secteur = user_role_level(user) >= RoleLevel.CHEF_SECTEUR
-        self.statut = self.STATUT_VISA_SERVICE if saute_visa_secteur else self.STATUT_VISA_SECTEUR
-        self.proposee_le = timezone.now()
-        self.proposee_par = user
-        self.empreinte_visee = self._empreinte_contenu()
-        self.save(update_fields=[
-            "secteur_redacteur", "service_redacteur", "statut", "proposee_le", "proposee_par", "empreinte_visee",
-            "updated_at",
-        ])
-        AuditLog.objects.create(
-            actor=user, action="feuille_service_proposee",
-            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) proposée à la validation.",
-        )
-        self._notifier_prochain_visa()
+        with self._transition(self.STATUT_BROUILLON):
+            profile = user.profile
+            self.secteur_redacteur = profile.sector or (profile.section.sector if profile.section_id else None)
+            self.service_redacteur = self.secteur_redacteur.service if self.secteur_redacteur else profile.service
+            saute_visa_secteur = user_role_level(user) >= RoleLevel.CHEF_SECTEUR
+            self.statut = self.STATUT_VISA_SERVICE if saute_visa_secteur else self.STATUT_VISA_SECTEUR
+            self.proposee_le = timezone.now()
+            self.proposee_par = user
+            self.empreinte_visee = self._empreinte_contenu()
+            self.save(update_fields=[
+                "secteur_redacteur", "service_redacteur", "statut", "proposee_le", "proposee_par", "empreinte_visee",
+                "updated_at",
+            ])
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_proposee",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) proposée à la validation.",
+            )
+            self._notifier_prochain_visa()
 
     def viser_secteur(self, user):
-        self.visa_secteur_le = timezone.now()
-        self.visa_secteur_par = user
-        self.statut = self.STATUT_VISA_SERVICE
-        self.empreinte_visee = self._empreinte_contenu()
-        self.save(update_fields=["visa_secteur_le", "visa_secteur_par", "statut", "empreinte_visee", "updated_at"])
-        AuditLog.objects.create(
-            actor=user, action="feuille_service_visa_secteur",
-            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de secteur.",
-        )
-        self._notifier_prochain_visa()
+        with self._transition(self.STATUT_VISA_SECTEUR):
+            self.visa_secteur_le = timezone.now()
+            self.visa_secteur_par = user
+            self.statut = self.STATUT_VISA_SERVICE
+            self.empreinte_visee = self._empreinte_contenu()
+            self.save(update_fields=["visa_secteur_le", "visa_secteur_par", "statut", "empreinte_visee", "updated_at"])
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_visa_secteur",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de secteur.",
+            )
+            self._notifier_prochain_visa()
 
     def viser_service(self, user):
-        self.visa_service_le = timezone.now()
-        self.visa_service_par = user
-        self.statut = self.STATUT_VISA_COMAEQ
-        self.empreinte_visee = self._empreinte_contenu()
-        self.save(update_fields=["visa_service_le", "visa_service_par", "statut", "empreinte_visee", "updated_at"])
-        AuditLog.objects.create(
-            actor=user, action="feuille_service_visa_service",
-            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de service.",
-        )
-        self._notifier_prochain_visa()
+        with self._transition(self.STATUT_VISA_SERVICE):
+            self.visa_service_le = timezone.now()
+            self.visa_service_par = user
+            self.statut = self.STATUT_VISA_COMAEQ
+            self.empreinte_visee = self._empreinte_contenu()
+            self.save(update_fields=["visa_service_le", "visa_service_par", "statut", "empreinte_visee", "updated_at"])
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_visa_service",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) visée par le chef de service.",
+            )
+            self._notifier_prochain_visa()
 
     def _empreinte_contenu(self):
         from .rectificatif import empreinte_contenu
@@ -1397,7 +1416,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             FeuilleService.objects.select_for_update().get(pk=self.pk)
             self.refresh_from_db(fields=["statut", "valeurs_entete", "structure_figee", "empreinte_visee", "rectificatif_ouvert_par"])
             if self.statut != self.STATUT_VISA_COMAEQ:
-                raise ValueError("Cette feuille n'attend pas de publication.")
+                raise TransitionDejaEffectuee("Cette feuille n'attend pas de publication.")
             contenu = self.contenu_courant()
             empreinte = empreinte_de(contenu)
             if (
@@ -1496,19 +1515,20 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         corrige avant de reproposer — le circuit recommence entièrement
         (aucun visa déjà donné n'est conservé), plus simple à suivre qu'un
         redémarrage partiel (CLAUDE.md §2)."""
-        self._reinitialiser_circuit(motif)
-        self.save(update_fields=[*self.CHAMPS_CIRCUIT, "updated_at"])
-        AuditLog.objects.create(
-            actor=user, action="feuille_service_renvoyee",
-            details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) renvoyée en brouillon : {motif}",
-        )
-        if self.redacteur is not None:
-            Notification.objects.create(
-                user=self.redacteur,
-                verb=f"Feuille de service du {self.date:%d/%m/%Y} renvoyée pour correction : {motif}",
-                level=NotificationLevel.WARNING,
-                url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
+        with self._transition(self.STATUT_VISA_SECTEUR, self.STATUT_VISA_SERVICE, self.STATUT_VISA_COMAEQ):
+            self._reinitialiser_circuit(motif)
+            self.save(update_fields=[*self.CHAMPS_CIRCUIT, "updated_at"])
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_renvoyee",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) renvoyée en brouillon : {motif}",
             )
+            if self.redacteur is not None:
+                Notification.objects.create(
+                    user=self.redacteur,
+                    verb=f"Feuille de service du {self.date:%d/%m/%Y} renvoyée pour correction : {motif}",
+                    level=NotificationLevel.WARNING,
+                    url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
+                )
 
     def contenu_courant(self):
         """Contenu tel qu'il serait figé maintenant : copie de travail et planning effectif."""

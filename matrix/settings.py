@@ -259,6 +259,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "matrix.core.tasks.appliquer_releves_echues",
         "schedule": 60,
     },
+    # Rattrapage des rectificatifs à signaler ; le signalement est idempotent, le quart d'heure suffit.
+    "signaler_divergences_feuilles_15min": {
+        "task": "quarts.tasks.signaler_divergences_feuilles",
+        "schedule": 60 * 15,
+    },
     "purger_brouillons_daily": {
         "task": "matrix.core.tasks.purger_brouillons",
         "schedule": 60 * 60 * 24,

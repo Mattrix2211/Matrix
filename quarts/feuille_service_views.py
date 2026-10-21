@@ -38,6 +38,7 @@ from .models import (
     FeuilleService,
     FonctionFeuilleService,
     RubriqueEnTeteFeuilleService,
+    TransitionDejaEffectuee,
     codes_equipage,
     equipage_de_feuille_pour,
     feuille_du_jour,
@@ -260,6 +261,18 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         }
 
     def post(self, request, ship_id, date_str):
+        try:
+            return self._traiter(request, ship_id, date_str)
+        except TransitionDejaEffectuee:
+            # Double clic ou action concurrente : l'étape est faite, on affiche l'état actuel.
+            ship, date_, feuille, equipage = self._charger(request, ship_id, date_str)
+            if feuille is not None and feuille.statut == FeuilleService.STATUT_PUBLIEE:
+                messages.info(request, "Cette feuille est déjà publiée.")
+            else:
+                messages.info(request, "Cette étape a déjà été effectuée : la feuille est à jour ci-dessous.")
+            return _redirection_detail(ship, date_, equipage)
+
+    def _traiter(self, request, ship_id, date_str):
         ship, date_, feuille, equipage = self._charger(request, ship_id, date_str)
         if date_ is None:
             return HttpResponseBadRequest("Date invalide.")
