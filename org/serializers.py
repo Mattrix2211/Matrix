@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from matrix.core.equipage import equipage_a_bord
+from matrix.core.fuseau import MESSAGE_FUSEAU_INVALIDE, fuseau_valide
 from matrix.core.serializers import ReferencesDansPerimetreMixin
 from .models import Ship, Service, Sector, Section, SectorConfig
 
@@ -19,14 +21,28 @@ _PERIMETRE_SECTEUR = {
 }
 
 
+class EquipageABordField(serializers.CharField):
+    """Lecture par l'accesseur unique : les relèves échues sont appliquées avant d'exposer l'équipage."""
+
+    def get_attribute(self, instance):
+        return equipage_a_bord(instance)
+
+
 class ShipSerializer(serializers.ModelSerializer):
+    equipage_a_bord = EquipageABordField(max_length=8, required=False, allow_blank=True)
+
     class Meta:
         model = Ship
         fields = (
             "id", "name", "code", "type_unite", "classe_navire",
-            "double_equipage", "equipage_a_bord", "archived", "created_at", "updated_at",
+            "double_equipage", "equipage_a_bord", "fuseau_horaire", "archived", "created_at", "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_fuseau_horaire(self, valeur):
+        if valeur and not fuseau_valide(valeur):
+            raise serializers.ValidationError(MESSAGE_FUSEAU_INVALIDE)
+        return valeur
 
 class ServiceSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"ship": (_PERIMETRE_NAVIRE,)}

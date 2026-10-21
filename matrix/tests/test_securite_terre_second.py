@@ -14,6 +14,7 @@ from django.db import connection
 from django.db.models import Q
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from absences.models import Absence
 from accounts.models import ResponsableSpecialite, TypeAbsence, UserProfile
@@ -21,6 +22,7 @@ from assets.models import ArticleCatalogue, Asset, CategorieCatalogue, Checklist
 from demandes.models import Demande
 from logistics.models import Anomalie, CorrectiveTicket, StockPiece
 from maintenance.models import MaintenanceOccurrence
+from matrix.core.fuseau import champ_local
 from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from matrix.core.scopes import soutien_a_terre
 from org.models import ReleveEquipage, Ship
@@ -433,6 +435,8 @@ class EquipageBACommandementTests(Base):
         ReleveEquipage.objects.all().delete()
 
     def relever(self, compte, action, **plus):
+        if action == "proposer_releve":
+            plus.setdefault("date_effet", champ_local(self.bre, timezone.now()))
         return self.client_de(compte).post("/parametre/", {"action": action, **plus})
 
     def en_attente(self):

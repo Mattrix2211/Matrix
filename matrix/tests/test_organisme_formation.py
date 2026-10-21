@@ -46,6 +46,7 @@ class CreationEcoleAvecHierarchieTests(TestCase):
             "name": "École de Maistrance",
             "code": "EM",
             "type_unite": "ECOLE",
+            "fuseau_horaire": "Europe/Paris",
             "next_tab": "navires",
         })
         self.assertEqual(r.status_code, 302)

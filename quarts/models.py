@@ -125,6 +125,7 @@ from django.utils import timezone
 from accounts.models import AuditLog, FonctionQuartChoice, Roles, ServiceFunctionChoice
 from matrix.core.models import OwnedModel, TimeStampedModel
 from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
+from matrix.core.equipage import equipage_a_bord
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.saisie import entier_ou_none
@@ -1733,15 +1734,16 @@ def equipage_de_feuille_pour(user, ship, equipage_id=None):
         demande = None
     if not ship.double_equipage:
         return demande
-    return equipage_agissant(user) or demande or ship.equipage_a_bord or None
+    return equipage_agissant(user) or demande or equipage_a_bord(ship) or None
 
 
 def codes_equipage(ship):
     """Codes d'équipage connus de l'unité : celui à bord et ceux des profils des marins."""
     from accounts.models import UserProfile
     codes = set(UserProfile.objects.filter(ship=ship).exclude(equipage="").values_list("equipage", flat=True))
-    if ship.equipage_a_bord:
-        codes.add(ship.equipage_a_bord)
+    a_bord = equipage_a_bord(ship)
+    if a_bord:
+        codes.add(a_bord)
     return sorted(codes)
 
 
@@ -1758,9 +1760,10 @@ def feuille_du_jour(ship, date_, equipage):
         return feuilles.filter(equipage=equipage).first() if equipage else None
     if equipage:
         return feuilles.filter(equipage=equipage).first()
+    a_bord = equipage_a_bord(ship)
     return sorted(
         feuilles,
-        key=lambda f: (f.equipage != "", f.equipage != ship.equipage_a_bord, f.pk),
+        key=lambda f: (f.equipage != "", f.equipage != a_bord, f.pk),
     )[0] if feuilles else None
 
 
@@ -1862,7 +1865,7 @@ def commandant_habilite_si_comaeq_vacant(user, feuille):
     if profil is None or not user.is_active or profil.role != Roles.COMMANDANT or profil.ship_id != feuille.ship_id:
         return False
     if feuille.ship.double_equipage:
-        return profil.equipage == (feuille.equipage or feuille.ship.equipage_a_bord)
+        return profil.equipage == (feuille.equipage or equipage_a_bord(feuille.ship))
     return True
 
 

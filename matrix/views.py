@@ -24,13 +24,20 @@ from quarts.echanges import peut_valider_echange
 from annonces.models import ParametresAnnonces
 from taches.models import ParametresTaches
 from dashboard.passation import generer_passation_manuelle, passation_activee, peut_generer_passation, syntheses_visibles
-from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, ParametresPassation
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, ParametresPassation, PeriodeEquipage
+from django.utils import timezone
 from django.contrib import messages
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import is_master_admin, ship_id_for_user
-from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
+from matrix.core.equipage import (
+    ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, annuler_releve_planifiee, changer_fuseau, decider_releve,
+    equipage_a_bord, erreur_secours_releve, marins_sans_equipage, peut_annuler_releve_planifiee, peut_changer_fuseau,
+    proposer_releve,
+    releve_en_attente, releve_planifiee, valider_releve_secours,
+)
+from matrix.core.fuseau import MESSAGE_FUSEAU_OBLIGATOIRE, champ_local, formater, fuseau_herite, fuseau_valide, fuseaux_disponibles, libelle_fuseau, lire_champ_local, nom_fuseau
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
     REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
@@ -81,6 +88,22 @@ def _lignes_modules(ship_id):
     ]
 
 
+# Le fuseau n'est pas une action de relève : l'équipage à terre ne peut pas le modifier (middleware).
+ACTIONS_ONGLET_EQUIPAGE = (*ACTIONS_RELEVE, 'modifier_fuseau')
+
+
+def _message_validation(proposition, navire, secours=False):
+    """Message de succès d'une validation : relève appliquée tout de suite ou planifiée."""
+    proposition.refresh_from_db()
+    debut = "Relève validée en secours" if secours else "Relève validée"
+    if proposition.statut == proposition.Statut.PLANIFIEE:
+        return (
+            f"{debut} : l'équipage {proposition.equipage_propose} sera à bord de {navire.name} "
+            f"à compter du {formater(navire, proposition.date_effet)}."
+        )
+    return f"{debut} : l'équipage {proposition.equipage_propose} est à bord de {navire.name}."
+
+
 def _lignes_equipage(navire, utilisateur):
     """Données de l'onglet Équipage des Réglages : équipage à bord, équipages connus, marins sans équipage."""
     if navire is None:
@@ -88,10 +111,12 @@ def _lignes_equipage(navire, utilisateur):
     codes = UserProfile.objects.filter(ship=navire).exclude(equipage='').values_list(
         'equipage', flat=True).distinct().order_by('equipage')
     releve = releve_en_attente(navire)
+    planifiee = releve_planifiee(navire)
+    a_bord = equipage_a_bord(navire)
     marins = User.objects.filter(is_active=True, profile__ship=navire).exclude(profile__equipage='').select_related('profile').order_by(
         'profile__equipage', 'last_name', 'username')
     effectifs = [
-        {'code': code, 'a_bord': code == navire.equipage_a_bord, 'marins': list(groupe)}
+        {'code': code, 'a_bord': code == a_bord, 'marins': list(groupe)}
         for code, groupe in groupby(marins, key=lambda m: m.profile.equipage)
     ]
     return {
@@ -99,7 +124,17 @@ def _lignes_equipage(navire, utilisateur):
         'equipage_codes': list(codes),
         'equipage_effectifs': effectifs,
         'equipage_sans': list(marins_sans_equipage(navire)),
+        'equipage_a_bord': a_bord,
         'releve': releve,
+        'releve_planifiee': planifiee,
+        'releve_annulable': bool(planifiee) and peut_annuler_releve_planifiee(utilisateur, planifiee),
+        'fuseau_libelle': libelle_fuseau(navire),
+        'fuseau_herite': fuseau_herite(navire),
+        'fuseau_nom': nom_fuseau(navire),
+        'fuseaux': fuseaux_disponibles(),
+        'peut_changer_fuseau': peut_changer_fuseau(utilisateur, navire),
+        'date_effet_defaut': champ_local(navire, timezone.now()),
+        'periodes_equipage': list(PeriodeEquipage.objects.filter(ship=navire)[:5]),
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
         'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
         'passation_activee': passation_activee(),
@@ -290,7 +325,7 @@ class SettingsView(LoginRequiredMixin, View):
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
             # Le droit des commandants est revérifié dans post().
-            action_equipage_ok = request.method == 'POST' and action in ACTIONS_RELEVE
+            action_equipage_ok = request.method == 'POST' and action in ACTIONS_ONGLET_EQUIPAGE
             if not (
                 tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
                 or action_equipage_ok
@@ -434,6 +469,7 @@ class SettingsView(LoginRequiredMixin, View):
             'global_vib_days_c': global_vib_days_c,
             'ships': ships_qs,
             'type_unite_choices': Ship.TypeUnite.choices,
+            'fuseaux': fuseaux_disponibles(),
             'selected_ship': selected_ship,
             'services': services_qs.order_by('name'),
             'sectors': sectors_qs.order_by('service__name','name'),
@@ -518,13 +554,18 @@ class SettingsView(LoginRequiredMixin, View):
             code = request.POST.get('code', '').strip()
             type_unite = request.POST.get('type_unite') or Ship.TypeUnite.NAVIRE
             classe_navire = request.POST.get('classe_navire', '').strip()
-            if code:
+            fuseau = request.POST.get('fuseau_horaire', '').strip()
+            if code and not fuseau_valide(fuseau):
+                messages.error(request, MESSAGE_FUSEAU_OBLIGATOIRE)
+            elif code:
                 Ship.objects.get_or_create(
                     name=name, code=code,
-                    defaults={'type_unite': type_unite, 'classe_navire': classe_navire},
+                    defaults={'type_unite': type_unite, 'classe_navire': classe_navire, 'fuseau_horaire': fuseau},
                 )
                 messages.success(request, "Unité ajoutée.")
-                AuditLog.objects.create(actor=request.user, action='add_ship', details=f'name={name}; code={code}')
+                AuditLog.objects.create(
+                    actor=request.user, action='add_ship', details=f'name={name}; code={code}; fuseau_horaire={fuseau}'
+                )
         elif action == 'delete_ship':
             pk = request.POST.get('pk')
             Ship.objects.filter(pk=pk).delete()
@@ -556,15 +597,20 @@ class SettingsView(LoginRequiredMixin, View):
             src_pk = request.POST.get('source_pk')
             name = request.POST.get('name', '').strip()
             code = request.POST.get('code', '').strip()
+            fuseau = request.POST.get('fuseau_horaire', '').strip()
             try:
                 src_ship = Ship.objects.get(pk=src_pk)
                 if not name or not code:
                     raise ValueError("Nom et code requis pour dupliquer.")
+                if not fuseau_valide(fuseau):
+                    messages.error(request, MESSAGE_FUSEAU_OBLIGATOIRE)
+                    raise ValueError("Fuseau horaire obligatoire.")
                 # Crée la nouvelle unité, en reprenant le type et la classe de l'unité
                 # source (des unités dupliquées sont généralement des navires « sister-
                 # ship » de même classe).
                 new_ship = Ship.objects.create(
                     name=name, code=code, type_unite=src_ship.type_unite, classe_navire=src_ship.classe_navire,
+                    fuseau_horaire=fuseau,
                 )
                 # Map des services et secteurs pour rattacher correctement
                 service_map = {}
@@ -901,7 +947,7 @@ class SettingsView(LoginRequiredMixin, View):
                         f"Module « {module_info.libelle} » "
                         f"{'activé' if etat.active else 'désactivé'} pour {ship.name}.",
                     )
-        elif action in ACTIONS_RELEVE:
+        elif action in ACTIONS_ONGLET_EQUIPAGE:
             # Relève : proposée par un commandant, appliquée à la validation de l'autre.
             next_tab = 'equipage'
             if is_master_admin(request.user):
@@ -914,11 +960,22 @@ class SettingsView(LoginRequiredMixin, View):
             if action == 'proposer_releve':
                 nouvel = (request.POST.get('equipage') or '').strip()
                 connu = UserProfile.objects.filter(ship=navire, equipage=nouvel).exists()
-                if not connu:
+                date_effet, erreur = lire_champ_local(navire, request.POST.get('date_effet'))
+                if not erreur and not connu:
                     erreur = "Équipage inconnu sur cette unité."
-                else:
-                    proposition, erreur = proposer_releve(request.user, navire, nouvel)
+                if not erreur:
+                    proposition, erreur = proposer_releve(request.user, navire, nouvel, date_effet)
                 succes = "Relève proposée : l'autre commandant doit la valider."
+            elif action == 'modifier_fuseau':
+                erreur = changer_fuseau(request.user, navire, request.POST.get('fuseau_horaire'))
+                succes = "Fuseau horaire du bâtiment enregistré ; les relèves déjà enregistrées ne sont pas modifiées."
+            elif action == 'annuler_releve_planifiee':
+                planifiee = releve_planifiee(navire)
+                if planifiee is None:
+                    erreur, succes = "Aucune relève planifiée (elle a peut-être déjà été appliquée).", ""
+                else:
+                    erreur = annuler_releve_planifiee(request.user, planifiee, request.POST.get('motif'))
+                    succes = "Relève planifiée annulée ; l'autre commandant est prévenu."
             elif action == 'generer_passation':
                 synthese, erreur = generer_passation_manuelle(request.user, navire)
                 succes = "Synthèse de passation disponible." if synthese else ""
@@ -930,11 +987,11 @@ class SettingsView(LoginRequiredMixin, View):
                 erreur, succes = annuler_releve(request.user, proposition), "Proposition annulée."
             elif action == 'valider_releve_secours':
                 erreur = valider_releve_secours(request.user, proposition, request.POST.get('motif'))
-                succes = f"Relève validée en secours : l'équipage {proposition.equipage_propose} est à bord de {navire.name}."
+                succes = _message_validation(proposition, navire, secours=True)
             else:
                 accepter = request.POST.get('decision') == 'valider'
                 erreur = decider_releve(request.user, proposition, accepter)
-                succes = f"Relève validée : l'équipage {proposition.equipage_propose} est à bord de {navire.name}." if accepter else "Relève refusée."
+                succes = _message_validation(proposition, navire) if accepter else "Relève refusée."
             if erreur:
                 messages.error(request, erreur)
             else:

@@ -249,6 +249,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "matrix.core.tasks.purger_sessions",
         "schedule": 60 * 60 * 24,
     },
+    # Les lectures de l'équipage à bord appliquent aussi les relèves échues : cette tâche couvre les périodes sans activité.
+    "appliquer_releves_echues_minute": {
+        "task": "matrix.core.tasks.appliquer_releves_echues",
+        "schedule": 60,
+    },
     "purger_brouillons_daily": {
         "task": "matrix.core.tasks.purger_brouillons",
         "schedule": 60 * 60 * 24,

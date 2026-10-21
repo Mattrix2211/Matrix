@@ -129,7 +129,7 @@ class FeuilleParEquipageTests(TestCase):
                 for f in FeuilleService.objects.order_by("equipage")
             ]
         avant = etat()
-        proposition, erreur = proposer_releve(User.objects.get(username="cdt_A"), self.ship, "B")
+        proposition, erreur = proposer_releve(User.objects.get(username="cdt_A"), self.ship, "B", timezone.now())
         self.assertEqual(erreur, "")
         self.assertEqual(decider_releve(User.objects.get(username="cdt_B"), proposition, True), "")
         self.ship.refresh_from_db()
