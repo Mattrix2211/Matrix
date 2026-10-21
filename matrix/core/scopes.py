@@ -2,6 +2,8 @@ from typing import Dict, Any, Optional
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
+from .saisie import entier_ou_none
+
 
 def scope_filters_for_user(user) -> Dict[str, Any]:
     if not user.is_authenticated:
@@ -147,10 +149,10 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
         sector_qs = Sector.objects.filter(service__ship_id=mon_navire_id)
         section_qs = Section.objects.filter(sector__service__ship_id=mon_navire_id)
     try:
-        ship = ship_qs.get(pk=ship_id) if ship_id else None
-        service = service_qs.get(pk=service_id) if service_id else None
-        sector = sector_qs.get(pk=sector_id) if sector_id else None
-        section = section_qs.get(pk=section_id) if section_id else None
+        ship = ship_qs.get(pk=entier_ou_none(ship_id)) if ship_id else None
+        service = service_qs.get(pk=entier_ou_none(service_id)) if service_id else None
+        sector = sector_qs.get(pk=entier_ou_none(sector_id)) if sector_id else None
+        section = section_qs.get(pk=entier_ou_none(section_id)) if section_id else None
     except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
         return False, None, None, None, None
     return True, ship, service, sector, section

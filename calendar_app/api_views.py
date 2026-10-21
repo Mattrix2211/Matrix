@@ -28,6 +28,7 @@ from .evenements_sources import (
     evenements_equipe,
     sessions_visibles,
     _peut_agir_occurrence,
+    filtre_identifiant_invalide,
     _peut_agir_ticket,
     _rondes_a_faire,
     _taches_a_faire,
@@ -118,6 +119,9 @@ def calendar_events(request):
         "type": request.GET.get("type") or None,
         "status": request.GET.get("status") or None,
     }
+    invalide = filtre_identifiant_invalide(filters)
+    if invalide:
+        return JsonResponse({"detail": f"Filtre « {invalide} » invalide : un identifiant numérique est attendu."}, status=400)
     # « Mon équipe » : valeur spéciale du filtre Utilisateur, réservée à qui peut attribuer des tâches.
     if filters.get("user") == "equipe":
         if not peut_attribuer(request.user):

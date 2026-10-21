@@ -310,7 +310,7 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
 
     def _ship(self, request):
         pk = request.GET.get("ship") or request.POST.get("ship")
-        return get_object_or_404(_navires_disponibles_feuille_service(request.user), pk=pk)
+        return get_object_or_404(_navires_disponibles_feuille_service(request.user), pk=entier_ou_none(pk))
 
     def _verifier_habilitation(self, request):
         if user_role_level(request.user) < niveau_requis_pour(request.user, "feuille_service_configuration"):
@@ -335,22 +335,35 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         elif action == "enregistrer_fonctions":
             self._enregistrer_fonctions(request, ship)
         elif action == "supprimer_rubrique":
-            RubriqueEnTeteFeuilleService.objects.filter(pk=request.POST.get("pk"), ship=ship).delete()
+            RubriqueEnTeteFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).delete()
             messages.info(request, "Rubrique supprimée.")
         elif action == "supprimer_fonction":
-            FonctionFeuilleService.objects.filter(pk=request.POST.get("pk"), ship=ship).delete()
+            FonctionFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).delete()
             messages.info(request, "Fonction supprimée.")
         else:
             return HttpResponseBadRequest("Action inconnue.")
         return redirect(f"{reverse('feuille-service-reglages')}?ship={ship.pk}")
 
+    @staticmethod
+    def _ordres_valides(request, elements, prefixe_cle, nom_nouveau):
+        """Ordres postés {pk: ordre} et ordre du nouvel élément ; None si l'un n'est pas un entier."""
+        ordres = {e.pk: entier_ou_none(request.POST.get(f"{prefixe_cle}{e.pk}_ordre") or str(e.ordre)) for e in elements}
+        nouveau = entier_ou_none(request.POST.get(nom_nouveau) or "0")
+        return None if nouveau is None or None in ordres.values() else (ordres, nouveau)
+
     def _enregistrer_rubriques(self, request, ship):
-        for rubrique in RubriqueEnTeteFeuilleService.objects.filter(ship=ship):
+        rubriques = list(RubriqueEnTeteFeuilleService.objects.filter(ship=ship))
+        ordres = self._ordres_valides(request, rubriques, "rubrique_", "nouvelle_rubrique_ordre")
+        if ordres is None:
+            messages.error(request, "L'ordre des rubriques doit être un nombre entier : rien n'a été enregistré.")
+            return
+        ordres, ordre_nouveau = ordres
+        for rubrique in rubriques:
             prefixe = f"rubrique_{rubrique.pk}_"
             if f"{prefixe}libelle" not in request.POST:
                 continue
             rubrique.libelle = request.POST.get(f"{prefixe}libelle", rubrique.libelle).strip()
-            rubrique.ordre = int(request.POST.get(f"{prefixe}ordre") or rubrique.ordre)
+            rubrique.ordre = ordres[rubrique.pk]
             rubrique.type_saisie = request.POST.get(f"{prefixe}type_saisie", rubrique.type_saisie)
             rubrique.valeur_fixe = request.POST.get(f"{prefixe}valeur_fixe", "").strip()
             rubrique.actif = f"{prefixe}actif" in request.POST
@@ -359,7 +372,7 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         if nouveau_libelle:
             RubriqueEnTeteFeuilleService.objects.create(
                 ship=ship, libelle=nouveau_libelle,
-                ordre=int(request.POST.get("nouvelle_rubrique_ordre") or 0),
+                ordre=ordre_nouveau,
                 type_saisie=request.POST.get(
                     "nouvelle_rubrique_type_saisie", RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE
                 ),
@@ -368,12 +381,18 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         messages.success(request, "Rubriques d'en-tête enregistrées.")
 
     def _enregistrer_fonctions(self, request, ship):
-        for fonction in FonctionFeuilleService.objects.filter(ship=ship):
+        fonctions = list(FonctionFeuilleService.objects.filter(ship=ship))
+        ordres = self._ordres_valides(request, fonctions, "fonction_", "nouvelle_fonction_ordre")
+        if ordres is None:
+            messages.error(request, "L'ordre des fonctions doit être un nombre entier : rien n'a été enregistré.")
+            return
+        ordres, ordre_nouveau = ordres
+        for fonction in fonctions:
             prefixe = f"fonction_{fonction.pk}_"
             if f"{prefixe}libelle" not in request.POST:
                 continue
             fonction.libelle = request.POST.get(f"{prefixe}libelle", fonction.libelle).strip()
-            fonction.ordre = int(request.POST.get(f"{prefixe}ordre") or fonction.ordre)
+            fonction.ordre = ordres[fonction.pk]
             fonction.poste_recherche = request.POST.get(f"{prefixe}poste_recherche", "").strip()
             fonction.actif = f"{prefixe}actif" in request.POST
             fonction.save()
@@ -381,7 +400,7 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         if nouveau_libelle:
             FonctionFeuilleService.objects.create(
                 ship=ship, libelle=nouveau_libelle,
-                ordre=int(request.POST.get("nouvelle_fonction_ordre") or 0),
+                ordre=ordre_nouveau,
                 poste_recherche=request.POST.get("nouvelle_fonction_poste_recherche", "").strip(),
             )
         messages.success(request, "Fonctions de service enregistrées.")

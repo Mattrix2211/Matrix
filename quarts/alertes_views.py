@@ -31,7 +31,7 @@ class OrganisationAlerteView(LoginRequiredMixin, View):
 
     def _ship(self, request):
         pk = request.GET.get("ship") or request.POST.get("ship")
-        return get_object_or_404(_navires_disponibles_feuille_service(request.user), pk=pk)
+        return get_object_or_404(_navires_disponibles_feuille_service(request.user), pk=entier_ou_none(pk))
 
     def get(self, request):
         ship = self._ship(request)

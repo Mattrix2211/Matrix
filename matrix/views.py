@@ -26,6 +26,7 @@ from taches.models import ParametresTaches
 from dashboard.passation import generer_passation_manuelle, passation_activee, peut_generer_passation, syntheses_visibles
 from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, ParametresPassation
 from django.contrib import messages
+from matrix.core.saisie import entier_ou_none, identifiant_d_url
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
@@ -340,7 +341,7 @@ class SettingsView(LoginRequiredMixin, View):
             if active_tab == 'equipage' and is_master_admin(request.user):
                 # Administrateur général de rôle : choix d'un navire à double équipage.
                 navires = Ship.objects.filter(double_equipage=True).order_by('name')
-                choisi = navires.filter(pk=request.GET.get('ship') or None).first() or navires.first()
+                choisi = navires.filter(pk=identifiant_d_url(request.GET.get('ship'))).first() or navires.first()
                 context.update({'ships': navires, **_lignes_equipage(choisi, request.user)})
             elif active_tab == 'equipage':
                 context.update(_lignes_equipage(profile.ship, request.user))
@@ -395,7 +396,7 @@ class SettingsView(LoginRequiredMixin, View):
 
         # Sélecteur de navire pour paramétrer services/secteurs/sections
         ships_qs = Ship.objects.order_by('name')
-        selected_ship_id = request.GET.get('ship')
+        selected_ship_id = identifiant_d_url(request.GET.get('ship'))
         selected_ship = None
         if selected_ship_id:
             try:
@@ -495,7 +496,7 @@ class SettingsView(LoginRequiredMixin, View):
     def post(self, request):
         action = request.POST.get('action')
         next_tab = request.POST.get('next_tab') or 'utilisateurs'
-        selected_ship_id = request.POST.get('selected_ship') or request.POST.get('ship_id') or request.GET.get('ship')
+        selected_ship_id = entier_ou_none(request.POST.get('selected_ship') or request.POST.get('ship_id') or request.GET.get('ship'))
         selected_installation_id = None
         name = request.POST.get('name', '').strip()
         if action == 'add_grade' and name:
@@ -526,12 +527,12 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.success(request, "Unité ajoutée.")
                 AuditLog.objects.create(actor=request.user, action='add_ship', details=f'name={name}; code={code}')
         elif action == 'delete_ship':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Ship.objects.filter(pk=pk).delete()
             messages.success(request, "Unité supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_ship', details=f'pk={pk}')
         elif action == 'edit_ship':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             name = request.POST.get('name', '').strip()
             code = request.POST.get('code', '').strip()
             type_unite = request.POST.get('type_unite')
@@ -553,7 +554,7 @@ class SettingsView(LoginRequiredMixin, View):
             except Ship.DoesNotExist:
                 pass
         elif action == 'duplicate_ship':
-            src_pk = request.POST.get('source_pk')
+            src_pk = entier_ou_none(request.POST.get('source_pk'))
             name = request.POST.get('name', '').strip()
             code = request.POST.get('code', '').strip()
             try:
@@ -590,7 +591,7 @@ class SettingsView(LoginRequiredMixin, View):
                 pass
         elif action == 'add_service':
             name = request.POST.get('name','').strip()
-            ship_id = request.POST.get('ship_id') or request.GET.get('ship') or request.POST.get('selected_ship')
+            ship_id = entier_ou_none(request.POST.get('ship_id') or request.GET.get('ship') or request.POST.get('selected_ship'))
             if name and ship_id:
                 try:
                     ship = Ship.objects.get(pk=ship_id)
@@ -600,12 +601,12 @@ class SettingsView(LoginRequiredMixin, View):
                 except Ship.DoesNotExist:
                     pass
         elif action == 'delete_service':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Service.objects.filter(pk=pk).delete()
             messages.success(request, "Service supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_service', details=f'pk={pk}')
         elif action == 'add_sector':
-            service_id = request.POST.get('service_id')
+            service_id = entier_ou_none(request.POST.get('service_id'))
             if name and service_id:
                 try:
                     service = Service.objects.get(pk=service_id)
@@ -615,12 +616,12 @@ class SettingsView(LoginRequiredMixin, View):
                 except Service.DoesNotExist:
                     pass
         elif action == 'delete_sector':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Sector.objects.filter(pk=pk).delete()
             messages.success(request, "Secteur supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_sector', details=f'pk={pk}')
         elif action == 'add_section':
-            sector_id = request.POST.get('sector_id')
+            sector_id = entier_ou_none(request.POST.get('sector_id'))
             if name and sector_id:
                 try:
                     sector = Sector.objects.get(pk=sector_id)
@@ -630,7 +631,7 @@ class SettingsView(LoginRequiredMixin, View):
                 except Sector.DoesNotExist:
                     pass
         elif action == 'delete_section':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Section.objects.filter(pk=pk).delete()
             messages.success(request, "Section supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_section', details=f'pk={pk}')
@@ -643,18 +644,18 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.success(request, "Disponibilité du rôle mise à jour.")
                 AuditLog.objects.create(actor=request.user, action='toggle_role', details=f'code={code}; active={opt.active}')
         elif action == 'delete_grade':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             GradeChoice.objects.filter(pk=pk).delete()
             messages.success(request, "Grade supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_grade', details=f'pk={pk}')
         elif action == 'delete_specialite':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             SpecialityChoice.objects.filter(pk=pk).delete()
             messages.success(request, "Spécialité supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_specialite', details=f'pk={pk}')
         elif action == 'add_responsable_specialite':
-            specialite_id = request.POST.get('specialite_id')
-            user_id = request.POST.get('user_id')
+            specialite_id = entier_ou_none(request.POST.get('specialite_id'))
+            user_id = entier_ou_none(request.POST.get('user_id'))
             try:
                 specialite = SpecialityChoice.objects.get(pk=specialite_id)
                 marin = utilisateurs_visibles_par(request.user).get(pk=user_id)
@@ -673,12 +674,12 @@ class SettingsView(LoginRequiredMixin, View):
             except (SpecialityChoice.DoesNotExist, User.DoesNotExist, ValueError):
                 messages.error(request, "Spécialité ou marin introuvable.")
         elif action == 'retirer_responsable_specialite':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             ResponsableSpecialite.objects.filter(pk=pk, user__in=utilisateurs_visibles_par(request.user)).delete()
             messages.success(request, "Responsable de spécialité retiré.")
             AuditLog.objects.create(actor=request.user, action='retirer_responsable_specialite', details=f'pk={pk}')
         elif action == 'add_responsable_classe' and name:
-            user_id = request.POST.get('user_id')
+            user_id = entier_ou_none(request.POST.get('user_id'))
             try:
                 marin = utilisateurs_visibles_par(request.user).get(pk=user_id)
                 _, cree = ResponsableClasseNavire.objects.get_or_create(classe_navire=name, user=marin)
@@ -696,12 +697,12 @@ class SettingsView(LoginRequiredMixin, View):
             except (User.DoesNotExist, ValueError):
                 messages.error(request, "Marin introuvable.")
         elif action == 'retirer_responsable_classe':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             ResponsableClasseNavire.objects.filter(pk=pk, user__in=utilisateurs_visibles_par(request.user)).delete()
             messages.success(request, "Responsable de classe de navire retiré.")
             AuditLog.objects.create(actor=request.user, action='retirer_responsable_classe', details=f'pk={pk}')
         elif action == 'delete_fonction':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             try:
                 ServiceFunctionChoice.objects.filter(pk=pk).delete()
                 messages.success(request, "Fonction supprimée.")
@@ -713,7 +714,7 @@ class SettingsView(LoginRequiredMixin, View):
                 # usage, cf. correction de cadrage du 09/09/2026.
                 messages.error(request, "Impossible de supprimer : cette fonction est utilisée par au moins une liste de services de garde.")
         elif action == 'delete_fonction_quart':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             try:
                 FonctionQuartChoice.objects.filter(pk=pk).delete()
                 messages.success(request, "Fonction de quart supprimée.")
@@ -725,12 +726,12 @@ class SettingsView(LoginRequiredMixin, View):
             messages.success(request, "Bigrame ajouté.")
             AuditLog.objects.create(actor=request.user, action='add_bigrame', details=f'name={name}')
         elif action == 'delete_bigrame':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             InstallationBigrameChoice.objects.filter(pk=pk).delete()
             messages.success(request, "Bigrame supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_bigrame', details=f'pk={pk}')
         elif action == 'toggle_bigrame':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             try:
                 bg = InstallationBigrameChoice.objects.get(pk=pk)
                 bg.active = not bg.active
@@ -768,7 +769,7 @@ class SettingsView(LoginRequiredMixin, View):
                 if action_seuil.portee == PORTEE_GLOBALE:
                     ship = None
                 elif request.user.is_superuser:
-                    ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                    ship = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
                 else:
                     ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
                 if ship is None and action_seuil.portee != PORTEE_GLOBALE:
@@ -880,7 +881,7 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.error(request, "Module inconnu.")
             else:
                 if request.user.is_superuser:
-                    ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                    ship = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
                 else:
                     ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
                 if ship is None:
@@ -905,7 +906,7 @@ class SettingsView(LoginRequiredMixin, View):
             # Relève : proposée par un commandant, appliquée à la validation de l'autre.
             next_tab = 'equipage'
             if is_master_admin(request.user):
-                navire = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                navire = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
             else:
                 navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
             if navire is None:

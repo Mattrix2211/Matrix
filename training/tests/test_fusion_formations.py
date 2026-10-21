@@ -7,8 +7,7 @@ Le schéma final de Matrix (après la migration 0008) n'a plus les colonnes
 legacy que la commande lit en SQL brut pendant la fenêtre de transition entre
 les migrations 0007 et 0008 (TrainingCourse.sector_id, table de jonction
 referents — cf. note technique en tête de la commande). Chaque test de ce
-fichier recrée ponctuellement ces colonnes/table dans la base de test
-(SQLite), exactement comme elles existent en production entre ces deux
+fichier recrée ponctuellement ces colonnes/table dans la base de test, exactement comme elles existent en production entre ces deux
 migrations, pour valider le comportement réel de la commande — nettoyage
 automatique par le rollback transactionnel de TestCase entre chaque test,
 aucun tearDown explicite nécessaire."""
@@ -32,11 +31,12 @@ def _recreer_colonnes_legacy():
     """Ajoute à la base de test les colonnes/table retirées par la migration
     0008 (sector_id, table de jonction referents), comme elles existent
     réellement en production entre les migrations 0007 et 0008."""
+    cle = "bigserial PRIMARY KEY" if connection.vendor == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT"
     with connection.cursor() as cur:
         cur.execute("ALTER TABLE training_trainingcourse ADD COLUMN sector_id bigint NULL")
         cur.execute(
             "CREATE TABLE training_trainingcourse_referents ("
-            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            f"id {cle}, "
             "trainingcourse_id bigint NOT NULL, "
             "user_id integer NOT NULL)"
         )
@@ -104,10 +104,8 @@ class FusionFormationsNonRegressionTests(TestCase):
 
     def test_aucune_fk_orpheline_apres_fusion(self):
         call_command("fusionner_formations")
-        with connection.cursor() as cur:
-            cur.execute("PRAGMA foreign_key_check")
-            violations = cur.fetchall()
-        self.assertEqual(violations, [])
+        # Lève IntegrityError sur toute clé étrangère orpheline (SQLite et PostgreSQL).
+        connection.check_constraints()
 
     def test_dry_run_ne_modifie_rien(self):
         call_command("fusionner_formations", "--dry-run")

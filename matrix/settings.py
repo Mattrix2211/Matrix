@@ -102,7 +102,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    # Retire le caractère NUL des paramètres (erreur 500 sous PostgreSQL)
+    # Retire le caractère NUL des paramètres d'URL et des formulaires (erreur 500 sous PostgreSQL)
     "matrix.core.middleware.SansNulMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Déconnexion automatique après inactivité (matrix/core/inactivite.py)
@@ -120,6 +120,8 @@ MIDDLEWARE = [
     # matrix/core/middleware.py et matrix/core/modules.py).
     "matrix.core.middleware.ModuleActivationMiddleware",
     "matrix.core.middleware.EquipageATerreMiddleware",
+    # Filet : saisie non contrôlée (identifiant, longueur, date) -> message plutôt qu'erreur 500
+    "matrix.core.middleware.ErreurSaisieMiddleware",
 ]
 
 # Correspondance entre les niveaux de messages Django et les classes Bootstrap 5

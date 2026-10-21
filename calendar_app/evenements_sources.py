@@ -16,8 +16,18 @@ from rondes.services import rondes_ouvertes_du_marin
 from absences.models import Absence
 from taches.models import Tache
 from matrix.core.roles import RoleLevel
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_marin_q
 from .models import PersonalEvent
+
+
+def filtre_identifiant_invalide(filtres):
+    """Nom du premier filtre d'identifiant qui n'est pas un entier (« equipe » admis pour l'utilisateur), sinon None."""
+    for nom in ("ship", "service", "sector", "user"):
+        valeur = filtres.get(nom)
+        if valeur and not (nom == "user" and valeur == "equipe") and entier_ou_none(valeur) is None:
+            return nom
+    return None
 
 
 def marins_visibles(user):

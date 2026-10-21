@@ -12,6 +12,7 @@ from django.views import View
 
 from annonces.models import Annonce
 from annonces.services import peut_consulter as annonce_consultable
+from matrix.core.saisie import entier_ou_none
 from threads.utils import commentaires_de
 
 from .models import Tache
@@ -101,7 +102,7 @@ class TachesIndexView(LoginRequiredMixin, View):
 
     def post(self, request):
         # Sans marin désigné, la tâche est celle de l'utilisateur lui-même.
-        assigne = User.objects.filter(pk=request.POST["assigne"]).first() if request.POST.get("assigne") else request.user
+        assigne = User.objects.filter(pk=entier_ou_none(request.POST["assigne"])).first() if request.POST.get("assigne") else request.user
         saisie = request.POST.get("echeance", "").strip()
         echeance = parse_date(saisie) if saisie else None
         if assigne is None or (saisie and echeance is None) or not request.POST.get("titre", "").strip():
@@ -173,7 +174,7 @@ class TacheActionView(LoginRequiredMixin, View):
             elif action == "reprendre":
                 reprendre(tache, request.user)
             elif action == "modifier":
-                nouveau = User.objects.filter(pk=request.POST.get("assigne")).first()
+                nouveau = User.objects.filter(pk=entier_ou_none(request.POST.get("assigne"))).first()
                 saisie = request.POST.get("echeance", "").strip()
                 echeance = parse_date(saisie) if saisie else None
                 if nouveau is None or (saisie and echeance is None):
@@ -196,7 +197,7 @@ class TacheActionView(LoginRequiredMixin, View):
                 supprimer_piece(tache, request.user, _entier(request.POST.get("piece")))
                 messages.success(request, "Fichier supprimé.")
             elif action == "interlocuteur":
-                cible = User.objects.filter(pk=request.POST.get("interlocuteur")).first()
+                cible = User.objects.filter(pk=entier_ou_none(request.POST.get("interlocuteur"))).first()
                 if cible is None:
                     raise ValidationError("Interlocuteur introuvable.")
                 ajouter_participant(tache, request.user, cible)
