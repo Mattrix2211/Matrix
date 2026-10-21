@@ -195,7 +195,7 @@
       {% if comaeq_titulaire %}
       <p class="small mb-3">Visa attendu du <strong>COMAEQ</strong> : {{ comaeq_titulaire.get_full_name|default:comaeq_titulaire.username }}.</p>
       {% else %}
-      <div class="alert alert-warning small mb-3"><i class="bi bi-exclamation-triangle"></i> Poste de COMAEQ vacant : le visa est escaladé au commandant{% if equipage %} de l'équipage {{ equipage }}{% endif %}.</div>
+      <div class="alert alert-warning small mb-3"><i class="bi bi-exclamation-triangle"></i> Aucun titulaire COMAEQ n'est désigné pour {{ ship.name }}{% if equipage %} (équipage {{ equipage }}){% endif %} : la validation relève exceptionnellement du commandant{% if equipage %} de cet équipage{% endif %}. Elle sera tracée comme visa exceptionnel.</div>
       {% endif %}
     {% endif %}
 
@@ -256,7 +256,7 @@
   <h2 class="h5"><i class="bi bi-clock-history"></i> Historique des versions</h2>
   {% for v in versions %}
   <details class="border rounded mb-2 p-2">
-    <summary class="fw-semibold">Version {{ v.numero }} — {{ v.publiee_le|date:"d/m/Y à H:i" }}{% if v.publiee_par %} par {{ v.publiee_par }}{% endif %}</summary>
+    <summary class="fw-semibold">Version {{ v.numero }} — {{ v.publiee_le|date:"d/m/Y à H:i" }}{% if v.publiee_par %} par {{ v.publiee_par }}{% endif %}{% if v.contenu_fige.visa_exceptionnel %} <span class="badge bg-warning text-dark">Visa COMAEQ exceptionnel du commandant (poste vacant)</span>{% endif %}</summary>
     <div class="row mt-2">
       <div class="col-md-6">
         <strong class="small">En-tête</strong>

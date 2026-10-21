@@ -159,13 +159,14 @@ class WorkflowFeuilleServiceTests(FeuilleServiceTestsBase):
         self.assertTrue(Notification.objects.filter(user=self.marin_service).exists())
         self.assertFalse(Notification.objects.filter(user=self.equipier, verb__icontains="publiée").exists())
 
-    def test_supervision_globale_peut_viser_a_toutes_les_etapes(self):
+    def test_supervision_globale_vise_secteur_et_service_pas_le_comaeq(self):
         self.feuille.proposer(self.equipier)
         self.assertTrue(peut_viser_secteur(self.commandant, self.feuille))
         self.feuille.viser_secteur(self.commandant)
         self.assertTrue(peut_viser_service(self.commandant, self.feuille))
         self.feuille.viser_service(self.commandant)
-        self.assertTrue(peut_viser_comaeq(self.commandant, self.feuille))
+        # Un titulaire COMAEQ est désigné : lui seul donne le dernier visa.
+        self.assertFalse(peut_viser_comaeq(self.commandant, self.feuille))
 
     def test_renvoyer_remet_en_brouillon_avec_motif(self):
         self.feuille.proposer(self.equipier)
