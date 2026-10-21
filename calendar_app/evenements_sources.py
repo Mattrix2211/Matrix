@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from django.db.models import Q
 
+from logistics.models import CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
@@ -15,6 +16,7 @@ from quarts.services import feuille_service_du_jour_pour
 from rondes.services import rondes_ouvertes_du_marin
 from absences.models import Absence
 from taches.models import Tache
+from matrix.core.mixins import build_scope_q
 from matrix.core.roles import RoleLevel
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_marin_q
@@ -212,6 +214,19 @@ def _peut_agir_ticket(ticket, ids_perimetre, niveau_role):
     appartenir au périmètre du ticket (matériel mobile) ET être CHEF_SECTION
     et au-dessus."""
     return ticket.pk in ids_perimetre and niveau_role >= RoleLevel.CHEF_SECTION
+
+
+def occurrences_visibles(user, qs):
+    """Occurrences du périmètre de `user` (matériel mobile ou installation fixe), plus celles qui lui sont assignées."""
+    assignees = MaintenanceOccurrence.objects.filter(assignees=user).values("pk")
+    perimetre = build_scope_q(user, "asset__", "installation_maintenance__installation__")
+    return qs.filter(perimetre | Q(pk__in=assignees))
+
+
+def tickets_visibles(user, qs):
+    """Tickets du périmètre de `user` (matériel mobile ou installation fixe), plus ceux qui lui sont assignés."""
+    assignes = CorrectiveTicket.objects.filter(assignees=user).values("pk")
+    return qs.filter(build_scope_q(user, "asset__", "installation__") | Q(pk__in=assignes))
 
 
 def _appliquer_filtres_tickets(qs, filters):
