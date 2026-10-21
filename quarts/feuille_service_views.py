@@ -24,14 +24,13 @@ from accounts.models import AuditLog
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none
-from matrix.core.scopes import ship_id_for_user
+from matrix.core.scopes import is_master_admin, ship_id_for_user
 from org.models import Ship
 
 from .alertes import etat_alertes, peut_proposer_organisation_alerte, peut_valider_organisation_alerte
 from .models import (
     FeuilleService,
     FonctionFeuilleService,
-    NIVEAU_SUPERVISION_GLOBALE_LISTE,
     RubriqueEnTeteFeuilleService,
     codes_equipage,
     equipage_de_feuille_pour,
@@ -52,7 +51,7 @@ def _navires_disponibles_feuille_service(user):
     sien (ou toute la flotte pour la supervision globale) — la feuille de
     service n'a de sens qu'à l'échelle du bâtiment entier, contrairement aux
     listes de quarts/gardes qui peuvent être bornées à un secteur/service."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+    if is_master_admin(user):
         return Ship.objects.all()
     ship_id = ship_id_for_user(user)
     return Ship.objects.filter(pk=ship_id) if ship_id else Ship.objects.none()

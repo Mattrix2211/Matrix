@@ -10,7 +10,7 @@ from matrix.core.models import TimeStampedModel, OwnedModel
 from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
 from matrix.core.validators import valider_document
-from matrix.core.scopes import is_master_admin, navire_q, perimetre_hierarchique_q
+from matrix.core.scopes import agit_sur_navire, is_master_admin, navire_q, perimetre_hierarchique_q
 from notifications.models import Notification, NotificationLevel
 from org.models import Sector, Ship, Service, Section
 
@@ -179,6 +179,34 @@ def navire_de(user):
     return None
 
 
+def supervision_formation_sur(user, ship):
+    """Vrai si `user` supervise la formation du bâtiment `ship` (Ship ou None) :
+    niveau COMMANDANT et au-dessus ET bâtiment à lui ; l'administrateur général
+    agit sur tous. Un commandant n'a aucune autorité sur un autre bâtiment."""
+    return user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION and agit_sur_navire(
+        user, ship.pk if ship is not None else None
+    )
+
+
+def peut_designer_referent(user, ship, cible=None):
+    """Vrai si `user` peut désigner un référent de formation pour `ship` : le
+    commandement du bâtiment seulement, et jamais pour soi-même (sauf administrateur
+    général) : on ne s'attribue pas le droit de valider."""
+    if not supervision_formation_sur(user, ship):
+        return False
+    return cible is None or cible.pk != user.pk or is_master_admin(user)
+
+
+def formation_utilisee(course):
+    """Vrai si la formation porte déjà de l'historique (validations, sessions,
+    candidatures, demandes de places, exigences, prérequis d'une autre) : la supprimer
+    détruirait la traçabilité."""
+    return (
+        course.records.exists() or course.sessions.exists() or course.unlocks.exists()
+        or course.requirements.exists() or course.candidatures.exists() or course.demandes_places.exists()
+    )
+
+
 def peut_valider_formation(user, course, ship):
     """Vrai si `user` peut créer/modifier/supprimer un enregistrement de
     validation (TrainingRecord) pour `course`, ou gérer les présences d'une
@@ -187,16 +215,16 @@ def peut_valider_formation(user, course, ship):
     (ReferentFormation), soit parce qu'il est désigné référent formation de
     l'ensemble de ce navire (ReferentFormationNavire, autorité valable sur
     toutes les formations du navire), soit parce qu'il occupe un rôle de
-    supervision globale (COMMANDANT et au-dessus).
+    commandement de ce bâtiment (COMMANDANT et au-dessus).
 
     `ship` est TOUJOURS le navire du marin concerné par l'action (celui dont
     on crée/modifie le TrainingRecord, ou qu'on ajoute/retire des présents
     d'une session) — jamais celui de l'appelant : un référent est désigné
     pour valider les marins d'un navire précis, pas pour son propre
     rattachement. `ship` peut être None si ce marin n'a aucun navire
-    résolvable (cf. navire_de ci-dessus) : dans ce cas, seule la supervision
-    globale donne l'autorité de validation."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+    résolvable (cf. navire_de ci-dessus) : dans ce cas, seul l'administrateur
+    général a l'autorité de validation. Le commandement supervise son seul bâtiment."""
+    if supervision_formation_sur(user, ship):
         return True
     if ship is None:
         return False

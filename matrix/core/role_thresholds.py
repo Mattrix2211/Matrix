@@ -43,6 +43,16 @@ class ActionSeuil:
 # RoleThresholdConfig.thresholds (JSONField {cle: "NOM_ROLE"}).
 REGISTRE_ACTIONS = [
     ActionSeuil(
+        "structure_navire_ecriture",
+        "Modifier ou supprimer la structure de l'unité : services, secteurs, sections, configuration des secteurs, lieux",
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
+    ActionSeuil(
+        "unite_administration",
+        "Archiver l'unité ou activer/désactiver son double équipage",
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
+    ActionSeuil(
         "asset_ecriture_simple", "Créer ou modifier un matériel, un dossier",
         "Matériel mobile", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),

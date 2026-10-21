@@ -50,6 +50,7 @@ from .models import (
     perimetre_de_mon_equipage,
     peut_gerer_liste,
     peut_publier_liste,
+    supervision_liste_sur,
     utilisateur_autorise_pour_perimetre,
 )
 from .echanges_views import _echanges_visibles, _grouper_echanges
@@ -145,7 +146,7 @@ def _perimetres_org_disponibles(user, borne_par_scope=True):
 
 def _perimetre_autorise_pour_designation(user, ship, service, sector, section):
     """Vrai si `user` peut désigner/retirer un chef de liste pour le périmètre
-    donné : COMMANDANT+ sans restriction (supervision globale), ou
+    donné : COMMANDANT+ sur son bâtiment (supervision), ou
     CHEF_SERVICE+ dont le périmètre organisationnel personnel couvre le
     périmètre visé — un chef ne délègue la responsabilité de chef de liste
     que sur ce qui est déjà sous sa propre autorité, jamais au-delà (cf.
@@ -154,7 +155,7 @@ def _perimetre_autorise_pour_designation(user, ship, service, sector, section):
     logistics/web_views.py::_secteur_dans_perimetre)."""
     if not perimetre_de_mon_equipage(user, equipage_du_perimetre(user)):
         return False
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+    if supervision_liste_sur(user, ship, service, sector, section):
         return True
     if user_role_level(user) < NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE:
         return False
