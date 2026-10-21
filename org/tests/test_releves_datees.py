@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
@@ -14,8 +15,9 @@ from matrix.core.equipage import (
     equipage_a_bord_le, proposer_releve, releve_planifiee, valider_releve_secours,
 )
 from matrix.core.fuseau import champ_local, libelle_fuseau, local_vers_utc, lire_champ_local
+from matrix.core.role_thresholds import invalidate_cache
 from notifications.models import Notification
-from org.models import PeriodeEquipage, ReleveEquipage, Ship, SynthesePassation
+from org.models import PeriodeEquipage, ReleveEquipage, RoleThresholdConfig, Ship, SynthesePassation
 
 User = get_user_model()
 UTC = dt_timezone.utc
@@ -107,6 +109,18 @@ class FuseauTests(Base):
         autre = Ship.objects.create(name="Autre", code="AUT")
         self.assertIn("réservé", changer_fuseau(self.admin_navire, autre, "Pacific/Noumea"))
         self.assertEqual(Ship.objects.get(pk=autre.pk).fuseau_horaire, "")
+
+    def test_le_seuil_unite_administration_reste_configurable_par_batiment(self):
+        RoleThresholdConfig.objects.create(ship=self.navire, thresholds={"unite_administration": "COMMANDANT"})
+        invalidate_cache(self.navire.pk)
+        self.addCleanup(invalidate_cache, self.navire.pk)
+        self.assertEqual(changer_fuseau(self.cdt_a, self.navire, "Pacific/Noumea"), "")
+        self.assertIn("réservé", changer_fuseau(self.equipier_a, self.navire, "Europe/Paris"))
+
+    def test_un_fuseau_inconnu_ne_passe_pas_la_validation_du_modele(self):
+        self.navire.fuseau_horaire = "Mars/Olympus"
+        with self.assertRaises(ValidationError):
+            self.navire.full_clean()
 
 
 class ProposerTests(Base):

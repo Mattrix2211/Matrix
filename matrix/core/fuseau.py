@@ -3,6 +3,7 @@ from datetime import datetime, timezone as dt_timezone
 from zoneinfo import ZoneInfo, available_timezones
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 MESSAGE_FUSEAU_INVALIDE = "Fuseau horaire inconnu : choisissez un fuseau de la liste (ex. Europe/Paris)."
 MESSAGE_FUSEAU_OBLIGATOIRE = "Choisissez explicitement le fuseau horaire de l'unité (ex. Europe/Paris)."
@@ -14,6 +15,11 @@ def fuseaux_disponibles():
 
 def fuseau_valide(nom):
     return bool(nom) and nom in available_timezones()
+
+
+def valider_fuseau(valeur):
+    if not fuseau_valide(valeur):
+        raise ValidationError(MESSAGE_FUSEAU_INVALIDE)
 
 
 def fuseau_herite(navire):

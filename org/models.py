@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import JSONField
+from matrix.core.fuseau import valider_fuseau
 from matrix.core.models import TimeStampedModel
 
 User = get_user_model()
@@ -38,7 +39,7 @@ class Ship(TimeStampedModel):
     # Fuseau IANA de saisie et d'affichage des dates d'effet (les instants restent en UTC) ;
     # vide = fuseau par défaut hérité du paramétrage (settings.TIME_ZONE), distinct d'un choix du bord.
     fuseau_horaire = models.CharField(
-        max_length=64, blank=True, default="", verbose_name="Fuseau horaire de référence"
+        max_length=64, blank=True, default="", validators=[valider_fuseau], verbose_name="Fuseau horaire de référence"
     )
     archived = models.BooleanField(default=False)
 
