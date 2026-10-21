@@ -90,6 +90,7 @@ class Migration(migrations.Migration):
             name="fuseau_horaire",
             field=models.CharField(
                 blank=True,
+                db_default="",
                 default="",
                 max_length=64,
                 validators=[matrix.core.fuseau.valider_fuseau],

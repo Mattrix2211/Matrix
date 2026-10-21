@@ -74,22 +74,31 @@ def appliquer_releves_echues(navire=None):
     echues = ReleveEquipage.objects.filter(statut=ReleveEquipage.Statut.PLANIFIEE, date_effet__lte=timezone.now())
     if navire is not None:
         echues = echues.filter(ship_id=navire.pk)
-    appliquees = []
+    appliquees, echecs = [], []
     for ship_id in list(echues.values_list("ship_id", flat=True).order_by().distinct()):
-        with transaction.atomic():
-            verrouille = Ship.objects.select_for_update().get(pk=ship_id)
-            releve = (
-                ReleveEquipage.objects.select_for_update(of=("self",)).select_related("propose_par", "decide_par")
-                .filter(ship=verrouille, statut=ReleveEquipage.Statut.PLANIFIEE, date_effet__lte=timezone.now())
-                .first()
+        try:
+            with transaction.atomic():
+                verrouille = Ship.objects.select_for_update().get(pk=ship_id)
+                releve = (
+                    ReleveEquipage.objects.select_for_update(of=("self",)).select_related("propose_par", "decide_par")
+                    .filter(ship=verrouille, statut=ReleveEquipage.Statut.PLANIFIEE, date_effet__lte=timezone.now())
+                    .first()
+                )
+                if releve is not None:
+                    sortant = verrouille.equipage_a_bord
+                    _appliquer(releve, verrouille, None)
+                    _notifier_application(releve, verrouille, sortant)
+                    appliquees.append(releve)
+                if navire is not None and navire.pk == ship_id:
+                    navire.equipage_a_bord = verrouille.equipage_a_bord
+        except Exception as erreur:
+            logger.exception("Relève échue non appliquée (bâtiment %s)", ship_id)
+            AuditLog.objects.create(
+                actor=None, action="releve_application_echouee", details=f"navire_id={ship_id}; erreur={erreur!r}"
             )
-            if releve is not None:
-                sortant = verrouille.equipage_a_bord
-                _appliquer(releve, verrouille, None)
-                _notifier_application(releve, verrouille, sortant)
-                appliquees.append(releve)
-            if navire is not None and navire.pk == ship_id:
-                navire.equipage_a_bord = verrouille.equipage_a_bord
+            echecs.append(erreur)
+    if echecs:
+        raise echecs[0]
     return appliquees
 
 
@@ -97,7 +106,8 @@ def equipage_a_bord_le(navire, instant):
     """Équipage à bord à l'instant donné, ou None s'il est inconnu (le passé n'est jamais reconstitué).
 
     Instant présent ou futur : équipage actuel, ou celui de la relève planifiée si sa date d'effet est atteinte.
-    Instant passé : période enregistrée qui le couvre.
+    Instant passé : période enregistrée qui le couvre. Point d'entrée de la lecture historique
+    (aucun appelant métier pour l'instant).
     """
     from org.models import PeriodeEquipage
 
@@ -413,11 +423,16 @@ def annuler_releve(auteur, proposition):
     """Seul l'auteur annule sa proposition en attente. Renvoie un message d'erreur ou ''."""
     if proposition.statut != proposition.Statut.EN_ATTENTE or auteur != proposition.propose_par:
         return "Seul l'auteur peut annuler sa proposition en attente."
-    proposition.statut = proposition.Statut.ANNULEE
-    proposition.save(update_fields=["statut", "updated_at"])
-    AuditLog.objects.create(
-        actor=auteur, action="releve_annulee", details=f"navire={proposition.ship.name}; equipage_propose={proposition.equipage_propose}"
-    )
+    with transaction.atomic():
+        proposition = _recharger_en_attente(proposition)
+        if proposition is None:
+            return "Cette relève n'est plus en attente : si elle est planifiée, annulez-la avec une justification."
+        proposition.statut = proposition.Statut.ANNULEE
+        proposition.save(update_fields=["statut", "updated_at"])
+        AuditLog.objects.create(
+            actor=auteur, action="releve_annulee",
+            details=f"navire={proposition.ship.name}; equipage_propose={proposition.equipage_propose}",
+        )
     return ""
 
 

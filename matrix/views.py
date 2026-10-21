@@ -111,9 +111,9 @@ def _lignes_equipage(navire, utilisateur):
         return {'equipage_ship': None}
     codes = UserProfile.objects.filter(ship=navire).exclude(equipage='').values_list(
         'equipage', flat=True).distinct().order_by('equipage')
+    a_bord = equipage_a_bord(navire)
     releve = releve_en_attente(navire)
     planifiee = releve_planifiee(navire)
-    a_bord = equipage_a_bord(navire)
     marins = User.objects.filter(is_active=True, profile__ship=navire).exclude(profile__equipage='').select_related('profile').order_by(
         'profile__equipage', 'last_name', 'username')
     effectifs = [
@@ -590,7 +590,7 @@ class SettingsView(LoginRequiredMixin, View):
                 if type_unite:
                     sh.type_unite = type_unite
                 sh.classe_navire = classe_navire
-                sh.save()
+                sh.save(update_fields=['name', 'code', 'type_unite', 'classe_navire', 'updated_at'])
                 messages.success(request, "Unité mise à jour.")
                 AuditLog.objects.create(actor=request.user, action='edit_ship', details=f'pk={pk}')
             except Ship.DoesNotExist:

@@ -38,6 +38,15 @@ class ShipSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "created_at", "updated_at")
 
+    def update(self, instance, validated_data):
+        # L'équipage à bord change par relève : jamais réécrit par une instance lue avant.
+        validated_data.pop("equipage_a_bord", None)
+        for champ, valeur in validated_data.items():
+            setattr(instance, champ, valeur)
+        instance.save(update_fields=[*validated_data, "updated_at"])
+        equipage_a_bord(instance)
+        return instance
+
 class ServiceSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"ship": (_PERIMETRE_NAVIRE,)}
 

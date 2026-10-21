@@ -39,7 +39,7 @@ class Ship(TimeStampedModel):
     # Fuseau IANA de saisie et d'affichage des dates d'effet (les instants restent en UTC) ;
     # vide = fuseau par défaut hérité du paramétrage (settings.TIME_ZONE), distinct d'un choix du bord.
     fuseau_horaire = models.CharField(
-        max_length=64, blank=True, default="", validators=[valider_fuseau], verbose_name="Fuseau horaire de référence"
+        max_length=64, blank=True, default="", db_default="", validators=[valider_fuseau], verbose_name="Fuseau horaire de référence"
     )
     archived = models.BooleanField(default=False)
 
@@ -229,8 +229,6 @@ class ReleveEquipage(TimeStampedModel):
         VALIDEE = "validee", "Validée"
         REFUSEE = "refusee", "Refusée"
         ANNULEE = "annulee", "Annulée"
-
-    STATUTS_OUVERTS = (Statut.EN_ATTENTE, Statut.PLANIFIEE)
 
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="releves")
     equipage_propose = models.CharField(max_length=8)

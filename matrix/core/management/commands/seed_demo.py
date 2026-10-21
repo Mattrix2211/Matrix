@@ -202,6 +202,7 @@ class Command(BaseCommand):
         Location.objects.get_or_create(ship=ship, name="Coursive pont 2", parent=None)
 
     def _normandie(self):
+        # Sans fuseau, volontairement : démonstration du repli « fuseau par défaut hérité ».
         ship, _ = Ship.objects.get_or_create(name="Normandie", code="NOR", defaults=dict(classe_navire="FREMM"))
         self.nor = ship
         service, _ = Service.objects.get_or_create(ship=ship, name="Propulsion", defaults={"commandant_adjoint": "COMANAV"})
