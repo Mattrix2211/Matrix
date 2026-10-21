@@ -9,7 +9,7 @@ from accounts.models import AuditLog, UserProfile
 from matrix.core.fuseau import champ_local
 from matrix.core.tasks import appliquer_releves_echues as tache_appliquer
 from org.models import ReleveEquipage, Ship
-from org.tests.test_releves_datees import Base, a_l_instant, marin
+from org.tests.test_releves_datees import Base, a_l_instant
 
 User = get_user_model()
 
