@@ -194,3 +194,13 @@ def signaler_sans_risque(feuille, contexte):
             details=f"Feuille de service du {feuille.date:%d/%m/%Y} ({feuille.ship}) : signalement du rectificatif "
                     f"à préparer impossible {contexte} ({erreur.__class__.__name__} : {erreur}).",
         )
+
+
+def signaler_divergences_a_venir(contexte):
+    """Examine les feuilles publiées d'aujourd'hui et à venir (idempotent : une divergence
+    déjà signalée ne l'est pas deux fois). Retourne le nombre de feuilles examinées."""
+    from .models import FeuilleService
+    feuilles = list(FeuilleService.objects.filter(date__gte=timezone.localdate(), versions__isnull=False).distinct())
+    for feuille in feuilles:
+        signaler_sans_risque(feuille, contexte)
+    return len(feuilles)
