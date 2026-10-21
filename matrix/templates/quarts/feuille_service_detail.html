@@ -8,11 +8,20 @@
   </div>
   <div class="text-end">
     {% if feuille %}
+    {% if lecture_reference %}
+    <span class="badge fs-6 text-bg-success">Publiée</span>
+    <div class="small text-muted mt-1">Version {{ version.numero }}, publiée le {{ version.publiee_le|date:"d/m/Y à H:i" }}{% if version.publiee_par %} par {{ version.publiee_par }}{% endif %}</div>
+    {% if version.est_rectificative %}
+    <div class="fw-bold mt-1">Version rectificative n°{{ version.numero }} — remplace la version {{ version.remplace_numero }}</div>
+    {% endif %}
+    <button type="button" class="btn btn-outline-secondary btn-sm mt-2 no-print" onclick="window.print()"><i class="bi bi-printer"></i> Imprimer</button>
+    {% else %}
     <span class="badge fs-6 {% if feuille.statut == 'PUBLIEE' %}text-bg-success{% elif feuille.statut == 'BROUILLON' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">
       {{ feuille.get_statut_display }}
     </span>
     {% if feuille.statut == 'PUBLIEE' %}
     <div class="small text-muted mt-1">Publiée le {{ feuille.publiee_le|date:"d/m/Y à H:i" }}{% if feuille.publiee_par %} par {{ feuille.publiee_par }}{% endif %}</div>
+    {% endif %}
     {% endif %}
     {% else %}
     <span class="badge fs-6 text-bg-light text-muted border">Aucune feuille</span>
@@ -59,12 +68,32 @@
   </form>
   {% endif %}
 </div>
-{% elif feuille.motif_retour and feuille.statut == 'BROUILLON' %}
+{% elif feuille.motif_retour and feuille.statut == 'BROUILLON' and not lecture_reference %}
 <div class="alert alert-warning"><i class="bi bi-arrow-counterclockwise"></i> Renvoyée pour correction : {{ feuille.motif_retour }}</div>
 {% endif %}
 
-{% if version_de_reference %}
-<div class="alert alert-info"><i class="bi bi-info-circle"></i> Feuille publiée avant l'historisation : l'en-tête et le personnel affichés sont ceux figés dans la version {{ version_de_reference.numero }} ({{ version_de_reference.publiee_le|date:"d/m/Y à H:i" }}). Un échange de service ultérieur n'y apparaît pas.</div>
+{% if lecture_reference and divergences %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  <strong>Les affectations effectives ont changé depuis la publication.</strong>
+  Cette feuille (version {{ version.numero }}) reste la référence publiée tant qu'un rectificatif n'est pas publié ; les changements validés (échange de service…) restent effectifs dans le planning.
+  <ul class="mb-2 mt-2">
+    {% for d in divergences %}<li>{{ d.libelle }} : {{ d.avant|default:"à définir" }} → {{ d.apres|default:"à définir" }} <span class="text-muted">(effectif)</span></li>{% endfor %}
+  </ul>
+  {% if rectificatif_en_cours %}
+  <span class="small">Un rectificatif est en cours de préparation ou de visa.</span>
+  {% elif peut_ouvrir_rectificatif %}
+  <form method="post" class="d-inline" onsubmit="return confirm('Ouvrir un rectificatif reprenant les affectations effectives ? La version {{ version.numero }} reste la référence jusqu\'à sa publication.');">
+    {% csrf_token %}<input type="hidden" name="action" value="ouvrir_rectificatif">
+    <button type="submit" class="btn btn-warning btn-sm"><i class="bi bi-pencil-square"></i> Préparer un rectificatif</button>
+  </form>
+  {% endif %}
+</div>
+{% elif rectificatif_en_cours and not lecture_reference %}
+<div class="alert alert-info"><i class="bi bi-pencil-square"></i> Rectificatif en cours : cette copie de travail reprend les affectations effectives. La version {{ version.numero }} reste la référence publiée jusqu'à la publication du rectificatif.</div>
+{% endif %}
+{% if lecture_reference and feuille.sans_instantane and version %}
+<div class="alert alert-info"><i class="bi bi-info-circle"></i> Feuille publiée avant l'historisation : l'en-tête et le personnel affichés sont ceux figés dans la version {{ version.numero }} ({{ version.publiee_le|date:"d/m/Y à H:i" }}).</div>
 {% elif feuille and feuille.sans_instantane %}
 <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Feuille antérieure à l'historisation, sans version conservée : sa structure d'origine est inconnue, l'affichage suit les réglages actuels du bâtiment et ne prouve pas ce qui a été diffusé.</div>
 {% endif %}
@@ -78,7 +107,7 @@
   </form>
   {% endif %}
 </div>
-{% elif feuille.structure_figee.origine == 'migration' and feuille.statut != 'PUBLIEE' %}
+{% elif feuille.structure_figee.origine == 'migration' and feuille.statut != 'PUBLIEE' and not lecture_reference %}
 <div class="alert alert-info"><i class="bi bi-info-circle"></i> Structure figée à la date de la migration d'après les réglages d'alors, pas d'après la structure d'origine de la feuille.</div>
 {% endif %}
 
@@ -127,14 +156,14 @@
           <thead><tr><th>Fonction</th><th>Titulaire</th></tr></thead>
           <tbody>
             {% for e in personnel %}
-            <tr {% if e.creneau.marin_id == request.user.pk %}class="table-success"{% endif %}>
+            <tr {% if e.marin_id == request.user.pk %}class="table-success"{% endif %}>
               <td>{{ e.fonction.libelle }}</td>
               <td>
                 {% if e.creneau and e.creneau.marin %}
                   {{ e.creneau.marin.profile.grade }} {{ e.creneau.marin.get_full_name|default:e.creneau.marin.username }}
                   {% if e.creneau.marin_id == request.user.pk %}<span class="badge text-bg-success ms-1">Vous</span>{% endif %}
                 {% elif e.marin_fige %}
-                  {{ e.marin_fige }}
+                  {{ e.marin_fige }}{% if e.marin_id == request.user.pk %}<span class="badge text-bg-success ms-1">Vous</span>{% endif %}
                 {% else %}
                   <span class="text-muted">À définir</span>
                 {% endif %}
@@ -167,10 +196,13 @@
         <table class="table table-sm align-middle mb-0">
           <tbody>
             {% for p in a.postes %}
-            <tr {% if p.creneau.marin_id == request.user.pk %}class="table-success"{% endif %}>
+            <tr {% if p.marin_id == request.user.pk %}class="table-success"{% endif %}>
               <td>{{ p.poste.libelle }}{% if not p.poste.obligatoire %} <span class="text-muted small">(facultatif)</span>{% endif %}</td>
               <td>
-                {% if p.arme %}
+                {% if p.marin_fige %}
+                  {{ p.marin_fige }}
+                  {% if p.marin_id == request.user.pk %}<span class="badge text-bg-success ms-1">Vous</span>{% endif %}
+                {% elif p.arme %}
                   {{ p.creneau.marin.profile.grade }} {{ p.creneau.marin.get_full_name|default:p.creneau.marin.username }}
                   {% if p.creneau.marin_id == request.user.pk %}<span class="badge text-bg-success ms-1">Vous</span>{% endif %}
                 {% elif p.poste.obligatoire %}
@@ -190,7 +222,7 @@
 </div>
 {% endif %}
 
-{% if feuille %}
+{% if feuille and not circuit_masque %}
 <div class="mt-4">
   <h2 class="h5">Circuit de validation</h2>
   <div class="card card-body">
@@ -242,7 +274,7 @@
     {% endif %}
     {% if peut_viser_comaeq %}
     <form method="post" class="d-inline" onsubmit="return confirm('Viser en tant que COMAEQ et publier la feuille ? La fraction de service sera notifiée.');">
-      {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq"><input type="hidden" name="jeton_visa" value="{{ jeton_visa }}">
       <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Viser et publier (COMAEQ)</button>
     </form>
     {% endif %}
@@ -277,7 +309,7 @@
   <h2 class="h5"><i class="bi bi-clock-history"></i> Historique des versions</h2>
   {% for v in versions %}
   <details class="border rounded mb-2 p-2">
-    <summary class="fw-semibold">Version {{ v.numero }} — {{ v.publiee_le|date:"d/m/Y à H:i" }}{% if v.publiee_par %} par {{ v.publiee_par }}{% endif %}{% if v.contenu_fige.visa_exceptionnel %} <span class="badge bg-warning text-dark">Visa COMAEQ exceptionnel du commandant (poste vacant)</span>{% endif %}</summary>
+    <summary class="fw-semibold">Version {{ v.numero }} — {{ v.publiee_le|date:"d/m/Y à H:i" }}{% if v.publiee_par %} par {{ v.publiee_par }}{% endif %}{% if v.est_rectificative %} <span class="badge text-bg-info">Rectificative : remplace la version {{ v.remplace_numero }}</span>{% endif %}{% if v.est_remplacee %} <span class="badge text-bg-secondary">Remplacée</span>{% else %} <span class="badge text-bg-success">Référence publiée</span>{% endif %}{% if v.contenu_fige.visa_exceptionnel %} <span class="badge bg-warning text-dark">Visa COMAEQ exceptionnel du commandant (poste vacant)</span>{% endif %}</summary>
     <div class="row mt-2">
       <div class="col-md-6">
         <strong class="small">En-tête</strong>

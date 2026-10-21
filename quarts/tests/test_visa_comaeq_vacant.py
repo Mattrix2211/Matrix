@@ -7,6 +7,7 @@ from django.utils import timezone
 from accounts.models import AuditLog, UserProfile
 from org.models import Ship
 from quarts.models import FeuilleService, peut_viser_comaeq
+from quarts.tests.test_feuille_service import jeton_visa_affiche
 
 
 def _marin(username, role, ship, equipage="", fonction_coma=""):
@@ -29,8 +30,10 @@ class VisaComaeqVacantTests(TestCase):
         self.cdt_autre = _marin("cdt_autre", "COMMANDANT", self.autre_ship)
         self.admin = _marin("admin", "ADMIN_UNITE", self.ship, "A")
         self.feuille = FeuilleService.objects.create(
-            ship=self.ship, equipage="A", date=timezone.localdate(), statut=FeuilleService.STATUT_VISA_COMAEQ,
+            ship=self.ship, equipage="A", date=timezone.localdate(),
         )
+        self.feuille.proposer(self.cdt_a)
+        self.feuille.viser_service(self.cdt_a)
 
     def _poste_pourvu(self, equipage="A"):
         return _marin(f"comaeq_{equipage}", "ETAT_MAJOR", self.ship, equipage, "COMAEQ")
@@ -40,6 +43,7 @@ class VisaComaeqVacantTests(TestCase):
         self.assertTrue(peut_viser_comaeq(comaeq, self.feuille))
         for autre in (self.cdt_a, self.second_a, self.admin):
             self.assertFalse(peut_viser_comaeq(autre, self.feuille))
+        AuditLog.objects.filter(action="feuille_service_comaeq_vacant").delete()  # laissé par la mise en place (poste alors vacant)
         self.feuille._notifier_prochain_visa()
         self.assertFalse(AuditLog.objects.filter(action="feuille_service_comaeq_vacant").exists())
 
@@ -93,6 +97,6 @@ class VisaComaeqVacantTests(TestCase):
         self.client.force_login(self.second_a)
         self.assertEqual(self.client.post(url, {"action": "viser_comaeq"}).status_code, 403)
         self.client.force_login(self.cdt_a)
-        self.client.post(url, {"action": "viser_comaeq"})
+        self.client.post(url, {"action": "viser_comaeq", "jeton_visa": jeton_visa_affiche(self.client, url)})
         self.feuille.refresh_from_db()
         self.assertEqual(self.feuille.statut, FeuilleService.STATUT_PUBLIEE)

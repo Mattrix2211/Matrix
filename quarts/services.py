@@ -165,21 +165,20 @@ def feuille_service_du_jour_pour(user, date_=None):
     (calendar_app), cf. tâche Notion « Feuille de service quotidienne ».
     None si l'utilisateur n'a pas de navire rattaché ou qu'aucune feuille
     n'est publiée pour ce jour (une feuille en brouillon ou en cours de visa
-    n'est jamais montrée ici : seule une feuille publiée concerne tout
-    l'équipage)."""
+    n'est jamais montrée ici, sauf si une version est déjà publiée : seule
+    une feuille publiée concerne tout l'équipage)."""
     profile = getattr(user, "profile", None)
     if not profile or not profile.ship_id:
         return None
     date_ = date_ or timezone.localdate()
     # Double équipage : la feuille de l'équipage de l'utilisateur, jamais celle de l'autre.
     feuille = feuille_du_jour(profile.ship, date_, equipage_agissant(user))
-    if feuille is not None and feuille.statut != FeuilleService.STATUT_PUBLIEE:
+    # Une version publiée reste lisible pendant un rectificatif.
+    if feuille is not None and feuille.statut != FeuilleService.STATUT_PUBLIEE and not feuille.versions.exists():
         feuille = None
     if feuille is None:
         return None
-    je_suis_de_service = any(
-        e["creneau"] and e["creneau"].marin_id == user.pk for e in feuille.personnel
-    )
+    je_suis_de_service = any(e["marin_id"] == user.pk for e in feuille.personnel_de_reference)
     return {"feuille": feuille, "je_suis_de_service": je_suis_de_service}
 
 

@@ -65,7 +65,10 @@ def etat_alertes(ship, date_, equipage=""):
                 titulaire_du_jour(poste.fonction, date_, equipage)
                 if poste.fonction_id and poste.fonction.actif else None
             )
-            postes.append({"poste": poste, "creneau": creneau, "arme": bool(creneau and creneau.marin_id)})
+            postes.append({
+                "poste": poste, "creneau": creneau, "arme": bool(creneau and creneau.marin_id),
+                "marin_id": creneau.marin_id if creneau else None,
+            })
         resultat.append({
             "scenario": scenario,
             "postes": postes,
@@ -85,17 +88,41 @@ def figer_alertes(etat):
         {
             "scenario": e["scenario"].libelle,
             "famille": e["scenario"].get_famille_display(),
+            "adjoint": e["scenario"].adjoint_responsable,
             "postes": [
                 {
                     "role": p["poste"].libelle,
                     "obligatoire": p["poste"].obligatoire,
                     "marin": _nom_marin(p["creneau"]) if p["arme"] else "",
+                    "marin_id": p["creneau"].marin_id if p["arme"] else None,
                 }
                 for p in e["postes"]
             ],
         }
         for e in etat
     ]
+
+
+def alertes_figees_a_afficher(alertes):
+    """Alertes figées d'une version, sous la forme lue par la page (comme etat_alertes)."""
+    resultat = []
+    for scenario in alertes:
+        postes = [
+            {
+                "poste": {"libelle": p["role"], "obligatoire": p["obligatoire"]},
+                "marin_fige": p["marin"], "marin_id": p.get("marin_id"), "arme": bool(p["marin"]),
+            }
+            for p in scenario["postes"]
+        ]
+        resultat.append({
+            "scenario": {
+                "libelle": scenario["scenario"], "get_famille_display": scenario["famille"],
+                "adjoint_responsable": scenario.get("adjoint", ""),
+            },
+            "postes": postes,
+            "non_armes": [p for p in postes if p["poste"]["obligatoire"] and not p["arme"]],
+        })
+    return resultat
 
 
 def signaler_postes_non_armes(feuille, user):

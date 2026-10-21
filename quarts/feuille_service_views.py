@@ -28,7 +28,12 @@ from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import is_master_admin, ship_id_for_user
 from org.models import Ship
 
-from .alertes import etat_alertes, peut_proposer_organisation_alerte, peut_valider_organisation_alerte
+from .alertes import (
+    alertes_figees_a_afficher,
+    etat_alertes,
+    peut_proposer_organisation_alerte,
+    peut_valider_organisation_alerte,
+)
 from .models import (
     FeuilleService,
     FonctionFeuilleService,
@@ -38,14 +43,17 @@ from .models import (
     feuille_du_jour,
     peut_gerer_brouillon_feuille,
     peut_lire_feuille_service,
+    peut_ouvrir_rectificatif,
     peut_rediger_feuille_service,
     peut_ecrire_pour_equipage,
     peut_viser_comaeq,
     titulaire_comaeq,
     peut_viser_secteur,
     peut_viser_service,
+    peut_voir_travail_feuille,
     personnel_du_jour,
 )
+from .rectificatif import MESSAGE_CONTENU_CHANGE, divergences_effectives, empreinte_du_jeton, jeton_visa
 
 
 def _navires_disponibles_feuille_service(user):
@@ -168,17 +176,27 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             autres_feuilles = FeuilleService.objects.filter(
                 ship=ship, date=date_
             ).exclude(equipage="").exclude(pk=feuille.pk if feuille else 0)
+        version = feuille.version_publiee if feuille is not None else None
+        # Pendant un rectificatif, seuls les acteurs du circuit voient la copie de
+        # travail ; les autres lisent la version publiée, qui reste la référence.
+        lecture_reference = version is not None and (
+            feuille.statut == FeuilleService.STATUT_PUBLIEE
+            or not peut_voir_travail_feuille(request.user, feuille)
+        )
+        divergences = divergences_effectives(feuille) if version is not None else []
         if feuille is not None:
-            rubriques = feuille.rubriques_affichees
-            personnel = feuille.personnel
+            rubriques = feuille.rubriques_de_reference if lecture_reference else feuille.rubriques_affichees
+            personnel = feuille.personnel_de_reference if lecture_reference else feuille.personnel
         else:
             rubriques = [
                 {"rubrique": r, "valeur": r.valeur_fixe if r.type_saisie == r.TYPE_FIXE else ""}
                 for r in RubriqueEnTeteFeuilleService.objects.filter(ship=ship, actif=True)
             ]
             personnel = personnel_du_jour(ship, date_, equipage)
-        je_suis_de_service = any(
-            e["creneau"] and e["creneau"].marin_id == request.user.pk for e in personnel
+        je_suis_de_service = any(e["marin_id"] == request.user.pk for e in personnel)
+        alertes = (
+            alertes_figees_a_afficher(version.contenu_fige.get("alertes", []))
+            if lecture_reference else etat_alertes(ship, date_, equipage)
         )
         return {
             "ship": ship,
@@ -205,20 +223,32 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
                 and peut_viser_comaeq(request.user, feuille)
             ),
+            "jeton_visa": (
+                jeton_visa(feuille, request.user)
+                if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
+                and peut_viser_comaeq(request.user, feuille) else ""
+            ),
             "comaeq_titulaire": (
                 titulaire_comaeq(feuille)
                 if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ else None
             ),
-            "alertes": etat_alertes(ship, date_, equipage),
+            "alertes": alertes,
+            "lecture_reference": lecture_reference,
+            "circuit_masque": lecture_reference and feuille.statut != FeuilleService.STATUT_PUBLIEE,
+            "version": version,
+            "divergences": divergences if lecture_reference else [],
+            "rectificatif_en_cours": feuille is not None and feuille.rectificatif_en_cours,
+            "peut_ouvrir_rectificatif": (
+                feuille is not None and bool(divergences) and peut_ouvrir_rectificatif(request.user, feuille)
+            ),
             "peut_gerer_alertes": (
                 peut_proposer_organisation_alerte(request.user, ship)
                 or peut_valider_organisation_alerte(request.user, ship)
             ),
             "versions": feuille.versions.all() if feuille is not None else None,
-            "version_de_reference": feuille.version_de_reference if feuille is not None else None,
             "structure_divergente": (
                 feuille is not None and feuille.statut != FeuilleService.STATUT_PUBLIEE
-                and feuille.structure_divergente
+                and not lecture_reference and feuille.structure_divergente
             ),
             "peut_configurer": peut_configurer,
             # Double équipage sans équipage à bord défini : rien n'est affiché
@@ -283,6 +313,18 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             messages.success(request, "Structure resynchronisée avec les réglages actuels du bâtiment.")
             if retirees:
                 messages.warning(request, "Saisies retirées (rubriques supprimées ou devenues fixes) : " + "; ".join(retirees))
+        elif action == "ouvrir_rectificatif":
+            if not peut_ouvrir_rectificatif(request.user, feuille):
+                raise PermissionDenied
+            if not divergences_effectives(feuille):
+                messages.info(request, "Les affectations effectives n'ont pas changé : aucun rectificatif à ouvrir.")
+                return _redirection_detail(ship, date_, equipage)
+            feuille.ouvrir_rectificatif(request.user)
+            messages.success(
+                request,
+                f"Rectificatif ouvert : la version {feuille.version_publiee.numero} reste la référence publiée "
+                "jusqu'à la publication du rectificatif.",
+            )
         elif action == "proposer":
             if feuille.statut != FeuilleService.STATUT_BROUILLON or not peut_gerer_brouillon_feuille(
                 request.user, feuille
@@ -303,10 +345,17 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         elif action == "viser_comaeq":
             if feuille.statut != FeuilleService.STATUT_VISA_COMAEQ or not peut_viser_comaeq(request.user, feuille):
                 raise PermissionDenied
-            feuille.viser_comaeq(request.user)
-            messages.success(
-                request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
-            )
+            empreinte = empreinte_du_jeton(request.POST.get("jeton_visa"), feuille, request.user)
+            if empreinte is None:
+                messages.error(
+                    request, "Formulaire de visa invalide ou expiré. Actualisez la feuille avant de la viser."
+                )
+            elif feuille.viser_comaeq(request.user, empreinte):
+                messages.success(
+                    request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
+                )
+            else:
+                messages.error(request, MESSAGE_CONTENU_CHANGE)
         elif action == "renvoyer":
             verificateur = {
                 FeuilleService.STATUT_VISA_SECTEUR: peut_viser_secteur,
