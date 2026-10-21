@@ -8,7 +8,7 @@ from accounts.models import AuditLog
 from annonces.services import chaine, cible_permise, cibles_autorisees, resoudre_cible
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from training.models import TrainingCourse, TrainingRecord
 
 from .models import AffectationPoste, Poste
@@ -19,7 +19,7 @@ User = get_user_model()
 def peut_gerer(user):
     return (
         not equipage_a_terre_lecture_seule(user)
-        and user_role_level(user) >= niveau_requis_pour(user, "poste_gestion")
+        and niveau_ecriture(user) >= niveau_requis_pour(user, "poste_gestion")
         and bool(cibles_autorisees(user))
     )
 

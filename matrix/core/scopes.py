@@ -37,6 +37,21 @@ def is_master_admin(user) -> bool:
     return bool(profile and profile.role == "MASTER_ADMIN")
 
 
+def soutien_a_terre(user) -> bool:
+    """Personnel à terre : sans bâtiment, chargé d'une classe ou d'une spécialité (responsable ou chef du
+    responsable), hors administrateur général. Hors de la chaîne embarquée : il consulte et commente."""
+    if not getattr(user, "is_authenticated", False) or is_master_admin(user):
+        return False
+    profile = getattr(user, "profile", None)
+    if profile is None or profile.navire_id_effectif is not None:
+        return False
+    return (
+        user.classes_navire_dont_il_est_responsable.exists()
+        or user.specialites_dont_il_est_responsable.exists()
+        or user.responsables_specialite_diriges.exists()
+    )
+
+
 def ship_id_for_user(user) -> Optional[int]:
     """Renvoie l'id du navire rattaché au profil de l'utilisateur, ou None si
     aucun navire n'est renseigné. Contrairement à scope_filters_for_user() (qui

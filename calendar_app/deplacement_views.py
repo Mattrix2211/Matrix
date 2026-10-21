@@ -10,7 +10,7 @@ from django.utils import timezone
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
-from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import niveau_ecriture, RoleLevel
 from matrix.core.mixins import build_scope_q
 from accounts.models import AuditLog
 from .models import PersonalEvent
@@ -52,7 +52,7 @@ def calendar_event_move(request):
     except Exception:
         return HttpResponseBadRequest("Invalid date")
     if ev_type == "ticket" and ev_id:
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         try:
             # Le queryset est restreint au périmètre de l'appelant avant la
@@ -83,7 +83,7 @@ def calendar_event_move(request):
             # doit appartenir à son périmètre (via le matériel mobile ou
             # l'installation fixe rattachée) — un assigné garde toujours la main
             # sur sa propre occurrence, quel que soit son rôle ou son périmètre.
-            if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+            if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
                 raise PermissionDenied
             perimetre = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
             if not MaintenanceOccurrence.objects.filter(perimetre, pk=ev_id).exists():
@@ -108,7 +108,7 @@ def calendar_event_move(request):
         # organisationnel mais par affectation personnelle (_perimetre_session
         # ci-dessus, cf. tâche Notion « Formation unique et portable entre
         # navires »).
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         try:
             # Le queryset est restreint au périmètre de l'appelant avant la

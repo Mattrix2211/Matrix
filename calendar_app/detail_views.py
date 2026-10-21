@@ -14,7 +14,7 @@ from programme.models import EvenementProgramme
 from programme.services import evenements_visibles
 from quarts.models import CreneauQuart, CreneauServiceGarde
 from taches.models import Tache
-from taches.services import avancement_equipe, demarrer, est_chef_de, peut_consulter, peut_gerer, repondre
+from taches.services import avancement_equipe, demarrer, peut_consulter, peut_gerer, repondre, superviseur_de
 from threads.utils import ajouter_commentaire, commentaires_de
 from training.models import TrainingSession
 
@@ -32,7 +32,7 @@ def _nom(user):
 
 def _creneau(modele, user, pk):
     creneau = get_object_or_404(modele.objects.select_related("marin"), pk=pk)
-    if creneau.marin is None or not (creneau.marin_id == user.pk or est_chef_de(user, creneau.marin)):
+    if creneau.marin is None or not (creneau.marin_id == user.pk or superviseur_de(user, creneau.marin)):
         raise Http404
     return creneau
 
@@ -70,7 +70,7 @@ def _fiche(type_evenement, user, pk):
         }
     if type_evenement == "absence":
         objet = get_object_or_404(Absence.objects.select_related("marin", "type_absence"), pk=pk)
-        if not (objet.marin_id == user.pk or est_chef_de(user, objet.marin)):
+        if not (objet.marin_id == user.pk or superviseur_de(user, objet.marin)):
             raise Http404
         return objet, {
             "titre": str(objet.type_absence), "responsable": _nom(objet.marin),

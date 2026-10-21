@@ -3,6 +3,7 @@ from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
 from matrix.core.inactivite import delai_avertissement, delai_inactivite
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.navigation import construire_navigation
+from matrix.core.scopes import soutien_a_terre
 from notifications.services import compter_non_lues
 
 
@@ -48,8 +49,9 @@ def barre_superieure(request):
     else:
         role = profil.get_role_display() if profil and profil.role else Roles.EQUIPIER.label
     a_terre = profil.equipage if equipage_a_terre_lecture_seule(utilisateur) else ""
+    soutien = soutien_a_terre(utilisateur)
     if request.headers.get("HX-Request"):
-        return {"equipage_a_terre": a_terre}  # seul le mode lecture seule sert aux fragments
+        return {"equipage_a_terre": a_terre, "soutien_a_terre": soutien}  # seul le mode lecture seule sert aux fragments
     batiments = selecteur_batiment(utilisateur)
     return {
         "identite_utilisateur": {
@@ -62,6 +64,8 @@ def barre_superieure(request):
         "batiments_selectionnables": batiments,
         # Équipage à terre : bandeau « Lecture seule » permanent (docs/UX.md §11.4).
         "equipage_a_terre": a_terre,
+        # Soutien à terre (sans bâtiment) : consultation et commentaires seulement.
+        "soutien_a_terre": soutien,
     }
 
 

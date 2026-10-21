@@ -112,6 +112,22 @@ class CircuitTests(BaseFiches):
         with self.assertRaises(ErreurCircuit):
             circuit.viser(self.comanav, version.pk, Etat.VISA_COMA)
 
+    def test_sans_titulaire_le_visa_reste_en_attente_et_le_second_ne_vise_pas(self):
+        User.objects.filter(pk=self.comaeq.pk).update(is_active=False)
+        second = self._u("second", "COMMANDANT_EN_SECOND", ship=self.ship)
+        commandant = self._u("cdt", "COMMANDANT", ship=self.ship)
+        version = self.soumettre(auteur=self.chef_secteur)
+        circuit.viser(self.chef_service, version.pk, Etat.VISA_SERVICE)
+        version.refresh_from_db()
+        for intrus in (second, commandant, self.comanav):
+            self.assertFalse(circuit.peut_agir(intrus, version)[0], intrus.username)
+            with self.assertRaises(ErreurCircuit):
+                circuit.viser(intrus, version.pk, Etat.VISA_COMA)
+        version.refresh_from_db()
+        self.assertEqual(version.etat, Etat.VISA_COMA)
+        self.assertEqual(circuit.valideurs(version), [])
+        self.assertIn("Aucun COMAEQ compétent n'est désigné pour le service « Machine »", circuit.message_blocage(version))
+
     def test_droits_de_redaction(self):
         for user in (self.equipier, self.chef_service):
             with self.subTest(user.username), self.assertRaises(ErreurCircuit):

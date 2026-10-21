@@ -17,7 +17,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import View
 
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture
 from matrix.core.mixins import build_scope_q
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 
@@ -32,7 +32,7 @@ _STATUTS_OCCURRENCE_TERMINES = ("DONE", "CANCELLED")
 
 class StartVisualCheckView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        if user_role_level(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         # Périmètre : même filtre que ScanQRView (scope_filters_for_user) — sans
         # lui, un chef de section connaissant l'identifiant d'un matériel d'un

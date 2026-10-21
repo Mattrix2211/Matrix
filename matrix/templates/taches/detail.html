@@ -2,7 +2,7 @@
 {% load icones documentation_extras %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=tache.titre sous_titre="Tâche" objet=tache %}
-{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=tache:{{ tache.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
+{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=tache:{{ tache.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
 <p>{% include "taches/_statut.html" with t=tache %}
   {% if en_retard %}<span class="badge text-bg-danger">En retard</span>{% endif %}
   {% if tache.priorite == "URGENTE" and tache.ouverte %}<span class="badge text-bg-danger">Urgente</span>{% endif %}
@@ -12,7 +12,7 @@
 {% if annonce_source %}<p class="small text-muted">Issue de l'annonce : <a href="{% url 'annonce-detail' annonce_source.pk %}">{{ annonce_source.titre }}</a></p>{% endif %}
 {% if tache.description %}<p>{{ tache.description|linebreaksbr }}</p>{% endif %}
 {% documents_associes_a tache %}
-{% if not equipage_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=tache:{{ tache.pk }}">Proposer un RETEX</a></p>{% endif %}
+{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=tache:{{ tache.pk }}">Proposer un RETEX</a></p>{% endif %}
 
 <section class="card card-body mb-4" aria-labelledby="titre-checklist">
   {% with c=tache.avancement_checklist %}<h2 class="h5" id="titre-checklist">Checklist{% if c.1 %} <span class="badge text-bg-light border">{{ c.0 }}/{{ c.1 }}</span>{% endif %}</h2>

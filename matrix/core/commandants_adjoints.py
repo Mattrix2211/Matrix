@@ -61,3 +61,16 @@ def est_titulaire(user, code):
     return bool(
         user.is_active and profil and profil.role == Roles.ETAT_MAJOR and profil.ship_id and profil.fonction_coma == code
     )
+
+
+def message_absence_coma(service, equipage=""):
+    """Explication quand aucun commandant adjoint compétent ne peut viser (vide s'il y en a un)."""
+    if service is None or titulaires_du_service(service, equipage).exists():
+        return ""
+    code = commandant_adjoint_du_service(service)
+    if not code:
+        return (f"Aucun commandant adjoint n'est désigné pour le service « {service.name} » : visa en attente "
+                "jusqu'à ce que l'administrateur configure l'organisation.")
+    lieu = f" pour l'équipage {equipage}" if equipage and service.ship.double_equipage else ""
+    return (f"Aucun {code} compétent n'est désigné pour le service « {service.name} »{lieu} : visa en attente "
+            "jusqu'à ce que l'administrateur renseigne le titulaire.")

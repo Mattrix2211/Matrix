@@ -37,7 +37,7 @@ from assets.models import Asset, AssetFolder, AssetType, Deck, Installation, Ins
 from calendar_app.models import PersonalEvent
 from logistics.models import CorrectiveTicket, StockPiece
 from matrix.core.role_thresholds import invalidate_cache
-from matrix.core.roles import RoleLevel
+from matrix.core.roles import ROLES_SANS_ECRITURE_HERITEE, RoleLevel
 from org.models import RoleThresholdConfig, Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
@@ -81,12 +81,13 @@ class MatricePermissionsTestCase(TestCase):
         """Pour chacun des 8 rôles, exécute `executer(client, role)` — qui doit
         renvoyer True si l'action a été acceptée, False si elle a été refusée
         — et vérifie que le résultat correspond au seuil de rôle attendu
-        (autorisé si et seulement si role >= seuil)."""
+        (autorisé si et seulement si role >= seuil, hors rôles sans écriture héritée)."""
         for role in ROLES:
             with self.subTest(role=role.name):
                 client = self.client_pour(role, api=api)
                 accepte = executer(client, role)
-                attendu = role >= seuil
+                # Le commandant en second garde sa vision et les gestes ouverts à tous, mais ses écritures ne découlent pas du grade.
+                attendu = role >= seuil and (seuil == RoleLevel.EQUIPIER or role.name not in ROLES_SANS_ECRITURE_HERITEE)
                 self.assertEqual(
                     accepte, attendu,
                     f"Rôle {role.name} (niveau {role.value}) : accès attendu="

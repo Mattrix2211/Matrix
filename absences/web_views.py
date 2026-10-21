@@ -14,7 +14,7 @@ from django.utils.dateparse import parse_date
 from django.views import View
 
 from accounts.models import TypeAbsence
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture
 from matrix.core.saisie import entier_ou_none
 
 from .models import Absence
@@ -43,7 +43,7 @@ class MesAbsencesView(LoginRequiredMixin, View):
         )
         for absence in absences:
             absence.peut_valider = peut_valider_absence(request.user, absence)
-        chef = user_role_level(request.user) >= RoleLevel.CHEF_SECTION
+        chef = niveau_ecriture(request.user) >= RoleLevel.CHEF_SECTION
         return {
             "mes_absences": [a for a in absences if a.marin_id == request.user.pk],
             "absences_equipe": [a for a in absences if a.marin_id != request.user.pk],

@@ -20,8 +20,9 @@ from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from .perimetre import STATUTS_SANS_RETARD, perimetre_occurrences_q, retard_q
-from matrix.core.equipage import equipage_a_terre_lecture_seule, suivi_a_terre_sans_validation
-from matrix.core.roles import user_role_level
+from matrix.core.equipage import equipage_a_terre_lecture_seule
+from matrix.core.scopes import soutien_a_terre
+from matrix.core.roles import niveau_ecriture, user_role_level
 from matrix.core.saisie import entier_ou_none, sans_nul, uuid_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.validators import valider_document, message_erreur_fichier
@@ -67,9 +68,9 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
     template_name = 'maintenance/execute.html'
 
     @staticmethod
-    def _charger(request, pk):
-        """Occurrence et lignes de checklist, ou une réponse d'erreur ; périmètre et droits
-        identiques pour la lecture et l'écriture."""
+    def _charger(request, pk, ecriture=False):
+        """Occurrence et lignes de checklist, ou une réponse d'erreur ; `ecriture` exige le droit
+        d'écrire (le grade seul suffit pour consulter)."""
         try:
             occ = MaintenanceOccurrence.objects.select_related(
                 'plan', 'asset', 'plan__checklist_template',
@@ -77,7 +78,8 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             ).filter(perimetre_occurrences_q(request.user)).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             return None, None, HttpResponseBadRequest('Occurrence introuvable')
-        if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
+        niveau = niveau_ecriture(request.user) if ecriture else user_role_level(request.user)
+        if (request.user not in occ.assignees.all()) and (niveau < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
         return occ, occ.lignes_fiche(), None
 
@@ -112,13 +114,14 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         estimee = duree_estimee(occ, version_fiche)
         faits = sum(1 for ligne in lignes if ligne["etat"] or ligne["valeur"])
         deja_termine = bool(execution and execution.completed_at)
-        peut_corriger = user_role_level(request.user) >= niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction')
+        peut_corriger = niveau_ecriture(request.user) >= niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction')
+        peut_saisir = request.user in occ.assignees.all() or niveau_ecriture(request.user) >= niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')
         contexte = {
             "occ": occ, "items": items, "lignes": lignes, "etats": ETATS, "erreurs": erreurs or [],
             "notes": notes, "conformity": conformity, "debut": valeur_datetime(debut), "fin": valeur_datetime(fin),
             "intervenants": [{"user": u, "coche": (u.pk in intervenants) if intervenants is not None else u in occ.assignees.all()} for u in assignees],
             "deja_termine": deja_termine, "duree_estimee": formater_duree(estimee) if estimee else "",
-            "lecture_seule": equipage_a_terre_lecture_seule(request.user) or (deja_termine and not peut_corriger),
+            "lecture_seule": equipage_a_terre_lecture_seule(request.user) or soutien_a_terre(request.user) or not peut_saisir or (deja_termine and not peut_corriger),
             "correction_reservee": deja_termine and not peut_corriger,
             "signalable": bool(version_fiche and version_fiche.fiche_id),
             "critique": bool(installation and installation.critique),
@@ -140,9 +143,9 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         return contexte
 
     def post(self, request, pk):
-        if equipage_a_terre_lecture_seule(request.user) or suivi_a_terre_sans_validation(request.user):
+        if equipage_a_terre_lecture_seule(request.user) or soutien_a_terre(request.user):
             raise PermissionDenied
-        occ, items, erreur = self._charger(request, pk)
+        occ, items, erreur = self._charger(request, pk, ecriture=True)
         if erreur:
             return erreur
         en_direct = request.POST.get('action') == 'enregistrer'
@@ -150,7 +153,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         deja_termine = bool(execution and execution.completed_at)
         # Un compte rendu terminé ne se corrige qu'avec le seuil de correction (chef de secteur par défaut) ;
         # le marin qui renvoie son propre formulaire (double envoi) est prévenu sans erreur.
-        if deja_termine and user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction'):
+        if deja_termine and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction'):
             if execution.executed_by_id != request.user.pk:
                 raise PermissionDenied
             message = "Ce compte rendu est déjà enregistré : seule une correction par un chef de secteur peut le modifier."
@@ -487,7 +490,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["onglet"] = "plans"
-        ctx["peut_gerer"] = user_role_level(self.request.user) >= niveau_requis_pour(self.request.user, 'maintenance_plan_ecriture')
+        ctx["peut_gerer"] = niveau_ecriture(self.request.user) >= niveau_requis_pour(self.request.user, 'maintenance_plan_ecriture')
         for plan in ctx["plans"]:
             plan.periodicite_affichee = _periodicite_lisible(plan.every_n_days)
             plan.duree_heures = plan.expected_duration_min // 60
@@ -499,7 +502,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
         return ctx
 
     def post(self, request, *args, **kwargs):
-        if user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_plan_ecriture'):
+        if niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'maintenance_plan_ecriture'):
             raise PermissionDenied
         action = request.POST.get("action")
         if action not in ("create_plan", "edit_plan"):
@@ -666,9 +669,9 @@ class OccurrenceSignalerFicheView(LoginRequiredMixin, View):
     """Le marin qui exécute signale que la fiche est fausse ou incomplète : le responsable est prévenu."""
 
     def post(self, request, pk):
-        if equipage_a_terre_lecture_seule(request.user) or suivi_a_terre_sans_validation(request.user):
+        if equipage_a_terre_lecture_seule(request.user) or soutien_a_terre(request.user):
             raise PermissionDenied
-        occ, _, erreur = OccurrenceExecuteView._charger(request, pk)
+        occ, _, erreur = OccurrenceExecuteView._charger(request, pk, ecriture=True)
         if erreur:
             return erreur
         try:

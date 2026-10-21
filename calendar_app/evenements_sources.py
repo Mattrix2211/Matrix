@@ -36,9 +36,9 @@ def marins_visibles(user):
     """Marins dont `user` voit les affectations : lui-même, plus son équipe s'il peut attribuer des tâches."""
     from django.contrib.auth.models import User
 
-    from taches.services import marins_assignables
+    from taches.services import marins_supervises
 
-    return User.objects.filter(Q(pk=user.pk) | Q(pk__in=marins_assignables(user).values("pk")))
+    return User.objects.filter(Q(pk=user.pk) | Q(pk__in=marins_supervises(user).values("pk")))
 
 
 def sessions_visibles(user, qs=None):
@@ -250,9 +250,9 @@ def evenements_equipe(user, debut, fin, couleur):
     from django.urls import reverse
     from django.utils import timezone
 
-    from taches.services import marins_assignables
+    from taches.services import marins_supervises
 
-    equipe = {m.pk: (m.last_name or m.username) for m in marins_assignables(user)}
+    equipe = {m.pk: (m.last_name or m.username) for m in marins_supervises(user)}
     aujourdhui = timezone.localdate()
     evenements = []
 

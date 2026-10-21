@@ -13,6 +13,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS
 
 from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
+from .scopes import soutien_a_terre
 
 logger = logging.getLogger(__name__)
 
@@ -247,20 +248,29 @@ class ModuleActivationMiddleware:
         return redirect("home")
 
 
-# Écritures restant permises à l'équipage à terre : uniquement personnelles ou de session.
-CHEMINS_ECRITURE_A_TERRE = (
+# Écritures personnelles ou de session, permises à tout marin en lecture seule.
+CHEMINS_PERSONNELS = (
     "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
     "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/",
-    "/calendar/personnel/", "/taches/commentaire/", "/demandes/", "/annonces/",
+    "/calendar/personnel/",
+)
+# Écritures restant permises à l'équipage à terre : personnelles, fils de discussion, demandes et annonces.
+CHEMINS_ECRITURE_A_TERRE = (*CHEMINS_PERSONNELS, "/taches/commentaire/", "/demandes/", "/annonces/")
+# Soutien à terre (sans bâtiment) : écritures personnelles, commentaires et circuits du catalogue flotte
+# (responsables de spécialité) ; les vues revérifient leurs droits. Tout le reste est refusé par défaut.
+CHEMINS_ECRITURE_SOUTIEN = (
+    *CHEMINS_PERSONNELS, "/taches/commentaire/", "/catalogue/", "/fiches/", "/api/assets/catalogue-",
+    "/api/threads/messages/", "/api/threads/attachments/",
 )
 # Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
 ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")
 
 MESSAGE_LECTURE_SEULE = "Lecture seule : votre équipage est à terre, cette action est réservée à l'équipage à bord."
+MESSAGE_SOUTIEN_A_TERRE = "Soutien à terre : vous consultez et commentez, la modification des données du bord est réservée à l'équipage embarqué."
 
 
 class EquipageATerreMiddleware:
-    """Refuse toute écriture (web et API) du marin d'un équipage à terre, hors CHEMINS_ECRITURE_A_TERRE.
+    """Refuse toute écriture (web et API) de l'équipage à terre et du soutien à terre, hors chemins permis.
 
     Refus par défaut : une nouvelle vue d'écriture est protégée sans rien déclarer.
     """
@@ -269,15 +279,28 @@ class EquipageATerreMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method not in SAFE_METHODS and not self._exemptee(request):
-            if equipage_a_terre_lecture_seule(utilisateur_de_requete(request)):
+        if request.method not in SAFE_METHODS:
+            utilisateur = utilisateur_de_requete(request)
+            message = self._refus(request, utilisateur)
+            if message:
                 if request.path.startswith("/api/"):
-                    return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
-                return render(request, "403.html", {"message_refus": MESSAGE_LECTURE_SEULE}, status=403)
+                    return JsonResponse({"detail": message}, status=403)
+                return render(request, "403.html", {"message_refus": message}, status=403)
         return self.get_response(request)
 
     @staticmethod
-    def _exemptee(request):
-        if request.path == "/parametre/":
-            return request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
-        return request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
+    def _refus(request, utilisateur):
+        """Message de refus si l'écriture n'est pas permise à cet utilisateur, sinon chaîne vide."""
+        if equipage_a_terre_lecture_seule(utilisateur):
+            if request.path == "/parametre/":
+                permis = request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
+            else:
+                permis = request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
+            return "" if permis else MESSAGE_LECTURE_SEULE
+        if soutien_a_terre(utilisateur):
+            if request.path == "/parametre/":
+                permis = request.POST.get("action") == "update_notification_time"
+            else:
+                permis = request.path.startswith(CHEMINS_ECRITURE_SOUTIEN) or request.path.endswith("/commentaire/")
+            return "" if permis else MESSAGE_SOUTIEN_A_TERRE
+        return ""

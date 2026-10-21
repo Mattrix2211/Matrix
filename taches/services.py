@@ -19,7 +19,7 @@ from absences.services import marin_dans_perimetre
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import seuil_role
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture, user_role_level
 from matrix.core.scopes import equipage_marin_q
 from matrix.core.validators import valider_document
 from notifications.models import Notification, NotificationLevel
@@ -32,9 +32,14 @@ from .models import ElementChecklistTache, LotTaches, ParametresTaches, PieceJoi
 User = get_user_model()
 
 
-def peut_attribuer(user):
-    """Niveau minimal configurable (Réglages > Seuils de rôle, action « tache_attribution »)."""
+def peut_superviser(user):
+    """Lecture d'équipe : niveau minimal configurable (Réglages > Seuils de rôle, action « tache_attribution »)."""
     return user_role_level(user) >= seuil_role("tache_attribution")
+
+
+def peut_attribuer(user):
+    """Écriture (attribuer, réaffecter, lever un blocage) : même seuil, sur le niveau d'écriture."""
+    return niveau_ecriture(user) >= seuil_role("tache_attribution")
 
 
 def _nom(user):
@@ -45,19 +50,27 @@ def est_chef_de(user, marin):
     return peut_attribuer(user) and marin_dans_perimetre(user, marin)
 
 
+def superviseur_de(user, marin):
+    return peut_superviser(user) and marin_dans_perimetre(user, marin)
+
+
 def peut_gerer(user, tache):
     return tache.partagee and user.pk != tache.assigne_id and est_chef_de(user, tache.assigne)
 
 
+def _est_acteur(user, tache):
+    return user.pk in (tache.assigne_id, tache.created_by_id) or tache.participants.filter(pk=user.pk).exists()
+
+
 def peut_consulter(user, tache):
-    if user.pk in (tache.assigne_id, tache.created_by_id) or tache.participants.filter(pk=user.pk).exists():
+    if _est_acteur(user, tache):
         return True
-    return peut_gerer(user, tache)
+    return tache.partagee and user.pk != tache.assigne_id and superviseur_de(user, tache.assigne)
 
 
 def taches_visibles(user):
     base = Q(assigne=user) | Q(created_by=user) | Q(participants=user)
-    if peut_attribuer(user):
+    if peut_superviser(user):
         base |= build_scope_q(user, "assigne__profile__") & equipage_marin_q(user, "assigne__profile__") & Q(partagee=True)
     return Tache.objects.filter(base).distinct()
 
@@ -74,7 +87,7 @@ def taches_a_suivre(user):
 
 def taches_supervisees(user):
     """Tâches des marins du périmètre et de l'équipage d'un chef, hors les siennes."""
-    if not peut_attribuer(user):
+    if not peut_superviser(user):
         return Tache.objects.none()
     return Tache.objects.filter(
         build_scope_q(user, "assigne__profile__"), equipage_marin_q(user, "assigne__profile__"), partagee=True,
@@ -96,7 +109,7 @@ def avancement_equipe(user, aujourdhui=None):
         comptes[t.statut] += 1
     comptes[Tache.STATUT_TERMINEE] = taches.filter(statut=Tache.STATUT_TERMINEE, terminee_le__gte=depuis).count()
 
-    marins = list(marins_assignables(user))
+    marins = list(marins_supervises(user))
     absences = list(Absence.objects.filter(
         marin__in=marins, date_fin__gte=aujourdhui).select_related("type_absence").order_by("date_debut"))
     charges = []
@@ -136,11 +149,16 @@ def _avancement_lots(user):
     return sorted((lot for lot in lots.values() if lot["terminees"] < lot["total"]), key=lambda lot: -lot["pk"])
 
 
-def marins_assignables(user):
-    """Marins à qui `user` peut attribuer une tâche (lui-même exclu)."""
-    if not peut_attribuer(user):
+def marins_supervises(user):
+    """Marins de l'équipe dont `user` suit les tâches et les plannings (lui-même exclu)."""
+    if not peut_superviser(user):
         return User.objects.none()
     return User.objects.filter(build_scope_q(user, "profile__"), equipage_marin_q(user)).exclude(pk=user.pk).order_by("username")
+
+
+def marins_assignables(user):
+    """Marins à qui `user` peut attribuer une tâche (lui-même exclu)."""
+    return marins_supervises(user) if peut_attribuer(user) else User.objects.none()
 
 
 def interlocuteurs_possibles(tache):
@@ -288,7 +306,7 @@ def supprimer_element(tache, user, element_pk):
 
 
 def peut_joindre(user, tache):
-    return tache.ouverte and peut_consulter(user, tache)
+    return tache.ouverte and (_est_acteur(user, tache) or peut_gerer(user, tache))
 
 
 def peut_supprimer_piece(user, piece):

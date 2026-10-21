@@ -12,19 +12,19 @@ from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture
 from matrix.core.validators import valider_document_installation
 
 from .models import DocumentInstallation, Installation
 
 
 def peut_ajouter_document(user):
-    return (user_role_level(user) >= niveau_requis_pour(user, "installation_ecriture_simple")
+    return (niveau_ecriture(user) >= niveau_requis_pour(user, "installation_ecriture_simple")
             and not equipage_a_terre_lecture_seule(user))
 
 
 def peut_supprimer_document(user):
-    return (user_role_level(user) >= niveau_requis_pour(user, "installation_gestion_avancee")
+    return (niveau_ecriture(user) >= niveau_requis_pour(user, "installation_gestion_avancee")
             and not equipage_a_terre_lecture_seule(user))
 
 

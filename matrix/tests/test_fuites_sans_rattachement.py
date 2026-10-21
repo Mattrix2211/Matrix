@@ -154,10 +154,13 @@ class PerimetreATerreTests(TestCase):
         self.assertIn(str(self.suivi[3].pk), ids)
         self.assertNotIn(str(self.autre[3].pk), ids)
 
-    def test_compte_rendu_correctif_ne_propose_que_le_stock_suivi(self):
+    def test_stock_borne_aux_batiments_suivis_et_sans_prelevement_a_terre(self):
         self.client.force_login(self.terre)
+        page = self.client.get(reverse("stock-piece-list")).content.decode()
+        self.assertIn("Pièce SUI", page)
+        self.assertNotIn("Pièce AUT", page)
         contexte = self.client.get(reverse("correctif-compte-rendu", args=[self.suivi[2].pk])).context
-        self.assertEqual({p.pk for p in contexte["pieces"]}, {self.suivi[4].pk})
+        self.assertEqual(list(contexte["pieces"]), [])
 
     def test_creation_de_materiel_refuse_hors_batiments_suivis(self):
         from assets.web_views import _org_dans_perimetre
