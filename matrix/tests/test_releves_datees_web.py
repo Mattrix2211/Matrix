@@ -1,11 +1,13 @@
 """Relèves datées au niveau HTTP : saisie dans le fuseau du bâtiment, middleware, droits, API, administration."""
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
 from accounts.models import AuditLog, UserProfile
+from matrix.core.equipage import appliquer_releves_echues
 from matrix.core.fuseau import champ_local
 from matrix.core.tasks import appliquer_releves_echues as tache_appliquer
 from org.models import ReleveEquipage, Ship
@@ -228,3 +230,42 @@ class ApiEtAdministrationTests(Base):
         reponse = client.post("/admin/org/ship/add/", {**formulaire, "fuseau_horaire": "Europe/Paris"})
         self.assertEqual(reponse.status_code, 302)
         self.assertTrue(Ship.objects.filter(code="NEU").exists())
+
+
+class EcrasementEquipageTests(Base):
+    """Une relève appliquée entre la lecture d'une unité et sa sauvegarde n'est jamais écrasée."""
+
+    def _appliquer_entre_temps(self):
+        perimee = Ship.objects.get(pk=self.navire.pk)
+        releve = self.planifier(timedelta(minutes=5))
+        with a_l_instant(releve.date_effet + timedelta(minutes=1)):
+            appliquer_releves_echues()
+        self.assertEqual(perimee.equipage_a_bord, "A")
+        return perimee
+
+    def test_api_ne_reecrit_pas_l_equipage(self):
+        from org.serializers import ShipSerializer
+
+        perimee = self._appliquer_entre_temps()
+        serializer = ShipSerializer(perimee, data={"name": "Renommée"}, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        serializer.save()
+        self.navire.refresh_from_db()
+        self.assertEqual((self.navire.name, self.navire.equipage_a_bord), ("Renommée", "B"))
+
+    def test_edit_ship_ne_reecrit_pas_l_equipage(self):
+        perimee = self._appliquer_entre_temps()
+        root = User.objects.create_superuser("root", "r@navy.fr", "pass")
+        with mock.patch.object(Ship.objects, "get", return_value=perimee):
+            client_de(root).post("/parametre/", {
+                "action": "edit_ship", "pk": self.navire.pk, "name": "Renommée", "code": "BRE", "type_unite": "NAVIRE",
+            })
+        self.navire.refresh_from_db()
+        self.assertEqual((self.navire.name, self.navire.equipage_a_bord), ("Renommée", "B"))
+
+    def test_page_apres_la_date_n_affiche_plus_de_releve_planifiee(self):
+        releve = self.planifier()
+        with a_l_instant(releve.date_effet + timedelta(minutes=1)):
+            page = client_de(self.cdt_b).get("/parametre/?tab=equipage")
+        self.assertNotContains(page, "Relève planifiée")
+        self.assertContains(page, "Équipage actuellement à bord : <strong>B</strong>")

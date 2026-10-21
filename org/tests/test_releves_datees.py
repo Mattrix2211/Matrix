@@ -10,7 +10,9 @@ from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
 from accounts.models import AuditLog, UserProfile
+from matrix.core import equipage
 from matrix.core.equipage import (
+    annuler_releve,
     annuler_releve_planifiee, appliquer_releves_echues, changer_fuseau, decider_releve, equipage_a_bord,
     equipage_a_bord_le, proposer_releve, releve_planifiee, valider_releve_secours,
 )
@@ -364,6 +366,51 @@ class AnnulationTests(Base):
     def test_une_proposition_en_attente_n_est_pas_une_releve_planifiee(self):
         proposition = self.proposer()
         self.assertIn("pas planifiée", annuler_releve_planifiee(self.cdt_b, proposition, "Motif"))
+
+
+class AnnulationDePropositionTests(Base):
+    def test_proposition_validee_en_parallele_n_est_pas_annulee_sans_motif(self):
+        perimee = self.proposer()
+        self.assertEqual(decider_releve(self.cdt_b, ReleveEquipage.objects.get(), True), "")
+        self.assertIn("n'est plus en attente", annuler_releve(self.cdt_a, perimee))
+        releve = ReleveEquipage.objects.get()
+        self.assertEqual(releve.statut, ReleveEquipage.Statut.PLANIFIEE)
+        self.assertFalse(AuditLog.objects.filter(action="releve_annulee").exists())
+
+    def test_proposition_deja_appliquee_n_est_pas_annulee(self):
+        perimee = self.proposer(timedelta(0))
+        self.assertEqual(decider_releve(self.cdt_b, ReleveEquipage.objects.get(), True), "")
+        self.assertIn("n'est plus en attente", annuler_releve(self.cdt_a, perimee))
+        self.assertEqual(ReleveEquipage.objects.get().statut, ReleveEquipage.Statut.VALIDEE)
+
+    def test_proposition_en_attente_s_annule(self):
+        proposition = self.proposer()
+        self.assertEqual(annuler_releve(self.cdt_a, proposition), "")
+        self.assertEqual(ReleveEquipage.objects.get().statut, ReleveEquipage.Statut.ANNULEE)
+
+
+class IsolationApplicationTests(Base):
+    def test_une_erreur_sur_un_batiment_n_empeche_pas_les_autres(self):
+        autre = Ship.objects.create(name="Normandie", code="NOR", double_equipage=True, equipage_a_bord="A")
+        n_a, n_b = marin("n_cdt_a", "COMMANDANT", autre, "A"), marin("n_cdt_b", "COMMANDANT", autre, "B")
+        premiere = self.planifier(timedelta(hours=1))
+        seconde, _ = proposer_releve(n_a, autre, "B", self.maintenant + timedelta(hours=1))
+        decider_releve(n_b, seconde, True)
+        reel = equipage._appliquer
+
+        def appliquer(releve, navire, auteur):
+            if navire.pk == self.navire.pk:
+                raise RuntimeError("panne")
+            return reel(releve, navire, auteur)
+
+        with a_l_instant(self.maintenant + timedelta(days=1)), mock.patch.object(equipage, "_appliquer", appliquer):
+            with self.assertRaises(RuntimeError):
+                appliquer_releves_echues()
+        self.assertEqual(Ship.objects.get(pk=autre.pk).equipage_a_bord, "B")
+        self.assertEqual(self.recharger().equipage_a_bord, "A")
+        premiere.refresh_from_db()
+        self.assertEqual(premiere.statut, ReleveEquipage.Statut.PLANIFIEE)
+        self.assertTrue(AuditLog.objects.filter(action="releve_application_echouee").exists())
 
 
 class MigrationReleveTests(TransactionTestCase):

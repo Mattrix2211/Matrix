@@ -226,3 +226,28 @@ class ConcurrenceReleveTests(TransactionTestCase):
         self.assertEqual(PeriodeEquipage.objects.count(), 1)
         self.assertEqual(AuditLog.objects.filter(action="releve_appliquee").count(), 1)
         self.assertEqual(SynthesePassation.objects.count(), 1)
+
+    def test_annulation_de_proposition_pendant_la_validation_n_annule_pas_la_planifiee(self):
+        proposition, erreur = proposer_releve(self.cdt_a, self.navire, "B", timezone.now() + timedelta(hours=1))
+        self.assertEqual(erreur, "")
+        en_cours = threading.Event()
+        reel = equipage._appliquer_decision
+
+        def decision_lente(*args, **kwargs):
+            en_cours.set()
+            time.sleep(1.5)
+            return reel(*args, **kwargs)
+
+        def valider():
+            return decider_releve(self.cdt_b, ReleveEquipage.objects.get(), True)
+
+        def annuler():
+            en_cours.wait(15)
+            return equipage.annuler_releve(self.cdt_a, ReleveEquipage.objects.get())
+
+        with mock.patch.object(equipage, "_appliquer_decision", decision_lente):
+            self._lancer(self._fil("valider", valider), self._fil("annuler", annuler))
+        self.assertEqual(self.resultats["valider"], "")
+        self.assertIn("n'est plus en attente", self.resultats["annuler"])
+        self.assertEqual(ReleveEquipage.objects.get().statut, ReleveEquipage.Statut.PLANIFIEE)
+        self.assertFalse(AuditLog.objects.filter(action="releve_annulee").exists())

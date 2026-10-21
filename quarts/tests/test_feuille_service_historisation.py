@@ -213,8 +213,7 @@ class BandeauMigrationTests(HistorisationBase):
 class MigrationHistorisationTests(TransactionTestCase):
     """Migration de données testée de bout en bout : identités, re-clefage, figement."""
 
-    # org reste à jour : sa colonne `fuseau_horaire` est obligatoire en base.
-    avant = [("quarts", "0005_feuille_service_identites_structure"), ("org", "0014_releve_date_effet_periodes")]
+    avant = [("quarts", "0005_feuille_service_identites_structure")]
     apres = [("quarts", "0007_feuille_service_identites_uniques")]
 
     def tearDown(self):
