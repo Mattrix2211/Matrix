@@ -163,7 +163,8 @@ def filtre_ciblage(user):
     profil = getattr(user, "profile", None)
     visees = Q(ship_id=ship) & (Q(service__isnull=True) | Q(service_id=service)) \
         & (Q(sector__isnull=True) | Q(sector_id=sector)) & (Q(section__isnull=True) | Q(section_id=section))
-    visees &= Q(equipage="") | Q(equipage=getattr(profil, "equipage", "") or "\0")
+    equipage = getattr(profil, "equipage", "")
+    visees &= Q(equipage="") | Q(equipage=equipage) if equipage else Q(equipage="")
     return visees if ship else Q(pk__in=[])
 
 

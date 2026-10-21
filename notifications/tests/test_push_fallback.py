@@ -22,6 +22,7 @@ fonctionnel dans cet environnement de test) :
   de `notifications.push`."""
 import importlib.abc
 import importlib.util
+import os
 import subprocess
 import sys
 import textwrap
@@ -136,7 +137,7 @@ class CreationNotificationSansPywebpushTests(TestCase):
             from django.test.utils import setup_test_environment
             from django.test.runner import DiscoverRunner
 
-            runner = DiscoverRunner()
+            runner = DiscoverRunner(interactive=False)
             old_config = runner.setup_databases()
             setup_test_environment()
             try:
@@ -151,8 +152,14 @@ class CreationNotificationSansPywebpushTests(TestCase):
                 runner.teardown_databases(old_config)
             """
         )
+        # Sur PostgreSQL, le sous-processus crée sa propre base de test : nom distinct de celle du test parent.
+        env = os.environ.copy()
+        base = settings.DATABASES["default"]
+        if "postgresql" in base["ENGINE"]:
+            env["DB_NAME"] = f"{os.getenv('DB_NAME', 'matrix')}_isole"
         resultat = subprocess.run(
             [sys.executable, "-c", script],
+            env=env,
             cwd=str(settings.BASE_DIR),
             capture_output=True,
             text=True,
