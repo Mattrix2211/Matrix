@@ -1,18 +1,32 @@
 from django.contrib import admin
-from matrix.core.equipage import tracer_changement_equipage
+from matrix.core.equipage import equipage_a_bord, tracer_changement_equipage
 from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "double_equipage", "equipage_a_bord", "archived", "created_at")
+    list_display = ("name", "code", "double_equipage", "equipage_actuel", "archived", "created_at")
     search_fields = ("name", "code")
     list_filter = ("archived",)
+
+    @admin.display(description="Équipage actuellement à bord")
+    def equipage_actuel(self, obj):
+        return equipage_a_bord(obj)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj is None:
+            # Un nouveau bâtiment choisit son fuseau explicitement.
+            form.base_fields["fuseau_horaire"].required = True
+        return form
 
     def save_model(self, request, obj, form, change):
         avant = None
         if change:
             ancien = Ship.objects.get(pk=obj.pk)
-            avant = (ancien.double_equipage, ancien.equipage_a_bord)
+            avant = (ancien.double_equipage, equipage_a_bord(ancien))
+            if "equipage_a_bord" not in form.changed_data:
+                # Un formulaire resté ouvert ne doit pas écraser une relève appliquée entre-temps.
+                equipage_a_bord(obj)
         super().save_model(request, obj, form, change)
         if avant:
             tracer_changement_equipage(request.user, obj, avant)

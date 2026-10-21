@@ -117,7 +117,7 @@ class Command(BaseCommand):
     # ---------- Unité historique (jeu de départ BordOps I) ----------
 
     def _unite_historique(self):
-        ship, _ = Ship.objects.get_or_create(name="BordOps I", code="BO1")
+        ship, _ = Ship.objects.get_or_create(name="BordOps I", code="BO1", defaults=dict(fuseau_horaire="Europe/Paris"))
         service, _ = Service.objects.get_or_create(ship=ship, name="Technique")
         sector_fire, _ = Sector.objects.get_or_create(service=service, name="Pompiers")
         sector_elec, _ = Sector.objects.get_or_create(service=service, name="Électricité")
@@ -148,7 +148,7 @@ class Command(BaseCommand):
 
     def _bretagne(self):
         ship, _ = Ship.objects.get_or_create(name="Bretagne", code="BRE", defaults=dict(
-            classe_navire="FREMM", double_equipage=True, equipage_a_bord="A"))
+            classe_navire="FREMM", double_equipage=True, equipage_a_bord="A", fuseau_horaire="Europe/Paris"))
         self.bre = ship
         s = {}
         for nom, coma in [("Propulsion", "COMANAV"), ("Énergie", "COMANAV"), ("Sécurité", "COMAEQ"), ("Opérations", "COMOPS")]:
@@ -202,6 +202,7 @@ class Command(BaseCommand):
         Location.objects.get_or_create(ship=ship, name="Coursive pont 2", parent=None)
 
     def _normandie(self):
+        # Sans fuseau, volontairement : démonstration du repli « fuseau par défaut hérité ».
         ship, _ = Ship.objects.get_or_create(name="Normandie", code="NOR", defaults=dict(classe_navire="FREMM"))
         self.nor = ship
         service, _ = Service.objects.get_or_create(ship=ship, name="Propulsion", defaults={"commandant_adjoint": "COMANAV"})

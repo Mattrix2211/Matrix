@@ -49,6 +49,7 @@ class CreationUniteViaReglagesTests(TestCase):
             "name": "Centre de formation Cherbourg",
             "code": "CFC",
             "type_unite": "CENTRE_FORMATION",
+            "fuseau_horaire": "Europe/Paris",
             "next_tab": "navires",
         })
         self.assertEqual(response.status_code, 302)
@@ -61,6 +62,7 @@ class CreationUniteViaReglagesTests(TestCase):
             "action": "add_ship",
             "name": "Surcouf",
             "code": "SUR",
+            "fuseau_horaire": "Europe/Paris",
             "next_tab": "navires",
         })
         unite = Ship.objects.get(code="SUR")
@@ -105,7 +107,7 @@ class ClasseNavireTests(TestCase):
         self.client.login(username="admin_classe", password="pass")
         self.client.post(self.url, {
             "action": "add_ship", "name": "Aquitaine", "code": "AQU",
-            "classe_navire": "Frégate La Fayette", "next_tab": "navires",
+            "classe_navire": "Frégate La Fayette", "fuseau_horaire": "Europe/Paris", "next_tab": "navires",
         })
         unite = Ship.objects.get(code="AQU")
         self.assertEqual(unite.classe_navire, "Frégate La Fayette")
@@ -115,7 +117,7 @@ class ClasseNavireTests(TestCase):
         # tâche) doivent avoir une chaîne vide, pas None, sans action manuelle.
         self.client.login(username="admin_classe", password="pass")
         self.client.post(self.url, {
-            "action": "add_ship", "name": "Surcouf II", "code": "SU2", "next_tab": "navires",
+            "action": "add_ship", "name": "Surcouf II", "code": "SU2", "fuseau_horaire": "Europe/Paris", "next_tab": "navires",
         })
         unite = Ship.objects.get(code="SU2")
         self.assertEqual(unite.classe_navire, "")

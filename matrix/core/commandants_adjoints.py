@@ -37,7 +37,9 @@ def titulaires_commandant_adjoint(navire, code, equipage=""):
     qs = get_user_model().objects.filter(
         is_active=True, profile__ship=navire, profile__role=Roles.ETAT_MAJOR, profile__fonction_coma=code
     )
-    equipage = equipage or navire.equipage_a_bord
+    from matrix.core.equipage import equipage_a_bord
+
+    equipage = equipage or equipage_a_bord(navire)
     if navire.double_equipage and equipage:
         qs = qs.filter(profile__equipage=equipage)
     return qs

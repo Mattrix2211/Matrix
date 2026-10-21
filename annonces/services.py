@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog
-from matrix.core.equipage import equipage_a_terre_lecture_seule
+from matrix.core.equipage import equipage_a_bord, equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_pour_action, niveau_requis_pour
 from matrix.core.saisie import verifier_longueurs
 from matrix.core.scopes import is_master_admin, navire_q
@@ -102,8 +102,9 @@ def equipages_du_navire(user):
     if navire is None:
         return []
     codes = set(User.objects.filter(profile__ship=navire).exclude(profile__equipage="").values_list("profile__equipage", flat=True))
-    if navire.equipage_a_bord:
-        codes.add(navire.equipage_a_bord)
+    a_bord = equipage_a_bord(navire)
+    if a_bord:
+        codes.add(a_bord)
     return sorted(codes)
 
 

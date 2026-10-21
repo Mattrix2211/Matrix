@@ -81,7 +81,7 @@ class SerializersOrgPerimetreTests(TestCase):
         self.assertEqual(
             set(r.data),
             {"id", "name", "code", "type_unite", "classe_navire", "double_equipage",
-             "equipage_a_bord", "archived", "created_at", "updated_at"},
+             "equipage_a_bord", "fuseau_horaire", "archived", "created_at", "updated_at"},
         )
         r = self.admin_a.get(f"/api/org/sectors/{self.secteur_a1.pk}/")
         self.assertEqual(

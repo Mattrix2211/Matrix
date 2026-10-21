@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import JSONField
+from matrix.core.fuseau import valider_fuseau
 from matrix.core.models import TimeStampedModel
 
 User = get_user_model()
@@ -34,6 +35,11 @@ class Ship(TimeStampedModel):
     double_equipage = models.BooleanField(default=False, verbose_name="Double équipage")
     equipage_a_bord = models.CharField(
         max_length=8, blank=True, default="", verbose_name="Équipage actuellement à bord"
+    )
+    # Fuseau IANA de saisie et d'affichage des dates d'effet (les instants restent en UTC) ;
+    # vide = fuseau par défaut hérité du paramétrage (settings.TIME_ZONE), distinct d'un choix du bord.
+    fuseau_horaire = models.CharField(
+        max_length=64, blank=True, default="", db_default="", validators=[valider_fuseau], verbose_name="Fuseau horaire de référence"
     )
     archived = models.BooleanField(default=False)
 
@@ -210,13 +216,16 @@ class ResponsableClasseNavire(TimeStampedModel):
 
 
 class ReleveEquipage(TimeStampedModel):
-    """Relève du double équipage : proposée par un commandant, appliquée à la validation de l'autre.
+    """Relève du double équipage : proposée par un commandant avec sa date d'effet, validée par l'autre.
 
-    Une seule proposition en attente par unité ; les décisions passées sont conservées.
+    Une seule relève ouverte (en attente ou planifiée) par unité ; les décisions passées sont conservées.
+    Validée avant sa date d'effet, elle est planifiée et ne change rien tant que cette date n'est pas atteinte.
+    « Validée » signifie appliquée.
     """
 
     class Statut(models.TextChoices):
         EN_ATTENTE = "en_attente", "En attente"
+        PLANIFIEE = "planifiee", "Planifiée"
         VALIDEE = "validee", "Validée"
         REFUSEE = "refusee", "Refusée"
         ANNULEE = "annulee", "Annulée"
@@ -227,12 +236,44 @@ class ReleveEquipage(TimeStampedModel):
     statut = models.CharField(max_length=12, choices=Statut.choices, default=Statut.EN_ATTENTE)
     decide_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="releves_decidees")
     decide_le = models.DateTimeField(null=True, blank=True)
+    # Date d'effet prévue (UTC), saisie à la proposition ; distincte de la décision et de l'application réelle.
+    date_effet = models.DateTimeField(null=True, blank=True)
+    appliquee_le = models.DateTimeField(null=True, blank=True)
+    annulee_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="releves_annulees")
+    annulee_le = models.DateTimeField(null=True, blank=True)
+    motif_annulation = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ("-created_at",)
         constraints = [
             models.UniqueConstraint(
-                fields=["ship"], condition=models.Q(statut="en_attente"), name="une_releve_en_attente_par_unite"
+                fields=["ship"], condition=models.Q(statut__in=["en_attente", "planifiee"]),
+                name="une_releve_ouverte_par_unite",
+            )
+        ]
+
+
+class PeriodeEquipage(TimeStampedModel):
+    """Période pendant laquelle un équipage est à bord, créée à l'application d'une relève.
+
+    Jamais reconstituée : avant la première période enregistrée, l'équipage à bord est inconnu.
+    """
+
+    class Source(models.TextChoices):
+        RELEVE = "releve", "Relève"
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="periodes_equipage")
+    equipage = models.CharField(max_length=8)
+    debut = models.DateTimeField()
+    fin = models.DateTimeField(null=True, blank=True)
+    source = models.CharField(max_length=16, choices=Source.choices, default=Source.RELEVE)
+    releve = models.OneToOneField(ReleveEquipage, null=True, blank=True, on_delete=models.SET_NULL, related_name="periode")
+
+    class Meta:
+        ordering = ("-debut",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ship"], condition=models.Q(fin__isnull=True), name="une_periode_ouverte_par_unite"
             )
         ]
 

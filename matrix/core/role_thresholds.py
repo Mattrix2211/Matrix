@@ -51,7 +51,7 @@ REGISTRE_ACTIONS = [
     ),
     ActionSeuil(
         "unite_administration",
-        "Archiver l'unité ou activer/désactiver son double équipage",
+        "Archiver l'unité, activer/désactiver son double équipage ou changer son fuseau horaire de référence",
         "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
     ),
     ActionSeuil(

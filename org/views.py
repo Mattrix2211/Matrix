@@ -3,7 +3,8 @@ from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import Ship, Service, Sector, Section, SectorConfig
 from .serializers import ShipSerializer, ServiceSerializer, SectorSerializer, SectionSerializer, SectorConfigSerializer
-from matrix.core.equipage import tracer_changement_equipage
+from matrix.core.equipage import changer_fuseau, equipage_a_bord, tracer_changement_equipage
+from matrix.core.fuseau import MESSAGE_FUSEAU_OBLIGATOIRE, fuseau_valide
 from matrix.core.mixins import EcritureTraceeMixin
 from matrix.core.permissions import RolePermission
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -45,13 +46,13 @@ class StructureViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
 def _controler_double_equipage(navire, actif):
     """Bascule explicite du double équipage : jamais d'élévation implicite des droits d'écriture."""
     if actif:
-        if not navire.equipage_a_bord:
+        if not equipage_a_bord(navire):
             raise ValidationError(
                 {"double_equipage": "Renseignez d'abord l'équipage à bord (administration) avant d'activer le double équipage."}
             )
         return
     a_terre = get_user_model().objects.filter(is_active=True, profile__ship=navire).exclude(
-        profile__equipage__in=["", navire.equipage_a_bord]
+        profile__equipage__in=["", equipage_a_bord(navire)]
     ).count()
     if a_terre:
         raise ValidationError({
@@ -79,6 +80,8 @@ class ShipViewSet(StructureViewSet):
     def perform_create(self, serializer):
         if not _is_master_admin(self.request.user):
             raise PermissionDenied("Vous ne pouvez pas créer d'unité.")
+        if not fuseau_valide(serializer.validated_data.get("fuseau_horaire")):
+            raise ValidationError({"fuseau_horaire": MESSAGE_FUSEAU_OBLIGATOIRE})
         super().perform_create(serializer)
 
     def perform_update(self, serializer):
@@ -87,14 +90,19 @@ class ShipViewSet(StructureViewSet):
         if not _is_master_admin(user) and navire.id != _user_ship_id(user):
             raise PermissionDenied("Vous ne pouvez modifier que votre unité.")
         donnees = serializer.validated_data
-        if donnees.get("equipage_a_bord", navire.equipage_a_bord) != navire.equipage_a_bord:
+        a_bord = equipage_a_bord(navire)
+        if donnees.get("equipage_a_bord", a_bord) != a_bord:
             raise PermissionDenied("L'équipage à bord change par une relève validée par les deux commandants.")
         sensibles = [c for c in ("double_equipage", "archived") if c in donnees and donnees[c] != getattr(navire, c)]
         if sensibles and user_role_level(user) < niveau_requis_pour(user, "unite_administration"):
             raise PermissionDenied("Archiver une unité ou changer son double équipage est réservé à l'administration.")
         if "double_equipage" in sensibles:
             _controler_double_equipage(navire, donnees["double_equipage"])
-        avant = (navire.double_equipage, navire.equipage_a_bord)
+        if "fuseau_horaire" in donnees and donnees["fuseau_horaire"] != navire.fuseau_horaire:
+            erreur = changer_fuseau(user, navire, donnees["fuseau_horaire"])
+            if erreur:
+                raise PermissionDenied(erreur)
+        avant = (navire.double_equipage, a_bord)
         super().perform_update(serializer)
         tracer_changement_equipage(user, serializer.instance, avant)
 
