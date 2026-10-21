@@ -217,7 +217,7 @@ class MigrationHistorisationTests(TransactionTestCase):
     apres = [("quarts", "0007_feuille_service_identites_uniques")]
 
     def tearDown(self):
-        MigrationExecutor(connection).migrate(self.apres)
+        MigrationExecutor(connection).migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
 
     def test_migration_des_donnees_existantes_puis_retour_arriere(self):
         executeur = MigrationExecutor(connection)
