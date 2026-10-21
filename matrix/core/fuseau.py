@@ -39,13 +39,11 @@ def local_vers_utc(navire, naif):
     """
     zone = ZoneInfo(nom_fuseau(navire))
     premiere = naif.replace(tzinfo=zone, fold=0)
-    seconde = naif.replace(tzinfo=zone, fold=1)
-    decalage = premiere.utcoffset()
-    if decalage != seconde.utcoffset():
-        return None, "Cette heure est ambiguë (changement d'heure) : choisissez une autre heure."
     utc = premiere.astimezone(dt_timezone.utc)
     if utc.astimezone(zone).replace(tzinfo=None) != naif:
         return None, "Cette heure n'existe pas (changement d'heure) : choisissez une autre heure."
+    if premiere.utcoffset() != naif.replace(tzinfo=zone, fold=1).utcoffset():
+        return None, "Cette heure est ambiguë (changement d'heure) : choisissez une autre heure."
     return utc, ""
 
 

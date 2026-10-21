@@ -1,5 +1,5 @@
 from django.contrib import admin
-from matrix.core.equipage import equipage_a_bord, reprendre_equipage_en_base, tracer_changement_equipage
+from matrix.core.equipage import equipage_a_bord, tracer_changement_equipage
 from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation
 
 @admin.register(Ship)
@@ -26,7 +26,7 @@ class ShipAdmin(admin.ModelAdmin):
             avant = (ancien.double_equipage, equipage_a_bord(ancien))
             if "equipage_a_bord" not in form.changed_data:
                 # Un formulaire resté ouvert ne doit pas écraser une relève appliquée entre-temps.
-                reprendre_equipage_en_base(obj)
+                equipage_a_bord(obj)
         super().save_model(request, obj, form, change)
         if avant:
             tracer_changement_equipage(request.user, obj, avant)

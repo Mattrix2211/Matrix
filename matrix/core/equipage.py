@@ -7,7 +7,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from accounts.models import AuditLog, Roles
@@ -43,10 +43,23 @@ def equipage_a_terre_lecture_seule(user):
 
 
 def equipage_a_bord(navire):
-    """Accesseur unique de l'équipage à bord : applique d'abord les relèves planifiées échues du bâtiment."""
-    if navire is None:
-        return ""
-    appliquer_releves_echues(navire)
+    """Accesseur unique de l'équipage à bord : relit la base et applique d'abord les relèves planifiées échues.
+
+    L'instance reçue est mise à jour ; une requête suffit quand rien n'est à appliquer.
+    """
+    from org.models import ReleveEquipage, Ship
+
+    if navire is None or navire.pk is None:
+        return navire.equipage_a_bord if navire is not None else ""
+    echue = ReleveEquipage.objects.filter(
+        ship=OuterRef("pk"), statut=ReleveEquipage.Statut.PLANIFIEE, date_effet__lte=timezone.now()
+    )
+    ligne = Ship.objects.filter(pk=navire.pk).annotate(echue=Exists(echue)).values_list("equipage_a_bord", "echue").first()
+    if ligne is None:
+        return navire.equipage_a_bord
+    navire.equipage_a_bord = ligne[0]
+    if ligne[1]:
+        appliquer_releves_echues(navire)
     return navire.equipage_a_bord
 
 
@@ -70,23 +83,14 @@ def appliquer_releves_echues(navire=None):
                 .filter(ship=verrouille, statut=ReleveEquipage.Statut.PLANIFIEE, date_effet__lte=timezone.now())
                 .first()
             )
-            if releve is None:
-                continue
-            sortant = verrouille.equipage_a_bord
-            _appliquer(releve, verrouille, None)
-            _notifier_application(releve, verrouille, sortant)
-            appliquees.append(releve)
-        if navire is not None and navire.pk == ship_id:
-            navire.equipage_a_bord = verrouille.equipage_a_bord
+            if releve is not None:
+                sortant = verrouille.equipage_a_bord
+                _appliquer(releve, verrouille, None)
+                _notifier_application(releve, verrouille, sortant)
+                appliquees.append(releve)
+            if navire is not None and navire.pk == ship_id:
+                navire.equipage_a_bord = verrouille.equipage_a_bord
     return appliquees
-
-
-def reprendre_equipage_en_base(navire):
-    """Remet l'équipage à bord de l'instance à sa valeur en base, avant l'enregistrement d'un formulaire resté ouvert."""
-    from org.models import Ship
-
-    appliquer_releves_echues(navire)
-    navire.equipage_a_bord = Ship.objects.values_list("equipage_a_bord", flat=True).get(pk=navire.pk)
 
 
 def equipage_a_bord_le(navire, instant):

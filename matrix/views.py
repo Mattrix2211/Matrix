@@ -1,3 +1,4 @@
+from datetime import timedelta
 from itertools import groupby
 
 from django.db.models import Q
@@ -133,7 +134,8 @@ def _lignes_equipage(navire, utilisateur):
         'fuseau_nom': nom_fuseau(navire),
         'fuseaux': fuseaux_disponibles(),
         'peut_changer_fuseau': peut_changer_fuseau(utilisateur, navire),
-        'date_effet_defaut': champ_local(navire, timezone.now()),
+        'date_effet_min': champ_local(navire, timezone.now()),
+        'date_effet_defaut': champ_local(navire, timezone.now() + timedelta(minutes=5)),
         'periodes_equipage': list(PeriodeEquipage.objects.filter(ship=navire)[:5]),
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
         'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
