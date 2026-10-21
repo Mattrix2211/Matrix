@@ -42,6 +42,13 @@ def fermer_contexte(jeton=None):
         _contexte.reset(jeton)
 
 
+def rafraichir_contexte():
+    """Force la relecture des versions à la prochaine lecture (entre deux unités de travail d'une tâche longue)."""
+    contexte = _contexte.get()
+    if contexte is not None:
+        contexte["versions"] = None
+
+
 def _versions():
     from org.models import VersionConfiguration
 
@@ -88,6 +95,4 @@ def incrementer(cle):
                     VersionConfiguration.objects.create(cle=cle, valeur=1)
             except IntegrityError:
                 maj()  # créée entre-temps par un autre processus
-    contexte = _contexte.get()
-    if contexte is not None:
-        contexte["versions"] = None
+    rafraichir_contexte()

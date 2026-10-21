@@ -18,6 +18,7 @@ from absences.models import Absence
 from absences.services import marin_dans_perimetre
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
+from matrix.core.config_version import rafraichir_contexte
 from matrix.core.role_thresholds import seuil_role
 from matrix.core.roles import niveau_ecriture, user_role_level
 from matrix.core.scopes import equipage_marin_q
@@ -519,6 +520,7 @@ def relancer_echeances_depassees(aujourdhui=None):
         for tache in Tache.objects.filter(
             statut__in=Tache.STATUTS_OUVERTS, echeance__lt=aujourdhui, assigne__is_active=True,
         ).select_related("assigne"):
+            rafraichir_contexte()  # tâche Celery longue : seuil `tache_attribution` revalidé à chaque tâche
             jours = (aujourdhui - tache.echeance).days
             etat = " (bloquée)" if tache.statut == Tache.STATUT_BLOQUEE else ""
             for user in _destinataires_relance(tache, parametres):

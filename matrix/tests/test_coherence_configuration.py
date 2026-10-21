@@ -13,13 +13,15 @@ from celery import shared_task
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.db import connection
+from django.db import connection, models
 from django.db.models.signals import pre_save
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
-from matrix.core.config_version import _contexte, cle_modules, cle_seuils, fermer_contexte, ouvrir_contexte
+from matrix.core.config_version import (
+    _contexte, cle_modules, cle_seuils, fermer_contexte, ouvrir_contexte, rafraichir_contexte,
+)
 from matrix.core.modules import module_actif
 from matrix.core.role_thresholds import seuil_role
 from matrix.core.roles import RoleLevel
@@ -138,6 +140,18 @@ class ContexteTests(TestCase):
         self.addCleanup(fermer_contexte, jeton)
         self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)
         RoleThresholdConfig.objects.create(ship=self.ship, thresholds={ACTION: "COMMANDANT"})
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT)
+
+    def test_rafraichir_contexte_revalide_les_versions(self):
+        jeton = ouvrir_contexte()
+        self.addCleanup(fermer_contexte, jeton)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)
+        # Écriture d'un autre processus simulée : ni signal ni incrément en mémo.
+        models.QuerySet(RoleThresholdConfig).bulk_create(
+            [RoleThresholdConfig(ship=self.ship, thresholds={ACTION: "COMMANDANT"})])
+        VersionConfiguration.objects.create(cle=cle_seuils(self.ship.id), valeur=1)
+        self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT_EN_SECOND)  # mémo figé
+        rafraichir_contexte()
         self.assertEqual(seuil_role(ACTION, self.ship.id), RoleLevel.COMMANDANT)
 
     def test_tache_celery_ouvre_un_contexte_et_voit_ses_ecritures(self):

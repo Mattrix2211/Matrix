@@ -152,13 +152,12 @@ class ConfigurationQuerySet(models.QuerySet):
 
     def update(self, **kwargs):
         with transaction.atomic():
-            ship_ids = set(self.values_list("ship_id", flat=True))
-            nouveau = kwargs.get("ship_id", kwargs.get("ship"))
-            if "ship_id" in kwargs or "ship" in kwargs:
-                ship_ids.add(getattr(nouveau, "pk", nouveau))
-            lignes = super().update(**kwargs)
-            self._versionner(ship_ids)
-        return lignes
+            lignes = list(self.values_list("pk", "ship_id"))
+            ancien = super().update(**kwargs)
+            # Navires d'avant ET d'après (le nouveau navire peut être une expression).
+            apres = self.model.objects.filter(pk__in=[pk for pk, _ in lignes]).values_list("ship_id", flat=True)
+            self._versionner({ship_id for _, ship_id in lignes} | set(apres))
+        return ancien
 
     def bulk_create(self, objs, *args, **kwargs):
         with transaction.atomic():
