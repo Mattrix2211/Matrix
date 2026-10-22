@@ -17,7 +17,7 @@ def initialiser_versions(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("org", "0013_parametres_passation"),
+        ("org", "0014_releve_date_effet_periodes"),
     ]
 
     operations = [
