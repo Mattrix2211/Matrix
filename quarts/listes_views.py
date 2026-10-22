@@ -725,14 +725,15 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if delai < 0:
             messages.error(request, "Le délai minimal doit être un nombre d'heures positif ou nul.")
             return
-        liste.delai_minimal_echange_heures = delai
-        liste.save(update_fields=["delai_minimal_echange_heures", "updated_at"])
-        liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=entiers_valides(request.POST.getlist("formations_requises"))))
-        if liste.statut == liste.STATUT_PUBLIEE:
-            AuditLog.objects.create(
-                actor=request.user, action="liste_service_echanges_regles",
-                details=f"{liste.libelle_type()} #{liste.pk} ({liste.perimetre}) : règles d'échange modifiées (délai {delai} h).",
-            )
+        with transaction.atomic():
+            liste.delai_minimal_echange_heures = delai
+            liste.save(update_fields=["delai_minimal_echange_heures", "updated_at"])
+            liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=entiers_valides(request.POST.getlist("formations_requises"))))
+            if liste.statut == liste.STATUT_PUBLIEE:
+                AuditLog.objects.create(
+                    actor=request.user, action="liste_service_echanges_regles",
+                    details=f"{liste.libelle_type()} #{liste.pk} ({liste.perimetre}) : règles d'échange modifiées (délai {delai} h).",
+                )
         messages.success(request, "Règles d'échange enregistrées.")
 
 

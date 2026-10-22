@@ -464,6 +464,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
         par chaque modèle concret (« quart » / « service de garde »)."""
         raise NotImplementedError
 
+    @transaction.atomic
     def proposer(self, user):
         """Passe la liste de Brouillon à Proposée (workflow proposer ->
         valider/publier, cahier des charges §34) et notifie les
@@ -489,6 +490,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
                 url=reverse("quarts-index"),
             )
 
+    @transaction.atomic
     def publier(self, user):
         """Passe la liste au statut Publiée, fige une nouvelle version
         horodatée (cf. creer_version) et notifie chaque marin affecté sur un
