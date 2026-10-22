@@ -4,6 +4,7 @@ from datetime import datetime, time, timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -242,17 +243,32 @@ def publier(auteur, titre, corps, niveau, cible, equipage="", accuse_requis=Fals
     return annonce
 
 
-def modifier(user, annonce, titre, corps, niveau, date_fin=None):
-    """Nouvelle version conservée ; le public déjà informé est prévenu et les accusés sont à renouveler."""
-    if not peut_gerer(user, annonce) or annonce.archivee:
-        raise PermissionError("Vous ne pouvez pas modifier cette annonce.")
-    _valider(titre, corps, niveau, annonce.date_effet, date_fin)
-    annonce.titre, annonce.corps, annonce.niveau, annonce.date_fin = titre.strip(), corps.strip(), niveau, date_fin
-    annonce.version += 1
-    annonce.updated_by = user
-    annonce.save()
-    VersionAnnonce.objects.create(annonce=annonce, numero=annonce.version, titre=annonce.titre, corps=annonce.corps, niveau=niveau, auteur=user)
-    _tracer(annonce, user, "modifiee")
+class ConflitVersion(ValidationError):
+    """L'annonce a changé de version depuis l'affichage du formulaire."""
+
+
+def modifier(user, annonce, titre, corps, niveau, date_fin=None, version_vue=None):
+    """Nouvelle version conservée ; le public déjà informé est prévenu et les accusés sont à renouveler.
+
+    `version_vue` : version affichée à l'utilisateur ; si l'annonce a changé depuis, rien n'est écrasé (ConflitVersion)."""
+    with transaction.atomic():
+        # Verrou de ligne : deux modifications simultanées s'enchaînent au lieu de se croiser.
+        annonce.refresh_from_db(from_queryset=Annonce.objects.select_for_update())
+        if not peut_gerer(user, annonce) or annonce.archivee:
+            raise PermissionError("Vous ne pouvez pas modifier cette annonce.")
+        if version_vue is not None and version_vue != annonce.version:
+            auteur = annonce.updated_by
+            qui = (auteur.get_full_name() or auteur.username) if auteur else "un autre utilisateur"
+            raise ConflitVersion(
+                f"L'annonce a été modifiée entre-temps par {qui} (version {annonce.version}). "
+                "Votre saisie est conservée : relisez la version actuelle puis publiez à nouveau.")
+        _valider(titre, corps, niveau, annonce.date_effet, date_fin)
+        annonce.titre, annonce.corps, annonce.niveau, annonce.date_fin = titre.strip(), corps.strip(), niveau, date_fin
+        annonce.version += 1
+        annonce.updated_by = user
+        annonce.save()
+        VersionAnnonce.objects.create(annonce=annonce, numero=annonce.version, titre=annonce.titre, corps=annonce.corps, niveau=niveau, auteur=user)
+        _tracer(annonce, user, "modifiee")
     if annonce.diffusee_le:
         traiter_actions(annonce)
         _notifier(annonce, f"{PREFIXE} mise à jour (v{annonce.version}) : {annonce.titre}")
