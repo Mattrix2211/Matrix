@@ -796,8 +796,12 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             for champ, valeur in champs.items():
                 setattr(piece, champ, valeur)
             piece.updated_by = request.user
+            champs_ecrits = [*champs, 'updated_by', 'updated_at']
             if photo:
                 piece.photo = photo
-            piece.save()
+                champs_ecrits.append('photo')
+            # `quantite` n'est jamais réécrite par la fiche : elle ne change que par mouvement,
+            # sinon une lecture périmée écraserait des mouvements plus récents.
+            piece.save(update_fields=champs_ecrits)
             messages.info(request, "Pièce mise à jour.")
         return redirect('stock-piece-list')

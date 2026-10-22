@@ -393,6 +393,8 @@ DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
 VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
 VAPID_ADMIN_EMAIL = os.getenv("VAPID_ADMIN_EMAIL", "no-reply@localhost")
+# Durée maximale (secondes) accordée à l'envoi Web Push d'une notification, tous appareils confondus.
+WEBPUSH_DELAI_MAX = float(os.getenv("WEBPUSH_DELAI_MAX", "3"))
 
 # Security (sane defaults for dev; harden in prod)
 CSRF_TRUSTED_ORIGINS = [
