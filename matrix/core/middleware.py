@@ -12,6 +12,7 @@ from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS
 
+from .config_version import fermer_contexte, ouvrir_contexte
 from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
 from .scopes import soutien_a_terre
 
@@ -189,6 +190,21 @@ class IdentitePageMiddleware:
                     status=409, content_type="text/plain; charset=utf-8",
                 )
         return self.get_response(request)
+
+
+class ContexteConfigurationMiddleware:
+    """Ouvre le contexte de requête où les versions de configuration (seuils,
+    modules) ne sont validées en base qu'une seule fois (config_version.py)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        jeton = ouvrir_contexte()
+        try:
+            return self.get_response(request)
+        finally:
+            fermer_contexte(jeton)
 
 
 class ModuleActivationMiddleware:

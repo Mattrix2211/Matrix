@@ -42,11 +42,10 @@ from matrix.core.equipage import (
 from matrix.core.fuseau import MESSAGE_FUSEAU_OBLIGATOIRE, champ_local, formater, fuseau_herite, fuseau_valide, fuseaux_disponibles, libelle_fuseau, lire_champ_local, nom_fuseau
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
-    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
+    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, niveau_requis_pour,
 )
 from matrix.core.modules import (
     REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif, module_actif_pour_user,
-    invalidate_cache as invalidate_modules_cache,
 )
 
 # Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
@@ -833,7 +832,6 @@ class SettingsView(LoginRequiredMixin, View):
                             ancien = config.thresholds.get(cle_action) or action_seuil.defaut.name
                             config.thresholds[cle_action] = nouveau_role
                             config.save(update_fields=['thresholds', 'updated_at'])
-                            invalidate_cache(ship.id if ship else None)
                             AuditLog.objects.create(
                                 actor=request.user, action='update_role_threshold',
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> {nouveau_role}",
@@ -843,7 +841,6 @@ class SettingsView(LoginRequiredMixin, View):
                         if cle_action in config.thresholds:
                             ancien = config.thresholds.pop(cle_action)
                             config.save(update_fields=['thresholds', 'updated_at'])
-                            invalidate_cache(ship.id if ship else None)
                             AuditLog.objects.create(
                                 actor=request.user, action='reset_role_threshold',
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> défaut ({action_seuil.defaut.name})",
@@ -940,7 +937,6 @@ class SettingsView(LoginRequiredMixin, View):
                     )
                     etat.active = not etat.active
                     etat.save(update_fields=['active', 'updated_at'])
-                    invalidate_modules_cache(ship.id)
                     AuditLog.objects.create(
                         actor=request.user, action='toggle_module',
                         details=f"navire={ship.name}; module={cle_module}; actif={etat.active}",

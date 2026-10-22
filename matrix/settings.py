@@ -98,6 +98,8 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
+    # Premier : borne le mémo des versions de configuration à la requête
+    "matrix.core.middleware.ContexteConfigurationMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
