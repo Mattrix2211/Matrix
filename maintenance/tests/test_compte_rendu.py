@@ -184,7 +184,7 @@ class CompteRenduWebTests(TestCase):
         r = self.client.post(self.url, self._saisie(**{f"item_{self.pression.pk}": "nan"}))
         self.assertContains(r, "valeur numérique illisible")
 
-    def test_mot_de_passe_seulement_pour_installation_critique(self):
+    def test_confirmation_seulement_pour_installation_critique(self):
         installation = Installation.objects.create(
             designation="Groupe CR", ship=self.ship, service=self.service, sector=self.sector, critique=True,
         )
@@ -195,15 +195,15 @@ class CompteRenduWebTests(TestCase):
         occ = MaintenanceOccurrence.objects.create(installation_maintenance=maintenance, scheduled_for=timezone.localdate(), status="ASSIGNED")
         occ.assignees.add(self.tech)
         url = reverse("occurrence-execute", args=[occ.pk])
-        # Enregistrer en cours d'exécution ne demande aucun mot de passe.
+        # Enregistrer en cours d'exécution ne demande aucune confirmation.
         self.client.post(url, {"action": "enregistrer"})
         occ.refresh_from_db()
         self.assertEqual(occ.status, "IN_PROGRESS")
-        # La clôture le demande.
+        # La clôture la demande.
         self.client.post(url, {"conformity": "CONFORME"})
         occ.refresh_from_db()
         self.assertEqual(occ.status, "IN_PROGRESS")
-        self.client.post(url, {"conformity": "CONFORME", "mot_de_passe": "MotDePasseCorrect1"})
+        self.client.post(url, {"conformity": "CONFORME", "confirmation": "1"})
         occ.refresh_from_db()
         self.assertEqual(occ.status, "DONE")
         self.assertEqual(MaintenanceExecution.objects.get(occurrence=occ).valide_par, self.tech)

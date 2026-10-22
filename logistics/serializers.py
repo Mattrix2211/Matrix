@@ -14,11 +14,9 @@ class CorrectiveTicketSerializer(serializers.ModelSerializer):
         # Le statut ne se modifie jamais via ce endpoint générique (PATCH/PUT) :
         # il doit obligatoirement passer par l'action dédiée transition() du
         # ViewSet, qui applique les règles métier (REX obligatoire à CLOSED,
-        # signature de validation à RETURNED_TO_SERVICE...). Sans ce verrou, un
-        # PATCH direct sur "status" contournait totalement le contrôle mot de
-        # passe de CorrectiveTicketViewSet.transition() (cf. perform_update
-        # ci-contre).
-        # `valide_par`/`date_validation` (signature de remise en service) et
+        # confirmation de validation à RETURNED_TO_SERVICE...). Sans ce verrou, un
+        # PATCH direct sur "status" contournerait la confirmation de transition().
+        # `valide_par`/`date_validation` (validation de la remise en service) et
         # `created_by`/`updated_by` sont posés côté serveur (transition(),
         # perform_create/perform_update) : jamais forgeables par le client.
         read_only_fields = [

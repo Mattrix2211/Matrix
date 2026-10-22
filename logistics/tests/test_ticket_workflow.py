@@ -69,9 +69,9 @@ class TicketWorkflowTests(TestCase):
         self.assertNotContains(reponse, "Changer le statut autrement")
         self.assertContains(reponse, "réservé aux chefs de section")
 
-    def test_remise_en_service_demande_le_mot_de_passe(self):
+    def test_remise_en_service_demande_la_confirmation(self):
         self._statut("TESTING")
-        self.assertContains(self._page(), 'name="mot_de_passe"')
+        self.assertContains(self._page(), 'name="confirmation"')
 
     def test_cloture_demande_le_rex(self):
         self._statut("RETURNED_TO_SERVICE")

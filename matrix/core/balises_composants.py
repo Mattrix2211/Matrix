@@ -12,7 +12,16 @@ from django import template
 from django.template.base import token_kwargs
 from django.template.loader import get_template
 
+from matrix.core.confirmations import identite_valideur, texte_confirmation
+
 register = template.Library()
+
+
+@register.inclusion_tag("components/confirmation_validation.html", takes_context=True)
+def confirmation_validation(context, cle, ident, note=""):
+    """Case de confirmation d'une validation critique : identité du valideur et texte à accepter."""
+    _, texte = texte_confirmation(cle)
+    return {"texte": texte, "ident": ident, "note": note, "valideur": identite_valideur(context["request"].user)}
 
 
 @register.filter

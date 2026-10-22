@@ -3,6 +3,9 @@ from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from .models import CorrectiveTicket, TicketStatusLog, PartRequest, PartLineItem
 from .serializers import CorrectiveTicketSerializer, PartRequestSerializer, PartLineItemSerializer
+from matrix.core.confirmations import (
+    CANAL_API, MESSAGE_REFUS_API, confirmation_api, details_confirmation, texte_confirmation, tracer_refus,
+)
 from matrix.core.mixins import EcritureDansLePerimetreMixin, ScopedQuerySetMixin, SuppressionInterditeMixin, build_scope_q
 from django.contrib.contenttypes.models import ContentType
 from threads.models import Thread, Message
@@ -16,7 +19,7 @@ class DefaultPermission(permissions.IsAuthenticated):
 class CorrectiveTicketViewSet(SuppressionInterditeMixin, EcritureDansLePerimetreMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Suppression interdite (SuppressionInterditeMixin) : un ticket correctif
     # porte tout le cycle de vie de la panne (statuts, REX obligatoire à
-    # CLOSED, signature de validation à RETURNED_TO_SERVICE) — il ne doit
+    # CLOSED, confirmation de validation à RETURNED_TO_SERVICE) — il ne doit
     # jamais pouvoir disparaître, seulement changer de statut jusqu'à CLOSED.
     # Avant ce correctif, `DELETE /api/logistics/tickets/{id}/` supprimait
     # réellement le ticket dès le seuil générique CHEF_SECTION atteint,
@@ -43,10 +46,8 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, EcritureDansLePerimetre
         # Meta.read_only_fields) : un PATCH/PUT générique qui tente malgré tout de le
         # changer est explicitement refusé plutôt que silencieusement ignoré, pour
         # guider vers l'action dédiée transition() — seul chemin qui applique le REX
-        # obligatoire à CLOSED et la signature de validation à RETURNED_TO_SERVICE.
-        # Sans ce garde-fou, `PATCH /api/corrective-tickets/{pk}/
-        # {"status": "RETURNED_TO_SERVICE"}` contournait totalement le contrôle mot
-        # de passe de transition().
+        # obligatoire à CLOSED et la confirmation de validation à RETURNED_TO_SERVICE.
+        # Sans ce garde-fou, un PATCH du statut contournerait la confirmation de transition().
         nouveau_statut = self.request.data.get("status")
         if nouveau_statut and nouveau_statut != serializer.instance.status:
             raise ValidationError(
@@ -79,17 +80,13 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, EcritureDansLePerimetre
                     },
                     status=400,
                 )
-            # Remise en service : geste engageant qui exige une ré-authentification
-            # légère (mot de passe courant), exactement comme TicketTransitionView.post
-            # (logistics/web_views.py) — systématique sur ce statut, pas seulement si
-            # l'installation est critique. Vérifié avant toute écriture, pour ne rien
-            # modifier au ticket si le mot de passe saisi est incorrect.
-            if new_status == "RETURNED_TO_SERVICE" and not request.user.check_password(
-                request.data.get("mot_de_passe", "")
-            ):
+            # Remise en service : confirmation explicite, comme TicketTransitionView.post
+            # (logistics/web_views.py), vérifiée avant toute écriture.
+            if new_status == "RETURNED_TO_SERVICE" and not confirmation_api(request.data):
+                tracer_refus(request.user, "remise_en_service", CANAL_API, f"ticket={ticket.pk}")
                 return response.Response(
-                    {"detail": "Mot de passe incorrect : la remise en service n'a pas été validée."},
-                    status=403,
+                    {"detail": MESSAGE_REFUS_API.format(texte=texte_confirmation("remise_en_service")[1])},
+                    status=400,
                 )
             old = ticket.status
             ticket.status = new_status
@@ -106,7 +103,8 @@ class CorrectiveTicketViewSet(SuppressionInterditeMixin, EcritureDansLePerimetre
             AuditLog.objects.create(
                 actor=request.user,
                 action='ticket_status_change' if new_status != 'RETURNED_TO_SERVICE' else 'ticket_validation_critique',
-                details=f'ticket={ticket.pk}; {old} -> {new_status}',
+                details=f'ticket={ticket.pk}; {old} -> {new_status}'
+                + (details_confirmation("remise_en_service", CANAL_API) if new_status == "RETURNED_TO_SERVICE" else ""),
             )
             # system thread message
             ct = ContentType.objects.get_for_model(CorrectiveTicket)

@@ -385,8 +385,8 @@ class Installation(TimeStampedModel, OwnedModel):
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="sous_ensembles")
     # Aucun champ de criticité n'existait sur Installation avant cette tâche. Ce
     # booléen simple permet de désigner les installations dont le passage en
-    # "Terminée" d'une maintenance (MaintenanceExecution) exige une validation
-    # par mot de passe (cf. OccurrenceExecuteView) — hypothèse la plus simple,
+    # "Terminée" d'une maintenance (MaintenanceExecution) exige une confirmation
+    # explicite (cf. OccurrenceExecuteView) — hypothèse la plus simple,
     # à valider/affiner par le Tech Lead si un critère plus fin est attendu.
     critique = models.BooleanField(default=False, verbose_name="Installation critique")
 

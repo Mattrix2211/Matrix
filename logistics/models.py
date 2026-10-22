@@ -64,9 +64,8 @@ class CorrectiveTicket(TimeStampedModel, OwnedModel):
     # autres transitions du cycle de vie.
     diagnostic_final = models.TextField(blank=True, default="", verbose_name="Diagnostic final")
     solution = models.TextField(blank=True, default="", verbose_name="Solution appliquée")
-    # Signature de validation (T-FEAT signature) : le passage au statut RETURNED_TO_SERVICE
-    # exige une ré-authentification légère (mot de passe courant, cf. TicketTransitionView)
-    # avant d'être appliqué. AuditLog trace déjà "qui a fait quoi", mais ces deux champs
+    # Validation : le passage au statut RETURNED_TO_SERVICE exige une confirmation explicite
+    # (matrix/core/confirmations.py) avant d'être appliqué. AuditLog trace déjà "qui a fait quoi", mais ces deux champs
     # distinguent explicitement une validation engageante d'une simple modification.
     valide_par = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,

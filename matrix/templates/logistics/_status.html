@@ -1,4 +1,4 @@
-{% load icones %}<section id="ticket-status" class="mx-workflow" aria-label="Avancement du ticket">
+{% load icones composants %}<section id="ticket-status" class="mx-workflow" aria-label="Avancement du ticket">
   {% if erreur_fermeture %}
   <div class="alert alert-danger py-2 mb-3" role="alert">{{ erreur_fermeture }}</div>
   {% endif %}
@@ -36,10 +36,7 @@
       <textarea hidden name="solution">{{ ticket.solution }}</textarea>
       {% endif %}
       {% if action_suivante.cible == "RETURNED_TO_SERVICE" %}
-      <div class="mb-2">
-        <label class="form-label small mb-1" for="mot-de-passe-remise">Votre mot de passe (signature de la remise en service)</label>
-        <input class="form-control form-control-sm" id="mot-de-passe-remise" type="password" name="mot_de_passe" autocomplete="current-password" required>
-      </div>
+      {% confirmation_validation "remise_en_service" "confirmation-remise" %}
       {% endif %}
       <button class="btn btn-primary" type="submit">{{ action_suivante.libelle }} {% icone "suite" %}</button>
     </form>
@@ -67,10 +64,7 @@
         <label class="form-label small mb-1" for="autre-solution">Solution appliquée (retour d'expérience)</label>
         <textarea class="form-control form-control-sm" id="autre-solution" name="solution" rows="2" placeholder="Réparation effectuée...">{{ ticket.solution }}</textarea>
       </div>
-      <div class="mb-2">
-        <label class="form-label small mb-1" for="autre-mot-de-passe">Mot de passe (requis uniquement pour « Remis en service »)</label>
-        <input class="form-control form-control-sm" id="autre-mot-de-passe" type="password" name="mot_de_passe" autocomplete="current-password">
-      </div>
+      {% confirmation_validation "remise_en_service" "autre-confirmation" note="À cocher uniquement pour le statut « Remis en service »." %}
       <div class="form-text mb-2">Le diagnostic final et la solution appliquée sont obligatoires pour passer au statut « Fermé ».</div>
       <div class="d-flex gap-2">
         <select class="form-select form-select-sm w-auto" name="status" aria-label="Nouveau statut">

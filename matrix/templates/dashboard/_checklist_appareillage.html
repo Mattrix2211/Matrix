@@ -5,14 +5,15 @@ Checklist d'une session d'appareillage — partagée entre la page principale
 passée (SessionAppareillageDetailView). Le contexte attendu :
 session, items_par_categorie, peut_signer.
 {% endcomment %}
+{% load composants %}
 <div id="session-appareillage">
   <div class="alert {% if not session.est_ouverte %}alert-success{% elif session.tout_verifie %}alert-success{% else %}alert-warning{% endif %} d-flex align-items-center gap-2" role="alert">
     {% if not session.est_ouverte %}
       <span class="bi bi-shield-check fs-4" aria-hidden="true"></span>
-      <div><strong>Session clôturée.</strong> Signée par {{ session.valide_par }} le {{ session.date_validation|date:"d/m/Y H:i" }}.</div>
+      <div><strong>Session clôturée.</strong> Validée par {{ session.valide_par }} le {{ session.date_validation|date:"d/m/Y H:i" }}.</div>
     {% elif session.tout_verifie %}
       <span class="bi bi-check2-circle fs-4" aria-hidden="true"></span>
-      <div><strong>Tous les points ont été vérifiés.</strong> La session peut être signée.</div>
+      <div><strong>Tous les points ont été vérifiés.</strong> La session peut être clôturée.</div>
     {% else %}
       <span class="bi bi-exclamation-triangle fs-4" aria-hidden="true"></span>
       <div><strong>Session ouverte le {{ session.ouverte_le|date:"d/m/Y H:i" }}.</strong> Cochez chaque point au fur et à mesure des vérifications.</div>
@@ -66,20 +67,15 @@ session, items_par_categorie, peut_signer.
 
   {% if session.est_ouverte and peut_signer %}
   <div class="card">
-    <div class="card-header"><span class="bi bi-pen" aria-hidden="true"></span> Signer et clôturer la session</div>
+    <div class="card-header"><span class="bi bi-pen" aria-hidden="true"></span> Valider et clôturer la session</div>
     <div class="card-body">
-      <p class="text-muted">La signature clôture définitivement la session : plus aucune modification ne sera possible ensuite.</p>
-      <form method="post" action="{% url 'session-appareillage-signer' session.id %}" class="row g-2 align-items-end">
+      <p class="text-muted">La validation clôture définitivement la session : plus aucune modification ne sera possible ensuite.</p>
+      <form method="post" action="{% url 'session-appareillage-signer' session.id %}">
         {% csrf_token %}
-        <div class="col-md-6">
-          <label class="form-label" for="mot-de-passe-signature">Mot de passe</label>
-          <input class="form-control" type="password" name="mot_de_passe" id="mot-de-passe-signature" autocomplete="current-password" required>
-        </div>
-        <div class="col-md-6">
-          <button type="submit" class="btn btn-primary">
-            <span class="bi bi-pen" aria-hidden="true"></span> Signer et clôturer
-          </button>
-        </div>
+        {% confirmation_validation "pret_appareillage" "confirmation-appareillage" %}
+        <button type="submit" class="btn btn-primary">
+          <span class="bi bi-pen" aria-hidden="true"></span> Valider et clôturer
+        </button>
       </form>
     </div>
   </div>

@@ -50,7 +50,7 @@
   function demarrer(form) {
     var lignes = Array.prototype.slice.call(form.querySelectorAll('[data-ligne]'));
     var conformite = form.querySelector('[name=conformity]');
-    var motDePasse = form.querySelector('[data-signature]');
+    var confirmation = form.querySelector('[data-signature]');
     var duree = form.querySelector('[data-duree]');
     var debut = form.querySelector('[name=debut]');
     var fin = form.querySelector('[name=fin]');
@@ -92,8 +92,8 @@
       if (barre) barre.textContent = resume(controles, faits, nonConformes, aSurveiller);
       if (operations) operations.textContent = realises + ' / ' + lignes.length + ' opérations réalisées';
       if (conformite && !conformiteManuelle) conformite.value = realises ? conformiteProposee(nonConformes, aSurveiller) : '';
-      // Mot de passe demandé seulement à la clôture d'une installation critique.
-      if (motDePasse) motDePasse.hidden = !(critique && conformite && conformite.value && conformite.value !== 'NON_CONFORME');
+      // Confirmation demandée seulement à la clôture d'une installation critique.
+      if (confirmation) confirmation.hidden = !(critique && conformite && conformite.value && conformite.value !== 'NON_CONFORME');
       if (duree && debut && fin) {
         duree.textContent = debut.value && fin.value ? formaterDuree(new Date(fin.value) - new Date(debut.value)) : '';
       }
