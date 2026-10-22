@@ -92,3 +92,19 @@ class PushEndpointInjoignableTests(TestCase):
             Notification.objects.create(user=self.user, verb="Alerte", level=NotificationLevel.DANGER)
         self.assertLessEqual(envoi.call_args.kwargs["timeout"], 1)
         self.assertGreater(envoi.call_args.kwargs["timeout"], 0)
+
+    @override_settings(WEBPUSH_DELAI_MAX=1, VAPID_PUBLIC_KEY="pub", VAPID_PRIVATE_KEY="priv")
+    def test_endpoint_muet_et_pywebpush_absent_la_notification_interne_est_creee(self):
+        from notifications.services import creer_notifications_en_masse
+
+        with ServeurSourd() as serveur:
+            self._abonner(serveur.url)
+            with patch("notifications.push.webpush", None):
+                direct = Notification.objects.create(user=self.user, verb="Alerte", level=NotificationLevel.DANGER)
+                with self.captureOnCommitCallbacks(execute=True):
+                    en_masse = creer_notifications_en_masse(
+                        [Notification(user=self.user, verb="Masse", level=NotificationLevel.DANGER)]
+                    )
+        self.assertTrue(Notification.objects.filter(pk=direct.pk).exists())
+        self.assertEqual(len(en_masse), 1)
+        self.assertEqual(Notification.objects.filter(user=self.user).count(), 2)
