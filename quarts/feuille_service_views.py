@@ -13,6 +13,7 @@ Refactor pur : reproduit exactement le comportement d'origine."""
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -156,13 +157,14 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 "rattachez cette feuille à l'autre équipage.",
             )
         else:
-            feuille.equipage = equipage
-            feuille.save(update_fields=["equipage", "updated_at"])
-            AuditLog.objects.create(
-                actor=request.user, action="rattacher_feuille_service",
-                details=f"navire={ship.name}; feuille du {feuille.date.isoformat()} (pk={feuille.pk}); "
-                        f"sans équipage -> {equipage}",
-            )
+            with transaction.atomic():
+                feuille.equipage = equipage
+                feuille.save(update_fields=["equipage", "updated_at"])
+                AuditLog.objects.create(
+                    actor=request.user, action="rattacher_feuille_service",
+                    details=f"navire={ship.name}; feuille du {feuille.date.isoformat()} (pk={feuille.pk}); "
+                            f"sans équipage -> {equipage}",
+                )
             messages.success(request, f"Feuille du {feuille.date:%d/%m/%Y} rattachée à l'équipage {equipage}.")
 
     def _contexte(self, request, ship, date_, feuille, equipage):
