@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -24,7 +25,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views import View
 
-from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
+from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none, entiers_valides
 from matrix.core.contexte_batiment import referentiel_organisation
@@ -695,7 +696,9 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 for erreur in erreurs:
                     messages.error(request, erreur)
             return
-        creneau.save()
+        with transaction.atomic():
+            creneau.save()
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=True)
         messages.success(request, "Créneau ajouté.")
 
     def _supprimer_creneau(self, request, liste):
@@ -705,9 +708,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if creneau is None:
             messages.error(request, "Créneau introuvable.")
             return
-        if self.fk_attr == "service_garde":
-            annuler_echanges_du_creneau(creneau, request.user)
-        creneau.delete()
+        with transaction.atomic():
+            if self.fk_attr == "service_garde":
+                annuler_echanges_du_creneau(creneau, request.user)
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=False)
+            creneau.delete()
         messages.info(request, "Créneau supprimé.")
 
     def _regler_echanges(self, request, liste):
@@ -723,6 +728,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         liste.delai_minimal_echange_heures = delai
         liste.save(update_fields=["delai_minimal_echange_heures", "updated_at"])
         liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=entiers_valides(request.POST.getlist("formations_requises"))))
+        if liste.statut == liste.STATUT_PUBLIEE:
+            AuditLog.objects.create(
+                actor=request.user, action="liste_service_echanges_regles",
+                details=f"{liste.libelle_type()} #{liste.pk} ({liste.perimetre}) : règles d'échange modifiées (délai {delai} h).",
+            )
         messages.success(request, "Règles d'échange enregistrées.")
 
 

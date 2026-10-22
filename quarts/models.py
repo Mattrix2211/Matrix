@@ -520,6 +520,36 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
                     url=reverse("quarts-index"),
                 )
 
+    def tracer_modification_creneau(self, user, creneau, ajoute):
+        """Trace et notifie l'ajout/la suppression d'un créneau sur une liste
+        publiée (rien pour un brouillon ou une proposition). À appeler avant
+        `delete()` pour ne pas perdre les détails."""
+        if self.statut != self.STATUT_PUBLIEE:
+            return
+        marin = creneau.marin
+        quand = f"{timezone.localtime(creneau.debut):%d/%m/%Y %H:%M} - {timezone.localtime(creneau.fin):%d/%m/%Y %H:%M}"
+        AuditLog.objects.create(
+            actor=user,
+            action="liste_service_creneau_ajoute" if ajoute else "liste_service_creneau_supprime",
+            target_user=marin,
+            details=(
+                f"{self.libelle_type()} #{self.pk} ({self.perimetre}) ; poste « {creneau.poste} » ; {quand} ; "
+                f"marin : {(marin.get_full_name() or marin.username) if marin else 'non affecté'} ; "
+                f"note : {creneau.note or '—'}."
+            ),
+        )
+        if marin is None or marin.pk == getattr(user, "pk", None):
+            return
+        Notification.objects.create(
+            user=marin,
+            verb=(
+                f"Modification de la liste publiée : vous êtes {'affecté(e) au' if ajoute else 'retiré(e) du'} "
+                f"{self.libelle_type()} « {creneau.poste} » le {timezone.localtime(creneau.debut):%d/%m/%Y à %H:%M}."
+            ),
+            level=NotificationLevel.WARNING,
+            url=reverse("quarts-index"),
+        )
+
     def creer_version(self, user):
         """Fige une nouvelle version horodatée de la liste (cahier des
         charges §31) : chaque publication (première publication,

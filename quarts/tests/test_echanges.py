@@ -1,6 +1,8 @@
 """Tests du workflow d'échange de tours de service de garde (VISION §7.4)."""
 from datetime import date, timedelta
 
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
@@ -390,6 +392,18 @@ class VuesEchangeTests(BaseEchangeTests):
         echange.refresh_from_db()
         self.assertEqual(echange.statut, EchangeService.STATUT_ANNULE)
         self.assertTrue(Notification.objects.filter(user=self.a, verb__contains="annulé").exists())
+
+    def test_echec_de_la_trace_n_annule_pas_les_echanges(self):
+        echange = proposer_echange(self.a, self.creneau_a, self.creneau_b)
+        self.client.login(username="chef_liste", password="pass")
+        self.client.raise_request_exception = False
+        with patch.object(ServiceGarde, "tracer_modification_creneau", side_effect=RuntimeError("panne")):
+            self.client.post(
+                f"/quarts/garde/{self.garde.pk}/", {"action": "supprimer_creneau", "creneau_id": self.creneau_b.pk}
+            )
+        echange.refresh_from_db()
+        self.assertEqual(echange.statut, EchangeService.STATUT_DEMANDE)
+        self.assertTrue(CreneauServiceGarde.objects.filter(pk=self.creneau_b.pk).exists())
 
     def test_chef_regle_les_conditions_d_echange(self):
         formation = TrainingCourse.objects.create(title="Habilitation Y")
