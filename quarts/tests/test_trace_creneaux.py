@@ -137,6 +137,38 @@ class TraceCreneauxTests(TestCase):
             self._ajouter("quart", liste, self.marin)
         self.assertEqual(list(liste.creneaux.all()), [creneau])
 
+    def _regler(self, liste, delai):
+        return self.client.post(
+            reverse("garde-detail", args=[liste.pk]),
+            {"action": "regler_echanges", "delai_minimal_echange_heures": delai},
+        )
+
+    def test_nominal_regles_et_audit_presents(self):
+        liste = self._liste("garde", ServiceGarde.STATUT_PUBLIEE)
+        self._vider()
+        self._regler(liste, 12)
+        liste.refresh_from_db()
+        self.assertEqual(liste.delai_minimal_echange_heures, 12)
+        self.assertTrue(AuditLog.objects.filter(action="liste_service_echanges_regles").exists())
+
+    def test_echec_de_l_audit_laisse_les_regles_inchangees(self):
+        liste = self._liste("garde", ServiceGarde.STATUT_PUBLIEE)
+        avant = liste.delai_minimal_echange_heures
+        self.client.raise_request_exception = False
+        with patch.object(AuditLog.objects, "create", side_effect=RuntimeError("panne")):
+            reponse = self._regler(liste, avant + 7)
+        self.assertEqual(reponse.status_code, 500)
+        liste.refresh_from_db()
+        self.assertEqual(liste.delai_minimal_echange_heures, avant)
+
+    def test_brouillon_non_concerne_par_l_audit(self):
+        liste = self._liste("garde", ServiceGarde.STATUT_BROUILLON)
+        self._vider()
+        with patch.object(AuditLog.objects, "create", side_effect=RuntimeError("panne")):
+            self._regler(liste, 5)
+        liste.refresh_from_db()
+        self.assertEqual(liste.delai_minimal_echange_heures, 5)
+
 
 class TraceCreneauxAdminTests(TestCase):
     def test_admin_trace_ajout_et_suppression_sur_liste_publiee(self):
