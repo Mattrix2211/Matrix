@@ -69,7 +69,7 @@
     <dt>Type</dt><dd>{{ synthese.type }}</dd>
     <dt>Période</dt><dd>du {{ synthese.date_debut|date:"d/m/Y" }} au {{ synthese.date_fin|date:"d/m/Y" }}</dd>
     <dt>Périmètre</dt><dd>{{ synthese.perimetre }}</dd>
-    <dt>Fonction</dt><dd>{{ synthese.fonction }}</dd>
+    {% if synthese.fonction %}<dt>Fonction</dt><dd>{{ synthese.fonction }}</dd>{% endif %}
     {% if valeurs.nom %}<dt>Nom</dt><dd>{{ valeurs.nom }}</dd>{% endif %}
   </dl>
   <p class="text-muted small mt-2">La liste est créée en brouillon : vous ajoutez les créneaux puis vous la publiez.</p>
