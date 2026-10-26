@@ -1,4 +1,4 @@
-"""Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié, frise « Ma journée » et bloc « Supervision »."""
+"""Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié, frise « Ma journée » et bloc « Mon périmètre »."""
 from datetime import datetime, time, timedelta
 from types import SimpleNamespace
 
@@ -241,7 +241,7 @@ LIGNES_SUPERVISION = 5
 
 
 def peut_superviser(user):
-    """Bloc « Supervision » : seuil de rôle configurable par navire, et un périmètre à superviser."""
+    """Bloc « Mon périmètre » : seuil de rôle configurable par navire, et un périmètre à superviser."""
     if user_role_level(user) < niveau_requis_pour(user, "supervision_aujourdhui"):
         return False
     return is_master_admin(user) or bool(scope_filters_for_user(user))
@@ -299,7 +299,8 @@ def supervision(user, aujourdhui):
     lignes_validation = [
         {
             "titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]),
-            "detail": f"Prévue le {occ.scheduled_for:%d/%m}",
+            # Le ticket correctif n'est ouvert automatiquement que pour un matériel, pas pour une installation.
+            "detail": f"Prévue le {occ.scheduled_for:%d/%m} · Non conforme" + (" : un ticket correctif est ouvert" if occ.asset_id else ""),
             "peut_valider": gere_les_tiers or user in occ.assignees.all(),
         }
         for occ in en_attente.select_related(*liaisons).prefetch_related("assignees").order_by("scheduled_for")[:LIGNES_SUPERVISION]

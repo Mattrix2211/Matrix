@@ -100,7 +100,7 @@
 </div>
 
 {% if supervision %}
-<h2 class="h5 mt-5 mb-3">Supervision</h2>
+<h2 class="h5 mt-5 mb-3">Mon périmètre</h2>
 {% if supervision.retards_total %}
   {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}{% fin_attention %}
 {% endif %}
@@ -139,14 +139,19 @@
     {% fin_surface %}
   </div>
   <div class="col-lg-6">
-    {% surface titre="Validations en attente" icone="maintenance" %}
+    {% if supervision.validations %}
+    {% surface titre="Comptes rendus non conformes à traiter" icone="maintenance" %}
       {% for validation in supervision.validations %}
         {% if validation.peut_valider and not lecture_seule %}
-          {% carte_action titre=validation.titre libelle="Valider" url=validation.url classes="mx-aujourdhui__tache--attention" %}{{ validation.detail }}{% fin_carte_action %}
+          {% carte_action titre=validation.titre libelle="Ouvrir" url=validation.url classes="mx-aujourdhui__tache--attention" %}{{ validation.detail }}{% fin_carte_action %}
         {% else %}
           <div class="mx-carte mx-carte--action mx-aujourdhui__tache--attention"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ validation.titre }}</span><span class="mx-carte__contenu">{{ validation.detail }}</span></div></div>
         {% endif %}
       {% endfor %}
+    {% fin_surface %}
+    {% endif %}
+    {% if supervision.formations_a_valider or supervision.echanges_a_valider or supervision.candidatures_a_valider or not supervision.validations_total %}
+    {% surface titre="Validations en attente" icone="maintenance" %}
       {% if supervision.formations_a_valider and not lecture_seule %}
         {% url 'formation-list' as url_formations %}
         {% carte_action titre="Formations proposées par le bord" libelle="Examiner" url=url_formations classes="mx-aujourdhui__tache--attention" %}{{ supervision.formations_a_valider }} à examiner{% fin_carte_action %}
@@ -160,9 +165,10 @@
         {% carte_action titre="Candidatures à une formation" libelle="Examiner" url=url_candidatures classes="mx-aujourdhui__tache--attention" %}{{ supervision.candidatures_a_valider }} à examiner{% fin_carte_action %}
       {% endif %}
       {% if not supervision.validations_total %}
-        {% include "components/etat_vide.html" with icone="terminee" titre="Rien à valider" texte="Aucune validation n'attend votre décision." %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Rien à traiter" texte="Aucun compte rendu non conforme ni validation n'attend votre décision." %}
       {% endif %}
     {% fin_surface %}
+    {% endif %}
   </div>
 </div>
 <div class="row g-3 mb-4">
