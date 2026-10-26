@@ -17,6 +17,11 @@ from .push import envoyer_notification_push
 logger = logging.getLogger(__name__)
 
 
+def phrase_prevenus(categories):
+    """Fin de confirmation : ne cite que les personnes dont une notification a été créée."""
+    return f" Prévenus : {', '.join(categories)}." if categories else ""
+
+
 def compter_non_lues(utilisateur):
     """Notifications non lues du marin : unique source du compteur de la barre et du centre."""
     return Notification.objects.filter(user=utilisateur, is_read=False).count()

@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog
-from matrix.core.equipage import equipage_a_terre_lecture_seule
+from matrix.core.equipage import equipage_a_bord, equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import equipage_marin_q, marins_hors_equipage
 from matrix.core.role_thresholds import niveau_requis_pour
@@ -103,6 +103,18 @@ def interlocuteurs_possibles(demande):
     return User.objects.filter(profile__ship_id=navire, is_active=True).exclude(pk__in=deja).order_by("username")
 
 
+def marins_pour_action(demande):
+    """Marins à qui `creer_action` accepte une action : équipage du déclarant, hors équipage à terre."""
+    navire = getattr(demande.declarant.profile, "ship", None)
+    marins = User.objects.filter(
+        equipage_marin_q(demande.declarant), profile__ship_id=getattr(navire, "pk", None), is_active=True,
+    )
+    if navire is not None and navire.double_equipage:
+        a_terre = Q(is_superuser=False) & ~Q(profile__equipage="") & ~Q(profile__equipage=equipage_a_bord(navire))
+        marins = marins.exclude(a_terre)
+    return marins.order_by("username")
+
+
 def trouver_objet(modele, pk, autorises=OBJETS_SIGNALABLES):
     """Objet désigné par « modèle:identifiant » parmi les modèles `autorises`, ou None."""
     if modele not in autorises:
@@ -131,8 +143,28 @@ def _message_systeme(demande, corps):
 
 
 def _notifier(demande, destinataires, verb, niveau=NotificationLevel.INFO, action=False):
+    """Crée les notifications et renvoie les personnes réellement prévenues."""
+    destinataires = list(destinataires)
     for user in destinataires:
         Notification.objects.create(user=user, verb=verb, level=niveau, target=demande, action_requise=action)
+    return destinataires
+
+
+def categories_prevenues(demande, prevenus, acteur):
+    """Rôles des personnes prévenues (hors acteur), pour dire dans l'interface qui l'est vraiment."""
+    categories = []
+    for user in prevenus:
+        if user.pk == acteur.pk:
+            continue
+        if user.pk == demande.declarant_id:
+            nom = "le déclarant"
+        elif user.pk == demande.responsable_id:
+            nom = "le responsable"
+        else:
+            nom = "les interlocuteurs"
+        if nom not in categories:
+            categories.append(nom)
+    return categories
 
 
 def _autres_acteurs(demande, sauf):
@@ -179,14 +211,16 @@ def repondre(demande, user, corps):
     if user.pk == demande.declarant_id and demande.etat == Demande.ETAT_EN_ATTENTE:
         _changer(demande, user, Demande.ETAT_OUVERT, "Information fournie.")
     attend_le_declarant = demande.etat == Demande.ETAT_EN_ATTENTE
+    prevenus = []
     for destinataire in _autres_acteurs(demande, user):
         if destinataire.pk in cites:
             continue
-        _notifier(
+        prevenus += _notifier(
             demande, [destinataire], f"{_nom(user)} a répondu sur « {demande.titre} ».",
             NotificationLevel.WARNING if attend_le_declarant and destinataire.pk == demande.declarant_id else NotificationLevel.INFO,
             action=attend_le_declarant and destinataire.pk == demande.declarant_id,
         )
+    return prevenus
 
 
 def _changer(demande, user, etat, note=""):
@@ -219,27 +253,26 @@ def changer_etat(demande, user, etat, note=""):
     _changer(demande, user, etat, note)
     if note:
         ajouter_commentaire(demande, user, note)
-    prevenus = set()
+    prevenus = []
     if etat == Demande.ETAT_EN_ATTENTE:
-        _notifier(demande, [demande.declarant], f"Information attendue sur « {demande.titre} » : {note}",
-                  NotificationLevel.WARNING, action=True)
-        prevenus.add(demande.declarant_id)
+        prevenus += _notifier(demande, [demande.declarant], f"Information attendue sur « {demande.titre} » : {note}",
+                              NotificationLevel.WARNING, action=True)
     elif etat == Demande.ETAT_RESOLU:
         traiter_actions(demande, [demande.responsable])
-        _notifier(demande, [demande.declarant], f"« {demande.titre} » est résolue : confirmez la clôture.",
-                  NotificationLevel.WARNING, action=True)
-        prevenus.add(demande.declarant_id)
+        prevenus += _notifier(demande, [demande.declarant], f"« {demande.titre} » est résolue : confirmez la clôture.",
+                              NotificationLevel.WARNING, action=True)
     elif etat == Demande.ETAT_OUVERT:
-        _notifier(demande, [demande.responsable], f"{_nom(user)} rouvre « {demande.titre} ».",
-                  NotificationLevel.WARNING, action=True)
-        prevenus.add(demande.responsable_id)
+        prevenus += _notifier(demande, [demande.responsable], f"{_nom(user)} rouvre « {demande.titre} ».",
+                              NotificationLevel.WARNING, action=True)
     elif etat == Demande.ETAT_CLOS:
         traiter_actions(demande)
     if etat == Demande.ETAT_EN_TRAITEMENT:
         traiter_actions(demande, [demande.responsable])
+    deja = {u.pk for u in prevenus}
     for autre in _autres_acteurs(demande, user):
-        if autre.pk not in prevenus:
-            _notifier(demande, [autre], f"« {demande.titre} » : {LIBELLES[etat]}.")
+        if autre.pk not in deja:
+            prevenus += _notifier(demande, [autre], f"« {demande.titre} » : {LIBELLES[etat]}.")
+    return prevenus
 
 
 def reaffecter(demande, user, nouveau):
@@ -253,7 +286,7 @@ def reaffecter(demande, user, nouveau):
     demande.save(update_fields=["responsable", "updated_by", "updated_at"])
     _tracer(demande, user, "reaffectation", f"; ancien={ancien.pk}")
     _message_systeme(demande, f"{_nom(user)} confie le dossier à {_nom(nouveau)}.")
-    _notifier(demande, [nouveau], f"{_nom(user)} vous confie « {demande.titre} ».", NotificationLevel.WARNING, action=True)
+    return _notifier(demande, [nouveau], f"{_nom(user)} vous confie « {demande.titre} ».", NotificationLevel.WARNING, action=True)
 
 
 def ajouter_interlocuteur(demande, user, cible):
@@ -264,7 +297,7 @@ def ajouter_interlocuteur(demande, user, cible):
     demande.interlocuteurs.add(cible)
     _tracer(demande, user, "interlocuteur")
     _message_systeme(demande, f"{_nom(user)} a ajouté {_nom(cible)} au dossier.")
-    _notifier(demande, [cible], f"{_nom(user)} vous a ajouté à « {demande.titre} ».", NotificationLevel.WARNING)
+    return _notifier(demande, [cible], f"{_nom(user)} vous a ajouté à « {demande.titre} ».", NotificationLevel.WARNING)
 
 
 def creer_action(demande, user, assigne, titre, echeance=None):

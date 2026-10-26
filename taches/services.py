@@ -195,8 +195,30 @@ def _destinataires(tache, sauf):
 
 
 def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO, action=False):
+    """Crée les notifications et renvoie les personnes réellement prévenues."""
+    destinataires = list(destinataires)
     for user in destinataires:
         Notification.objects.create(user=user, verb=verb, level=niveau, target=tache, action_requise=action)
+    return destinataires
+
+
+def categories_prevenues(tache, prevenus, acteur):
+    """Rôles des personnes prévenues (hors acteur), pour dire dans l'interface qui l'est vraiment."""
+    categories = []
+    for user in prevenus:
+        if user.pk == acteur.pk:
+            continue
+        if user.pk == tache.assigne_id:
+            nom = "le marin assigné"
+        elif tache.participants.filter(pk=user.pk).exists():
+            nom = "les participants du fil"
+        elif est_chef_de(user, tache.assigne):
+            nom = "les chefs du périmètre"
+        else:
+            nom = "l'auteur de la tâche"
+        if nom not in categories:
+            categories.append(nom)
+    return categories
 
 
 def taches_liees_a(user, annonce):
@@ -419,9 +441,9 @@ def signaler_blocage(tache, user, motif):
     # Dès le blocage : les acteurs du dossier, puis les chefs du périmètre qui peuvent le lever (alerte d'action).
     acteurs = list(_destinataires(tache, user))
     verbe = f"{PREFIXE_BLOCAGE} {_nom(user)} est bloqué sur « {tache.titre} » : {motif}"
-    _notifier(tache, acteurs, verbe, NotificationLevel.WARNING, action=True)
+    prevenus = _notifier(tache, acteurs, verbe, NotificationLevel.WARNING, action=True)
     deja = {a.pk for a in acteurs}
-    _notifier(
+    return prevenus + _notifier(
         tache, [c for c in _destinataires_relance(tache, ParametresTaches.courants()) if c.pk not in deja and c.pk != user.pk],
         verbe, NotificationLevel.WARNING, action=True,
     )
@@ -434,7 +456,7 @@ def repondre(tache, user, corps):
     if not corps:
         raise ValidationError("Le message ne peut pas être vide.")
     ajouter_commentaire(tache, user, corps)
-    _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a répondu sur « {tache.titre} ».")
+    return _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a répondu sur « {tache.titre} ».")
 
 
 def ajouter_participant(tache, chef, user):
@@ -445,7 +467,7 @@ def ajouter_participant(tache, chef, user):
     tache.participants.add(user)
     _tracer(tache, chef, "interlocuteur")
     _message_systeme(tache, f"{_nom(chef)} a ajouté {_nom(user)} au fil.")
-    _notifier(tache, [user], f"{_nom(chef)} vous a ajouté au fil de la tâche « {tache.titre} ».")
+    return _notifier(tache, [user], f"{_nom(chef)} vous a ajouté au fil de la tâche « {tache.titre} ».")
 
 
 def reprendre(tache, chef):
@@ -458,7 +480,7 @@ def reprendre(tache, chef):
     _enregistrer(tache, chef, "reprise", ["statut"])
     traiter_actions(tache, prefixe_verbe=PREFIXE_BLOCAGE)
     _message_systeme(tache, f"{_nom(chef)} lève le blocage : la tâche reprend.")
-    _notifier(tache, [tache.assigne], f"Blocage levé sur « {tache.titre} » : vous pouvez reprendre.")
+    return _notifier(tache, [tache.assigne], f"Blocage levé sur « {tache.titre} » : vous pouvez reprendre.")
 
 
 def rendre_compte(tache, user, compte_rendu):
@@ -477,7 +499,7 @@ def rendre_compte(tache, user, compte_rendu):
         from demandes.services import action_terminee  # import différé : demandes dépend de taches
 
         action_terminee(tache)
-    _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a terminé « {tache.titre} » et rendu compte.")
+    return _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a terminé « {tache.titre} » et rendu compte.")
 
 
 PREFIXE_RELANCE = "Tâche en retard"
