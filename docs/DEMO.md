@@ -38,7 +38,7 @@ Un fil de quatre liens (« Mon quotidien · Mon équipe · Suivi · Synthèse »
 |---|---|---|
 | **Mon quotidien** | Menu « Mon quotidien » : *Aujourd'hui* et *Calendrier* | Tâches à faire, journée, échéances à traiter, quarts et gardes publiés, annonces à accuser |
 | **Mon équipe** | *Calendrier* filtre « Mon équipe », *Quarts et gardes*, *Tâches* (attribution) | Planning publié, absences, tâches de l'équipe, attribution à un marin ou à une unité |
-| **Suivi** | *Demandes bord–terre* et fil de chaque tâche, panneau de détail du calendrier | Conversation sur l'objet concerné, réponse du rôle à terre, comptes rendus |
+| **Suivi** | *Difficultés signalées* et fil de chaque tâche, panneau de détail du calendrier | Conversation sur l'objet concerné, réponse du rôle à terre, comptes rendus |
 | **Synthèse** | Bloc « Avancement de l'équipe » en haut des *Tâches* | Répartition par statut, retards, blocages à lever, décisions du chef |
 
 Liens croisés : *Aujourd'hui* → calendrier ; synthèse → suivi et planning de l'équipe.

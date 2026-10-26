@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load icones %}
 {% block content %}
-{% include "components/fiche_entete.html" with titre=demande.titre sous_titre="Demande bord–terre" objet=demande %}
+{% include "components/fiche_entete.html" with titre=demande.titre sous_titre="Difficulté" objet=demande %}
 {% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=demande:{{ demande.pk }}">Proposer un RETEX</a></p>{% endif %}
 <div class="row g-4">
   <div class="col-lg-4">
@@ -17,7 +17,7 @@
       {% if demande.description %}<hr><p class="mb-0">{{ demande.description|linebreaksbr }}</p>{% endif %}
     </div>
     <div class="card card-body mb-3">
-      <h2 class="h6">Actions décidées</h2>
+      <h2 class="h6">Actions à mener</h2>
       <ul class="list-unstyled small mb-0">
         {% for t, lisible in actions %}<li class="mb-1">{% if lisible %}<a href="{% url 'tache-detail' t.pk %}">{{ t.titre }}</a>{% else %}{{ t.titre }}{% endif %} · {{ t.assigne.get_full_name|default:t.assigne.username }} · {% include "taches/_statut.html" %}</li>
         {% empty %}<li class="text-muted">Aucune action pour l'instant.</li>{% endfor %}
@@ -57,7 +57,7 @@
       <div class="row g-2 align-items-end">
         <div class="col-md-4"><label class="form-label" for="id_act_titre">Action</label><input class="form-control" id="id_act_titre" name="titre" maxlength="200" required></div>
         <div class="col-md-3"><label class="form-label" for="id_act_assigne">Marin</label>
-          <select class="form-select" id="id_act_assigne" name="assigne">{% for m in marins %}<option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
+          <select class="form-select" id="id_act_assigne" name="assigne" required><option value="">Choisir un marin…</option>{% for m in marins %}<option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
         <div class="col-md-3"><label class="form-label" for="id_act_echeance">Échéance</label><input class="form-control" type="date" id="id_act_echeance" name="echeance"></div>
         <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Assigner</button></div>
       </div>
@@ -66,7 +66,7 @@
       {% if candidats %}
       <form method="post" action="{% url 'demande-action' demande.pk %}" class="col-md-6">{% csrf_token %}<input type="hidden" name="action" value="interlocuteur">
         <label class="form-label" for="id_interlocuteur">Ajouter un interlocuteur</label>
-        <div class="input-group"><select class="form-select" id="id_interlocuteur" name="interlocuteur">{% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
+        <div class="input-group"><select class="form-select" id="id_interlocuteur" name="interlocuteur" required><option value="">Choisir un interlocuteur…</option>{% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
           <button class="btn btn-outline-secondary" type="submit">Ajouter</button></div>
       </form>
       {% endif %}

@@ -212,7 +212,7 @@ def _demandes(navire):
                "attention" if d.priorite == Demande.PRIORITE_URGENTE else "")
         for d in en_cours
     ]
-    return _bloc("demandes", "Demandes bord–terre en cours", [_groupe("En cours", lignes)], "Aucune demande en cours.")
+    return _bloc("demandes", "Difficultés signalées en cours", [_groupe("En cours", lignes)], "Aucune demande en cours.")
 
 
 def contenu_passation(user, navire):

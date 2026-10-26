@@ -7,7 +7,7 @@
   <div class="row g-3 mb-3">
     <div class="col-md-3"><label class="form-label" for="id_niveau">Niveau</label>
       <select class="form-select" id="id_niveau" name="niveau">{% for code, libelle in niveaux %}<option value="{{ code }}"{% if saisie.niveau == code %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
-    <div class="col-md-5"><label class="form-label" for="id_cible">Public visé</label>
+    <div class="col-md-5"><label class="form-label" for="id_cible">Destinataires</label>
       <select class="form-select" id="id_cible" name="cible" required>{% for cle, libelle in cibles %}<option value="{{ cle }}"{% if saisie.cible == cle %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
     <div class="col-md-4"><label class="form-label" for="id_equipage">Équipage (facultatif)</label><select class="form-select" id="id_equipage" name="equipage"><option value="">Tous les équipages</option>{% for code in equipages %}<option value="{{ code }}"{% if saisie.equipage == code %} selected{% endif %}>Équipage {{ code }}</option>{% endfor %}</select></div>
   </div>

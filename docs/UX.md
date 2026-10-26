@@ -172,7 +172,7 @@ Barre latérale **rétractable**, avec libellés texte (pas seulement des icône
 - **Personnel** — Aujourd'hui, Calendrier
 - **Équipements** — Matériels, Installations, Catalogue, Plan du navire, Configurer le plan du navire (selon les droits)
 - **Maintenance** — Maintenance, Tickets correctifs, Anomalies, Logistique
-- **Activité** — Tâches, Annonces, Demandes bord–terre, Rondes, Quarts et gardes, Feuille de service, Absences
+- **Activité** — Tâches, Annonces, Difficultés signalées (ex-« Demandes bord–terre »), Rondes, Quarts et gardes, Feuille de service, Absences
 - **Compétences** — Formations
 - **Supervision** (selon les droits) — Prêt à appareiller, Flotte, Spécialités, Classes de navire
 - **Administration** (selon les droits) — Annuaire, Paramètres
@@ -222,7 +222,7 @@ Le libellé « Tableau de bord » est remplacé par **« Aujourd'hui »** : le c
 
 **Informations secondaires** (plus bas) — qualifications, prochaines échéances, équité, activité passée.
 
-**Supervision** (rôles concernés, sans perturber l'espace personnel) — maintenances en retard, anomalies ouvertes, validations en attente, équipements indisponibles du périmètre.
+**Mon périmètre** (bloc d'accueil des rôles concernés ; distinct du groupe « Supervision » du menu, sans perturber l'espace personnel) — maintenances en retard, anomalies ouvertes, validations en attente, équipements indisponibles du périmètre.
 
 ### 9.2 Équipage à terre (double équipage)
 

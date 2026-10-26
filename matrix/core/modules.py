@@ -115,7 +115,7 @@ REGISTRE_MODULES = [
         "Diffusion descendante Information / Important / Urgent ciblée par périmètre, avec accusé de lecture facultatif.",
     ),
     ModuleInfo(
-        "demandes", "Demandes bord–terre",
+        "demandes", "Difficultés signalées",
         "Signalement d'une difficulté sur un objet, réponse des interlocuteurs désignés, actions et clôture traçable.",
     ),
     ModuleInfo(
