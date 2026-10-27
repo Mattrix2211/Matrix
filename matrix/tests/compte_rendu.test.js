@@ -27,7 +27,7 @@ assert.strictEqual(c.formaterDuree(-5), '');
 
 // DOM simulé : le premier choix de conformité (input puis change) doit être conservé et afficher la confirmation.
 const ecouteurs = {};
-const select = { value: '' };
+const select = { value: '', addEventListener() {} };
 const confirmation = { hidden: true };
 const form = {
   querySelectorAll: () => [],
