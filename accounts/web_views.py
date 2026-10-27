@@ -380,7 +380,10 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
             service_id = request.POST.get("service_id")
             sector_id = request.POST.get("sector_id")
             section_id = request.POST.get("section_id")
-            if role and not _role_attribution_autorisee(request.user, role):
+            if not role or role not in Roles.values:
+                messages.error(request, "Choisissez un rôle valide.")
+                return redirect("user-directory")
+            if not _role_attribution_autorisee(request.user, role):
                 messages.error(request, "Vous n'avez pas les droits pour attribuer ce rôle.")
                 return redirect("user-directory")
             # Valeurs de destination (navire/service/secteur/section) validées
@@ -424,7 +427,9 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 # Pas d'email: le mot de passe sera défini via la clé dans l'annuaire
                 user.set_unusable_password()
                 user.save(update_fields=["password"])  # set_unusable_password fixe le hash
-                profile, _ = UserProfile.objects.get_or_create(user=user, defaults={"role": role})
+                # Le signal a déjà créé un profil Équipier : on applique le rôle choisi.
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                profile.role = role
                 # Liens hiérarchiques
                 if fonction_service:
                     profile.fonction_service = fonction_service

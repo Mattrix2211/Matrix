@@ -24,4 +24,23 @@ assert.strictEqual(c.resume(0, 0, 0, 0), 'Aucun point à contrôler');
 assert.strictEqual(c.formaterDuree(65 * 60000), '1 h 05');
 assert.strictEqual(c.formaterDuree(20 * 60000), '20 min');
 assert.strictEqual(c.formaterDuree(-5), '');
+
+// DOM simulé : le premier choix de conformité (input puis change) doit être conservé et afficher la confirmation.
+const ecouteurs = {};
+const select = { value: '' };
+const confirmation = { hidden: true };
+const form = {
+  querySelectorAll: () => [],
+  querySelector: (sel) => ({ '[name=conformity]': select, '[data-signature]': confirmation })[sel] || null,
+  hasAttribute: (nom) => nom === 'data-critique',
+  addEventListener: (type, fn) => { ecouteurs[type] = fn; },
+};
+global.document = { querySelector: () => null, querySelectorAll: () => [form] };
+delete require.cache[require.resolve('../static/js/compte_rendu.js')];
+require('../static/js/compte_rendu.js');
+select.value = 'CONFORME';
+ecouteurs.input({ target: select });
+ecouteurs.change({ target: select });
+assert.strictEqual(select.value, 'CONFORME');
+assert.strictEqual(confirmation.hidden, false);
 console.log('ok');

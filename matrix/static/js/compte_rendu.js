@@ -99,9 +99,13 @@
       }
     }
 
-    form.addEventListener('input', evaluer);
-    form.addEventListener('change', evaluer);
-    if (conformite) conformite.addEventListener('change', function () { conformiteManuelle = true; });
+    // Le choix manuel doit être noté avant le recalcul : « input » précède « change ».
+    function surEvenement(evt) {
+      if (conformite && evt.target === conformite) conformiteManuelle = true;
+      evaluer();
+    }
+    form.addEventListener('input', surEvenement);
+    form.addEventListener('change', surEvenement);
 
     var toutConforme = document.querySelector('[data-tout-conforme]');
     if (toutConforme) {
