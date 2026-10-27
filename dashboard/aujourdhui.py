@@ -11,6 +11,7 @@ from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
 from annonces.services import a_lire as annonces_a_lire
 from demandes.models import Demande
+from demandes.services import demandes_recues
 from logistics.anomalie_views import STATUT_OUVERTES, _est_chef, anomalies_visibles
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
@@ -53,12 +54,14 @@ def qualifications_a_renouveler(user, aujourdhui):
 
 
 def demandes_a_traiter(user):
-    """Dossiers où `user` doit agir : responsable (hors résolu), ou déclarant quand on attend sa réponse ou sa clôture."""
-    return [
+    """Dossiers où `user` doit agir : responsable (hors résolu), déclarant quand on attend sa réponse ou sa clôture,
+    interlocuteur ajouté qui n'a pas encore répondu."""
+    propres = [
         d for d in Demande.objects.filter(Q(responsable=user) | Q(declarant=user)).exclude(etat=Demande.ETAT_CLOS)
         if (d.responsable_id == user.pk and d.etat != Demande.ETAT_RESOLU)
         or (d.declarant_id == user.pk and d.etat in (Demande.ETAT_EN_ATTENTE, Demande.ETAT_RESOLU))
     ]
+    return propres + list(demandes_recues(user))
 
 
 def reponses_attendues(user):

@@ -82,6 +82,19 @@ def demandes_visibles(user):
     return Demande.objects.filter(base).distinct()
 
 
+def demandes_recues(user):
+    """Dossiers ouverts où `user` est interlocuteur ajouté et n'a pas encore répondu (alerte d'action non soldée).
+
+    Jamais plus large que `est_acteur` : l'alerte seule n'ouvre aucun accès."""
+    alertes = Notification.objects.filter(
+        user=user, action_requise=True, traitee_le__isnull=True,
+        content_type=ContentType.objects.get_for_model(Demande),
+    ).values_list("object_id", flat=True)
+    return Demande.objects.filter(pk__in=list(alertes), interlocuteurs=user).exclude(
+        Q(declarant=user) | Q(responsable=user) | Q(etat=Demande.ETAT_CLOS)
+    )
+
+
 def responsables_possibles(declarant):
     """Chefs du navire du déclarant, qui peuvent prendre un dossier en charge."""
     navire = getattr(declarant.profile, "ship_id", None)
@@ -206,7 +219,8 @@ def repondre(demande, user, corps):
         raise ValidationError("Le message ne peut pas être vide.")
     message = ajouter_commentaire(demande, user, corps)
     cites = set(message.mentions.values_list("pk", flat=True))  # déjà alertés par la mention
-    if demande.etat != Demande.ETAT_RESOLU:  # en « résolu », la clôture reste attendue du déclarant
+    # En « résolu », la clôture reste attendue du déclarant ; une simple réponse solde l'alerte de l'interlocuteur.
+    if demande.etat != Demande.ETAT_RESOLU or user.pk not in (demande.declarant_id, demande.responsable_id):
         traiter_actions(demande, [user])
     if user.pk == demande.declarant_id and demande.etat == Demande.ETAT_EN_ATTENTE:
         _changer(demande, user, Demande.ETAT_OUVERT, "Information fournie.")
@@ -297,7 +311,7 @@ def ajouter_interlocuteur(demande, user, cible):
     demande.interlocuteurs.add(cible)
     _tracer(demande, user, "interlocuteur")
     _message_systeme(demande, f"{_nom(user)} a ajouté {_nom(cible)} au dossier.")
-    return _notifier(demande, [cible], f"{_nom(user)} vous a ajouté à « {demande.titre} ».", NotificationLevel.WARNING)
+    return _notifier(demande, [cible], f"{_nom(user)} vous a ajouté à « {demande.titre} ».", NotificationLevel.WARNING, action=True)
 
 
 def creer_action(demande, user, assigne, titre, echeance=None):

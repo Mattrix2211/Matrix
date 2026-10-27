@@ -23,6 +23,7 @@ from .services import (
     changer_etat,
     creer_action,
     creer_demande,
+    demandes_recues,
     demandes_visibles,
     interlocuteurs_possibles,
     marins_pour_action,
@@ -77,10 +78,12 @@ class DemandesIndexView(LoginRequiredMixin, View):
         demandes = list(demandes_visibles(request.user).select_related("declarant", "responsable"))
         ouvertes = [d for d in demandes if d.ouverte]
         moi = request.user.pk
+        recues = set(demandes_recues(request.user).values_list("pk", flat=True))
         a_traiter = [
             d for d in ouvertes
             if (d.responsable_id == moi and d.etat != Demande.ETAT_RESOLU)
             or (d.declarant_id == moi and d.etat in (Demande.ETAT_EN_ATTENTE, Demande.ETAT_RESOLU))
+            or d.pk in recues
         ]
         return render(request, "demandes/index.html", {
             "a_traiter": a_traiter,
