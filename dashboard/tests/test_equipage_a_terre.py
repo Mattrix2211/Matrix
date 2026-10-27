@@ -58,7 +58,9 @@ class EquipageATerreTests(TestCase):
         r = self.client.get(reverse("home"))
         self.assertContains(r, "Lecture seule")
         self.assertContains(r, "Équipage B à terre")
-        self.assertNotContains(r, reverse("occurrence-execute", args=[self.occ.pk]))
+        # Carte cliquable pour consulter ; l'écriture reste refusée par le serveur.
+        self.assertContains(r, reverse("occurrence-execute", args=[self.occ.pk]))
+        self.assertContains(r, "Consulter")
 
     def test_page_equipage_a_bord_inchangee(self):
         self.client.login(username="bord", password="pass")

@@ -17,11 +17,8 @@
       {% if a_faire %}
       <div class="mx-aujourdhui__liste">
         {% for tache in a_faire %}
-          {% if lecture_seule %}
-          <div class="mx-carte mx-carte--action {{ tache.classes }}"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ tache.titre }}</span><span class="mx-carte__contenu">{{ tache.detail }}</span></div></div>
-          {% else %}
-          {% carte_action titre=tache.titre libelle="Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
-          {% endif %}
+          {# À terre : consultation seulement, le serveur reste juge de l'accès. #}
+          {% carte_action titre=tache.titre libelle=lecture_seule|yesno:"Consulter,Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
         {% endfor %}
       </div>
       {% else %}

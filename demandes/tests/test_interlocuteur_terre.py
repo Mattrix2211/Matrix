@@ -27,6 +27,17 @@ class DossierRecuTests(DemandesBase):
         self.assertEqual(contexte["suivies"], [])
         self.assertEqual(demandes_a_traiter(self.expert), [self.demande])
 
+    def test_carte_d_accueil_a_terre_mene_au_dossier_sans_rien_ouvrir_aux_autres(self):
+        url = reverse("demande-detail", args=[self.demande.pk])
+        self.client.force_login(self.expert)
+        accueil = self.client.get(reverse("home"))
+        self.assertContains(accueil, f'href="{url}"')
+        self.assertEqual(self.client.get(url).status_code, 200)
+        for autre in (self.voisin, self.etranger):
+            self.client.force_login(autre)
+            self.assertNotContains(self.client.get(reverse("home")), f'href="{url}"')
+            self.assertEqual(self.client.get(url).status_code, 404)
+
     def test_premiere_reponse_sort_de_a_traiter(self):
         self.client.force_login(self.expert)
         r = self.client.post(reverse("demande-commentaire", args=[self.demande.pk]), {"body": "Reçu."})
