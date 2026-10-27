@@ -223,7 +223,7 @@ FullCalendar.globalLocales.push({
   },
   weekText: 'Sem.',
   allDayText: 'Toute la journée',
-  moreLinkText: function(n) { return '+' + n + ' en plus'; },
+  moreLinkText: function(n) { return '+' + n + (n > 1 ? ' autres' : ' autre'); },
   noEventsText: 'Aucun événement à afficher',
 });
 </script>
@@ -260,6 +260,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // Clic (mois) ou glisser (semaine/jour) : création rapide, sauf équipage à terre.
     selectable: peutCreer,
     height: 'auto',
+    // Au-delà de 4 pastilles par case : « +N autres » mène à la vue Jour, qui les liste toutes.
+    dayMaxEvents: 4,
+    moreLinkClick: function (info) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'day');
+      url.searchParams.set('date', [info.date.getFullYear(), String(info.date.getMonth() + 1).padStart(2, '0'), String(info.date.getDate()).padStart(2, '0')].join('-'));
+      window.location.href = url.toString();
+      return 'none';
+    },
     headerToolbar: { start: '', center: 'title', end: '' },
     buttonText: { today: "Aujourd'hui", month: 'Mois', week: 'Semaine', day: 'Jour' },
     // Clic sur une case vide (vue mois) : ouvre la création d'un événement personnel
