@@ -50,6 +50,7 @@
       <div class="col-md-4">
         <label class="form-label" for="fRole">Rôle</label>
         <select class="form-select" name="role" id="fRole" {% if not cible %}required{% endif %}>
+          {% if not cible %}<option value="" selected disabled>Choisir un rôle</option>{% endif %}
           {% if cible and profil.role %}{% if profil.role not in roles_codes %}<option value="" selected>{{ profil.get_role_display }} (inchangé)</option>{% endif %}{% endif %}
           {% for r in roles %}<option value="{{ r.code }}" {% if profil.role == r.code %}selected{% endif %}>{{ r.label }}</option>{% endfor %}
         </select>
