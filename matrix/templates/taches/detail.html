@@ -2,7 +2,6 @@
 {% load icones documentation_extras %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=tache.titre sous_titre="Tâche" objet=tache %}
-{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=tache:{{ tache.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
 <p>{% include "taches/_statut.html" with t=tache %}
   {% if en_retard %}<span class="badge text-bg-danger">En retard</span>{% endif %}
   {% if tache.priorite == "URGENTE" and tache.ouverte %}<span class="badge text-bg-danger">Urgente</span>{% endif %}
@@ -12,10 +11,66 @@
 {% if annonce_source %}<p class="small text-muted">Issue de l'annonce : <a href="{% url 'annonce-detail' annonce_source.pk %}">{{ annonce_source.titre }}</a></p>{% endif %}
 {% if tache.description %}<p>{{ tache.description|linebreaksbr }}</p>{% endif %}
 {% documents_associes_a tache %}
-{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=tache:{{ tache.pk }}">Proposer un RETEX</a></p>{% endif %}
 
-<section class="card card-body mb-4" aria-labelledby="titre-checklist">
-  {% with c=tache.avancement_checklist %}<h2 class="h5" id="titre-checklist">Liste de contrôle{% if c.1 %} <span class="badge text-bg-light border">{{ c.0 }}/{{ c.1 }}</span>{% endif %}</h2>
+{% if tache.statut == "BLOQUEE" %}
+<div class="alert alert-warning"><strong>Bloquée :</strong> {{ tache.motif_blocage|linebreaksbr }}
+  {% if peut_gerer and not equipage_a_terre %}
+  <form method="post" action="{% url 'tache-action' tache.pk %}" class="mt-2">{% csrf_token %}<input type="hidden" name="action" value="reprendre"><button class="btn btn-sm btn-success" type="submit">Lever le blocage</button></form>
+  {% endif %}
+</div>
+{% endif %}
+{% if tache.compte_rendu %}<div class="alert alert-success"><strong>Compte rendu</strong> ({{ tache.terminee_le|date:"d/m/Y H:i" }}) : {{ tache.compte_rendu|linebreaksbr }}</div>{% endif %}
+
+{% if est_assigne and tache.ouverte and not equipage_a_terre %}
+<div class="card card-body mb-4">
+  {% if tache.statut == "A_FAIRE" %}
+  <form method="post" action="{% url 'tache-action' tache.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="action" value="demarrer"><button class="btn btn-primary" type="submit">Démarrer</button></form>
+  {% endif %}
+  <form method="post" action="{% url 'tache-action' tache.pk %}">{% csrf_token %}<input type="hidden" name="action" value="rendre_compte">
+    <label class="form-label" for="id_cr">Rendre compte</label>
+    <textarea class="form-control mb-2" id="id_cr" name="compte_rendu" rows="2" placeholder="Ce qui a été fait, constats" required></textarea>
+    <button class="btn {% if tache.statut == 'A_FAIRE' %}btn-outline-success{% else %}btn-success{% endif %}" type="submit">Terminer et rendre compte</button>
+  </form>
+</div>
+{% endif %}
+{% if not equipage_a_terre and not soutien_a_terre %}
+<section class="card card-body mb-4" aria-labelledby="titre-probleme">
+  <h2 class="h6" id="titre-probleme">Un problème sur cette tâche ?</h2>
+  {% if est_assigne and tache.ouverte %}
+  <form method="post" action="{% url 'tache-action' tache.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="action" value="bloquer">
+    <label class="form-label" for="id_motif">Je suis bloqué</label>
+    <div class="form-text mt-0 mb-2">La tâche passe en « Bloquée » : le chef qui l'a attribuée et les participants du fil sont prévenus ; vos chefs aussi si la tâche est partagée et que la configuration le prévoit.</div>
+    <textarea class="form-control mb-2" id="id_motif" name="motif" rows="2" placeholder="Décrivez le problème rencontré" required></textarea>
+    <button class="btn btn-outline-secondary" type="submit">Signaler le blocage</button>
+  </form>
+  {% endif %}
+  <div>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'demande-nouvelle' %}?objet=tache:{{ tache.pk }}">{% icone "discussion" %} Signaler une difficulté</a>
+    <div class="form-text">Ouvre un dossier suivi avec le responsable que vous choisissez parmi les chefs du bâtiment ; lui seul est prévenu au départ.</div>
+  </div>
+</section>
+{% endif %}
+
+<h2 class="h5">Fil de la tâche</h2>
+<p class="text-muted small">Participants : {{ tache.assigne.get_full_name|default:tache.assigne.username }}{% for p in participants %}, {{ p.get_full_name|default:p.username }}{% endfor %}</p>
+<ul class="list-unstyled mb-3">
+  {% for message in commentaires %}
+  <li class="mb-2 pb-2 border-bottom">
+    {% if message.is_system %}<span class="badge bg-secondary">Suivi</span>{% else %}<span class="badge bg-info text-dark">{{ message.author.get_full_name|default:message.author.username|default:"Utilisateur supprimé" }}</span>{% endif %}
+    <span class="text-muted small ms-2">{{ message.created_at|date:"d/m/Y H:i" }}</span>
+    <div class="{% if message.is_system %}fst-italic text-muted{% endif %}">{{ message.body|linebreaksbr }}</div>
+  </li>
+  {% empty %}<li class="text-muted">Aucun message.</li>{% endfor %}
+</ul>
+<form method="post" action="{% url 'tache-commentaire' tache.pk %}" class="mb-4">{% csrf_token %}
+  <label class="form-label" for="id_reponse">Répondre dans le fil</label>
+  <textarea class="form-control mb-2" id="id_reponse" name="body" rows="3" required></textarea>
+  <button class="btn btn-primary" type="submit">Publier</button>
+</form>
+
+{% if elements or peut_editer_checklist and not equipage_a_terre %}
+<details class="card card-body mb-3"{% if elements %} open{% endif %}>
+  {% with c=tache.avancement_checklist %}<summary class="h5 mb-2" id="titre-checklist">Liste de contrôle{% if c.1 %} <span class="badge text-bg-light border">{{ c.0 }}/{{ c.1 }}</span>{% endif %}</summary>
   {% if c.1 %}<div class="progress mb-2" role="img" aria-label="{{ c.0 }} éléments faits sur {{ c.1 }}" style="height:.5rem"><div class="progress-bar bg-success" style="width:{% widthratio c.0 c.1 100 %}%"></div></div>{% endif %}{% endwith %}
   <ul class="list-unstyled mb-2">
     {% for e in elements %}
@@ -38,10 +93,12 @@
     <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Ajouter</button></div>
   </form>
   {% endif %}
-</section>
+</details>
+{% endif %}
 
-<section class="card card-body mb-4" aria-labelledby="titre-pieces">
-  <h2 class="h5" id="titre-pieces">Pièces jointes</h2>
+{% if pieces or peut_joindre and not equipage_a_terre %}
+<details class="card card-body mb-3"{% if pieces %} open{% endif %}>
+  <summary class="h5 mb-2">Pièces jointes</summary>
   <ul class="list-unstyled mb-2">
     {% for p, supprimable in pieces %}
     <li class="d-flex align-items-center gap-2 mb-1">
@@ -60,54 +117,10 @@
     <div class="form-text">Images, PDF et documents bureautiques.</div>
   </form>
   {% endif %}
-</section>
-
-{% if tache.statut == "BLOQUEE" %}
-<div class="alert alert-warning"><strong>Bloquée :</strong> {{ tache.motif_blocage|linebreaksbr }}
-  {% if peut_gerer and not equipage_a_terre %}
-  <form method="post" action="{% url 'tache-action' tache.pk %}" class="mt-2">{% csrf_token %}<input type="hidden" name="action" value="reprendre"><button class="btn btn-sm btn-success" type="submit">Lever le blocage</button></form>
-  {% endif %}
-</div>
-{% endif %}
-{% if tache.compte_rendu %}<div class="alert alert-success"><strong>Compte rendu</strong> ({{ tache.terminee_le|date:"d/m/Y H:i" }}) : {{ tache.compte_rendu|linebreaksbr }}</div>{% endif %}
-
-{% if est_assigne and tache.ouverte and not equipage_a_terre %}
-<div class="card card-body mb-4">
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    {% if tache.statut == "A_FAIRE" %}
-    <form method="post" action="{% url 'tache-action' tache.pk %}">{% csrf_token %}<input type="hidden" name="action" value="demarrer"><button class="btn btn-primary" type="submit">Démarrer</button></form>
-    {% endif %}
-  </div>
-  <form method="post" action="{% url 'tache-action' tache.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="action" value="bloquer">
-    <label class="form-label" for="id_motif">Je suis bloqué</label>
-    <textarea class="form-control mb-2" id="id_motif" name="motif" rows="2" placeholder="Décrivez le problème rencontré" required></textarea>
-    <button class="btn btn-outline-warning" type="submit">Signaler le blocage</button>
-  </form>
-  <form method="post" action="{% url 'tache-action' tache.pk %}">{% csrf_token %}<input type="hidden" name="action" value="rendre_compte">
-    <label class="form-label" for="id_cr">Rendre compte</label>
-    <textarea class="form-control mb-2" id="id_cr" name="compte_rendu" rows="2" placeholder="Ce qui a été fait, constats" required></textarea>
-    <button class="btn btn-success" type="submit">Terminer et rendre compte</button>
-  </form>
-</div>
+</details>
 {% endif %}
 
-<h2 class="h5">Fil de la tâche</h2>
-<p class="text-muted small">Participants : {{ tache.assigne.get_full_name|default:tache.assigne.username }}{% for p in participants %}, {{ p.get_full_name|default:p.username }}{% endfor %}</p>
-<ul class="list-unstyled mb-3">
-  {% for message in commentaires %}
-  <li class="mb-2 pb-2 border-bottom">
-    {% if message.is_system %}<span class="badge bg-secondary">Suivi</span>{% else %}<span class="badge bg-info text-dark">{{ message.author.get_full_name|default:message.author.username|default:"Utilisateur supprimé" }}</span>{% endif %}
-    <span class="text-muted small ms-2">{{ message.created_at|date:"d/m/Y H:i" }}</span>
-    <div class="{% if message.is_system %}fst-italic text-muted{% endif %}">{{ message.body|linebreaksbr }}</div>
-  </li>
-  {% empty %}<li class="text-muted">Aucun message.</li>{% endfor %}
-</ul>
-<form method="post" action="{% url 'tache-commentaire' tache.pk %}" class="mb-4">{% csrf_token %}
-  <label class="form-label" for="id_reponse">Répondre dans le fil</label>
-  <textarea class="form-control mb-2" id="id_reponse" name="body" rows="3" required></textarea>
-  <button class="btn btn-primary" type="submit">Publier</button>
-</form>
-
+{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=tache:{{ tache.pk }}">Proposer un RETEX</a></p>{% endif %}
 {% if tache.personnelle and est_assigne and not equipage_a_terre %}
 <form method="post" action="{% url 'tache-action' tache.pk %}" class="mb-4">{% csrf_token %}
   <input type="hidden" name="action" value="{% if tache.partagee %}ne_plus_partager{% else %}partager{% endif %}">
@@ -115,8 +128,8 @@
 </form>
 {% endif %}
 {% if peut_modifier and not equipage_a_terre %}
-<form method="post" action="{% url 'tache-action' tache.pk %}" class="card card-body mb-4">{% csrf_token %}<input type="hidden" name="action" value="modifier">
-  <h2 class="h6">Réaffecter ou replanifier</h2>
+<details class="mb-4"><summary class="h6">Réaffecter ou replanifier</summary>
+<form method="post" action="{% url 'tache-action' tache.pk %}" class="card card-body mt-2">{% csrf_token %}<input type="hidden" name="action" value="modifier">
   <div class="row g-2 align-items-end">
     <div class="col-md-4"><label class="form-label" for="id_mod_assigne">Marin</label>
       <select class="form-select" id="id_mod_assigne" name="assigne">{% for m in marins %}<option value="{{ m.pk }}" {% if m.pk == tache.assigne_id %}selected{% endif %}>{{ m.get_full_name|default:m.username }}</option>{% endfor %}</select></div>
@@ -128,6 +141,7 @@
   </div>
   <div class="form-text">Un changement de marin remet la tâche « À faire » chez le nouveau titulaire. Tout est consigné dans le fil.</div>
 </form>
+</details>
 {% endif %}
 {% if peut_gerer and tache.ouverte and not equipage_a_terre and interlocuteurs %}
 <form method="post" action="{% url 'tache-action' tache.pk %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="interlocuteur">

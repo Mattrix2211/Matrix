@@ -24,3 +24,34 @@ class ErgonomieTachesTests(TachesBase):
         self.assertIn('href="#contenu-principal"', html)
         self.assertIn('<main id="contenu-principal"', html)
         self.assertLess(html.index('href="#contenu-principal"'), html.index("<nav"))
+
+
+class FicheTacheOrdreTests(TachesBase):
+    def _html(self, user, tache):
+        self.client.login(username=user, password="pass")
+        return self.client.get(reverse("tache-detail", args=[tache.pk])).content.decode()
+
+    def test_action_et_fil_avant_checklist_et_pieces(self):
+        html = self._html("marin", self._tache())
+        self.assertLess(html.index("Terminer et rendre compte"), html.index("Fil de la tâche"))
+        self.assertLess(html.index("Répondre dans le fil"), html.index('id="titre-checklist"'))
+        self.assertLess(html.index('id="titre-checklist"'), html.index("Pièces jointes"))
+
+    def test_blocs_vides_replies_et_remplis_ouverts(self):
+        tache = self._tache()
+        self.assertNotIn("<details class=\"card card-body mb-3\" open>", self._html("marin", tache))
+        tache.elements_checklist.create(texte="Vérifier la vanne")
+        self.assertIn("<details class=\"card card-body mb-3\" open>", self._html("marin", tache))
+
+    def test_lecteur_sans_droit_ne_voit_aucun_bloc_vide(self):
+        html = self._html("terre", self._tache())
+        self.assertNotIn("titre-checklist", html)
+        self.assertNotIn("Pièces jointes", html)
+
+    def test_bloc_probleme_avec_aide_sur_les_destinataires(self):
+        html = self._html("marin", self._tache())
+        self.assertIn("Un problème sur cette tâche ?", html)
+        self.assertIn("Je suis bloqué", html)
+        self.assertIn("participants du fil sont prévenus", html)
+        self.assertIn("lui seul est prévenu au départ", html)
+        self.assertNotIn("btn-outline-warning", html)

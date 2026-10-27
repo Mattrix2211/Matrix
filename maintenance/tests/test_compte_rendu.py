@@ -208,6 +208,37 @@ class CompteRenduWebTests(TestCase):
         self.assertEqual(occ.status, "DONE")
         self.assertEqual(MaintenanceExecution.objects.get(occurrence=occ).valide_par, self.tech)
 
+    def _cloture(self, **extra):
+        return self.client.post(self.url, self._saisie(**extra), HTTP_HX_REQUEST="true")
+
+    def test_cloture_renvoie_l_etat_a_jour_et_bloque_le_bouton(self):
+        r = self._cloture()
+        self.assertContains(r, 'id="etat-fiche" hx-swap-oob="true"')
+        self.assertContains(r, "Terminée")
+        self.assertContains(r, 'id="barre-boutons"')
+        self.assertContains(r, "Maintenance terminée")
+        self.assertNotContains(r, "Assignée")
+
+    def test_non_conforme_affiche_en_validation(self):
+        r = self._cloture(conformity="NON_CONFORME")
+        self.assertContains(r, "En validation")
+        self.assertNotContains(r, "Assignée")
+
+    def test_enregistrement_en_direct_affiche_en_cours(self):
+        r = self.client.post(self.url, {"action": "enregistrer"}, HTTP_HX_REQUEST="true")
+        self.assertContains(r, 'id="etat-fiche" hx-swap-oob="true"')
+        self.assertContains(r, "En cours")
+        self.assertNotContains(r, "Assignée")
+
+    def test_page_rechargee_apres_cloture_et_second_envoi_sans_message_trompeur(self):
+        self._cloture()
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("Terminée", page.split('id="etat-fiche"')[1][:200])
+        self.assertNotIn("Assignée", page)
+        r = self._cloture()
+        self.assertContains(r, "déjà enregistré")
+        self.assertNotContains(r, "Maintenance terminée")
+
 
 @unittest.skipUnless(shutil.which("node"), "node absent : logique JS vérifiée par le QA dans le navigateur")
 class CompteRenduJsTests(SimpleTestCase):

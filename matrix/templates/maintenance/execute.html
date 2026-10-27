@@ -76,7 +76,7 @@
       <strong data-barre-operations>{{ operations.faites }} / {{ operations.total }} opérations réalisées</strong>
       <span class="text-muted" data-barre-resume>{{ resume.texte }}</span>
     </div>
-    <div class="mx-barre-action__boutons">
+    <div class="mx-barre-action__boutons" id="barre-boutons">
       <a class="btn btn-outline-secondary" href="/">Annuler</a>
       {% if not deja_termine %}<button type="button" class="btn btn-outline-primary" hx-post="" hx-include="#formulaire-execution" hx-encoding="multipart/form-data" hx-vals='{"action": "enregistrer"}' hx-target="#exec-result" hx-swap="innerHTML">{% icone "modification" %} Enregistrer</button>{% endif %}
       <button type="submit" class="btn btn-primary">{% icone "terminee" %} {% if deja_termine %}Enregistrer la correction{% else %}Terminer la maintenance{% endif %}</button>

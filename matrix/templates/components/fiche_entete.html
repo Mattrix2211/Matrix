@@ -23,7 +23,7 @@ Paramètres :
   <div class="mx-fiche__haut">
     <div class="mx-fiche__identite">
       <h1 class="mx-fiche__titre">{{ titre }}</h1>
-      {% if sous_titre or badge_libelle %}<p class="mx-fiche__sous-titre">{% if sous_titre %}<span>{{ sous_titre }}</span>{% endif %}{% if badge_libelle %} {% include "components/badge_etat.html" with etat=badge_etat libelle=badge_libelle %}{% endif %}</p>{% endif %}
+      {% if sous_titre or badge_libelle %}<p class="mx-fiche__sous-titre">{% if sous_titre %}<span>{{ sous_titre }}</span>{% endif %}{% if badge_libelle %} <span id="etat-fiche">{% include "components/badge_etat.html" with etat=badge_etat libelle=badge_libelle %}</span>{% endif %}</p>{% endif %}
     </div>
     <div class="mx-fiche__actions">
       {% if action and not equipage_a_terre %}{% if action.url %}<a class="btn btn-primary mx-fiche__action" href="{{ action.url }}">{% elif action.modale %}<button type="button" class="btn btn-primary mx-fiche__action" data-bs-toggle="modal" data-bs-target="#{{ action.modale }}">{% elif action.formulaire %}<button type="submit" form="{{ action.formulaire }}" class="btn btn-primary mx-fiche__action">{% else %}<button type="button" class="btn btn-primary mx-fiche__action" hx-post="{{ action.hx_post }}"{% if action.hx_cible %} hx-target="{{ action.hx_cible }}" hx-swap="innerHTML"{% endif %}>{% endif %}{% if action.icone %}{% icone action.icone %} {% endif %}{{ action.libelle }}{% if action.url %}</a>{% else %}</button>{% endif %}{% endif %}

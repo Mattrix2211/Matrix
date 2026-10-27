@@ -46,7 +46,7 @@
     <div class="mx-coque">
       {% if navigation_laterale %}{% include "components/barre_laterale.html" %}{% endif %}
       <main id="contenu-principal" tabindex="-1" class="container py-4 mx-coque__contenu">
-        {% if equipage_a_terre %}<div class="alert alert-secondary py-2" role="status"><strong>Lecture seule — Équipage {{ equipage_a_terre }} à terre.</strong> Vous pouvez consulter, répondre dans les fils et les dossiers qui vous concernent, gérer la feuille de service de votre équipage et proposer ou valider une relève selon votre fonction. Les autres actions sont réservées à l'équipage à bord.</div>{% elif soutien_a_terre %}<div class="alert alert-secondary py-2" role="status">Soutien à terre — vous consultez et commentez ; les données du bord se modifient à bord</div>{% endif %}
+        {% if equipage_a_terre %}<div class="alert alert-secondary py-2" role="status"><strong>Lecture seule — Équipage {{ equipage_a_terre }} à terre.</strong> Vous pouvez consulter, répondre dans les fils et les dossiers qui vous concernent, gérer la feuille de service de votre équipage et la relève, selon votre fonction. Les autres actions sont réservées à l'équipage à bord.</div>{% elif soutien_a_terre %}<div class="alert alert-secondary py-2" role="status">Soutien à terre — vous consultez et commentez ; les données du bord se modifient à bord</div>{% endif %}
         {% if user.is_authenticated %}<p class="mx-impression-entete">{% firstof batiment_courant.name user.profile.ship.name "Matrix" %} · imprimé le {% now "d/m/Y à H:i" %} par {{ identite_utilisateur.nom|default:user.username }}</p>{% endif %}
         {% block content %}{% endblock %}
       </main>

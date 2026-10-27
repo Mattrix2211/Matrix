@@ -63,6 +63,10 @@ def _historique_url(occ):
     return reverse('historique-materiel', args=[asset.pk])
 
 
+def _badge_etat(statut):
+    return {"DONE": "ok", "OVERDUE": "danger", "WAITING_VALIDATION": "attention", "CANCELLED": "neutre"}.get(statut, "neutre")
+
+
 class OccurrenceExecuteView(LoginRequiredMixin, View):
     """Compte rendu d'une occurrence : saisie sur PC après la fiche papier (parcours de
     référence) ou exécution en direct (bouton « Enregistrer » puis « Terminer »)."""
@@ -138,7 +142,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
                  "etat": "danger" if occ.status == "OVERDUE" else ""},
                 {"libelle": "Priorité", "valeur": f"{occ.priority}/5"},
             ],
-            "badge_etat": {"DONE": "ok", "OVERDUE": "danger", "WAITING_VALIDATION": "attention", "CANCELLED": "neutre"}.get(occ.status, "neutre"),
+            "badge_etat": _badge_etat(occ.status),
             **contexte_discussion(occ, 'occurrence-comment-create'),
         }
         return contexte
@@ -212,7 +216,9 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         synthese = resume(items, results, mesures)
         if en_direct:
             if request.headers.get('HX-Request'):
-                return render(request, 'maintenance/_execute_enregistre.html', {"resume": synthese, "heure": timezone.localtime()})
+                return render(request, 'maintenance/_execute_enregistre.html', {
+                    "resume": synthese, "heure": timezone.localtime(), "occ": occ, "badge_etat": _badge_etat(occ.status),
+                })
             return redirect('occurrence-execute', pk=occ.pk)
 
         if deja_termine and not modifie:
@@ -236,6 +242,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         if request.headers.get('HX-Request'):
             return render(request, 'maintenance/_execute_done.html', {
                 "occ": occ, "exec": exec_obj, "resume": synthese, "anomalie_url": _anomalie_url(occ),
+                "badge_etat": _badge_etat(occ.status), "premiere_cloture": not deja_termine,
             })
         return redirect('/')
 

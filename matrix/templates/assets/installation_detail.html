@@ -2,7 +2,7 @@
 {% load l10n icones documentation_extras %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=object.designation sous_titre=object.sector action=action_principale menu=menu_fiche menu_libelle="Autres actions sur cette installation" indicateurs=indicateurs_fiche objet=object historique_url="?tab=histo" %}
-{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-warning btn-sm" href="{% url 'demande-nouvelle' %}?objet=installation:{{ object.pk }}">{% icone "discussion" %} Signaler une difficulté</a></p>{% endif %}
+{% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'demande-nouvelle' %}?objet=installation:{{ object.pk }}">{% icone "discussion" %} Signaler une difficulté</a><span class="form-text d-block">Ouvre un dossier suivi avec le responsable que vous choisissez parmi les chefs du bâtiment ; lui seul est prévenu au départ. « Signaler une anomalie » (bouton principal) inscrit seulement l'événement au journal de l'installation : personne n'est prévenu automatiquement.</span></p>{% endif %}
 {% documents_associes_a object %}
 {% if not equipage_a_terre and not soutien_a_terre %}<p class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{% url 'retex-nouveau' %}?source=installation:{{ object.pk }}">Proposer un RETEX</a></p>{% endif %}
 

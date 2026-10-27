@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1 class="h3 mb-3">Signaler une difficulté</h1>
+<p class="text-muted small">Ouvre un dossier suivi : le responsable que vous choisissez est prévenu, puis les personnes ajoutées au dossier. Pour une tâche que vous ne pouvez plus avancer, utilisez plutôt « Je suis bloqué » sur la tâche ; pour une panne de matériel, « Signaler une anomalie ».</p>
 <p>Sur : <a href="{{ lien }}"><strong>{{ objet }}</strong></a></p>
 <form method="post" class="card card-body mb-4">{% csrf_token %}
   <input type="hidden" name="objet" value="{{ source }}">
