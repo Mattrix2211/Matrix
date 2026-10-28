@@ -56,7 +56,7 @@ class PassationBase(TestCase):
 
     def relever(self):
         """Relève A → B proposée par le commandant A, validée par le commandant B."""
-        proposition, erreur = proposer_releve(self.cdt_a, self.navire, "B")
+        proposition, erreur = proposer_releve(self.cdt_a, self.navire, "B", timezone.now())
         self.assertEqual(erreur, "")
         self.assertEqual(decider_releve(self.cdt_b, proposition, True), "")
         self.navire.refresh_from_db()
@@ -153,7 +153,7 @@ class GenerationTests(PassationBase):
         self.assertEqual(SynthesePassation.objects.count(), 0)
 
     def test_refus_ou_attente_ne_generent_rien(self):
-        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B")
+        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B", timezone.now())
         self.assertEqual(SynthesePassation.objects.count(), 0)
         decider_releve(self.cdt_b, proposition, False)
         self.assertEqual(SynthesePassation.objects.count(), 0)
@@ -232,14 +232,14 @@ class EchecGenerationTests(PassationBase):
         self.assertTrue(AuditLog.objects.filter(action="passation_echec").exists())
 
     def test_echec_n_annule_pas_la_releve(self):
-        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B")
+        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B", timezone.now())
         with mock.patch("dashboard.passation.contenu_passation", side_effect=RuntimeError), self.assertLogs("matrix.core.equipage", "ERROR"):
             self.assertEqual(decider_releve(self.cdt_b, proposition, True), "")
         self.verifier_releve_intacte(proposition)
 
     def test_echec_n_annule_pas_la_validation_de_secours(self):
         admin = User.objects.create_superuser("admin_s", password="pass")
-        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B")
+        proposition, _ = proposer_releve(self.cdt_a, self.navire, "B", timezone.now())
         UserProfile.objects.filter(user=self.cdt_b).update(role="EQUIPIER")
         with mock.patch("dashboard.passation.contenu_passation", side_effect=RuntimeError), self.assertLogs("matrix.core.equipage", "ERROR"):
             self.assertEqual(valider_releve_secours(admin, proposition, "Aucun commandant"), "")

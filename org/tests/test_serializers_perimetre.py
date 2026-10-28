@@ -64,15 +64,11 @@ class SerializersOrgPerimetreTests(TestCase):
         self.assertEqual(r.status_code, 400, r.content)
         self.assertIn("ship", r.data)
 
-    def test_chef_de_secteur_ne_peut_pas_creer_dans_un_autre_service_de_son_navire(self):
-        r = self.chef_secteur.post(
-            "/api/org/sections/", {"sector": self.secteur_a2.pk, "name": "Hors service"}, format="json",
-        )
-        self.assertEqual(r.status_code, 400, r.content)
-        r = self.chef_secteur.post(
-            "/api/org/sections/", {"sector": self.secteur_a1.pk, "name": "Dans son secteur"}, format="json",
-        )
-        self.assertEqual(r.status_code, 201, r.content)
+    def test_chef_de_secteur_ne_modifie_pas_la_structure(self):
+        for secteur in (self.secteur_a2, self.secteur_a1):
+            r = self.chef_secteur.post("/api/org/sections/", {"sector": secteur.pk, "name": "Interdite"}, format="json")
+            self.assertEqual(r.status_code, 403, r.content)
+        self.assertFalse(Section.objects.filter(name="Interdite").exists())
 
     def test_administrateur_general_sans_perimetre_non_restreint(self):
         r = self.master.post("/api/org/sectors/", {"service": self.service_b.pk, "name": "Légitime"}, format="json")
@@ -85,7 +81,7 @@ class SerializersOrgPerimetreTests(TestCase):
         self.assertEqual(
             set(r.data),
             {"id", "name", "code", "type_unite", "classe_navire", "double_equipage",
-             "equipage_a_bord", "archived", "created_at", "updated_at"},
+             "equipage_a_bord", "fuseau_horaire", "archived", "created_at", "updated_at"},
         )
         r = self.admin_a.get(f"/api/org/sectors/{self.secteur_a1.pk}/")
         self.assertEqual(

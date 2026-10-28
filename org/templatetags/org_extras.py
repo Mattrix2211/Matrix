@@ -13,6 +13,7 @@ from django import template
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
 
+from matrix.core.fuseau import formater
 from org.models import Ship
 
 register = template.Library()
@@ -81,3 +82,9 @@ def unites_groupees_par_type(unites):
     for unite in unites:
         groupes.setdefault(unite.type_unite, []).append(unite)
     return [(libelles[code], groupes[code]) for code in ordre if groupes.get(code)]
+
+
+@register.filter
+def heure_navire(instant, navire):
+    """Instant (UTC) affiché dans le fuseau du bâtiment, fuseau nommé."""
+    return formater(navire, instant)

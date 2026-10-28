@@ -96,7 +96,7 @@ Toute fonctionnalité secondaire est masquée, repliée, ou accessible par un me
 |---|---|---|---|
 | **Popover** | Petite information ou mini-action sans quitter la page | Dernier relevé, détail d'un statut, aperçu d'une anomalie, fiche résumée d'un marin, événement du calendrier | Formulaire complexe |
 | **Menu contextuel** (`⋯`) | Actions secondaires | Modifier, voir le QR code, imprimer, déplacer, archiver, supprimer | Action principale |
-| **Modale** | Action courte demandant une concentration temporaire | Confirmation, mot de passe pour une action sensible, signalement rapide, petite modification | Grand formulaire métier |
+| **Modale** | Action courte demandant une concentration temporaire | Confirmation d'une action sensible, signalement rapide, petite modification | Grand formulaire métier |
 | **Panneau latéral** (drawer) | Plusieurs champs en gardant le contexte de la page | Filtres, ajout d'un créneau, affectation de marins, ajout d'un relevé, **discussion**, historique court | — |
 | **Assistant multi-étapes** | Création d'un objet isolé complexe | Création de matériel, signalement d'anomalie, création d'une liste de quart | Saisie en série |
 | **Grille de saisie** | Saisie ou contrôle **en série** | Comptes rendus de contrôle de 40 extincteurs, exemplaires d'un article du catalogue, relevés multiples | — |
@@ -159,7 +159,7 @@ Cas normal (§2.2), après l'entretien sur papier :
 2. Relevés.
 3. Anomalies constatées.
 4. Conformité globale : Conforme / À surveiller / Non conforme.
-5. Synthèse ; signature (mot de passe) seulement si l'installation est critique.
+5. Synthèse ; confirmation explicite seulement si l'installation est critique.
 
 Pour une série de matériels de la même catégorie : **grille de comptes rendus**, une ligne par exemplaire.
 
@@ -172,7 +172,7 @@ Barre latérale **rétractable**, avec libellés texte (pas seulement des icône
 - **Personnel** — Aujourd'hui, Calendrier
 - **Équipements** — Matériels, Installations, Catalogue, Plan du navire, Configurer le plan du navire (selon les droits)
 - **Maintenance** — Maintenance, Tickets correctifs, Anomalies, Logistique
-- **Activité** — Tâches, Annonces, Demandes bord–terre, Rondes, Quarts et gardes, Feuille de service, Absences
+- **Activité** — Tâches, Annonces, Difficultés signalées (ex-« Demandes bord–terre »), Rondes, Quarts et gardes, Feuille de service, Absences
 - **Compétences** — Formations
 - **Supervision** (selon les droits) — Prêt à appareiller, Flotte, Spécialités, Classes de navire
 - **Administration** (selon les droits) — Annuaire, Paramètres
@@ -222,7 +222,7 @@ Le libellé « Tableau de bord » est remplacé par **« Aujourd'hui »** : le c
 
 **Informations secondaires** (plus bas) — qualifications, prochaines échéances, équité, activité passée.
 
-**Supervision** (rôles concernés, sans perturber l'espace personnel) — maintenances en retard, anomalies ouvertes, validations en attente, équipements indisponibles du périmètre.
+**Mon périmètre** (bloc d'accueil des rôles concernés ; distinct du groupe « Supervision » du menu, sans perturber l'espace personnel) — maintenances en retard, anomalies ouvertes, validations en attente, équipements indisponibles du périmètre.
 
 ### 9.2 Équipage à terre (double équipage)
 
@@ -392,7 +392,7 @@ Parcours secondaire (§2.2), utile si un poste est proche de l'installation ou s
 - Checklist avec champs de relevés en ligne (« Pression [ 4.2 ] bar »).
 - **Barre d'action persistante** en bas : Enregistrer · Terminer la maintenance.
 - La conformité (Conforme / À surveiller / Non conforme) est demandée **au moment de terminer**. Si Non conforme, Matrix propose immédiatement « Créer une anomalie », ou la crée selon les règles métier.
-- Pour une installation critique, le mot de passe n'apparaît **qu'au moment** où il est nécessaire.
+- Pour une installation critique, la confirmation n'apparaît **qu'au moment** où elle est nécessaire.
 
 ---
 

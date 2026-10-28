@@ -83,6 +83,7 @@ côté application).
 python manage.py generate_vapid_keys
 ```
 Renseigner les variables d'environnement `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_ADMIN_EMAIL` affichées par la commande. Sans clés VAPID configurées, le Web Push est simplement désactivé (aucune erreur). Nécessite HTTPS ou `localhost` côté navigateur.
+L'envoi est borné par `WEBPUSH_DELAI_MAX` (secondes, 3 par défaut, tous appareils confondus) : un appareil injoignable ne bloque jamais l'action métier.
 
 ## Tests
 ```bash
@@ -94,7 +95,7 @@ Les tests nécessitent un fichier `.env` local contenant au minimum `DJANGO_DEBU
 - `accounts` — profils utilisateurs, rôles hiérarchiques (`MASTER_ADMIN` → ... → `EQUIPIER`)
 - `org` — unités typées (navire, école, centre de formation, bureau) → Service → Secteur → Section, classes de navire, modules activables par bâtiment
 - `assets` — installations fixes + matériel mobile, checklists, documents, mesures techniques (heures/vibration/isolement), hiérarchie parent/enfant, détection de dérive avant seuil
-- `maintenance` — plans préventifs, occurrences, exécutions guidées, signature de validation (mot de passe) sur les transitions critiques
+- `maintenance` — plans préventifs, occurrences, exécutions guidées, confirmation explicite sur les validations critiques
 - `logistics` — tickets correctifs, demandes de pièces, stock, retours d'expérience (REX)
 - `training` — formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation, réservation self-service de sessions
 - `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, compteur d'équité, feuille de service quotidienne
@@ -108,7 +109,7 @@ Les tests nécessitent un fichier `.env` local contenant au minimum `DJANGO_DEBU
 
 ## Flots clés
 - **Scan QR** : équipement → checklist du jour → si `NON_CONFORME`, création automatique d'un ticket correctif
-- **Ticket correctif** : `REPORTED → DIAGNOSED → WAITING_PARTS → IN_REPAIR → TESTING → RETURNED_TO_SERVICE → CLOSED` (mot de passe requis sur `RETURNED_TO_SERVICE` si l'installation est critique ; REX obligatoire à la fermeture)
+- **Ticket correctif** : `REPORTED → DIAGNOSED → WAITING_PARTS → IN_REPAIR → TESTING → RETURNED_TO_SERVICE → CLOSED` (confirmation explicite requise sur `RETURNED_TO_SERVICE` ; REX obligatoire à la fermeture)
 - **Formations** : prérequis entre formations → validation par un référent habilité (indépendant du rang hiérarchique) → arbre de compétences visuel par secteur/catégorie → réservation de session par le marin
 - **Export** : CSV/Excel sur les listes et les bilans (toujours disponible), PDF en plus si WeasyPrint/GTK est installé
 

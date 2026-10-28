@@ -3,21 +3,21 @@
 <h1 class="h3 mb-3">Rédiger un document</h1>
 <form method="post" enctype="multipart/form-data" class="card card-body mb-4">{% csrf_token %}
   <div class="row g-3 mb-3">
-    <div class="col-md-8"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" required></div>
-    <div class="col-md-4"><label class="form-label" for="id_domaine">Domaine métier</label><input class="form-control" id="id_domaine" name="domaine" maxlength="80" placeholder="Sécurité, propulsion…"></div>
+    <div class="col-md-8"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" value="{{ saisie.titre }}" required></div>
+    <div class="col-md-4"><label class="form-label" for="id_domaine">Domaine métier</label><input class="form-control" id="id_domaine" name="domaine" maxlength="80" value="{{ saisie.domaine }}" placeholder="Sécurité, propulsion…"></div>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-4"><label class="form-label" for="id_origine">Origine</label>
-      <select class="form-select" id="id_origine" name="origine">{% for code, libelle in origines %}<option value="{{ code }}">{{ libelle }}</option>{% endfor %}</select></div>
-    <div class="col-md-8"><label class="form-label" for="id_source">Source officielle (obligatoire pour une procédure officielle)</label><input class="form-control" id="id_source" name="reference_source" maxlength="200"></div>
+      <select class="form-select" id="id_origine" name="origine">{% for code, libelle in origines %}<option value="{{ code }}"{% if saisie.origine == code %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-8"><label class="form-label" for="id_source">Source officielle (obligatoire pour une procédure officielle)</label><input class="form-control" id="id_source" name="reference_source" maxlength="200" value="{{ saisie.reference_source }}"></div>
   </div>
   <div class="row g-3 mb-3">
-    <div class="col-md-5"><label class="form-label" for="id_cible">Public visé</label>
-      <select class="form-select" id="id_cible" name="cible" required>{% for cle, libelle in cibles %}<option value="{{ cle }}">{{ libelle }}</option>{% endfor %}</select></div>
-    <div class="col-md-3"><label class="form-label" for="id_equipage">Équipage (facultatif)</label><input class="form-control" id="id_equipage" name="equipage" maxlength="8"></div>
-    <div class="col-md-4"><label class="form-label" for="id_revision">Prochaine révision</label><input class="form-control" type="date" id="id_revision" name="prochaine_revision"></div>
+    <div class="col-md-5"><label class="form-label" for="id_cible">Destinataires</label>
+      <select class="form-select" id="id_cible" name="cible" required>{% for cle, libelle in cibles %}<option value="{{ cle }}"{% if saisie.cible == cle %} selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label" for="id_equipage">Équipage (facultatif)</label><input class="form-control" id="id_equipage" name="equipage" maxlength="8" value="{{ saisie.equipage }}"></div>
+    <div class="col-md-4"><label class="form-label" for="id_revision">Prochaine révision</label><input class="form-control" type="date" id="id_revision" name="prochaine_revision" value="{{ saisie.prochaine_revision }}"></div>
   </div>
-  <div class="mb-3"><label class="form-label" for="id_contenu">Contenu</label><textarea class="form-control" id="id_contenu" name="contenu" rows="10"></textarea></div>
+  <div class="mb-3"><label class="form-label" for="id_contenu">Contenu</label><textarea class="form-control" id="id_contenu" name="contenu" rows="10">{{ saisie.contenu }}</textarea></div>
   <div class="mb-3"><label class="form-label" for="id_fichier">Fichier joint (facultatif)</label><input class="form-control" type="file" id="id_fichier" name="fichier"></div>
   <div><button class="btn btn-primary" type="submit">Enregistrer le brouillon</button> <a class="btn btn-link" href="{% url 'documentation-index' %}">Annuler</a></div>
 </form>

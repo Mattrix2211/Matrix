@@ -29,8 +29,8 @@ from django.shortcuts import redirect
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
-from matrix.core.saisie import entier_ou_none
+from matrix.core.roles import niveau_ecriture
+from matrix.core.saisie import entier_ou_none, uuid_ou_none
 from matrix.core.scopes import is_master_admin
 from org.models import Section, Sector, Service, Ship
 
@@ -43,7 +43,7 @@ def _peut_gerer_rattachement_parent(user):
     "rattachement_parent_gestion") peuvent créer ou modifier le rattachement
     parent/enfant d'une installation ou d'un matériel (même seuil que les
     tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS d'InstallationDetailView)."""
-    return user_role_level(user) >= niveau_requis_pour(user, "rattachement_parent_gestion")
+    return niveau_ecriture(user) >= niveau_requis_pour(user, "rattachement_parent_gestion")
 
 
 def _parent_candidats(model, sector_id, exclure_pks=()):
@@ -73,7 +73,7 @@ def _resoudre_parent_valide(request, objet, model):
     if not parent_id:
         objet.parent = None
         return None
-    parent = _parent_candidats(model, objet.sector_id, {objet.pk}).filter(pk=parent_id).first()
+    parent = _parent_candidats(model, objet.sector_id, {objet.pk}).filter(pk=uuid_ou_none(parent_id)).first()
     if parent is None:
         return "Rattachement invalide : l'équipement sélectionné ne fait pas partie du même secteur."
     objet.parent = parent
@@ -122,6 +122,9 @@ def _org_dans_perimetre(user, model, cible_id):
     principe que _resoudre_parent_valide pour le champ parent_id)."""
     if not cible_id:
         return True
+    cible_id = entier_ou_none(cible_id)
+    if cible_id is None:
+        return False
     profil = getattr(user, 'profile', None)
     niveau, valeur = profil.scope if profil else (None, None)
     if niveau is None:
@@ -219,7 +222,7 @@ def _dossier_gerable(user, dossier):
         return False
     if Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exists():
         return True
-    return user_role_level(user) >= niveau_requis_pour(user, 'asset_gestion_avancee')
+    return niveau_ecriture(user) >= niveau_requis_pour(user, 'asset_gestion_avancee')
 
 
 def _afficher_erreur_validation(request, erreur):
@@ -297,7 +300,7 @@ def _noms_par_id(queryset):
 
 def _droits_liste(user, cle_ecriture, cle_gestion):
     """Droits d'écriture et de gestion (actions groupées, suppression) pour une liste."""
-    niveau = user_role_level(user)
+    niveau = niveau_ecriture(user)
     return {
         'peut_ecrire': niveau >= niveau_requis_pour(user, cle_ecriture),
         'peut_gerer': niveau >= niveau_requis_pour(user, cle_gestion),

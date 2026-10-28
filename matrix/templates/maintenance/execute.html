@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static icones %}
+{% load static icones composants %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=occ.titre_affiche sous_titre="Compte rendu de maintenance" badge_libelle=occ.get_status_display badge_etat=badge_etat menu=menu_fiche menu_libelle="Autres actions sur cette occurrence" indicateurs=indicateurs_fiche objet=occ %}
 
@@ -61,9 +61,8 @@
     </div>
     {% if critique %}
     <div class="mt-3" data-signature{% if not erreurs %} hidden{% endif %}>
-      <div class="alert alert-warning"><strong>Installation critique.</strong> La clôture exige de resaisir votre mot de passe.</div>
-      <label class="form-label" for="mot_de_passe">Mot de passe (signature)</label>
-      <input class="form-control" type="password" id="mot_de_passe" name="mot_de_passe" autocomplete="current-password">
+      <div class="alert alert-warning"><strong>Installation critique.</strong> La clôture exige votre confirmation.</div>
+      {% confirmation_validation "maintenance_critique" "confirmation-maintenance" %}
     </div>
     {% endif %}
   </div></div>
@@ -77,7 +76,7 @@
       <strong data-barre-operations>{{ operations.faites }} / {{ operations.total }} opérations réalisées</strong>
       <span class="text-muted" data-barre-resume>{{ resume.texte }}</span>
     </div>
-    <div class="mx-barre-action__boutons">
+    <div class="mx-barre-action__boutons" id="barre-boutons">
       <a class="btn btn-outline-secondary" href="/">Annuler</a>
       {% if not deja_termine %}<button type="button" class="btn btn-outline-primary" hx-post="" hx-include="#formulaire-execution" hx-encoding="multipart/form-data" hx-vals='{"action": "enregistrer"}' hx-target="#exec-result" hx-swap="innerHTML">{% icone "modification" %} Enregistrer</button>{% endif %}
       <button type="submit" class="btn btn-primary">{% icone "terminee" %} {% if deja_termine %}Enregistrer la correction{% else %}Terminer la maintenance{% endif %}</button>

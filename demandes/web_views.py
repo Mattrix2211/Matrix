@@ -10,6 +10,8 @@ from django.views import View
 
 from notifications.liens import lien_objet
 from taches.services import peut_consulter as peut_consulter_tache
+from matrix.core.saisie import entier_ou_none
+from notifications.services import phrase_prevenus
 from threads.utils import commentaires_de
 
 from .models import Demande
@@ -17,11 +19,14 @@ from .services import (
     TRANSITIONS_DECLARANT,
     TRANSITIONS_RESPONSABLE,
     ajouter_interlocuteur,
+    categories_prevenues,
     changer_etat,
     creer_action,
     creer_demande,
+    demandes_recues,
     demandes_visibles,
     interlocuteurs_possibles,
+    marins_pour_action,
     peut_consulter,
     peut_piloter,
     reaffecter,
@@ -41,6 +46,14 @@ def _erreurs(request, exc):
         for liste in getattr(exc, "message_dict", {"": exc.messages}).values():
             for erreur in liste:
                 messages.error(request, erreur)
+
+
+def _nom(user):
+    return user.get_full_name() or user.username
+
+
+def _prevenus(demande, prevenus, acteur):
+    return phrase_prevenus(categories_prevenues(demande, prevenus, acteur))
 
 
 def _demande_visible(request, pk):
@@ -65,10 +78,12 @@ class DemandesIndexView(LoginRequiredMixin, View):
         demandes = list(demandes_visibles(request.user).select_related("declarant", "responsable"))
         ouvertes = [d for d in demandes if d.ouverte]
         moi = request.user.pk
+        recues = set(demandes_recues(request.user).values_list("pk", flat=True))
         a_traiter = [
             d for d in ouvertes
             if (d.responsable_id == moi and d.etat != Demande.ETAT_RESOLU)
             or (d.declarant_id == moi and d.etat in (Demande.ETAT_EN_ATTENTE, Demande.ETAT_RESOLU))
+            or d.pk in recues
         ]
         return render(request, "demandes/index.html", {
             "a_traiter": a_traiter,
@@ -98,7 +113,7 @@ class DemandeNouvelleView(LoginRequiredMixin, View):
         source = request.POST.get("objet", "")
         objet = self._objet(request, source)
         try:
-            responsable = User.objects.filter(pk=request.POST.get("responsable") or None).first()
+            responsable = User.objects.filter(pk=entier_ou_none(request.POST.get("responsable"))).first()
             demande = creer_demande(
                 request.user, objet, request.POST.get("titre", ""), request.POST.get("description", ""), responsable,
                 _date(request.POST.get("echeance", "")), request.POST.get("priorite") or Demande.PRIORITE_NORMALE,
@@ -131,9 +146,7 @@ class DemandeDetailView(LoginRequiredMixin, View):
             "peut_piloter": piloter,
             "candidats": interlocuteurs_possibles(demande) if piloter else [],
             "responsables": responsables_possibles(demande.declarant) if piloter else [],
-            "marins": User.objects.filter(
-                profile__ship_id=demande.declarant.profile.ship_id, is_active=True,
-            ).order_by("username") if piloter else [],
+            "marins": marins_pour_action(demande) if piloter else [],
             "peut_repondre": demande.etat != Demande.ETAT_CLOS,
         })
 
@@ -146,19 +159,22 @@ class DemandeActionView(LoginRequiredMixin, View):
         action = request.POST.get("action")
         try:
             if action == "etat":
-                changer_etat(demande, request.user, request.POST.get("etat", ""), request.POST.get("note", ""))
+                prevenus = changer_etat(demande, request.user, request.POST.get("etat", ""), request.POST.get("note", ""))
+                messages.success(request, "État du dossier mis à jour." + _prevenus(demande, prevenus, request.user))
             elif action == "reaffecter":
-                nouveau = User.objects.filter(pk=request.POST.get("responsable") or None).first()
+                nouveau = User.objects.filter(pk=entier_ou_none(request.POST.get("responsable"))).first()
                 if nouveau is None:
                     raise ValidationError("Responsable introuvable.")
-                reaffecter(demande, request.user, nouveau)
+                prevenus = reaffecter(demande, request.user, nouveau)
+                messages.success(request, f"Dossier confié à {_nom(nouveau)}." + _prevenus(demande, prevenus, request.user))
             elif action == "interlocuteur":
-                cible = User.objects.filter(pk=request.POST.get("interlocuteur") or None).first()
+                cible = User.objects.filter(pk=entier_ou_none(request.POST.get("interlocuteur"))).first()
                 if cible is None:
                     raise ValidationError("Interlocuteur introuvable.")
-                ajouter_interlocuteur(demande, request.user, cible)
+                prevenus = ajouter_interlocuteur(demande, request.user, cible)
+                messages.success(request, f"{_nom(cible)} ajouté au dossier." + _prevenus(demande, prevenus, request.user))
             elif action == "creer_action":
-                assigne = User.objects.filter(pk=request.POST.get("assigne") or None).first()
+                assigne = User.objects.filter(pk=entier_ou_none(request.POST.get("assigne"))).first()
                 if assigne is None:
                     raise ValidationError("Indiquez le marin qui réalisera l'action.")
                 creer_action(demande, request.user, assigne, request.POST.get("titre", ""), _date(request.POST.get("echeance", "")))
@@ -176,7 +192,8 @@ class DemandeCommentaireView(LoginRequiredMixin, View):
     def post(self, request, pk):
         demande = _demande_visible(request, pk)
         try:
-            repondre(demande, request.user, request.POST.get("body", ""))
+            prevenus = repondre(demande, request.user, request.POST.get("body", ""))
+            messages.success(request, "Message publié." + _prevenus(demande, prevenus, request.user))
         except (PermissionError, ValidationError) as exc:
             _erreurs(request, exc)
         return redirect("demande-detail", pk=demande.pk)

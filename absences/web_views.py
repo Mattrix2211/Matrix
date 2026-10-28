@@ -14,7 +14,8 @@ from django.utils.dateparse import parse_date
 from django.views import View
 
 from accounts.models import TypeAbsence
-from matrix.core.roles import RoleLevel, user_role_level
+from matrix.core.roles import RoleLevel, niveau_ecriture
+from matrix.core.saisie import entier_ou_none
 
 from .models import Absence
 from .services import (
@@ -42,7 +43,7 @@ class MesAbsencesView(LoginRequiredMixin, View):
         )
         for absence in absences:
             absence.peut_valider = peut_valider_absence(request.user, absence)
-        chef = user_role_level(request.user) >= RoleLevel.CHEF_SECTION
+        chef = niveau_ecriture(request.user) >= RoleLevel.CHEF_SECTION
         return {
             "mes_absences": [a for a in absences if a.marin_id == request.user.pk],
             "absences_equipe": [a for a in absences if a.marin_id != request.user.pk],
@@ -60,8 +61,9 @@ class MesAbsencesView(LoginRequiredMixin, View):
         return HttpResponseBadRequest("Action inconnue.")
 
     def _declarer(self, request):
-        marin = User.objects.filter(pk=request.POST.get("marin_id") or request.user.pk).first()
-        type_absence = TypeAbsence.objects.filter(pk=request.POST.get("type_absence"), active=True).first()
+        marin_id = request.POST.get("marin_id")
+        marin = User.objects.filter(pk=entier_ou_none(marin_id)).first() if marin_id else request.user
+        type_absence = TypeAbsence.objects.filter(pk=entier_ou_none(request.POST.get("type_absence")), active=True).first()
         date_debut = parse_date(request.POST.get("date_debut", ""))
         date_fin = parse_date(request.POST.get("date_fin", ""))
         if marin is None or type_absence is None or not date_debut or not date_fin:
@@ -83,7 +85,7 @@ class MesAbsencesView(LoginRequiredMixin, View):
         return redirect("absences-index")
 
     def _valider(self, request):
-        absence = Absence.objects.filter(pk=request.POST.get("absence_id")).first()
+        absence = Absence.objects.filter(pk=entier_ou_none(request.POST.get("absence_id"))).first()
         if absence is None:
             messages.error(request, "Absence introuvable.")
             return redirect("absences-index")

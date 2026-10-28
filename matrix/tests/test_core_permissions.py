@@ -175,9 +175,10 @@ class ManageUsersPermissionTests(TestCase):
         for role in ("COMMANDANT", "COMMANDANT_EN_SECOND", "ADMIN_NAVIRE"):
             req = fake_request("POST", second, {"role": role})
             self.assertFalse(self.permission.has_permission(req, self.view), role)
+        # Le second ne gère aucun compte : la vision ne donne pas l'administration des comptes.
         req = fake_request("POST", second, {"role": "ETAT_MAJOR"})
-        self.assertTrue(self.permission.has_permission(req, self.view))
-        self.assertNotIn(Roles.COMMANDANT_EN_SECOND, ManageUsersPermission.MANAGE_MAP[Roles.COMMANDANT_EN_SECOND])
+        self.assertFalse(self.permission.has_permission(req, self.view))
+        self.assertNotIn(Roles.COMMANDANT_EN_SECOND, ManageUsersPermission.MANAGE_MAP)
 
     def test_admin_navire_peut_designer_un_commandant_en_second(self):
         req = fake_request("POST", self.admin_navire, {"role": "COMMANDANT_EN_SECOND"})

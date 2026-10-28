@@ -2,6 +2,8 @@ from typing import Dict, Any, Optional
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
+from .saisie import entier_ou_none
+
 
 def scope_filters_for_user(user) -> Dict[str, Any]:
     if not user.is_authenticated:
@@ -35,6 +37,21 @@ def is_master_admin(user) -> bool:
     return bool(profile and profile.role == "MASTER_ADMIN")
 
 
+def soutien_a_terre(user) -> bool:
+    """Personnel à terre : sans bâtiment, chargé d'une classe ou d'une spécialité (responsable ou chef du
+    responsable), hors administrateur général. Hors de la chaîne embarquée : il consulte et commente."""
+    if not getattr(user, "is_authenticated", False) or is_master_admin(user):
+        return False
+    profile = getattr(user, "profile", None)
+    if profile is None or profile.navire_id_effectif is not None:
+        return False
+    return (
+        user.classes_navire_dont_il_est_responsable.exists()
+        or user.specialites_dont_il_est_responsable.exists()
+        or user.responsables_specialite_diriges.exists()
+    )
+
+
 def ship_id_for_user(user) -> Optional[int]:
     """Renvoie l'id du navire rattaché au profil de l'utilisateur, ou None si
     aucun navire n'est renseigné. Contrairement à scope_filters_for_user() (qui
@@ -44,6 +61,30 @@ def ship_id_for_user(user) -> Optional[int]:
     profile = getattr(user, "profile", None)
     ship = getattr(profile, "ship", None)
     return ship.id if ship else None
+
+
+def agit_sur_navire(user, ship_id) -> bool:
+    """Vrai si `user` peut agir sur le bâtiment `ship_id` : le sien (rattachement
+    direct ou par sa hiérarchie), ou tous pour l'administrateur général. Brique
+    commune des « supervisions globales » : un grade élevé ne sort jamais de son bâtiment."""
+    if is_master_admin(user):
+        return True
+    profile = getattr(user, "profile", None)
+    navire = profile.navire_id_effectif if profile else None
+    return navire is not None and navire == ship_id
+
+
+def navire_id_du_perimetre(ship=None, service=None, sector=None, section=None) -> Optional[int]:
+    """Id du bâtiment d'un périmètre organisationnel (un seul des quatre niveaux est renseigné)."""
+    if ship is not None:
+        return ship.pk
+    if service is not None:
+        return service.ship_id
+    if sector is not None:
+        return sector.service.ship_id
+    if section is not None:
+        return section.sector.service.ship_id
+    return None
 
 
 def sector_id_for_user(user) -> Optional[int]:
@@ -147,10 +188,10 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
         sector_qs = Sector.objects.filter(service__ship_id=mon_navire_id)
         section_qs = Section.objects.filter(sector__service__ship_id=mon_navire_id)
     try:
-        ship = ship_qs.get(pk=ship_id) if ship_id else None
-        service = service_qs.get(pk=service_id) if service_id else None
-        sector = sector_qs.get(pk=sector_id) if sector_id else None
-        section = section_qs.get(pk=section_id) if section_id else None
+        ship = ship_qs.get(pk=entier_ou_none(ship_id)) if ship_id else None
+        service = service_qs.get(pk=entier_ou_none(service_id)) if service_id else None
+        sector = sector_qs.get(pk=entier_ou_none(sector_id)) if sector_id else None
+        section = section_qs.get(pk=entier_ou_none(section_id)) if section_id else None
     except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
         return False, None, None, None, None
     return True, ship, service, sector, section
@@ -177,7 +218,9 @@ def equipage_agissant(user):
         ship = Ship.objects.filter(pk=navire_id).first()
     if ship is None or not ship.double_equipage:
         return None
-    return profile.equipage or ship.equipage_a_bord or None
+    from matrix.core.equipage import equipage_a_bord
+
+    return profile.equipage or equipage_a_bord(ship) or None
 
 
 def equipage_marin_q(user, prefix: str = "profile__") -> Q:

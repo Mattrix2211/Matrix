@@ -9,7 +9,7 @@
       <a href="?vue=perimetre" class="btn btn-sm {% if vue == 'perimetre' %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ libelle_perimetre }}</a>
     </div>
     {% endif %}
-    <a class="btn btn-primary" href="{% url 'anomalie-create' %}">Signaler une anomalie</a>
+    {% if not soutien_a_terre %}<a class="btn btn-primary" href="{% url 'anomalie-create' %}">Signaler une anomalie</a>{% endif %}
   </div>
 </div>
 

@@ -1,17 +1,22 @@
 """Tests de la page « Prêt à appareillage » (dashboard/web_views.py) : session
 de préparation à un appareillage datée et tracée — création, cochage des
-items (ouvert à tout marin), signature (réservée à CHEF_SECTEUR+), immutabilité
+items (ouvert à tout marin), validation (réservée à CHEF_SECTEUR+), immutabilité
 après clôture, isolation par navire. Cf. tâche Notion « [FEAT] Tableau de bord
 Prêt à appareillage »."""
+import time
+
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 
-from accounts.models import UserProfile
+from accounts.models import AuditLog, UserProfile
 from assets.models import Installation, InstallationHourReading
 from dashboard.models import ItemAppareillage, SessionAppareillage
+from matrix.core.confirmations import texte_confirmation
+from matrix.core.inactivite import CLE_SESSION, delai_inactivite
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
 
@@ -240,17 +245,17 @@ class CochageItemTests(PretAppareillageTestsBase):
 
 
 class SignatureSessionTests(PretAppareillageTestsBase):
-    """Signature/clôture : réservée à CHEF_SECTEUR+, même pattern de mot de
-    passe que MaintenanceExecution (maintenance/web_views.py)."""
+    """Validation/clôture : réservée à CHEF_SECTEUR+, avec confirmation explicite
+    (matrix/core/confirmations.py)."""
 
     def setUp(self):
         super().setUp()
         self.session = self._ouvrir_session(self.chef_secteur, self.navire)
         self.url_signer = reverse("session-appareillage-signer", args=[self.session.id])
 
-    def test_chef_secteur_peut_signer_avec_le_bon_mot_de_passe(self):
+    def test_chef_secteur_peut_signer_avec_confirmation(self):
         self.client.login(username="chef_secteur", password="pass")
-        response = self.client.post(self.url_signer, {"mot_de_passe": "pass"}, follow=True)
+        response = self.client.post(self.url_signer, {"confirmation": "1", "valide_par": "999"}, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.session.refresh_from_db()
@@ -258,20 +263,57 @@ class SignatureSessionTests(PretAppareillageTestsBase):
         self.assertEqual(self.session.valide_par, self.chef_secteur)
         self.assertIsNotNone(self.session.date_validation)
         self.assertIsNotNone(self.session.cloturee_le)
+        version, texte = texte_confirmation("pret_appareillage")
+        entree = AuditLog.objects.get(action="session_appareillage_validation")
+        self.assertEqual(entree.actor, self.chef_secteur)
+        self.assertIn(f"session_appareillage={self.session.pk}", entree.details)
+        self.assertIn("canal=web", entree.details)
+        self.assertIn(f"confirmation_version={version}", entree.details)
+        self.assertIn(texte, entree.details)
 
-    def test_mot_de_passe_incorrect_ne_signe_pas_la_session(self):
+    def test_sans_confirmation_ne_valide_pas_la_session(self):
         self.client.login(username="chef_secteur", password="pass")
-        response = self.client.post(self.url_signer, {"mot_de_passe": "mauvais"}, follow=True)
+        for charge in ({}, {"confirmation": "0"}, {"mot_de_passe": "pass"}):
+            with self.subTest(charge=charge):
+                response = self.client.post(self.url_signer, charge, follow=True)
 
-        self.assertContains(response, "Mot de passe incorrect")
+                self.assertContains(response, "Confirmation requise")
+                self.session.refresh_from_db()
+                self.assertTrue(self.session.est_ouverte)
+                self.assertIsNone(self.session.valide_par)
+        self.assertFalse(AuditLog.objects.filter(action="session_appareillage_validation").exists())
+        self.assertTrue(AuditLog.objects.filter(action="validation_critique_refusee").exists())
+
+    def test_sans_droit_refus_avant_la_confirmation(self):
+        self.client.login(username="chef_section", password="pass")
+        self.assertEqual(self.client.post(self.url_signer, {}).status_code, 403)
+        self.assertFalse(AuditLog.objects.filter(action="validation_critique_refusee").exists())
+
+    def test_page_affiche_identite_et_texte_exact_non_precoche(self):
+        self.client.login(username="chef_secteur", password="pass")
+        response = self.client.get(reverse("pret-appareillage"))
+
+        self.assertContains(response, "Vous validez en tant que")
+        self.assertContains(response, "chef_secteur")
+        self.assertContains(response, escape(texte_confirmation("pret_appareillage")[1]))
+        self.assertContains(response, 'name="confirmation"')
+        self.assertNotRegex(response.content.decode(), r'name="confirmation"[^>]*checked')
+        self.assertNotContains(response, 'name="mot_de_passe"')
+
+    def test_session_expiree_par_inactivite_ne_peut_pas_etre_validee(self):
+        self.client.login(username="chef_secteur", password="pass")
+        session = self.client.session
+        session[CLE_SESSION] = int(time.time()) - delai_inactivite() - 60
+        session.save()
+        self.client.post(self.url_signer, {"confirmation": "1"})
+
         self.session.refresh_from_db()
         self.assertTrue(self.session.est_ouverte)
-        self.assertIsNone(self.session.valide_par)
 
     def test_commandant_peut_signer(self):
         """Rôle supérieur au minimum requis : doit aussi être accepté."""
         self.client.login(username="commandant", password="pass")
-        response = self.client.post(self.url_signer, {"mot_de_passe": "pass"}, follow=True)
+        response = self.client.post(self.url_signer, {"confirmation": "1"}, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.session.refresh_from_db()
@@ -279,7 +321,7 @@ class SignatureSessionTests(PretAppareillageTestsBase):
 
     def test_chef_section_ne_peut_pas_signer(self):
         self.client.login(username="chef_section", password="pass")
-        response = self.client.post(self.url_signer, {"mot_de_passe": "pass"})
+        response = self.client.post(self.url_signer, {"confirmation": "1"})
 
         self.assertEqual(response.status_code, 403)
         self.session.refresh_from_db()
@@ -287,13 +329,13 @@ class SignatureSessionTests(PretAppareillageTestsBase):
 
     def test_equipier_ne_peut_pas_signer(self):
         self.client.login(username="equipier", password="pass")
-        response = self.client.post(self.url_signer, {"mot_de_passe": "pass"})
+        response = self.client.post(self.url_signer, {"confirmation": "1"})
 
         self.assertEqual(response.status_code, 403)
 
     def test_chef_secteur_dun_autre_navire_ne_peut_pas_signer(self):
         self.client.login(username="chef_secteur_b", password="pass")
-        response = self.client.post(self.url_signer, {"mot_de_passe": "pass"})
+        response = self.client.post(self.url_signer, {"confirmation": "1"})
 
         self.assertEqual(response.status_code, 403)
         self.session.refresh_from_db()
@@ -302,14 +344,14 @@ class SignatureSessionTests(PretAppareillageTestsBase):
 
 class ImmutabiliteApresClotureTests(PretAppareillageTestsBase):
     """Une session clôturée est figée : plus aucune modification n'est
-    possible, ni sur les items, ni via une nouvelle signature."""
+    possible, ni sur les items, ni via une nouvelle validation."""
 
     def setUp(self):
         super().setUp()
         self.session = self._ouvrir_session(self.chef_secteur, self.navire)
         self.item = self.session.items.first()
         self.client.login(username="chef_secteur", password="pass")
-        self.client.post(reverse("session-appareillage-signer", args=[self.session.id]), {"mot_de_passe": "pass"})
+        self.client.post(reverse("session-appareillage-signer", args=[self.session.id]), {"confirmation": "1"})
         self.session.refresh_from_db()
 
     def test_cocher_un_item_dune_session_cloturee_est_refuse(self):
@@ -336,7 +378,7 @@ class HistoriqueEtDetailTests(PretAppareillageTestsBase):
         super().setUp()
         self.session = self._ouvrir_session(self.chef_secteur, self.navire)
         self.client.login(username="chef_secteur", password="pass")
-        self.client.post(reverse("session-appareillage-signer", args=[self.session.id]), {"mot_de_passe": "pass"})
+        self.client.post(reverse("session-appareillage-signer", args=[self.session.id]), {"confirmation": "1"})
         self.session.refresh_from_db()
         self.url_historique = reverse("historique-appareillage")
         self.url_detail = reverse("session-appareillage-detail", args=[self.session.id])
@@ -366,7 +408,7 @@ class HistoriqueEtDetailTests(PretAppareillageTestsBase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_detail_ne_propose_pas_de_signature(self):
+    def test_detail_ne_propose_pas_de_validation(self):
         self.client.login(username="chef_secteur", password="pass")
         response = self.client.get(self.url_detail)
 

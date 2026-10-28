@@ -9,16 +9,16 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog
-from matrix.core.equipage import equipage_a_terre_lecture_seule
+from matrix.core.equipage import equipage_a_bord, equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import equipage_marin_q, marins_hors_equipage
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import ROLE_TO_LEVEL
+from matrix.core.roles import ROLE_TO_LEVEL, ROLES_SANS_ECRITURE_HERITEE
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
 from notifications.services import traiter_actions
 from taches.models import Tache
-from taches.services import peut_attribuer
+from taches.services import peut_attribuer, peut_superviser
 from threads.models import Message, Thread
 from threads.utils import ajouter_commentaire
 
@@ -46,9 +46,13 @@ def _nom(user):
     return (user.get_full_name() or user.username) if user else "un marin supprimé"
 
 
-def peut_gerer_perimetre(user, demande):
-    """Chef habilité (seuil des tâches) dont le périmètre couvre le déclarant."""
-    return peut_attribuer(user) and Demande.objects.filter(_perimetre_chef(user), pk=demande.pk).exists()
+def _dans_perimetre_chef(user, demande):
+    return Demande.objects.filter(_perimetre_chef(user), pk=demande.pk).exists()
+
+
+def peut_superviser_perimetre(user, demande):
+    """Lecture : chef (seuil des tâches) dont le périmètre couvre le déclarant."""
+    return peut_superviser(user) and _dans_perimetre_chef(user, demande)
 
 
 def _perimetre_chef(user):
@@ -61,19 +65,34 @@ def est_acteur(user, demande):
 
 
 def peut_consulter(user, demande):
-    return est_acteur(user, demande) or peut_gerer_perimetre(user, demande)
+    return est_acteur(user, demande) or peut_superviser_perimetre(user, demande)
 
 
 def peut_piloter(user, demande):
-    """Responsable ou chef du périmètre : ajoute des interlocuteurs, crée des actions, réaffecte."""
-    return demande.ouverte and (user.pk == demande.responsable_id or peut_gerer_perimetre(user, demande))
+    """Responsable ou chef du périmètre (avec droit d'écriture) : ajoute des interlocuteurs, crée des actions, réaffecte."""
+    return demande.ouverte and (
+        user.pk == demande.responsable_id or (peut_attribuer(user) and _dans_perimetre_chef(user, demande))
+    )
 
 
 def demandes_visibles(user):
     base = Q(declarant=user) | Q(responsable=user) | Q(interlocuteurs=user)
-    if peut_attribuer(user):
+    if peut_superviser(user):
         base |= _perimetre_chef(user)
     return Demande.objects.filter(base).distinct()
+
+
+def demandes_recues(user):
+    """Dossiers ouverts où `user` est interlocuteur ajouté et n'a pas encore répondu (alerte d'action non soldée).
+
+    Jamais plus large que `est_acteur` : l'alerte seule n'ouvre aucun accès."""
+    alertes = Notification.objects.filter(
+        user=user, action_requise=True, traitee_le__isnull=True,
+        content_type=ContentType.objects.get_for_model(Demande),
+    ).values_list("object_id", flat=True)
+    return Demande.objects.filter(pk__in=list(alertes), interlocuteurs=user).exclude(
+        Q(declarant=user) | Q(responsable=user) | Q(etat=Demande.ETAT_CLOS)
+    )
 
 
 def responsables_possibles(declarant):
@@ -82,7 +101,7 @@ def responsables_possibles(declarant):
     if navire is None:
         return User.objects.none()
     seuil = niveau_requis_pour(declarant, "tache_attribution")
-    roles = [code for code, niveau in ROLE_TO_LEVEL.items() if niveau >= seuil]
+    roles = [code for code, niveau in ROLE_TO_LEVEL.items() if niveau >= seuil and code not in ROLES_SANS_ECRITURE_HERITEE]
     return User.objects.filter(
         profile__ship_id=navire, profile__role__in=roles, is_active=True,
     ).exclude(pk=declarant.pk).order_by("username")
@@ -95,6 +114,18 @@ def interlocuteurs_possibles(demande):
         return User.objects.none()
     deja = [demande.declarant_id, demande.responsable_id, *demande.interlocuteurs.values_list("pk", flat=True)]
     return User.objects.filter(profile__ship_id=navire, is_active=True).exclude(pk__in=deja).order_by("username")
+
+
+def marins_pour_action(demande):
+    """Marins à qui `creer_action` accepte une action : équipage du déclarant, hors équipage à terre."""
+    navire = getattr(demande.declarant.profile, "ship", None)
+    marins = User.objects.filter(
+        equipage_marin_q(demande.declarant), profile__ship_id=getattr(navire, "pk", None), is_active=True,
+    )
+    if navire is not None and navire.double_equipage:
+        a_terre = Q(is_superuser=False) & ~Q(profile__equipage="") & ~Q(profile__equipage=equipage_a_bord(navire))
+        marins = marins.exclude(a_terre)
+    return marins.order_by("username")
 
 
 def trouver_objet(modele, pk, autorises=OBJETS_SIGNALABLES):
@@ -125,8 +156,28 @@ def _message_systeme(demande, corps):
 
 
 def _notifier(demande, destinataires, verb, niveau=NotificationLevel.INFO, action=False):
+    """Crée les notifications et renvoie les personnes réellement prévenues."""
+    destinataires = list(destinataires)
     for user in destinataires:
         Notification.objects.create(user=user, verb=verb, level=niveau, target=demande, action_requise=action)
+    return destinataires
+
+
+def categories_prevenues(demande, prevenus, acteur):
+    """Rôles des personnes prévenues (hors acteur), pour dire dans l'interface qui l'est vraiment."""
+    categories = []
+    for user in prevenus:
+        if user.pk == acteur.pk:
+            continue
+        if user.pk == demande.declarant_id:
+            nom = "le déclarant"
+        elif user.pk == demande.responsable_id:
+            nom = "le responsable"
+        else:
+            nom = "les interlocuteurs"
+        if nom not in categories:
+            categories.append(nom)
+    return categories
 
 
 def _autres_acteurs(demande, sauf):
@@ -168,19 +219,22 @@ def repondre(demande, user, corps):
         raise ValidationError("Le message ne peut pas être vide.")
     message = ajouter_commentaire(demande, user, corps)
     cites = set(message.mentions.values_list("pk", flat=True))  # déjà alertés par la mention
-    if demande.etat != Demande.ETAT_RESOLU:  # en « résolu », la clôture reste attendue du déclarant
+    # En « résolu », la clôture reste attendue du déclarant ; une simple réponse solde l'alerte de l'interlocuteur.
+    if demande.etat != Demande.ETAT_RESOLU or user.pk not in (demande.declarant_id, demande.responsable_id):
         traiter_actions(demande, [user])
     if user.pk == demande.declarant_id and demande.etat == Demande.ETAT_EN_ATTENTE:
         _changer(demande, user, Demande.ETAT_OUVERT, "Information fournie.")
     attend_le_declarant = demande.etat == Demande.ETAT_EN_ATTENTE
+    prevenus = []
     for destinataire in _autres_acteurs(demande, user):
         if destinataire.pk in cites:
             continue
-        _notifier(
+        prevenus += _notifier(
             demande, [destinataire], f"{_nom(user)} a répondu sur « {demande.titre} ».",
             NotificationLevel.WARNING if attend_le_declarant and destinataire.pk == demande.declarant_id else NotificationLevel.INFO,
             action=attend_le_declarant and destinataire.pk == demande.declarant_id,
         )
+    return prevenus
 
 
 def _changer(demande, user, etat, note=""):
@@ -213,27 +267,26 @@ def changer_etat(demande, user, etat, note=""):
     _changer(demande, user, etat, note)
     if note:
         ajouter_commentaire(demande, user, note)
-    prevenus = set()
+    prevenus = []
     if etat == Demande.ETAT_EN_ATTENTE:
-        _notifier(demande, [demande.declarant], f"Information attendue sur « {demande.titre} » : {note}",
-                  NotificationLevel.WARNING, action=True)
-        prevenus.add(demande.declarant_id)
+        prevenus += _notifier(demande, [demande.declarant], f"Information attendue sur « {demande.titre} » : {note}",
+                              NotificationLevel.WARNING, action=True)
     elif etat == Demande.ETAT_RESOLU:
         traiter_actions(demande, [demande.responsable])
-        _notifier(demande, [demande.declarant], f"« {demande.titre} » est résolue : confirmez la clôture.",
-                  NotificationLevel.WARNING, action=True)
-        prevenus.add(demande.declarant_id)
+        prevenus += _notifier(demande, [demande.declarant], f"« {demande.titre} » est résolue : confirmez la clôture.",
+                              NotificationLevel.WARNING, action=True)
     elif etat == Demande.ETAT_OUVERT:
-        _notifier(demande, [demande.responsable], f"{_nom(user)} rouvre « {demande.titre} ».",
-                  NotificationLevel.WARNING, action=True)
-        prevenus.add(demande.responsable_id)
+        prevenus += _notifier(demande, [demande.responsable], f"{_nom(user)} rouvre « {demande.titre} ».",
+                              NotificationLevel.WARNING, action=True)
     elif etat == Demande.ETAT_CLOS:
         traiter_actions(demande)
     if etat == Demande.ETAT_EN_TRAITEMENT:
         traiter_actions(demande, [demande.responsable])
+    deja = {u.pk for u in prevenus}
     for autre in _autres_acteurs(demande, user):
-        if autre.pk not in prevenus:
-            _notifier(demande, [autre], f"« {demande.titre} » : {LIBELLES[etat]}.")
+        if autre.pk not in deja:
+            prevenus += _notifier(demande, [autre], f"« {demande.titre} » : {LIBELLES[etat]}.")
+    return prevenus
 
 
 def reaffecter(demande, user, nouveau):
@@ -247,7 +300,7 @@ def reaffecter(demande, user, nouveau):
     demande.save(update_fields=["responsable", "updated_by", "updated_at"])
     _tracer(demande, user, "reaffectation", f"; ancien={ancien.pk}")
     _message_systeme(demande, f"{_nom(user)} confie le dossier à {_nom(nouveau)}.")
-    _notifier(demande, [nouveau], f"{_nom(user)} vous confie « {demande.titre} ».", NotificationLevel.WARNING, action=True)
+    return _notifier(demande, [nouveau], f"{_nom(user)} vous confie « {demande.titre} ».", NotificationLevel.WARNING, action=True)
 
 
 def ajouter_interlocuteur(demande, user, cible):
@@ -258,7 +311,7 @@ def ajouter_interlocuteur(demande, user, cible):
     demande.interlocuteurs.add(cible)
     _tracer(demande, user, "interlocuteur")
     _message_systeme(demande, f"{_nom(user)} a ajouté {_nom(cible)} au dossier.")
-    _notifier(demande, [cible], f"{_nom(user)} vous a ajouté à « {demande.titre} ».", NotificationLevel.WARNING)
+    return _notifier(demande, [cible], f"{_nom(user)} vous a ajouté à « {demande.titre} ».", NotificationLevel.WARNING, action=True)
 
 
 def creer_action(demande, user, assigne, titre, echeance=None):

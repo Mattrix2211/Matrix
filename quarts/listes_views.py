@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -24,8 +25,9 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views import View
 
-from accounts.models import FonctionQuartChoice, ServiceFunctionChoice
+from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none, entiers_valides
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import utilisateurs_visibles_par
 from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_admin, perimetre_navire_q, scope_filters_for_user
@@ -49,6 +51,7 @@ from .models import (
     perimetre_de_mon_equipage,
     peut_gerer_liste,
     peut_publier_liste,
+    supervision_liste_sur,
     utilisateur_autorise_pour_perimetre,
 )
 from .echanges_views import _echanges_visibles, _grouper_echanges
@@ -144,7 +147,7 @@ def _perimetres_org_disponibles(user, borne_par_scope=True):
 
 def _perimetre_autorise_pour_designation(user, ship, service, sector, section):
     """Vrai si `user` peut désigner/retirer un chef de liste pour le périmètre
-    donné : COMMANDANT+ sans restriction (supervision globale), ou
+    donné : COMMANDANT+ sur son bâtiment (supervision), ou
     CHEF_SERVICE+ dont le périmètre organisationnel personnel couvre le
     périmètre visé — un chef ne délègue la responsabilité de chef de liste
     que sur ce qui est déjà sous sa propre autorité, jamais au-delà (cf.
@@ -153,7 +156,7 @@ def _perimetre_autorise_pour_designation(user, ship, service, sector, section):
     logistics/web_views.py::_secteur_dans_perimetre)."""
     if not perimetre_de_mon_equipage(user, equipage_du_perimetre(user)):
         return False
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+    if supervision_liste_sur(user, ship, service, sector, section):
         return True
     if user_role_level(user) < NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE:
         return False
@@ -310,11 +313,11 @@ def _creer_liste(request, action, retour_erreur):
     # une liste de quarts choisit une FonctionQuartChoice, une liste de
     # garde réutilise le référentiel ServiceFunctionChoice déjà existant.
     if action == "creer_quart":
-        fonction = FonctionQuartChoice.objects.filter(pk=request.POST.get("fonction_quart"), active=True).first()
+        fonction = FonctionQuartChoice.objects.filter(pk=entier_ou_none(request.POST.get("fonction_quart")), active=True).first()
         liste = Quart(fonction=fonction, **champs_communs)
         url_name = "quart-detail"
     else:
-        fonction = ServiceFunctionChoice.objects.filter(pk=request.POST.get("fonction_service"), active=True).first()
+        fonction = ServiceFunctionChoice.objects.filter(pk=entier_ou_none(request.POST.get("fonction_service")), active=True).first()
         liste = ServiceGarde(fonction=fonction, **champs_communs)
         url_name = "garde-detail"
 
@@ -377,7 +380,7 @@ class CreerListeView(LoginRequiredMixin, View):
             contexte["synthese"] = {
                 "type": "Quart (rotation de postes)" if est_quart else "Service à quai / garde",
                 "perimetre": _libelle_perimetre(ship or service or sector or section),
-                "fonction": fonctions.filter(pk=valeurs.get("fonction_quart" if est_quart else "fonction_service") or 0).first(),
+                "fonction": fonctions.filter(pk=entier_ou_none(valeurs.get("fonction_quart" if est_quart else "fonction_service"))).first(),
                 "date_debut": parse_date(valeurs.get("date_debut", "")),
                 "date_fin": parse_date(valeurs.get("date_fin", "")),
             }
@@ -399,6 +402,8 @@ class CreerListeView(LoginRequiredMixin, View):
             champ = "fonction_quart" if valeurs.get("type_liste") == "creer_quart" else "fonction_service"
             if not valeurs.get(champ):
                 return "La fonction est obligatoire."
+            if entier_ou_none(valeurs.get(champ)) is None:
+                return "La fonction choisie est invalide."
         return None
 
     def get(self, request):
@@ -691,19 +696,23 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 for erreur in erreurs:
                     messages.error(request, erreur)
             return
-        creneau.save()
+        with transaction.atomic():
+            creneau.save()
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=True)
         messages.success(request, "Créneau ajouté.")
 
     def _supprimer_creneau(self, request, liste):
         creneau = self.creneau_model.objects.filter(
-            pk=request.POST.get("creneau_id"), **{self.fk_attr: liste}
+            pk=entier_ou_none(request.POST.get("creneau_id")), **{self.fk_attr: liste}
         ).first()
         if creneau is None:
             messages.error(request, "Créneau introuvable.")
             return
-        if self.fk_attr == "service_garde":
-            annuler_echanges_du_creneau(creneau, request.user)
-        creneau.delete()
+        with transaction.atomic():
+            if self.fk_attr == "service_garde":
+                annuler_echanges_du_creneau(creneau, request.user)
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=False)
+            creneau.delete()
         messages.info(request, "Créneau supprimé.")
 
     def _regler_echanges(self, request, liste):
@@ -716,9 +725,15 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if delai < 0:
             messages.error(request, "Le délai minimal doit être un nombre d'heures positif ou nul.")
             return
-        liste.delai_minimal_echange_heures = delai
-        liste.save(update_fields=["delai_minimal_echange_heures", "updated_at"])
-        liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=request.POST.getlist("formations_requises")))
+        with transaction.atomic():
+            liste.delai_minimal_echange_heures = delai
+            liste.save(update_fields=["delai_minimal_echange_heures", "updated_at"])
+            liste.formations_requises.set(TrainingCourse.objects.filter(pk__in=entiers_valides(request.POST.getlist("formations_requises"))))
+            if liste.statut == liste.STATUT_PUBLIEE:
+                AuditLog.objects.create(
+                    actor=request.user, action="liste_service_echanges_regles",
+                    details=f"{liste.libelle_type()} #{liste.pk} ({liste.perimetre}) : règles d'échange modifiées (délai {delai} h).",
+                )
         messages.success(request, "Règles d'échange enregistrées.")
 
 
@@ -773,7 +788,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             if not _perimetre_autorise_pour_designation(request.user, ship, service, sector, section):
                 raise PermissionDenied
             candidat = utilisateurs_visibles_par(request.user).filter(
-                equipage_marin_q(request.user), pk=request.POST.get("user_id")).first()
+                equipage_marin_q(request.user), pk=entier_ou_none(request.POST.get("user_id"))).first()
             if candidat is None:
                 messages.error(request, "Marin introuvable.")
                 return redirect("quarts-reglages")
@@ -787,7 +802,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         elif action == "retirer":
             cdl = ChefDeListe.objects.filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
-                pk=request.POST.get("pk"),
+                pk=entier_ou_none(request.POST.get("pk")),
             ).first()
             if cdl is None:
                 messages.error(request, "Désignation introuvable.")

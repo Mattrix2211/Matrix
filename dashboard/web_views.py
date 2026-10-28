@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
-from accounts.models import ResponsableSpecialite, SpecialityChoice
+from accounts.models import AuditLog, ResponsableSpecialite, SpecialityChoice
 from assets.models import Asset, Installation, InstallationMaintenance
 from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee, supervision
 from matrix.core.equipage import equipage_a_terre_lecture_seule
@@ -26,7 +26,8 @@ from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
 from matrix.core.brouillons import brouillons_a_reprendre
-from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, user_role_level
+from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
+from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
@@ -495,6 +496,12 @@ def _items_groupes_par_categorie(session, user):
     return groupes
 
 
+def _appareillage_en_lecture_seule(user):
+    """Le commandant en second consulte la session d'appareillage sans la cocher ni la signer."""
+    profil = getattr(user, "profile", None)
+    return bool(profil and profil.role in ROLES_SANS_ECRITURE_HERITEE and not user.is_superuser)
+
+
 def _meme_navire_ou_master_admin(user, ship_id):
     """Vrai si l'utilisateur appartient au même navire que celui de la session/
     de l'item consulté, ou s'il a un accès flotte entière (MASTER_ADMIN/
@@ -524,8 +531,9 @@ class PretAppareillageView(LoginRequiredMixin, TemplateView):
         contexte = super().get_context_data(**kwargs)
         user = self.request.user
 
-        contexte["peut_ouvrir_session"] = user_role_level(user) >= RoleLevel.CHEF_SECTEUR
-        contexte["peut_signer"] = user_role_level(user) >= RoleLevel.CHEF_SECTEUR
+        contexte["peut_ouvrir_session"] = niveau_ecriture(user) >= RoleLevel.CHEF_SECTEUR
+        contexte["peut_signer"] = niveau_ecriture(user) >= RoleLevel.CHEF_SECTEUR
+        contexte["lecture_seule_appareillage"] = _appareillage_en_lecture_seule(user)
 
         if is_master_admin(user):
             # Une session porte sur un seul navire : un MASTER_ADMIN (rattaché à
@@ -571,7 +579,7 @@ class SessionAppareillageOuvrirView(LoginRequiredMixin, View):
 
     def post(self, request):
         user = request.user
-        if user_role_level(user) < RoleLevel.CHEF_SECTEUR:
+        if niveau_ecriture(user) < RoleLevel.CHEF_SECTEUR:
             raise PermissionDenied("Réservé aux chefs de secteur et aux rôles supérieurs.")
 
         ship_id = ship_id_for_user(user)
@@ -612,7 +620,7 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
         except ItemAppareillage.DoesNotExist:
             return HttpResponseBadRequest("Item introuvable.")
 
-        if not _meme_navire_ou_master_admin(request.user, item.session.ship_id):
+        if not _meme_navire_ou_master_admin(request.user, item.session.ship_id) or _appareillage_en_lecture_seule(request.user):
             raise PermissionDenied("Hors de votre périmètre.")
         if item.categorie == ItemAppareillage.CATEGORIE_OCCURRENCE and _occurrences_masquees(request.user):
             raise PermissionDenied("Hors de votre périmètre.")
@@ -631,17 +639,16 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
         contexte = {
             "session": session,
             "items_par_categorie": _items_groupes_par_categorie(session, request.user),
-            "peut_signer": user_role_level(request.user) >= RoleLevel.CHEF_SECTEUR,
+            "peut_signer": niveau_ecriture(request.user) >= RoleLevel.CHEF_SECTEUR,
+            "lecture_seule_appareillage": _appareillage_en_lecture_seule(request.user),
         }
         return render(request, "dashboard/_checklist_appareillage.html", contexte)
 
 
 class SessionAppareillageSignerView(LoginRequiredMixin, View):
-    """Signe et clôture une session d'appareillage — réservée à CHEF_SECTEUR et
-    aux rôles supérieurs (spec PO). Réutilise exactement le pattern de
-    signature déjà en place sur MaintenanceExecution (maintenance/web_views.py
-    ::OccurrenceExecuteView) : vérification par mot de passe
-    (request.user.check_password), rien de nouveau inventé."""
+    """Valide et clôture une session d'appareillage — réservée à CHEF_SECTEUR et
+    aux rôles supérieurs. Atteste la clôture de la session de vérification, pas
+    l'aptitude du bâtiment ; exige la confirmation explicite du valideur."""
 
     def post(self, request, pk):
         try:
@@ -652,14 +659,15 @@ class SessionAppareillageSignerView(LoginRequiredMixin, View):
         user = request.user
         if not _meme_navire_ou_master_admin(user, session.ship_id):
             raise PermissionDenied("Hors de votre périmètre.")
-        if user_role_level(user) < RoleLevel.CHEF_SECTEUR:
+        if niveau_ecriture(user) < RoleLevel.CHEF_SECTEUR:
             raise PermissionDenied("Réservé aux chefs de secteur et aux rôles supérieurs.")
         if not session.est_ouverte:
             messages.warning(request, "Cette session est déjà clôturée.")
             return redirect("pret-appareillage")
 
-        if not user.check_password(request.POST.get("mot_de_passe", "")):
-            messages.error(request, "Mot de passe incorrect : la session n'a pas été signée.")
+        if not confirmation_web(request.POST):
+            tracer_refus(user, "pret_appareillage", CANAL_WEB, f"session_appareillage={session.pk}")
+            messages.error(request, MESSAGE_REFUS)
             return redirect("pret-appareillage")
 
         maintenant = timezone.now()
@@ -669,7 +677,12 @@ class SessionAppareillageSignerView(LoginRequiredMixin, View):
         session.updated_by = user
         session.save(update_fields=["valide_par", "date_validation", "cloturee_le", "updated_by", "updated_at"])
 
-        messages.success(request, "Session d'appareillage signée et clôturée.")
+        AuditLog.objects.create(
+            actor=user, action="session_appareillage_validation",
+            details=f"session_appareillage={session.pk}; navire={session.ship_id}"
+            + details_confirmation("pret_appareillage", CANAL_WEB),
+        )
+        messages.success(request, "Session d'appareillage validée et clôturée.")
         return redirect("pret-appareillage")
 
 

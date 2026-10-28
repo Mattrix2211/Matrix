@@ -11,7 +11,8 @@ from accounts.models import AuditLog
 from annonces.services import cible_permise, cibles_autorisees, filtre_ciblage, filtre_gestion, resoudre_cible
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour, seuil_role
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture, user_role_level
+from matrix.core.saisie import verifier_longueurs
 from notifications.liens import lien_objet
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
@@ -36,7 +37,7 @@ def _noeud(document):
 def peut_rediger(user):
     return (
         not equipage_a_terre_lecture_seule(user)
-        and user_role_level(user) >= niveau_requis_pour(user, "documentation_redaction")
+        and niveau_ecriture(user) >= niveau_requis_pour(user, "documentation_redaction")
         and bool(cibles_autorisees(user))
     )
 
@@ -44,7 +45,7 @@ def peut_rediger(user):
 def peut_valider(user, document):
     return (
         not equipage_a_terre_lecture_seule(user)
-        and user_role_level(user) >= niveau_requis_pour(user, "documentation_validation")
+        and niveau_ecriture(user) >= niveau_requis_pour(user, "documentation_validation")
         and cible_permise(user, _noeud(document))
     )
 
@@ -87,7 +88,7 @@ def valideurs(document):
     seuil = seuil_role("documentation_validation", document.ship_id)
     return [
         u for u in User.objects.filter(profile__ship_id=document.ship_id, is_active=True)
-        if user_role_level(u) >= seuil and peut_valider(u, document)
+        if niveau_ecriture(u) >= seuil and peut_valider(u, document)
     ]
 
 
@@ -104,6 +105,7 @@ def _notifier_valideurs(version):
 def _controles(titre, contenu, fichier):
     if not titre.strip():
         raise ValidationError("Le titre est obligatoire.")
+    verifier_longueurs(Document, titre=titre.strip())
     if not contenu.strip() and not fichier:
         raise ValidationError("Rédigez le contenu ou joignez un fichier.")
 
@@ -119,6 +121,7 @@ def creer_document(user, titre, cible, contenu, domaine="", origine=Document.ORI
         origine = Document.ORIGINE_LOCALE
     if origine == Document.ORIGINE_OFFICIELLE and not reference_source.strip():
         raise ValidationError("Une procédure officielle cite sa source (référence du texte).")
+    verifier_longueurs(Document, domaine=domaine.strip(), reference_source=reference_source.strip(), equipage=equipage.strip())
     document = Document.objects.create(
         titre=titre.strip(), domaine=domaine.strip(), origine=origine, reference_source=reference_source.strip(),
         equipage=equipage.strip(), prochaine_revision=prochaine_revision, created_by=user, updated_by=user,
@@ -234,7 +237,7 @@ def a_reviser(user):
 
 
 def peut_gerer_liens(user):
-    return peut_rediger(user) or user_role_level(user) >= niveau_requis_pour(user, "documentation_validation")
+    return peut_rediger(user) or niveau_ecriture(user) >= niveau_requis_pour(user, "documentation_validation")
 
 
 def documents_liables(user, objet):

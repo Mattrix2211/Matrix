@@ -9,6 +9,7 @@ from annonces.services import chaine, cible_permise, cibles_autorisees, destinat
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.saisie import entier_ou_none, verifier_longueurs
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse
 from taches.services import taches_visibles
@@ -31,7 +32,9 @@ def _navire_id(user):
 
 
 def types_du_navire(ship_id, seulement_actifs=True):
-    """Types du navire ; ceux par défaut sont créés au premier accès."""
+    """Types du navire ; ceux par défaut sont créés au premier accès (jamais sans bâtiment)."""
+    if ship_id is None:
+        return TypeProgramme.objects.none()
     if not TypeProgramme.objects.filter(ship_id=ship_id).exists():
         for nom, couleur in TYPES_PAR_DEFAUT:
             TypeProgramme.objects.create(ship_id=ship_id, nom=nom, couleur=couleur)
@@ -84,6 +87,7 @@ def creer_evenement(auteur, titre, type_id, debut, fin, cible, lieu="", descript
     if not cible_permise(auteur, cible):
         raise PermissionError("Ce public est hors de votre périmètre.")
     _validations(titre, debut, fin)
+    verifier_longueurs(EvenementProgramme, titre=titre.strip(), lieu=lieu.strip(), equipage=equipage.strip())
     champs = resoudre_cible(cible)
     type_evenement = types_du_navire(champs["ship"].pk).filter(pk=type_id).first()
     if type_evenement is None:
@@ -106,6 +110,7 @@ def modifier_evenement(user, evenement, titre, debut, fin, lieu="", description=
     if not peut_gerer(user, evenement) or evenement.annule:
         raise PermissionError("Vous ne pouvez pas modifier cet événement.")
     _validations(titre, debut, fin)
+    verifier_longueurs(EvenementProgramme, titre=titre.strip(), lieu=lieu.strip())
     horaire_change = (evenement.debut, evenement.fin) != (debut, fin)
     evenement.titre, evenement.debut, evenement.fin = titre.strip(), debut, fin
     evenement.lieu, evenement.description, evenement.updated_by = lieu.strip(), description.strip(), user
@@ -164,7 +169,7 @@ def deleguer(user, cible):
 def retirer_delegation(user, delegation_id):
     if not peut_deleguer(user):
         raise PermissionError("Seul l'état-major peut retirer une délégation.")
-    delegation = DelegationProgramme.objects.filter(pk=delegation_id, ship_id=_navire_id(user)).first()
+    delegation = DelegationProgramme.objects.filter(pk=entier_ou_none(delegation_id), ship_id=_navire_id(user)).first()
     if delegation:
         AuditLog.objects.create(actor=user, action="programme_delegation", target_user=delegation.user, details="retirée")
         delegation.delete()
@@ -179,6 +184,7 @@ def ajouter_type(user, nom, couleur):
     if not (couleur.startswith("#") and len(couleur) == 7):
         couleur = "#0d6efd"
     navire = _navire_id(user)
+    verifier_longueurs(TypeProgramme, nom=nom)
     types_du_navire(navire)
     TypeProgramme.objects.update_or_create(ship_id=navire, nom=nom, defaults={"couleur": couleur, "actif": True})
 

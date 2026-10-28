@@ -13,6 +13,7 @@ Refactor pur : reproduit exactement le comportement d'origine."""
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,28 +24,38 @@ from django.views import View
 from accounts.models import AuditLog
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.roles import user_role_level
+from matrix.core.contexte_batiment import batiment_courant
 from matrix.core.saisie import entier_ou_none
-from matrix.core.scopes import ship_id_for_user
+from matrix.core.scopes import is_master_admin, ship_id_for_user
 from org.models import Ship
 
-from .alertes import etat_alertes, peut_proposer_organisation_alerte, peut_valider_organisation_alerte
+from .alertes import (
+    alertes_figees_a_afficher,
+    etat_alertes,
+    peut_proposer_organisation_alerte,
+    peut_valider_organisation_alerte,
+)
 from .models import (
     FeuilleService,
     FonctionFeuilleService,
-    NIVEAU_SUPERVISION_GLOBALE_LISTE,
     RubriqueEnTeteFeuilleService,
+    TransitionDejaEffectuee,
     codes_equipage,
     equipage_de_feuille_pour,
     feuille_du_jour,
     peut_gerer_brouillon_feuille,
     peut_lire_feuille_service,
+    peut_ouvrir_rectificatif,
     peut_rediger_feuille_service,
+    peut_ecrire_pour_equipage,
     peut_viser_comaeq,
     titulaire_comaeq,
     peut_viser_secteur,
     peut_viser_service,
+    peut_voir_travail_feuille,
     personnel_du_jour,
 )
+from .rectificatif import MESSAGE_CONTENU_CHANGE, divergences_effectives, empreinte_du_jeton, jeton_visa
 
 
 def _navires_disponibles_feuille_service(user):
@@ -52,10 +63,21 @@ def _navires_disponibles_feuille_service(user):
     sien (ou toute la flotte pour la supervision globale) — la feuille de
     service n'a de sens qu'à l'échelle du bâtiment entier, contrairement aux
     listes de quarts/gardes qui peuvent être bornées à un secteur/service."""
-    if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
+    if is_master_admin(user):
         return Ship.objects.all()
     ship_id = ship_id_for_user(user)
     return Ship.objects.filter(pk=ship_id) if ship_id else Ship.objects.none()
+
+
+def navire_feuille_service_par_defaut(request):
+    """Navire du profil ; à défaut, bâtiment courant de l'administrateur général
+    (jamais un navire arbitraire : la feuille se consulte depuis son propre bâtiment)."""
+    ship_id = ship_id_for_user(request.user)
+    if ship_id:
+        return Ship.objects.filter(pk=ship_id).first()
+    if is_master_admin(request.user):
+        return batiment_courant(request) or Ship.objects.filter(archived=False).order_by("name").first()
+    return None
 
 
 def _redirection_detail(ship, date_, equipage):
@@ -67,10 +89,10 @@ def _redirection_detail(ship, date_, equipage):
 
 class FeuilleServiceIndexView(LoginRequiredMixin, View):
     """Point d'entrée du module : redirige vers la feuille du jour du navire
-    de l'utilisateur."""
+    de l'utilisateur (administrateur général sans navire : bâtiment courant)."""
 
     def get(self, request):
-        navire = _navires_disponibles_feuille_service(request.user).first()
+        navire = navire_feuille_service_par_defaut(request)
         if navire is None:
             messages.error(request, "Aucune unité n'est associée à votre profil.")
             return redirect("home")
@@ -135,13 +157,14 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 "rattachez cette feuille à l'autre équipage.",
             )
         else:
-            feuille.equipage = equipage
-            feuille.save(update_fields=["equipage", "updated_at"])
-            AuditLog.objects.create(
-                actor=request.user, action="rattacher_feuille_service",
-                details=f"navire={ship.name}; feuille du {feuille.date.isoformat()} (pk={feuille.pk}); "
-                        f"sans équipage -> {equipage}",
-            )
+            with transaction.atomic():
+                feuille.equipage = equipage
+                feuille.save(update_fields=["equipage", "updated_at"])
+                AuditLog.objects.create(
+                    actor=request.user, action="rattacher_feuille_service",
+                    details=f"navire={ship.name}; feuille du {feuille.date.isoformat()} (pk={feuille.pk}); "
+                            f"sans équipage -> {equipage}",
+                )
             messages.success(request, f"Feuille du {feuille.date:%d/%m/%Y} rattachée à l'équipage {equipage}.")
 
     def _contexte(self, request, ship, date_, feuille, equipage):
@@ -156,17 +179,27 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             autres_feuilles = FeuilleService.objects.filter(
                 ship=ship, date=date_
             ).exclude(equipage="").exclude(pk=feuille.pk if feuille else 0)
+        version = feuille.version_publiee if feuille is not None else None
+        # Pendant un rectificatif, seuls les acteurs du circuit voient la copie de
+        # travail ; les autres lisent la version publiée, qui reste la référence.
+        lecture_reference = version is not None and (
+            feuille.statut == FeuilleService.STATUT_PUBLIEE
+            or not peut_voir_travail_feuille(request.user, feuille)
+        )
+        divergences = divergences_effectives(feuille) if version is not None else []
         if feuille is not None:
-            rubriques = feuille.rubriques_affichees
-            personnel = feuille.personnel
+            rubriques = feuille.rubriques_de_reference if lecture_reference else feuille.rubriques_affichees
+            personnel = feuille.personnel_de_reference if lecture_reference else feuille.personnel
         else:
             rubriques = [
                 {"rubrique": r, "valeur": r.valeur_fixe if r.type_saisie == r.TYPE_FIXE else ""}
                 for r in RubriqueEnTeteFeuilleService.objects.filter(ship=ship, actif=True)
             ]
             personnel = personnel_du_jour(ship, date_, equipage)
-        je_suis_de_service = any(
-            e["creneau"] and e["creneau"].marin_id == request.user.pk for e in personnel
+        je_suis_de_service = any(e["marin_id"] == request.user.pk for e in personnel)
+        alertes = (
+            alertes_figees_a_afficher(version.contenu_fige.get("alertes", []))
+            if lecture_reference else etat_alertes(ship, date_, equipage)
         )
         return {
             "ship": ship,
@@ -193,16 +226,33 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
                 and peut_viser_comaeq(request.user, feuille)
             ),
+            "jeton_visa": (
+                jeton_visa(feuille, request.user)
+                if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
+                and peut_viser_comaeq(request.user, feuille) else ""
+            ),
             "comaeq_titulaire": (
                 titulaire_comaeq(feuille)
                 if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ else None
             ),
-            "alertes": etat_alertes(ship, date_, equipage),
+            "alertes": alertes,
+            "lecture_reference": lecture_reference,
+            "circuit_masque": lecture_reference and feuille.statut != FeuilleService.STATUT_PUBLIEE,
+            "version": version,
+            "divergences": divergences if lecture_reference else [],
+            "rectificatif_en_cours": feuille is not None and feuille.rectificatif_en_cours,
+            "peut_ouvrir_rectificatif": (
+                feuille is not None and bool(divergences) and peut_ouvrir_rectificatif(request.user, feuille)
+            ),
             "peut_gerer_alertes": (
                 peut_proposer_organisation_alerte(request.user, ship)
                 or peut_valider_organisation_alerte(request.user, ship)
             ),
             "versions": feuille.versions.all() if feuille is not None else None,
+            "structure_divergente": (
+                feuille is not None and feuille.statut != FeuilleService.STATUT_PUBLIEE
+                and not lecture_reference and feuille.structure_divergente
+            ),
             "peut_configurer": peut_configurer,
             # Double équipage sans équipage à bord défini : rien n'est affiché
             # au hasard, l'écran demande de corriger la configuration.
@@ -213,6 +263,18 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         }
 
     def post(self, request, ship_id, date_str):
+        try:
+            return self._traiter(request, ship_id, date_str)
+        except TransitionDejaEffectuee:
+            # Double clic ou action concurrente : l'étape est faite, on affiche l'état actuel.
+            ship, date_, feuille, equipage = self._charger(request, ship_id, date_str)
+            if feuille is not None and feuille.statut == FeuilleService.STATUT_PUBLIEE:
+                messages.info(request, "Cette feuille est déjà publiée.")
+            else:
+                messages.info(request, "Cette étape a déjà été effectuée : la feuille est à jour ci-dessous.")
+            return _redirection_detail(ship, date_, equipage)
+
+    def _traiter(self, request, ship_id, date_str):
         ship, date_, feuille, equipage = self._charger(request, ship_id, date_str)
         if date_ is None:
             return HttpResponseBadRequest("Date invalide.")
@@ -228,7 +290,9 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             return _redirection_detail(ship, date_, equipage)
 
         if action == "creer":
-            if not peut_rediger_feuille_service(request.user, ship):
+            if not peut_rediger_feuille_service(request.user, ship) or not peut_ecrire_pour_equipage(
+                request.user, ship, equipage
+            ):
                 raise PermissionDenied
             if feuille is None:
                 FeuilleService.objects.create(
@@ -247,16 +311,35 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             if not peut_gerer_brouillon_feuille(request.user, feuille):
                 raise PermissionDenied
             valeurs = dict(feuille.valeurs_entete)
-            for rubrique in RubriqueEnTeteFeuilleService.objects.filter(
-                ship=ship, type_saisie=RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE
-            ):
-                cle = f"rubrique_{rubrique.pk}"
-                if cle in request.POST:
-                    valeurs[str(rubrique.pk)] = request.POST.get(cle, "").strip()
+            # Seules les rubriques figées sur la feuille sont saisissables, pas celles des réglages actuels.
+            for entree in feuille.rubriques_affichees:
+                rubrique = entree["rubrique"]
+                cle = f"rubrique_{rubrique.uid}"
+                if rubrique.type_saisie == RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE and cle in request.POST:
+                    valeurs[rubrique.uid] = request.POST.get(cle, "").strip()
             feuille.valeurs_entete = valeurs
             feuille.updated_by = request.user
             feuille.save(update_fields=["valeurs_entete", "updated_by", "updated_at"])
             messages.success(request, "En-tête enregistré.")
+        elif action == "resynchroniser":
+            if not peut_gerer_brouillon_feuille(request.user, feuille):
+                raise PermissionDenied
+            retirees = feuille.resynchroniser_structure(request.user)
+            messages.success(request, "Structure resynchronisée avec les réglages actuels du bâtiment.")
+            if retirees:
+                messages.warning(request, "Saisies retirées (rubriques supprimées ou devenues fixes) : " + "; ".join(retirees))
+        elif action == "ouvrir_rectificatif":
+            if not peut_ouvrir_rectificatif(request.user, feuille):
+                raise PermissionDenied
+            if not divergences_effectives(feuille):
+                messages.info(request, "Les affectations effectives n'ont pas changé : aucun rectificatif à ouvrir.")
+                return _redirection_detail(ship, date_, equipage)
+            feuille.ouvrir_rectificatif(request.user)
+            messages.success(
+                request,
+                f"Rectificatif ouvert : la version {feuille.version_publiee.numero} reste la référence publiée "
+                "jusqu'à la publication du rectificatif.",
+            )
         elif action == "proposer":
             if feuille.statut != FeuilleService.STATUT_BROUILLON or not peut_gerer_brouillon_feuille(
                 request.user, feuille
@@ -277,10 +360,17 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
         elif action == "viser_comaeq":
             if feuille.statut != FeuilleService.STATUT_VISA_COMAEQ or not peut_viser_comaeq(request.user, feuille):
                 raise PermissionDenied
-            feuille.viser_comaeq(request.user)
-            messages.success(
-                request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
-            )
+            empreinte = empreinte_du_jeton(request.POST.get("jeton_visa"), feuille, request.user)
+            if empreinte is None:
+                messages.error(
+                    request, "Formulaire de visa invalide ou expiré. Actualisez la feuille avant de la viser."
+                )
+            elif feuille.viser_comaeq(request.user, empreinte):
+                messages.success(
+                    request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
+                )
+            else:
+                messages.error(request, MESSAGE_CONTENU_CHANGE)
         elif action == "renvoyer":
             verificateur = {
                 FeuilleService.STATUT_VISA_SECTEUR: peut_viser_secteur,
@@ -310,7 +400,7 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
 
     def _ship(self, request):
         pk = request.GET.get("ship") or request.POST.get("ship")
-        return get_object_or_404(_navires_disponibles_feuille_service(request.user), pk=pk)
+        return get_object_or_404(_navires_disponibles_feuille_service(request.user), pk=entier_ou_none(pk))
 
     def _verifier_habilitation(self, request):
         if user_role_level(request.user) < niveau_requis_pour(request.user, "feuille_service_configuration"):
@@ -335,22 +425,35 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         elif action == "enregistrer_fonctions":
             self._enregistrer_fonctions(request, ship)
         elif action == "supprimer_rubrique":
-            RubriqueEnTeteFeuilleService.objects.filter(pk=request.POST.get("pk"), ship=ship).delete()
+            RubriqueEnTeteFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).delete()
             messages.info(request, "Rubrique supprimée.")
         elif action == "supprimer_fonction":
-            FonctionFeuilleService.objects.filter(pk=request.POST.get("pk"), ship=ship).delete()
+            FonctionFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).delete()
             messages.info(request, "Fonction supprimée.")
         else:
             return HttpResponseBadRequest("Action inconnue.")
         return redirect(f"{reverse('feuille-service-reglages')}?ship={ship.pk}")
 
+    @staticmethod
+    def _ordres_valides(request, elements, prefixe_cle, nom_nouveau):
+        """Ordres postés {pk: ordre} et ordre du nouvel élément ; None si l'un n'est pas un entier."""
+        ordres = {e.pk: entier_ou_none(request.POST.get(f"{prefixe_cle}{e.pk}_ordre") or str(e.ordre)) for e in elements}
+        nouveau = entier_ou_none(request.POST.get(nom_nouveau) or "0")
+        return None if nouveau is None or None in ordres.values() else (ordres, nouveau)
+
     def _enregistrer_rubriques(self, request, ship):
-        for rubrique in RubriqueEnTeteFeuilleService.objects.filter(ship=ship):
+        rubriques = list(RubriqueEnTeteFeuilleService.objects.filter(ship=ship))
+        ordres = self._ordres_valides(request, rubriques, "rubrique_", "nouvelle_rubrique_ordre")
+        if ordres is None:
+            messages.error(request, "L'ordre des rubriques doit être un nombre entier : rien n'a été enregistré.")
+            return
+        ordres, ordre_nouveau = ordres
+        for rubrique in rubriques:
             prefixe = f"rubrique_{rubrique.pk}_"
             if f"{prefixe}libelle" not in request.POST:
                 continue
             rubrique.libelle = request.POST.get(f"{prefixe}libelle", rubrique.libelle).strip()
-            rubrique.ordre = int(request.POST.get(f"{prefixe}ordre") or rubrique.ordre)
+            rubrique.ordre = ordres[rubrique.pk]
             rubrique.type_saisie = request.POST.get(f"{prefixe}type_saisie", rubrique.type_saisie)
             rubrique.valeur_fixe = request.POST.get(f"{prefixe}valeur_fixe", "").strip()
             rubrique.actif = f"{prefixe}actif" in request.POST
@@ -359,21 +462,29 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         if nouveau_libelle:
             RubriqueEnTeteFeuilleService.objects.create(
                 ship=ship, libelle=nouveau_libelle,
-                ordre=int(request.POST.get("nouvelle_rubrique_ordre") or 0),
+                ordre=ordre_nouveau,
                 type_saisie=request.POST.get(
                     "nouvelle_rubrique_type_saisie", RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE
                 ),
                 valeur_fixe=request.POST.get("nouvelle_rubrique_valeur_fixe", "").strip(),
             )
-        messages.success(request, "Rubriques d'en-tête enregistrées.")
+        messages.success(
+            request, "Rubriques d'en-tête enregistrées (les feuilles déjà créées ne changent pas ; un brouillon peut être resynchronisé)."
+        )
 
     def _enregistrer_fonctions(self, request, ship):
-        for fonction in FonctionFeuilleService.objects.filter(ship=ship):
+        fonctions = list(FonctionFeuilleService.objects.filter(ship=ship))
+        ordres = self._ordres_valides(request, fonctions, "fonction_", "nouvelle_fonction_ordre")
+        if ordres is None:
+            messages.error(request, "L'ordre des fonctions doit être un nombre entier : rien n'a été enregistré.")
+            return
+        ordres, ordre_nouveau = ordres
+        for fonction in fonctions:
             prefixe = f"fonction_{fonction.pk}_"
             if f"{prefixe}libelle" not in request.POST:
                 continue
             fonction.libelle = request.POST.get(f"{prefixe}libelle", fonction.libelle).strip()
-            fonction.ordre = int(request.POST.get(f"{prefixe}ordre") or fonction.ordre)
+            fonction.ordre = ordres[fonction.pk]
             fonction.poste_recherche = request.POST.get(f"{prefixe}poste_recherche", "").strip()
             fonction.actif = f"{prefixe}actif" in request.POST
             fonction.save()
@@ -381,7 +492,9 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         if nouveau_libelle:
             FonctionFeuilleService.objects.create(
                 ship=ship, libelle=nouveau_libelle,
-                ordre=int(request.POST.get("nouvelle_fonction_ordre") or 0),
+                ordre=ordre_nouveau,
                 poste_recherche=request.POST.get("nouvelle_fonction_poste_recherche", "").strip(),
             )
-        messages.success(request, "Fonctions de service enregistrées.")
+        messages.success(
+            request, "Fonctions de service enregistrées (les feuilles déjà créées ne changent pas ; un brouillon peut être resynchronisé)."
+        )

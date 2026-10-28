@@ -1,4 +1,4 @@
-"""Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié, frise « Ma journée » et bloc « Supervision »."""
+"""Données de la page « Aujourd'hui » (docs/UX.md §9.1) : « À faire » trié, frise « Ma journée » et bloc « Mon périmètre »."""
 from datetime import datetime, time, timedelta
 from types import SimpleNamespace
 
@@ -11,13 +11,14 @@ from assets.models import Asset
 from assets.proposition_article import propositions_a_viser
 from annonces.services import a_lire as annonces_a_lire
 from demandes.models import Demande
+from demandes.services import demandes_recues
 from logistics.anomalie_views import STATUT_OUVERTES, _est_chef, anomalies_visibles
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
 from maintenance.perimetre import installations_en_retard as installations_en_retard_du_perimetre, retard_q
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture, user_role_level
 from notifications.liens import liens_accessibles
 from notifications.models import Notification
 from threads.mentions import PREFIXE_MENTION
@@ -53,12 +54,14 @@ def qualifications_a_renouveler(user, aujourdhui):
 
 
 def demandes_a_traiter(user):
-    """Dossiers où `user` doit agir : responsable (hors résolu), ou déclarant quand on attend sa réponse ou sa clôture."""
-    return [
+    """Dossiers où `user` doit agir : responsable (hors résolu), déclarant quand on attend sa réponse ou sa clôture,
+    interlocuteur ajouté qui n'a pas encore répondu."""
+    propres = [
         d for d in Demande.objects.filter(Q(responsable=user) | Q(declarant=user)).exclude(etat=Demande.ETAT_CLOS)
         if (d.responsable_id == user.pk and d.etat != Demande.ETAT_RESOLU)
         or (d.declarant_id == user.pk and d.etat in (Demande.ETAT_EN_ATTENTE, Demande.ETAT_RESOLU))
     ]
+    return propres + list(demandes_recues(user))
 
 
 def reponses_attendues(user):
@@ -241,7 +244,7 @@ LIGNES_SUPERVISION = 5
 
 
 def peut_superviser(user):
-    """Bloc « Supervision » : seuil de rôle configurable par navire, et un périmètre à superviser."""
+    """Bloc « Mon périmètre » : seuil de rôle configurable par navire, et un périmètre à superviser."""
     if user_role_level(user) < niveau_requis_pour(user, "supervision_aujourdhui"):
         return False
     return is_master_admin(user) or bool(scope_filters_for_user(user))
@@ -287,7 +290,7 @@ def supervision(user, aujourdhui):
     retards_total, actives = retards.count(), occurrences.count()
     liaisons = ("asset", "installation_maintenance__installation")
     # Même règle que la fiche d'exécution : assigné, ou seuil de gestion des maintenances d'autrui.
-    gere_les_tiers = user_role_level(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers")
+    gere_les_tiers = niveau_ecriture(user) >= niveau_requis_pour(user, "maintenance_occurrence_gestion_tiers")
     lignes_retard = [
         {
             "titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]),
@@ -299,7 +302,8 @@ def supervision(user, aujourdhui):
     lignes_validation = [
         {
             "titre": occ.titre_affiche, "url": reverse("occurrence-execute", args=[occ.pk]),
-            "detail": f"Prévue le {occ.scheduled_for:%d/%m}",
+            # Le ticket correctif n'est ouvert automatiquement que pour un matériel, pas pour une installation.
+            "detail": f"Prévue le {occ.scheduled_for:%d/%m} · Non conforme" + (" : un ticket correctif est ouvert" if occ.asset_id else ""),
             "peut_valider": gere_les_tiers or user in occ.assignees.all(),
         }
         for occ in en_attente.select_related(*liaisons).prefetch_related("assignees").order_by("scheduled_for")[:LIGNES_SUPERVISION]
@@ -321,7 +325,7 @@ def supervision(user, aujourdhui):
             statut="PENDING_APPROVAL", hierarchie_validee_par__isnull=True,
             marin_id__in=_marins_perimetre_hierarchie(user).values("pk"),
         ).count()
-        if user_role_level(user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE else 0
+        if niveau_ecriture(user) >= NIVEAU_REQUIS_VALIDATION_HIERARCHIE_CANDIDATURE else 0
     )
     # Installation sans statut propre : une installation critique dont une échéance est en retard compte comme indisponible.
     installations_en_retard = installations_en_retard_du_perimetre(user, aujourdhui).filter(critique=True).count()

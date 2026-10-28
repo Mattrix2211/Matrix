@@ -119,7 +119,7 @@ class AutorisationPerimetreTests(TestCase):
         ChefDeListe.objects.create(user=self.chef_de_liste, sector=self.sector)
 
         self.commandant = User.objects.create_user(username="commandant_quarts", password="pass")
-        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT"})
+        UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
         # Le signal de création automatique du profil (accounts/models.py) met en
         # cache un profil EQUIPIER par défaut sur l'instance créée dans ce même
         # process ; on recharge depuis la base pour repartir d'un profil non
@@ -137,8 +137,9 @@ class AutorisationPerimetreTests(TestCase):
     def test_equipier_non_designe_nest_jamais_autorise(self):
         self.assertFalse(utilisateur_autorise_pour_perimetre(self.equipier, sector=self.sector))
 
-    def test_commandant_passe_outre_sans_designation(self):
-        self.assertTrue(utilisateur_autorise_pour_perimetre(self.commandant, ship=self.autre_ship))
+    def test_commandant_passe_outre_sans_designation_sur_son_batiment_seulement(self):
+        self.assertTrue(utilisateur_autorise_pour_perimetre(self.commandant, ship=self.ship))
+        self.assertFalse(utilisateur_autorise_pour_perimetre(self.commandant, ship=self.autre_ship))
 
     def test_peut_gerer_liste_reutilise_la_meme_regle(self):
         quart = Quart.objects.create(sector=self.sector, date_debut=timezone.localdate(), date_fin=timezone.localdate())

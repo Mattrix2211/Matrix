@@ -1,3 +1,4 @@
+from datetime import timedelta
 from itertools import groupby
 
 from django.db.models import Q
@@ -24,20 +25,27 @@ from quarts.echanges import peut_valider_echange
 from annonces.models import ParametresAnnonces
 from taches.models import ParametresTaches
 from dashboard.passation import generer_passation_manuelle, passation_activee, peut_generer_passation, syntheses_visibles
-from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, ParametresPassation
+from org.models import Ship, Service, Sector, Section, RoleThresholdConfig, ResponsableClasseNavire, ModuleActivation, ParametresPassation, PeriodeEquipage
+from django.utils import timezone
 from django.contrib import messages
+from matrix.core.saisie import entier_ou_none, identifiant_d_url
 from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import is_master_admin, ship_id_for_user
-from matrix.core.equipage import ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, decider_releve, erreur_secours_releve, marins_sans_equipage, proposer_releve, releve_en_attente, valider_releve_secours
+from matrix.core.equipage import (
+    ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, annuler_releve_planifiee, changer_fuseau, decider_releve,
+    equipage_a_bord, erreur_secours_releve, marins_sans_equipage, peut_annuler_releve_planifiee, peut_changer_fuseau,
+    proposer_releve,
+    releve_en_attente, releve_planifiee, valider_releve_secours,
+)
+from matrix.core.fuseau import MESSAGE_FUSEAU_OBLIGATOIRE, champ_local, formater, fuseau_herite, fuseau_valide, fuseaux_disponibles, libelle_fuseau, lire_champ_local, nom_fuseau
 from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.role_thresholds import (
-    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, invalidate_cache, niveau_requis_pour,
+    REGISTRE_ACTIONS, REGISTRE_PAR_CLE, PORTEE_GLOBALE, seuil_role, niveau_requis_pour,
 )
 from matrix.core.modules import (
     REGISTRE_MODULES, REGISTRE_PAR_CLE as MODULES_PAR_CLE, module_actif, module_actif_pour_user,
-    invalidate_cache as invalidate_modules_cache,
 )
 
 # Options du menu déroulant "nouveau seuil" de l'onglet Sécurité (Réglages) :
@@ -81,17 +89,35 @@ def _lignes_modules(ship_id):
     ]
 
 
+# Le fuseau n'est pas une action de relève : l'équipage à terre ne peut pas le modifier (middleware).
+ACTIONS_ONGLET_EQUIPAGE = (*ACTIONS_RELEVE, 'modifier_fuseau')
+
+
+def _message_validation(proposition, navire, secours=False):
+    """Message de succès d'une validation : relève appliquée tout de suite ou planifiée."""
+    proposition.refresh_from_db()
+    debut = "Relève validée en secours" if secours else "Relève validée"
+    if proposition.statut == proposition.Statut.PLANIFIEE:
+        return (
+            f"{debut} : l'équipage {proposition.equipage_propose} sera à bord de {navire.name} "
+            f"à compter du {formater(navire, proposition.date_effet)}."
+        )
+    return f"{debut} : l'équipage {proposition.equipage_propose} est à bord de {navire.name}."
+
+
 def _lignes_equipage(navire, utilisateur):
     """Données de l'onglet Équipage des Réglages : équipage à bord, équipages connus, marins sans équipage."""
     if navire is None:
         return {'equipage_ship': None}
     codes = UserProfile.objects.filter(ship=navire).exclude(equipage='').values_list(
         'equipage', flat=True).distinct().order_by('equipage')
+    a_bord = equipage_a_bord(navire)
     releve = releve_en_attente(navire)
+    planifiee = releve_planifiee(navire)
     marins = User.objects.filter(is_active=True, profile__ship=navire).exclude(profile__equipage='').select_related('profile').order_by(
         'profile__equipage', 'last_name', 'username')
     effectifs = [
-        {'code': code, 'a_bord': code == navire.equipage_a_bord, 'marins': list(groupe)}
+        {'code': code, 'a_bord': code == a_bord, 'marins': list(groupe)}
         for code, groupe in groupby(marins, key=lambda m: m.profile.equipage)
     ]
     return {
@@ -99,7 +125,18 @@ def _lignes_equipage(navire, utilisateur):
         'equipage_codes': list(codes),
         'equipage_effectifs': effectifs,
         'equipage_sans': list(marins_sans_equipage(navire)),
+        'equipage_a_bord': a_bord,
         'releve': releve,
+        'releve_planifiee': planifiee,
+        'releve_annulable': bool(planifiee) and peut_annuler_releve_planifiee(utilisateur, planifiee),
+        'fuseau_libelle': libelle_fuseau(navire),
+        'fuseau_herite': fuseau_herite(navire),
+        'fuseau_nom': nom_fuseau(navire),
+        'fuseaux': fuseaux_disponibles(),
+        'peut_changer_fuseau': peut_changer_fuseau(utilisateur, navire),
+        'date_effet_min': champ_local(navire, timezone.now()),
+        'date_effet_defaut': champ_local(navire, timezone.now() + timedelta(minutes=5)),
+        'periodes_equipage': list(PeriodeEquipage.objects.filter(ship=navire)[:5]),
         'equipage_commandant': getattr(getattr(utilisateur, 'profile', None), 'role', '') in ROLES_COMMANDEMENT,
         'releve_secours': bool(releve) and not erreur_secours_releve(utilisateur, releve),
         'passation_activee': passation_activee(),
@@ -290,7 +327,7 @@ class SettingsView(LoginRequiredMixin, View):
                 request.method == 'POST' and action == 'toggle_module' and peut_gerer_modules
             )
             # Le droit des commandants est revérifié dans post().
-            action_equipage_ok = request.method == 'POST' and action in ACTIONS_RELEVE
+            action_equipage_ok = request.method == 'POST' and action in ACTIONS_ONGLET_EQUIPAGE
             if not (
                 tab_ok or action_notif_ok or action_seuil_ok or action_responsable_ok or action_module_ok
                 or action_equipage_ok
@@ -340,7 +377,7 @@ class SettingsView(LoginRequiredMixin, View):
             if active_tab == 'equipage' and is_master_admin(request.user):
                 # Administrateur général de rôle : choix d'un navire à double équipage.
                 navires = Ship.objects.filter(double_equipage=True).order_by('name')
-                choisi = navires.filter(pk=request.GET.get('ship') or None).first() or navires.first()
+                choisi = navires.filter(pk=identifiant_d_url(request.GET.get('ship'))).first() or navires.first()
                 context.update({'ships': navires, **_lignes_equipage(choisi, request.user)})
             elif active_tab == 'equipage':
                 context.update(_lignes_equipage(profile.ship, request.user))
@@ -395,7 +432,7 @@ class SettingsView(LoginRequiredMixin, View):
 
         # Sélecteur de navire pour paramétrer services/secteurs/sections
         ships_qs = Ship.objects.order_by('name')
-        selected_ship_id = request.GET.get('ship')
+        selected_ship_id = identifiant_d_url(request.GET.get('ship'))
         selected_ship = None
         if selected_ship_id:
             try:
@@ -434,6 +471,7 @@ class SettingsView(LoginRequiredMixin, View):
             'global_vib_days_c': global_vib_days_c,
             'ships': ships_qs,
             'type_unite_choices': Ship.TypeUnite.choices,
+            'fuseaux': fuseaux_disponibles(),
             'selected_ship': selected_ship,
             'services': services_qs.order_by('name'),
             'sectors': sectors_qs.order_by('service__name','name'),
@@ -495,7 +533,7 @@ class SettingsView(LoginRequiredMixin, View):
     def post(self, request):
         action = request.POST.get('action')
         next_tab = request.POST.get('next_tab') or 'utilisateurs'
-        selected_ship_id = request.POST.get('selected_ship') or request.POST.get('ship_id') or request.GET.get('ship')
+        selected_ship_id = entier_ou_none(request.POST.get('selected_ship') or request.POST.get('ship_id') or request.GET.get('ship'))
         selected_installation_id = None
         name = request.POST.get('name', '').strip()
         if action == 'add_grade' and name:
@@ -518,20 +556,25 @@ class SettingsView(LoginRequiredMixin, View):
             code = request.POST.get('code', '').strip()
             type_unite = request.POST.get('type_unite') or Ship.TypeUnite.NAVIRE
             classe_navire = request.POST.get('classe_navire', '').strip()
-            if code:
+            fuseau = request.POST.get('fuseau_horaire', '').strip()
+            if code and not fuseau_valide(fuseau):
+                messages.error(request, MESSAGE_FUSEAU_OBLIGATOIRE)
+            elif code:
                 Ship.objects.get_or_create(
                     name=name, code=code,
-                    defaults={'type_unite': type_unite, 'classe_navire': classe_navire},
+                    defaults={'type_unite': type_unite, 'classe_navire': classe_navire, 'fuseau_horaire': fuseau},
                 )
                 messages.success(request, "Unité ajoutée.")
-                AuditLog.objects.create(actor=request.user, action='add_ship', details=f'name={name}; code={code}')
+                AuditLog.objects.create(
+                    actor=request.user, action='add_ship', details=f'name={name}; code={code}; fuseau_horaire={fuseau}'
+                )
         elif action == 'delete_ship':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Ship.objects.filter(pk=pk).delete()
             messages.success(request, "Unité supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_ship', details=f'pk={pk}')
         elif action == 'edit_ship':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             name = request.POST.get('name', '').strip()
             code = request.POST.get('code', '').strip()
             type_unite = request.POST.get('type_unite')
@@ -547,24 +590,29 @@ class SettingsView(LoginRequiredMixin, View):
                 if type_unite:
                     sh.type_unite = type_unite
                 sh.classe_navire = classe_navire
-                sh.save()
+                sh.save(update_fields=['name', 'code', 'type_unite', 'classe_navire', 'updated_at'])
                 messages.success(request, "Unité mise à jour.")
                 AuditLog.objects.create(actor=request.user, action='edit_ship', details=f'pk={pk}')
             except Ship.DoesNotExist:
                 pass
         elif action == 'duplicate_ship':
-            src_pk = request.POST.get('source_pk')
+            src_pk = entier_ou_none(request.POST.get('source_pk'))
             name = request.POST.get('name', '').strip()
             code = request.POST.get('code', '').strip()
+            fuseau = request.POST.get('fuseau_horaire', '').strip()
             try:
                 src_ship = Ship.objects.get(pk=src_pk)
                 if not name or not code:
                     raise ValueError("Nom et code requis pour dupliquer.")
+                if not fuseau_valide(fuseau):
+                    messages.error(request, MESSAGE_FUSEAU_OBLIGATOIRE)
+                    raise ValueError("Fuseau horaire obligatoire.")
                 # Crée la nouvelle unité, en reprenant le type et la classe de l'unité
                 # source (des unités dupliquées sont généralement des navires « sister-
                 # ship » de même classe).
                 new_ship = Ship.objects.create(
                     name=name, code=code, type_unite=src_ship.type_unite, classe_navire=src_ship.classe_navire,
+                    fuseau_horaire=fuseau,
                 )
                 # Map des services et secteurs pour rattacher correctement
                 service_map = {}
@@ -590,7 +638,7 @@ class SettingsView(LoginRequiredMixin, View):
                 pass
         elif action == 'add_service':
             name = request.POST.get('name','').strip()
-            ship_id = request.POST.get('ship_id') or request.GET.get('ship') or request.POST.get('selected_ship')
+            ship_id = entier_ou_none(request.POST.get('ship_id') or request.GET.get('ship') or request.POST.get('selected_ship'))
             if name and ship_id:
                 try:
                     ship = Ship.objects.get(pk=ship_id)
@@ -600,12 +648,12 @@ class SettingsView(LoginRequiredMixin, View):
                 except Ship.DoesNotExist:
                     pass
         elif action == 'delete_service':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Service.objects.filter(pk=pk).delete()
             messages.success(request, "Service supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_service', details=f'pk={pk}')
         elif action == 'add_sector':
-            service_id = request.POST.get('service_id')
+            service_id = entier_ou_none(request.POST.get('service_id'))
             if name and service_id:
                 try:
                     service = Service.objects.get(pk=service_id)
@@ -615,12 +663,12 @@ class SettingsView(LoginRequiredMixin, View):
                 except Service.DoesNotExist:
                     pass
         elif action == 'delete_sector':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Sector.objects.filter(pk=pk).delete()
             messages.success(request, "Secteur supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_sector', details=f'pk={pk}')
         elif action == 'add_section':
-            sector_id = request.POST.get('sector_id')
+            sector_id = entier_ou_none(request.POST.get('sector_id'))
             if name and sector_id:
                 try:
                     sector = Sector.objects.get(pk=sector_id)
@@ -630,7 +678,7 @@ class SettingsView(LoginRequiredMixin, View):
                 except Sector.DoesNotExist:
                     pass
         elif action == 'delete_section':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             Section.objects.filter(pk=pk).delete()
             messages.success(request, "Section supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_section', details=f'pk={pk}')
@@ -643,18 +691,18 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.success(request, "Disponibilité du rôle mise à jour.")
                 AuditLog.objects.create(actor=request.user, action='toggle_role', details=f'code={code}; active={opt.active}')
         elif action == 'delete_grade':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             GradeChoice.objects.filter(pk=pk).delete()
             messages.success(request, "Grade supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_grade', details=f'pk={pk}')
         elif action == 'delete_specialite':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             SpecialityChoice.objects.filter(pk=pk).delete()
             messages.success(request, "Spécialité supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_specialite', details=f'pk={pk}')
         elif action == 'add_responsable_specialite':
-            specialite_id = request.POST.get('specialite_id')
-            user_id = request.POST.get('user_id')
+            specialite_id = entier_ou_none(request.POST.get('specialite_id'))
+            user_id = entier_ou_none(request.POST.get('user_id'))
             try:
                 specialite = SpecialityChoice.objects.get(pk=specialite_id)
                 marin = utilisateurs_visibles_par(request.user).get(pk=user_id)
@@ -673,12 +721,12 @@ class SettingsView(LoginRequiredMixin, View):
             except (SpecialityChoice.DoesNotExist, User.DoesNotExist, ValueError):
                 messages.error(request, "Spécialité ou marin introuvable.")
         elif action == 'retirer_responsable_specialite':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             ResponsableSpecialite.objects.filter(pk=pk, user__in=utilisateurs_visibles_par(request.user)).delete()
             messages.success(request, "Responsable de spécialité retiré.")
             AuditLog.objects.create(actor=request.user, action='retirer_responsable_specialite', details=f'pk={pk}')
         elif action == 'add_responsable_classe' and name:
-            user_id = request.POST.get('user_id')
+            user_id = entier_ou_none(request.POST.get('user_id'))
             try:
                 marin = utilisateurs_visibles_par(request.user).get(pk=user_id)
                 _, cree = ResponsableClasseNavire.objects.get_or_create(classe_navire=name, user=marin)
@@ -696,12 +744,12 @@ class SettingsView(LoginRequiredMixin, View):
             except (User.DoesNotExist, ValueError):
                 messages.error(request, "Marin introuvable.")
         elif action == 'retirer_responsable_classe':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             ResponsableClasseNavire.objects.filter(pk=pk, user__in=utilisateurs_visibles_par(request.user)).delete()
             messages.success(request, "Responsable de classe de navire retiré.")
             AuditLog.objects.create(actor=request.user, action='retirer_responsable_classe', details=f'pk={pk}')
         elif action == 'delete_fonction':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             try:
                 ServiceFunctionChoice.objects.filter(pk=pk).delete()
                 messages.success(request, "Fonction supprimée.")
@@ -713,7 +761,7 @@ class SettingsView(LoginRequiredMixin, View):
                 # usage, cf. correction de cadrage du 09/09/2026.
                 messages.error(request, "Impossible de supprimer : cette fonction est utilisée par au moins une liste de services de garde.")
         elif action == 'delete_fonction_quart':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             try:
                 FonctionQuartChoice.objects.filter(pk=pk).delete()
                 messages.success(request, "Fonction de quart supprimée.")
@@ -725,12 +773,12 @@ class SettingsView(LoginRequiredMixin, View):
             messages.success(request, "Bigrame ajouté.")
             AuditLog.objects.create(actor=request.user, action='add_bigrame', details=f'name={name}')
         elif action == 'delete_bigrame':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             InstallationBigrameChoice.objects.filter(pk=pk).delete()
             messages.success(request, "Bigrame supprimé.")
             AuditLog.objects.create(actor=request.user, action='delete_bigrame', details=f'pk={pk}')
         elif action == 'toggle_bigrame':
-            pk = request.POST.get('pk')
+            pk = entier_ou_none(request.POST.get('pk'))
             try:
                 bg = InstallationBigrameChoice.objects.get(pk=pk)
                 bg.active = not bg.active
@@ -768,7 +816,7 @@ class SettingsView(LoginRequiredMixin, View):
                 if action_seuil.portee == PORTEE_GLOBALE:
                     ship = None
                 elif request.user.is_superuser:
-                    ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                    ship = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
                 else:
                     ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
                 if ship is None and action_seuil.portee != PORTEE_GLOBALE:
@@ -784,7 +832,6 @@ class SettingsView(LoginRequiredMixin, View):
                             ancien = config.thresholds.get(cle_action) or action_seuil.defaut.name
                             config.thresholds[cle_action] = nouveau_role
                             config.save(update_fields=['thresholds', 'updated_at'])
-                            invalidate_cache(ship.id if ship else None)
                             AuditLog.objects.create(
                                 actor=request.user, action='update_role_threshold',
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> {nouveau_role}",
@@ -794,7 +841,6 @@ class SettingsView(LoginRequiredMixin, View):
                         if cle_action in config.thresholds:
                             ancien = config.thresholds.pop(cle_action)
                             config.save(update_fields=['thresholds', 'updated_at'])
-                            invalidate_cache(ship.id if ship else None)
                             AuditLog.objects.create(
                                 actor=request.user, action='reset_role_threshold',
                                 details=f"navire={cible}; action={cle_action}; {ancien} -> défaut ({action_seuil.defaut.name})",
@@ -880,7 +926,7 @@ class SettingsView(LoginRequiredMixin, View):
                 messages.error(request, "Module inconnu.")
             else:
                 if request.user.is_superuser:
-                    ship = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                    ship = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
                 else:
                     ship = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
                 if ship is None:
@@ -891,7 +937,6 @@ class SettingsView(LoginRequiredMixin, View):
                     )
                     etat.active = not etat.active
                     etat.save(update_fields=['active', 'updated_at'])
-                    invalidate_modules_cache(ship.id)
                     AuditLog.objects.create(
                         actor=request.user, action='toggle_module',
                         details=f"navire={ship.name}; module={cle_module}; actif={etat.active}",
@@ -901,11 +946,11 @@ class SettingsView(LoginRequiredMixin, View):
                         f"Module « {module_info.libelle} » "
                         f"{'activé' if etat.active else 'désactivé'} pour {ship.name}.",
                     )
-        elif action in ACTIONS_RELEVE:
+        elif action in ACTIONS_ONGLET_EQUIPAGE:
             # Relève : proposée par un commandant, appliquée à la validation de l'autre.
             next_tab = 'equipage'
             if is_master_admin(request.user):
-                navire = Ship.objects.filter(pk=request.POST.get('ship_id')).first()
+                navire = Ship.objects.filter(pk=entier_ou_none(request.POST.get('ship_id'))).first()
             else:
                 navire = Ship.objects.filter(pk=ship_id_for_user(request.user)).first()
             if navire is None:
@@ -914,11 +959,22 @@ class SettingsView(LoginRequiredMixin, View):
             if action == 'proposer_releve':
                 nouvel = (request.POST.get('equipage') or '').strip()
                 connu = UserProfile.objects.filter(ship=navire, equipage=nouvel).exists()
-                if not connu:
+                date_effet, erreur = lire_champ_local(navire, request.POST.get('date_effet'))
+                if not erreur and not connu:
                     erreur = "Équipage inconnu sur cette unité."
-                else:
-                    proposition, erreur = proposer_releve(request.user, navire, nouvel)
+                if not erreur:
+                    proposition, erreur = proposer_releve(request.user, navire, nouvel, date_effet)
                 succes = "Relève proposée : l'autre commandant doit la valider."
+            elif action == 'modifier_fuseau':
+                erreur = changer_fuseau(request.user, navire, request.POST.get('fuseau_horaire'))
+                succes = "Fuseau horaire du bâtiment enregistré ; les relèves déjà enregistrées ne sont pas modifiées."
+            elif action == 'annuler_releve_planifiee':
+                planifiee = releve_planifiee(navire)
+                if planifiee is None:
+                    erreur, succes = "Aucune relève planifiée (elle a peut-être déjà été appliquée).", ""
+                else:
+                    erreur = annuler_releve_planifiee(request.user, planifiee, request.POST.get('motif'))
+                    succes = "Relève planifiée annulée ; l'autre commandant est prévenu."
             elif action == 'generer_passation':
                 synthese, erreur = generer_passation_manuelle(request.user, navire)
                 succes = "Synthèse de passation disponible." if synthese else ""
@@ -930,11 +986,11 @@ class SettingsView(LoginRequiredMixin, View):
                 erreur, succes = annuler_releve(request.user, proposition), "Proposition annulée."
             elif action == 'valider_releve_secours':
                 erreur = valider_releve_secours(request.user, proposition, request.POST.get('motif'))
-                succes = f"Relève validée en secours : l'équipage {proposition.equipage_propose} est à bord de {navire.name}."
+                succes = _message_validation(proposition, navire, secours=True)
             else:
                 accepter = request.POST.get('decision') == 'valider'
                 erreur = decider_releve(request.user, proposition, accepter)
-                succes = f"Relève validée : l'équipage {proposition.equipage_propose} est à bord de {navire.name}." if accepter else "Relève refusée."
+                succes = _message_validation(proposition, navire) if accepter else "Relève refusée."
             if erreur:
                 messages.error(request, erreur)
             else:

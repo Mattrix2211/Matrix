@@ -1,9 +1,11 @@
 """Annonces : ciblage par périmètre, publication selon le seuil, diffusion, accusé de lecture, versions."""
+import threading
 from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.db import connection
+from django.test import Client, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -187,3 +189,116 @@ class VisibiliteTemporelleTests(AnnoncesBase):
         services.archiver(self.cdt, annonce)
         with self.assertRaises(ValidationError):
             services.accuser(self.marin, annonce)
+
+
+class ModificationsSimultaneesTests(AnnoncesBase):
+    def test_version_perimee_refusee_sans_rien_ecraser(self):
+        annonce = services.publier(self.cdt, "Consigne", "v1", "info", f"ship:{self.navire.pk}")
+        services.modifier(self.cdt, annonce, "Titre A", "corps A", "info", version_vue=1)
+        autre = Annonce.objects.get(pk=annonce.pk)
+        with self.assertRaises(services.ConflitVersion):
+            services.modifier(self.cdt, autre, "Titre B", "corps B", "info", version_vue=1)
+        annonce.refresh_from_db()
+        self.assertEqual((annonce.version, annonce.titre, annonce.versions.count()), (2, "Titre A", 2))
+
+    def test_page_reaffiche_la_saisie_apres_conflit(self):
+        annonce = services.publier(self.cdt, "Consigne", "v1", "info", f"ship:{self.navire.pk}")
+        services.modifier(self.cdt, annonce, "Titre A", "corps A", "info")
+        self.client.force_login(self.cdt)
+        reponse = self.client.post(reverse("annonce-action", args=[annonce.pk]), {
+            "action": "modifier", "version": "1", "titre": "Titre B", "corps": "corps B", "niveau": "info"})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, "modifiée entre-temps")
+        self.assertContains(reponse, 'value="Titre B"')
+        self.assertContains(reponse, 'name="version" value="2"')
+        annonce.refresh_from_db()
+        self.assertEqual((annonce.titre, annonce.version), ("Titre A", 2))
+
+    def test_formulaire_sans_version_refuse(self):
+        annonce = services.publier(self.cdt, "Consigne", "v1", "info", f"ship:{self.navire.pk}")
+        self.client.force_login(self.cdt)
+        reponse = self.client.post(reverse("annonce-action", args=[annonce.pk]), {
+            "action": "modifier", "titre": "T", "corps": "c", "niveau": "info"})
+        self.assertEqual(reponse.status_code, 302)
+        annonce.refresh_from_db()
+        self.assertEqual(annonce.version, 1)
+
+
+class ModificationsConcurrentesTests(TransactionTestCase):
+    """Vraies connexions concurrentes : propre à PostgreSQL, SQLite verrouillant la base entière."""
+
+    def _lancer(self, fonctions):
+        resultats = [None] * len(fonctions)
+        barriere = threading.Barrier(len(fonctions))
+
+        def executer(i, fonction):
+            try:
+                barriere.wait()
+                resultats[i] = fonction()
+            except Exception as exc:  # remonté dans le thread principal
+                resultats[i] = exc
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=executer, args=(i, f)) for i, f in enumerate(fonctions)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        return resultats
+
+    def _annonce(self):
+        navire = Ship.objects.create(name="Concurrence", code="CO")
+        cdt = User.objects.create_user(username="cdt_co", password="pass")
+        # Équipage renseigné : sans lui, le filtre de ciblage échoue sur PostgreSQL (ANO-001, corrigé à part).
+        cdt.profile.role, cdt.profile.ship, cdt.profile.equipage = "COMMANDANT", navire, "A"
+        cdt.profile.save()
+        return cdt, services.publier(cdt, "Consigne", "v1", "info", f"ship:{navire.pk}")
+
+    def _coherent(self, annonce, attendu):
+        annonce.refresh_from_db()
+        derniere = annonce.versions.first()
+        self.assertEqual(annonce.version, attendu)
+        self.assertEqual((derniere.numero, derniere.titre, derniere.corps), (annonce.version, annonce.titre, annonce.corps))
+        self.assertEqual(sorted(annonce.versions.values_list("numero", flat=True)), list(range(1, attendu + 1)))
+
+    def test_deux_modifications_depuis_la_meme_version_une_seule_gagne(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Concurrence réelle testée sur PostgreSQL seulement.")
+        cdt, annonce = self._annonce()
+
+        def modification(nom):
+            return lambda: services.modifier(
+                cdt, Annonce.objects.get(pk=annonce.pk), f"Titre {nom}", f"corps {nom}", "info", version_vue=1)
+
+        resultats = self._lancer([modification("A"), modification("B")])
+        self.assertEqual(sum(isinstance(r, Annonce) for r in resultats), 1, resultats)
+        self.assertEqual(sum(isinstance(r, services.ConflitVersion) for r in resultats), 1, resultats)
+        self._coherent(annonce, 2)
+
+    def test_modifications_sans_version_vue_s_enchainent(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Concurrence réelle testée sur PostgreSQL seulement.")
+        cdt, annonce = self._annonce()
+        resultats = self._lancer([
+            (lambda n=n: services.modifier(cdt, Annonce.objects.get(pk=annonce.pk), f"Titre {n}", f"corps {n}", "info"))
+            for n in range(4)])
+        self.assertTrue(all(isinstance(r, Annonce) for r in resultats), resultats)
+        self._coherent(annonce, 5)
+
+    def test_formulaires_http_concurrents_pas_de_500(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("Concurrence réelle testée sur PostgreSQL seulement.")
+        cdt, annonce = self._annonce()
+
+        def envoi(nom):
+            def poster():
+                client = Client()
+                client.force_login(cdt)
+                return client.post(reverse("annonce-action", args=[annonce.pk]), {
+                    "action": "modifier", "version": "1", "titre": f"Titre {nom}", "corps": f"corps {nom}", "niveau": "info"}).status_code
+            return poster
+
+        codes = self._lancer([envoi("A"), envoi("B")])
+        self.assertEqual(sorted(codes), [200, 302])
+        self._coherent(annonce, 2)

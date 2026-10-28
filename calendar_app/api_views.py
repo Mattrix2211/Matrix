@@ -10,11 +10,11 @@ from django.utils import timezone
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
-from matrix.core.roles import user_role_level, RoleLevel
+from matrix.core.roles import niveau_ecriture, RoleLevel
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import assignes_equipage_q
 from matrix.core.icones import classe_icone
-from taches.services import peut_attribuer
+from taches.services import peut_superviser
 from programme.services import evenements_periode as evenements_programme
 from .deplacement_views import _perimetre_session
 from .sources import CONCEPT_ICONE_PAR_TYPE, COULEUR_PAR_TYPE
@@ -26,8 +26,11 @@ from .evenements_sources import (
     _creneaux_quart_assignes,
     _evenements_personnels,
     evenements_equipe,
+    occurrences_visibles,
+    tickets_visibles,
     sessions_visibles,
     _peut_agir_occurrence,
+    filtre_identifiant_invalide,
     _peut_agir_ticket,
     _rondes_a_faire,
     _taches_a_faire,
@@ -118,9 +121,12 @@ def calendar_events(request):
         "type": request.GET.get("type") or None,
         "status": request.GET.get("status") or None,
     }
+    invalide = filtre_identifiant_invalide(filters)
+    if invalide:
+        return JsonResponse({"detail": f"Filtre « {invalide} » invalide : un identifiant numérique est attendu."}, status=400)
     # « Mon équipe » : valeur spéciale du filtre Utilisateur, réservée à qui peut attribuer des tâches.
     if filters.get("user") == "equipe":
-        if not peut_attribuer(request.user):
+        if not peut_superviser(request.user):
             raise PermissionDenied
         equipe = evenements_equipe(request.user, start, end, _couleur_evenement)
         for evenement in equipe:
@@ -129,7 +135,7 @@ def calendar_events(request):
                 evenement["extendedProps"]["icone"] = classe_icone(concept)
         return JsonResponse(equipe, safe=False)
     events = []
-    niveau_role = user_role_level(request.user)
+    niveau_role = niveau_ecriture(request.user)
     # Occurrences de maintenance préventive : matériel mobile (asset) ou installation fixe.
     occ_qs = MaintenanceOccurrence.objects.select_related(
         "asset", "asset__ship", "asset__service", "asset__sector",
@@ -140,7 +146,7 @@ def calendar_events(request):
     ).prefetch_related("assignees").filter(
         assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
     )
-    occ_qs = _appliquer_filtres_occurrences(occ_qs, filters)
+    occ_qs = _appliquer_filtres_occurrences(occurrences_visibles(request.user, occ_qs), filters)
     if filters.get("status"):
         occ_qs = occ_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "maintenance":
@@ -171,7 +177,7 @@ def calendar_events(request):
     # Tickets correctifs planifiés
     ticket_qs = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=["CLOSED", "CANCELLED"])
     ticket_qs = ticket_qs.filter(assignes_equipage_q(request.user, CorrectiveTicket, "assignees"))
-    ticket_qs = _appliquer_filtres_tickets(ticket_qs, filters)
+    ticket_qs = _appliquer_filtres_tickets(tickets_visibles(request.user, ticket_qs), filters)
     if filters.get("status"):
         ticket_qs = ticket_qs.filter(status=filters["status"])
     if filters.get("type") and filters["type"] != "ticket":

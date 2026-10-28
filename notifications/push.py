@@ -8,6 +8,7 @@ n'est nécessaire pour l'envoi lui-même.
 """
 import json
 import logging
+import time
 
 from django.conf import settings
 
@@ -70,7 +71,13 @@ def envoyer_notification_push(notification):
         "url": _url_notification(notification),
     })
 
+    # Budget global : un endpoint injoignable ne doit pas bloquer l'action métier.
+    echeance = time.monotonic() + settings.WEBPUSH_DELAI_MAX
     for abonnement in PushSubscription.objects.filter(user=notification.user):
+        restant = echeance - time.monotonic()
+        if restant <= 0:
+            logger.warning("Envoi Web Push abandonné (délai maximal atteint) pour la notification %s", notification.pk)
+            break
         subscription_info = {
             "endpoint": abonnement.endpoint,
             "keys": {"p256dh": abonnement.p256dh, "auth": abonnement.auth},
@@ -81,6 +88,7 @@ def envoyer_notification_push(notification):
                 data=payload,
                 vapid_private_key=settings.VAPID_PRIVATE_KEY,
                 vapid_claims={"sub": f"mailto:{settings.VAPID_ADMIN_EMAIL}"},
+                timeout=restant,
             )
         except WebPushException as exc:
             statut = getattr(exc.response, "status_code", None)

@@ -23,6 +23,7 @@ from dashboard.web_views import _agrege_maintenance_ticket_stock
 from demandes.models import Demande
 from logistics.models import STATUTS_ANOMALIE_OUVERTS, STATUTS_TICKET_OUVERTS, Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
+from matrix.core.equipage import equipage_a_bord
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, user_role_level
 from matrix.core.scopes import is_master_admin, navire_q
 from notifications.models import Notification
@@ -30,7 +31,7 @@ from org.models import ParametresPassation, ReleveEquipage, SynthesePassation
 from quarts.models import Quart, ServiceGarde
 from reports.services import html_vers_pdf, pdf_disponible
 from taches.models import Tache
-from taches.services import peut_attribuer
+from taches.services import peut_superviser
 
 JOURS_A_VENIR = 14
 LIGNES_PAR_GROUPE = 30
@@ -60,7 +61,7 @@ def syntheses_visibles(user):
     du_navire = SynthesePassation.objects.filter(ship_id=navire_id)
     if user_role_level(user) >= NIVEAU_VISION_COMMANDEMENT:
         return du_navire
-    if profil.equipage and peut_attribuer(user):
+    if profil.equipage and peut_superviser(user):
         return du_navire.filter(Q(equipage_sortant=profil.equipage) | Q(equipage_montant=profil.equipage))
     return SynthesePassation.objects.none()
 
@@ -211,7 +212,7 @@ def _demandes(navire):
                "attention" if d.priorite == Demande.PRIORITE_URGENTE else "")
         for d in en_cours
     ]
-    return _bloc("demandes", "Demandes bord–terre en cours", [_groupe("En cours", lignes)], "Aucune demande en cours.")
+    return _bloc("demandes", "Difficultés signalées en cours", [_groupe("En cours", lignes)], "Aucune demande en cours.")
 
 
 def contenu_passation(user, navire):
@@ -239,13 +240,13 @@ def contenu_passation(user, navire):
 def releve_courante(navire):
     """Dernière relève validée qui a mis l'équipage actuel à bord, ou None."""
     return ReleveEquipage.objects.filter(
-        ship=navire, statut=ReleveEquipage.Statut.VALIDEE, equipage_propose=navire.equipage_a_bord
+        ship=navire, statut=ReleveEquipage.Statut.VALIDEE, equipage_propose=equipage_a_bord(navire)
     ).order_by("-decide_le", "-pk").first()
 
 
 def _chefs_equipage(navire, equipage):
     marins = get_user_model().objects.filter(is_active=True, profile__ship=navire, profile__equipage=equipage)
-    return [m for m in marins if peut_attribuer(m)]
+    return [m for m in marins if peut_superviser(m)]
 
 
 def generer_passation(auteur, navire, releve, equipage_sortant):
@@ -253,7 +254,8 @@ def generer_passation(auteur, navire, releve, equipage_sortant):
 
     Idempotent : une relève a au plus une synthèse. Sans effet (None) sur un bâtiment à équipage unique.
     """
-    if not passation_activee() or not navire.double_equipage or not navire.equipage_a_bord:
+    a_bord = equipage_a_bord(navire)
+    if not passation_activee() or not navire.double_equipage or not a_bord:
         return None, False
     existante = SynthesePassation.objects.filter(releve=releve).first() if releve else None
     if existante:
@@ -261,7 +263,7 @@ def generer_passation(auteur, navire, releve, equipage_sortant):
     try:
         with transaction.atomic():
             synthese = SynthesePassation.objects.create(
-                ship=navire, releve=releve, equipage_sortant=equipage_sortant, equipage_montant=navire.equipage_a_bord,
+                ship=navire, releve=releve, equipage_sortant=equipage_sortant, equipage_montant=a_bord,
                 auteur=auteur, contenu=contenu_passation(auteur, navire),
             )
     except IntegrityError:
@@ -285,13 +287,14 @@ def generer_passation_manuelle(auteur, navire):
         return None, "La synthèse de passation est désactivée (Réglages, onglet Seuils par rôle)."
     if not peut_generer_passation(auteur, navire):
         return None, "Seul le commandement de l'unité peut générer la synthèse de passation."
-    if not navire.double_equipage or not navire.equipage_a_bord:
+    a_bord = equipage_a_bord(navire)
+    if not navire.double_equipage or not a_bord:
         return None, "Cette unité n'a pas de double équipage."
     releve = releve_courante(navire)
     if releve is None:
         return None, "Aucune relève validée n'a mis l'équipage actuel à bord : rien à passer."
     autre = (
-        UserProfile.objects.filter(ship=navire).exclude(equipage__in=("", navire.equipage_a_bord))
+        UserProfile.objects.filter(ship=navire).exclude(equipage__in=("", a_bord))
         .order_by("equipage").values_list("equipage", flat=True).first()
     )
     synthese, _ = generer_passation(auteur, navire, releve, autre or "")

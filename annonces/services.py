@@ -4,13 +4,14 @@ from datetime import datetime, time, timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import AuditLog
-from matrix.core.equipage import equipage_a_terre_lecture_seule
-from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import user_role_level
+from matrix.core.equipage import equipage_a_bord, equipage_a_terre_lecture_seule
+from matrix.core.role_thresholds import niveau_pour_action, niveau_requis_pour
+from matrix.core.saisie import verifier_longueurs
 from matrix.core.scopes import is_master_admin, navire_q
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
@@ -91,7 +92,7 @@ def cibles_autorisees(user, libelles=True):
 
 
 def peut_publier(user):
-    if equipage_a_terre_lecture_seule(user) or user_role_level(user) < niveau_requis_pour(user, "annonce_publication"):
+    if equipage_a_terre_lecture_seule(user) or niveau_pour_action(user, "annonce_publication") < niveau_requis_pour(user, "annonce_publication"):
         return False
     return bool(cibles_autorisees(user))
 
@@ -102,8 +103,9 @@ def equipages_du_navire(user):
     if navire is None:
         return []
     codes = set(User.objects.filter(profile__ship=navire).exclude(profile__equipage="").values_list("profile__equipage", flat=True))
-    if navire.equipage_a_bord:
-        codes.add(navire.equipage_a_bord)
+    a_bord = equipage_a_bord(navire)
+    if a_bord:
+        codes.add(a_bord)
     return sorted(codes)
 
 
@@ -163,7 +165,8 @@ def filtre_ciblage(user):
     profil = getattr(user, "profile", None)
     visees = Q(ship_id=ship) & (Q(service__isnull=True) | Q(service_id=service)) \
         & (Q(sector__isnull=True) | Q(sector_id=sector)) & (Q(section__isnull=True) | Q(section_id=section))
-    visees &= Q(equipage="") | Q(equipage=getattr(profil, "equipage", "") or "\0")
+    equipage = getattr(profil, "equipage", "")
+    visees &= Q(equipage="") | Q(equipage=equipage) if equipage else Q(equipage="")
     return visees if ship else Q(pk__in=[])
 
 
@@ -208,9 +211,10 @@ def _tracer(annonce, acteur, action):
     AuditLog.objects.create(actor=acteur, action=f"annonce_{action}", details=f"annonce={annonce.pk}; version={annonce.version}")
 
 
-def _valider(titre, corps, niveau, date_effet, date_fin):
+def _valider(titre, corps, niveau, date_effet, date_fin, equipage=""):
     if not titre.strip() or not corps.strip():
         raise ValidationError("Le titre et le message sont obligatoires.")
+    verifier_longueurs(Annonce, titre=titre.strip(), equipage=equipage.strip())
     if niveau not in NotificationLevel.values:
         raise ValidationError("Niveau inconnu.")
     if date_fin and date_fin < date_effet:
@@ -223,7 +227,9 @@ def publier(auteur, titre, corps, niveau, cible, equipage="", accuse_requis=Fals
     if not cible_permise(auteur, cible):
         raise PermissionError("Ce public est hors de votre périmètre.")
     date_effet = date_effet or timezone.localdate()
-    _valider(titre, corps, niveau, date_effet, date_fin)
+    _valider(titre, corps, niveau, date_effet, date_fin, equipage)
+    if equipage.strip() and equipage.strip() not in equipages_du_navire(auteur):
+        raise ValidationError("Cet équipage n'existe pas sur votre bâtiment.")
     annonce = Annonce(
         titre=titre.strip(), corps=corps.strip(), niveau=niveau, accuse_requis=accuse_requis, date_effet=date_effet,
         date_fin=date_fin, equipage=equipage.strip(), auteur=auteur, created_by=auteur, updated_by=auteur,
@@ -237,17 +243,32 @@ def publier(auteur, titre, corps, niveau, cible, equipage="", accuse_requis=Fals
     return annonce
 
 
-def modifier(user, annonce, titre, corps, niveau, date_fin=None):
-    """Nouvelle version conservée ; le public déjà informé est prévenu et les accusés sont à renouveler."""
-    if not peut_gerer(user, annonce) or annonce.archivee:
-        raise PermissionError("Vous ne pouvez pas modifier cette annonce.")
-    _valider(titre, corps, niveau, annonce.date_effet, date_fin)
-    annonce.titre, annonce.corps, annonce.niveau, annonce.date_fin = titre.strip(), corps.strip(), niveau, date_fin
-    annonce.version += 1
-    annonce.updated_by = user
-    annonce.save()
-    VersionAnnonce.objects.create(annonce=annonce, numero=annonce.version, titre=annonce.titre, corps=annonce.corps, niveau=niveau, auteur=user)
-    _tracer(annonce, user, "modifiee")
+class ConflitVersion(ValidationError):
+    """L'annonce a changé de version depuis l'affichage du formulaire."""
+
+
+def modifier(user, annonce, titre, corps, niveau, date_fin=None, version_vue=None):
+    """Nouvelle version conservée ; le public déjà informé est prévenu et les accusés sont à renouveler.
+
+    `version_vue` : version affichée à l'utilisateur ; si l'annonce a changé depuis, rien n'est écrasé (ConflitVersion)."""
+    with transaction.atomic():
+        # Verrou de ligne : deux modifications simultanées s'enchaînent au lieu de se croiser.
+        annonce.refresh_from_db(from_queryset=Annonce.objects.select_for_update())
+        if not peut_gerer(user, annonce) or annonce.archivee:
+            raise PermissionError("Vous ne pouvez pas modifier cette annonce.")
+        if version_vue is not None and version_vue != annonce.version:
+            auteur = annonce.updated_by
+            qui = (auteur.get_full_name() or auteur.username) if auteur else "un autre utilisateur"
+            raise ConflitVersion(
+                f"L'annonce a été modifiée entre-temps par {qui} (version {annonce.version}). "
+                "Votre saisie est conservée : relisez la version actuelle puis publiez à nouveau.")
+        _valider(titre, corps, niveau, annonce.date_effet, date_fin)
+        annonce.titre, annonce.corps, annonce.niveau, annonce.date_fin = titre.strip(), corps.strip(), niveau, date_fin
+        annonce.version += 1
+        annonce.updated_by = user
+        annonce.save()
+        VersionAnnonce.objects.create(annonce=annonce, numero=annonce.version, titre=annonce.titre, corps=annonce.corps, niveau=niveau, auteur=user)
+        _tracer(annonce, user, "modifiee")
     if annonce.diffusee_le:
         traiter_actions(annonce)
         _notifier(annonce, f"{PREFIXE} mise à jour (v{annonce.version}) : {annonce.titre}")

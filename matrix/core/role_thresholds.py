@@ -21,8 +21,7 @@ avant — aucune régression.
 """
 from dataclasses import dataclass
 
-from django.core.cache import cache
-
+from .config_version import cle_seuils, incrementer, valeurs_validees
 from .roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel
 
 PORTEE_NAVIRE = "SHIP"
@@ -36,12 +35,24 @@ class ActionSeuil:
     categorie: str
     portee: str
     defaut: RoleLevel
+    # Exception explicite : le commandant en second garde cette action selon son grade (le seuil reste réglable).
+    ouverte_au_second: bool = False
 
 
 # Registre central : une entrée par action dont le seuil est désormais
 # configurable. `cle` est la clé stockée telle quelle dans
 # RoleThresholdConfig.thresholds (JSONField {cle: "NOM_ROLE"}).
 REGISTRE_ACTIONS = [
+    ActionSeuil(
+        "structure_navire_ecriture",
+        "Modifier ou supprimer la structure de l'unité : services, secteurs, sections, configuration des secteurs, lieux",
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
+    ActionSeuil(
+        "unite_administration",
+        "Archiver l'unité, activer/désactiver son double équipage ou changer son fuseau horaire de référence",
+        "Organisation de l'unité", PORTEE_NAVIRE, RoleLevel.ADMIN_NAVIRE,
+    ),
     ActionSeuil(
         "asset_ecriture_simple", "Créer ou modifier un matériel, un dossier",
         "Matériel mobile", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
@@ -167,7 +178,7 @@ REGISTRE_ACTIONS = [
     ActionSeuil(
         "annonce_publication",
         "Publier une annonce à son périmètre (bâtiment, service, secteur, section, équipage)",
-        "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE,
+        "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE, ouverte_au_second=True,
     ),
     ActionSeuil(
         "programme_saisie",
@@ -214,32 +225,23 @@ REGISTRE_ACTIONS = [
 REGISTRE_PAR_CLE = {a.cle: a for a in REGISTRE_ACTIONS}
 
 
-def _cache_key(ship_id):
-    return f"seuils_role:{ship_id if ship_id is not None else 'global'}"
-
-
 def invalidate_cache(ship_id):
-    """Invalide le cache des seuils d'un navire (ou de la configuration
-    globale si ship_id est None) — à appeler après tout enregistrement
-    d'une RoleThresholdConfig."""
-    cache.delete(_cache_key(ship_id))
+    """Force la revalidation des seuils d'un navire (ou de la configuration
+    globale si ship_id est None) dans tous les processus. Inutile après un
+    enregistrement : la version est incrémentée automatiquement."""
+    incrementer(cle_seuils(ship_id))
 
 
 def _thresholds_for(ship_id):
     """Dictionnaire {cle_action: 'NOM_ROLE'} pour le navire donné (ou pour
-    la configuration globale si ship_id est None), avec cache : un seuil de
-    rôle change rarement, inutile de re-requêter la base à chaque contrôle
-    de permission. Pas d'expiration : le cache est invalidé explicitement
-    (invalidate_cache) à chaque sauvegarde de configuration."""
-    cle = _cache_key(ship_id)
-    valeurs = cache.get(cle)
-    if valeurs is not None:
-        return valeurs
-    from org.models import RoleThresholdConfig
-    config = RoleThresholdConfig.objects.filter(ship_id=ship_id).first()
-    valeurs = dict(config.thresholds) if config else {}
-    cache.set(cle, valeurs, None)
-    return valeurs
+    la configuration globale si ship_id est None), en cache local validé par
+    la version en base (cf. config_version.py)."""
+    def charger():
+        from org.models import RoleThresholdConfig
+        config = RoleThresholdConfig.objects.filter(ship_id=ship_id).first()
+        return dict(config.thresholds) if config else {}
+
+    return valeurs_validees(cle_seuils(ship_id), charger)
 
 
 def seuil_role(cle_action, ship_id=None):
@@ -271,6 +273,17 @@ def ship_id_de(user):
     est importé très tôt, par de nombreuses apps)."""
     from .scopes import ship_id_for_user
     return ship_id_for_user(user)
+
+
+def niveau_pour_action(user, cle_action):
+    """Niveau de `user` à comparer au seuil de l'action : son niveau d'écriture, ou son grade pour le
+    commandant en second sur une action qui lui est explicitement ouverte."""
+    from .roles import ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
+
+    profile = getattr(user, "profile", None)
+    if REGISTRE_PAR_CLE[cle_action].ouverte_au_second and profile and profile.role in ROLES_SANS_ECRITURE_HERITEE:
+        return user_role_level(user)
+    return niveau_ecriture(user)
 
 
 def niveau_requis_pour(user, cle_action):

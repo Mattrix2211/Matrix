@@ -123,7 +123,7 @@
 {% if comparatif_navires %}
 <script>
 (function(){
-  // Graphique en barres groupées (principe n°5 CLAUDE.md) : un comparatif se
+  // Graphique en barres groupées (principe n°5) : un comparatif se
   // lit plus vite qu'un tableau de chiffres quand il s'agit de repérer l'unité
   // la moins disponible de la classe.
   var ctxComparatif = document.getElementById('chartComparatifNavires');
@@ -149,7 +149,7 @@
 <script>
 (function(){
   // Même composant Chart.js que la Vue flotte (dashboard/flotte.html) —
-  // cohérence visuelle entre les deux écrans (principe n°5 CLAUDE.md).
+  // cohérence visuelle entre les deux écrans (principe n°5).
   var ctx = document.getElementById('chartTicketsClasse');
   if (!ctx || !window.Chart) return;
   new Chart(ctx, {

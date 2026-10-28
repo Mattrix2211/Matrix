@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from django.db.models import Q
 
+from logistics.models import CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
@@ -15,18 +16,29 @@ from quarts.services import feuille_service_du_jour_pour
 from rondes.services import rondes_ouvertes_du_marin
 from absences.models import Absence
 from taches.models import Tache
+from matrix.core.mixins import build_scope_q
 from matrix.core.roles import RoleLevel
+from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import equipage_marin_q
 from .models import PersonalEvent
+
+
+def filtre_identifiant_invalide(filtres):
+    """Nom du premier filtre d'identifiant qui n'est pas un entier (« equipe » admis pour l'utilisateur), sinon None."""
+    for nom in ("ship", "service", "sector", "user"):
+        valeur = filtres.get(nom)
+        if valeur and not (nom == "user" and valeur == "equipe") and entier_ou_none(valeur) is None:
+            return nom
+    return None
 
 
 def marins_visibles(user):
     """Marins dont `user` voit les affectations : lui-même, plus son équipe s'il peut attribuer des tâches."""
     from django.contrib.auth.models import User
 
-    from taches.services import marins_assignables
+    from taches.services import marins_supervises
 
-    return User.objects.filter(Q(pk=user.pk) | Q(pk__in=marins_assignables(user).values("pk")))
+    return User.objects.filter(Q(pk=user.pk) | Q(pk__in=marins_supervises(user).values("pk")))
 
 
 def sessions_visibles(user, qs=None):
@@ -204,6 +216,19 @@ def _peut_agir_ticket(ticket, ids_perimetre, niveau_role):
     return ticket.pk in ids_perimetre and niveau_role >= RoleLevel.CHEF_SECTION
 
 
+def occurrences_visibles(user, qs):
+    """Occurrences du périmètre de `user` (matériel mobile ou installation fixe), plus celles qui lui sont assignées."""
+    assignees = MaintenanceOccurrence.objects.filter(assignees=user).values("pk")
+    perimetre = build_scope_q(user, "asset__", "installation_maintenance__installation__")
+    return qs.filter(perimetre | Q(pk__in=assignees))
+
+
+def tickets_visibles(user, qs):
+    """Tickets du périmètre de `user` (matériel mobile ou installation fixe), plus ceux qui lui sont assignés."""
+    assignes = CorrectiveTicket.objects.filter(assignees=user).values("pk")
+    return qs.filter(build_scope_q(user, "asset__", "installation__") | Q(pk__in=assignes))
+
+
 def _appliquer_filtres_tickets(qs, filters):
     """Applique les filtres navire/service/secteur choisis dans les menus
     déroulants du calendrier à un queryset de tickets correctifs. Fonction
@@ -225,9 +250,9 @@ def evenements_equipe(user, debut, fin, couleur):
     from django.urls import reverse
     from django.utils import timezone
 
-    from taches.services import marins_assignables
+    from taches.services import marins_supervises
 
-    equipe = {m.pk: (m.last_name or m.username) for m in marins_assignables(user)}
+    equipe = {m.pk: (m.last_name or m.username) for m in marins_supervises(user)}
     aujourdhui = timezone.localdate()
     evenements = []
 

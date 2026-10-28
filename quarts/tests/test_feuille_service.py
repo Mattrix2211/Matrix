@@ -3,6 +3,7 @@ service quotidienne — personnel de service et en-tête (à quai) ») : personn
 calculé automatiquement depuis les tours publiés, circuit de visa à 3
 paliers (secteur -> service -> COMAEQ), historique des versions,
 notifications et permissions."""
+import re
 from datetime import datetime, timedelta
 
 from django.contrib.auth.models import User
@@ -23,6 +24,13 @@ from quarts.models import (
     peut_viser_service,
     personnel_du_jour,
 )
+
+
+def jeton_visa_affiche(client, url):
+    """Jeton signé du formulaire de visa COMAEQ tel que rendu à l'utilisateur connecté (vide s'il n'y a pas de formulaire)."""
+    page = client.get(url)
+    trouve = re.search(r'name="jeton_visa" value="([^"]*)"', page.content.decode()) if page.status_code == 200 else None
+    return trouve.group(1) if trouve else ""
 
 
 def _utilisateur(username, role, ship=None, service=None, sector=None):
@@ -159,13 +167,14 @@ class WorkflowFeuilleServiceTests(FeuilleServiceTestsBase):
         self.assertTrue(Notification.objects.filter(user=self.marin_service).exists())
         self.assertFalse(Notification.objects.filter(user=self.equipier, verb__icontains="publiée").exists())
 
-    def test_supervision_globale_peut_viser_a_toutes_les_etapes(self):
+    def test_supervision_globale_vise_secteur_et_service_pas_le_comaeq(self):
         self.feuille.proposer(self.equipier)
         self.assertTrue(peut_viser_secteur(self.commandant, self.feuille))
         self.feuille.viser_secteur(self.commandant)
         self.assertTrue(peut_viser_service(self.commandant, self.feuille))
         self.feuille.viser_service(self.commandant)
-        self.assertTrue(peut_viser_comaeq(self.commandant, self.feuille))
+        # Un titulaire COMAEQ est désigné : lui seul donne le dernier visa.
+        self.assertFalse(peut_viser_comaeq(self.commandant, self.feuille))
 
     def test_renvoyer_remet_en_brouillon_avec_motif(self):
         self.feuille.proposer(self.equipier)
@@ -180,7 +189,7 @@ class WorkflowFeuilleServiceTests(FeuilleServiceTestsBase):
         )
 
     def test_creer_version_fige_entete_et_personnel(self):
-        self.feuille.valeurs_entete = {str(self.rubrique_quotidienne.pk): "Dimanche au port base"}
+        self.feuille.valeurs_entete = {str(self.rubrique_quotidienne.uid): "Dimanche au port base"}
         self.feuille.save(update_fields=["valeurs_entete"])
         self.feuille.proposer(self.chef_service)
         self.feuille.viser_service(self.chef_service)
@@ -189,6 +198,10 @@ class WorkflowFeuilleServiceTests(FeuilleServiceTestsBase):
         libelles_entete = [e["libelle"] for e in version.contenu_fige["entete"]]
         self.assertIn("Mesures de sécurité", libelles_entete)
         self.assertIn("Type de journée", libelles_entete)
+        self.assertIn(
+            {"uid": str(self.rubrique_quotidienne.uid), "libelle": "Type de journée", "valeur": "Dimanche au port base"},
+            version.contenu_fige["entete"],
+        )
         fonctions_personnel = [p["fonction"] for p in version.contenu_fige["personnel"]]
         self.assertIn("Officier de garde", fonctions_personnel)
 
@@ -229,7 +242,7 @@ class WebViewsFeuilleServiceTests(FeuilleServiceTestsBase):
         self.assertEqual(FeuilleService.objects.get().statut, FeuilleService.STATUT_VISA_COMAEQ)
 
         self.client.login(username="etat_major", password="pass")
-        r = self.client.post(self.url, {"action": "viser_comaeq"})
+        r = self.client.post(self.url, {"action": "viser_comaeq", "jeton_visa": jeton_visa_affiche(self.client, self.url)})
         self.assertEqual(r.status_code, 302, r.content)
         self.assertEqual(FeuilleService.objects.get().statut, FeuilleService.STATUT_PUBLIEE)
 

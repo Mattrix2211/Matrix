@@ -1,0 +1,2 @@
+{% comment %}Met à jour l'état affiché dans l'en-tête (échange HTMX hors bande).{% endcomment %}{% load icones %}
+<span id="etat-fiche" hx-swap-oob="true">{% include "components/badge_etat.html" with etat=badge_etat libelle=occ.get_status_display %}</span>

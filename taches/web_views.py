@@ -12,6 +12,8 @@ from django.views import View
 
 from annonces.models import Annonce
 from annonces.services import peut_consulter as annonce_consultable
+from matrix.core.saisie import entier_ou_none
+from notifications.services import phrase_prevenus
 from threads.utils import commentaires_de
 
 from .models import Tache
@@ -21,6 +23,7 @@ from .services import (
     attribuer_a_unite,
     avancement_equipe,
     basculer_element,
+    categories_prevenues,
     creer_tache,
     demarrer,
     interlocuteurs_possibles,
@@ -65,6 +68,10 @@ def _entier(valeur):
     return int(valeur)
 
 
+def _prevenus(tache, prevenus, acteur):
+    return phrase_prevenus(categories_prevenues(tache, prevenus, acteur))
+
+
 def _tache_visible(request, pk, verrou=False):
     taches = Tache.objects.select_related("assigne", "created_by")
     if verrou:  # évite qu'une action concurrente rouvre une tâche tout juste terminée
@@ -101,7 +108,7 @@ class TachesIndexView(LoginRequiredMixin, View):
 
     def post(self, request):
         # Sans marin désigné, la tâche est celle de l'utilisateur lui-même.
-        assigne = User.objects.filter(pk=request.POST["assigne"]).first() if request.POST.get("assigne") else request.user
+        assigne = User.objects.filter(pk=entier_ou_none(request.POST["assigne"])).first() if request.POST.get("assigne") else request.user
         saisie = request.POST.get("echeance", "").strip()
         echeance = parse_date(saisie) if saisie else None
         if assigne is None or (saisie and echeance is None) or not request.POST.get("titre", "").strip():
@@ -166,14 +173,18 @@ class TacheActionView(LoginRequiredMixin, View):
         try:
             if action == "demarrer":
                 demarrer(tache, request.user)
+                messages.success(request, "Tâche démarrée.")
             elif action == "bloquer":
-                signaler_blocage(tache, request.user, request.POST.get("motif", ""))
+                prevenus = signaler_blocage(tache, request.user, request.POST.get("motif", ""))
+                messages.success(request, "Blocage signalé et inscrit dans le fil." + _prevenus(tache, prevenus, request.user))
             elif action == "rendre_compte":
-                rendre_compte(tache, request.user, request.POST.get("compte_rendu", ""))
+                prevenus = rendre_compte(tache, request.user, request.POST.get("compte_rendu", ""))
+                messages.success(request, "Compte rendu enregistré, tâche terminée." + _prevenus(tache, prevenus, request.user))
             elif action == "reprendre":
-                reprendre(tache, request.user)
+                prevenus = reprendre(tache, request.user)
+                messages.success(request, "Blocage levé, inscrit dans le fil." + _prevenus(tache, prevenus, request.user))
             elif action == "modifier":
-                nouveau = User.objects.filter(pk=request.POST.get("assigne")).first()
+                nouveau = User.objects.filter(pk=entier_ou_none(request.POST.get("assigne"))).first()
                 saisie = request.POST.get("echeance", "").strip()
                 echeance = parse_date(saisie) if saisie else None
                 if nouveau is None or (saisie and echeance is None):
@@ -196,10 +207,12 @@ class TacheActionView(LoginRequiredMixin, View):
                 supprimer_piece(tache, request.user, _entier(request.POST.get("piece")))
                 messages.success(request, "Fichier supprimé.")
             elif action == "interlocuteur":
-                cible = User.objects.filter(pk=request.POST.get("interlocuteur")).first()
+                cible = User.objects.filter(pk=entier_ou_none(request.POST.get("interlocuteur"))).first()
                 if cible is None:
                     raise ValidationError("Interlocuteur introuvable.")
-                ajouter_participant(tache, request.user, cible)
+                prevenus = ajouter_participant(tache, request.user, cible)
+                nom = cible.get_full_name() or cible.username
+                messages.success(request, f"{nom} ajouté au fil." + _prevenus(tache, prevenus, request.user))
             else:
                 return HttpResponseBadRequest("Action inconnue.")
         except (PermissionError, ValidationError) as exc:
@@ -227,7 +240,8 @@ class TacheCommentaireView(LoginRequiredMixin, View):
     def post(self, request, pk):
         tache = _tache_visible(request, pk)
         try:
-            repondre(tache, request.user, request.POST.get("body", ""))
+            prevenus = repondre(tache, request.user, request.POST.get("body", ""))
+            messages.success(request, "Message publié." + _prevenus(tache, prevenus, request.user))
         except (PermissionError, ValidationError) as exc:
             _erreurs(request, exc)
         return redirect("tache-detail", pk=tache.pk)

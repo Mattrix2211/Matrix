@@ -184,7 +184,7 @@ class CompteRenduWebTests(TestCase):
         r = self.client.post(self.url, self._saisie(**{f"item_{self.pression.pk}": "nan"}))
         self.assertContains(r, "valeur numérique illisible")
 
-    def test_mot_de_passe_seulement_pour_installation_critique(self):
+    def test_confirmation_seulement_pour_installation_critique(self):
         installation = Installation.objects.create(
             designation="Groupe CR", ship=self.ship, service=self.service, sector=self.sector, critique=True,
         )
@@ -195,18 +195,49 @@ class CompteRenduWebTests(TestCase):
         occ = MaintenanceOccurrence.objects.create(installation_maintenance=maintenance, scheduled_for=timezone.localdate(), status="ASSIGNED")
         occ.assignees.add(self.tech)
         url = reverse("occurrence-execute", args=[occ.pk])
-        # Enregistrer en cours d'exécution ne demande aucun mot de passe.
+        # Enregistrer en cours d'exécution ne demande aucune confirmation.
         self.client.post(url, {"action": "enregistrer"})
         occ.refresh_from_db()
         self.assertEqual(occ.status, "IN_PROGRESS")
-        # La clôture le demande.
+        # La clôture la demande.
         self.client.post(url, {"conformity": "CONFORME"})
         occ.refresh_from_db()
         self.assertEqual(occ.status, "IN_PROGRESS")
-        self.client.post(url, {"conformity": "CONFORME", "mot_de_passe": "MotDePasseCorrect1"})
+        self.client.post(url, {"conformity": "CONFORME", "confirmation": "1"})
         occ.refresh_from_db()
         self.assertEqual(occ.status, "DONE")
         self.assertEqual(MaintenanceExecution.objects.get(occurrence=occ).valide_par, self.tech)
+
+    def _cloture(self, **extra):
+        return self.client.post(self.url, self._saisie(**extra), HTTP_HX_REQUEST="true")
+
+    def test_cloture_renvoie_l_etat_a_jour_et_bloque_le_bouton(self):
+        r = self._cloture()
+        self.assertContains(r, 'id="etat-fiche" hx-swap-oob="true"')
+        self.assertContains(r, "Terminée")
+        self.assertContains(r, 'id="barre-boutons"')
+        self.assertContains(r, "Maintenance terminée")
+        self.assertNotContains(r, "Assignée")
+
+    def test_non_conforme_affiche_en_validation(self):
+        r = self._cloture(conformity="NON_CONFORME")
+        self.assertContains(r, "En validation")
+        self.assertNotContains(r, "Assignée")
+
+    def test_enregistrement_en_direct_affiche_en_cours(self):
+        r = self.client.post(self.url, {"action": "enregistrer"}, HTTP_HX_REQUEST="true")
+        self.assertContains(r, 'id="etat-fiche" hx-swap-oob="true"')
+        self.assertContains(r, "En cours")
+        self.assertNotContains(r, "Assignée")
+
+    def test_page_rechargee_apres_cloture_et_second_envoi_sans_message_trompeur(self):
+        self._cloture()
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("Terminée", page.split('id="etat-fiche"')[1][:200])
+        self.assertNotIn("Assignée", page)
+        r = self._cloture()
+        self.assertContains(r, "déjà enregistré")
+        self.assertNotContains(r, "Maintenance terminée")
 
 
 @unittest.skipUnless(shutil.which("node"), "node absent : logique JS vérifiée par le QA dans le navigateur")

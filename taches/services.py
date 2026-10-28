@@ -18,8 +18,9 @@ from absences.models import Absence
 from absences.services import marin_dans_perimetre
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
+from matrix.core.config_version import rafraichir_contexte
 from matrix.core.role_thresholds import seuil_role
-from matrix.core.roles import user_role_level
+from matrix.core.roles import niveau_ecriture, user_role_level
 from matrix.core.scopes import equipage_marin_q
 from matrix.core.validators import valider_document
 from notifications.models import Notification, NotificationLevel
@@ -32,9 +33,14 @@ from .models import ElementChecklistTache, LotTaches, ParametresTaches, PieceJoi
 User = get_user_model()
 
 
-def peut_attribuer(user):
-    """Niveau minimal configurable (Réglages > Seuils de rôle, action « tache_attribution »)."""
+def peut_superviser(user):
+    """Lecture d'équipe : niveau minimal configurable (Réglages > Seuils de rôle, action « tache_attribution »)."""
     return user_role_level(user) >= seuil_role("tache_attribution")
+
+
+def peut_attribuer(user):
+    """Écriture (attribuer, réaffecter, lever un blocage) : même seuil, sur le niveau d'écriture."""
+    return niveau_ecriture(user) >= seuil_role("tache_attribution")
 
 
 def _nom(user):
@@ -45,19 +51,27 @@ def est_chef_de(user, marin):
     return peut_attribuer(user) and marin_dans_perimetre(user, marin)
 
 
+def superviseur_de(user, marin):
+    return peut_superviser(user) and marin_dans_perimetre(user, marin)
+
+
 def peut_gerer(user, tache):
     return tache.partagee and user.pk != tache.assigne_id and est_chef_de(user, tache.assigne)
 
 
+def _est_acteur(user, tache):
+    return user.pk in (tache.assigne_id, tache.created_by_id) or tache.participants.filter(pk=user.pk).exists()
+
+
 def peut_consulter(user, tache):
-    if user.pk in (tache.assigne_id, tache.created_by_id) or tache.participants.filter(pk=user.pk).exists():
+    if _est_acteur(user, tache):
         return True
-    return peut_gerer(user, tache)
+    return tache.partagee and user.pk != tache.assigne_id and superviseur_de(user, tache.assigne)
 
 
 def taches_visibles(user):
     base = Q(assigne=user) | Q(created_by=user) | Q(participants=user)
-    if peut_attribuer(user):
+    if peut_superviser(user):
         base |= build_scope_q(user, "assigne__profile__") & equipage_marin_q(user, "assigne__profile__") & Q(partagee=True)
     return Tache.objects.filter(base).distinct()
 
@@ -74,7 +88,7 @@ def taches_a_suivre(user):
 
 def taches_supervisees(user):
     """Tâches des marins du périmètre et de l'équipage d'un chef, hors les siennes."""
-    if not peut_attribuer(user):
+    if not peut_superviser(user):
         return Tache.objects.none()
     return Tache.objects.filter(
         build_scope_q(user, "assigne__profile__"), equipage_marin_q(user, "assigne__profile__"), partagee=True,
@@ -96,7 +110,7 @@ def avancement_equipe(user, aujourdhui=None):
         comptes[t.statut] += 1
     comptes[Tache.STATUT_TERMINEE] = taches.filter(statut=Tache.STATUT_TERMINEE, terminee_le__gte=depuis).count()
 
-    marins = list(marins_assignables(user))
+    marins = list(marins_supervises(user))
     absences = list(Absence.objects.filter(
         marin__in=marins, date_fin__gte=aujourdhui).select_related("type_absence").order_by("date_debut"))
     charges = []
@@ -136,11 +150,16 @@ def _avancement_lots(user):
     return sorted((lot for lot in lots.values() if lot["terminees"] < lot["total"]), key=lambda lot: -lot["pk"])
 
 
-def marins_assignables(user):
-    """Marins à qui `user` peut attribuer une tâche (lui-même exclu)."""
-    if not peut_attribuer(user):
+def marins_supervises(user):
+    """Marins de l'équipe dont `user` suit les tâches et les plannings (lui-même exclu)."""
+    if not peut_superviser(user):
         return User.objects.none()
     return User.objects.filter(build_scope_q(user, "profile__"), equipage_marin_q(user)).exclude(pk=user.pk).order_by("username")
+
+
+def marins_assignables(user):
+    """Marins à qui `user` peut attribuer une tâche (lui-même exclu)."""
+    return marins_supervises(user) if peut_attribuer(user) else User.objects.none()
 
 
 def interlocuteurs_possibles(tache):
@@ -176,8 +195,30 @@ def _destinataires(tache, sauf):
 
 
 def _notifier(tache, destinataires, verb, niveau=NotificationLevel.INFO, action=False):
+    """Crée les notifications et renvoie les personnes réellement prévenues."""
+    destinataires = list(destinataires)
     for user in destinataires:
         Notification.objects.create(user=user, verb=verb, level=niveau, target=tache, action_requise=action)
+    return destinataires
+
+
+def categories_prevenues(tache, prevenus, acteur):
+    """Rôles des personnes prévenues (hors acteur), pour dire dans l'interface qui l'est vraiment."""
+    categories = []
+    for user in prevenus:
+        if user.pk == acteur.pk:
+            continue
+        if user.pk == tache.assigne_id:
+            nom = "le marin assigné"
+        elif tache.participants.filter(pk=user.pk).exists():
+            nom = "les participants du fil"
+        elif est_chef_de(user, tache.assigne):
+            nom = "les chefs du périmètre"
+        else:
+            nom = "l'auteur de la tâche"
+        if nom not in categories:
+            categories.append(nom)
+    return categories
 
 
 def taches_liees_a(user, annonce):
@@ -288,7 +329,7 @@ def supprimer_element(tache, user, element_pk):
 
 
 def peut_joindre(user, tache):
-    return tache.ouverte and peut_consulter(user, tache)
+    return tache.ouverte and (_est_acteur(user, tache) or peut_gerer(user, tache))
 
 
 def peut_supprimer_piece(user, piece):
@@ -400,9 +441,9 @@ def signaler_blocage(tache, user, motif):
     # Dès le blocage : les acteurs du dossier, puis les chefs du périmètre qui peuvent le lever (alerte d'action).
     acteurs = list(_destinataires(tache, user))
     verbe = f"{PREFIXE_BLOCAGE} {_nom(user)} est bloqué sur « {tache.titre} » : {motif}"
-    _notifier(tache, acteurs, verbe, NotificationLevel.WARNING, action=True)
+    prevenus = _notifier(tache, acteurs, verbe, NotificationLevel.WARNING, action=True)
     deja = {a.pk for a in acteurs}
-    _notifier(
+    return prevenus + _notifier(
         tache, [c for c in _destinataires_relance(tache, ParametresTaches.courants()) if c.pk not in deja and c.pk != user.pk],
         verbe, NotificationLevel.WARNING, action=True,
     )
@@ -415,7 +456,7 @@ def repondre(tache, user, corps):
     if not corps:
         raise ValidationError("Le message ne peut pas être vide.")
     ajouter_commentaire(tache, user, corps)
-    _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a répondu sur « {tache.titre} ».")
+    return _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a répondu sur « {tache.titre} ».")
 
 
 def ajouter_participant(tache, chef, user):
@@ -426,7 +467,7 @@ def ajouter_participant(tache, chef, user):
     tache.participants.add(user)
     _tracer(tache, chef, "interlocuteur")
     _message_systeme(tache, f"{_nom(chef)} a ajouté {_nom(user)} au fil.")
-    _notifier(tache, [user], f"{_nom(chef)} vous a ajouté au fil de la tâche « {tache.titre} ».")
+    return _notifier(tache, [user], f"{_nom(chef)} vous a ajouté au fil de la tâche « {tache.titre} ».")
 
 
 def reprendre(tache, chef):
@@ -439,7 +480,7 @@ def reprendre(tache, chef):
     _enregistrer(tache, chef, "reprise", ["statut"])
     traiter_actions(tache, prefixe_verbe=PREFIXE_BLOCAGE)
     _message_systeme(tache, f"{_nom(chef)} lève le blocage : la tâche reprend.")
-    _notifier(tache, [tache.assigne], f"Blocage levé sur « {tache.titre} » : vous pouvez reprendre.")
+    return _notifier(tache, [tache.assigne], f"Blocage levé sur « {tache.titre} » : vous pouvez reprendre.")
 
 
 def rendre_compte(tache, user, compte_rendu):
@@ -458,7 +499,7 @@ def rendre_compte(tache, user, compte_rendu):
         from demandes.services import action_terminee  # import différé : demandes dépend de taches
 
         action_terminee(tache)
-    _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a terminé « {tache.titre} » et rendu compte.")
+    return _notifier(tache, _destinataires(tache, user), f"{_nom(user)} a terminé « {tache.titre} » et rendu compte.")
 
 
 PREFIXE_RELANCE = "Tâche en retard"
@@ -501,6 +542,7 @@ def relancer_echeances_depassees(aujourdhui=None):
         for tache in Tache.objects.filter(
             statut__in=Tache.STATUTS_OUVERTS, echeance__lt=aujourdhui, assigne__is_active=True,
         ).select_related("assigne"):
+            rafraichir_contexte()  # tâche Celery longue : seuil `tache_attribution` revalidé à chaque tâche
             jours = (aujourdhui - tache.echeance).days
             etat = " (bloquée)" if tache.statut == Tache.STATUT_BLOQUEE else ""
             for user in _destinataires_relance(tache, parametres):

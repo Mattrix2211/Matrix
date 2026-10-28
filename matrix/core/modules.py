@@ -53,7 +53,7 @@ le commentaire Notion de la tâche d'origine.
 """
 from dataclasses import dataclass
 
-from django.core.cache import cache
+from .config_version import cle_modules, incrementer, valeurs_validees
 
 
 @dataclass(frozen=True)
@@ -115,7 +115,7 @@ REGISTRE_MODULES = [
         "Diffusion descendante Information / Important / Urgent ciblée par périmètre, avec accusé de lecture facultatif.",
     ),
     ModuleInfo(
-        "demandes", "Demandes bord–terre",
+        "demandes", "Difficultés signalées",
         "Signalement d'une difficulté sur un objet, réponse des interlocuteurs désignés, actions et clôture traçable.",
     ),
     ModuleInfo(
@@ -131,29 +131,23 @@ REGISTRE_MODULES = [
 REGISTRE_PAR_CLE = {m.cle: m for m in REGISTRE_MODULES}
 
 
-def _cache_key(ship_id):
-    return f"modules_actifs:{ship_id}"
-
-
 def invalidate_cache(ship_id):
-    """Invalide le cache des modules actifs d'un navire — à appeler après
-    tout enregistrement d'un ModuleActivation."""
-    cache.delete(_cache_key(ship_id))
+    """Force la revalidation des modules actifs d'un navire dans tous les
+    processus. Inutile après un enregistrement : la version est incrémentée
+    automatiquement."""
+    incrementer(cle_modules(ship_id))
 
 
 def _actifs_pour(ship_id):
     """Dictionnaire {module: bool actif} configuré explicitement pour ce
     navire (les modules absents du dictionnaire sont activés par défaut,
-    cf. module_actif() ci-dessous) — avec cache, mêmes principes que
-    role_thresholds._thresholds_for()."""
-    cle = _cache_key(ship_id)
-    valeurs = cache.get(cle)
-    if valeurs is not None:
-        return valeurs
-    from org.models import ModuleActivation
-    valeurs = dict(ModuleActivation.objects.filter(ship_id=ship_id).values_list("module", "active"))
-    cache.set(cle, valeurs, None)
-    return valeurs
+    cf. module_actif() ci-dessous) — en cache local validé par la version en
+    base, comme role_thresholds._thresholds_for()."""
+    def charger():
+        from org.models import ModuleActivation
+        return dict(ModuleActivation.objects.filter(ship_id=ship_id).values_list("module", "active"))
+
+    return valeurs_validees(cle_modules(ship_id), charger)
 
 
 def module_actif(cle_module, ship_id):

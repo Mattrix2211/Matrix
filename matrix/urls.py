@@ -5,9 +5,9 @@ from django.views.static import serve as serve_static
 from .views import logout_then_login, SettingsView
 from accounts.web_views import ChangerMotDePasseView
 from django.conf import settings
-from django.conf.urls.static import static
 from .views import global_search, recherche_rapide
 from .core.brouillons import BrouillonView
+from .core.medias import servir_media
 from .core.inactivite import SessionInactiviteView
 from .styleguide import StyleguideView
 from dashboard.web_views import AujourdhuiView
@@ -63,7 +63,9 @@ urlpatterns = [
     path("search/", global_search, name="global-search"),
     path("search/rapide/", recherche_rapide, name="recherche-rapide"),
     path("", AujourdhuiView.as_view(), name="home"),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Fichiers téléversés : jamais servis en statique, chaque accès est autorisé par l'objet propriétaire.
+    path(settings.MEDIA_URL.lstrip("/") + "<path:chemin>", servir_media, name="media"),
+]
 
 admin.site.site_header = "Matrix Administration"
 admin.site.site_title = "Matrix Admin"

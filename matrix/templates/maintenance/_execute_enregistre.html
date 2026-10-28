@@ -1,1 +1,2 @@
 <div class="alert alert-info">Saisie enregistrée à {{ heure|date:"H:i" }} — {{ resume.texte }}. La maintenance reste en cours.</div>
+{% include "maintenance/_execute_etat.html" %}

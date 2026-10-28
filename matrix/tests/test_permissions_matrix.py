@@ -37,7 +37,7 @@ from assets.models import Asset, AssetFolder, AssetType, Deck, Installation, Ins
 from calendar_app.models import PersonalEvent
 from logistics.models import CorrectiveTicket, StockPiece
 from matrix.core.role_thresholds import invalidate_cache
-from matrix.core.roles import RoleLevel
+from matrix.core.roles import ROLES_SANS_ECRITURE_HERITEE, RoleLevel
 from org.models import RoleThresholdConfig, Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
@@ -81,12 +81,13 @@ class MatricePermissionsTestCase(TestCase):
         """Pour chacun des 8 rôles, exécute `executer(client, role)` — qui doit
         renvoyer True si l'action a été acceptée, False si elle a été refusée
         — et vérifie que le résultat correspond au seuil de rôle attendu
-        (autorisé si et seulement si role >= seuil)."""
+        (autorisé si et seulement si role >= seuil, hors rôles sans écriture héritée)."""
         for role in ROLES:
             with self.subTest(role=role.name):
                 client = self.client_pour(role, api=api)
                 accepte = executer(client, role)
-                attendu = role >= seuil
+                # Le commandant en second garde sa vision et les gestes ouverts à tous, mais ses écritures ne découlent pas du grade.
+                attendu = role >= seuil and (seuil == RoleLevel.EQUIPIER or role.name not in ROLES_SANS_ECRITURE_HERITEE)
                 self.assertEqual(
                     accepte, attendu,
                     f"Rôle {role.name} (niveau {role.value}) : accès attendu="
@@ -339,7 +340,7 @@ class InstallationMaintenanceMatriceTests(MatricePermissionsTestCase):
 class CorrectiveTicketMatriceTests(MatricePermissionsTestCase):
     """Ticket correctif : signalement ouvert à tout marin connecté (EQUIPIER
     compris), transitions de statut réservées à CHEF_SECTION+, remise en
-    service protégée en plus par une signature (mot de passe), quel que soit
+    service protégée en plus par une confirmation explicite, quel que soit
     le rôle de l'appelant (logistics/web_views.py)."""
 
     @classmethod
@@ -382,17 +383,17 @@ class CorrectiveTicketMatriceTests(MatricePermissionsTestCase):
             return r.status_code != 403
         self.assert_seuil(RoleLevel.CHEF_SECTION, executer)
 
-    def test_remise_en_service_exige_une_signature_quel_que_soit_le_role(self):
+    def test_remise_en_service_exige_une_confirmation_quel_que_soit_le_role(self):
         """Action métier sensible : la remise en service (RETURNED_TO_SERVICE)
-        exige le mot de passe de l'appelant, en plus du seuil CHEF_SECTION déjà
-        vérifié ci-dessus — un CHEF_SERVICE avec un mot de passe erroné ne doit
-        ni changer le statut ni enregistrer de signature."""
+        exige la confirmation de l'appelant, en plus du seuil CHEF_SECTION déjà
+        vérifié ci-dessus — un CHEF_SERVICE sans confirmation ne doit ni changer
+        le statut ni enregistrer de validation."""
         ticket = CorrectiveTicket.objects.create(asset=self.asset, description="Panne à réparer")
         chef = self.users[RoleLevel.CHEF_SERVICE]
         client = self.client_pour(RoleLevel.CHEF_SERVICE)
 
         r = client.post(f"/logistics/tickets/{ticket.id}/transition/", {
-            "status": "RETURNED_TO_SERVICE", "mot_de_passe": "mauvais_mot_de_passe",
+            "status": "RETURNED_TO_SERVICE",
         })
         self.assertEqual(r.status_code, 302)
         ticket.refresh_from_db()
@@ -400,7 +401,7 @@ class CorrectiveTicketMatriceTests(MatricePermissionsTestCase):
         self.assertIsNone(ticket.valide_par)
 
         r = client.post(f"/logistics/tickets/{ticket.id}/transition/", {
-            "status": "RETURNED_TO_SERVICE", "mot_de_passe": "pass",
+            "status": "RETURNED_TO_SERVICE", "confirmation": "1",
         })
         self.assertEqual(r.status_code, 302)
         ticket.refresh_from_db()
@@ -564,9 +565,9 @@ class PlanNaviePositionMatriceTests(MatricePermissionsTestCase):
 class TrainingCourseMatriceTests(MatricePermissionsTestCase):
     """Formation (catalogue général, non gérée par un bord) : lecture (liste
     et détail) ouverte à tout rôle (catalogue global, RolePermission laisse
-    passer les méthodes sûres sans condition), création/modification soumises
-    au seuil générique d'écriture CHEF_SECTION+ (RolePermission par défaut,
-    training/views.py::TrainingCourseViewSet). L'action métier sensible de ce
+    passer les méthodes sûres sans condition), création/modification réservées
+    à l'administration de l'unité (ADMIN_NAVIRE+, comme la création web :
+    le catalogue est commun à toute la flotte). L'action métier sensible de ce
     domaine — la validation d'une formation pour un marin (TrainingRecord) —
     n'est pas régie par ce seuil générique mais par le contrôle par référent
     (peut_valider_formation), déjà testé sur les 8 rôles dans
@@ -600,7 +601,7 @@ class TrainingCourseMatriceTests(MatricePermissionsTestCase):
                 return False
             self.assertEqual(r.status_code, 201)
             return TrainingCourse.objects.filter(title=f"Formation créée par {role.name}").exists()
-        self.assert_seuil(RoleLevel.CHEF_SECTION, executer, api=True)
+        self.assert_seuil(RoleLevel.ADMIN_NAVIRE, executer, api=True)
 
     def test_modification_formation_generique(self):
         def executer(client, role):
@@ -610,7 +611,7 @@ class TrainingCourseMatriceTests(MatricePermissionsTestCase):
                 format="json",
             )
             return r.status_code != 403
-        self.assert_seuil(RoleLevel.CHEF_SECTION, executer, api=True)
+        self.assert_seuil(RoleLevel.ADMIN_NAVIRE, executer, api=True)
 
 
 class PersonalEventMatriceTests(MatricePermissionsTestCase):

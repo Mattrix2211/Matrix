@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from rest_framework import viewsets, permissions
-from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied
+from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied, ValidationError
 from rest_framework.permissions import SAFE_METHODS
 from .models import (
     NIVEAU_LECTURE_GLOBALE_FORMATION,
@@ -12,7 +12,9 @@ from .models import (
     TrainingSession,
     TrainingRecord,
     dossiers_formation_visibles_q,
+    formation_utilisee,
     navire_de,
+    peut_designer_referent,
     peut_valider_formation,
 )
 from .serializers import (
@@ -35,31 +37,24 @@ from .serializers import (
 # contrôles, pourtant déjà corrects côté web.
 from .web_views import (
     formation_bord_en_service,
+    NIVEAU_REQUIS_CREATION_FORMATION,
     NIVEAU_REQUIS_VALIDATION_FORMATION_BORD,
     peut_modifier_formation_bord,
     peut_valider_proposition_bord,
 )
-from matrix.core.mixins import EcritureDansLePerimetreMixin
+from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureTraceeMixin
 from matrix.core.permissions import RolePermission
-from matrix.core.roles import user_role_level
-from matrix.core.scopes import perimetre_navire_q, resoudre_affectation_dans_perimetre, ship_id_for_user
+from matrix.core.roles import niveau_ecriture, user_role_level
+from matrix.core.scopes import is_master_admin, perimetre_navire_q, resoudre_affectation_dans_perimetre
+from matrix.core.saisie import entier_ou_none
 
 User = get_user_model()
 
 
-def _entier_ou_none(valeur):
-    """Convertit `valeur` en entier si possible, sinon None — évite une
-    ValueError sur un payload malformé (même principe que la fonction
-    homonyme de training/web_views.py)."""
-    try:
-        return int(valeur)
-    except (TypeError, ValueError):
-        return None
-
 class DefaultPermission(permissions.IsAuthenticated):
     pass
 
-class TrainingCourseViewSet(viewsets.ModelViewSet):
+class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     # Formation désormais globale (aucun rattachement navire) : aucun filtre de
     # périmètre à appliquer au catalogue ACTIVE, visible par tout utilisateur
     # connecté (cf. peut_valider_formation pour l'autorisation d'écriture sur
@@ -74,6 +69,7 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
     queryset = TrainingCourse.objects.all()
     serializer_class = TrainingCourseSerializer
     permission_classes = [RolePermission]
+    domaine_audit = "training"
 
     def get_queryset(self):
         user = self.request.user
@@ -105,15 +101,20 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
             Q(statut_validation="ACTIVE") | Q(pk__in=mes_propositions_ids) | Q(pk__in=a_valider_ids)
         )
 
+    def _exiger_catalogue(self):
+        # Le catalogue « organisme » est commun à toute la flotte : même seuil que la création web.
+        if user_role_level(self.request.user) < NIVEAU_REQUIS_CREATION_FORMATION:
+            raise ApiPermissionDenied("Le catalogue des formations est réservé à l'administration.")
+
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        self._exiger_catalogue()
+        self._tracer("creation", serializer.save(created_by=self.request.user, updated_by=self.request.user))
 
     def perform_update(self, serializer):
         instance = serializer.instance
         if not instance.gere_par_le_bord:
-            # Formation « organisme » classique : aucun garde-fou du Circuit C
-            # ne s'applique, seul le seuil générique RolePermission compte.
-            serializer.save(updated_by=self.request.user)
+            self._exiger_catalogue()
+            self._tracer("modification", serializer.save(updated_by=self.request.user))
             return
         # Périmètre organisationnel du proposeur d'origine (deuxième refus du
         # Tech Lead, tâche Notion Circuit C) : un CHEF_SECTION satisfait le
@@ -145,92 +146,79 @@ class TrainingCourseViewSet(viewsets.ModelViewSet):
         # seule côté serializer (Meta.read_only_fields) : ce sont ces kwargs
         # explicites de .save() qui les pilotent, jamais le payload posté.
         statut_cible = (
-            "ACTIVE" if user_role_level(self.request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
+            "ACTIVE" if niveau_ecriture(self.request.user) >= NIVEAU_REQUIS_VALIDATION_FORMATION_BORD
             else "WAITING_VALIDATION"
         )
-        serializer.save(statut_validation=statut_cible, updated_by=self.request.user)
+        self._tracer("modification", serializer.save(statut_validation=statut_cible, updated_by=self.request.user))
 
     def perform_destroy(self, instance):
-        if instance.gere_par_le_bord and not peut_modifier_formation_bord(self.request.user, instance):
-            raise ApiPermissionDenied(
-                "Vous n'avez pas l'autorité pour supprimer cette formation gérée par un "
-                "bord : elle est hors de votre périmètre."
-            )
-        instance.delete()
+        if instance.gere_par_le_bord:
+            if not peut_modifier_formation_bord(self.request.user, instance):
+                raise ApiPermissionDenied(
+                    "Vous n'avez pas l'autorité pour supprimer cette formation gérée par un "
+                    "bord : elle est hors de votre périmètre."
+                )
+        else:
+            self._exiger_catalogue()
+        # La cascade détruirait les validations (TrainingRecord) : une formation utilisée ne se supprime pas.
+        if formation_utilisee(instance):
+            raise ValidationError("Cette formation porte de l'historique (validations, sessions, candidatures, exigences) : suppression impossible.")
+        super().perform_destroy(instance)
 
 class ReferentFormationPermission(RolePermission):
-    """Désignation d'un référent (ReferentFormation) soumise au seuil générique
-    CHEF_SECTION (RolePermission), mais TOUJOURS scopée au navire de
-    L'APPELANT (navire_de) — jamais au navire fourni dans le payload. Sans ce
-    contrôle, un CHEF_SECTION d'un navire A pourrait poster un `ship` d'un
-    navire B et se faire désigner (ou désigner un tiers) référent de ce
-    navire B, obtenant l'autorité de valider des formations de marins qui ne
-    sont pas de son bord — faille corrigée ici. Seuls les rôles de
-    supervision globale (COMMANDANT et au-dessus, cf.
-    training.models.NIVEAU_SUPERVISION_GLOBALE_FORMATION) peuvent agir sur
-    n'importe quel navire. Reproduit exactement la même logique que
-    training/web_views.py::update_prerequisites (déjà correcte côté web) —
-    voir aussi ReferentFormationNavire (training/models.py), volontairement
-    sans route API et gérée uniquement côté web scopé, pour la même
-    raison."""
+    """Désigner un référent donne le droit de valider des formations : réservé au
+    commandement du bâtiment concerné. Le contrôle fin (bâtiment, personne désignée)
+    se fait à l'écriture, ici seul le niveau minimal est exigé."""
 
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return super().has_permission(request, view)
-        if not super().has_permission(request, view):
-            return False
-        if request.method != "POST":
-            # PUT/PATCH/DELETE : le contrôle du navire ciblé porte sur
-            # l'objet existant, tranché par has_object_permission ci-dessous.
-            return True
-        if user_role_level(request.user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
-            return True
-        navire = navire_de(request.user)
-        return navire is not None and _entier_ou_none(request.data.get("ship")) == navire.id
-
-    def has_object_permission(self, request, view, obj):
-        if request.method in SAFE_METHODS:
-            return True
-        if not super().has_object_permission(request, view, obj):
-            return False
-        if user_role_level(request.user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
-            return True
-        navire = navire_de(request.user)
-        if navire is None or obj.ship_id != navire.id:
-            return False
-        # Si la requête tente de déplacer le référent vers un autre navire
-        # (champ `ship` présent dans le payload), ce nouveau navire doit lui
-        # aussi être celui de l'appelant.
-        if "ship" in request.data:
-            return _entier_ou_none(request.data.get("ship")) == navire.id
-        return True
+        return request.user.is_authenticated and user_role_level(request.user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION
 
 
-class ReferentFormationViewSet(viewsets.ModelViewSet):
+class ReferentFormationViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     queryset = ReferentFormation.objects.select_related("course", "ship", "user").all()
     serializer_class = ReferentFormationSerializer
     permission_classes = [ReferentFormationPermission]
+    domaine_audit = "training"
 
     def get_queryset(self):
-        # ReferentFormationPermission (ci-dessus) scope déjà l'ÉCRITURE au
-        # navire de l'appelant, mais la LECTURE (GET liste/détail) n'était
-        # soumise à aucun filtre de périmètre avant cette correction : un
-        # utilisateur pouvait lister/consulter via l'API les référents de
-        # TOUS les navires, alors que la même information est déjà scopée
-        # au navire de l'appelant côté web (training/web_views.py, cf.
-        # test_referent_dun_autre_navire_non_affiche) — faille corrigée ici
-        # (audit sécurité scoping API, tâche Notion « Audit complet du
-        # scoping par périmètre »).
+        # Chacun ne voit que les référents de son bâtiment (l'administrateur général : tous).
         qs = super().get_queryset()
         user = self.request.user
         if not user.is_authenticated:
             return ReferentFormation.objects.none()
-        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
+        if is_master_admin(user):
             return qs
-        ship_id = ship_id_for_user(user)
-        if ship_id is None:
-            return qs.none()
-        return qs.filter(ship_id=ship_id)
+        navire = navire_de(user)
+        return qs.filter(ship=navire) if navire is not None else qs.none()
+
+    def _controler(self, serializer):
+        """Le commandant du bâtiment désigne un marin de ce bâtiment, jamais lui-même."""
+        donnees = serializer.validated_data
+        instance = serializer.instance
+        ship = donnees.get("ship") or instance.ship
+        cible = donnees.get("user") or instance.user
+        if not peut_designer_referent(self.request.user, ship, cible):
+            raise ApiPermissionDenied("Seul le commandement de l'unité désigne ses référents, et jamais pour lui-même.")
+        navire_cible = navire_de(cible)
+        if navire_cible is None or navire_cible.pk != ship.pk:
+            raise ValidationError({"user": "Le référent doit appartenir à l'unité concernée."})
+
+    def perform_create(self, serializer):
+        self._controler(serializer)
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        if not peut_designer_referent(self.request.user, serializer.instance.ship):
+            raise ApiPermissionDenied("Seul le commandement de l'unité modifie ses référents.")
+        self._controler(serializer)
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        if not peut_designer_referent(self.request.user, instance.ship):
+            raise ApiPermissionDenied("Seul le commandement de l'unité retire ses référents.")
+        super().perform_destroy(instance)
 
 
 class TrainingRequirementPermission(RolePermission):
@@ -245,7 +233,7 @@ class TrainingRequirementPermission(RolePermission):
     déjà utilisé pour le même contrôle côté annuaire
     (accounts/serializers.py::UserProfileSerializer), plutôt que de recréer
     une vérification équivalente. Seuls les rôles de supervision globale
-    (COMMANDANT et au-dessus, cf. NIVEAU_SUPERVISION_GLOBALE_FORMATION)
+    (administrateur général)
     peuvent cibler n'importe quel navire, ou ne cibler aucun navire du tout
     (exigence valable pour toute la flotte)."""
 
@@ -269,13 +257,13 @@ class TrainingRequirementPermission(RolePermission):
 
     @staticmethod
     def _perimetre_valide(request, existant=None):
-        if user_role_level(request.user) >= NIVEAU_SUPERVISION_GLOBALE_FORMATION:
+        if is_master_admin(request.user):
             return True
         data = request.data
 
         def _id_demande(champ_payload, champ_modele):
             if champ_payload in data:
-                return _entier_ou_none(data.get(champ_payload))
+                return entier_ou_none(data.get(champ_payload))
             return getattr(existant, champ_modele, None) if existant else None
 
         ship_id = _id_demande("applies_to_ship", "applies_to_ship_id")
@@ -294,12 +282,13 @@ class TrainingRequirementPermission(RolePermission):
         return ok
 
 
-class TrainingRequirementViewSet(viewsets.ModelViewSet):
+class TrainingRequirementViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     queryset = TrainingRequirement.objects.select_related(
         "course", "applies_to_ship", "applies_to_service", "applies_to_sector", "applies_to_section"
     ).all()
     serializer_class = TrainingRequirementSerializer
     permission_classes = [TrainingRequirementPermission]
+    domaine_audit = "training"
 
     def get_queryset(self):
         # Une exigence sans rattachement vaut pour toute la flotte et reste visible de tous.
@@ -307,7 +296,7 @@ class TrainingRequirementViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return TrainingRequirement.objects.none()
-        if user_role_level(user) >= NIVEAU_LECTURE_GLOBALE_FORMATION:
+        if is_master_admin(user):
             return qs
         return qs.filter(
             perimetre_navire_q(user, "applies_to_")
@@ -336,8 +325,8 @@ class TrainingRecordPermission(RolePermission):
             # PUT/PATCH/DELETE : le contrôle porte sur l'objet existant,
             # tranché par has_object_permission ci-dessous.
             return True
-        course = TrainingCourse.objects.filter(pk=request.data.get("course")).first()
-        marin = User.objects.filter(pk=request.data.get("user")).first()
+        course = TrainingCourse.objects.filter(pk=entier_ou_none(request.data.get("course"))).first()
+        marin = User.objects.filter(pk=entier_ou_none(request.data.get("user"))).first()
         if course is None or marin is None:
             # Formation ou marin absent/invalide : on laisse le serializer
             # renvoyer une erreur de validation explicite plutôt qu'un refus
@@ -399,7 +388,7 @@ class TrainingSessionPermission(RolePermission):
             return True
         if "attendees" not in request.data:
             return super().has_permission(request, view)
-        course = TrainingCourse.objects.filter(pk=request.data.get("course")).first()
+        course = TrainingCourse.objects.filter(pk=entier_ou_none(request.data.get("course"))).first()
         if course is not None:
             ids = _ids_postes(request.data.get("attendees"))
             if not self._autorise_pour_marins(request.user, course, ids):
@@ -438,24 +427,34 @@ class TrainingSessionPermission(RolePermission):
 # planification (disponibilité salles/formateurs) reste visible flotte
 # entière. Seule l'ÉCRITURE reste contrôlée finement (TrainingSessionPermission
 # ci-dessus, par affectation personnelle des marins concernés).
-class TrainingSessionViewSet(EcritureDansLePerimetreMixin, viewsets.ModelViewSet):
+class TrainingSessionViewSet(EcritureTraceeMixin, EcritureDansLePerimetreMixin, viewsets.ModelViewSet):
     queryset = TrainingSession.objects.select_related("course", "instructor").all()
     serializer_class = TrainingSessionSerializer
     permission_classes = [TrainingSessionPermission]
     # Les présences (attendees) relèvent des référents (TrainingSessionPermission),
     # désignés pour un navire précis : elles ne sont donc pas limitées ici.
     champs_utilisateurs_perimetre = ("instructor", "reservations")
+    domaine_audit = "training"
 
-class TrainingRecordViewSet(viewsets.ModelViewSet):
+    def perform_destroy(self, instance):
+        # Des présences constatées ou une session effectuée font foi : on les annule, on ne les efface pas.
+        if instance.attendees.exists() or instance.status == "DONE":
+            raise ValidationError("Cette session a des présences ou est effectuée : annulez-la plutôt que de la supprimer.")
+        super().perform_destroy(instance)
+
+class TrainingRecordViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     queryset = TrainingRecord.objects.select_related("course", "user").all()
     serializer_class = TrainingRecordSerializer
     permission_classes = [TrainingRecordPermission]
+    domaine_audit = "training"
 
     def get_queryset(self):
         return super().get_queryset().filter(dossiers_formation_visibles_q(self.request.user))
 
     def perform_create(self, serializer):
-        serializer.save(validated_by=self.request.user, created_by=self.request.user)
+        self._tracer("creation", serializer.save(validated_by=self.request.user, created_by=self.request.user))
 
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        avant = (serializer.instance.completed_at, serializer.instance.expires_at)
+        enregistre = serializer.save(updated_by=self.request.user)
+        self._tracer("modification", enregistre, f" ; dates: {avant} -> {(enregistre.completed_at, enregistre.expires_at)}")

@@ -56,3 +56,9 @@ class ContrastesTests(SimpleTestCase):
 
     def test_composants_d_interface(self):
         self._verifier(self.clair, ("signal-ui", "focus"), ("bg", "surface"), 3.0)
+
+    def test_encre_sur_vert_et_sur_ambre(self):
+        # Pastille « Terminées » (vert) et survol de « Signaler une difficulté » (ambre).
+        for jetons in (self.clair, self.sombre):
+            for fond in ("green-tech", "amber"):
+                self.assertGreaterEqual(_contraste(jetons["ink"], jetons[fond]), 4.5, fond)

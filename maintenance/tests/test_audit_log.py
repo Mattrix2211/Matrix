@@ -72,21 +72,22 @@ class AuditLogOccurrenceTests(TestCase):
         self.assertIn("ASSIGNED -> DONE", entree.details)
 
     def test_execution_sur_installation_critique_distingue_la_validation(self):
-        # Geste engageant (signature de validation par mot de passe) :
+        # Geste engageant (confirmation explicite) :
         # identifiable séparément dans le journal, même logique que la
         # remise en service d'un ticket correctif.
         occ = self._creer_occurrence(self.installation_critique)
         url = reverse("occurrence-execute", args=[occ.id])
-        self.client.post(url, {"conformity": "CONFORME", "mot_de_passe": "MotDePasseCorrect1"})
+        self.client.post(url, {"conformity": "CONFORME", "confirmation": "1"})
 
         entree = AuditLog.objects.get(action="occurrence_validation_critique")
         self.assertEqual(entree.actor, self.tech)
         self.assertIn(str(occ.pk), entree.details)
         self.assertFalse(AuditLog.objects.filter(action="occurrence_status_change").exists())
 
-    def test_mot_de_passe_incorrect_ne_genere_aucune_entree(self):
+    def test_confirmation_absente_ne_genere_aucune_entree_de_validation(self):
         occ = self._creer_occurrence(self.installation_critique)
         url = reverse("occurrence-execute", args=[occ.id])
-        self.client.post(url, {"conformity": "CONFORME", "mot_de_passe": "faux-mot-de-passe"})
+        self.client.post(url, {"conformity": "CONFORME"})
         self.assertFalse(OccurrenceStatusLog.objects.filter(occurrence=occ).exists())
         self.assertFalse(AuditLog.objects.filter(action__startswith="occurrence_").exists())
+        self.assertTrue(AuditLog.objects.filter(action="validation_critique_refusee").exists())

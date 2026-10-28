@@ -6,6 +6,8 @@ module logistics), et la création/modification via la vue liste.
 """
 import io
 
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -15,7 +17,8 @@ from PIL import Image as PILImage
 from accounts.models import UserProfile
 from assets.models import Asset, AssetType, Installation
 from org.models import Sector, Section, Service, Ship
-from logistics.models import StockPiece
+from logistics.models import MouvementStock, StockPiece
+from logistics.stock import enregistrer_mouvement
 from matrix.core.testing import MediaRootTemporaireMixin
 
 
@@ -116,6 +119,27 @@ class StockPieceListViewTests(MediaRootTemporaireMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.piece_dans_perimetre.refresh_from_db()
         self.assertEqual(self.piece_dans_perimetre.quantite_minimale, 5)
+
+    def test_fiche_ne_reecrit_pas_la_quantite_issue_de_mouvements_recents(self):
+        piece = self.piece_conforme
+        enregistrer = StockPiece.save
+
+        def save_apres_mouvement(instance, *args, **kwargs):
+            # Un mouvement +5 survient entre le chargement de la pièce et son enregistrement.
+            if instance.pk == piece.pk:
+                enregistrer_mouvement(self.chef, StockPiece.objects.get(pk=piece.pk), MouvementStock.ENTREE, 5)
+            return enregistrer(instance, *args, **kwargs)
+
+        self.client.login(username="chef", password="pass")
+        with patch.object(StockPiece, "save", save_apres_mouvement):
+            self.client.post(self.url, {
+                "action": "edit_piece", "pk": piece.pk, "reference": "REF-006", "designation": "Écrou modifié",
+                "quantite_minimale": "5", "sector_id": self.secteur.id,
+            })
+        piece.refresh_from_db()
+        self.assertEqual(piece.designation, "Écrou modifié")
+        self.assertEqual(piece.quantite, 25)
+        self.assertEqual(sum(m.quantite for m in piece.mouvements.all()), 5)
 
     def test_creation_sans_secteur_est_refusee(self):
         self.client.login(username="chef", password="pass")

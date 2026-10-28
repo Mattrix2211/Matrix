@@ -1,6 +1,6 @@
 """Double équipage (décision du 30/09/2026) : une feuille de service par
 équipage ; personnel, validateurs à notifier et feuille du jour bornés à
-l'équipage ; équipage unique inchangé ; équipage à terre en lecture seule."""
+l'équipage ; équipage unique inchangé ; chaque équipage, à bord ou à terre, rédige et vise sa propre feuille."""
 from datetime import datetime, timedelta
 
 from django.contrib.auth.models import User
@@ -118,8 +118,8 @@ class FeuilleServiceParEquipageTests(TestCase):
         self.assertTrue(feuille_service_du_jour_pour(self.marin_bleu, self.jour)["je_suis_de_service"])
         self.assertIsNone(feuille_service_du_jour_pour(self.marin_rouge, self.jour))
 
-    def test_equipage_a_terre_ne_peut_pas_creer_de_feuille(self):
+    def test_equipage_a_terre_cree_sa_propre_feuille(self):
         self.client.force_login(self.marin_rouge)
         reponse = self.client.post(self.url, {"action": "creer"})
-        self.assertEqual(reponse.status_code, 403)  # refus par le mode lecture seule
-        self.assertFalse(FeuilleService.objects.exists())
+        self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(list(FeuilleService.objects.values_list("equipage", flat=True)), [self.rouge])

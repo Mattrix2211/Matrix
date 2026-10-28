@@ -1,20 +1,37 @@
 """Middlewares transverses de Matrix."""
+import logging
+
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse, QueryDict
-from django.urls import reverse
+from django.db import DataError, connection
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, QueryDict
+from django.urls import Resolver404, resolve, reverse
+from django.utils.deprecation import MiddlewareMixin
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import redirect, render
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS
 
+from .config_version import fermer_contexte, ouvrir_contexte
 from .equipage import ACTIONS_RELEVE, equipage_a_terre_lecture_seule
+from .scopes import soutien_a_terre
+
+logger = logging.getLogger(__name__)
+
+# psycopg2 signale le NUL par un ValueError sans type propre (psycopg 3 lève un DataError).
+EXTRAIT_NUL = "NUL (0x00)"
 
 
 def _sans_nul(parametres):
     propres = QueryDict(mutable=True, encoding=parametres.encoding)
     for cle, valeurs in parametres.lists():
         propres.setlist(cle.replace("\x00", ""), [v.replace("\x00", "") for v in valeurs])
+    propres._mutable = False
     return propres
+
+
+def _contient_nul(parametres):
+    return any("\x00" in cle or any("\x00" in v for v in valeurs) for cle, valeurs in parametres.lists())
 
 
 def utilisateur_de_requete(request):
@@ -29,17 +46,76 @@ def utilisateur_de_requete(request):
 
 
 class SansNulMiddleware:
-    """Retire le caractère NUL des paramètres d'URL : PostgreSQL le refuse dans toute requête
-    texte (erreur 500), ce que SQLite laisse passer en développement. Les formulaires Django
-    le rejettent déjà eux-mêmes."""
+    """Retire le caractère NUL des paramètres d'URL et des formulaires envoyés (POST) : PostgreSQL
+    le refuse dans toute requête texte (erreur 500), ce que SQLite laisse passer en développement."""
+
+    TYPES_FORMULAIRE = ("application/x-www-form-urlencoded", "multipart/form-data")
 
     def __init__(self, get_response):
         self.get_response = get_response
 
+    @staticmethod
+    def _nettoyer_a_la_lecture(request):
+        """Nettoie le corps à son analyse (pas avant : lire request.POST d'avance interdirait request.body)."""
+        analyser = request._load_post_and_files
+
+        def analyser_et_nettoyer():
+            analyser()
+            if _contient_nul(request._post):
+                request._post = _sans_nul(request._post)
+
+        request._load_post_and_files = analyser_et_nettoyer
+
     def __call__(self, request):
         if "%00" in request.META.get("QUERY_STRING", "").lower():
             request.GET = _sans_nul(request.GET)
+        if request.method == "POST" and request.content_type in self.TYPES_FORMULAIRE:
+            self._nettoyer_a_la_lecture(request)
         return self.get_response(request)
+
+
+class ErreurSaisieMiddleware(MiddlewareMixin):
+    """Dernier recours pour deux erreurs de saisie attendues, reconnues à leur type : texte trop long pour sa
+    colonne (DataError) et caractère NUL. Toute autre exception reste une erreur 500 visible : les vues
+    contrôlent elles-mêmes leurs entiers, dates et longueurs avant d'écrire. Si la requête a déjà écrit en
+    base, l'erreur reste aussi visible (500) : un message « recommencez » risquerait de créer des doublons."""
+
+    ECRITURES = ("INSERT", "UPDATE", "DELETE")
+
+    def __call__(self, request):
+        request._ecriture_en_base = False
+
+        def surveiller(execute, sql, params, many, context):
+            resultat = execute(sql, params, many, context)
+            if sql.lstrip()[:6].upper() in self.ECRITURES:
+                request._ecriture_en_base = True
+            return resultat
+
+        with connection.execute_wrapper(surveiller):
+            return super().__call__(request)
+
+    @staticmethod
+    def _est_erreur_de_saisie(exception):
+        return isinstance(exception, DataError) or (isinstance(exception, ValueError) and EXTRAIT_NUL in str(exception))
+
+    def process_exception(self, request, exception):
+        if not self._est_erreur_de_saisie(exception) or request._ecriture_en_base:
+            return None
+        logger.warning("Saisie refusée sur %s %s", request.method, request.path, exc_info=exception)
+        message = "Saisie refusée : une valeur est invalide ou trop longue. Rien n'a été enregistré : vérifiez les champs et recommencez."
+        if request.path.startswith("/api/") or "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse({"detail": message}, status=400)
+        if request.method in ("GET", "HEAD"):
+            return HttpResponseBadRequest(message, content_type="text/plain; charset=utf-8")
+        messages.error(request, message)
+        retour = request.headers.get("Referer", "")
+        if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
+            retour = "/"
+        if request.headers.get("HX-Request"):
+            reponse = HttpResponse(status=204)
+            reponse["HX-Redirect"] = retour
+            return reponse
+        return HttpResponseRedirect(retour)
 
 
 class MotDePasseProvisoireMiddleware:
@@ -116,6 +192,21 @@ class IdentitePageMiddleware:
         return self.get_response(request)
 
 
+class ContexteConfigurationMiddleware:
+    """Ouvre le contexte de requête où les versions de configuration (seuils,
+    modules) ne sont validées en base qu'une seule fois (config_version.py)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        jeton = ouvrir_contexte()
+        try:
+            return self.get_response(request)
+        finally:
+            fermer_contexte(jeton)
+
+
 class ModuleActivationMiddleware:
     """Bloque l'accès direct par URL aux vues WEB (pages HTML) d'un module
     désactivé sur le navire de l'utilisateur connecté (tâche Notion « Modules
@@ -173,20 +264,43 @@ class ModuleActivationMiddleware:
         return redirect("home")
 
 
-# Écritures restant permises à l'équipage à terre : uniquement personnelles ou de session.
-CHEMINS_ECRITURE_A_TERRE = (
+# Écritures personnelles ou de session, permises à tout marin en lecture seule.
+CHEMINS_PERSONNELS = (
     "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
     "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/",
-    "/calendar/personnel/", "/taches/commentaire/", "/demandes/", "/annonces/",
+    "/calendar/personnel/",
+)
+# Écritures restant permises à l'équipage à terre : personnelles, fils de discussion, demandes et annonces.
+CHEMINS_ECRITURE_A_TERRE = (*CHEMINS_PERSONNELS, "/taches/commentaire/", "/demandes/", "/annonces/")
+# Soutien à terre (sans bâtiment) : écritures personnelles, commentaires et circuits du catalogue flotte
+# (responsables de spécialité) ; les vues revérifient leurs droits. Tout le reste est refusé par défaut.
+CHEMINS_ECRITURE_SOUTIEN = (
+    *CHEMINS_PERSONNELS, "/taches/commentaire/", "/catalogue/", "/fiches/", "/api/assets/catalogue-",
+    "/api/threads/messages/", "/api/threads/attachments/",
+)
+# Détail de SA feuille de service (chaque équipage, à bord ou à terre, a la sienne) : seules ces actions du
+# formulaire sont exemptées ; la vue revérifie fonction, bâtiment et équipage propriétaire de la feuille.
+ACTIONS_FEUILLE_SERVICE_A_TERRE = (
+    "creer", "enregistrer_entete", "proposer", "viser_secteur", "viser_service", "viser_comaeq", "renvoyer",
+    "resynchroniser", "ouvrir_rectificatif",
 )
 # Actions de /parametre/ permises à terre : la relève (la vue revérifie les commandants) et l'heure de notification personnelle.
 ACTIONS_PARAMETRE_A_TERRE = (*ACTIONS_RELEVE, "update_notification_time")
 
 MESSAGE_LECTURE_SEULE = "Lecture seule : votre équipage est à terre, cette action est réservée à l'équipage à bord."
+MESSAGE_SOUTIEN_A_TERRE = "Soutien à terre : vous consultez et commentez, la modification des données du bord est réservée à l'équipage embarqué."
+
+
+def _est_detail_feuille_service(chemin):
+    """Vrai pour la seule route du détail d'une feuille (jamais réglages ni alertes)."""
+    try:
+        return resolve(chemin).url_name == "feuille-service-detail"
+    except Resolver404:
+        return False
 
 
 class EquipageATerreMiddleware:
-    """Refuse toute écriture (web et API) du marin d'un équipage à terre, hors CHEMINS_ECRITURE_A_TERRE.
+    """Refuse toute écriture (web et API) de l'équipage à terre et du soutien à terre, hors chemins permis.
 
     Refus par défaut : une nouvelle vue d'écriture est protégée sans rien déclarer.
     """
@@ -195,15 +309,30 @@ class EquipageATerreMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method not in SAFE_METHODS and not self._exemptee(request):
-            if equipage_a_terre_lecture_seule(utilisateur_de_requete(request)):
+        if request.method not in SAFE_METHODS:
+            utilisateur = utilisateur_de_requete(request)
+            message = self._refus(request, utilisateur)
+            if message:
                 if request.path.startswith("/api/"):
-                    return JsonResponse({"detail": MESSAGE_LECTURE_SEULE}, status=403)
-                return render(request, "403.html", {"message_refus": MESSAGE_LECTURE_SEULE}, status=403)
+                    return JsonResponse({"detail": message}, status=403)
+                return render(request, "403.html", {"message_refus": message}, status=403)
         return self.get_response(request)
 
     @staticmethod
-    def _exemptee(request):
-        if request.path == "/parametre/":
-            return request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
-        return request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
+    def _refus(request, utilisateur):
+        """Message de refus si l'écriture n'est pas permise à cet utilisateur, sinon chaîne vide."""
+        if equipage_a_terre_lecture_seule(utilisateur):
+            if request.path == "/parametre/":
+                permis = request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
+            elif _est_detail_feuille_service(request.path_info):
+                permis = request.POST.get("action") in ACTIONS_FEUILLE_SERVICE_A_TERRE
+            else:
+                permis = request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
+            return "" if permis else MESSAGE_LECTURE_SEULE
+        if soutien_a_terre(utilisateur):
+            if request.path == "/parametre/":
+                permis = request.POST.get("action") == "update_notification_time"
+            else:
+                permis = request.path.startswith(CHEMINS_ECRITURE_SOUTIEN) or request.path.endswith("/commentaire/")
+            return "" if permis else MESSAGE_SOUTIEN_A_TERRE
+        return ""

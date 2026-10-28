@@ -48,14 +48,14 @@
             {% for m in occ.assignees.all %}{{ m.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
           </td>
           <td class="text-end">
-            <form method="post" action="{% url 'occurrence-self-assign' occ.pk %}" class="d-inline">
+            {% if not soutien_a_terre and not equipage_a_terre %}<form method="post" action="{% url 'occurrence-self-assign' occ.pk %}" class="d-inline">
               {% csrf_token %}
               <button type="submit" class="btn btn-sm {% if occ.suis_assigne %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
                 {% if occ.suis_assigne %}Me désister{% else %}M'assigner{% endif %}
               </button>
-            </form>
+            </form>{% endif %}
             <a href="{% url 'occurrence-imprimer' occ.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">Imprimer</a>
-            <a href="{% url 'occurrence-execute' occ.pk %}" class="btn btn-sm btn-outline-success">Exécuter</a>
+            <a href="{% url 'occurrence-execute' occ.pk %}" class="btn btn-sm btn-outline-success">{% if soutien_a_terre or equipage_a_terre %}Ouvrir{% else %}Exécuter{% endif %}</a>
           </td>
         </tr>
         {% empty %}

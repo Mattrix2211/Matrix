@@ -312,7 +312,7 @@ class ReferencesHorsPerimetreTests(BaseApi):
         self.assertEqual((cours.created_by, cours.updated_by), (self.chef_section_form, self.chef_section_form))
 
     def _client_chef_formation(self):
-        self.chef_section_form = _utilisateur("cs_form_sec", Roles.CHEF_SECTION, ship=self.ship_a, sector=self.sector_a)
+        self.chef_section_form = _utilisateur("cs_form_sec", Roles.ADMIN_NAVIRE, ship=self.ship_a)
         return self._client("cs_form_sec")
 
     def test_profil_non_creable_par_l_api(self):

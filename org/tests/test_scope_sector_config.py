@@ -30,7 +30,7 @@ class ScopeSectorConfigTests(TestCase):
 
         self.chef_section_a = User.objects.create_user(username="chef_cfg_a", password="pass")
         UserProfile.objects.update_or_create(
-            user=self.chef_section_a, defaults={"role": "CHEF_SECTION", "ship": self.navire_a}
+            user=self.chef_section_a, defaults={"role": "ADMIN_NAVIRE", "ship": self.navire_a}
         )
 
         self.master_admin = User.objects.create_user(username="master_cfg", password="pass")

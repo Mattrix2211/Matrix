@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import Roles, RoleAvailability, UserProfile
+from accounts.models import AuditLog, Roles, RoleAvailability, UserProfile
 from org.models import Ship
 
 
@@ -77,6 +77,34 @@ class FormulaireUtilisateurTests(TestCase):
         })
         self.marin.profile.refresh_from_db()
         self.assertEqual(self.marin.profile.role, Roles.EQUIPIER)
+
+    def _creer(self, nom, role):
+        return self.client.post(reverse("user-directory"), {
+            "action": "create_user", "first_name": "Eva", "last_name": nom,
+            "role": role, "ship_id": self.navire.pk,
+        })
+
+    def test_creation_applique_le_role_choisi_et_le_journal_le_reflete(self):
+        self.client.login(username="cdt_frm", password="pass")
+        self._creer("Chefsection", Roles.CHEF_SECTION)
+        cree = User.objects.get(last_name="Chefsection")
+        self.assertEqual(cree.profile.role, Roles.CHEF_SECTION)
+        journal = AuditLog.objects.get(action="create_user", target_user=cree)
+        self.assertIn(f"role={Roles.CHEF_SECTION}", journal.details)
+
+    def test_creation_refuse_un_role_superieur_a_celui_de_l_appelant(self):
+        self.client.login(username="chef_frm", password="pass")
+        for role in (Roles.COMMANDANT, Roles.CHEF_SERVICE, Roles.MASTER_ADMIN):
+            self._creer("Interdit", role)
+        self.assertFalse(User.objects.filter(last_name="Interdit").exists())
+
+    def test_creation_refuse_un_role_absent_ou_invalide_meme_pour_l_administrateur_general(self):
+        general = User.objects.create_user(username="gen_frm", password="pass")
+        UserProfile.objects.update_or_create(user=general, defaults={"role": Roles.MASTER_ADMIN})
+        self.client.login(username="gen_frm", password="pass")
+        for role in ("", "INVENTE"):
+            self._creer("Sansrole", role)
+        self.assertFalse(User.objects.filter(last_name="Sansrole").exists())
 
 
 class AnnuaireTableauTests(TestCase):

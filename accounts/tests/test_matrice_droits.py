@@ -275,3 +275,38 @@ class ParametresMatriceTests(MatriceDroitsBase):
         self.assertFalse(ResponsableClasseNavire.objects.exists())
         self.client.post("/parametre/", {"action": "add_responsable_classe", "name": "Classe X", "user_id": self.acteurs["equipier"].pk})
         self.assertEqual(ResponsableClasseNavire.objects.count(), 1)
+
+
+class CreationUtilisateurRoleTests(MatriceDroitsBase):
+    def _selectionnes(self, cle):
+        import re
+        self.connecter(cle)
+        html = self.client.get(reverse("user-create")).content.decode()
+        select = re.search(r'<select[^>]*id="fRole".*?</select>', html, re.S).group(0)
+        return re.findall(r'<option value="([^"]*)"\s+selected', select)
+
+    def test_formulaire_sans_role_eleve_preselectionne(self):
+        for cle in ("commandant", "admin_a"):
+            self.assertEqual(self._selectionnes(cle), [""], cle)
+
+    def test_creation_sans_role_refusee(self):
+        self.connecter("admin_a")
+        avant = User.objects.count()
+        reponse = self.client.post(reverse("user-directory"), {
+            "action": "create_user", "first_name": "Sans", "last_name": "Role", "ship_id": self.a.pk,
+        }, follow=True)
+        self.assertContains(reponse, "Choisissez un rôle valide.")
+        self.assertEqual(User.objects.count(), avant)
+
+    def test_creation_avec_role_autorise_applique_le_role(self):
+        self.connecter("commandant")
+        self.client.post(reverse("user-directory"), {
+            "action": "create_user", "first_name": "Avec", "last_name": "Role", "role": "CHEF_SECTION",
+            "ship_id": self.a.pk, "equipage": "BLEU",
+        })
+        self.assertEqual(User.objects.get(username="avec.role").profile.role, "CHEF_SECTION")
+
+    def test_actions_de_masse_sans_role_preselectionne(self):
+        self.connecter("admin_a")
+        html = self.client.get(reverse("user-directory")).content.decode()
+        self.assertIn('id="bulkRole" required>\n              <option value="" selected disabled>', html)

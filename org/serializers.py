@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from matrix.core.equipage import equipage_a_bord
 from matrix.core.serializers import ReferencesDansPerimetreMixin
 from .models import Ship, Service, Sector, Section, SectorConfig
 
@@ -19,14 +20,32 @@ _PERIMETRE_SECTEUR = {
 }
 
 
+class EquipageABordField(serializers.CharField):
+    """Lecture par l'accesseur unique : les relèves échues sont appliquées avant d'exposer l'équipage."""
+
+    def get_attribute(self, instance):
+        return equipage_a_bord(instance)
+
+
 class ShipSerializer(serializers.ModelSerializer):
+    equipage_a_bord = EquipageABordField(max_length=8, required=False, allow_blank=True)
+
     class Meta:
         model = Ship
         fields = (
             "id", "name", "code", "type_unite", "classe_navire",
-            "double_equipage", "equipage_a_bord", "archived", "created_at", "updated_at",
+            "double_equipage", "equipage_a_bord", "fuseau_horaire", "archived", "created_at", "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def update(self, instance, validated_data):
+        # L'équipage à bord change par relève : jamais réécrit par une instance lue avant.
+        validated_data.pop("equipage_a_bord", None)
+        for champ, valeur in validated_data.items():
+            setattr(instance, champ, valeur)
+        instance.save(update_fields=[*validated_data, "updated_at"])
+        equipage_a_bord(instance)
+        return instance
 
 class ServiceSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"ship": (_PERIMETRE_NAVIRE,)}

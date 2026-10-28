@@ -125,9 +125,8 @@ class MaintenanceExecution(TimeStampedModel, OwnedModel):
     conformity = models.CharField(max_length=24, choices=CONFORMITY, blank=True, default="")
     notes = models.TextField(blank=True, default="")
     intervenants = models.ManyToManyField(User, blank=True, related_name="executions_intervenant", verbose_name="Intervenants")
-    # Signature de validation (T-FEAT signature) : le passage en "Terminée" (DONE) sur
-    # une installation critique exige une ré-authentification légère (mot de passe
-    # courant, cf. OccurrenceExecuteView) avant d'être appliqué. AuditLog trace déjà
+    # Validation : le passage en "Terminée" (DONE) sur une installation critique exige
+    # une confirmation explicite (cf. OccurrenceExecuteView) avant d'être appliqué. AuditLog trace déjà
     # "qui a fait quoi", mais ces deux champs distinguent explicitement une validation
     # engageante d'une simple exécution.
     valide_par = models.ForeignKey(

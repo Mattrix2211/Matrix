@@ -2,7 +2,7 @@
 {% load icones %}
 {% block content %}
 <h1 class="h3 mb-1">{% icone "historique" %} Historique des sessions d'appareillage</h1>
-<p class="text-muted mb-4">Sessions de préparation à un appareillage déjà signées et clôturées.</p>
+<p class="text-muted mb-4">Sessions de préparation à un appareillage déjà validées et clôturées.</p>
 
 <p>
   <a href="{% url 'pret-appareillage' %}" class="btn btn-outline-secondary btn-sm">
@@ -22,7 +22,7 @@
         <th>Unité</th>
         <th>Ouverte le</th>
         <th>Clôturée le</th>
-        <th>Signée par</th>
+        <th>Validée par</th>
         <th>Points vérifiés</th>
         <th></th>
       </tr>

@@ -182,6 +182,7 @@
           <div class="mb-3" data-groupe="role">
             <label class="form-label" for="bulkRole">Rôle</label>
             <select class="form-select" name="role" id="bulkRole" required>
+              <option value="" selected disabled>Choisir un rôle</option>
               {% for r in roles %}<option value="{{ r.code }}">{{ r.label }}</option>{% endfor %}
             </select>
           </div>

@@ -98,11 +98,13 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
+    # Premier : borne le mémo des versions de configuration à la requête
+    "matrix.core.middleware.ContexteConfigurationMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    # Retire le caractère NUL des paramètres (erreur 500 sous PostgreSQL)
+    # Retire le caractère NUL des paramètres d'URL et des formulaires (erreur 500 sous PostgreSQL)
     "matrix.core.middleware.SansNulMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Déconnexion automatique après inactivité (matrix/core/inactivite.py)
@@ -120,6 +122,8 @@ MIDDLEWARE = [
     # matrix/core/middleware.py et matrix/core/modules.py).
     "matrix.core.middleware.ModuleActivationMiddleware",
     "matrix.core.middleware.EquipageATerreMiddleware",
+    # Filet : saisie non contrôlée (identifiant, longueur, date) -> message plutôt qu'erreur 500
+    "matrix.core.middleware.ErreurSaisieMiddleware",
 ]
 
 # Correspondance entre les niveaux de messages Django et les classes Bootstrap 5
@@ -203,6 +207,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Préfixe interne du serveur web (nginx : `location /media-interne/ { internal; alias …/media/; }`) ;
+# vide : Django envoie lui-même le fichier après autorisation.
+MEDIA_ACCEL_REDIRECT = os.getenv("MEDIA_ACCEL_REDIRECT", "")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -248,6 +255,16 @@ CELERY_BEAT_SCHEDULE = {
     "purger_sessions_daily": {
         "task": "matrix.core.tasks.purger_sessions",
         "schedule": 60 * 60 * 24,
+    },
+    # Les lectures de l'équipage à bord appliquent aussi les relèves échues : cette tâche couvre les périodes sans activité.
+    "appliquer_releves_echues_minute": {
+        "task": "matrix.core.tasks.appliquer_releves_echues",
+        "schedule": 60,
+    },
+    # Rattrapage des rectificatifs à signaler ; le signalement est idempotent, le quart d'heure suffit.
+    "signaler_divergences_feuilles_15min": {
+        "task": "quarts.tasks.signaler_divergences_feuilles",
+        "schedule": 60 * 15,
     },
     "purger_brouillons_daily": {
         "task": "matrix.core.tasks.purger_brouillons",
@@ -376,6 +393,8 @@ DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
 VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
 VAPID_ADMIN_EMAIL = os.getenv("VAPID_ADMIN_EMAIL", "no-reply@localhost")
+# Durée maximale (secondes) accordée à l'envoi Web Push d'une notification, tous appareils confondus.
+WEBPUSH_DELAI_MAX = float(os.getenv("WEBPUSH_DELAI_MAX", "3"))
 
 # Security (sane defaults for dev; harden in prod)
 CSRF_TRUSTED_ORIGINS = [

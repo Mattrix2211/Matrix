@@ -132,7 +132,9 @@ class FuiteEcritureAPITests(TestCase):
         return client
 
     def test_creation_ignore_gere_par_le_bord_et_statut_force(self):
-        r = self._login(self.chef_section).post("/api/training/courses/", {
+        admin = User.objects.create_user(username="api_admin_catalogue", password="pass")
+        UserProfile.objects.update_or_create(user=admin, defaults={"role": "ADMIN_NAVIRE", "ship": self.ship})
+        r = self._login(admin).post("/api/training/courses/", {
             "title": "Formation créée via API",
             "gere_par_le_bord": True,
             "statut_validation": "ACTIVE",
@@ -285,12 +287,17 @@ class PermissionEcritureCircuitBordAPITests(TestCase):
         self.assertEqual(self.course_en_attente.title, "Habilitation bord A retouchée")
         self.assertEqual(self.course_en_attente.statut_validation, "WAITING_VALIDATION")
 
-    def test_formation_organisme_reste_modifiable_normalement_par_un_chef_section_quelconque(self):
-        """Non-régression : une formation « organisme » (gere_par_le_bord=False)
-        n'est concernée par aucun de ces garde-fous, un CHEF_SECTION quelconque
-        peut continuer à la modifier (seuil générique RolePermission)."""
+    def test_formation_organisme_modifiable_par_l_administration_seulement(self):
+        """Une formation « organisme » (gere_par_le_bord=False) est commune à toute la
+        flotte : l'administration de l'unité la modifie, pas un chef de section."""
         organisme = TrainingCourse.objects.create(title="Formation organisme classique")
         r = self._login(self.chef_section_b).patch(
+            f"/api/training/courses/{organisme.id}/", {"title": "Piratée"}, format="json",
+        )
+        self.assertEqual(r.status_code, 403)
+        admin = User.objects.create_user(username="api_admin_organisme", password="pass")
+        UserProfile.objects.update_or_create(user=admin, defaults={"role": "ADMIN_NAVIRE", "section": self.section_b})
+        r = self._login(admin).patch(
             f"/api/training/courses/{organisme.id}/", {"title": "Formation organisme modifiée"}, format="json",
         )
         self.assertEqual(r.status_code, 200)

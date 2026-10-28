@@ -44,3 +44,22 @@ def user_role_level(user) -> RoleLevel:
     if not profile or not profile.role:
         return RoleLevel.EQUIPIER
     return ROLE_TO_LEVEL.get(profile.role, RoleLevel.EQUIPIER)
+
+
+# Rôles dont le grade ne vaut pas écriture sur les données du bord : leurs écritures passent par des workflows explicites.
+ROLES_SANS_ECRITURE_HERITEE = ("COMMANDANT_EN_SECOND",)
+
+
+def niveau_ecriture(user) -> RoleLevel:
+    """Niveau pris en compte par les seuils d'écriture sur les données du bord : le soutien à terre et le
+    commandant en second retombent au niveau équipier (ils gardent `user_role_level` pour la lecture et
+    pour les workflows qui les nomment : programme du bâtiment, visas)."""
+    from .scopes import soutien_a_terre
+
+    niveau = user_role_level(user)
+    if niveau == RoleLevel.MASTER_ADMIN:
+        return niveau
+    profile = getattr(user, "profile", None)
+    if soutien_a_terre(user) or (profile and profile.role in ROLES_SANS_ECRITURE_HERITEE):
+        return RoleLevel.EQUIPIER
+    return niveau

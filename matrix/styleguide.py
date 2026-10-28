@@ -189,7 +189,7 @@ COMPOSANTS = [
     },
     {
         "nom": "modale", "titre": "Modale", "balise": True,
-        "quand": "Une action courte demandant une concentration : confirmation, mot de passe, signalement rapide.",
+        "quand": "Une action courte demandant une concentration : confirmation, signalement rapide.",
         "quand_pas": "Pour un formulaire métier (panneau latéral, assistant ou page).",
         "exemples": [
             ex("Confirmation", '<button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#sg-modale">Archiver la fiche</button>\n'

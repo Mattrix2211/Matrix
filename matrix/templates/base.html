@@ -27,6 +27,7 @@
     <script src="{% static 'js/theme.js' %}"></script>
   </head>
   <body{% if user.is_authenticated %} data-utilisateur="{{ user.pk }}"{% endif %}>
+    <a class="visually-hidden-focusable mx-evitement" href="#contenu-principal">Aller au contenu</a>
     {# Conteneur global de toasts #}
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
       {% if messages %}
@@ -44,8 +45,8 @@
     {% if user.is_authenticated %}{% url "notifications-panneau" as url_panneau %}{% panneau_lateral id="centre-notifications" titre="Notifications" icone="notifications" url=url_panneau %}{% fin_panneau_lateral %}{% endif %}
     <div class="mx-coque">
       {% if navigation_laterale %}{% include "components/barre_laterale.html" %}{% endif %}
-      <main class="container py-4 mx-coque__contenu">
-        {% if equipage_a_terre %}<div class="alert alert-secondary py-2" role="status">Lecture seule — Équipage {{ equipage_a_terre }} à terre</div>{% endif %}
+      <main id="contenu-principal" tabindex="-1" class="container py-4 mx-coque__contenu">
+        {% if equipage_a_terre %}<div class="alert alert-secondary py-2" role="status"><strong>Lecture seule — Équipage {{ equipage_a_terre }} à terre.</strong> Vous pouvez consulter, répondre dans les fils et les dossiers qui vous concernent, gérer la feuille de service de votre équipage et la relève, selon votre fonction. Les autres actions sont réservées à l'équipage à bord.</div>{% elif soutien_a_terre %}<div class="alert alert-secondary py-2" role="status">Soutien à terre — vous consultez et commentez ; les données du bord se modifient à bord</div>{% endif %}
         {% if user.is_authenticated %}<p class="mx-impression-entete">{% firstof batiment_courant.name user.profile.ship.name "Matrix" %} · imprimé le {% now "d/m/Y à H:i" %} par {{ identite_utilisateur.nom|default:user.username }}</p>{% endif %}
         {% block content %}{% endblock %}
       </main>
