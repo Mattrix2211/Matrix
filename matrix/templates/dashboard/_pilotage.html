@@ -119,6 +119,7 @@
       } else {
         data.datasets.forEach(function (d) { d.backgroundColor = palette; });
       }
+      options.maintainAspectRatio = false;
       new Chart(document.getElementById(id), {type: type, data: data, options: options});
     } catch (e) { /* requête annulée */ }
   }

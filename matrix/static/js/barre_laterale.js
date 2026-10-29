@@ -27,6 +27,25 @@
   }
   montrerCourante();
   barre.addEventListener('shown.bs.offcanvas', montrerCourante);
+  // Groupes repliables : choix explicite de l'utilisateur, mémorisé dans ce navigateur (prototype).
+  // Par défaut ouverts : « Mon quotidien », « Activité » et le groupe de la page courante. Replié, le menu icônes les montre tous.
+  var CLE_GROUPES = 'mx-menu-groupes';
+  var etat = {};
+  try { etat = JSON.parse(window.localStorage.getItem(CLE_GROUPES) || '{}'); } catch (e) { etat = {}; }
+  function appliquer(groupe, ouvert) {
+    groupe.classList.toggle('mx-lateral__groupe--ferme', !ouvert);
+    groupe.querySelector('.mx-lateral__bouton-groupe').setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+  }
+  barre.querySelectorAll('.mx-lateral__groupe').forEach(function (groupe) {
+    var nom = groupe.dataset.groupe;
+    if (nom in etat && !groupe.querySelector('[aria-current="page"]')) appliquer(groupe, !!etat[nom]);
+    groupe.querySelector('.mx-lateral__bouton-groupe').addEventListener('click', function () {
+      var ouvert = groupe.classList.contains('mx-lateral__groupe--ferme');
+      appliquer(groupe, ouvert);
+      etat[nom] = ouvert;
+      try { window.localStorage.setItem(CLE_GROUPES, JSON.stringify(etat)); } catch (e) { /* stockage indisponible */ }
+    });
+  });
   if (!form) return;
   var bouton = form.querySelector('button');
   var champ = form.querySelector('input[name="repliee"]');

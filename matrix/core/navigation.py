@@ -104,6 +104,9 @@ GROUPES = [
     ]),
 ]
 
+# Groupes dépliés au premier affichage du menu ; chaque marin replie ou déplie les autres.
+GROUPES_OUVERTS_PAR_DEFAUT = ("Mon quotidien", "Activité")
+
 
 def _visible(entree, user):
     if entree.module and not module_actif_pour_user(entree.module, user):
@@ -131,7 +134,7 @@ def _rang_correspondance(entree, chemin):
 
 def construire_navigation(user, chemin):
     """Groupes visibles pour l'utilisateur : liste de dicts
-    ``{"titre", "entrees": [{"libelle", "icone", "url", "courante"}]}``.
+    ``{"titre", "contient_courante", "ouvert_par_defaut", "entrees": [{"libelle", "icone", "url", "courante"}]}``.
     Les groupes sans entrée visible sont omis ; une seule entrée est « courante »."""
     visibles = [
         (titre, [e for e in entrees if _visible(e, user)]) for titre, entrees in GROUPES
@@ -145,6 +148,8 @@ def construire_navigation(user, chemin):
     return [
         {
             "titre": titre,
+            "contient_courante": any(e is meilleure for e in entrees),
+            "ouvert_par_defaut": titre in GROUPES_OUVERTS_PAR_DEFAUT,
             "entrees": [
                 {
                     "libelle": e.libelle,

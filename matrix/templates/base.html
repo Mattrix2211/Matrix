@@ -21,6 +21,7 @@
     <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/fonts.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
+    <link rel="stylesheet" href="{% static 'css/naval_premium.css' %}">
     <link rel="stylesheet" href="{% static 'css/impression.css' %}" media="print">
     <script src="{% static 'vendor/htmx/htmx.min.js' %}"></script>
     <script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
@@ -46,7 +47,7 @@
     <div class="mx-coque">
       {% if navigation_laterale %}{% include "components/barre_laterale.html" %}{% endif %}
       <main id="contenu-principal" tabindex="-1" class="container py-4 mx-coque__contenu">
-        {% if equipage_a_terre %}<div class="alert alert-secondary py-2" role="status"><strong>Lecture seule — Équipage {{ equipage_a_terre }} à terre.</strong> Vous pouvez consulter, répondre dans les fils et les dossiers qui vous concernent, gérer la feuille de service de votre équipage et la relève, selon votre fonction. Les autres actions sont réservées à l'équipage à bord.</div>{% elif soutien_a_terre %}<div class="alert alert-secondary py-2" role="status">Soutien à terre — vous consultez et commentez ; les données du bord se modifient à bord</div>{% endif %}
+        {% if equipage_a_terre or soutien_a_terre %}{% include "components/bandeau_acces.html" %}{% endif %}
         {% if user.is_authenticated %}<p class="mx-impression-entete">{% firstof batiment_courant.name user.profile.ship.name "Matrix" %} · imprimé le {% now "d/m/Y à H:i" %} par {{ identite_utilisateur.nom|default:user.username }}</p>{% endif %}
         {% block content %}{% endblock %}
       </main>
@@ -54,6 +55,7 @@
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/matrix.js' %}"></script>
     <script src="{% static 'js/grille.js' %}"></script>
+    <script src="{% static 'js/aide_progressive.js' %}"></script>
     {% if navigation_laterale %}<script src="{% static 'js/barre_laterale.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/identite.js' %}"></script><script src="{% static 'js/brouillon.js' %}"></script>{% endif %}
     {% if user.is_authenticated and inactivite %}{% include "components/inactivite.html" %}<script src="{% static 'js/inactivite.js' %}"></script>{% endif %}

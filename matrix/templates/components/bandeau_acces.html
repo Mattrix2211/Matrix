@@ -1,0 +1,21 @@
+{% load icones %}
+{# Bandeau d'accès limité (équipage à terre, soutien à terre) : ligne compacte, explication complète à la demande. #}
+{# Ouvert à la première visite, puis refermé par l'utilisateur (js/aide_progressive.js) ; les droits réels ne changent pas. #}
+<details class="mx-acces" role="status" data-aide="acces-limite" open>
+  <summary class="mx-acces__resume">
+    {% icone "verrouille" "mx-acces__icone" %}
+    <span class="mx-acces__etat">
+      {% if equipage_a_terre %}<strong>Équipage {{ equipage_a_terre }} à terre</strong>{% else %}<strong>Soutien à terre</strong>{% endif %}
+      <span class="mx-acces__sep" aria-hidden="true">·</span>
+      <span>{% if equipage_a_terre %}Accès limité{% else %}Consultation et commentaires{% endif %}</span>
+    </span>
+    <span class="mx-acces__action"><span class="mx-acces__ouvrir">Comprendre mes droits</span><span class="mx-acces__fermer">Masquer l'explication</span></span>
+  </summary>
+  <div class="mx-acces__detail">
+    {% if equipage_a_terre %}
+    <p class="mb-0"><strong>Lecture seule — Équipage {{ equipage_a_terre }} à terre.</strong> Vous pouvez consulter, répondre dans les fils et les dossiers qui vous concernent, gérer la feuille de service de votre équipage et la relève, selon votre fonction. Les autres actions sont réservées à l'équipage à bord.</p>
+    {% else %}
+    <p class="mb-0"><strong>Soutien à terre</strong> — vous consultez et commentez ; les données du bord se modifient à bord.</p>
+    {% endif %}
+  </div>
+</details>

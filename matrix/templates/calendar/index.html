@@ -26,13 +26,16 @@
   {# Filtres actifs : étiquettes supprimables, remplies par le script #}
   <div id="etiquettes-filtres" class="mx-cal-etiquettes" aria-live="polite"></div>
 
-  {# Légende #}
-  <div class="d-flex flex-wrap gap-3 mb-2 small">
-    {% for source in sources %}<span class="badge" style="background:{{ source.fond }};color:{{ source.texte }}">{% icone source.icone %} {{ source.libelle }}</span>
-    {% endfor %}
-    <span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span>
-    <span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span>
-  </div>
+  {# Légende : repliée par défaut, toutes les entrées restent disponibles #}
+  <details class="mx-cal-legende">
+    <summary>Légende des couleurs</summary>
+    <div class="mx-cal-legende__liste">
+      {% for source in sources %}<span class="badge" style="background:{{ source.fond }};color:{{ source.texte }}">{% icone source.icone %} {{ source.libelle }}</span>
+      {% endfor %}
+      <span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span>
+      <span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span>
+    </div>
+  </details>
 
   <div id="cal-erreur" class="alert alert-danger d-none">Impossible de charger les événements.</div>
 

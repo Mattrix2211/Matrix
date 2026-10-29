@@ -8,9 +8,14 @@
   </div>
   <nav aria-label="Navigation principale">
     {% for groupe in navigation_laterale %}
-      <section class="mx-lateral__groupe" aria-labelledby="mx-groupe-{{ forloop.counter }}">
-        <h2 class="mx-lateral__titre" id="mx-groupe-{{ forloop.counter }}">{{ groupe.titre }}</h2>
-        <ul class="mx-lateral__liste">
+      {# Groupes repliables à la demande de l'utilisateur ; toutes les entrées restent dans le DOM (js/barre_laterale.js). #}
+      <section class="mx-lateral__groupe{% if not groupe.contient_courante and not groupe.ouvert_par_defaut %} mx-lateral__groupe--ferme{% endif %}" data-groupe="{{ groupe.titre }}" aria-labelledby="mx-groupe-{{ forloop.counter }}">
+        <h2 class="mx-lateral__titre" id="mx-groupe-{{ forloop.counter }}">
+          <button type="button" class="mx-lateral__bouton-groupe" aria-expanded="{% if not groupe.contient_courante and not groupe.ouvert_par_defaut %}false{% else %}true{% endif %}" aria-controls="mx-liste-{{ forloop.counter }}">
+            <span>{{ groupe.titre }}</span>{% icone "suite" "mx-lateral__chevron" %}
+          </button>
+        </h2>
+        <ul class="mx-lateral__liste" id="mx-liste-{{ forloop.counter }}">
           {% for entree in groupe.entrees %}
             <li>
               <a class="mx-lateral__lien{% if entree.courante %} mx-lateral__lien--courant{% endif %}" href="{{ entree.url }}" title="{{ entree.libelle }}" aria-label="{{ entree.libelle }}"{% if entree.courante %} aria-current="page"{% endif %}>
