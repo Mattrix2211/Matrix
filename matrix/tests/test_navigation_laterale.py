@@ -59,6 +59,12 @@ class NavigationLateraleTests(TestCase):
             ["Mon quotidien", "Équipements", "Maintenance", "Activité", "Compétences", "Supervision", "Administration"],
         )
 
+    def test_seul_mon_quotidien_est_ouvert_par_defaut_et_le_groupe_courant_est_signale(self):
+        groupes = self._nav(self._marin("defaut_nav", "EQUIPIER"), "/taches/")
+        ouverts = [g["titre"] for g in groupes if g["ouvert_par_defaut"]]
+        self.assertEqual(ouverts, ["Mon quotidien"])
+        self.assertEqual([g["titre"] for g in groupes if g["contient_courante"]], ["Activité"])
+
     def test_module_desactive_masque_ses_entrees_et_le_groupe_vide(self):
         user = self._marin("module_nav", "EQUIPIER")
         for module in ("rondes", "quarts", "absences", "taches", "annonces", "programme", "demandes"):

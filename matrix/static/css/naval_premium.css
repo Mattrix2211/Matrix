@@ -8,11 +8,9 @@
 :root {
   --np-surface-bord: color-mix(in srgb, var(--border) 70%, transparent);
   --np-teinte: color-mix(in srgb, var(--signal) 9%, var(--surface));
-  --np-ombre-douce: 0 1px 2px rgba(11, 25, 41, .05), 0 4px 14px rgba(11, 25, 41, .05);
 }
 [data-theme="sombre"] {
   --np-teinte: color-mix(in srgb, var(--signal) 14%, var(--surface));
-  --np-ombre-douce: 0 1px 2px rgba(0, 0, 0, .35);
 }
 
 /* ---- Typographie et rythme -------------------------------------------- */
@@ -25,7 +23,7 @@ h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
 /* ---- Surfaces et cartes : bordure fine, ombre douce ------------------- */
 .mx-surface, .card {
   border-color: var(--np-surface-bord);
-  box-shadow: var(--np-ombre-douce);
+  box-shadow: var(--shadow-sm);
   border-radius: var(--r-lg);
 }
 .mx-surface { padding: var(--s5); }
@@ -41,9 +39,9 @@ h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
 .mx-parcours .nav-link:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: var(--r-sm); }
 
 /* ---- Actions attendues : lignes compactes, bouton discret -------------- */
-.mx-aujourdhui__liste { gap: 6px; }
-.mx-carte--action { padding: 10px var(--s4); gap: var(--s3); border-radius: var(--r-md); box-shadow: none; border-color: var(--np-surface-bord); }
-.mx-carte--action .mx-carte__texte { gap: 2px; }
+.mx-aujourdhui__liste { gap: var(--s2); }
+.mx-carte--action { padding: var(--s3) var(--s4); gap: var(--s3); border-radius: var(--r-md); box-shadow: none; border-color: var(--np-surface-bord); }
+.mx-carte--action .mx-carte__texte { gap: var(--s1); }
 .mx-carte--action .mx-carte__titre { font-size: .9375rem; line-height: 1.3; }
 .mx-carte--action .mx-carte__contenu { font-size: .8125rem; }
 .mx-carte--action.mx-aujourdhui__tache--danger { border-left: 4px solid var(--red); }
@@ -59,7 +57,7 @@ h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
 
 /* ---- Bandeau d'accès limité : une ligne, explication à la demande ----- */
 .mx-acces { margin-bottom: var(--s4); border: 1px solid var(--np-surface-bord); border-left: 3px solid var(--fog); border-radius: var(--r-md); background: var(--surface); color: var(--text); }
-.mx-acces__resume { display: flex; align-items: center; gap: var(--s3); padding: 6px var(--s4); cursor: pointer; list-style: none; min-height: 40px; }
+.mx-acces__resume { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s4); cursor: pointer; list-style: none; min-height: 40px; }
 .mx-acces__resume::-webkit-details-marker { display: none; }
 .mx-acces__resume:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; border-radius: var(--r-md); }
 .mx-acces__icone { color: var(--text-sec); }
@@ -77,14 +75,14 @@ h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
 /* ---- Barre latérale : groupes repliables, densité maîtrisée ----------- */
 .mx-lateral { padding-top: var(--s2); }
 .mx-lateral__groupe { margin-bottom: var(--s1); }
-.mx-lateral__titre { margin: 0; font: 600 .75rem/1.3 var(--f-display); letter-spacing: .08em; }
-.mx-lateral__bouton-groupe { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: var(--s2) 10px var(--s1); border: 0; background: none; color: var(--text-sec); font: inherit; letter-spacing: inherit; text-transform: uppercase; cursor: pointer; border-radius: var(--r-sm); }
+.mx-lateral__titre { margin: 0; font: 600 .75rem/1.3 var(--f-mono); letter-spacing: .06em; }
+.mx-lateral__bouton-groupe { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: var(--s2) var(--s3) var(--s1); border: 0; background: none; color: var(--text-sec); font: inherit; letter-spacing: inherit; text-transform: uppercase; cursor: pointer; border-radius: var(--r-sm); }
 .mx-lateral__bouton-groupe:hover { color: var(--text); }
 .mx-lateral__bouton-groupe:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
 .mx-lateral__chevron { font-size: .7rem; transform: rotate(90deg); transition: transform .15s ease; }
 .mx-lateral__groupe--ferme .mx-lateral__chevron { transform: none; }
 .mx-lateral__groupe--ferme .mx-lateral__liste { display: none; }
-.mx-lateral__lien { padding: 6px 10px; font-size: .9rem; font-weight: 500; border-radius: var(--r-md); color: var(--text-sec); }
+.mx-lateral__lien { padding: var(--s2) var(--s3); font-size: .9rem; font-weight: 500; border-radius: var(--r-md); color: var(--text-sec); }
 .mx-lateral__lien:hover { background: var(--np-teinte); color: var(--text); }
 .mx-lateral__lien--courant, .mx-lateral__lien--courant:hover { background: var(--np-teinte); color: var(--text); box-shadow: inset 3px 0 0 var(--signal); font-weight: 600; }
 .mx-lateral__icone { font-size: 1.05rem; }
@@ -97,7 +95,7 @@ h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
 
 /* ---- Calendrier : légende repliée, évènements plus calmes ------------- */
 .mx-cal-legende { margin-bottom: var(--s2); font-size: .8125rem; color: var(--text-sec); }
-.mx-cal-legende summary { display: inline-block; cursor: pointer; padding: 2px 0; color: var(--lien); font-weight: 600; }
+.mx-cal-legende summary { display: inline-block; cursor: pointer; padding: var(--s1) 0; color: var(--lien); font-weight: 600; }
 .mx-cal-legende summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: var(--r-sm); }
 .mx-cal-legende__liste { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
 .mx-cal-legende .badge { font-weight: 500; font-size: .75rem; }

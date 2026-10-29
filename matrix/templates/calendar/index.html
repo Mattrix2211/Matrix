@@ -32,8 +32,8 @@
     <div class="mx-cal-legende__liste">
       {% for source in sources %}<span class="badge" style="background:{{ source.fond }};color:{{ source.texte }}">{% icone source.icone %} {{ source.libelle }}</span>
       {% endfor %}
-      <span class="badge" style="background:#dc3545">{% icone "retard" %} En retard</span>
-      <span class="badge" style="background:#6c757d">{% icone "terminee" %} Terminée</span>
+      <span class="badge" style="background:var(--red-plein);color:var(--paper)">{% icone "retard" %} En retard</span>
+      <span class="badge" style="background:var(--slate);color:var(--paper)">{% icone "terminee" %} Terminée</span>
     </div>
   </details>
 
@@ -257,6 +257,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     locale: 'fr',
+    eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
     initialView: VUES_FULLCALENDAR[view] || 'dayGridMonth',
     initialDate: date,
     editable: true,

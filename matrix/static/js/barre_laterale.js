@@ -28,7 +28,7 @@
   montrerCourante();
   barre.addEventListener('shown.bs.offcanvas', montrerCourante);
   // Groupes repliables : choix explicite de l'utilisateur, mémorisé dans ce navigateur (prototype).
-  // Par défaut ouverts : « Mon quotidien », « Activité » et le groupe de la page courante. Replié, le menu icônes les montre tous.
+  // Par défaut ouverts : « Mon quotidien » et le groupe de la page courante. Replié, le menu icônes les montre tous.
   var CLE_GROUPES = 'mx-menu-groupes';
   var etat = {};
   try { etat = JSON.parse(window.localStorage.getItem(CLE_GROUPES) || '{}'); } catch (e) { etat = {}; }

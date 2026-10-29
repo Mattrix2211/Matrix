@@ -105,7 +105,7 @@ GROUPES = [
 ]
 
 # Groupes dépliés au premier affichage du menu ; chaque marin replie ou déplie les autres.
-GROUPES_OUVERTS_PAR_DEFAUT = ("Mon quotidien", "Activité")
+GROUPES_OUVERTS_PAR_DEFAUT = ("Mon quotidien",)
 
 
 def _visible(entree, user):

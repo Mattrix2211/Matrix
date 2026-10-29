@@ -18,8 +18,7 @@
       <div class="mx-aujourdhui__liste">
         {% for tache in a_faire %}
           {# À terre : consultation seulement, le serveur reste juge de l'accès. #}
-          {% if lecture_seule %}{% carte_action titre=tache.titre libelle="Consulter" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
-          {% else %}{% carte_action titre=tache.titre libelle="Ouvrir" url=tache.url icone=tache.icone classes=tache.classes principale=forloop.first %}{{ tache.detail }}{% fin_carte_action %}{% endif %}
+          {% carte_action titre=tache.titre libelle=lecture_seule|yesno:"Consulter,Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
         {% endfor %}
       </div>
       {% else %}
