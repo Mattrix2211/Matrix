@@ -2,7 +2,7 @@
  * Matrix V1.1 — couche « Naval Premium » (prototype, tranche 1).
  * Chargée après matrix.css : ne change que la présentation (aucune règle métier).
  * Cyan --signal rare : action principale, état courant, focus. Couleurs par variables.
- * Retirer ce fichier de base.html suffit pour revenir à la V1 FANLAB.
+ * Revenir à la V1 FANLAB = revenir au commit précédent (le menu et le bandeau dépendent aussi de ce fichier).
  */
 
 :root {
@@ -91,6 +91,7 @@ h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
 .mx-lateral--repliee .mx-lateral__bouton-groupe { display: none; }
 .mx-lateral--repliee .mx-lateral__groupe--ferme .mx-lateral__liste { display: block; }
 @media (max-width: 767.98px) {
+  .mx-lateral--repliee .mx-lateral__bouton-groupe { display: flex; }
   .mx-lateral__bouton-groupe { min-height: 44px; }
 }
 

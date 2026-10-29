@@ -1,10 +1,10 @@
 {% load icones %}
 {# Bandeau d'accès limité (équipage à terre, soutien à terre) : ligne compacte, explication complète à la demande. #}
 {# Ouvert à la première visite, puis refermé par l'utilisateur (js/aide_progressive.js) ; les droits réels ne changent pas. #}
-<details class="mx-acces" role="status" data-aide="acces-limite" open>
+<details class="mx-acces" data-aide="acces-{% if equipage_a_terre %}terre{% else %}soutien{% endif %}" open>
   <summary class="mx-acces__resume">
     {% icone "verrouille" "mx-acces__icone" %}
-    <span class="mx-acces__etat">
+    <span class="mx-acces__etat" role="status">
       {% if equipage_a_terre %}<strong>Équipage {{ equipage_a_terre }} à terre</strong>{% else %}<strong>Soutien à terre</strong>{% endif %}
       <span class="mx-acces__sep" aria-hidden="true">·</span>
       <span>{% if equipage_a_terre %}Accès limité{% else %}Consultation et commentaires{% endif %}</span>
