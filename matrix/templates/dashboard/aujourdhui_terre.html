@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% load composants icones %}
 {% block content %}
+<div class="mx-v11">
 <header class="mx-aujourdhui__entete">
   <h1 class="h3 mb-1">Bonjour {{ salutation }}</h1>
-  <p class="text-muted mb-0">{{ aujourdhui|date:"l j F" }} · Vue de la flotte</p>
+  <p class="mx-aujourdhui__sous-titre mb-0">{{ aujourdhui|date:"l j F" }} · Vue de la flotte</p>
 </header>
 
 <div class="mt-4">
@@ -40,5 +41,6 @@
   {% empty %}
     {% include "components/etat_vide.html" with icone="materiel" titre="Aucun bâtiment suivi" texte="Aucun bâtiment n'est rattaché à votre périmètre." %}
   {% endfor %}
+</div>
 </div>
 {% endblock %}

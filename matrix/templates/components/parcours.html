@@ -1,6 +1,6 @@
 {% load composants %}
 {# Fil des quatre vues du quotidien : variable `courante` = quotidien, equipe, suivi ou synthese. #}
-<nav class="nav nav-pills nav-fill small mb-3 mx-parcours" aria-label="Parcours du quotidien">
+<nav class="nav nav-pills nav-fill small mx-parcours" aria-label="Parcours du quotidien">
   <a class="nav-link{% if courante == 'quotidien' %} active{% endif %}" href="{% url 'home' %}" title="Mes tâches, mon calendrier et mes échéances">Mon quotidien</a>
   {% if request.user|peut_piloter_equipe %}
   <a class="nav-link{% if courante == 'equipe' %} active{% endif %}" href="{% url 'calendar-index' %}?user=equipe" title="Planning de l'équipe et attribution des tâches">Mon équipe</a>

@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% load composants icones %}
 {% block content %}
+<div class="mx-v11">
 <header class="mx-aujourdhui__entete">
   <h1 class="h3 mb-1">Bonjour {{ salutation }}</h1>
-  <p class="text-muted mb-0">
+  <p class="mx-aujourdhui__sous-titre mb-0">
     {{ aujourdhui|date:"l j F" }}
     {% if profil.ship %} · {{ profil.ship.name }}{% endif %}
     {% if profil.service %} · {{ profil.service.name }}{% endif %}
@@ -190,4 +191,5 @@
 {% endif %}
 
 {% include "dashboard/_pilotage.html" %}
+</div>
 {% endblock %}

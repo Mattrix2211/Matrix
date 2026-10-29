@@ -1,8 +1,15 @@
 /*
  * Matrix V1.1 — couche « Naval Premium » (prototype, tranche 1).
  * Chargée après matrix.css : ne change que la présentation (aucune règle métier).
+ * Portée : composants propres à la tranche (menu latéral, bandeau d'accès, fil des vues,
+ * calendrier) et, pour les cartes et surfaces partagées, uniquement sous .mx-v11
+ * (accueils et calendrier) : les autres écrans gardent le rendu de la V1 FANLAB.
  * Cyan --signal rare : action principale, état courant, focus. Couleurs par variables.
- * Revenir à la V1 FANLAB = revenir au commit précédent (le menu et le bandeau dépendent aussi de ce fichier).
+ *
+ * Retour à la V1 FANLAB : retirer cette feuille de base.html ne suffit pas, car le menu
+ * (barre_laterale.html, navigation.py), le bandeau (bandeau_acces.html) et les accueils en dépendent.
+ * Le retour se fait par git : revenir à main (6ef16ad) ou défaire les commits de la branche
+ * claude/ux-naval-premium-v11.
  */
 
 :root {
@@ -13,47 +20,77 @@
   --np-teinte: color-mix(in srgb, var(--signal) 14%, var(--surface));
 }
 
+/* ==== Portée .mx-v11 : accueils (marin, chef, soutien à terre) et calendrier ==== */
+
 /* ---- Typographie et rythme -------------------------------------------- */
-h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
-.mx-coque__contenu { padding-top: var(--s6) !important; }
-.mx-aujourdhui__entete { margin-bottom: var(--s4); }
-.mx-aujourdhui__entete h1 { font-size: 1.75rem; }
-.text-muted, .mx-carte__contenu { color: var(--text-sec) !important; }
+.mx-v11 h1 { letter-spacing: -.015em; font-weight: 600; }
+.mx-v11 .mx-aujourdhui__entete { margin-bottom: var(--s4); }
+.mx-v11 .mx-aujourdhui__entete h1,
+.mx-v11 .mx-cal-entete h1 { font-size: 1.75rem; }
+.mx-v11 .mx-aujourdhui__sous-titre { color: var(--text-sec); }
 
 /* ---- Surfaces et cartes : bordure fine, ombre douce ------------------- */
-.mx-surface, .card {
+.mx-v11 .mx-surface,
+.mx-v11 .card {
   border-color: var(--np-surface-bord);
   box-shadow: var(--shadow-sm);
   border-radius: var(--r-lg);
 }
-.mx-surface { padding: var(--s5); }
-.mx-surface__titre { font-size: .8125rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-sec); margin-bottom: var(--s3); }
-.card-header { background: transparent; border-bottom-color: var(--np-surface-bord); font: 600 .8125rem var(--f-display); letter-spacing: .04em; text-transform: uppercase; color: var(--text-sec); }
-.card::before, .card::after { content: none !important; }
+.mx-v11 .mx-surface { padding: var(--s5); }
+.mx-v11 .mx-surface__titre { font-size: .8125rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-sec); margin-bottom: var(--s3); }
+.mx-v11 .card-header { background: transparent; border-bottom-color: var(--np-surface-bord); font: 600 .8125rem var(--f-display); letter-spacing: .04em; text-transform: uppercase; color: var(--text-sec); }
+.mx-v11 .card::before { content: none; }
+
+/* ---- Actions attendues : lignes compactes, bouton discret -------------- */
+.mx-v11 .mx-aujourdhui__liste { gap: var(--s2); }
+.mx-v11 .mx-carte--action { padding: var(--s3) var(--s4); gap: var(--s3); border-radius: var(--r-md); box-shadow: none; border-color: var(--np-surface-bord); }
+.mx-v11 .mx-carte--action .mx-carte__texte { gap: var(--s1); }
+.mx-v11 .mx-carte--action .mx-carte__titre { font-size: .9375rem; line-height: 1.3; }
+.mx-v11 .mx-carte--action .mx-carte__contenu { font-size: .8125rem; }
+.mx-v11 .mx-carte--action.mx-aujourdhui__tache--danger { border-left: 4px solid var(--red); }
+.mx-v11 .mx-carte--action.mx-aujourdhui__tache--attention { border-left: 4px solid var(--amber); }
+.mx-v11 .mx-carte--action .btn { flex: 0 0 auto; }
+.mx-v11 .mx-carte--action .btn-outline-primary { --bs-btn-border-color: transparent; --bs-btn-color: var(--lien); --bs-btn-hover-bg: var(--np-teinte); --bs-btn-hover-border-color: transparent; --bs-btn-hover-color: var(--lien); --bs-btn-active-bg: var(--np-teinte); --bs-btn-active-color: var(--lien); --bs-btn-active-border-color: transparent; font-weight: 600; }
+.mx-v11 .mx-carte--action .btn-outline-primary::after { content: "\203A"; margin-left: var(--s1); }
+
+/* Ma journée : frise plus légère */
+.mx-v11 .mx-journee { border-left-color: var(--np-surface-bord); }
+.mx-v11 .mx-journee__point { padding: var(--s2) 0; }
+.mx-v11 .mx-journee__heure { font-size: .8125rem; }
+
+/* ---- Graphiques du chef : hauteur maîtrisée (classe posée dans _pilotage.html) --- */
+.mx-graphique-pilotage { position: relative; height: 240px; }
+
+/* ---- Focus clavier ------------------------------------------------------ */
+.mx-v11 a:focus-visible, .mx-v11 button:focus-visible, .mx-v11 .btn:focus-visible, .mx-v11 summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+/* ---- Calendrier : légende repliée, évènements plus calmes ------------- */
+.mx-cal-legende { margin-bottom: var(--s2); font-size: .8125rem; color: var(--text-sec); }
+.mx-cal-legende summary { display: inline-block; cursor: pointer; padding: var(--s1) 0; color: var(--lien); font-weight: 600; }
+.mx-cal-legende summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: var(--r-sm); }
+.mx-cal-legende__liste { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
+.mx-cal-legende .badge { font-weight: 500; font-size: .75rem; }
+#calendar { --fc-today-bg-color: var(--np-teinte); }
+#calendar .fc-toolbar-title { font: 600 1.25rem var(--f-display); text-transform: capitalize; }
+#calendar .fc-theme-standard td, #calendar .fc-theme-standard th, #calendar .fc-theme-standard .fc-scrollgrid { border-color: var(--np-surface-bord); }
+#calendar .fc-col-header-cell-cushion { font: 600 .75rem var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--text-sec); padding: var(--s2); }
+#calendar .fc-daygrid-day-number { font-size: .8125rem; font-weight: 500; text-decoration: none; padding: var(--s1) var(--s2); }
+#calendar .fc-day-other .fc-daygrid-day-number { opacity: .45; }
+#calendar .fc-day-today .fc-daygrid-day-number { font-weight: 700; }
+#calendar .fc-timegrid-axis { min-width: 4rem; }
+#calendar .fc-timegrid-axis-cushion { max-width: none; font-size: .75rem; line-height: 1.3; text-align: center; white-space: normal; overflow-wrap: normal; word-break: normal; }
+#calendar .fc-timegrid-event .fc-event-time { font-size: 1em; }
+#calendar .fc-event { border: 0; border-radius: var(--r-sm); font-size: .75rem; line-height: 1.35; box-shadow: none; }
+#calendar .fc-daygrid-event { margin: 1px 4px; }
+
+/* ==== Composants de la tranche, propres à leur classe ==================== */
 
 /* ---- Fil des vues du quotidien : onglets soulignés -------------------- */
-.mx-parcours { gap: var(--s5); border-bottom: 1px solid var(--np-surface-bord); margin-bottom: var(--s5) !important; flex-wrap: nowrap; overflow-x: auto; }
+.mx-parcours { gap: var(--s5); border-bottom: 1px solid var(--np-surface-bord); margin-bottom: var(--s5); flex-wrap: nowrap; overflow-x: auto; }
 .mx-parcours .nav-link { flex: 0 0 auto; padding: var(--s2) 0 var(--s3); border-radius: 0; background: none; color: var(--text-sec); font: 500 .9375rem var(--f-display); border-bottom: 2px solid transparent; margin-bottom: -1px; text-align: left; }
 .mx-parcours .nav-link:hover { color: var(--text); }
 .mx-parcours .nav-link.active { background: none; color: var(--text); font-weight: 600; border-bottom-color: var(--signal-ui); }
 .mx-parcours .nav-link:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: var(--r-sm); }
-
-/* ---- Actions attendues : lignes compactes, bouton discret -------------- */
-.mx-aujourdhui__liste { gap: var(--s2); }
-.mx-carte--action { padding: var(--s3) var(--s4); gap: var(--s3); border-radius: var(--r-md); box-shadow: none; border-color: var(--np-surface-bord); }
-.mx-carte--action .mx-carte__texte { gap: var(--s1); }
-.mx-carte--action .mx-carte__titre { font-size: .9375rem; line-height: 1.3; }
-.mx-carte--action .mx-carte__contenu { font-size: .8125rem; }
-.mx-carte--action.mx-aujourdhui__tache--danger { border-left: 4px solid var(--red); }
-.mx-carte--action.mx-aujourdhui__tache--attention { border-left: 4px solid var(--amber); }
-.mx-carte--action .btn { flex: 0 0 auto; }
-.mx-carte--action .btn-outline-primary { --bs-btn-border-color: transparent; --bs-btn-color: var(--lien); --bs-btn-hover-bg: var(--np-teinte); --bs-btn-hover-border-color: transparent; --bs-btn-hover-color: var(--lien); --bs-btn-active-bg: var(--np-teinte); --bs-btn-active-color: var(--lien); --bs-btn-active-border-color: transparent; font-weight: 600; }
-.mx-carte--action .btn-outline-primary::after { content: "\203A"; margin-left: var(--s1); }
-
-/* Ma journée : frise plus légère */
-.mx-journee { border-left-color: var(--np-surface-bord); }
-.mx-journee__point { padding: var(--s2) 0; }
-.mx-journee__heure { font-size: .8125rem; }
 
 /* ---- Bandeau d'accès limité : une ligne, explication à la demande ----- */
 .mx-acces { margin-bottom: var(--s4); border: 1px solid var(--np-surface-bord); border-left: 3px solid var(--fog); border-radius: var(--r-md); background: var(--surface); color: var(--text); }
@@ -94,30 +131,4 @@ h1, .h1, .h3 { letter-spacing: -.015em; font-weight: 600; }
   .mx-lateral--repliee .mx-lateral__bouton-groupe { display: flex; }
   .mx-lateral__bouton-groupe { min-height: 44px; }
 }
-
-/* ---- Calendrier : légende repliée, évènements plus calmes ------------- */
-.mx-cal-legende { margin-bottom: var(--s2); font-size: .8125rem; color: var(--text-sec); }
-.mx-cal-legende summary { display: inline-block; cursor: pointer; padding: var(--s1) 0; color: var(--lien); font-weight: 600; }
-.mx-cal-legende summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: var(--r-sm); }
-.mx-cal-legende__liste { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
-.mx-cal-legende .badge { font-weight: 500; font-size: .75rem; }
-.mx-cal-entete h1 { font-size: 1.75rem; }
-#calendar .fc-toolbar-title { font: 600 1.25rem var(--f-display); text-transform: capitalize; }
-#calendar .fc-theme-standard td, #calendar .fc-theme-standard th, #calendar .fc-theme-standard .fc-scrollgrid { border-color: var(--np-surface-bord); }
-#calendar .fc-col-header-cell-cushion { font: 600 .75rem var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--text-sec); padding: var(--s2); }
-#calendar .fc-daygrid-day-number { font-size: .8125rem; font-weight: 500; text-decoration: none; padding: var(--s1) var(--s2); }
-#calendar .fc-day-other .fc-daygrid-day-number { opacity: .45; }
-#calendar .fc-day-today { background: var(--np-teinte) !important; }
-#calendar .fc-day-today .fc-daygrid-day-number { font-weight: 700; }
-#calendar .fc-timegrid-axis { min-width: 4rem; }
-#calendar .fc-timegrid-axis-cushion { max-width: none; font-size: .75rem; line-height: 1.3; text-align: center; white-space: normal; overflow-wrap: normal; word-break: normal; }
-#calendar .fc-timegrid-event .fc-event-time { font-size: 1em; }
-#calendar .fc-event { border: 0; border-radius: var(--r-sm); font-size: .75rem; line-height: 1.35; box-shadow: none; }
-#calendar .fc-daygrid-event { margin: 1px 4px; }
-
-/* ---- Graphiques du chef : hauteur maîtrisée --------------------------- */
-.card-body:has(> canvas) { position: relative; height: 240px; }
-
-/* ---- Focus et mouvements ----------------------------------------------- */
-a:focus-visible, button:focus-visible, .btn:focus-visible, summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .mx-lateral__chevron { transition: none; } }
