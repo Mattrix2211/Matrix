@@ -70,6 +70,16 @@ class SupervisionTests(TestCase):
         self.assertIsNotNone(r.context["supervision"])
         self.assertContains(r, "Validations en attente")
 
+    def test_alerte_de_retard_en_tete_de_page_seulement_pour_le_chef_concerne(self):
+        self._occurrence(self.asset_a, -2, "OVERDUE")
+        page = self._page(self.chef_a).content.decode()
+        self.assertEqual(page.count("Des maintenances de votre périmètre sont en retard"), 1)
+        self.assertLess(page.index("Des maintenances de votre périmètre sont en retard"), page.index("Ma journée"))
+        self.assertNotContains(self._page(self.equipier), "Des maintenances de votre périmètre sont en retard")
+
+    def test_pas_d_alerte_de_retard_sans_retard(self):
+        self.assertNotContains(self._page(self.chef_a), "Des maintenances de votre périmètre sont en retard")
+
     def test_chef_sans_perimetre_ne_voit_pas_le_bloc(self):
         sans_perimetre = self._marin("sans", "CHEF_SECTEUR")
         self.assertFalse(peut_superviser(sans_perimetre))

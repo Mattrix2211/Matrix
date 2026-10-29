@@ -11,6 +11,13 @@
 </header>
 {% include "components/parcours.html" with courante="quotidien" %}
 
+{# Alerte de retard remontée en tête : la première chose que voit le chef ; détail dans « Mon périmètre ». #}
+{% if supervision.retards_total %}
+<div class="mb-4">
+  {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}<a href="{% url 'maintenance-occurrences' %}?retard=1">Voir les maintenances en retard</a>{% fin_attention %}
+</div>
+{% endif %}
+
 <div class="row g-4 mt-1">
   <div class="col-lg-7">
     {% surface titre="À faire" icone="maintenance" %}
@@ -98,9 +105,6 @@
 
 {% if supervision %}
 <h2 class="h5 mt-5 mb-3">Mon périmètre</h2>
-{% if supervision.retards_total %}
-  {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}{% fin_attention %}
-{% endif %}
 <div class="row g-3 mt-1 mb-3">
   <div class="col-6 col-md-4">
     <a class="mx-fiche__indicateur d-block" href="{% url 'maintenance-occurrences' %}?retard=1">{% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}</a>
