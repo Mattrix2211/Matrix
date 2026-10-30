@@ -330,6 +330,8 @@ class DroitsEtRequetesTests(CarteAFaireBase):
             self._occurrence(i - 5, assigne=grand)
             ticket = CorrectiveTicket.objects.create(asset=self._asset(), description="x", status="BLOCKED")
             ticket.assignees.add(grand)
+        for user in (petit, grand):
+            self._requetes(user)  # amorce les caches de processus et de compte avant de comparer
         self.assertEqual(self._requetes(petit), self._requetes(grand))
 
 
