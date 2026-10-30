@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from .services import peut_reinitialiser, reinitialiser_mot_de_passe
+from . import preferences
 from .models import UserProfile, GradeChoice, SpecialityChoice, ServiceFunctionChoice, AuditLog, Roles, Themes
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
 from matrix.core.contexte_batiment import CLE_SESSION, selecteur_batiment
@@ -680,6 +681,21 @@ class MemoriserBarreLateraleView(LoginRequiredMixin, View):
         if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
             retour = "/"
         return HttpResponseRedirect(retour)
+
+
+class EnregistrerPreferenceView(LoginRequiredMixin, View):
+    """Enregistre une préférence d'interface du marin connecté (liste blanche, voir accounts/preferences.py)."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        try:
+            preferences.enregistrer(
+                request.user, request.POST.get("cle", ""), request.POST.get("sous_cle", ""), request.POST.get("valeur", "")
+            )
+        except ValueError:
+            return HttpResponse(status=400)
+        return HttpResponse(status=204)
 
 
 class UserSettingsView(LoginRequiredMixin, ListView):

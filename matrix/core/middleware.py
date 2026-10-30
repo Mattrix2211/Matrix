@@ -267,7 +267,7 @@ class ModuleActivationMiddleware:
 # Écritures personnelles ou de session, permises à tout marin en lecture seule.
 CHEMINS_PERSONNELS = (
     "/login/", "/logout/", "/accounts/", "/session/", "/brouillons/", "/notifications/",
-    "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/",
+    "/api/notifications/", "/users/theme/", "/users/batiment/", "/users/barre-laterale/", "/users/preferences/",
     "/calendar/personnel/",
 )
 # Écritures restant permises à l'équipage à terre : personnelles, fils de discussion, demandes et annonces.

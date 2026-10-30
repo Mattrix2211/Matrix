@@ -1,3 +1,4 @@
+from accounts import preferences
 from accounts.models import Roles
 from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
 from matrix.core.inactivite import delai_avertissement, delai_inactivite
@@ -30,8 +31,11 @@ def navigation_laterale(request):
     if not utilisateur or not utilisateur.is_authenticated or request.headers.get("HX-Request"):
         return {}  # un fragment HTMX n'affiche pas la barre : inutile de la calculer
     profil = getattr(utilisateur, "profile", None)
+    groupes = construire_navigation(utilisateur, request.path)
+    for groupe in groupes:
+        groupe["ouvert"] = groupe["contient_courante"] or preferences.groupe_ouvert(utilisateur, groupe["titre"], groupe["ouvert_par_defaut"])
     return {
-        "navigation_laterale": construire_navigation(utilisateur, request.path),
+        "navigation_laterale": groupes,
         "barre_laterale_repliee": bool(profil and profil.barre_laterale_repliee),
     }
 
@@ -50,6 +54,7 @@ def barre_superieure(request):
         role = profil.get_role_display() if profil and profil.role else Roles.EQUIPIER.label
     a_terre = profil.equipage if equipage_a_terre_lecture_seule(utilisateur) else ""
     soutien = soutien_a_terre(utilisateur)
+    signature = preferences.signature_droits(utilisateur, a_terre, soutien)
     if request.headers.get("HX-Request"):
         return {"equipage_a_terre": a_terre, "soutien_a_terre": soutien}  # seul le mode lecture seule sert aux fragments
     batiments = selecteur_batiment(utilisateur)
@@ -66,6 +71,8 @@ def barre_superieure(request):
         "equipage_a_terre": a_terre,
         # Soutien à terre (sans bâtiment) : consultation et commentaires seulement.
         "soutien_a_terre": soutien,
+        "signature_droits": signature,
+        "aide_acces_vue": preferences.aide_vue(utilisateur, "acces", signature),
     }
 
 

@@ -27,7 +27,7 @@
     <script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
     <script src="{% static 'js/theme.js' %}"></script>
   </head>
-  <body{% if user.is_authenticated %} data-utilisateur="{{ user.pk }}"{% endif %}>
+  <body{% if user.is_authenticated %} data-utilisateur="{{ user.pk }}" data-preferences-url="{% url 'enregistrer-preference' %}"{% endif %}>
     <a class="visually-hidden-focusable mx-evitement" href="#contenu-principal">Aller au contenu</a>
     {# Conteneur global de toasts #}
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
@@ -55,6 +55,7 @@
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/matrix.js' %}"></script>
     <script src="{% static 'js/grille.js' %}"></script>
+    <script src="{% static 'js/preferences.js' %}"></script>
     <script src="{% static 'js/aide_progressive.js' %}"></script>
     {% if navigation_laterale %}<script src="{% static 'js/barre_laterale.js' %}"></script>{% endif %}
     {% if user.is_authenticated %}<script src="{% static 'js/identite.js' %}"></script><script src="{% static 'js/brouillon.js' %}"></script>{% endif %}

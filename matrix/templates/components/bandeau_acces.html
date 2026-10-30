@@ -1,7 +1,7 @@
 {% load icones %}
 {# Bandeau d'accès limité (équipage à terre, soutien à terre) : ligne compacte, explication complète à la demande. #}
-{# Ouvert à la première visite et à chaque changement d'équipage (clé data-aide), refermé par l'utilisateur (js/aide_progressive.js) ; les droits réels ne changent pas. #}
-<details class="mx-acces" data-aide="acces-{% if equipage_a_terre %}terre-{{ equipage_a_terre }}{% else %}soutien{% endif %}" open>
+{# Ouvert à la première visite et dès que le contexte d'autorisation change (signature serveur), refermé par l'utilisateur (js/aide_progressive.js) ; les droits réels ne changent pas. #}
+<details class="mx-acces" data-aide="acces" data-signature="{{ signature_droits }}"{% if not aide_acces_vue %} open{% endif %}>
   <summary class="mx-acces__resume">
     {% icone "verrouille" "mx-acces__icone" %}
     <span class="mx-acces__etat" role="status">

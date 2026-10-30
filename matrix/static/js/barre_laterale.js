@@ -27,23 +27,17 @@
   }
   montrerCourante();
   barre.addEventListener('shown.bs.offcanvas', montrerCourante);
-  // Groupes repliables : choix explicite de l'utilisateur, mémorisé dans ce navigateur, par compte connecté (prototype).
-  // Par défaut ouverts : « Mon quotidien » et le groupe de la page courante. Replié, le menu icônes les montre tous.
-  var CLE_GROUPES = 'mx-menu-groupes-' + (document.body.dataset.utilisateur || 'anonyme');
-  var etat = {};
-  try { etat = JSON.parse(window.localStorage.getItem(CLE_GROUPES) || '{}'); } catch (e) { etat = {}; }
+  // Groupes repliables : choix explicite du marin, enregistré dans son profil. L'état initial vient du serveur
+  // (« Mon quotidien » et le groupe de la page courante ouverts par défaut). Replié, le menu icônes les montre tous.
   function appliquer(groupe, ouvert) {
     groupe.classList.toggle('mx-lateral__groupe--ferme', !ouvert);
     groupe.querySelector('.mx-lateral__bouton-groupe').setAttribute('aria-expanded', ouvert ? 'true' : 'false');
   }
   barre.querySelectorAll('.mx-lateral__groupe').forEach(function (groupe) {
-    var nom = groupe.dataset.groupe;
-    if (nom in etat && !groupe.querySelector('[aria-current="page"]')) appliquer(groupe, !!etat[nom]);
     groupe.querySelector('.mx-lateral__bouton-groupe').addEventListener('click', function () {
       var ouvert = groupe.classList.contains('mx-lateral__groupe--ferme');
       appliquer(groupe, ouvert);
-      etat[nom] = ouvert;
-      try { window.localStorage.setItem(CLE_GROUPES, JSON.stringify(etat)); } catch (e) { /* stockage indisponible */ }
+      window.mxPreference('menu_groupes', groupe.dataset.groupe, ouvert ? '1' : '0');
     });
   });
   if (!form) return;

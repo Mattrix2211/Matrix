@@ -9,9 +9,9 @@
   <nav aria-label="Navigation principale">
     {% for groupe in navigation_laterale %}
       {# Groupes repliables à la demande de l'utilisateur ; toutes les entrées restent dans le DOM (js/barre_laterale.js). #}
-      <section class="mx-lateral__groupe{% if not groupe.contient_courante and not groupe.ouvert_par_defaut %} mx-lateral__groupe--ferme{% endif %}" data-groupe="{{ groupe.titre }}" aria-labelledby="mx-groupe-{{ forloop.counter }}">
+      <section class="mx-lateral__groupe{% if not groupe.ouvert %} mx-lateral__groupe--ferme{% endif %}" data-groupe="{{ groupe.titre }}" aria-labelledby="mx-groupe-{{ forloop.counter }}">
         <h2 class="mx-lateral__titre" id="mx-groupe-{{ forloop.counter }}">
-          <button type="button" class="mx-lateral__bouton-groupe" aria-expanded="{% if not groupe.contient_courante and not groupe.ouvert_par_defaut %}false{% else %}true{% endif %}" aria-controls="mx-liste-{{ forloop.counter }}">
+          <button type="button" class="mx-lateral__bouton-groupe" aria-expanded="{% if groupe.ouvert %}true{% else %}false{% endif %}" aria-controls="mx-liste-{{ forloop.counter }}">
             <span>{{ groupe.titre }}</span>{% icone "suite" "mx-lateral__chevron" %}
           </button>
         </h2>
