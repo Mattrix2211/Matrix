@@ -18,7 +18,7 @@ La base est séparée de celle de développement (le script refuse d'écraser `d
 | Marin, peu d'actions | `equipier_a2` | une tâche en retard |
 | Marin, rien à faire | `equipier_nor` | liste vide |
 | Chef de secteur | `chef_secteur_a` | supervision, équipe |
-| Équipage B à terre | `chef_secteur_b` | accès limité, bandeau |
+| Équipage B à terre | `chef_secteur_b` | accès limité, bandeau (le compte reste rattaché à son bâtiment : le présenter comme « équipage B en repos ») |
 
 Matériel : poste 1366×768 (clavier et souris), un téléphone si possible, chronomètre, grille imprimée. Navigateur : celui du bord. Session de 20 minutes par participant, 3 à 5 participants.
 

@@ -82,5 +82,5 @@ body { background: var(--imp-papier) !important; color: var(--imp-encre) !import
 /* Graphiques : le bitmap (légende comprise) est mis à l'échelle de la page au lieu d'être rogné. */
 canvas { max-width: 100% !important; height: auto !important; }
 /* Un titre de section reste avec sa première rangée de cartes. */
-h2 + .row { break-inside: avoid; }
-.row:has(canvas) { break-inside: avoid; }
+.mx-v11 h2 + .row { break-inside: avoid; }
+.mx-v11 .row:has(canvas) { break-inside: avoid; }
