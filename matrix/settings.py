@@ -208,7 +208,8 @@ STATICFILES_DIRS = [BASE_DIR / "matrix" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# MATRIX_MEDIA_ROOT : fichiers téléversés d'une instance de démonstration, séparés de ceux du poste.
+MEDIA_ROOT = Path(os.getenv("MATRIX_MEDIA_ROOT") or BASE_DIR / "media")
 # Préfixe interne du serveur web (nginx : `location /media-interne/ { internal; alias …/media/; }`) ;
 # vide : Django envoie lui-même le fichier après autorisation.
 MEDIA_ACCEL_REDIRECT = os.getenv("MEDIA_ACCEL_REDIRECT", "")

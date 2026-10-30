@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 from django.conf import settings
 from django.test import SimpleTestCase
@@ -196,7 +197,9 @@ class LancementSecuriseTests(SimpleTestCase):
             self.assertNotIn(variable, env)
         self.assertEqual(env["DJANGO_ALLOWED_HOSTS"], "localhost,127.0.0.1")
         self.assertTrue(set(env) <= set(script.VARIABLES_CONSERVEES) | {
-            "MATRIX_SQLITE_PATH", "DJANGO_DEBUG", "DJANGO_SETTINGS_MODULE", "MATRIX_ENV_FILE", "DJANGO_ALLOWED_HOSTS", "EMAIL_BACKEND"})
+            "MATRIX_SQLITE_PATH", "DJANGO_DEBUG", "DJANGO_SETTINGS_MODULE", "MATRIX_ENV_FILE", "MATRIX_MEDIA_ROOT",
+            "DJANGO_ALLOWED_HOSTS", "EMAIL_BACKEND"})
+        self.assertEqual(Path(env["MATRIX_MEDIA_ROOT"]), self.base.parent / "media")
 
     def test_serveur_lance_sur_la_boucle_locale_avec_l_environnement_isole(self):
         self._preparer_la_base()
@@ -232,7 +235,7 @@ class LancementSecuriseTests(SimpleTestCase):
 
     def test_refus_si_la_configuration_chargee_n_est_pas_isolee(self):
         sain = {"courriel": "django.core.mail.backends.locmem.EmailBackend", "serveur_courriel": "", "push": False,
-                "courtier": "redis://localhost:6379/0 redis://localhost:6379/1", "hotes": ["localhost", "127.0.0.1"]}
+                "courtier": "redis://localhost:6379/0 redis://localhost:6379/1", "hotes": ["localhost", "127.0.0.1"], "media": "/x/media"}
         script.verifier_isolement(sain)
         for defaut in (
             {"courriel": "django.core.mail.backends.smtp.EmailBackend"}, {"serveur_courriel": "smtp.operationnel"},
@@ -241,6 +244,15 @@ class LancementSecuriseTests(SimpleTestCase):
         ):
             with self.assertRaises(script.RefusError, msg=str(defaut)):
                 script.verifier_isolement({**sain, **defaut})
+
+    def test_refus_si_les_fichiers_televerses_visent_un_autre_dossier(self):
+        reel = {"vendeur": "sqlite", "nom": str(self.base), "courriel": "locmem", "serveur_courriel": "", "push": False,
+                "courtier": "redis://localhost:6379/0", "hotes": ["localhost"], "media": str(settings.BASE_DIR / "media")}
+        with mock.patch.object(script.subprocess, "run") as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = __import__("json").dumps(reel)
+            with self.assertRaises(script.RefusError):
+                script.controler_connexion(self.base, {})
 
     def test_la_commande_n_accepte_aucun_hote(self):
         lignes = (settings.BASE_DIR / "scripts" / "preparer_instance_test.py").read_text(encoding="utf-8")

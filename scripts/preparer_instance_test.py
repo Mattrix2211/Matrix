@@ -42,7 +42,7 @@ from django.conf import settings
 resultat = {'vendeur': connection.vendor, 'nom': str(reglages['NAME']), 'courriel': settings.EMAIL_BACKEND,
             'serveur_courriel': settings.EMAIL_HOST, 'push': bool(settings.VAPID_PRIVATE_KEY),
             'courtier': settings.CELERY_BROKER_URL + ' ' + settings.CELERY_RESULT_BACKEND,
-            'hotes': list(settings.ALLOWED_HOSTS)}
+            'hotes': list(settings.ALLOWED_HOSTS), 'media': str(settings.MEDIA_ROOT)}
 if os.path.exists(resultat['nom']):
     connection.ensure_connection()
     resultat['fichier'] = connection.cursor().execute('PRAGMA database_list').fetchall()[0][2]
@@ -86,7 +86,8 @@ def environnement_demo(base):
     aucun PostgreSQL, serveur d'e-mail, Redis, clé d'envoi ni hôte autorisé hérités du poste."""
     env = {cle: os.environ[cle] for cle in VARIABLES_CONSERVEES if cle in os.environ}
     return {**env, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1", "DJANGO_SETTINGS_MODULE": "matrix.settings",
-            "MATRIX_ENV_FILE": str(base.parent / "aucun.env"), "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
+            "MATRIX_ENV_FILE": str(base.parent / "aucun.env"), "MATRIX_MEDIA_ROOT": str(base.parent / "media"),
+            "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
             "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
 
 
@@ -101,6 +102,8 @@ def controler_connexion(base, env):
     if "fichier" in reel and Path(reel["fichier"]).resolve() != base:
         raise RefusError(f"la connexion ouverte ({reel['fichier']}) n'est pas la base de démonstration {base}")
     verifier_isolement(reel)
+    if Path(reel["media"]).resolve() != (base.parent / "media").resolve():
+        raise RefusError(f"les fichiers téléversés iraient dans {reel['media']} et non dans le dossier de démonstration")
 
 
 def verifier_isolement(reel):
