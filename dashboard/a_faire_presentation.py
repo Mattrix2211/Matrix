@@ -44,7 +44,8 @@ def _nature(entree, user):
         return ""
     objet = entree["objet"]
     if isinstance(objet, Demande):
-        return SUIVI if objet.responsable_id == user.pk and objet.etat == Demande.ETAT_EN_ATTENTE else ACTION
+        attend_le_declarant = objet.responsable_id == user.pk and objet.declarant_id != user.pk
+        return SUIVI if attend_le_declarant and objet.etat == Demande.ETAT_EN_ATTENTE else ACTION
     if isinstance(objet, Annonce):
         return ACTION if objet.accuse_requis else ""
     if isinstance(objet, (Tache, TrainingRecord)):
@@ -56,11 +57,11 @@ def _nature(entree, user):
 
 
 def _repere(entree, user):
-    """Criticité élevée ou urgence déclarée : un repère neutre, jamais une urgence avérée."""
+    """Urgence déclarée ou criticité élevée : un repère neutre, jamais une urgence avérée."""
     objet = entree["objet"]
     if _urgence_declaree(entree, user):
         return "Urgence déclarée"
-    if entree["niveau"] or entree["criticite"] < 4:
+    if entree["criticite"] < 4:
         return ""
     if isinstance(objet, Demande):
         return f"Priorité {objet.get_priorite_display().lower()}"
@@ -68,11 +69,13 @@ def _repere(entree, user):
         return f"Gravité {objet.severity}"
     if isinstance(objet, MaintenanceOccurrence):
         return f"Priorité {objet.priority}"
-    return "Priorité haute"
+    return "" if entree["niveau"] else "Priorité haute"
 
 
 def _equipement(equipement):
     """Intitulé et chemin d'un matériel ou d'une installation, à partir de leurs champs (sans découper de texte)."""
+    if equipement is None:
+        return "", ""
     chemin = " / ".join(n.name for n in (equipement.ship, equipement.service, equipement.sector) if n)
     # Un matériel garde son libellé complet (type et identifiant) : sans lui, deux extincteurs seraient indiscernables.
     return (equipement.designation if isinstance(equipement, Installation) else str(equipement)), chemin
@@ -93,11 +96,11 @@ def _champs(entree, user):
             etat = "En retard" + (" · en cours" if objet.status == "IN_PROGRESS" else "")
         else:
             etat = objet.get_status_display()
-        base.update(principal=nom, contexte=chemin, etat=etat, echeance=f"{objet.scheduled_for:%d/%m}",
+        base.update(principal=nom or entree["titre"], contexte=chemin, etat=etat, echeance=f"{objet.scheduled_for:%d/%m}",
                     non_assigne=not objet.assignees.all())
     elif isinstance(objet, CorrectiveTicket):
         nom, chemin = _equipement(objet.equipement)
-        base.update(principal=nom, contexte=chemin, etat=f"Ticket correctif · {objet.get_status_display()}",
+        base.update(principal=nom or entree["titre"], contexte=chemin, etat=f"Ticket correctif · {objet.get_status_display()}",
                     echeance=f"{objet.planned_for:%d/%m}" if objet.planned_for else "", non_assigne=not objet.assignees.all())
     elif isinstance(objet, Ronde):
         base.update(etat="Ronde en retard" if niveau == "danger" else "Ronde du jour", echeance=f"{objet.date_prevue:%d/%m}")
@@ -118,8 +121,6 @@ def presenter(entrees, user):
         ligne = {**entree, **_champs(entree, user), "nature": nature, "libelle_nature": LIBELLES_NATURE.get(nature, ""),
                  "repere": _repere(entree, user), "zone": "prioritaire" if est_prioritaire(entree, user) else "autre",
                  "identifiant": f"{objet._meta.label_lower}:{objet.pk}"}
-        if nature == SUIVI:
-            ligne["classes"] = "mx-afaire__ligne--suivi"
         lignes.append(ligne)
     return lignes
 

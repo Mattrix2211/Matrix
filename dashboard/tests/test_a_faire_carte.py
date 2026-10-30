@@ -140,6 +140,31 @@ class ClassementTests(CarteAFaireBase):
         self.assertEqual(_nature({**attention, "objet": Annonce(accuse_requis=False)}, moi), "")
         self.assertEqual(_nature({"niveau": "danger", "criticite": 0, "objet": Annonce()}, moi), URGENT)
 
+    def test_demande_a_suivre_garde_sa_classe_d_etat(self):
+        entree = {"objet": Demande(responsable_id=self.marin.pk, declarant_id=self.autre.pk, etat=Demande.ETAT_EN_ATTENTE),
+                  "niveau": "attention", "criticite": 0, "titre": "Dossier", "detail": "Demande · En attente d'information",
+                  "classes": "mx-aujourdhui__tache--attention", "url": "/", "icone": "discussion"}
+        ligne = presenter([entree], self.marin)[0]
+        self.assertEqual((ligne["nature"], ligne["classes"]), (SUIVI, "mx-aujourdhui__tache--attention"))
+
+    def test_responsable_et_declarant_a_la_fois_agit(self):
+        moi = SimpleNamespace(pk=1)
+        demande = Demande(responsable_id=1, declarant_id=1, etat=Demande.ETAT_EN_ATTENTE)
+        self.assertEqual(_nature({"niveau": "attention", "criticite": 0, "objet": demande}, moi), ACTION)
+
+    def test_ticket_bloque_grave_garde_statut_et_repere(self):
+        ticket = CorrectiveTicket.objects.create(asset=self._asset(), description="x", severity=4, status="BLOCKED")
+        ticket.assignees.add(self.marin)
+        ligne = self._ligne(ticket)
+        self.assertEqual((ligne["nature"], ligne["repere"]), ("", "Gravité 4"))
+        self.assertIn("Bloqué", ligne["etat"])
+
+    def test_ticket_sans_equipement_ne_plante_pas(self):
+        ticket = CorrectiveTicket.objects.create(description="x")
+        ticket.assignees.add(self.marin)
+        ligne = self._ligne(ticket)
+        self.assertEqual((ligne["contexte"], ligne["principal"]), ("", ligne["titre"]))
+
     def test_ordre_de_a_faire_conserve(self):
         self._tache("A", jours=1)
         self._occurrence(-1, statut="OVERDUE")
