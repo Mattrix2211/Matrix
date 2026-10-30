@@ -30,7 +30,8 @@ def _charger_variables_env_locales(chemin):
         os.environ.setdefault(cle.strip(), valeur.strip().strip('"').strip("'"))
 
 
-_charger_variables_env_locales(BASE_DIR / ".env")
+# MATRIX_ENV_FILE : autre fichier (ou absent) pour l'instance de démonstration, qui ignore le .env du poste.
+_charger_variables_env_locales(Path(os.getenv("MATRIX_ENV_FILE") or BASE_DIR / ".env"))
 
 # Valeur de secours utilisée uniquement en développement local (DEBUG=1 par
 # défaut dans .env.example). En production (DJANGO_DEBUG=0, comportement par
@@ -169,26 +170,26 @@ TEMPLATES = [
 WSGI_APPLICATION = "matrix.wsgi.application"
 ASGI_APPLICATION = "matrix.asgi.application"
 
-# Database: default to SQLite; use Postgres if env set
-if os.getenv("DB_HOST"):
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME", "matrix"),
-            "USER": os.getenv("DB_USER", "matrix"),
-            "PASSWORD": os.getenv("DB_PASSWORD", "matrix"),
-            "HOST": os.getenv("DB_HOST", "localhost"),
-            "PORT": os.getenv("DB_PORT", "5432"),
+def choisir_base_de_donnees(env):
+    """SQLite explicite si MATRIX_SQLITE_PATH est défini (instance de démonstration) : il l'emporte toujours
+    sur DB_HOST, même rechargé depuis .env. Sinon PostgreSQL si DB_HOST est défini, SQLite de développement sinon."""
+    if env.get("MATRIX_SQLITE_PATH"):
+        return {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": env["MATRIX_SQLITE_PATH"]}}
+    if env.get("DB_HOST"):
+        return {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": env.get("DB_NAME", "matrix"),
+                "USER": env.get("DB_USER", "matrix"),
+                "PASSWORD": env.get("DB_PASSWORD", "matrix"),
+                "HOST": env["DB_HOST"],
+                "PORT": env.get("DB_PORT", "5432"),
+            }
         }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            # MATRIX_SQLITE_PATH : base séparée (instance de démonstration, tests avec des marins).
-            "NAME": os.getenv("MATRIX_SQLITE_PATH", BASE_DIR / "db.sqlite3"),
-        }
-    }
+    return {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+
+
+DATABASES = choisir_base_de_donnees(os.environ)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
