@@ -11,3 +11,4 @@ __pycache__/
 media/
 staticfiles/
 .claude/worktrees/ 
+instance_test_marins/
