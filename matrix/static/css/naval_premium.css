@@ -153,8 +153,9 @@
 .mx-afaire__autres-entete { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
 .mx-afaire__intitule { margin: 0; font: 600 .75rem var(--f-display); letter-spacing: .05em; text-transform: uppercase; color: var(--text-sec); }
 .mx-afaire__masquees { display: none; font-weight: 500; text-transform: none; letter-spacing: 0; }
-.mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__masquees--replie { display: inline; }
-.mx-afaire__bascule { white-space: nowrap; }
+.mx-js .mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__masquees--replie { display: inline; }
+.mx-afaire__bascule { display: none; white-space: nowrap; }
+.mx-js .mx-afaire__bascule { display: inline-block; }
 .mx-afaire__defilement { display: flex; flex-direction: column; gap: var(--s2); }
 
 /* PC : zone défilante avec ombres de bord ; en fin de liste, le défilement passe à la page */
@@ -175,10 +176,10 @@
   .mx-afaire__entete { padding: var(--s3) var(--s4) var(--s2); flex-wrap: wrap; }
   .mx-afaire__priorites { padding: 0 var(--s3) var(--s3); }
   .mx-afaire__autres { padding: var(--s3); }
-  .mx-afaire:not(.mx-afaire--ouvert) .mx-afaire__ligne:nth-child(n+4) { display: none; }
+  .mx-js .mx-afaire:not(.mx-afaire--ouvert) .mx-afaire__ligne:nth-child(n+4) { display: none; }
   .mx-afaire__bascule { min-height: 44px; }
-  .mx-afaire:not(.mx-afaire--ouvert):not(.mx-afaire--replie) .mx-afaire__masquees--mobile { display: inline; }
+  .mx-js .mx-afaire:not(.mx-afaire--ouvert):not(.mx-afaire--replie) .mx-afaire__masquees--mobile { display: inline; }
 }
-/* Repliée au départ (nombreuses priorités) : seuls l'en-tête de section, son compteur et son bouton restent visibles */
-.mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__defilement { display: none; }
-.mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__autres-entete { margin-bottom: 0; }
+/* Repliée au départ (nombreuses priorités) : seuls l'en-tête de section, son compteur et son bouton restent visibles (avec JavaScript) */
+.mx-js .mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__defilement { display: none; }
+.mx-js .mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__autres-entete { margin-bottom: 0; }

@@ -196,6 +196,15 @@ class CompteursEtVisibiliteTests(CarteAFaireBase):
         html = self._page().content.decode()
         self.assertEqual(len(self._identifiants(html)), 10)
 
+    def test_repli_et_masquage_mobile_exigent_javascript(self):
+        """Sans script, rien ne doit rester masqué : les règles de masquage dépendent de la classe posée par la carte."""
+        self._charger(7, 5)
+        self.assertIn("classList.add('mx-js')", self._page().content.decode())
+        with open("matrix/static/css/naval_premium.css", encoding="utf-8") as feuille:
+            css = feuille.read()
+        self.assertIn(".mx-js .mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__defilement { display: none; }", css)
+        self.assertIn(".mx-js .mx-afaire:not(.mx-afaire--ouvert) .mx-afaire__ligne:nth-child(n+4) { display: none; }", css)
+
     def test_liste_courte_sans_bouton_ni_defilement(self):
         self._charger(1, 3)
         r = self._page()

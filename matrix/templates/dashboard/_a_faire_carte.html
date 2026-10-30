@@ -1,5 +1,7 @@
 {% load composants icones static %}
 {# Carte « À faire » : prioritaires toujours visibles, autres actions dans une section repliable (docs/UX.md §9.1). #}
+{# Le repli et le masquage mobile ne s'appliquent que si JavaScript peut les lever : sans lui, toutes les actions restent visibles. #}
+<script>document.documentElement.classList.add('mx-js');</script>
 <section class="mx-surface mx-afaire{% if autres_repliees %} mx-afaire--replie{% endif %}" data-afaire data-initial="{% if autres_repliees %}replie{% else %}apercu{% endif %}" aria-labelledby="afaire-titre">
   <header class="mx-afaire__entete">
     <h2 id="afaire-titre" class="mx-afaire__titre">{% icone "maintenance" %} À faire</h2>
