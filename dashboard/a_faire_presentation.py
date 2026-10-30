@@ -17,8 +17,8 @@ from training.models import TrainingRecord
 # de la section n'a plus de marge dans un écran 1366×768. Même règle pour tous les profils.
 SEUIL_AUTRES_REPLIEES = 6
 
-URGENT, ACTION, SUIVI = "urgent", "action", "suivi"
-LIBELLES_NATURE = {URGENT: "Urgent", ACTION: "Action requise", SUIVI: "À suivre"}
+URGENT, ALERTE, ACTION, SUIVI = "urgent", "alerte", "action", "suivi"
+LIBELLES_NATURE = {URGENT: "Urgent", ALERTE: "Alerte", ACTION: "Action requise", SUIVI: "À suivre"}
 
 
 def _urgence_declaree(entree, user):
@@ -37,7 +37,8 @@ def _nature(entree, user):
     Un état dont personne n'est désigné pour agir (maintenance « en validation », ticket bloqué) reste descriptif.
     """
     if entree["niveau"] == "danger":
-        return URGENT
+        # Une annonce de niveau danger informe : ce n'est pas une tâche en retard.
+        return ALERTE if isinstance(entree["objet"], Annonce) else URGENT
     if _urgence_declaree(entree, user):
         return ACTION
     if not entree["niveau"]:
@@ -104,6 +105,8 @@ def _champs(entree, user):
                     echeance=f"{objet.planned_for:%d/%m}" if objet.planned_for else "", non_assigne=not objet.assignees.all())
     elif isinstance(objet, Ronde):
         base.update(etat="Ronde en retard" if niveau == "danger" else "Ronde du jour", echeance=f"{objet.date_prevue:%d/%m}")
+    elif isinstance(objet, Annonce):
+        base.update(etat=f"Annonce · {objet.get_niveau_display()}" + (" · Accusé requis" if objet.accuse_requis else ""))
     elif isinstance(objet, Tache) and objet.assigne_id == user.pk:
         faits, total = objet.avancement_checklist
         etat = "Tâche en retard" if niveau == "danger" else f"Tâche · {objet.get_statut_display()}"

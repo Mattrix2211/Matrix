@@ -144,6 +144,7 @@
 .mx-afaire__statut, .mx-afaire__repere { display: inline-block; margin-right: var(--s2); padding: 0 var(--s2); border-radius: var(--r-sm); font: 600 .6875rem/1.5 var(--f-display); vertical-align: 1px; }
 .mx-afaire__statut { letter-spacing: .03em; text-transform: uppercase; }
 .mx-afaire__statut--urgent { background: var(--red-plein); color: var(--paper); }
+.mx-afaire__statut--alerte { background: color-mix(in srgb, var(--red-plein) 14%, var(--surface)); color: var(--red-texte); border: 1px solid var(--red-plein); }
 .mx-afaire__statut--action { background: color-mix(in srgb, var(--amber) 35%, var(--surface)); color: var(--text); border: 1px solid var(--amber); }
 .mx-afaire__statut--suivi { background: transparent; color: var(--text); border: 1px solid var(--fog); }
 .mx-afaire__repere { color: var(--text); border: 1px dashed var(--fog); }

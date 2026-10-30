@@ -13,7 +13,7 @@ from django.utils import timezone
 from annonces.models import Annonce
 from assets.models import Asset, AssetType
 from dashboard.a_faire_presentation import (
-    ACTION, SEUIL_AUTRES_REPLIEES, SUIVI, URGENT, _nature, compteurs, presenter,
+    ACTION, ALERTE, SEUIL_AUTRES_REPLIEES, SUIVI, URGENT, _nature, compteurs, presenter,
 )
 from dashboard.aujourdhui import a_faire
 from demandes.models import Demande
@@ -138,7 +138,7 @@ class ClassementTests(CarteAFaireBase):
         self.assertEqual(_nature({**attention, "objet": declarant_en_attente}, moi), ACTION)
         self.assertEqual(_nature({**attention, "objet": Annonce(accuse_requis=True)}, moi), ACTION)
         self.assertEqual(_nature({**attention, "objet": Annonce(accuse_requis=False)}, moi), "")
-        self.assertEqual(_nature({"niveau": "danger", "criticite": 0, "objet": Annonce()}, moi), URGENT)
+        self.assertEqual(_nature({"niveau": "danger", "criticite": 0, "objet": Demande()}, moi), URGENT)
 
     def test_demande_a_suivre_garde_sa_classe_d_etat(self):
         entree = {"objet": Demande(responsable_id=self.marin.pk, declarant_id=self.autre.pk, etat=Demande.ETAT_EN_ATTENTE),
@@ -151,6 +151,30 @@ class ClassementTests(CarteAFaireBase):
         moi = SimpleNamespace(pk=1)
         demande = Demande(responsable_id=1, declarant_id=1, etat=Demande.ETAT_EN_ATTENTE)
         self.assertEqual(_nature({"niveau": "attention", "criticite": 0, "objet": demande}, moi), ACTION)
+
+    def _annonce_danger(self, accuse_requis):
+        annonce = Annonce(pk=1, titre="Fuite", niveau="danger", accuse_requis=accuse_requis)
+        entree = {"objet": annonce, "titre": "Fuite", "detail": "", "url": "/", "icone": "", "niveau": "danger",
+                  "classes": "", "criticite": 4, "echeance": None}
+        return presenter([entree], self.marin)[0]
+
+    def test_annonce_danger_sans_accuse_est_une_alerte_prioritaire(self):
+        ligne = self._annonce_danger(False)
+        self.assertEqual((ligne["nature"], ligne["libelle_nature"], ligne["zone"]), (ALERTE, "Alerte", "prioritaire"))
+        self.assertNotIn("Accusé requis", ligne["etat"])
+
+    def test_annonce_danger_avec_accuse_reste_une_alerte_et_garde_l_accuse(self):
+        ligne = self._annonce_danger(True)
+        self.assertEqual((ligne["nature"], ligne["zone"]), (ALERTE, "prioritaire"))
+        self.assertIn("Accusé requis", ligne["etat"])
+
+    def test_annonce_ordinaire_avec_accuse_reste_action_requise(self):
+        annonce = Annonce(pk=2, titre="Note", niveau="warning", accuse_requis=True)
+        entree = {"objet": annonce, "titre": "Note", "detail": "", "url": "/", "icone": "", "niveau": "attention",
+                  "classes": "", "criticite": 0, "echeance": None}
+        ligne = presenter([entree], self.marin)[0]
+        self.assertEqual((ligne["nature"], ligne["libelle_nature"]), (ACTION, "Action requise"))
+        self.assertIn("Accusé requis", ligne["etat"])
 
     def test_ticket_bloque_grave_garde_statut_et_repere(self):
         ticket = CorrectiveTicket.objects.create(asset=self._asset(), description="x", severity=4, status="BLOCKED")
