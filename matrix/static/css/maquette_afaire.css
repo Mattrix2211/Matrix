@@ -1,0 +1,55 @@
+/* MAQUETTE — carte « À faire » hybride (non intégrée au produit). */
+.mx-v11 .mx-afaire { padding: 0; overflow: hidden; }
+.mx-afaire__entete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); padding: var(--s4) var(--s5) var(--s3); }
+.mx-afaire__titre { margin: 0; font: 600 .8125rem var(--f-display); letter-spacing: .04em; text-transform: uppercase; color: var(--text-sec); }
+.mx-afaire__compteur { font: 500 .8125rem var(--f-display); color: var(--text-sec); white-space: nowrap; }
+.mx-afaire__compteur strong { color: var(--text); }
+.mx-afaire__priorites { display: flex; flex-direction: column; gap: var(--s2); padding: 0 var(--s5) var(--s4); }
+.mx-afaire__statut { display: inline-block; margin-right: var(--s1); padding: 0 var(--s2); border-radius: var(--r-sm); font: 600 .6875rem/1.5 var(--f-display); letter-spacing: .03em; text-transform: uppercase; }
+.mx-afaire__statut--danger { background: var(--red-plein); color: var(--paper); }
+.mx-afaire__statut--attention { background: color-mix(in srgb, var(--amber) 35%, var(--surface)); color: var(--text); border: 1px solid var(--amber); }
+.mx-afaire__autres { border-top: 1px solid var(--np-surface-bord); padding: var(--s3) var(--s5) var(--s4); background: color-mix(in srgb, var(--bg) 55%, var(--surface)); }
+.mx-afaire__intitule { margin: 0 0 var(--s2); font: 600 .75rem var(--f-display); letter-spacing: .05em; text-transform: uppercase; color: var(--text-sec); }
+.mx-afaire__defilement { display: flex; flex-direction: column; gap: var(--s2); }
+.mx-afaire__pied { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); margin-top: var(--s3); }
+.mx-afaire__indice { font-size: .8125rem; color: var(--text-sec); }
+.mx-afaire__bascule { white-space: nowrap; }
+.mx-v11 .mx-afaire .mx-carte--action { background: var(--surface); padding: var(--s2) var(--s3); }
+
+/* Variante A (PC) : zone défilante, ombres discrètes aux bords quand il reste du contenu */
+@media (min-width: 768px) {
+  .mx-afaire--a .mx-afaire__defilement {
+    max-height: 12rem; overflow-y: auto; padding-right: var(--s1); overscroll-behavior: contain;
+    background:
+      linear-gradient(var(--bg), var(--bg)) top / 100% 12px no-repeat local,
+      linear-gradient(var(--bg), var(--bg)) bottom / 100% 12px no-repeat local,
+      linear-gradient(rgba(11, 25, 41, .16), transparent) top / 100% 10px no-repeat scroll,
+      linear-gradient(transparent, rgba(11, 25, 41, .16)) bottom / 100% 10px no-repeat scroll;
+  }
+  .mx-afaire--a .mx-afaire__defilement:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .mx-afaire--a.mx-afaire--ouvert .mx-afaire__defilement { max-height: none; overflow: visible; background: none; }
+  /* Variante B : lignes compactes, quatre visibles, suite dépliée sur place */
+  .mx-afaire--b .mx-carte--action { padding: var(--s2) var(--s3); }
+  .mx-afaire--b .mx-carte--action .mx-carte__texte { flex-direction: row; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+  .mx-afaire--b:not(.mx-afaire--ouvert) .mx-afaire__ligne:nth-child(n+5) { display: none; }
+}
+/* Mobile : jamais de défilement interne ; trois lignes puis « Voir toutes les actions » */
+@media (max-width: 767.98px) {
+  .mx-afaire__entete { padding: var(--s3) var(--s4) var(--s2); flex-wrap: wrap; }
+  .mx-afaire__priorites { padding: 0 var(--s3) var(--s3); }
+  .mx-afaire__autres { padding: var(--s3); }
+  .mx-afaire:not(.mx-afaire--ouvert) .mx-afaire__ligne:nth-child(n+4) { display: none; }
+  .mx-afaire__bascule { min-height: 44px; }
+}
+/* Exception : plus de cinq actions prioritaires → toutes visibles, les autres derrière un bouton */
+.mx-afaire--dense:not(.mx-afaire--ouvert) .mx-afaire__defilement { display: none; }
+.mx-afaire--dense .mx-afaire__intitule { margin-bottom: 0; }
+.mx-afaire--dense:not(.mx-afaire--ouvert) .mx-afaire__pied { margin-top: var(--s2); }
+.mx-afaire--dense:not(.mx-afaire--ouvert) .mx-afaire__indice { display: none; }
+
+/* Indications du pied : texte selon le mode (défilement interne sur PC en A, lignes masquées sinon) */
+.mx-afaire__indice--mobile { display: none; }
+@media (max-width: 767.98px) {
+  .mx-afaire__indice--pc-a, .mx-afaire__indice--pc-b { display: none; }
+  .mx-afaire__indice--mobile { display: inline; }
+}

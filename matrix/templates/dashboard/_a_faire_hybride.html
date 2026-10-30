@@ -1,0 +1,48 @@
+{% load composants icones %}
+{# MAQUETTE — carte « À faire » hybride. Variante a : défilement interne (PC), b : aperçu compact sans défilement. #}
+<section class="mx-surface mx-afaire mx-afaire--{{ variante }}{% if nb_prioritaires > 5 and nb_autres > 3 %} mx-afaire--dense{% endif %}" data-afaire aria-labelledby="afaire-titre">
+  <header class="mx-afaire__entete">
+    <h2 id="afaire-titre" class="mx-afaire__titre">{% icone "maintenance" %} À faire</h2>
+    <span class="mx-afaire__compteur">{{ a_faire|length }} action{{ a_faire|length|pluralize }}{% if nb_prioritaires %} · <strong>{{ nb_prioritaires }} prioritaire{{ nb_prioritaires|pluralize }}</strong>{% endif %}</span>
+  </header>
+  {% regroup a_faire by niveau as groupes_niveau %}
+  {% if nb_prioritaires %}
+  <div class="mx-afaire__priorites" role="group" aria-label="Actions prioritaires">
+    {% for groupe in groupes_niveau %}{% if groupe.grouper %}{% for tache in groupe.list %}
+      {% if lecture_seule %}{% carte_action titre=tache.titre libelle="Consulter" url=tache.url icone=tache.icone classes=tache.classes %}<span class="mx-afaire__statut mx-afaire__statut--{{ groupe.grouper }}">{% if groupe.grouper == "danger" %}Urgent{% else %}À traiter{% endif %}</span> {{ tache.detail }}{% fin_carte_action %}
+      {% else %}{% carte_action titre=tache.titre libelle="Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}<span class="mx-afaire__statut mx-afaire__statut--{{ groupe.grouper }}">{% if groupe.grouper == "danger" %}Urgent{% else %}À traiter{% endif %}</span> {{ tache.detail }}{% fin_carte_action %}{% endif %}
+    {% endfor %}{% endif %}{% endfor %}
+  </div>
+  {% endif %}
+  {% if nb_autres %}
+  <div class="mx-afaire__autres">
+    <p class="mx-afaire__intitule">{% if nb_prioritaires %}Autres actions{% else %}Actions{% endif %} · {{ nb_autres }}</p>
+    <div class="mx-afaire__defilement" id="afaire-autres"{% if variante == "a" and nb_autres > 3 %} tabindex="0" role="region" aria-label="Autres actions, zone défilante"{% endif %}>
+      {% for groupe in groupes_niveau %}{% if not groupe.grouper %}{% for tache in groupe.list %}
+        <div class="mx-afaire__ligne">{% if lecture_seule %}{% carte_action titre=tache.titre libelle="Consulter" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
+        {% else %}{% carte_action titre=tache.titre libelle="Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}{% endif %}</div>
+      {% endfor %}{% endif %}{% endfor %}
+    </div>
+    {% if nb_autres > 3 %}
+    <div class="mx-afaire__pied">
+      <span class="mx-afaire__indice">
+        {% if variante == "a" %}<span class="mx-afaire__indice--pc-a">Faites défiler pour voir les autres actions</span>{% else %}<span class="mx-afaire__indice--pc-b">{{ nb_autres|add:-4 }} autre{{ nb_autres|add:-4|pluralize }} action{{ nb_autres|add:-4|pluralize }} masquée{{ nb_autres|add:-4|pluralize }}</span>{% endif %}
+        <span class="mx-afaire__indice--mobile">{{ nb_autres|add:-3 }} autre{{ nb_autres|add:-3|pluralize }} action{{ nb_autres|add:-3|pluralize }} masquée{{ nb_autres|add:-3|pluralize }}</span>
+      </span>
+      <button type="button" class="btn btn-sm btn-outline-secondary mx-afaire__bascule" aria-expanded="false" aria-controls="afaire-autres" data-afaire-bascule>Voir toutes les actions</button>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+<script>
+(function () {
+  var carte = document.querySelector('[data-afaire]'); if (!carte) return;
+  var b = carte.querySelector('[data-afaire-bascule]'); if (!b) return;
+  b.addEventListener('click', function () {
+    var ouvert = carte.classList.toggle('mx-afaire--ouvert');
+    b.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+    b.textContent = ouvert ? 'Réduire la liste' : 'Voir toutes les actions';
+  });
+})();
+</script>

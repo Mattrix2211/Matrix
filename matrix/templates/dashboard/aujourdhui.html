@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
-{% load composants icones %}
+{% load composants icones static %}
 {% block content %}
 <div class="mx-v11">
+{% if variante %}<link rel="stylesheet" href="{% static 'css/maquette_afaire.css' %}">{% endif %}
 <header class="mx-aujourdhui__entete">
   <h1 class="h3 mb-1">Bonjour {{ salutation }}</h1>
   <p class="mx-aujourdhui__sous-titre mb-0">
@@ -21,6 +22,8 @@
 
 <div class="row g-4 mt-1">
   <div class="col-lg-7">
+    {% if variante == "a" or variante == "b" %}{% if a_faire %}{% include "dashboard/_a_faire_hybride.html" %}{% endif %}{% endif %}
+    {% if not variante or not a_faire %}
     {% surface titre="À faire" icone="maintenance" %}
       {% if a_faire %}
       <div class="mx-aujourdhui__liste">
@@ -33,6 +36,7 @@
         {% include "components/etat_vide.html" with icone="terminee" titre="Rien à faire pour le moment" texte="Aucune tâche ne vous attend." %}
       {% endif %}
     {% fin_surface %}
+    {% endif %}
 
     {% if brouillons and not lecture_seule %}
     <div class="mt-4">
