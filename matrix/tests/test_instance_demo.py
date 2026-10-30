@@ -75,6 +75,7 @@ class EnvPostgresqlTests(SimpleTestCase):
         self.assertEqual(Path(env["MATRIX_ENV_FILE"]).parent, self.dossier)
         self.assertFalse(Path(env["MATRIX_ENV_FILE"]).exists())
         self.assertIn("locmem", env["EMAIL_BACKEND"])
+        self.assertEqual(env["DJANGO_SETTINGS_MODULE"], "matrix.settings")
 
     def test_controle_reussit_malgre_un_env_postgresql(self):
         base = self.dossier / "demo.sqlite3"
@@ -127,10 +128,23 @@ class CheminsInterditsTests(SimpleTestCase):
         (self.dossier / "demo.sqlite3").write_text("x")
         self._refus(self.dossier / "demo.sqlite3", reinitialiser=True)
 
+    def test_marqueur_propre_a_chaque_fichier(self):
+        (self.dossier / "demo.sqlite3").write_text("x")
+        (self.dossier / "autre.sqlite3").write_text("x")
+        script.marqueur(self.dossier / "demo.sqlite3").touch()
+        script.verifier_chemin(self.dossier / "demo.sqlite3", self.dossier, True)
+        self._refus(self.dossier / "autre.sqlite3", reinitialiser=True)
+
+    def test_verification_seule_accepte_une_base_existante(self):
+        (self.dossier / "demo.sqlite3").write_text("x")
+        self.assertEqual(
+            script.verifier_chemin(self.dossier / "demo.sqlite3", self.dossier, lecture_seule=True), self.dossier / "demo.sqlite3"
+        )
+
     def test_lien_symbolique_refuse(self):
         cible = self.dossier.parent / "ailleurs.sqlite3"
         cible.write_text("x")
-        (self.dossier / script.MARQUEUR).touch()
+        script.marqueur(self.dossier / "demo.sqlite3").touch()
         (self.dossier / "demo.sqlite3").symlink_to(cible)
         self._refus(self.dossier / "demo.sqlite3", reinitialiser=True)
 
@@ -144,6 +158,6 @@ class CheminsInterditsTests(SimpleTestCase):
 
     def test_chemin_valide_accepte(self):
         self.assertEqual(script.verifier_chemin(self.dossier / "demo.sqlite3", self.dossier), self.dossier / "demo.sqlite3")
-        (self.dossier / script.MARQUEUR).touch()
+        script.marqueur(self.dossier / "demo.sqlite3").touch()
         (self.dossier / "demo.sqlite3").write_text("x")
         self.assertEqual(script.verifier_chemin(self.dossier / "demo.sqlite3", self.dossier, True), self.dossier / "demo.sqlite3")

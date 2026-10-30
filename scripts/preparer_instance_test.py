@@ -15,7 +15,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
 DOSSIER_DEMO = RACINE / "instance_test_marins"
-MARQUEUR = ".instance_demo_matrix"  # écrit à la création : seul un dossier ainsi marqué peut être réinitialisé
+SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
     ("equipier_a", "Marin, équipage A : journée chargée (10 actions)"),
     ("equipier_a2", "Marin, équipage A : peu d'actions, dont une tâche en retard"),
@@ -43,9 +43,14 @@ class RefusError(Exception):
     pass
 
 
-def verifier_chemin(base, dossier_autorise, reinitialiser=False):
+def marqueur(base):
+    return base.with_name(base.name + SUFFIXE_MARQUEUR)
+
+
+def verifier_chemin(base, dossier_autorise, reinitialiser=False, lecture_seule=False):
     """Chemin de base validé et résolu, ou RefusError. Seul un fichier .sqlite3 situé directement dans le dossier
-    de démonstration est admis ; un fichier existant doit y avoir été créé par ce script (marqueur) pour être supprimé."""
+    de démonstration est admis ; un fichier existant doit y avoir été créé par ce script (marqueur voisin) pour être supprimé.
+    En lecture seule (contrôle), l'existence du fichier est sans importance."""
     base = Path(base)
     if base.is_symlink() or dossier_autorise.is_symlink():
         raise RefusError("lien symbolique refusé")
@@ -55,19 +60,19 @@ def verifier_chemin(base, dossier_autorise, reinitialiser=False):
         raise RefusError(f"la base doit être un fichier .sqlite3 placé directement dans {dossier}")
     if base == (RACINE / "db.sqlite3").resolve():
         raise RefusError("cette base est celle de développement")
-    if base.exists():
-        if base.is_dir():
-            raise RefusError("le chemin est un dossier")
+    if base.is_dir():
+        raise RefusError("le chemin est un dossier")
+    if base.exists() and not lecture_seule:
         if not reinitialiser:
             raise RefusError(f"{base} existe déjà : utilisez --reinitialiser pour repartir de zéro")
-        if not (dossier / MARQUEUR).exists():
-            raise RefusError("fichier existant non créé par ce script : suppression refusée")
+        if not marqueur(base).exists():
+            raise RefusError("fichier existant non créé par ce script (marqueur absent) : suppression refusée, supprimez-le à la main")
     return base
 
 
 def environnement_demo(base):
     """Environnement du processus fils : base SQLite explicite, .env du poste ignoré, aucun PostgreSQL ni envoi réel."""
-    env = {**os.environ, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1",
+    env = {**os.environ, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1", "DJANGO_SETTINGS_MODULE": "matrix.settings",
            "MATRIX_ENV_FILE": str(base.parent / "aucun.env"),
            "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
     for variable in ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"):
@@ -88,15 +93,15 @@ def controler_connexion(base, env):
 
 
 def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autorise=DOSSIER_DEMO):
-    base = verifier_chemin(base, dossier_autorise, reinitialiser)
+    base = verifier_chemin(base, dossier_autorise, reinitialiser, lecture_seule=verifier_seulement)
     env = environnement_demo(base)
     controler_connexion(base, env)
     if verifier_seulement:
         return base
     base.parent.mkdir(parents=True, exist_ok=True)
-    (base.parent / MARQUEUR).touch()
     if base.exists():
         base.unlink()
+    marqueur(base).touch()
     for commande in ("migrate", "seed_demo"):
         subprocess.run([sys.executable, "manage.py", commande], cwd=RACINE, env=env, check=True)
     return base

@@ -22,7 +22,7 @@ Garanties (vérifiées par des tests automatiques) :
 
 - La base SQLite de démonstration est choisie **explicitement** (`MATRIX_SQLITE_PATH`) et l'emporte toujours sur une configuration PostgreSQL, y compris celle d'un `.env` : le `.env` du poste est même ignoré (`MATRIX_ENV_FILE` pointe sur un fichier absent), et l'envoi d'e-mails réels est coupé.
 - Avant toute écriture, le script interroge la configuration réellement chargée et **refuse de démarrer** si la connexion ne vise pas exactement le fichier attendu en SQLite.
-- Seul un fichier `.sqlite3` placé directement dans `instance_test_marins/` est accepté ; la base de développement `db.sqlite3`, les autres dossiers, les liens symboliques et les dossiers sont refusés. `--reinitialiser` ne supprime qu'un fichier de ce dossier créé par le script (marqueur `.instance_demo_matrix`).
+- Seul un fichier `.sqlite3` placé directement dans `instance_test_marins/` est accepté ; la base de développement `db.sqlite3`, les autres dossiers, les liens symboliques et les dossiers sont refusés. `--reinitialiser` ne supprime qu'un fichier de ce dossier créé par le script (fichier voisin `<base>.instance_demo`). Une base créée avant cette version n'a pas ce marqueur : la supprimer à la main avant de relancer.
 - Si vous lancez le serveur à la main, gardez les deux variables ci-dessus : sans `MATRIX_SQLITE_PATH`, Django utiliserait la base de développement.
 
 Mot de passe fictif de tous les comptes : « pass ».
