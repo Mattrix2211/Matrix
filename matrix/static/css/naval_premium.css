@@ -130,3 +130,55 @@
   .mx-lateral__bouton-groupe { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .mx-lateral__chevron { transition: none; } }
+
+/* ---- Carte « À faire » : prioritaires visibles, autres actions repliables --- */
+.mx-v11 .mx-afaire { padding: 0; overflow: hidden; }
+.mx-afaire__entete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); padding: var(--s4) var(--s5) var(--s3); }
+.mx-afaire__titre { margin: 0; font: 600 .8125rem var(--f-display); letter-spacing: .04em; text-transform: uppercase; color: var(--text-sec); }
+.mx-afaire__compteur { font: 500 .8125rem var(--f-display); color: var(--text-sec); text-align: right; }
+.mx-afaire__compteur strong { color: var(--text); }
+.mx-afaire__priorites { display: flex; flex-direction: column; gap: var(--s2); padding: 0 var(--s5) var(--s4); }
+.mx-v11 .mx-afaire .mx-carte--action { background: var(--surface); padding: var(--s2) var(--s3); }
+.mx-afaire__etat, .mx-afaire__contexte { display: block; }
+.mx-afaire__contexte { margin-top: 2px; font-size: .75rem; color: var(--text-sec); }
+.mx-afaire__statut, .mx-afaire__repere { display: inline-block; margin-right: var(--s2); padding: 0 var(--s2); border-radius: var(--r-sm); font: 600 .6875rem/1.5 var(--f-display); vertical-align: 1px; }
+.mx-afaire__statut { letter-spacing: .03em; text-transform: uppercase; }
+.mx-afaire__statut--urgent { background: var(--red-plein); color: var(--paper); }
+.mx-afaire__statut--action { background: color-mix(in srgb, var(--amber) 35%, var(--surface)); color: var(--text); border: 1px solid var(--amber); }
+.mx-afaire__statut--suivi { background: transparent; color: var(--text); border: 1px solid var(--fog); }
+.mx-afaire__repere { color: var(--text); border: 1px dashed var(--fog); }
+.mx-v11 .mx-carte--action.mx-afaire__ligne--suivi { border-left: 4px solid var(--fog); }
+
+.mx-afaire__autres { border-top: 1px solid var(--np-surface-bord); padding: var(--s3) var(--s5) var(--s4); background: color-mix(in srgb, var(--bg) 55%, var(--surface)); }
+.mx-afaire__autres-entete { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
+.mx-afaire__intitule { margin: 0; font: 600 .75rem var(--f-display); letter-spacing: .05em; text-transform: uppercase; color: var(--text-sec); }
+.mx-afaire__masquees { display: none; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__masquees--replie { display: inline; }
+.mx-afaire__bascule { white-space: nowrap; }
+.mx-afaire__defilement { display: flex; flex-direction: column; gap: var(--s2); }
+
+/* PC : zone défilante avec ombres de bord ; en fin de liste, le défilement passe à la page */
+@media (min-width: 768px) {
+  .mx-afaire__defilement {
+    max-height: 15rem; overflow-y: auto; padding-right: var(--s1); scrollbar-width: thin; scrollbar-color: var(--fog) transparent;
+    background:
+      linear-gradient(var(--bg), var(--bg)) top / 100% 12px no-repeat local,
+      linear-gradient(var(--bg), var(--bg)) bottom / 100% 12px no-repeat local,
+      linear-gradient(rgba(11, 25, 41, .16), transparent) top / 100% 10px no-repeat scroll,
+      linear-gradient(transparent, rgba(11, 25, 41, .16)) bottom / 100% 10px no-repeat scroll;
+  }
+  .mx-afaire__defilement:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .mx-afaire--ouvert .mx-afaire__defilement { max-height: none; overflow: visible; background: none; }
+}
+/* Mobile : aucun défilement interne ; trois lignes, le nombre de lignes masquées est écrit */
+@media (max-width: 767.98px) {
+  .mx-afaire__entete { padding: var(--s3) var(--s4) var(--s2); flex-wrap: wrap; }
+  .mx-afaire__priorites { padding: 0 var(--s3) var(--s3); }
+  .mx-afaire__autres { padding: var(--s3); }
+  .mx-afaire:not(.mx-afaire--ouvert) .mx-afaire__ligne:nth-child(n+4) { display: none; }
+  .mx-afaire__bascule { min-height: 44px; }
+  .mx-afaire:not(.mx-afaire--ouvert):not(.mx-afaire--replie) .mx-afaire__masquees--mobile { display: inline; }
+}
+/* Repliée au départ (nombreuses priorités) : seuls l'en-tête de section, son compteur et son bouton restent visibles */
+.mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__defilement { display: none; }
+.mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__autres-entete { margin-bottom: 0; }

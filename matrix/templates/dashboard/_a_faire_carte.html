@@ -1,0 +1,28 @@
+{% load composants icones static %}
+{# Carte « À faire » : prioritaires toujours visibles, autres actions dans une section repliable (docs/UX.md §9.1). #}
+<section class="mx-surface mx-afaire{% if autres_repliees %} mx-afaire--replie{% endif %}" data-afaire data-initial="{% if autres_repliees %}replie{% else %}apercu{% endif %}" aria-labelledby="afaire-titre">
+  <header class="mx-afaire__entete">
+    <h2 id="afaire-titre" class="mx-afaire__titre">{% icone "maintenance" %} À faire</h2>
+    <span class="mx-afaire__compteur">{{ nb_actions }} action{% if nb_actions > 1 %}s{% endif %} · <strong>{{ nb_prioritaires }} prioritaire{% if nb_prioritaires > 1 %}s{% endif %}</strong> · {{ nb_autres }} autre{% if nb_autres > 1 %}s{% endif %}</span>
+  </header>
+  {% if nb_prioritaires %}
+  <div class="mx-afaire__priorites" role="group" aria-label="Actions prioritaires">
+    {% for p in a_faire_lignes %}{% if p.zone == "prioritaire" %}<div class="mx-afaire__prio" data-action-id="{{ p.identifiant }}">{% include "dashboard/_a_faire_ligne.html" %}</div>{% endif %}{% endfor %}
+  </div>
+  {% endif %}
+  {% if nb_autres %}
+  <div class="mx-afaire__autres">
+    <div class="mx-afaire__autres-entete">
+      <h3 class="mx-afaire__intitule">{% if nb_prioritaires %}Autres actions{% else %}Actions{% endif %} · {{ nb_autres }}{% if autres_repliees %}<span class="mx-afaire__masquees mx-afaire__masquees--replie"> · repliées</span>{% elif nb_autres > 3 %}<span class="mx-afaire__masquees mx-afaire__masquees--mobile"> · {{ nb_autres|add:-3 }} masquée{{ nb_autres|add:-3|pluralize }}</span>{% endif %}</h3>
+      {% if nb_autres > 3 or autres_repliees %}
+      <button type="button" class="btn btn-sm btn-outline-secondary mx-afaire__bascule" aria-expanded="false" aria-controls="afaire-autres" data-afaire-bascule data-libelle-replie="Afficher les autres actions" data-libelle-apercu="Tout afficher" data-libelle-ouvert="Réduire">{% if autres_repliees %}Afficher les autres actions{% else %}Tout afficher{% endif %}</button>
+      {% endif %}
+    </div>
+    <div class="mx-afaire__defilement" id="afaire-autres" role="region" aria-label="Autres actions" data-afaire-zone>
+      {% for p in a_faire_lignes %}{% if p.zone == "autre" %}<div class="mx-afaire__ligne" data-action-id="{{ p.identifiant }}">{% include "dashboard/_a_faire_ligne.html" %}</div>{% endif %}{% endfor %}
+    </div>
+    <p class="visually-hidden" role="status" aria-live="polite" data-afaire-annonce></p>
+  </div>
+  {% endif %}
+</section>
+<script src="{% static 'js/a_faire.js' %}" defer></script>

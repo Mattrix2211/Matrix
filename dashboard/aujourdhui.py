@@ -96,11 +96,19 @@ def a_faire(user, aujourdhui):
     """
     entrees = []
     chef = peut_superviser(user) and bool(scope_filters_for_user(user))
+    # Le contexte (bâtiment, service, secteur) et le type de matériel s'affichent sur chaque ligne : chargés d'avance.
     occurrences = (
-        MaintenanceOccurrence.objects.select_related("asset", "installation_maintenance__installation")
+        MaintenanceOccurrence.objects.select_related(
+            "asset__asset_type", "asset__ship", "asset__service", "asset__sector", "installation_maintenance",
+            "installation_maintenance__installation__ship", "installation_maintenance__installation__service",
+            "installation_maintenance__installation__sector",
+        )
         .exclude(status__in=STATUTS_MAINTENANCE_TERMINES)
     )
-    tickets = CorrectiveTicket.objects.select_related("asset", "installation").exclude(status__in=STATUTS_TICKET_TERMINES)
+    tickets = CorrectiveTicket.objects.select_related(
+        "asset__asset_type", "asset__ship", "asset__service", "asset__sector",
+        "installation__ship", "installation__service", "installation__sector",
+    ).exclude(status__in=STATUTS_TICKET_TERMINES)
     cond_occ, cond_ticket = Q(assignees=user), Q(assignees=user)
     if chef:
         cond_occ |= Q(assignees__isnull=True) & build_scope_q(user, "asset__", "installation_maintenance__installation__")

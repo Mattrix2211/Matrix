@@ -19,6 +19,7 @@ from django.views.generic import TemplateView
 
 from accounts.models import AuditLog, ResponsableSpecialite, SpecialityChoice
 from assets.models import Asset, Installation, InstallationMaintenance
+from dashboard.a_faire_presentation import compteurs, presenter
 from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee, supervision
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from dashboard.aujourdhui_terre import a_faire_terre, batiments_suivis, cartes_batiments
@@ -83,6 +84,8 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         contexte["salutation"] = f"{profil.grade} {nom}".strip() if profil and profil.grade else nom
         contexte["profil"] = profil
         contexte["a_faire"] = a_faire(self.request.user, aujourdhui)
+        contexte["a_faire_lignes"] = presenter(contexte["a_faire"], self.request.user)
+        contexte.update(compteurs(contexte["a_faire_lignes"]))
         contexte["journee"] = journee(self.request.user, aujourdhui, contexte["a_faire"])
         contexte["supervision"] = supervision(self.request.user, aujourdhui)
         contexte["brouillons"] = brouillons_a_reprendre(self.request.user).exclude(url="")

@@ -21,18 +21,13 @@
 
 <div class="row g-4 mt-1">
   <div class="col-lg-7">
+    {% if a_faire_lignes %}
+      {% include "dashboard/_a_faire_carte.html" %}
+    {% else %}
     {% surface titre="À faire" icone="maintenance" %}
-      {% if a_faire %}
-      <div class="mx-aujourdhui__liste">
-        {% for tache in a_faire %}
-          {# À terre : consultation seulement, le serveur reste juge de l'accès. #}
-          {% carte_action titre=tache.titre libelle=lecture_seule|yesno:"Consulter,Ouvrir" url=tache.url icone=tache.icone classes=tache.classes %}{{ tache.detail }}{% fin_carte_action %}
-        {% endfor %}
-      </div>
-      {% else %}
-        {% include "components/etat_vide.html" with icone="terminee" titre="Rien à faire pour le moment" texte="Aucune tâche ne vous attend." %}
-      {% endif %}
+      {% include "components/etat_vide.html" with icone="terminee" titre="Rien à faire pour le moment" texte="Aucune tâche ne vous attend." %}
     {% fin_surface %}
+    {% endif %}
 
     {% if brouillons and not lecture_seule %}
     <div class="mt-4">
