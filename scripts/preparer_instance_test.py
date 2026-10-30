@@ -4,7 +4,7 @@ Base SQLite séparée, données entièrement fictives (seed_demo), aucune donné
 À n'utiliser que sur un poste local ou un environnement isolé : mots de passe fictifs et DEBUG actif,
 jamais sur un réseau opérationnel ou exposé.
 
-Usage : python scripts/preparer_instance_test.py [--base chemin] [--reinitialiser] [--verifier]
+Usage : python scripts/preparer_instance_test.py [--base chemin] [--reinitialiser | --verifier | --servir [--port N]]
 """
 import argparse
 import json
@@ -12,9 +12,16 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 RACINE = Path(__file__).resolve().parent.parent
 DOSSIER_DEMO = RACINE / "instance_test_marins"
+HOTE = "127.0.0.1"  # jamais configurable : la démonstration n'écoute que sur la machine locale
+PORT_PAR_DEFAUT = 8800
+HOTES_LOCAUX = {"localhost", "127.0.0.1", "[::1]", "::1"}
+# Seules ces variables du poste sont transmises ; tout le reste (bases, e-mail, Redis, clés) est volontairement absent.
+VARIABLES_CONSERVEES = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT",
+                        "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "VIRTUAL_ENV")
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
     ("equipier_a", "Marin, équipage A : journée chargée (10 actions)"),
@@ -31,7 +38,11 @@ import django
 django.setup()
 from django.db import connection
 reglages = connection.settings_dict
-resultat = {'vendeur': connection.vendor, 'nom': str(reglages['NAME'])}
+from django.conf import settings
+resultat = {'vendeur': connection.vendor, 'nom': str(reglages['NAME']), 'courriel': settings.EMAIL_BACKEND,
+            'serveur_courriel': settings.EMAIL_HOST, 'push': bool(settings.VAPID_PRIVATE_KEY),
+            'courtier': settings.CELERY_BROKER_URL + ' ' + settings.CELERY_RESULT_BACKEND,
+            'hotes': list(settings.ALLOWED_HOSTS)}
 if os.path.exists(resultat['nom']):
     connection.ensure_connection()
     resultat['fichier'] = connection.cursor().execute('PRAGMA database_list').fetchall()[0][2]
@@ -71,13 +82,12 @@ def verifier_chemin(base, dossier_autorise, reinitialiser=False, lecture_seule=F
 
 
 def environnement_demo(base):
-    """Environnement du processus fils : base SQLite explicite, .env du poste ignoré, aucun PostgreSQL ni envoi réel."""
-    env = {**os.environ, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1", "DJANGO_SETTINGS_MODULE": "matrix.settings",
-           "MATRIX_ENV_FILE": str(base.parent / "aucun.env"),
-           "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
-    for variable in ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_PORT", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"):
-        env.pop(variable, None)
-    return env
+    """Environnement du processus fils, construit en liste blanche : base SQLite explicite, .env du poste ignoré,
+    aucun PostgreSQL, serveur d'e-mail, Redis, clé d'envoi ni hôte autorisé hérités du poste."""
+    env = {cle: os.environ[cle] for cle in VARIABLES_CONSERVEES if cle in os.environ}
+    return {**env, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1", "DJANGO_SETTINGS_MODULE": "matrix.settings",
+            "MATRIX_ENV_FILE": str(base.parent / "aucun.env"), "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
+            "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
 
 
 def controler_connexion(base, env):
@@ -90,6 +100,17 @@ def controler_connexion(base, env):
         raise RefusError(f"la connexion visée ({reel['vendeur']} : {reel['nom']}) n'est pas la base de démonstration {base}")
     if "fichier" in reel and Path(reel["fichier"]).resolve() != base:
         raise RefusError(f"la connexion ouverte ({reel['fichier']}) n'est pas la base de démonstration {base}")
+    verifier_isolement(reel)
+
+
+def verifier_isolement(reel):
+    """RefusError si la configuration chargée pourrait joindre un service extérieur ou accepter un hôte distant."""
+    if "locmem" not in reel["courriel"] or reel["serveur_courriel"] or reel["push"]:
+        raise RefusError("envoi d'e-mails ou de notifications réels possible : refus")
+    if any(urlparse(url).hostname not in ("localhost", "127.0.0.1") for url in reel["courtier"].split()):
+        raise RefusError("un service extérieur (courtier de tâches) est configuré : refus")
+    if not reel["hotes"] or not set(reel["hotes"]) <= HOTES_LOCAUX:
+        raise RefusError(f"hôtes autorisés non locaux {reel['hotes']} : refus")
 
 
 def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autorise=DOSSIER_DEMO):
@@ -107,21 +128,43 @@ def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autori
     return base
 
 
+def servir(base, port=PORT_PAR_DEFAUT, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
+    """Lance le serveur de démonstration avec le même environnement isolé que la préparation, sur 127.0.0.1 seulement."""
+    if not isinstance(port, int) or not 1024 <= port <= 65535:
+        raise RefusError("port invalide (1024 à 65535)")
+    base = verifier_chemin(base, dossier_autorise, lecture_seule=True)
+    if not base.exists() or not marqueur(base).exists():
+        raise RefusError("base de démonstration absente ou non préparée par ce script : lancez d'abord la préparation")
+    env = environnement_demo(base)
+    controler_connexion(base, env)
+    lancer([sys.executable, "manage.py", "runserver", f"{HOTE}:{port}", "--noreload"], cwd=RACINE, env=env)
+    return base
+
+
 def main():
     analyseur = argparse.ArgumentParser(description=__doc__)
     analyseur.add_argument("--base", default=str(DOSSIER_DEMO / "db.sqlite3"))
     analyseur.add_argument("--reinitialiser", action="store_true", help="repart d'une base vide (entre deux participants)")
-    analyseur.add_argument("--verifier", action="store_true", help="contrôle sans rien écrire que la configuration vise bien la base de démonstration")
+    mode = analyseur.add_mutually_exclusive_group()
+    mode.add_argument("--verifier", action="store_true", help="contrôle sans rien écrire que la configuration vise bien la base de démonstration")
+    mode.add_argument("--servir", action="store_true", help=f"lance le serveur de démonstration sur {HOTE} (Ctrl+C pour arrêter)")
+    analyseur.add_argument("--port", type=int, default=PORT_PAR_DEFAUT, help="port local du serveur (avec --servir)")
     args = analyseur.parse_args()
+    if args.servir and args.reinitialiser:
+        analyseur.error("--servir ne se combine pas avec --reinitialiser")
     try:
+        if args.servir:
+            print(f"Démonstration sur http://{HOTE}:{args.port}/ (cette machine seulement). Arrêt : Ctrl+C.")
+            servir(args.base, args.port)
+            return
         base = preparer(args.base, args.reinitialiser, args.verifier)
     except RefusError as erreur:
         sys.exit(f"Refus : {erreur}")
     if args.verifier:
         print(f"Contrôle réussi : la connexion vise bien {base} (SQLite).")
         return
-    print(f"\nBase prête : {base}\nLancement (local uniquement) :")
-    print(f"  MATRIX_SQLITE_PATH={base} MATRIX_ENV_FILE={base.parent / 'aucun.env'} DJANGO_DEBUG=1 python manage.py runserver 127.0.0.1:8800")
+    print(f"\nBase prête : {base}\nPour lancer la démonstration (cette machine seulement) :")
+    print("  python scripts/preparer_instance_test.py --servir")
     print("Mot de passe fictif de tous les comptes : « pass ». Ne jamais exposer cette instance sur un réseau.")
     for compte, role in COMPTES:
         print(f"  {compte:16} {role}")

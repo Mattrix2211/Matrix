@@ -4,11 +4,13 @@ L'environnement de développement n'a que Chromium. Firefox, WebKit, Safari et l
 
 ## Où effectuer les contrôles (alternatives autorisées)
 
-1. **Navigateur déjà installé sur un poste de test** du bord ou du service (Firefox, Safari), en lançant l'instance de démonstration locale décrite dans `docs/TESTS_MARINS.md`.
-2. **Environnement de validation approuvé** par la sécurité du système d'information, disposant des navigateurs.
-3. **Matériel personnel isolé** (poste, iPhone) sur réseau local fermé, **données fictives uniquement**, jamais relié à un réseau opérationnel.
+**Essais PC locaux** : l'instance de démonstration de `docs/TESTS_MARINS.md` (`python scripts/preparer_instance_test.py --servir`), qui n'écoute que sur `127.0.0.1`. Elle sert pour Firefox ou Safari installés sur ce même poste, la molette, le pavé tactile, le clavier et l'impression.
 
-Dans tous les cas : instance de démonstration seule (comptes fictifs, mode DEBUG), jamais une base réelle.
+**Essais mobiles réels (iPhone, tablette, autre poste)** : l'instance locale n'est pas joignable depuis un autre appareil, et il ne faut **pas** l'exposer (DEBUG et comptes fictifs). Il faut un **environnement de validation distinct**, isolé et approuvé par la sécurité du système d'information, hébergeant une instance configurée pour cet usage (données fictives uniquement, jamais relié à un réseau opérationnel). Si aucun environnement mobile sûr n'est disponible, **ces contrôles sont marqués « non effectués »** : ne pas les remplacer par un serveur de développement ouvert sur le réseau.
+
+Autres options autorisées pour Firefox ou WebKit : un poste de test avec le navigateur déjà installé, ou du matériel personnel isolé (réseau local fermé, données fictives).
+
+Dans tous les cas : jamais une base réelle, jamais d'identifiants réels.
 
 ## Checklist (cocher, noter le navigateur et sa version)
 
@@ -19,7 +21,7 @@ Dans tous les cas : instance de démonstration seule (comptes fictifs, mode DEBU
 - [ ] Calendrier : affichage, axes HH:mm, « Toute la journée ».
 - [ ] Clavier : Tab parcourt le menu puis la carte, focus toujours visible, Échap ferme le menu sur petit écran.
 
-### Safari sur iPhone
+### Safari sur iPhone (environnement mobile approuvé requis, sinon « non effectué »)
 - [ ] Accueil marin : carte « À faire », trois lignes visibles puis « Tout afficher » / « Réduire ».
 - [ ] Menu tiroir : ouverture, fermeture, groupes.
 - [ ] Zones tactiles (≥ 44 px) : boutons de la carte et du menu.

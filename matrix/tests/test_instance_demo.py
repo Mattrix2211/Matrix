@@ -161,3 +161,89 @@ class CheminsInterditsTests(SimpleTestCase):
         script.marqueur(self.dossier / "demo.sqlite3").touch()
         (self.dossier / "demo.sqlite3").write_text("x")
         self.assertEqual(script.verifier_chemin(self.dossier / "demo.sqlite3", self.dossier, True), self.dossier / "demo.sqlite3")
+
+
+class LancementSecuriseTests(SimpleTestCase):
+    """--servir : même environnement isolé que la préparation, écoute locale seulement, refus sinon."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dossier = Path(self.tmp.name).resolve() / "instance_test_marins"
+        self.dossier.mkdir()
+        self.base = self.dossier / "demo.sqlite3"
+        self.appels = []
+
+    def _lancer(self, commande, cwd, env):
+        self.appels.append((commande, env))
+
+    def _preparer_la_base(self):
+        self.base.write_text("")
+        script.marqueur(self.base).touch()
+
+    def _servir(self, **options):
+        return script.servir(self.base, dossier_autorise=self.dossier, lancer=self._lancer, **options)
+
+    def test_environnement_en_liste_blanche(self):
+        hostile = {**os.environ, "DB_HOST": "prod", "EMAIL_HOST": "smtp.operationnel", "CELERY_BROKER_URL": "redis://prod/0",
+                   "VAPID_PRIVATE_KEY": "cle", "DJANGO_ALLOWED_HOSTS": "*", "DJANGO_SECRET_KEY": "secret-prod"}
+        ancien, os.environ = os.environ, hostile
+        try:
+            env = script.environnement_demo(self.base)
+        finally:
+            os.environ = ancien
+        for variable in ("DB_HOST", "EMAIL_HOST", "CELERY_BROKER_URL", "VAPID_PRIVATE_KEY", "DJANGO_SECRET_KEY"):
+            self.assertNotIn(variable, env)
+        self.assertEqual(env["DJANGO_ALLOWED_HOSTS"], "localhost,127.0.0.1")
+        self.assertTrue(set(env) <= set(script.VARIABLES_CONSERVEES) | {
+            "MATRIX_SQLITE_PATH", "DJANGO_DEBUG", "DJANGO_SETTINGS_MODULE", "MATRIX_ENV_FILE", "DJANGO_ALLOWED_HOSTS", "EMAIL_BACKEND"})
+
+    def test_serveur_lance_sur_la_boucle_locale_avec_l_environnement_isole(self):
+        self._preparer_la_base()
+        hostile = {**os.environ, "DB_HOST": "prod", "EMAIL_HOST": "smtp.operationnel", "DJANGO_ALLOWED_HOSTS": "*"}
+        ancien, os.environ = os.environ, hostile
+        try:
+            self._servir(port=8812)
+        finally:
+            os.environ = ancien
+        commande, env = self.appels[0]
+        self.assertIn("127.0.0.1:8812", commande)
+        self.assertFalse(any(argument.startswith("0.0.0.0") or argument.startswith(":") for argument in commande))
+        self.assertEqual(env["MATRIX_SQLITE_PATH"], str(self.base))
+        self.assertNotIn("DB_HOST", env)
+        self.assertNotIn("EMAIL_HOST", env)
+
+    def test_refus_si_la_base_n_est_pas_preparee(self):
+        with self.assertRaises(script.RefusError):
+            self._servir()
+        self.base.write_text("")  # présente mais sans marqueur du script
+        with self.assertRaises(script.RefusError):
+            self._servir()
+        self.assertEqual(self.appels, [])
+
+    def test_refus_des_ports_et_chemins_invalides(self):
+        self._preparer_la_base()
+        for port in (0, 80, 1023, 65536, -1, "8800", None):
+            with self.assertRaises(script.RefusError, msg=str(port)):
+                self._servir(port=port)
+        with self.assertRaises(script.RefusError):
+            script.servir(settings.BASE_DIR / "db.sqlite3", dossier_autorise=self.dossier, lancer=self._lancer)
+        self.assertEqual(self.appels, [])
+
+    def test_refus_si_la_configuration_chargee_n_est_pas_isolee(self):
+        sain = {"courriel": "django.core.mail.backends.locmem.EmailBackend", "serveur_courriel": "", "push": False,
+                "courtier": "redis://localhost:6379/0 redis://localhost:6379/1", "hotes": ["localhost", "127.0.0.1"]}
+        script.verifier_isolement(sain)
+        for defaut in (
+            {"courriel": "django.core.mail.backends.smtp.EmailBackend"}, {"serveur_courriel": "smtp.operationnel"},
+            {"push": True}, {"courtier": "redis://prod.exemple:6379/0 redis://localhost:6379/1"},
+            {"hotes": ["*"]}, {"hotes": ["localhost", "exemple.mil"]}, {"hotes": []},
+        ):
+            with self.assertRaises(script.RefusError, msg=str(defaut)):
+                script.verifier_isolement({**sain, **defaut})
+
+    def test_la_commande_n_accepte_aucun_hote(self):
+        lignes = (settings.BASE_DIR / "scripts" / "preparer_instance_test.py").read_text(encoding="utf-8")
+        self.assertNotIn("--hote", lignes)
+        self.assertNotIn("0.0.0.0", lignes)
+        self.assertEqual(script.HOTE, "127.0.0.1")

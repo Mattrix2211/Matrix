@@ -2,28 +2,27 @@
 
 Objectif : vérifier que la tranche 1 de l'interface (menu, accueil, carte « À faire », calendrier, accès limité de l'équipage B) se comprend sans explication. Le test porte sur l'application, pas sur le marin. **Données exclusivement fictives.** Séances coordonnées par le Product Owner.
 
-## 1. Préparer l'instance (isolée, reproductible, sans risque pour les bases existantes)
+## 1. Démarrer la démonstration (procédure courte)
 
-> **À n'utiliser que sur un poste local ou un environnement isolé.** L'instance a des mots de passe fictifs (« pass ») et le mode DEBUG actif : ne jamais l'exposer sur un réseau opérationnel ou accessible de l'extérieur. Elle écoute uniquement sur `127.0.0.1`.
+> **Poste local ou isolé uniquement.** Mots de passe fictifs (« pass ») et mode DEBUG actif : ne jamais exposer l'instance sur un réseau opérationnel ou accessible de l'extérieur. Elle n'écoute que sur ce poste (`127.0.0.1`) et ne peut pas être ouverte à d'autres appareils.
 
-```bash
-python scripts/preparer_instance_test.py --verifier         # contrôle seul : n'écrit rien
-python scripts/preparer_instance_test.py                    # crée instance_test_marins/db.sqlite3
-python scripts/preparer_instance_test.py --reinitialiser    # remise à zéro entre deux participants
-```
+Dans un terminal, à la racine du projet :
 
-Le script affiche ensuite la commande de lancement, à copier telle quelle :
+1. **Première fois** : `python scripts/preparer_instance_test.py`
+2. **Lancer** : `python scripts/preparer_instance_test.py --servir`, puis ouvrir `http://127.0.0.1:8800/` dans le navigateur.
+3. **Entre deux participants** : arrêter (Ctrl+C), `python scripts/preparer_instance_test.py --reinitialiser`, puis relancer l'étape 2.
+4. **Arrêter** : Ctrl+C dans le terminal.
 
-```bash
-MATRIX_SQLITE_PATH=instance_test_marins/db.sqlite3 MATRIX_ENV_FILE=instance_test_marins/aucun.env DJANGO_DEBUG=1 python manage.py runserver 127.0.0.1:8800
-```
+Si le script affiche « Refus : … », ne rien contourner : le message dit quelle condition de sécurité manque. `python scripts/preparer_instance_test.py --verifier` contrôle la configuration sans rien écrire.
 
 Garanties (vérifiées par des tests automatiques) :
 
-- La base SQLite de démonstration est choisie **explicitement** (`MATRIX_SQLITE_PATH`) et l'emporte toujours sur une configuration PostgreSQL, y compris celle d'un `.env` : le `.env` du poste est même ignoré (`MATRIX_ENV_FILE` pointe sur un fichier absent), et l'envoi d'e-mails réels est coupé.
-- Avant toute écriture, le script interroge la configuration réellement chargée et **refuse de démarrer** si la connexion ne vise pas exactement le fichier attendu en SQLite.
-- Seul un fichier `.sqlite3` placé directement dans `instance_test_marins/` est accepté ; la base de développement `db.sqlite3`, les autres dossiers, les liens symboliques et les dossiers sont refusés. `--reinitialiser` ne supprime qu'un fichier de ce dossier créé par le script (fichier voisin `<base>.instance_demo`). Une base créée avant cette version n'a pas ce marqueur : la supprimer à la main avant de relancer.
-- Si vous lancez le serveur à la main, gardez les deux variables ci-dessus : sans `MATRIX_SQLITE_PATH`, Django utiliserait la base de développement.
+- La commande `--servir` réutilise exactement l'environnement isolé de la préparation : base SQLite choisie explicitement et vérifiée, `.env` du poste ignoré, e-mails sans envoi réel, aucune variable du poste transmise (bases, serveur d'e-mail, Redis, clés), hôtes limités à `localhost` et `127.0.0.1`. Elle écoute sur `127.0.0.1` seulement (l'hôte n'est pas configurable) ; seul le port peut changer (`--port`).
+- Avant de démarrer, le script interroge la configuration réellement chargée et **refuse** si la connexion ne vise pas la base attendue, si un envoi réel d'e-mails ou de notifications est possible, si un service extérieur est configuré, si les hôtes autorisés ne sont pas locaux, ou si la base n'a pas été préparée par lui.
+- Seul un fichier `.sqlite3` placé directement dans `instance_test_marins/` est accepté ; la base de développement `db.sqlite3`, les autres dossiers, les liens symboliques et les dossiers sont refusés. `--reinitialiser` ne supprime qu'un fichier créé par le script (fichier voisin `<base>.instance_demo`). Une base créée par une ancienne version n'a pas ce marqueur : la supprimer à la main avant de relancer.
+- Ne lancez pas `manage.py runserver` à la main pour la démonstration : seule la commande `--servir` applique toutes ces protections.
+
+**Essais sur PC uniquement.** Cette instance convient aux essais sur le poste local. Elle n'est pas joignable depuis un iPhone ou un autre appareil, et ne doit pas être rendue accessible : les essais sur appareil mobile réel demandent un environnement de validation distinct, isolé et approuvé, avec données fictives (voir `docs/COMPATIBILITE_CHECKLIST.md`). Sans tel environnement, le contrôle mobile est marqué « non effectué ».
 
 Mot de passe fictif de tous les comptes : « pass ».
 
@@ -35,7 +34,7 @@ Mot de passe fictif de tous les comptes : « pass ».
 | Chef de secteur | `chef_secteur_a` | supervision, équipe |
 | Équipage B en accès limité | `chef_secteur_b` | bandeau d'accès limité (le compte reste rattaché à son bâtiment : le présenter comme « équipage B en repos ») |
 
-Matériel : poste 1366×768 (clavier et souris), un téléphone si possible, chronomètre, grille imprimée. Navigateur : celui du bord.
+Matériel : poste 1366×768 (clavier et souris), chronomètre, grille imprimée. Navigateur : celui du poste. Le scénario 2 sur téléphone n'est réalisable que dans un environnement mobile approuvé (voir plus haut) ; sinon il est marqué « non effectué ».
 
 ## 2. Consignes de l'animateur
 
@@ -68,7 +67,7 @@ Chaque séance : accueil et consigne (3 min) + scénarios (12 à 15 min) + quest
 | D — Équipage B en accès limité (`chef_secteur_b`) | 6, 3, 4, 5 |
 | E (facultative) — second marin, par exemple un nouvel arrivant | 1, 2, 5, 7 |
 
-Les sept scénarios sont couverts (1 : A, E ; 2 : A, C, E ; 3 : B, C, D ; 4 : A à D ; 5 : tous ; 6 : D ; 7 : B, E). Facultatif : scénario 2 sur téléphone ; parcours clavier seul de la carte « À faire ».
+Les sept scénarios sont couverts (1 : A, E ; 2 : A, C, E ; 3 : B, C, D ; 4 : A à D ; 5 : tous ; 6 : D ; 7 : B, E). Facultatif : parcours clavier seul de la carte « À faire » ; scénario 2 sur téléphone (seulement en environnement mobile approuvé).
 
 ## 5. Grille d'observation (une ligne par scénario et par participant)
 
