@@ -341,3 +341,8 @@ class ImpressionCarteTests(TestCase):
         bloc = css[css.index("@media print"):]
         for regle in (".mx-afaire__defilement", "max-height: none", ".mx-afaire__bascule"):
             self.assertIn(regle, bloc)
+
+    def test_impression_pagination_et_graphiques(self):
+        css = (settings.BASE_DIR / "matrix/static/css/impression.css").read_text(encoding="utf-8")
+        for regle in (".mx-surface.mx-afaire", "break-inside: auto", "canvas { max-width: 100% !important", "h2 + .row", ".row:has(canvas)"):
+            self.assertIn(regle, css)
