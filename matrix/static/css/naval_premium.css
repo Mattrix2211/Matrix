@@ -3,13 +3,11 @@
  * Chargée après matrix.css : ne change que la présentation (aucune règle métier).
  * Portée : composants propres à la tranche (menu latéral, bandeau d'accès, fil des vues,
  * calendrier) et, pour les cartes et surfaces partagées, uniquement sous .mx-v11
- * (accueils et calendrier) : les autres écrans gardent le rendu de la V1 FANLAB.
- * Cyan --signal rare : action principale, état courant, focus. Couleurs par variables.
+ * (accueils et calendrier, panneaux latéraux du calendrier compris) : les autres écrans
+ * gardent le rendu de la V1 FANLAB. Cyan --signal rare : action principale, état courant, focus.
  *
- * Retour à la V1 FANLAB : retirer cette feuille de base.html ne suffit pas, car le menu
- * (barre_laterale.html, navigation.py), le bandeau (bandeau_acces.html) et les accueils en dépendent.
- * Le retour se fait par git : revenir à main (6ef16ad) ou défaire les commits de la branche
- * claude/ux-naval-premium-v11.
+ * Retour à la V1 : retirer cette feuille ne suffit pas, le menu, le bandeau et les accueils
+ * en dépendent aussi. Le retour se fait au niveau des commits de la branche (voir le suivi Notion).
  */
 
 :root {
