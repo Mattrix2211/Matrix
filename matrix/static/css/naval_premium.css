@@ -183,3 +183,10 @@
 /* Repliée au départ (nombreuses priorités) : seuls l'en-tête de section, son compteur et son bouton restent visibles (avec JavaScript) */
 .mx-js .mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__defilement { display: none; }
 .mx-js .mx-afaire--replie:not(.mx-afaire--ouvert) .mx-afaire__autres-entete { margin-bottom: 0; }
+
+/* Impression : toutes les actions sont écrites, sans repli ni zone défilante */
+@media print {
+  .mx-afaire .mx-afaire__defilement { display: flex !important; max-height: none; overflow: visible; background: none; }
+  .mx-afaire .mx-afaire__ligne { display: block !important; }
+  .mx-afaire .mx-afaire__bascule, .mx-afaire .mx-afaire__masquees { display: none !important; }
+}

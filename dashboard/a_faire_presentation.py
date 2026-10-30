@@ -106,7 +106,9 @@ def _champs(entree, user):
     elif isinstance(objet, Ronde):
         base.update(etat="Ronde en retard" if niveau == "danger" else "Ronde du jour", echeance=f"{objet.date_prevue:%d/%m}")
     elif isinstance(objet, Annonce):
-        base.update(etat=f"Annonce · {objet.get_niveau_display()}" + (" · Accusé requis" if objet.accuse_requis else ""))
+        # Le niveau « danger » est déjà dit par la pastille « Alerte » : ne pas l'afficher « Urgent » à côté.
+        niveau_texte = "" if niveau == "danger" else f" · {objet.get_niveau_display()}"
+        base.update(etat=f"Annonce{niveau_texte}" + (" · Accusé requis" if objet.accuse_requis else ""))
     elif isinstance(objet, Tache) and objet.assigne_id == user.pk:
         faits, total = objet.avancement_checklist
         etat = "Tâche en retard" if niveau == "danger" else f"Tâche · {objet.get_statut_display()}"

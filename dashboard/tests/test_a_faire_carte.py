@@ -3,6 +3,7 @@ import re
 from datetime import timedelta
 from types import SimpleNamespace
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import connection
 from django.test import TestCase
@@ -161,12 +162,12 @@ class ClassementTests(CarteAFaireBase):
     def test_annonce_danger_sans_accuse_est_une_alerte_prioritaire(self):
         ligne = self._annonce_danger(False)
         self.assertEqual((ligne["nature"], ligne["libelle_nature"], ligne["zone"]), (ALERTE, "Alerte", "prioritaire"))
-        self.assertNotIn("Accusé requis", ligne["etat"])
+        self.assertEqual(ligne["etat"], "Annonce")
 
     def test_annonce_danger_avec_accuse_reste_une_alerte_et_garde_l_accuse(self):
         ligne = self._annonce_danger(True)
         self.assertEqual((ligne["nature"], ligne["zone"]), (ALERTE, "prioritaire"))
-        self.assertIn("Accusé requis", ligne["etat"])
+        self.assertEqual(ligne["etat"], "Annonce · Accusé requis")
 
     def test_annonce_ordinaire_avec_accuse_reste_action_requise(self):
         annonce = Annonce(pk=2, titre="Note", niveau="warning", accuse_requis=True)
@@ -330,3 +331,11 @@ class DroitsEtRequetesTests(CarteAFaireBase):
             ticket = CorrectiveTicket.objects.create(asset=self._asset(), description="x", status="BLOCKED")
             ticket.assignees.add(grand)
         self.assertEqual(self._requetes(petit), self._requetes(grand))
+
+
+class ImpressionCarteTests(TestCase):
+    def test_impression_deplie_toutes_les_actions(self):
+        css = (settings.BASE_DIR / "matrix/static/css/naval_premium.css").read_text(encoding="utf-8")
+        bloc = css[css.index("@media print"):]
+        for regle in (".mx-afaire__defilement", "max-height: none", ".mx-afaire__bascule"):
+            self.assertIn(regle, bloc)
