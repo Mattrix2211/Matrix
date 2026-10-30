@@ -83,10 +83,14 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         contexte["salutation"] = f"{profil.grade} {nom}".strip() if profil and profil.grade else nom
         contexte["profil"] = profil
         contexte["a_faire"] = a_faire(self.request.user, aujourdhui)
-        # Maquette : variante de la carte « À faire » (?v=a|b), partage entre prioritaires (niveau déjà calculé) et autres.
+        # Maquette : variante de la carte « À faire » (?v=a), partage entre prioritaires (niveau déjà calculé) et autres.
         contexte["variante"] = self.request.GET.get("v", "")
         contexte["nb_prioritaires"] = sum(1 for e in contexte["a_faire"] if e["niveau"])
         contexte["nb_autres"] = len(contexte["a_faire"]) - contexte["nb_prioritaires"]
+        if contexte["variante"] == "a":
+            from dashboard.aujourdhui_presentation import SEUIL_AUTRES_REPLIEES, presenter
+            contexte["a_faire_p"] = presenter(contexte["a_faire"], self.request.user)
+            contexte["autres_repliees"] = contexte["nb_prioritaires"] >= SEUIL_AUTRES_REPLIEES
         contexte["journee"] = journee(self.request.user, aujourdhui, contexte["a_faire"])
         contexte["supervision"] = supervision(self.request.user, aujourdhui)
         contexte["brouillons"] = brouillons_a_reprendre(self.request.user).exclude(url="")

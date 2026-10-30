@@ -22,7 +22,7 @@
 
 <div class="row g-4 mt-1">
   <div class="col-lg-7">
-    {% if variante == "a" or variante == "b" %}{% if a_faire %}{% include "dashboard/_a_faire_hybride.html" %}{% endif %}{% endif %}
+    {% if variante == "a" %}{% if a_faire %}{% include "dashboard/_a_faire_hybride.html" %}{% endif %}{% endif %}
     {% if not variante or not a_faire %}
     {% surface titre="À faire" icone="maintenance" %}
       {% if a_faire %}

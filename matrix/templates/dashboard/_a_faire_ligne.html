@@ -1,0 +1,3 @@
+{% load composants icones %}
+{% if lecture_seule %}{% carte_action titre=p.principal libelle="Consulter" url=p.url icone=p.icone classes=p.classes %}{% include "dashboard/_a_faire_detail.html" %}{% fin_carte_action %}
+{% else %}{% carte_action titre=p.principal libelle="Ouvrir" url=p.url icone=p.icone classes=p.classes %}{% include "dashboard/_a_faire_detail.html" %}{% fin_carte_action %}{% endif %}
