@@ -12,7 +12,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from urllib.parse import urlparse
 
 RACINE = Path(__file__).resolve().parent.parent
 DOSSIER_DEMO = RACINE / "instance_test_marins"
@@ -83,11 +82,13 @@ def verifier_chemin(base, dossier_autorise, reinitialiser=False, lecture_seule=F
 
 def environnement_demo(base):
     """Environnement du processus fils, construit en liste blanche : base SQLite explicite, .env du poste ignoré,
-    aucun PostgreSQL, serveur d'e-mail, Redis, clé d'envoi ni hôte autorisé hérités du poste."""
+    aucun PostgreSQL, serveur d'e-mail, Redis, clé d'envoi ni hôte autorisé hérités du poste, tâches Celery en mémoire."""
     env = {cle: os.environ[cle] for cle in VARIABLES_CONSERVEES if cle in os.environ}
     return {**env, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1", "DJANGO_SETTINGS_MODULE": "matrix.settings",
             "MATRIX_ENV_FILE": str(base.parent / "aucun.env"), "MATRIX_MEDIA_ROOT": str(base.parent / "media"),
             "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
+            # Tâches Celery gardées dans le processus : rien n'est envoyé à un Redis du poste, même local.
+            "CELERY_BROKER_URL": "memory://", "CELERY_RESULT_BACKEND": "cache+memory://",
             "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend"}
 
 
@@ -110,8 +111,8 @@ def verifier_isolement(reel):
     """RefusError si la configuration chargée pourrait joindre un service extérieur ou accepter un hôte distant."""
     if "locmem" not in reel["courriel"] or reel["serveur_courriel"] or reel["push"]:
         raise RefusError("envoi d'e-mails ou de notifications réels possible : refus")
-    if any(urlparse(url).hostname not in ("localhost", "127.0.0.1") for url in reel["courtier"].split()):
-        raise RefusError("un service extérieur (courtier de tâches) est configuré : refus")
+    if reel["courtier"].split() != ["memory://", "cache+memory://"]:
+        raise RefusError("le courtier de tâches n'est pas isolé en mémoire (un Redis du poste pourrait recevoir des tâches) : refus")
     if not reel["hotes"] or not set(reel["hotes"]) <= HOTES_LOCAUX:
         raise RefusError(f"hôtes autorisés non locaux {reel['hotes']} : refus")
 

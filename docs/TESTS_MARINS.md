@@ -6,7 +6,7 @@ Objectif : vérifier que la tranche 1 de l'interface (menu, accueil, carte « À
 
 > **Poste local ou isolé uniquement.** Mots de passe fictifs (« pass ») et mode DEBUG actif : ne jamais exposer l'instance sur un réseau opérationnel ou accessible de l'extérieur. Elle n'écoute que sur ce poste (`127.0.0.1`) et ne peut pas être ouverte à d'autres appareils.
 
-Dans un terminal, à la racine du projet, environnement virtuel du projet activé (comme pour le développement) :
+Dans un terminal, à la racine du projet, environnement virtuel du projet activé (sous Windows : `venv\Scripts\activate`) :
 
 1. **Première fois** : `python scripts/preparer_instance_test.py`
 2. **Lancer** : `python scripts/preparer_instance_test.py --servir`, puis ouvrir `http://127.0.0.1:8800/` dans le navigateur.
@@ -17,8 +17,8 @@ Si le script affiche « Refus : … », ne rien contourner : le message dit quel
 
 Garanties (vérifiées par des tests automatiques) :
 
-- La commande `--servir` réutilise exactement l'environnement isolé de la préparation : base SQLite choisie explicitement et vérifiée, `.env` du poste ignoré, e-mails sans envoi réel, fichiers téléversés rangés dans `instance_test_marins/media`, aucune variable du poste transmise (bases, serveur d'e-mail, Redis, clés), hôtes limités à `localhost` et `127.0.0.1`. Elle écoute sur `127.0.0.1` seulement (l'hôte n'est pas configurable) ; seul le port peut changer (`--port`).
-- Avant de démarrer, le script interroge la configuration réellement chargée et **refuse** si la connexion ne vise pas la base attendue, si un envoi réel d'e-mails ou de notifications est possible, si un service extérieur est configuré, si les hôtes autorisés ne sont pas locaux, ou si la base n'a pas été préparée par lui.
+- La commande `--servir` réutilise exactement l'environnement isolé de la préparation : base SQLite choisie explicitement et vérifiée, `.env` du poste ignoré, e-mails sans envoi réel, tâches en arrière-plan gardées dans le processus (aucun Redis du poste n'est joint, même local), fichiers téléversés rangés dans `instance_test_marins/media`, aucune variable du poste transmise (bases, serveur d'e-mail, Redis, clés), hôtes limités à `localhost` et `127.0.0.1`. Elle écoute sur `127.0.0.1` seulement (l'hôte n'est pas configurable) ; seul le port peut changer (`--port`).
+- Avant de démarrer, le script interroge la configuration réellement chargée et **refuse** si la connexion ne vise pas la base attendue, si un envoi réel d'e-mails ou de notifications est possible, si un Redis ou un autre service est configuré pour les tâches, si les hôtes autorisés ne sont pas locaux, ou si la base n'a pas été préparée par lui.
 - Seul un fichier `.sqlite3` placé directement dans `instance_test_marins/` est accepté ; la base de développement `db.sqlite3`, les autres dossiers, les liens symboliques et les dossiers sont refusés. `--reinitialiser` ne supprime qu'un fichier créé par le script (fichier voisin `<base>.instance_demo`). Une base créée par une ancienne version n'a pas ce marqueur : la supprimer à la main avant de relancer.
 - Ne lancez pas `manage.py runserver` à la main pour la démonstration : seule la commande `--servir` applique toutes ces protections.
 

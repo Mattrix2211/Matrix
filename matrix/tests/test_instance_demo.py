@@ -72,7 +72,8 @@ class EnvPostgresqlTests(SimpleTestCase):
         finally:
             os.environ = ancien
         self.assertEqual(env["MATRIX_SQLITE_PATH"], str(base))
-        self.assertTrue(all(cle not in env for cle in POSTGRES_ENV) and "CELERY_BROKER_URL" not in env)
+        self.assertTrue(all(cle not in env for cle in POSTGRES_ENV))
+        self.assertEqual((env["CELERY_BROKER_URL"], env["CELERY_RESULT_BACKEND"]), ("memory://", "cache+memory://"))
         self.assertEqual(Path(env["MATRIX_ENV_FILE"]).parent, self.dossier)
         self.assertFalse(Path(env["MATRIX_ENV_FILE"]).exists())
         self.assertIn("locmem", env["EMAIL_BACKEND"])
@@ -193,12 +194,13 @@ class LancementSecuriseTests(SimpleTestCase):
             env = script.environnement_demo(self.base)
         finally:
             os.environ = ancien
-        for variable in ("DB_HOST", "EMAIL_HOST", "CELERY_BROKER_URL", "VAPID_PRIVATE_KEY", "DJANGO_SECRET_KEY"):
+        for variable in ("DB_HOST", "EMAIL_HOST", "VAPID_PRIVATE_KEY", "DJANGO_SECRET_KEY"):
             self.assertNotIn(variable, env)
+        self.assertEqual(env["CELERY_BROKER_URL"], "memory://")
         self.assertEqual(env["DJANGO_ALLOWED_HOSTS"], "localhost,127.0.0.1")
         self.assertTrue(set(env) <= set(script.VARIABLES_CONSERVEES) | {
             "MATRIX_SQLITE_PATH", "DJANGO_DEBUG", "DJANGO_SETTINGS_MODULE", "MATRIX_ENV_FILE", "MATRIX_MEDIA_ROOT",
-            "DJANGO_ALLOWED_HOSTS", "EMAIL_BACKEND"})
+            "DJANGO_ALLOWED_HOSTS", "EMAIL_BACKEND", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"})
         self.assertEqual(Path(env["MATRIX_MEDIA_ROOT"]), self.base.parent / "media")
 
     def test_serveur_lance_sur_la_boucle_locale_avec_l_environnement_isole(self):
@@ -235,11 +237,12 @@ class LancementSecuriseTests(SimpleTestCase):
 
     def test_refus_si_la_configuration_chargee_n_est_pas_isolee(self):
         sain = {"courriel": "django.core.mail.backends.locmem.EmailBackend", "serveur_courriel": "", "push": False,
-                "courtier": "redis://localhost:6379/0 redis://localhost:6379/1", "hotes": ["localhost", "127.0.0.1"], "media": "/x/media"}
+                "courtier": "memory:// cache+memory://", "hotes": ["localhost", "127.0.0.1"], "media": "/x/media"}
         script.verifier_isolement(sain)
         for defaut in (
             {"courriel": "django.core.mail.backends.smtp.EmailBackend"}, {"serveur_courriel": "smtp.operationnel"},
-            {"push": True}, {"courtier": "redis://prod.exemple:6379/0 redis://localhost:6379/1"},
+            {"push": True}, {"courtier": "redis://prod.exemple:6379/0 cache+memory://"}, {"courtier": "redis://localhost:6379/0 redis://localhost:6379/1"},
+            {"courtier": "memory:// redis://localhost:6379/1"}, {"courtier": "amqp://localhost// cache+memory://"},
             {"hotes": ["*"]}, {"hotes": ["localhost", "exemple.mil"]}, {"hotes": []},
         ):
             with self.assertRaises(script.RefusError, msg=str(defaut)):
@@ -247,12 +250,26 @@ class LancementSecuriseTests(SimpleTestCase):
 
     def test_refus_si_les_fichiers_televerses_visent_un_autre_dossier(self):
         reel = {"vendeur": "sqlite", "nom": str(self.base), "courriel": "locmem", "serveur_courriel": "", "push": False,
-                "courtier": "redis://localhost:6379/0", "hotes": ["localhost"], "media": str(settings.BASE_DIR / "media")}
+                "courtier": "memory:// cache+memory://", "hotes": ["localhost"], "media": str(settings.BASE_DIR / "media")}
         with mock.patch.object(script.subprocess, "run") as run:
             run.return_value.returncode = 0
             run.return_value.stdout = __import__("json").dumps(reel)
             with self.assertRaises(script.RefusError):
                 script.controler_connexion(self.base, {})
+
+    def test_une_tache_envoyee_depuis_la_demonstration_n_ouvre_aucune_connexion_reseau(self):
+        """Envoi réel d'une tâche dans l'environnement de démonstration : aucune tentative de connexion (donc pas de Redis du poste)."""
+        env = script.environnement_demo(self.base)
+        code = (
+            "import socket\ntentatives = []\nconnecter = socket.socket.connect\n"
+            "def espion(self, adresse):\n    tentatives.append(adresse)\n    return connecter(self, adresse)\n"
+            "socket.socket.connect = espion\n"
+            "import django; django.setup()\nfrom matrix.core.tasks import purger_sessions\n"
+            "purger_sessions.delay()\nprint(len(tentatives), tentatives[:2])"
+        )
+        sortie = subprocess.run([sys.executable, "-c", code], cwd=settings.BASE_DIR, env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(sortie.returncode, 0, sortie.stderr[-400:])
+        self.assertTrue(sortie.stdout.startswith("0 "), sortie.stdout)
 
     def test_la_commande_n_accepte_aucun_hote(self):
         lignes = (settings.BASE_DIR / "scripts" / "preparer_instance_test.py").read_text(encoding="utf-8")

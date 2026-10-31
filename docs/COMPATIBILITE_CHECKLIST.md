@@ -14,6 +14,16 @@ Dans tous les cas : jamais une base réelle, jamais d'identifiants réels.
 
 ## Checklist (cocher, noter le navigateur et sa version)
 
+### Windows (poste des essais) — lancement de la démonstration, non testé en développement
+Le kit a été éprouvé sous Linux ; ce contrôle se fait sur le poste Windows des essais, environnement virtuel activé (`venv\Scripts\activate`) :
+- [ ] `python scripts\preparer_instance_test.py --verifier` affiche « Contrôle réussi » (sans dossier `instance_test_marins` préexistant, il crée seulement le contrôle).
+- [ ] `python scripts\preparer_instance_test.py` se termine sur « Base prête » (chemin avec espaces ou dossier synchronisé OneDrive : à noter).
+- [ ] `python scripts\preparer_instance_test.py --servir` ouvre `http://127.0.0.1:8800/` ; connexion avec un compte fictif ; Ctrl+C arrête proprement.
+- [ ] Depuis un autre appareil du réseau, `http://<adresse du poste>:8800/` ne répond pas (écoute locale seulement).
+- [ ] Si un Redis tourne sur le poste, il ne reçoit aucune connexion pendant la démonstration.
+- [ ] `--reinitialiser` recrée la base ; une base absente du dossier `instance_test_marins` est refusée.
+Un message « Refus : … » est un résultat attendu quand une condition de sécurité manque : le noter, ne pas contourner.
+
 ### Firefox (poste)
 - [ ] Connexion, accueil marin et chef : mise en page sans débordement, carte « À faire » complète.
 - [ ] Menu : groupes repliables, état conservé après rechargement et après changement de poste.
