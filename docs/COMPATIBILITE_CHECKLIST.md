@@ -16,7 +16,7 @@ Dans tous les cas : jamais une base réelle, jamais d'identifiants réels.
 
 ### Windows (poste des essais) — lancement de la démonstration, non testé en développement
 Le kit a été éprouvé sous Linux ; ce contrôle se fait sur le poste Windows des essais, environnement virtuel activé (`venv\Scripts\activate`) :
-- [ ] `python scripts\preparer_instance_test.py --verifier` affiche « Contrôle réussi » (sans dossier `instance_test_marins` préexistant, il crée seulement le contrôle).
+- [ ] `python scripts\preparer_instance_test.py --verifier` affiche « Contrôle réussi » (ce contrôle n'écrit rien).
 - [ ] `python scripts\preparer_instance_test.py` se termine sur « Base prête » (chemin avec espaces ou dossier synchronisé OneDrive : à noter).
 - [ ] `python scripts\preparer_instance_test.py --servir` ouvre `http://127.0.0.1:8800/` ; connexion avec un compte fictif ; Ctrl+C arrête proprement.
 - [ ] Depuis un autre appareil du réseau, `http://<adresse du poste>:8800/` ne répond pas (écoute locale seulement).
