@@ -1882,6 +1882,55 @@ def peut_rediger_feuille_service(user, ship):
     return RedacteurFeuilleService.objects.filter(ship=ship, equipage=equipage, user=user).exists()
 
 
+def peut_designer_redacteurs(user, ship, equipage):
+    """Désigner les rédacteurs de la feuille d'un équipage : le COMAEQ titulaire de cet équipage, qui porte le service
+    courant ; poste vacant, le commandant de l'équipage (secours). Ni le grade, ni un seuil de rôle ne suffisent, et
+    chaque équipage, à bord ou à terre, ne désigne que les siens."""
+    from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
+
+    if not peut_ecrire_pour_equipage(user, ship, equipage):
+        return False
+    titulaires = titulaires_commandant_adjoint(ship, "COMAEQ", equipage)
+    if titulaires.exists():
+        return titulaires.filter(pk=user.pk).exists()
+    return _commandant_de_l_equipage(user, ship, equipage)
+
+
+def _equipage_attendu(ship, user):
+    profil = getattr(user, "profile", None)
+    return (profil.equipage if profil and ship.double_equipage else "") or ""
+
+
+def designations_inoperantes(ship):
+    """Désignations qui ne donnent plus aucun droit : marin parti, désactivé, changé d'équipage, ou bâtiment passé de
+    double à simple équipage (ou l'inverse). Elles ne confèrent jamais de droit à un autre équipage."""
+    return [
+        d for d in RedacteurFeuilleService.objects.filter(ship=ship).select_related("user", "user__profile")
+        if not d.user.is_active or getattr(d.user, "profile", None) is None or d.user.profile.ship_id != ship.pk
+        or d.equipage != _equipage_attendu(ship, d.user)
+    ]
+
+
+def designations_inoperantes_de(user):
+    """Désignations de ce marin devenues inopérantes (changement d'équipage ou de bâtiment, compte désactivé)."""
+    return [d for d in designations_inoperantes_de_navires(
+        Ship.objects.filter(pk__in=user.redactions_feuille_service.values("ship"))) if d.user_id == user.pk]
+
+
+def designations_inoperantes_de_navires(navires):
+    return [d for navire in navires for d in designations_inoperantes(navire)]
+
+
+def equipages_sans_redacteur(ship):
+    """Codes d'équipage (« » pour un équipage unique) sans aucun rédacteur opérant : personne n'y rédige la feuille."""
+    inoperantes = {d.pk for d in designations_inoperantes(ship)}
+    pourvus = set(
+        RedacteurFeuilleService.objects.filter(ship=ship).exclude(pk__in=inoperantes).values_list("equipage", flat=True)
+    )
+    attendus = codes_equipage(ship) if ship.double_equipage else [""]
+    return [code for code in attendus if code not in pourvus]
+
+
 def peut_gerer_brouillon_feuille(user, feuille):
     """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la reproposer après un renvoi :
     réservé aux rédacteurs désignés de l'équipage propriétaire (le BSC change : tout rédacteur désigné peut reprendre)."""
@@ -1934,16 +1983,19 @@ def titulaire_comaeq(feuille):
     return titulaires_comaeq(feuille).order_by("pk").first()
 
 
-def commandant_habilite_si_comaeq_vacant(user, feuille):
-    """Commandant (et lui seul) de l'équipage de la feuille, sur le bâtiment de la feuille.
-
-    Ni le second, ni l'administrateur."""
+def _commandant_de_l_equipage(user, ship, equipage):
+    """Commandant (et lui seul) de l'équipage donné, sur ce bâtiment : ni le second, ni l'administrateur."""
     profil = getattr(user, "profile", None)
-    if profil is None or not user.is_active or profil.role != Roles.COMMANDANT or profil.ship_id != feuille.ship_id:
+    if profil is None or not user.is_active or profil.role != Roles.COMMANDANT or profil.ship_id != ship.pk:
         return False
-    if feuille.ship.double_equipage:
-        return profil.equipage == (feuille.equipage or equipage_a_bord(feuille.ship))
+    if ship.double_equipage:
+        return profil.equipage == (equipage or equipage_a_bord(ship))
     return True
+
+
+def commandant_habilite_si_comaeq_vacant(user, feuille):
+    """Commandant de l'équipage de la feuille, sur le bâtiment de la feuille (secours du visa COMAEQ)."""
+    return _commandant_de_l_equipage(user, feuille.ship, feuille.equipage)
 
 
 def peut_viser_comaeq(user, feuille):

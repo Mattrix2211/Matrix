@@ -554,6 +554,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 AuditLog.objects.create(actor=request.user, action="edit_user", target_user=user, details="profil mis à jour")
                 if profile.role != ancien_role:
                     AuditLog.objects.create(actor=request.user, action="changement_role", target_user=user, details=f"role={ancien_role} -> {profile.role}")
+                avertir_redactions_inoperantes(request, user)
                 messages.success(request, f"Utilisateur {user.username} mis à jour.")
             except User.DoesNotExist:
                 pass
@@ -662,6 +663,23 @@ class ChoisirBatimentView(LoginRequiredMixin, View):
         if not url_has_allowed_host_and_scheme(retour, allowed_hosts={request.get_host()}):
             retour = "/"
         return HttpResponseRedirect(retour)
+
+
+def avertir_redactions_inoperantes(request, user):
+    """Prévient, et trace, quand un changement d'équipage ou de bâtiment rend inopérante la désignation d'un rédacteur."""
+    from quarts.models import designations_inoperantes_de
+
+    for designation in designations_inoperantes_de(user):
+        AuditLog.objects.create(
+            actor=request.user, action="feuille_service_redacteur_inoperant", target_user=user,
+            details=f"ship_id={designation.ship_id} equipage={designation.equipage}",
+        )
+        precision = f" de l'équipage {designation.equipage}" if designation.equipage else ""
+        messages.warning(
+            request,
+            f"{user.get_full_name() or user.username} était rédacteur de la feuille de service{precision} : cette désignation "
+            "ne donne plus aucun droit. Le COMAEQ de l'équipage concerné doit désigner un nouveau rédacteur.",
+        )
 
 
 class MemoriserBarreLateraleView(LoginRequiredMixin, View):

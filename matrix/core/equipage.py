@@ -532,6 +532,14 @@ def tracer_changement_equipage(auteur, navire, avant):
                 f"equipage_a_bord={avant[1] or '—'} -> {apres[1] or '—'}"
             ),
         )
+        if avant[0] != apres[0]:
+            from quarts.models import designations_inoperantes
+
+            for designation in designations_inoperantes(navire):
+                AuditLog.objects.create(
+                    actor=auteur, action="feuille_service_redacteur_inoperant", target_user=designation.user,
+                    details=f"ship_id={navire.pk} equipage={designation.equipage}; double_equipage={avant[0]} -> {apres[0]}",
+                )
 
 
 def equipage_manquant(navire, equipage):

@@ -299,6 +299,14 @@ def _est_detail_feuille_service(chemin):
         return False
 
 
+def _est_designation_redacteurs(chemin):
+    """Vrai pour la page des rédacteurs de la feuille : chaque équipage désigne les siens, la vue revérifie l'autorité."""
+    try:
+        return resolve(chemin).url_name == "feuille-service-redacteurs"
+    except Resolver404:
+        return False
+
+
 class EquipageATerreMiddleware:
     """Refuse toute écriture (web et API) de l'équipage à terre et du soutien à terre, hors chemins permis.
 
@@ -326,6 +334,8 @@ class EquipageATerreMiddleware:
                 permis = request.POST.get("action") in ACTIONS_PARAMETRE_A_TERRE
             elif _est_detail_feuille_service(request.path_info):
                 permis = request.POST.get("action") in ACTIONS_FEUILLE_SERVICE_A_TERRE
+            elif _est_designation_redacteurs(request.path_info):
+                permis = True
             else:
                 permis = request.path.startswith(CHEMINS_ECRITURE_A_TERRE)
             return "" if permis else MESSAGE_LECTURE_SEULE

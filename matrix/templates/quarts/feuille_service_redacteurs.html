@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h3 mb-1">Rédacteurs de la feuille de service</h1>
+<p class="text-secondary">{{ ship.name }}{% if equipage %} · équipage {{ equipage }}{% endif %}</p>
+<p class="small text-secondary">Seuls les marins désignés ici (BSC et délégués) rédigent la feuille de service de leur équipage. Tous les marins du bâtiment en lisent la version publiée ; les visas et la publication ne changent pas.</p>
+
+{% for code in sans_redacteur %}
+<div class="alert alert-warning" role="alert"><strong>Aucun rédacteur opérant{% if code %} pour l'équipage {{ code }}{% endif %}</strong> : personne ne peut rédiger cette feuille tant qu'un rédacteur n'est pas désigné.</div>
+{% endfor %}
+{% if inoperantes %}
+<div class="alert alert-warning" role="alert">
+  <strong>Désignation(s) devenue(s) inopérante(s)</strong> : le marin a changé d'équipage ou de bâtiment, est désactivé, ou le bâtiment est passé de double à simple équipage (ou l'inverse). Elles ne donnent aucun droit : retirez-les et désignez de nouveau.
+</div>
+{% endif %}
+
+<h2 class="h5 mt-4">Rédacteurs désignés</h2>
+{% if redacteurs %}
+<ul class="list-unstyled mb-3">
+  {% for r in redacteurs %}
+  <li class="d-flex align-items-center gap-2 mb-1">
+    <span>{{ r.user.get_full_name|default:r.user.username }}{% if r.equipage %} · équipage {{ r.equipage }}{% endif %}</span>
+    {% if r.inoperante %}<span class="badge text-bg-warning">Inopérante</span>{% endif %}
+    {% if r.modifiable %}
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="retirer">
+      <input type="hidden" name="ship" value="{{ ship.pk }}">
+      <input type="hidden" name="pk" value="{{ r.pk }}">
+      <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Retirer le droit de rédaction de {{ r.user.get_full_name|default:r.user.username }}"><i class="bi bi-x-lg"></i></button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>Aucun rédacteur désigné.</p>
+{% endif %}
+
+{% if peut_designer %}
+<h2 class="h5 mt-4">Désigner un rédacteur</h2>
+{% if candidats %}
+<form method="post" class="d-flex gap-2 flex-wrap">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="designer">
+  <input type="hidden" name="ship" value="{{ ship.pk }}">
+  <select name="user" class="form-select form-select-sm w-auto" aria-label="Marin à désigner" required>
+    <option value="">Choisir un marin…</option>
+    {% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn btn-sm btn-primary">Désigner</button>
+</form>
+{% else %}
+<p class="text-secondary">Tous les marins de votre équipage sont déjà désignés.</p>
+{% endif %}
+{% else %}
+<p class="small text-secondary">La désignation appartient au COMAEQ de l'équipage (à défaut, à son commandant).</p>
+{% endif %}
+{% endblock %}

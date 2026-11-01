@@ -57,6 +57,12 @@
 <div class="alert alert-success"><i class="bi bi-star-fill"></i> Vous êtes de service ce jour-là — votre fonction est mise en évidence ci-dessous.</div>
 {% endif %}
 
+{% if peut_designer %}
+<div class="alert {% if equipage_sans_redacteur %}alert-warning{% else %}alert-light border{% endif %} d-flex justify-content-between align-items-center flex-wrap gap-2 no-print" role="{% if equipage_sans_redacteur %}alert{% else %}note{% endif %}">
+  <span>{% if equipage_sans_redacteur %}<strong>Aucun rédacteur opérant{% if equipage %} pour l'équipage {{ equipage }}{% endif %}</strong> : personne ne peut rédiger cette feuille.{% else %}Rédacteurs de la feuille : désignés par le COMAEQ de l'équipage.{% endif %}</span>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'feuille-service-redacteurs' %}?ship={{ ship.pk }}">Voir les rédacteurs</a>
+</div>
+{% endif %}
 {% if not feuille %}
 <div class="card card-body">
   <p class="text-muted mb-2">Aucune feuille de service n'a encore été rédigée pour cette date. Le personnel de service ci-dessous est déjà calculé automatiquement depuis les tours publiés.</p>
