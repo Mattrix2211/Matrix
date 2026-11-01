@@ -188,26 +188,31 @@
   .mx-afaire .mx-afaire__bascule, .mx-afaire .mx-afaire__masquees { display: none !important; }
 }
 
-/* ==== Bandeau supérieur allégé : clair, contraste accessible, recherche centrée ==== */
-.mx-barre { background: var(--surface); color: var(--text); border-bottom: 1px solid var(--border); }
+/* ==== Bandeau supérieur : bleu ardoise #344A63 (choix du PO), texte clair, recherche centrée ==== */
+.mx-barre {
+  --bandeau-fond: #344A63; --bandeau-texte: #FFFFFF; --bandeau-texte-sec: #F2F6F9;
+  --bandeau-survol: rgba(255, 255, 255, .18); --bandeau-bord: rgba(255, 255, 255, .45); --bandeau-champ: rgba(255, 255, 255, .16);
+  background: var(--bandeau-fond); color: var(--bandeau-texte); border-bottom: 1px solid rgba(0, 0, 0, .25);
+}
 .mx-barre .container-fluid { gap: var(--s3); }
 .mx-barre__gauche { display: flex; align-items: center; gap: var(--s3); flex: 1 1 0; min-width: 0; }
 .mx-barre__outils { flex: 1 1 0; justify-content: flex-end; margin-left: 0; }
 .mx-barre .mx-recherche { flex: 0 1 32rem; margin: 0 auto; }
-.mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment { color: var(--text-sec); }
-.mx-barre__bouton:hover, .mx-barre__utilisateur:hover { background: var(--np-teinte); color: var(--text); }
-.mx-barre__nom { color: var(--text); }
-.mx-barre__role { color: var(--text-sec); }
-span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__deconnexion { border-color: var(--border); }
-.mx-recherche__icone { color: var(--text-sec); }
-.mx-recherche__champ { border-color: var(--border); background: var(--bg); color: var(--text); }
-.mx-recherche__champ::placeholder { color: var(--text-sec); }
-.mx-barre .theme-toggle { color: var(--text-sec); }
+.mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment, .mx-barre .theme-toggle, .mx-barre__nom { color: var(--bandeau-texte); }
+.mx-barre__role { color: var(--bandeau-texte-sec); }
+.mx-barre__bouton:hover, .mx-barre__utilisateur:hover { background: var(--bandeau-survol); color: var(--bandeau-texte); }
+span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__deconnexion { border-color: var(--bandeau-bord); }
+.mx-recherche__icone { color: var(--bandeau-texte); }
+.mx-recherche__champ { background: var(--bandeau-champ); border-color: var(--bandeau-bord); color: var(--bandeau-texte); }
+.mx-recherche__champ::placeholder { color: var(--bandeau-texte-sec); }
+.mx-barre :focus-visible, .mx-recherche__champ:focus-visible { outline-color: #FFFFFF; }
+/* Le logo, bleu foncé, reste lisible sur la teinte : pastille claire, image inchangée. */
+.mx-barre .matrix-logo__img { background: #F2F6F9; border-radius: 50%; padding: 3px; }
 @media (max-width: 767.98px) {
   .mx-barre__gauche { flex: 0 0 auto; }
   .mx-barre__outils { flex: 1 1 auto; }
   .mx-barre .mx-recherche { margin: 0; }
-  .mx-recherche.mx-recherche--ouverte { background: var(--surface); }
+  .mx-recherche.mx-recherche--ouverte { background: var(--bandeau-fond); }
 }
 
 /* ==== Accueil : cartes cliquables, tours de service, indicateurs ==== */
@@ -233,37 +238,6 @@ span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__dec
   .mx-table-cartes tr { padding: var(--s3); border-bottom: 1px solid var(--np-surface-bord); }
   .mx-table-cartes td { padding: var(--s1) 0; border: 0; overflow-wrap: anywhere; }
   .mx-table-cartes td[data-libelle]:not(:first-child)::before { content: attr(data-libelle) " : "; font-size: .8125rem; color: var(--text-sec); }
-}
-
-/* ==== Teintes provisoires du bandeau : ardoise #344A63, acier #536F80 (choix du PO en attente) ==== */
-html[data-bandeau="ardoise"] { --bandeau-fond: #344A63; }
-html[data-bandeau="acier"] { --bandeau-fond: #536F80; --bandeau-champ: rgba(20, 32, 44, .38); }
-html[data-bandeau="ardoise"], html[data-bandeau="acier"] {
-  --bandeau-texte: #FFFFFF; --bandeau-texte-sec: #F2F6F9;
-  --bandeau-survol: rgba(255, 255, 255, .18); --bandeau-bord: rgba(255, 255, 255, .45);
-}
-html[data-bandeau="ardoise"] { --bandeau-champ: rgba(255, 255, 255, .16); }
-html[data-bandeau="ardoise"] .mx-barre, html[data-bandeau="acier"] .mx-barre { background: var(--bandeau-fond); color: var(--bandeau-texte); border-bottom: 1px solid rgba(0, 0, 0, .25); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__bouton,
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__utilisateur,
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__batiment,
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre .theme-toggle,
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__nom { color: var(--bandeau-texte); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__role { color: var(--bandeau-texte-sec); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__bouton:hover,
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__utilisateur:hover { background: var(--bandeau-survol); color: var(--bandeau-texte); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) span.mx-barre__batiment,
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__contexte .mx-barre__batiment,
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__deconnexion { border-color: var(--bandeau-bord); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__icone { color: var(--bandeau-texte); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__champ { background: var(--bandeau-champ); border-color: var(--bandeau-bord); color: var(--bandeau-texte); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__champ::placeholder { color: var(--bandeau-texte-sec); }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre :focus-visible { outline-color: #FFFFFF; }
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__champ:focus-visible { outline-color: #FFFFFF; }
-/* Le logo, bleu foncé, reste lisible sur la teinte : pastille claire, image inchangée. */
-:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .matrix-logo__img { background: #F2F6F9; border-radius: 50%; padding: 3px; }
-@media (max-width: 767.98px) {
-  :is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche.mx-recherche--ouverte { background: var(--bandeau-fond); }
 }
 
 /* Très petit écran (320 px) : les sept boutons du bandeau tiennent sans débordement horizontal. */

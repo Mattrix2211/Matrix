@@ -1855,6 +1855,8 @@ def peut_ecrire_pour_equipage(user, ship, equipage):
 
     Sur un double équipage, ni l'administrateur ni un profil sans équipage n'écrivent
     pour un équipage dont ils ne sont pas ; équipage unique : sans effet."""
+    if not getattr(user, "is_active", False):
+        return False  # un compte désactivé n'écrit jamais, même s'il garde une désignation en base
     if not ship.double_equipage:
         return True
     profil = getattr(user, "profile", None)
@@ -1868,6 +1870,8 @@ def _equipage_proprietaire(user, feuille):
 
 def peut_acceder_feuille_service(user, ship):
     """Lecture : tout marin du bâtiment (feuilles publiées) et la supervision du bâtiment concerné."""
+    if not getattr(user, "is_active", False):
+        return False
     return _supervision_sur_navire(user, ship.pk) or ship_id_for_user(user) == ship.pk
 
 
@@ -1875,7 +1879,7 @@ def peut_rediger_feuille_service(user, ship):
     """Rédiger (créer, éditer, proposer, ouvrir un rectificatif) : réservé aux marins désignés comme
     rédacteurs (BSC ou délégués) de leur propre équipage sur ce bâtiment. Ni le grade, ni le rôle, ni la
     supervision ne suffisent : ils conservent la lecture et les visas."""
-    if not getattr(user, "is_authenticated", False) or ship_id_for_user(user) != ship.pk:
+    if not getattr(user, "is_authenticated", False) or not user.is_active or ship_id_for_user(user) != ship.pk:
         return False
     profil = getattr(user, "profile", None)
     equipage = (profil.equipage if profil and ship.double_equipage else "") or ""

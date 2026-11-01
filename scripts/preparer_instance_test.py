@@ -20,7 +20,7 @@ PORT_PAR_DEFAUT = 8800
 HOTES_LOCAUX = {"localhost", "127.0.0.1", "[::1]", "::1"}
 # Seules ces variables du poste sont transmises ; tout le reste (bases, e-mail, Redis, clés) est volontairement absent.
 VARIABLES_CONSERVEES = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT",
-                        "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "VIRTUAL_ENV", "MATRIX_BANDEAU")
+                        "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "VIRTUAL_ENV")
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
     ("equipier_a", "Marin, équipage A : journée chargée (10 actions)"),

@@ -157,7 +157,6 @@ TEMPLATES = [
                 "matrix.context_processors.theme_utilisateur",
                 "matrix.context_processors.navigation_laterale",
                 "matrix.context_processors.niveau_organisation",
-                "matrix.context_processors.bandeau",
                 "matrix.context_processors.barre_superieure",
                 "matrix.context_processors.inactivite",
             ],
@@ -168,9 +167,6 @@ TEMPLATES = [
         },
     },
 ]
-
-# Teinte provisoire du bandeau supérieur : « ardoise » (#344A63), « acier » (#536F80) ou « clair » ; choix du PO en attente.
-BANDEAU_VARIANTE = os.getenv("MATRIX_BANDEAU", "ardoise") if os.getenv("MATRIX_BANDEAU", "ardoise") in ("ardoise", "acier", "clair") else "ardoise"
 
 WSGI_APPLICATION = "matrix.wsgi.application"
 ASGI_APPLICATION = "matrix.asgi.application"

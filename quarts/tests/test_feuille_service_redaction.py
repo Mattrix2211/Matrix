@@ -11,6 +11,8 @@ from quarts.models import (
     FeuilleService,
     RedacteurFeuilleService,
     peut_acceder_feuille_service,
+    peut_designer_redacteurs,
+    peut_ecrire_pour_equipage,
     peut_lire_feuille_service,
     peut_rediger_feuille_service,
 )
@@ -139,3 +141,45 @@ class LectureTests(RedactionBase):
         self.assertEqual(self.client.get(self.url).status_code, 403)
 
 
+
+
+class ComptesDesactivesTests(RedactionBase):
+    """Un compte désactivé ne rédige, ne désigne ni ne lit rien, même si sa désignation existe encore en base."""
+
+    def test_permission_directe_refusee_a_un_redacteur_desactive(self):
+        self.assertTrue(peut_rediger_feuille_service(User.objects.get(username="bsc_a"), self.navire))
+        User.objects.filter(username="bsc_a").update(is_active=False)
+        bsc = User.objects.get(username="bsc_a")
+        self.assertTrue(RedacteurFeuilleService.objects.filter(user=bsc).exists())  # la désignation demeure
+        self.assertFalse(peut_rediger_feuille_service(bsc, self.navire))
+        self.assertFalse(peut_acceder_feuille_service(bsc, self.navire))
+        self.assertFalse(peut_ecrire_pour_equipage(bsc, self.navire, "A"))
+
+    def test_parcours_un_redacteur_desactive_ne_cree_pas_de_feuille(self):
+        User.objects.filter(username="bsc_a").update(is_active=False)
+        self.client.force_login(User.objects.get(username="bsc_a"))  # session obsolète d'un compte désactivé
+        reponse = self.client.post(self.url, {"action": "creer"})
+        self.assertIn(reponse.status_code, (302, 403))
+        self.assertFalse(FeuilleService.objects.exists())
+        self.assertFalse(self.client.login(username="bsc_a", password="pass"))
+
+    def test_equipage_unique_aussi(self):
+        simple = Ship.objects.create(name="BRF simple", code="BRS")
+        user = User.objects.create_user(username="bsc_simple", password="pass")
+        UserProfile.objects.update_or_create(user=user, defaults={"role": "EQUIPIER", "ship": simple})
+        user = User.objects.get(pk=user.pk)
+        RedacteurFeuilleService.objects.create(ship=simple, equipage="", user=user)
+        self.assertTrue(peut_rediger_feuille_service(user, simple))
+        User.objects.filter(pk=user.pk).update(is_active=False)
+        self.assertFalse(peut_rediger_feuille_service(User.objects.get(pk=user.pk), simple))
+
+    def test_un_comaeq_desactive_ne_designe_plus_et_n_empeche_pas_le_secours(self):
+        User.objects.filter(username="coma_a").update(is_active=False)
+        coma = User.objects.get(username="coma_a")
+        self.assertFalse(peut_designer_redacteurs(coma, self.navire, "A"))
+        self.assertTrue(peut_designer_redacteurs(User.objects.get(username="cdt_a"), self.navire, "A"))  # poste vacant : commandant
+
+    def test_un_marin_actif_garde_ses_droits(self):
+        self.assertTrue(peut_rediger_feuille_service(User.objects.get(username="bsc_a"), self.navire))
+        self.assertEqual(self._post("bsc_a", "creer").status_code, 302)
+        self.assertTrue(FeuilleService.objects.filter(equipage="A").exists())

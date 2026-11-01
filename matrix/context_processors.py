@@ -1,5 +1,3 @@
-from django.conf import settings
-
 from accounts import preferences
 from accounts.models import Roles
 from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
@@ -93,8 +91,3 @@ def niveau_organisation(request):
     if not utilisateur or not utilisateur.is_authenticated or request.headers.get("HX-Request"):
         return {}
     return {"niveau_org": niveau_de(utilisateur)}
-
-
-def bandeau(request):
-    """Teinte du bandeau supérieur (réglage provisoire MATRIX_BANDEAU, voir settings.py)."""
-    return {"bandeau_variante": settings.BANDEAU_VARIANTE}

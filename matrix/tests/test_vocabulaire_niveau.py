@@ -6,7 +6,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
@@ -112,25 +112,20 @@ class BandeauTests(TestCase):
         self.client.login(username="marin", password="pass")
         self.css = (Path(settings.BASE_DIR) / "matrix/static/css/naval_premium.css").read_text(encoding="utf-8")
 
-    def test_variante_par_defaut_et_variantes_selectionnables(self):
-        self.assertIn('data-bandeau="ardoise"', self.client.get(reverse("home")).content.decode())
-        with override_settings(BANDEAU_VARIANTE="acier"):
-            self.assertIn('data-bandeau="acier"', self.client.get(reverse("home")).content.decode())
-
-    def test_teintes_demandees_presentes(self):
-        self.assertIn("#344A63", self.css)
-        self.assertIn("#536F80", self.css)
+    def test_teinte_ardoise_retenue_et_identique_dans_les_deux_themes(self):
+        self.assertIn("--bandeau-fond: #344A63", self.css)
+        self.assertNotIn("#536F80", self.css)  # variante acier écartée
+        self.assertNotIn("data-bandeau", self.css)
+        self.assertNotRegex(self.css, r"\[data-theme=\"sombre\"\][^{]*\.mx-barre")  # aucune teinte propre au thème sombre
+        page = self.client.get(reverse("home")).content.decode()
+        self.assertNotIn("data-bandeau", page)
 
     def test_contrastes_du_texte_au_moins_4_5_pour_1(self):
-        # Texte blanc et texte secondaire sur chaque teinte ; champ de recherche : fond translucide composé sur la teinte.
-        for fond in ("#344A63", "#536F80"):
-            self.assertGreaterEqual(_contraste("#FFFFFF", fond), 4.5, fond)
-            self.assertGreaterEqual(_contraste("#F2F6F9", fond), 4.5, fond)
-        champ_ardoise = tuple(round(c * 0.84 + 255 * 0.16) for c in (0x34, 0x4A, 0x63))
-        champ_acier = tuple(round(c * 0.62 + k * 0.38) for c, k in zip((0x53, 0x6F, 0x80), (20, 32, 44)))
-        for composite in (champ_ardoise, champ_acier):
-            hexa = "#%02X%02X%02X" % composite
-            self.assertGreaterEqual(_contraste("#F2F6F9", hexa), 4.5, hexa)
+        fond = "#344A63"
+        self.assertGreaterEqual(_contraste("#FFFFFF", fond), 4.5)
+        self.assertGreaterEqual(_contraste("#F2F6F9", fond), 4.5)
+        champ = "#%02X%02X%02X" % tuple(round(c * 0.84 + 255 * 0.16) for c in (0x34, 0x4A, 0x63))  # champ translucide composé
+        self.assertGreaterEqual(_contraste("#F2F6F9", champ), 4.5)
 
     def test_recherche_centree_et_fonctions_conservees(self):
         page = self.client.get(reverse("home")).content.decode()

@@ -4,7 +4,7 @@
 {% load org_extras %}
 {% load composants %}
 <!doctype html>
-<html lang="fr" data-bandeau="{{ bandeau_variante|default:'clair' }}" data-theme="{{ theme_utilisateur|default:'clair' }}"{% if theme_utilisateur == 'sombre' %} data-bs-theme="dark"{% endif %}>
+<html lang="fr" data-theme="{{ theme_utilisateur|default:'clair' }}"{% if theme_utilisateur == 'sombre' %} data-bs-theme="dark"{% endif %}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
