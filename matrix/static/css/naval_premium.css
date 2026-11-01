@@ -265,3 +265,11 @@ html[data-bandeau="ardoise"] .mx-barre, html[data-bandeau="acier"] .mx-barre { b
 @media (max-width: 767.98px) {
   :is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche.mx-recherche--ouverte { background: var(--bandeau-fond); }
 }
+
+/* Très petit écran (320 px) : les sept boutons du bandeau tiennent sans débordement horizontal. */
+@media (max-width: 359.98px) {
+  .mx-barre .container-fluid { padding-left: var(--s1); padding-right: var(--s1); }
+  .mx-barre__gauche { gap: 0; }
+  .mx-barre__outils { gap: 0; }
+  .mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment, .mx-barre .theme-toggle { min-width: 40px; padding-left: var(--s1); padding-right: var(--s1); }
+}
