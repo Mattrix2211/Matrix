@@ -40,9 +40,9 @@ class FeuilleAutreNavireTests(TestCase):
             self.assertFalse(droit(self.cdt_a, self.feuille_b), droit.__name__)
         self.assertFalse(peut_rediger_feuille_service(self.cdt_a, self.navire_b))
 
-    def test_le_commandant_du_navire_garde_ses_droits(self):
+    def test_le_commandant_du_navire_lit_mais_ne_redige_pas_sans_designation(self):
         self.assertTrue(peut_lire_feuille_service(self.cdt_b, self.feuille_b))
-        self.assertTrue(peut_rediger_feuille_service(self.cdt_b, self.navire_b))
+        self.assertFalse(peut_rediger_feuille_service(self.cdt_b, self.navire_b))
 
     def test_la_page_est_refusee_au_commandant_d_un_autre_navire(self):
         self.client.force_login(self.cdt_a)

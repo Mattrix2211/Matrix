@@ -12,6 +12,45 @@
 </div>
 <p class="text-muted">Aucune liste n'est imposée par l'application : configurez les rubriques d'en-tête et les fonctions de service propres à {{ ship.name }}.</p>
 
+<h2 class="h5 mt-4">Rédacteurs de la feuille (BSC et délégués)</h2>
+<div class="card">
+  <div class="card-body">
+    <p class="text-muted small">Seuls les marins désignés ici peuvent créer et rédiger la feuille de service de leur équipage. Tous les marins du bâtiment en lisent la version publiée ; les visas et la publication restent inchangés.</p>
+    {% if redacteurs %}
+    <ul class="list-unstyled mb-3">
+      {% for r in redacteurs %}
+      <li class="d-flex align-items-center gap-2 mb-1">
+        <span>{{ r.user.get_full_name|default:r.user.username }}{% if r.equipage %} · équipage {{ r.equipage }}{% endif %}</span>
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="retirer_redacteur">
+          <input type="hidden" name="ship" value="{{ ship.pk }}">
+          <input type="hidden" name="pk" value="{{ r.pk }}">
+          <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Retirer le droit de rédaction de {{ r.user.get_full_name|default:r.user.username }}"><i class="bi bi-x-lg"></i></button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mb-3">Aucun rédacteur désigné : personne ne peut encore rédiger la feuille de ce bâtiment.</p>
+    {% endif %}
+    {% if candidats_redacteurs %}
+    <form method="post" class="d-flex gap-2 flex-wrap">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="designer_redacteur">
+      <input type="hidden" name="ship" value="{{ ship.pk }}">
+      <select name="user" class="form-select form-select-sm w-auto" aria-label="Marin à désigner" required>
+        <option value="">Choisir un marin…</option>
+        {% for u in candidats_redacteurs %}
+        <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}{% if u.profile.equipage %} · équipage {{ u.profile.equipage }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Désigner</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
 <h2 class="h5 mt-4">Rubriques d'en-tête</h2>
 <div class="card">
   <div class="card-body">

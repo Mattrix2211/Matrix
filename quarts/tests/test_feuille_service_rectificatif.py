@@ -17,6 +17,7 @@ from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
 from notifications.models import Notification
 from org.models import Ship
 from quarts.models import (
+    RedacteurFeuilleService,
     CreneauServiceGarde,
     FeuilleService,
     FonctionFeuilleService,
@@ -845,6 +846,8 @@ class DoubleEquipageRectificatifTests(TestCase):
                 UserProfile.objects.update_or_create(user=user, defaults={
                     "role": role, "ship": self.ship, "equipage": e, "fonction_coma": coma})
                 self.marins[nom] = User.objects.get(pk=user.pk)
+                if nom.startswith("redacteur_"):
+                    RedacteurFeuilleService.objects.create(ship=self.ship, equipage=e, user=self.marins[nom])
         self.url = reverse("feuille-service-detail", args=[self.ship.pk, f"{self.jour:%Y-%m-%d}"])
         garde = ServiceGarde.objects.create(
             ship=self.ship, fonction=choix, date_debut=self.jour, date_fin=self.jour, statut=ServiceGarde.STATUT_PUBLIEE,
@@ -880,7 +883,8 @@ class DoubleEquipageRectificatifTests(TestCase):
     def test_l_equipage_a_terre_ouvre_et_publie_le_rectificatif_de_sa_feuille(self):
         self._echange("B")
         self.assertEqual(self._post("redacteur_B", "ouvrir_rectificatif").status_code, 302)
-        self._post("chef_B", "proposer")
+        self._post("redacteur_B", "proposer")
+        self._post("chef_B", "viser_secteur")
         self._post("chef_B", "viser_service")
         self._post("comaeq_B", "viser_comaeq")
         feuille = FeuilleService.objects.get(ship=self.ship, equipage="B", date=self.jour)

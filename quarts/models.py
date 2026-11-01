@@ -934,6 +934,28 @@ class RubriqueEnTeteFeuilleService(TimeStampedModel):
         return f"{self.libelle} ({self.ship})"
 
 
+class RedacteurFeuilleService(TimeStampedModel):
+    """Marin explicitement chargé de rédiger la feuille de service de son équipage (BSC ou personne déléguée).
+
+    Le droit de rédiger ne découle ni du grade, ni du rôle applicatif, ni du simple rattachement au bâtiment :
+    il est accordé nominativement, par bâtiment et par équipage."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="redacteurs_feuille_service")
+    equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="redactions_feuille_service")
+    accordee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        unique_together = ("ship", "equipage", "user")
+        verbose_name = "Rédacteur de la feuille de service"
+        verbose_name_plural = "Rédacteurs de la feuille de service"
+
+    def __str__(self):
+        return f"{self.user} ({self.ship}{' · équipage ' + self.equipage if self.equipage else ''})"
+
+
 class FonctionFeuilleService(TimeStampedModel):
     """Fonction de service configurable affichée sur la feuille, par navire
     et dans un ordre configurable (ex. officier de garde, gradé coupé 1,
@@ -1844,25 +1866,28 @@ def _equipage_proprietaire(user, feuille):
     return peut_ecrire_pour_equipage(user, feuille.ship, feuille.equipage)
 
 
-def peut_rediger_feuille_service(user, ship):
-    """Quiconque appartient au navire peut créer/modifier le brouillon de la
-    feuille de service. Hypothèse de cadrage à signaler : en réalité seul le
-    BSC (une astreinte organisationnelle, pas un rôle applicatif) rédige la
-    feuille — l'application ne restreint pas la rédaction à cette astreinte,
-    qu'elle ne modélise pas ; le circuit de visa (secteur/service/COMAEQ)
-    garantit de toute façon qu'une feuille mal rédigée ne peut pas être
-    publiée sans contrôle."""
+def peut_acceder_feuille_service(user, ship):
+    """Lecture : tout marin du bâtiment (feuilles publiées) et la supervision du bâtiment concerné."""
     return _supervision_sur_navire(user, ship.pk) or ship_id_for_user(user) == ship.pk
 
 
+def peut_rediger_feuille_service(user, ship):
+    """Rédiger (créer, éditer, proposer, ouvrir un rectificatif) : réservé aux marins désignés comme
+    rédacteurs (BSC ou délégués) de leur propre équipage sur ce bâtiment. Ni le grade, ni le rôle, ni la
+    supervision ne suffisent : ils conservent la lecture et les visas."""
+    if not getattr(user, "is_authenticated", False) or ship_id_for_user(user) != ship.pk:
+        return False
+    profil = getattr(user, "profile", None)
+    equipage = (profil.equipage if profil and ship.double_equipage else "") or ""
+    return RedacteurFeuilleService.objects.filter(ship=ship, equipage=equipage, user=user).exists()
+
+
 def peut_gerer_brouillon_feuille(user, feuille):
-    """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la
-    reproposer après un renvoi : réservé à son rédacteur (celui du rectificatif
-    en cours, le cas échéant) ou à la supervision globale."""
+    """Modifier l'en-tête d'une feuille encore en BROUILLON, ou la reproposer après un renvoi :
+    réservé aux rédacteurs désignés de l'équipage propriétaire (le BSC change : tout rédacteur désigné peut reprendre)."""
     if feuille.statut != FeuilleService.STATUT_BROUILLON or not _equipage_proprietaire(user, feuille):
         return False
-    redacteur = feuille.redacteur
-    return _supervision_sur_navire(user, feuille.ship_id) or (redacteur is not None and redacteur.pk == user.pk)
+    return peut_rediger_feuille_service(user, feuille.ship)
 
 
 def peut_ouvrir_rectificatif(user, feuille):
@@ -1940,7 +1965,7 @@ def peut_lire_feuille_service(user, feuille):
     if not _dans_mon_equipage(user, feuille):
         return False
     if feuille.statut == FeuilleService.STATUT_PUBLIEE or feuille.versions.exists():
-        return _supervision_sur_navire(user, feuille.ship_id) or ship_id_for_user(user) == feuille.ship_id
+        return peut_acceder_feuille_service(user, feuille.ship)
     return peut_voir_travail_feuille(user, feuille)
 
 

@@ -11,6 +11,7 @@ from django.utils import timezone
 from accounts.models import ServiceFunctionChoice, UserProfile
 from org.models import Ship
 from quarts.models import (
+    RedacteurFeuilleService,
     CreneauServiceGarde,
     FeuilleService,
     FonctionFeuilleService,
@@ -32,6 +33,8 @@ class FeuilleServiceParEquipageTests(TestCase):
         self.jour = timezone.localdate()
         self.marin_bleu = self._marin("marin_bleu", "EQUIPIER", self.bleu)
         self.marin_rouge = self._marin("marin_rouge", "EQUIPIER", self.rouge)
+        RedacteurFeuilleService.objects.create(ship=self.ship, equipage=self.bleu, user=self.marin_bleu)
+        RedacteurFeuilleService.objects.create(ship=self.ship, equipage=self.rouge, user=self.marin_rouge)
         self.comaeq_bleu = self._marin("comaeq_bleu", "ETAT_MAJOR", self.bleu, "COMAEQ")
         self.comaeq_rouge = self._marin("comaeq_rouge", "ETAT_MAJOR", self.rouge, "COMAEQ")
         self.url = f"/quarts/feuille-service/{self.ship.pk}/{self.jour.isoformat()}/"
@@ -73,6 +76,7 @@ class FeuilleServiceParEquipageTests(TestCase):
     def test_equipage_unique_creation_sans_equipage(self):
         unique = Ship.objects.create(name="BRF Unique", code="BRU")
         marin = User.objects.create_user(username="unique", password="pass")
+        RedacteurFeuilleService.objects.create(ship=unique, user=marin)
         UserProfile.objects.update_or_create(user=marin, defaults={"role": "EQUIPIER", "ship": unique})
         self.client.force_login(marin)
         self.client.post(f"/quarts/feuille-service/{unique.pk}/{self.jour.isoformat()}/", {"action": "creer"})

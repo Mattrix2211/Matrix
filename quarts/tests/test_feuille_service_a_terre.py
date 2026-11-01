@@ -8,7 +8,7 @@ from accounts.models import AuditLog, UserProfile
 from matrix.core.equipage import decider_releve, proposer_releve
 from org.models import Sector, Service, Ship
 from quarts.tests.test_feuille_service import jeton_visa_affiche
-from quarts.models import FeuilleService, RubriqueEnTeteFeuilleService, peut_viser_comaeq, peut_viser_secteur, peut_viser_service
+from quarts.models import FeuilleService, RedacteurFeuilleService, RubriqueEnTeteFeuilleService, peut_viser_comaeq, peut_viser_secteur, peut_viser_service
 
 
 class FeuilleParEquipageTests(TestCase):
@@ -21,7 +21,8 @@ class FeuilleParEquipageTests(TestCase):
         self.jour = timezone.localdate()
         self.url = reverse("feuille-service-detail", args=[self.ship.pk, f"{self.jour:%Y-%m-%d}"])
         for e in ("A", "B"):
-            self._m(f"redacteur_{e}", "EQUIPIER", e, service=self.service, sector=self.secteur)
+            redacteur = self._m(f"redacteur_{e}", "EQUIPIER", e, service=self.service, sector=self.secteur)
+            RedacteurFeuilleService.objects.create(ship=self.ship, equipage=e, user=redacteur)
             self._m(f"chef_secteur_{e}", "CHEF_SECTEUR", e, service=self.service, sector=self.secteur)
             self._m(f"chef_service_{e}", "CHEF_SERVICE", e, service=self.service)
             self._m(f"comaeq_{e}", "ETAT_MAJOR", e, fonction_coma="COMAEQ")

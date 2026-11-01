@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from accounts.models import AuditLog, UserProfile
 from org.models import Ship
-from quarts.models import FeuilleService, feuille_du_jour
+from quarts.models import FeuilleService, RedacteurFeuilleService, feuille_du_jour
 
 
 def creer_marin(username, role, ship, equipage=""):
@@ -87,6 +87,7 @@ class FeuilleDuJourDeterministeTests(BaseFeuille):
         self.ship.double_equipage = False
         self.ship.save()
         marin = creer_marin("marin_u", "EQUIPIER", self.ship)
+        RedacteurFeuilleService.objects.create(ship=self.ship, user=marin)
         self.client.force_login(marin)
         self.client.post(f"{self.url}?equipage={self.rouge}", {"action": "creer"})
         self.assertEqual(FeuilleService.objects.get().equipage, "")

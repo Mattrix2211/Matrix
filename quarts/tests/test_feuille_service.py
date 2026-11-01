@@ -17,6 +17,7 @@ from quarts.models import (
     CreneauServiceGarde,
     FeuilleService,
     FonctionFeuilleService,
+    RedacteurFeuilleService,
     RubriqueEnTeteFeuilleService,
     ServiceGarde,
     peut_viser_comaeq,
@@ -67,6 +68,7 @@ class FeuilleServiceTestsBase(TestCase):
         self.commandant = _utilisateur("commandant", "COMMANDANT", ship=self.ship)
         self.marin_service = _utilisateur("marin_service", "EQUIPIER", ship=self.ship)
         UserProfile.objects.filter(user=self.etat_major).update(fonction_coma="COMAEQ")
+        RedacteurFeuilleService.objects.create(ship=self.ship, user=self.equipier)  # le BSC, désigné explicitement
 
         self.fonction = FonctionFeuilleService.objects.create(
             ship=self.ship, libelle="Officier de garde", ordre=1

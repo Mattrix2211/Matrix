@@ -11,10 +11,11 @@ approximation du visa COMAEQ, versionnage propre).
 
 Refactor pur : reproduit exactement le comportement d'origine."""
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -38,6 +39,7 @@ from .alertes import (
 from .models import (
     FeuilleService,
     FonctionFeuilleService,
+    RedacteurFeuilleService,
     RubriqueEnTeteFeuilleService,
     TransitionDejaEffectuee,
     codes_equipage,
@@ -46,6 +48,7 @@ from .models import (
     peut_gerer_brouillon_feuille,
     peut_lire_feuille_service,
     peut_ouvrir_rectificatif,
+    peut_acceder_feuille_service,
     peut_rediger_feuille_service,
     peut_ecrire_pour_equipage,
     peut_viser_comaeq,
@@ -56,6 +59,8 @@ from .models import (
     personnel_du_jour,
 )
 from .rectificatif import MESSAGE_CONTENU_CHANGE, divergences_effectives, empreinte_du_jeton, jeton_visa
+
+User = get_user_model()
 
 
 def _navires_disponibles_feuille_service(user):
@@ -112,7 +117,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
     def _charger(self, request, ship_id, date_str):
         ship = get_object_or_404(Ship, pk=ship_id)
         # Une feuille de service n'est visible que depuis son propre navire (sauf administrateur général).
-        if not peut_rediger_feuille_service(request.user, ship):
+        if not peut_acceder_feuille_service(request.user, ship):
             raise PermissionDenied
         date_ = parse_date(date_str)
         # Double équipage : une feuille par équipage, celle de l'équipage de l'appelant.
@@ -414,7 +419,19 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
             "navires": _navires_disponibles_feuille_service(request.user),
             "rubriques": RubriqueEnTeteFeuilleService.objects.filter(ship=ship),
             "fonctions": FonctionFeuilleService.objects.filter(ship=ship),
+            **self._contexte_redacteurs(request.user, ship),
         })
+
+    @staticmethod
+    def _contexte_redacteurs(user, ship):
+        """Rédacteurs désignés du bâtiment et marins pouvant l'être, limités aux équipages que l'appelant gère."""
+        redacteurs = RedacteurFeuilleService.objects.filter(ship=ship).select_related("user", "accordee_par")
+        deja = {r.user_id for r in redacteurs}
+        candidats = [
+            u for u in User.objects.filter(profile__ship=ship, is_active=True).select_related("profile").order_by("last_name", "username")
+            if u.pk not in deja and peut_ecrire_pour_equipage(user, ship, u.profile.equipage)
+        ]
+        return {"redacteurs": redacteurs, "candidats_redacteurs": candidats}
 
     def post(self, request):
         self._verifier_habilitation(request)
@@ -430,9 +447,45 @@ class FeuilleServiceReglagesView(LoginRequiredMixin, View):
         elif action == "supprimer_fonction":
             FonctionFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).delete()
             messages.info(request, "Fonction supprimée.")
+        elif action == "designer_redacteur":
+            self._designer_redacteur(request, ship)
+        elif action == "retirer_redacteur":
+            self._retirer_redacteur(request, ship)
         else:
             return HttpResponseBadRequest("Action inconnue.")
         return redirect(f"{reverse('feuille-service-reglages')}?ship={ship.pk}")
+
+    @staticmethod
+    def _designer_redacteur(request, ship):
+        cible = User.objects.filter(pk=entier_ou_none(request.POST.get("user")), profile__ship=ship, is_active=True).first()
+        if cible is None:
+            raise Http404
+        equipage = cible.profile.equipage if ship.double_equipage else ""
+        if not peut_ecrire_pour_equipage(request.user, ship, equipage):
+            raise PermissionDenied  # chaque équipage désigne ses propres rédacteurs
+        _, cree = RedacteurFeuilleService.objects.get_or_create(
+            ship=ship, equipage=equipage, user=cible, defaults={"accordee_par": request.user}
+        )
+        if cree:
+            AuditLog.objects.create(
+                actor=request.user, action="feuille_service_redacteur_designe", target_user=cible,
+                details=f"ship_id={ship.pk} equipage={equipage}",
+            )
+        messages.success(request, f"{cible.get_full_name() or cible.username} peut désormais rédiger la feuille de service.")
+
+    @staticmethod
+    def _retirer_redacteur(request, ship):
+        designation = RedacteurFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).select_related("user").first()
+        if designation is None:
+            raise Http404
+        if not peut_ecrire_pour_equipage(request.user, ship, designation.equipage):
+            raise PermissionDenied
+        AuditLog.objects.create(
+            actor=request.user, action="feuille_service_redacteur_retire", target_user=designation.user,
+            details=f"ship_id={ship.pk} equipage={designation.equipage}",
+        )
+        designation.delete()
+        messages.info(request, "Droit de rédaction retiré.")
 
     @staticmethod
     def _ordres_valides(request, elements, prefixe_cle, nom_nouveau):
