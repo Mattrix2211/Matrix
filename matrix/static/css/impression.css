@@ -84,3 +84,5 @@ canvas { max-width: 100% !important; height: auto !important; }
 /* Un titre de section reste avec sa première rangée de cartes. */
 .mx-v11 h2 + .row { break-inside: avoid; }
 .mx-v11 .row:has(canvas) { break-inside: avoid; }
+/* Tableaux de quart et plannings : un jour reste entier sur sa page. */
+.mx-planning__jour { break-inside: avoid; }

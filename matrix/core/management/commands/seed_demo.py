@@ -38,7 +38,8 @@ from maintenance.models import MaintenanceExecution, MaintenanceOccurrence, Main
 from notifications.models import Notification, NotificationLevel
 from org.models import ReleveEquipage, ResponsableClasseNavire, Sector, Section, Service, Ship
 from quarts.models import (
-    ChefDeListe, CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde,
+    ChefDeListe, CreneauQuart, CreneauServiceGarde, FeuilleService, FonctionFeuilleService, Quart, RedacteurFeuilleService,
+    RubriqueEnTeteFeuilleService, ServiceGarde,
 )
 from rondes.models import PointControle, RondeModele
 from rondes import services as rondes_services
@@ -70,6 +71,7 @@ class Command(BaseCommand):
         self._tickets_et_anomalies()
         self._rondes()
         self._quarts()
+        self._service_a_quai()
         self._formations()
         self._taches()
         self._demande_et_annonce()
@@ -372,12 +374,115 @@ class Command(BaseCommand):
         fiche = InstallationMaintenance.objects.create(**champs)
         fiche_maintenance.enregistrer_version_directe(fiche, champs["created_by"], "Fiche de démonstration")
 
+    # Contenu fictif des fiches : préparation, méthode et points de contrôle génériques, sans valeur ni procédure technique réelle.
+    CONTENUS_FICHES = {
+        "Graissage des paliers": dict(
+            preparations=[
+                ("outil", "Pompe à graisse manuelle", 1, None), ("outil", "Chiffons propres", 1, None),
+                ("piece", "Cartouche de graisse (exemple fictif)", 2, None),
+                ("epi", "Gants de manutention", 1, None), ("epi", "Lunettes de protection", 1, None),
+                ("consigne", "Machine à l'arrêt, consignée selon la procédure du bord.", 1, None),
+            ],
+            etapes=[
+                ("Vérifier que la machine est à l'arrêt et consignée.", "Ne jamais intervenir sur une machine en rotation."),
+                ("Nettoyer les graisseurs avant de les utiliser.", ""),
+                ("Graisser chaque palier avec la quantité indiquée par la fiche du constructeur.", ""),
+                ("Essuyer l'excédent et contrôler l'absence de fuite.", ""),
+            ],
+            lignes=[
+                ("Machine arrêtée et consignée", "checkbox", "", True), ("Graisseurs nettoyés", "checkbox", "", True),
+                ("Paliers graissés", "checkbox", "", True), ("Absence de fuite", "checkbox", "", True),
+                ("Température du palier (valeur relevée)", "number", "°C", False), ("Observations", "text", "", False),
+            ],
+        ),
+        "Nettoyage du séparateur": dict(
+            preparations=[
+                ("outil", "Brosse et bac de récupération", 1, None), ("piece", "Joint de pompe (si remplacement)", 1, "JNT-10"),
+                ("epi", "Gants étanches", 1, None), ("epi", "Lunettes de protection", 1, None),
+                ("consigne", "Séparateur isolé et vidangé avant ouverture.", 1, None),
+            ],
+            etapes=[
+                ("Isoler le séparateur et vidanger la cuve.", "Respecter la consigne d'isolement du bord."),
+                ("Ouvrir, nettoyer les éléments et contrôler l'état du joint.", ""),
+                ("Refermer, remettre en service et vérifier l'étanchéité.", ""),
+            ],
+            lignes=[
+                ("Séparateur isolé", "checkbox", "", True), ("Éléments nettoyés", "checkbox", "", True),
+                ("Joint en bon état", "checkbox", "", True), ("Étanchéité après remise en service", "checkbox", "", True),
+                ("Observations", "text", "", False),
+            ],
+        ),
+        "Vidange et filtre à huile": dict(
+            preparations=[
+                ("outil", "Bac de vidange", 1, None), ("outil", "Clé à filtre", 1, None),
+                ("piece", "Filtre à huile", 1, "FLT-22"), ("piece", "Huile de remplacement (volume fictif)", 1, None),
+                ("epi", "Gants étanches", 1, None), ("epi", "Lunettes de protection", 1, None),
+                ("consigne", "Groupe arrêté et consigné ; moteur froid.", 1, None),
+            ],
+            etapes=[
+                ("Arrêter et consigner le groupe, attendre son refroidissement.", "Surfaces chaudes : contrôler avant de toucher."),
+                ("Vidanger l'huile dans le bac prévu.", ""),
+                ("Remplacer le filtre et remettre le niveau.", ""),
+                ("Remettre en service, contrôler l'absence de fuite et le niveau.", ""),
+            ],
+            lignes=[
+                ("Groupe arrêté et consigné", "checkbox", "", True), ("Huile vidangée", "checkbox", "", True),
+                ("Filtre remplacé", "checkbox", "", True), ("Absence de fuite", "checkbox", "", True),
+                ("Niveau d'huile après remise en service (graduation)", "number", "graduation", False),
+                ("Observations", "text", "", False),
+            ],
+        ),
+        "Contrôle des niveaux et fuites": dict(
+            preparations=[("outil", "Lampe torche", 1, None), ("epi", "Gants de manutention", 1, None),
+                          ("consigne", "Contrôle visuel, groupe en fonctionnement ou à l'arrêt selon la consigne du bord.", 1, None)],
+            etapes=[("Contrôler les niveaux visibles et noter les écarts.", ""), ("Rechercher toute trace de fuite autour du groupe.", "Signaler immédiatement toute fuite importante.")],
+            lignes=[
+                ("Niveau d'huile visible", "checkbox", "", True), ("Niveau de liquide de refroidissement visible", "checkbox", "", True),
+                ("Absence de fuite", "checkbox", "", True), ("Observations", "text", "", False),
+            ],
+        ),
+    }
+
+    def _enrichir_fiches(self):
+        """Complète les fiches d'installation de la frégate (préparation, étapes, points de contrôle) ; sans effet si déjà fait."""
+        for fiche in InstallationMaintenance.objects.filter(installation__ship=self.bre, title__in=self.CONTENUS_FICHES):
+            version = fiche.version_validee
+            if version is None or version.etapes.exists():
+                continue
+            contenu = self.CONTENUS_FICHES[fiche.title]
+            pieces = {p.reference: p.pk for p in StockPiece.objects.filter(ship=self.bre)}
+            fiche_maintenance.remplacer_contenu(version, {
+                **fiche_maintenance.contenu_de(version),
+                "preparations": [{"type": t, "libelle": lib, "quantite": q, "piece": pieces.get(ref)} for t, lib, q, ref in contenu["preparations"]],
+                "etapes": [{"texte": texte, "attention": attention} for texte, attention in contenu["etapes"]],
+                "lignes": [{"label": lib, "field_type": champ, "unit": unite, "required": oblig} for lib, champ, unite, oblig in contenu["lignes"]],
+            })
+
+    @staticmethod
+    def _saisie(occurrence, valeurs):
+        """Résultats et mesures d'un compte rendu, indexés par la clé de chaque ligne de la version suivie."""
+        version = occurrence.version_fiche()
+        results, mesures = {}, {}
+        for ligne in version.items.order_by("order", "pk"):
+            if ligne.label not in valeurs:
+                continue
+            valeur = valeurs[ligne.label]
+            if ligne.field_type == "number":
+                mesures[str(ligne.cle)] = valeur
+            elif ligne.field_type == "checkbox":
+                etat, commentaire = valeur if isinstance(valeur, tuple) else (valeur, "")
+                results[str(ligne.cle)] = {"etat": etat, "commentaire": commentaire}
+            else:
+                results[str(ligne.cle)] = valeur
+        return results, mesures
+
     # ---------- Maintenance ----------
 
     def _maintenance(self):
         if MaintenanceOccurrence.objects.filter(installation_maintenance__installation__ship=self.bre).exists():
             return
         j = self.aujourdhui
+        self._enrichir_fiches()
         gammes = {m.title: m for m in InstallationMaintenance.objects.filter(installation__ship=self.bre)}
 
         def occurrence_installation(titre, decalage, statut, assignes=()):
@@ -392,9 +497,23 @@ class Command(BaseCommand):
         occurrence_installation("Nettoyage du séparateur", 2, "PLANNED")
         occurrence_installation("Analyse d'huile", 30, "PLANNED")
         valid = occurrence_installation("Nettoyage du séparateur", -5, "WAITING_VALIDATION", [self.equipier_a])
+        resultats, mesures = self._saisie(valid, {
+            "Séparateur isolé": "conforme", "Éléments nettoyés": "conforme", "Joint en bon état": "conforme",
+            "Étanchéité après remise en service": "conforme", "Observations": "RAS, séparateur propre."})
         MaintenanceExecution.objects.create(
             occurrence=valid, started_at=self._jour(-5, 9), completed_at=self._jour(-5, 10), executed_by=self.equipier_a,
-            conformity="CONFORME", notes="RAS, séparateur propre.")
+            results=resultats, measurements=mesures, conformity="CONFORME", notes="RAS, séparateur propre.")
+        # Terminée avec observations : un point non conforme, un relevé, validation par le chef de secteur.
+        terminee = occurrence_installation("Graissage des paliers", -20, "DONE", [self.equipier_a])
+        resultats, mesures = self._saisie(terminee, {
+            "Machine arrêtée et consignée": "conforme", "Graisseurs nettoyés": "conforme", "Paliers graissés": "conforme",
+            "Absence de fuite": ("non_conforme", "Légère trace d'huile sur le palier côté accouplement"),
+            "Température du palier (valeur relevée)": 48, "Observations": "Trace d'huile à surveiller à la prochaine intervention."})
+        MaintenanceExecution.objects.create(
+            occurrence=terminee, started_at=self._jour(-20, 9), completed_at=self._jour(-20, 9) + timedelta(minutes=35),
+            executed_by=self.equipier_a, results=resultats, measurements=mesures, conformity="A_SURVEILLER",
+            notes="Trace d'huile à surveiller à la prochaine intervention.", valide_par=self.chef_secteur_a,
+            date_validation=self._jour(-19, 8))
         # Matériel mobile : occurrences avec checklist (compte rendu et fiche imprimable).
         ext = list(Asset.objects.filter(ship=self.bre, asset_type=self.at_ext).order_by("internal_id"))
         occ_retard = MaintenanceOccurrence.objects.create(plan=self.plan_ext, asset=ext[0], scheduled_for=j - timedelta(days=12), status="OVERDUE", priority=3)
@@ -497,24 +616,24 @@ class Command(BaseCommand):
                     quart=brouillon, poste="Machine avant", marin=equipe[i % 3] if i < 5 else None,
                     debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)),
                     fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)) + timedelta(hours=4))
-        # Planning publié du service Propulsion : trois quarts de 8 h par jour, toute la semaine,
-        # visible au calendrier des marins affectés et de leurs chefs.
+        # Quarts à la mer : exemples fictifs de roulements à créneaux inégaux (sept créneaux sur la journée).
+        # Chaque liste est le tableau de quart d'une équipe ; effectif disponible, participants au roulement,
+        # « de musique » et « homme mort » y sont distingués (les rotations ci-dessous sont illustratives, pas un régime de référence).
         chef_service = User.objects.get(username="chef_service_a")
-        Quart.objects.filter(nom="Quarts machine — cette semaine").delete()  # ancienne version du jeu de démo
-        publie, cree = Quart.objects.get_or_create(
-            nom="Planning Propulsion — cette semaine", service=self.bre_s["Propulsion"], defaults=dict(
-                date_debut=debut, date_fin=debut + timedelta(days=6), fonction=self.fonctions_quart["Barre"],
-                duree_creneau_heures=8, created_by=chef_service))
-        if cree:
-            equipe_quart = equipe + [User.objects.get(username="chef_section_a")]
-            for i in range(21):
-                jour = debut + timedelta(days=i // 3)
-                heure = 8 * (i % 3)
-                CreneauQuart.objects.create(
-                    quart=publie, poste=["Veille", "Barre", "Machine avant"][i % 3], marin=equipe_quart[i % 4],
-                    debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)),
-                    fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, heure)) + timedelta(hours=8))
-            publie.publier(chef_service)
+        for ancien in ("Quarts machine — cette semaine", "Planning Propulsion — cette semaine"):
+            Quart.objects.filter(nom=ancien).delete()  # anciennes versions du jeu de démo
+        chef_section = User.objects.get(username="chef_section_a")
+        propulsion = self.bre_s["Propulsion"]
+        self._quart_a_la_mer(
+            "Quart machine — par tiers", debut, 7, [self.chef_secteur_a, self.equipier_a, self.equipier_a2], chef_service,
+            propulsion, self.fonctions_quart["Machine avant"])
+        self._quart_a_la_mer(
+            "Quart machine — au quart (4 au quart, 1 homme mort : Nora)", debut + timedelta(days=7), 7,
+            [self.chef_secteur_a, self.equipier_a, self.equipier_a2, chef_section], chef_service, propulsion,
+            self.fonctions_quart["Machine avant"], musique=True)
+        self._quart_a_la_mer(
+            "Quart passerelle — par bordées", debut + timedelta(days=14), 7, [self.equipier_a, self.equipier_a2], chef_service,
+            propulsion, self.fonctions_quart["Veille"], bordees=True)
         garde, cree = ServiceGarde.objects.get_or_create(nom="Garde de nuit — Propulsion", service=self.bre_s["Propulsion"], defaults=dict(
             date_debut=debut, date_fin=debut + timedelta(days=6), type_service="Garde de nuit", duree_creneau_heures=12,
             fonction=ServiceFunctionChoice.objects.get(name="Chef de garde"), created_by=self.chef_secteur_a))
@@ -526,6 +645,93 @@ class Command(BaseCommand):
                     debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, 20)),
                     fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, 20)) + timedelta(hours=12))
             garde.publier(self.chef_secteur_a)
+
+    CRENEAUX_JOUR = ((0, 4), (4, 8), (8, 12), (12, 15), (15, 18), (18, 20), (20, 24))
+    CRENEAUX_BORDEES = ((2, 8), (8, 12), (12, 16), (16, 18), (18, 20), (20, 26))
+
+    def _quart_a_la_mer(self, nom, debut, jours, participants, auteur, service, fonction, musique=False, bordees=False):
+        """Tableau de quart publié, créé une fois. `musique` : le marin « de musique » du jour n'a aucun quart de nuit
+        (20 h à 8 h) mais tient le créneau 18 h-20 h ; un marin disponible non listé est « homme mort » (aucun quart)."""
+        quart, cree = Quart.objects.get_or_create(nom=nom, service=service, defaults=dict(
+            date_debut=debut, date_fin=debut + timedelta(days=jours - 1), fonction=fonction, created_by=auteur,
+            duree_creneau_heures=4))
+        if not cree:
+            return
+        creneaux = self.CRENEAUX_BORDEES if bordees else self.CRENEAUX_JOUR
+        for numero_jour in range(jours):
+            jour = debut + timedelta(days=numero_jour)
+            de_musique = participants[numero_jour % len(participants)] if musique else None
+            actifs = [m for m in participants if m != de_musique]
+            actifs = actifs[numero_jour % len(actifs):] + actifs[:numero_jour % len(actifs)]
+            for rang, (heure_debut, heure_fin) in enumerate(creneaux):
+                if musique and (heure_debut, heure_fin) == (18, 20):
+                    marin, note = de_musique, "De musique : aucun quart de 20 h à 8 h"
+                elif musique:
+                    marin = actifs[rang % len(actifs)]
+                    note = ""
+                else:
+                    marin, note = participants[(numero_jour * len(creneaux) + rang) % len(participants)], ""
+                debut_creneau = timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day)) + timedelta(hours=heure_debut)
+                CreneauQuart.objects.create(
+                    quart=quart, poste=fonction.name, marin=marin, note=note,
+                    debut=debut_creneau, fin=debut_creneau + timedelta(hours=heure_fin - heure_debut))
+        quart.publier(auteur)
+
+    def _service_a_quai(self):
+        """Fraction de service à quai (exemple fictif, composition BRF validée par le PO : 9 postes) et feuille de service.
+
+        La composition est paramétrable (fonctions de la feuille) ; les trois gradés de coupée sont trois postes distincts.
+        Aucune relève interne des gradés de coupée n'est saisie. Le rédacteur BSC est désigné explicitement."""
+        gardes = self.bre
+        if FonctionFeuilleService.objects.filter(ship=gardes).exists():
+            return
+        user = lambda nom: User.objects.get(username=nom)  # noqa: E731
+        postes = [
+            ("Officier de garde (OG)", "OG"), ("Officier de permanence service courant (OPSC)", "OPSC"),
+            ("Officier de permanence navire (OPN, DDI)", "OPN"), ("Gradé de coupée 1", "Gradé de coupée 1"),
+            ("Gradé de coupée 2", "Gradé de coupée 2"), ("Gradé de coupée 3", "Gradé de coupée 3"),
+            ("Gradé mécanicien", "Gradé mécanicien"), ("Gradé électricien", "Gradé électricien"), ("Gradé sécurité", "Gradé sécurité"),
+        ]
+        for ordre, (libelle, poste) in enumerate(postes, start=1):
+            FonctionFeuilleService.objects.create(ship=gardes, ordre=ordre, libelle=libelle, poste_recherche=poste)
+        for ordre, (libelle, type_saisie, fixe) in enumerate([
+            ("Type de journée", "QUOTIDIENNE", ""), ("Mouvements et consignes du jour", "QUOTIDIENNE", ""),
+            ("Mesures de sécurité", "FIXE", "Selon les consignes du bord (exemple fictif)"),
+        ], start=1):
+            RubriqueEnTeteFeuilleService.objects.create(
+                ship=gardes, ordre=ordre, libelle=libelle, type_saisie=type_saisie, valeur_fixe=fixe)
+        titulaires = [
+            "coma_comops", "coma_comanav", "second_a", "equipier_a", "equipier_a2", "chef_section_a",
+            "chef_secteur_a", "equipier_elec_a", "equipier_incendie_a",
+        ]
+        fonction = ServiceFunctionChoice.objects.get_or_create(name="Fraction de service à quai")[0]
+        for decalage in (0, 2, 4):
+            debut = timezone.make_aware(timezone.datetime(self.aujourdhui.year, self.aujourdhui.month, self.aujourdhui.day, 8)) + timedelta(days=decalage)
+            fraction = ServiceGarde.objects.create(
+                nom=f"Fraction de service à quai — {debut:%d/%m}", ship=gardes, equipage="A", date_debut=debut.date(),
+                date_fin=(debut + timedelta(hours=24)).date(), type_service="Service à quai", duree_creneau_heures=24,
+                fonction=fonction, created_by=self.chef_secteur_a)
+            equipe = list(titulaires)
+            coupee = equipe[3:6]
+            equipe[3:6] = coupee[decalage // 2:] + coupee[:decalage // 2]  # les gradés de coupée tournent d'un tour à l'autre
+            for (_, poste), nom in zip(postes, equipe):
+                CreneauServiceGarde.objects.create(
+                    service_garde=fraction, poste=poste, marin=user(nom), debut=debut, fin=debut + timedelta(hours=24))
+            fraction.publier(self.chef_secteur_a)
+        # Le BSC (astreinte, ici un équipier du service courant) est désigné explicitement ; chaque équipage a le sien.
+        bsc = user("equipier_a2")
+        RedacteurFeuilleService.objects.get_or_create(ship=gardes, equipage="A", user=bsc, defaults={"accordee_par": user("chef_service_a")})
+        RedacteurFeuilleService.objects.get_or_create(ship=gardes, equipage="B", user=user("marin_b"), defaults={"accordee_par": user("cdt_b")})
+        # Feuille du jour de l'équipage A, parcourue jusqu'à la publication : tous les marins du bâtiment la lisent.
+        feuille = FeuilleService.objects.create(ship=gardes, equipage="A", date=self.aujourdhui, created_by=bsc, updated_by=bsc)
+        feuille.valeurs_entete = {str(r.uid): t for r, t in zip(
+            RubriqueEnTeteFeuilleService.objects.filter(ship=gardes, type_saisie="QUOTIDIENNE").order_by("ordre"),
+            ["Journée à quai (exemple fictif)", "Visite de contrôle à 14 h, appareillage non prévu (exemple fictif)"])}
+        feuille.save(update_fields=["valeurs_entete"])
+        feuille.proposer(bsc)
+        feuille.viser_secteur(user("chef_secteur_a"))
+        feuille.viser_service(user("chef_service_a"))
+        feuille.viser_comaeq(user("coma_comaeq"))
 
     # ---------- Formations ----------
 

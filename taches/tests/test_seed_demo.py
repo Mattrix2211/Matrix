@@ -37,8 +37,8 @@ class SeedDemoTachesTests(TestCase):
 
         for _ in range(2):
             call_command("seed_demo", stdout=StringIO())
-        planning = Quart.objects.get(nom="Planning Propulsion — cette semaine")
-        self.assertEqual((planning.statut, planning.service.name, planning.creneaux.count()), (Quart.STATUT_PUBLIEE, "Propulsion", 21))
+        planning = Quart.objects.get(nom="Quart machine — par tiers")
+        self.assertEqual((planning.statut, planning.service.name, planning.creneaux.count()), (Quart.STATUT_PUBLIEE, "Propulsion", 49))
         debut = timezone.localdate() - timedelta(days=timezone.localdate().weekday())
         for nom in ("equipier_a", "equipier_a2"):
             marin = User.objects.get(username=nom)
