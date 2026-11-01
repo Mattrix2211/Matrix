@@ -2035,7 +2035,7 @@ def peut_lire_feuille_service(user, feuille):
 
 def peut_voir_travail_feuille(user, feuille):
     """Copie de travail (brouillon, visas, rectificatif) : acteurs du circuit seulement."""
-    if not _dans_mon_equipage(user, feuille):
+    if not getattr(user, "is_active", False) or not _dans_mon_equipage(user, feuille):
         return False
     if _supervision_sur_navire(user, feuille.ship_id):
         return True  # supervision : lecture seule, indépendante des droits d'écriture

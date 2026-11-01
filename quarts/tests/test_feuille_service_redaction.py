@@ -13,6 +13,12 @@ from quarts.models import (
     peut_acceder_feuille_service,
     peut_designer_redacteurs,
     peut_ecrire_pour_equipage,
+    peut_gerer_brouillon_feuille,
+    peut_ouvrir_rectificatif,
+    peut_viser_comaeq,
+    peut_viser_secteur,
+    peut_viser_service,
+    peut_voir_travail_feuille,
     peut_lire_feuille_service,
     peut_rediger_feuille_service,
 )
@@ -142,7 +148,6 @@ class LectureTests(RedactionBase):
 
 
 
-
 class ComptesDesactivesTests(RedactionBase):
     """Un compte désactivé ne rédige, ne désigne ni ne lit rien, même si sa désignation existe encore en base."""
 
@@ -155,13 +160,25 @@ class ComptesDesactivesTests(RedactionBase):
         self.assertFalse(peut_acceder_feuille_service(bsc, self.navire))
         self.assertFalse(peut_ecrire_pour_equipage(bsc, self.navire, "A"))
 
-    def test_parcours_un_redacteur_desactive_ne_cree_pas_de_feuille(self):
+    def test_parcours_une_feuille_commencee_n_est_plus_modifiable_apres_desactivation(self):
+        self.assertEqual(self._post("bsc_a", "creer").status_code, 302)
+        feuille = FeuilleService.objects.get()
+        self.assertEqual(self._post("bsc_a", "enregistrer_entete").status_code, 302)
         User.objects.filter(username="bsc_a").update(is_active=False)
-        self.client.force_login(User.objects.get(username="bsc_a"))  # session obsolète d'un compte désactivé
-        reponse = self.client.post(self.url, {"action": "creer"})
-        self.assertIn(reponse.status_code, (302, 403))
+        bsc = User.objects.get(username="bsc_a")
+        self.assertFalse(peut_gerer_brouillon_feuille(bsc, feuille))
+        self.assertFalse(peut_voir_travail_feuille(bsc, feuille))
+        feuille.statut = FeuilleService.STATUT_PUBLIEE
+        feuille.save(update_fields=["statut"])
+        self.assertFalse(peut_ouvrir_rectificatif(bsc, feuille))
+        self.assertFalse(peut_lire_feuille_service(bsc, feuille))
+        self.assertTrue(peut_lire_feuille_service(User.objects.get(username="matelot_a"), feuille))  # un marin actif lit toujours
+
+    def test_un_compte_desactive_n_ecrit_plus_via_la_vue(self):
+        User.objects.filter(username="bsc_a").update(is_active=False)
+        self.client.force_login(User.objects.get(username="bsc_a"))  # session obsolète : le backend rejette le compte
+        self.assertIn(self.client.post(self.url, {"action": "creer"}).status_code, (302, 403))
         self.assertFalse(FeuilleService.objects.exists())
-        self.assertFalse(self.client.login(username="bsc_a", password="pass"))
 
     def test_equipage_unique_aussi(self):
         simple = Ship.objects.create(name="BRF simple", code="BRS")
@@ -173,11 +190,16 @@ class ComptesDesactivesTests(RedactionBase):
         User.objects.filter(pk=user.pk).update(is_active=False)
         self.assertFalse(peut_rediger_feuille_service(User.objects.get(pk=user.pk), simple))
 
-    def test_un_comaeq_desactive_ne_designe_plus_et_n_empeche_pas_le_secours(self):
-        User.objects.filter(username="coma_a").update(is_active=False)
-        coma = User.objects.get(username="coma_a")
-        self.assertFalse(peut_designer_redacteurs(coma, self.navire, "A"))
-        self.assertTrue(peut_designer_redacteurs(User.objects.get(username="cdt_a"), self.navire, "A"))  # poste vacant : commandant
+    def test_supervision_et_visa_refuses_a_un_compte_desactive(self):
+        self._post("bsc_a", "creer")
+        feuille = FeuilleService.objects.get()
+        for nom in ("cdt_a", "chef_service_a", "coma_a"):
+            User.objects.filter(username=nom).update(is_active=False)
+            inactif = User.objects.get(username=nom)
+            for droit in (peut_viser_secteur, peut_viser_service, peut_viser_comaeq):
+                self.assertFalse(droit(inactif, feuille), (nom, droit.__name__))
+            self.assertFalse(peut_designer_redacteurs(inactif, self.navire, "A"), nom)
+            User.objects.filter(username=nom).update(is_active=True)
 
     def test_un_marin_actif_garde_ses_droits(self):
         self.assertTrue(peut_rediger_feuille_service(User.objects.get(username="bsc_a"), self.navire))

@@ -206,6 +206,7 @@ span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__dec
 .mx-recherche__champ { background: var(--bandeau-champ); border-color: var(--bandeau-bord); color: var(--bandeau-texte); }
 .mx-recherche__champ::placeholder { color: var(--bandeau-texte-sec); }
 .mx-barre :focus-visible, .mx-recherche__champ:focus-visible { outline-color: #FFFFFF; }
+.mx-barre .dropdown-menu :focus-visible { outline-color: var(--signal); }
 /* Le logo, bleu foncé, reste lisible sur la teinte : pastille claire, image inchangée. */
 .mx-barre .matrix-logo__img { background: #F2F6F9; border-radius: 50%; padding: 3px; }
 @media (max-width: 767.98px) {
