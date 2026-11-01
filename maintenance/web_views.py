@@ -20,7 +20,7 @@ from threads.models import Thread, Message, Attachment
 from threads.utils import ajouter_commentaire, contexte_discussion
 from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
-from .perimetre import STATUTS_SANS_RETARD, perimetre_occurrences_q, retard_q
+from .perimetre import STATUTS_SANS_RETARD, a_venir_q, perimetre_occurrences_q, retard_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.scopes import soutien_a_terre
 from matrix.core.roles import niveau_ecriture, user_role_level
@@ -619,6 +619,9 @@ class MaintenanceOccurrenceListView(LoginRequiredMixin, ScopedQuerySetMixin, Lis
             # heure par compute_overdue (Celery), le filtre "retard" doit
             # rester exact même entre deux passages de la tâche.
             qs = qs.filter(retard_q(timezone.localdate()))
+        self.a_venir = self.request.GET.get("a_venir") == "1"
+        if self.a_venir:
+            qs = qs.filter(a_venir_q(timezone.localdate()))
         return qs
 
     def get_context_data(self, **kwargs):

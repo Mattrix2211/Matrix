@@ -1,21 +1,15 @@
 {% load reports_extras %}
+<h2 class="h5 mt-5 mb-3">Maintenance et correctif <span class="mx-indicateurs__perimetre">· {{ perimetre_libelle }}</span></h2>
+<div class="row g-3 mb-3">
+  {% for indicateur in indicateurs_maintenance %}
+  <div class="col-6 col-md-3">
+    <a class="mx-fiche__indicateur d-block" href="{{ indicateur.url }}" aria-label="{{ indicateur.libelle }} : {{ indicateur.valeur }}. Ouvrir le détail">
+      {% include "components/metric.html" with libelle=indicateur.libelle valeur=indicateur.valeur etat=indicateur.etat %}
+    </a>
+  </div>
+  {% endfor %}
+</div>
 <div class="row g-3">
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">Préventif: planifié vs réalisé</div>
-      <div class="card-body mx-graphique-pilotage">
-        <canvas id="chartPreventive"></canvas>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">Tickets correctifs (ouverts)</div>
-      <div class="card-body mx-graphique-pilotage">
-        <canvas id="chartCorrective"></canvas>
-      </div>
-    </div>
-  </div>
   {% if user|peut_generer_bilan %}
   <div class="col-md-6">
     <div class="card">
@@ -100,30 +94,5 @@
       document.getElementById('form-bilan-periode').requestSubmit();
     });
   });
-})();
-</script>
-<script>
-(function(){
-  // Une page quittée avant la fin du chargement annule la requête : sans conséquence.
-  // Couleurs de la charte (variables CSS), pas celles par défaut de Chart.js.
-  function couleur(nom) { return getComputedStyle(document.documentElement).getPropertyValue(nom).trim(); }
-  const palette = ['--signal-ui', '--amber', '--green-tech', '--red', '--fog', '--slate'].map(couleur);
-  async function tracer(id, url, type) {
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      const options = {};
-      if (type === 'bar') {
-        data.datasets.forEach(function (d, i) { d.backgroundColor = palette[i === 0 ? 0 : 2]; });
-        options.scales = {y: {beginAtZero: true, ticks: {precision: 0}}}; // effectifs entiers
-      } else {
-        data.datasets.forEach(function (d) { d.backgroundColor = palette; });
-      }
-      options.maintainAspectRatio = false;
-      new Chart(document.getElementById(id), {type: type, data: data, options: options});
-    } catch (e) { /* requête annulée */ }
-  }
-  tracer('chartPreventive', '/api/dashboard/preventive_week/', 'bar');
-  tracer('chartCorrective', '/api/dashboard/corrective_open/', 'doughnut');
 })();
 </script>

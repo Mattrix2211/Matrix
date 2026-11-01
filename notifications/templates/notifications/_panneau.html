@@ -1,9 +1,9 @@
 <div class="mx-notif__push">
   <label class="form-check-label small" for="push-toggle">Alertes urgentes sur cet appareil</label>
   <div class="form-check form-switch mb-0">
-    <input class="form-check-input" type="checkbox" role="switch" id="push-toggle">
+    <input class="form-check-input" type="checkbox" role="switch" id="push-toggle" aria-describedby="push-etat"{% if not push_configure %} disabled{% endif %}>
   </div>
 </div>
-<p id="push-indisponible" class="small text-secondary d-none">Non disponible sur cet appareil ou ce navigateur.</p>
+<p id="push-etat" class="small text-secondary{% if push_configure %} d-none{% endif %}">{% if push_configure %}Non disponible sur cet appareil ou ce navigateur.{% else %}Non activées sur cette instance (aucune clé d'envoi configurée).{% endif %}</p>
 {% include "notifications/_liste.html" %}
-<a href="{% url 'notifications-centre' %}" class="btn btn-sm btn-outline-primary mt-3">Voir tout</a>
+<a href="{% url 'notifications-centre' %}" class="btn btn-sm btn-outline-primary mt-3">Historique et notifications lues</a>

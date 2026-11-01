@@ -56,9 +56,6 @@
 .mx-v11 .mx-journee__point { padding: var(--s2) 0; }
 .mx-v11 .mx-journee__heure { font-size: .8125rem; }
 
-/* ---- Graphiques du chef : hauteur maîtrisée (classe posée dans _pilotage.html) --- */
-.mx-graphique-pilotage { position: relative; height: 240px; }
-
 /* ---- Focus clavier ------------------------------------------------------ */
 .mx-v11 a:focus-visible, .mx-v11 button:focus-visible, .mx-v11 .btn:focus-visible, .mx-v11 summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 
@@ -84,7 +81,7 @@
 /* ==== Composants de la tranche, propres à leur classe ==================== */
 
 /* ---- Fil des vues du quotidien : onglets soulignés -------------------- */
-.mx-parcours { gap: var(--s5); border-bottom: 1px solid var(--np-surface-bord); margin-bottom: var(--s5); flex-wrap: nowrap; overflow-x: auto; }
+.mx-parcours { gap: var(--s5); border-bottom: 1px solid var(--np-surface-bord); margin-bottom: var(--s5); flex-wrap: wrap; }
 .mx-parcours .nav-link { flex: 0 0 auto; padding: var(--s2) 0 var(--s3); border-radius: 0; background: none; color: var(--text-sec); font: 500 .9375rem var(--f-display); border-bottom: 2px solid transparent; margin-bottom: -1px; text-align: left; }
 .mx-parcours .nav-link:hover { color: var(--text); }
 .mx-parcours .nav-link.active { background: none; color: var(--text); font-weight: 600; border-bottom-color: var(--signal-ui); }
@@ -190,3 +187,41 @@
   .mx-afaire .mx-afaire__ligne { display: block !important; }
   .mx-afaire .mx-afaire__bascule, .mx-afaire .mx-afaire__masquees { display: none !important; }
 }
+
+/* ==== Bandeau supérieur allégé : clair, contraste accessible, recherche centrée ==== */
+.mx-barre { background: var(--surface); color: var(--text); border-bottom: 1px solid var(--border); }
+.mx-barre .container-fluid { gap: var(--s3); }
+.mx-barre__gauche { display: flex; align-items: center; gap: var(--s3); flex: 1 1 0; min-width: 0; }
+.mx-barre__outils { flex: 1 1 0; justify-content: flex-end; margin-left: 0; }
+.mx-barre .mx-recherche { flex: 0 1 32rem; margin: 0 auto; }
+.mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment { color: var(--text-sec); }
+.mx-barre__bouton:hover, .mx-barre__utilisateur:hover { background: var(--np-teinte); color: var(--text); }
+.mx-barre__nom { color: var(--text); }
+.mx-barre__role { color: var(--text-sec); }
+span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__deconnexion { border-color: var(--border); }
+.mx-recherche__icone { color: var(--text-sec); }
+.mx-recherche__champ { border-color: var(--border); background: var(--bg); color: var(--text); }
+.mx-recherche__champ::placeholder { color: var(--text-sec); }
+.mx-barre .theme-toggle { color: var(--text-sec); }
+@media (max-width: 767.98px) {
+  .mx-barre__gauche { flex: 0 0 auto; }
+  .mx-barre__outils { flex: 1 1 auto; }
+  .mx-barre .mx-recherche { margin: 0; }
+  .mx-recherche.mx-recherche--ouverte { background: var(--surface); }
+}
+
+/* ==== Accueil : cartes cliquables, tours de service, indicateurs ==== */
+.mx-surface--lien { color: inherit; text-decoration: none; }
+.mx-surface--lien:hover { border-color: var(--signal-ui); }
+.mx-surface--lien:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.mx-surface--lien .mx-surface__titre { color: var(--text-sec); }
+.mx-tours { list-style: none; margin: 0; padding: 0; }
+.mx-tours__ligne { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--np-surface-bord); }
+.mx-tours__ligne:last-child { border-bottom: 0; }
+.mx-tours__date { font-family: var(--f-mono); font-size: .8125rem; color: var(--text-sec); }
+.mx-tours__fonction { font-weight: 500; text-align: right; }
+.mx-tours__bilan { margin: var(--s3) 0 0; font-size: .8125rem; color: var(--text-sec); }
+.mx-indicateurs__perimetre { font: 500 .8125rem var(--f-body); color: var(--text-sec); }
+.mx-aide summary { cursor: pointer; width: fit-content; font-size: .875rem; color: var(--text-sec); }
+.mx-aide summary:hover { color: var(--text); }
+.mx-aide summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: var(--r-sm); }

@@ -201,3 +201,16 @@ def compteurs_equite_perimetre(liste, aujourdhui=None):
     _ajouter_visuels(resultat, "mois")
     _ajouter_visuels(resultat, "annee")
     return resultat
+
+
+def prochains_tours_de_service(user, limite=4):
+    """Prochains tours de service publiés du marin (garde à quai, service de garde) : date, fonction et liste.
+
+    Un tour en cours compte tant qu'il n'est pas terminé. Aucun tableau de quart à la mer : ce sont des documents distincts."""
+    from .models import CreneauServiceGarde, ServiceGarde
+
+    return list(
+        CreneauServiceGarde.objects.filter(
+            marin=user, service_garde__statut=ServiceGarde.STATUT_PUBLIEE, fin__gte=timezone.now()
+        ).select_related("service_garde").order_by("debut")[:limite]
+    )

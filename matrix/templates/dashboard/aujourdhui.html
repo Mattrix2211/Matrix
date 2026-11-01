@@ -29,8 +29,48 @@
     {% fin_surface %}
     {% endif %}
 
+  </div>
+
+  <div class="col-lg-5">
+    {# Ma journée : toute la carte mène au calendrier ; les points y sont du texte, pas des liens imbriqués. #}
+    <a href="{% url 'calendar-index' %}" class="mx-surface mx-surface--lien d-block mb-4" aria-label="Ma journée : ouvrir mon calendrier">
+      <h2 class="mx-surface__titre">{% icone "calendrier" %} Ma journée</h2>
+      <div class="mx-surface__corps">
+        {% if journee %}
+        <ol class="mx-journee">
+          {% for point in journee %}
+          <li class="mx-journee__point">
+            <span class="mx-journee__heure">{% if point.heure %}{{ point.heure|date:"H:i" }}{% else %}Journée{% endif %}</span>
+            <span class="mx-journee__libelle">{% icone point.icone %} {{ point.libelle }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
+          {% include "components/etat_vide.html" with icone="calendrier" titre="Rien de prévu aujourd'hui" %}
+        {% endif %}
+      </div>
+    </a>
+
+    <a href="{% url 'quarts-index' %}" class="mx-surface mx-surface--lien d-block mb-4" aria-label="Mes tours de service : ouvrir les listes de service">
+      <h2 class="mx-surface__titre">{% icone "garde" %} Mes tours de service</h2>
+      <div class="mx-surface__corps">
+        {% if mes_tours_de_service %}
+        <ul class="mx-tours">
+          {% for tour in mes_tours_de_service %}
+          <li class="mx-tours__ligne">
+            <span class="mx-tours__date">{{ tour.debut|date:"D j M"|capfirst }}</span>
+            <span class="mx-tours__fonction">{{ tour.poste }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="mx-tours__bilan">Ce mois-ci : {{ mes_compteurs_equite_garde.mois.semaine }} semaine · {{ mes_compteurs_equite_garde.mois.vendredi }} vendredi · {{ mes_compteurs_equite_garde.mois.weekend }} week-end</p>
+        {% else %}
+        <p class="mb-0">Aucun tour de service publié à venir.</p>
+        {% endif %}
+      </div>
+    </a>
+
     {% if brouillons and not lecture_seule %}
-    <div class="mt-4">
     {% surface titre="Brouillons à reprendre" icone="modification" %}
       <div class="mx-aujourdhui__liste">
         {% for brouillon in brouillons %}
@@ -38,64 +78,41 @@
         {% endfor %}
       </div>
     {% fin_surface %}
-    </div>
     {% endif %}
-  </div>
-
-  <div class="col-lg-5">
-    {% surface titre="Ma journée" icone="calendrier" %}
-      {% if journee %}
-      <ol class="mx-journee">
-        {% for point in journee %}
-        <li class="mx-journee__point">
-          <span class="mx-journee__heure">{% if point.heure %}{{ point.heure|date:"H:i" }}{% else %}Journée{% endif %}</span>
-          {% if lecture_seule %}<span class="mx-journee__libelle">{% icone point.icone %} {{ point.libelle }}</span>
-          {% else %}<a href="{{ point.url }}" class="mx-journee__libelle">{% icone point.icone %} {{ point.libelle }}</a>{% endif %}
-        </li>
-        {% endfor %}
-      </ol>
-      {% else %}
-        {% include "components/etat_vide.html" with icone="calendrier" titre="Rien de prévu aujourd'hui" %}
-      {% endif %}
-      <a href="{% url 'calendar-index' %}" class="small">Voir mon calendrier et mes échéances</a>
-    {% fin_surface %}
   </div>
 </div>
 
 <h2 class="h5 mt-5 mb-3">Informations</h2>
 <div class="row g-3 mb-4">
-  <div class="col-md-4">
-    {% surface titre="Prochaines formations" icone="formation" %}
+  <div class="col-md-6">
+    <a href="{% url 'formation-list' %}" class="mx-surface mx-surface--lien d-block h-100" aria-label="Prochaines formations : ouvrir les formations">
+      <h2 class="mx-surface__titre">{% icone "formation" %} Prochaines formations</h2>
+      <div class="mx-surface__corps">
       {% for session in mes_formations|slice:":5" %}
         <div class="mx-aujourdhui__ligne">
           <span>{{ session.course.title }}{% if session.est_formateur %} <span class="badge bg-info">Formateur</span>{% endif %}</span>
           <span class="text-muted small font-mono">{{ session.scheduled_at|date:"d/m H:i" }}</span>
         </div>
       {% empty %}
-        <p class="text-muted mb-0">Aucune formation programmée.</p>
+        <p class="mb-0">Aucune formation programmée.</p>
       {% endfor %}
-    {% fin_surface %}
+      </div>
+    </a>
   </div>
-  <div class="col-md-4">
-    {% surface titre="Mes qualifications" icone="formation" %}
+  <div class="col-md-6">
+    <a href="{% url 'formation-list' %}" class="mx-surface mx-surface--lien d-block h-100" aria-label="Mes qualifications : ouvrir les formations">
+      <h2 class="mx-surface__titre">{% icone "formation" %} Mes qualifications</h2>
+      <div class="mx-surface__corps">
       {% for qualification in mes_qualifications %}
         <div class="mx-aujourdhui__ligne">
           <span>{{ qualification.course.title }}</span>
           <span class="badge {{ qualification.badge_classe }}">{{ qualification.badge_libelle }}</span>
         </div>
       {% empty %}
-        <p class="text-muted mb-0">Aucune formation validée enregistrée à votre nom.</p>
+        <p class="mb-0">Aucune formation validée enregistrée à votre nom.</p>
       {% endfor %}
-    {% fin_surface %}
-  </div>
-  <div class="col-md-4">
-    {% surface titre="Mes services de garde" icone="garde" %}
-      <p class="small text-muted mb-2">Listes publiées uniquement : votre situation, en toute transparence.</p>
-      <div class="mx-aujourdhui__ligne mx-aujourdhui__ligne--pile"><span>Ce mois-ci</span>
-        <span class="small">{{ mes_compteurs_equite_garde.mois.semaine }} semaine · {{ mes_compteurs_equite_garde.mois.vendredi }} vendredi · {{ mes_compteurs_equite_garde.mois.weekend }} week-end</span></div>
-      <div class="mx-aujourdhui__ligne mx-aujourdhui__ligne--pile"><span>Cette année</span>
-        <span class="small">{{ mes_compteurs_equite_garde.annee.semaine }} semaine · {{ mes_compteurs_equite_garde.annee.vendredi }} vendredi · {{ mes_compteurs_equite_garde.annee.weekend }} week-end</span></div>
-    {% fin_surface %}
+      </div>
+    </a>
   </div>
 </div>
 

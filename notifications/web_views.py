@@ -1,8 +1,9 @@
 """Centre de notifications (docs/UX.md §23) : panneau latéral de la barre
 supérieure. Chaque marin ne voit et ne modifie que ses propres notifications."""
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -40,9 +41,10 @@ def _enrichir(request, notifications):
 
 
 def _contexte_liste(request, **extra):
-    """Liste triée par niveau puis date décroissante."""
+    """Flux court du panneau : non lues et actions encore à traiter (« lue » n'est pas « traitée »), triées par niveau
+    puis date décroissante. Les notifications lues restent dans le centre de notifications (historique)."""
     notifications = list(
-        Notification.objects.filter(user=request.user)
+        Notification.objects.filter(Q(is_read=False) | Q(action_requise=True, traitee_le__isnull=True), user=request.user)
         .select_related("content_type")
         .annotate(rang=_RANG_NIVEAU)
         .order_by(Case(When(action_requise=True, traitee_le__isnull=True, then=Value(0)), default=Value(1), output_field=IntegerField()),
@@ -60,7 +62,8 @@ def _rendre_liste(request):
 @login_required
 @require_GET
 def panneau(request):
-    return render(request, "notifications/_panneau.html", _contexte_liste(request))
+    return render(request, "notifications/_panneau.html", _contexte_liste(
+        request, push_configure=bool(settings.VAPID_PUBLIC_KEY)))
 
 
 @login_required

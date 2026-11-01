@@ -2,8 +2,9 @@
 {% load icones %}
 {# Barre supérieure (docs/UX.md §8) : une seule ligne, hauteur fixe --mx-hauteur-navbar. #}
 {# Déconnexion automatique : dialogue et script chargés par base.html (components/inactivite.html). #}
-<header class="navbar navbar-expand navbar-dark bg-dark mx-barre">
+<header class="navbar navbar-expand mx-barre">
   <div class="container-fluid flex-nowrap">
+    <div class="mx-barre__gauche">
     {% if user.is_authenticated and navigation_laterale %}
       {# Petit écran : la barre latérale devient un tiroir ouvert par ce bouton (js/barre_laterale.js). #}
       <button type="button" class="mx-barre__bouton mx-barre__menu" data-bs-toggle="offcanvas" data-bs-target="#barre-laterale" aria-controls="barre-laterale" aria-expanded="false" aria-label="Menu" title="Menu">
@@ -49,6 +50,7 @@
         </span>
       {% endif %}
     {% endif %}
+    </div>
     {% if user.is_authenticated %}
       {# Recherche rapide : résultats par catégorie chargés par htmx, clavier géré par js/recherche.js. #}
       <div class="mx-recherche" id="recherche-racine" data-recherche>

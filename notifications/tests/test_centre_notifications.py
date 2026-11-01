@@ -112,7 +112,7 @@ class PanneauTests(CentreNotificationsTestCase):
         self.client.force_login(self.marin)
         reponse = self.client.get(reverse("notifications-panneau"))
         self.assertNotContains(reponse, "Secret de l'autre")
-        self.assertContains(reponse, "Aucune notification")
+        self.assertContains(reponse, "Rien de nouveau")
 
     def test_anonyme_redirige(self):
         for nom, args in (("notifications-panneau", []), ("notifications-compteur", [])):

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.db.models import Q
 
 from matrix.core.mixins import build_scope_q
@@ -21,6 +22,16 @@ def retard_q(aujourdhui):
     """Occurrences en retard : statut OVERDUE ou échéance passée, hors terminées, annulées et en attente de validation.
     Définition unique du compteur « en retard » d'Aujourd'hui et du filtre de la liste des occurrences."""
     return (Q(status="OVERDUE") | Q(scheduled_for__lt=aujourdhui)) & ~Q(status__in=STATUTS_SANS_RETARD)
+
+
+A_VENIR_JOURS = 7
+
+
+def a_venir_q(aujourdhui):
+    """Occurrences à venir dans la semaine : planifiées, assignées ou en cours, échéance d'aujourd'hui à J+7.
+    Définition unique du compteur « à venir » d'Aujourd'hui et du filtre de la liste des occurrences."""
+    return Q(status__in=("PLANNED", "ASSIGNED", "IN_PROGRESS"), scheduled_for__gte=aujourdhui,
+             scheduled_for__lte=aujourdhui + timedelta(days=A_VENIR_JOURS))
 
 
 def installations_en_retard(user, aujourdhui):

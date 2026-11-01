@@ -86,13 +86,20 @@
   // chaque ouverture : l'initialisation se refait à chaque chargement.
   function initialiser() {
     var interrupteur = document.getElementById("push-toggle");
-    var messageIndispo = document.getElementById("push-indisponible");
+    var message = document.getElementById("push-etat");
     if (!interrupteur || interrupteur.dataset.pushInit) return;
     interrupteur.dataset.pushInit = "1";
+    if (interrupteur.disabled) return; // instance sans clé d'envoi : l'état est déjà expliqué par le serveur
+
+    function expliquer(texte) {
+      if (!message) return;
+      message.textContent = texte;
+      message.classList.remove("d-none");
+    }
 
     if (!disponible()) {
       interrupteur.disabled = true;
-      if (messageIndispo) messageIndispo.classList.remove("d-none");
+      expliquer("Non disponible sur cet appareil ou ce navigateur.");
       return;
     }
 
@@ -117,6 +124,7 @@
         // Échec (refus de permission, abonnement déjà retiré, etc.) :
         // revient à l'état précédent pour ne pas afficher un état incohérent.
         majInterrupteur(interrupteur, !etatSouhaite);
+        expliquer(etatSouhaite ? "L'activation a échoué : autorisation refusée ou service indisponible." : "La désactivation a échoué.");
       });
     });
   }

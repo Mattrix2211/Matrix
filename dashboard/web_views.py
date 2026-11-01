@@ -26,13 +26,14 @@ from dashboard.aujourdhui_terre import a_faire_terre, batiments_suivis, cartes_b
 from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
+from dashboard.indicateurs import indicateurs_maintenance
 from matrix.core.brouillons import adresse_de_reprise, brouillons_a_reprendre
 from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
 from notifications.models import Notification
 from org.models import ResponsableClasseNavire, Ship
-from quarts.services import compteur_equite_marin
+from quarts.services import compteur_equite_marin, prochains_tours_de_service
 from training.models import TrainingSession
 from training.services import qualifications_validees_de
 
@@ -74,6 +75,11 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
             session.est_formateur = session.instructor_id == utilisateur.id
         # Compteur d'équité : uniquement la situation du marin lui-même.
         contexte["mes_compteurs_equite_garde"] = compteur_equite_marin(utilisateur, aujourdhui=aujourdhui)
+        contexte["mes_tours_de_service"] = prochains_tours_de_service(utilisateur)
+        contexte["indicateurs_maintenance"] = indicateurs_maintenance(utilisateur, aujourdhui)
+        profil_perimetre = getattr(utilisateur, "profile", None)
+        noeud = profil_perimetre and (profil_perimetre.section or profil_perimetre.sector or profil_perimetre.service or profil_perimetre.ship)
+        contexte["perimetre_libelle"] = f"Périmètre : {noeud}" if noeud else "Votre périmètre"
         mes_qualifications = qualifications_validees_de(utilisateur, aujourdhui)
 
         contexte["mes_formations"] = mes_formations
