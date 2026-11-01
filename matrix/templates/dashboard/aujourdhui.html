@@ -34,7 +34,7 @@
     {% surface titre="Brouillons à reprendre" icone="modification" %}
       <div class="mx-aujourdhui__liste">
         {% for brouillon in brouillons %}
-          {% carte_action titre=brouillon.libelle|default:"Saisie non terminée" libelle="Reprendre" url=brouillon.url %}Modifié le {{ brouillon.updated_at|date:"d/m à H:i" }}{% fin_carte_action %}
+          {% carte_action titre=brouillon.libelle|default:"Saisie non terminée" libelle="Reprendre" url=brouillon.adresse %}Modifié le {{ brouillon.updated_at|date:"d/m à H:i" }}{% fin_carte_action %}
         {% endfor %}
       </div>
     {% fin_surface %}

@@ -94,8 +94,8 @@ class AujourdhuiTests(TestCase):
         self.assertContains(r, "Incendie")
 
     def test_brouillons_a_reprendre_personnels(self):
-        Brouillon.objects.create(user=self.marin, cle="cr:1", libelle="Compte rendu pompe", url="/x/")
-        Brouillon.objects.create(user=self.autre, cle="cr:2", libelle="Secret de l'autre", url="/y/")
+        Brouillon.objects.create(user=self.marin, cle="cr:1", libelle="Compte rendu pompe", url="/")
+        Brouillon.objects.create(user=self.autre, cle="cr:2", libelle="Secret de l'autre", url="/")
         r = self.client.get(self.url)
         self.assertContains(r, "Compte rendu pompe")
         self.assertNotContains(r, "Secret de l'autre")

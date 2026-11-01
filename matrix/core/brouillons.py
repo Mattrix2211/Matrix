@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
+from django.urls import Resolver404, resolve, reverse
 from django.utils import timezone
 from django.views import View
 
@@ -48,6 +49,22 @@ def nettoyer_contenu(contenu):
 def brouillons_a_reprendre(user):
     """Brouillons de l'utilisateur à reprendre, du plus récent au plus ancien (page « Aujourd'hui »)."""
     return Brouillon.objects.filter(user=user).order_by("-updated_at")
+
+
+# Formulaires dont l'adresse se reconstruit depuis la clé du brouillon (sans paramètre) : repli si l'adresse
+# enregistrée ne correspond plus à aucune page.
+ROUTES_DE_REPRISE = {"anomalie:nouvelle": "anomalie-create"}
+
+
+def adresse_de_reprise(brouillon):
+    """Adresse où reprendre le brouillon : celle enregistrée si elle mène à une page, sinon la route connue de
+    son formulaire, sinon chaîne vide. Le brouillon lui-même n'est jamais modifié ni supprimé."""
+    try:
+        resolve(urlparse(brouillon.url).path)
+        return brouillon.url
+    except Resolver404:
+        nom = ROUTES_DE_REPRISE.get(brouillon.cle)
+        return reverse(nom) if nom else ""
 
 
 def purger_brouillons_anciens():

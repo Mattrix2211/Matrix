@@ -26,7 +26,7 @@ from dashboard.aujourdhui_terre import a_faire_terre, batiments_suivis, cartes_b
 from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
 from maintenance.models import MaintenanceOccurrence
-from matrix.core.brouillons import brouillons_a_reprendre
+from matrix.core.brouillons import adresse_de_reprise, brouillons_a_reprendre
 from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
 from matrix.core.roles import NIVEAU_VISION_COMMANDEMENT, RoleLevel, ROLES_SANS_ECRITURE_HERITEE, niveau_ecriture, user_role_level
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, section_id_for_user, sector_id_for_user, ship_id_for_user
@@ -88,7 +88,10 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         contexte.update(compteurs(contexte["a_faire_lignes"]))
         contexte["journee"] = journee(self.request.user, aujourdhui, contexte["a_faire"])
         contexte["supervision"] = supervision(self.request.user, aujourdhui)
-        contexte["brouillons"] = brouillons_a_reprendre(self.request.user).exclude(url="")
+        brouillons = list(brouillons_a_reprendre(self.request.user).exclude(url=""))
+        for brouillon in brouillons:
+            brouillon.adresse = adresse_de_reprise(brouillon)
+        contexte["brouillons"] = [b for b in brouillons if b.adresse]
         contexte["lecture_seule"] = equipage_a_terre_lecture_seule(utilisateur)
         return contexte
 

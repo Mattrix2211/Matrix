@@ -8,6 +8,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
+from django.urls import reverse
 from django.utils import timezone
 
 from absences.models import Absence
@@ -632,4 +633,4 @@ class Command(BaseCommand):
         ReleveEquipage.objects.get_or_create(ship=self.bre, statut="en_attente", defaults=dict(
             equipage_propose="B", propose_par=self.cdt_a))
         Brouillon.objects.get_or_create(user=self.equipier_a, cle="anomalie:nouvelle", defaults=dict(
-            contenu={"titre": "Odeur de brûlé au local machine"}, libelle="Signalement d'anomalie", url="/anomalies/signaler/"))
+            contenu={"titre": "Odeur de brûlé au local machine"}, libelle="Signalement d'anomalie", url=reverse("anomalie-create")))
