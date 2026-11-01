@@ -33,7 +33,7 @@
 
   <div class="col-lg-5">
     {# Ma journée : toute la carte mène au calendrier ; les points y sont du texte, pas des liens imbriqués. #}
-    <a href="{% url 'calendar-index' %}" class="mx-surface mx-surface--lien d-block mb-4" aria-label="Ma journée : ouvrir mon calendrier">
+    <a href="{% url 'calendar-index' %}" class="mx-surface mx-surface--lien d-block mb-4">
       <h2 class="mx-surface__titre">{% icone "calendrier" %} Ma journée</h2>
       <div class="mx-surface__corps">
         {% if journee %}
@@ -51,7 +51,7 @@
       </div>
     </a>
 
-    <a href="{% url 'quarts-index' %}" class="mx-surface mx-surface--lien d-block mb-4" aria-label="Mes tours de service : ouvrir les listes de service">
+    <a href="{% url 'quarts-index' %}" class="mx-surface mx-surface--lien d-block mb-4">
       <h2 class="mx-surface__titre">{% icone "garde" %} Mes tours de service</h2>
       <div class="mx-surface__corps">
         {% if mes_tours_de_service %}
@@ -85,7 +85,7 @@
 <h2 class="h5 mt-5 mb-3">Informations</h2>
 <div class="row g-3 mb-4">
   <div class="col-md-6">
-    <a href="{% url 'formation-list' %}" class="mx-surface mx-surface--lien d-block h-100" aria-label="Prochaines formations : ouvrir les formations">
+    <a href="{% url 'formation-list' %}" class="mx-surface mx-surface--lien d-block h-100">
       <h2 class="mx-surface__titre">{% icone "formation" %} Prochaines formations</h2>
       <div class="mx-surface__corps">
       {% for session in mes_formations|slice:":5" %}
@@ -100,7 +100,7 @@
     </a>
   </div>
   <div class="col-md-6">
-    <a href="{% url 'formation-list' %}" class="mx-surface mx-surface--lien d-block h-100" aria-label="Mes qualifications : ouvrir les formations">
+    <a href="{% url 'formation-list' %}" class="mx-surface mx-surface--lien d-block h-100">
       <h2 class="mx-surface__titre">{% icone "formation" %} Mes qualifications</h2>
       <div class="mx-surface__corps">
       {% for qualification in mes_qualifications %}

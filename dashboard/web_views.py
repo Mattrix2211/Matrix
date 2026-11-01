@@ -298,8 +298,7 @@ def _agrege_maintenance_ticket_stock(filtre_occurrence, filtre_ticket, filtre_st
 
     contexte["tickets_par_statut"] = tickets_par_statut
     contexte["total_tickets_ouverts"] = sum(t["total"] for t in tickets_par_statut)
-    # Données du doughnut : même composant que _pilotage.html (chartCorrective), alimenté
-    # ici par le contexte de la vue plutôt que par /api/dashboard/corrective_open/.
+    # Données du doughnut de la page flotte : fournies par le contexte de la vue plutôt que par /api/dashboard/corrective_open/.
     contexte["tickets_chart_labels_json"] = json.dumps(
         [t["libelle"] for t in tickets_par_statut]
     )

@@ -63,7 +63,7 @@ def _rendre_liste(request):
 @require_GET
 def panneau(request):
     return render(request, "notifications/_panneau.html", _contexte_liste(
-        request, push_configure=bool(settings.VAPID_PUBLIC_KEY)))
+        request, push_configure=bool(settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY)))
 
 
 @login_required

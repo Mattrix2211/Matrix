@@ -62,7 +62,11 @@ class AlertesUrgentesAppareilTests(TestCase):
         self.assertRegex(page, r'id="push-toggle"[^>]*disabled')
         self.assertIn("Non activées sur cette instance", page)
 
-    @override_settings(VAPID_PUBLIC_KEY="cle-publique-d-essai")
+    @override_settings(VAPID_PUBLIC_KEY="cle-publique-d-essai", VAPID_PRIVATE_KEY="")
+    def test_cle_publique_seule_ne_suffit_pas(self):
+        self.assertIn("Non activées sur cette instance", self.client.get(reverse("notifications-panneau")).content.decode())
+
+    @override_settings(VAPID_PUBLIC_KEY="cle-publique-d-essai", VAPID_PRIVATE_KEY="cle-privee-d-essai")
     def test_instance_autorisee_garde_l_interrupteur_actif(self):
         page = self.client.get(reverse("notifications-panneau")).content.decode()
         self.assertNotRegex(page, r'id="push-toggle"[^>]*disabled')
