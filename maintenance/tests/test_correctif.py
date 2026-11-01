@@ -152,7 +152,7 @@ class CorrectifTests(TestCase):
         autre = StockPiece.objects.create(
             reference="X", designation="Y", quantite=5, ship=navire, service=service, sector=Sector.objects.create(service=service, name="Z"))
         r = self.enregistrer(self.chef_section, piece_id=[str(autre.pk)], piece_qte=["1"])
-        self.assertContains(r, "introuvable ou hors de votre périmètre", status_code=400)
+        self.assertContains(r, "introuvable ou hors de votre", status_code=400)
         r = self.enregistrer(self.marin, piece_id=[str(self.piece.pk)], piece_qte=["1"])
         self.assertEqual(r.status_code, 403)
         autre.refresh_from_db()

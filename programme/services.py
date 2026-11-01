@@ -1,4 +1,5 @@
 """Règles métier du programme du bâtiment : droits de saisie et délégation, types, ciblage, notifications."""
+from matrix.core.organisation import votre_niveau
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -85,7 +86,7 @@ def creer_evenement(auteur, titre, type_id, debut, fin, cible, lieu="", descript
     if not peut_saisir(auteur):
         raise PermissionError("Vous ne pouvez pas saisir le programme du bâtiment.")
     if not cible_permise(auteur, cible):
-        raise PermissionError("Ce public est hors de votre périmètre.")
+        raise PermissionError(f"Ce public est hors de {votre_niveau(auteur)}.")
     _validations(titre, debut, fin)
     verifier_longueurs(EvenementProgramme, titre=titre.strip(), lieu=lieu.strip(), equipage=equipage.strip())
     champs = resoudre_cible(cible)

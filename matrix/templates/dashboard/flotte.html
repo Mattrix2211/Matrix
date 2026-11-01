@@ -6,7 +6,7 @@
 {% if aucun_perimetre %}
 <div class="alert alert-warning" role="alert">
   {{ message_aucun_perimetre|safe }}
-  Contactez un administrateur pour renseigner votre périmètre.
+  Contactez un administrateur pour renseigner votre rattachement (bâtiment, service, secteur ou section).
 </div>
 {% else %}
 
@@ -36,10 +36,10 @@
       <div class="card-header">Pièces de stock sous seuil</div>
       <div class="card-body">
         <span class="display-6 fw-bold {% if pieces_sous_seuil %}text-warning{% endif %} font-mono">{{ pieces_sous_seuil|length }}</span>
-        <div class="progress mt-2" style="height:8px;" title="{{ pieces_sous_seuil_pct }} % des pièces de stock du périmètre sont sous seuil">
+        <div class="progress mt-2" style="height:8px;" title="{{ pieces_sous_seuil_pct }} % des pièces de stock {% if flotte_entiere %}de la flotte{% else %}{{ niveau_org.du }}{% endif %} sont sous seuil">
           <div class="progress-bar" role="progressbar" style="width: {{ pieces_sous_seuil_pct }}%; background: {% if pieces_sous_seuil %}var(--amber){% else %}var(--green-tech){% endif %};" aria-valuenow="{{ pieces_sous_seuil_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
         </div>
-        <small class="text-muted font-mono">{{ pieces_sous_seuil_pct }} % des pièces du périmètre</small>
+        <small class="text-muted font-mono">{{ pieces_sous_seuil_pct }} % des pièces {% if flotte_entiere %}de la flotte{% else %}{{ niveau_org.du }}{% endif %}</small>
       </div>
     </div>
   </div>

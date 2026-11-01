@@ -32,6 +32,7 @@ from .models import (
 from .proposition_article import (
     ROLES_REDACTEURS, ErreurCircuit, chef_du, chef_specialite_optionnel, habilite_coma, secteur_de,
 )
+from matrix.core.organisation import votre_niveau
 
 User = get_user_model()
 Etat = ChecklistTemplate.Etat
@@ -131,7 +132,7 @@ def peut_rediger(user, installation):
     if equipage_a_terre_lecture_seule(user):
         return False, "Lecture seule : votre équipage est à terre."
     if not dans_le_perimetre(user, installation):
-        return False, "Cette installation est hors de votre périmètre."
+        return False, f"Cette installation est hors de {votre_niveau(user)}."
     return True, ""
 
 

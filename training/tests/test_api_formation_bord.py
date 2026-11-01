@@ -224,7 +224,7 @@ class PermissionEcritureCircuitBordAPITests(TestCase):
             format="json",
         )
         self.assertEqual(r.status_code, 403)
-        self.assertIn("périmètre", r.json()["detail"])
+        self.assertRegex(r.json()["detail"], r"hors de votre (bâtiment|service|secteur|section)")
         self.course_active.refresh_from_db()
         self.assertEqual(self.course_active.title, "Sécurité incendie bord A")
         self.assertEqual(self.course_active.description, "Contenu d'origine")

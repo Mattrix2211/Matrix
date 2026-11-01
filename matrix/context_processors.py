@@ -1,9 +1,12 @@
+from django.conf import settings
+
 from accounts import preferences
 from accounts.models import Roles
 from matrix.core.contexte_batiment import batiment_courant, selecteur_batiment
 from matrix.core.inactivite import delai_avertissement, delai_inactivite
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.navigation import construire_navigation
+from matrix.core.organisation import niveau_de
 from matrix.core.scopes import soutien_a_terre
 from notifications.services import compter_non_lues
 
@@ -82,3 +85,16 @@ def inactivite(request):
     if not utilisateur or not utilisateur.is_authenticated:
         return {}
     return {"inactivite": {"delai": delai_inactivite(), "avertissement": delai_avertissement()}}
+
+
+def niveau_organisation(request):
+    """Niveau d'organisation réel du marin pour les textes visibles (voir matrix/core/organisation.py)."""
+    utilisateur = getattr(request, "user", None)
+    if not utilisateur or not utilisateur.is_authenticated or request.headers.get("HX-Request"):
+        return {}
+    return {"niveau_org": niveau_de(utilisateur)}
+
+
+def bandeau(request):
+    """Teinte du bandeau supérieur (réglage provisoire MATRIX_BANDEAU, voir settings.py)."""
+    return {"bandeau_variante": settings.BANDEAU_VARIANTE}

@@ -134,7 +134,7 @@ class ParametresTaches(TimeStampedModel):
     relancer_assigne = models.BooleanField(default=True, verbose_name="Relancer le marin assigné")
     relancer_chef_attributeur = models.BooleanField(default=True, verbose_name="Relancer le chef qui a attribué la tâche")
     relancer_chefs_si_blocage = models.BooleanField(
-        default=True, verbose_name="Relancer les chefs du périmètre pour un blocage en retard")
+        default=True, verbose_name="Relancer les chefs concernés pour un blocage en retard")
     jours_terminees_affichees = models.PositiveSmallIntegerField(
         default=30, verbose_name="Jours d'affichage des tâches terminées dans la vue d'avancement")
 

@@ -128,7 +128,7 @@ REGISTRE_ACTIONS = [
     ),
     ActionSeuil(
         "supervision_aujourdhui",
-        "Voir le bloc Supervision (retards, validations, indicateurs du périmètre) de la page Aujourd'hui",
+        "Voir le bloc Supervision (retards, validations, indicateurs du secteur ou du service) de la page Aujourd'hui",
         "Tableau de bord", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,
     ),
     ActionSeuil(
@@ -172,12 +172,12 @@ REGISTRE_ACTIONS = [
     ),
     ActionSeuil(
         "tache_attribution",
-        "Attribuer une tâche à un marin de son périmètre et suivre l'avancement de l'équipe",
+        "Attribuer une tâche à un marin de son secteur ou de son service et suivre l'avancement de l'équipe",
         "Tâches", PORTEE_GLOBALE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
         "annonce_publication",
-        "Publier une annonce à son périmètre (bâtiment, service, secteur, section, équipage)",
+        "Publier une annonce à son niveau (bâtiment, service, secteur, section, équipage)",
         "Annonces", PORTEE_NAVIRE, RoleLevel.CHEF_SERVICE, ouverte_au_second=True,
     ),
     ActionSeuil(

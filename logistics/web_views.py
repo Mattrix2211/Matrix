@@ -37,6 +37,7 @@ from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, contexte_discussion
 from logistics.perimetre import perimetre_tickets_q
+from matrix.core.organisation import votre_niveau
 
 
 
@@ -257,7 +258,7 @@ class TicketCreateView(LoginRequiredMixin, View):
         try:
             asset = assets.get(pk=asset_pk)
         except Asset.DoesNotExist:
-            return HttpResponseBadRequest('Matériel introuvable ou hors de votre périmètre.')
+            return HttpResponseBadRequest(f'Matériel introuvable ou hors de {votre_niveau(request.user)}.')
 
         description = request.POST.get('description', '').strip()
         if not description:
@@ -577,7 +578,7 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
         try:
             piece = pieces.get(pk=entier_ou_none(request.POST.get('piece_id')))
         except StockPiece.DoesNotExist:
-            messages.error(request, "Pièce introuvable ou hors de votre périmètre.")
+            messages.error(request, f"Pièce introuvable ou hors de {votre_niveau(request.user)}.")
             return redirect('ticket-detail', pk=ticket.pk)
 
         try:
@@ -703,7 +704,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # un bâtiment) hors de son périmètre en postant directement un sector_id, en
         # dehors du menu déroulant du formulaire.
         if not _secteur_dans_perimetre(request.user, sector.pk):
-            messages.error(request, "Ce secteur ne fait pas partie de votre périmètre.")
+            messages.error(request, f"Ce secteur ne fait pas partie de {votre_niveau(request.user)}.")
             return redirect('stock-piece-list')
         # La section doit appartenir au secteur choisi, sinon on l'ignore plutôt que
         # de créer une hiérarchie incohérente (Section -> Sector -> Service -> Ship).

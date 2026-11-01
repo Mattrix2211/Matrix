@@ -18,6 +18,7 @@ from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
 
 from .models import Document, LienDocument, VersionDocument
+from matrix.core.organisation import votre_niveau
 
 User = get_user_model()
 JOURS_ALERTE_REVISION = 30
@@ -115,7 +116,7 @@ def creer_document(user, titre, cible, contenu, domaine="", origine=Document.ORI
     if not peut_rediger(user):
         raise PermissionError("Vous ne pouvez pas rédiger de document.")
     if not cible_permise(user, cible):
-        raise PermissionError("Ce public est hors de votre périmètre.")
+        raise PermissionError(f"Ce public est hors de {votre_niveau(user)}.")
     _controles(titre, contenu, fichier)
     if origine not in dict(Document.ORIGINE_CHOICES):
         origine = Document.ORIGINE_LOCALE

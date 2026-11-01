@@ -57,7 +57,7 @@ class GenererBilanViewTests(TestCase):
         response = self.client.get(self.url, follow=True)
         self.assertEqual(response.status_code, 200)
         messages = [str(m) for m in response.context["messages"]]
-        self.assertTrue(any("périmètre" in m for m in messages))
+        self.assertTrue(any("Aucun secteur ni section" in m for m in messages))
 
     @unittest.skipUnless(pdf_disponible(), "WeasyPrint indisponible sur cette machine")
     def test_mode_instantane_renvoie_un_pdf_en_telechargement(self):

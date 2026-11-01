@@ -143,7 +143,7 @@ class ImportMaterielTests(TestCase):
         ])
         resultat = importer_materiel_depuis_fichier(fichier, self.chef)
         self.assertEqual(resultat.crees, 0)
-        self.assertIn("hors de votre périmètre", resultat.erreurs[0])
+        self.assertIn("n'appartenant pas à votre", resultat.erreurs[0])
 
     def test_lignes_vides_sont_ignorees_sans_compter_dans_le_total(self):
         fichier = _classeur_depuis_lignes([

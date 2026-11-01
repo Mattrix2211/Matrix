@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load composants icones %}
 {% block content %}
+{% with titre_retards="Des maintenances "|add:niveau_org.de_votre|add:" sont en retard" texte_a_jour="Toutes les maintenances "|add:niveau_org.de_votre|add:" sont à jour." texte_qualifications="Aucune qualification "|add:niveau_org.de_votre|add:" n'arrive à échéance." %}
 <div class="mx-v11">
 <header class="mx-aujourdhui__entete">
   <h1 class="h3 mb-1">Bonjour {{ salutation }}</h1>
@@ -12,10 +13,10 @@
 </header>
 {% include "components/parcours.html" with courante="quotidien" %}
 
-{# Alerte de retard remontée en tête : la première chose que voit le chef ; détail dans « Mon périmètre ». #}
+{# Alerte de retard remontée en tête : la première chose que voit le chef ; détail dans le bloc de supervision plus bas. #}
 {% if supervision.retards_total %}
 <div class="mb-4">
-  {% attention niveau="danger" icone="retard" titre="Des maintenances de votre périmètre sont en retard" %}<a href="{% url 'maintenance-occurrences' %}?retard=1">Voir les maintenances en retard</a>{% fin_attention %}
+  {% attention niveau="danger" icone="retard" titre=titre_retards %}<a href="{% url 'maintenance-occurrences' %}?retard=1">Voir les maintenances en retard</a>{% fin_attention %}
 </div>
 {% endif %}
 
@@ -117,7 +118,7 @@
 </div>
 
 {% if supervision %}
-<h2 class="h5 mt-5 mb-3">Mon périmètre</h2>
+<h2 class="h5 mt-5 mb-3">{{ niveau_org.mon }}</h2>
 <div class="row g-3 mt-1 mb-3">
   <div class="col-6 col-md-4">
     <a class="mx-fiche__indicateur d-block" href="{% url 'maintenance-occurrences' %}?retard=1">{% include "components/metric.html" with libelle="Maintenances en retard" icone="retard" valeur=supervision.retards_total etat=supervision.retards_total|yesno:"danger,ok" %}</a>
@@ -148,7 +149,7 @@
           <div class="mx-carte mx-carte--action mx-aujourdhui__tache--danger"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ retard.titre }}</span><span class="mx-carte__contenu">{{ retard.detail }}</span></div></div>
         {% endif %}
       {% empty %}
-        {% include "components/etat_vide.html" with icone="terminee" titre="Aucun retard" texte="Toutes les maintenances de votre périmètre sont à jour." %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Aucun retard" texte=texte_a_jour %}
       {% endfor %}
     {% fin_surface %}
   </div>
@@ -195,7 +196,7 @@
           <div class="mx-carte mx-carte--action"><div class="mx-carte__texte"><span class="mx-carte__titre">{{ q.titre }}</span><span class="mx-carte__contenu">{{ q.detail }}</span></div></div>
         {% endif %}
       {% empty %}
-        {% include "components/etat_vide.html" with icone="terminee" titre="Qualifications à jour" texte="Aucune qualification de votre périmètre n'arrive à échéance." %}
+        {% include "components/etat_vide.html" with icone="terminee" titre="Qualifications à jour" texte=texte_qualifications %}
       {% endfor %}
     {% fin_surface %}
   </div>
@@ -204,4 +205,5 @@
 
 {% include "dashboard/_pilotage.html" %}
 </div>
+{% endwith %}
 {% endblock %}

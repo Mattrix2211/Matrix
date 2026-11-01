@@ -424,16 +424,16 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre (T-SEC) : le navire/service/secteur/section posté doit appartenir
             # au périmètre de l'appelant — ne fait pas confiance au menu déroulant.
             if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Unité hors de votre périmètre.")
+                messages.error(request, f"Cette unité n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('installation-list')
             if service_id and not _org_dans_perimetre(request.user, Service, service_id):
-                messages.error(request, "Service hors de votre périmètre.")
+                messages.error(request, f"Ce service n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('installation-list')
             if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
-                messages.error(request, "Secteur hors de votre périmètre.")
+                messages.error(request, f"Ce secteur n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('installation-list')
             if section_id and not _org_dans_perimetre(request.user, Section, section_id):
-                messages.error(request, "Section hors de votre périmètre.")
+                messages.error(request, f"Cette section n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('installation-list')
             it = Installation(
                 designation=designation,
@@ -508,6 +508,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 # depuis assets/web_views.py — les définir avant cet import (déjà fait, importés
 # ci-dessus depuis web_views.py) évite un import circulaire.
 from .installation_actions import ACTION_HANDLERS
+from matrix.core.organisation import votre_niveau
 
 
 def _lignes_releve(releves, formater, *complements):

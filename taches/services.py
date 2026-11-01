@@ -4,6 +4,7 @@ Un chef (CHEF_SECTION+) attribue une tâche à un marin de son périmètre et de
 Le fil de discussion est ouvert à l'assigné, au créateur, aux chefs du périmètre et aux
 interlocuteurs que le chef ajoute (marins du même navire, y compris l'équipage à terre).
 """
+from matrix.core.organisation import votre_niveau
 from datetime import datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
@@ -213,7 +214,7 @@ def categories_prevenues(tache, prevenus, acteur):
         elif tache.participants.filter(pk=user.pk).exists():
             nom = "les participants du fil"
         elif est_chef_de(user, tache.assigne):
-            nom = "les chefs du périmètre"
+            nom = "les chefs concernés"
         else:
             nom = "l'auteur de la tâche"
         if nom not in categories:
@@ -280,7 +281,7 @@ def attribuer_a_unite(chef, cle_unite, titre, echeance=None, description="", pri
         raise ValidationError("Unité inconnue.")
     libelle = next((lib for cle, lib, _ in unites_assignables(chef) if cle == cle_unite), None)
     if libelle is None:
-        raise PermissionError("Cette unité n'est pas dans votre périmètre.")
+        raise PermissionError(f"Cette unité n'est pas dans {votre_niveau(chef)}.")
     marins = marins_assignables(chef).filter(**{f"profile__{_UNITES[type_]}": int(pk)})
     with transaction.atomic():
         lot = LotTaches.objects.create(libelle=libelle, titre=titre.strip()[:200], created_by=chef, updated_by=chef)
@@ -438,7 +439,7 @@ def signaler_blocage(tache, user, motif):
     tache.motif_blocage = motif
     _enregistrer(tache, user, "blocage", ["statut", "motif_blocage"])
     _message_systeme(tache, f"{_nom(user)} signale un blocage : {motif}")
-    # Dès le blocage : les acteurs du dossier, puis les chefs du périmètre qui peuvent le lever (alerte d'action).
+    # Dès le blocage : les acteurs du dossier, puis les chefs concernés qui peuvent le lever (alerte d'action).
     acteurs = list(_destinataires(tache, user))
     verbe = f"{PREFIXE_BLOCAGE} {_nom(user)} est bloqué sur « {tache.titre} » : {motif}"
     prevenus = _notifier(tache, acteurs, verbe, NotificationLevel.WARNING, action=True)
@@ -461,7 +462,7 @@ def repondre(tache, user, corps):
 
 def ajouter_participant(tache, chef, user):
     if not peut_gerer(chef, tache):
-        raise PermissionError("Seul un chef du périmètre peut ajouter un interlocuteur.")
+        raise PermissionError("Seul un chef concerné peut ajouter un interlocuteur.")
     if not interlocuteurs_possibles(tache).filter(pk=user.pk).exists():
         raise ValidationError("Cet interlocuteur n'appartient pas au navire de la tâche.")
     tache.participants.add(user)
@@ -473,7 +474,7 @@ def ajouter_participant(tache, chef, user):
 def reprendre(tache, chef):
     """Le chef lève le blocage une fois la solution donnée dans le fil."""
     if not peut_gerer(chef, tache):
-        raise PermissionError("Seul un chef du périmètre peut lever un blocage.")
+        raise PermissionError("Seul un chef concerné peut lever un blocage.")
     if tache.statut != Tache.STATUT_BLOQUEE:
         raise ValidationError("La tâche n'est pas bloquée.")
     tache.statut = Tache.STATUT_EN_COURS

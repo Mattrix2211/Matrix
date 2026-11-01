@@ -291,7 +291,7 @@ def changer_etat(demande, user, etat, note=""):
 
 def reaffecter(demande, user, nouveau):
     if not peut_piloter(user, demande):
-        raise PermissionError("Seul le responsable ou un chef du périmètre peut réaffecter.")
+        raise PermissionError("Seul le responsable ou un chef concerné peut réaffecter.")
     if not responsables_possibles(demande.declarant).filter(pk=nouveau.pk).exists():
         raise ValidationError("Désignez un chef du bâtiment.")
     ancien = demande.responsable
@@ -305,7 +305,7 @@ def reaffecter(demande, user, nouveau):
 
 def ajouter_interlocuteur(demande, user, cible):
     if not peut_piloter(user, demande):
-        raise PermissionError("Seul le responsable ou un chef du périmètre peut ajouter un interlocuteur.")
+        raise PermissionError("Seul le responsable ou un chef concerné peut ajouter un interlocuteur.")
     if not interlocuteurs_possibles(demande).filter(pk=cible.pk).exists():
         raise ValidationError("Cet interlocuteur n'appartient pas au bâtiment du dossier.")
     demande.interlocuteurs.add(cible)
@@ -317,7 +317,7 @@ def ajouter_interlocuteur(demande, user, cible):
 def creer_action(demande, user, assigne, titre, echeance=None):
     """Action décidée dans le dossier : une tâche assignée, liée à la demande."""
     if not peut_piloter(user, demande):
-        raise PermissionError("Seul le responsable ou un chef du périmètre peut assigner une action.")
+        raise PermissionError("Seul le responsable ou un chef concerné peut assigner une action.")
     navire = getattr(demande.declarant.profile, "ship_id", None)
     if not User.objects.filter(pk=assigne.pk, profile__ship_id=navire, is_active=True).exists():
         raise ValidationError("Choisissez un marin du bâtiment.")

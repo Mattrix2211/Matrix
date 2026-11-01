@@ -22,6 +22,7 @@ from matrix.core.mixins import build_scope_q
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 
 from .models import Asset, Installation
+from matrix.core.organisation import votre_niveau
 
 # Statuts d'occurrence considérés comme terminés pour le scan QR : une occurrence
 # déjà DONE ou CANCELLED ne doit plus être proposée au marin qui scanne
@@ -41,7 +42,7 @@ class StartVisualCheckView(LoginRequiredMixin, View):
         try:
             asset = assets.get(pk=pk)
         except Asset.DoesNotExist:
-            return HttpResponseBadRequest('Matériel introuvable ou hors de votre périmètre.')
+            return HttpResponseBadRequest(f'Matériel introuvable ou hors de {votre_niveau(request.user)}.')
         plan = MaintenancePlan.objects.filter(scope='ASSET_TYPE', asset_type=asset.asset_type).first()
         name = plan.name if plan else 'Contrôle visuel'
         occ, _ = MaintenanceOccurrence.objects.get_or_create(

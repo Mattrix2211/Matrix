@@ -1,4 +1,5 @@
-"""Accueil du chef : bloc « Mon périmètre » et libellés des comptes rendus non conformes (aucun geste « Valider »)."""
+"""Accueil du chef : bloc « Mon secteur / service / bâtiment » et libellés des comptes rendus non conformes (aucun geste « Valider »)."""
+from matrix.core.organisation import niveau_de
 from django.test import TestCase
 from django.urls import reverse
 
@@ -19,7 +20,7 @@ class ComptesRendusNonConformesTests(TestCase):
     def test_libelles_et_lien_vers_le_compte_rendu(self):
         attente = self._occurrence(self.asset_a, 1, "WAITING_VALIDATION")
         r = self._page(self.chef_a)
-        self.assertContains(r, "<h2 class=\"h5 mt-5 mb-3\">Mon périmètre</h2>", html=True)
+        self.assertContains(r, f"<h2 class=\"h5 mt-5 mb-3\">{niveau_de(self.chef_a)['mon']}</h2>", html=True)
         self.assertContains(r, "Comptes rendus non conformes à traiter")
         self.assertContains(r, "Non conforme : un ticket correctif est ouvert")
         self.assertContains(r, reverse("occurrence-execute", args=[attente.pk]))

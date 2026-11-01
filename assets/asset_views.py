@@ -68,6 +68,7 @@ from .web_views import (
     _resoudre_emplacement,
     _resoudre_parent_valide,
 )
+from matrix.core.organisation import votre_niveau
 
 _ENTETES_EXPORT_ASSETS = [
     'Désignation', 'Type', 'Identifiant interne', 'N° série', 'Statut', 'Criticité',
@@ -508,7 +509,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             parent_id = entier_ou_none(request.POST.get('parent_id'))
             parent = AssetFolder.objects.filter(pk=parent_id).first() if parent_id else None
             if parent and _materiel_hors_perimetre(request.user, parent):
-                messages.error(request, "Ce dossier contient du matériel hors de votre périmètre.")
+                messages.error(request, f"Ce dossier contient du matériel hors de {votre_niveau(request.user)}.")
                 return _redirect_liste_materiel(request)
             if name:
                 photo = request.FILES.get('photo')
@@ -536,7 +537,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             try:
                 fld = AssetFolder.objects.get(pk=pk)
                 if not _dossier_gerable(request.user, fld):
-                    messages.error(request, "Ce dossier ne relève pas de votre périmètre.")
+                    messages.error(request, f"Ce dossier ne relève pas de {votre_niveau(request.user)}.")
                     return _redirect_liste_materiel(request)
                 if name:
                     fld.name = name
@@ -553,7 +554,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 messages.error(request, 'Dossier introuvable.')
                 return _redirect_liste_materiel(request)
             if not _dossier_gerable(request.user, fld):
-                messages.error(request, "Ce dossier ne relève pas de votre périmètre.")
+                messages.error(request, f"Ce dossier ne relève pas de {votre_niveau(request.user)}.")
                 return _redirect_liste_materiel(request)
             fld.delete()
             AuditLog.objects.create(actor=request.user, action='delete_asset_folder', details=f'id={pk}')
@@ -602,16 +603,16 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # au périmètre de l'appelant, même principe que _resoudre_parent_valide pour
             # le champ parent_id — ne fait pas confiance aux menus déroulants du formulaire.
             if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Unité hors de votre périmètre.")
+                messages.error(request, f"Cette unité n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             if service_id and not _org_dans_perimetre(request.user, Service, service_id):
-                messages.error(request, "Service hors de votre périmètre.")
+                messages.error(request, f"Ce service n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
-                messages.error(request, "Secteur hors de votre périmètre.")
+                messages.error(request, f"Ce secteur n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             if section_id and not _org_dans_perimetre(request.user, Section, section_id):
-                messages.error(request, "Section hors de votre périmètre.")
+                messages.error(request, f"Cette section n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             # Fallback côté serveur pour type si non fourni: premier type du secteur
             if not type_id and sector_id:
@@ -689,16 +690,16 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre (T-SEC) : même contrôle qu'à la création, contre un POST direct
             # qui déplacerait le matériel hors du périmètre de l'appelant.
             if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-                messages.error(request, "Unité hors de votre périmètre.")
+                messages.error(request, f"Cette unité n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             if service_id and not _org_dans_perimetre(request.user, Service, service_id):
-                messages.error(request, "Service hors de votre périmètre.")
+                messages.error(request, f"Ce service n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
-                messages.error(request, "Secteur hors de votre périmètre.")
+                messages.error(request, f"Ce secteur n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             if section_id and not _org_dans_perimetre(request.user, Section, section_id):
-                messages.error(request, "Section hors de votre périmètre.")
+                messages.error(request, f"Cette section n'est pas dans {votre_niveau(request.user)}.")
                 return redirect('asset-list')
             try:
                 # Périmètre : le matériel visé doit appartenir au périmètre de l'appelant

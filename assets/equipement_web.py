@@ -22,6 +22,7 @@ from matrix.core.scopes import ship_id_for_user
 from org.models import Section, Sector
 
 from .models import ArticleCatalogue, Asset, AssetFolder, AssetType, Location
+from matrix.core.organisation import votre_niveau
 
 ETAPES = ["Quantité et rattachement", "Vérification"]
 
@@ -139,12 +140,12 @@ class ArticleEquiperView(LoginRequiredMixin, View):
             return f"Au plus {quantite_maximale()} exemplaires à la fois.", None
         secteur = next((s for s in secteurs if str(s.pk) == valeurs.get("secteur")), None)
         if secteur is None:
-            return "Choisissez un secteur de votre périmètre.", None
+            return f"Choisissez un secteur de {votre_niveau(request.user)}.", None
         section = None
         if valeurs.get("section"):
             section = next((s for s in sections_equipables(request.user, secteur) if str(s.pk) == valeurs["section"]), None)
             if section is None:
-                return "Section hors de votre périmètre.", None
+                return f"Cette section n'est pas dans {votre_niveau(request.user)}.", None
         emplacement = None
         if valeurs.get("emplacement"):
             emplacement = Location.objects.filter(pk=entier_ou_none(valeurs["emplacement"]) or 0,

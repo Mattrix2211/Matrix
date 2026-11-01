@@ -33,7 +33,7 @@
       <select class="form-select" id="id_priorite" name="priorite"><option value="NORMALE">Normale</option><option value="URGENTE">Urgente</option></select></div>
     {% if unites %}<div class="col-md-5"><label class="form-label" for="id_unite">Ou toute une unité (une tâche par marin)</label>
       <select class="form-select" id="id_unite" name="unite"><option value="">— Un seul marin —</option>{% for cle, libelle, nombre in unites %}<option value="{{ cle }}">{{ libelle }} · {{ nombre }} marin{{ nombre|pluralize }}</option>{% endfor %}</select>
-      <div class="form-text">Une tâche individuelle est créée pour chaque marin de l'unité, dans votre périmètre.</div></div>{% endif %}
+      <div class="form-text">Une tâche individuelle est créée pour chaque marin de l'unité, dans {{ niveau_org.votre }}.</div></div>{% endif %}
     <div class="col-12"><label class="form-label" for="id_description">Consigne (facultatif)</label><textarea class="form-control" id="id_description" name="description" rows="2">{% if annonce_source %}Voir l'annonce « {{ annonce_source.titre }} ».{% endif %}</textarea></div>
     <div class="col-12"><label class="form-label" for="id_checklist">Liste de contrôle (facultatif, un élément par ligne)</label><textarea class="form-control" id="id_checklist" name="checklist" rows="2"></textarea></div>
   </div>

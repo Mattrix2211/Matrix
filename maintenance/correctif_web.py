@@ -39,6 +39,7 @@ from .historique import derniers_releves
 from .models import CompteRenduCorrectif, ModificationCompteRendu
 from .web_views import _etat_saisie
 from logistics.perimetre import perimetre_tickets_q
+from matrix.core.organisation import votre_niveau
 
 LONGUEUR_TEXTE = 5000
 MAX_PIECES = 5
@@ -256,7 +257,7 @@ class CompteRenduCorrectifView(LoginRequiredMixin, View):
             for pk, quantite in demande_par_piece.items():
                 piece = par_id.get(pk)
                 if piece is None:
-                    erreurs.append("Pièce introuvable ou hors de votre périmètre.")
+                    erreurs.append(f"Pièce introuvable ou hors de {votre_niveau(request.user)}.")
                 elif quantite > piece.quantite:
                     erreurs.append(f"Stock insuffisant : {piece.quantite} unité(s) disponible(s) pour {piece.reference}.")
                 else:

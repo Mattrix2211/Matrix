@@ -21,6 +21,7 @@ from . import tournee
 from .compte_rendu import LONGUEUR_NOTES, instantane, resume
 from .models import MaintenanceExecution, MaintenanceOccurrence, OccurrenceStatusLog
 from .web_views import _notifier_chefs_de_secteur, _qr_data_uri
+from matrix.core.organisation import votre_niveau
 
 CONFORMITES = dict(MaintenanceExecution.CONFORMITY)
 
@@ -110,7 +111,7 @@ class TourneeSaisieView(LoginRequiredMixin, View):
         ecartes = len(ids) - len(lot) - len(verrouillees)
         if ecartes:
             messages.info(request, f"{ecartes} occurrence{'s' if ecartes > 1 else ''} écartée{'s' if ecartes > 1 else ''} : "
-                                   "installation, annulée, hors de votre périmètre ou de vos droits.")
+                                   f"installation, annulée, hors de {votre_niveau(request.user)} ou de vos droits.")
         return self._afficher(request, ids, lot, verrouillees)
 
     def post(self, request):
@@ -126,7 +127,7 @@ class TourneeSaisieView(LoginRequiredMixin, View):
             if colonne and identifiant.isdigit():
                 postes.setdefault(int(identifiant), {})[colonne] = sans_nul(valeur).strip()[:LONGUEUR_NOTES]
         if not set(postes) <= set(lot) | deja:
-            messages.error(request, "Un équipement est introuvable ou hors de votre périmètre : rien n'a été enregistré.")
+            messages.error(request, f"Un équipement est introuvable ou hors de {votre_niveau(request.user)} : rien n'a été enregistré.")
             return redirect("maintenance-occurrences")
         if postes and not set(postes) & set(lot):
             messages.info(request, "Cette tournée est déjà enregistrée : rien de plus n'a été fait.")

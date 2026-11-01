@@ -6,7 +6,7 @@
   {% if peut_voir_perimetre %}
   <div class="btn-group" role="group" aria-label="Filtre des tickets">
     <a href="?vue=mes" class="btn btn-sm {% if vue == 'mes' %}btn-primary{% else %}btn-outline-primary{% endif %}">Mes tickets</a>
-    <a href="?vue=perimetre" class="btn btn-sm {% if vue == 'perimetre' %}btn-primary{% else %}btn-outline-primary{% endif %}">Tout le périmètre</a>
+    <a href="?vue=perimetre" class="btn btn-sm {% if vue == 'perimetre' %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ niveau_org.tout }}</a>
   </div>
   {% endif %}
 </div>
@@ -40,7 +40,7 @@
         {% empty %}
         <tr>
           <td colspan="5" class="text-center text-muted py-4">
-            {% if vue == 'perimetre' %}Aucun ticket correctif sur votre périmètre.{% else %}Aucun ticket correctif ne vous est actuellement assigné.{% endif %}
+            {% if vue == 'perimetre' %}Aucun ticket correctif dans {{ niveau_org.votre }}.{% else %}Aucun ticket correctif ne vous est actuellement assigné.{% endif %}
           </td>
         </tr>
         {% endfor %}

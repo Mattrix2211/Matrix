@@ -225,3 +225,43 @@ span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__dec
 .mx-aide summary { cursor: pointer; width: fit-content; font-size: .875rem; color: var(--text-sec); }
 .mx-aide summary:hover { color: var(--text); }
 .mx-aide summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: var(--r-sm); }
+
+/* ==== Tableaux en cartes sur téléphone (liste des demandes) : rien n'est tronqué ==== */
+@media (max-width: 767.98px) {
+  .mx-table-cartes thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .mx-table-cartes, .mx-table-cartes tbody, .mx-table-cartes tr, .mx-table-cartes td { display: block; width: 100%; }
+  .mx-table-cartes tr { padding: var(--s3); border-bottom: 1px solid var(--np-surface-bord); }
+  .mx-table-cartes td { padding: var(--s1) 0; border: 0; overflow-wrap: anywhere; }
+  .mx-table-cartes td[data-libelle]:not(:first-child)::before { content: attr(data-libelle) " : "; font-size: .8125rem; color: var(--text-sec); }
+}
+
+/* ==== Teintes provisoires du bandeau : ardoise #344A63, acier #536F80 (choix du PO en attente) ==== */
+html[data-bandeau="ardoise"] { --bandeau-fond: #344A63; }
+html[data-bandeau="acier"] { --bandeau-fond: #536F80; --bandeau-champ: rgba(20, 32, 44, .38); }
+html[data-bandeau="ardoise"], html[data-bandeau="acier"] {
+  --bandeau-texte: #FFFFFF; --bandeau-texte-sec: #F2F6F9;
+  --bandeau-survol: rgba(255, 255, 255, .18); --bandeau-bord: rgba(255, 255, 255, .45);
+}
+html[data-bandeau="ardoise"] { --bandeau-champ: rgba(255, 255, 255, .16); }
+html[data-bandeau="ardoise"] .mx-barre, html[data-bandeau="acier"] .mx-barre { background: var(--bandeau-fond); color: var(--bandeau-texte); border-bottom: 1px solid rgba(0, 0, 0, .25); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__bouton,
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__utilisateur,
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__batiment,
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre .theme-toggle,
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__nom { color: var(--bandeau-texte); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__role { color: var(--bandeau-texte-sec); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__bouton:hover,
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__utilisateur:hover { background: var(--bandeau-survol); color: var(--bandeau-texte); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) span.mx-barre__batiment,
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__contexte .mx-barre__batiment,
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre__deconnexion { border-color: var(--bandeau-bord); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__icone { color: var(--bandeau-texte); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__champ { background: var(--bandeau-champ); border-color: var(--bandeau-bord); color: var(--bandeau-texte); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__champ::placeholder { color: var(--bandeau-texte-sec); }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-barre :focus-visible { outline-color: #FFFFFF; }
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche__champ:focus-visible { outline-color: #FFFFFF; }
+/* Le logo, bleu foncé, reste lisible sur la teinte : pastille claire, image inchangée. */
+:is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .matrix-logo__img { background: #F2F6F9; border-radius: 50%; padding: 3px; }
+@media (max-width: 767.98px) {
+  :is(html[data-bandeau="ardoise"], html[data-bandeau="acier"]) .mx-recherche.mx-recherche--ouverte { background: var(--bandeau-fond); }
+}

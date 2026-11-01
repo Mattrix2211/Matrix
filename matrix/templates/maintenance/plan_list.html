@@ -5,7 +5,7 @@
 {% include 'maintenance/_gestion_tabs.html' %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <p class="text-muted mb-0">Plans de maintenance préventive de votre périmètre.</p>
+  <p class="text-muted mb-0">Plans de maintenance préventive {{ niveau_org.de_votre }}.</p>
   {% if peut_gerer %}
   <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerPlanModal">
     {% icone "ajout" %} Nouveau plan
@@ -63,7 +63,7 @@
           {% endif %}
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center text-muted py-4">Aucun plan de maintenance sur votre périmètre.</td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-4">Aucun plan de maintenance dans {{ niveau_org.votre }}.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -377,7 +377,7 @@ class AssistantCreationListeTests(TestCase):
     def test_etape_perimetre_presente_si_plusieurs_choix(self):
         ChefDeListe.objects.create(user=self.cdl, sector=self.autre_secteur)
         r = self.client.get("/quarts/creer/")
-        self.assertIn("Périmètre", r.context["etapes"])
+        self.assertIn("Niveau concerné", r.context["etapes"])
 
     def test_parcours_complet_cree_le_brouillon(self):
         donnees = {

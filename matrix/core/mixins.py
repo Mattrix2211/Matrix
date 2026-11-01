@@ -1,5 +1,6 @@
 import logging
 
+from matrix.core.organisation import votre_niveau
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
@@ -192,14 +193,14 @@ class EcritureDansLePerimetreMixin:
             ids = {u.pk for u in (valeur if isinstance(valeur, (list, tuple)) else [valeur])}
             autorises = set(utilisateurs_visibles_par(self.request.user).filter(pk__in=ids).values_list("pk", flat=True))
             if ids - autorises:
-                raise ValidationError({champ: "Utilisateur hors de votre périmètre."})
+                raise ValidationError({champ: f"Utilisateur hors de {votre_niveau(self.request.user)}."})
 
     def _enregistrer_dans_le_perimetre(self, serializer, **champs):
         self._verifier_utilisateurs(serializer)
         with transaction.atomic():
             objet = serializer.save(**champs)
             if not self.get_queryset().filter(pk=objet.pk).exists():
-                raise ValidationError("Objet de rattachement hors de votre périmètre.")
+                raise ValidationError(f"Objet de rattachement hors de {votre_niveau(self.request.user)}.")
 
     def perform_create(self, serializer):
         self._enregistrer_dans_le_perimetre(serializer, **self.champs_serveur_creation())

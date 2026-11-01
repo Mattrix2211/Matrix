@@ -52,7 +52,7 @@ class AccueilUxTests(TestCase):
         self.assertNotIn("chartCorrective", page)
         self.assertNotIn("<canvas", page)
         self.assertIn("Maintenance et correctif", page)
-        self.assertIn("Périmètre :", page)
+        self.assertRegex(page, r"(Bâtiment|Service|Secteur|Section) : ")
         for libelle in ("En retard", "À venir (7 jours)", "En attente de validation", "Tickets correctifs ouverts"):
             self.assertIn(libelle, page)
 

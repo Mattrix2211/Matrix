@@ -2,7 +2,7 @@
 {% load icones %}
 {% block content %}
 <h1 class="h3 mb-3">Chefs de liste</h1>
-<p class="text-muted">Un chef de liste est habilité à créer, affecter et publier les listes de quarts et de services de garde pour le périmètre pour lequel il est désigné — indépendamment de son grade ou de son rôle hiérarchique.</p>
+<p class="text-muted">Un chef de liste est habilité à créer, affecter et publier les listes de quarts et de services de garde pour le service, le secteur ou la section pour lequel il est désigné — indépendamment de son grade ou de son rôle hiérarchique.</p>
 
 <div class="row g-4">
   <div class="col-md-7">
@@ -12,7 +12,7 @@
           <thead>
             <tr>
               <th>Marin</th>
-              <th>Périmètre</th>
+              <th>Niveau concerné</th>
               <th></th>
             </tr>
           </thead>
@@ -54,7 +54,7 @@
           </select>
         </div>
         <div class="col-12">
-          <label class="form-label">Périmètre</label>
+          <label class="form-label">Niveau concerné</label>
           <select name="perimetre" class="form-select" required>
             {% for p in perimetres_disponibles %}
             <option value="{{ p.valeur }}">{{ p.label }}</option>

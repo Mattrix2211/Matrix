@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from matrix.core.organisation import votre_niveau
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from matrix.core.scopes import is_master_admin, resoudre_affectation_dans_perimetre
@@ -95,7 +96,7 @@ class AssetSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer)
             )
             if not ok:
                 raise serializers.ValidationError(
-                    "Unité, service, secteur ou section invalide, ou hors de votre périmètre."
+                    f"Unité, service, secteur ou section invalide, ou hors de {votre_niveau(acting_user)}."
                 )
 
         # Reproduit ici la règle métier de Asset.clean() (protection anti-cycle

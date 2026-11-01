@@ -20,6 +20,7 @@ numéro de série peut donc légitimement apparaître sur plusieurs matériels
 (cf. correction métier Marine Nationale).
 """
 import zipfile
+from matrix.core.organisation import votre_niveau
 from dataclasses import dataclass, field
 
 from django.core.exceptions import ValidationError
@@ -169,7 +170,7 @@ def _resoudre_organisation(ligne, index_colonnes, user, profil):
         if ship is None:
             raise _ErreurLigneImport(f"unité inconnue : « {nom_unite} »")
         if not _org_dans_perimetre(user, Ship, ship.id):
-            raise _ErreurLigneImport(f"unité hors de votre périmètre : « {nom_unite} »")
+            raise _ErreurLigneImport(f"unité n'appartenant pas à {votre_niveau(user)} : « {nom_unite} »")
     else:
         ship = getattr(profil, 'ship', None)
 
@@ -182,7 +183,7 @@ def _resoudre_organisation(ligne, index_colonnes, user, profil):
         if service is None:
             raise _ErreurLigneImport(f"service inconnu : « {nom_service} »")
         if not _org_dans_perimetre(user, Service, service.id):
-            raise _ErreurLigneImport(f"service hors de votre périmètre : « {nom_service} »")
+            raise _ErreurLigneImport(f"service n'appartenant pas à {votre_niveau(user)} : « {nom_service} »")
         ship = ship or service.ship
     else:
         service = getattr(profil, 'service', None)
@@ -198,7 +199,7 @@ def _resoudre_organisation(ligne, index_colonnes, user, profil):
         if sector is None:
             raise _ErreurLigneImport(f"secteur inconnu : « {nom_secteur} »")
         if not _org_dans_perimetre(user, Sector, sector.id):
-            raise _ErreurLigneImport(f"secteur hors de votre périmètre : « {nom_secteur} »")
+            raise _ErreurLigneImport(f"secteur n'appartenant pas à {votre_niveau(user)} : « {nom_secteur} »")
         service = service or sector.service
         ship = ship or sector.service.ship
     else:
@@ -224,7 +225,7 @@ def _resoudre_organisation(ligne, index_colonnes, user, profil):
                 f"section inconnue : « {nom_section} » pour le secteur « {sector.name} »"
             )
         if not _org_dans_perimetre(user, Section, section.id):
-            raise _ErreurLigneImport(f"section hors de votre périmètre : « {nom_section} »")
+            raise _ErreurLigneImport(f"section n'appartenant pas à {votre_niveau(user)} : « {nom_section} »")
     else:
         profil_section = getattr(profil, 'section', None)
         if profil_section is not None and profil_section.sector_id == sector.id:

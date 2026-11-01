@@ -1,4 +1,5 @@
 from django.contrib import messages
+from matrix.core.organisation import niveau_de
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -23,6 +24,7 @@ from .models import (
     STATUTS_ANOMALIE_OUVERTS, Anomalie, AnomalieStatutLog, CorrectiveTicket, TicketStatusLog,
     destinataires_anomalie, niveau_alerte_ticket, perimetre_du_profil,
 )
+from matrix.core.organisation import votre_niveau
 
 
 STATUT_OUVERTES = "ouvertes"  # filtre « toutes les anomalies non traitées »
@@ -115,7 +117,7 @@ class AnomalieListView(LoginRequiredMixin, View):
         return render(request, self.template_name, {
             'anomalies': base.select_related('installation', 'asset'), 'etapes': etapes,
             'total': total, 'vue': vue, 'statut': statut, 'peut_voir_perimetre': peut_perimetre,
-            'libelle_perimetre': 'Tout le périmètre' if _est_chef(request.user) else 'Ma section',
+            'libelle_perimetre': niveau_de(request.user)['tout'] if _est_chef(request.user) else 'Ma section',
         })
 
 
@@ -207,7 +209,7 @@ class AnomalieCreateView(LoginRequiredMixin, View):
             if id_materiel:
                 materiel = materiels.get(pk=id_materiel)
         except (Installation.DoesNotExist, Asset.DoesNotExist, ValueError, ValidationError):
-            return None, None, None, "Équipement introuvable ou hors de votre périmètre."
+            return None, None, None, f"Équipement introuvable ou hors de {votre_niveau(request.user)}."
         if donnees.get('secteur'):
             try:
                 secteur = _secteurs_selectionnables(request.user).get(pk=donnees['secteur'])

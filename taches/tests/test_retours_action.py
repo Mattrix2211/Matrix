@@ -28,7 +28,7 @@ class RetoursActionTests(TachesBase):
     def test_blocage_ne_cite_que_les_personnes_notifiees(self):
         succes = self._succes(self._agir(self.marin, "bloquer", motif="Vanne grippée"))[0]
         self.assertIn("Blocage signalé", succes)
-        self.assertIn("les chefs du périmètre", succes)
+        self.assertIn("les chefs concernés", succes)
         self.assertNotIn("participants", succes)
         self.assertTrue(Notification.objects.filter(user=self.chef, verb__contains="Vanne grippée").exists())
 
@@ -61,7 +61,7 @@ class RetoursActionTests(TachesBase):
     def test_terminer_avec_compte_rendu(self):
         succes = self._succes(self._agir(self.marin, "rendre_compte", compte_rendu="Fait."))[0]
         self.assertIn("Compte rendu enregistré", succes)
-        self.assertIn("les chefs du périmètre", succes)
+        self.assertIn("les chefs concernés", succes)
         self.assertTrue(Notification.objects.filter(user=self.chef, verb__contains="rendu compte").exists())
         self.assertEqual(self._succes(self._agir(self.marin, "rendre_compte", compte_rendu="Encore.")), [])
 
@@ -82,7 +82,7 @@ class RetoursActionTests(TachesBase):
         r = self.client.post(reverse("tache-commentaire", args=[self.tache.pk]), {"body": "Bonjour"}, follow=True)
         succes = [str(m) for m in r.context["messages"] if m.level_tag == "success"]
         self.assertIn("Message publié.", succes[0])
-        self.assertIn("les chefs du périmètre", succes[0])
+        self.assertIn("les chefs concernés", succes[0])
         self.assertTrue(Notification.objects.filter(user=self.chef, verb__contains="a répondu").exists())
 
     def test_reponse_vide_sans_confirmation(self):

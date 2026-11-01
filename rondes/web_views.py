@@ -100,7 +100,7 @@ class ModeleFormView(LoginRequiredMixin, View):
         if not pk:
             choix = {v: obj for v, _, obj in services.perimetres_gerables(request.user)}.get(donnees.get("perimetre"))
             if choix is None:
-                messages.error(request, "Choisissez un périmètre dans votre zone de responsabilité.")
+                messages.error(request, "Choisissez le niveau concerné dans votre zone de responsabilité.")
                 return render(request, "rondes/modele_form.html", self._contexte(request, None, donnees), status=400)
             modele.rattacher(
                 ship=choix if isinstance(choix, Ship) else None,

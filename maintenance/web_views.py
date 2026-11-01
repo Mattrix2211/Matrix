@@ -37,6 +37,7 @@ from .compte_rendu import (
 from .formats import lire_datetime, valeur_datetime
 from .diffusion import notifier_compte_rendu
 from .historique import derniers_releves, duree_estimee, formater_duree
+from matrix.core.organisation import votre_niveau
 
 
 class _Conflit(Exception):
@@ -528,15 +529,15 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
         if scope == "ASSET":
             asset = _assets_disponibles(request.user).filter(pk=uuid_ou_none(request.POST.get("asset_id"))).first()
             if not asset:
-                messages.error(request, "Le matériel choisi est introuvable ou hors de votre périmètre.")
+                messages.error(request, f"Le matériel choisi est introuvable ou hors de {votre_niveau(request.user)}.")
                 return redirect("maintenance-plans")
         elif scope == "ASSET_TYPE":
             asset_type = _asset_types_disponibles(request.user).filter(pk=entier_ou_none(request.POST.get("asset_type_id"))).first()
             if not asset_type:
-                messages.error(request, "Le type de matériel choisi est introuvable ou hors de votre périmètre.")
+                messages.error(request, f"Le type de matériel choisi est introuvable ou hors de {votre_niveau(request.user)}.")
                 return redirect("maintenance-plans")
         else:
-            messages.error(request, "Le périmètre du plan (matériel ou type de matériel) est obligatoire.")
+            messages.error(request, "La cible du plan (matériel ou type de matériel) est obligatoire.")
             return redirect("maintenance-plans")
 
         try:
@@ -657,7 +658,7 @@ class MaintenanceOccurrenceSelfAssignView(LoginRequiredMixin, View):
         try:
             occ = MaintenanceOccurrence.objects.filter(filtres).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
-            return HttpResponseBadRequest("Occurrence introuvable ou hors de votre périmètre.")
+            return HttpResponseBadRequest(f"Occurrence introuvable ou hors de {votre_niveau(request.user)}.")
 
         if request.user in occ.assignees.all():
             occ.assignees.remove(request.user)

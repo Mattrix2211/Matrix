@@ -66,7 +66,7 @@ class RondeModele(TimeStampedModel, OwnedModel):
             return f"Service {self.service.name}"
         if self.ship_id:
             return f"Unité {self.ship.name}"
-        return "Sans périmètre"
+        return "Sans niveau défini"
 
     def __str__(self):
         return self.nom

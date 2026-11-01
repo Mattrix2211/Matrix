@@ -13,7 +13,7 @@
       <input class="form-control" id="nom" name="nom" required value="{% if modele %}{{ modele.nom }}{% else %}{{ valeurs.nom }}{% endif %}"></div>
     <div class="col-md-3"><label class="form-label" for="periodicite_jours">Tous les (jours)</label>
       <input class="form-control" id="periodicite_jours" name="periodicite_jours" type="number" min="1" value="{% if modele %}{{ modele.periodicite_jours }}{% else %}{{ valeurs.periodicite_jours|default:1 }}{% endif %}"></div>
-    <div class="col-md-3"><label class="form-label" for="perimetre">Périmètre</label>
+    <div class="col-md-3"><label class="form-label" for="perimetre">Niveau concerné</label>
       {% if modele %}<input class="form-control" value="{{ modele.libelle_perimetre }}" disabled>
       {% else %}<select class="form-select" id="perimetre" name="perimetre" required>
         {% for valeur, libelle in perimetres %}<option value="{{ valeur }}" {% if valeurs.perimetre == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}

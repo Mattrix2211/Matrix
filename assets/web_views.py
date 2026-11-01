@@ -22,6 +22,7 @@ changement de comportement. L'import a lieu APRÈS la définition des helpers
 ci-dessous, car asset_views.py et installation_views.py les réimportent en
 retour (`from .web_views import ...`) — même import circulaire volontaire,
 déjà en place pour assets/installation_actions.py avant ce découpage."""
+from matrix.core.organisation import votre_niveau
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
@@ -254,7 +255,7 @@ def _appliquer_bulk_update(request, queryset, champ, valeur, *, action_audit, de
     AssetListView.post (matériel mobile) et InstallationListView.post
     (installation fixe) — ~55 lignes quasi identiques avant factorisation."""
     if org_model is not None and not _org_dans_perimetre(request.user, org_model, org_id):
-        messages.error(request, f"{libelle_org} hors de votre périmètre.")
+        messages.error(request, f"Ce rattachement ({libelle_org.lower()}) n'est pas dans {votre_niveau(request.user)}.")
         return redirect(redirect_url_name)
     objets = list(queryset)
     for objet in objets:

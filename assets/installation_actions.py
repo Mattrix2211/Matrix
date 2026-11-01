@@ -53,6 +53,7 @@ from .models import (
 from matrix.core.saisie import entier_ou_none
 from matrix.core.validators import valider_photo, valider_document, message_erreur_fichier
 from .web_views import _afficher_erreur_validation, _org_dans_perimetre, _resoudre_emplacement, _resoudre_parent_valide
+from matrix.core.organisation import votre_niveau
 
 
 def _parse_date_jjmmaaaa(date_str):
@@ -91,16 +92,16 @@ def _action_edit_installation(view, request, inst, qs):
     # Périmètre (T-SEC) : même contrôle que sur la liste (InstallationListView),
     # pour empêcher un contournement via la fiche détail.
     if ship_id and not _org_dans_perimetre(request.user, Ship, ship_id):
-        messages.error(request, "Unité hors de votre périmètre.")
+        messages.error(request, f"Cette unité n'est pas dans {votre_niveau(request.user)}.")
         return redirect(f"/installations/{pk}/{qs}")
     if service_id and not _org_dans_perimetre(request.user, Service, service_id):
-        messages.error(request, "Service hors de votre périmètre.")
+        messages.error(request, f"Ce service n'est pas dans {votre_niveau(request.user)}.")
         return redirect(f"/installations/{pk}/{qs}")
     if sector_id and not _org_dans_perimetre(request.user, Sector, sector_id):
-        messages.error(request, "Secteur hors de votre périmètre.")
+        messages.error(request, f"Ce secteur n'est pas dans {votre_niveau(request.user)}.")
         return redirect(f"/installations/{pk}/{qs}")
     if section_id and not _org_dans_perimetre(request.user, Section, section_id):
-        messages.error(request, "Section hors de votre périmètre.")
+        messages.error(request, f"Cette section n'est pas dans {votre_niveau(request.user)}.")
         return redirect(f"/installations/{pk}/{qs}")
     try:
         # Périmètre : l'installation visée doit appartenir au périmètre de

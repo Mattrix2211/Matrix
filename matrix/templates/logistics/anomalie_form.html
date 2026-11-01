@@ -28,7 +28,7 @@
     <div class="mb-3">
       <label class="form-label" for="secteur">Secteur concerné</label>
       <select class="form-select" id="secteur" name="secteur">
-        <option value="">— Mon périmètre —</option>
+        <option value="">— {{ niveau_org.mon }} —</option>
         {% for sec in secteurs %}<option value="{{ sec.id }}" {% if valeurs.secteur == sec.id|stringformat:'s' %}selected{% endif %}>{{ sec.service.name }} — {{ sec.name }}</option>{% endfor %}
       </select>
       <div class="form-text">Ignoré si vous choisissez un équipement : c'est alors celui de l'équipement.</div>

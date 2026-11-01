@@ -1,4 +1,5 @@
 """Bloc « Supervision » de la page « Aujourd'hui » : visibilité par rôle et bornage au périmètre."""
+from matrix.core.organisation import niveau_de
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -73,12 +74,13 @@ class SupervisionTests(TestCase):
     def test_alerte_de_retard_en_tete_de_page_seulement_pour_le_chef_concerne(self):
         self._occurrence(self.asset_a, -2, "OVERDUE")
         page = self._page(self.chef_a).content.decode()
-        self.assertEqual(page.count("Des maintenances de votre périmètre sont en retard"), 1)
-        self.assertLess(page.index("Des maintenances de votre périmètre sont en retard"), page.index("Ma journée"))
-        self.assertNotContains(self._page(self.equipier), "Des maintenances de votre périmètre sont en retard")
+        alerte = f"Des maintenances {niveau_de(self.chef_a)['de_votre']} sont en retard"
+        self.assertEqual(page.count(alerte), 1)
+        self.assertLess(page.index(alerte), page.index("Ma journée"))
+        self.assertNotContains(self._page(self.equipier), "sont en retard")
 
     def test_pas_d_alerte_de_retard_sans_retard(self):
-        self.assertNotContains(self._page(self.chef_a), "Des maintenances de votre périmètre sont en retard")
+        self.assertNotContains(self._page(self.chef_a), f"Des maintenances {niveau_de(self.chef_a)['de_votre']} sont en retard")
 
     def test_chef_sans_perimetre_ne_voit_pas_le_bloc(self):
         sans_perimetre = self._marin("sans", "CHEF_SECTEUR")

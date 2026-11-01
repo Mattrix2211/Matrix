@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from matrix.core.organisation import votre_niveau
 from .mixins import build_scope_q
 
 
@@ -26,5 +27,5 @@ class ReferencesDansPerimetreMixin:
                 continue
             modele = type(cible)
             if not modele.objects.filter(build_scope_q(utilisateur, *chemins), pk=cible.pk).exists():
-                raise serializers.ValidationError({champ: "Cet élément est hors de votre périmètre."})
+                raise serializers.ValidationError({champ: f"Cet élément est hors de {votre_niveau(utilisateur)}."})
         return attrs

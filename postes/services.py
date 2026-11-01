@@ -12,6 +12,7 @@ from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
 from training.models import TrainingCourse, TrainingRecord
 
 from .models import AffectationPoste, Poste
+from matrix.core.organisation import votre_niveau
 
 User = get_user_model()
 
@@ -53,7 +54,7 @@ def creer_poste(user, intitule, cible, effectif=1, equipage="", formations_ids=(
     if not peut_gerer(user):
         raise PermissionError("Vous ne pouvez pas créer de poste.")
     if not cible_permise(user, cible):
-        raise PermissionError("Ce rattachement est hors de votre périmètre.")
+        raise PermissionError(f"Ce rattachement est hors de {votre_niveau(user)}.")
     if not intitule.strip():
         raise ValidationError("L'intitulé est obligatoire.")
     if effectif < 1:

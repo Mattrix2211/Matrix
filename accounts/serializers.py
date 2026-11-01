@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from matrix.core.organisation import votre_niveau
 from .models import UserProfile, GradeChoice, SpecialityChoice, RoleAvailability
 from django.contrib.auth.models import User
 from matrix.core.equipage import MESSAGE_EQUIPAGE_OBLIGATOIRE, equipage_manquant, equipage_modifiable_par
@@ -49,7 +50,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         for secteur in attrs.get("allowed_sectors", []):
             ok, *_ = resoudre_affectation_dans_perimetre(acting_user, sector_id=secteur.id)
             if not ok:
-                raise serializers.ValidationError("Secteur autorisé hors de votre périmètre.")
+                raise serializers.ValidationError(f"Secteur autorisé hors de {votre_niveau(acting_user)}.")
         champs = ("ship", "service", "sector", "section")
         # Retirer tout rattachement sortirait le profil du périmètre de l'appelant.
         if any(c in attrs for c in champs) and not any(
@@ -71,7 +72,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         )
         if not ok:
             raise serializers.ValidationError(
-                "Unité, service, secteur ou section invalide, ou hors de votre périmètre."
+                f"Unité, service, secteur ou section invalide, ou hors de {votre_niveau(acting_user)}."
             )
         return attrs
 

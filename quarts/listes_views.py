@@ -57,6 +57,7 @@ from .models import (
 from .echanges_views import _echanges_visibles, _grouper_echanges
 from .services import compteurs_equite_perimetre
 from .web_views import _peut_lire_liste
+from matrix.core.organisation import votre_niveau
 
 User = get_user_model()
 
@@ -291,7 +292,7 @@ def _creer_liste(request, action, retour_erreur):
     """Crée le brouillon d'une liste depuis la saisie postée (index ou assistant)."""
     ship, service, sector, section = _resoudre_perimetre(request.POST.get("perimetre"))
     if not any([ship, service, sector, section]):
-        messages.error(request, "Le périmètre est obligatoire.")
+        messages.error(request, "Le niveau concerné est obligatoire.")
         return redirect(retour_erreur)
     if not utilisateur_autorise_pour_perimetre(request.user, ship, service, sector, section):
         raise PermissionDenied
@@ -342,7 +343,7 @@ class CreerListeView(LoginRequiredMixin, View):
     template_name = "quarts/liste_creer.html"
 
     def _etapes(self, perimetres):
-        etapes = [("type", "Type"), ("periode", "Période"), ("perimetre", "Périmètre"), ("regles", "Règles"), ("verification", "Vérification")]
+        etapes = [("type", "Type"), ("periode", "Période"), ("perimetre", "Niveau concerné"), ("regles", "Règles"), ("verification", "Vérification")]
         return [e for e in etapes if e[0] != "perimetre" or len(perimetres) > 1]
 
     def _valeurs_initiales(self, request, perimetres):
@@ -397,7 +398,7 @@ class CreerListeView(LoginRequiredMixin, View):
             if fin < debut:
                 return "La fin de période précède le début."
         if cle == "perimetre" and valeurs.get("perimetre") not in {p["valeur"] for p in perimetres}:
-            return "Choisissez le périmètre de la liste."
+            return "Choisissez le niveau concerné par la liste."
         if cle == "regles":
             champ = "fonction_quart" if valeurs.get("type_liste") == "creer_quart" else "fonction_service"
             if not valeurs.get(champ):
@@ -490,7 +491,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         # le chef de liste qui la gère (rôle distinct, cf. docstring de
         # module de quarts/models.py).
         if not peut_gerer and not peut_publier_liste(request.user, liste) and not _peut_lire_liste(request.user, liste):
-            return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
+            return HttpResponseBadRequest(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
         return render(request, self.template_name, self._contexte(request, liste, peut_gerer))
 
     def _contexte(self, request, liste, peut_gerer):
@@ -603,7 +604,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         peut_gerer = peut_gerer_liste(request.user, liste)
         peut_publier = peut_publier_liste(request.user, liste)
         if not peut_gerer and not peut_publier:
-            return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
+            return HttpResponseBadRequest(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
 
         action = request.POST.get("action")
 
@@ -622,7 +623,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
 
         if not peut_gerer:
-            return HttpResponseBadRequest("Liste introuvable ou hors de votre périmètre.")
+            return HttpResponseBadRequest(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
         if action == "ajouter_creneau":
             self._ajouter_creneau(request, liste)
         elif action == "supprimer_creneau":
@@ -681,7 +682,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if marin_id:
             marin = User.objects.filter(marins_du_perimetre(liste), pk=marin_id).distinct().first()
             if marin is None:
-                messages.error(request, "Le marin choisi ne fait pas partie du périmètre de cette liste.")
+                messages.error(request, "Le marin choisi ne fait pas partie du niveau concerné par cette liste.")
                 return
 
         creneau = self.creneau_model(
@@ -783,7 +784,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         if action == "designer":
             ship, service, sector, section = _resoudre_perimetre(request.POST.get("perimetre"))
             if not any([ship, service, sector, section]):
-                messages.error(request, "Le périmètre est obligatoire.")
+                messages.error(request, "Le niveau concerné est obligatoire.")
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, ship, service, sector, section):
                 raise PermissionDenied

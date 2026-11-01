@@ -73,7 +73,7 @@ class GenererBilanView(LoginRequiredMixin, View):
         if not scope_type:
             messages.error(
                 request,
-                "Aucun périmètre (secteur ou section) n'est associé à votre profil : "
+                "Aucun secteur ni section n'est associé à votre profil : "
                 "impossible de générer un bilan.",
             )
             return redirect("home")
@@ -105,7 +105,7 @@ class GenererBilanView(LoginRequiredMixin, View):
                 nom_fichier = f"bilan_{scope_type}_{timezone.localdate()}.{extension}"
         except PerimetreNonAutorise:
             messages.error(
-                request, "Vous n'êtes pas autorisé à générer le bilan de ce périmètre."
+                request, "Vous n'êtes pas autorisé à générer le bilan de ce niveau d'organisation."
             )
             return redirect("home")
         except ValueError as exc:

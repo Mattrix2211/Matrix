@@ -1,4 +1,5 @@
 from django.contrib.contenttypes.models import ContentType
+from matrix.core.organisation import votre_niveau
 from django.db.models import Q
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -77,7 +78,7 @@ class MessageViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         if not _fil_dans_perimetre(self.request.user, serializer.validated_data["thread"]):
-            raise ValidationError({"thread": "Fil hors de votre périmètre."})
+            raise ValidationError({"thread": f"Fil hors de {votre_niveau(self.request.user)}."})
         serializer.save(author=self.request.user, created_by=self.request.user)
 
     def perform_update(self, serializer):

@@ -20,6 +20,7 @@ from matrix.core.saisie import date_fr_ou_none, formater_date_fr
 
 from .equipement_web import peut_equiper, quantite_maximale
 from .models import ArticleCatalogue, Asset, Location
+from matrix.core.organisation import votre_niveau
 
 # Les colonnes texte portent le nom du champ du matériel ; « emplacement » est résolu par nom sur le navire.
 COLONNES = [
@@ -112,7 +113,7 @@ class _ExemplairesGrilleView(LoginRequiredMixin, View):
         # Chaque ligne est revalidée par identifiant dans le lot et le périmètre.
         assets = list(self._lot(request, **kwargs).filter(pk__in=ids)) if ids else []
         if len(assets) != len(ids) or len(ids) > quantite_maximale():
-            messages.error(request, "Un exemplaire est introuvable ou hors de votre périmètre : aucune modification enregistrée.")
+            messages.error(request, f"Un exemplaire est introuvable ou hors de {votre_niveau(request.user)} : aucune modification enregistrée.")
             return self._afficher(request, list(self._lot(request, **kwargs)[:quantite_maximale()]), statut=400, **kwargs)
         valeurs = {str(a.pk): {**_valeurs(a), **postes[str(a.pk)]} for a in assets}
         erreurs = self._controler(assets, valeurs)

@@ -13,10 +13,10 @@
   {% if user|peut_generer_bilan %}
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header">Bilan du périmètre</div>
+      <div class="card-header">Bilan {{ niveau_org.du }}</div>
       <div class="card-body">
         <p class="text-muted small mb-3">
-          Document de synthèse pour votre hiérarchie : état actuel de votre périmètre,
+          Document de synthèse pour votre hiérarchie : état actuel {{ niveau_org.de_votre }},
           ou activité réalisée sur une période choisie. Disponible en PDF ou en tableur
           (Excel/CSV) pour retravailler les chiffres.
         </p>

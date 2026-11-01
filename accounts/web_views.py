@@ -26,6 +26,7 @@ from matrix.core.scopes import (
 )
 from training.models import CandidatureFormation
 from training.services import qualifications_validees_de
+from matrix.core.organisation import votre_niveau
 
 
 def _role_attribution_autorisee(acting_user, role_cible):
@@ -268,7 +269,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 # resoudre_affectation_dans_perimetre).
                 ok, ship, _, _, _ = resoudre_affectation_dans_perimetre(request.user, ship_id=ship_id)
                 if not ok:
-                    messages.error(request, "Unité invalide ou hors de votre périmètre.")
+                    messages.error(request, f"Unité invalide ou hors de {votre_niveau(request.user)}.")
                     return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -291,7 +292,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 # dépendre du navire de l'appelant.
                 ok, _, service, _, _ = resoudre_affectation_dans_perimetre(request.user, service_id=service_id)
                 if not ok:
-                    messages.error(request, "Service invalide ou hors de votre périmètre.")
+                    messages.error(request, f"Service invalide ou hors de {votre_niveau(request.user)}.")
                     return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -306,7 +307,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 # dépendre du navire de l'appelant.
                 ok, _, _, sector, _ = resoudre_affectation_dans_perimetre(request.user, sector_id=sector_id)
                 if not ok:
-                    messages.error(request, "Secteur invalide ou hors de votre périmètre.")
+                    messages.error(request, f"Secteur invalide ou hors de {votre_niveau(request.user)}.")
                     return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -321,7 +322,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 # dépendre du navire de l'appelant.
                 ok, _, _, _, section = resoudre_affectation_dans_perimetre(request.user, section_id=section_id)
                 if not ok:
-                    messages.error(request, "Section invalide ou hors de votre périmètre.")
+                    messages.error(request, f"Section invalide ou hors de {votre_niveau(request.user)}.")
                     return redirect("user-directory")
                 for user in users:
                     profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -397,7 +398,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id
             )
             if not ok:
-                messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
+                messages.error(request, f"Unité, service, secteur ou section invalide, ou hors de {votre_niveau(request.user)}.")
                 return redirect("user-directory")
             equipage = request.POST.get("equipage", "").strip()
             if equipage_manquant(ship, equipage):
@@ -501,7 +502,7 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                     request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id
                 )
                 if not ok:
-                    messages.error(request, "Unité, service, secteur ou section invalide, ou hors de votre périmètre.")
+                    messages.error(request, f"Unité, service, secteur ou section invalide, ou hors de {votre_niveau(request.user)}.")
                     return redirect("user-directory")
                 equipage_actuel = getattr(getattr(user, "profile", None), "equipage", "")
                 equipage = request.POST.get("equipage", equipage_actuel).strip()

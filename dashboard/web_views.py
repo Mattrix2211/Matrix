@@ -5,6 +5,7 @@ formations, SES maintenances assignées, dès la connexion.
 """
 import json
 
+from matrix.core.organisation import niveau_de
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.contenttypes.models import ContentType
@@ -36,6 +37,7 @@ from org.models import ResponsableClasseNavire, Ship
 from quarts.services import compteur_equite_marin, prochains_tours_de_service
 from training.models import TrainingSession
 from training.services import qualifications_validees_de
+from matrix.core.organisation import votre_niveau
 
 User = get_user_model()
 
@@ -79,7 +81,7 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         contexte["indicateurs_maintenance"] = indicateurs_maintenance(utilisateur, aujourdhui)
         profil_perimetre = getattr(utilisateur, "profile", None)
         noeud = profil_perimetre and (profil_perimetre.section or profil_perimetre.sector or profil_perimetre.service or profil_perimetre.ship)
-        contexte["perimetre_libelle"] = f"Périmètre : {noeud}" if noeud else "Votre périmètre"
+        contexte["perimetre_libelle"] = f"{niveau_de(utilisateur)['libelle']} : {niveau_de(utilisateur)['nom']}" if noeud else "Votre rattachement"
         mes_qualifications = qualifications_validees_de(utilisateur, aujourdhui)
 
         contexte["mes_formations"] = mes_formations
@@ -213,7 +215,7 @@ class VueFlotteView(LoginRequiredMixin, TemplateView):
                 f"Vue agrégée {_PREFIXE_SOUS_TITRE_PERIMETRE[niveau_perimetre]} « {nom_perimetre} »."
             )
         else:
-            contexte["sous_titre_perimetre"] = "Vue agrégée de votre périmètre."
+            contexte["sous_titre_perimetre"] = f"Vue agrégée de {votre_niveau(self.request.user)}."
 
         if not flotte_entiere and perimetre_id is None:
             # Profil sans objet du niveau attendu renseigné : rien à agréger,
@@ -632,9 +634,9 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
             return HttpResponseBadRequest("Item introuvable.")
 
         if not _meme_navire_ou_master_admin(request.user, item.session.ship_id) or _appareillage_en_lecture_seule(request.user):
-            raise PermissionDenied("Hors de votre périmètre.")
+            raise PermissionDenied(f"Hors de {votre_niveau(request.user)}.")
         if item.categorie == ItemAppareillage.CATEGORIE_OCCURRENCE and _occurrences_masquees(request.user):
-            raise PermissionDenied("Hors de votre périmètre.")
+            raise PermissionDenied(f"Hors de {votre_niveau(request.user)}.")
         if not item.session.est_ouverte:
             return HttpResponseBadRequest("Session déjà clôturée : plus aucune modification n'est possible.")
 
@@ -669,7 +671,7 @@ class SessionAppareillageSignerView(LoginRequiredMixin, View):
 
         user = request.user
         if not _meme_navire_ou_master_admin(user, session.ship_id):
-            raise PermissionDenied("Hors de votre périmètre.")
+            raise PermissionDenied(f"Hors de {votre_niveau(request.user)}.")
         if niveau_ecriture(user) < RoleLevel.CHEF_SECTEUR:
             raise PermissionDenied("Réservé aux chefs de secteur et aux rôles supérieurs.")
         if not session.est_ouverte:
@@ -739,7 +741,7 @@ class SessionAppareillageDetailView(LoginRequiredMixin, TemplateView):
             SessionAppareillage.objects.select_related("ship", "valide_par"), pk=kwargs["pk"]
         )
         if not _meme_navire_ou_master_admin(self.request.user, session.ship_id):
-            raise PermissionDenied("Hors de votre périmètre.")
+            raise PermissionDenied(f"Hors de {votre_niveau(self.request.user)}.")
 
         contexte["session"] = session
         contexte["items_par_categorie"] = _items_groupes_par_categorie(session, self.request.user)

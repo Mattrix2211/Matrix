@@ -36,7 +36,7 @@
   {% if cle_etape == "perimetre" %}
   <div>
     <p class="text-muted">À quelle partie du bord s'applique la liste ?</p>
-    <label class="form-label" for="perimetre">Périmètre</label>
+    <label class="form-label" for="perimetre">Niveau concerné</label>
     <select class="form-select" id="perimetre" name="perimetre">
       {% for p in perimetres_creation %}<option value="{{ p.valeur }}" {% if valeurs.perimetre == p.valeur %}selected{% endif %}>{{ p.label }}</option>{% endfor %}
     </select>
@@ -68,7 +68,7 @@
   <dl class="mx-synthese">
     <dt>Type</dt><dd>{{ synthese.type }}</dd>
     <dt>Période</dt><dd>du {{ synthese.date_debut|date:"d/m/Y" }} au {{ synthese.date_fin|date:"d/m/Y" }}</dd>
-    <dt>Périmètre</dt><dd>{{ synthese.perimetre }}</dd>
+    <dt>Niveau concerné</dt><dd>{{ synthese.perimetre }}</dd>
     {% if synthese.fonction %}<dt>Fonction</dt><dd>{{ synthese.fonction }}</dd>{% endif %}
     {% if valeurs.nom %}<dt>Nom</dt><dd>{{ valeurs.nom }}</dd>{% endif %}
   </dl>

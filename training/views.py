@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from matrix.core.organisation import votre_niveau
 from django.db.models import Q
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied, ValidationError
@@ -124,7 +125,7 @@ class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
         if not peut_modifier_formation_bord(self.request.user, instance):
             raise ApiPermissionDenied(
                 "Vous n'avez pas l'autorité pour modifier cette formation gérée par un "
-                "bord : elle est hors de votre périmètre."
+                f"bord : elle est hors de {votre_niveau(self.request.user)}."
             )
         # Formation déjà en service (validations, sessions, ou prérequis
         # d'une autre formation) : pas de mutation en place, même règle que
@@ -156,7 +157,7 @@ class TrainingCourseViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
             if not peut_modifier_formation_bord(self.request.user, instance):
                 raise ApiPermissionDenied(
                     "Vous n'avez pas l'autorité pour supprimer cette formation gérée par un "
-                    "bord : elle est hors de votre périmètre."
+                    f"bord : elle est hors de {votre_niveau(self.request.user)}."
                 )
         else:
             self._exiger_catalogue()

@@ -1,4 +1,5 @@
 """Règles métier des annonces : ciblage par périmètre, publication, diffusion, lecture et accusé."""
+from matrix.core.organisation import votre_niveau
 from datetime import datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
@@ -225,7 +226,7 @@ def publier(auteur, titre, corps, niveau, cible, equipage="", accuse_requis=Fals
     if not peut_publier(auteur):
         raise PermissionError("Vous ne pouvez pas publier d'annonce.")
     if not cible_permise(auteur, cible):
-        raise PermissionError("Ce public est hors de votre périmètre.")
+        raise PermissionError(f"Ce public est hors de {votre_niveau(auteur)}.")
     date_effet = date_effet or timezone.localdate()
     _valider(titre, corps, niveau, date_effet, date_fin, equipage)
     if equipage.strip() and equipage.strip() not in equipages_du_navire(auteur):

@@ -108,11 +108,11 @@ REGISTRE_MODULES = [
     ),
     ModuleInfo(
         "programme", "Programme du bâtiment",
-        "Escales, arrêts techniques, exercices et réunions ciblés par périmètre, intégrés au calendrier.",
+        "Escales, arrêts techniques, exercices et réunions ciblés par service, secteur ou section, intégrés au calendrier.",
     ),
     ModuleInfo(
         "annonces", "Annonces",
-        "Diffusion descendante Information / Important / Urgent ciblée par périmètre, avec accusé de lecture facultatif.",
+        "Diffusion descendante Information / Important / Urgent ciblée par service, secteur ou section, avec accusé de lecture facultatif.",
     ),
     ModuleInfo(
         "demandes", "Difficultés signalées",
