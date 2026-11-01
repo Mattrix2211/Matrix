@@ -1913,12 +1913,20 @@ def designations_inoperantes(ship):
 
 def designations_inoperantes_de(user):
     """Désignations de ce marin devenues inopérantes (changement d'équipage ou de bâtiment, compte désactivé)."""
-    return [d for d in designations_inoperantes_de_navires(
-        Ship.objects.filter(pk__in=user.redactions_feuille_service.values("ship"))) if d.user_id == user.pk]
+    navires = Ship.objects.filter(pk__in=user.redactions_feuille_service.values("ship"))
+    return [d for navire in navires for d in designations_inoperantes(navire) if d.user_id == user.pk]
 
 
-def designations_inoperantes_de_navires(navires):
-    return [d for navire in navires for d in designations_inoperantes(navire)]
+def peut_retirer_designation(user, ship, designation, inoperante):
+    """Retirer une désignation : l'autorité de son équipage ; une désignation inopérante dont le code d'équipage n'existe
+    plus (bâtiment passé d'équipage unique à double équipage, ou l'inverse) est retirée par l'autorité de l'équipage du
+    demandeur, faute d'autorité propre."""
+    if peut_designer_redacteurs(user, ship, designation.equipage):
+        return True
+    if not inoperante:
+        return False
+    codes_valides = codes_equipage(ship) if ship.double_equipage else [""]
+    return designation.equipage not in codes_valides and peut_designer_redacteurs(user, ship, _equipage_attendu(ship, user))
 
 
 def equipages_sans_redacteur(ship):

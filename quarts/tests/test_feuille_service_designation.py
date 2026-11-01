@@ -193,3 +193,36 @@ class DesignationsInoperantesTests(DesignationBase):
         if UserProfile.objects.get(user=self.matelot).equipage == "B":
             self.assertContains(reponse, "ne donne plus aucun droit")
             self.assertTrue(AuditLog.objects.filter(action="feuille_service_redacteur_inoperant").exists())
+
+
+class BasculeEquipageUniqueDoubleTests(DesignationBase):
+    """Un bâtiment passé d'équipage unique à double équipage garde des désignations sans équipage : elles sont inopérantes
+    et doivent rester retirables par l'autorité de l'équipage du demandeur, sans droit sur la feuille de l'autre équipage."""
+
+    def setUp(self):
+        super().setUp()
+        self.matelot = User.objects.get(username="matelot_A")
+        self.ancienne = RedacteurFeuilleService.objects.create(ship=self.navire, equipage="", user=self.matelot)
+
+    def test_la_designation_sans_equipage_ne_donne_aucun_droit(self):
+        self.assertFalse(peut_rediger_feuille_service(self.matelot, self.navire))
+        self.assertEqual([d.pk for d in designations_inoperantes(self.navire)], [self.ancienne.pk])
+
+    def test_le_comaeq_de_l_equipage_la_retire(self):
+        self.assertEqual(self._post("coma_A", "retirer", pk=self.ancienne.pk).status_code, 302)
+        self.assertFalse(RedacteurFeuilleService.objects.filter(pk=self.ancienne.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(action="feuille_service_redacteur_retire").exists())
+
+    def test_le_comaeq_a_terre_la_retire_aussi_mais_ni_chef_de_service_ni_matelot(self):
+        for nom in ("chef_service_A", "matelot_A", "second_A"):
+            self.assertEqual(self._post(nom, "retirer", pk=self.ancienne.pk).status_code, 403, nom)
+        self.assertEqual(self._post("coma_B", "retirer", pk=self.ancienne.pk).status_code, 302)
+
+    def test_une_designation_operante_reste_protegee_entre_equipages(self):
+        operante = RedacteurFeuilleService.objects.create(ship=self.navire, equipage="A", user=self.matelot)
+        self.assertEqual(self._post("coma_B", "retirer", pk=operante.pk).status_code, 403)
+
+    def test_la_page_propose_le_retrait(self):
+        self.client.force_login(User.objects.get(username="coma_A"))
+        self.assertContains(self.client.get(self.url, {"ship": self.navire.pk}), "Inopérante")
+        self.assertContains(self.client.get(self.url, {"ship": self.navire.pk}), 'value="retirer"')

@@ -52,6 +52,7 @@ from .models import (
     equipages_sans_redacteur,
     peut_acceder_feuille_service,
     peut_designer_redacteurs,
+    peut_retirer_designation,
     peut_rediger_feuille_service,
     peut_ecrire_pour_equipage,
     peut_viser_comaeq,
@@ -531,7 +532,7 @@ class FeuilleServiceRedacteursView(LoginRequiredMixin, View):
         inoperantes = {d.pk for d in designations_inoperantes(ship)}
         for redacteur in redacteurs:
             redacteur.inoperante = redacteur.pk in inoperantes
-            redacteur.modifiable = peut_designer_redacteurs(request.user, ship, redacteur.equipage)
+            redacteur.modifiable = peut_retirer_designation(request.user, ship, redacteur, redacteur.inoperante)
         peut_designer = peut_designer_redacteurs(request.user, ship, mon_equipage)
         deja = {r.user_id for r in redacteurs if not r.inoperante}
         candidats = [
@@ -567,7 +568,8 @@ class FeuilleServiceRedacteursView(LoginRequiredMixin, View):
             designation = RedacteurFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).select_related("user").first()
             if designation is None:
                 raise Http404
-            if not peut_designer_redacteurs(request.user, ship, designation.equipage):
+            inoperante = designation.pk in {d.pk for d in designations_inoperantes(ship)}
+            if not peut_retirer_designation(request.user, ship, designation, inoperante):
                 raise PermissionDenied
             AuditLog.objects.create(
                 actor=request.user, action="feuille_service_redacteur_retire", target_user=designation.user,

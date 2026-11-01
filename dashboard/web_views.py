@@ -81,7 +81,8 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         contexte["indicateurs_maintenance"] = indicateurs_maintenance(utilisateur, aujourdhui)
         profil_perimetre = getattr(utilisateur, "profile", None)
         noeud = profil_perimetre and (profil_perimetre.section or profil_perimetre.sector or profil_perimetre.service or profil_perimetre.ship)
-        contexte["perimetre_libelle"] = f"{niveau_de(utilisateur)['libelle']} : {niveau_de(utilisateur)['nom']}" if noeud else "Votre rattachement"
+        niveau = niveau_de(utilisateur, avec_nom=True)
+        contexte["perimetre_libelle"] = f"{niveau['libelle']} : {niveau['nom']}" if noeud else "Votre rattachement"
         mes_qualifications = qualifications_validees_de(utilisateur, aujourdhui)
 
         contexte["mes_formations"] = mes_formations

@@ -39,7 +39,7 @@ class NiveauDeTests(TestCase):
             self.assertEqual((niveau["votre"], niveau["libelle"], niveau["tout"], niveau["mon"]), (votre, libelle, tout, mon))
 
     def test_accords_et_nom(self):
-        niveau = niveau_de(self._marin("chef", "CHEF_SECTEUR", ship=self.navire, service=self.service, sector=self.secteur))
+        niveau = niveau_de(self._marin("chef", "CHEF_SECTEUR", ship=self.navire, service=self.service, sector=self.secteur), avec_nom=True)
         self.assertEqual((niveau["du"], niveau["de_votre"], niveau["nom"]), ("du secteur", "de votre secteur", "Moteurs"))
         section = niveau_de(self._marin("sec", ship=self.navire, service=self.service, sector=self.secteur, section=self.section))
         self.assertEqual((section["du"], section["le"]), ("de la section", "la section"))
