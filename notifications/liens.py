@@ -7,7 +7,7 @@ applique elle-même ses droits."""
 import uuid
 from types import SimpleNamespace
 
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 
 
 def liens_accessibles(request, notifications):
@@ -38,9 +38,16 @@ def lien_objet(utilisateur, objet):
 
 
 def _chemin_sur(chemin):
-    """Chemin interne uniquement : jamais d'adresse externe ni de schéma."""
-    return (bool(chemin) and chemin.startswith("/") and not chemin.startswith("//") and "\\" not in chemin
-            and not any(ord(c) < 32 or ord(c) == 127 for c in chemin))
+    """Chemin interne uniquement, vers une route qui existe encore : jamais d'adresse externe, de schéma ni de lien
+    mort (ancienne notification d'un module retiré)."""
+    if not (bool(chemin) and chemin.startswith("/") and not chemin.startswith("//") and "\\" not in chemin
+            and not any(ord(c) < 32 or ord(c) == 127 for c in chemin)):
+        return False
+    try:
+        resolve(chemin.split("?")[0].split("#")[0])
+    except Resolver404:
+        return False
+    return True
 
 
 def _uuids(valeurs):

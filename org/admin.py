@@ -1,4 +1,6 @@
 from django.contrib import admin
+
+from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_bord, tracer_changement_equipage
 from .models import (
     ModuleActivation, ReferenceBatiment, RoleThresholdConfig, Section, Sector, SectorConfig, Service, Ship, TypeBatiment,
@@ -87,10 +89,32 @@ class ReferenceBatimentAdmin(admin.ModelAdmin):
     search_fields = ("nom", "numero_coque", "trigramme", "port_base")
     actions = ("archiver", "restaurer")
 
+    @staticmethod
+    def _tracer(request, reference, action, details=""):
+        AuditLog.objects.create(
+            actor=request.user, action=f"referentiel_batiment_{action}",
+            details=f"{reference} (id={reference.pk}){' : ' + details if details else ''}",
+        )
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change:
+            self._tracer(request, obj, "cree")
+        elif {"archive", "statut", "numero_coque", "nom", "port_base"} & set(form.changed_data):
+            self._tracer(request, obj, "modifie", ", ".join(
+                f"{champ} -> {form.cleaned_data.get(champ)}" for champ in form.changed_data if champ in ("archive", "statut", "numero_coque", "nom", "port_base")
+            ))
+
     @admin.action(description="Archiver les bâtiments sélectionnés (retirés du service)")
     def archiver(self, request, queryset):
-        queryset.update(archive=True)
+        for reference in queryset.filter(archive=False):
+            reference.archive = True
+            reference.save(update_fields=["archive", "updated_at"])
+            self._tracer(request, reference, "archive")
 
     @admin.action(description="Restaurer les bâtiments sélectionnés")
     def restaurer(self, request, queryset):
-        queryset.update(archive=False)
+        for reference in queryset.filter(archive=True):
+            reference.archive = False
+            reference.save(update_fields=["archive", "updated_at"])
+            self._tracer(request, reference, "restaure")

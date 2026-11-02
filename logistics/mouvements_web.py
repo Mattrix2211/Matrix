@@ -8,7 +8,7 @@ from django.views import View
 
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import niveau_ecriture
+from matrix.core.ecriture_service import niveau_ecriture_sur
 
 from .models import MouvementStock, StockPiece
 from .stock import MotifRequis, StockInsuffisant, enregistrer_mouvement
@@ -44,13 +44,13 @@ class StockPieceMouvementsView(LoginRequiredMixin, View):
         jauge = min(round(piece.quantite / piece.quantite_minimale * 100), 100) if piece.quantite_minimale else 100
         return render(request, self.template_name, {
             "piece": piece, "mouvements": mouvements, "jauge_pct": jauge,
-            "peut_gerer": niveau_ecriture(request.user) >= niveau_requis_pour(request.user, "stock_ecriture"),
+            "peut_gerer": niveau_ecriture_sur(request.user, piece) >= niveau_requis_pour(request.user, "stock_ecriture"),
         })
 
     def post(self, request, pk):
-        if niveau_ecriture(request.user) < niveau_requis_pour(request.user, "stock_ecriture"):
-            raise PermissionDenied
         piece = self._piece(request, pk)
+        if niveau_ecriture_sur(request.user, piece) < niveau_requis_pour(request.user, "stock_ecriture"):
+            raise PermissionDenied
         type_mouvement = request.POST.get("type")
         quantite = _quantite_saisie(type_mouvement, request.POST.get("quantite"))
         if type_mouvement not in TYPES_MANUELS:

@@ -12,19 +12,23 @@ from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import niveau_ecriture
+from matrix.core.ecriture_service import niveau_ecriture_sur, niveau_ecriture_ui
 from matrix.core.validators import valider_document_installation
 
 from .models import DocumentInstallation, Installation
 
 
-def peut_ajouter_document(user):
-    return (niveau_ecriture(user) >= niveau_requis_pour(user, "installation_ecriture_simple")
+def _niveau(user, installation):
+    return niveau_ecriture_sur(user, installation) if installation is not None else niveau_ecriture_ui(user)
+
+
+def peut_ajouter_document(user, installation=None):
+    return (_niveau(user, installation) >= niveau_requis_pour(user, "installation_ecriture_simple")
             and not equipage_a_terre_lecture_seule(user))
 
 
-def peut_supprimer_document(user):
-    return (niveau_ecriture(user) >= niveau_requis_pour(user, "installation_gestion_avancee")
+def peut_supprimer_document(user, installation=None):
+    return (_niveau(user, installation) >= niveau_requis_pour(user, "installation_gestion_avancee")
             and not equipage_a_terre_lecture_seule(user))
 
 
@@ -42,7 +46,7 @@ class _DocumentInstallationView(LoginRequiredMixin, View):
 class DocumentInstallationAjouterView(_DocumentInstallationView):
     def post(self, request, pk):
         installation = self.installation(request, pk)
-        if not peut_ajouter_document(request.user):
+        if not peut_ajouter_document(request.user, installation):
             raise PermissionDenied
         fichier = request.FILES.get("fichier")
         titre = request.POST.get("titre", "").strip() or (fichier.name if fichier else "")
@@ -70,7 +74,7 @@ class DocumentInstallationAjouterView(_DocumentInstallationView):
 class DocumentInstallationSupprimerView(_DocumentInstallationView):
     def post(self, request, pk, document_pk):
         installation = self.installation(request, pk)
-        if not peut_supprimer_document(request.user):
+        if not peut_supprimer_document(request.user, installation):
             raise PermissionDenied
         document = get_object_or_404(installation.documents, pk=document_pk)
         AuditLog.objects.create(actor=request.user, action="installation.document_suppression",

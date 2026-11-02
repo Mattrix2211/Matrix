@@ -43,7 +43,8 @@ from matrix.core.export import (
 )
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import RoleLevel, niveau_ecriture
+from matrix.core.ecriture_service import niveau_ecriture_sur, niveau_ecriture_ui, q_ecriture, verifier_cible_ecriture
+from matrix.core.roles import RoleLevel
 from matrix.core.saisie import identifiant_d_url, message_longueurs, uuid_ou_none, uuids_valides, date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.validators import message_erreur_fichier, valider_document, valider_photo
@@ -109,7 +110,7 @@ def _peut_gerer_materiel(user):
     rend le seuil configurable par navire (bug corrigé après refus du Tech
     Lead : un doublon avec ce seuil codé en dur rendait la configuration sans
     effet réel sur ces actions)."""
-    return niveau_ecriture(user) >= RoleLevel.CHEF_SECTION
+    return niveau_ecriture_ui(user) >= RoleLevel.CHEF_SECTION
 
 
 def _redirect_liste_materiel(request):
@@ -177,7 +178,7 @@ class AssetDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView):
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?asset={asset.pk}"},
         ]
-        if niveau_ecriture(self.request.user) >= RoleLevel.CHEF_SECTION:
+        if niveau_ecriture_sur(self.request.user, asset) >= RoleLevel.CHEF_SECTION:
             menu.append({"libelle": "Démarrer un contrôle visuel", "icone": "maintenance", "ecriture": True,
                          "hx_post": reverse('asset-start-visual', args=[asset.pk]), "hx_cible": "#result"})
         menu += [
@@ -424,8 +425,10 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
         cle_seuil = self.ACTION_VERS_SEUIL.get(action)
-        if cle_seuil is not None and niveau_ecriture(request.user) < niveau_requis_pour(request.user, cle_seuil):
+        if cle_seuil is not None and niveau_ecriture_ui(request.user) < niveau_requis_pour(request.user, cle_seuil):
             raise PermissionDenied
+        if cle_seuil is not None:
+            verifier_cible_ecriture(request.user, request.POST, exiger_cible=action in ('create_asset', 'create_installation'))
         # Bulk actions
         if action in (
             'bulk_update_status', 'bulk_update_location', 'bulk_update_ship',
@@ -436,7 +439,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre : seuls les matériels du périmètre de l'appelant sont chargés
             # (self.get_queryset(), scopé via ScopedQuerySetMixin) — un identifiant posté
             # hors périmètre est simplement ignoré, comme s'il n'existait pas.
-            assets = self.get_queryset().filter(id__in=ids)
+            assets = self.get_queryset().filter(q_ecriture(request.user, "service_id")).filter(id__in=ids)
             if action == 'bulk_update_status':
                 status = request.POST.get('status')
                 return _appliquer_bulk_update(
@@ -564,7 +567,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             asset_id = request.POST.get('asset_id')
             folder_id = request.POST.get('folder_id')
             try:
-                a = self.get_queryset().get(pk=uuid_ou_none(asset_id))
+                a = self.get_queryset().filter(q_ecriture(request.user, "service_id")).get(pk=uuid_ou_none(asset_id))
                 a.folder = AssetFolder.objects.filter(pk=entier_ou_none(folder_id)).first() if folder_id else None
                 a.save(update_fields=['folder'])
                 return JsonResponse({'ok': True})
@@ -705,7 +708,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
                 # Périmètre : le matériel visé doit appartenir au périmètre de l'appelant
                 # (self.get_queryset(), scopé) — un identifiant hors périmètre est traité
                 # comme introuvable plutôt que d'être chargé via le manager brut.
-                asset = self.get_queryset().get(pk=uuid_ou_none(pk))
+                asset = self.get_queryset().filter(q_ecriture(request.user, "service_id")).get(pk=uuid_ou_none(pk))
                 asset.internal_id = request.POST.get('internal_id', asset.internal_id).strip()
                 asset.serial_number = request.POST.get('serial_number', asset.serial_number).strip()
                 asset.designation = request.POST.get('designation', asset.designation).strip()
@@ -768,7 +771,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         elif action == 'delete_asset':
             pk = request.POST.get('pk')
             # Périmètre : un matériel hors périmètre est traité comme introuvable.
-            supprimes = self.get_queryset().filter(pk=uuid_ou_none(pk)).delete()[0]
+            supprimes = self.get_queryset().filter(q_ecriture(request.user, "service_id")).filter(pk=uuid_ou_none(pk)).delete()[0]
             if supprimes:
                 messages.success(request, 'Matériel supprimé.')
             else:
@@ -777,7 +780,7 @@ class AssetListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             pk = request.POST.get('pk')
             doc_id = request.POST.get('document_id')
             try:
-                asset = self.get_queryset().get(pk=uuid_ou_none(pk))
+                asset = self.get_queryset().filter(q_ecriture(request.user, "service_id")).get(pk=uuid_ou_none(pk))
                 AssetDocument.objects.filter(pk=entier_ou_none(doc_id), asset=asset).delete()
                 messages.success(request, 'Document supprimé.')
             except Asset.DoesNotExist:

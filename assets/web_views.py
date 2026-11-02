@@ -30,7 +30,7 @@ from django.shortcuts import redirect
 from accounts.models import AuditLog
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import niveau_ecriture
+from matrix.core.ecriture_service import niveau_ecriture_ui
 from matrix.core.saisie import entier_ou_none, uuid_ou_none
 from matrix.core.scopes import is_master_admin
 from org.models import Section, Sector, Service, Ship
@@ -44,7 +44,7 @@ def _peut_gerer_rattachement_parent(user):
     "rattachement_parent_gestion") peuvent créer ou modifier le rattachement
     parent/enfant d'une installation ou d'un matériel (même seuil que les
     tâches d'entretien, cf. MAINTENANCE_WRITE_ACTIONS d'InstallationDetailView)."""
-    return niveau_ecriture(user) >= niveau_requis_pour(user, "rattachement_parent_gestion")
+    return niveau_ecriture_ui(user) >= niveau_requis_pour(user, "rattachement_parent_gestion")
 
 
 def _parent_candidats(model, sector_id, exclure_pks=()):
@@ -223,7 +223,7 @@ def _dossier_gerable(user, dossier):
         return False
     if Asset.objects.filter(folder_id__in=_dossiers_et_descendants(dossier)).exists():
         return True
-    return niveau_ecriture(user) >= niveau_requis_pour(user, 'asset_gestion_avancee')
+    return niveau_ecriture_ui(user) >= niveau_requis_pour(user, 'asset_gestion_avancee')
 
 
 def _afficher_erreur_validation(request, erreur):
@@ -301,7 +301,7 @@ def _noms_par_id(queryset):
 
 def _droits_liste(user, cle_ecriture, cle_gestion):
     """Droits d'écriture et de gestion (actions groupées, suppression) pour une liste."""
-    niveau = niveau_ecriture(user)
+    niveau = niveau_ecriture_ui(user)
     return {
         'peut_ecrire': niveau >= niveau_requis_pour(user, cle_ecriture),
         'peut_gerer': niveau >= niveau_requis_pour(user, cle_gestion),

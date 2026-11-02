@@ -97,3 +97,47 @@ class SilhouetteDuBandeauTests(TestCase):
         page = self.client.get("/")
         self.assertContains(page, 'class="mx-silhouette"')
         self.assertContains(page, "silhouettes/fremm")
+
+
+class TracabiliteArchivageTests(TestCase):
+    """Archiver, restaurer ou modifier un bâtiment du référentiel laisse une trace dans l'historique."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.admin = User.objects.create_superuser(username="admin_ref", password="pass", email="a@b.test")
+        self.client.force_login(self.admin)
+        self.reference = ReferenceBatiment.objects.create(nom="Ancien bâtiment", numero_coque="X 001")
+
+    def _action(self, action):
+        return self.client.post("/admin/org/referencebatiment/", {
+            "action": action, "_selected_action": [self.reference.pk], "index": 0}, follow=True)
+
+    def test_archivage_et_restauration_tracees(self):
+        from accounts.models import AuditLog
+        self._action("archiver")
+        self.reference.refresh_from_db()
+        self.assertTrue(self.reference.archive)
+        trace = AuditLog.objects.get(action="referentiel_batiment_archive")
+        self.assertEqual(trace.actor, self.admin)
+        self.assertIn("X 001", trace.details)
+        self._action("restaurer")
+        self.reference.refresh_from_db()
+        self.assertFalse(self.reference.archive)
+        self.assertTrue(AuditLog.objects.filter(action="referentiel_batiment_restaure").exists())
+
+    def test_un_second_archivage_ne_double_pas_la_trace(self):
+        from accounts.models import AuditLog
+        self._action("archiver")
+        self._action("archiver")
+        self.assertEqual(AuditLog.objects.filter(action="referentiel_batiment_archive").count(), 1)
+
+    def test_changement_de_statut_en_administration_trace(self):
+        from accounts.models import AuditLog
+        reponse = self.client.post(f"/admin/org/referencebatiment/{self.reference.pk}/change/", {
+            "nom": "Ancien bâtiment", "numero_coque": "X 001", "trigramme": "", "classe": "", "port_base": "Brest",
+            "famille": "MARINE", "statut": "RETIRE", "avec_equipage": "on", "source_url": "", "commentaire": "",
+        })
+        self.assertIn(reponse.status_code, (200, 302))
+        self.reference.refresh_from_db()
+        self.assertEqual(self.reference.statut, "RETIRE")
+        self.assertIn("statut -> RETIRE", AuditLog.objects.get(action="referentiel_batiment_modifie").details)

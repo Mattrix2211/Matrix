@@ -15,7 +15,8 @@ from .models import (
 )
 from matrix.core.saisie import entier_ou_none
 from matrix.core.confirmations import CANAL_WEB, MESSAGE_REFUS, confirmation_web, details_confirmation, tracer_refus
-from matrix.core.roles import niveau_ecriture, user_role_level, RoleLevel
+from matrix.core.ecriture_service import niveau_ecriture_sur, niveau_ecriture_ui, q_ecriture
+from matrix.core.roles import user_role_level, RoleLevel
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q, utilisateurs_visibles_par
@@ -167,7 +168,7 @@ def contexte_statut_ticket(ticket, user, erreur_fermeture=None):
         else:
             etat = "avenir"
         frise.append({"libelle": libelle, "etat": etat})
-    peut_changer = niveau_ecriture(user) >= RoleLevel.CHEF_SECTION
+    peut_changer = niveau_ecriture_sur(user, ticket) >= RoleLevel.CHEF_SECTION
     cible = ACTION_SUIVANTE_TICKET.get(ticket.status) if peut_changer else None
     return {
         "ticket": ticket,
@@ -201,7 +202,7 @@ class TicketDetailView(LoginRequiredMixin, View):
         contexte = {
             "ticket": ticket,
             "part_requests": part_requests,
-            "peut_assigner": niveau_ecriture(request.user) >= RoleLevel.CHEF_SECTION,
+            "peut_assigner": niveau_ecriture_sur(request.user, ticket) >= RoleLevel.CHEF_SECTION,
             **contexte_statut_ticket(ticket, request.user),
             **contexte_discussion(ticket, 'ticket-comment-create'),
         }
@@ -210,7 +211,7 @@ class TicketDetailView(LoginRequiredMixin, View):
         contexte["titre_fiche"] = ticket.installation.designation if ticket.installation else str(ticket.asset)
         # L'action principale est l'étape suivante, au centre de la fiche (zone workflow), pas dans l'en-tête.
         contexte["menu_fiche"] = [{"libelle": "Voir la fiche de l'actif", "icone": "materiel", "url": url_actif}]
-        if request.user in ticket.assignees.all() or niveau_ecriture(request.user) >= niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers'):
+        if request.user in ticket.assignees.all() or niveau_ecriture_sur(request.user, ticket) >= niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers'):
             contexte["menu_fiche"].append({
                 "libelle": "Compte rendu d'intervention", "icone": "maintenance", "ecriture": True,
                 "url": reverse('correctif-compte-rendu', args=[ticket.pk]),
@@ -230,9 +231,9 @@ class TicketDetailView(LoginRequiredMixin, View):
         # périmètre de l'appelant (scope_filters_for_user, même filtre que
         # StockPieceListView) et déjà en stock, pour éviter de proposer une
         # pièce impossible à prélever.
-        contexte["peut_prelever_stock"] = niveau_ecriture(request.user) >= niveau_requis_pour(request.user, "stock_ecriture")
+        contexte["peut_prelever_stock"] = niveau_ecriture_sur(request.user, ticket) >= niveau_requis_pour(request.user, "stock_ecriture")
         if contexte["peut_prelever_stock"]:
-            pieces_qs = StockPiece.objects.filter(build_scope_q(request.user, ""))
+            pieces_qs = StockPiece.objects.filter(build_scope_q(request.user, "")).filter(q_ecriture(request.user, "service_id"))
             contexte["pieces_disponibles"] = pieces_qs.filter(quantite__gt=0).order_by('reference')
         if contexte["peut_assigner"]:
             # Assignables : le périmètre hiérarchique du chef (navire entier dès COMMANDANT), comme l'API.
@@ -317,7 +318,7 @@ class TicketAssignView(LoginRequiredMixin, View):
     de ce module (transitions, demandes de pièces)."""
 
     def post(self, request, pk):
-        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture_ui(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         # Périmètre : même filtre que TicketDetailView/CorrectiveTicketViewSet
         # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
@@ -329,6 +330,8 @@ class TicketAssignView(LoginRequiredMixin, View):
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
+        if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
         anciens_assignes = set(ticket.assignees.all())
         ids = request.POST.getlist('assignees')
         # Même filtre que le formulaire (contournement d'un POST direct).
@@ -366,7 +369,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
     """
 
     def post(self, request, pk):
-        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture_ui(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         # Périmètre : même filtre que TicketDetailView/TicketAssignView
         # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
@@ -376,6 +379,8 @@ class TicketTransitionView(LoginRequiredMixin, View):
             ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
+        if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
         new_status = request.POST.get('status')
         if not new_status:
             return HttpResponseBadRequest('Statut requis')
@@ -457,7 +462,7 @@ class TicketCommentCreateView(LoginRequiredMixin, View):
 
 class PartRequestCreateView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture_ui(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         # Périmètre : même filtre que TicketDetailView/TicketAssignView
         # (build_scope_q sur l'actif du ticket) — sans lui, un chef de section
@@ -467,6 +472,8 @@ class PartRequestCreateView(LoginRequiredMixin, View):
             ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
+        if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
         pr = PartRequest.objects.create(ticket=ticket, requested_by=request.user if request.user.is_authenticated else None, needed_by_date=request.POST.get('needed_by_date') or None)
         if request.headers.get('HX-Request'):
             part_requests = ticket.part_requests.prefetch_related('lines').all()
@@ -476,7 +483,7 @@ class PartRequestCreateView(LoginRequiredMixin, View):
 
 class PartLineItemCreateView(LoginRequiredMixin, View):
     def post(self, request, pr_id):
-        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture_ui(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         # Périmètre : une demande de pièces porte sur un ticket, lui-même rattaché
         # à un actif (asset), même filtre que PartRequestCreateView — sans lui, un
@@ -488,6 +495,8 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
             ).get(pk=pr_id)
         except PartRequest.DoesNotExist:
             return HttpResponseBadRequest('Demande introuvable')
+        if niveau_ecriture_sur(request.user, pr.ticket) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
         quantite = entier_ou_none(request.POST.get('qty') or '1')
         if quantite is None:
             messages.error(request, "La quantité doit être un nombre entier.")
@@ -506,7 +515,7 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
 
 class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
     def post(self, request, line_id):
-        if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
+        if niveau_ecriture_ui(request.user) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         # Périmètre : une ligne de pièce porte sur une demande, elle-même rattachée
         # à un ticket puis à un actif (asset), même filtre que
@@ -519,14 +528,16 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
             ).get(pk=line_id)
         except PartLineItem.DoesNotExist:
             return HttpResponseBadRequest('Ligne introuvable')
+        if niveau_ecriture_sur(request.user, line.part_request.ticket) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
         status = request.POST.get('status')
         if not status:
             return HttpResponseBadRequest('Statut requis')
         if status == 'CONSUMED' and line.status != 'CONSUMED':
-            if niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
+            if niveau_ecriture_sur(request.user, line.part_request.ticket) < niveau_requis_pour(request.user, 'stock_ecriture'):
                 messages.warning(request, "Aucune sortie de stock enregistrée : la gestion du stock est réservée à un niveau supérieur au vôtre.")
             else:
-                stock = StockPiece.objects.filter(build_scope_q(request.user, ""))
+                stock = StockPiece.objects.filter(build_scope_q(request.user, "")).filter(q_ecriture(request.user, "service_id"))
                 try:
                     sortie_pour_ligne_consommee(request.user, line, stock)
                 except StockInsuffisant as exc:
@@ -565,7 +576,7 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
     """
 
     def post(self, request, pk):
-        if niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
+        if niveau_ecriture_ui(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
             raise PermissionDenied
         try:
             ticket = CorrectiveTicket.objects.select_related('asset', 'installation').filter(
@@ -573,8 +584,10 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
             return HttpResponseBadRequest('Ticket introuvable')
+        if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
+            raise PermissionDenied
 
-        pieces = StockPiece.objects.filter(build_scope_q(request.user, ""))
+        pieces = StockPiece.objects.filter(build_scope_q(request.user, "")).filter(q_ecriture(request.user, "service_id"))
         try:
             piece = pieces.get(pk=entier_ou_none(request.POST.get('piece_id')))
         except StockPiece.DoesNotExist:
@@ -632,7 +645,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['peut_gerer'] = niveau_ecriture(self.request.user) >= niveau_requis_pour(self.request.user, 'stock_ecriture')
+        ctx['peut_gerer'] = niveau_ecriture_ui(self.request.user) >= niveau_requis_pour(self.request.user, 'stock_ecriture')
         organisation = referentiel_organisation(self.request.user)
         ctx['sectors'] = organisation['sectors'].order_by('service__ship__name', 'service__name', 'name')
         ctx['sections'] = organisation['sections'].order_by('sector__name', 'name')
@@ -683,7 +696,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        if niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
+        if niveau_ecriture_ui(request.user) < niveau_requis_pour(request.user, 'stock_ecriture'):
             raise PermissionDenied
         action = request.POST.get('action')
         if action not in ('create_piece', 'edit_piece'):
@@ -706,6 +719,9 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         if not _secteur_dans_perimetre(request.user, sector.pk):
             messages.error(request, f"Ce secteur ne fait pas partie de {votre_niveau(request.user)}.")
             return redirect('stock-piece-list')
+        # Un état-major n'écrit que dans les services rattachés à sa fonction.
+        if niveau_ecriture_sur(request.user, service_id=sector.service_id) < niveau_requis_pour(request.user, 'stock_ecriture'):
+            raise PermissionDenied
         # La section doit appartenir au secteur choisi, sinon on l'ignore plutôt que
         # de créer une hiérarchie incohérente (Section -> Sector -> Service -> Ship).
         section = Section.objects.filter(pk=entier_ou_none(request.POST.get('section_id')), sector=sector).first()

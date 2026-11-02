@@ -2,9 +2,12 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import UserProfile
+from assets.models import Asset, AssetType
 from calendar_app.evenements_sources import filtres_organisation_coherents
+from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from org.models import Section, Sector, Service, Ship
 
 
@@ -61,7 +64,35 @@ class FiltresHierarchiquesTests(TestCase):
         self.assertIsNone(filtres["sector"])
         self.assertIsNone(filtres["section"])
 
-    def test_l_api_ignore_un_service_hors_perimetre(self):
-        self.client.force_login(self.chef_secteur)
-        reponse = self.client.get(reverse("calendar-events"), {"service": self.ops.pk, "view": "month", "date": "2026-11-02"})
+    def _occurrence(self, service, secteur, designation):
+        type_asset = AssetType.objects.create(name=f"Type {designation}", category="MCO", sector=secteur)
+        asset = Asset.objects.create(
+            asset_type=type_asset, ship=self.navire, service=service, sector=secteur, designation=designation,
+            internal_id=designation[:12],
+        )
+        plan = MaintenancePlan.objects.create(scope="ASSET", asset=asset, name=f"Plan {designation}", every_n_days=30)
+        return MaintenanceOccurrence.objects.create(plan=plan, asset=asset, scheduled_for=timezone.localdate(), status="PLANNED")
+
+    def _titres(self, user, **filtres):
+        self.client.force_login(user)
+        reponse = self.client.get(reverse("calendar-events"), {"view": "month", "date": str(timezone.localdate()), **filtres})
         self.assertEqual(reponse.status_code, 200)
+        return " | ".join(evenement["title"] for evenement in reponse.json())
+
+    def test_un_service_hors_perimetre_ne_renvoie_rien_et_n_elargit_pas_a_tous(self):
+        self._occurrence(self.prop, self.moteurs, "Pompe MOTEURS")
+        self._occurrence(self.ops, self.passerelle, "Radar PASSERELLE")
+        sans_filtre = self._titres(self.chef_secteur)
+        self.assertIn("Pompe MOTEURS", sans_filtre)
+        self.assertNotIn("Radar PASSERELLE", sans_filtre)
+        hors = self._titres(self.chef_secteur, service=self.ops.pk)
+        self.assertNotIn("Radar PASSERELLE", hors)  # jamais de données hors périmètre
+        self.assertNotIn("Pompe MOTEURS", hors)  # et pas d'élargissement à « Tous »
+        propre = self._titres(self.chef_secteur, service=self.prop.pk)
+        self.assertIn("Pompe MOTEURS", propre)
+
+    def test_le_commandant_filtre_service_par_service(self):
+        self._occurrence(self.prop, self.moteurs, "Pompe MOTEURS")
+        self._occurrence(self.ops, self.passerelle, "Radar PASSERELLE")
+        self.assertIn("Radar PASSERELLE", self._titres(self.commandant, service=self.ops.pk))
+        self.assertNotIn("Pompe MOTEURS", self._titres(self.commandant, service=self.ops.pk))

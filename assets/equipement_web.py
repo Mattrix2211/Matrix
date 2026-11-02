@@ -16,7 +16,7 @@ from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import niveau_ecriture
+from matrix.core.ecriture_service import niveau_ecriture_ui, q_ecriture
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import ship_id_for_user
 from org.models import Section, Sector
@@ -33,7 +33,7 @@ def quantite_maximale():
 
 def peut_equiper(user):
     """Même seuil (configurable par navire) que la création d'un matériel ; refus à terre."""
-    return (niveau_ecriture(user) >= niveau_requis_pour(user, "asset_ecriture_simple")
+    return (niveau_ecriture_ui(user) >= niveau_requis_pour(user, "asset_ecriture_simple")
             and not equipage_a_terre_lecture_seule(user))
 
 
@@ -62,7 +62,7 @@ def secteurs_equipables(user):
     filtre = build_scope_q(user, {
         "ship_id": "service__ship_id", "service_id": "service_id",
         "sector_id": "id", "section_id": "sections__id"})
-    return (Sector.objects.filter(filtre, archived=False, service__archived=False, service__ship__archived=False)
+    return (Sector.objects.filter(filtre, q_ecriture(user, "service_id"), archived=False, service__archived=False, service__ship__archived=False)
             .select_related("service__ship").distinct().order_by("service__ship__name", "service__name", "name"))
 
 

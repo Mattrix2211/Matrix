@@ -23,7 +23,8 @@ from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from .perimetre import STATUTS_SANS_RETARD, a_venir_q, perimetre_occurrences_q, retard_q
 from matrix.core.equipage import equipage_a_terre_lecture_seule
 from matrix.core.scopes import soutien_a_terre
-from matrix.core.roles import niveau_ecriture, user_role_level
+from matrix.core.ecriture_service import niveau_ecriture_sur, niveau_ecriture_ui, q_ecriture
+from matrix.core.roles import user_role_level
 from matrix.core.saisie import entier_ou_none, sans_nul, uuid_ou_none
 from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.validators import valider_document, message_erreur_fichier
@@ -84,7 +85,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             ).filter(perimetre_occurrences_q(request.user)).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
             raise Http404('Occurrence introuvable')
-        niveau = niveau_ecriture(request.user) if ecriture else user_role_level(request.user)
+        niveau = niveau_ecriture_sur(request.user, occ) if ecriture else user_role_level(request.user)
         if (request.user not in occ.assignees.all()) and (niveau < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
         return occ, occ.lignes_fiche()
@@ -118,8 +119,8 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         estimee = duree_estimee(occ, version_fiche)
         faits = sum(1 for ligne in lignes if ligne["etat"] or ligne["valeur"])
         deja_termine = bool(execution and execution.completed_at)
-        peut_corriger = niveau_ecriture(request.user) >= niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction')
-        peut_saisir = request.user in occ.assignees.all() or niveau_ecriture(request.user) >= niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')
+        peut_corriger = niveau_ecriture_sur(request.user, occ) >= niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction')
+        peut_saisir = request.user in occ.assignees.all() or niveau_ecriture_sur(request.user, occ) >= niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')
         contexte = {
             "occ": occ, "items": items, "lignes": lignes, "etats": ETATS, "erreurs": erreurs or [],
             "notes": notes, "conformity": conformity, "debut": valeur_datetime(debut), "fin": valeur_datetime(fin),
@@ -154,7 +155,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         deja_termine = bool(execution and execution.completed_at)
         # Un compte rendu terminé ne se corrige qu'avec le seuil de correction (chef de secteur par défaut) ;
         # le marin qui renvoie son propre formulaire (double envoi) est prévenu sans erreur.
-        if deja_termine and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction'):
+        if deja_termine and niveau_ecriture_sur(request.user, occ) < niveau_requis_pour(request.user, 'maintenance_compte_rendu_correction'):
             if execution.executed_by_id != request.user.pk:
                 raise PermissionDenied
             message = "Ce compte rendu est déjà enregistré : seule une correction par un chef de secteur peut le modifier."
@@ -426,7 +427,7 @@ def _assets_disponibles(user):
     """Matériels mobiles utilisables comme périmètre d'un plan de maintenance
     (MaintenancePlan.scope=ASSET), limités au périmètre de l'utilisateur. Un
     Asset porte directement les 4 champs de périmètre, d'où le préfixe vide."""
-    return Asset.objects.filter(build_scope_q(user, "")).select_related("asset_type", "sector").order_by("designation")
+    return Asset.objects.filter(build_scope_q(user, "")).filter(q_ecriture(user, "service_id")).select_related("asset_type", "sector").order_by("designation")
 
 
 def _asset_types_disponibles(user):
@@ -442,7 +443,7 @@ def _asset_types_disponibles(user):
             "service_id": "sector__service_id",
             "sector_id": "sector_id",
         },
-    )).select_related("sector").order_by("name")
+    )).filter(q_ecriture(user, "sector__service_id")).select_related("sector").order_by("name")
 
 
 def _checklists_disponibles(user):
@@ -496,7 +497,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["onglet"] = "plans"
-        ctx["peut_gerer"] = niveau_ecriture(self.request.user) >= niveau_requis_pour(self.request.user, 'maintenance_plan_ecriture')
+        ctx["peut_gerer"] = niveau_ecriture_ui(self.request.user) >= niveau_requis_pour(self.request.user, 'maintenance_plan_ecriture')
         for plan in ctx["plans"]:
             plan.periodicite_affichee = _periodicite_lisible(plan.every_n_days)
             plan.duree_heures = plan.expected_duration_min // 60
@@ -508,7 +509,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
         return ctx
 
     def post(self, request, *args, **kwargs):
-        if niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'maintenance_plan_ecriture'):
+        if niveau_ecriture_ui(request.user) < niveau_requis_pour(request.user, 'maintenance_plan_ecriture'):
             raise PermissionDenied
         action = request.POST.get("action")
         if action not in ("create_plan", "edit_plan"):
@@ -568,7 +569,7 @@ class MaintenancePlanListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView)
             # que StockPieceListView.post) : un plan hors périmètre est traité
             # comme introuvable, pour empêcher un chef de section de modifier
             # un plan d'un autre secteur via un POST direct.
-            if not self.get_queryset().filter(pk=pk).exists():
+            if not self.get_queryset().filter(q_ecriture(request.user, "asset__service_id") | q_ecriture(request.user, "asset_type__sector__service_id"), pk=pk).exists():
                 messages.error(request, "Plan introuvable.")
                 return redirect("maintenance-plans")
             MaintenancePlan.objects.filter(pk=pk).update(updated_by=request.user, **champs)

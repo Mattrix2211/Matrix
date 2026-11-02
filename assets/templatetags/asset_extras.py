@@ -2,7 +2,8 @@ import os
 from django import template
 
 from assets.mesures import formater_heures, formater_ohms
-from matrix.core.roles import RoleLevel, niveau_ecriture
+from matrix.core.ecriture_service import niveau_ecriture_ui
+from matrix.core.roles import RoleLevel
 
 register = template.Library()
 
@@ -24,7 +25,7 @@ def peut_configurer_plan_navire(user) -> bool:
     toute façon ce même seuil côté serveur)."""
     if not getattr(user, "is_authenticated", False):
         return False
-    return niveau_ecriture(user) >= RoleLevel.CHEF_SERVICE
+    return niveau_ecriture_ui(user) >= RoleLevel.CHEF_SERVICE
 
 
 @register.filter

@@ -45,7 +45,7 @@ from matrix.core.export import (
 )
 from matrix.core.mixins import ScopedQuerySetMixin, build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.roles import niveau_ecriture
+from matrix.core.ecriture_service import niveau_ecriture_sur, niveau_ecriture_ui, q_ecriture, verifier_cible_ecriture
 from matrix.core.saisie import identifiant_d_url, uuid_ou_none, uuids_valides, date_fr_ou_none, entier_ou_none, formater_date_fr
 from matrix.core.contexte_batiment import referentiel_organisation
 from threads.utils import contexte_discussion
@@ -338,8 +338,10 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
         cle_seuil = self.ACTION_VERS_SEUIL.get(action)
-        if cle_seuil is not None and niveau_ecriture(request.user) < niveau_requis_pour(request.user, cle_seuil):
+        if cle_seuil is not None and niveau_ecriture_ui(request.user) < niveau_requis_pour(request.user, cle_seuil):
             raise PermissionDenied
+        if cle_seuil is not None:
+            verifier_cible_ecriture(request.user, request.POST, exiger_cible=action == 'create_installation')
         if action in (
             'bulk_update_location', 'bulk_update_ship', 'bulk_update_service',
             'bulk_update_sector', 'bulk_update_section', 'bulk_delete_installations'
@@ -348,7 +350,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # Périmètre : seules les installations du périmètre de l'appelant sont
             # chargées (self.get_queryset(), scopé via ScopedQuerySetMixin) — un
             # identifiant posté hors périmètre est simplement ignoré.
-            items = self.get_queryset().filter(id__in=uuids_valides(ids))
+            items = self.get_queryset().filter(q_ecriture(request.user, "service_id")).filter(id__in=uuids_valides(ids))
             if action == 'bulk_update_location':
                 loc_id = request.POST.get('location_id')
                 loc = Location.objects.filter(pk=entier_ou_none(loc_id)).first()
@@ -494,7 +496,7 @@ class InstallationListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         elif action == 'delete_installation':
             pk = request.POST.get('pk')
             # Périmètre : une installation hors périmètre est traitée comme introuvable.
-            supprimees = self.get_queryset().filter(pk=uuid_ou_none(pk)).delete()[0]
+            supprimees = self.get_queryset().filter(q_ecriture(request.user, "service_id")).filter(pk=uuid_ou_none(pk)).delete()[0]
             if supprimees:
                 messages.success(request, 'Installation supprimée.')
             else:
@@ -769,7 +771,7 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def _entete(self, inst, ctx):
         """Données de l'en-tête de fiche : action principale, menu ⋯ (selon les droits réels) et indicateurs."""
-        niveau = niveau_ecriture(self.request.user)
+        niveau = niveau_ecriture_sur(self.request.user, inst)
         menu = [
             {"libelle": "Signalement libre", "icone": "anomalie", "ecriture": True,
              "url": f"{reverse('anomalie-create')}?installation={inst.pk}"},
@@ -826,13 +828,14 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
-        if action in self.MAINTENANCE_WRITE_ACTIONS and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'installation_entretien_gestion'):
-            raise PermissionDenied
-        if action in self.INSTALLATION_WRITE_ACTIONS and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'installation_ecriture_simple'):
-            raise PermissionDenied
-        if action in self.INSTALLATION_DELETE_ACTIONS and niveau_ecriture(request.user) < niveau_requis_pour(request.user, 'installation_gestion_avancee'):
-            raise PermissionDenied
         inst = self.get_object()
+        niveau = niveau_ecriture_sur(request.user, inst)
+        if action in self.MAINTENANCE_WRITE_ACTIONS and niveau < niveau_requis_pour(request.user, 'installation_entretien_gestion'):
+            raise PermissionDenied
+        if action in self.INSTALLATION_WRITE_ACTIONS and niveau < niveau_requis_pour(request.user, 'installation_ecriture_simple'):
+            raise PermissionDenied
+        if action in self.INSTALLATION_DELETE_ACTIONS and niveau < niveau_requis_pour(request.user, 'installation_gestion_avancee'):
+            raise PermissionDenied
         tab = (request.POST.get('tab') or '').strip()
         tab = tab if tab in ('ensemble','maintenance','mesures','histo','parts') else ''
         qs = f"?tab={tab}" if tab else ''

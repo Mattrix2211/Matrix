@@ -75,6 +75,12 @@ class LiensDirectsTests(TestCase):
         for chemin in ("https://exemple.test/", "//exemple.test/", "javascript:alert(1)", "/\\evil"):
             self.assertIsNone(self.lien(self.marin, url=chemin), chemin)
 
+    def test_ancienne_notification_de_ronde_ne_donne_aucun_lien_mort(self):
+        # Module retiré : la route n'existe plus, la notification reste lisible mais sans lien vers une 404.
+        for chemin in ("/rondes/12/", "/rondes/", "/rondes/modeles/3/"):
+            self.assertIsNone(self.lien(self.marin, url=chemin), chemin)
+        self.assertEqual(self.lien(self.marin, url="/quarts/?vue=planning#haut"), "/quarts/?vue=planning#haut")
+
     def test_niveaux_renommes_et_compteur_unique(self):
         self.assertEqual(dict(NotificationLevel.choices)["warning"], "Important")
         self.assertEqual(dict(NotificationLevel.choices)["danger"], "Urgent")

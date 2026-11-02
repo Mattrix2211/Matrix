@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from .ecriture_service import niveau_ecriture_sur
 from .roles import niveau_ecriture, RoleLevel
 from .role_thresholds import seuil_role, ship_id_de
 from django.contrib.auth import get_user_model
@@ -53,7 +54,8 @@ class RolePermission(BasePermission):
             return True
         if request.user.is_superuser:
             return True
-        lvl = niveau_ecriture(request.user)
+        # Un état-major n'écrit que sur les services rattachés à sa fonction de commandant adjoint.
+        lvl = niveau_ecriture_sur(request.user, obj)
         # Autorise les assignés à modifier leurs propres occurrences/exécutions de maintenance
         model_name = obj.__class__.__name__
         if model_name == 'MaintenanceOccurrence':

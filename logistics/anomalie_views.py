@@ -14,7 +14,8 @@ from accounts.models import AuditLog
 from org.models import Sector
 from assets.models import Asset, Installation
 from matrix.core.mixins import build_scope_q
-from matrix.core.roles import RoleLevel, niveau_ecriture, user_role_level
+from matrix.core.ecriture_service import niveau_ecriture_sur, niveau_ecriture_ui
+from matrix.core.roles import RoleLevel, user_role_level
 from matrix.core.scopes import is_master_admin
 from matrix.core.validators import valider_photo, message_erreur_fichier
 from notifications.models import Notification
@@ -34,8 +35,10 @@ def _est_chef(user):
     return user_role_level(user) >= RoleLevel.CHEF_SECTION
 
 
-def _peut_traiter(user):
-    return niveau_ecriture(user) >= RoleLevel.CHEF_SECTION
+def _peut_traiter(user, anomalie=None):
+    """Traiter une anomalie : un état-major n'agit que sur les services rattachés à sa fonction."""
+    niveau = niveau_ecriture_sur(user, anomalie) if anomalie is not None else niveau_ecriture_ui(user)
+    return niveau >= RoleLevel.CHEF_SECTION
 
 
 def _section_id_du_profil(user):
@@ -291,7 +294,7 @@ class AnomalieDetailView(LoginRequiredMixin, View):
         return render(request, self.template_name, {
             'anomalie': anomalie,
             'statuts': Anomalie.STATUTS,
-            'peut_traiter': _peut_traiter(request.user),
+            'peut_traiter': _peut_traiter(request.user, anomalie),
             'historique': anomalie.status_logs.select_related('user'),
             'commentaires': commentaires_de(anomalie),
         })
@@ -305,6 +308,8 @@ class AnomalieTransitionView(LoginRequiredMixin, View):
         if not _peut_traiter(request.user):
             raise PermissionDenied
         anomalie = _anomalie_visible_ou_404(request.user, pk)
+        if not _peut_traiter(request.user, anomalie):
+            raise PermissionDenied
         nouveau = request.POST.get('statut')
         if nouveau not in dict(Anomalie.STATUTS):
             return HttpResponseBadRequest('Statut invalide')
@@ -341,6 +346,8 @@ class AnomalieConvertirView(LoginRequiredMixin, View):
         if not _peut_traiter(request.user):
             raise PermissionDenied
         anomalie = _anomalie_visible_ou_404(request.user, pk)
+        if not _peut_traiter(request.user, anomalie):
+            raise PermissionDenied
         if anomalie.ticket_id:
             messages.info(request, "Cette anomalie a déjà été convertie en ticket correctif.")
             return redirect('ticket-detail', pk=anomalie.ticket_id)
