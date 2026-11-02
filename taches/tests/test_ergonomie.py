@@ -8,15 +8,16 @@ class ErgonomieTachesTests(TachesBase):
     def test_bouton_attribuer_present_pour_qui_attribue(self):
         self.client.login(username="chef", password="pass")
         html = self.client.get(reverse("taches-index")).content.decode()
-        self.assertIn('href="#attribuer-tache"', html)
-        self.assertIn('id="attribuer-tache"', html)
-        # Le bouton précède les blocs de la page.
-        self.assertLess(html.index('href="#attribuer-tache"'), html.index('<h2 class="h5">Mes tâches'))
+        self.assertIn('data-bs-target="#panneau-attribuer"', html)
+        self.assertIn('id="panneau-attribuer"', html)
+        # Le bouton précède les blocs de la page ; le formulaire vit dans un panneau latéral.
+        self.assertLess(html.index('data-bs-target="#panneau-attribuer"'), html.index('<h2 class="h5">Mes tâches'))
 
     def test_bouton_attribuer_absent_pour_un_equipier(self):
         self.client.login(username="marin", password="pass")
         html = self.client.get(reverse("taches-index")).content.decode()
-        self.assertNotIn("attribuer-tache", html)
+        self.assertNotIn("panneau-attribuer", html)
+        self.assertIn("panneau-tache-personnelle", html)
 
     def test_lien_d_evitement_avant_la_navigation_et_cible_main(self):
         self.client.login(username="chef", password="pass")

@@ -1503,3 +1503,6 @@ main:focus { outline: none; }
 .mx-circuit__etape--en-cours .mx-circuit__etat { color: var(--text); }
 .mx-circuit__detail { font-size: .8125rem; color: var(--text-sec); }
 .mx-circuit__titre { font: 600 .75rem/1 var(--f-mono, monospace); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 var(--s2); padding-top: var(--s3); border-top: 1px solid var(--border); }
+
+/* Colonne latérale de synthèse : reste visible sous le bandeau pendant le défilement de la liste (grands écrans) */
+@media (min-width: 1200px) { .mx-colonne-collante { position: sticky; top: calc(var(--mx-hauteur-navbar) + var(--s3)); } }
