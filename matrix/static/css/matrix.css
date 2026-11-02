@@ -107,6 +107,12 @@
   --red-texte: #FF7F8A;
 
   --bs-link-hover-color: var(--wake);
+  /* Couleurs Bootstrap figées « clair » : textes secondaires, titres de tableau, listes. */
+  --bs-secondary-color: var(--text-sec);
+  --bs-tertiary-color: var(--text-ter);
+  --bs-emphasis-color: var(--text);
+  --bs-secondary-bg: var(--surface);
+  --bs-tertiary-bg: var(--surface);
   color-scheme: dark;
 }
 
