@@ -11,7 +11,6 @@ from assets.models import Asset, AssetType, Installation, InstallationIsolationR
 from logistics.models import Anomalie, CorrectiveTicket, StockPiece
 from maintenance.models import CompteRenduCorrectif, MaintenanceExecution, MaintenanceOccurrence, MaintenancePlan
 from org.models import Sector, Service, Ship
-from rondes.models import Ronde
 
 URL = "/dashboard/comanav/"
 
@@ -107,7 +106,6 @@ class PerimetreTests(BaseComanav):
         StockPiece.objects.create(reference=marque, designation=marque, ship=self.autre, service=self.service_b,
                                   sector=self.secteur_b, quantite=0, quantite_minimale=5)
         Anomalie.objects.create(titre=marque, ship=self.autre, service=self.service_b, sector=self.secteur_b)
-        Ronde.objects.create(nom=marque, ship=self.autre, date_prevue=date(2020, 1, 1))
         InstallationMaintenance.objects.create(installation=installation, periodicity="3 mois", title=marque)
         reponse = self._page(self.comanav)
         self.assertNotContains(reponse, marque)
@@ -192,12 +190,9 @@ class BlocsTests(BaseComanav):
         Anomalie.objects.create(titre="Fuite", gravite=5, ship=self.navire)
         Anomalie.objects.create(titre="Bruit", gravite=2, ship=self.navire, statut="PRISE_EN_COMPTE")
         Anomalie.objects.create(titre="Réglée", ship=self.navire, statut="CLOTUREE")
-        Ronde.objects.create(nom="Passée", ship=self.navire, date_prevue=date(2020, 1, 1))
-        Ronde.objects.create(nom="Faite", ship=self.navire, date_prevue=date(2020, 1, 1), statut=Ronde.TERMINEE)
-        Ronde.objects.create(nom="Future", ship=self.navire, date_prevue=timezone.localdate() + timedelta(days=3))
         reponse = self._page(self.comanav)
         self.assertEqual(self._valeur(reponse, "Chaîne sécurité", "Anomalies ouvertes"), 2)
-        self.assertEqual(self._valeur(reponse, "Chaîne sécurité", "Rondes en retard"), 1)
+        self.assertNotContains(reponse, "Rondes en retard")
         self.assertEqual(self._valeur(reponse, "Chaîne sécurité", "Qualifications"), 0)
 
     def test_logistique(self):

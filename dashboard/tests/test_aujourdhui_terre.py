@@ -82,19 +82,19 @@ class AujourdhuiTerreTests(TestCase):
                 self.client.post(reverse("ticket-comment-create", args=[ticket.pk]), {"body": "Suivi"}).status_code // 100, 3,
             )
         self.client.login(username="ssf", password="pass")
-        self.assertEqual(self.client.get(reverse("ticket-detail", args=[hors_ticket.pk])).status_code, 400)
-        self.assertEqual(self.client.get(reverse("occurrence-execute", args=[hors.pk])).status_code, 400)
+        self.assertEqual(self.client.get(reverse("ticket-detail", args=[hors_ticket.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("occurrence-execute", args=[hors.pk])).status_code, 404)
 
     def test_sans_perimetre_ou_rattache_aucun_gain(self):
         ticket = CorrectiveTicket.objects.create(asset=self.assets[self.ship_b], description="HS", status="BLOCKED")
         User.objects.create_user(username="sans", password="pass")
         self.client.login(username="sans", password="pass")
-        self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 400)
+        self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 404)
         # Rattaché au bâtiment Alpha : la responsabilité de classe n'élargit pas son périmètre.
         self.ssf.profile.ship = self.ship_a
         self.ssf.profile.save()
         self.client.login(username="ssf", password="pass")
-        self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 400)
+        self.assertEqual(self.client.get(reverse("ticket-detail", args=[ticket.pk])).status_code, 404)
 
     def test_a_terre_aucun_bouton_valider_meme_avec_droit(self):
         self._avec_droit_de_gestion(self.ssf)

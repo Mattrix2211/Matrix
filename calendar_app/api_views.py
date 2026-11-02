@@ -33,7 +33,6 @@ from .evenements_sources import (
     _peut_agir_occurrence,
     filtre_identifiant_invalide,
     _peut_agir_ticket,
-    _rondes_a_faire,
     _taches_a_faire,
 )
 
@@ -300,19 +299,6 @@ def calendar_events(request):
                 "editable": False,
                 "extendedProps": {"type": "absence", "status": a.statut, "peut_agir": False},
                 **couleur,
-            })
-    # Rondes à faire : affectation personnelle (ou périmètre du marin).
-    if not filters.get("type") or filters["type"] == "ronde":
-        for ronde in _rondes_a_faire(request.user, start, end):
-            events.append({
-                "id": f"rnd-{ronde.id}",
-                "title": str(ronde.nom),
-                "start": ronde.date_prevue.isoformat(),
-                "end": ronde.date_prevue.isoformat(),
-                "url": f"/rondes/{ronde.id}/",
-                "editable": False,
-                "extendedProps": {"type": "ronde", "status": ronde.statut, "peut_agir": False},
-                **_couleur_evenement("ronde"),
             })
     # Tâches attribuées par un chef : échéance sur le calendrier du marin.
     if not filters.get("type") or filters["type"] == "tache":

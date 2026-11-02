@@ -283,16 +283,6 @@ CELERY_BEAT_SCHEDULE = {
         "task": "maintenance.tasks.compute_overdue",
         "schedule": 60 * 60,
     },
-    # Rondes : proposition quotidienne des rondes échues, puis passage en retard
-    # (même principe que compute_overdue de la maintenance).
-    "generer_rondes_daily": {
-        "task": "rondes.tasks.generer_rondes",
-        "schedule": 60 * 60 * 24,
-    },
-    "marquer_rondes_en_retard_hourly": {
-        "task": "rondes.tasks.marquer_rondes_en_retard",
-        "schedule": 60 * 60,
-    },
     "notify_expiring_training_daily": {
         "task": "notifications.tasks.notify_expiring_training",
         "schedule": 60 * 60 * 24,

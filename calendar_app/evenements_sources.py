@@ -1,5 +1,5 @@
 """Sources d'événements du calendrier central : requêtes communes (filtres,
-périmètre, créneaux, absences, rondes, événements personnels) et agrégation
+périmètre, créneaux, absences, événements personnels) et agrégation
 personnelle d'une journée. Partagé par la vue HTML (index_views.py), l'API
 JSON FullCalendar (api_views.py) et le digest « Ma journée »
 (notifications.tasks) — découpage de calendar_app/views.py par sous-domaine."""
@@ -13,7 +13,6 @@ from training.models import TrainingSession
 from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
 from quarts.web_views import listes_publiees_lisibles
 from quarts.services import feuille_service_du_jour_pour
-from rondes.services import rondes_ouvertes_du_marin
 from absences.models import Absence
 from taches.models import Tache
 from matrix.core.mixins import build_scope_q
@@ -165,13 +164,6 @@ def _absences_periode(start, end, user=None, pour=None):
     return qs
 
 
-def _rondes_a_faire(user, start, end):
-    """Rondes ouvertes du marin (assignées à lui, ou non assignées et dans son
-    périmètre) prévues sur la période — même principe que les autres
-    affectations personnelles du calendrier."""
-    return rondes_ouvertes_du_marin(user).filter(date_prevue__range=(start, end))
-
-
 def _taches_a_faire(user, start, end):
     """Tâches ouvertes attribuées au marin et échues sur la période."""
     return Tache.objects.filter(assigne=user, statut__in=Tache.STATUTS_OUVERTS, echeance__range=(start, end))
@@ -213,7 +205,6 @@ def evenements_utilisateur_jour(user, day):
     # agrégation que le calendrier personnel (calendar_events), pas de
     # système parallèle.
     creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user))
-    rondes = list(_rondes_a_faire(user, day, day))
     absences = list(_absences_periode(day, day, user))
     taches = list(_taches_a_faire(user, day, day))
     # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de
@@ -222,7 +213,7 @@ def evenements_utilisateur_jour(user, day):
     feuille_service = feuille_service_du_jour_pour(user, day)
     return {
         "maintenances": maintenances, "formations": formations, "personnels": personnels,
-        "creneaux": creneaux, "rondes": rondes, "taches": taches, "absences": absences, "feuille_service": feuille_service,
+        "creneaux": creneaux, "taches": taches, "absences": absences, "feuille_service": feuille_service,
     }
 
 

@@ -19,7 +19,6 @@ from accounts.models import (
     AuditLog, ResponsableSpecialite, UserProfile,
 )
 from assets.models import InstallationBigrameChoice, Installation
-from rondes.services import modeles_visibles, rondes_visibles
 from quarts.models import EchangeService
 from quarts.echanges import peut_valider_echange
 from annonces.models import ParametresAnnonces
@@ -157,14 +156,14 @@ def global_search(request):
     # Couverture §37 cahier des charges (recherche universelle) — 9 types sur
     # les 9 listés à l'origine (matériel mobile, installations, tickets
     # correctifs, personnes, formations, documents, anomalies), plus deux
-    # types livrés depuis (modèles de ronde/rondes, échanges de service) hors
+    # type livré depuis (échanges de service) hors
     # de l'énumération initiale mais tout aussi cherchables au quotidien.
     # Volontairement hors périmètre de cette itération : événements de calendrier et discussions — pour
     # éviter la sur-ingénierie et prioriser les types les plus utiles au
     # quotidien en premier.
     q = recherche.normaliser(request.GET.get('q'))
     assets = tickets = users = installations = formations = documents = []
-    anomalies = ronde_modeles = rondes = echanges = taches = []
+    anomalies = echanges = taches = []
     if q:
         # Une catégorie d'un module désactivé pour le navire du marin n'est pas interrogée.
         def actif(cle):
@@ -187,14 +186,6 @@ def global_search(request):
             taches = recherche.taches(request.user, q)[:20]
         # Mêmes personnes que la recherche rapide (navire du marin), identifiant et e-mail en plus.
         users = recherche.marins(request.user, q, avec_identifiants=True)[:20]
-        # Rondes : périmètre "couvrant" propre à l'app rondes (un chef de
-        # secteur/service/navire voit aussi ce qui est en dessous de lui) —
-        # mêmes fonctions que RondesIndexView/ModeleListView.
-        if actif('rondes'):
-            ronde_modeles = modeles_visibles(request.user).filter(
-                Q(nom__icontains=q) | Q(description__icontains=q)
-            )[:20]
-            rondes = rondes_visibles(request.user).filter(Q(nom__icontains=q))[:20]
         # Échanges de service : aucun périmètre géographique simple — visible
         # seulement du demandeur, de la cible, ou du chef de liste habilité à
         # trancher (même règle que _echanges_visibles, quarts/web_views.py).
@@ -213,7 +204,7 @@ def global_search(request):
     return render(request, 'search.html', {
         "q": q, "assets": assets, "tickets": tickets, "users": users,
         "installations": installations, "formations": formations, "documents": documents,
-        "anomalies": anomalies, "ronde_modeles": ronde_modeles, "rondes": rondes, "echanges": echanges, "taches": taches,
+        "anomalies": anomalies, "echanges": echanges, "taches": taches,
     })
 
 

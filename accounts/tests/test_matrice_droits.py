@@ -239,16 +239,16 @@ class ParametresMatriceTests(MatriceDroitsBase):
     def test_modules_bornes_au_navire_de_l_acteur(self):
         for cle, navire, autre in (("admin_a", self.a, self.b), ("commandant", self.a, self.b), ("admin_b", self.b, self.a)):
             self.connecter(cle)
-            self.client.post("/parametre/", {"action": "toggle_module", "cle_module": "rondes", "ship_id": autre.pk})
-            self.assertFalse(ModuleActivation.objects.get(ship=navire, module="rondes").active, cle)
-            self.assertFalse(ModuleActivation.objects.filter(ship=autre, module="rondes").exists(), cle)
+            self.client.post("/parametre/", {"action": "toggle_module", "cle_module": "annonces", "ship_id": autre.pk})
+            self.assertFalse(ModuleActivation.objects.get(ship=navire, module="annonces").active, cle)
+            self.assertFalse(ModuleActivation.objects.filter(ship=autre, module="annonces").exists(), cle)
             ModuleActivation.objects.all().delete()
             self.assertTrue(AuditLog.objects.filter(action="toggle_module", actor=self.acteurs[cle]).exists())
 
     def test_modules_refuse_sous_le_seuil(self):
         for cle in ("chef", "equipier"):
             self.connecter(cle)
-            reponse = self.client.post("/parametre/", {"action": "toggle_module", "cle_module": "rondes"})
+            reponse = self.client.post("/parametre/", {"action": "toggle_module", "cle_module": "annonces"})
             self.assertEqual(reponse.status_code, 403, cle)
         self.assertFalse(ModuleActivation.objects.exists())
 

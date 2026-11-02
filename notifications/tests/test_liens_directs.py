@@ -12,7 +12,6 @@ from notifications.liens import lien_objet, liens_accessibles
 from notifications.models import Notification, NotificationLevel
 from notifications.services import compter_non_lues
 from org.models import Sector, Service, Ship
-from rondes.models import Ronde, RondeModele
 
 
 class LiensDirectsTests(TestCase):
@@ -67,12 +66,9 @@ class LiensDirectsTests(TestCase):
         self.assertEqual(self.lien(self.marin, annonce), reverse("annonce-detail", args=[annonce.pk]))
         self.assertIsNone(self.lien(self._etranger(), annonce))
 
-    def test_anomalie_et_ronde(self):
+    def test_anomalie(self):
         anomalie = Anomalie.objects.create(titre="Odeur", description="x", created_by=self.marin, ship=self.navire)
         self.assertEqual(self.lien(self.marin, anomalie), reverse("anomalie-detail", args=[anomalie.pk]))
-        modele = RondeModele.objects.create(nom="Ronde L", ship=self.navire, sector=self.secteur)
-        ronde = Ronde.objects.create(modele=modele, nom="Ronde L", ship=self.navire, sector=self.secteur, date_prevue="2026-10-10")
-        self.assertEqual(self.lien(self.marin, ronde), reverse("ronde-detail", args=[ronde.pk]))
 
     def test_chemin_interne_seulement(self):
         self.assertEqual(self.lien(self.marin, url="/quarts/"), "/quarts/")

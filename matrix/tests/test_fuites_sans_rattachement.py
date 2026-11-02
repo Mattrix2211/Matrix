@@ -10,13 +10,12 @@ from assets.models import Asset, AssetDocument, AssetType, Installation
 from logistics.models import Anomalie, CorrectiveTicket, StockPiece
 from maintenance.models import MaintenancePlan
 from org.models import Sector, Section, Service, Ship
-from rondes.models import Ronde, RondeModele
 
 MARQUEUR = "FUITEZZ"
 PAGES = [
     "/", "/assets/", "/installations/", "/logistics/tickets/", "/logistics/anomalies/", "/logistics/stock/",
     "/maintenance/gestion/plans/",
-    "/maintenance/gestion/occurrences/", "/quarts/reglages/", "/rondes/", "/rondes/modeles/", "/quarts/", "/formations/", "/calendar/",
+    "/maintenance/gestion/occurrences/", "/quarts/reglages/", "/quarts/", "/formations/", "/calendar/",
     "/search/?q=FUITE", "/users/", "/absences/", "/taches/", "/demandes/", "/annonces/", "/programme/", "/postes/", "/documentation/", "/retex/", "/notifications/",
     "/assets/plan/", "/catalogue/", "/dashboard/comanav/",
 ]
@@ -42,8 +41,6 @@ class FuitesSansRattachementTests(TestCase):
         AssetDocument.objects.create(asset=asset, name=f"{MARQUEUR} document", file=SimpleUploadedFile("d.txt", b"texte"))
         StockPiece.objects.create(reference=f"{MARQUEUR}-S", designation=f"{MARQUEUR} pièce", ship=navire, service=service, sector=secteur)
         MaintenancePlan.objects.create(scope="ASSET", asset=asset, name=f"{MARQUEUR} plan")
-        modele = RondeModele.objects.create(nom=f"{MARQUEUR} modèle de ronde", ship=navire, sector=secteur)
-        Ronde.objects.create(modele=modele, nom=f"{MARQUEUR} ronde", ship=navire, sector=secteur, date_prevue=date.today())
 
     def _isole(self, role):
         user = User.objects.create_user(username=f"isole_{role.lower()}", password="pass")

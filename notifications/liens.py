@@ -119,13 +119,6 @@ def _taches(request, ids):
                      lambda o: reverse("tache-detail", args=[o]))
 
 
-def _rondes(request, ids):
-    from rondes.services import rondes_visibles
-
-    return _visibles(ids, rondes_visibles(request.user).filter(pk__in=_entiers(ids.values())),
-                     lambda o: reverse("ronde-detail", args=[o]))
-
-
 def _occurrences(request, ids):
     # Même contrôle que la page de compte rendu : périmètre, puis assigné ou niveau suffisant
     from maintenance.models import MaintenanceOccurrence
@@ -253,7 +246,6 @@ _RESOLVEURS = {
     "checklisttemplate": _versions,
     "installationmaintenance": _fiches,
     "tache": _taches,
-    "ronde": _rondes,
     "maintenanceoccurrence": _occurrences,
     "echangeservice": _echanges,
     "anomalie": _anomalies,

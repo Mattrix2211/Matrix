@@ -41,8 +41,6 @@ from quarts.models import (
     ChefDeListe, CreneauQuart, CreneauServiceGarde, FeuilleService, FonctionFeuilleService, Quart, RedacteurFeuilleService,
     RubriqueEnTeteFeuilleService, ServiceGarde,
 )
-from rondes.models import PointControle, RondeModele
-from rondes import services as rondes_services
 from taches import services as taches_services
 from taches.models import Tache
 from threads.models import Message, Thread
@@ -69,7 +67,6 @@ class Command(BaseCommand):
         self._materiel_et_installations()
         self._maintenance()
         self._tickets_et_anomalies()
-        self._rondes()
         self._quarts()
         self._service_a_quai()
         self._formations()
@@ -579,26 +576,6 @@ class Command(BaseCommand):
         Message.objects.create(thread=fil, author=chef, body="Roulement commandé, livraison attendue sous quinze jours.")
         Message.objects.create(thread=fil, author=marin, body="Bien reçu, je surveille la température du palier.")
 
-    # ---------- Rondes ----------
-
-    def _rondes(self):
-        modele, cree = RondeModele.objects.get_or_create(nom="Ronde machine du soir", ship=self.bre, defaults=dict(
-            description="Tour des locaux machine avant la nuit.", service=self.bre_s["Propulsion"], sector=self.bre_sec["Moteurs"],
-            periodicite_jours=1, responsable=self.equipier_a))
-        if cree:
-            for ordre, (libelle, cible, mesure, unite) in enumerate([
-                ("Niveau d'huile du groupe", "GE-1", False, ""), ("Température d'eau de refroidissement", "POMPE-RB", True, "°C"),
-                ("Absence de fuite au réducteur", "RED-1", False, ""), ("Propreté du séparateur", "SEP-1", False, "")], start=1):
-                PointControle.objects.create(modele=modele, ordre=ordre, libelle=libelle, installation=self.inst[cible],
-                                             avec_mesure=mesure, unite_mesure=unite, gravite=3)
-        if not modele.rondes.exists():
-            ronde = rondes_services.creer_ronde(modele, acteur=self.equipier_a)
-            ronde.statut, ronde.debut = "EN_COURS", self.maintenant - timedelta(minutes=25)
-            ronde.save()
-            premier = ronde.resultats.order_by("ordre").first()
-            premier.resultat, premier.saisi_par, premier.saisi_le = "CONFORME", self.equipier_a, self.maintenant
-            premier.save()
-
     # ---------- Quarts et services ----------
 
     def _quarts(self):
@@ -778,9 +755,9 @@ class Command(BaseCommand):
             taches_services.signaler_blocage(tache, self.equipier_a2, "Filtre de rechange introuvable en magasin.")
             taches_services.ajouter_participant(tache, chef, ivan)
             taches_services.repondre(tache, ivan, "Une référence équivalente est au magasin de l'équipage B, je la fais passer.")
-        if not Tache.objects.filter(titre="Mettre à jour le registre des rondes machines").exists():
+        if not Tache.objects.filter(titre="Mettre à jour le registre des relevés machines").exists():
             taches_services.creer_tache(
-                chef, self.equipier_a2, "Mettre à jour le registre des rondes machines", self.aujourdhui - timedelta(days=2))
+                chef, self.equipier_a2, "Mettre à jour le registre des relevés machines", self.aujourdhui - timedelta(days=2))
         if not Tache.objects.filter(titre="Préparer mon dossier de formation incendie").exists():
             taches_services.creer_tache(
                 self.equipier_a, self.equipier_a, "Préparer mon dossier de formation incendie", self.aujourdhui + timedelta(days=5),

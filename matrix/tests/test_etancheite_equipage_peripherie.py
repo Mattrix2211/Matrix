@@ -1,5 +1,5 @@
 """Double équipage : les chemins périphériques (calendrier, tableaux de bord, bilans, fiche matériel,
-demandes de pièces) appliquent la même étanchéité que les listes de tickets, d'occurrences et de rondes."""
+demandes de pièces) appliquent la même étanchéité que les listes de tickets, et d'occurrences."""
 from datetime import timedelta
 
 from django.urls import reverse

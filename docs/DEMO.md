@@ -72,7 +72,7 @@ Liens croisés : *Aujourd'hui* → calendrier ; synthèse → suivi et planning 
 - Planning Propulsion publié pour la semaine, brouillon de la semaine suivante, garde de nuit publiée.
 - Tâches : à jouer en direct (Karim), en retard (Lina), bloquée avec fil ouvert à l'équipage B (Lina), terminée, plus une tâche personnelle privée de Karim et une permission de Karim le lendemain de l'échéance.
 - Demande en traitement avec réponse d'Ivan, annonce « Exercice incendie jeudi 14 h » à accuser, exercice au programme.
-- Maintenances, tickets, anomalies, rondes, formations, stock sous le seuil, relève en attente.
+- Maintenances, tickets, anomalies, formations, stock sous le seuil, relève en attente.
 
 ## Limites
 

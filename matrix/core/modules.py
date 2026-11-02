@@ -119,10 +119,6 @@ REGISTRE_MODULES = [
         "Signalement d'une difficulté sur un objet, réponse des interlocuteurs désignés, actions et clôture traçable.",
     ),
     ModuleInfo(
-        "rondes", "Rondes",
-        "Modèles de ronde et points de contrôle configurables, exécution des rondes.",
-    ),
-    ModuleInfo(
         "reports", "Bilans & rapports",
         "Génération de bilans instantané/période (export PDF, CSV, Excel).",
     ),

@@ -77,7 +77,6 @@ GROUPES = [
         Entree("Annonces", "annonce", "annonces-index", module="annonces"),
         Entree("Programme du bâtiment", "calendrier", "programme-index", module="programme"),
         Entree("Difficultés signalées", "discussion", "demandes-index", module="demandes"),
-        Entree("Rondes", "ronde", "rondes-index", module="rondes"),
         Entree("Quarts et gardes", "quart", "quarts-index", module="quarts"),
         Entree("Feuille de service", "feuille_service", "feuille-service-index", module="quarts",
                droit=_a_un_batiment_ou_admin_general),

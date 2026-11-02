@@ -9,7 +9,6 @@ from assets.models import Installation
 from demandes.models import Demande
 from logistics.models import CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
-from rondes.models import Ronde
 from taches.models import Tache
 from training.models import TrainingRecord
 
@@ -51,7 +50,7 @@ def _nature(entree, user):
         return ACTION if objet.accuse_requis else ""
     if isinstance(objet, (Tache, TrainingRecord)):
         return ACTION
-    if isinstance(objet, (MaintenanceOccurrence, CorrectiveTicket, Ronde)):
+    if isinstance(objet, (MaintenanceOccurrence, CorrectiveTicket)):
         return ""
     # Propositions et fiches « à viser » (déjà filtrées par `peut_agir`) et mentions sans réponse.
     return ACTION
@@ -103,8 +102,6 @@ def _champs(entree, user):
         nom, chemin = _equipement(objet.equipement)
         base.update(principal=nom or entree["titre"], contexte=chemin, etat=f"Ticket correctif · {objet.get_status_display()}",
                     echeance=f"{objet.planned_for:%d/%m}" if objet.planned_for else "", non_assigne=not objet.assignees.all())
-    elif isinstance(objet, Ronde):
-        base.update(etat="Ronde en retard" if niveau == "danger" else "Ronde du jour", echeance=f"{objet.date_prevue:%d/%m}")
     elif isinstance(objet, Annonce):
         # Le niveau « danger » est déjà dit par la pastille « Alerte » : ne pas l'afficher « Urgent » à côté.
         niveau_texte = "" if niveau == "danger" else f" · {objet.get_niveau_display()}"

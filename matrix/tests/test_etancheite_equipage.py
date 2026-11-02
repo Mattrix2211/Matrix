@@ -1,4 +1,4 @@
-"""Double équipage : un marin ne lit que les tickets, occurrences et rondes de son équipage ;
+"""Double équipage : un marin ne lit que les tickets et occurrences de son équipage ;
 un bâtiment à équipage unique garde son comportement."""
 from datetime import date
 
@@ -14,10 +14,8 @@ from org.models import Sector, Service, Ship
 from logistics.perimetre import perimetre_tickets_q
 from quarts.tests.test_double_equipage import DoubleEquipageBase, marin
 from matrix.core import recherche
-from rondes.models import Ronde
 from threads.models import Message
 from threads.utils import ajouter_commentaire
-from rondes.services import rondes_visibles
 
 User = get_user_model()
 
@@ -47,10 +45,6 @@ class EtancheiteParEquipageTests(DoubleEquipageBase):
         )
         self.o_bleu.assignees.add(self.a_bleu)
         self.o_rouge.assignees.add(self.a_rouge)
-        self.r_bleu, self.r_rouge, self.r_libre = (
-            Ronde.objects.create(nom=n, ship=self.ship, sector=self.secteur_bleu, date_prevue=date(2030, 1, 1), assigne_a=a)
-            for n, a in (("bleu", self.a_bleu), ("rouge", self.a_rouge), ("libre", None))
-        )
 
     def _api(self, user, url):
         client = APIClient()
@@ -76,15 +70,6 @@ class EtancheiteParEquipageTests(DoubleEquipageBase):
         self.assertEqual(
             _ids(self._api(self.a_rouge, "/api/maintenance/occurrences/")), {str(self.o_rouge.pk), str(self.o_libre.pk)}
         )
-
-    def test_rondes_visibles(self):
-        self.assertEqual(set(rondes_visibles(self.a_bleu)), {self.r_bleu, self.r_rouge, self.r_libre})
-        self.assertEqual(set(rondes_visibles(self.cdt_rouge)), {self.r_bleu, self.r_rouge, self.r_libre})
-        self.assertEqual(set(rondes_visibles(self.a_rouge)), {self.r_rouge, self.r_libre})
-        self.client.force_login(self.a_rouge)
-        self.assertEqual(self.client.get(f"/rondes/{self.r_bleu.pk}/").status_code, 404)
-        self.client.force_login(self.a_bleu)
-        self.assertEqual(self.client.get(f"/rondes/{self.r_rouge.pk}/").status_code, 200)
 
     def test_objet_multi_assigne_visible_une_seule_fois(self):
         self.t_bleu.assignees.add(self.a_rouge, self.b_bleu)
@@ -138,6 +123,4 @@ class EtancheiteParEquipageTests(DoubleEquipageBase):
         asset = Asset.objects.create(asset_type=type_asset, internal_id="T-1", designation="Treuil", ship=navire, service=service, sector=secteur)
         ticket = CorrectiveTicket.objects.create(asset=asset, description="x")
         ticket.assignees.add(b)
-        ronde = Ronde.objects.create(nom="r", ship=navire, sector=secteur, date_prevue=date(2030, 1, 1), assigne_a=b)
         self.assertEqual(_ids(self._api(a, "/api/logistics/tickets/")), {str(ticket.pk)})
-        self.assertIn(ronde, rondes_visibles(a))

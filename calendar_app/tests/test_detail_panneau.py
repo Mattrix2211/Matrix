@@ -137,6 +137,6 @@ class DetailPanneauTests(TestCase):
         self.assertEqual(self.detail("voisin", "absence", absence.pk).status_code, 404)
 
     def test_type_inconnu_et_anonyme(self):
-        self.assertEqual(self.detail("marin", "ronde", 1).status_code, 404)
+        self.assertEqual(self.detail("marin", "inconnu", 1).status_code, 404)
         self.client.logout()
         self.assertEqual(self.client.get(reverse("calendar-detail", args=["tache", self.tache.pk])).status_code, 302)

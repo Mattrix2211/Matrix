@@ -22,7 +22,6 @@ from org.models import RoleThresholdConfig, Service, Ship
 from postes import services as postes
 from retex import services as retex_services
 from retex.models import Retex
-from rondes import services as rondes
 from training.web_views import peut_valider_proposition_bord
 
 
@@ -145,17 +144,15 @@ class FonctionsDuSecondEnLectureTests(Base):
         retex_services.valider(User.objects.get(username="chef_service_a"), proposition)
         self.assertEqual(Retex.objects.get(pk=proposition.pk).etat, Retex.ETAT_VALIDE)
 
-    def test_documentation_postes_rondes_sans_gestion(self):
+    def test_documentation_postes_sans_gestion(self):
         from documentation import services as documentation
 
         second = User.objects.get(username="second_a")
         self.assertFalse(documentation.peut_rediger(second))
         self.assertFalse(postes.peut_gerer(second))
-        self.assertFalse(rondes.peut_gerer_modeles(second))
-        self.assertTrue(rondes.peut_gerer_modeles(User.objects.get(username="chef_service_a")))
         with self.assertRaises(PermissionError):
             postes.creer_poste(second, "Poste", f"ship:{self.bre.pk}")
-        for url in ("/postes/", "/rondes/", "/documentation/", "/formations/", "/retex/"):
+        for url in ("/postes/", "/documentation/", "/formations/", "/retex/"):
             self.assertEqual(self.client_de("second_a").get(url).status_code, 200, url)
 
     def test_formation_pas_de_validation_universelle(self):

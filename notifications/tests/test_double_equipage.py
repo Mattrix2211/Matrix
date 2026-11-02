@@ -1,5 +1,5 @@
 """Double équipage, tranche 5 : notifications, préférences de l'équipage à terre,
-calendrier d'équipe et rondes par équipage ; un navire à équipage unique se
+calendrier d'équipe par équipage ; un navire à équipage unique se
 comporte exactement comme avant."""
 from datetime import timedelta
 
@@ -13,8 +13,6 @@ from calendar_app.evenements_sources import _creneaux_garde_assignes
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
 from quarts.tests.test_double_equipage import DoubleEquipageBase, marin
-from rondes.models import Ronde
-from rondes.services import rondes_du_marin
 
 
 class TranchePreferencesEtVuesTests(DoubleEquipageBase):
@@ -41,11 +39,6 @@ class TranchePreferencesEtVuesTests(DoubleEquipageBase):
         vus = set(_creneaux_garde_assignes(debut, fin, None, self.a_bleu))
         self.assertEqual(vus, {c_bleu})
         self.assertNotIn(c_rouge, vus)
-
-    def test_ronde_non_assignee_reservee_a_l_equipage_a_bord(self):
-        ronde = Ronde.objects.create(nom="Ronde pont", ship=self.ship, date_prevue=self.aujourdhui)
-        self.assertIn(ronde, rondes_du_marin(self.a_bleu))
-        self.assertNotIn(ronde, rondes_du_marin(self.a_rouge))
 
 
 class NotificationsEcheancesParEquipageTests(DoubleEquipageBase):
@@ -111,7 +104,7 @@ class CouvertureQaTranche5Tests(DoubleEquipageBase):
         self.assertIn(c_rouge, set(_creneaux_garde_assignes(debut, fin, None, self.a_rouge)))
         self.assertNotIn(c_bleu, set(_creneaux_garde_assignes(debut, fin, None, self.a_rouge)))
 
-    def test_equipage_unique_calendrier_et_rondes_inchanges(self):
+    def test_equipage_unique_calendrier_inchange(self):
         navire = Ship.objects.create(name="Unique2", code="U2")
         service = Service.objects.create(ship=navire, name="Pont")
         secteur = Sector.objects.create(service=service, name="Manœuvre")
@@ -121,8 +114,6 @@ class CouvertureQaTranche5Tests(DoubleEquipageBase):
         c = self.creneau(garde, b)
         debut, fin = self.aujourdhui, self.aujourdhui + timedelta(days=30)
         self.assertIn(c, set(_creneaux_garde_assignes(debut, fin, None, a)))
-        ronde = Ronde.objects.create(nom="Ronde", ship=navire, date_prevue=self.aujourdhui)
-        self.assertIn(ronde, rondes_du_marin(a))
 
     def test_equipage_unique_preferences_de_notification_inchangees(self):
         navire = Ship.objects.create(name="Unique3", code="U3")

@@ -25,7 +25,6 @@ from threads.mentions import PREFIXE_MENTION
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, navire_q, scope_filters_for_user
 from quarts.echanges import echanges_a_valider as echanges_a_valider_de
 from quarts.models import CreneauQuart, CreneauServiceGarde, ListeServiceAbstract
-from rondes.services import rondes_du_marin
 from taches.services import taches_a_suivre
 from training.models import CandidatureFormation, TrainingCourse, TrainingRecord, TrainingSession, dossiers_formation_visibles_q
 from training.services import qualifications_validees_de
@@ -140,13 +139,6 @@ def a_faire(user, aujourdhui):
             ATTENTION if ticket.status == "BLOCKED" else NORMAL, ticket.severity,
             _echeance(ticket.planned_for or ticket.reported_at),
         ))
-    for ronde in rondes_du_marin(user, aujourdhui):
-        en_retard = ronde.statut == "EN_RETARD" or ronde.date_prevue < aujourdhui
-        entrees.append(_entree(
-            ronde, ronde.nom, "Ronde en retard" if en_retard else "Ronde du jour",
-            reverse("ronde-detail", args=[ronde.pk]), "ronde", DANGER if en_retard else NORMAL, 0,
-            _echeance(ronde.date_prevue),
-        ))
     for tache in taches_a_suivre(user):
         propre = tache.assigne_id == user.pk
         en_retard = tache.en_retard_au(aujourdhui)
@@ -239,7 +231,7 @@ def journee(user, aujourdhui, taches):
         })
     # Sans heure précise : la date seule est connue.
     for entree in taches:
-        if entree["icone"] in ("ronde", "maintenance", "tache") and entree["echeance"] and entree["echeance"].date() == aujourdhui:
+        if entree["icone"] in ("maintenance", "tache") and entree["echeance"] and entree["echeance"].date() == aujourdhui:
             points.append({
                 "heure": None, "libelle": entree["titre"], "icone": entree["icone"], "url": entree["url"],
             })

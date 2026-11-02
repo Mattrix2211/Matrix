@@ -2,11 +2,11 @@
 la vue était accessible sans authentification et sans filtre de périmètre.
 
 Vérifie que la recherche est réservée aux utilisateurs connectés et que
-chaque résultat (matériel, ticket, personne, anomalie, ronde, échange de
+chaque résultat (matériel, ticket, personne, anomalie, échange de
 service) est restreint au périmètre de l'utilisateur — via
 scope_filters_for_user pour les types "historiques", et via les fonctions de
 périmètre propres à chaque app pour les types ajoutés le 22/09/2026
-(anomalies_visibles, modeles_visibles/rondes_visibles, peut_valider_echange) :
+(anomalies_visibles, peut_valider_echange) :
 aucun nouveau système de scope n'est créé, l'existant est réutilisé partout.
 """
 from datetime import timedelta
@@ -22,7 +22,6 @@ from assets.models import Asset, AssetDocument, AssetType, Installation
 from logistics.models import Anomalie, CorrectiveTicket
 from org.models import Sector, Section, Service, Ship
 from quarts.models import ChefDeListe, CreneauServiceGarde, EchangeService, ServiceGarde
-from rondes.models import Ronde, RondeModele
 from training.models import TrainingCourse
 from matrix.core.testing import MediaRootTemporaireMixin
 
@@ -102,22 +101,6 @@ class GlobalSearchViewTests(MediaRootTemporaireMixin, TestCase):
         )
         self.anomalie_hors_perimetre = Anomalie.objects.create(
             titre="Anomalie CIBLE B", created_by=self.autre_marin, updated_by=self.autre_marin,
-        )
-
-        # Ronde : modèle et occurrence rattachés directement au niveau navire
-        # (rondes.services.perimetre_couvrant_q couvre le navire du marin).
-        self.ronde_modele_dans_perimetre = RondeModele(nom="Ronde CIBLE A", created_by=self.marin)
-        self.ronde_modele_dans_perimetre.rattacher(ship=self.navire_a)
-        self.ronde_modele_dans_perimetre.save()
-        self.ronde_modele_hors_perimetre = RondeModele(nom="Ronde CIBLE B", created_by=self.autre_marin)
-        self.ronde_modele_hors_perimetre.rattacher(ship=self.navire_b)
-        self.ronde_modele_hors_perimetre.save()
-
-        self.ronde_dans_perimetre = Ronde.objects.create(
-            nom="Ronde CIBLE A", ship=self.navire_a, date_prevue=timezone.localdate(),
-        )
-        self.ronde_hors_perimetre = Ronde.objects.create(
-            nom="Ronde CIBLE B", ship=self.navire_b, date_prevue=timezone.localdate(),
         )
 
         # Échange de service : visible uniquement du demandeur, de la cible ou
@@ -267,31 +250,13 @@ class GlobalSearchViewTests(MediaRootTemporaireMixin, TestCase):
         self.assertIn(self.anomalie_hors_perimetre, anomalies)
         self.assertNotIn(self.anomalie_dans_perimetre, anomalies)
 
-    def test_recherche_ne_renvoie_que_les_modeles_de_ronde_du_perimetre(self):
+    def test_la_recherche_ne_propose_plus_de_rondes(self):
         self.client.login(username="marin_cible", password="pass")
-        response = self.client.get(self.url, {"q": "CIBLE"})
+        response = self.client.get(self.url, {"q": "ronde"})
         self.assertEqual(response.status_code, 200)
-        modeles = list(response.context["ronde_modeles"])
-        self.assertIn(self.ronde_modele_dans_perimetre, modeles)
-        self.assertNotIn(self.ronde_modele_hors_perimetre, modeles)
-
-    def test_recherche_ne_renvoie_que_les_rondes_du_perimetre(self):
-        self.client.login(username="marin_cible", password="pass")
-        response = self.client.get(self.url, {"q": "CIBLE"})
-        self.assertEqual(response.status_code, 200)
-        rondes = list(response.context["rondes"])
-        self.assertIn(self.ronde_dans_perimetre, rondes)
-        self.assertNotIn(self.ronde_hors_perimetre, rondes)
-
-    def test_recherche_rondes_inversee_pour_lautre_marin(self):
-        self.client.login(username="autre_marin_cible", password="pass")
-        response = self.client.get(self.url, {"q": "CIBLE"})
-        modeles = list(response.context["ronde_modeles"])
-        rondes = list(response.context["rondes"])
-        self.assertIn(self.ronde_modele_hors_perimetre, modeles)
-        self.assertNotIn(self.ronde_modele_dans_perimetre, modeles)
-        self.assertIn(self.ronde_hors_perimetre, rondes)
-        self.assertNotIn(self.ronde_dans_perimetre, rondes)
+        self.assertNotIn("rondes", response.context)
+        self.assertNotIn("ronde_modeles", response.context)
+        self.assertNotContains(response, "Modèles de ronde")
 
     def test_recherche_echange_visible_par_le_demandeur_et_la_cible(self):
         for identifiant in ("svc_demandeur_cible", "svc_cible_cible"):

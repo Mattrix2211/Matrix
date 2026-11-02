@@ -34,7 +34,7 @@ class ComportementParDefautTests(TestCase):
 
     def test_tous_les_modules_du_registre_sont_actifs_par_defaut(self):
         ship = Ship.objects.create(name="Frégate Défaut", code="FR-DEF")
-        for cle in ("assets", "maintenance", "logistics", "training", "quarts", "rondes", "reports"):
+        for cle in ("assets", "maintenance", "logistics", "training", "quarts", "reports"):
             self.assertTrue(module_actif(cle, ship.id), f"{cle} devrait être activé par défaut")
 
     def test_module_inconnu_du_registre_toujours_considere_actif(self):

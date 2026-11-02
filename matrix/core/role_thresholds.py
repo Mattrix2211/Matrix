@@ -122,11 +122,6 @@ REGISTRE_ACTIONS = [
         "Maintenance", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
     ),
     ActionSeuil(
-        "ronde_gestion",
-        "Créer ou modifier un modèle de ronde et ses points de contrôle",
-        "Rondes", PORTEE_NAVIRE, RoleLevel.CHEF_SECTION,
-    ),
-    ActionSeuil(
         "supervision_aujourdhui",
         "Voir le bloc Supervision (retards, validations, indicateurs du secteur ou du service) de la page Aujourd'hui",
         "Tableau de bord", PORTEE_NAVIRE, RoleLevel.CHEF_SECTEUR,

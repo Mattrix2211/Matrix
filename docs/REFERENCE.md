@@ -82,7 +82,7 @@ Tout vient des comptes rendus : aucune double saisie.
 | `quarts` | Quarts, services et gardes, chef de liste, échanges, équité, feuille de service quotidienne (visa jusqu'au COMAEQ, scénarios d'alerte protection-défense) |
 | `absences` | Absences et indisponibilités des marins, prises en compte par les échanges, la génération des listes et le calendrier |
 | `taches` | Tâches attribuées par un chef ou créées par le marin, blocage, compte rendu, fil de discussion, relances d'échéance, vue d'avancement, réglages de la flotte |
-| `rondes` | Modèles de rondes, points de contrôle, exécutions |
+| `rondes` | Module retiré : plus de route, de menu, de tâche ni d'écran ; modèles et migrations conservés pour l'historique |
 | `threads` | Discussions attachées à n'importe quel objet |
 | `notifications` | Alertes in-app + Web Push (niveau danger) |
 | `dashboard` | Page « Aujourd'hui » (espace personnel) et tableaux par périmètre |
@@ -134,7 +134,7 @@ Trois actes exigent une confirmation, en web comme en API : clôture « Terminé
 | 1 — Socle | Organisation, utilisateurs, permissions, configuration, notifications, recherche, audit |
 | 2 — Vie quotidienne | Mon espace, calendrier, tâches, quarts, services, chefs de liste, échanges |
 | 3 — Communication | Discussions, annonces, conversations contextuelles |
-| 4 — Opérationnel | Équipements, catalogue, fiches de maintenance, comptes rendus, anomalies, rondes, logistique |
+| 4 — Opérationnel | Équipements, catalogue, fiches de maintenance, comptes rendus, anomalies, logistique |
 | 5 — Connaissance | Documentation, formations, qualifications, RETEX |
 | 6 — Pilotage | Tableaux de bord par niveau, indicateurs, rapports, vue SSF |
 | 7 — Écosystème | Synchronisation bâtiment ↔ terre, API, interopérabilité, multi-bâtiments |

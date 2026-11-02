@@ -4,7 +4,7 @@ Contrôles faits au navigateur (Playwright, Chromium) sur la base de démonstrat
 
 ## 1366×768 (poste du bord)
 
-Compte chef de section : les 25 pages du menu latéral (Aujourd'hui, Calendrier, Matériels, Installations, Catalogue, Plan du navire, Maintenance, Tickets, Anomalies, Logistique, Tâches, Annonces, Programme, Demandes, Rondes, Quarts, Feuille de service, Absences, Formations, Postes, Documentation, RETEX, Prêt à appareiller, Flotte, Paramètres) : aucun débordement horizontal, aucune erreur console.
+Compte chef de section : les 24 pages du menu latéral (Aujourd'hui, Calendrier, Matériels, Installations, Catalogue, Plan du navire, Maintenance, Tickets, Anomalies, Logistique, Tâches, Annonces, Programme, Demandes, Quarts, Feuille de service, Absences, Formations, Postes, Documentation, RETEX, Prêt à appareiller, Flotte, Paramètres) : aucun débordement horizontal, aucune erreur console.
 
 Parcours Formation : catalogue (cartes par catégorie, filtres, gestion de l'unité repliée), fiche formation (en-tête standard, sessions, candidature, demande de places), arbre de compétences (légende validé / disponible / verrouillé).
 

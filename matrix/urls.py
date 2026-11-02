@@ -54,7 +54,6 @@ urlpatterns = [
     path("postes/", include("postes.web_urls")),
     path("documentation/", include("documentation.web_urls")),
     path("retex/", include("retex.web_urls")),
-    path("rondes/", include("rondes.web_urls")),
     path("", include("assets.web_urls")),
     path("", include("reports.web_urls")),
     path("brouillons/", BrouillonView.as_view(), name="brouillon"),

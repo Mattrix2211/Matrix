@@ -172,7 +172,7 @@ Barre latérale **rétractable**, avec libellés texte (pas seulement des icône
 - **Personnel** — Aujourd'hui, Calendrier
 - **Équipements** — Matériels, Installations, Catalogue, Plan du navire, Configurer le plan du navire (selon les droits)
 - **Maintenance** — Maintenance, Tickets correctifs, Anomalies, Logistique
-- **Activité** — Tâches, Annonces, Difficultés signalées (ex-« Demandes bord–terre »), Rondes, Quarts et gardes, Feuille de service, Absences
+- **Activité** — Tâches, Annonces, Difficultés signalées (ex-« Demandes bord–terre »), Quarts et gardes, Feuille de service, Absences
 - **Compétences** — Formations
 - **Supervision** (selon les droits) — Prêt à appareiller, Flotte, Spécialités, Classes de navire
 - **Administration** (selon les droits) — Annuaire, Paramètres
@@ -212,13 +212,12 @@ Le libellé « Tableau de bord » est remplacé par **« Aujourd'hui »** : le c
 ```
 [rouge]  Maintenance pompe incendie — en retard, prévue hier
 [ambre]  Intervention DA2 — en attente de validation
-         Ronde sécurité — 10:30
          Formation incendie — 14:00
 ```
 
 **Brouillons à reprendre** — comptes rendus ou saisies non terminés.
 
-**Ma journée** — frise : 08:00 Quart · 10:30 Ronde · 14:00 Formation · 18:00 Service.
+**Ma journée** — frise : 08:00 Quart · 14:00 Formation · 18:00 Service.
 
 **Informations secondaires** (plus bas) — qualifications, prochaines échéances, équité, activité passée.
 
@@ -430,10 +429,6 @@ Gabarit dédié, pensé pour le parcours papier puis saisie :
 - Zone principale : **étape actuelle** et **action suivante** (« Passer aux essais »).
 - Fonctions secondaires (assignation, pièces, stock consommé, discussion, historique, REX) accessibles mais pas toutes au même niveau d'importance.
 
-### 20.3 Rondes
-
-Séparer **À faire** et **Historique**. Une ronde en cours passe avant les statistiques et les anciennes rondes.
-
 ### 20.4 Quarts et services de garde
 
 - Vues : **Planning** (principale), **Échanges**, **Équité**, **Paramètres**.
@@ -551,7 +546,7 @@ La refonte suit un **parcours séparé** des Phases 0 à 7 du cahier des charges
 | **UX-1 — Navigation globale** | Barre latérale, barre supérieure (utilisateur visible, déconnexion, notifications, thème), déconnexion automatique configurable | Critique |
 | **UX-2 — Aujourd'hui** | Page « Aujourd'hui » bord, lecture seule équipage à terre, vue flotte des utilisateurs à terre | Critique |
 | **UX-3 — Maintenance et installations** | Fiche installation, saisie de compte rendu (unitaire et en grille), fiche papier imprimable, mesures, exécution en direct | Critique |
-| **UX-4 — Correctif** | Tickets, anomalies, rondes | Haute |
+| **UX-4 — Correctif** | Tickets, anomalies | Haute |
 | **UX-5 — Planning** | Calendrier, quarts, gardes | Haute |
 | **UX-6 — Équipements** | Matériels, installations, ajout depuis le catalogue, tableaux, sélection multiple, filtres | Haute |
 | **UX-7 — Formation** | Catalogue, arbre de compétences, formations | Moyenne |

@@ -1,6 +1,6 @@
 # Matrix
 
-Plateforme numérique opérationnelle quotidienne pour la Marine nationale française — quarts, services à quai et échanges, calendrier, maintenance préventive et corrective, matériel mobile, rondes, anomalies, formations, logistique, notifications, tableaux de bord. La maintenance (GMAO) est un module de Matrix, pas sa finalité : l'objectif est que chaque marin ouvre Matrix tous les jours, pas seulement quand il touche à un équipement.
+Plateforme numérique opérationnelle quotidienne pour la Marine nationale française — quarts, services à quai et échanges, calendrier, maintenance préventive et corrective, matériel mobile, anomalies, formations, logistique, notifications, tableaux de bord. La maintenance (GMAO) est un module de Matrix, pas sa finalité : l'objectif est que chaque marin ouvre Matrix tous les jours, pas seulement quand il touche à un équipement.
 
 **Vision, cahier des charges et feuille de route : page Notion « Cahier des charges » du projet Matrix** (il n'existe pas de fichier de vision dans ce dépôt). `CLAUDE.md` contient les règles techniques pour Claude Code et renvoie vers les pages Notion de référence. `docs/archive/` ne contient que des documents historiques.
 
@@ -100,7 +100,7 @@ Les tests nécessitent un fichier `.env` local contenant au minimum `DJANGO_DEBU
 - `training` — formations, prérequis (anti-cycle), catégories, arbre de compétences visuel, référents habilités par formation, réservation self-service de sessions
 - `quarts` — quarts, services à quai et gardes, listes du chef de liste, échanges de service, compteur d'équité, feuille de service quotidienne
 - `absences` — absences et indisponibilités, prises en compte dans les échanges, la génération des listes et le calendrier
-- `rondes` — rondes de contrôle avec points de contrôle configurables et anomalies automatiques
+- `rondes` — module retiré de l'application (décision métier) ; seuls ses modèles et ses migrations subsistent pour conserver les données historiques
 - `threads` — discussions génériques attachées à n'importe quel objet
 - `notifications` — alertes in-app (info/warning/danger) + Web Push pour le niveau danger
 - `dashboard` — tableau de bord personnel + vue flotte scopée au périmètre du chef connecté (rôles CHEF_SECTION et au-dessus : section, secteur, navire ou flotte entière selon le rôle)

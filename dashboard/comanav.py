@@ -30,7 +30,6 @@ from matrix.core.contexte_batiment import batiment_courant, batiments_du_perimet
 from matrix.core.equipage import ROLES_COMMANDEMENT
 from matrix.core.scopes import assignes_equipage_q, is_master_admin, navire_q
 from org.models import CommandantAdjoint
-from rondes.models import Ronde
 from training.models import navire_de
 
 JOURS_INTERVENTIONS = 30
@@ -171,18 +170,12 @@ def _chaine_securite(user, navire, aujourdhui):
     anomalies = Anomalie.objects.filter(navire_q(navire.pk), statut__in=STATUTS_ANOMALIE_OUVERTS)
     ouvertes = anomalies.count()
     critiques = anomalies.filter(gravite__gte=GRAVITE_CRITIQUE).count()
-    perimetre_ronde = Q(ship_id=navire.pk) | Q(service__ship_id=navire.pk) | Q(sector__service__ship_id=navire.pk)
-    rondes = Ronde.objects.filter(
-        perimetre_ronde, assignes_equipage_q(user, Ronde, "assigne_a"),
-        statut__in=Ronde.STATUTS_OUVERTS, date_prevue__lt=aujourdhui,
-    ).count()
     qualifications = qualifications_equipe(user, aujourdhui, navire)
     return _bloc(
         "Chaîne sécurité", "ronde",
         [
             _indicateur("Anomalies ouvertes", ouvertes, f"{reverse('anomalie-list')}?vue=perimetre", _etat(ouvertes),
                         detail=f"dont {critiques} critique(s)" if critiques else ""),
-            _indicateur("Rondes en retard", rondes, reverse("rondes-index"), _etat(rondes, "danger")),
             _indicateur("Qualifications à renouveler", len(qualifications), reverse("formation-list"),
                         _etat(any(q["expiree"] for q in qualifications), "danger") if qualifications else "ok"),
         ],
