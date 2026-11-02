@@ -208,7 +208,7 @@ class GestionMaintenanceWebViewsTests(TestCase):
         self.client.login(username="equipier_a", password="pass")
         url = reverse("occurrence-self-assign", args=[self.occ_b.pk])
         response = self.client.post(url)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
         self.occ_b.refresh_from_db()
         self.assertNotIn(self.equipier, self.occ_b.assignees.all())
 

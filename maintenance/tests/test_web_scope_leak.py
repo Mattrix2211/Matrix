@@ -60,12 +60,12 @@ class ScopeLeakOccurrenceExecuteViewTests(TestCase):
     def test_get_occurrence_dun_autre_navire_refusee(self):
         url = reverse("occurrence-execute", args=[self.occ_b.id])
         r = self.client.get(url)
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
 
     def test_post_occurrence_dun_autre_navire_refusee(self):
         url = reverse("occurrence-execute", args=[self.occ_b.id])
         r = self.client.post(url, {"conformity": "CONFORME"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.occ_b.refresh_from_db()
         self.assertEqual(self.occ_b.status, "ASSIGNED")
 
@@ -123,7 +123,7 @@ class ScopeLeakOccurrenceCommentCreateViewTests(TestCase):
     def test_commentaire_sur_occurrence_dun_autre_navire_refuse(self):
         url = reverse("occurrence-comment-create", args=[self.occ_b.id])
         r = self.client.post(url, {"body": "Je m'incruste depuis un autre navire"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.assertFalse(Message.objects.filter(body="Je m'incruste depuis un autre navire").exists())
 
     def test_commentaire_sur_occurrence_de_son_propre_navire_autorise(self):

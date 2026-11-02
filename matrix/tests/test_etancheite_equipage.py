@@ -65,7 +65,7 @@ class EtancheiteParEquipageTests(DoubleEquipageBase):
         self.assertEqual(_ids(self._api(self.a_rouge, "/api/logistics/tickets/")), {str(self.t_rouge.pk), str(self.t_libre.pk)})
         self.client.force_login(self.a_rouge)
         self.assertEqual(self.client.get("/logistics/tickets/").status_code, 200)
-        self.assertEqual(self.client.get(f"/logistics/tickets/{self.t_bleu.pk}/").status_code, 400)
+        self.assertEqual(self.client.get(f"/logistics/tickets/{self.t_bleu.pk}/").status_code, 404)
         self.client.force_login(self.a_bleu)
         self.assertEqual(self.client.get(f"/logistics/tickets/{self.t_rouge.pk}/").status_code, 200)
 

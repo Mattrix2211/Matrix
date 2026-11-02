@@ -83,7 +83,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
                 'installation_maintenance', 'installation_maintenance__installation',
             ).filter(perimetre_occurrences_q(request.user)).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
-            return None, None, HttpResponseBadRequest('Occurrence introuvable')
+            raise Http404('Occurrence introuvable')
         niveau = niveau_ecriture(request.user) if ecriture else user_role_level(request.user)
         if (request.user not in occ.assignees.all()) and (niveau < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
@@ -374,7 +374,7 @@ class OccurrenceCommentCreateView(LoginRequiredMixin, View):
                 perimetre_occurrences_q(request.user)
             ).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
-            return HttpResponseBadRequest('Occurrence introuvable')
+            raise Http404('Occurrence introuvable')
         if (request.user not in occ.assignees.all()) and (user_role_level(request.user) < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
         corps = sans_nul(request.POST.get("body", "")).strip()
@@ -658,7 +658,7 @@ class MaintenanceOccurrenceSelfAssignView(LoginRequiredMixin, View):
         try:
             occ = MaintenanceOccurrence.objects.filter(filtres).get(pk=pk)
         except MaintenanceOccurrence.DoesNotExist:
-            return HttpResponseBadRequest(f"Occurrence introuvable ou hors de {votre_niveau(request.user)}.")
+            raise Http404("Occurrence introuvable")
 
         if request.user in occ.assignees.all():
             occ.assignees.remove(request.user)

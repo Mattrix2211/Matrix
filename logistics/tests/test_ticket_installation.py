@@ -62,7 +62,7 @@ class TicketInstallationTests(_JeuDeDonnees):
 
     def test_hors_perimetre_introuvable(self):
         self.client.login(username="etranger", password="Motdepasse1")
-        self.assertEqual(self.client.get(reverse("ticket-detail", args=[self.ticket.pk])).status_code, 400)
+        self.assertEqual(self.client.get(reverse("ticket-detail", args=[self.ticket.pk])).status_code, 404)
         self.client.post(reverse("ticket-transition", args=[self.ticket.pk]), {"status": "CANCELLED"})
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.status, "TESTING")

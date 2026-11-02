@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest
 from django.urls import reverse
 from django.utils import timezone
 from django.db import transaction
@@ -196,7 +196,7 @@ class TicketDetailView(LoginRequiredMixin, View):
                 .get(pk=pk)
             )
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseBadRequest('Ticket introuvable')
+            raise Http404('Ticket introuvable')
         part_requests = ticket.part_requests.prefetch_related('lines').all()
         contexte = {
             "ticket": ticket,

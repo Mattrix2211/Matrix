@@ -49,16 +49,23 @@ def batiments_du_perimetre(user):
 
 def referentiel_organisation(user):
     """Bâtiments du périmètre de l'utilisateur et leur organisation (services, secteurs, sections),
-    pour les listes déroulantes de filtre : jamais les noms des autres bâtiments."""
+    pour les listes déroulantes de filtre : jamais les autres bâtiments, ni les services, secteurs ou
+    sections hors de sa hiérarchie (un chef de secteur ne voit que son secteur et ses sections)."""
     from org.models import Section, Sector, Service
+    from .mixins import build_scope_q
 
     navires = batiments_du_perimetre(user)
+    services = Service.objects.filter(ship__in=navires).filter(build_scope_q(user, {
+        "ship_id": "ship_id", "service_id": "id", "sector_id": "sectors__id", "section_id": "sectors__sections__id"}))
+    secteurs = Sector.objects.filter(service__ship__in=navires).filter(build_scope_q(user, {
+        "ship_id": "service__ship_id", "service_id": "service_id", "sector_id": "id", "section_id": "sections__id"}))
+    sections = Section.objects.filter(sector__service__ship__in=navires).filter(build_scope_q(user, {
+        "ship_id": "sector__service__ship_id", "service_id": "sector__service_id", "sector_id": "sector_id", "section_id": "id"}))
     return {
         "ships": navires,
-        "services": Service.objects.filter(ship__in=navires).select_related("ship").order_by("name"),
-        "sectors": Sector.objects.filter(service__ship__in=navires).select_related("service", "service__ship").order_by("name"),
-        "sections": Section.objects.filter(sector__service__ship__in=navires).select_related(
-            "sector", "sector__service", "sector__service__ship").order_by("name"),
+        "services": services.select_related("ship").distinct().order_by("name"),
+        "sectors": secteurs.select_related("service", "service__ship").distinct().order_by("name"),
+        "sections": sections.select_related("sector", "sector__service", "sector__service__ship").distinct().order_by("name"),
     }
 
 

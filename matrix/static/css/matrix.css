@@ -1490,7 +1490,7 @@ main:focus { outline: none; }
 .mx-circuit__etapes { border-left: 2px solid var(--border); margin-left: var(--s1); padding-left: var(--s3); }
 .mx-circuit__etape { position: relative; display: flex; flex-direction: column; gap: 2px; padding-bottom: var(--s3); }
 .mx-circuit__etape::before { content: ""; position: absolute; left: calc(-1 * var(--s3) - 7px); top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border); }
-.mx-circuit__etape--fait::before { background: var(--green-tech, #16B84E); border-color: var(--green-tech, #16B84E); }
+.mx-circuit__etape--fait::before { background: var(--green-tech); border-color: var(--green-tech); }
 .mx-circuit__etape--en-cours::before { background: var(--signal-ui); border-color: var(--signal-ui); }
 .mx-circuit__etape--saute { opacity: .7; }
 .mx-circuit__etat { font: 600 .6875rem/1 var(--f-mono, monospace); text-transform: uppercase; letter-spacing: .04em; color: var(--text-sec); }
