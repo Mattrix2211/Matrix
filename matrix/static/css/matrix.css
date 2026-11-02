@@ -1114,6 +1114,7 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
   .mx-lateral__entete { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; min-height: var(--mx-hauteur-navbar); padding: 0 var(--s2); }
   .mx-lateral__marque { font: 700 1.1rem/1 var(--f-display); color: var(--text); text-decoration: none; }
   .mx-lateral__entete .btn-close { min-width: 44px; min-height: 44px; background-origin: content-box; padding: 16px; }
+  [data-theme="sombre"] .mx-lateral__entete .btn-close { filter: invert(1) grayscale(1); }
   .mx-lateral__bascule { display: none; }
   /* En-têtes de page titre + boutons : les boutons passent à la ligne au lieu de déborder. */
   .mx-coque__contenu .d-flex.justify-content-between { flex-wrap: wrap; gap: var(--s2); }
