@@ -4,6 +4,8 @@
 <h1 class="h3 mb-3">Gestion de la maintenance</h1>
 {% include 'maintenance/_gestion_tabs.html' %}
 
+<div class="row g-4">
+<div class="col-xl-9">
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
   <div class="btn-group flex-wrap" role="group" aria-label="Filtre par statut">
     <a href="?" class="btn btn-sm {% if not statut_actif %}btn-primary{% else %}btn-outline-primary{% endif %}">Tous les statuts</a>
@@ -16,16 +18,9 @@
   </a>
 </div>
 
-{% if tournee_ids %}
-<div class="mb-3 d-flex flex-wrap gap-2">
-  <a class="btn btn-sm btn-outline-secondary" href="{% url 'tournee-imprimer' %}?ids={{ tournee_ids }}" target="_blank" rel="noopener">Imprimer la tournée (un tableau par catégorie)</a>
-  <a class="btn btn-sm btn-outline-secondary" href="{% url 'tournee-saisie' %}?ids={{ tournee_ids }}">Saisir la tournée en grille</a>
-</div>
-{% endif %}
-
 <div class="card">
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
+    <table class="table table-hover align-middle mb-0 mx-table-cartes">
       <thead>
         <tr>
           <th>Équipement</th>
@@ -39,22 +34,22 @@
         {% for occ in occurrences %}
         <tr>
           <td>{{ occ.titre_affiche }}</td>
-          <td class="font-mono">
+          <td class="font-mono" data-label="Échéance">
             {{ occ.scheduled_for|date:"d/m/Y" }}
             {% if occ.en_retard %}<span class="badge text-bg-danger ms-1" title="Échéance dépassée">En retard</span>{% endif %}
           </td>
-          <td><span class="badge {{ occ.badge_classe }}">{{ occ.get_status_display }}</span></td>
-          <td class="small text-muted">
+          <td data-label="Statut"><span class="badge {{ occ.badge_classe }}">{{ occ.get_status_display }}</span></td>
+          <td class="small text-muted" data-label="Assignés">
             {% for m in occ.assignees.all %}{{ m.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
           </td>
-          <td class="text-end">
+          <td class="text-end text-nowrap mx-table-cartes__actions">
             {% if not soutien_a_terre and not equipage_a_terre %}<form method="post" action="{% url 'occurrence-self-assign' occ.pk %}" class="d-inline">
               {% csrf_token %}
               <button type="submit" class="btn btn-sm {% if occ.suis_assigne %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
                 {% if occ.suis_assigne %}Me désister{% else %}M'assigner{% endif %}
               </button>
             </form>{% endif %}
-            <a href="{% url 'occurrence-imprimer' occ.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">Imprimer</a>
+            <a href="{% url 'occurrence-imprimer' occ.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="Imprimer la fiche" aria-label="Imprimer la fiche : {{ occ.titre_affiche }}">{% icone "impression" %}</a>
             <a href="{% url 'occurrence-execute' occ.pk %}" class="btn btn-sm btn-outline-success">{% if soutien_a_terre or equipage_a_terre %}Ouvrir{% else %}Exécuter{% endif %}</a>
           </td>
         </tr>
@@ -64,5 +59,31 @@
       </tbody>
     </table>
   </div>
+</div>
+</div>
+<aside class="col-xl-3 order-first order-xl-last" aria-label="Synthèse de la maintenance">
+  <div class="mx-colonne-collante">
+    <section class="card card-body mb-3">
+      <h2 class="h6 text-uppercase mb-3">À traiter</h2>
+      <ul class="mx-chiffres">
+        <li><a href="?retard=1" class="mx-chiffres__ligne{% if synthese.en_retard %} mx-chiffres__ligne--danger{% endif %}"><span>En retard</span><strong>{{ synthese.en_retard }}</strong></a></li>
+        <li><a href="?statut=WAITING_VALIDATION" class="mx-chiffres__ligne"><span>En validation</span><strong>{{ synthese.a_valider }}</strong></a></li>
+        <li><a href="?a_venir=1" class="mx-chiffres__ligne"><span>À venir</span><strong>{{ synthese.a_venir }}</strong></a></li>
+        <li><span class="mx-chiffres__ligne"><span>Sans assigné</span><strong>{{ synthese.non_assignees }}</strong></span></li>
+        <li><span class="mx-chiffres__ligne"><span>Assignées à moi</span><strong>{{ synthese.miennes }}</strong></span></li>
+      </ul>
+    </section>
+    {% if tournee_ids %}
+    <section class="card card-body">
+      <h2 class="h6 text-uppercase mb-3">Tournée</h2>
+      <div class="d-grid gap-2">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'tournee-imprimer' %}?ids={{ tournee_ids }}" target="_blank" rel="noopener">Imprimer la tournée</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'tournee-saisie' %}?ids={{ tournee_ids }}">Saisir en grille</a>
+      </div>
+      <p class="small text-secondary mb-0 mt-2">Un tableau par catégorie, dans l'ordre de la fiche imprimée.</p>
+    </section>
+    {% endif %}
+  </div>
+</aside>
 </div>
 {% endblock %}

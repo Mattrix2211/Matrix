@@ -635,6 +635,16 @@ class MaintenanceOccurrenceListView(LoginRequiredMixin, ScopedQuerySetMixin, Lis
             occ.badge_classe = _BADGE_STATUT_OCCURRENCE.get(occ.status, "bg-secondary")
             occ.en_retard = occ.scheduled_for < aujourdhui and occ.status not in STATUTS_SANS_RETARD
             occ.suis_assigne = self.request.user in occ.assignees.all()
+        # Synthèse de la colonne latérale : sur tout le périmètre, indépendante des filtres de la liste.
+        perimetre = MaintenanceOccurrence.objects.filter(perimetre_occurrences_q(self.request.user))
+        ouvertes = perimetre.exclude(status__in=("DONE", "CANCELLED"))
+        ctx["synthese"] = {
+            "en_retard": perimetre.filter(retard_q(aujourdhui)).count(),
+            "a_valider": perimetre.filter(status="WAITING_VALIDATION").count(),
+            "a_venir": perimetre.filter(a_venir_q(aujourdhui)).count(),
+            "non_assignees": ouvertes.filter(assignees__isnull=True).count(),
+            "miennes": ouvertes.filter(assignees=self.request.user).count(),
+        }
         ctx["tournee_ids"] = ",".join(
             str(o.pk) for o in ctx["occurrences"] if o.asset_id and o.status not in ("DONE", "CANCELLED")
         )
