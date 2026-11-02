@@ -31,7 +31,7 @@
         {% if form.errors %}
           <div class="alert alert-danger">Identifiants invalides, réessayez.</div>
         {% endif %}
-        <form method="post" action="{% url 'login' %}">
+        <form method="post" action="{% url 'login' %}" id="formulaire-connexion">
           {% csrf_token %}
           <div class="mb-3">
             <label class="form-label" for="id_username">Utilisateur</label>
@@ -42,11 +42,29 @@
             <input type="password" name="password" id="id_password" class="form-control" autocomplete="current-password" required>
           </div>
           <input type="hidden" name="next" value="{{ next }}">
-          <button class="btn btn-primary w-100" type="submit">Se connecter</button>
+          <button class="btn btn-primary w-100" type="submit" id="bouton-connexion">Se connecter</button>
         </form>
       </div>
       <div class="card-footer text-center small text-muted">Matrix</div>
     </div>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script>
+      // Un seul envoi : le bouton est désactivé dès la validation, quel que soit le déclencheur (clic ou Entrée).
+      (function () {
+        var formulaire = document.getElementById('formulaire-connexion');
+        var bouton = document.getElementById('bouton-connexion');
+        formulaire.addEventListener('submit', function () {
+          if (formulaire.dataset.envoye) return;
+          formulaire.dataset.envoye = '1';
+          bouton.disabled = true;
+          bouton.setAttribute('aria-busy', 'true');
+          bouton.textContent = 'Connexion…';
+        });
+        // Retour arrière du navigateur : la page revient depuis le cache avec le bouton figé.
+        window.addEventListener('pageshow', function (e) {
+          if (e.persisted) { delete formulaire.dataset.envoye; bouton.disabled = false; bouton.removeAttribute('aria-busy'); bouton.textContent = 'Se connecter'; }
+        });
+      })();
+    </script>
   </body>
 </html>

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1 class="h3 mb-1">{{ retex.titre }} <span class="badge {% if retex.etat == 'VALIDE' %}text-bg-success{% elif retex.etat == 'REFUSE' %}text-bg-danger{% elif retex.etat == 'CLOS' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">{{ retex.get_etat_display }}</span></h1>
-<p class="text-muted small">{{ retex.domaine.nom }}{% if retex.domaine.coma %} · COMA référent : {{ retex.domaine.coma }}{% endif %}{% if retex.organisme %} · organisme destinataire : {{ retex.organisme }}{% endif %} · diffusion : {{ retex.get_diffusion_display }}{% if retex.portee %} · portée : {{ retex.portee }}{% endif %} · proposé par {{ retex.auteur.get_full_name|default:retex.auteur.username }}
+<p class="text-muted small">{{ retex.domaine.nom }}{% if retex.domaine.coma %} · Commandant adjoint référent : {{ retex.domaine.coma }}{% endif %}{% if retex.organisme %} · organisme destinataire : {{ retex.organisme }}{% endif %} · diffusion : {{ retex.get_diffusion_display }}{% if retex.portee %} · portée : {{ retex.portee }}{% endif %} · proposé par {{ retex.auteur.get_full_name|default:retex.auteur.username }}
   {% if retex.source_libelle %}· source : {% if lien_source %}<a href="{{ lien_source }}">{{ retex.source_libelle }}</a>{% else %}{{ retex.source_libelle }}{% endif %}{% endif %}</p>
 <div class="card card-body mb-3">
   <h2 class="h6">Constat</h2><p>{{ retex.constat|linebreaksbr }}</p>

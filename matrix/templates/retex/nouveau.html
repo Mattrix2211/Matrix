@@ -6,7 +6,7 @@
   <input type="hidden" name="source" value="{{ source_ref }}">
   <div class="mb-3"><label class="form-label" for="id_titre">Titre</label><input class="form-control" id="id_titre" name="titre" maxlength="200" value="{{ source|default:'' }}" required></div>
   <div class="row g-3 mb-3">
-    <div class="col-md-5"><label class="form-label" for="id_domaine">Domaine (détermine le COMA référent)</label>
+    <div class="col-md-5"><label class="form-label" for="id_domaine">Domaine (détermine le commandant adjoint référent)</label>
       <select class="form-select" id="id_domaine" name="domaine" required>{% for d in domaines %}<option value="{{ d.pk }}">{{ d.nom }}{% if d.coma %} — {{ d.coma }}{% endif %}</option>{% endfor %}</select></div>
     <div class="col-md-4"><label class="form-label" for="id_organisme">Organisme destinataire (facultatif)</label><input class="form-control" id="id_organisme" name="organisme" maxlength="120" placeholder="Celui du domaine par défaut"></div>
     <div class="col-md-3"><label class="form-label" for="id_diffusion">Diffusion</label><select class="form-select" id="id_diffusion" name="diffusion">{% for code, libelle in diffusions %}<option value="{{ code }}">{{ libelle }}</option>{% endfor %}</select></div>

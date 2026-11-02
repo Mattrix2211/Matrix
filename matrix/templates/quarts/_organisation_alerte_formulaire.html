@@ -13,8 +13,8 @@
       </select>
     </div>
     <div class="col-md-2">
-      <select name="adjoint_sigle" class="form-select form-select-sm" aria-label="COMA responsable">
-        <option value="">COMA par défaut</option>
+      <select name="adjoint_sigle" class="form-select form-select-sm" aria-label="Commandant adjoint responsable">
+        <option value="">Commandant adjoint par défaut</option>
         {% for valeur, libelle in sigles %}<option value="{{ valeur }}" {% if scenario.adjoint_sigle == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
       </select>
     </div>

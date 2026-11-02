@@ -173,7 +173,7 @@ def _valider_donnees(ship, donnees):
     if donnees["famille"] not in dict(ScenarioAlerte.FAMILLE_CHOICES):
         return "Famille inconnue."
     if donnees["adjoint_sigle"] and donnees["adjoint_sigle"] not in CommandantAdjoint.values:
-        return "COMA responsable inconnu."
+        return "Commandant adjoint responsable inconnu."
     if not donnees["postes"]:
         return "Un scénario doit comporter au moins un poste."
     fonctions = set(FonctionFeuilleService.objects.filter(ship=ship).values_list("pk", flat=True))

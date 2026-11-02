@@ -16,7 +16,7 @@ class DomaineRetex(TimeStampedModel):
     """Domaine du bord, son COMA référent et l'organisme destinataire habituel (configurables par navire)."""
     ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="domaines_retex")
     nom = models.CharField(max_length=80, verbose_name="Domaine")
-    coma = models.CharField(max_length=40, blank=True, default="", verbose_name="COMA référent")
+    coma = models.CharField(max_length=40, blank=True, default="", verbose_name="Commandant adjoint référent")
     organisme = models.CharField(max_length=120, blank=True, default="", verbose_name="Organisme destinataire habituel")
     actif = models.BooleanField(default=True)
 

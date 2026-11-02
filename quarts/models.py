@@ -1749,7 +1749,7 @@ class ScenarioAlerte(TimeStampedModel):
     libelle = models.CharField(max_length=128, verbose_name="Scénario")
     famille = models.CharField(max_length=16, choices=FAMILLE_CHOICES, default=FAMILLE_SECURITE)
     adjoint_sigle = models.CharField(
-        max_length=10, blank=True, default="", verbose_name="COMA responsable",
+        max_length=10, blank=True, default="", verbose_name="Commandant adjoint responsable",
         help_text="Vide : COMANAV pour la sécurité, COMAEQ pour la protection-défense.",
     )
     actif = models.BooleanField(default=True)
