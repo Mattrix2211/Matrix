@@ -1478,3 +1478,9 @@ th[aria-sort="descending"] .mx-annuaire__tri::after { content: " ▼"; font-size
   border-radius: var(--r-md); text-decoration: none;
 }
 main:focus { outline: none; }
+
+/* Lien de retour contextuel (au-dessus du titre) */
+.mx-retour { margin-bottom: var(--s2); }
+.mx-retour__lien { display: inline-flex; align-items: center; gap: var(--s1); min-height: 32px; font-size: .875rem; color: var(--text-sec); text-decoration: none; }
+.mx-retour__lien:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 767.98px) { .mx-retour__lien { min-height: 44px; } }

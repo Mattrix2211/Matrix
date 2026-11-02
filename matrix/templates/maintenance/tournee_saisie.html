@@ -2,6 +2,7 @@
 {% load composants %}
 {% block title %}Compte rendu de tournée{% endblock %}
 {% block content %}
+{% url 'maintenance-occurrences' as url_parent %}{% retour url_parent "Maintenances" %}
 <div class="mx-cat-exemplaires-entete">
   <div>
     <h1 class="h4 mb-1">Compte rendu de tournée</h1>
@@ -9,7 +10,6 @@
   </div>
   <div class="mx-cat-exemplaires-liens">
     <a class="btn btn-sm btn-outline-secondary" href="{{ imprimer_url }}" target="_blank" rel="noopener">Imprimer la fiche</a>
-    <a class="btn btn-sm btn-outline-secondary" href="{% url 'maintenance-occurrences' %}">Retour</a>
   </div>
 </div>
 

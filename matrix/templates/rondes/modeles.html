@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
+{% load composants %}
 {% block content %}
+{% url 'rondes-index' as url_parent %}{% retour url_parent "Rondes" %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Modèles de ronde</h1>
   <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{% url 'rondes-index' %}">Retour</a>
     {% if peut_gerer %}<a class="btn btn-primary" href="{% url 'ronde-modele-nouveau' %}">Nouveau modèle</a>{% endif %}
   </div>
 </div>

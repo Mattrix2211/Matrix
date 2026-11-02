@@ -13,6 +13,7 @@ from django.template.base import token_kwargs
 from django.template.loader import get_template
 
 from matrix.core.confirmations import identite_valideur, texte_confirmation
+from matrix.core.retour import destination_retour
 
 register = template.Library()
 
@@ -22,6 +23,14 @@ def confirmation_validation(context, cle, ident, note=""):
     """Case de confirmation d'une validation critique : identité du valideur et texte à accepter."""
     _, texte = texte_confirmation(cle)
     return {"texte": texte, "ident": ident, "note": note, "valideur": identite_valideur(context["request"].user)}
+
+
+@register.inclusion_tag("components/retour.html", takes_context=True)
+def retour(context, url_parent, libelle):
+    """Lien de retour vers le parent logique de la page, ou vers l'écran d'origine si ``?retour=`` est fourni."""
+    url = destination_retour(context["request"], url_parent)
+    # Le libellé du parent serait faux si on revient à l'écran d'origine.
+    return {"url": url, "libelle": libelle if url == url_parent else "Retour"}
 
 
 @register.filter

@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
+{% load composants %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-2">
+{% url 'rondes-index' as url_parent %}{% retour url_parent "Rondes" %}
+<div class="mb-2">
   <h1 class="h4 mb-0">{{ ronde.nom }} <span class="badge {% if ronde.statut == 'TERMINEE' %}bg-secondary{% elif ronde.statut == 'EN_RETARD' %}bg-danger{% else %}bg-info text-dark{% endif %}">{{ ronde.get_statut_display }}</span></h1>
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'rondes-index' %}">Retour</a>
 </div>
 <div class="text-muted small mb-3 font-mono">
   Prévue le {{ ronde.date_prevue|date:"d/m/Y" }}{% if ronde.fin %} · terminée le {{ ronde.fin|date:"d/m/Y H:i" }} par {{ ronde.realisee_par.get_full_name|default:ronde.realisee_par.username|default:"—" }}{% endif %} · version {{ ronde.version_modele }} du modèle

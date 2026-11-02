@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
+{% load composants %}
 {% block content %}
+{% url 'feuille-service-index' as url_parent %}{% retour url_parent "Feuille de service" %}
 <h1 class="h3 mb-1">Rédacteurs de la feuille de service</h1>
 <p class="text-secondary">{{ ship.name }}</p>
 <div style="max-width: 40rem;">{% include "quarts/_redacteurs_contenu.html" %}</div>

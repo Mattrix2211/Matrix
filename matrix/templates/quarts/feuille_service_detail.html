@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load org_extras composants %}
 {% block content %}
+{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et gardes" %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
   <div>
     <h1 class="h3 mb-0">Feuille de service — {{ ship.name }}{% if equipage %} · équipage {{ equipage }}{% endif %}</h1>

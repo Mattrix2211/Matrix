@@ -1,15 +1,10 @@
 {% extends 'base.html' %}
-{% load icones %}
+{% load icones composants %}
 {% block content %}
+{% url 'historique-appareillage' as url_parent %}{% retour url_parent "Historique d'appareillage" %}
 <h1 class="h3 mb-1">{% icone "ronde" %} Session d'appareillage — {{ session.ship }}</h1>
 <p class="text-muted mb-4">
   Ouverte le {{ session.ouverte_le|date:"d/m/Y H:i" }}{% if session.cloturee_le %}, clôturée le {{ session.cloturee_le|date:"d/m/Y H:i" }}{% endif %}.
-</p>
-
-<p>
-  <a href="{% url 'historique-appareillage' %}" class="btn btn-outline-secondary btn-sm">
-    <span class="bi bi-arrow-left" aria-hidden="true"></span> Retour à l'historique
-  </a>
 </p>
 
 {% include 'dashboard/_checklist_appareillage.html' %}

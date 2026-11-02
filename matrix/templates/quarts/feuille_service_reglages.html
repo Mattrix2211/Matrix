@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
+{% load composants %}
 {% block content %}
+{% url 'feuille-service-index' as url_parent %}{% retour url_parent "Feuille de service" %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h1 class="h3 mb-0">Réglages — Feuille de service</h1>
   <form method="get" class="d-flex gap-2">

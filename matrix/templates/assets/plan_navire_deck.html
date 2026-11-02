@@ -1,12 +1,10 @@
 {% extends "base.html" %}
-{% load icones %}
+{% load icones composants %}
 {% load asset_extras %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <a href="{% url 'plan-navire-list' %}?navire={{ pont.ship_id }}" class="text-decoration-none small text-muted">
-      <span class="bi bi-arrow-left"></span> Retour aux ponts
-    </a>
+    {% url 'plan-navire-list' as url_ponts %}{% with navire_pk=pont.ship_id|stringformat:"s" %}{% with url_parent=url_ponts|add:'?navire='|add:navire_pk %}{% retour url_parent "Ponts" %}{% endwith %}{% endwith %}
     <h1 class="h3 mb-0"><span class="bi bi-map me-2"></span>{{ pont.name }} <span class="text-muted fs-6">({{ pont.ship.name }})</span></h1>
   </div>
   <div class="d-flex gap-2">
