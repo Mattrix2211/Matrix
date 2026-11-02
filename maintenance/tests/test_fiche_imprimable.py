@@ -79,3 +79,8 @@ class FicheImprimableTests(TestCase):
     def test_lien_depuis_la_liste(self):
         r = self.client.get(reverse("maintenance-occurrences"))
         self.assertContains(r, reverse("occurrence-imprimer", args=[self.occ_a.pk]))
+
+    def test_le_bouton_d_impression_est_visible_sur_l_ecran_d_execution(self):
+        r = self.client.get(reverse("occurrence-execute", args=[self.occ_a.pk]))
+        self.assertContains(r, "Imprimer la fiche")
+        self.assertContains(r, 'class="btn btn-outline-secondary btn-sm" href="' + reverse("occurrence-imprimer", args=[self.occ_a.pk]))

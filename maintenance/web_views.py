@@ -135,7 +135,6 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             "anomalie_url": _anomalie_url(occ),
             "operations": {"faites": faits, "total": len(items)},
             "menu_fiche": [
-                {"libelle": "Imprimer la fiche", "icone": "impression", "url": reverse('occurrence-imprimer', args=[occ.pk])},
                 {"libelle": "Historique et relevés de l'équipement", "icone": "historique", "url": _historique_url(occ)},
             ],
             "indicateurs_fiche": [

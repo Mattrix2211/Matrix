@@ -2,6 +2,10 @@
 {% load static icones composants %}
 {% block content %}
 {% include "components/fiche_entete.html" with titre=occ.titre_affiche sous_titre="Compte rendu de maintenance" badge_libelle=occ.get_status_display badge_etat=badge_etat menu=menu_fiche menu_libelle="Autres actions sur cette occurrence" indicateurs=indicateurs_fiche objet=occ %}
+<p class="d-flex align-items-center flex-wrap gap-2 no-print">
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'occurrence-imprimer' occ.pk %}" target="_blank" rel="noopener">{% icone "impression" %} Imprimer la fiche</a>
+  <span class="small text-secondary">{% if deja_termine %}Fiche de cette intervention, à conserver ou à rééditer.{% else %}À emporter sur le terrain ; le compte rendu se saisit ensuite ici.{% endif %}</span>
+</p>
 
 {% if correction_reservee %}
   <div class="alert alert-info">Ce compte rendu est terminé. Seul un chef de secteur peut le corriger (motif obligatoire, saisie d'origine conservée).</div>
