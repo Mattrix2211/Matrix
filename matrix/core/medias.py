@@ -49,6 +49,7 @@ def registre():
     from documentation.services import peut_consulter as peut_consulter_document, versions_visibles
     from logistics.anomalie_views import anomalies_visibles
     from logistics.models import Anomalie, StockPiece
+    from org.models import TypeBatiment
     from taches.models import PieceJointeTache
     from taches.services import peut_consulter as peut_consulter_tache
     from threads.models import Attachment
@@ -83,6 +84,7 @@ def registre():
                        lambda u, o: installation(u, o.maintenance.installation_id) if o.maintenance.installation_id else True),
         FichierProtege("deck_images/", Deck, "image", pont),
         FichierProtege("folder_photos/", AssetFolder, "photo", _tout_connecte),
+        FichierProtege("silhouettes/", TypeBatiment, "silhouette", _tout_connecte),
         FichierProtege("catalogue_categories/", CategorieCatalogue, "photo", _tout_connecte),
         FichierProtege("catalogue_articles/", ArticleCatalogue, "photo", _tout_connecte),
         FichierProtege("catalogue_propositions/", PropositionArticle, "photo",

@@ -52,8 +52,8 @@ class Ship(TimeStampedModel):
         "org.TypeBatiment", null=True, blank=True, on_delete=models.SET_NULL, related_name="unites",
         verbose_name="Type de bâtiment",
     )
-    numero_coque = models.CharField(max_length=20, blank=True, default="", verbose_name="Numéro de coque")
-    trigramme = models.CharField(max_length=8, blank=True, default="", verbose_name="Trigramme")
+    numero_coque = models.CharField(max_length=20, blank=True, default="", db_default="", verbose_name="Numéro de coque")
+    trigramme = models.CharField(max_length=8, blank=True, default="", db_default="", verbose_name="Trigramme")
 
     class Meta:
         verbose_name = "Unité"

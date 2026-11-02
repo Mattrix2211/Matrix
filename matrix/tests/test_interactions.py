@@ -40,7 +40,7 @@ class MenuContextuelTests(SimpleTestCase):
         self.assertIn('href="/i/"', html)
         self.assertIn('hx-post="/s/"', html)
         self.assertIn("mx-menu__item--danger", html)
-        self.assertIn('hx-confirm="Confirmer : Supprimer ?"', html)
+        self.assertNotIn("hx-confirm", html)  # la confirmation passe par le dialogue intégré, jamais par la boîte native
         self.assertIn('data-bs-popper-config=', html)
         self.assertNotIn("btn-primary", html)
 
