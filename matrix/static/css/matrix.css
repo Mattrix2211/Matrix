@@ -1484,3 +1484,16 @@ main:focus { outline: none; }
 .mx-retour__lien { display: inline-flex; align-items: center; gap: var(--s1); min-height: 32px; font-size: .875rem; color: var(--text-sec); text-decoration: none; }
 .mx-retour__lien:hover { color: var(--text); text-decoration: underline; }
 @media (max-width: 767.98px) { .mx-retour__lien { min-height: 44px; } }
+
+/* Circuit de validation de la feuille de service : colonne latérale (déjà fait / en cours / action attendue) */
+@media (min-width: 1200px) { .mx-circuit-lateral { position: sticky; top: calc(var(--mx-hauteur-navbar) + var(--s3)); } }
+.mx-circuit__etapes { border-left: 2px solid var(--border); margin-left: var(--s1); padding-left: var(--s3); }
+.mx-circuit__etape { position: relative; display: flex; flex-direction: column; gap: 2px; padding-bottom: var(--s3); }
+.mx-circuit__etape::before { content: ""; position: absolute; left: calc(-1 * var(--s3) - 7px); top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border); }
+.mx-circuit__etape--fait::before { background: var(--green-tech, #16B84E); border-color: var(--green-tech, #16B84E); }
+.mx-circuit__etape--en-cours::before { background: var(--signal-ui); border-color: var(--signal-ui); }
+.mx-circuit__etape--saute { opacity: .7; }
+.mx-circuit__etat { font: 600 .6875rem/1 var(--f-mono, monospace); text-transform: uppercase; letter-spacing: .04em; color: var(--text-sec); }
+.mx-circuit__etape--en-cours .mx-circuit__etat { color: var(--text); }
+.mx-circuit__detail { font-size: .8125rem; color: var(--text-sec); }
+.mx-circuit__titre { font: 600 .75rem/1 var(--f-mono, monospace); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 var(--s2); padding-top: var(--s3); border-top: 1px solid var(--border); }

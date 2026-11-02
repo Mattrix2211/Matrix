@@ -106,3 +106,19 @@ class InterventionComaeqTests(TestCase):
         page = self.client.get(self.url)
         self.assertContains(page, "Corriger l'en-tête (COMAEQ)")
         self.assertContains(page, "Renvoyer en brouillon pour correction")
+
+    def test_la_colonne_circuit_remonte_pour_qui_a_une_action(self):
+        self.client.force_login(self.comaeq)
+        self.assertContains(self.client.get(self.url), "order-first order-xl-last")
+        self.client.force_login(self.commandant)
+        page = self.client.get(self.url)
+        self.assertContains(page, "Circuit de validation")
+        self.assertNotContains(page, "order-first order-xl-last")
+
+    def test_le_circuit_dit_ce_qui_est_fait_et_ce_qui_est_attendu(self):
+        self.client.force_login(self.comaeq)
+        page = self.client.get(self.url)
+        self.assertContains(page, "Action attendue")
+        self.assertContains(page, "mx-circuit__etape--fait")
+        self.assertContains(page, "mx-circuit__etape--en-cours")
+        self.assertContains(page, "Dernière modification")

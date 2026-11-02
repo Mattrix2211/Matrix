@@ -1,0 +1,97 @@
+{% comment %}Colonne latérale du circuit de validation : déjà fait, en cours, action attendue, consignes.{% endcomment %}
+{% load org_extras %}
+<section class="card mx-circuit" aria-labelledby="circuit-titre">
+  <div class="card-body">
+    <h2 class="h6 text-uppercase mb-3" id="circuit-titre">Circuit de validation</h2>
+    <ol class="mx-circuit__etapes list-unstyled mb-3">
+      <li class="mx-circuit__etape {% if feuille.statut == 'BROUILLON' %}mx-circuit__etape--en-cours{% else %}mx-circuit__etape--fait{% endif %}">
+        <span class="mx-circuit__etat">{% if feuille.statut == 'BROUILLON' %}En cours{% else %}Fait{% endif %}</span>
+        <strong>Rédaction</strong>
+        {% if feuille.proposee_le %}<span class="mx-circuit__detail">proposée par {{ feuille.proposee_par.get_full_name|default:feuille.proposee_par.username }}, le {{ feuille.proposee_le|date:"d/m à H:i" }}</span>{% endif %}
+      </li>
+      <li class="mx-circuit__etape {% if feuille.visa_secteur_le %}mx-circuit__etape--fait{% elif feuille.statut == 'VISA_SECTEUR' %}mx-circuit__etape--en-cours{% elif feuille.statut == 'BROUILLON' %}mx-circuit__etape--a-venir{% else %}mx-circuit__etape--saute{% endif %}">
+        <span class="mx-circuit__etat">{% if feuille.visa_secteur_le %}Fait{% elif feuille.statut == 'VISA_SECTEUR' %}En cours{% elif feuille.statut == 'BROUILLON' %}À venir{% else %}Non requis{% endif %}</span>
+        <strong>Visa du chef de secteur</strong>
+        {% if feuille.visa_secteur_le %}<span class="mx-circuit__detail">{{ feuille.visa_secteur_par.get_full_name|default:feuille.visa_secteur_par.username }}, le {{ feuille.visa_secteur_le|date:"d/m à H:i" }}</span>{% endif %}
+      </li>
+      <li class="mx-circuit__etape {% if feuille.visa_service_le %}mx-circuit__etape--fait{% elif feuille.statut == 'VISA_SERVICE' %}mx-circuit__etape--en-cours{% elif feuille.statut == 'BROUILLON' or feuille.statut == 'VISA_SECTEUR' %}mx-circuit__etape--a-venir{% else %}mx-circuit__etape--saute{% endif %}">
+        <span class="mx-circuit__etat">{% if feuille.visa_service_le %}Fait{% elif feuille.statut == 'VISA_SERVICE' %}En cours{% elif feuille.statut == 'BROUILLON' or feuille.statut == 'VISA_SECTEUR' %}À venir{% else %}Non requis{% endif %}</span>
+        <strong>Visa du chef de service</strong>
+        {% if feuille.visa_service_le %}<span class="mx-circuit__detail">{{ feuille.visa_service_par.get_full_name|default:feuille.visa_service_par.username }}, le {{ feuille.visa_service_le|date:"d/m à H:i" }}</span>{% endif %}
+      </li>
+      <li class="mx-circuit__etape {% if feuille.visa_comaeq_le %}mx-circuit__etape--fait{% elif feuille.statut == 'VISA_COMAEQ' %}mx-circuit__etape--en-cours{% else %}mx-circuit__etape--a-venir{% endif %}">
+        <span class="mx-circuit__etat">{% if feuille.visa_comaeq_le %}Fait{% elif feuille.statut == 'VISA_COMAEQ' %}En cours{% else %}À venir{% endif %}</span>
+        <strong>Visa du COMAEQ et publication</strong>
+        {% if feuille.visa_comaeq_le %}<span class="mx-circuit__detail">{{ feuille.visa_comaeq_par.get_full_name|default:feuille.visa_comaeq_par.username }}, le {{ feuille.visa_comaeq_le|date:"d/m à H:i" }}</span>{% endif %}
+      </li>
+    </ol>
+
+    <h3 class="mx-circuit__titre">Action attendue</h3>
+    {% if feuille.statut == 'VISA_COMAEQ' %}
+      {% if comaeq_titulaire %}
+      <p class="small mb-3">Visa attendu du <strong>COMAEQ</strong> : {{ comaeq_titulaire.get_full_name|default:comaeq_titulaire.username }}.</p>
+      {% else %}
+      <div class="alert alert-warning small mb-3"><i class="bi bi-exclamation-triangle"></i> Aucun titulaire COMAEQ n'est désigné pour {{ ship.name }}{% if equipage %} (équipage {{ equipage }}){% endif %} : la validation relève exceptionnellement du commandant{% if equipage %} de cet équipage{% endif %}. Elle sera tracée comme visa exceptionnel.</div>
+      {% endif %}
+    {% endif %}
+
+    {% if feuille.statut == 'BROUILLON' and peut_gerer_brouillon %}
+    <form method="post" onsubmit="return confirm('Proposer cette feuille au premier visa ?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="proposer">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-send-check"></i> Proposer à la validation</button>
+    </form>
+    {% endif %}
+
+    {% if peut_viser_secteur %}
+    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de secteur ?');">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_secteur">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de secteur)</button>
+    </form>
+    {% endif %}
+    {% if peut_viser_service %}
+    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de service ?');">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_service">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de service)</button>
+    </form>
+    {% endif %}
+    {% if peut_viser_comaeq %}
+    <form method="post" class="d-inline" onsubmit="return confirm('Viser en tant que COMAEQ et publier la feuille ? La fraction de service sera notifiée.');">
+      {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq"><input type="hidden" name="jeton_visa" value="{{ jeton_visa }}">
+      <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Viser et publier (COMAEQ)</button>
+    </form>
+    {% endif %}
+
+    {% if feuille.statut == 'VISA_SECTEUR' or feuille.statut == 'VISA_SERVICE' or feuille.statut == 'VISA_COMAEQ' %}
+      {% if peut_viser_secteur or peut_viser_service or peut_viser_comaeq or peut_intervenir_comaeq %}
+      <details class="mt-3">
+        <summary class="text-danger">Renvoyer en brouillon pour correction</summary>
+        <form method="post" class="row g-2 mt-1">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="renvoyer">
+          <div class="col-md-8">
+            <input type="text" name="motif" class="form-control form-control-sm" placeholder="Motif du renvoi (obligatoire)" required>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-outline-danger btn-sm">Renvoyer</button>
+          </div>
+        </form>
+      </details>
+      {% endif %}
+    {% endif %}
+
+    {% if not peut_gerer_brouillon and not peut_viser_secteur and not peut_viser_service and not peut_viser_comaeq %}
+    <p class="text-muted small mb-0">En attente : {{ feuille.get_statut_display|lower }}.</p>
+    {% endif %}
+
+    <p class="small text-secondary mt-3 mb-0">Dernière modification : {{ feuille.updated_at|date:"d/m à H:i" }}{% if feuille.updated_by %} par {{ feuille.updated_by.get_full_name|default:feuille.updated_by.username }}{% endif %}.</p>
+    <details class="mt-2">
+      <summary class="small">Consignes</summary>
+      {% with coma=feuille.service_redacteur|coma_du_service %}
+    {% if coma %}
+    <p class="small text-muted mb-3">Le service « {{ feuille.service_redacteur.name }} » dépend du <strong title="{{ coma.responsabilites }}">{{ coma.sigle }}</strong> ({{ coma.signification }}) : {% for t in coma.titulaires %}{{ t.get_full_name|default:t.username }}{% if not forloop.last %}, {% endif %}{% empty %}poste vacant{% endfor %}.</p>
+    {% endif %}
+    {% endwith %}
+    </details>
+  </div>
+</section>

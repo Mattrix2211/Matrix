@@ -61,10 +61,10 @@
 <div class="alert alert-success"><i class="bi bi-star-fill"></i> Vous êtes de service ce jour-là — votre fonction est mise en évidence ci-dessous.</div>
 {% endif %}
 
-{% if peut_designer %}
-<div class="alert {% if equipage_sans_redacteur %}alert-warning{% else %}alert-light border{% endif %} d-flex justify-content-between align-items-center flex-wrap gap-2 no-print" role="{% if equipage_sans_redacteur %}alert{% else %}note{% endif %}">
-  <span>{% if equipage_sans_redacteur %}<strong>Aucun rédacteur opérant{% if equipage %} pour l'équipage {{ equipage }}{% endif %}</strong> : personne ne peut rédiger cette feuille.{% else %}Rédacteurs de la feuille : désignés par le COMAEQ de l'équipage.{% endif %}</span>
-  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#panneau-redacteurs" aria-controls="panneau-redacteurs">Gérer les rédacteurs</button>
+{% if peut_designer and equipage_sans_redacteur %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 no-print" role="alert">
+  <span><strong>Aucun rédacteur opérant{% if equipage %} pour l'équipage {{ equipage }}{% endif %}</strong> : personne ne peut rédiger cette feuille.</span>
+  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#panneau-redacteurs" aria-controls="panneau-redacteurs">Désigner un rédacteur</button>
 </div>
 {% endif %}
 {% if not feuille %}
@@ -122,7 +122,9 @@
 {% endif %}
 
 <div class="row g-4 mt-1">
-  <div class="col-lg-6">
+  <div class="col-xl-8">
+    <div class="row g-4">
+  <div class="col-xxl-5">
     <h2 class="h5">En-tête</h2>
     <div class="card">
       {% if feuille and peut_gerer_brouillon %}
@@ -177,7 +179,7 @@
     </div>
   </div>
 
-  <div class="col-lg-6">
+  <div class="col-xxl-7">
     <h2 class="h5">Personnel de service</h2>
     <div class="card">
       <div class="table-responsive">
@@ -207,8 +209,7 @@
     </div>
   </div>
 </div>
-
-{% if alertes %}
+    {% if alertes %}
 <div class="mt-4">
   <h2 class="h5"><i class="bi bi-shield-exclamation"></i> Organisation d'alerte du jour</h2>
   <div class="row g-3">
@@ -251,87 +252,11 @@
 </div>
 {% endif %}
 
-{% if feuille and not circuit_masque %}
-<div class="mt-4">
-  <h2 class="h5">Circuit de validation</h2>
-  <div class="card card-body">
-    <div class="d-flex flex-wrap gap-3 mb-3 font-mono small">
-      <span class="{% if feuille.statut == 'BROUILLON' %}fw-bold text-primary{% else %}text-muted{% endif %}"><i class="bi bi-1-circle"></i> Rédaction</span>
-      <span>→</span>
-      <span class="{% if feuille.statut == 'VISA_SECTEUR' %}fw-bold text-primary{% elif feuille.visa_secteur_le %}text-success{% else %}text-muted{% endif %}"><i class="bi bi-2-circle"></i> Visa secteur</span>
-      <span>→</span>
-      <span class="{% if feuille.statut == 'VISA_SERVICE' %}fw-bold text-primary{% elif feuille.visa_service_le %}text-success{% else %}text-muted{% endif %}"><i class="bi bi-3-circle"></i> Visa service</span>
-      <span>→</span>
-      <span class="{% if feuille.statut == 'VISA_COMAEQ' %}fw-bold text-primary{% elif feuille.visa_comaeq_le %}text-success{% else %}text-muted{% endif %}"><i class="bi bi-4-circle"></i> Visa COMAEQ</span>
-      <span>→</span>
-      <span class="{% if feuille.statut == 'PUBLIEE' %}fw-bold text-success{% else %}text-muted{% endif %}"><i class="bi bi-5-circle"></i> Publication</span>
-    </div>
-
-    {% with coma=feuille.service_redacteur|coma_du_service %}
-    {% if coma %}
-    <p class="small text-muted mb-3">Le service « {{ feuille.service_redacteur.name }} » dépend du <strong title="{{ coma.responsabilites }}">{{ coma.sigle }}</strong> ({{ coma.signification }}) : {% for t in coma.titulaires %}{{ t.get_full_name|default:t.username }}{% if not forloop.last %}, {% endif %}{% empty %}poste vacant{% endfor %}.</p>
-    {% endif %}
-    {% endwith %}
-
-    {% if feuille.statut == 'VISA_COMAEQ' %}
-      {% if comaeq_titulaire %}
-      <p class="small mb-3">Visa attendu du <strong>COMAEQ</strong> : {{ comaeq_titulaire.get_full_name|default:comaeq_titulaire.username }}.</p>
-      {% else %}
-      <div class="alert alert-warning small mb-3"><i class="bi bi-exclamation-triangle"></i> Aucun titulaire COMAEQ n'est désigné pour {{ ship.name }}{% if equipage %} (équipage {{ equipage }}){% endif %} : la validation relève exceptionnellement du commandant{% if equipage %} de cet équipage{% endif %}. Elle sera tracée comme visa exceptionnel.</div>
-      {% endif %}
-    {% endif %}
-
-    {% if feuille.statut == 'BROUILLON' and peut_gerer_brouillon %}
-    <form method="post" onsubmit="return confirm('Proposer cette feuille au premier visa ?');">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="proposer">
-      <button type="submit" class="btn btn-primary"><i class="bi bi-send-check"></i> Proposer à la validation</button>
-    </form>
-    {% endif %}
-
-    {% if peut_viser_secteur %}
-    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de secteur ?');">
-      {% csrf_token %}<input type="hidden" name="action" value="viser_secteur">
-      <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de secteur)</button>
-    </form>
-    {% endif %}
-    {% if peut_viser_service %}
-    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de service ?');">
-      {% csrf_token %}<input type="hidden" name="action" value="viser_service">
-      <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de service)</button>
-    </form>
-    {% endif %}
-    {% if peut_viser_comaeq %}
-    <form method="post" class="d-inline" onsubmit="return confirm('Viser en tant que COMAEQ et publier la feuille ? La fraction de service sera notifiée.');">
-      {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq"><input type="hidden" name="jeton_visa" value="{{ jeton_visa }}">
-      <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Viser et publier (COMAEQ)</button>
-    </form>
-    {% endif %}
-
-    {% if feuille.statut == 'VISA_SECTEUR' or feuille.statut == 'VISA_SERVICE' or feuille.statut == 'VISA_COMAEQ' %}
-      {% if peut_viser_secteur or peut_viser_service or peut_viser_comaeq or peut_intervenir_comaeq %}
-      <details class="mt-3">
-        <summary class="text-danger">Renvoyer en brouillon pour correction</summary>
-        <form method="post" class="row g-2 mt-1">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="renvoyer">
-          <div class="col-md-8">
-            <input type="text" name="motif" class="form-control form-control-sm" placeholder="Motif du renvoi (obligatoire)" required>
-          </div>
-          <div class="col-md-4">
-            <button type="submit" class="btn btn-outline-danger btn-sm">Renvoyer</button>
-          </div>
-        </form>
-      </details>
-      {% endif %}
-    {% endif %}
-
-    {% if not peut_gerer_brouillon and not peut_viser_secteur and not peut_viser_service and not peut_viser_comaeq %}
-    <p class="text-muted small mb-0">En attente : {{ feuille.get_statut_display|lower }}.</p>
-    {% endif %}
   </div>
+  {% if feuille and not circuit_masque %}
+  <aside class="col-xl-4{% if peut_gerer_brouillon or peut_viser_secteur or peut_viser_service or peut_viser_comaeq or peut_intervenir_comaeq %} order-first order-xl-last{% endif %}" aria-label="Circuit de validation"><div class="mx-circuit-lateral">{% include "quarts/_circuit_feuille.html" %}</div></aside>
+  {% endif %}
 </div>
-{% endif %}
 
 {% if versions %}
 <div class="mt-4">
