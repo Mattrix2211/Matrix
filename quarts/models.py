@@ -1584,6 +1584,45 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                     url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
                 )
 
+    def modifier_entete_comaeq(self, user, saisies, motif):
+        """Le COMAEQ corrige lui-même l'en-tête pendant le circuit de visa. Les visas déjà donnés restent acquis : il
+        vise en dernier, personne en dessous ne revise son travail. Refusé (False) si le contenu a changé depuis le dernier
+        visa pour une autre raison : l'empreinte n'est jamais recalée sur des modifications étrangères. Retourne la liste
+        des changements, ou False."""
+        with self._transition(self.STATUT_VISA_SECTEUR, self.STATUT_VISA_SERVICE, self.STATUT_VISA_COMAEQ):
+            self.refresh_from_db(fields=["valeurs_entete", "structure_figee", "empreinte_visee"])
+            if not self.empreinte_visee or self._empreinte_contenu() != self.empreinte_visee:
+                return False
+            valeurs = dict(self.valeurs_entete)
+            changements = []
+            for entree in self.rubriques_affichees:
+                rubrique = entree["rubrique"]
+                if rubrique.type_saisie != RubriqueEnTeteFeuilleService.TYPE_QUOTIDIENNE or rubrique.uid not in saisies:
+                    continue
+                avant, apres = valeurs.get(rubrique.uid, ""), saisies[rubrique.uid].strip()
+                if avant != apres:
+                    valeurs[rubrique.uid] = apres
+                    changements.append(f"{rubrique.libelle} ({avant or 'vide'} -> {apres or 'vide'})")
+            if not changements:
+                return []
+            self.valeurs_entete = valeurs
+            self.updated_by = user
+            self.empreinte_visee = self._empreinte_contenu()
+            self.save(update_fields=["valeurs_entete", "updated_by", "empreinte_visee", "updated_at"])
+            AuditLog.objects.create(
+                actor=user, action="feuille_service_modifiee_comaeq",
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) modifiée par le COMAEQ, visas déjà "
+                        f"donnés conservés. Motif : {motif}. Changements : " + "; ".join(changements),
+            )
+            if self.redacteur is not None and self.redacteur != user:
+                Notification.objects.create(
+                    user=self.redacteur,
+                    verb=f"Feuille de service du {self.date:%d/%m/%Y} corrigée par le COMAEQ : {motif}",
+                    level=NotificationLevel.INFO,
+                    url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
+                )
+            return changements
+
     def contenu_courant(self):
         """Contenu tel qu'il serait figé maintenant : copie de travail et planning effectif."""
         from .alertes import etat_alertes, figer_alertes
@@ -1959,6 +1998,14 @@ def peut_ouvrir_rectificatif(user, feuille):
         and peut_rediger_feuille_service(user, feuille.ship)
         and _equipage_proprietaire(user, feuille)
     )
+
+
+def peut_intervenir_comaeq(user, feuille):
+    """Le COMAEQ (ou, poste vacant, le commandant de l'équipage) corrige ou renvoie la feuille pendant le circuit de
+    visa, quel que soit le palier : même autorité que son visa, aucun droit de rédacteur en plus."""
+    return feuille.statut in (
+        FeuilleService.STATUT_VISA_SECTEUR, FeuilleService.STATUT_VISA_SERVICE, FeuilleService.STATUT_VISA_COMAEQ,
+    ) and peut_viser_comaeq(user, feuille)
 
 
 def peut_viser_secteur(user, feuille):

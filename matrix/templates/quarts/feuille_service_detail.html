@@ -154,6 +154,25 @@
         <li class="list-group-item text-muted">Aucune rubrique configurée pour ce navire.</li>
         {% endfor %}
       </ul>
+      {% if peut_intervenir_comaeq and rubriques %}
+      <details class="card-body border-top">
+        <summary class="fw-semibold">Corriger l'en-tête (COMAEQ)</summary>
+        <p class="small text-secondary mt-2 mb-2">Votre correction est tracée. Les visas déjà donnés sont conservés : vous visez en dernier.</p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="modifier_comaeq">
+          {% for e in rubriques %}{% if e.rubrique.type_saisie != 'FIXE' %}
+          <div class="mb-2">
+            <label class="form-label small mb-0" for="comaeq-{{ e.rubrique.uid }}">{{ e.rubrique.libelle }}</label>
+            <input type="text" id="comaeq-{{ e.rubrique.uid }}" name="rubrique_{{ e.rubrique.uid }}" value="{{ e.valeur }}" class="form-control form-control-sm">
+          </div>
+          {% endif %}{% endfor %}
+          <label class="form-label small mb-0" for="comaeq-motif">Motif de la correction (obligatoire)</label>
+          <input type="text" id="comaeq-motif" name="motif" class="form-control form-control-sm mb-2" required>
+          <button type="submit" class="btn btn-outline-primary btn-sm">Enregistrer la correction</button>
+        </form>
+      </details>
+      {% endif %}
       {% endif %}
     </div>
   </div>
@@ -290,7 +309,7 @@
     {% endif %}
 
     {% if feuille.statut == 'VISA_SECTEUR' or feuille.statut == 'VISA_SERVICE' or feuille.statut == 'VISA_COMAEQ' %}
-      {% if peut_viser_secteur or peut_viser_service or peut_viser_comaeq %}
+      {% if peut_viser_secteur or peut_viser_service or peut_viser_comaeq or peut_intervenir_comaeq %}
       <details class="mt-3">
         <summary class="text-danger">Renvoyer en brouillon pour correction</summary>
         <form method="post" class="row g-2 mt-1">

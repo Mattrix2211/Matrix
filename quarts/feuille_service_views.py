@@ -46,6 +46,7 @@ from .models import (
     equipage_de_feuille_pour,
     feuille_du_jour,
     peut_gerer_brouillon_feuille,
+    peut_intervenir_comaeq,
     peut_lire_feuille_service,
     peut_ouvrir_rectificatif,
     designations_inoperantes,
@@ -237,6 +238,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
                 and peut_viser_comaeq(request.user, feuille)
             ),
+            "peut_intervenir_comaeq": feuille is not None and peut_intervenir_comaeq(request.user, feuille),
             "jeton_visa": (
                 jeton_visa(feuille, request.user)
                 if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
@@ -382,13 +384,30 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 )
             else:
                 messages.error(request, MESSAGE_CONTENU_CHANGE)
+        elif action == "modifier_comaeq":
+            if not peut_intervenir_comaeq(request.user, feuille):
+                raise PermissionDenied
+            motif = request.POST.get("motif", "").strip()
+            if not motif:
+                messages.error(request, "Un motif est obligatoire pour modifier la feuille en tant que COMAEQ.")
+                return _redirection_detail(ship, date_, equipage)
+            saisies = {
+                cle.removeprefix("rubrique_"): valeur for cle, valeur in request.POST.items() if cle.startswith("rubrique_")
+            }
+            changements = feuille.modifier_entete_comaeq(request.user, saisies, motif)
+            if changements is False:
+                messages.error(request, MESSAGE_CONTENU_CHANGE + " Renvoyez la feuille au rédacteur pour reprendre le circuit.")
+            elif not changements:
+                messages.info(request, "Aucun changement à enregistrer.")
+            else:
+                messages.success(request, "En-tête corrigé : modification tracée, les visas déjà donnés sont conservés.")
         elif action == "renvoyer":
             verificateur = {
                 FeuilleService.STATUT_VISA_SECTEUR: peut_viser_secteur,
                 FeuilleService.STATUT_VISA_SERVICE: peut_viser_service,
                 FeuilleService.STATUT_VISA_COMAEQ: peut_viser_comaeq,
             }.get(feuille.statut)
-            if verificateur is None or not verificateur(request.user, feuille):
+            if not peut_intervenir_comaeq(request.user, feuille) and (verificateur is None or not verificateur(request.user, feuille)):
                 raise PermissionDenied
             motif = request.POST.get("motif", "").strip()
             if not motif:
