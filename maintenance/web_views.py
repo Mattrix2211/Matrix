@@ -696,6 +696,24 @@ class OccurrenceSignalerFicheView(LoginRequiredMixin, View):
         return redirect("occurrence-execute", pk=occ.pk)
 
 
+# Ordre d'impression de la préparation : la sécurité reste visible en dernier, encadrée.
+TITRES_PREPARATION = (
+    ("outil", "Outils"), ("piece", "Pièces et consommables"), ("epi", "EPI"), ("consigne", "Sécurité / consignation"),
+)
+
+
+def _preparation_par_categorie(version):
+    """Préparation de la fiche regroupée par catégorie, sans répéter le type devant chaque ligne."""
+    if not getattr(version, "fiche_id", None):
+        return []
+    lignes = list(version.preparations.all())
+    groupes = [
+        {"type": type_, "titre": titre, "lignes": [p for p in lignes if p.type == type_]}
+        for type_, titre in TITRES_PREPARATION
+    ]
+    return [g for g in groupes if g["lignes"]]
+
+
 class OccurrenceImprimerView(LoginRequiredMixin, View):
     """Fiche papier d'une occurrence (ou d'un lot via ?ids=1,2,3), à remplir sur
     le terrain puis à saisir sur PC. Lecture seule : même périmètre que la fiche
@@ -720,11 +738,13 @@ class OccurrenceImprimerView(LoginRequiredMixin, View):
         fiches = []
         for occ in occurrences:
             url = request.build_absolute_uri(reverse("occurrence-execute", args=[occ.pk]))
+            version = occ.version_fiche()
             fiches.append({
                 "occ": occ,
                 "numero": f"FM-{occ.pk:06d}",
                 "items": occ.lignes_fiche(),
-                "version": occ.version_fiche(),
+                "version": version,
+                "preparation": _preparation_par_categorie(version),
                 "qr": _qr_data_uri(url),
             })
         if not fiches:

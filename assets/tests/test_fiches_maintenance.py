@@ -332,6 +332,34 @@ class GenerationEtExecutionTests(BaseFiches):
         self.assertContains(reponse, "Haute pression")
         self.assertNotContains(reponse, "Non validée")
 
+    def test_fiche_imprimable_regroupe_la_preparation_par_categorie(self):
+        fiche = self.fiche_validee(preparations=[
+            {"type": "outil", "libelle": "Clé de 17", "quantite": 1, "piece": None},
+            {"type": "piece", "libelle": "Cartouche de graisse", "quantite": 3, "piece": None},
+            {"type": "epi", "libelle": "Gants nitrile", "quantite": 1, "piece": None},
+            {"type": "consigne", "libelle": "Consigner le tableau électrique", "quantite": 1, "piece": None},
+        ])
+        occ = MaintenanceOccurrence.objects.create(installation_maintenance=fiche, scheduled_for=date.today())
+        self.client.force_login(self.chef_service)
+        html = self.client.get(reverse("occurrence-imprimer", args=[occ.pk])).content.decode()
+        titres = ["Outils", "Pièces et consommables", "EPI", "Sécurité / consignation"]
+        positions = [html.index(f'fiche-prep-titre">{t}') for t in titres]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("Cartouche de graisse × 3", html)
+        self.assertNotIn("Outil : Clé de 17", html)
+        self.assertIn("Consigner le tableau électrique", html)
+        self.assertLess(html.index("Préparation"), html.index("Méthodologie"))
+        self.assertLess(html.index("Méthodologie"), html.index("Points de contrôle"))
+        self.assertIn("Observation", html)
+
+    def test_fiche_imprimable_sans_preparation_n_affiche_pas_le_bloc(self):
+        fiche = self.fiche_validee(preparations=[])
+        occ = MaintenanceOccurrence.objects.create(installation_maintenance=fiche, scheduled_for=date.today())
+        self.client.force_login(self.chef_service)
+        html = self.client.get(reverse("occurrence-imprimer", args=[occ.pk])).content.decode()
+        self.assertNotIn("fiche-prep-groupe", html)
+        self.assertIn("Méthodologie", html)
+
     def test_compte_rendu_affiche_les_lignes_de_la_fiche(self):
         fiche = self.fiche_validee()
         occ = MaintenanceOccurrence.objects.create(installation_maintenance=fiche, scheduled_for=date.today())

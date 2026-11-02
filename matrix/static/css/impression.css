@@ -49,11 +49,21 @@ body { background: var(--imp-papier) !important; color: var(--imp-encre) !import
 .fiche-papier table { width: 100%; border-collapse: collapse; }
 .fiche-papier th, .fiche-papier td { border: 1pt solid var(--imp-encre); padding: 2mm; vertical-align: top; text-align: left; }
 .fiche-identite th { width: 22%; background: none; font-weight: 700; }
-.fiche-section { font-size: 12pt; text-transform: uppercase; margin: 6mm 0 2mm; }
+.fiche-section { font-size: 12pt; text-transform: uppercase; margin: 6mm 0 2mm; break-after: avoid; }
+.fiche-points { break-inside: avoid; }
 .fiche-points tr { break-inside: avoid; }
 .fiche-points td { height: 9mm; }
 .fiche-col-case { width: 14mm; text-align: center !important; }
-.fiche-col-valeur { width: 38%; }
+.fiche-col-valeur { width: 28%; }
+.fiche-col-obs { width: 22%; }
+.fiche-preparation { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; break-inside: avoid; }
+.fiche-prep-groupe { border: 1pt solid var(--imp-encre); padding: 2mm; break-inside: avoid; }
+.fiche-prep-securite { border-width: 2pt; grid-column: 1 / -1; }
+.fiche-prep-titre { font-size: 10pt; text-transform: uppercase; margin: 0 0 1mm; }
+.fiche-prep-groupe ul { margin: 0; padding-left: 5mm; }
+.fiche-etapes { padding-left: 6mm; }
+.fiche-etapes li { break-inside: avoid; margin-bottom: 2mm; }
+.fiche-attention { border: 1pt solid var(--imp-encre); padding: 1mm 2mm; margin-top: 1mm; font-size: 10pt; }
 .fiche-oblig { font-size: 9pt; font-style: italic; }
 .fiche-case { display: inline-block; width: 5mm; height: 5mm; border: 1.2pt solid var(--imp-encre); vertical-align: middle; }
 .fiche-ligne { display: inline-block; min-width: 25mm; border-bottom: 1pt solid var(--imp-encre); height: 1em; }
