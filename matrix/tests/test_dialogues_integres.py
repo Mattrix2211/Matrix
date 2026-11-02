@@ -28,6 +28,6 @@ class DialoguesNatifsTests(SimpleTestCase):
         trouves = []
         for chemin in self._fichiers():
             texte = chemin.read_text(encoding="utf-8")
-            if re.search(r'on(submit|click)="return (?!false)', texte):
+            if re.search(r'on(submit|click)="return (?!false)', texte) or "hx-confirm" in texte:
                 trouves.append(chemin.name)
         self.assertEqual(trouves, [])

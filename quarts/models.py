@@ -1589,6 +1589,10 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                     url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
                 )
 
+    def marqueur_trace(self):
+        """Identifie cette feuille (donc son équipage) dans les traces : jamais de fuite d'un équipage à l'autre."""
+        return f"[feuille={self.pk}]"
+
     @staticmethod
     def _verifier_correction_mineure(libelle, avant, apres):
         """Seule une correction légère garde les visas acquis : coquille, précision, date ; pas une réécriture.
@@ -1613,6 +1617,14 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             self.refresh_from_db(fields=["valeurs_entete", "structure_figee", "empreinte_visee"])
             if not self.empreinte_visee or self._empreinte_contenu() != self.empreinte_visee:
                 return False
+            if AuditLog.objects.filter(
+                action="feuille_service_modifiee_comaeq", details__contains=self.marqueur_trace(),
+                created_at__gte=self.proposee_le,
+            ).exists():
+                raise CorrectionTropImportante(
+                    "Une correction a déjà été faite depuis la proposition : plusieurs corrections successives ne "
+                    "conservent pas les visas."
+                )
             valeurs = dict(self.valeurs_entete)
             changements = []
             for entree in self.rubriques_affichees:
@@ -1632,8 +1644,8 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             self.save(update_fields=["valeurs_entete", "updated_by", "empreinte_visee", "updated_at"])
             AuditLog.objects.create(
                 actor=user, action="feuille_service_modifiee_comaeq",
-                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) modifiée par le COMAEQ, visas déjà "
-                        f"donnés conservés. Motif : {motif}. Changements : " + "; ".join(changements),
+                details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) {self.marqueur_trace()} modifiée par le "
+                        f"COMAEQ, visas déjà donnés conservés. Motif : {motif}. Changements : " + "; ".join(changements),
             )
             if self.redacteur is not None and self.redacteur != user:
                 Notification.objects.create(

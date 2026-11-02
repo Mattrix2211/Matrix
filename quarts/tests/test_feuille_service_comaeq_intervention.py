@@ -146,6 +146,14 @@ class InterventionComaeqTests(TestCase):
         self.assertContains(page, "Coquille")
 
 
+    def test_une_seule_correction_legere_par_cycle_de_visa(self):
+        self._post("comaeq", action="modifier_comaeq", motif="Coquille", **{self.cle: "Saint Herve"})
+        self._post("comaeq", action="modifier_comaeq", motif="Encore", **{self.cle: "Saint Herve!"})
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Saint Herve")
+        self.assertEqual(AuditLog.objects.filter(action="feuille_service_modifiee_comaeq").count(), 1)
+
+
 class InterventionComaeqDoubleEquipageTests(TestCase):
     """Le COMAEQ de l'autre équipage n'a aucun pouvoir sur la feuille de l'équipage à bord."""
 
@@ -179,3 +187,38 @@ class InterventionComaeqDoubleEquipageTests(TestCase):
         self.feuille.refresh_from_db()
         self.assertEqual(self.feuille.statut, FeuilleService.STATUT_VISA_COMAEQ)
         self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Saint Hervé")
+
+
+class CorrectionComaeqEtanchePeriEquipageTests(TestCase):
+    """La correction faite sur la feuille d'un équipage n'apparaît jamais dans le circuit de l'autre."""
+
+    def setUp(self):
+        self.navire = Ship.objects.create(name="FREMM Etanche", code="FE", double_equipage=True, equipage_a_bord="B")
+        self.rubrique = RubriqueEnTeteFeuilleService.objects.create(ship=self.navire, libelle="Saint du jour")
+        self.coma = {}
+        self.feuilles = {}
+        for equipage in ("A", "B"):
+            user = User.objects.create_user(username=f"coma_{equipage}", password="pass")
+            UserProfile.objects.update_or_create(user=user, defaults={
+                "role": "ETAT_MAJOR", "ship": self.navire, "equipage": equipage, "fonction_coma": "COMAEQ"})
+            self.coma[equipage] = User.objects.get(pk=user.pk)
+            feuille = FeuilleService.objects.create(
+                ship=self.navire, equipage=equipage, date=timezone.localdate(), statut=FeuilleService.STATUT_VISA_COMAEQ,
+                valeurs_entete={str(self.rubrique.uid): "Saint Hervé"})
+            feuille.proposee_le = timezone.now() - timezone.timedelta(minutes=5)
+            feuille.empreinte_visee = feuille._empreinte_contenu()
+            feuille.save()
+            self.feuilles[equipage] = feuille
+
+    def test_la_correction_de_b_est_invisible_sur_la_feuille_de_a(self):
+        feuille_b = self.feuilles["B"]
+        self.client.force_login(self.coma["B"])
+        url_b = reverse("feuille-service-detail", args=[self.navire.pk, f"{feuille_b.date:%Y-%m-%d}"])
+        self.client.post(url_b, {"action": "modifier_comaeq", "motif": "Coquille B", f"rubrique_{self.rubrique.uid}": "Saint Herve"})
+        self.assertEqual(AuditLog.objects.filter(action="feuille_service_modifiee_comaeq").count(), 1)
+        self.assertContains(self.client.get(url_b), "Corrigée par le COMAEQ")
+        self.client.force_login(self.coma["A"])
+        url_a = reverse("feuille-service-detail", args=[self.navire.pk, f"{self.feuilles['A'].date:%Y-%m-%d}"]) + "?equipage=A"
+        page_a = self.client.get(url_a)
+        self.assertNotContains(page_a, "Corrigée par le COMAEQ")
+        self.assertNotContains(page_a, "Coquille B")

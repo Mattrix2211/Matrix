@@ -75,8 +75,8 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
 
     @staticmethod
     def _charger(request, pk, ecriture=False):
-        """Occurrence et lignes de checklist, ou une réponse d'erreur ; `ecriture` exige le droit
-        d'écrire (le grade seul suffit pour consulter)."""
+        """Occurrence et lignes de checklist ; `ecriture` exige le droit d'écrire (le grade seul suffit pour
+        consulter). Hors périmètre ou inexistante : 404."""
         try:
             occ = MaintenanceOccurrence.objects.select_related(
                 'plan', 'asset', 'plan__checklist_template',
@@ -87,12 +87,10 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
         niveau = niveau_ecriture(request.user) if ecriture else user_role_level(request.user)
         if (request.user not in occ.assignees.all()) and (niveau < niveau_requis_pour(request.user, 'maintenance_occurrence_gestion_tiers')):
             raise PermissionDenied
-        return occ, occ.lignes_fiche(), None
+        return occ, occ.lignes_fiche()
 
     def get(self, request, pk):
-        occ, items, erreur = self._charger(request, pk)
-        if erreur:
-            return erreur
+        occ, items = self._charger(request, pk)
         return render(request, self.template_name, self._contexte(request, occ, items))
 
     @staticmethod
@@ -150,9 +148,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if equipage_a_terre_lecture_seule(request.user) or soutien_a_terre(request.user):
             raise PermissionDenied
-        occ, items, erreur = self._charger(request, pk, ecriture=True)
-        if erreur:
-            return erreur
+        occ, items = self._charger(request, pk, ecriture=True)
         en_direct = request.POST.get('action') == 'enregistrer'
         execution = MaintenanceExecution.objects.filter(occurrence=occ).first()
         deja_termine = bool(execution and execution.completed_at)
@@ -694,9 +690,7 @@ class OccurrenceSignalerFicheView(LoginRequiredMixin, View):
     def post(self, request, pk):
         if equipage_a_terre_lecture_seule(request.user) or soutien_a_terre(request.user):
             raise PermissionDenied
-        occ, _, erreur = OccurrenceExecuteView._charger(request, pk, ecriture=True)
-        if erreur:
-            return erreur
+        occ, _ = OccurrenceExecuteView._charger(request, pk, ecriture=True)
         try:
             fiche_signalement.signaler(request.user, occ, request.POST.get("texte"))
             messages.success(request, "Signalement envoyé : le responsable de la fiche est prévenu.")

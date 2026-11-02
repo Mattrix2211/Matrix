@@ -7,7 +7,7 @@
       <li class="mx-circuit__etape {% if feuille.statut == 'BROUILLON' %}mx-circuit__etape--en-cours{% else %}mx-circuit__etape--fait{% endif %}">
         <span class="mx-circuit__etat">{% if feuille.statut == 'BROUILLON' %}En cours{% else %}Fait{% endif %}</span>
         <strong>Rédaction</strong>
-        {% if feuille.proposee_le %}<span class="mx-circuit__detail">proposée par {{ feuille.proposee_par.get_full_name|default:feuille.proposee_par.username }}, le {{ feuille.proposee_le|date:"d/m à H:i" }}</span>{% endif %}
+        {% if feuille.proposee_le and feuille.proposee_par %}<span class="mx-circuit__detail">proposée par {{ feuille.proposee_par.get_full_name|default:feuille.proposee_par.username }}, le {{ feuille.proposee_le|date:"d/m à H:i" }}</span>{% endif %}
       </li>
       <li class="mx-circuit__etape {% if feuille.visa_secteur_le %}mx-circuit__etape--fait{% elif feuille.statut == 'VISA_SECTEUR' %}mx-circuit__etape--en-cours{% elif feuille.statut == 'BROUILLON' %}mx-circuit__etape--a-venir{% else %}mx-circuit__etape--saute{% endif %}">
         <span class="mx-circuit__etat">{% if feuille.visa_secteur_le %}Fait{% elif feuille.statut == 'VISA_SECTEUR' %}En cours{% elif feuille.statut == 'BROUILLON' %}À venir{% else %}Non requis{% endif %}</span>

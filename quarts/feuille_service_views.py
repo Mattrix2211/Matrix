@@ -243,7 +243,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             "derniere_correction_comaeq": (
                 AuditLog.objects.filter(
                     action="feuille_service_modifiee_comaeq",
-                    details__startswith=f"Feuille de service du {feuille.date:%d/%m/%Y} ({feuille.ship})",
+                    details__contains=feuille.marqueur_trace(),
                     created_at__gte=feuille.proposee_le,
                 ).select_related("actor").order_by("-created_at").first()
                 if feuille is not None and feuille.proposee_le and feuille.statut != FeuilleService.STATUT_PUBLIEE else None

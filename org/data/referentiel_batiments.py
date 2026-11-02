@@ -115,7 +115,7 @@ MISES_A_JOUR = [
     ("Amiral Ronarc'h", "D 660", "LIVRE", date(2025, 10, 17),
      "https://www.defense.gouv.fr/dga/actualites/dga-commande-cinquieme-fregate-defense-dintervention-fdi-naval-group",
      "Livrée à la Marine le 17/10/2025, en déploiement de longue durée (DGA 02/04/2026). Livraison ne vaut pas admission au service actif."),
-    ("Tourville", "S 637", "CONFIRME", date(2025, 1, 1),
+    ("Tourville", "S 637", "CONFIRME", None,
      "https://www.defense.gouv.fr/dga/actualites/marin-nucleaire-dattaque-sna-rubis-debute-son-transfert-jusquau-dispositif-mise-leau",
      "Admis au service actif en 2025 (source DGA, octobre 2026)."),
 ]
