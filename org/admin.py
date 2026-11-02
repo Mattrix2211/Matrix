@@ -1,12 +1,14 @@
 from django.contrib import admin
 from matrix.core.equipage import equipage_a_bord, tracer_changement_equipage
-from .models import Ship, Service, Sector, Section, SectorConfig, RoleThresholdConfig, ModuleActivation
+from .models import (
+    ModuleActivation, ReferenceBatiment, RoleThresholdConfig, Section, Sector, SectorConfig, Service, Ship, TypeBatiment,
+)
 
 @admin.register(Ship)
 class ShipAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "double_equipage", "equipage_actuel", "archived", "created_at")
-    search_fields = ("name", "code")
-    list_filter = ("archived",)
+    list_display = ("name", "code", "numero_coque", "type_batiment", "double_equipage", "equipage_actuel", "archived", "created_at")
+    search_fields = ("name", "code", "numero_coque", "trigramme")
+    list_filter = ("archived", "type_batiment")
 
     @admin.display(description="Équipage actuellement à bord")
     def equipage_actuel(self, obj):
@@ -65,3 +67,30 @@ class ModuleActivationAdmin(admin.ModelAdmin):
     # /parametre/ (matrix/views.py::SettingsView).
     list_display = ("ship", "module", "active", "updated_at")
     list_filter = ("ship", "module", "active")
+
+
+@admin.register(TypeBatiment)
+class TypeBatimentAdmin(admin.ModelAdmin):
+    list_display = ("code", "libelle", "ordre", "avec_silhouette", "actif")
+    list_filter = ("actif",)
+    search_fields = ("code", "libelle")
+
+    @admin.display(boolean=True, description="Silhouette")
+    def avec_silhouette(self, obj):
+        return bool(obj.silhouette)
+
+
+@admin.register(ReferenceBatiment)
+class ReferenceBatimentAdmin(admin.ModelAdmin):
+    list_display = ("nom", "numero_coque", "trigramme", "type_batiment", "port_base", "statut", "famille", "archive")
+    list_filter = ("statut", "famille", "type_batiment", "archive")
+    search_fields = ("nom", "numero_coque", "trigramme", "port_base")
+    actions = ("archiver", "restaurer")
+
+    @admin.action(description="Archiver les bâtiments sélectionnés (retirés du service)")
+    def archiver(self, request, queryset):
+        queryset.update(archive=True)
+
+    @admin.action(description="Restaurer les bâtiments sélectionnés")
+    def restaurer(self, request, queryset):
+        queryset.update(archive=False)

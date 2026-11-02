@@ -28,7 +28,7 @@
       {% if batiments_selectionnables %}
         <div class="dropdown mx-barre__contexte">
           <button class="mx-barre__bouton mx-barre__batiment" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Bâtiment consulté : {% if batiment_courant %}{{ batiment_courant.name }}{% else %}aucun{% endif %}. Changer de bâtiment" title="{% if batiment_courant %}{{ batiment_courant.name }} — {% endif %}Changer de bâtiment">
-            {% icone "navire" %}
+            {% include "components/silhouette_batiment.html" %}
             <span class="mx-barre__texte-coupe mx-barre__masque-mobile">{% if batiment_courant %}{{ batiment_courant.name }}{% else %}Choisir un bâtiment{% endif %}</span>
             {% icone "deplier_liste" %}
           </button>
@@ -45,7 +45,7 @@
         </div>
       {% elif batiment_courant %}
         <span class="mx-barre__contexte mx-barre__batiment" title="Bâtiment de rattachement : {{ batiment_courant.name }}">
-          {% icone "navire" %}
+          {% include "components/silhouette_batiment.html" %}
           <span class="mx-barre__texte-coupe mx-barre__masque-mobile">{{ batiment_courant.name }}</span>
         </span>
       {% endif %}

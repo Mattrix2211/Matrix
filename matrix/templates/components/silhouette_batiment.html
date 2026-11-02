@@ -1,0 +1,1 @@
+{% comment %}Silhouette du type du bâtiment courant dans le bandeau ; repli neutre (pictogramme) quand le type n'en a pas.{% endcomment %}{% load icones %}{% with silhouette=batiment_courant.type_batiment.silhouette %}{% if silhouette %}<img class="mx-silhouette" src="{{ silhouette.url }}" alt="" width="64" height="20">{% else %}{% icone "navire" %}{% endif %}{% endwith %}

@@ -248,3 +248,7 @@ span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__dec
   .mx-barre__outils { gap: 0; }
   .mx-barre__bouton, .mx-barre__utilisateur, .mx-barre__batiment, .mx-barre .theme-toggle { min-width: 40px; padding-left: var(--s1); padding-right: var(--s1); }
 }
+
+/* Silhouette du type de bâtiment dans le bandeau : proportions d'origine, rendue claire sur le fond ardoise. */
+.mx-barre { --silhouette-filtre: brightness(0) invert(1); }
+.mx-silhouette { height: 20px; width: auto; max-width: 72px; object-fit: contain; filter: var(--silhouette-filtre); }

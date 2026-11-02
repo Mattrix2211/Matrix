@@ -47,6 +47,13 @@ class Ship(TimeStampedModel):
         max_length=64, blank=True, default="", db_default="", validators=[valider_fuseau], verbose_name="Fuseau horaire de référence"
     )
     archived = models.BooleanField(default=False)
+    # Identité navale : le type porte la silhouette affichée dans le bandeau (sans type, repli neutre).
+    type_batiment = models.ForeignKey(
+        "org.TypeBatiment", null=True, blank=True, on_delete=models.SET_NULL, related_name="unites",
+        verbose_name="Type de bâtiment",
+    )
+    numero_coque = models.CharField(max_length=20, blank=True, default="", verbose_name="Numéro de coque")
+    trigramme = models.CharField(max_length=8, blank=True, default="", verbose_name="Trigramme")
 
     class Meta:
         verbose_name = "Unité"
@@ -54,6 +61,77 @@ class Ship(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+class TypeBatiment(TimeStampedModel):
+    """Type de bâtiment (FREMM, BRF, POM…) : porte la silhouette du bandeau. Modifiable en administration."""
+
+    code = models.CharField(max_length=40, unique=True, verbose_name="Code")
+    libelle = models.CharField(max_length=120, verbose_name="Libellé")
+    ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
+    silhouette = models.FileField(
+        upload_to="silhouettes/", blank=True, verbose_name="Silhouette",
+        help_text="Profil de référence du type ; sans fichier, l'interface affiche un repère neutre.",
+    )
+    actif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("ordre", "code")
+        verbose_name = "Type de bâtiment"
+        verbose_name_plural = "Types de bâtiment"
+
+    def __str__(self):
+        return self.libelle or self.code
+
+
+class ReferenceBatiment(TimeStampedModel):
+    """Entrée du référentiel des bâtiments (circulaire 2025 et mises à jour) : un catalogue, distinct des unités
+    réellement utilisées dans Matrix (`Ship`). Rien n'est supprimé : un bâtiment retiré est archivé."""
+
+    class Statut(models.TextChoices):
+        REFERENCE_2025 = "REFERENCE_2025", "Référence 2025, à vérifier"
+        CONFIRME = "CONFIRME", "Confirmé"
+        ESSAIS = "ESSAIS", "En essais"
+        LIVRE = "LIVRE", "Livré, admission au service actif non confirmée"
+        RETIRE = "RETIRE", "Retiré"
+
+    class Famille(models.TextChoices):
+        MARINE = "MARINE", "Marine nationale"
+        GENDARMERIE = "GENDARMERIE", "Gendarmerie maritime"
+
+    nom = models.CharField(max_length=120, verbose_name="Nom")
+    numero_coque = models.CharField(max_length=20, blank=True, default="", verbose_name="Numéro de coque")
+    trigramme = models.CharField(max_length=8, blank=True, default="", verbose_name="Trigramme")
+    type_batiment = models.ForeignKey(
+        TypeBatiment, null=True, blank=True, on_delete=models.SET_NULL, related_name="references", verbose_name="Type",
+    )
+    classe = models.CharField(max_length=100, blank=True, default="", verbose_name="Classe (si confirmée)")
+    port_base = models.CharField(max_length=80, blank=True, default="", verbose_name="Port-base")
+    famille = models.CharField(max_length=20, choices=Famille.choices, default=Famille.MARINE)
+    statut = models.CharField(max_length=20, choices=Statut.choices, default=Statut.REFERENCE_2025)
+    statut_au = models.DateField(null=True, blank=True, verbose_name="Statut établi au")
+    avec_equipage = models.BooleanField(default=True, verbose_name="Équipage à bord")
+    source_url = models.URLField(blank=True, default="", verbose_name="Source")
+    source_date = models.DateField(null=True, blank=True, verbose_name="Date de la source")
+    commentaire = models.CharField(max_length=255, blank=True, default="")
+    unite = models.OneToOneField(
+        "org.Ship", null=True, blank=True, on_delete=models.SET_NULL, related_name="reference_batiment",
+        verbose_name="Unité Matrix liée",
+    )
+    archive = models.BooleanField(default=False, verbose_name="Archivé")
+
+    class Meta:
+        ordering = ("nom",)
+        verbose_name = "Bâtiment du référentiel"
+        verbose_name_plural = "Bâtiments du référentiel"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("numero_coque",), condition=~models.Q(numero_coque=""), name="reference_batiment_coque_unique",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.nom} ({self.numero_coque})" if self.numero_coque else self.nom
+
 
 class CommandantAdjoint(models.TextChoices):
     """Fonctions de commandant adjoint à bord (COMAVIA seulement si l'unité a une capacité aviation)."""
