@@ -629,7 +629,7 @@ input[type="time"]:hover::-webkit-calendar-picker-indicator {
 /* Barre supérieure (docs/UX.md §8) — UX-1.2. Une seule ligne, hauteur fixe lue
    aussi par la barre latérale (--mx-hauteur-navbar). */
 :root { --mx-hauteur-navbar: 60px; }
-.mx-barre { height: var(--mx-hauteur-navbar); padding: 0; flex-wrap: nowrap; }
+.mx-barre { height: var(--mx-hauteur-navbar); padding: 0; flex-wrap: nowrap; position: sticky; top: 0; z-index: 1030; }
 .mx-barre .container-fluid { gap: var(--s3); }
 .mx-barre__outils { gap: var(--s2); flex-wrap: nowrap; }
 .mx-barre .dropdown-menu { position: absolute; }
@@ -1034,10 +1034,11 @@ span.mx-barre__batiment { cursor: default; border-color: var(--slate); }
   flex: 0 0 15rem;
   width: 15rem;
   position: sticky;
-  top: 0;
-  /* Hauteur de la fenêtre moins la barre supérieure : le bouton de bascule reste
-     toujours visible en bas, seule la liste défile si elle est trop longue. */
+  top: var(--mx-hauteur-navbar);
+  /* Sous le bandeau fixe : hauteur = espace restant, le bouton de bascule reste
+     visible en bas et seule la liste défile si elle est trop longue. */
   height: calc(100vh - var(--mx-hauteur-navbar));
+  height: calc(100dvh - var(--mx-hauteur-navbar));
   display: flex;
   flex-direction: column;
   padding: var(--s3) var(--s2);
