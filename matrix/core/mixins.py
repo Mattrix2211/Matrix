@@ -201,12 +201,33 @@ class EcritureDansLePerimetreMixin:
             objet = serializer.save(**champs)
             if not self.get_queryset().filter(pk=objet.pk).exists():
                 raise ValidationError(f"Objet de rattachement hors de {votre_niveau(self.request.user)}.")
+            from .ecriture_service import controler_service_ecriture
+            controler_service_ecriture(self.request.user, objet)
 
     def perform_create(self, serializer):
         self._enregistrer_dans_le_perimetre(serializer, **self.champs_serveur_creation())
 
     def perform_update(self, serializer):
         self._enregistrer_dans_le_perimetre(serializer, **self.champs_serveur_modification())
+
+
+class EcritureParServiceMixin:
+    """Pour un ViewSet d'écriture sans EcritureDansLePerimetreMixin : un état-major ne crée ni ne déplace un objet
+    vers un service qui n'est pas rattaché à sa fonction."""
+
+    def perform_create(self, serializer):
+        from .ecriture_service import controler_service_ecriture
+
+        with transaction.atomic():
+            super().perform_create(serializer)
+            controler_service_ecriture(self.request.user, serializer.instance)
+
+    def perform_update(self, serializer):
+        from .ecriture_service import controler_service_ecriture
+
+        with transaction.atomic():
+            super().perform_update(serializer)
+            controler_service_ecriture(self.request.user, serializer.instance)
 
 
 class EcritureTraceeMixin:

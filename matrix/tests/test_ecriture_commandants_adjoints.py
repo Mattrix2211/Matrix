@@ -244,3 +244,101 @@ class OccurrencesEtInstallationsTests(BaseDroitsEcriture):
         for nom in self.occurrences:
             reponse = self._post("comaeq_b", reverse("occurrence-execute", args=[self.occurrences[nom].pk]), {"action": "enregistrer"})
             self.assertEqual(reponse.status_code, 403, nom)
+
+
+class StockEditionEtApiCreationTests(BaseDroitsEcriture):
+    """Cas relevés par la relecture : modification d'une pièce existante, création et déplacement par l'API."""
+
+    def _api(self, qui):
+        client = APIClient()
+        client.force_login(self.profils[qui])
+        return client
+
+    def test_modifier_une_piece_existante_d_un_autre_service_est_refuse(self):
+        piece = self.pieces["Navigation"]
+        donnees = {"action": "edit_piece", "pk": piece.pk, "reference": "REF-PIRATE", "designation": "Écrasée",
+                   "quantite_minimale": "9", "sector_id": self.secteurs["Vie a bord"].pk}
+        self._post("comaeq_a", reverse("stock-piece-list"), donnees)
+        piece.refresh_from_db()
+        self.assertEqual((piece.reference, piece.service_id), ("REF-Navigation", self.services["Navigation"].pk))
+
+    def test_modifier_une_piece_de_son_service_reste_possible(self):
+        piece = self.pieces["Vie a bord"]
+        donnees = {"action": "edit_piece", "pk": piece.pk, "reference": "REF-Vie a bord", "designation": "Mise à jour",
+                   "quantite_minimale": "2", "sector_id": self.secteurs["Vie a bord"].pk}
+        self.assertEqual(self._post("comaeq_a", reverse("stock-piece-list"), donnees).status_code, 302)
+        piece.refresh_from_db()
+        self.assertEqual(piece.designation, "Mise à jour")
+
+    def test_api_creation_d_un_materiel_dans_un_autre_service_est_refusee(self):
+        type_ops = AssetType.objects.filter(sector=self.secteurs["Operations"]).first()
+        corps = {"asset_type": type_ops.pk, "ship": self.navire.pk, "service": self.services["Operations"].pk,
+                 "sector": self.secteurs["Operations"].pk, "designation": "Créé par API", "internal_id": "API-1"}
+        reponse = self._api("comanav_a").post("/api/assets/assets/", corps, format="json")
+        self.assertEqual(reponse.status_code, 403)
+        self.assertFalse(Asset.objects.filter(internal_id="API-1").exists())
+
+    def test_api_creation_dans_son_propre_service_reste_possible(self):
+        type_nav = AssetType.objects.filter(sector=self.secteurs["Navigation"]).first()
+        corps = {"asset_type": type_nav.pk, "ship": self.navire.pk, "service": self.services["Navigation"].pk,
+                 "sector": self.secteurs["Navigation"].pk, "designation": "Créé par API", "internal_id": "API-2"}
+        reponse = self._api("comanav_a").post("/api/assets/assets/", corps, format="json")
+        self.assertEqual(reponse.status_code, 201, reponse.content)
+
+    def test_api_deplacement_vers_un_autre_service_est_refuse(self):
+        asset = self.assets["Navigation"]
+        corps = {"service": self.services["Operations"].pk, "sector": self.secteurs["Operations"].pk}
+        reponse = self._api("comanav_a").patch(f"/api/assets/assets/{asset.pk}/", corps, format="json")
+        self.assertEqual(reponse.status_code, 403)
+        asset.refresh_from_db()
+        self.assertEqual(asset.service_id, self.services["Navigation"].pk)
+
+    def test_api_ticket_sur_le_materiel_d_un_autre_service_refuse(self):
+        corps = {"asset": str(self.assets["Operations"].pk), "description": "Ticket pirate"}
+        reponse = self._api("comanav_a").post("/api/logistics/tickets/", corps, format="json")
+        self.assertEqual(reponse.status_code, 403)
+        self.assertFalse(CorrectiveTicket.objects.filter(description="Ticket pirate").exists())
+
+    def test_api_demande_de_pieces_par_service(self):
+        from logistics.models import PartRequest
+        propre = PartRequest.objects.create(ticket=self.tickets["Navigation"])
+        autre = PartRequest.objects.create(ticket=self.tickets["Operations"])
+        client = self._api("comanav_a")
+        self.assertEqual(client.patch(f"/api/logistics/part-requests/{propre.pk}/", {"status": "CLOSED"}, format="json").status_code, 200)
+        self.assertEqual(client.patch(f"/api/logistics/part-requests/{autre.pk}/", {"status": "CLOSED"}, format="json").status_code, 403)
+
+
+class ObjetsTransversesEtCasLimitesTests(BaseDroitsEcriture):
+    def test_un_objet_sans_service_garde_le_niveau_normal(self):
+        from types import SimpleNamespace
+        from matrix.core.permissions import RolePermission
+        comaeq = self.profils["comaeq_a"]
+        requete = SimpleNamespace(method="PATCH", user=comaeq)
+        vue = SimpleNamespace(role_threshold_action_write=None, min_role_level_write=RoleLevel.CHEF_SECTION)
+        formation = SimpleNamespace()  # ni service, ni matériel : domaine transverse (formation, dialogue)
+        self.assertTrue(RolePermission().has_object_permission(requete, vue, formation))
+
+    def test_service_archive_ou_sans_rattachement_est_en_lecture_seule(self):
+        Service.objects.filter(pk=self.services["Vie a bord"].pk).update(archived=True)
+        self.assertEqual(services_rattaches(self.profils["comaeq_a"]), set())
+        Service.objects.filter(pk=self.services["Operations"].pk).update(commandant_adjoint="")
+        self.assertFalse(peut_ecrire_sur_service(self.profils["comops_a"], self.services["Operations"].pk))
+
+    def test_comavia_n_ecrit_que_sur_ses_services(self):
+        aviation = Service.objects.create(ship=self.navire, name="Aviation", commandant_adjoint="COMAVIA")
+        comavia = self._marin("comavia_a", "ETAT_MAJOR", "A", fonction_coma="COMAVIA")
+        self.assertEqual(services_rattaches(comavia), {aviation.pk})
+        self.assertTrue(peut_ecrire_sur_service(comavia, aviation.pk))
+        self.assertFalse(peut_ecrire_sur_service(comavia, self.services["Navigation"].pk))
+
+    def test_plusieurs_services_rattaches_a_une_meme_fonction(self):
+        Service.objects.filter(pk=self.services["Operations"].pk).update(commandant_adjoint="COMANAV")
+        self.assertEqual(
+            services_rattaches(self.profils["comanav_a"]), {self.services["Navigation"].pk, self.services["Operations"].pk})
+
+    def test_identifiant_non_numerique_dans_un_formulaire_est_refuse(self):
+        from django.core.exceptions import PermissionDenied
+        from matrix.core.ecriture_service import verifier_cible_ecriture
+        with self.assertRaises(PermissionDenied):
+            verifier_cible_ecriture(self.profils["comanav_a"], {"service_id": "abc"})
+        verifier_cible_ecriture(self.profils["commandant"], {"service_id": "abc"})  # les autres rôles ne sont pas concernés

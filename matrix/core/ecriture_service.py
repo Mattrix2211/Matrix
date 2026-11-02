@@ -36,14 +36,15 @@ def peut_ecrire_sur_service(user, service_id):
     return service_id is not None and service_id in services_rattaches(user)
 
 
-def service_de(objet):
-    """Id du service d'un objet métier, directement ou par son matériel, son installation, son plan ou sa pièce."""
-    if objet is None:
+def service_de(objet, profondeur=3):
+    """Id du service d'un objet métier, directement ou par son matériel, son installation, son plan, sa pièce, son
+    ticket, sa demande de pièces, son occurrence ou son modèle ; None pour un objet sans lien avec un service."""
+    if objet is None or profondeur < 0:
         return None
     if getattr(objet, "service_id", None):
         return objet.service_id
-    for chemin in (("asset",), ("installation",), ("installation_maintenance", "installation"), ("plan", "asset"),
-                   ("plan", "installation_maintenance", "installation"), ("piece",), ("asset_type", "sector"), ("sector",)):
+    for chemin in (("asset",), ("installation",), ("installation_maintenance", "installation"), ("piece",),
+                   ("asset_type", "sector"), ("sector",), ("template", "sector")):
         courant = objet
         for attribut in chemin:
             courant = getattr(courant, attribut, None)
@@ -52,17 +53,36 @@ def service_de(objet):
         else:
             if getattr(courant, "service_id", None):
                 return courant.service_id
+    for relation in ("ticket", "part_request", "occurrence", "plan"):
+        parent = getattr(objet, relation, None)
+        if parent is not None:
+            trouve = service_de(parent, profondeur - 1)
+            if trouve is not None:
+                return trouve
     return None
 
 
-def niveau_ecriture_sur(user, objet=None, service_id=None):
+def niveau_ecriture_sur(user, objet=None, service_id=None, strict=True):
     """Niveau d'écriture applicable à un objet (ou à un service) : celui du rôle, ramené au niveau équipier pour un
-    état-major hors des services de sa fonction."""
+    état-major hors des services de sa fonction. `strict=False` laisse le niveau normal à un objet qui n'a aucun
+    lien avec un service (formation, dialogue : domaines transverses)."""
     niveau = niveau_ecriture(user)
     if not _est_etat_major(user):
         return niveau
     cible = service_id if service_id is not None else service_de(objet)
+    if cible is None and not strict:
+        return niveau
     return niveau if peut_ecrire_sur_service(user, cible) else RoleLevel.EQUIPIER
+
+
+def controler_service_ecriture(user, objet):
+    """Après enregistrement, refuse (PermissionDenied) qu'un état-major se retrouve avec un objet dans un service qui
+    n'est pas rattaché à sa fonction : création dans un autre service ou déplacement vers un autre service."""
+    from django.core.exceptions import PermissionDenied
+
+    cible = service_de(objet)
+    if cible is not None and not peut_ecrire_sur_service(user, cible):
+        raise PermissionDenied
 
 
 def niveau_ecriture_ui(user):

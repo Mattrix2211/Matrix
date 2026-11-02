@@ -828,6 +828,13 @@ class InstallationDetailView(LoginRequiredMixin, ScopedQuerySetMixin, DetailView
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
+        niveau = niveau_ecriture_ui(request.user)
+        if action in self.MAINTENANCE_WRITE_ACTIONS and niveau < niveau_requis_pour(request.user, 'installation_entretien_gestion'):
+            raise PermissionDenied
+        if action in self.INSTALLATION_WRITE_ACTIONS and niveau < niveau_requis_pour(request.user, 'installation_ecriture_simple'):
+            raise PermissionDenied
+        if action in self.INSTALLATION_DELETE_ACTIONS and niveau < niveau_requis_pour(request.user, 'installation_gestion_avancee'):
+            raise PermissionDenied
         inst = self.get_object()
         niveau = niveau_ecriture_sur(request.user, inst)
         if action in self.MAINTENANCE_WRITE_ACTIONS and niveau < niveau_requis_pour(request.user, 'installation_entretien_gestion'):

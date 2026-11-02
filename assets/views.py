@@ -10,7 +10,7 @@ from .serializers import (
 )
 from .catalogue_web import journaliser
 from .permissions import CataloguePermission
-from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureTraceeMixin, ScopedQuerySetMixin, build_scope_q
+from matrix.core.mixins import EcritureDansLePerimetreMixin, EcritureParServiceMixin, EcritureTraceeMixin, ScopedQuerySetMixin, build_scope_q
 from matrix.core.permissions import RolePermission
 
 class DefaultPermission(permissions.IsAuthenticated):
@@ -52,7 +52,7 @@ class LocationViewSet(EcritureTraceeMixin, EcritureDansLePerimetreMixin, ScopedQ
             },
         )
 
-class AssetTypeViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class AssetTypeViewSet(EcritureParServiceMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetType.objects.select_related("sector", "sector__service", "sector__service__ship").all()
     serializer_class = AssetTypeSerializer
     permission_classes = [RolePermission]
@@ -76,7 +76,7 @@ class AssetTypeViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
             },
         )
 
-class ChecklistTemplateViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class ChecklistTemplateViewSet(EcritureParServiceMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     # Les versions de fiche ne se modifient que par le circuit de validation.
     queryset = ChecklistTemplate.objects.filter(fiche__isnull=True).select_related("sector", "asset_type").prefetch_related("items")
     serializer_class = ChecklistTemplateSerializer
@@ -172,7 +172,7 @@ class AssetDocumentViewSet(EcritureDansLePerimetreMixin, ScopedQuerySetMixin, vi
         # LocationViewSet.get_scoped_filters ci-dessus, préfixé par "asset__".
         return build_scope_q(self.request.user, "asset__")
 
-class AssetChecklistOverrideViewSet(ScopedQuerySetMixin, viewsets.ModelViewSet):
+class AssetChecklistOverrideViewSet(EcritureParServiceMixin, ScopedQuerySetMixin, viewsets.ModelViewSet):
     queryset = AssetChecklistOverride.objects.select_related("asset", "template").all()
     serializer_class = AssetChecklistOverrideSerializer
     permission_classes = [RolePermission]

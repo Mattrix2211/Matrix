@@ -8,7 +8,7 @@ from django.views import View
 
 from matrix.core.mixins import build_scope_q
 from matrix.core.role_thresholds import niveau_requis_pour
-from matrix.core.ecriture_service import niveau_ecriture_sur
+from matrix.core.ecriture_service import niveau_ecriture_sur, niveau_ecriture_ui
 
 from .models import MouvementStock, StockPiece
 from .stock import MotifRequis, StockInsuffisant, enregistrer_mouvement
@@ -48,6 +48,8 @@ class StockPieceMouvementsView(LoginRequiredMixin, View):
         })
 
     def post(self, request, pk):
+        if niveau_ecriture_ui(request.user) < niveau_requis_pour(request.user, "stock_ecriture"):
+            raise PermissionDenied
         piece = self._piece(request, pk)
         if niveau_ecriture_sur(request.user, piece) < niveau_requis_pour(request.user, "stock_ecriture"):
             raise PermissionDenied

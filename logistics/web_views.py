@@ -803,7 +803,7 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             # filtre que la liste) plutôt qu'un simple StockPiece.objects.filter(pk=pk) :
             # une pièce hors périmètre doit être traitée comme introuvable, pour empêcher
             # un chef de section de modifier une pièce d'un autre bâtiment via un POST direct.
-            piece = self.get_queryset().filter(pk=pk).first()
+            piece = self.get_queryset().filter(q_ecriture(request.user, "service_id"), pk=pk).first()
             if piece is None:
                 messages.error(request, "Pièce introuvable.")
                 return redirect('stock-piece-list')

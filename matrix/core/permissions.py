@@ -55,7 +55,7 @@ class RolePermission(BasePermission):
         if request.user.is_superuser:
             return True
         # Un état-major n'écrit que sur les services rattachés à sa fonction de commandant adjoint.
-        lvl = niveau_ecriture_sur(request.user, obj)
+        lvl = niveau_ecriture_sur(request.user, obj, strict=False)
         # Autorise les assignés à modifier leurs propres occurrences/exécutions de maintenance
         model_name = obj.__class__.__name__
         if model_name == 'MaintenanceOccurrence':
