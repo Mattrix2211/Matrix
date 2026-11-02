@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load org_extras %}
+{% load org_extras composants %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
   <div>
@@ -35,7 +35,8 @@
     <a class="btn btn-outline-secondary btn-sm {% if date == aujourdhui %}active{% endif %}" href="{% url 'feuille-service-detail' ship.pk aujourdhui|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage }}{% endif %}">Aujourd'hui</a>
     <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-detail' ship.pk lendemain|date:'Y-m-d' %}{% if equipage %}?equipage={{ equipage }}{% endif %}">Lendemain <i class="bi bi-chevron-right"></i></a>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="offcanvas" data-bs-target="#panneau-redacteurs" aria-controls="panneau-redacteurs"><i class="bi bi-people"></i> Rédacteurs</button>
     {% if peut_gerer_alertes %}
     <a class="btn btn-outline-secondary btn-sm" href="{% url 'feuille-service-alertes' %}?ship={{ ship.pk }}"><i class="bi bi-shield-exclamation"></i> Organisation d'alerte</a>
     {% endif %}
@@ -44,6 +45,8 @@
     {% endif %}
   </div>
 </div>
+
+{% url 'feuille-service-redacteurs' as url_redacteurs %}{% with navire_pk=ship.pk|stringformat:"s" %}{% panneau_lateral id="panneau-redacteurs" titre="Rédacteurs de la feuille" icone="utilisateur" url=url_redacteurs|add:"?ship="|add:navire_pk %}{% fin_panneau_lateral %}{% endwith %}
 
 {% if etat_incoherent %}
 <div class="alert alert-danger">
@@ -60,7 +63,7 @@
 {% if peut_designer %}
 <div class="alert {% if equipage_sans_redacteur %}alert-warning{% else %}alert-light border{% endif %} d-flex justify-content-between align-items-center flex-wrap gap-2 no-print" role="{% if equipage_sans_redacteur %}alert{% else %}note{% endif %}">
   <span>{% if equipage_sans_redacteur %}<strong>Aucun rédacteur opérant{% if equipage %} pour l'équipage {{ equipage }}{% endif %}</strong> : personne ne peut rédiger cette feuille.{% else %}Rédacteurs de la feuille : désignés par le COMAEQ de l'équipage.{% endif %}</span>
-  <a class="btn btn-sm btn-outline-secondary" href="{% url 'feuille-service-redacteurs' %}?ship={{ ship.pk }}">Voir les rédacteurs</a>
+  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#panneau-redacteurs" aria-controls="panneau-redacteurs">Gérer les rédacteurs</button>
 </div>
 {% endif %}
 {% if not feuille %}

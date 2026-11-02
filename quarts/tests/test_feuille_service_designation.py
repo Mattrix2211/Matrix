@@ -226,3 +226,45 @@ class BasculeEquipageUniqueDoubleTests(DesignationBase):
         self.client.force_login(User.objects.get(username="coma_A"))
         self.assertContains(self.client.get(self.url, {"ship": self.navire.pk}), "Inopérante")
         self.assertContains(self.client.get(self.url, {"ship": self.navire.pk}), 'value="retirer"')
+
+
+class PanneauRedacteursTests(DesignationBase):
+    """Le panneau latéral réutilise la vue : mêmes droits, fragment HTML au lieu de la page."""
+
+    def _fragment(self, nom, methode="get", **donnees):
+        self.client.force_login(User.objects.get(username=nom))
+        donnees = {"ship": self.navire.pk, **donnees}
+        appel = self.client.post if methode == "post" else self.client.get
+        return appel(self.url, donnees, HTTP_HX_REQUEST="true")
+
+    def test_le_fragment_n_a_pas_de_gabarit_de_page(self):
+        page = self._fragment("coma_A")
+        self.assertContains(page, "mx-redacteurs")
+        self.assertNotContains(page, "<html")
+
+    def test_son_equipage_d_abord_l_autre_en_lecture_seule(self):
+        RedacteurFeuilleService.objects.create(ship=self.navire, equipage="A", user=User.objects.get(username="matelot_A"))
+        RedacteurFeuilleService.objects.create(ship=self.navire, equipage="B", user=User.objects.get(username="matelot_B"))
+        page = self._fragment("coma_A")
+        contenu = page.content.decode()
+        self.assertLess(contenu.index("Équipage A"), contenu.index("Équipage B"))
+        self.assertContains(page, "Lecture seule : ces désignations relèvent du COMAEQ de l'équipage B")
+        designation_b = RedacteurFeuilleService.objects.get(user__username="matelot_B")
+        self.assertNotContains(page, f'name="pk" value="{designation_b.pk}"')
+
+    def test_designation_depuis_le_panneau_renvoie_le_fragment_sans_message_differe(self):
+        reponse = self._fragment("coma_A", "post", action="designer", user=User.objects.get(username="matelot_A").pk)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, "peut désormais rédiger")
+        self.assertTrue(RedacteurFeuilleService.objects.filter(user__username="matelot_A", equipage="A").exists())
+        self.assertEqual(list(reponse.wsgi_request._messages), [])
+
+    def test_le_panneau_ne_donne_aucun_droit_de_plus(self):
+        reponse = self._fragment("coma_A", "post", action="designer", user=User.objects.get(username="matelot_B").pk)
+        self.assertEqual(reponse.status_code, 403)
+        self.assertFalse(RedacteurFeuilleService.objects.exists())
+
+    def test_un_marin_lit_sans_pouvoir_modifier(self):
+        page = self._fragment("matelot_A")
+        self.assertNotContains(page, 'value="designer"')
+        self.assertContains(page, "appartient au COMAEQ")

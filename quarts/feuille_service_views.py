@@ -524,8 +524,7 @@ class FeuilleServiceRedacteursView(LoginRequiredMixin, View):
             raise PermissionDenied
         return navire
 
-    def get(self, request):
-        ship = self._ship(request)
+    def _contexte(self, request, ship, retour=""):
         profil = getattr(request.user, "profile", None)
         mon_equipage = (profil.equipage if profil and ship.double_equipage else "") or ""
         redacteurs = list(RedacteurFeuilleService.objects.filter(ship=ship).select_related("user", "accordee_par"))
@@ -539,11 +538,28 @@ class FeuilleServiceRedacteursView(LoginRequiredMixin, View):
             u for u in User.objects.filter(profile__ship=ship, is_active=True).select_related("profile").order_by("last_name", "username")
             if peut_designer and u.pk not in deja and (u.profile.equipage if ship.double_equipage else "") == mon_equipage
         ]
-        return render(request, self.template_name, {
-            "ship": ship, "redacteurs": redacteurs, "candidats": candidats, "peut_designer": peut_designer,
-            "equipage": mon_equipage, "sans_redacteur": equipages_sans_redacteur(ship),
-            "inoperantes": [r for r in redacteurs if r.inoperante],
-        })
+        codes = (codes_equipage(ship) if ship.double_equipage else [""])
+        # Son équipage d'abord ; les autres sont en lecture seule ; les codes disparus sont regroupés à part.
+        ordre = sorted(codes, key=lambda code: (code != mon_equipage, code))
+        groupes = [
+            {"code": code, "propre": code == mon_equipage, "redacteurs": [r for r in redacteurs if r.equipage == code]}
+            for code in ordre
+        ]
+        orphelines = [r for r in redacteurs if r.equipage not in codes]
+        return {
+            "ship": ship, "groupes": groupes, "orphelines": orphelines, "candidats": candidats, "peut_designer": peut_designer,
+            "double_equipage": ship.double_equipage, "equipage": mon_equipage, "sans_redacteur": equipages_sans_redacteur(ship),
+            "retour": retour, "a_inoperantes": bool(inoperantes),
+        }
+
+    def _reponse(self, request, ship, retour=""):
+        contexte = self._contexte(request, ship, retour)
+        if request.headers.get("HX-Request"):
+            return render(request, "quarts/_redacteurs_contenu.html", contexte)
+        return render(request, self.template_name, contexte)
+
+    def get(self, request):
+        return self._reponse(request, self._ship(request))
 
     def post(self, request):
         ship = self._ship(request)
@@ -563,7 +579,7 @@ class FeuilleServiceRedacteursView(LoginRequiredMixin, View):
                     actor=request.user, action="feuille_service_redacteur_designe", target_user=cible,
                     details=f"ship_id={ship.pk} equipage={equipage}",
                 )
-            messages.success(request, f"{cible.get_full_name() or cible.username} peut désormais rédiger la feuille de service.")
+            retour = f"{cible.get_full_name() or cible.username} peut désormais rédiger la feuille de service."
         elif action == "retirer":
             designation = RedacteurFeuilleService.objects.filter(pk=entier_ou_none(request.POST.get("pk")), ship=ship).select_related("user").first()
             if designation is None:
@@ -576,7 +592,10 @@ class FeuilleServiceRedacteursView(LoginRequiredMixin, View):
                 details=f"ship_id={ship.pk} equipage={designation.equipage}",
             )
             designation.delete()
-            messages.info(request, "Droit de rédaction retiré.")
+            retour = "Droit de rédaction retiré."
         else:
             return HttpResponseBadRequest("Action inconnue.")
+        if request.headers.get("HX-Request"):
+            return self._reponse(request, ship, retour)
+        messages.success(request, retour)
         return redirect(f"{reverse('feuille-service-redacteurs')}?ship={ship.pk}")

@@ -1,0 +1,104 @@
+{% comment %}Rédacteurs de la feuille de service : fragment commun à la page et au panneau latéral.{% endcomment %}
+<div class="mx-redacteurs" id="redacteurs-{{ ship.pk }}">
+  {% if retour %}<div class="alert alert-success py-2" role="status">{{ retour }}</div>{% endif %}
+
+  {% for code in sans_redacteur %}
+  <div class="alert alert-warning py-2" role="alert"><strong>Aucun rédacteur opérant{% if code %} pour l'équipage {{ code }}{% endif %}</strong> : personne ne peut rédiger cette feuille.</div>
+  {% endfor %}
+
+  {% if a_inoperantes %}
+  <div class="alert alert-warning py-2 small" role="alert"><strong>Désignation(s) devenue(s) inopérante(s)</strong> : elles ne donnent aucun droit. Retirez-les puis désignez de nouveau.</div>
+  {% endif %}
+
+  {% for groupe in groupes %}
+  <section class="mb-4" aria-labelledby="redacteurs-groupe-{{ ship.pk }}-{{ forloop.counter }}">
+    {% if double_equipage %}
+    <h3 class="h6 d-flex align-items-center gap-2" id="redacteurs-groupe-{{ ship.pk }}-{{ forloop.counter }}">
+      Équipage {{ groupe.code }}{% if groupe.propre %} <span class="badge text-bg-primary">Le vôtre</span>{% endif %}
+    </h3>
+    {% else %}
+    <h3 class="h6" id="redacteurs-groupe-{{ ship.pk }}-{{ forloop.counter }}">Rédacteurs désignés</h3>
+    {% endif %}
+    {% if groupe.redacteurs %}
+    <ul class="list-group list-group-flush mb-2">
+      {% for r in groupe.redacteurs %}
+      <li class="list-group-item px-0">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="me-auto">{{ r.user.get_full_name|default:r.user.username }}</span>
+          {% if r.inoperante %}<span class="badge text-bg-warning">Inopérante</span>{% endif %}
+          {% if r.modifiable %}
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#retrait-{{ r.pk }}" aria-expanded="false" aria-controls="retrait-{{ r.pk }}">Retirer</button>
+          {% endif %}
+        </div>
+        {% if r.inoperante %}<div class="small text-secondary">Le marin a changé d'équipage ou de bâtiment, ou est désactivé : cette désignation ne donne aucun droit.</div>{% endif %}
+        {% if r.modifiable %}
+        <div class="collapse mt-2" id="retrait-{{ r.pk }}">
+          <form method="post" hx-post="{% url 'feuille-service-redacteurs' %}" hx-target="#redacteurs-{{ ship.pk }}" hx-swap="outerHTML" class="d-flex align-items-center gap-2 flex-wrap">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="retirer">
+            <input type="hidden" name="ship" value="{{ ship.pk }}">
+            <input type="hidden" name="pk" value="{{ r.pk }}">
+            <span class="small">Retirer le droit de rédaction ?</span>
+            <button type="submit" class="btn btn-sm btn-danger">Confirmer le retrait</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#retrait-{{ r.pk }}">Annuler</button>
+          </form>
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-secondary small mb-2">Aucun rédacteur désigné.</p>
+    {% endif %}
+    {% if not groupe.propre %}
+    <p class="small text-secondary mb-0">Lecture seule : ces désignations relèvent du COMAEQ de l'équipage {{ groupe.code }}.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  {% if orphelines %}
+  <section class="mb-4">
+    <h3 class="h6">Désignations inopérantes</h3>
+    <p class="small text-secondary">Le code d'équipage n'existe plus (organisation du bâtiment modifiée). Elles ne donnent aucun droit.</p>
+    <ul class="list-unstyled mb-0">
+      {% for r in orphelines %}
+      <li class="d-flex align-items-center gap-2 mb-1">
+        <span class="me-auto">{{ r.user.get_full_name|default:r.user.username }}{% if r.equipage %} · équipage {{ r.equipage }}{% endif %}</span>
+        <span class="badge text-bg-warning">Inopérante</span>
+        {% if r.modifiable %}
+        <form method="post" hx-post="{% url 'feuille-service-redacteurs' %}" hx-target="#redacteurs-{{ ship.pk }}" hx-swap="outerHTML">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="retirer"><input type="hidden" name="ship" value="{{ ship.pk }}"><input type="hidden" name="pk" value="{{ r.pk }}">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Retirer</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if peut_designer %}
+  <section class="border-top pt-3" aria-label="Ajouter un rédacteur">
+    {% if candidats %}
+    <form method="post" hx-post="{% url 'feuille-service-redacteurs' %}" hx-target="#redacteurs-{{ ship.pk }}" hx-swap="outerHTML" class="d-flex gap-2 flex-wrap align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="designer">
+      <input type="hidden" name="ship" value="{{ ship.pk }}">
+      <div class="flex-grow-1">
+        <label class="form-label small mb-1" for="redacteur-choix-{{ ship.pk }}">Ajouter un rédacteur</label>
+        <select name="user" id="redacteur-choix-{{ ship.pk }}" class="form-select form-select-sm" required>
+          <option value="">Choisir un marin…</option>
+          {% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">Désigner</button>
+    </form>
+    {% else %}
+    <p class="text-secondary small mb-0">Tous les marins de votre équipage sont déjà désignés.</p>
+    {% endif %}
+  </section>
+  {% else %}
+  <p class="small text-secondary mb-0">La désignation appartient au COMAEQ de l'équipage (à défaut, à son commandant).</p>
+  {% endif %}
+</div>
