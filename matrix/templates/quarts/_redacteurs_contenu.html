@@ -10,6 +10,30 @@
   <div class="alert alert-warning py-2 small" role="alert"><strong>Désignation(s) devenue(s) inopérante(s)</strong> : elles ne donnent aucun droit. Retirez-les puis désignez de nouveau.</div>
   {% endif %}
 
+  {% if peut_designer %}
+  <section class="border-bottom pb-3 mb-4" aria-label="Ajouter un rédacteur">
+    {% if candidats %}
+    <form method="post" hx-post="{% url 'feuille-service-redacteurs' %}" hx-target="#redacteurs-{{ ship.pk }}" hx-swap="outerHTML" class="d-flex gap-2 flex-wrap align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="designer">
+      <input type="hidden" name="ship" value="{{ ship.pk }}">
+      <div class="flex-grow-1">
+        <label class="form-label small mb-1" for="redacteur-choix-{{ ship.pk }}">Ajouter un rédacteur</label>
+        <select name="user" id="redacteur-choix-{{ ship.pk }}" class="form-select form-select-sm" required>
+          <option value="">Choisir un marin…</option>
+          {% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">Désigner</button>
+    </form>
+    {% else %}
+    <p class="text-secondary small mb-0">Tous les marins de votre équipage sont déjà désignés.</p>
+    {% endif %}
+  </section>
+  {% else %}
+  <p class="small text-secondary mb-0">La désignation appartient au COMAEQ de l'équipage (à défaut, à son commandant).</p>
+  {% endif %}
+
   {% for groupe in groupes %}
   <section class="mb-4" aria-labelledby="redacteurs-groupe-{{ ship.pk }}-{{ forloop.counter }}">
     {% if double_equipage %}
@@ -78,27 +102,4 @@
   </section>
   {% endif %}
 
-  {% if peut_designer %}
-  <section class="border-top pt-3" aria-label="Ajouter un rédacteur">
-    {% if candidats %}
-    <form method="post" hx-post="{% url 'feuille-service-redacteurs' %}" hx-target="#redacteurs-{{ ship.pk }}" hx-swap="outerHTML" class="d-flex gap-2 flex-wrap align-items-end">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="designer">
-      <input type="hidden" name="ship" value="{{ ship.pk }}">
-      <div class="flex-grow-1">
-        <label class="form-label small mb-1" for="redacteur-choix-{{ ship.pk }}">Ajouter un rédacteur</label>
-        <select name="user" id="redacteur-choix-{{ ship.pk }}" class="form-select form-select-sm" required>
-          <option value="">Choisir un marin…</option>
-          {% for u in candidats %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
-        </select>
-      </div>
-      <button type="submit" class="btn btn-sm btn-primary">Désigner</button>
-    </form>
-    {% else %}
-    <p class="text-secondary small mb-0">Tous les marins de votre équipage sont déjà désignés.</p>
-    {% endif %}
-  </section>
-  {% else %}
-  <p class="small text-secondary mb-0">La désignation appartient au COMAEQ de l'équipage (à défaut, à son commandant).</p>
-  {% endif %}
 </div>
