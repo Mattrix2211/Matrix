@@ -45,6 +45,7 @@ from .models import (
     codes_equipage,
     equipage_de_feuille_pour,
     feuille_du_jour,
+    CorrectionTropImportante,
     peut_gerer_brouillon_feuille,
     peut_intervenir_comaeq,
     peut_lire_feuille_service,
@@ -239,6 +240,14 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 and peut_viser_comaeq(request.user, feuille)
             ),
             "peut_intervenir_comaeq": feuille is not None and peut_intervenir_comaeq(request.user, feuille),
+            "derniere_correction_comaeq": (
+                AuditLog.objects.filter(
+                    action="feuille_service_modifiee_comaeq",
+                    details__startswith=f"Feuille de service du {feuille.date:%d/%m/%Y} ({feuille.ship})",
+                    created_at__gte=feuille.proposee_le,
+                ).select_related("actor").order_by("-created_at").first()
+                if feuille is not None and feuille.proposee_le and feuille.statut != FeuilleService.STATUT_PUBLIEE else None
+            ),
             "jeton_visa": (
                 jeton_visa(feuille, request.user)
                 if feuille is not None and feuille.statut == FeuilleService.STATUT_VISA_COMAEQ
@@ -394,7 +403,11 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             saisies = {
                 cle.removeprefix("rubrique_"): valeur for cle, valeur in request.POST.items() if cle.startswith("rubrique_")
             }
-            changements = feuille.modifier_entete_comaeq(request.user, saisies, motif)
+            try:
+                changements = feuille.modifier_entete_comaeq(request.user, saisies, motif)
+            except CorrectionTropImportante as erreur:
+                messages.error(request, f"{erreur} Renvoyez la feuille au rédacteur pour un nouveau contrôle.")
+                return _redirection_detail(ship, date_, equipage)
             if changements is False:
                 messages.error(request, MESSAGE_CONTENU_CHANGE + " Renvoyez la feuille au rédacteur pour reprendre le circuit.")
             elif not changements:

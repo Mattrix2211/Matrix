@@ -25,6 +25,7 @@ class InterventionComaeqTests(TestCase):
         self.feuille.visa_secteur_par = self.feuille.visa_service_par = self.chef
         self.feuille.visa_secteur_le = self.feuille.visa_service_le = timezone.now()
         self.feuille.proposee_par = self.bsc
+        self.feuille.proposee_le = timezone.now() - timezone.timedelta(minutes=5)
         self.feuille.empreinte_visee = self.feuille._empreinte_contenu()
         self.feuille.save()
         self.url = reverse("feuille-service-detail", args=[self.navire.pk, f"{self.feuille.date:%Y-%m-%d}"])
@@ -122,3 +123,59 @@ class InterventionComaeqTests(TestCase):
         self.assertContains(page, "mx-circuit__etape--fait")
         self.assertContains(page, "mx-circuit__etape--en-cours")
         self.assertContains(page, "Dernière modification")
+
+    def test_une_reecriture_n_est_pas_une_correction(self):
+        self._post("comaeq", action="modifier_comaeq", motif="Réécriture", **{self.cle: "Programme entièrement différent du jour"})
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Saint Hervé")
+        self.assertFalse(AuditLog.objects.filter(action="feuille_service_modifiee_comaeq").exists())
+
+    def test_l_ajout_trop_long_dans_une_rubrique_vide_est_refuse(self):
+        FeuilleService.objects.filter(pk=self.feuille.pk).update(valeurs_entete={})
+        self.feuille.refresh_from_db()
+        FeuilleService.objects.filter(pk=self.feuille.pk).update(empreinte_visee=self.feuille._empreinte_contenu())
+        self._post("comaeq", action="modifier_comaeq", motif="Ajout", **{self.cle: "x" * 120})
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.valeurs_entete, {})
+
+    def test_la_correction_acceptee_reste_signalee_dans_le_circuit(self):
+        self._post("comaeq", action="modifier_comaeq", motif="Coquille", **{self.cle: "Saint Herve"})
+        self.client.force_login(self.comaeq)
+        page = self.client.get(self.url)
+        self.assertContains(page, "Corrigée par le COMAEQ après proposition")
+        self.assertContains(page, "Coquille")
+
+
+class InterventionComaeqDoubleEquipageTests(TestCase):
+    """Le COMAEQ de l'autre équipage n'a aucun pouvoir sur la feuille de l'équipage à bord."""
+
+    def setUp(self):
+        self.navire = Ship.objects.create(name="FREMM Interv", code="FI", double_equipage=True, equipage_a_bord="A")
+        self.rubrique = RubriqueEnTeteFeuilleService.objects.create(ship=self.navire, libelle="Saint du jour")
+        self.coma_a = self._marin("coma_a", "A")
+        self.coma_b = self._marin("coma_b", "B")
+        self.feuille = FeuilleService.objects.create(
+            ship=self.navire, equipage="A", date=timezone.localdate(), statut=FeuilleService.STATUT_VISA_COMAEQ,
+            valeurs_entete={str(self.rubrique.uid): "Saint Hervé"},
+        )
+        self.feuille.proposee_le = timezone.now()
+        self.feuille.empreinte_visee = self.feuille._empreinte_contenu()
+        self.feuille.save()
+        self.url = reverse("feuille-service-detail", args=[self.navire.pk, f"{self.feuille.date:%Y-%m-%d}"])
+
+    def _marin(self, nom, equipage):
+        user = User.objects.create_user(username=nom, password="pass")
+        UserProfile.objects.update_or_create(
+            user=user, defaults={"role": "ETAT_MAJOR", "ship": self.navire, "equipage": equipage, "fonction_coma": "COMAEQ"})
+        return User.objects.get(pk=user.pk)
+
+    def test_seul_le_comaeq_de_l_equipage_de_la_feuille_intervient(self):
+        self.assertTrue(peut_intervenir_comaeq(self.coma_a, self.feuille))
+        self.assertFalse(peut_intervenir_comaeq(self.coma_b, self.feuille))
+        self.client.force_login(self.coma_b)
+        for donnees in ({"action": "modifier_comaeq", "motif": "x"}, {"action": "renvoyer", "motif": "x"}):
+            reponse = self.client.post(self.url + "?equipage=A", donnees)
+            self.assertIn(reponse.status_code, (400, 403, 404), donnees["action"])
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.statut, FeuilleService.STATUT_VISA_COMAEQ)
+        self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Saint Hervé")

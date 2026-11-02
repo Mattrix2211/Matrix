@@ -26,6 +26,13 @@
       </li>
     </ol>
 
+    {% if derniere_correction_comaeq %}
+    <div class="alert alert-warning py-2 small" role="status">
+      <strong>Corrigée par le COMAEQ après proposition</strong> ({{ derniere_correction_comaeq.created_at|date:"d/m à H:i" }}) : les visas déjà donnés portent sur la version précédente.
+      <details class="mt-1"><summary>Détail de la correction</summary>{{ derniere_correction_comaeq.details }}</details>
+    </div>
+    {% endif %}
+
     <h3 class="mx-circuit__titre">Action attendue</h3>
     {% if feuille.statut == 'VISA_COMAEQ' %}
       {% if comaeq_titulaire %}

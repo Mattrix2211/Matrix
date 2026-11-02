@@ -1096,6 +1096,10 @@ def _contenu_structure(structure):
     return {cle: structure.get(cle) for cle in ("rubriques", "fonctions")}
 
 
+class CorrectionTropImportante(ValueError):
+    """La correction du COMAEQ change trop le contenu visé : il faut un nouveau contrôle (renvoi au rédacteur)."""
+
+
 class TransitionDejaEffectuee(ValueError):
     """L'étape du circuit de visa a déjà été franchie (double soumission, action concurrente)."""
 
@@ -1584,6 +1588,21 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                     url=reverse("feuille-service-detail", args=[self.ship_id, f"{self.date:%Y-%m-%d}"]),
                 )
 
+    @staticmethod
+    def _verifier_correction_mineure(libelle, avant, apres):
+        """Seule une correction légère garde les visas acquis : coquille, précision, date ; pas une réécriture.
+        Seuils réglables (settings.FEUILLE_SERVICE_CORRECTION_*) : similarité minimale et ajout maximal."""
+        from difflib import SequenceMatcher
+        from django.conf import settings
+        ratio_min = getattr(settings, "FEUILLE_SERVICE_CORRECTION_SIMILARITE_MIN", 0.6)
+        ajout_max = getattr(settings, "FEUILLE_SERVICE_CORRECTION_AJOUT_MAX", 60)
+        if avant:
+            trop_different = SequenceMatcher(None, avant, apres).ratio() < ratio_min
+        else:
+            trop_different = len(apres) > ajout_max
+        if trop_different:
+            raise CorrectionTropImportante(f"La rubrique « {libelle} » change trop pour conserver les visas déjà donnés.")
+
     def modifier_entete_comaeq(self, user, saisies, motif):
         """Le COMAEQ corrige lui-même l'en-tête pendant le circuit de visa. Les visas déjà donnés restent acquis : il
         vise en dernier, personne en dessous ne revise son travail. Refusé (False) si le contenu a changé depuis le dernier
@@ -1601,6 +1620,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
                     continue
                 avant, apres = valeurs.get(rubrique.uid, ""), saisies[rubrique.uid].strip()
                 if avant != apres:
+                    self._verifier_correction_mineure(rubrique.libelle, avant, apres)
                     valeurs[rubrique.uid] = apres
                     changements.append(f"{rubrique.libelle} ({avant or 'vide'} -> {apres or 'vide'})")
             if not changements:
