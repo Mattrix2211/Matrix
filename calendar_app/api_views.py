@@ -19,6 +19,7 @@ from programme.services import evenements_periode as evenements_programme
 from .deplacement_views import _perimetre_session
 from .sources import CONCEPT_ICONE_PAR_TYPE, COULEUR_PAR_TYPE
 from .evenements_sources import (
+    filtres_organisation_coherents,
     _absences_periode,
     _appliquer_filtres_occurrences,
     _appliquer_filtres_tickets,
@@ -117,6 +118,7 @@ def calendar_events(request):
         "ship": request.GET.get("ship") or None,
         "service": request.GET.get("service") or None,
         "sector": request.GET.get("sector") or None,
+        "section": request.GET.get("section") or None,
         "user": request.GET.get("user") or None,
         "type": request.GET.get("type") or None,
         "status": request.GET.get("status") or None,
@@ -124,6 +126,7 @@ def calendar_events(request):
     invalide = filtre_identifiant_invalide(filters)
     if invalide:
         return JsonResponse({"detail": f"Filtre « {invalide} » invalide : un identifiant numérique est attendu."}, status=400)
+    filters = filtres_organisation_coherents(request.user, filters)
     # « Mon équipe » : valeur spéciale du filtre Utilisateur, réservée à qui peut attribuer des tâches.
     if filters.get("user") == "equipe":
         if not peut_superviser(request.user):

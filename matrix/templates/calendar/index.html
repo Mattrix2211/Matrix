@@ -61,18 +61,30 @@
         <select name="service" id="filtre-service" class="form-select form-select-sm">
           <option value="">Tous</option>
           {% for s in services %}
-            <option value="{{ s.id }}" {% if active_filters.service|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.ship.name }} / {{ s.name }}</option>
+            <option value="{{ s.id }}" data-ship="{{ s.ship_id }}" {% if active_filters.service|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.ship.name }} / {{ s.name }}</option>
           {% endfor %}
         </select>
+        <p class="form-text small mb-0" data-vide="service" hidden>Aucun service disponible pour cette unité.</p>
       </div>
       <div>
         <label class="form-label mb-1" for="filtre-sector">Secteur</label>
         <select name="sector" id="filtre-sector" class="form-select form-select-sm">
           <option value="">Tous</option>
           {% for s in sectors %}
-            <option value="{{ s.id }}" {% if active_filters.sector|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.service.name }} / {{ s.name }}</option>
+            <option value="{{ s.id }}" data-ship="{{ s.service.ship_id }}" data-service="{{ s.service_id }}" {% if active_filters.sector|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.service.name }} / {{ s.name }}</option>
           {% endfor %}
         </select>
+        <p class="form-text small mb-0" data-vide="sector" hidden>Aucun secteur disponible pour ce service.</p>
+      </div>
+      <div>
+        <label class="form-label mb-1" for="filtre-section">Section</label>
+        <select name="section" id="filtre-section" class="form-select form-select-sm">
+          <option value="">Tous</option>
+          {% for s in sections %}
+            <option value="{{ s.id }}" data-ship="{{ s.sector.service.ship_id }}" data-service="{{ s.sector.service_id }}" data-sector="{{ s.sector_id }}" {% if active_filters.section|default:''|stringformat:'s' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.sector.name }} / {{ s.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="form-text small mb-0" data-vide="section" hidden>Aucune section disponible pour ce secteur.</p>
       </div>
       <div>
         <label class="form-label mb-1" for="filtre-user">Utilisateur</label>
@@ -240,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let ship    = params.get('ship')    || '';
   let service = params.get('service') || '';
   let sector  = params.get('sector')  || '';
+  let section = params.get('section') || '';
   let user    = params.get('user')    || '';
   let type    = params.get('type')    || '';
   let status  = params.get('status')  || '';
@@ -252,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const peutCreer = panneauEvenement !== null;
 
   function construireUrlEvenements(vue) {
-    return `/calendar/events/?view=${vue}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&user=${user}&type=${type}&status=${status}`;
+    return `/calendar/events/?view=${vue}&date=${date}&ship=${ship}&service=${service}&sector=${sector}&section=${section}&user=${user}&type=${type}&status=${status}`;
   }
 
   const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
@@ -595,7 +608,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // rechargement — sans jamais recharger la page nous-mêmes.
   function synchroniserUrlPage() {
     const url = new URL(window.location.href);
-    const parametres = { view, ship, service, sector, user, type, status };
+    const parametres = { view, ship, service, sector, section, user, type, status };
     Object.keys(parametres).forEach(function (cle) {
       const valeur = parametres[cle];
       if (valeur) {
@@ -642,6 +655,7 @@ document.addEventListener('DOMContentLoaded', function () {
     ship: document.querySelector('select[name="ship"]'),
     service: document.querySelector('select[name="service"]'),
     sector: document.querySelector('select[name="sector"]'),
+    section: document.querySelector('select[name="section"]'),
     user: document.querySelector('select[name="user"]'),
     type: document.querySelector('select[name="type"]'),
     status: document.querySelector('select[name="status"]'),
@@ -675,11 +689,44 @@ document.addEventListener('DOMContentLoaded', function () {
     libelleFiltres.textContent = nombre ? 'Filtres · ' + nombre : 'Filtres';
   }
 
+  // Listes en cascade : un parent limite les enfants proposés, les sélections devenues invalides sont remises à « Tous ».
+  const HIERARCHIE = [
+    { cle: 'service', parents: ['ship'] },
+    { cle: 'sector', parents: ['ship', 'service'] },
+    { cle: 'section', parents: ['ship', 'service', 'sector'] },
+  ];
+  function filtrerEnCascade() {
+    const reinitialises = [];
+    HIERARCHIE.forEach(function (niveau) {
+      const champ = champsFiltres[niveau.cle];
+      let disponibles = 0;
+      Array.from(champ.options).forEach(function (option) {
+        if (!option.value) return;
+        const compatible = niveau.parents.every(function (parent) {
+          const choisi = champsFiltres[parent].value;
+          return !choisi || option.dataset[parent] === choisi;
+        });
+        option.hidden = !compatible;
+        option.disabled = !compatible;
+        if (compatible) disponibles += 1;
+      });
+      if (champ.value && champ.selectedOptions[0].disabled) { champ.value = ''; reinitialises.push(niveau.cle); }
+      const message = document.querySelector('[data-vide="' + niveau.cle + '"]');
+      if (message) message.hidden = disponibles > 0;
+      champ.disabled = disponibles === 0;
+    });
+    return reinitialises;
+  }
+
   function appliquerFiltre(cle, valeur) {
+    filtrerEnCascade().forEach(function (enfant) {
+      switch (enfant) { case 'service': service = ''; break; case 'sector': sector = ''; break; case 'section': section = ''; break; }
+    });
     switch (cle) {
       case 'ship': ship = valeur; break;
       case 'service': service = valeur; break;
       case 'sector': sector = valeur; break;
+      case 'section': section = valeur; break;
       case 'user': user = valeur; break;
       case 'type': type = valeur; break;
       case 'status': status = valeur; break;
@@ -695,11 +742,13 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('btnReinitialiserFiltres').addEventListener('click', function () {
     Object.keys(champsFiltres).forEach(function (cle) { champsFiltres[cle].value = ''; });
-    ship = service = sector = user = type = status = '';
+    ship = service = sector = section = user = type = status = '';
+    filtrerEnCascade();
     afficherEtiquettes();
     synchroniserUrlPage();
     actualiserSourceEvenements();
   });
+  filtrerEnCascade();
   afficherEtiquettes();
   // --------------------------------------------------------------------
 

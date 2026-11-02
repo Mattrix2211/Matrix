@@ -25,11 +25,38 @@ from .models import PersonalEvent
 
 def filtre_identifiant_invalide(filtres):
     """Nom du premier filtre d'identifiant qui n'est pas un entier (« equipe » admis pour l'utilisateur), sinon None."""
-    for nom in ("ship", "service", "sector", "user"):
+    for nom in ("ship", "service", "sector", "section", "user"):
         valeur = filtres.get(nom)
         if valeur and not (nom == "user" and valeur == "equipe") and entier_ou_none(valeur) is None:
             return nom
     return None
+
+
+def filtres_organisation_coherents(user, filtres):
+    """Un parent modifié invalide ses enfants incompatibles (secteur hors du service choisi, section hors du secteur).
+    Un filtre hors du périmètre du compte n'est pas élargi : les listes sont déjà bornées, il ne renvoie rien."""
+    from matrix.core.contexte_batiment import referentiel_organisation
+
+    organisation = referentiel_organisation(user)
+    filtres = dict(filtres)
+    ship = entier_ou_none(filtres.get("ship"))
+    service = entier_ou_none(filtres.get("service"))
+    parent = organisation["services"].filter(pk=service).first() if service is not None else None
+    if parent is not None and ship is not None and parent.ship_id != ship:
+        filtres["service"] = service = None
+    secteur = entier_ou_none(filtres.get("sector"))
+    parent = organisation["sectors"].filter(pk=secteur).select_related("service").first() if secteur is not None else None
+    if parent is not None and ((service is not None and parent.service_id != service) or (ship is not None and parent.service.ship_id != ship)):
+        filtres["sector"] = secteur = None
+    section = entier_ou_none(filtres.get("section"))
+    parent = organisation["sections"].filter(pk=section).select_related("sector__service").first() if section is not None else None
+    if parent is not None and (
+        (secteur is not None and parent.sector_id != secteur)
+        or (service is not None and parent.sector.service_id != service)
+        or (ship is not None and parent.sector.service.ship_id != ship)
+    ):
+        filtres["section"] = None
+    return filtres
 
 
 def marins_visibles(user):
@@ -70,6 +97,11 @@ def _appliquer_filtres_occurrences(qs, filters):
         qs = qs.filter(
             Q(asset__sector_id=filters["sector"])
             | Q(installation_maintenance__installation__sector_id=filters["sector"])
+        )
+    if filters.get("section"):
+        qs = qs.filter(
+            Q(asset__section_id=filters["section"])
+            | Q(installation_maintenance__installation__section_id=filters["section"])
         )
     if filters.get("user"):
         qs = qs.filter(assignees__id=filters["user"])
@@ -240,6 +272,8 @@ def _appliquer_filtres_tickets(qs, filters):
         qs = qs.filter(Q(asset__service_id=filters["service"]) | Q(installation__service_id=filters["service"]))
     if filters.get("sector"):
         qs = qs.filter(Q(asset__sector_id=filters["sector"]) | Q(installation__sector_id=filters["sector"]))
+    if filters.get("section"):
+        qs = qs.filter(Q(asset__section_id=filters["section"]) | Q(installation__section_id=filters["section"]))
     return qs
 
 

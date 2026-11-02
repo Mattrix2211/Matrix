@@ -18,6 +18,7 @@ from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
 from .evenements_sources import (
+    filtres_organisation_coherents,
     _absences_periode,
     _appliquer_filtres_occurrences,
     _appliquer_filtres_tickets,
@@ -78,7 +79,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
             "start": start,
             "end": end,
             "events": events,
-            **{cle: valeur for cle, valeur in referentiel_organisation(request.user).items() if cle != "sections"},
+            **referentiel_organisation(request.user),
             "users": utilisateurs_visibles_par(request.user).filter(equipage_marin_q(request.user)).order_by("username"),
             "active_filters": {**filters, "user": request.GET.get("user") or None},
             "peut_equipe": peut_superviser(request.user),
@@ -90,14 +91,15 @@ class CalendarView(LoginRequiredMixin, TemplateView):
         return render(request, self.template_name, ctx)
 
     def _parse_filters(self, request):
-        return {
+        return filtres_organisation_coherents(request.user, {
             "ship": request.GET.get("ship") or None,
             "service": request.GET.get("service") or None,
             "sector": request.GET.get("sector") or None,
+            "section": request.GET.get("section") or None,
             "user": (request.GET.get("user") if request.GET.get("user") != "equipe" else "") or None,  # « équipe » : API seulement
             "type": request.GET.get("type") or None,
             "status": request.GET.get("status") or None,
-        }
+        })
 
     def _collect_events(self, request, start, end, filters):
         events = []
