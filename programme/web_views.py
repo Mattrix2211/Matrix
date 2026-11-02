@@ -111,7 +111,7 @@ class EvenementActionView(LoginRequiredMixin, View):
                     _horodatage(request.POST.get("fin")), request.POST.get("lieu", ""), request.POST.get("description", ""))
                 messages.success(request, "Événement mis à jour.")
             elif action == "annuler":
-                services.annuler_evenement(request.user, evenement)
+                services.annuler_evenement(request.user, evenement, request.POST.get("motif", ""))
                 messages.success(request, "Événement annulé : le public visé est prévenu.")
             elif action == "lier_tache":
                 services.lier_tache(request.user, evenement, request.POST.get("tache"))

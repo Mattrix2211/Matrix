@@ -53,7 +53,7 @@
               <a href="{% url 'installation-document-telecharger' object.pk doc.pk %}">{{ doc.titre }}</a>
               <span class="badge text-bg-light">{{ doc.get_type_document_display }}</span>
               {% if doc.notes %}<span class="text-muted small">{{ doc.notes }}</span>{% endif %}
-              {% if peut_supprimer_document and not equipage_a_terre %}<form method="post" action="{% url 'installation-document-supprimer' object.pk doc.pk %}" class="ms-auto" onsubmit="return confirm('Supprimer ce document ?');">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer le document {{ doc.titre }}">{% icone "suppression" %}</button></form>{% endif %}
+              {% if peut_supprimer_document and not equipage_a_terre %}<form method="post" action="{% url 'installation-document-supprimer' object.pk doc.pk %}" class="ms-auto" data-mx-confirmer="destructif" data-mx-action="Supprimer" data-mx-titre="Supprimer ce document ?" data-mx-objet="{{ doc.titre }}" data-mx-message="Le document sera retiré de la fiche de l'installation.">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Supprimer le document {{ doc.titre }}">{% icone "suppression" %}</button></form>{% endif %}
             </li>{% endfor %}
             {% for pj in documents %}<li><a href="{{ pj.file.url }}" target="_blank" rel="noopener">{{ pj.filename }}</a> <span class="text-muted small">pièce jointe</span></li>{% endfor %}
             {% if not documents_installation and not documents %}<li class="text-muted">Aucun document</li>{% endif %}

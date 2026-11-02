@@ -121,13 +121,15 @@ def modifier_evenement(user, evenement, titre, debut, fin, lieu="", description=
         _notifier(evenement, f"Horaire modifié : {evenement.titre}, désormais le {timezone.localtime(debut):%d/%m à %H:%M}.", NotificationLevel.WARNING)
 
 
-def annuler_evenement(user, evenement):
+def annuler_evenement(user, evenement, motif):
     if not peut_gerer(user, evenement):
         raise PermissionError("Vous ne pouvez pas annuler cet événement.")
+    if not motif.strip():
+        raise ValidationError("Un motif est obligatoire pour annuler un événement.")
     evenement.annule, evenement.updated_by = True, user
     evenement.save(update_fields=["annule", "updated_by", "updated_at"])
-    _tracer(evenement, user, "annule")
-    _notifier(evenement, f"Annulé : {evenement.titre}.", NotificationLevel.WARNING)
+    AuditLog.objects.create(actor=user, action="programme_annule", details=f"evenement={evenement.pk} ; motif : {motif.strip()}")
+    _notifier(evenement, f"Annulé : {evenement.titre}. Motif : {motif.strip()}", NotificationLevel.WARNING)
 
 
 def lier_tache(user, evenement, tache_id):

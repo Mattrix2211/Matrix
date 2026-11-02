@@ -656,7 +656,17 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if liste.statut == liste.STATUT_BROUILLON:
             messages.error(request, "Proposez d'abord la liste avant de pouvoir la publier.")
             return
+        republication = liste.statut == liste.STATUT_PUBLIEE
+        motif = request.POST.get("motif", "").strip()
+        if republication and not motif:
+            messages.error(request, "Un motif est obligatoire pour republier une liste déjà publiée.")
+            return
         liste.publier(request.user)
+        if republication:
+            AuditLog.objects.create(
+                actor=request.user, action="liste_service_republiee",
+                details=f"{liste.libelle_type()} #{liste.pk} ({liste.perimetre}) republiée. Motif : {motif}.",
+            )
         messages.success(request, "Liste publiée : les marins affectés ont été notifiés.")
 
     def _ajouter_creneau(self, request, liste):
@@ -709,10 +719,14 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if creneau is None:
             messages.error(request, "Créneau introuvable.")
             return
+        motif = request.POST.get("motif", "").strip()
+        if liste.statut == liste.STATUT_PUBLIEE and not motif:
+            messages.error(request, "Un motif est obligatoire pour retirer un créneau d'une liste publiée.")
+            return
         with transaction.atomic():
             if self.fk_attr == "service_garde":
                 annuler_echanges_du_creneau(creneau, request.user)
-            liste.tracer_modification_creneau(request.user, creneau, ajoute=False)
+            liste.tracer_modification_creneau(request.user, creneau, ajoute=False, motif=motif)
             creneau.delete()
         messages.info(request, "Créneau supprimé.")
 

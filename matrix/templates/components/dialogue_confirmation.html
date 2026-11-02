@@ -1,0 +1,32 @@
+{% comment %}
+Dialogue unique de confirmation, inclus une fois dans base.html et piloté par js/dialogues.js.
+Déclaration sur un formulaire (le serveur reste seul juge des droits) :
+  data-mx-confirmer="sensible|destructif"   niveau de la confirmation
+  data-mx-titre="…"                         question posée (obligatoire)
+  data-mx-message="…"                       conséquence, en une phrase
+  data-mx-objet="…"                         objet concerné, affiché en gras
+  data-mx-action="Supprimer"                verbe du bouton principal
+  data-mx-motif="obligatoire"               exige un motif, transmis dans le champ « motif » du formulaire
+{% endcomment %}<div class="modal fade mx-dialogue" id="dialogue-confirmation" tabindex="-1" aria-labelledby="dialogue-confirmation-titre" aria-describedby="dialogue-confirmation-message" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title mx-modale__titre" id="dialogue-confirmation-titre"></h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0" id="dialogue-confirmation-message"></p>
+        <p class="fw-bold mt-2 mb-0" id="dialogue-confirmation-objet" hidden></p>
+        <div class="mt-3" id="dialogue-confirmation-motif-zone" hidden>
+          <label class="form-label" for="dialogue-confirmation-motif">Motif (obligatoire)</label>
+          <textarea class="form-control" id="dialogue-confirmation-motif" rows="3" aria-describedby="dialogue-confirmation-erreur"></textarea>
+          <div class="invalid-feedback" id="dialogue-confirmation-erreur" role="alert">Indiquez un motif : il sera conservé dans l'historique.</div>
+        </div>
+      </div>
+      <div class="modal-footer mx-dialogue__pied">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="dialogue-confirmation-annuler">Annuler</button>
+        <button type="button" class="btn btn-primary" id="dialogue-confirmation-valider">Confirmer</button>
+      </div>
+    </div>
+  </div>
+</div>

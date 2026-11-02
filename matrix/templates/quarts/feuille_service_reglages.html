@@ -64,7 +64,7 @@
   </div>
 </div>
 {% for r in rubriques %}
-<form id="supprimer-rubrique-{{ r.pk }}" method="post" class="d-none" onsubmit="return confirm('Supprimer la rubrique « {{ r.libelle }} » ?');">
+<form id="supprimer-rubrique-{{ r.pk }}" method="post" class="d-none" data-mx-confirmer="destructif" data-mx-action="Supprimer" data-mx-titre="Supprimer cette rubrique ?" data-mx-objet="{{ r.libelle }}" data-mx-message="Les feuilles déjà créées gardent leur structure d'origine.">
   {% csrf_token %}
   <input type="hidden" name="action" value="supprimer_rubrique">
   <input type="hidden" name="ship" value="{{ ship.pk }}">
@@ -107,7 +107,7 @@
   </div>
 </div>
 {% for f in fonctions %}
-<form id="supprimer-fonction-{{ f.pk }}" method="post" class="d-none" onsubmit="return confirm('Supprimer la fonction « {{ f.libelle }} » ?');">
+<form id="supprimer-fonction-{{ f.pk }}" method="post" class="d-none" data-mx-confirmer="destructif" data-mx-action="Supprimer" data-mx-titre="Supprimer cette fonction ?" data-mx-objet="{{ f.libelle }}" data-mx-message="Les feuilles déjà créées gardent leur structure d'origine.">
   {% csrf_token %}
   <input type="hidden" name="action" value="supprimer_fonction">
   <input type="hidden" name="ship" value="{{ ship.pk }}">

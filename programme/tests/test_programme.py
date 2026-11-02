@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.models import AuditLog
 from notifications.models import Notification
 from org.models import Sector, Service, Ship
 from programme import services
@@ -71,7 +72,7 @@ class SaisieEtDroitsTests(ProgrammeBase):
         self.assertFalse(Notification.objects.filter(verb__startswith="Horaire modifié").exists())
         services.modifier_evenement(self.second, evt, "Escale", self.demain + timedelta(hours=3), None)
         self.assertEqual(Notification.objects.filter(user=self.marin, verb__startswith="Horaire modifié").count(), 1)
-        services.annuler_evenement(self.second, evt)
+        services.annuler_evenement(self.second, evt, "Escale reportée")
         self.assertTrue(Notification.objects.filter(user=self.marin, verb__startswith="Annulé").exists())
         self.assertFalse(services.evenements_periode(self.marin, timezone.localdate(), timezone.localdate() + timedelta(days=3)).exists())
 
@@ -132,3 +133,20 @@ class PagesEtCalendrierTests(ProgrammeBase):
         self.client.force_login(self.matelot_pont)
         titres = [e["title"] for e in self.client.get(reverse("calendar-events"), parametres).json()]
         self.assertNotIn("Exercice - Exercice énergie", titres)
+
+
+class AnnulationAvecMotifTests(ProgrammeBase):
+    """Annuler un événement publié engage le public visé : le motif est obligatoire et conservé."""
+
+    def test_annulation_sans_motif_refusee_avec_motif_tracee(self):
+        evt = services.creer_evenement(self.second, "Escale", self._type(), self.demain, None, f"ship:{self.navire.pk}")
+        with self.assertRaises(ValidationError):
+            services.annuler_evenement(self.second, evt, "   ")
+        evt.refresh_from_db()
+        self.assertFalse(evt.annule)
+        services.annuler_evenement(self.second, evt, "Escale reportée")
+        evt.refresh_from_db()
+        self.assertTrue(evt.annule)
+        trace = AuditLog.objects.get(action="programme_annule")
+        self.assertIn("Escale reportée", trace.details)
+        self.assertTrue(Notification.objects.filter(user=self.marin, verb__contains="Motif : Escale reportée").exists())

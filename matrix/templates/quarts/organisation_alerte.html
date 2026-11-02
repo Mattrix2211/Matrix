@@ -36,7 +36,7 @@
         </div>
         {% if peut_valider %}
         <div class="d-flex gap-2 align-items-start">
-          <form method="post" onsubmit="return confirm('Valider et appliquer cette modification ?');">
+          <form method="post" data-mx-confirmer="sensible" data-mx-titre="Valider et appliquer cette modification ?" data-mx-message="L'organisation d'alerte du bâtiment changera pour les prochaines feuilles de service." data-mx-action="Valider">
             {% csrf_token %}
             <input type="hidden" name="ship" value="{{ ship.pk }}"><input type="hidden" name="pk" value="{{ m.pk }}">
             <button type="submit" name="action" value="valider" class="btn btn-success btn-sm"><i class="bi bi-check2"></i> Valider</button>
@@ -67,7 +67,7 @@
   {% if peut_proposer %}
   <div class="card-body border-top">
     {% include 'quarts/_organisation_alerte_formulaire.html' with scenario=s %}
-    <form method="post" class="mt-2" onsubmit="return confirm('Supprimer le scénario « {{ s.libelle|escapejs }} » ?');">
+    <form method="post" class="mt-2" data-mx-confirmer="destructif" data-mx-action="Supprimer" data-mx-titre="Supprimer ce scénario ?" data-mx-objet="{{ s.libelle }}" data-mx-message="Le scénario ne figurera plus dans l'organisation d'alerte.">
       {% csrf_token %}
       <input type="hidden" name="ship" value="{{ ship.pk }}"><input type="hidden" name="scenario_id" value="{{ s.pk }}">
       <button type="submit" name="action" value="supprimer" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Supprimer le scénario</button>

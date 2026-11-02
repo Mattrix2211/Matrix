@@ -93,7 +93,7 @@
   {% if rectificatif_en_cours %}
   <span class="small">Un rectificatif est en cours de préparation ou de visa.</span>
   {% elif peut_ouvrir_rectificatif %}
-  <form method="post" class="d-inline" onsubmit="return confirm('Ouvrir un rectificatif reprenant les affectations effectives ? La version {{ version.numero }} reste la référence jusqu\'à sa publication.');">
+  <form method="post" class="d-inline" data-mx-confirmer="sensible" data-mx-titre="Ouvrir un rectificatif ?" data-mx-message="Il reprend les affectations effectives ; la version {{ version.numero }} reste la référence jusqu'à sa publication." data-mx-motif="obligatoire" data-mx-action="Ouvrir le rectificatif">
     {% csrf_token %}<input type="hidden" name="action" value="ouvrir_rectificatif">
     <button type="submit" class="btn btn-warning btn-sm"><i class="bi bi-pencil-square"></i> Préparer un rectificatif</button>
   </form>
@@ -111,7 +111,7 @@
 <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
   <span><i class="bi bi-exclamation-triangle"></i> Les rubriques ou fonctions du bâtiment ont changé depuis {% if feuille.structure_figee.origine == 'migration' %}la migration (cette feuille a été figée sur les réglages de cette date, pas sur sa structure d'origine){% else %}la création de cette feuille{% endif %}. {% if feuille.statut == 'BROUILLON' %}Elle garde sa structure tant que vous ne la resynchronisez pas ; les saisies des rubriques conservées sont gardées.{% else %}Elle garde sa structure : pour la mettre à jour, renvoyez-la en brouillon puis resynchronisez-la.{% endif %}</span>
   {% if peut_gerer_brouillon %}
-  <form method="post" onsubmit="return confirm('Resynchroniser la structure du brouillon avec les réglages actuels ?');">
+  <form method="post" data-mx-confirmer="sensible" data-mx-titre="Resynchroniser la structure du brouillon ?" data-mx-message="La structure suivra les réglages actuels du bâtiment ; les saisies des rubriques supprimées seront retirées." data-mx-action="Resynchroniser">
     {% csrf_token %}<input type="hidden" name="action" value="resynchroniser">
     <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-repeat"></i> Resynchroniser</button>
   </form>

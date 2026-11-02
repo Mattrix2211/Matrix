@@ -387,7 +387,7 @@ class VuesEchangeTests(BaseEchangeTests):
         echange = proposer_echange(self.a, self.creneau_a, self.creneau_b)
         self.client.login(username="chef_liste", password="pass")
         self.client.post(
-            f"/quarts/garde/{self.garde.pk}/", {"action": "supprimer_creneau", "creneau_id": self.creneau_b.pk}
+            f"/quarts/garde/{self.garde.pk}/", {"action": "supprimer_creneau", "creneau_id": self.creneau_b.pk, "motif": "Marin indisponible"}
         )
         echange.refresh_from_db()
         self.assertEqual(echange.statut, EchangeService.STATUT_ANNULE)
@@ -399,7 +399,7 @@ class VuesEchangeTests(BaseEchangeTests):
         self.client.raise_request_exception = False
         with patch.object(ServiceGarde, "tracer_modification_creneau", side_effect=RuntimeError("panne")):
             self.client.post(
-                f"/quarts/garde/{self.garde.pk}/", {"action": "supprimer_creneau", "creneau_id": self.creneau_b.pk}
+                f"/quarts/garde/{self.garde.pk}/", {"action": "supprimer_creneau", "creneau_id": self.creneau_b.pk, "motif": "Marin indisponible"}
             )
         echange.refresh_from_db()
         self.assertEqual(echange.statut, EchangeService.STATUT_DEMANDE)

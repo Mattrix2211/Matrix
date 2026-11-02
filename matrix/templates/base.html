@@ -52,8 +52,10 @@
         {% block content %}{% endblock %}
       </main>
     </div>
+    {% if user.is_authenticated %}{% include "components/dialogue_confirmation.html" %}{% endif %}
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/matrix.js' %}"></script>
+    {% if user.is_authenticated %}<script src="{% static 'js/dialogues.js' %}"></script>{% endif %}
     <script src="{% static 'js/grille.js' %}"></script>
     <script src="{% static 'js/preferences.js' %}"></script>
     <script src="{% static 'js/aide_progressive.js' %}"></script>

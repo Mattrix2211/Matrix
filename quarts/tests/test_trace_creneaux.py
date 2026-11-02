@@ -58,7 +58,7 @@ class TraceCreneauxTests(TestCase):
     def _supprimer(self, type_liste, liste, creneau):
         return self.client.post(
             reverse(f"{'quart' if type_liste == 'quart' else 'garde'}-detail", args=[liste.pk]),
-            {"action": "supprimer_creneau", "creneau_id": creneau.pk},
+            {"action": "supprimer_creneau", "creneau_id": creneau.pk, "motif": "Erreur de saisie"},
         )
 
     def test_ajout_sur_liste_publiee_trace_et_notifie(self):
@@ -99,6 +99,22 @@ class TraceCreneauxTests(TestCase):
                 self.assertIn("Veille", journal.details)
                 self.assertIn("Jean Dupont", journal.details)
                 self.assertIn("retiré(e)", Notification.objects.get(user=self.marin).verb)
+
+    def test_retrait_d_un_creneau_publie_sans_motif_refuse(self):
+        for type_liste, modele, attr in (("quart", CreneauQuart, "quart"), ("garde", CreneauServiceGarde, "service_garde")):
+            with self.subTest(type_liste):
+                self._vider()
+                liste = self._liste(type_liste, Quart.STATUT_PUBLIEE)
+                debut = timezone.now() + timedelta(hours=5)
+                creneau = modele.objects.create(
+                    poste="Veille", debut=debut, fin=debut + timedelta(hours=4), marin=self.marin, **{attr: liste},
+                )
+                self.client.post(
+                    reverse(f"{'quart' if type_liste == 'quart' else 'garde'}-detail", args=[liste.pk]),
+                    {"action": "supprimer_creneau", "creneau_id": creneau.pk},
+                )
+                self.assertTrue(modele.objects.filter(pk=creneau.pk).exists())
+                self.assertFalse(AuditLog.objects.filter(action="liste_service_creneau_supprime").exists())
 
     def test_creneau_sans_marin_trace_sans_notification(self):
         liste = self._liste("quart", Quart.STATUT_PUBLIEE)

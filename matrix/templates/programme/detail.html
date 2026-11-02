@@ -27,6 +27,6 @@
   <textarea class="form-control mb-2" name="description" rows="3" aria-label="Détails">{{ evenement.description }}</textarea>
   <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
 </form>
-<form method="post" action="{% url 'evenement-action' evenement.pk %}">{% csrf_token %}<input type="hidden" name="action" value="annuler"><button class="btn btn-outline-danger btn-sm" type="submit" onclick="return confirm('Annuler cet événement ?')">Annuler l'événement</button></form>
+<form method="post" action="{% url 'evenement-action' evenement.pk %}" data-mx-confirmer="destructif" data-mx-titre="Annuler cet événement ?" data-mx-objet="{{ evenement.titre }}" data-mx-message="Le public visé sera prévenu de l'annulation." data-mx-motif="obligatoire" data-mx-action="Annuler l'événement">{% csrf_token %}<input type="hidden" name="action" value="annuler"><button class="btn btn-outline-danger btn-sm" type="submit">Annuler l'événement</button></form>
 {% endif %}
 {% endblock %}

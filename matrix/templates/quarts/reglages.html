@@ -22,7 +22,7 @@
               <td>{{ cdl.user.get_full_name|default:cdl.user.username }}</td>
               <td class="small text-muted">{{ cdl.perimetre }}</td>
               <td>
-                <form method="post" onsubmit="return confirm('Retirer cette désignation ?');">
+                <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="retirer">
                   <input type="hidden" name="pk" value="{{ cdl.pk }}">

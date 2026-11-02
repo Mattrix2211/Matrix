@@ -43,7 +43,7 @@
     {% endif %}
 
     {% if feuille.statut == 'BROUILLON' and peut_gerer_brouillon %}
-    <form method="post" onsubmit="return confirm('Proposer cette feuille au premier visa ?');">
+    <form method="post">
       {% csrf_token %}
       <input type="hidden" name="action" value="proposer">
       <button type="submit" class="btn btn-primary"><i class="bi bi-send-check"></i> Proposer à la validation</button>
@@ -51,19 +51,19 @@
     {% endif %}
 
     {% if peut_viser_secteur %}
-    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de secteur ?');">
+    <form method="post" class="d-inline" data-mx-confirmer="sensible" data-mx-titre="Donner le visa du chef de secteur ?" data-mx-message="Le visa est tracé à votre nom et la feuille passe au visa suivant." data-mx-action="Viser">
       {% csrf_token %}<input type="hidden" name="action" value="viser_secteur">
       <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de secteur)</button>
     </form>
     {% endif %}
     {% if peut_viser_service %}
-    <form method="post" class="d-inline" onsubmit="return confirm('Donner le visa du chef de service ?');">
+    <form method="post" class="d-inline" data-mx-confirmer="sensible" data-mx-titre="Donner le visa du chef de service ?" data-mx-message="Le visa est tracé à votre nom et la feuille passe au visa du COMAEQ." data-mx-action="Viser">
       {% csrf_token %}<input type="hidden" name="action" value="viser_service">
       <button type="submit" class="btn btn-primary"><i class="bi bi-check2-square"></i> Viser (chef de service)</button>
     </form>
     {% endif %}
     {% if peut_viser_comaeq %}
-    <form method="post" class="d-inline" onsubmit="return confirm('Viser en tant que COMAEQ et publier la feuille ? La fraction de service sera notifiée.');">
+    <form method="post" class="d-inline" data-mx-confirmer="sensible" data-mx-titre="Viser et publier la feuille ?" data-mx-message="La feuille est publiée et la fraction de service est notifiée. Le visa est tracé à votre nom." data-mx-action="Viser et publier">
       {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq"><input type="hidden" name="jeton_visa" value="{{ jeton_visa }}">
       <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Viser et publier (COMAEQ)</button>
     </form>

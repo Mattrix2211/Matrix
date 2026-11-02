@@ -522,7 +522,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
                     url=reverse("quarts-index"),
                 )
 
-    def tracer_modification_creneau(self, user, creneau, ajoute):
+    def tracer_modification_creneau(self, user, creneau, ajoute, motif=""):
         """Trace et notifie l'ajout/la suppression d'un créneau sur une liste
         publiée (rien pour un brouillon ou une proposition). À appeler avant
         `delete()` pour ne pas perdre les détails."""
@@ -537,7 +537,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
             details=(
                 f"{self.libelle_type()} #{self.pk} ({self.perimetre}) ; poste « {creneau.poste} » ; {quand} ; "
                 f"marin : {(marin.get_full_name() or marin.username) if marin else 'non affecté'} ; "
-                f"note : {creneau.note or '—'}."
+                f"note : {creneau.note or '—'}." + (f" Motif : {motif}." if motif else "")
             ),
         )
         if marin is None or marin.pk == getattr(user, "pk", None):
@@ -547,6 +547,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
             verb=(
                 f"Modification de la liste publiée : vous êtes {'affecté(e) au' if ajoute else 'retiré(e) du'} "
                 f"{self.libelle_type()} « {creneau.poste} » le {timezone.localtime(creneau.debut):%d/%m/%Y à %H:%M}."
+                + (f" Motif : {motif}." if motif else "")
             ),
             level=NotificationLevel.WARNING,
             url=reverse("quarts-index"),
@@ -1550,7 +1551,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         self.motif_retour = motif
         self.empreinte_visee = ""
 
-    def ouvrir_rectificatif(self, user):
+    def ouvrir_rectificatif(self, user, motif=""):
         """Rouvre en brouillon une feuille publiée dont les affectations effectives
         ont changé. La dernière version reste la référence publiée : elle n'est
         remplacée qu'à la publication du rectificatif. Retourne les différences."""
@@ -1562,7 +1563,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         AuditLog.objects.create(
             actor=user, action="feuille_service_rectificatif_ouvert",
             details=f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : rectificatif ouvert, la version "
-                    f"{self.version_publiee.numero} reste la référence publiée. Différences : "
+                    f"{self.version_publiee.numero} reste la référence publiée. Motif : {motif or 'non précisé'}. Différences : "
                     + "; ".join(f"{d['libelle']} ({d['avant'] or 'à définir'} -> {d['apres'] or 'à définir'})" for d in differences),
         )
         return differences

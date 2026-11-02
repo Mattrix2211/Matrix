@@ -63,6 +63,8 @@ class RectificatifBase(FeuilleServiceTestsBase):
         donnees = {"action": action}
         if action == "viser_comaeq":
             donnees["jeton_visa"] = jeton_visa_affiche(self.client, self.url)
+        if action == "ouvrir_rectificatif":
+            donnees["motif"] = "Affectations modifiées"
         return self.client.post(self.url, donnees)
 
     def _circuit_rectificatif(self):
@@ -120,6 +122,17 @@ class DivergenceTests(RectificatifBase):
         self.assertNotIn("annulé", page)
         self.creneau.refresh_from_db()
         self.assertEqual(self.creneau.marin, self.relais)
+
+    def test_rectificatif_sans_motif_refuse_puis_ouvert_avec_motif(self):
+        self._echange(self.relais)
+        self.client.force_login(User.objects.get(username="bsc"))
+        self.client.post(self.url, {"action": "ouvrir_rectificatif"})
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.statut, FeuilleService.STATUT_PUBLIEE)
+        self.assertFalse(AuditLog.objects.filter(action="feuille_service_rectificatif_ouvert").exists())
+        self.client.post(self.url, {"action": "ouvrir_rectificatif", "motif": "Échange de service"})
+        trace = AuditLog.objects.get(action="feuille_service_rectificatif_ouvert")
+        self.assertIn("Échange de service", trace.details)
 
     def test_pas_de_rectificatif_sans_difference_effective(self):
         self.assertEqual(self._post("bsc", "ouvrir_rectificatif").status_code, 302)
@@ -819,7 +832,7 @@ class DroitsRectificatifTests(RectificatifBase):
         feuille = FeuilleService.objects.create(ship=self.ship, date=self.jour + timezone.timedelta(days=1))
         url = reverse("feuille-service-detail", args=[self.ship.pk, f"{feuille.date:%Y-%m-%d}"])
         self.client.force_login(self.equipier)
-        self.assertEqual(self.client.post(url, {"action": "ouvrir_rectificatif"}).status_code, 403)
+        self.assertEqual(self.client.post(url, {"action": "ouvrir_rectificatif", "motif": "x"}).status_code, 403)
 
     def test_lecture_pendant_rectificatif_reservee_au_navire(self):
         self._echange(self.relais)
@@ -873,6 +886,8 @@ class DoubleEquipageRectificatifTests(TestCase):
         donnees = {"action": action}
         if action == "viser_comaeq":
             donnees["jeton_visa"] = jeton_visa_affiche(self.client, self.url + suffixe)
+        if action == "ouvrir_rectificatif":
+            donnees["motif"] = "Affectations modifiées"
         return self.client.post(self.url + suffixe, donnees)
 
     def _echange(self, e):

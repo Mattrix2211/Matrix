@@ -356,7 +356,11 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             if not divergences_effectives(feuille):
                 messages.info(request, "Les affectations effectives n'ont pas changé : aucun rectificatif à ouvrir.")
                 return _redirection_detail(ship, date_, equipage)
-            feuille.ouvrir_rectificatif(request.user)
+            motif = request.POST.get("motif", "").strip()
+            if not motif:
+                messages.error(request, "Un motif est obligatoire pour ouvrir un rectificatif.")
+                return _redirection_detail(ship, date_, equipage)
+            feuille.ouvrir_rectificatif(request.user, motif)
             messages.success(
                 request,
                 f"Rectificatif ouvert : la version {feuille.version_publiee.numero} reste la référence publiée "

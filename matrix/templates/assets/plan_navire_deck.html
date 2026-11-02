@@ -77,7 +77,7 @@
           <div class="d-flex gap-1">
             <a href="{% url 'asset-detail' pk=m.id %}" class="btn btn-sm btn-outline-secondary" title="Voir la fiche"><span class="bi bi-eye"></span></a>
             <button type="button" class="btn btn-sm btn-outline-primary btn-repositionner" data-asset-id="{{ m.id }}" data-asset-label="{{ m }}" title="Repositionner"><span class="bi bi-arrows-move"></span></button>
-            <form method="post" onsubmit="return confirm('Retirer « {{ m }} » du plan ?');">
+            <form method="post">
               {% csrf_token %}
               <input type="hidden" name="action" value="remove_pin" />
               <input type="hidden" name="asset_id" value="{{ m.id }}" />
