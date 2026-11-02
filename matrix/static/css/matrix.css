@@ -1513,14 +1513,3 @@ main:focus { outline: none; }
 .mx-chiffres li:last-child .mx-chiffres__ligne { border-bottom: 0; }
 a.mx-chiffres__ligne:hover { color: var(--signal-ui); }
 .mx-chiffres__ligne--danger strong { color: var(--red-texte, var(--red)); }
-
-/* Tableau qui devient une pile de cartes sur petit écran : aucun défilement horizontal, rien de tronqué */
-@media (max-width: 767.98px) {
-  .mx-table-cartes thead { display: none; }
-  .mx-table-cartes, .mx-table-cartes tbody { display: block; }
-  .mx-table-cartes tr { display: block; padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border); }
-  .mx-table-cartes td { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); padding: var(--s1) 0; border: 0; text-align: right; }
-  .mx-table-cartes td[data-label]::before { content: attr(data-label); font-size: .8125rem; font-weight: 600; color: var(--text-sec); text-align: left; }
-  .mx-table-cartes td:first-child { display: block; text-align: left; font-weight: 600; }
-  .mx-table-cartes td.mx-table-cartes__actions { justify-content: flex-start; flex-wrap: wrap; padding-top: var(--s2); }
-}

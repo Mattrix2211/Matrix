@@ -196,6 +196,15 @@ class AnomalieTests(MediaRootTemporaireMixin, TestCase):
         mes = self.client.get(reverse("anomalie-list"))
         self.assertEqual(list(mes.context["anomalies"]), [mienne])
 
+    def test_liste_titre_en_lien_colonne_de_statuts_et_cartes_mobiles(self):
+        anomalie = self._creer(self.marin)
+        self.client.login(username="marin", password="pass")
+        page = self.client.get(reverse("anomalie-list"))
+        self.assertContains(page, f'<a href="{reverse("anomalie-detail", args=[anomalie.pk])}" class="text-decoration-none">')
+        self.assertContains(page, "Par statut")
+        self.assertContains(page, "mx-table-cartes")
+        self.assertNotContains(page, "onclick=")
+
     def test_equipier_voit_la_section_mais_ne_peut_pas_traiter(self):
         collegue = self._creer(self.marin2)
         self.client.login(username="marin", password="pass")

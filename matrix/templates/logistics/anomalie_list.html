@@ -13,47 +13,29 @@
   </div>
 </div>
 
-{# Répartition par statut : cartes cliquables (filtre) + barre empilée #}
-<div class="row g-2 mb-2">
-  {% for etape in etapes %}
-  <div class="col-6 col-md-3">
-    <a class="card text-decoration-none h-100 {% if statut == etape.code %}border-primary{% endif %}" href="?vue={{ vue }}&statut={{ etape.code }}">
-      <div class="card-body py-2">
-        <div class="small text-muted">{{ etape.libelle }}</div>
-        <div class="h3 mb-0 font-mono">{{ etape.nombre }}</div>
-      </div>
-    </a>
-  </div>
-  {% endfor %}
-</div>
-{% if total %}
-<div class="progress mb-3" style="height:8px;" title="Répartition des {{ total }} anomalies par statut">
-  {% for etape in etapes %}
-  <div class="progress-bar" role="progressbar" style="width: {{ etape.pct }}%; background: {% if etape.code == 'SIGNALEE' %}var(--red){% elif etape.code == 'PRISE_EN_COMPTE' %}var(--amber){% elif etape.code == 'TRAITEE' %}var(--signal){% else %}var(--green-tech){% endif %};" title="{{ etape.libelle }} : {{ etape.nombre }}"></div>
-  {% endfor %}
-</div>
-{% endif %}
+<div class="row g-4">
+<div class="col-xl-9">
 {% if statut %}<p class="small"><a href="?vue={{ vue }}">Afficher tous les statuts</a></p>{% endif %}
 
 <div class="card">
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
+    <table class="table table-hover align-middle mb-0 mx-table-cartes">
       <thead>
         <tr><th>Anomalie</th><th>Équipement / lieu</th><th>Signalée le</th><th>Gravité</th><th>Statut</th></tr>
       </thead>
       <tbody>
         {% for anomalie in anomalies %}
-        <tr onclick="window.location='{% url 'anomalie-detail' anomalie.pk %}'" style="cursor: pointer;">
-          <td>{{ anomalie.titre|truncatechars:70 }}</td>
-          <td>{% if anomalie.installation %}{{ anomalie.installation.designation }}{% elif anomalie.asset %}{{ anomalie.asset }}{% else %}{{ anomalie.localisation|default:"—" }}{% endif %}</td>
-          <td class="font-mono">{{ anomalie.created_at|date:"d/m/Y" }}</td>
-          <td style="min-width:100px;">
+        <tr data-lien="{% url 'anomalie-detail' anomalie.pk %}" style="cursor: pointer;">
+          <td><a href="{% url 'anomalie-detail' anomalie.pk %}" class="text-decoration-none">{{ anomalie.titre|truncatechars:70 }}</a></td>
+          <td data-libelle="Lieu">{% if anomalie.installation %}{{ anomalie.installation.designation }}{% elif anomalie.asset %}{{ anomalie.asset }}{% else %}{{ anomalie.localisation|default:"—" }}{% endif %}</td>
+          <td class="font-mono" data-libelle="Signalée le">{{ anomalie.created_at|date:"d/m/Y" }}</td>
+          <td style="min-width:100px;" data-libelle="Gravité">
             <span class="font-mono">{{ anomalie.gravite }}</span>
             <div class="progress mt-1" style="height:6px;" title="Gravité {{ anomalie.gravite }}/5">
               <div class="progress-bar" role="progressbar" style="width: {% widthratio anomalie.gravite 5 100 %}%; background: {% if anomalie.gravite >= 4 %}var(--red){% elif anomalie.gravite == 3 %}var(--amber){% else %}var(--green-tech){% endif %};"></div>
             </div>
           </td>
-          <td>{% include 'logistics/_anomalie_badge.html' %}</td>
+          <td data-libelle="Statut">{% include 'logistics/_anomalie_badge.html' %}</td>
         </tr>
         {% empty %}
         <tr><td colspan="5" class="text-center text-muted py-4">Aucune anomalie{% if statut %} avec ce statut{% endif %}.</td></tr>
@@ -62,4 +44,31 @@
     </table>
   </div>
 </div>
+</div>
+<aside class="col-xl-3 order-first order-xl-last" aria-label="Répartition par statut">
+  <div class="mx-colonne-collante">
+    <section class="card card-body">
+      <h2 class="h6 text-uppercase mb-3">Par statut</h2>
+      <ul class="mx-chiffres">
+        {% for etape in etapes %}
+        <li><a class="mx-chiffres__ligne{% if statut == etape.code %} fw-bold{% endif %}" href="?vue={{ vue }}&statut={{ etape.code }}"{% if statut == etape.code %} aria-current="true"{% endif %}><span>{{ etape.libelle }}</span><strong>{{ etape.nombre }}</strong></a></li>
+        {% endfor %}
+      </ul>
+      {% if total %}
+      <div class="progress mt-3" style="height:8px;" title="Répartition des {{ total }} anomalies par statut">
+        {% for etape in etapes %}
+        <div class="progress-bar" role="progressbar" style="width: {{ etape.pct }}%; background: {% if etape.code == 'SIGNALEE' %}var(--red){% elif etape.code == 'PRISE_EN_COMPTE' %}var(--amber){% elif etape.code == 'TRAITEE' %}var(--signal-ui){% else %}var(--green-tech){% endif %};"></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</aside>
+</div>
+<script>
+  // La ligne entière ouvre la fiche ; le titre reste un vrai lien pour le clavier et les lecteurs d'écran.
+  document.querySelectorAll('tr[data-lien]').forEach(function (ligne) {
+    ligne.addEventListener('click', function (e) { if (!e.target.closest('a, button')) window.location = ligne.dataset.lien; });
+  });
+</script>
 {% endblock %}

@@ -34,15 +34,15 @@
         {% for occ in occurrences %}
         <tr>
           <td>{{ occ.titre_affiche }}</td>
-          <td class="font-mono" data-label="Échéance">
+          <td class="font-mono" data-libelle="Échéance">
             {{ occ.scheduled_for|date:"d/m/Y" }}
             {% if occ.en_retard %}<span class="badge text-bg-danger ms-1" title="Échéance dépassée">En retard</span>{% endif %}
           </td>
-          <td data-label="Statut"><span class="badge {{ occ.badge_classe }}">{{ occ.get_status_display }}</span></td>
-          <td class="small text-muted" data-label="Assignés">
+          <td data-libelle="Statut"><span class="badge {{ occ.badge_classe }}">{{ occ.get_status_display }}</span></td>
+          <td class="small text-muted" data-libelle="Assignés">
             {% for m in occ.assignees.all %}{{ m.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
           </td>
-          <td class="text-end text-nowrap mx-table-cartes__actions">
+          <td class="text-end text-nowrap">
             {% if not soutien_a_terre and not equipage_a_terre %}<form method="post" action="{% url 'occurrence-self-assign' occ.pk %}" class="d-inline">
               {% csrf_token %}
               <button type="submit" class="btn btn-sm {% if occ.suis_assigne %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
