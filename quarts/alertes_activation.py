@@ -12,7 +12,8 @@ from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.scopes import navire_id_du_perimetre
 from notifications.models import Notification, NotificationLevel
 from org.models import Ship
-from quarts.activation import ActivationImpossible, designation_chef_de_liste
+from quarts.activation import ActivationImpossible, designation_chef_de_liste, navire_de_la_liste
+from quarts.mouvements import reevaluer_batiment
 from quarts.models import (
     AlerteActivation,
     ChefDeListe,
@@ -151,4 +152,6 @@ def retirer_previsionnelle(user, liste, motif):
         actor=user, action="liste_service_previsionnelle_retiree",
         details=f"Service à quai #{liste.pk} ({liste.perimetre}) : prévision retirée, la liste redevient un brouillon. Motif : {motif.strip()}.",
     )
+    if ship := navire_de_la_liste(liste):
+        reevaluer_batiment(ship)
     return liste

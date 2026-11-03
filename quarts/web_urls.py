@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .mouvements_views import MouvementsBatimentView
 from .web_views import (
     ChefDeListeReglagesView,
     CreerListeView,
@@ -18,6 +19,7 @@ from .web_views import (
 
 urlpatterns = [
     path("", ListeIndexView.as_view(), name="quarts-index"),
+    path("mouvements/", MouvementsBatimentView.as_view(), name="mouvements-batiment"),
     path("creer/", CreerListeView.as_view(), name="quarts-creer"),
     path("reglages/", ChefDeListeReglagesView.as_view(), name="quarts-reglages"),
     path("quart/<int:pk>/", QuartDetailView.as_view(), name="quart-detail"),

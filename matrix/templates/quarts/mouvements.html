@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load composants %}
+{% block content %}
+{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et gardes" %}
+<h1 class="h3 mb-1">Mouvements du bâtiment</h1>
+<p class="text-secondary">{{ ship }} — {% if regime == 'QUAI' %}à quai{% elif regime == 'MER' %}à la mer{% else %}situation non renseignée{% endif %}</p>
+
+{% if peut_declarer %}
+<form method="post" class="d-flex flex-wrap align-items-end gap-2 mb-4">{% csrf_token %}<input type="hidden" name="action" value="declarer">
+  <div><label class="form-label small mb-1" for="mv-type">Mouvement</label><select class="form-select form-select-sm" id="mv-type" name="type"><option value="ACCOSTAGE">Accostage</option><option value="APPAREILLAGE">Appareillage</option></select></div>
+  <div><label class="form-label small mb-1" for="mv-date">Date et heure effectives</label><input type="datetime-local" class="form-control form-control-sm" id="mv-date" name="survenu_le" value="{{ maintenant }}" required></div>
+  <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+</form>
+{% endif %}
+
+<h2 class="h5">Historique</h2>
+<ul class="list-group">
+{% for m in mouvements %}
+  <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
+    <span><strong>{{ m.get_type_display }}</strong> le {{ m.survenu_le|date:"d/m/Y à H:i" }} — saisi le {{ m.created_at|date:"d/m/Y à H:i" }} par {{ m.declare_par|default:"—" }} ({{ m.fonction_declarante }})
+    {% if m.statut == 'ANNULE' %}<span class="badge text-bg-secondary">Annulé</span> <span class="small text-secondary">par {{ m.annule_par|default:"—" }} le {{ m.annule_le|date:"d/m/Y H:i" }} : {{ m.motif_annulation }}</span>{% endif %}</span>
+    {% if peut_declarer and m.statut == 'VALIDE' %}
+    <form method="post" class="d-flex flex-wrap align-items-end gap-2" data-mx-confirmer="sensible" data-mx-titre="Annuler ou corriger cette déclaration ?" data-mx-message="L'historique est conservé. Sans nouvelle date, la déclaration est seulement annulée." data-mx-motif="obligatoire" data-mx-action="Confirmer">{% csrf_token %}<input type="hidden" name="action" value="annuler"><input type="hidden" name="mouvement_id" value="{{ m.pk }}">
+      <input type="datetime-local" class="form-control form-control-sm" name="nouveau_survenu_le" aria-label="Nouvelle date effective (facultative)">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Corriger / annuler</button>
+    </form>
+    {% endif %}
+  </li>
+{% empty %}<li class="list-group-item text-secondary">Aucun mouvement déclaré.</li>{% endfor %}
+</ul>
+{% endblock %}

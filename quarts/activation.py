@@ -10,6 +10,7 @@ from accounts.models import AuditLog
 from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.scopes import navire_id_du_perimetre
 from notifications.models import Notification
+from quarts.mouvements import reevaluer_batiment
 from org.models import Ship
 from quarts.models import (
     CreneauQuart,
@@ -68,9 +69,13 @@ def decrire_conflit(conflit):
     )
 
 
+def navire_de_la_liste(liste):
+    return Ship.objects.filter(pk=navire_id_du_perimetre(liste.ship, liste.service, liste.sector, liste.section)).first()
+
+
 def _fonctions_cumulees(user, liste):
     """Fonctions de commandement du même agent, signalées dans la trace sans conférer de droit."""
-    ship = Ship.objects.filter(pk=navire_id_du_perimetre(liste.ship, liste.service, liste.sector, liste.section)).first()
+    ship = navire_de_la_liste(liste)
     if ship is None:
         return []
     return [sigle for sigle in ("COMAEQ",) if titulaires_commandant_adjoint(ship, sigle, liste.equipage).filter(pk=user.pk).exists()]
@@ -93,6 +98,8 @@ def publier_a_titre_previsionnel(user, liste, prise_effet_prevue):
         actor=user, action="liste_service_previsionnelle",
         details=f"Service à quai #{liste.pk} ({liste.perimetre}) publié à titre prévisionnel ; prise d'effet prévue le {timezone.localtime(prise_effet_prevue):%d/%m/%Y à %H:%M}.",
     )
+    if ship := navire_de_la_liste(liste):
+        reevaluer_batiment(ship)
     return liste
 
 
@@ -135,4 +142,6 @@ def activer_liste(user, liste):
             verb=f"La liste « {liste.nom or liste.perimetre} » est maintenant active : votre service du {timezone.localtime(creneau.debut):%d/%m/%Y à %H:%M} est confirmé.",
             url=reverse("quarts-index"),
         )
+    if ship := navire_de_la_liste(liste):
+        reevaluer_batiment(ship)
     return liste

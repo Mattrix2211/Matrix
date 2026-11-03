@@ -2221,3 +2221,42 @@ class AlerteActivation(TimeStampedModel):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["liste", "etape", "version_prevision"], name="alerte_activation_unique")]
         ordering = ("created_at",)
+
+
+class MouvementBatiment(TimeStampedModel):
+    """Accostage ou appareillage déclaré par le COMAEQ ou le commandant. La date de saisie est `created_at` ;
+    une erreur se corrige par annulation motivée (jamais d'effacement), éventuellement remplacée par une nouvelle déclaration."""
+
+    TYPE_ACCOSTAGE = "ACCOSTAGE"
+    TYPE_APPAREILLAGE = "APPAREILLAGE"
+    TYPE_CHOICES = ((TYPE_ACCOSTAGE, "Accostage"), (TYPE_APPAREILLAGE, "Appareillage"))
+    STATUT_VALIDE = "VALIDE"
+    STATUT_ANNULE = "ANNULE"
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="mouvements")
+    type = models.CharField(max_length=16, choices=TYPE_CHOICES)
+    survenu_le = models.DateTimeField(verbose_name="Date et heure effectives")
+    declare_par = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
+    fonction_declarante = models.CharField(max_length=16)
+    statut = models.CharField(max_length=8, default=STATUT_VALIDE)
+    annule_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    annule_le = models.DateTimeField(null=True, blank=True)
+    motif_annulation = models.CharField(max_length=500, blank=True, default="")
+    remplace = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="corrections")
+
+    class Meta:
+        ordering = ("-survenu_le",)
+
+
+class AlerteAccostage(TimeStampedModel):
+    """Alerte d'un accostage confirmé sans liste applicable. Rattachée au mouvement, non à une heure
+    prévue : un report de prise d'effet ne la fait pas disparaître."""
+
+    GENRE_AUCUNE = "AUCUNE_LISTE"
+    GENRE_PREVISIONNELLE = "PREVISIONNELLE_NON_ACTIVEE"
+    GENRE_CHOICES = ((GENRE_AUCUNE, "Aucune liste préparée"), (GENRE_PREVISIONNELLE, "Liste prévisionnelle non activée"))
+
+    mouvement = models.ForeignKey(MouvementBatiment, on_delete=models.CASCADE, related_name="alertes")
+    genre = models.CharField(max_length=32, choices=GENRE_CHOICES)
+    fermee_le = models.DateTimeField(null=True, blank=True)
+    motif_fermeture = models.CharField(max_length=255, blank=True, default="")
