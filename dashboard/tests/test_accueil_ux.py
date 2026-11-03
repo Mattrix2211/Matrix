@@ -40,7 +40,60 @@ class AccueilUxTests(TestCase):
         self.assertNotIn("Listes publiées uniquement", page)
         self.assertIn("Gradé de coupée 1", page)
         self.assertIn(timezone.localdate().strftime("%d") , page)
-        self.assertEqual(len(self.client.get(reverse("home")).context["mes_tours_de_service"]), 3)
+
+    def test_les_tours_affiches_sont_les_prochains_tours_publies_du_marin(self):
+        from accounts.models import User
+        from quarts.models import CreneauServiceGarde, ServiceGarde
+
+        marin = User.objects.get(username="equipier_a")
+        attendus = list(CreneauServiceGarde.objects.filter(
+            marin=marin, service_garde__statut=ServiceGarde.STATUT_PUBLIEE, fin__gte=timezone.now(),
+        ).order_by("debut")[:4])
+        self.client.login(username="equipier_a", password="pass")
+        affiches = self.client.get(reverse("home")).context["mes_tours_de_service"]
+        # Comparaison à une requête indépendante : le nombre varie selon le jour de la semaine (données de démo relatives).
+        self.assertEqual([t.pk for t in affiches], [t.pk for t in attendus])
+        self.assertLessEqual(len(affiches), 4)
+
+    def test_plafond_ordre_et_exclusions_des_tours_de_service(self):
+        from datetime import timedelta as delta
+
+        from accounts.models import User
+        from quarts.models import CreneauServiceGarde, ServiceGarde
+
+        marin = User.objects.get(username="equipier_a")
+        autre = User.objects.exclude(pk=marin.pk).filter(is_active=True).first()
+        modele = ServiceGarde.objects.filter(statut=ServiceGarde.STATUT_PUBLIEE).first()
+        maintenant = timezone.now()
+        CreneauServiceGarde.objects.filter(marin=marin).delete()
+        for jours in (9, 3, 7, 5, 11, 2):
+            CreneauServiceGarde.objects.create(
+                service_garde=modele, poste=f"Tour J+{jours}", marin=marin,
+                debut=maintenant + delta(days=jours), fin=maintenant + delta(days=jours, hours=24),
+            )
+        CreneauServiceGarde.objects.create(  # passé : exclu
+            service_garde=modele, poste="Tour passé", marin=marin,
+            debut=maintenant - delta(days=3), fin=maintenant - delta(days=2),
+        )
+        CreneauServiceGarde.objects.create(  # en cours : compté
+            service_garde=modele, poste="Tour en cours", marin=marin,
+            debut=maintenant - delta(hours=2), fin=maintenant + delta(hours=10),
+        )
+        CreneauServiceGarde.objects.create(  # autre marin : exclu
+            service_garde=modele, poste="Tour d'un autre", marin=autre,
+            debut=maintenant + delta(days=1), fin=maintenant + delta(days=2),
+        )
+        brouillon = ServiceGarde.objects.create(
+            ship=modele.ship, nom="Brouillon test", fonction=modele.fonction, statut=ServiceGarde.STATUT_BROUILLON,
+            date_debut=modele.date_debut, date_fin=modele.date_fin,
+        )
+        CreneauServiceGarde.objects.create(  # liste non publiée : exclu
+            service_garde=brouillon, poste="Tour brouillon", marin=marin,
+            debut=maintenant + delta(hours=5), fin=maintenant + delta(hours=29),
+        )
+        self.client.login(username="equipier_a", password="pass")
+        postes = [t.poste for t in self.client.get(reverse("home")).context["mes_tours_de_service"]]
+        self.assertEqual(postes, ["Tour en cours", "Tour J+2", "Tour J+3", "Tour J+5"])
 
     def test_sans_tour_publie_un_message_clair(self):
         self.client.login(username="equipier_nor", password="pass")
