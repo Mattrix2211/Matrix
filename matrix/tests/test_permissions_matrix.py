@@ -54,7 +54,9 @@ class MatricePermissionsTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.ship = Ship.objects.create(name="Porte-avions Matrice", code="PA-MTX")
-        cls.service = Service.objects.create(name="Service Matrice", ship=cls.ship)
+        # Le service relève du COMANAV : l'état-major de la matrice en est le titulaire, donc le seuil de rôle s'applique
+        # sur son service. Les refus hors service sont couverts par test_ecriture_commandants_adjoints.
+        cls.service = Service.objects.create(name="Service Matrice", ship=cls.ship, commandant_adjoint="COMANAV")
         cls.sector = Sector.objects.create(name="Secteur Matrice", service=cls.service)
         cls.section = Section.objects.create(name="Section Matrice", sector=cls.sector)
         cls.users = {}
@@ -68,6 +70,7 @@ class MatricePermissionsTestCase(TestCase):
                     "service": cls.service,
                     "sector": cls.sector,
                     "section": cls.section,
+                    "fonction_coma": "COMANAV" if role.name == "ETAT_MAJOR" else "",
                 },
             )
             cls.users[role] = user
