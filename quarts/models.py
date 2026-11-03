@@ -1595,18 +1595,15 @@ class FeuilleService(TimeStampedModel, OwnedModel):
 
     @staticmethod
     def _verifier_correction_mineure(libelle, avant, apres):
-        """Seule une correction légère garde les visas acquis : coquille, précision, date ; pas une réécriture.
-        Seuils réglables (settings.FEUILLE_SERVICE_CORRECTION_*) : similarité minimale et ajout maximal."""
-        from difflib import SequenceMatcher
-        from django.conf import settings
-        ratio_min = getattr(settings, "FEUILLE_SERVICE_CORRECTION_SIMILARITE_MIN", 0.6)
-        ajout_max = getattr(settings, "FEUILLE_SERVICE_CORRECTION_AJOUT_MAX", 60)
-        if avant:
-            trop_different = SequenceMatcher(None, avant, apres).ratio() < ratio_min
-        else:
-            trop_different = len(apres) > ajout_max
-        if trop_different:
-            raise CorrectionTropImportante(f"La rubrique « {libelle} » change trop pour conserver les visas déjà donnés.")
+        """Seule une correction qui ne change ni le sens ni une information opérationnelle garde les visas (règle
+        structurelle de quarts/correction_legere.py) ; sinon, une nouvelle validation est imposée."""
+        from .correction_legere import correction_legere
+        legere, raison = correction_legere(avant, apres)
+        if not legere:
+            raise CorrectionTropImportante(
+                f"La rubrique « {libelle} » change de sens ou d'information ({raison}) : renvoyez la feuille en brouillon "
+                "pour une nouvelle validation."
+            )
 
     def modifier_entete_comaeq(self, user, saisies, motif):
         """Le COMAEQ corrige lui-même l'en-tête pendant le circuit de visa. Les visas déjà donnés restent acquis : il

@@ -43,22 +43,39 @@ class InterventionComaeqTests(TestCase):
     def test_le_comaeq_corrige_sans_etre_redacteur_et_conserve_les_visas(self):
         self.assertFalse(peut_gerer_brouillon_feuille(self.comaeq, self.feuille))
         self.assertTrue(peut_intervenir_comaeq(self.comaeq, self.feuille))
-        self._post("comaeq", action="modifier_comaeq", motif="Erreur de saint", **{self.cle: "Saint Gilles"})
+        self._post("comaeq", action="modifier_comaeq", motif="Coquille dans le nom du saint", **{self.cle: "Saint Hervee"})
         self.feuille.refresh_from_db()
-        self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Saint Gilles")
+        self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Saint Hervee")
         self.assertEqual(self.feuille.statut, FeuilleService.STATUT_VISA_COMAEQ)
         self.assertEqual(self.feuille.visa_secteur_par, self.chef)
         self.assertEqual(self.feuille.visa_service_par, self.chef)
         trace = AuditLog.objects.get(action="feuille_service_modifiee_comaeq")
-        self.assertIn("Erreur de saint", trace.details)
-        self.assertIn("Saint Hervé -> Saint Gilles", trace.details)
+        self.assertIn("Coquille dans le nom du saint", trace.details)
+        self.assertIn("Saint Hervé -> Saint Hervee", trace.details)
         self.assertTrue(Notification.objects.filter(user=self.bsc, verb__contains="corrigée par le COMAEQ").exists())
 
     def test_la_publication_reste_possible_apres_la_correction(self):
-        self._post("comaeq", action="modifier_comaeq", motif="Erreur", **{self.cle: "Saint Gilles"})
+        self._post("comaeq", action="modifier_comaeq", motif="Erreur", **{self.cle: "Saint Hervee"})
         self.feuille.refresh_from_db()
         self.assertTrue(self.feuille.viser_comaeq(self.comaeq, self.feuille._empreinte_contenu()))
         self.assertEqual(self.feuille.statut, FeuilleService.STATUT_PUBLIEE)
+
+    def test_un_changement_de_sens_ne_conserve_pas_les_visas(self):
+        reponse = self._post("comaeq", action="modifier_comaeq", motif="Autre saint", **{self.cle: "Saint Gilles"})
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Saint Hervé")
+        self.assertFalse(AuditLog.objects.filter(action="feuille_service_modifiee_comaeq").exists())
+        self.assertEqual(self.feuille.visa_service_par, self.chef)  # rien n'a changé : le COMAEQ doit renvoyer pour une nouvelle validation
+        suivi = self.client.get(self.url)
+        self.assertContains(suivi, "nouvelle validation")
+
+    def test_un_changement_d_heure_malgre_une_forte_similarite_est_refuse(self):
+        self.feuille.valeurs_entete = {str(self.rubrique.uid): "Appareillage prévu à 14h00"}
+        self.feuille.empreinte_visee = self.feuille._empreinte_contenu()
+        self.feuille.save()
+        self._post("comaeq", action="modifier_comaeq", motif="Heure", **{self.cle: "Appareillage prévu à 04h00"})
+        self.feuille.refresh_from_db()
+        self.assertEqual(self.feuille.valeurs_entete[str(self.rubrique.uid)], "Appareillage prévu à 14h00")
 
     def test_motif_obligatoire(self):
         self._post("comaeq", action="modifier_comaeq", motif="  ", **{self.cle: "Saint Gilles"})

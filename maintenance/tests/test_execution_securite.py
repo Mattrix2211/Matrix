@@ -54,4 +54,6 @@ class SecuriteExecutionTests(TestCase):
 
     def test_une_fiche_sans_consigne_le_dit_explicitement(self):
         page = self.client.get(reverse("occurrence-execute", args=[self.occ.pk]))
-        self.assertContains(page, "Aucune consigne de sécurité n'est renseignée")
+        self.assertContains(page, "Aucune consigne n'est renseignée sur cette fiche")
+        self.assertContains(page, "ne signifie pas qu'il n'y a aucun risque")
+        self.assertNotContains(page, "sans risque")
