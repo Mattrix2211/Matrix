@@ -1,0 +1,88 @@
+/* Prototype quarts et tours : jetons de matrix.css, aucune dépendance distante. Pas de code de production. */
+body { background: var(--bg); color: var(--text); font-family: var(--f-body); }
+.proto-cadre { max-width: 1280px; margin: 0 auto; padding: var(--s4); }
+.proto-bandeau { background: #344A63; color: #fff; padding: var(--s3) var(--s4); display: flex; gap: var(--s4); align-items: center; flex-wrap: wrap; }
+.proto-bandeau strong { font-family: var(--f-display); }
+.proto-bandeau a { color: #fff; opacity: .85; text-decoration: none; padding: var(--s1) var(--s2); border-radius: var(--r-sm); }
+.proto-bandeau a[aria-current="page"] { background: rgba(255,255,255,.18); opacity: 1; }
+.proto-entete { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s4); align-items: center; justify-content: space-between; margin: var(--s4) 0; }
+.proto-entete h1 { font-family: var(--f-display); font-size: 1.5rem; margin: 0; }
+.proto-meta { color: var(--text-sec); font-size: .875rem; }
+.pastille { display: inline-block; padding: var(--s1) var(--s2); border-radius: var(--r-sm); font-size: .75rem; font-family: var(--f-mono); }
+.pastille--ok { background: color-mix(in srgb, var(--green-tech) 16%, var(--surface)); color: var(--ok-texte); }
+.pastille--att { background: color-mix(in srgb, var(--amber) 22%, var(--surface)); color: var(--attention-texte); }
+.pastille--mer { background: color-mix(in srgb, var(--signal) 14%, var(--surface)); color: var(--lien); }
+.pastille--quai { background: color-mix(in srgb, var(--horizon) 14%, var(--surface)); color: var(--text); }
+.onglets { display: flex; gap: var(--s1); border-bottom: 1px solid var(--border); margin-bottom: var(--s4); }
+.onglets a { padding: var(--s2) var(--s4); text-decoration: none; color: var(--text-sec); border-bottom: 3px solid transparent; }
+.onglets a[aria-current="page"] { color: var(--text); border-color: var(--signal-ui); font-weight: 600; }
+.bouton-signal { background: var(--signal-ui); color: #fff; border: 0; border-radius: var(--r-md); padding: var(--s2) var(--s4); font-weight: 600; }
+.bouton-discret { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: var(--r-md); padding: var(--s2) var(--s3); }
+
+/* Vue A : deux colonnes, latérale collante */
+.vue-a { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s6); align-items: start; }
+.vue-a__lateral { position: sticky; top: var(--s4); display: grid; gap: var(--s4); }
+.carte { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s4); box-shadow: var(--shadow-sm); }
+.carte h2 { font-family: var(--f-display); font-size: 1rem; margin: 0 0 var(--s3); }
+.chiffre-grand { font-family: var(--f-display); font-size: 1.75rem; line-height: 1.1; }
+.jour { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); margin-bottom: var(--s4); overflow: hidden; }
+.jour--aujourdhui { border-color: var(--signal-ui); box-shadow: var(--shadow-glow); }
+.jour__tete { display: flex; justify-content: space-between; align-items: baseline; padding: var(--s3) var(--s4); background: color-mix(in srgb, var(--signal) 7%, var(--surface)); border-bottom: 1px solid var(--border); }
+.jour__tete h2 { font-family: var(--f-display); font-size: 1.0625rem; margin: 0; }
+.jour__corps { display: grid; grid-template-columns: 1fr 1fr; }
+.jour__bloc { padding: var(--s3) var(--s4); }
+.jour__bloc + .jour__bloc { border-left: 1px solid var(--border); }
+.jour__bloc h3 { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-sec); margin: 0 0 var(--s2); font-family: var(--f-mono); font-weight: 500; }
+.ligne { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: var(--s2); align-items: center; padding: var(--s2) 0; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.ligne:first-of-type { border-top: 0; }
+.ligne__heure { font-family: var(--f-mono); font-size: .8125rem; color: var(--text-sec); }
+.ligne__qui { min-width: 0; }
+.ligne__qui small { display: block; color: var(--text-sec); }
+.ligne--moi { background: color-mix(in srgb, var(--signal) 10%, var(--surface)); margin: 0 calc(var(--s2) * -1); padding-left: var(--s2); padding-right: var(--s2); border-radius: var(--r-sm); }
+.ligne--vide .ligne__qui { color: var(--red-texte); font-weight: 600; }
+details.menu { position: relative; }
+details.menu > summary { list-style: none; cursor: pointer; padding: var(--s1) var(--s2); border-radius: var(--r-sm); color: var(--text-sec); }
+details.menu > summary:hover, details.menu[open] > summary { background: var(--border); }
+details.menu .menu__liste { position: absolute; right: 0; z-index: 5; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-md); min-width: 200px; padding: var(--s1); }
+details.menu .menu__liste a { display: block; padding: var(--s2) var(--s3); color: var(--text); text-decoration: none; border-radius: var(--r-sm); }
+details.menu .menu__liste a:hover { background: var(--border); }
+
+/* Vue B : marins en lignes, jours en colonnes */
+.grille-b { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); }
+.grille-b th, .grille-b td { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border); border-right: 1px solid color-mix(in srgb, var(--border) 60%, transparent); vertical-align: top; font-size: .8125rem; }
+.grille-b thead th { background: color-mix(in srgb, var(--signal) 7%, var(--surface)); text-align: left; position: sticky; top: 0; z-index: 2; font-family: var(--f-display); }
+.grille-b th.jour-courant { background: color-mix(in srgb, var(--signal) 20%, var(--surface)); }
+.grille-b .colonne-marin { position: sticky; left: 0; z-index: 3; background: var(--surface); min-width: 160px; box-shadow: 1px 0 0 var(--border); }
+.grille-b thead .colonne-marin { z-index: 4; }
+.puce { display: block; margin-bottom: var(--s1); padding: var(--s1) var(--s2); border-radius: var(--r-sm); font-family: var(--f-mono); font-size: .75rem; white-space: normal; }
+.puce--mer { background: color-mix(in srgb, var(--signal) 16%, var(--surface)); color: var(--lien); }
+.puce--quai { background: color-mix(in srgb, var(--horizon) 14%, var(--surface)); color: var(--text); }
+.puce--vide { border: 1px dashed var(--red-texte); color: var(--red-texte); background: transparent; }
+.charge { display: flex; align-items: center; gap: var(--s2); }
+.charge__barre { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; min-width: 48px; }
+.charge__barre span { display: block; height: 100%; background: var(--signal-ui); }
+.charge__barre span.haute { background: var(--amber); }
+.defilement { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-lg); }
+.alertes { display: grid; gap: var(--s2); margin-bottom: var(--s4); }
+.alerte { border-left: 4px solid var(--amber); background: color-mix(in srgb, var(--amber) 14%, var(--surface)); padding: var(--s2) var(--s3); border-radius: var(--r-sm); }
+.alerte--rouge { border-color: var(--red-texte); background: color-mix(in srgb, var(--red) 10%, var(--surface)); }
+.legende { display: flex; flex-wrap: wrap; gap: var(--s3); color: var(--text-sec); font-size: .8125rem; margin: var(--s3) 0; }
+
+/* Mobile (390 px) */
+@media (max-width: 860px) {
+  .vue-a { grid-template-columns: 1fr; }
+  .vue-a__lateral { position: static; order: -1; }
+  .jour__corps { grid-template-columns: 1fr; }
+  .jour__bloc + .jour__bloc { border-left: 0; border-top: 1px solid var(--border); }
+  .ligne { grid-template-columns: 80px minmax(0, 1fr) auto; }
+  .proto-entete h1 { font-size: 1.25rem; }
+  .grille-b .colonne-marin { min-width: 128px; }
+  .grille-b td, .grille-b th { min-width: 108px; }
+  .grille-b .colonne-marin { min-width: 128px; }
+}
+summary.jour__tete { cursor: pointer; list-style: none; }
+summary.jour__tete::-webkit-details-marker { display: none; }
+details.jour:not([open]) .jour__tete .bi { transform: rotate(-90deg); }
+.ligne__heure { white-space: nowrap; }
+.ligne[hidden] { display: none; }
+@media (max-width: 860px) { .ligne { grid-template-columns: 104px minmax(0, 1fr) auto; } }
