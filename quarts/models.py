@@ -646,12 +646,59 @@ class ServiceGarde(ListeServiceAbstract):
         default=0, verbose_name="Délai minimal avant le tour pour demander un échange (heures)"
     )
 
+    # Application de la liste publiée : distincte de la validation (statut).
+    # Le défaut ACTIVE conserve le comportement des listes publiées avant cette
+    # notion ; le chemin de publication à titre prévisionnel pose PREVISIONNELLE.
+    APPLICATION_PREVISIONNELLE = "PREVISIONNELLE"
+    APPLICATION_ACTIVE = "ACTIVE"
+    APPLICATION_TERMINEE = "TERMINEE"
+    APPLICATION_CHOICES = (
+        (APPLICATION_PREVISIONNELLE, "Prévisionnelle"),
+        (APPLICATION_ACTIVE, "Active"),
+        (APPLICATION_TERMINEE, "Terminée"),
+    )
+    application = models.CharField(
+        max_length=16, choices=APPLICATION_CHOICES, default=APPLICATION_ACTIVE, verbose_name="Application",
+    )
+    prise_effet_prevue = models.DateTimeField(null=True, blank=True, verbose_name="Prise d'effet prévue")
+    prise_effet = models.DateTimeField(null=True, blank=True, verbose_name="Prise d'effet")
+    active_le = models.DateTimeField(null=True, blank=True, verbose_name="Activée le")
+    active_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="services_garde_actives", verbose_name="Activée par",
+    )
+    terminee_le = models.DateTimeField(null=True, blank=True, verbose_name="Terminée le")
+    terminee_par = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="services_garde_terminees", verbose_name="Terminée par",
+    )
+    # Incrémentée à chaque report : invalide les rappels de la version précédente.
+    version_prevision = models.PositiveIntegerField(default=1)
+    # Liste publiée avant la notion d'activation, reprise sans réécriture.
+    activation_historique = models.BooleanField(default=False)
+
     class Meta(ListeServiceAbstract.Meta):
         verbose_name = "Liste de services de garde"
         verbose_name_plural = "Listes de services de garde"
 
     def libelle_type(self):
         return "service de garde"
+
+    @property
+    def situation_affichee(self):
+        """Libellé honnête pour l'interface : une liste publiée et active mais
+        dont la période n'a pas commencé (ou est échue) n'est pas « active
+        aujourd'hui »."""
+        if self.statut != self.STATUT_PUBLIEE:
+            return self.get_statut_display()
+        if self.application == self.APPLICATION_PREVISIONNELLE:
+            return "Prévisionnelle"
+        if self.application == self.APPLICATION_TERMINEE:
+            return "Terminée"
+        aujourdhui = timezone.localdate()
+        if self.date_debut > aujourdhui:
+            return "Applicable à venir"
+        if self.date_fin < aujourdhui:
+            return "Période échue"
+        return "Active"
 
 
 class CreneauAbstract(TimeStampedModel):
