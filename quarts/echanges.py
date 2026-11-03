@@ -99,6 +99,8 @@ def analyser_echange(echange, verifier_delai=False):
         problemes.append("Les deux tours doivent appartenir à la même liste de services.")
     if a.service_garde.statut != "PUBLIEE":
         problemes.append("La liste n'est pas publiée : les tours ne sont pas encore définitifs.")
+    elif a.service_garde.application == "TERMINEE":
+        problemes.append("La liste est terminée : ses tours ne peuvent plus être échangés.")
     if echange.demandeur and echange.cible and not meme_equipage(echange.demandeur, echange.cible):
         problemes.append("Un échange de service ne peut se faire qu'entre marins d'un même équipage.")
     if a.marin_id != echange.demandeur_id:
@@ -330,19 +332,36 @@ def valider_echange(echange, user):
     problemes = analyser_echange(echange)
     if problemes:
         raise EchangeImpossible(problemes)
+    echange.statut = EchangeService.STATUT_VALIDE
+    echange.decide_le = timezone.now()
+    echange.decide_par = user
+    if echange.liste.application == "PREVISIONNELLE":
+        # Validé mais pas appliqué : les tours ne sont permutés qu'à l'activation de la liste.
+        echange.save(update_fields=["statut", "decide_le", "decide_par", "updated_at"])
+        _tracer(echange, user, "validation_differee", _resume(echange))
+        _notifier(
+            [echange.demandeur, echange.cible] + chefs_de_liste_a_notifier(echange.liste),
+            f"Échange validé ({_resume(echange)}) : la liste est prévisionnelle, il sera appliqué à son activation.",
+            echange,
+        )
+        return
+    _permuter(echange, user, "validation")
+
+
+def _permuter(echange, user, action):
     a = CreneauServiceGarde.objects.select_for_update().get(pk=echange.creneau_demandeur_id)
     b = CreneauServiceGarde.objects.select_for_update().get(pk=echange.creneau_cible_id)
     a.marin, b.marin = echange.cible, echange.demandeur
     a.save(update_fields=["marin", "updated_at"])
     b.save(update_fields=["marin", "updated_at"])
     echange.statut = EchangeService.STATUT_VALIDE
-    echange.decide_le = timezone.now()
-    echange.decide_par = user
-    echange.save(update_fields=["statut", "decide_le", "decide_par", "updated_at"])
+    echange.applique_le = timezone.now()
+    echange.blocage_application = ""
+    echange.save(update_fields=["statut", "decide_le", "decide_par", "applique_le", "blocage_application", "updated_at"])
     echange.liste.creer_version(user)
     signaler_divergences_apres_echange(echange)
     _tracer(
-        echange, user, "validation",
+        echange, user, action,
         f"{echange.libelle_creneau_demandeur} : {_nom(echange.demandeur)} -> {_nom(echange.cible)} ; "
         f"{echange.libelle_creneau_cible} : {_nom(echange.cible)} -> {_nom(echange.demandeur)}",
     )
@@ -352,6 +371,27 @@ def valider_echange(echange, user):
         f"({_resume(echange)}). Les calendriers sont à jour.",
         echange,
     )
+
+
+def appliquer_echanges_prepares(liste, user):
+    """À l'activation : revérifie chaque échange validé mais non appliqué. Un échange devenu incompatible
+    n'est jamais appliqué en silence : le blocage est tracé, notifié et reste à résoudre."""
+    en_attente = EchangeService.objects.filter(
+        statut=EchangeService.STATUT_VALIDE, applique_le__isnull=True, creneau_demandeur__service_garde=liste,
+    )
+    for echange in en_attente:
+        problemes = analyser_echange(echange)
+        if problemes:
+            echange.blocage_application = " ".join(problemes)
+            echange.save(update_fields=["blocage_application", "updated_at"])
+            _tracer(echange, user, "blocage_activation", echange.blocage_application)
+            _notifier(
+                [echange.demandeur, echange.cible] + chefs_de_liste_a_notifier(liste),
+                f"L'échange validé ({_resume(echange)}) n'a pas pu être appliqué à l'activation : {echange.blocage_application}",
+                echange, NotificationLevel.WARNING,
+            )
+        else:
+            _permuter(echange, user, "application")
 
 
 def annuler_echanges_du_creneau(creneau, acteur):

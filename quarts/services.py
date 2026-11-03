@@ -86,8 +86,7 @@ def _creneaux_publies_periode(marins_ids, depuis, jusqu_a_exclu):
     """Créneaux de service de garde à prendre en compte : uniquement les
     listes PUBLIÉES (jamais les brouillons), affectés à l'un des marins
     demandés, dont le début tombe dans la période [depuis, jusqu_a_exclu)."""
-    return CreneauServiceGarde.objects.filter(
-        service_garde__statut=ServiceGarde.STATUT_PUBLIEE,
+    return CreneauServiceGarde.applicables().filter(
         marin_id__in=marins_ids,
         debut__gte=depuis,
         debut__lt=jusqu_a_exclu,
@@ -210,7 +209,7 @@ def prochains_tours_de_service(user, limite=4):
     from .models import CreneauServiceGarde, ServiceGarde
 
     return list(
-        CreneauServiceGarde.objects.filter(
-            marin=user, service_garde__statut=ServiceGarde.STATUT_PUBLIEE, fin__gte=timezone.now()
+        CreneauServiceGarde.applicables().filter(
+            marin=user, fin__gte=timezone.now()
         ).select_related("service_garde").order_by("debut")[:limite]
     )

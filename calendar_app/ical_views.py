@@ -6,7 +6,7 @@ from django.utils import timezone
 from icalendar import Calendar, Event
 from maintenance.models import MaintenanceOccurrence
 from training.models import TrainingSession
-from quarts.models import CreneauQuart, CreneauServiceGarde, Quart, ServiceGarde
+from quarts.models import CreneauQuart, CreneauServiceGarde, Quart
 from absences.models import Absence
 from .models import PersonalEvent
 
@@ -55,12 +55,10 @@ def user_ical_feed(request):
         ev.add('dtstart', c.debut)
         ev.add('dtend', c.fin)
         cal.add_component(ev)
-    garde_qs = CreneauServiceGarde.objects.filter(
-        marin=request.user, service_garde__statut=ServiceGarde.STATUT_PUBLIEE
-    ).select_related('service_garde')
+    garde_qs = CreneauServiceGarde.en_vigueur_ou_previsionnels().filter(marin=request.user).select_related('service_garde')
     for c in garde_qs:
         ev = Event()
-        ev.add('summary', f"Garde: {c.poste}")
+        ev.add('summary', f"Garde: {c.poste}" + (" (prévisionnel)" if c.previsionnel else ""))
         ev.add('dtstart', c.debut)
         ev.add('dtend', c.fin)
         cal.add_component(ev)

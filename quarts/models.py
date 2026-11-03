@@ -743,13 +743,27 @@ class CreneauServiceGarde(CreneauAbstract):
     service_garde = models.ForeignKey(ServiceGarde, on_delete=models.CASCADE, related_name="creneaux")
 
     @classmethod
+    def _en_vigueur_q(cls):
+        return Q(service_garde__application__in=(ServiceGarde.APPLICATION_ACTIVE, ServiceGarde.APPLICATION_TERMINEE)) & (
+            Q(service_garde__prise_effet__isnull=True) | Q(fin__gt=models.F("service_garde__prise_effet"))
+        )
+
+    @classmethod
     def applicables(cls):
         """Créneaux réellement en vigueur : liste publiée et activée (ou terminée), et non
         antérieurs à sa prise d'effet. Une liste prévisionnelle n'en fait jamais partie."""
-        return cls.objects.filter(
-            service_garde__statut=ServiceGarde.STATUT_PUBLIEE,
-            service_garde__application__in=(ServiceGarde.APPLICATION_ACTIVE, ServiceGarde.APPLICATION_TERMINEE),
-        ).filter(Q(service_garde__prise_effet__isnull=True) | Q(fin__gt=models.F("service_garde__prise_effet")))
+        return cls.objects.filter(service_garde__statut=ServiceGarde.STATUT_PUBLIEE).filter(cls._en_vigueur_q())
+
+    @classmethod
+    def en_vigueur_ou_previsionnels(cls):
+        """Pour les affichages : les créneaux en vigueur et ceux d'une liste prévisionnelle (à signaler comme tels)."""
+        return cls.objects.filter(service_garde__statut=ServiceGarde.STATUT_PUBLIEE).filter(
+            cls._en_vigueur_q() | Q(service_garde__application=ServiceGarde.APPLICATION_PREVISIONNELLE)
+        )
+
+    @property
+    def previsionnel(self):
+        return self.service_garde.application == ServiceGarde.APPLICATION_PREVISIONNELLE
 
     class Meta(CreneauAbstract.Meta):
         verbose_name = "Créneau de service de garde"
@@ -847,6 +861,9 @@ class EchangeService(TimeStampedModel):
     motif_decision = models.TextField(blank=True, default="", verbose_name="Motif du refus")
     accepte_le = models.DateTimeField(null=True, blank=True)
     decide_le = models.DateTimeField(null=True, blank=True)
+    # Un échange validé sur une liste prévisionnelle n'est appliqué qu'à l'activation de la liste.
+    applique_le = models.DateTimeField(null=True, blank=True)
+    blocage_application = models.TextField(blank=True, default="", verbose_name="Raison du blocage à l'activation")
     decide_par = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="echanges_decides"
     )
@@ -859,6 +876,10 @@ class EchangeService(TimeStampedModel):
     @property
     def en_cours(self):
         return self.statut in self.STATUTS_EN_COURS
+
+    @property
+    def en_attente_application(self):
+        return self.statut == self.STATUT_VALIDE and self.applique_le is None
 
     @property
     def liste(self):
@@ -886,6 +907,9 @@ class EchangeServiceEvenement(TimeStampedModel):
         "annulation_creneau_supprime": "Annulé (créneau supprimé)",
         "refus_chef": "Refusé par le chef de liste",
         "validation": "Validé par le chef de liste, tours permutés",
+        "validation_differee": "Validé par le chef de liste, application à l'activation de la liste",
+        "application": "Appliqué à l'activation de la liste, tours permutés",
+        "blocage_activation": "Non appliqué à l'activation : à résoudre",
     }
 
     class Meta:

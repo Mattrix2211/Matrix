@@ -10,6 +10,7 @@ from accounts.models import AuditLog
 from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.scopes import navire_id_du_perimetre
 from notifications.models import Notification
+from quarts.echanges import appliquer_echanges_prepares
 from quarts.mouvements import reevaluer_batiment
 from org.models import Ship
 from quarts.models import (
@@ -136,6 +137,7 @@ def activer_liste(user, liste):
             + (f" Fonction {', '.join(cumul)} du même agent non utilisée pour cet acte." if cumul else "")
         ),
     )
+    appliquer_echanges_prepares(liste, user)
     for creneau in liste.creneaux.select_related("marin").filter(marin__isnull=False, fin__gt=maintenant):
         Notification.objects.create(
             user=creneau.marin,

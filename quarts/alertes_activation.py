@@ -87,9 +87,32 @@ def _creer_alerte(liste, etape):
     return alerte
 
 
+def terminer_listes_echues(maintenant):
+    """Passe en « terminée » les listes ACTIVES dont la période est échue. Jamais une prévisionnelle,
+    et jamais d'activation d'une autre liste en conséquence."""
+    echues = ServiceGarde.objects.filter(
+        statut=ServiceGarde.STATUT_PUBLIEE, application=ServiceGarde.APPLICATION_ACTIVE,
+        date_fin__lt=timezone.localtime(maintenant).date(),
+    )
+    terminees = 0
+    for liste in echues:
+        terminees += 1
+        liste.application = ServiceGarde.APPLICATION_TERMINEE
+        liste.terminee_le = maintenant
+        liste.save(update_fields=["application", "terminee_le", "updated_at"])
+        AuditLog.objects.create(
+            action="liste_service_terminee",
+            details=f"Service à quai #{liste.pk} ({liste.perimetre}) terminé : sa période de validité est échue.",
+        )
+        if ship := _navire(liste):
+            reevaluer_batiment(ship)
+    return terminees
+
+
 def traiter_echeances(maintenant=None):
-    """Crée les alertes échues. Idempotent et sûr en exécution concurrente (unicité en base)."""
+    """Crée les alertes échues et termine les listes échues. Idempotent et sûr en exécution concurrente."""
     maintenant = maintenant or timezone.now()
+    terminer_listes_echues(maintenant)
     creees = 0
     listes = ServiceGarde.objects.filter(
         statut=ServiceGarde.STATUT_PUBLIEE, application=ServiceGarde.APPLICATION_PREVISIONNELLE, prise_effet_prevue__isnull=False,

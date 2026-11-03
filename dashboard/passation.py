@@ -177,7 +177,9 @@ def _listes_a_venir(navire):
         for liste in modele.objects.filter(navire_q(navire.pk), statut=modele.STATUT_PUBLIEE).select_related("fonction"):
             creneaux = list(liste.creneaux.filter(debut__gte=maintenant, debut__lte=horizon).order_by("debut"))
             if creneaux:
-                libelle = liste.nom or str(liste.fonction or titre)
+                libelle = (liste.nom or str(liste.fonction or titre)) + (
+                    " (prévisionnelle, non activée)" if getattr(liste, "application", "") == "PREVISIONNELLE" else ""
+                )
                 lignes.append(_ligne(
                     libelle + (f" (équipage {liste.equipage})" if liste.equipage else ""),
                     f"{len(creneaux)} créneau(x), du {timezone.localtime(creneaux[0].debut):%d/%m %H:%M} "

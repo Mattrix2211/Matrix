@@ -130,15 +130,14 @@ def _creneaux_quart_assignes(start, end, user=None, pour=None):
     return qs
 
 
-def _creneaux_garde_assignes(start, end, user=None, pour=None):
+def _creneaux_garde_assignes(start, end, user=None, pour=None, previsionnels=True):
     """Équivalent de _creneaux_quart_assignes pour les services de garde
     (ServiceGarde/CreneauServiceGarde) — même logique, factorisée en deux
     fonctions distinctes (pas une seule générique) pour rester cohérente avec
     la décision de garder Quart et ServiceGarde comme deux modèles Django
     distincts (cf. docstring de quarts/models.py)."""
-    qs = CreneauServiceGarde.objects.select_related("service_garde", "marin").filter(
-        service_garde__statut=ServiceGarde.STATUT_PUBLIEE, marin__isnull=False, debut__date__range=(start, end)
-    )
+    base = CreneauServiceGarde.en_vigueur_ou_previsionnels() if previsionnels else CreneauServiceGarde.applicables()
+    qs = base.select_related("service_garde", "marin").filter(marin__isnull=False, debut__date__range=(start, end))
     if user is not None:
         qs = qs.filter(marin=user)
     if pour is not None:
@@ -204,7 +203,7 @@ def evenements_utilisateur_jour(user, day):
     # _creneaux_quart_assignes/_creneaux_garde_assignes ci-dessus — même
     # agrégation que le calendrier personnel (calendar_events), pas de
     # système parallèle.
-    creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user))
+    creneaux = list(_creneaux_quart_assignes(day, day, user)) + list(_creneaux_garde_assignes(day, day, user, previsionnels=False))
     absences = list(_absences_periode(day, day, user))
     taches = list(_taches_a_faire(user, day, day))
     # Feuille de service quotidienne (Phase 2, tâche Notion « Feuille de

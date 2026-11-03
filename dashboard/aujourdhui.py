@@ -215,8 +215,7 @@ def journee(user, aujourdhui, taches):
     creneaux = (
         (CreneauQuart.objects.select_related("quart").filter(quart__statut=ListeServiceAbstract.STATUT_PUBLIEE),
          "quart", "Quart"),
-        (CreneauServiceGarde.objects.select_related("service_garde").filter(
-            service_garde__statut=ListeServiceAbstract.STATUT_PUBLIEE), "garde", "Service"),
+        (CreneauServiceGarde.applicables().select_related("service_garde"), "garde", "Service"),
     )
     for requete, icone, mot in creneaux:
         for c in requete.filter(marin=user, debut__lt=fin_jour, fin__gt=debut_jour):

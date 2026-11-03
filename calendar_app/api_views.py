@@ -281,12 +281,12 @@ def calendar_events(request):
             couleur = _couleur_evenement("service_garde")
             events.append({
                 "id": f"svc-{c.id}",
-                "title": str(c.poste),
+                "title": f"{c.poste} (prévisionnel)" if c.previsionnel else str(c.poste),
                 "start": c.debut.isoformat(),
                 "end": c.fin.isoformat(),
                 "url": f"/quarts/garde/{c.service_garde_id}/",
                 "editable": False,
-                "extendedProps": {"type": "service_garde", "status": None, "peut_agir": False},
+                "extendedProps": {"type": "service_garde", "status": "prévisionnel" if c.previsionnel else None, "peut_agir": False},
                 **couleur,
             })
     # Absences/indisponibilités : même principe que les créneaux de quart/
