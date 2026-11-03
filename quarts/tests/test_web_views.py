@@ -142,7 +142,7 @@ class GestionCreneauxEtPublicationTests(TestCase):
         UserProfile.objects.update_or_create(user=autre, defaults={"role": "EQUIPIER"})
         self.client.login(username="autre_gestion", password="pass")
         r = self.client.post(f"/quarts/quart/{self.quart.pk}/", {"action": "publier"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.quart.refresh_from_db()
         self.assertEqual(self.quart.statut, Quart.STATUT_BROUILLON)
 
@@ -202,13 +202,13 @@ class GestionCreneauxEtPublicationTests(TestCase):
     def test_marin_ne_peut_pas_lire_un_brouillon(self):
         self.client.login(username="marin_gestion", password="pass")
         r = self.client.get(f"/quarts/quart/{self.quart.pk}/")
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
 
     def test_marin_hors_perimetre_ne_peut_pas_lire_une_liste_publiee(self):
         self.quart.publier(self.cdl)
         self.client.login(username="marin_hors_gestion", password="pass")
         r = self.client.get(f"/quarts/quart/{self.quart.pk}/")
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
 
 
 class DesignationChefDeListeTests(TestCase):

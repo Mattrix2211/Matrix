@@ -90,7 +90,7 @@ class VisaComaeqVacantTests(TestCase):
         reponse = self.client.get(url)
         self.assertContains(reponse, "Aucun titulaire COMAEQ")
         self.assertContains(reponse, "relève exceptionnellement du commandant")
-        self.assertContains(reponse, "Viser et publier (COMAEQ)")
+        self.assertContains(reponse, "Publier")
 
     def test_post_du_second_refuse_et_commandant_publie(self):
         url = reverse("feuille-service-detail", args=[self.ship.pk, f"{self.feuille.date:%Y-%m-%d}"])

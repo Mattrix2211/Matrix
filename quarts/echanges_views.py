@@ -13,7 +13,7 @@ quarts/web_views.py, import circulaire volontaire déjà en place pour
 dashboard/web_views.py avant ce découpage)."""
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.views import View
 
@@ -46,7 +46,7 @@ class ProposerEchangeView(LoginRequiredMixin, View):
     def post(self, request, pk):
         liste = ServiceGarde.objects.filter(pk=pk).first()
         if liste is None or not _peut_lire_liste(request.user, liste):
-            return HttpResponseBadRequest(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
+            raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
         mon_tour = liste.creneaux.filter(pk=entier_ou_none(request.POST.get("creneau_id"))).first()
         son_tour = liste.creneaux.filter(pk=entier_ou_none(request.POST.get("cible_creneau_id"))).first()
         if mon_tour is None or son_tour is None:
@@ -137,7 +137,7 @@ class EchangeActionView(LoginRequiredMixin, View):
     def post(self, request, pk, action):
         echange = next((e for e in _echanges_visibles(request.user) if e.pk == pk), None)
         if echange is None or action not in self.ACTIONS:
-            return HttpResponseBadRequest(f"Échange introuvable ou hors de {votre_niveau(request.user)}.")
+            raise Http404(f"Échange introuvable ou hors de {votre_niveau(request.user)}.")
         fonction, avec_motif, succes = self.ACTIONS[action]
         try:
             if avec_motif:

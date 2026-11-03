@@ -5,7 +5,7 @@ sinon proposée et notifiée à cette autorité."""
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
@@ -107,7 +107,7 @@ class OrganisationAlerteView(LoginRequiredMixin, View):
             scenario = get_object_or_404(ship.scenarios_alerte, pk=entier_ou_none(request.POST["scenario_id"]) or 0)
         if action == "supprimer":
             if scenario is None:
-                return HttpResponseBadRequest("Scénario introuvable.")
+                raise Http404("Scénario introuvable.")
             modification, erreur = proposer_modification(
                 request.user, ship, Modification.ACTION_SUPPRIMER, scenario=scenario,
             )

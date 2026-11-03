@@ -2113,6 +2113,12 @@ def peut_lire_feuille_service(user, feuille):
     return peut_voir_travail_feuille(user, feuille)
 
 
+def suivi_redacteur_feuille(user, feuille):
+    """Le rédacteur désigné de l'équipage propriétaire suit sa feuille pendant la validation (lecture seule : la
+    modification n'est rendue qu'après un renvoi explicite, cf. peut_gerer_brouillon_feuille)."""
+    return _equipage_proprietaire(user, feuille) and peut_rediger_feuille_service(user, feuille.ship)
+
+
 def peut_voir_travail_feuille(user, feuille):
     """Copie de travail (brouillon, visas, rectificatif) : acteurs du circuit seulement."""
     if not getattr(user, "is_active", False) or not _dans_mon_equipage(user, feuille):
@@ -2123,6 +2129,7 @@ def peut_voir_travail_feuille(user, feuille):
         return True  # commandant en second : lecture des feuilles en cours de circuit
     return (
         peut_gerer_brouillon_feuille(user, feuille)
+        or suivi_redacteur_feuille(user, feuille)
         or peut_viser_secteur(user, feuille)
         or peut_viser_service(user, feuille)
         or peut_viser_comaeq(user, feuille)

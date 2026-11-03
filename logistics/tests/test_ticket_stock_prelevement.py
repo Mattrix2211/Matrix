@@ -108,7 +108,7 @@ class TicketStockPrelevementTests(TestCase):
 
         response = self.client.post(url_hors_perimetre, {"piece_id": self.piece.id, "quantite": "1"})
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
         self.piece.refresh_from_db()
         self.assertEqual(self.piece.quantite, 5)
 

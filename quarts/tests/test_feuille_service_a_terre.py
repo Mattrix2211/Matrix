@@ -68,7 +68,7 @@ class FeuilleParEquipageTests(TestCase):
         self._circuit("B")
         UserProfile.objects.filter(user__username="comaeq_B").update(fonction_coma="")
         for refuse in ("redacteur_B", "second_B", "cdt_A", "comaeq_A", "admin_navire", "maitre"):
-            self.assertIn(self._post(refuse, "viser_comaeq").status_code, (400, 403), refuse)
+            self.assertIn(self._post(refuse, "viser_comaeq").status_code, (403, 404), refuse)
         self.assertEqual(self._feuille("B").statut, FeuilleService.STATUT_VISA_COMAEQ)
         self.assertEqual(self._post("cdt_B", "viser_comaeq").status_code, 302)
         self.assertEqual(self._feuille("B").statut, FeuilleService.STATUT_PUBLIEE)
@@ -87,12 +87,12 @@ class FeuilleParEquipageTests(TestCase):
 
     def test_administrateurs_ne_redigent_ni_ne_visent_par_le_seul_role(self):
         for nom in ("admin_navire", "maitre"):
-            self.assertIn(self._post(nom, "creer", "?equipage=B").status_code, (400, 403), nom)
+            self.assertIn(self._post(nom, "creer", "?equipage=B").status_code, (403, 404), nom)
         self.assertFalse(FeuilleService.objects.exists())
         self._circuit("B")
         for nom in ("admin_navire", "maitre"):
             for action in ("viser_secteur", "viser_service", "viser_comaeq", "proposer", "enregistrer_entete"):
-                self.assertIn(self._post(nom, action, "?equipage=B").status_code, (400, 403), f"{nom} {action}")
+                self.assertIn(self._post(nom, action, "?equipage=B").status_code, (403, 404), f"{nom} {action}")
         self.assertEqual(self._feuille("B").statut, FeuilleService.STATUT_VISA_COMAEQ)
         # La lecture reste possible, avec choix de l'équipage affiché.
         self.client.force_login(self.maitre)

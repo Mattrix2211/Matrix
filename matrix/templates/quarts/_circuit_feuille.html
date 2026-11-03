@@ -21,7 +21,7 @@
       </li>
       <li class="mx-circuit__etape {% if feuille.visa_comaeq_le %}mx-circuit__etape--fait{% elif feuille.statut == 'VISA_COMAEQ' %}mx-circuit__etape--en-cours{% else %}mx-circuit__etape--a-venir{% endif %}">
         <span class="mx-circuit__etat">{% if feuille.visa_comaeq_le %}Fait{% elif feuille.statut == 'VISA_COMAEQ' %}En cours{% else %}À venir{% endif %}</span>
-        <strong>Visa du COMAEQ et publication</strong>
+        <strong>Publication par le COMAEQ</strong>
         {% if feuille.visa_comaeq_le %}<span class="mx-circuit__detail">{{ feuille.visa_comaeq_par.get_full_name|default:feuille.visa_comaeq_par.username }}, le {{ feuille.visa_comaeq_le|date:"d/m à H:i" }}</span>{% endif %}
       </li>
     </ol>
@@ -63,9 +63,9 @@
     </form>
     {% endif %}
     {% if peut_viser_comaeq %}
-    <form method="post" class="d-inline" data-mx-confirmer="sensible" data-mx-titre="Viser et publier la feuille ?" data-mx-message="La feuille est publiée et la fraction de service est notifiée. Le visa est tracé à votre nom." data-mx-action="Viser et publier">
+    <form method="post" class="d-inline" data-mx-confirmer="sensible" data-mx-titre="Publier la feuille de service ?" data-mx-message="Le contenu visé, l'équipage et vos droits sont revérifiés ; la feuille est alors publiée et la fraction de service notifiée. Votre nom et l'heure sont tracés." data-mx-action="Publier">
       {% csrf_token %}<input type="hidden" name="action" value="viser_comaeq"><input type="hidden" name="jeton_visa" value="{{ jeton_visa }}">
-      <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Viser et publier (COMAEQ)</button>
+      <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Publier</button>
     </form>
     {% endif %}
 

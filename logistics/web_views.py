@@ -259,7 +259,7 @@ class TicketCreateView(LoginRequiredMixin, View):
         try:
             asset = assets.get(pk=asset_pk)
         except Asset.DoesNotExist:
-            return HttpResponseBadRequest(f'Matériel introuvable ou hors de {votre_niveau(request.user)}.')
+            raise Http404(f'Matériel introuvable ou hors de {votre_niveau(request.user)}.')
 
         description = request.POST.get('description', '').strip()
         if not description:
@@ -329,7 +329,7 @@ class TicketAssignView(LoginRequiredMixin, View):
                 perimetre_tickets_q(request.user)
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseBadRequest('Ticket introuvable')
+            raise Http404('Ticket introuvable')
         if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         anciens_assignes = set(ticket.assignees.all())
@@ -378,7 +378,7 @@ class TicketTransitionView(LoginRequiredMixin, View):
         try:
             ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseBadRequest('Ticket introuvable')
+            raise Http404('Ticket introuvable')
         if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         new_status = request.POST.get('status')
@@ -450,7 +450,7 @@ class TicketCommentCreateView(LoginRequiredMixin, View):
         try:
             ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseBadRequest('Ticket introuvable')
+            raise Http404('Ticket introuvable')
         corps = request.POST.get('body', '').strip()
         if not corps:
             messages.error(request, "Le commentaire ne peut pas être vide.")
@@ -471,7 +471,7 @@ class PartRequestCreateView(LoginRequiredMixin, View):
         try:
             ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(request.user)).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseBadRequest('Ticket introuvable')
+            raise Http404('Ticket introuvable')
         if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         pr = PartRequest.objects.create(ticket=ticket, requested_by=request.user if request.user.is_authenticated else None, needed_by_date=request.POST.get('needed_by_date') or None)
@@ -494,7 +494,7 @@ class PartLineItemCreateView(LoginRequiredMixin, View):
                 build_scope_q(request.user, "ticket__asset__", "ticket__installation__")
             ).get(pk=pr_id)
         except PartRequest.DoesNotExist:
-            return HttpResponseBadRequest('Demande introuvable')
+            raise Http404('Demande introuvable')
         if niveau_ecriture_sur(request.user, pr.ticket) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         quantite = entier_ou_none(request.POST.get('qty') or '1')
@@ -527,7 +527,7 @@ class PartLineItemUpdateStatusView(LoginRequiredMixin, View):
                 build_scope_q(request.user, "part_request__ticket__asset__", "part_request__ticket__installation__")
             ).get(pk=line_id)
         except PartLineItem.DoesNotExist:
-            return HttpResponseBadRequest('Ligne introuvable')
+            raise Http404('Ligne introuvable')
         if niveau_ecriture_sur(request.user, line.part_request.ticket) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         status = request.POST.get('status')
@@ -583,7 +583,7 @@ class TicketStockPrelevementView(LoginRequiredMixin, View):
                 perimetre_tickets_q(request.user)
             ).get(pk=pk)
         except CorrectiveTicket.DoesNotExist:
-            return HttpResponseBadRequest('Ticket introuvable')
+            raise Http404('Ticket introuvable')
         if niveau_ecriture_sur(request.user, ticket) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
 

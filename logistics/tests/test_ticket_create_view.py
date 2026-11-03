@@ -56,7 +56,7 @@ class TicketCreateViewTests(TestCase):
         response = self.client.post(
             f"/logistics/tickets/creer/{self.asset_b.id}/", {"description": "Anomalie"}
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
         self.assertFalse(CorrectiveTicket.objects.filter(asset=self.asset_b).exists())
 
 

@@ -632,7 +632,7 @@ class ItemAppareillageCocherView(LoginRequiredMixin, View):
         try:
             item = ItemAppareillage.objects.select_related("session").get(pk=pk)
         except ItemAppareillage.DoesNotExist:
-            return HttpResponseBadRequest("Item introuvable.")
+            raise Http404("Item introuvable.")
 
         if not _meme_navire_ou_master_admin(request.user, item.session.ship_id) or _appareillage_en_lecture_seule(request.user):
             raise PermissionDenied(f"Hors de {votre_niveau(request.user)}.")
@@ -668,7 +668,7 @@ class SessionAppareillageSignerView(LoginRequiredMixin, View):
         try:
             session = SessionAppareillage.objects.select_related("ship").get(pk=pk)
         except SessionAppareillage.DoesNotExist:
-            return HttpResponseBadRequest("Session introuvable.")
+            raise Http404("Session introuvable.")
 
         user = request.user
         if not _meme_navire_ou_master_admin(user, session.ship_id):

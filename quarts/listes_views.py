@@ -18,7 +18,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponseBadRequest
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -484,14 +484,14 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
     def get(self, request, pk):
         liste = self._liste(pk)
         if liste is None:
-            return HttpResponseBadRequest("Liste introuvable.")
+            raise Http404("Liste introuvable.")
         peut_gerer = peut_gerer_liste(request.user, liste)
         # Un publicateur habilité (peut_publier_liste) doit pouvoir consulter
         # une liste PROPOSEE pour décider de la publier, même s'il n'est pas
         # le chef de liste qui la gère (rôle distinct, cf. docstring de
         # module de quarts/models.py).
         if not peut_gerer and not peut_publier_liste(request.user, liste) and not _peut_lire_liste(request.user, liste):
-            return HttpResponseBadRequest(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
+            raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
         return render(request, self.template_name, self._contexte(request, liste, peut_gerer))
 
     def _contexte(self, request, liste, peut_gerer):
@@ -600,11 +600,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
     def post(self, request, pk):
         liste = self._liste(pk)
         if liste is None:
-            return HttpResponseBadRequest("Liste introuvable.")
+            raise Http404("Liste introuvable.")
         peut_gerer = peut_gerer_liste(request.user, liste)
         peut_publier = peut_publier_liste(request.user, liste)
         if not peut_gerer and not peut_publier:
-            return HttpResponseBadRequest(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
+            raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
 
         action = request.POST.get("action")
 
@@ -623,7 +623,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
 
         if not peut_gerer:
-            return HttpResponseBadRequest(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
+            raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
         if action == "ajouter_creneau":
             self._ajouter_creneau(request, liste)
         elif action == "supprimer_creneau":

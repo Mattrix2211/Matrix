@@ -60,3 +60,33 @@ class PageIntrouvableSansDebugTests(TestCase):
     def test_une_occurrence_inexistante_donne_la_meme_page(self):
         reponse = self.client.get(reverse("occurrence-execute", args=[999999]))
         self.assertContains(reponse, "Page introuvable", status_code=404)
+
+
+@override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"], SECURE_SSL_REDIRECT=False)
+class RequeteInvalideHabilleeTests(TestCase):
+    """Une requête mal formée d'une page du site rend la page Matrix « Requête invalide », jamais un texte brut."""
+
+    def setUp(self):
+        navire = Ship.objects.create(name="Bretagne 400", code="B4")
+        user = User.objects.create_user(username="marin_400", password="pass")
+        UserProfile.objects.update_or_create(user=user, defaults={"role": "EQUIPIER", "ship": navire})
+        self.client.force_login(user)
+
+    def test_action_inconnue_rend_la_page_matrix(self):
+        reponse = self.client.post(reverse("absences-index"), {"action": "inconnue"})
+        self.assertEqual(reponse.status_code, 400)
+        self.assertContains(reponse, "Requête invalide", status_code=400)
+        self.assertContains(reponse, "Action inconnue", status_code=400)
+        self.assertContains(reponse, "mx-lateral", status_code=400)  # habillage complet : menu et bandeau
+
+    def test_une_requete_htmx_garde_sa_reponse_courte(self):
+        reponse = self.client.post(reverse("absences-index"), {"action": "inconnue"}, HTTP_HX_REQUEST="true")
+        self.assertEqual(reponse.status_code, 400)
+        self.assertNotContains(reponse, "mx-lateral", status_code=400)
+
+    def test_objet_introuvable_donne_une_404_matrix_et_non_un_400(self):
+        reponse = self.client.get(reverse("echanges-index"))
+        self.assertEqual(reponse.status_code, 200)
+        reponse = self.client.get("/quarts/quart/999999/")
+        self.assertEqual(reponse.status_code, 404)
+        self.assertContains(reponse, "Page introuvable", status_code=404)

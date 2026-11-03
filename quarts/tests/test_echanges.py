@@ -364,13 +364,13 @@ class VuesEchangeTests(BaseEchangeTests):
         self.client.login(username="marin_c", password="pass")
         r = self.client.get("/quarts/echanges/")
         self.assertNotContains(r, "marin_a")
-        self.assertEqual(self.client.post(f"/quarts/echanges/{EchangeService.objects.get().pk}/accepter/").status_code, 400)
+        self.assertEqual(self.client.post(f"/quarts/echanges/{EchangeService.objects.get().pk}/accepter/").status_code, 404)
 
     def test_chef_d_un_autre_perimetre_ne_voit_ni_ne_valide(self):
         echange = self._echange_accepte()
         self.client.login(username="chef_autre", password="pass")
         self.assertNotContains(self.client.get("/quarts/echanges/"), "marin_a")
-        self.assertEqual(self.client.post(f"/quarts/echanges/{echange.pk}/valider/").status_code, 400)
+        self.assertEqual(self.client.post(f"/quarts/echanges/{echange.pk}/valider/").status_code, 404)
 
     def test_erreur_expliquee_a_l_ecran(self):
         self._creneau(self.creneau_a.debut + timedelta(hours=2), self.b)
@@ -418,6 +418,6 @@ class VuesEchangeTests(BaseEchangeTests):
         # Un marin simple ne peut pas modifier ces règles.
         self.client.login(username="marin_a", password="pass")
         r = self.client.post(f"/quarts/garde/{self.garde.pk}/", {"action": "regler_echanges", "delai_minimal_echange_heures": "0"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.garde.refresh_from_db()
         self.assertEqual(self.garde.delai_minimal_echange_heures, 12)

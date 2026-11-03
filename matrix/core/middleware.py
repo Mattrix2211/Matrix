@@ -346,3 +346,23 @@ class EquipageATerreMiddleware:
                 permis = request.path.startswith(CHEMINS_ECRITURE_SOUTIEN) or request.path.endswith("/commentaire/")
             return "" if permis else MESSAGE_SOUTIEN_A_TERRE
         return ""
+
+
+class HabillageErreur400Middleware:
+    """Une réponse 400 nue (texte brut) d'une page du site devient la page Matrix « Requête invalide » ; API, JSON et
+    requêtes HTMX gardent leur réponse."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        reponse = self.get_response(request)
+        if reponse.status_code != 400 or request.path.startswith("/api/") or request.headers.get("HX-Request"):
+            return reponse
+        if "application/json" in request.headers.get("Accept", "") or getattr(reponse, "streaming", False):
+            return reponse
+        type_contenu = reponse.get("Content-Type", "")
+        corps = reponse.content.decode("utf-8", errors="replace")
+        if type_contenu.startswith("text/html") and "<html" in corps.lower():
+            return reponse
+        return render(request, "400.html", {"message_requete": corps.strip()[:200]}, status=400)

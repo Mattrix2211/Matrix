@@ -52,27 +52,27 @@ class ScopeLeakTicketTransitionAssignViewsTests(TestCase):
     def test_transition_dun_ticket_dun_autre_navire_refusee(self):
         url = reverse("ticket-transition", args=[self.ticket_b.id])
         r = self.client.post(url, {"status": "DIAGNOSED"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.ticket_b.refresh_from_db()
         self.assertEqual(self.ticket_b.status, "TESTING")
 
     def test_assignation_dun_ticket_dun_autre_navire_refusee(self):
         url = reverse("ticket-assign", args=[self.ticket_b.id])
         r = self.client.post(url, {"assignees": [str(self.chef_a.id)]})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.assertFalse(self.ticket_b.assignees.exists())
 
     def test_creation_demande_de_pieces_dun_ticket_dun_autre_navire_refusee(self):
         url = reverse("part-request-create", args=[self.ticket_b.id])
         r = self.client.post(url, {})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.assertFalse(PartRequest.objects.filter(ticket=self.ticket_b).exists())
 
     def test_ajout_ligne_sur_demande_dun_ticket_dun_autre_navire_refuse(self):
         demande_b = PartRequest.objects.create(ticket=self.ticket_b)
         url = reverse("part-line-create", args=[demande_b.id])
         r = self.client.post(url, {"reference": "REF-B", "description": "Joint", "qty": "2"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         self.assertFalse(PartLineItem.objects.filter(part_request=demande_b).exists())
 
     def test_changement_statut_ligne_dun_ticket_dun_autre_navire_refuse(self):
@@ -80,6 +80,6 @@ class ScopeLeakTicketTransitionAssignViewsTests(TestCase):
         ligne_b = PartLineItem.objects.create(part_request=demande_b, reference="REF-B", description="Joint", qty=1)
         url = reverse("part-line-status", args=[ligne_b.id])
         r = self.client.post(url, {"status": "RECEIVED"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)
         ligne_b.refresh_from_db()
         self.assertNotEqual(ligne_b.status, "RECEIVED")

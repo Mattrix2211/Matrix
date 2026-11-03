@@ -327,7 +327,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
             return _redirection_detail(ship, date_, equipage)
 
         if feuille is None:
-            return HttpResponseBadRequest("Feuille introuvable : créez-la d'abord.")
+            raise Http404("Feuille introuvable : créez-la d'abord.")
 
         if action == "enregistrer_entete":
             if not peut_gerer_brouillon_feuille(request.user, feuille):
@@ -393,7 +393,7 @@ class FeuilleServiceDetailView(LoginRequiredMixin, View):
                 )
             elif feuille.viser_comaeq(request.user, empreinte):
                 messages.success(
-                    request, "Feuille visée par le COMAEQ et publiée : la fraction de service a été notifiée."
+                    request, "Feuille publiée : la fraction de service a été notifiée."
                 )
             else:
                 messages.error(request, MESSAGE_CONTENU_CHANGE)

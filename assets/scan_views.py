@@ -12,7 +12,7 @@ depuis assets/web_views.py n'est nécessaire (aucune dépendance croisée)."""
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import View
@@ -43,7 +43,7 @@ class StartVisualCheckView(LoginRequiredMixin, View):
         try:
             asset = assets.get(pk=pk)
         except Asset.DoesNotExist:
-            return HttpResponseBadRequest(f'Matériel introuvable ou hors de {votre_niveau(request.user)}.')
+            raise Http404(f'Matériel introuvable ou hors de {votre_niveau(request.user)}.')
         plan = MaintenancePlan.objects.filter(scope='ASSET_TYPE', asset_type=asset.asset_type).first()
         name = plan.name if plan else 'Contrôle visuel'
         occ, _ = MaintenanceOccurrence.objects.get_or_create(
