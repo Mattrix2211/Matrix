@@ -34,6 +34,7 @@ from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_ad
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
+from .activation import ActivationImpossible, activer_liste, peut_activer_liste, publier_a_titre_previsionnel
 from .echanges import annuler_echanges_du_creneau
 from .models import (
     ChefDeListe,
@@ -573,6 +574,13 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 "libelle": "Proposer la publication", "icone": "terminee", "formulaire": "form-action",
                 "nom": "proposer", "confirmation": "Proposer cette liste pour publication ?",
             }
+        elif est_garde and contexte["peut_publier"] and liste.statut == liste.STATUT_PROPOSEE:
+            action = None  # formulaire dédié : la prise d'effet prévue est obligatoire
+        elif est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and peut_activer_liste(request.user, liste):
+            action = {
+                "libelle": "Activer la liste", "icone": "terminee", "formulaire": "form-action",
+                "nom": "activer", "confirmation": "Activer cette liste ? Elle s'applique dès maintenant, sans effet rétroactif.",
+            }
         elif contexte["peut_publier"] and liste.statut == liste.STATUT_PROPOSEE:
             action = {
                 "libelle": "Publier la liste", "icone": "terminee", "formulaire": "form-action",
@@ -581,7 +589,8 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         resultat = {
             "onglets": onglets,
             "vue": vue,
-            "badge_etat": "ok" if liste.statut == liste.STATUT_PUBLIEE else "attention",
+            "badge_libelle": liste.situation_affichee if est_garde else liste.get_statut_display(),
+            "badge_etat": "ok" if liste.statut == liste.STATUT_PUBLIEE and not (est_garde and liste.application == liste.APPLICATION_PREVISIONNELLE) else "attention",
             "semaines": _semaines(liste, creneaux),
             "indicateurs": [
                 {"libelle": "Créneaux", "valeur": len(creneaux)},
@@ -621,6 +630,14 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 )
             self._publier(request, liste)
             return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
+        if action == "activer" and isinstance(liste, ServiceGarde):
+            try:
+                activer_liste(request.user, liste)
+            except ActivationImpossible as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, "Liste activée : elle s'applique à partir de maintenant.")
+            return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
 
         if not peut_gerer:
             raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
@@ -655,6 +672,17 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         pas imposer ce détour pour une simple correction ultérieure)."""
         if liste.statut == liste.STATUT_BROUILLON:
             messages.error(request, "Proposez d'abord la liste avant de pouvoir la publier.")
+            return
+        if isinstance(liste, ServiceGarde) and liste.statut == liste.STATUT_PROPOSEE:
+            prevue = parse_datetime(request.POST.get("prise_effet_prevue", "").strip())
+            if prevue is not None and timezone.is_naive(prevue):
+                prevue = timezone.make_aware(prevue)
+            try:
+                publier_a_titre_previsionnel(request.user, liste, prevue)
+            except ActivationImpossible as exc:
+                messages.error(request, str(exc))
+                return
+            messages.success(request, "Liste publiée à titre prévisionnel : elle ne s'applique qu'une fois activée par le chef de liste.")
             return
         republication = liste.statut == liste.STATUT_PUBLIEE
         motif = request.POST.get("motif", "").strip()
