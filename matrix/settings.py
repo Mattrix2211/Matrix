@@ -271,6 +271,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "quarts.tasks.signaler_divergences_feuilles",
         "schedule": 60 * 15,
     },
+    "traiter_echeances_activation_minute": {
+        "task": "quarts.tasks.traiter_echeances_activation",
+        "schedule": 60,
+    },
     "purger_brouillons_daily": {
         "task": "matrix.core.tasks.purger_brouillons",
         "schedule": 60 * 60 * 24,

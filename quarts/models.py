@@ -2187,3 +2187,37 @@ def peut_voir_travail_feuille(user, feuille):
         or peut_viser_service(user, feuille)
         or peut_viser_comaeq(user, feuille)
     )
+
+
+class ConfigurationActivation(TimeStampedModel):
+    """Délais (minutes) des rappels d'activation d'une liste à quai, propres à un bâtiment :
+    rappel avant la prise d'effet prévue, alerte à l'heure prévue, escalade après."""
+
+    ship = models.OneToOneField(Ship, on_delete=models.CASCADE, related_name="configuration_activation")
+    rappel_minutes = models.PositiveIntegerField(default=30, verbose_name="Rappel avant la prise d'effet prévue (minutes)")
+    alerte_minutes = models.PositiveIntegerField(default=0, verbose_name="Alerte après la prise d'effet prévue (minutes)")
+    escalade_minutes = models.PositiveIntegerField(default=15, verbose_name="Escalade après l'alerte (minutes)")
+
+    class Meta:
+        verbose_name = "Réglage des rappels d'activation"
+        verbose_name_plural = "Réglages des rappels d'activation"
+
+
+class AlerteActivation(TimeStampedModel):
+    """Alerte persistante d'une liste prévisionnelle non activée. L'unicité (liste, étape, version
+    de prévision) empêche les doublons et les exécutions concurrentes ; un report change la version."""
+
+    ETAPE_RAPPEL = "RAPPEL"
+    ETAPE_ALERTE = "ALERTE"
+    ETAPE_ESCALADE = "ESCALADE"
+    ETAPE_CHOICES = ((ETAPE_RAPPEL, "Rappel"), (ETAPE_ALERTE, "Alerte"), (ETAPE_ESCALADE, "Escalade"))
+
+    liste = models.ForeignKey(ServiceGarde, on_delete=models.CASCADE, related_name="alertes_activation")
+    etape = models.CharField(max_length=16, choices=ETAPE_CHOICES)
+    version_prevision = models.PositiveIntegerField()
+    fermee_le = models.DateTimeField(null=True, blank=True)
+    motif_fermeture = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["liste", "etape", "version_prevision"], name="alerte_activation_unique")]
+        ordering = ("created_at",)

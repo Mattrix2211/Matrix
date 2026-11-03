@@ -34,6 +34,7 @@ from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_ad
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
+from .alertes_activation import reporter_prise_effet, retirer_previsionnelle, traiter_echeances
 from .activation import ActivationImpossible, activer_liste, conflits_activation, decrire_conflit, peut_activer_liste, publier_a_titre_previsionnel
 from .echanges import annuler_echanges_du_creneau
 from .models import (
@@ -280,6 +281,7 @@ class ListeIndexView(LoginRequiredMixin, View):
         }
 
     def get(self, request):
+        traiter_echeances()  # lecture paresseuse : les alertes échues existent même si la tâche planifiée est en retard
         return render(request, self.template_name, self._contexte(request.user))
 
     def post(self, request):
@@ -493,6 +495,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         # module de quarts/models.py).
         if not peut_gerer and not peut_publier_liste(request.user, liste) and not _peut_lire_liste(request.user, liste):
             raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
+        traiter_echeances()
         return render(request, self.template_name, self._contexte(request, liste, peut_gerer))
 
     def _contexte(self, request, liste, peut_gerer):
@@ -597,6 +600,8 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 {"libelle": "Non affectés", "valeur": non_affectes, "etat": "attention" if non_affectes else "ok"},
             ],
             "action": action,
+            "alertes_activation": list(liste.alertes_activation.filter(fermee_le__isnull=True)) if est_garde else [],
+            "peut_reporter": est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and peut_activer_liste(request.user, liste),
             "conflits_activation": (
                 [decrire_conflit(c) for c in conflits_activation(liste)]
                 if est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and (peut_gerer or contexte["peut_publier"])
@@ -634,6 +639,21 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                     "(distinct de celui de chef de liste), cf. réglages de sécurité du navire."
                 )
             self._publier(request, liste)
+            return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
+        if action in ("reporter", "retirer_previsionnelle") and isinstance(liste, ServiceGarde):
+            motif = request.POST.get("motif", "")
+            try:
+                if action == "reporter":
+                    nouvelle = parse_datetime(request.POST.get("prise_effet_prevue", "").strip())
+                    if nouvelle is not None and timezone.is_naive(nouvelle):
+                        nouvelle = timezone.make_aware(nouvelle)
+                    reporter_prise_effet(request.user, liste, nouvelle, motif)
+                    messages.success(request, "Prise d'effet reportée : les rappels sont recalculés.")
+                else:
+                    retirer_previsionnelle(request.user, liste, motif)
+                    messages.info(request, "Prévision retirée : la liste redevient un brouillon.")
+            except ActivationImpossible as exc:
+                messages.error(request, str(exc))
             return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
         if action == "activer" and isinstance(liste, ServiceGarde):
             try:

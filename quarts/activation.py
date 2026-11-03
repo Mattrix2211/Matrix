@@ -118,6 +118,7 @@ def activer_liste(user, liste):
     liste.active_le = maintenant
     liste.active_par = user
     liste.save(update_fields=["application", "prise_effet", "active_le", "active_par", "updated_at"])
+    liste.alertes_activation.filter(fermee_le__isnull=True).update(fermee_le=maintenant, motif_fermeture="liste activée")
     cumul = _fonctions_cumulees(user, liste)
     prevue = f" (prise d'effet prévue le {timezone.localtime(liste.prise_effet_prevue):%d/%m/%Y à %H:%M})" if liste.prise_effet_prevue else ""
     AuditLog.objects.create(
