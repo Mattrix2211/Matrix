@@ -128,6 +128,7 @@ class OccurrenceExecuteView(LoginRequiredMixin, View):
             "deja_termine": deja_termine, "duree_estimee": formater_duree(estimee) if estimee else "",
             "lecture_seule": equipage_a_terre_lecture_seule(request.user) or soutien_a_terre(request.user) or not peut_saisir or (deja_termine and not peut_corriger),
             "correction_reservee": deja_termine and not peut_corriger,
+            "securite": securite_fiche(version_fiche, items),
             "signalable": bool(version_fiche and version_fiche.fiche_id),
             "critique": bool(installation and installation.critique),
             "resume": resume(items, results, mesures),
@@ -716,6 +717,18 @@ def _preparation_par_categorie(version):
         for type_, titre in TITRES_PREPARATION
     ]
     return [g for g in groupes if g["lignes"]]
+
+
+def securite_fiche(version, items):
+    """Sécurité de l'intervention issue de la fiche (mêmes données que le document imprimable) : EPI, consignes et
+    précautions avant intervention, risques signalés aux étapes, points de contrôle obligatoires."""
+    prep = {g["type"]: [p.libelle for p in g["lignes"]] for g in _preparation_par_categorie(version)}
+    etapes = list(version.etapes.all()) if getattr(version, "fiche_id", None) else []
+    attentions = [{"numero": n, "etape": e.texte, "attention": e.attention} for n, e in enumerate(etapes, start=1) if e.attention]
+    critiques = [it.label for it in items if getattr(it, "required", False)]
+    securite = {"epi": prep.get("epi", []), "consignes": prep.get("consigne", []), "attentions": attentions, "critiques": critiques}
+    securite["renseignee"] = any(securite.values())
+    return securite
 
 
 class OccurrenceImprimerView(LoginRequiredMixin, View):

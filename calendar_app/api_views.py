@@ -10,6 +10,7 @@ from django.utils import timezone
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
+from matrix.core.ecriture_service import niveau_ecriture_sur
 from matrix.core.roles import niveau_ecriture, RoleLevel
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import assignes_equipage_q
@@ -161,6 +162,7 @@ def calendar_events(request):
         .values_list("id", flat=True)
     )
     for occ in occ_qs:
+        niveau_occ = niveau_ecriture_sur(request.user, occ)
         couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
             "id": f"occ-{occ.id}",
@@ -168,11 +170,11 @@ def calendar_events(request):
             "start": occ.scheduled_for.isoformat(),
             "end": occ.scheduled_for.isoformat(),
             "url": f"/maintenance/occurrences/{occ.id}/execute/",
-            "editable": niveau_role >= RoleLevel.CHEF_SECTION,
+            "editable": niveau_occ >= RoleLevel.CHEF_SECTION,
             "extendedProps": {
                 "type": "maintenance",
                 "status": occ.status,
-                "peut_agir": _peut_agir_occurrence(occ, request.user, ids_occ_perimetre, niveau_role),
+                "peut_agir": _peut_agir_occurrence(occ, request.user, ids_occ_perimetre, niveau_occ),
             },
             **couleur,
         })
@@ -191,6 +193,7 @@ def calendar_events(request):
     )
     for t in ticket_qs:
         if t.planned_for and (start <= t.planned_for <= end):
+            niveau_ticket = niveau_ecriture_sur(request.user, t)
             couleur = _couleur_evenement("ticket")
             events.append({
                 "id": f"tic-{t.pk}",
@@ -198,11 +201,11 @@ def calendar_events(request):
                 "start": t.planned_for.isoformat(),
                 "end": t.planned_for.isoformat(),
                 "url": f"/logistics/tickets/{t.pk}/",
-                "editable": niveau_role >= RoleLevel.CHEF_SECTION,
+                "editable": niveau_ticket >= RoleLevel.CHEF_SECTION,
                 "extendedProps": {
                     "type": "ticket",
                     "status": t.status,
-                    "peut_agir": _peut_agir_ticket(t, ids_ticket_perimetre, niveau_role),
+                    "peut_agir": _peut_agir_ticket(t, ids_ticket_perimetre, niveau_ticket),
                 },
                 **couleur,
             })

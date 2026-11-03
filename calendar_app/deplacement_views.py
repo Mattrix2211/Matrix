@@ -4,12 +4,13 @@ from datetime import datetime
 
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.utils import timezone
 
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
+from matrix.core.ecriture_service import niveau_ecriture_sur
 from matrix.core.roles import niveau_ecriture, RoleLevel
 from matrix.core.mixins import build_scope_q
 from accounts.models import AuditLog
@@ -60,6 +61,8 @@ def calendar_event_move(request):
             # même s'il en devine l'identifiant.
             t = _perimetre_ticket(CorrectiveTicket.objects.all(), request.user).get(pk=ev_id)
         except CorrectiveTicket.DoesNotExist:
+            raise Http404
+        if niveau_ecriture_sur(request.user, t) < RoleLevel.CHEF_SECTION:
             raise PermissionDenied
         t.planned_for = new_date
         t.save(update_fields=["planned_for"])
@@ -76,18 +79,18 @@ def calendar_event_move(request):
         try:
             occ = MaintenanceOccurrence.objects.get(pk=ev_id)
         except MaintenanceOccurrence.DoesNotExist:
-            return HttpResponseBadRequest("Occurrence not found")
+            raise Http404
         est_assigne = request.user in occ.assignees.all()
         if not est_assigne:
             # Un utilisateur non assigné doit être CHEF_SECTION+ ET l'occurrence
             # doit appartenir à son périmètre (via le matériel mobile ou
             # l'installation fixe rattachée) — un assigné garde toujours la main
             # sur sa propre occurrence, quel que soit son rôle ou son périmètre.
-            if niveau_ecriture(request.user) < RoleLevel.CHEF_SECTION:
+            if niveau_ecriture_sur(request.user, occ) < RoleLevel.CHEF_SECTION:
                 raise PermissionDenied
             perimetre = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
             if not MaintenanceOccurrence.objects.filter(perimetre, pk=ev_id).exists():
-                raise PermissionDenied
+                raise Http404
         occ.scheduled_for = new_date
         occ.save(update_fields=["scheduled_for"])
         if not est_assigne:
@@ -116,7 +119,7 @@ def calendar_event_move(request):
             # même s'il en devine l'identifiant.
             s = _perimetre_session(TrainingSession.objects.all(), request.user).get(pk=ev_id)
         except TrainingSession.DoesNotExist:
-            raise PermissionDenied
+            raise Http404
         # Utiliser l'heure fournie si présente, sinon 09:00 locale
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         s.scheduled_at = aware_dt
@@ -135,7 +138,7 @@ def calendar_event_move(request):
             # dérogation de rôle possible, contrairement aux autres types.
             pe = PersonalEvent.objects.get(pk=ev_id, owner=request.user)
         except PersonalEvent.DoesNotExist:
-            raise PermissionDenied
+            raise Http404
         aware_dt = parsed_dt if timezone.is_aware(parsed_dt) else timezone.make_aware(parsed_dt)
         champs_modifies = ["starts_at"]
         # Date de fin optionnelle : envoyée par le redimensionnement par

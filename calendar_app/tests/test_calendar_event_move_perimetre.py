@@ -78,7 +78,7 @@ class CalendarEventMovePerimetreTests(TestCase):
         resp = self.client.post(
             self.url, {"type": "ticket", "id": str(self.ticket_autre_navire.pk), "date": self.nouvelle_date}
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 404)
         self.ticket_autre_navire.refresh_from_db()
         self.assertEqual(self.ticket_autre_navire.planned_for, date_initiale)
 
@@ -104,7 +104,7 @@ class CalendarEventMovePerimetreTests(TestCase):
             self.url,
             {"type": "training", "id": str(self.session_sans_affectation.pk), "date": self.nouvelle_date + "T09:00"},
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 404)
         self.session_sans_affectation.refresh_from_db()
         self.assertEqual(self.session_sans_affectation.scheduled_at, date_initiale)
 
@@ -173,6 +173,6 @@ class CalendarEventMoveOccurrencePerimetreTests(TestCase):
         resp = self.client.post(
             self.url, {"type": "maintenance", "id": str(self.occ_autre_navire.pk), "date": self.nouvelle_date}
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 404)
         self.occ_autre_navire.refresh_from_db()
         self.assertEqual(self.occ_autre_navire.scheduled_for, date_initiale)

@@ -14,6 +14,9 @@
   <div class="alert alert-danger"><ul class="mb-0">{% for e in erreurs %}<li>{{ e }}</li>{% endfor %}</ul></div>
 {% endif %}
 
+<div class="row g-3">
+  <aside class="col-xl-4 order-xl-2" aria-label="Sécurité de l'intervention"><div class="mx-colonne-collante">{% include "maintenance/_securite_execution.html" %}</div></aside>
+  <div class="col-xl-8 order-xl-1">
 <form id="formulaire-execution" method="post" enctype="multipart/form-data" hx-post="" hx-target="#exec-result" hx-swap="innerHTML"
       data-compte-rendu{% if critique %} data-critique{% endif %} data-brouillon="compte-rendu:{{ occ.pk }}" data-brouillon-libelle="Compte rendu : {{ occ.titre_affiche }}">
   {% csrf_token %}
@@ -88,6 +91,8 @@
   </div>
   {% endif %}
 </form>
+  </div>
+</div>
 {% if signalable and not equipage_a_terre %}
 <details class="mx-surface mt-3">
   <summary>Cette fiche est fausse ou incomplète ?</summary>

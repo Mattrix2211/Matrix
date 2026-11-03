@@ -142,7 +142,7 @@ class PersonalEventTests(TestCase):
             "id": evenement.id,
             "date": f"{self.aujourdhui.isoformat()}T00:00:00",
         })
-        self.assertEqual(reponse.status_code, 403)
+        self.assertEqual(reponse.status_code, 404)
 
     def test_creation_evenement_personnel_avec_date_fin(self):
         reponse = self.client.post(reverse("calendar-personal-save"), {

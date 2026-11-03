@@ -1,0 +1,17 @@
+{# Sécurité de l'intervention : mêmes données que la fiche imprimable, visible pendant toute l'exécution. #}
+<details class="mx-securite no-print" open>
+  <summary class="mx-securite__titre">{% load icones %}{% icone "anomalie" %} Sécurité de l'intervention</summary>
+  {% if securite.renseignee %}
+  {% if securite.epi %}<h3 class="mx-securite__rubrique">EPI nécessaires</h3>
+  <ul class="mx-securite__liste">{% for e in securite.epi %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  {% if securite.consignes %}<h3 class="mx-securite__rubrique">Consignes et précautions avant intervention</h3>
+  <ul class="mx-securite__liste">{% for c in securite.consignes %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}
+  {% if securite.attentions %}<h3 class="mx-securite__rubrique">Risques particuliers</h3>
+  <ul class="mx-securite__liste">{% for a in securite.attentions %}<li><strong>Étape {{ a.numero }} :</strong> {{ a.attention|linebreaksbr }}</li>{% endfor %}</ul>{% endif %}
+  {% if securite.critiques %}<h3 class="mx-securite__rubrique">Points de contrôle critiques (obligatoires)</h3>
+  <ul class="mx-securite__liste">{% for c in securite.critiques %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}
+  {% if critique %}<p class="mx-securite__note mb-0"><strong>Installation critique :</strong> la clôture exige une confirmation.</p>{% endif %}
+  {% else %}
+  <p class="mx-securite__note mb-0">Aucune consigne de sécurité n'est renseignée sur la fiche de cette intervention. Appliquez les consignes du bord et signalez l'omission au responsable de la fiche.</p>
+  {% endif %}
+</details>
