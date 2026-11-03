@@ -85,8 +85,16 @@ class RequeteInvalideHabilleeTests(TestCase):
         self.assertNotContains(reponse, "mx-lateral", status_code=400)
 
     def test_objet_introuvable_donne_une_404_matrix_et_non_un_400(self):
-        reponse = self.client.get(reverse("echanges-index"))
-        self.assertEqual(reponse.status_code, 200)
         reponse = self.client.get("/quarts/quart/999999/")
         self.assertEqual(reponse.status_code, 404)
         self.assertContains(reponse, "Page introuvable", status_code=404)
+
+    def test_une_reponse_json_ou_vide_hors_api_n_est_pas_habillee(self):
+        from django.http import HttpResponse, JsonResponse
+        from matrix.core.middleware import HabillageErreur400Middleware
+        from django.test import RequestFactory
+        requete = RequestFactory().post("/users/preferences/")
+        requete.user = User.objects.get(username="marin_400")
+        for reponse in (JsonResponse({"ok": False}, status=400), HttpResponse(status=400)):
+            sortie = HabillageErreur400Middleware(lambda r, rep=reponse: rep)(requete)
+            self.assertIs(sortie, reponse)

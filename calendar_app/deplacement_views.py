@@ -82,15 +82,13 @@ def calendar_event_move(request):
             raise Http404
         est_assigne = request.user in occ.assignees.all()
         if not est_assigne:
-            # Un utilisateur non assigné doit être CHEF_SECTION+ ET l'occurrence
-            # doit appartenir à son périmètre (via le matériel mobile ou
-            # l'installation fixe rattachée) — un assigné garde toujours la main
-            # sur sa propre occurrence, quel que soit son rôle ou son périmètre.
-            if niveau_ecriture_sur(request.user, occ) < RoleLevel.CHEF_SECTION:
-                raise PermissionDenied
+            # Non assigné : l'occurrence doit être dans son périmètre (sinon elle n'existe pas pour lui : 404), puis son
+            # niveau d'écriture sur le service de l'objet doit suffire (sinon 403).
             perimetre = build_scope_q(request.user, "asset__", "installation_maintenance__installation__")
             if not MaintenanceOccurrence.objects.filter(perimetre, pk=ev_id).exists():
                 raise Http404
+            if niveau_ecriture_sur(request.user, occ) < RoleLevel.CHEF_SECTION:
+                raise PermissionDenied
         occ.scheduled_for = new_date
         occ.save(update_fields=["scheduled_for"])
         if not est_assigne:

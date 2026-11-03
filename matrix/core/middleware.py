@@ -362,7 +362,9 @@ class HabillageErreur400Middleware:
         if "application/json" in request.headers.get("Accept", "") or getattr(reponse, "streaming", False):
             return reponse
         type_contenu = reponse.get("Content-Type", "")
+        if not type_contenu.startswith(("text/plain", "text/html")):
+            return reponse  # JSON, fichiers : la réponse du client appelant est conservée
         corps = reponse.content.decode("utf-8", errors="replace")
-        if type_contenu.startswith("text/html") and "<html" in corps.lower():
+        if not corps.strip() or "<html" in corps.lower():
             return reponse
         return render(request, "400.html", {"message_requete": corps.strip()[:200]}, status=400)

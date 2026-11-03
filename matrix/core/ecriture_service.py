@@ -29,11 +29,14 @@ def services_rattaches(user):
     ).values_list("pk", flat=True))
 
 
-def peut_ecrire_sur_service(user, service_id):
-    """Vrai si `user` peut écrire sur les données du service `service_id` (None : objet sans service)."""
+def peut_ecrire_sur_service(user, service_id, rattaches=None):
+    """Vrai si `user` peut écrire sur les données du service `service_id` (None : objet sans service).
+    `rattaches` : services déjà calculés, pour une liste d'objets (une seule requête)."""
     if not _est_etat_major(user):
         return True
-    return service_id is not None and service_id in services_rattaches(user)
+    if rattaches is None:
+        rattaches = services_rattaches(user)
+    return service_id is not None and service_id in rattaches
 
 
 def service_de(objet, profondeur=3):
@@ -62,7 +65,7 @@ def service_de(objet, profondeur=3):
     return None
 
 
-def niveau_ecriture_sur(user, objet=None, service_id=None, strict=True):
+def niveau_ecriture_sur(user, objet=None, service_id=None, strict=True, rattaches=None):
     """Niveau d'écriture applicable à un objet (ou à un service) : celui du rôle, ramené au niveau équipier pour un
     état-major hors des services de sa fonction. `strict=False` laisse le niveau normal à un objet qui n'a aucun
     lien avec un service (formation, dialogue : domaines transverses)."""
@@ -72,7 +75,7 @@ def niveau_ecriture_sur(user, objet=None, service_id=None, strict=True):
     cible = service_id if service_id is not None else service_de(objet)
     if cible is None and not strict:
         return niveau
-    return niveau if peut_ecrire_sur_service(user, cible) else RoleLevel.EQUIPIER
+    return niveau if peut_ecrire_sur_service(user, cible, rattaches) else RoleLevel.EQUIPIER
 
 
 def controler_service_ecriture(user, objet):

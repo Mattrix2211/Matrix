@@ -8,7 +8,10 @@ from datetime import timedelta
 from django.urls import reverse
 from django.utils import timezone
 
+from django.contrib.auth.models import User
+from accounts.models import UserProfile
 from logistics.models import CorrectiveTicket
+from org.models import Ship
 from maintenance.models import MaintenanceOccurrence, MaintenancePlan
 from matrix.tests.test_ecriture_commandants_adjoints import BaseDroitsEcriture
 
@@ -107,3 +110,23 @@ class DeplacementCalendrierParServiceTests(BaseDroitsEcriture):
         self.assertTrue(par_id[propre_occ]["editable"] and par_id[propre_tic]["editable"])
         self.assertFalse(par_id[autre_occ]["editable"] or par_id[autre_tic]["editable"])
         self.assertFalse(par_id[autre_occ]["extendedProps"]["peut_agir"] or par_id[autre_tic]["extendedProps"]["peut_agir"])
+
+    def test_un_equipier_d_un_autre_batiment_ne_distingue_pas_un_objet_existant_d_un_objet_absent(self):
+        autre = Ship.objects.create(name="Autre bâtiment", code="AB")
+        intrus = User.objects.create_user(username="intrus", password="pass")
+        UserProfile.objects.update_or_create(user=intrus, defaults={"role": "EQUIPIER", "ship": autre})
+        self.client.force_login(intrus)
+        existant = self.client.post(reverse("calendar-event-move"), {"type": "maintenance", "id": self.occurrences["Navigation"].pk, "date": self.cible.isoformat()})
+        absent = self.client.post(reverse("calendar-event-move"), {"type": "maintenance", "id": 999999, "date": self.cible.isoformat()})
+        self.assertEqual((existant.status_code, absent.status_code), (404, 404))
+
+    def test_le_calendrier_d_un_etat_major_ne_multiplie_pas_les_requetes_de_services(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        for i in range(6):
+            MaintenanceOccurrence.objects.create(plan=MaintenancePlan.objects.first(), asset=self.assets["Navigation"], scheduled_for=self.aujourdhui, status="PLANNED")
+        self.client.force_login(self.profils["comanav_a"])
+        with CaptureQueriesContext(connection) as requetes:
+            self.client.get(reverse("calendar-events"), {"start": self.aujourdhui.isoformat(), "end": (self.aujourdhui + timedelta(days=1)).isoformat()})
+        services = [q for q in requetes.captured_queries if 'FROM "org_service"' in q["sql"] and 'commandant_adjoint' in q["sql"]]
+        self.assertLessEqual(len(services), 2)

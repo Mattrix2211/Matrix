@@ -10,7 +10,7 @@ from django.utils import timezone
 from maintenance.models import MaintenanceOccurrence
 from logistics.models import CorrectiveTicket
 from training.models import TrainingSession
-from matrix.core.ecriture_service import niveau_ecriture_sur
+from matrix.core.ecriture_service import niveau_ecriture_sur, services_rattaches
 from matrix.core.roles import niveau_ecriture, RoleLevel
 from matrix.core.mixins import build_scope_q
 from matrix.core.scopes import assignes_equipage_q
@@ -139,6 +139,7 @@ def calendar_events(request):
         return JsonResponse(equipe, safe=False)
     events = []
     niveau_role = niveau_ecriture(request.user)
+    rattaches = services_rattaches(request.user)  # une seule requête pour tout le lot (états-majors)
     # Occurrences de maintenance préventive : matériel mobile (asset) ou installation fixe.
     occ_qs = MaintenanceOccurrence.objects.select_related(
         "asset", "asset__ship", "asset__service", "asset__sector",
@@ -146,6 +147,7 @@ def calendar_events(request):
         "installation_maintenance__installation__ship",
         "installation_maintenance__installation__service",
         "installation_maintenance__installation__sector",
+        "installation_maintenance__installation__sector__service", "asset__sector__service",
     ).prefetch_related("assignees").filter(
         assignes_equipage_q(request.user, MaintenanceOccurrence, "assignees"), scheduled_for__range=(start, end)
     )
@@ -162,7 +164,7 @@ def calendar_events(request):
         .values_list("id", flat=True)
     )
     for occ in occ_qs:
-        niveau_occ = niveau_ecriture_sur(request.user, occ)
+        niveau_occ = niveau_ecriture_sur(request.user, occ, rattaches=rattaches)
         couleur = _couleur_evenement("maintenance", occ.status)
         events.append({
             "id": f"occ-{occ.id}",
@@ -193,7 +195,7 @@ def calendar_events(request):
     )
     for t in ticket_qs:
         if t.planned_for and (start <= t.planned_for <= end):
-            niveau_ticket = niveau_ecriture_sur(request.user, t)
+            niveau_ticket = niveau_ecriture_sur(request.user, t, rattaches=rattaches)
             couleur = _couleur_evenement("ticket")
             events.append({
                 "id": f"tic-{t.pk}",
