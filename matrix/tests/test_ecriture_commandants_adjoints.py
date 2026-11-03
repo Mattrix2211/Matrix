@@ -130,6 +130,20 @@ class TicketsTests(BaseDroitsEcriture):
             _, statut = self._transition("chef_secteur_nav", autre)
             self.assertEqual(statut, "REPORTED", autre)
 
+    def test_service_sans_rattachement_lecture_seule_pour_le_coma_mais_pas_pour_ses_responsables(self):
+        Service.objects.filter(pk=self.services["Operations"].pk).update(commandant_adjoint="")
+        self._marin("chef_service_ops", "CHEF_SERVICE", "A", service=self.services["Operations"])
+        self.profils["chef_service_ops"] = User.objects.get(username="chef_service_ops")
+        for coma in ("comops_a", "comanav_a", "comaeq_a"):
+            reponse, statut = self._transition(coma, "Operations")
+            self.assertEqual((reponse.status_code, statut), (403, "REPORTED"), coma)
+            self.assertEqual(self.client.get(reverse("ticket-detail", args=[self.tickets["Operations"].pk])).status_code, 200, coma)
+        reponse, statut = self._transition("chef_service_ops", "Operations")
+        self.assertEqual((reponse.status_code in (200, 302), statut), (True, "DIAGNOSED"))
+        CorrectiveTicket.objects.update(status="REPORTED")
+        reponse, statut = self._transition("commandant", "Operations")
+        self.assertEqual((reponse.status_code in (200, 302), statut), (True, "DIAGNOSED"))
+
     def test_equipage_b_a_terre_ne_modifie_rien_meme_dans_ses_services(self):
         for service in self.tickets:
             reponse, statut = self._transition("comaeq_b", service)
