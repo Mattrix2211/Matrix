@@ -742,6 +742,15 @@ class CreneauQuart(CreneauAbstract):
 class CreneauServiceGarde(CreneauAbstract):
     service_garde = models.ForeignKey(ServiceGarde, on_delete=models.CASCADE, related_name="creneaux")
 
+    @classmethod
+    def applicables(cls):
+        """Créneaux réellement en vigueur : liste publiée et activée (ou terminée), et non
+        antérieurs à sa prise d'effet. Une liste prévisionnelle n'en fait jamais partie."""
+        return cls.objects.filter(
+            service_garde__statut=ServiceGarde.STATUT_PUBLIEE,
+            service_garde__application__in=(ServiceGarde.APPLICATION_ACTIVE, ServiceGarde.APPLICATION_TERMINEE),
+        ).filter(Q(service_garde__prise_effet__isnull=True) | Q(fin__gt=models.F("service_garde__prise_effet")))
+
     class Meta(CreneauAbstract.Meta):
         verbose_name = "Créneau de service de garde"
         verbose_name_plural = "Créneaux de service de garde"

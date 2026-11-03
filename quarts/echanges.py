@@ -58,9 +58,7 @@ def _libelle_creneau(creneau):
 def conflits_marin(marin, creneau, ignorer_ids):
     """Autres gardes ou quarts publiés de `marin` chevauchant `creneau`."""
     filtres = dict(marin=marin, debut__lt=creneau.fin, fin__gt=creneau.debut)
-    gardes = CreneauServiceGarde.objects.filter(
-        service_garde__statut="PUBLIEE", **filtres
-    ).exclude(pk__in=ignorer_ids)
+    gardes = CreneauServiceGarde.applicables().filter(**filtres).exclude(pk__in=ignorer_ids)
     quarts = CreneauQuart.objects.filter(quart__statut="PUBLIEE", **filtres)
     return list(gardes) + list(quarts)
 

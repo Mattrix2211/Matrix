@@ -12,6 +12,8 @@ from matrix.core.scopes import navire_id_du_perimetre
 from notifications.models import Notification
 from org.models import Ship
 from quarts.models import (
+    CreneauQuart,
+    CreneauServiceGarde,
     ServiceGarde,
     equipage_de_la_liste,
     perimetre_de_mon_equipage,
@@ -36,6 +38,34 @@ def designation_chef_de_liste(user, liste):
 
 def peut_activer_liste(user, liste):
     return designation_chef_de_liste(user, liste) is not None
+
+
+def conflits_activation(liste, a_partir_de=None):
+    """Créneaux de la liste qui recouvrent un quart à la mer publié ou un autre service à quai
+    en vigueur pour le même marin, à partir de l'instant donné (pas de rétroactivité).
+    Matrix ne modifie jamais ces créneaux : le conflit est présenté aux responsables."""
+    a_partir_de = a_partir_de or timezone.now()
+    conflits = []
+    for creneau in liste.creneaux.select_related("marin").filter(marin__isnull=False, fin__gt=a_partir_de):
+        filtres = dict(marin=creneau.marin, debut__lt=creneau.fin, fin__gt=max(creneau.debut, a_partir_de))
+        mer = CreneauQuart.objects.filter(quart__statut="PUBLIEE", **filtres).select_related("quart")
+        quai = CreneauServiceGarde.applicables().filter(**filtres).exclude(service_garde=liste).select_related("service_garde")
+        for autre in (*mer, *quai):
+            genre = "quart à la mer" if isinstance(autre, CreneauQuart) else "service à quai"
+            conflits.append({
+                "marin": creneau.marin, "creneau": creneau, "autre": autre, "genre": genre,
+                "liste_autre": autre.quart if isinstance(autre, CreneauQuart) else autre.service_garde,
+            })
+    return conflits
+
+
+def decrire_conflit(conflit):
+    marin, autre = conflit["marin"], conflit["autre"]
+    return (
+        f"{marin.get_full_name() or marin.username} : {conflit['genre']} « {autre.poste} » du "
+        f"{timezone.localtime(autre.debut):%d/%m %H:%M} au {timezone.localtime(autre.fin):%d/%m %H:%M} "
+        f"recouvre le service « {conflit['creneau'].poste} »."
+    )
 
 
 def _fonctions_cumulees(user, liste):
@@ -76,6 +106,13 @@ def activer_liste(user, liste):
     if liste.statut != ServiceGarde.STATUT_PUBLIEE or liste.application != ServiceGarde.APPLICATION_PREVISIONNELLE:
         raise ActivationImpossible("Seule une liste publiée à titre prévisionnel peut être activée.")
     maintenant = timezone.now()
+    conflits = conflits_activation(liste, maintenant)
+    if conflits:
+        raise ActivationImpossible(
+            "Activation bloquée : des créneaux se recouvrent. Ils doivent être résolus par les responsables concernés "
+            "(Matrix ne raccourcit aucun quart). " + " ".join(decrire_conflit(c) for c in conflits[:5])
+            + (f" (+ {len(conflits) - 5} autre(s))" if len(conflits) > 5 else "")
+        )
     liste.application = ServiceGarde.APPLICATION_ACTIVE
     liste.prise_effet = maintenant
     liste.active_le = maintenant

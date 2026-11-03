@@ -11,7 +11,7 @@ from org.models import Service, Ship
 from quarts.models import ChefDeListe, CreneauServiceGarde, ServiceGarde
 
 
-class ActivationListeQuaiTests(TestCase):
+class BaseActivation(TestCase):
     def setUp(self):
         self.ship = Ship.objects.create(name="Bâtiment", code="BAT")
         self.service = Service.objects.create(ship=self.ship, name="Pont", commandant_adjoint="COMAEQ")
@@ -43,6 +43,8 @@ class ActivationListeQuaiTests(TestCase):
         self._poster(self.commandant, action="publier", prise_effet_prevue=prevue)
         self.liste.refresh_from_db()
 
+
+class ActivationListeQuaiTests(BaseActivation):
     def test_publication_sans_prise_effet_prevue_refusee(self):
         self._poster(self.commandant, action="publier")
         self.liste.refresh_from_db()
@@ -104,3 +106,67 @@ class ActivationListeQuaiTests(TestCase):
         self.assertContains(self.client.get(self.url), "Activer la liste")
         self.client.force_login(self.commandant)
         self.assertNotContains(self.client.get(self.url), "Activer la liste")
+
+
+class ConflitsActivationTests(BaseActivation):
+    def _quart_en_conflit(self, decalage_heures=2):
+        from accounts.models import FonctionQuartChoice
+        from quarts.models import CreneauQuart, Quart
+
+        quart = Quart.objects.create(
+            service=self.service, fonction=FonctionQuartChoice.objects.create(name="Barre"),
+            date_debut=timezone.localdate(), date_fin=timezone.localdate() + timedelta(days=7), statut=Quart.STATUT_PUBLIEE,
+        )
+        debut = self.liste.creneaux.get().debut + timedelta(hours=decalage_heures)
+        return CreneauQuart.objects.create(quart=quart, poste="Barre", debut=debut, fin=debut + timedelta(hours=4), marin=self.marin)
+
+    def test_quart_a_la_mer_recouvrant_bloque_l_activation_sans_le_modifier(self):
+        creneau_mer = self._quart_en_conflit()
+        debut, fin = creneau_mer.debut, creneau_mer.fin
+        self._previsionnelle()
+        self._poster(self.chef, action="activer")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_PREVISIONNELLE)
+        creneau_mer.refresh_from_db()
+        self.assertEqual((creneau_mer.debut, creneau_mer.fin), (debut, fin))
+        self.assertFalse(AuditLog.objects.filter(action="liste_service_activee").exists())
+
+    def test_conflit_affiche_aux_responsables_pas_a_un_marin(self):
+        self._quart_en_conflit()
+        self._previsionnelle()
+        self.client.force_login(self.chef)
+        self.assertContains(self.client.get(self.url), "Activation bloquée")
+        self.client.force_login(self.marin)
+        self.assertNotContains(self.client.get(self.url), "Activation bloquée")
+
+    def test_activation_possible_une_fois_le_conflit_resolu(self):
+        creneau_mer = self._quart_en_conflit()
+        self._previsionnelle()
+        creneau_mer.delete()
+        self._poster(self.chef, action="activer")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_ACTIVE)
+
+    def test_quart_deja_termine_ne_bloque_pas(self):
+        from quarts.activation import conflits_activation
+
+        creneau_mer = self._quart_en_conflit()
+        creneau_garde = self.liste.creneaux.get()
+        creneau_garde.debut = timezone.now() - timedelta(hours=30)
+        creneau_garde.fin = timezone.now() - timedelta(hours=6)
+        creneau_garde.save()
+        creneau_mer.debut, creneau_mer.fin = creneau_garde.debut + timedelta(hours=1), creneau_garde.debut + timedelta(hours=5)
+        creneau_mer.save()
+        self.assertEqual(conflits_activation(self.liste), [])
+
+    def test_liste_previsionnelle_ne_cree_pas_de_faux_conflit_ailleurs(self):
+        from quarts.echanges import conflits_marin
+
+        self._previsionnelle()
+        autre = ServiceGarde.objects.create(
+            service=self.service, fonction=self.liste.fonction, date_debut=self.liste.date_debut, date_fin=self.liste.date_fin,
+            statut=ServiceGarde.STATUT_PUBLIEE,
+        )
+        debut = self.liste.creneaux.get().debut
+        creneau = CreneauServiceGarde.objects.create(service_garde=autre, poste="X", debut=debut, fin=debut + timedelta(hours=2), marin=self.marin)
+        self.assertEqual(conflits_marin(self.marin, creneau, [creneau.pk]), [])

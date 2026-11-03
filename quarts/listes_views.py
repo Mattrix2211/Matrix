@@ -34,7 +34,7 @@ from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_ad
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
-from .activation import ActivationImpossible, activer_liste, peut_activer_liste, publier_a_titre_previsionnel
+from .activation import ActivationImpossible, activer_liste, conflits_activation, decrire_conflit, peut_activer_liste, publier_a_titre_previsionnel
 from .echanges import annuler_echanges_du_creneau
 from .models import (
     ChefDeListe,
@@ -597,6 +597,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 {"libelle": "Non affectés", "valeur": non_affectes, "etat": "attention" if non_affectes else "ok"},
             ],
             "action": action,
+            "conflits_activation": (
+                [decrire_conflit(c) for c in conflits_activation(liste)]
+                if est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and (peut_gerer or contexte["peut_publier"])
+                else []
+            ),
         }
         if est_garde and vue == "echanges":
             echanges = [
