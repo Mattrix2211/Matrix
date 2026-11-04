@@ -43,23 +43,38 @@ def peut_activer_liste(user, liste):
     return designation_chef_de_liste(user, liste) is not None
 
 
-def conflits_activation(liste, a_partir_de=None):
-    """Créneaux de la liste qui recouvrent un quart à la mer publié ou un autre service à quai
-    en vigueur pour le même marin, à partir de l'instant donné (pas de rétroactivité).
-    Matrix ne modifie jamais ces créneaux : le conflit est présenté aux responsables."""
-    a_partir_de = a_partir_de or timezone.now()
-    conflits = []
-    for creneau in liste.creneaux.select_related("marin").filter(marin__isnull=False, fin__gt=a_partir_de):
-        filtres = dict(marin=creneau.marin, debut__lt=creneau.fin, fin__gt=max(creneau.debut, a_partir_de))
+def recouvrements_activation(liste, a_partir_de=None):
+    """Recouvrements entre les créneaux de la liste et les autres affectations du même marin, à partir de
+    l'instant d'activation (jamais de rétroactivité). Matrix ne modifie jamais ces créneaux.
+
+    - BLOQUANT : deux services à quai en vigueur qui se recouvrent, ou un quart déjà en cours en même temps
+      que le service (conflit actuel, le bâtiment étant à quai) ;
+    - AVERTISSEMENT : un quart qui ne recouvre le service que dans le futur, tant que le régime n'est pas
+      confirmé ; réévalué à chaque mouvement, modification de liste ou activation."""
+    maintenant = a_partir_de or timezone.now()
+    resultats = []
+    for creneau in liste.creneaux.select_related("marin").filter(marin__isnull=False, fin__gt=maintenant):
+        filtres = dict(marin=creneau.marin, debut__lt=creneau.fin, fin__gt=max(creneau.debut, maintenant))
         mer = CreneauQuart.objects.filter(quart__statut="PUBLIEE", **filtres).select_related("quart")
         quai = CreneauServiceGarde.applicables().filter(**filtres).exclude(service_garde=liste).select_related("service_garde")
         for autre in (*mer, *quai):
-            genre = "quart à la mer" if isinstance(autre, CreneauQuart) else "service à quai"
-            conflits.append({
-                "marin": creneau.marin, "creneau": creneau, "autre": autre, "genre": genre,
-                "liste_autre": autre.quart if isinstance(autre, CreneauQuart) else autre.service_garde,
+            en_mer = isinstance(autre, CreneauQuart)
+            debut_commun = max(creneau.debut, autre.debut, maintenant)
+            bloquant = not en_mer or debut_commun <= maintenant
+            resultats.append({
+                "marin": creneau.marin, "creneau": creneau, "autre": autre, "bloquant": bloquant,
+                "genre": "quart à la mer" if en_mer else "service à quai",
+                "liste_autre": autre.quart if en_mer else autre.service_garde,
             })
-    return conflits
+    return resultats
+
+
+def conflits_activation(liste, a_partir_de=None):
+    return [r for r in recouvrements_activation(liste, a_partir_de) if r["bloquant"]]
+
+
+def avertissements_activation(liste, a_partir_de=None):
+    return [r for r in recouvrements_activation(liste, a_partir_de) if not r["bloquant"]]
 
 
 def decrire_conflit(conflit):

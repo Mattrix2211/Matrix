@@ -36,7 +36,7 @@ from training.models import TrainingCourse
 
 from .alertes_activation import reporter_prise_effet, retirer_previsionnelle, traiter_echeances
 from .designations import LIBELLES, situation as situation_designation
-from .activation import ActivationImpossible, activer_liste, conflits_activation, decrire_conflit, peut_activer_liste, publier_a_titre_previsionnel
+from .activation import ActivationImpossible, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, peut_activer_liste, publier_a_titre_previsionnel
 from .echanges import annuler_echanges_du_creneau
 from .models import (
     ChefDeListe,
@@ -618,6 +618,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             "action": action,
             "alertes_activation": list(liste.alertes_activation.filter(fermee_le__isnull=True)) if est_garde else [],
             "peut_reporter": est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and peut_activer_liste(request.user, liste),
+            "avertissements_activation": (
+                [decrire_conflit(c) for c in avertissements_activation(liste)]
+                if est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and (peut_gerer or contexte["peut_publier"])
+                else []
+            ),
             "conflits_activation": (
                 [decrire_conflit(c) for c in conflits_activation(liste)]
                 if est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and (peut_gerer or contexte["peut_publier"])
