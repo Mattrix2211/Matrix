@@ -70,6 +70,7 @@ class Command(BaseCommand):
         self._tickets_et_anomalies()
         self._quarts()
         self._service_a_quai()
+        self._unites_fictives()
         self._modes_initiaux()
         self._formations()
         self._taches()
@@ -716,6 +717,40 @@ class Command(BaseCommand):
         feuille.viser_secteur(user("chef_secteur_a"))
         feuille.viser_service(user("chef_service_a"))
         feuille.viser_comaeq(user("coma_comaeq"))
+
+    # ---------- Unités fictives complémentaires (mode MER et mode QUAI) ----------
+
+    def _unites_fictives(self):
+        """« Jacques Chevallier » (à la mer) et « Auguste Bénébig » (à quai) : deux unités fictives qui illustrent
+        les deux régimes ; leur mode est initialisé par leur commandant (cf. `_modes_initiaux`)."""
+        fonction_quai = ServiceFunctionChoice.objects.get_or_create(name="Fraction de service à quai")[0]
+        for nom, code, prefixe, mer in (("Jacques Chevallier", "JCH", "jch", True), ("Auguste Bénébig", "ABE", "abe", False)):
+            ship, _ = Ship.objects.get_or_create(name=nom, code=code, defaults=dict(fuseau_horaire="Europe/Paris"))
+            service, _ = Service.objects.get_or_create(ship=ship, name="Propulsion", defaults={"commandant_adjoint": "COMANAV"})
+            secteur, _ = Sector.objects.get_or_create(service=service, name="Moteurs")
+            section, _ = Section.objects.get_or_create(sector=secteur, name="Moteurs tribord")
+            u = self._utilisateur
+            u(f"cdt_{prefixe}", Roles.COMMANDANT, "Alain" if mer else "Bruno", ship=ship, grade="Capitaine de frégate")
+            u(f"comaeq_{prefixe}", Roles.ETAT_MAJOR, "Chloé" if mer else "Damien", ship=ship, fonction_coma="COMAEQ", grade="Lieutenant de vaisseau")
+            chef = u(f"chef_liste_{prefixe}", Roles.CHEF_SECTEUR, "Élodie" if mer else "Florian", ship=ship, service=service,
+                     sector=secteur, grade="Second-maître", specialite="Mécanique")
+            marins = [
+                u(f"marin_{prefixe}_{n}", Roles.EQUIPIER, prenom, ship=ship, service=service, sector=secteur, section=section,
+                  grade="Matelot", specialite="Mécanique")
+                for n, prenom in ((1, "Gaspard"), (2, "Hugo"), (3, "Iris"))
+            ]
+            for type_liste in (ChefDeListe.TYPE_QUARTS, ChefDeListe.TYPE_QUAI):
+                ChefDeListe.objects.get_or_create(user=chef, sector=secteur, ship=None, service=None, section=None, type_liste=type_liste)
+            if mer:
+                self._quart_a_la_mer(f"Quart de veille — {nom}", self.aujourdhui, 3, marins, chef, service, self.fonctions_quart["Veille"])
+            elif not ServiceGarde.objects.filter(ship=ship).exists():
+                debut = timezone.make_aware(timezone.datetime(self.aujourdhui.year, self.aujourdhui.month, self.aujourdhui.day, 8)) + timedelta(days=1)
+                fraction = ServiceGarde.objects.create(
+                    nom=f"Fraction de service à quai — {nom}", ship=ship, date_debut=debut.date(), date_fin=debut.date(),
+                    type_service="Service à quai", duree_creneau_heures=24, fonction=fonction_quai, created_by=chef)
+                for poste, marin in zip(("Officier de garde (OG)", "Gradé de coupée 1", "Gradé mécanicien"), marins):
+                    CreneauServiceGarde.objects.create(service_garde=fraction, poste=poste, marin=marin, debut=debut, fin=debut + timedelta(hours=24))
+                fraction.publier(chef)
 
     # ---------- Formations ----------
 
