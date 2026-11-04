@@ -21,6 +21,13 @@ Documents liés : `mer_quai_mode_operationnel_complement.md` (modèle du mode ME
 
 Hors périmètre V1.1, conformément au PO : stades d'alerte, mouillage, organisations de service particulières.
 
+## Orientations UX du PO (à intégrer progressivement)
+
+1. **Notifications — repérage visuel** : chaque notification porte une icône cohérente avec sa catégorie métier (horloge ou calendrier pour les quarts et tours, flèches pour les échanges, outils pour la maintenance, liste de contrôle pour les tâches, bulle pour la messagerie, fichier pour les documents, triangle pour les alertes, coche pour les validations) ; icônes du design system ; couleur réservée à la gravité ; libellé toujours présent ; clair et sombre ; pas de surcharge. Correspondance proposée dans `notifications_par_regime.md` §4, à implémenter avec D7.
+2. **Priorité à la version ordinateur** : V1.1 est pensée, développée et testée d'abord pour le PC (calendriers, tableaux, formulaires, parcours). Pas d'expérience mobile dédiée, pas de refonte de la navigation mobile, pas de campagne de tests mobiles ; le responsive existant est conservé sans régression volontaire. Pour les vues A/B : qualité et lisibilité sur ordinateur d'abord. Les captures mobiles déjà produites avant cette orientation ne sont pas étendues.
+
+Ces orientations complètent, sans les remplacer, les décisions déjà validées (modèle MER / QUAI, permissions, transitions, alertes, échanges prévisionnels, tests et recette).
+
 ## 0. Constat sur l'existant (lu dans le code)
 
 - `Quart` (mer) et `ServiceGarde` (quai) partagent `ListeServiceAbstract` : `BROUILLON → PROPOSEE → PUBLIEE`. **« Publiée » vaut aujourd'hui « applicable »** : feuille de service, échanges, calendrier, tableau de bord, passation et iCal ne lisent que `PUBLIEE`.

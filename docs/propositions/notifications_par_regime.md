@@ -65,3 +65,25 @@ Source : relevé automatique de tous les points de création de notification du 
 2. **Relève d'équipage** : COMMUNES (proposé) ou TRANSITION ? Une relève n'est pas un changement de mode du bâtiment.
 3. **Échanges de tour** : QUAI (proposé, car ils portent sur les services à quai) ; confirmer que cela ne gêne pas un marin qui ne reçoit que des quarts.
 4. Valider les cinq principes de la section 1, notamment l'absence de reclassement de l'historique.
+
+## 4. Repérage visuel : une icône par catégorie métier (orientation PO)
+
+Principes : sobriété et homogénéité ; icônes reconnaissables ; **la couleur ne sert qu'à la gravité ou à la priorité**, jamais à décorer ; libellé textuel toujours présent ; lisibilité en thèmes clair et sombre ; pas de texte explicatif en plus. Aucune catégorie métier nouvelle : on réutilise la table centrale des icônes (`matrix/core/icones.py`, Bootstrap Icons auto-hébergées).
+
+| Catégorie | Concept d'icône existant | Icône |
+|---|---|---|
+| Quarts à la mer et listes de quarts | `quart` | horloge |
+| Services à quai, feuille de service, passation | `calendrier` | calendrier |
+| Échanges de tours | **`echange` à ajouter à la table** (déjà utilisée en dur dans les gabarits d'échange) | flèches d'échange |
+| Maintenance et installations | `maintenance` | outils |
+| Anomalies et tickets correctifs | `anomalie` | triangle d'avertissement |
+| Tâches et demandes | `tache` | liste de contrôle |
+| Messagerie (mentions, discussions) | `discussion` | bulle |
+| Documents, RETEX, fiches | `document` | fichier |
+| Validations (accordée, publiée, validée) | `terminee` | coche |
+| Alertes d'activation et d'accostage | `anomalie` | triangle d'avertissement |
+| Formations et absences | `formation`, `absence` | existants |
+| Annonces et programme | `annonce` | porte-voix |
+
+Mise en œuvre prévue avec D7 (après validation de la classification) : l'icône se déduit de la source de la notification (module émetteur ou type de l'objet visé) par une table unique, sans refondre le système ; la gravité reste portée par la couleur du badge existant ; les notifications sans catégorie reconnue gardent l'icône actuelle.
+
