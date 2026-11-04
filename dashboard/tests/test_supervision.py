@@ -1,4 +1,5 @@
 """Bloc « Supervision » de la page « Aujourd'hui » : visibilité par rôle et bornage au périmètre."""
+from quarts.tests.support import designer_chef
 from matrix.core.organisation import niveau_de
 from datetime import timedelta
 
@@ -180,7 +181,7 @@ class SupervisionTests(TestCase):
         )
 
     def test_echange_de_service_a_valider_compte_dans_le_perimetre_seulement(self):
-        ChefDeListe.objects.create(user=self.chef_a, sector=self.secteur_a)
+        designer_chef(user=self.chef_a, sector=self.secteur_a)
         self._echange_accepte(self.secteur_a)
         self._echange_accepte(self.secteur_b)
         s = supervision(self.chef_a, self.aujourdhui)
@@ -277,7 +278,7 @@ class CompteursEtListesCiblesTests(TestCase):
         self.assertEqual((s["installations_en_retard"], len(liste)), (1, 1))
 
     def test_echanges_et_candidatures_comme_les_pages_cibles(self):
-        ChefDeListe.objects.create(user=self.chef, sector=self.secteur_a)
+        designer_chef(user=self.chef, sector=self.secteur_a)
         self._echange_accepte(self.secteur_a)
         self._echange_accepte(self.secteur_b)
         CandidatureFormation.objects.create(course=TrainingCourse.objects.create(title="Secourisme"), marin=self.equipier)
@@ -291,7 +292,7 @@ class CompteursEtListesCiblesTests(TestCase):
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
 
-        ChefDeListe.objects.create(user=self.chef, sector=self.secteur_a)
+        designer_chef(user=self.chef, sector=self.secteur_a)
         for _ in range(2):
             self._echange_accepte(self.secteur_a)
         with CaptureQueriesContext(connection) as deux_echanges:

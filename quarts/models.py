@@ -183,12 +183,17 @@ class ChefDeListe(TimeStampedModel):
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
     sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
-    # Vide = désignation historique non précisée, qui garde ses effets sur les deux types de liste
-    # jusqu'à ce qu'un responsable la précise ; toute nouvelle désignation porte un type explicite.
+    # Vide = désignation historique non qualifiée : elle ne donne AUCUN droit tant qu'un responsable du périmètre
+    # ne l'a pas qualifiée explicitement ; toute nouvelle désignation porte un type.
     TYPE_QUARTS = "QUARTS"
     TYPE_QUAI = "QUAI"
     TYPE_CHOICES = ((TYPE_QUARTS, "Quarts à la mer"), (TYPE_QUAI, "Services à quai"))
     type_liste = models.CharField(max_length=8, blank=True, default="", choices=TYPE_CHOICES, verbose_name="Type de liste")
+    # Qualification d'une désignation historique : auteur et date (sur la désignation historique, conservée, et sur
+    # chacune des désignations typées qui en sont issues, avec le lien vers leur origine).
+    qualifiee_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    qualifiee_le = models.DateTimeField(null=True, blank=True)
+    origine = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="issues")
 
     class Meta:
         verbose_name = "Chef de liste"
@@ -196,12 +201,13 @@ class ChefDeListe(TimeStampedModel):
         unique_together = ("user", "ship", "service", "sector", "section", "type_liste")
 
     @property
-    def historique_non_precisee(self):
-        return not self.type_liste
+    def a_qualifier(self):
+        return not self.type_liste and self.qualifiee_le is None
 
     def couvre(self, code_type):
-        """Vrai si la désignation vaut pour ce type de liste (`None` : sans distinction de type)."""
-        return code_type is None or not self.type_liste or self.type_liste == code_type
+        """Vrai si la désignation vaut pour ce type de liste (`None` : l'un ou l'autre type). Une désignation sans type
+        ne couvre jamais rien : aucun élargissement automatique."""
+        return bool(self.type_liste) and (code_type is None or self.type_liste == code_type)
 
     def clean(self):
         super().clean()

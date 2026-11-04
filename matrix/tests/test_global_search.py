@@ -9,6 +9,7 @@ périmètre propres à chaque app pour les types ajoutés le 22/09/2026
 (anomalies_visibles, peut_valider_echange) :
 aucun nouveau système de scope n'est créé, l'existant est réutilisé partout.
 """
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -112,7 +113,7 @@ class GlobalSearchViewTests(MediaRootTemporaireMixin, TestCase):
         UserProfile.objects.filter(user=self.cible_echange).update(role="EQUIPIER", sector=self.secteur_a)
         self.chef_liste_echange = User.objects.create_user(username="svc_chef_cible", password="pass")
         UserProfile.objects.filter(user=self.chef_liste_echange).update(role="EQUIPIER", sector=self.secteur_a)
-        ChefDeListe.objects.create(user=self.chef_liste_echange, sector=self.secteur_a)
+        designer_chef(user=self.chef_liste_echange, sector=self.secteur_a)
 
         garde = ServiceGarde.objects.create(
             sector=self.secteur_a, fonction=ServiceFunctionChoice.objects.create(name="Permanence CIBLE"),

@@ -1,5 +1,6 @@
 """Tests de l'interface web : création/affectation/publication d'une liste,
 et désignation des chefs de liste."""
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -22,7 +23,7 @@ class CreationListeTests(TestCase):
 
         self.cdl = User.objects.create_user(username="cdl_creation", password="pass")
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
-        ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
+        designer_chef(user=self.cdl, sector=self.sector)
 
         self.equipier = User.objects.create_user(username="equipier_creation", password="pass")
         UserProfile.objects.update_or_create(user=self.equipier, defaults={"role": "EQUIPIER"})
@@ -94,7 +95,7 @@ class GestionCreneauxEtPublicationTests(TestCase):
 
         self.cdl = User.objects.create_user(username="cdl_gestion", password="pass")
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
-        ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
+        designer_chef(user=self.cdl, sector=self.sector)
 
         self.marin = User.objects.create_user(username="marin_gestion", password="pass")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "section": self.section})
@@ -270,7 +271,7 @@ class DesignationChefDeListeTests(TestCase):
         self.assertTrue(ChefDeListe.objects.filter(user=self.candidat, sector=self.autre_secteur).exists())
 
     def test_retirer_une_designation(self):
-        cdl = ChefDeListe.objects.create(user=self.candidat, sector=self.sector)
+        cdl = designer_chef(user=self.candidat, sector=self.sector)
         self.client.login(username="chef_service_dsg", password="pass")
         r = self.client.post("/quarts/reglages/", {"action": "retirer", "pk": cdl.pk})
         self.assertEqual(r.status_code, 302)
@@ -285,7 +286,7 @@ class PlanningEtOngletsTests(TestCase):
         )
         self.cdl = User.objects.create_user(username="cdl_planning", password="pass")
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
-        ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
+        designer_chef(user=self.cdl, sector=self.sector)
         self.second = User.objects.create_user(username="second_planning", password="pass")
         UserProfile.objects.update_or_create(
             user=self.second, defaults={"role": "COMMANDANT_EN_SECOND", "ship": self.sector.service.ship})
@@ -361,7 +362,7 @@ class AssistantCreationListeTests(TestCase):
         self.autre_secteur = Sector.objects.create(service=service, name="Veille")
         self.cdl = User.objects.create_user(username="cdl_assistant", password="pass")
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
-        ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
+        designer_chef(user=self.cdl, sector=self.sector)
         self.fonction = FonctionQuartChoice.objects.create(name="Barre assistant")
         self.client.login(username="cdl_assistant", password="pass")
 
@@ -375,7 +376,7 @@ class AssistantCreationListeTests(TestCase):
         self.assertTrue(r.context["valeurs"]["date_debut"])
 
     def test_etape_perimetre_presente_si_plusieurs_choix(self):
-        ChefDeListe.objects.create(user=self.cdl, sector=self.autre_secteur)
+        designer_chef(user=self.cdl, sector=self.autre_secteur)
         r = self.client.get("/quarts/creer/")
         self.assertIn("Niveau concerné", r.context["etapes"])
 
@@ -419,7 +420,7 @@ class AssistantCreationListeTests(TestCase):
         self.assertEqual(self.client.post("/quarts/creer/", {"etape": 4}).status_code, 403)
 
     def test_perimetre_hors_droits_refuse(self):
-        ChefDeListe.objects.create(user=self.cdl, sector=self.autre_secteur)
+        designer_chef(user=self.cdl, sector=self.autre_secteur)
         r = self._suivant(5, type_liste="creer_quart", perimetre="sector:999999", date_debut="2026-11-02",
                           date_fin="2026-11-08", fonction_quart=self.fonction.pk)
         self.assertEqual(r.status_code, 400)

@@ -1,5 +1,6 @@
 """Traçabilité des créneaux ajoutés/supprimés sur une liste publiée
 (AuditLog + notification du marin) ; rien pour un brouillon."""
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -21,7 +22,7 @@ class TraceCreneauxTests(TestCase):
         section = Section.objects.create(sector=self.sector, name="Plage avant")
         self.cdl = User.objects.create_user(username="cdl_trace", password="pass")
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER", "section": section})
-        ChefDeListe.objects.create(user=self.cdl, sector=self.sector)
+        designer_chef(user=self.cdl, sector=self.sector)
         self.marin = User.objects.create_user(username="marin_trace", password="pass", first_name="Jean", last_name="Dupont")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "section": section})
         self.client.login(username="cdl_trace", password="pass")

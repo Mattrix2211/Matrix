@@ -48,9 +48,9 @@ class ChefDeListeParTypeTests(TestCase):
         self.assertTrue(peut_gerer_liste(self.chef_mer, self.quart))
         self.assertFalse(peut_gerer_liste(self.chef_mer, self.garde))
 
-    def test_designation_historique_conserve_ses_effets_sur_les_deux_types(self):
-        self.assertTrue(peut_gerer_liste(self.chef_historique, self.quart))
-        self.assertTrue(peut_gerer_liste(self.chef_historique, self.garde))
+    def test_designation_historique_non_qualifiee_ne_donne_aucun_droit(self):
+        self.assertFalse(peut_gerer_liste(self.chef_historique, self.quart))
+        self.assertFalse(peut_gerer_liste(self.chef_historique, self.garde))
 
     def test_chef_quai_ne_peut_pas_modifier_un_quart_par_requete_directe(self):
         self.client.force_login(self.chef_quai)
@@ -89,17 +89,21 @@ class ChefDeListeParTypeTests(TestCase):
         self.assertTrue(ChefDeListe.objects.filter(user=self.chef_quai, type_liste="QUARTS").exists())
         self.assertTrue(AuditLog.objects.filter(action="chef_de_liste_designe").exists())
 
-    def test_precision_explicite_d_une_designation_historique(self):
+    def test_qualification_explicite_d_une_designation_historique(self):
         responsable = self._user("resp", "CHEF_SERVICE")
         self.client.force_login(responsable)
-        historique = ChefDeListe.objects.get(user=self.chef_historique)
+        historique = ChefDeListe.objects.get(user=self.chef_historique, type_liste="")
         self.client.post(reverse("quarts-reglages"), {"action": "preciser", "pk": historique.pk})
-        self.assertTrue(ChefDeListe.objects.filter(pk=historique.pk).exists())  # aucun type choisi : rien ne change
+        historique.refresh_from_db()
+        self.assertIsNone(historique.qualifiee_le)  # aucun type choisi : rien ne change
         self.client.post(reverse("quarts-reglages"), {"action": "preciser", "pk": historique.pk, "types": ["QUAI"]})
-        self.assertFalse(ChefDeListe.objects.filter(pk=historique.pk).exists())
+        historique.refresh_from_db()
+        self.assertIsNotNone(historique.qualifiee_le)  # conservée, jamais supprimée
         self.assertTrue(ChefDeListe.objects.filter(user=self.chef_historique, type_liste="QUAI").exists())
-        self.assertFalse(peut_gerer_liste(User.objects.get(pk=self.chef_historique.pk), self.quart))
-        self.assertTrue(AuditLog.objects.filter(action="chef_de_liste_precise").exists())
+        chef = User.objects.get(pk=self.chef_historique.pk)
+        self.assertTrue(peut_gerer_liste(chef, self.garde))
+        self.assertFalse(peut_gerer_liste(chef, self.quart))
+        self.assertTrue(AuditLog.objects.filter(action="chef_de_liste_qualifie").exists())
 
     def test_un_marin_ne_peut_pas_preciser_ni_designer(self):
         self.client.force_login(self.chef_quai)
@@ -120,5 +124,5 @@ class ChefDeListeParTypeTests(TestCase):
         responsable = self._user("resp", "CHEF_SERVICE")
         self.client.force_login(responsable)
         page = self.client.get(reverse("quarts-reglages")).content.decode()
-        self.assertIn("À préciser", page)
-        self.assertIn("sans type", page)
+        self.assertIn("À qualifier", page)
+        self.assertIn("à qualifier", page)

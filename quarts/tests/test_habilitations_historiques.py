@@ -20,7 +20,7 @@ class HabilitationsHistoriquesTests(TestCase):
         self.chef_quai = self._user("chef_quai")
         ChefDeListe.objects.create(user=self.chef_quai, service=self.service, type_liste=ChefDeListe.TYPE_QUAI)
         self.chef_historique = self._user("chef_historique")
-        self.designation_historique = ChefDeListe.objects.create(user=self.chef_historique, service=self.service)
+        self.designation_historique = ChefDeListe.objects.create(user=self.chef_historique, service=self.service)  # non qualifiée
         self.marin = self._user("marin")
         self.responsable = self._user("resp", "CHEF_SERVICE")
         jour = timezone.localdate()
@@ -83,21 +83,68 @@ class HabilitationsHistoriquesTests(TestCase):
         texte = sortie.getvalue()
         self.assertIn("chef_historique", texte)
         self.assertNotIn("chef_quai", texte)  # désignation typée : hors inventaire
-        self.assertIn("droits actuels sur les quarts à la mer ET les services à quai", texte)
+        self.assertIn("aucun droit tant que non qualifiée", texte)
         self.assertIn("1 désignation(s) historique(s) à qualifier", texte)
         self.assertEqual(list(ChefDeListe.objects.values_list("pk", "type_liste")), avant)
 
-    def test_la_qualification_explicite_n_ajoute_que_les_types_choisis_et_est_auditee(self):
+    def test_une_designation_non_qualifiee_ne_donne_aucun_droit_operationnel(self):
+        chef = self.chef_historique
+        self.assertFalse(peut_gerer_liste(chef, self.quart_brouillon))
+        self.assertFalse(peut_gerer_liste(chef, self.quart_publie))
+        from quarts.models import ServiceGarde
+        from quarts.activation import peut_activer_liste
+
+        garde = ServiceGarde.objects.create(
+            service=self.service, fonction=self._fonction_quai(), date_debut=timezone.localdate(), date_fin=timezone.localdate() + timedelta(days=2),
+            statut=ServiceGarde.STATUT_PUBLIEE, application=ServiceGarde.APPLICATION_PREVISIONNELLE,
+        )
+        self.assertFalse(peut_gerer_liste(chef, garde))
+        self.assertFalse(peut_activer_liste(chef, garde))
+        self.client.force_login(chef)
+        self.assertEqual(self.client.post(reverse("garde-detail", args=[garde.pk]), {"action": "activer"}).status_code, 403)
+
+    def _fonction_quai(self):
+        from accounts.models import ServiceFunctionChoice
+
+        return ServiceFunctionChoice.objects.get_or_create(name="Permanence")[0]
+
+    def test_la_qualification_trace_auteur_date_portee_et_origine_sans_rien_supprimer(self):
+        self.client.force_login(self.responsable)
+        avant = ChefDeListe.objects.count()
+        self.client.post(reverse("quarts-reglages"), {"action": "preciser", "pk": self.designation_historique.pk, "types": ["QUARTS", "QUAI"]})
+        self.designation_historique.refresh_from_db()
+        self.assertEqual((self.designation_historique.qualifiee_par, self.designation_historique.type_liste), (self.responsable, ""))
+        self.assertEqual(ChefDeListe.objects.count(), avant + 2)  # la désignation historique est conservée
+        for t in ("QUARTS", "QUAI"):
+            nouvelle = ChefDeListe.objects.get(user=self.chef_historique, type_liste=t)
+            self.assertEqual((nouvelle.origine, nouvelle.qualifiee_par), (self.designation_historique, self.responsable))
+            self.assertIsNotNone(nouvelle.qualifiee_le)
+        trace = AuditLog.objects.get(action="chef_de_liste_qualifie")
+        self.assertIn("Quarts à la mer", trace.details)
+        self.assertIn("Services à quai", trace.details)
+        self.assertEqual(trace.actor, self.responsable)
+
+    def test_deux_types_possibles_seulement_si_choisis_volontairement(self):
         self.client.force_login(self.responsable)
         self.client.post(reverse("quarts-reglages"), {"action": "preciser", "pk": self.designation_historique.pk, "types": ["QUARTS"]})
-        types = list(ChefDeListe.objects.filter(user=self.chef_historique).values_list("type_liste", flat=True))
+        types = sorted(ChefDeListe.objects.filter(user=self.chef_historique).exclude(type_liste="").values_list("type_liste", flat=True))
         self.assertEqual(types, ["QUARTS"])
-        self.assertTrue(AuditLog.objects.filter(action="chef_de_liste_precise", target_user=self.chef_historique).exists())
+
+    def test_une_designation_deja_qualifiee_n_est_plus_a_qualifier(self):
+        self.client.force_login(self.responsable)
+        self.client.post(reverse("quarts-reglages"), {"action": "preciser", "pk": self.designation_historique.pk, "types": ["QUAI"]})
+        reponse = self.client.post(reverse("quarts-reglages"), {"action": "preciser", "pk": self.designation_historique.pk, "types": ["QUARTS"]})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertFalse(ChefDeListe.objects.filter(user=self.chef_historique, type_liste="QUARTS").exists())
+        sortie = StringIO()
+        call_command("analyser_designations_chef_de_liste", stdout=sortie)
+        self.assertIn("0 désignation(s) historique(s) à qualifier", sortie.getvalue())
 
     def test_une_qualification_sans_choix_ne_change_rien(self):
         self.client.force_login(self.responsable)
         self.client.post(reverse("quarts-reglages"), {"action": "preciser", "pk": self.designation_historique.pk})
-        self.assertTrue(ChefDeListe.objects.filter(pk=self.designation_historique.pk, type_liste="").exists())
+        self.designation_historique.refresh_from_db()
+        self.assertIsNone(self.designation_historique.qualifiee_le)
 
     def test_aucun_elargissement_automatique_une_designation_a_quai_ne_cree_pas_de_droit_quarts(self):
         self.client.force_login(self.responsable)
@@ -115,5 +162,5 @@ class HabilitationsHistoriquesTests(TestCase):
     def test_l_ecart_a_la_decision_d11_est_visible_pour_les_responsables(self):
         self.client.force_login(self.responsable)
         page = self.client.get(reverse("quarts-reglages")).content.decode()
-        self.assertIn("1 désignation(s) historique(s) sans type", page)
-        self.assertIn("À préciser", page)
+        self.assertIn("1 désignation(s) historique(s) à qualifier", page)
+        self.assertIn("À qualifier", page)

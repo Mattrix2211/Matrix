@@ -1,4 +1,5 @@
 """Rappels, alertes, escalade, report et retrait d'une liste à quai prévisionnelle."""
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 
 from django.utils import timezone
@@ -72,7 +73,7 @@ class AlertesActivationTests(BaseActivation):
         self.assertEqual(traiter_echeances(self.prevue + timedelta(minutes=10)), 1)
 
     def test_pas_de_doublon_pour_une_personne_cumulant_les_fonctions(self):
-        ChefDeListe.objects.create(user=self.comaeq, service=self.service)
+        designer_chef(user=self.comaeq, service=self.service)
         traiter_echeances(self.prevue - timedelta(minutes=30))
         traiter_echeances(self.prevue + timedelta(minutes=1))
         traiter_echeances(self.prevue + timedelta(minutes=16))

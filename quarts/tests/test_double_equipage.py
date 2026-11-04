@@ -1,6 +1,7 @@
 """Double équipage, tranche 4 : les quarts, listes de service, échanges
 restent propres à chaque équipage ; un navire à
 équipage unique se comporte exactement comme avant."""
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -104,7 +105,7 @@ class ListesParEquipageTests(DoubleEquipageBase):
         self.assertEqual(set(_listes_visibles(ServiceGarde, self.cdt_rouge)), {unite_rouge})
         # Un chef de liste désigné ne voit que la liste de son périmètre (et de son équipage).
         chef = marin("chef_bleu", "CHEF_SECTEUR", self.ship, self.bleu, self.secteur_bleu)
-        ChefDeListe.objects.create(user=chef, sector=self.secteur_bleu)
+        designer_chef(user=chef, sector=self.secteur_bleu)
         liste_service = self.garde(self.cdt_bleu, sector=self.secteur_bleu)
         self.assertEqual(set(_listes_visibles(ServiceGarde, chef)), {liste_service})
 

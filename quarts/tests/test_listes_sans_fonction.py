@@ -1,4 +1,5 @@
 """Une liste sans fonction renseignée (champ nullable) n'affiche jamais « None »."""
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -16,7 +17,7 @@ class ListesSansFonctionTests(TestCase):
         self.secteur = Sector.objects.create(service=Service.objects.create(ship=navire, name="Pont"), name="Manœuvre")
         self.cdl = User.objects.create_user(username="cdl_sans_fonction", password="pass")
         UserProfile.objects.update_or_create(user=self.cdl, defaults={"role": "EQUIPIER"})
-        ChefDeListe.objects.create(user=self.cdl, sector=self.secteur)
+        designer_chef(user=self.cdl, sector=self.secteur)
         debut = timezone.localdate()
         commun = dict(sector=self.secteur, nom="Sans fonction", date_debut=debut, date_fin=debut + timedelta(days=6), fonction=None)
         self.quart = Quart.objects.create(**commun)

@@ -72,7 +72,7 @@ class RemplacementChefDeListeTests(BaseActivation):
         super().setUp()
         self.remplacant = self._user("remplacant", "EQUIPIER", service=self.service)
         self.responsable = self._user("resp", "CHEF_SERVICE", service=self.service)
-        self.designation = ChefDeListe.objects.get(user=self.chef)
+        self.designation = ChefDeListe.objects.get(user=self.chef, type_liste=ChefDeListe.TYPE_QUAI)
         self.url_reglages = reverse("quarts-reglages")
         self.debut = timezone.now() + timedelta(minutes=1)
 

@@ -1,4 +1,5 @@
 """Publication à titre prévisionnel et activation d'une liste à quai (décisions PO mer/quai)."""
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -19,7 +20,7 @@ class BaseActivation(TestCase):
         self.ship = Ship.objects.create(name="Bâtiment", code="BAT")
         self.service = Service.objects.create(ship=self.ship, name="Pont", commandant_adjoint="COMAEQ")
         self.chef = self._user("chef", "EQUIPIER", service=self.service)
-        ChefDeListe.objects.create(user=self.chef, service=self.service)
+        designer_chef(user=self.chef, service=self.service)
         self.commandant = self._user("cdt", "COMMANDANT")
         self.comaeq = self._user("coma", "ETAT_MAJOR", fonction_coma="COMAEQ")
         self.marin = self._user("marin", "EQUIPIER", service=self.service)
@@ -80,7 +81,7 @@ class ActivationListeQuaiTests(BaseActivation):
             self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_PREVISIONNELLE, user.username)
 
     def test_comaeq_designe_chef_de_liste_active_en_tant_que_chef(self):
-        ChefDeListe.objects.create(user=self.comaeq, service=self.service)
+        designer_chef(user=self.comaeq, service=self.service)
         self._previsionnelle()
         self._poster(self.comaeq, action="activer")
         self.liste.refresh_from_db()
@@ -91,7 +92,7 @@ class ActivationListeQuaiTests(BaseActivation):
     def test_chef_d_un_autre_perimetre_ne_peut_pas_activer(self):
         autre = Service.objects.create(ship=self.ship, name="Machine")
         intrus = self._user("intrus", "EQUIPIER", service=autre)
-        ChefDeListe.objects.create(user=intrus, service=autre)
+        designer_chef(user=intrus, service=autre)
         self._previsionnelle()
         self._poster(intrus, action="activer")
         self.liste.refresh_from_db()

@@ -1,4 +1,5 @@
 """Tests des modèles Quart/ServiceGarde et du rôle annexe ChefDeListe."""
+from quarts.tests.support import designer_chef
 from datetime import timedelta
 
 from django.contrib.auth.models import User
@@ -116,7 +117,7 @@ class AutorisationPerimetreTests(TestCase):
 
         self.chef_de_liste = User.objects.create_user(username="cdl_secteur", password="pass")
         UserProfile.objects.update_or_create(user=self.chef_de_liste, defaults={"role": "EQUIPIER"})
-        ChefDeListe.objects.create(user=self.chef_de_liste, sector=self.sector)
+        designer_chef(user=self.chef_de_liste, sector=self.sector)
 
         self.commandant = User.objects.create_user(username="commandant_quarts", password="pass")
         UserProfile.objects.update_or_create(user=self.commandant, defaults={"role": "COMMANDANT", "ship": self.ship})
@@ -149,7 +150,7 @@ class AutorisationPerimetreTests(TestCase):
 
     def test_perimetre_correspond_est_strict(self):
         quart_meme_secteur = Quart.objects.create(sector=self.sector, date_debut=timezone.localdate(), date_fin=timezone.localdate())
-        cdl = ChefDeListe.objects.get(user=self.chef_de_liste)
+        cdl = ChefDeListe.objects.get(user=self.chef_de_liste, type_liste=ChefDeListe.TYPE_QUARTS)
         self.assertTrue(perimetre_correspond(cdl, quart_meme_secteur))
         quart_ship = Quart.objects.create(ship=self.ship, date_debut=timezone.localdate(), date_fin=timezone.localdate())
         self.assertFalse(perimetre_correspond(cdl, quart_ship))
@@ -266,7 +267,7 @@ class WorkflowPropositionPublicationTests(TestCase):
         # création (accounts/models.py::create_user_profile, rôle EQUIPIER
         # par défaut) reste sinon périmée après update_or_create ci-dessus.
         self.chef_de_liste.refresh_from_db()
-        ChefDeListe.objects.create(user=self.chef_de_liste, sector=self.sector)
+        designer_chef(user=self.chef_de_liste, sector=self.sector)
 
         self.publicateur = User.objects.create_user(username="publicateur_workflow", password="pass")
         UserProfile.objects.update_or_create(

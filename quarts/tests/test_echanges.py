@@ -1,4 +1,5 @@
 """Tests du workflow d'échange de tours de service de garde (VISION §7.4)."""
+from quarts.tests.support import designer_chef
 from datetime import date, timedelta
 
 from unittest.mock import patch
@@ -45,10 +46,10 @@ class BaseEchangeTests(TestCase):
         self.b = _marin("marin_b", self.sector)
         self.c = _marin("marin_c", self.sector)
         self.chef = _marin("chef_liste", self.sector)
-        ChefDeListe.objects.create(user=self.chef, sector=self.sector)
+        designer_chef(user=self.chef, sector=self.sector)
         self.autre_chef = _marin("chef_autre", self.sector)
         self.autre_secteur = Sector.objects.create(service=self.sector.service, name="Autre")
-        ChefDeListe.objects.create(user=self.autre_chef, sector=self.autre_secteur)
+        designer_chef(user=self.autre_chef, sector=self.autre_secteur)
 
         aujourdhui = timezone.localdate()
         self.garde = ServiceGarde.objects.create(

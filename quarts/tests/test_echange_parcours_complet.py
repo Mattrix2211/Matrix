@@ -1,6 +1,7 @@
 """Échange de tours de bout en bout par l'interface, sur une liste de service à quai de plusieurs jours : demande, réponse,
 décision du chef de liste, mise à jour des affectations, notifications et traçabilité ; refus du marin, rejet du chef,
 conflits réels (absence validée, autre liste publiée). Aucune double affectation fictive mer/quai dans ce scénario."""
+from quarts.tests.support import designer_chef
 from datetime import datetime, timedelta
 
 from django.contrib.auth.models import User
@@ -24,7 +25,7 @@ class ParcoursEchangeCompletTests(TestCase):
         self.secteur = Sector.objects.create(service=self.service, name="Service courant")
         self.fonction = ServiceFunctionChoice.objects.create(name="Service à quai")
         self.chef = self._marin("chef_liste", "CHEF_SERVICE", service=self.service)
-        ChefDeListe.objects.create(user=self.chef, service=self.service)
+        designer_chef(user=self.chef, service=self.service)
         self.alice = self._marin("alice", "EQUIPIER", sector=self.secteur)
         self.bruno = self._marin("bruno", "EQUIPIER", sector=self.secteur)
         self.chloe = self._marin("chloe", "EQUIPIER", sector=self.secteur)

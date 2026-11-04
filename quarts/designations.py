@@ -29,4 +29,5 @@ LIBELLES = {
 
 
 def designations_historiques():
-    return ChefDeListe.objects.filter(type_liste="").select_related("user", "ship", "service", "sector", "section")
+    """Désignations sans type pas encore qualifiées : elles ne donnent aucun droit."""
+    return ChefDeListe.objects.filter(type_liste="", qualifiee_le__isnull=True).select_related("user", "ship", "service", "sector", "section")

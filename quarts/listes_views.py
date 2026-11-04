@@ -218,7 +218,7 @@ def _listes_visibles(model, user):
         return model.objects.filter(portee).filter(listes_de_l_equipage_q(user))
     q = Q(pk__in=[])
     trouve = False
-    for cdl in ChefDeListe.objects.filter(user=user, type_liste__in=("", model.CODE_TYPE)):
+    for cdl in ChefDeListe.objects.filter(user=user, type_liste=model.CODE_TYPE):
         filtres = {
             k: v for k, v in {
                 "ship_id": cdl.ship_id, "service_id": cdl.service_id,
@@ -956,12 +956,12 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 "user", "ship", "service", "sector", "section"
             ).filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
-            ).order_by("user__username"),
+            ).exclude(type_liste="", qualifiee_le__isnull=False).select_related("qualifiee_par").order_by("user__username"),
             "types_liste": ChefDeListe.TYPE_CHOICES,
             "titulaires_remplacables": [
                 cdl for cdl in ChefDeListe.objects.select_related("user", "ship", "service", "sector", "section").filter(
                     equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
-                    type_liste__in=("", ChefDeListe.TYPE_QUAI),
+                    type_liste=ChefDeListe.TYPE_QUAI,
                 ) if _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section)
             ],
             "remplacements": RemplacementChefDeListe.objects.select_related("remplacant", "titulaire", "revoque_par").filter(
@@ -969,7 +969,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             )[:20],
             "maintenant_saisie": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
             "maintenant_objet": timezone.now(),
-            "nb_historiques": ChefDeListe.objects.filter(type_liste="", user__in=utilisateurs_visibles_par(request.user)).count(),
+            "nb_historiques": ChefDeListe.objects.filter(type_liste="", qualifiee_le__isnull=True, user__in=utilisateurs_visibles_par(request.user)).count(),
             "perimetres_disponibles": _perimetres_org_disponibles(
                 request.user, borne_par_scope=user_role_level(request.user) < NIVEAU_SUPERVISION_GLOBALE_LISTE
             ),
@@ -978,8 +978,8 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         }
         contexte["chefs_de_liste"] = list(contexte["chefs_de_liste"])
         for cdl in contexte["chefs_de_liste"]:
-            cdl.situation_historique = LIBELLES[situation_designation(cdl)] if cdl.historique_non_precisee else ""
-            cdl.ambigue = cdl.historique_non_precisee and situation_designation(cdl) == "AMBIGUE"
+            cdl.situation_historique = LIBELLES[situation_designation(cdl)] if cdl.a_qualifier else ""
+            cdl.ambigue = cdl.a_qualifier and situation_designation(cdl) == "AMBIGUE"
         return render(request, self.template_name, contexte)
 
     def post(self, request):
@@ -1055,28 +1055,32 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
         elif action == "preciser":
             cdl = ChefDeListe.objects.filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
-                pk=entier_ou_none(request.POST.get("pk")), type_liste="",
+                pk=entier_ou_none(request.POST.get("pk")), type_liste="", qualifiee_le__isnull=True,
             ).first()
             types = [t for t in request.POST.getlist("types") if t in dict(ChefDeListe.TYPE_CHOICES)]
             if cdl is None or not types:
-                messages.error(request, "Désignation historique introuvable ou type non choisi.")
+                messages.error(request, "Désignation historique introuvable, déjà qualifiée, ou type non choisi.")
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section):
                 raise _refus_reglage(request)
+            maintenant = timezone.now()
             with transaction.atomic():
                 for t in types:
                     ChefDeListe.objects.get_or_create(
-                        user=cdl.user, ship=cdl.ship, service=cdl.service, sector=cdl.sector, section=cdl.section, type_liste=t
+                        user=cdl.user, ship=cdl.ship, service=cdl.service, sector=cdl.sector, section=cdl.section, type_liste=t,
+                        defaults={"origine": cdl, "qualifiee_par": request.user, "qualifiee_le": maintenant},
                     )
+                # La désignation historique est conservée (jamais supprimée), marquée qualifiée et sans droit.
+                cdl.qualifiee_par, cdl.qualifiee_le = request.user, maintenant
+                cdl.save(update_fields=["qualifiee_par", "qualifiee_le", "updated_at"])
                 AuditLog.objects.create(
-                    actor=request.user, action="chef_de_liste_precise", target_user=cdl.user,
+                    actor=request.user, action="chef_de_liste_qualifie", target_user=cdl.user,
                     details=(
-                        f"Désignation historique de {_libelle_perimetre(cdl.perimetre)} précisée : "
+                        f"Désignation historique de {_libelle_perimetre(cdl.perimetre)} qualifiée le {timezone.localtime(maintenant):%d/%m/%Y à %H:%M} : "
                         + ", ".join(dict(ChefDeListe.TYPE_CHOICES)[t] for t in types) + "."
                     ),
                 )
-                cdl.delete()
-            messages.success(request, "Désignation précisée.")
+            messages.success(request, "Désignation qualifiée.")
         elif action == "retirer":
             cdl = ChefDeListe.objects.filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),

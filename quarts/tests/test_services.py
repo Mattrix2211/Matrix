@@ -1,5 +1,6 @@
 """Tests du compteur d'équité par marin sur les services de garde (Phase 2,
 tâche Notion « Services/gardes : compteur d'équité par marin »)."""
+from quarts.tests.support import designer_chef
 from datetime import date, timedelta
 
 from django.contrib.auth.models import User
@@ -222,7 +223,7 @@ class VisibiliteWebTests(TestCase):
 
         self.chef = User.objects.create_user(username="chef_equite", password="pass")
         UserProfile.objects.update_or_create(user=self.chef, defaults={"role": "EQUIPIER", "sector": self.sector})
-        ChefDeListe.objects.create(user=self.chef, sector=self.sector)
+        designer_chef(user=self.chef, sector=self.sector)
 
         self.marin = User.objects.create_user(username="marin_equite_web", password="pass")
         UserProfile.objects.update_or_create(user=self.marin, defaults={"role": "EQUIPIER", "sector": self.sector})
