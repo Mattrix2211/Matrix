@@ -37,7 +37,7 @@ from training.models import TrainingCourse
 from .alertes_activation import reporter_prise_effet, retirer_previsionnelle, traiter_echeances
 from .designations import LIBELLES, situation as situation_designation
 from .activation import (
-    ActivationImpossible, activation_anticipee, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, navire_de_la_liste,
+    ActivationImpossible, activation_anticipee, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, navire_de_la_liste, recouvrements_apparents,
     peut_activer_liste, publier_a_titre_previsionnel,
 )
 from .configuration_views import droit_sur_les_delais
@@ -702,6 +702,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             "peut_reporter": est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and peut_activer_liste(request.user, liste),
             "avertissements_activation": (
                 [decrire_conflit(c) for c in avertissements_activation(liste)]
+                if est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and (peut_gerer or contexte["peut_publier"])
+                else []
+            ),
+            "apparents_activation": (
+                [decrire_conflit(c) for c in recouvrements_apparents(liste)]
                 if est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and (peut_gerer or contexte["peut_publier"])
                 else []
             ),

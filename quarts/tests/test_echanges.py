@@ -201,19 +201,38 @@ class SituationsImpossiblesTests(BaseEchangeTests):
         self.assertIn("Conflit d'affectation", self._message(ctx))
         self.assertIn("marin_b", self._message(ctx))
 
-    def test_conflit_avec_un_quart_publie(self):
+    def _quart_de(self, marin, debut, fin):
         quart = Quart.objects.create(
-            sector=self.sector, fonction=FonctionQuartChoice.objects.create(name="Barre"),
-            date_debut=timezone.localdate(), date_fin=timezone.localdate() + timedelta(days=30),
+            sector=self.sector, fonction=FonctionQuartChoice.objects.create(name=f"Barre {debut:%H%M}{fin:%H%M}"),
+            date_debut=timezone.localdate() - timedelta(days=1), date_fin=timezone.localdate() + timedelta(days=30),
             statut=Quart.STATUT_PUBLIEE,
         )
-        CreneauQuart.objects.create(
-            quart=quart, poste="Barre", debut=self.creneau_b.debut + timedelta(hours=1),
-            fin=self.creneau_b.debut + timedelta(hours=5), marin=self.a,
-        )
+        return CreneauQuart.objects.create(quart=quart, poste="Barre", debut=debut, fin=fin, marin=marin)
+
+    def test_quart_futur_recouvrant_est_un_avertissement_non_bloquant(self):
+        from quarts.echanges import avertissements_echange
+
+        self._quart_de(self.a, self.creneau_b.debut + timedelta(hours=1), self.creneau_b.debut + timedelta(hours=5))
+        echange = proposer_echange(self.a, self.creneau_a, self.creneau_b)
+        self.assertEqual(len(avertissements_echange(echange)), 1)
+        self.assertIn("recouvrement futur", avertissements_echange(echange)[0])
+
+    def test_quart_en_cours_recouvrant_reste_bloquant(self):
+        self._quart_de(self.a, timezone.now() - timedelta(hours=1), self.creneau_b.fin + timedelta(hours=1))
         with self.assertRaises(EchangeImpossible) as ctx:
             proposer_echange(self.a, self.creneau_a, self.creneau_b)
         self.assertIn("Conflit d'affectation", self._message(ctx))
+
+    def test_recouvrement_futur_apparu_avant_validation_est_signale_dans_la_notification(self):
+        from notifications.models import Notification
+
+        echange = proposer_echange(self.a, self.creneau_a, self.creneau_b)
+        accepter_echange(echange, self.b)
+        self._quart_de(self.a, self.creneau_b.debut + timedelta(hours=1), self.creneau_b.debut + timedelta(hours=5))
+        valider_echange(echange, self.chef)
+        echange.refresh_from_db()
+        self.assertIsNotNone(echange.applique_le)
+        self.assertTrue(Notification.objects.filter(user=self.a, verb__startswith="Information :").exists())
 
     def test_habilitation_manquante_expliquee_puis_ok_une_fois_valide(self):
         formation = TrainingCourse.objects.create(title="Officier de quart quai")

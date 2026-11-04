@@ -21,6 +21,7 @@ from matrix.core.saisie import entier_ou_none
 
 from .echanges import (
     EchangeImpossible,
+    avertissements_echange,
     abandonner_echange,
     accepter_echange,
     annuler_echange,
@@ -60,6 +61,8 @@ class ProposerEchangeView(LoginRequiredMixin, View):
             _afficher_problemes(request, exc)
             return redirect("garde-detail", pk=liste.pk)
         messages.success(request, f"Demande envoyée à {echange.cible.get_full_name() or echange.cible.username}.")
+        for avertissement in avertissements_echange(echange):
+            messages.warning(request, avertissement)
         return redirect("echanges-index")
 
 
@@ -160,4 +163,6 @@ class EchangeActionView(LoginRequiredMixin, View):
             _afficher_problemes(request, exc)
         else:
             messages.success(request, succes)
+            for avertissement in avertissements_echange(echange):
+                messages.warning(request, avertissement)
         return redirect("echanges-index")

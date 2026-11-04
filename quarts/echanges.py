@@ -56,11 +56,32 @@ def _libelle_creneau(creneau):
 
 
 def conflits_marin(marin, creneau, ignorer_ids):
-    """Autres gardes ou quarts publiés de `marin` chevauchant `creneau`."""
+    """Conflits bloquants : autre service à quai en vigueur, ou quart déjà en cours, chevauchant `creneau`."""
     filtres = dict(marin=marin, debut__lt=creneau.fin, fin__gt=creneau.debut)
     gardes = CreneauServiceGarde.applicables().filter(**filtres).exclude(pk__in=ignorer_ids)
-    quarts = CreneauQuart.objects.filter(quart__statut="PUBLIEE", **filtres)
+    quarts = CreneauQuart.objects.filter(quart__statut="PUBLIEE", debut__lte=timezone.now(), **filtres)
     return list(gardes) + list(quarts)
+
+
+def recouvrements_incertains(marin, creneau):
+    """Quarts publiés qui recouvrent `creneau` dans le futur : le régime (mer ou quai) n'étant pas confirmé
+    à cette date, l'échange reste possible, avec information du marin."""
+    return list(CreneauQuart.objects.filter(
+        quart__statut="PUBLIEE", marin=marin, debut__gt=timezone.now(), debut__lt=creneau.fin, fin__gt=creneau.debut,
+    ))
+
+
+def avertissements_echange(echange):
+    """Recouvrements futurs non bloquants, expliqués en français."""
+    a, b = echange.creneau_demandeur, echange.creneau_cible
+    if a is None or b is None:
+        return []
+    return [
+        f"{_nom(marin)} a aussi le quart {_libelle_creneau(quart)} qui recouvre le tour {_libelle_creneau(prend)} : "
+        "recouvrement futur, à confirmer selon le mode du bâtiment à cette date."
+        for marin, prend in ((echange.cible, a), (echange.demandeur, b))
+        for quart in recouvrements_incertains(marin, prend)
+    ]
 
 
 def habilitations_manquantes(marin, creneau):
@@ -371,6 +392,12 @@ def _permuter(echange, user, action):
         f"({_resume(echange)}). Les calendriers sont à jour.",
         echange,
     )
+    if avertissements_echange(echange):
+        _notifier(
+            [echange.demandeur, echange.cible],
+            "Information : l'échange appliqué crée un recouvrement futur avec un quart, à confirmer selon le mode du bâtiment.",
+            echange,
+        )
 
 
 def appliquer_echanges_prepares(liste, user):

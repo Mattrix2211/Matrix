@@ -169,7 +169,7 @@ class ConflitsActivationTests(BaseActivation):
         self.assertEqual(conflits_activation(self.liste), [])
         self.assertEqual(len(avertissements_activation(self.liste)), 1)
         self.client.force_login(self.chef)
-        self.assertContains(self.client.get(self.url), "Recouvrements à confirmer lors de la transition")
+        self.assertContains(self.client.get(self.url), "Recouvrements non bloquants")
         self._poster(self.chef, action="activer")
         self.liste.refresh_from_db()
         self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_ACTIVE)
@@ -202,7 +202,9 @@ class ConflitsActivationTests(BaseActivation):
         quart = self._quart_en_conflit(en_cours=True)
         quart.debut, quart.fin = timezone.now() - timedelta(hours=3), timezone.now() - timedelta(minutes=10)
         quart.save()  # le quart s'est terminé avant l'activation
-        self.assertEqual(recouvrements_activation(self.liste), [])
+        resultats = recouvrements_activation(self.liste)
+        self.assertEqual([r["classe"] for r in resultats], ["APPARENT"])
+        self.assertFalse(resultats[0]["bloquant"])
 
     def test_quart_deja_termine_ne_bloque_pas(self):
         from quarts.activation import conflits_activation

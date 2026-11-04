@@ -13,7 +13,7 @@ from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.scopes import navire_id_du_perimetre
 from notifications.models import Notification
 from quarts.echanges import appliquer_echanges_prepares
-from quarts.mouvements import mode_du_batiment, reevaluer_batiment
+from quarts.mouvements import intervalles_par_mode, mode_du_batiment, reevaluer_batiment
 from org.models import Ship
 from quarts.models import (
     CreneauQuart,
@@ -102,10 +102,33 @@ def recouvrements_activation(liste, a_partir_de=None):
             bloquant = not en_mer or debut_commun <= maintenant
             resultats.append({
                 "marin": creneau.marin, "creneau": creneau, "autre": autre, "bloquant": bloquant,
+                "classe": "CONFIRME" if bloquant else "INCERTAIN",
                 "genre": "quart à la mer" if en_mer else "service à quai",
                 "liste_autre": autre.quart if en_mer else autre.service_garde,
             })
+    resultats.extend(_recouvrements_apparents(liste, maintenant, {(r["creneau"].pk, r["autre"].pk, r["genre"]) for r in resultats}))
     return resultats
+
+
+def _recouvrements_apparents(liste, maintenant, deja):
+    """Recouvrements entièrement antérieurs à l'activation, entre deux régimes : informatifs, jamais bloquants
+    (le bâtiment ne pouvait pas être à la fois à la mer et à quai)."""
+    ship = navire_de_la_liste(liste)
+    apparents = []
+    for creneau in liste.creneaux.select_related("marin").filter(marin__isnull=False, debut__lt=maintenant):
+        filtres = dict(marin=creneau.marin, debut__lt=min(creneau.fin, maintenant), fin__gt=creneau.debut)
+        for autre in CreneauQuart.objects.filter(quart__statut="PUBLIEE", **filtres).select_related("quart"):
+            if (creneau.pk, autre.pk, "quart à la mer") in deja:
+                continue
+            debut, fin = max(creneau.debut, autre.debut), min(creneau.fin, autre.fin, maintenant)
+            if debut >= fin:
+                continue
+            modes = [m for (_, _, m) in intervalles_par_mode(ship, debut, fin)] if ship else []
+            apparents.append({
+                "marin": creneau.marin, "creneau": creneau, "autre": autre, "bloquant": False, "classe": "APPARENT",
+                "genre": "quart à la mer", "liste_autre": autre.quart, "modes": modes,
+            })
+    return apparents
 
 
 def conflits_activation(liste, a_partir_de=None):
@@ -113,7 +136,11 @@ def conflits_activation(liste, a_partir_de=None):
 
 
 def avertissements_activation(liste, a_partir_de=None):
-    return [r for r in recouvrements_activation(liste, a_partir_de) if not r["bloquant"]]
+    return [r for r in recouvrements_activation(liste, a_partir_de) if r["classe"] == "INCERTAIN"]
+
+
+def recouvrements_apparents(liste, a_partir_de=None):
+    return [r for r in recouvrements_activation(liste, a_partir_de) if r["classe"] == "APPARENT"]
 
 
 def decrire_conflit(conflit):
@@ -122,6 +149,7 @@ def decrire_conflit(conflit):
         f"{marin.get_full_name() or marin.username} : {conflit['genre']} « {autre.poste} » du "
         f"{timezone.localtime(autre.debut):%d/%m %H:%M} au {timezone.localtime(autre.fin):%d/%m %H:%M} "
         f"recouvre le service « {conflit['creneau'].poste} »."
+        + (" Recouvrement antérieur à l'activation entre deux régimes : à titre d'information, aucune action requise." if conflit["classe"] == "APPARENT" else "")
     )
 
 
