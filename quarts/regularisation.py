@@ -17,7 +17,7 @@ def terminer_creneau(user, creneau, nouvelle_fin, motif):
     """Raccourcit un créneau d'un quart publié à une heure effective, par le responsable de la liste de quarts
     (chef de liste des quarts ou supervision du commandement). La partie déjà écoulée n'est jamais modifiée ;
     l'affectation est conservée sur la partie restante ; une nouvelle version de la liste est figée."""
-    creneau = CreneauQuart.objects.select_for_update().select_related("quart", "marin").get(pk=creneau.pk)
+    creneau = CreneauQuart.objects.select_for_update(of=("self",)).select_related("quart", "marin").get(pk=creneau.pk)
     liste = creneau.quart
     if not isinstance(liste, Quart) or not peut_gerer_liste(user, liste):
         raise RegularisationImpossible("Seul le responsable de la liste de quarts peut terminer un créneau.")
