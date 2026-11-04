@@ -54,6 +54,7 @@
       <span class="mx-planning__heures">{{ c.debut|date:"H:i" }}–{{ c.fin|date:"H:i" }}</span>
       <span class="d-block">{% if c.marin %}{{ c.marin.get_full_name|default:c.marin.username }}{% else %}Non affecté{% endif %}</span>
       {% if c.note %}<span class="d-block small text-secondary">{{ c.note }}</span>{% endif %}
+      {% if c.fin_initiale %}<span class="d-block small text-secondary">Terminé plus tôt (prévu jusqu'à {{ c.fin_initiale|date:"d/m H:i" }})</span>{% endif %}
       {% if c.en_echange or c.peut_echanger or peut_gerer and not equipage_a_terre %}
       <div class="mx-planning__actions">
         {% if c.en_echange %}<span class="badge text-bg-info">Échange en cours</span>{% endif %}
@@ -71,6 +72,20 @@
             </select>
             <input type="text" name="motif" class="form-control form-control-sm mb-2" placeholder="Motif (facultatif)">
             <button type="submit" class="btn btn-sm btn-outline-secondary">Envoyer la demande</button>
+          </form>
+        </div>
+        {% endif %}
+        {% if peut_gerer and not equipage_a_terre and liste.libelle_type == 'quart' and liste.statut == 'PUBLIEE' and c.fin > maintenant_objet %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Terminer à l'heure effective</button>
+          <form method="post" class="dropdown-menu p-3" style="min-width: 22rem">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="terminer_creneau">
+            <input type="hidden" name="creneau_id" value="{{ c.pk }}">
+            <label class="form-label small" for="fin-{{ c.pk }}">Nouvelle fin (pas avant maintenant)</label>
+            <input type="datetime-local" id="fin-{{ c.pk }}" name="nouvelle_fin" class="form-control form-control-sm mb-2" required>
+            <input type="text" name="motif" class="form-control form-control-sm mb-2" placeholder="Motif (obligatoire)" required>
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Terminer le créneau</button>
           </form>
         </div>
         {% endif %}

@@ -42,6 +42,7 @@ from .activation import (
 )
 from .configuration_views import droit_sur_les_delais
 from .mouvements import mode_du_batiment, mode_du_batiment_de
+from .regularisation import RegularisationImpossible, terminer_creneau
 from .remplacement import designer_remplacant, revoquer_remplacement
 from .echanges import annuler_echanges_du_creneau
 from .models import (
@@ -676,6 +677,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             "badge_etat": "ok" if liste.statut == liste.STATUT_PUBLIEE and not (est_garde and liste.application == liste.APPLICATION_PREVISIONNELLE) else "attention",
             "semaines": _semaines(liste, creneaux),
             "mode_batiment": mode_du_batiment(ship_liste) if ship_liste else None,
+            "maintenant_objet": timezone.now(),
             "jours": _vue_par_jour(liste, creneaux, request.user, ship_liste) if vue == "jour" else [],
             "marins_vue": _vue_par_marin(creneaux) if vue == "marin" else [],
             "indicateurs": [
@@ -762,6 +764,8 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         elif action == "regler_echanges" and isinstance(liste, ServiceGarde):
             self._regler_echanges(request, liste)
             return redirect(f"{reverse(f'{self.url_prefix}-detail', args=[liste.pk])}?vue=parametres")
+        elif action == "terminer_creneau" and isinstance(liste, Quart):
+            self._terminer_creneau(request, liste)
         elif action == "proposer":
             self._proposer(request, liste)
         else:
@@ -853,6 +857,21 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             creneau.save()
             liste.tracer_modification_creneau(request.user, creneau, ajoute=True)
         messages.success(request, "Créneau ajouté.")
+
+    def _terminer_creneau(self, request, liste):
+        creneau = CreneauQuart.objects.filter(pk=entier_ou_none(request.POST.get("creneau_id")), quart=liste).first()
+        if creneau is None:
+            messages.error(request, "Créneau introuvable.")
+            return
+        nouvelle_fin = parse_datetime(request.POST.get("nouvelle_fin", "").strip())
+        if nouvelle_fin is not None and timezone.is_naive(nouvelle_fin):
+            nouvelle_fin = timezone.make_aware(nouvelle_fin)
+        try:
+            terminer_creneau(request.user, creneau, nouvelle_fin, request.POST.get("motif", ""))
+        except RegularisationImpossible as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Créneau terminé à l'heure effective : le marin a été prévenu et une nouvelle version est enregistrée.")
 
     def _supprimer_creneau(self, request, liste):
         creneau = self.creneau_model.objects.filter(

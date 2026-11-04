@@ -751,6 +751,8 @@ class CreneauAbstract(TimeStampedModel):
 
 class CreneauQuart(CreneauAbstract):
     quart = models.ForeignKey(Quart, on_delete=models.CASCADE, related_name="creneaux")
+    # Fin prévue avant que le créneau ait été terminé à l'heure effective ; conservée, jamais écrasée.
+    fin_initiale = models.DateTimeField(null=True, blank=True)
 
     class Meta(CreneauAbstract.Meta):
         verbose_name = "Créneau de quart"
