@@ -240,7 +240,7 @@ class AutresSaisiesMalFormeesTests(SaisieBase):
         from quarts.listes_views import CreerListeView
 
         for type_liste, champ in (("creer_quart", "fonction_quart"), ("creer_service_garde", "fonction_service")):
-            erreur = CreerListeView()._controler("regles", {"type_liste": type_liste, champ: "abc"}, [])
+            erreur = CreerListeView()._controler("regles", {"type_liste": type_liste, champ: "abc"}, [], None)
             self.assertEqual(erreur, "La fonction choisie est invalide.")
             for etape in ("3", "4", "99"):
                 reponse = self.poster(self.cdt, "quarts-creer", {

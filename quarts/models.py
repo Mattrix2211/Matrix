@@ -682,6 +682,8 @@ class ServiceGarde(ListeServiceAbstract):
     active_par = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="services_garde_actives", verbose_name="Activée par",
     )
+    # « chef » ou « remplacant » : capacité dans laquelle l'activation a été faite (vide pour une liste reprise de l'historique).
+    active_en_qualite = models.CharField(max_length=12, blank=True, default="")
     terminee_le = models.DateTimeField(null=True, blank=True, verbose_name="Terminée le")
     terminee_par = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="services_garde_terminees", verbose_name="Terminée par",

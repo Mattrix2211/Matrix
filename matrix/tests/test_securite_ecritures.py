@@ -401,18 +401,19 @@ class ListesDeQuartsTests(Base):
         self.assertEqual(ChefDeListe.objects.count(), avant)
 
     def test_cdt_nor_ne_retire_pas_un_chef_de_liste_bretagne(self):
-        cdl = ChefDeListe.objects.get(sector=self.secteur_bre)
+        cdl = ChefDeListe.objects.filter(sector=self.secteur_bre).first()
         self.poster("cdt_nor", "/quarts/reglages/", {"action": "retirer", "pk": cdl.pk})
         self.assertTrue(ChefDeListe.objects.filter(pk=cdl.pk).exists())
 
     def test_le_commandant_du_batiment_designe_un_chef_de_liste(self):
         reponse = self.poster("cdt_a", "/quarts/reglages/", {
-            "action": "designer", "perimetre": f"service:{self.service_bre.pk}", "user_id": User.objects.get(username="equipier_a").pk})
+            "action": "designer", "perimetre": f"service:{self.service_bre.pk}", "type_liste": "QUAI",
+            "user_id": User.objects.get(username="equipier_a").pk})
         self.assertEqual(reponse.status_code, 302)
         self.assertTrue(ChefDeListe.objects.filter(user__username="equipier_a", service=self.service_bre).exists())
 
     def test_le_commandant_voisin_ne_gere_pas_les_creneaux(self):
         nb = self.brouillon.creneaux.count()
         reponse = self.poster("cdt_nor", f"/quarts/quart/{self.brouillon.pk}/", {"action": "supprimer_creneau", "creneau": self.brouillon.creneaux.first().pk})
-        self.assertEqual(reponse.status_code, 400)
+        self.assertEqual(reponse.status_code, 404)  # liste d'un autre bâtiment : absente pour lui
         self.assertEqual(self.brouillon.creneaux.count(), nb)

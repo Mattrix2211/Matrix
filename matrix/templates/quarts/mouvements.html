@@ -37,7 +37,7 @@
     {% if m.statut == 'ANNULE' %}<span class="badge text-bg-secondary">Annulé</span> <span class="small text-secondary">par {{ m.annule_par|default:"—" }} le {{ m.annule_le|date:"d/m/Y H:i" }} : {{ m.motif_annulation }}</span>{% endif %}</span>
     {% if peut_declarer and m.statut == 'VALIDE' %}
     <form method="post" class="d-flex flex-wrap align-items-end gap-2" data-mx-confirmer="sensible" data-mx-titre="Annuler ou corriger cette déclaration ?" data-mx-message="L'historique est conservé. Sans nouvelle date, la déclaration est seulement annulée." data-mx-motif="obligatoire" data-mx-action="Confirmer">{% csrf_token %}<input type="hidden" name="action" value="annuler"><input type="hidden" name="mouvement_id" value="{{ m.pk }}">
-      <input type="datetime-local" class="form-control form-control-sm" name="nouveau_survenu_le" aria-label="Nouvelle date effective (facultative)">
+      <div><label class="form-label small mb-1">Nouvelle date effective (facultative)</label><input type="datetime-local" class="form-control form-control-sm" name="nouveau_survenu_le"></div>
       <button type="submit" class="btn btn-outline-secondary btn-sm">Corriger / annuler</button>
     </form>
     {% endif %}

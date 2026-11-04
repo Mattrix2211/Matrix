@@ -42,5 +42,5 @@ class ScopeLeakStartVisualCheckViewTests(TestCase):
     def test_controle_visuel_sur_materiel_dun_autre_navire_refuse(self):
         url = reverse("asset-start-visual", args=[self.asset_b.id])
         r = self.client.post(url)
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 404)  # matériel d'un autre bâtiment : absent pour ce marin
         self.assertFalse(MaintenanceOccurrence.objects.filter(asset=self.asset_b).exists())

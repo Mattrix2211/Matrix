@@ -211,3 +211,22 @@ class RemplacementChefDeListeTests(BaseActivation):
         ServiceGarde.objects.filter(pk=self.liste.pk).update(prise_effet_prevue=prevue)
         traiter_echeances(prevue - timedelta(minutes=30))
         self.assertTrue(Notification.objects.filter(user=self.remplacant, verb__contains="Rappel").exists())
+
+    def test_la_fiche_indique_la_capacite_d_activation_et_un_creneau_sur_deux_jours(self):
+        self._remplacement_en_cours()
+        self._previsionnelle()
+        self._poster(self.remplacant, action="activer")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.active_en_qualite, "remplacant")
+        self.client.force_login(self.chef)
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("remplaçant temporaire du chef de liste", page)
+        self.assertNotIn("par remplacant (chef de liste)", page)
+
+    def test_activation_par_le_chef_indique_chef_de_liste(self):
+        self._previsionnelle()
+        self._poster(self.chef, action="activer")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.active_en_qualite, "chef")
+        self.client.force_login(self.chef)
+        self.assertIn(", chef de liste", self.client.get(self.url).content.decode())

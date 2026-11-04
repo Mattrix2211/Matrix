@@ -6,7 +6,7 @@
 <p class="text-secondary">{% if liste.fonction %}{{ liste.fonction }} — {% endif %}{{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}{% if liste.type_service %} — {{ liste.type_service }}{% endif %}{% if liste.statut == 'PUBLIEE' %} — publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}{% elif liste.statut == 'PROPOSEE' %} — proposée le {{ liste.proposee_le|date:"d/m/Y à H:i" }}{% if liste.proposee_par %} par {{ liste.proposee_par }}{% endif %}, en attente de validation{% endif %}</p>
 <p class="mb-2">{% include "components/mode_batiment.html" with mode=mode_batiment %}</p>
 {% if liste.statut == 'BROUILLON' and not peut_gerer %}<p class="text-secondary small">Liste encore en brouillon : en attente d'une proposition du chef de liste.</p>{% elif liste.statut == 'PROPOSEE' and not peut_publier %}<p class="text-secondary small">Vous n'êtes pas habilité(e) à publier cette liste : en attente d'un publicateur (rôle distinct du chef de liste).</p>{% endif %}
-{% if liste.prise_effet_prevue and liste.application == 'PREVISIONNELLE' %}<p class="text-secondary small">Liste prévisionnelle : elle ne s'applique pas encore. Prise d'effet prévue le {{ liste.prise_effet_prevue|date:"d/m/Y à H:i" }} ; seule l'activation par le chef de liste la rend applicable.</p>{% elif liste.active_le %}<p class="text-secondary small">Activée le {{ liste.active_le|date:"d/m/Y à H:i" }}{% if liste.active_par %} par {{ liste.active_par }}{% endif %} (chef de liste).</p>{% endif %}
+{% if liste.prise_effet_prevue and liste.application == 'PREVISIONNELLE' %}<p class="text-secondary small">Liste prévisionnelle : elle ne s'applique pas encore. Prise d'effet prévue le {{ liste.prise_effet_prevue|date:"d/m/Y à H:i" }} ; seule l'activation par le chef de liste la rend applicable.</p>{% elif liste.active_le %}<p class="text-secondary small">Activée le {{ liste.active_le|date:"d/m/Y à H:i" }}{% if liste.active_par %} par {{ liste.active_par.get_full_name|default:liste.active_par.username }}{% if liste.active_en_qualite == "chef" %}, chef de liste{% elif liste.active_en_qualite == "remplacant" %}, remplaçant temporaire du chef de liste{% endif %}{% endif %}{% if liste.prise_effet_prevue %} (prise d'effet prévue le {{ liste.prise_effet_prevue|date:"d/m/Y à H:i" }}){% endif %}.</p>{% endif %}
 {% for a in alertes_activation %}<div class="alert alert-{% if a.etape == 'RAPPEL' %}info{% else %}warning{% endif %}" role="alert">{% if a.etape == 'RAPPEL' %}Rappel : la prise d'effet approche.{% elif a.etape == 'ALERTE' %}La liste devait prendre effet et n'est pas activée : activez-la ou reportez-la.{% else %}Escalade : la liste n'est toujours pas activée, un suivi auprès du chef de liste est demandé.{% endif %}</div>{% endfor %}
 {% if peut_reporter %}
 <div class="d-flex flex-wrap gap-2 mb-3 no-print">
@@ -149,7 +149,7 @@
     <div class="mx-jour__corps">
       {% for l in j.lignes %}
       <div class="mx-jour__ligne mx-jour__ligne--{{ l.etat }}{% if l.moi %} mx-jour__ligne--moi{% endif %}{% if l.vide %} mx-jour__ligne--vide{% endif %}">
-        <span class="mx-jour__heure">{{ l.creneau.debut|date:"H:i" }}–{{ l.creneau.fin|date:"H:i" }}</span>
+        <span class="mx-jour__heure">{{ l.creneau.debut|date:"H:i" }}–{% if l.creneau.fin|date:"Ymd" != l.creneau.debut|date:"Ymd" %}{{ l.creneau.fin|date:"d/m H:i" }}{% else %}{{ l.creneau.fin|date:"H:i" }}{% endif %}</span>
         <span class="mx-jour__qui"><strong>{{ l.creneau.poste }}</strong> · {% if l.creneau.marin %}{{ l.creneau.marin.get_full_name|default:l.creneau.marin.username }}{% else %}À pourvoir{% endif %}</span>
         <span class="d-flex gap-1 flex-wrap justify-content-end">
           <span class="mx-etat">{{ l.etat_libelle }}</span>
@@ -171,7 +171,7 @@
     {% for m in marins_vue %}
     <tr>
       <td><strong>{{ m.marin.get_full_name|default:m.marin.username }}</strong></td>
-      <td>{% for c in m.creneaux %}<div class="small">{{ c.debut|date:"d/m H:i" }}–{{ c.fin|date:"H:i" }} · {{ c.poste }}</div>{% endfor %}</td>
+      <td>{% for c in m.creneaux %}<div class="small">{{ c.debut|date:"d/m H:i" }}–{% if c.fin|date:"Ymd" != c.debut|date:"Ymd" %}{{ c.fin|date:"d/m H:i" }}{% else %}{{ c.fin|date:"H:i" }}{% endif %} · {{ c.poste }}</div>{% endfor %}</td>
       <td>{{ m.duree_planifiee|floatformat:"-1" }} h <span class="small text-secondary">(planifiée)</span></td>
       <td class="mx-non-renseigne">Non renseigné</td>
     </tr>
