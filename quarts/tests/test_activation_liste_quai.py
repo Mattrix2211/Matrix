@@ -264,6 +264,38 @@ class ActivationAnticipeeTests(BaseActivation):
         self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_PREVISIONNELLE)
         self.assertContains(reponse, "Activation anticipée")
 
+    def _empreinte(self):
+        from accounts.models import AuditLog
+        from notifications.models import Notification
+        from quarts.models import AlerteActivation, EchangeService, MouvementBatiment
+
+        liste = ServiceGarde.objects.values().get(pk=self.liste.pk)
+        return {
+            "liste": liste,
+            "creneaux": list(CreneauServiceGarde.objects.filter(service_garde=self.liste).order_by("pk").values()),
+            "alertes": list(AlerteActivation.objects.order_by("pk").values()),
+            "echanges": list(EchangeService.objects.order_by("pk").values()),
+            "mouvements": list(MouvementBatiment.objects.order_by("pk").values()),
+            "notifications": Notification.objects.count(),
+            "audit": AuditLog.objects.count(),
+        }
+
+    def test_refus_sans_confirmation_ne_modifie_rien(self):
+        self._previsionnelle()
+        self.client.force_login(self.chef)  # la connexion elle-même est tracée : hors de la comparaison
+        avant = self._empreinte()
+        reponse = self.client.post(self.url, {"action": "activer"}, follow=True)
+        self.assertContains(reponse, "Activation anticipée")
+        self.assertEqual(self._empreinte(), avant)
+
+    def test_confirmation_autre_que_un_est_refusee_sans_effet(self):
+        self._previsionnelle()
+        self.client.force_login(self.chef)
+        avant = self._empreinte()
+        for valeur in ("0", "", "oui"):
+            self.client.post(self.url, {"action": "activer", "confirmation_anticipee": valeur})
+        self.assertEqual(self._empreinte(), avant)
+
     def test_activation_anticipee_confirmee_est_tracee(self):
         self._previsionnelle()
         self._activer(confirmation_anticipee="1")
