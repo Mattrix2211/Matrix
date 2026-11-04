@@ -7,11 +7,13 @@ from django.utils import timezone
 from accounts.models import AuditLog
 from notifications.models import Notification
 from quarts.models import AlerteAccostage, MouvementBatiment, ServiceGarde
-from quarts.mouvements import regime_du_batiment
+from quarts.mouvements import mode_du_batiment
 from quarts.tests.test_activation_liste_quai import BaseActivation
 
 
 class MouvementsBatimentTests(BaseActivation):
+    mode_initial = None
+
     def setUp(self):
         super().setUp()
         self.url_mv = reverse("mouvements-batiment")
@@ -30,11 +32,11 @@ class MouvementsBatimentTests(BaseActivation):
         self._declarer(self.comaeq)
         mouvement = MouvementBatiment.objects.get()
         self.assertEqual((mouvement.fonction_declarante, mouvement.declare_par), ("COMAEQ", self.comaeq))
-        self.assertEqual(regime_du_batiment(self.ship), "QUAI")
+        self.assertEqual(mode_du_batiment(self.ship), "QUAI")
 
     def test_commandant_peut_declarer_un_appareillage(self):
         self._declarer(self.commandant, "APPAREILLAGE")
-        self.assertEqual(regime_du_batiment(self.ship), "MER")
+        self.assertEqual(mode_du_batiment(self.ship), "MER")
         self.assertEqual(MouvementBatiment.objects.get().fonction_declarante, "COMMANDANT")
 
     def test_chronologie_incoherente_refusee(self):
@@ -94,7 +96,7 @@ class MouvementsBatimentTests(BaseActivation):
         mouvement.refresh_from_db()
         self.assertEqual(mouvement.statut, MouvementBatiment.STATUT_ANNULE)
         self.assertFalse(self._alertes().exists())
-        self.assertIsNone(regime_du_batiment(self.ship))
+        self.assertIsNone(mode_du_batiment(self.ship))
         self.assertTrue(AuditLog.objects.filter(action="mouvement_batiment_annule", details__contains="Erreur de saisie").exists())
 
     def test_correction_remplace_la_declaration(self):

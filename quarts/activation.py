@@ -11,11 +11,12 @@ from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.scopes import navire_id_du_perimetre
 from notifications.models import Notification
 from quarts.echanges import appliquer_echanges_prepares
-from quarts.mouvements import reevaluer_batiment
+from quarts.mouvements import mode_du_batiment, reevaluer_batiment
 from org.models import Ship
 from quarts.models import (
     CreneauQuart,
     CreneauServiceGarde,
+    MouvementBatiment,
     ServiceGarde,
     equipage_de_la_liste,
     perimetre_de_mon_equipage,
@@ -114,6 +115,18 @@ def activer_liste(user, liste):
     if liste.statut != ServiceGarde.STATUT_PUBLIEE or liste.application != ServiceGarde.APPLICATION_PREVISIONNELLE:
         raise ActivationImpossible("Seule une liste publiée à titre prévisionnel peut être activée.")
     maintenant = timezone.now()
+    ship = navire_de_la_liste(liste)
+    mode = mode_du_batiment(ship, maintenant) if ship else None
+    if mode is None:
+        raise ActivationImpossible(
+            "Le mode du bâtiment n'est pas renseigné : une personne habilitée (COMAEQ ou commandant) doit d'abord "
+            "l'initialiser, puis la liste pourra être activée."
+        )
+    if mode != MouvementBatiment.MODE_QUAI:
+        raise ActivationImpossible(
+            "Le bâtiment est à la mer : la liste ne peut être activée qu'après l'accostage confirmé par le COMAEQ ou le commandant. "
+            "Elle reste publiée à titre prévisionnel."
+        )
     conflits = conflits_activation(liste, maintenant)
     if conflits:
         raise ActivationImpossible(

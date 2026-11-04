@@ -41,6 +41,7 @@ from quarts.models import (
     ChefDeListe, CreneauQuart, CreneauServiceGarde, FeuilleService, FonctionFeuilleService, Quart, RedacteurFeuilleService,
     RubriqueEnTeteFeuilleService, ServiceGarde,
 )
+from quarts.mouvements import initialiser_modes_de_demonstration
 from taches import services as taches_services
 from taches.models import Tache
 from threads.models import Message, Thread
@@ -69,6 +70,7 @@ class Command(BaseCommand):
         self._tickets_et_anomalies()
         self._quarts()
         self._service_a_quai()
+        self._modes_initiaux()
         self._formations()
         self._taches()
         self._demande_et_annonce()
@@ -77,6 +79,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Données de démonstration prêtes. Comptes (mot de passe « pass ») :"))
         for ligne in self.comptes:
             self.stdout.write(ligne)
+
+    def _modes_initiaux(self):
+        for ligne in initialiser_modes_de_demonstration(self.maintenant - timedelta(days=30)):
+            self.stdout.write(f"  Mode : {ligne}")
 
     # ---------- Outils ----------
 

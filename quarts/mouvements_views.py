@@ -12,7 +12,8 @@ from .mouvements import (
     annuler_mouvement,
     declarer_mouvement,
     fonction_habilitee,
-    regime_du_batiment,
+    initialiser_mode,
+    mode_du_batiment,
 )
 
 
@@ -34,9 +35,12 @@ class MouvementsBatimentView(LoginRequiredMixin, View):
         ship = self._navire(request)
         if ship is None:
             raise PermissionDenied
+        consulte = _instant(request.GET.get("date"))
         return render(request, self.template_name, {
             "ship": ship,
-            "regime": regime_du_batiment(ship),
+            "regime": mode_du_batiment(ship),
+            "date_consultee": consulte,
+            "mode_a_la_date": mode_du_batiment(ship, consulte) if consulte else None,
             "peut_declarer": fonction_habilitee(request.user, ship) is not None,
             "mouvements": MouvementBatiment.objects.filter(ship=ship).select_related("declare_par", "annule_par")[:30],
             "maintenant": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
@@ -54,6 +58,12 @@ class MouvementsBatimentView(LoginRequiredMixin, View):
                     raise MouvementImpossible("Le type et la date effective sont obligatoires.")
                 declarer_mouvement(request.user, ship, request.POST["type"], instant)
                 messages.success(request, "Mouvement enregistré.")
+            elif action == "initialiser":
+                instant = _instant(request.POST.get("survenu_le"))
+                if instant is None:
+                    raise MouvementImpossible("La date effective est obligatoire.")
+                initialiser_mode(request.user, ship, request.POST.get("mode"), instant, request.POST.get("motif", ""))
+                messages.success(request, "Mode du bâtiment initialisé.")
             elif action == "annuler":
                 mouvement = get_object_or_404(MouvementBatiment, pk=request.POST.get("mouvement_id"), ship=ship)
                 annuler_mouvement(request.user, mouvement, request.POST.get("motif", ""), _instant(request.POST.get("nouveau_survenu_le")))

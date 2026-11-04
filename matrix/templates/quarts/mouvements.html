@@ -3,7 +3,23 @@
 {% block content %}
 {% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et gardes" %}
 <h1 class="h3 mb-1">Mouvements du bâtiment</h1>
-<p class="text-secondary">{{ ship }} — {% if regime == 'QUAI' %}à quai{% elif regime == 'MER' %}à la mer{% else %}situation non renseignée{% endif %}</p>
+<p class="text-secondary">{{ ship }} — mode actuel : <strong>{% if regime == 'QUAI' %}QUAI{% elif regime == 'MER' %}MER{% else %}Non renseigné{% endif %}</strong></p>
+{% if not regime %}<div class="alert alert-warning" role="alert">Le mode du bâtiment n'est pas renseigné : aucune liste de service à quai ne peut être activée.{% if peut_declarer %} Initialisez-le ci-dessous.{% else %} Le COMAEQ ou le commandant doit l'initialiser.{% endif %}</div>{% endif %}
+
+{% if peut_declarer and not regime %}
+<form method="post" class="d-flex flex-wrap align-items-end gap-2 mb-4">{% csrf_token %}<input type="hidden" name="action" value="initialiser">
+  <div><label class="form-label small mb-1" for="init-mode">Mode actuel du bâtiment</label><select class="form-select form-select-sm" id="init-mode" name="mode"><option value="MER">MER</option><option value="QUAI">QUAI</option></select></div>
+  <div><label class="form-label small mb-1" for="init-date">Depuis</label><input type="datetime-local" class="form-control form-control-sm" id="init-date" name="survenu_le" value="{{ maintenant }}" required></div>
+  <div><label class="form-label small mb-1" for="init-motif">Motif</label><input type="text" class="form-control form-control-sm" id="init-motif" name="motif" required placeholder="Situation vérifiée par…"></div>
+  <button type="submit" class="btn btn-primary btn-sm">Initialiser le mode</button>
+</form>
+{% endif %}
+
+<form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-4">
+  <div><label class="form-label small mb-1" for="consulter-date">Consulter le mode à une date</label><input type="datetime-local" class="form-control form-control-sm" id="consulter-date" name="date" value="{{ maintenant }}"></div>
+  <button type="submit" class="btn btn-outline-secondary btn-sm">Consulter</button>
+  {% if date_consultee %}<span class="small">Le {{ date_consultee|date:"d/m/Y à H:i" }} : <strong>{% if mode_a_la_date %}{{ mode_a_la_date }}{% else %}Non renseigné{% endif %}</strong></span>{% endif %}
+</form>
 
 {% if peut_declarer %}
 <form method="post" class="d-flex flex-wrap align-items-end gap-2 mb-4">{% csrf_token %}<input type="hidden" name="action" value="declarer">
@@ -17,7 +33,7 @@
 <ul class="list-group">
 {% for m in mouvements %}
   <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
-    <span><strong>{{ m.get_type_display }}</strong> le {{ m.survenu_le|date:"d/m/Y à H:i" }} — saisi le {{ m.created_at|date:"d/m/Y à H:i" }} par {{ m.declare_par|default:"—" }} ({{ m.fonction_declarante }})
+    <span><strong>{{ m.get_type_display }}</strong>{% if m.mode_apres %} ({{ m.mode_avant|default:"Non renseigné" }} → {{ m.mode_apres }}){% endif %} le {{ m.survenu_le|date:"d/m/Y à H:i" }} — saisi le {{ m.created_at|date:"d/m/Y à H:i" }} par {{ m.declare_par|default:"—" }} ({{ m.fonction_declarante }})
     {% if m.statut == 'ANNULE' %}<span class="badge text-bg-secondary">Annulé</span> <span class="small text-secondary">par {{ m.annule_par|default:"—" }} le {{ m.annule_le|date:"d/m/Y H:i" }} : {{ m.motif_annulation }}</span>{% endif %}</span>
     {% if peut_declarer and m.statut == 'VALIDE' %}
     <form method="post" class="d-flex flex-wrap align-items-end gap-2" data-mx-confirmer="sensible" data-mx-titre="Annuler ou corriger cette déclaration ?" data-mx-message="L'historique est conservé. Sans nouvelle date, la déclaration est seulement annulée." data-mx-motif="obligatoire" data-mx-action="Confirmer">{% csrf_token %}<input type="hidden" name="action" value="annuler"><input type="hidden" name="mouvement_id" value="{{ m.pk }}">

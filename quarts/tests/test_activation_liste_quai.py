@@ -9,9 +9,12 @@ from django.utils import timezone
 from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
 from org.models import Service, Ship
 from quarts.models import ChefDeListe, CreneauServiceGarde, ServiceGarde
+from quarts.mouvements import initialiser_mode
 
 
 class BaseActivation(TestCase):
+    mode_initial = "QUAI"  # None : mode du bâtiment non renseigné
+
     def setUp(self):
         self.ship = Ship.objects.create(name="Bâtiment", code="BAT")
         self.service = Service.objects.create(ship=self.ship, name="Pont", commandant_adjoint="COMAEQ")
@@ -28,6 +31,8 @@ class BaseActivation(TestCase):
         debut = timezone.now() + timedelta(days=1)
         CreneauServiceGarde.objects.create(service_garde=self.liste, poste="G", debut=debut, fin=debut + timedelta(hours=24), marin=self.marin)
         self.url = reverse("garde-detail", args=[self.liste.pk])
+        if self.mode_initial:
+            initialiser_mode(self.comaeq, self.ship, self.mode_initial, timezone.now() - timedelta(days=2), "Situation vérifiée (test)")
 
     def _user(self, nom, role, **champs):
         user = User.objects.create_user(nom, password="x")

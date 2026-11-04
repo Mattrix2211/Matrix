@@ -2279,7 +2279,15 @@ class MouvementBatiment(TimeStampedModel):
 
     TYPE_ACCOSTAGE = "ACCOSTAGE"
     TYPE_APPAREILLAGE = "APPAREILLAGE"
-    TYPE_CHOICES = ((TYPE_ACCOSTAGE, "Accostage"), (TYPE_APPAREILLAGE, "Appareillage"))
+    # Déclaration explicite du mode de départ d'un bâtiment dont la situation n'était pas renseignée.
+    TYPE_INITIALISATION = "INITIALISATION"
+    TYPE_CHOICES = (
+        (TYPE_ACCOSTAGE, "Accostage"), (TYPE_APPAREILLAGE, "Appareillage"), (TYPE_INITIALISATION, "Initialisation du mode"),
+    )
+    MODE_MER = "MER"
+    MODE_QUAI = "QUAI"
+    MODE_CHOICES = ((MODE_MER, "À la mer"), (MODE_QUAI, "À quai"))
+    MODE_PAR_TYPE = {TYPE_ACCOSTAGE: MODE_QUAI, TYPE_APPAREILLAGE: MODE_MER}
     STATUT_VALIDE = "VALIDE"
     STATUT_ANNULE = "ANNULE"
 
@@ -2293,6 +2301,10 @@ class MouvementBatiment(TimeStampedModel):
     annule_le = models.DateTimeField(null=True, blank=True)
     motif_annulation = models.CharField(max_length=500, blank=True, default="")
     remplace = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="corrections")
+    # Ancien et nouveau mode, figés à la déclaration (« avant » recalculé, avec trace, si la chronologie est corrigée).
+    mode_avant = models.CharField(max_length=8, blank=True, default="", choices=MODE_CHOICES)
+    mode_apres = models.CharField(max_length=8, blank=True, default="", choices=MODE_CHOICES)
+    motif = models.CharField(max_length=500, blank=True, default="")
 
     class Meta:
         ordering = ("-survenu_le",)
