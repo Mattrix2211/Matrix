@@ -46,6 +46,12 @@ def mode_du_batiment(ship, instant=None):
     return dernier.mode_apres if dernier and dernier.mode_apres else None
 
 
+def mode_du_batiment_de(user):
+    """Mode du bâtiment de rattachement de l'agent, ou None (non renseigné, ou agent à terre)."""
+    profil = getattr(user, "profile", None)
+    return mode_du_batiment(profil.ship) if profil is not None and profil.ship_id else None
+
+
 def intervalles_par_mode(ship, debut, fin):
     """Découpe [debut, fin) en intervalles (début, fin, mode) ; mode None quand il n'est pas connu."""
     mode = mode_du_batiment(ship, debut)

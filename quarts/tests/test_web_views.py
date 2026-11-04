@@ -306,7 +306,7 @@ class PlanningEtOngletsTests(TestCase):
         self.assertContains(r, "Proposer la publication")
         self.assertContains(r, 'id="creneau-ajout"')
         self.assertEqual(
-            [c for c, _ in r.context["onglets"]], ["planning", "echanges", "equite", "historique", "parametres"]
+            [c for c, _ in r.context["onglets"]], ["planning", "jour", "marin", "echanges", "equite", "historique", "parametres"]
         )
         self.assertGreaterEqual(len(r.context["semaines"]), 2)
 
@@ -317,7 +317,7 @@ class PlanningEtOngletsTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertNotContains(r, "Publier la liste")
         self.assertNotContains(r, 'id="creneau-ajout"')
-        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "echanges"])
+        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "jour", "echanges"])
 
     def test_liste_publiee_sans_action_de_publication(self):
         self.garde.publier(self.cdl)
@@ -341,7 +341,7 @@ class PlanningEtOngletsTests(TestCase):
         self.client.login(username="cdl_planning", password="pass")
         r = self.client.get(f"/quarts/quart/{quart.pk}/?vue=equite")
         self.assertEqual(r.context["vue"], "planning")
-        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "historique", "parametres"])
+        self.assertEqual([c for c, _ in r.context["onglets"]], ["planning", "jour", "marin", "historique", "parametres"])
 
     def test_equipage_a_terre_masque_les_actions(self):
         self.client.login(username="cdl_planning", password="pass")

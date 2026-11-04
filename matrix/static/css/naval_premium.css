@@ -259,3 +259,33 @@ span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__dec
 .mx-securite__rubrique { font: 600 .6875rem/1 var(--f-mono, monospace); text-transform: uppercase; letter-spacing: .04em; color: var(--attention-texte); margin: var(--s3) 0 var(--s1); }
 .mx-securite__liste { margin: 0; padding-left: var(--s4); font-size: .875rem; }
 .mx-securite__note { margin-top: var(--s3); font-size: .875rem; }
+
+/* Mode du bâtiment (MER / QUAI) : indicateur discret, jamais un second appel à l'action */
+.mx-mode { display: inline-flex; align-items: center; gap: var(--s1); padding: 2px var(--s2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text-sec); font-family: var(--f-mono); font-size: .75rem; line-height: 1.4; white-space: nowrap; }
+.mx-mode--inconnu { border-style: dashed; }
+
+/* Vue par jour (A) et par marin (B) d'une liste */
+.mx-vue-jour { display: grid; gap: var(--s4); }
+.mx-jour { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.mx-jour--aujourdhui { border-color: var(--signal-ui); }
+.mx-jour__tete { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s2); align-items: baseline; padding: var(--s3) var(--s4); background: color-mix(in srgb, var(--signal) 7%, var(--surface)); cursor: pointer; }
+.mx-jour__tete h2 { font-size: 1.0625rem; margin: 0; }
+.mx-jour__corps { padding: var(--s2) var(--s4) var(--s3); }
+.mx-jour__ligne { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: var(--s2); align-items: center; padding: var(--s2) 0; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.mx-jour__ligne:first-child { border-top: 0; }
+.mx-jour__heure { font-family: var(--f-mono); font-size: .8125rem; color: var(--text-sec); }
+.mx-jour__ligne--moi { background: color-mix(in srgb, var(--signal) 10%, var(--surface)); margin: 0 calc(var(--s2) * -1); padding-left: var(--s2); padding-right: var(--s2); border-radius: var(--r-sm); }
+.mx-jour__ligne--vide .mx-jour__qui { font-weight: 600; color: var(--red-texte); }
+.mx-jour__ligne--previsionnel { background-image: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--border) 55%, transparent) 8px 9px); }
+.mx-jour__ligne--hors-regime, .mx-jour__ligne--anterieur { opacity: .6; }
+.mx-etat { font-family: var(--f-mono); font-size: .6875rem; padding: 1px var(--s2); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text-sec); white-space: nowrap; }
+.mx-vue-marin { width: 100%; border-collapse: collapse; }
+.mx-vue-marin th, .mx-vue-marin td { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.mx-vue-marin .mx-non-renseigne { color: var(--text-sec); font-style: italic; }
+@media (max-width: 640px) {
+  .mx-jour__ligne { grid-template-columns: 1fr auto; }
+  .mx-jour__heure { grid-column: 1 / -1; }
+  .mx-vue-marin thead { display: none; }
+  .mx-vue-marin tr { display: block; border-bottom: 1px solid var(--border); padding: var(--s2) 0; }
+  .mx-vue-marin td { display: block; border: 0; padding: var(--s1) var(--s3); }
+}

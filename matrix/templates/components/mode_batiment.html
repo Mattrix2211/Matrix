@@ -1,0 +1,5 @@
+{% comment %}Indicateur discret du mode du bâtiment. Usage : {% include "components/mode_batiment.html" with mode=mode_batiment %} (mode : "MER", "QUAI" ou vide = non renseigné).{% endcomment %}
+<span class="mx-mode{% if mode == 'MER' %} mx-mode--mer{% elif mode == 'QUAI' %} mx-mode--quai{% else %} mx-mode--inconnu{% endif %}" title="Mode opérationnel du bâtiment">
+  <i class="bi {% if mode == 'MER' %}bi-water{% elif mode == 'QUAI' %}bi-geo-alt{% else %}bi-question-circle{% endif %}" aria-hidden="true"></i>
+  <span class="visually-hidden">Mode du bâtiment : </span>{% if mode %}{{ mode }}{% else %}Non renseigné{% endif %}
+</span>

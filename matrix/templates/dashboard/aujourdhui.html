@@ -9,6 +9,7 @@
     {{ aujourdhui|date:"l j F" }}
     {% if profil.ship %} · {{ profil.ship.name }}{% endif %}
     {% if profil.service %} · {{ profil.service.name }}{% endif %}
+    {% if profil.ship %} · {% include "components/mode_batiment.html" with mode=mode_batiment %}{% endif %}
   </p>
 </header>
 {% include "components/parcours.html" with courante="quotidien" %}

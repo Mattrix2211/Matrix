@@ -4,6 +4,7 @@
 {% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et gardes" %}
 {% include "components/fiche_entete.html" with titre=liste.nom|default:liste.libelle_type|capfirst badge_libelle=badge_libelle|upper badge_etat=badge_etat action=action indicateurs=indicateurs objet=liste %}
 <p class="text-secondary">{% if liste.fonction %}{{ liste.fonction }} — {% endif %}{{ liste.perimetre }} — du {{ liste.date_debut|date:"d/m/Y" }} au {{ liste.date_fin|date:"d/m/Y" }}{% if liste.type_service %} — {{ liste.type_service }}{% endif %}{% if liste.statut == 'PUBLIEE' %} — publiée le {{ liste.publiee_le|date:"d/m/Y à H:i" }}{% if liste.publiee_par %} par {{ liste.publiee_par }}{% endif %}{% elif liste.statut == 'PROPOSEE' %} — proposée le {{ liste.proposee_le|date:"d/m/Y à H:i" }}{% if liste.proposee_par %} par {{ liste.proposee_par }}{% endif %}, en attente de validation{% endif %}</p>
+<p class="mb-2">{% include "components/mode_batiment.html" with mode=mode_batiment %}</p>
 {% if liste.statut == 'BROUILLON' and not peut_gerer %}<p class="text-secondary small">Liste encore en brouillon : en attente d'une proposition du chef de liste.</p>{% elif liste.statut == 'PROPOSEE' and not peut_publier %}<p class="text-secondary small">Vous n'êtes pas habilité(e) à publier cette liste : en attente d'un publicateur (rôle distinct du chef de liste).</p>{% endif %}
 {% if liste.prise_effet_prevue and liste.application == 'PREVISIONNELLE' %}<p class="text-secondary small">Liste prévisionnelle : elle ne s'applique pas encore. Prise d'effet prévue le {{ liste.prise_effet_prevue|date:"d/m/Y à H:i" }} ; seule l'activation par le chef de liste la rend applicable.</p>{% elif liste.active_le %}<p class="text-secondary small">Activée le {{ liste.active_le|date:"d/m/Y à H:i" }}{% if liste.active_par %} par {{ liste.active_par }}{% endif %} (chef de liste).</p>{% endif %}
 {% for a in alertes_activation %}<div class="alert alert-{% if a.etape == 'RAPPEL' %}info{% else %}warning{% endif %}" role="alert">{% if a.etape == 'RAPPEL' %}Rappel : la prise d'effet approche.{% elif a.etape == 'ALERTE' %}La liste devait prendre effet et n'est pas activée : activez-la ou reportez-la.{% else %}Escalade : la liste n'est toujours pas activée, un suivi auprès du chef de liste est demandé.{% endif %}</div>{% endfor %}
@@ -124,6 +125,46 @@
 {% fin_panneau_lateral %}
 {% endif %}
 
+{% elif vue == "jour" %}
+<div class="mx-vue-jour">
+  {% for j in jours %}
+  <details class="mx-jour{% if j.aujourdhui %} mx-jour--aujourdhui{% endif %}" open>
+    <summary class="mx-jour__tete"><h2>{{ j.date|date:"l j F" }}{% if j.aujourdhui %} <span class="mx-etat">Aujourd'hui</span>{% endif %}</h2>
+      <span class="small text-secondary">{{ j.lignes|length }} créneau{{ j.lignes|length|pluralize:"x" }}{% if j.non_affectes %} · {{ j.non_affectes }} non affecté{{ j.non_affectes|pluralize }}{% endif %}</span></summary>
+    <div class="mx-jour__corps">
+      {% for l in j.lignes %}
+      <div class="mx-jour__ligne mx-jour__ligne--{{ l.etat }}{% if l.moi %} mx-jour__ligne--moi{% endif %}{% if l.vide %} mx-jour__ligne--vide{% endif %}">
+        <span class="mx-jour__heure">{{ l.creneau.debut|date:"H:i" }}–{{ l.creneau.fin|date:"H:i" }}</span>
+        <span class="mx-jour__qui"><strong>{{ l.creneau.poste }}</strong> · {% if l.creneau.marin %}{{ l.creneau.marin.get_full_name|default:l.creneau.marin.username }}{% else %}À pourvoir{% endif %}</span>
+        <span class="d-flex gap-1 flex-wrap justify-content-end">
+          <span class="mx-etat">{{ l.etat_libelle }}</span>
+          <span class="mx-etat">{{ l.temps_libelle }}</span>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% empty %}
+  {% include "components/etat_vide.html" with icone="calendrier" titre="Aucun créneau" texte="Cette liste ne contient encore aucun créneau." %}
+  {% endfor %}
+</div>
+{% elif vue == "marin" %}
+<p class="small text-secondary">Durées planifiées d'après les créneaux de cette liste. Les heures réellement travaillées ne sont pas saisies dans Matrix : elles restent « Non renseigné » et ne se déduisent pas des horaires de quart ou de service.</p>
+<table class="mx-vue-marin">
+  <thead><tr><th>Marin</th><th>Créneaux planifiés</th><th>Durée planifiée</th><th>Heures réellement travaillées</th></tr></thead>
+  <tbody>
+    {% for m in marins_vue %}
+    <tr>
+      <td><strong>{{ m.marin.get_full_name|default:m.marin.username }}</strong></td>
+      <td>{% for c in m.creneaux %}<div class="small">{{ c.debut|date:"d/m H:i" }}–{{ c.fin|date:"H:i" }} · {{ c.poste }}</div>{% endfor %}</td>
+      <td>{{ m.duree_planifiee|floatformat:"-1" }} h <span class="small text-secondary">(planifiée)</span></td>
+      <td class="mx-non-renseigne">Non renseigné</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="text-center text-secondary py-4">Aucun créneau affecté pour l'instant.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% elif vue == "echanges" %}
 {% include "quarts/_echanges_groupe.html" with titre="À traiter" liste_echanges=a_traiter vide="Rien à traiter pour l'instant." %}
 {% include "quarts/_echanges_groupe.html" with titre="En cours" liste_echanges=en_cours vide="Aucune demande en cours." %}

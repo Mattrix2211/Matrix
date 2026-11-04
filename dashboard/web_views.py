@@ -23,6 +23,7 @@ from assets.models import Asset, Installation, InstallationMaintenance
 from dashboard.a_faire_presentation import compteurs, presenter
 from dashboard.aujourdhui import STATUTS_MAINTENANCE_TERMINES as _STATUTS_MAINTENANCE_TERMINES, a_faire, formations_du_marin, journee, supervision
 from matrix.core.equipage import equipage_a_terre_lecture_seule
+from quarts.mouvements import mode_du_batiment_de
 from dashboard.aujourdhui_terre import a_faire_terre, batiments_suivis, cartes_batiments
 from dashboard.models import ItemAppareillage, SessionAppareillage
 from logistics.models import CorrectiveTicket, STATUTS_TICKET_OUVERTS, StockPiece
@@ -92,6 +93,7 @@ class AujourdhuiView(LoginRequiredMixin, TemplateView):
         nom = self.request.user.last_name or self.request.user.get_username()
         contexte["salutation"] = f"{profil.grade} {nom}".strip() if profil and profil.grade else nom
         contexte["profil"] = profil
+        contexte["mode_batiment"] = mode_du_batiment_de(self.request.user)
         contexte["a_faire"] = a_faire(self.request.user, aujourdhui)
         contexte["a_faire_lignes"] = presenter(contexte["a_faire"], self.request.user)
         contexte.update(compteurs(contexte["a_faire_lignes"]))

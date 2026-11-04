@@ -36,7 +36,11 @@ from training.models import TrainingCourse
 
 from .alertes_activation import reporter_prise_effet, retirer_previsionnelle, traiter_echeances
 from .designations import LIBELLES, situation as situation_designation
-from .activation import ActivationImpossible, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, peut_activer_liste, publier_a_titre_previsionnel
+from .activation import (
+    ActivationImpossible, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, navire_de_la_liste,
+    peut_activer_liste, publier_a_titre_previsionnel,
+)
+from .mouvements import mode_du_batiment, mode_du_batiment_de
 from .echanges import annuler_echanges_du_creneau
 from .models import (
     ChefDeListe,
@@ -283,6 +287,7 @@ class ListeIndexView(LoginRequiredMixin, View):
             "perimetres_creation": perimetres_creation,
             "peut_creer": bool(perimetres_creation),
             "peut_designer_chef_de_liste": user_role_level(user) >= NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE,
+            "mode_batiment": mode_du_batiment_de(user),
         }
 
     def get(self, request):
@@ -485,6 +490,57 @@ def _semaines(liste, creneaux):
     return semaines
 
 
+def _etat_creneau(creneau, liste, ship, maintenant):
+    """(code, libellé) : planifié ou applicable, et position dans le temps. Un quart futur n'est jamais « en cours »."""
+    if creneau.fin <= maintenant:
+        temps = ("termine", "Terminé")
+    elif creneau.debut <= maintenant:
+        temps = ("en_cours", "En cours")
+    else:
+        temps = ("a_venir", "À venir")
+    if liste.statut != liste.STATUT_PUBLIEE:
+        return "planifie", "Planifié · liste non publiée", temps
+    if isinstance(liste, ServiceGarde):
+        if liste.application == liste.APPLICATION_PREVISIONNELLE:
+            return "previsionnel", "Prévisionnel · non applicable avant activation", temps
+        if liste.prise_effet and creneau.fin <= liste.prise_effet:
+            return "anterieur", "Antérieur à la prise d'effet", temps
+        return "applicable", "Applicable", temps
+    if creneau.debut <= maintenant and ship is not None and mode_du_batiment(ship, creneau.debut) == "QUAI":
+        return "hors-regime", "Hors régime · bâtiment à quai", temps
+    return "applicable", "Applicable", temps
+
+
+def _vue_par_jour(liste, creneaux, utilisateur, ship):
+    """Vue A : les créneaux regroupés par jour, avec l'état d'application de chacun."""
+    maintenant, aujourdhui, jours = timezone.now(), timezone.localdate(), {}
+    for creneau in sorted(creneaux, key=lambda c: (c.debut, c.poste)):
+        code, libelle, temps = _etat_creneau(creneau, liste, ship, maintenant)
+        jours.setdefault(timezone.localtime(creneau.debut).date(), []).append({
+            "creneau": creneau, "moi": creneau.marin_id == utilisateur.pk, "vide": creneau.marin_id is None,
+            "etat": code, "etat_libelle": libelle, "temps": temps[0], "temps_libelle": temps[1],
+        })
+    return [
+        {"date": jour, "aujourdhui": jour == aujourdhui, "lignes": lignes, "non_affectes": sum(1 for l in lignes if l["vide"])}
+        for jour, lignes in sorted(jours.items())
+    ]
+
+
+def _vue_par_marin(creneaux):
+    """Vue B (responsables) : par marin, créneaux planifiés et durée planifiée ; heures réellement travaillées non renseignées."""
+    par_marin = {}
+    for creneau in sorted(creneaux, key=lambda c: c.debut):
+        if creneau.marin_id:
+            par_marin.setdefault(creneau.marin, []).append(creneau)
+    return [
+        {
+            "marin": marin, "creneaux": lignes,
+            "duree_planifiee": sum((c.fin - c.debut).total_seconds() for c in lignes) / 3600,
+        }
+        for marin, lignes in sorted(par_marin.items(), key=lambda t: (t[0].last_name or t[0].username).lower())
+    ]
+
+
 class _DetailListeViewBase(LoginRequiredMixin, View):
     """Fiche détail générique d'une liste (créneaux + affectations +
     publication), paramétrée par QuartDetailView et ServiceGardeDetailView
@@ -573,7 +629,9 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         """Onglets (Planning, Échanges, Équité, Historique, Paramètres), grille, en-tête et échanges de la liste."""
         creneaux = list(contexte["creneaux"])
         est_garde = isinstance(liste, ServiceGarde)
-        onglets = [("planning", "Planning")]
+        onglets = [("planning", "Planning"), ("jour", "Par jour")]
+        if peut_gerer or contexte["peut_publier"]:
+            onglets.append(("marin", "Par marin"))
         if est_garde:
             onglets.append(("echanges", "Échanges"))
         if contexte["compteurs_equite"] is not None:
@@ -586,6 +644,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         if vue not in {cle for cle, _ in onglets}:
             vue = "planning"
         non_affectes = sum(1 for c in creneaux if c.marin_id is None)
+        ship_liste = navire_de_la_liste(liste)
         # Circuit proposer -> valider -> publier : l'action principale suit l'état de la liste.
         action = None
         if peut_gerer and liste.statut == liste.STATUT_BROUILLON:
@@ -611,6 +670,9 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             "badge_libelle": liste.situation_affichee if est_garde else liste.get_statut_display(),
             "badge_etat": "ok" if liste.statut == liste.STATUT_PUBLIEE and not (est_garde and liste.application == liste.APPLICATION_PREVISIONNELLE) else "attention",
             "semaines": _semaines(liste, creneaux),
+            "mode_batiment": mode_du_batiment(ship_liste) if ship_liste else None,
+            "jours": _vue_par_jour(liste, creneaux, request.user, ship_liste) if vue == "jour" else [],
+            "marins_vue": _vue_par_marin(creneaux) if vue == "marin" else [],
             "indicateurs": [
                 {"libelle": "Créneaux", "valeur": len(creneaux)},
                 {"libelle": "Non affectés", "valeur": non_affectes, "etat": "attention" if non_affectes else "ok"},
