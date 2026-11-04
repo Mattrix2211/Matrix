@@ -59,3 +59,18 @@ class BandeauxListeTests(BaseActivation):
         page = self._page(self.chef)
         self.assertEqual(page.count("mx-mode "), 1)
         self.assertLess(page.index("mx-mode"), page.index("Liste prévisionnelle : elle ne s'applique pas encore") + 400)
+
+    def test_la_grille_indique_la_date_de_fin_d_un_creneau_qui_enjambe_minuit(self):
+        self._previsionnelle()
+        garde = self.liste.creneaux.get()
+        garde.debut, garde.fin = timezone.now(), timezone.now() + timedelta(hours=26)
+        garde.save()
+        page = self._page(self.chef)
+        fin = timezone.localtime(garde.fin).strftime("%d/%m %H:%M")
+        self.assertIn(fin, page)
+
+    def test_le_publicateur_est_affiche_par_son_nom_complet(self):
+        self._previsionnelle()
+        self.commandant.first_name, self.commandant.last_name = "Anne", "Dupont"
+        self.commandant.save()
+        self.assertIn("par Anne Dupont", self._page(self.chef))
