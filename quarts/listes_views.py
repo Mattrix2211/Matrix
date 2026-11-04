@@ -40,10 +40,13 @@ from .activation import (
     ActivationImpossible, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, navire_de_la_liste,
     peut_activer_liste, publier_a_titre_previsionnel,
 )
+from .configuration_views import droit_sur_les_delais
 from .mouvements import mode_du_batiment, mode_du_batiment_de
+from .remplacement import designer_remplacant, revoquer_remplacement
 from .echanges import annuler_echanges_du_creneau
 from .models import (
     ChefDeListe,
+    RemplacementChefDeListe,
     CreneauQuart,
     CreneauServiceGarde,
     EchangeService,
@@ -288,6 +291,7 @@ class ListeIndexView(LoginRequiredMixin, View):
             "peut_creer": bool(perimetres_creation),
             "peut_designer_chef_de_liste": user_role_level(user) >= NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE,
             "mode_batiment": mode_du_batiment_de(user),
+            "peut_voir_delais": droit_sur_les_delais(user, getattr(getattr(user, "profile", None), "ship", None)) is not None,
         }
 
     def get(self, request):
@@ -565,7 +569,8 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         # une liste PROPOSEE pour décider de la publier, même s'il n'est pas
         # le chef de liste qui la gère (rôle distinct, cf. docstring de
         # module de quarts/models.py).
-        if not peut_gerer and not peut_publier_liste(request.user, liste) and not _peut_lire_liste(request.user, liste):
+        if not peut_gerer and not peut_publier_liste(request.user, liste) and not _peut_lire_liste(request.user, liste) \
+                and not (isinstance(liste, ServiceGarde) and peut_activer_liste(request.user, liste)):
             raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
         traiter_echeances()
         return render(request, self.template_name, self._contexte(request, liste, peut_gerer))
@@ -705,7 +710,8 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             raise Http404("Liste introuvable.")
         peut_gerer = peut_gerer_liste(request.user, liste)
         peut_publier = peut_publier_liste(request.user, liste)
-        if not peut_gerer and not peut_publier:
+        peut_remplacer = isinstance(liste, ServiceGarde) and peut_activer_liste(request.user, liste)
+        if not peut_gerer and not peut_publier and not peut_remplacer:
             raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
 
         action = request.POST.get("action")
@@ -919,6 +925,17 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
             ).order_by("user__username"),
             "types_liste": ChefDeListe.TYPE_CHOICES,
+            "titulaires_remplacables": [
+                cdl for cdl in ChefDeListe.objects.select_related("user", "ship", "service", "sector", "section").filter(
+                    equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
+                    type_liste__in=("", ChefDeListe.TYPE_QUAI),
+                ) if _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section)
+            ],
+            "remplacements": RemplacementChefDeListe.objects.select_related("remplacant", "titulaire", "revoque_par").filter(
+                titulaire__in=utilisateurs_visibles_par(request.user),
+            )[:20],
+            "maintenant_saisie": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+            "maintenant_objet": timezone.now(),
             "nb_historiques": ChefDeListe.objects.filter(type_liste="", user__in=utilisateurs_visibles_par(request.user)).count(),
             "perimetres_disponibles": _perimetres_org_disponibles(
                 request.user, borne_par_scope=user_role_level(request.user) < NIVEAU_SUPERVISION_GLOBALE_LISTE
@@ -964,6 +981,44 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 messages.success(request, f"{candidat.get_full_name() or candidat.username} désigné(e) chef de liste.")
             else:
                 messages.info(request, "Cette désignation existe déjà.")
+        elif action == "remplacer":
+            cdl = ChefDeListe.objects.filter(
+                equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
+                pk=entier_ou_none(request.POST.get("pk")),
+            ).first()
+            remplacant = utilisateurs_visibles_par(request.user).filter(
+                equipage_marin_q(request.user), pk=entier_ou_none(request.POST.get("remplacant_id")), is_active=True).first()
+            if cdl is None or remplacant is None:
+                messages.error(request, "Titulaire ou remplaçant introuvable.")
+                return redirect("quarts-reglages")
+            if not _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section):
+                raise PermissionDenied
+            debut, fin = parse_datetime(request.POST.get("debut", "")), parse_datetime(request.POST.get("fin", ""))
+            debut = timezone.make_aware(debut) if debut is not None and timezone.is_naive(debut) else debut
+            fin = timezone.make_aware(fin) if fin is not None and timezone.is_naive(fin) else fin
+            try:
+                designer_remplacant(request.user, cdl, remplacant, debut, fin, request.POST.get("motif", ""))
+            except ActivationImpossible as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, "Remplaçant temporaire désigné.")
+        elif action == "revoquer_remplacement":
+            remplacement = RemplacementChefDeListe.objects.filter(
+                pk=entier_ou_none(request.POST.get("pk")), titulaire__in=utilisateurs_visibles_par(request.user),
+            ).first()
+            if remplacement is None:
+                messages.error(request, "Remplacement introuvable.")
+                return redirect("quarts-reglages")
+            if not _perimetre_autorise_pour_designation(
+                request.user, remplacement.ship if remplacement.perimetre_navire else None, remplacement.service, remplacement.sector, remplacement.section,
+            ):
+                raise PermissionDenied
+            try:
+                revoquer_remplacement(request.user, remplacement, request.POST.get("motif", ""))
+            except ActivationImpossible as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.info(request, "Remplacement révoqué.")
         elif action == "preciser":
             cdl = ChefDeListe.objects.filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),

@@ -2247,6 +2247,7 @@ class ConfigurationActivation(TimeStampedModel):
     rappel_minutes = models.PositiveIntegerField(default=30, verbose_name="Rappel avant la prise d'effet prévue (minutes)")
     alerte_minutes = models.PositiveIntegerField(default=0, verbose_name="Alerte après la prise d'effet prévue (minutes)")
     escalade_minutes = models.PositiveIntegerField(default=15, verbose_name="Escalade après l'alerte (minutes)")
+    remplacement_duree_max_heures = models.PositiveIntegerField(default=72, verbose_name="Durée maximale d'un remplacement du chef de liste (heures)")
 
     class Meta:
         verbose_name = "Réglage des rappels d'activation"
@@ -2322,3 +2323,37 @@ class AlerteAccostage(TimeStampedModel):
     genre = models.CharField(max_length=32, choices=GENRE_CHOICES)
     fermee_le = models.DateTimeField(null=True, blank=True)
     motif_fermeture = models.CharField(max_length=255, blank=True, default="")
+
+
+class RemplacementChefDeListe(TimeStampedModel):
+    """Remplacement temporaire et explicite d'un chef de liste des services à quai absent. Il ne donne que le droit
+    d'activer, de reporter ou de retirer une prévision, sur un périmètre, un équipage et un type de liste précis,
+    pour une durée bornée et non renouvelée automatiquement."""
+
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="remplacements_chef_de_liste")
+    equipage = models.CharField(max_length=8, blank=True, default="")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    perimetre_navire = models.BooleanField(default=False, help_text="Périmètre = le bâtiment entier.")
+    type_liste = models.CharField(max_length=8, choices=ChefDeListe.TYPE_CHOICES, default=ChefDeListe.TYPE_QUAI)
+    remplacant = models.ForeignKey(User, on_delete=models.CASCADE, related_name="remplacements_chef_de_liste")
+    titulaire = models.ForeignKey(User, on_delete=models.CASCADE, related_name="remplacements_de_son_poste")
+    debut = models.DateTimeField()
+    fin = models.DateTimeField()
+    motif = models.CharField(max_length=500)
+    designe_par = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
+    revoque_le = models.DateTimeField(null=True, blank=True)
+    revoque_par = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    motif_revocation = models.CharField(max_length=500, blank=True, default="")
+
+    class Meta:
+        ordering = ("-debut",)
+
+    @property
+    def perimetre(self):
+        return self.section or self.sector or self.service or (self.ship if self.perimetre_navire else None)
+
+    def actif(self, instant=None):
+        instant = instant or timezone.now()
+        return self.revoque_le is None and self.debut <= instant < self.fin

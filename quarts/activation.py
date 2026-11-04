@@ -39,8 +39,44 @@ def designation_chef_de_liste(user, liste):
     return None
 
 
+def remplacement_actif(user, liste, instant=None):
+    """Remplacement temporaire en cours de `user` pour exactement ce périmètre, cet équipage et ce type de liste."""
+    instant = instant or timezone.now()
+    if not user.is_active:
+        return None
+    ship = navire_de_la_liste(liste)
+    for r in user.remplacements_chef_de_liste.filter(
+        type_liste=liste.CODE_TYPE, revoque_le__isnull=True, debut__lte=instant, fin__gt=instant,
+    ):
+        meme_perimetre = (
+            (r.perimetre_navire and liste.ship_id == r.ship_id)
+            or (r.service_id and r.service_id == liste.service_id)
+            or (r.sector_id and r.sector_id == liste.sector_id)
+            or (r.section_id and r.section_id == liste.section_id)
+        )
+        if meme_perimetre and ship is not None and r.ship_id == ship.pk and r.equipage in ("", liste.equipage):
+            return r
+    return None
+
+
+def habilitation_activation(user, liste):
+    """(« chef » ou « remplaçant », objet) si `user` peut activer, reporter ou retirer cette prévision, sinon None."""
+    designation = designation_chef_de_liste(user, liste)
+    if designation is not None:
+        return "chef", designation
+    remplacement = remplacement_actif(user, liste)
+    return ("remplacant", remplacement) if remplacement is not None else None
+
+
+def capacite_texte(habilitation):
+    genre, objet = habilitation
+    if genre == "chef":
+        return "en qualité de chef de liste désigné"
+    return f"en qualité de remplaçant temporaire de {objet.titulaire.get_full_name() or objet.titulaire.username}, jusqu'au {timezone.localtime(objet.fin):%d/%m/%Y %H:%M}"
+
+
 def peut_activer_liste(user, liste):
-    return designation_chef_de_liste(user, liste) is not None
+    return habilitation_activation(user, liste) is not None
 
 
 def recouvrements_activation(liste, a_partir_de=None):
@@ -124,9 +160,9 @@ def publier_a_titre_previsionnel(user, liste, prise_effet_prevue):
 def activer_liste(user, liste):
     """Rend la liste applicable à partir de maintenant, sans rétroactivité."""
     liste = ServiceGarde.objects.select_for_update().get(pk=liste.pk)
-    designation = designation_chef_de_liste(user, liste)
-    if designation is None:
-        raise ActivationImpossible("Seul le chef de liste désigné pour ce périmètre peut activer la liste.")
+    habilitation = habilitation_activation(user, liste)
+    if habilitation is None:
+        raise ActivationImpossible("Seul le chef de liste désigné pour ce périmètre, ou son remplaçant temporaire, peut activer la liste.")
     if liste.statut != ServiceGarde.STATUT_PUBLIEE or liste.application != ServiceGarde.APPLICATION_PREVISIONNELLE:
         raise ActivationImpossible("Seule une liste publiée à titre prévisionnel peut être activée.")
     maintenant = timezone.now()
@@ -161,7 +197,7 @@ def activer_liste(user, liste):
         actor=user, action="liste_service_activee",
         details=(
             f"Service à quai #{liste.pk} ({liste.perimetre}) activé le {timezone.localtime(maintenant):%d/%m/%Y à %H:%M}{prevue} "
-            "en qualité de chef de liste désigné."
+            f"{capacite_texte(habilitation)}."
             + (f" Fonction {', '.join(cumul)} du même agent non utilisée pour cet acte." if cumul else "")
         ),
     )

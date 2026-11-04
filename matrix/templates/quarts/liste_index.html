@@ -13,6 +13,11 @@
     <a href="{% url 'mouvements-batiment' %}" class="btn btn-outline-secondary">
       <i class="bi bi-water"></i> Mouvements du bâtiment
     </a>
+    {% if peut_voir_delais %}
+    <a href="{% url 'quarts-delais-activation' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-alarm"></i> Délais d'alerte
+    </a>
+    {% endif %}
     {% if peut_designer_chef_de_liste %}
     <a href="{% url 'quarts-reglages' %}" class="btn btn-outline-secondary">
       <i class="bi bi-person-badge"></i> Chefs de liste

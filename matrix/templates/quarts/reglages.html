@@ -86,4 +86,41 @@
     </div>
   </div>
 </div>
+
+<h2 class="h5 mt-5">Remplaçants temporaires (services à quai)</h2>
+<p class="text-muted small">Un remplaçant ne peut qu'activer, reporter ou retirer une prévision, pour le niveau, l'équipage et la période indiqués. Aucune délégation générale ni renouvellement automatique.</p>
+<div class="row g-4">
+  <div class="col-md-7">
+    <div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
+      <thead><tr><th>Remplaçant</th><th>Remplace</th><th>Période</th><th></th></tr></thead>
+      <tbody>
+      {% for r in remplacements %}
+      <tr>
+        <td>{{ r.remplacant.get_full_name|default:r.remplacant.username }}<div class="small text-muted">{{ r.perimetre }}</div></td>
+        <td>{{ r.titulaire.get_full_name|default:r.titulaire.username }}</td>
+        <td class="small">{{ r.debut|date:"d/m H:i" }} → {{ r.fin|date:"d/m H:i" }}
+          {% if r.revoque_le %}<span class="badge text-bg-secondary">Révoqué</span>{% elif r.actif %}<span class="badge text-bg-success">En cours</span>{% endif %}
+          <div class="text-muted">{{ r.motif }}</div></td>
+        <td>{% if not r.revoque_le and r.fin > maintenant_objet %}
+          <form method="post" data-mx-confirmer="destructif" data-mx-titre="Révoquer ce remplacement ?" data-mx-motif="obligatoire" data-mx-action="Révoquer">{% csrf_token %}<input type="hidden" name="action" value="revoquer_remplacement"><input type="hidden" name="pk" value="{{ r.pk }}"><button class="btn btn-sm btn-outline-danger" type="submit">Révoquer</button></form>{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Aucun remplacement.</td></tr>{% endfor %}
+      </tbody></table></div></div>
+  </div>
+  <div class="col-md-5">
+    <div class="card card-body">
+      <form method="post" class="row g-2">{% csrf_token %}
+        <input type="hidden" name="action" value="remplacer">
+        <div class="col-12"><label class="form-label">Chef de liste remplacé</label>
+          <select name="pk" class="form-select" required>{% for cdl in titulaires_remplacables %}<option value="{{ cdl.pk }}">{{ cdl.user.get_full_name|default:cdl.user.username }} — {{ cdl.perimetre }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label">Remplaçant</label>
+          <select name="remplacant_id" class="form-select" required>{% for u in utilisateurs %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label" for="remp-debut">Début</label><input type="datetime-local" class="form-control" id="remp-debut" name="debut" value="{{ maintenant_saisie }}" required></div>
+        <div class="col-6"><label class="form-label" for="remp-fin">Fin</label><input type="datetime-local" class="form-control" id="remp-fin" name="fin" required></div>
+        <div class="col-12"><label class="form-label" for="remp-motif">Motif</label><input type="text" class="form-control" id="remp-motif" name="motif" required placeholder="Ex. permission du titulaire"></div>
+        <div class="col-12"><button type="submit" class="btn btn-primary">Désigner le remplaçant</button></div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

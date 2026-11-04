@@ -12,12 +12,15 @@ from matrix.core.commandants_adjoints import titulaires_commandant_adjoint
 from matrix.core.scopes import navire_id_du_perimetre
 from notifications.models import Notification, NotificationLevel
 from org.models import Ship
-from quarts.activation import ActivationImpossible, designation_chef_de_liste, navire_de_la_liste
+from quarts.activation import (
+    ActivationImpossible, capacite_texte, designation_chef_de_liste, habilitation_activation, navire_de_la_liste, remplacement_actif,
+)
 from quarts.mouvements import reevaluer_batiment
 from quarts.models import (
     AlerteActivation,
     ChefDeListe,
     ConfigurationActivation,
+    RemplacementChefDeListe,
     ServiceGarde,
     commandants_en_second,
 )
@@ -49,7 +52,13 @@ def echeances(liste):
 def chefs_de_liste_habilites(liste):
     cible = dict(ship_id=liste.ship_id, service_id=liste.service_id, sector_id=liste.sector_id, section_id=liste.section_id)
     ids = ChefDeListe.objects.filter(**cible).values_list("user_id", flat=True)
-    return [u for u in User.objects.filter(pk__in=ids, is_active=True) if designation_chef_de_liste(u, liste)]
+    chefs = [u for u in User.objects.filter(pk__in=ids, is_active=True) if designation_chef_de_liste(u, liste)]
+    remplacants = [
+        r.remplacant for r in RemplacementChefDeListe.objects.filter(
+            type_liste=liste.CODE_TYPE, revoque_le__isnull=True, remplacant__is_active=True,
+        ).select_related("remplacant") if remplacement_actif(r.remplacant, liste) is not None
+    ]
+    return list({u.pk: u for u in (*chefs, *remplacants)}.values())
 
 
 def destinataires_escalade(liste):
@@ -132,8 +141,9 @@ def fermer_alertes(liste, motif):
 def reporter_prise_effet(user, liste, nouvelle_prevue, motif):
     """Reporte la prise d'effet prévue : motif obligatoire, nouvelle version de prévision, rappels recalculés."""
     liste = ServiceGarde.objects.select_for_update().get(pk=liste.pk)
-    if designation_chef_de_liste(user, liste) is None:
-        raise ActivationImpossible("Seul le chef de liste désigné pour ce périmètre peut reporter la prise d'effet.")
+    habilitation = habilitation_activation(user, liste)
+    if habilitation is None:
+        raise ActivationImpossible("Seul le chef de liste désigné pour ce périmètre, ou son remplaçant temporaire, peut reporter la prise d'effet.")
     if liste.statut != ServiceGarde.STATUT_PUBLIEE or liste.application != ServiceGarde.APPLICATION_PREVISIONNELLE:
         raise ActivationImpossible("Seule une liste publiée à titre prévisionnel peut être reportée.")
     if not motif.strip():
@@ -150,7 +160,7 @@ def reporter_prise_effet(user, liste, nouvelle_prevue, motif):
         details=(
             f"Service à quai #{liste.pk} ({liste.perimetre}) : prise d'effet prévue reportée du "
             f"{timezone.localtime(ancienne):%d/%m/%Y %H:%M} au {timezone.localtime(nouvelle_prevue):%d/%m/%Y %H:%M} "
-            f"(version de prévision {liste.version_prevision}). Motif : {motif.strip()}."
+            f"(version de prévision {liste.version_prevision}), {capacite_texte(habilitation)}. Motif : {motif.strip()}."
         ),
     )
     return liste
@@ -160,8 +170,9 @@ def reporter_prise_effet(user, liste, nouvelle_prevue, motif):
 def retirer_previsionnelle(user, liste, motif):
     """Retire la prévision : la liste redevient un brouillon (versions conservées), alertes fermées."""
     liste = ServiceGarde.objects.select_for_update().get(pk=liste.pk)
-    if designation_chef_de_liste(user, liste) is None:
-        raise ActivationImpossible("Seul le chef de liste désigné pour ce périmètre peut retirer la prévision.")
+    habilitation = habilitation_activation(user, liste)
+    if habilitation is None:
+        raise ActivationImpossible("Seul le chef de liste désigné pour ce périmètre, ou son remplaçant temporaire, peut retirer la prévision.")
     if liste.statut != ServiceGarde.STATUT_PUBLIEE or liste.application != ServiceGarde.APPLICATION_PREVISIONNELLE:
         raise ActivationImpossible("Seule une liste publiée à titre prévisionnel peut être retirée.")
     if not motif.strip():
@@ -173,7 +184,7 @@ def retirer_previsionnelle(user, liste, motif):
     fermer_alertes(liste, "prévision retirée")
     AuditLog.objects.create(
         actor=user, action="liste_service_previsionnelle_retiree",
-        details=f"Service à quai #{liste.pk} ({liste.perimetre}) : prévision retirée, la liste redevient un brouillon. Motif : {motif.strip()}.",
+        details=f"Service à quai #{liste.pk} ({liste.perimetre}) : prévision retirée, la liste redevient un brouillon, {capacite_texte(habilitation)}. Motif : {motif.strip()}.",
     )
     if ship := navire_de_la_liste(liste):
         reevaluer_batiment(ship)
