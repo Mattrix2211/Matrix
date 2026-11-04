@@ -1,13 +1,13 @@
 # Notifications par régime (MER / QUAI / COMMUNES / TRANSITION) — catalogue et classification proposée
 
-Statut : **proposition à valider par le PO (D7)**. Rien n'est implémenté : aucune notification n'est reclassée, masquée ni supprimée.
+Statut : **principe validé par le PO et implémenté** (régime et icône portés par la notification ; programme et relèves COMMUNES, échanges à quai QUAI). Aucune notification n'est supprimée ni masquée selon le mode. Précision : une notification est **urgente** quand son niveau est « Urgent » ou qu'elle demande une action ; le niveau « Important » ne suffit pas.
 Source : relevé automatique de tous les points de création de notification du code (68 sites, 24 modules), puis regroupement par famille.
 
 ## 1. Principes proposés
 
 1. La classe est une **étiquette de priorité d'affichage**, jamais un filtre : une notification n'est ni supprimée ni masquée à cause du mode du bâtiment.
 2. Ordre d'affichage : d'abord les notifications de la classe du **mode courant**, les **COMMUNES** et les **TRANSITION** ; ensuite celles de l'autre mode, regroupées et repliées (« Autres régimes »), toujours consultables.
-3. Une notification **urgente** (niveau d'alerte « attention » ou « danger », ou action requise du destinataire) reste toujours dans le premier groupe, quelle que soit sa classe.
+3. Une notification **urgente** (niveau « Urgent », ou action requise du destinataire non encore traitée) reste toujours dans le premier groupe, quelle que soit sa classe.
 4. Mode **non renseigné** : aucun regroupement, ordre chronologique habituel.
 5. Les notifications déjà reçues gardent la classe COMMUNES : **pas de reclassement rétroactif** de l'historique.
 6. Mise en œuvre (après validation) : un champ nullable `regime` sur la notification, valeur par défaut COMMUNES, renseigné aux seuls points de création listés ci-dessous.

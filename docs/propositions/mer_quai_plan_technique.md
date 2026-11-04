@@ -4,7 +4,7 @@ Statut initial : **plan soumis au PO. Aucun code, aucune migration.** (L'implém
 
 ## Avancement et décisions PO intégrées (mis à jour)
 
-Documents liés : `mer_quai_mode_operationnel_complement.md` (modèle du mode MER / QUAI, **validé par le PO**, décisions D1 à D11 arbitrées) et `notifications_par_regime.md` (classification des notifications, **en attente de validation D7**).
+Documents liés : `mer_quai_mode_operationnel_complement.md` (modèle du mode MER / QUAI, **validé par le PO**, décisions D1 à D11 arbitrées) et `notifications_par_regime.md` (classification et icônes, **validées et implémentées**) et `mer_quai_consolidation.md` (consolidation et options à arbitrer).
 
 | Lot | Contenu | État |
 |---|---|---|
@@ -16,7 +16,8 @@ Documents liés : `mer_quai_mode_operationnel_complement.md` (modèle du mode ME
 | Vues A / B et indicateur (`f2802e4`) | Vue par jour, vue par marin (heures réelles « Non renseigné »), indicateur MER / QUAI sur accueil, index et fiches, mobile | Terminé |
 | Délais d'alerte et remplaçant (`99493bd`) | Écran de configuration (droits et bornes D5), remplaçant temporaire (D4) | Terminé |
 | D6 (`259cf05`, `f9b8564`) | Terminer un créneau de quart à l'heure effective | Terminé |
-| Catalogue des notifications (D7) | Classification MER / QUAI / COMMUNES / TRANSITION | **Proposé, en attente de validation** |
+| Catalogue des notifications (D7) | Classification MER / QUAI / COMMUNES / TRANSITION et icônes de catégorie | **Validé par le PO et implémenté** (consolidation) |
+| Consolidation après recette indépendante | Alertes tardives, refus serveur en 403 tracés, inventaire des désignations historiques, fiche de liste allégée ; options pour conflits, échanges, activation anticipée | Corrections faites ; **règles métier en attente d'arbitrage** (voir `mer_quai_consolidation.md`) |
 | Recette | Parcours navigateur complets, suites complètes SQLite et PostgreSQL, dossier de recette | Voir le dossier de recette |
 
 Hors périmètre V1.1, conformément au PO : stades d'alerte, mouillage, organisations de service particulières.
