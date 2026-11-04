@@ -1,6 +1,23 @@
 # Mer / quai — activation manuelle, alertes : plan technique (avant migrations)
 
-Statut : **plan soumis au PO. Aucun code, aucune migration.** Décisions PO reprises telles quelles : 4 états, activation explicite par le seul chef de liste habilité (jamais le COMAEQ), aucune activation automatique, alertes H−30 / H / H+15 configurables, alerte immédiate à l'accostage confirmé, report/annulation avec motif, pas de suppression de données historiques.
+Statut initial : **plan soumis au PO. Aucun code, aucune migration.** (L'implémentation a depuis suivi l'ordre ci-dessous.) Décisions PO reprises telles quelles : 4 états, activation explicite par le seul chef de liste habilité (jamais le COMAEQ), aucune activation automatique, alertes H−30 / H / H+15 configurables, alerte immédiate à l'accostage confirmé, report/annulation avec motif, pas de suppression de données historiques.
+
+## Avancement et décisions PO intégrées (mis à jour)
+
+Documents liés : `mer_quai_mode_operationnel_complement.md` (mode MER / QUAI, **à relire avant toute migration structurante supplémentaire**).
+
+| Étape | Commit | État |
+|---|---|---|
+| 1 Application, reprise conservatrice, diagnostic des 30 chevauchements | `71d54ca` | Terminé (reprise sans suppression ; échue → terminée, sinon active sur sa période) |
+| 2 Publication prévisionnelle (prise d'effet prévue obligatoire), activation par le chef de liste désigné | `9c46842` | Terminé (pas de bouton « Publier et activer » ; capacité tracée) |
+| 3 Conflits à l'activation, créneaux en vigueur distincts du prévisionnel | `6f8b286` | Terminé (aucun quart modifié automatiquement) |
+| 4 Rappel H−30, alerte H, escalade H+15, report et retrait avec motif | `fad84e6` | Terminé ; repli de l'escalade corrigé vers le **commandant en second** (supervision seule) |
+| 5 Accostage / appareillage, alerte d'accostage sans liste | `163b5ee` | Terminé ; repli COMAEQ vacant → commandant en second |
+| 6 Calendrier, iCal, journée, équité, passation, échanges différés, terminaison automatique | `0b26107` | Terminé ; interface des états d'échange (en attente, appliqué, bloqué + motif, nouvelle tentative, abandon motivé) ajoutée ensuite |
+| 7 Vues A/B, indicateur de mode, « Non renseigné » | — | En attente de la validation du modèle de mode |
+| 8 Parcours navigateur, suites complètes SQLite + PostgreSQL, ZIP | — | En attente |
+
+Décisions PO de ce cycle : deux modes seulement (MER / QUAI) déduits de mouvements confirmés ; report et retrait réservés au chef de liste désigné (remplaçant explicite, borné, tracé, à concevoir) ; repli = commandant en second ; délais d'alerte configurables par bâtiment (matrice de droits à valider avant l'écran) ; régularisation des quarts à présenter avant tout code ; stades d'alerte, mouillage et organisations particulières **hors V1.1**.
 
 ## 0. Constat sur l'existant (lu dans le code)
 
