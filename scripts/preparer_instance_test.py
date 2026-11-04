@@ -23,11 +23,19 @@ VARIABLES_CONSERVEES = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "SYSTEMDRIV
                         "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "VIRTUAL_ENV")
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
-    ("equipier_a", "Marin, équipage A : journée chargée (10 actions)"),
-    ("equipier_a2", "Marin, équipage A : peu d'actions, dont une tâche en retard"),
-    ("equipier_nor", "Marin, frégate Normandie : aucune action (liste vide)"),
-    ("chef_secteur_a", "Chef de secteur, équipage A : supervision et équipe"),
-    ("chef_secteur_b", "Chef de secteur, équipage B à terre : accès limité"),
+    ("cdt_abe", "Auguste Bénébig (à QUAI) : commandant ; qualifie la désignation historique, règle les délais"),
+    ("comaeq_abe", "Bénébig : COMAEQ ; déclare appareillage / accostage"),
+    ("chef_liste_abe", "Bénébig : chef de liste ; active ou reporte les listes prévisionnelles"),
+    ("marin_abe_1", "Bénébig : marin ; propose un échange de tour avec marin_abe_2"),
+    ("marin_abe_2", "Bénébig : marin"),
+    ("historique_abe", "Bénébig : désignation historique non qualifiée (aucun droit)"),
+    ("cdt_jch", "Jacques Chevallier (à la MER) : commandant"),
+    ("comaeq_jch", "Chevallier : COMAEQ ; déclare l'accostage"),
+    ("chef_liste_jch", "Chevallier : chef de liste ; active après l'accostage"),
+    ("marin_jch_1", "Chevallier : marin, quarts à la mer"),
+    ("cdt_a", "Bretagne (à QUAI) : commandant, équipage A"),
+    ("equipier_a", "Bretagne : marin, journée chargée"),
+    ("chef_secteur_a", "Bretagne : chef de secteur et de liste"),
 )
 # Lu par la sous-commande de contrôle : la connexion réelle doit viser la base de démonstration.
 _CONTROLE = """
@@ -127,7 +135,7 @@ def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autori
     if base.exists():
         base.unlink()
     marqueur(base).touch()
-    for commande in ("migrate", "seed_demo"):
+    for commande in ("migrate", "seed_demo", "seed_demo_mer_quai"):
         subprocess.run([sys.executable, "manage.py", commande], cwd=RACINE, env=env, check=True)
     return base
 
