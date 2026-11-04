@@ -40,6 +40,15 @@ class AlertesActivationTests(BaseActivation):
         self.assertEqual(self._notifs(self.comaeq), 1)
         self.assertEqual(self._notifs(self.commandant), 0)
 
+    def test_gravite_progressive_rappel_alerte_escalade(self):
+        traiter_echeances(self.prevue - timedelta(minutes=30))
+        traiter_echeances(self.prevue + timedelta(minutes=1))
+        traiter_echeances(self.prevue + timedelta(minutes=16))
+        niveaux = {n.user_id: n.level for n in Notification.objects.filter(user__in=[self.chef, self.comaeq])}
+        self.assertEqual(Notification.objects.get(user=self.comaeq).level, "danger")
+        self.assertEqual(Notification.objects.filter(user=self.chef).order_by("created_at").first().level, "info")
+        self.assertEqual(niveaux[self.comaeq.pk], "danger")
+
     def test_escalade_vers_le_commandant_en_second_si_comaeq_vacant(self):
         second = self._user("csd", "COMMANDANT_EN_SECOND")
         self.comaeq.profile.fonction_coma = ""

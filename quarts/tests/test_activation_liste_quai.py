@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from accounts.models import AuditLog, ServiceFunctionChoice, UserProfile
 from org.models import Service, Ship
-from quarts.models import ChefDeListe, CreneauServiceGarde, ServiceGarde
+from quarts.models import ChefDeListe, ConfigurationActivation, CreneauServiceGarde, ServiceGarde
 from quarts.mouvements import initialiser_mode
 
 
@@ -42,6 +42,8 @@ class BaseActivation(TestCase):
 
     def _poster(self, user, **donnees):
         self.client.force_login(user)
+        if donnees.get("action") == "activer":
+            donnees.setdefault("confirmation_anticipee", "1")
         return self.client.post(self.url, donnees)
 
     def _previsionnelle(self):
@@ -244,5 +246,39 @@ class ActivationParTypeDeDesignationTests(BaseActivation):
         ChefDeListe.objects.create(user=self.chef, service=self.service, type_liste=ChefDeListe.TYPE_QUAI)
         self._previsionnelle()
         self._poster(self.chef, action="activer")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_ACTIVE)
+
+
+class ActivationAnticipeeTests(BaseActivation):
+    def _activer(self, **extra):
+        self.client.force_login(self.chef)
+        return self.client.post(self.url, {"action": "activer", **extra}, follow=True)
+
+    def test_activation_anticipee_refusee_sans_confirmation(self):
+        self._previsionnelle()
+        reponse = self._activer()
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_PREVISIONNELLE)
+        self.assertContains(reponse, "Activation anticipée")
+
+    def test_activation_anticipee_confirmee_est_tracee(self):
+        self._previsionnelle()
+        self._activer(confirmation_anticipee="1")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_ACTIVE)
+        self.assertTrue(AuditLog.objects.filter(action="liste_service_activee", details__contains="Activation anticipée confirmée").exists())
+
+    def test_sous_le_seuil_aucune_confirmation_requise(self):
+        self._previsionnelle()
+        ServiceGarde.objects.filter(pk=self.liste.pk).update(prise_effet_prevue=timezone.now() + timedelta(minutes=10))
+        self._activer()
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_ACTIVE)
+
+    def test_le_seuil_est_configurable(self):
+        self._previsionnelle()
+        ConfigurationActivation.objects.create(ship=self.ship, activation_anticipee_minutes=600)
+        self._activer()
         self.liste.refresh_from_db()
         self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_ACTIVE)

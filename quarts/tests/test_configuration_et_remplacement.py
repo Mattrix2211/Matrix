@@ -21,7 +21,7 @@ class DelaisActivationTests(BaseActivation):
         self.second = self._user("csd", "COMMANDANT_EN_SECOND")
         self.admin_unite = self._user("adm", "ADMIN_NAVIRE")
         self.autre = self._user("autre", "CHEF_SERVICE", service=self.service)
-        self.valides = {"rappel_minutes": 45, "alerte_minutes": 5, "escalade_minutes": 20, "remplacement_duree_max_heures": 48}
+        self.valides = {"rappel_minutes": 45, "alerte_minutes": 5, "escalade_minutes": 20, "activation_anticipee_minutes": 45, "remplacement_duree_max_heures": 48}
 
     def test_droits_de_lecture_et_de_modification(self):
         modifier = (self.commandant, self.comaeq)

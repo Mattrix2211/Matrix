@@ -37,7 +37,7 @@ from training.models import TrainingCourse
 from .alertes_activation import reporter_prise_effet, retirer_previsionnelle, traiter_echeances
 from .designations import LIBELLES, situation as situation_designation
 from .activation import (
-    ActivationImpossible, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, navire_de_la_liste,
+    ActivationImpossible, activation_anticipee, activer_liste, avertissements_activation, conflits_activation, decrire_conflit, navire_de_la_liste,
     peut_activer_liste, publier_a_titre_previsionnel,
 )
 from .configuration_views import droit_sur_les_delais
@@ -662,10 +662,18 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         elif est_garde and contexte["peut_publier"] and liste.statut == liste.STATUT_PROPOSEE:
             action = None  # formulaire dédié : la prise d'effet prévue est obligatoire
         elif est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and peut_activer_liste(request.user, liste):
+            anticipee = activation_anticipee(liste)
             action = {
                 "libelle": "Activer la liste", "icone": "terminee", "formulaire": "form-action",
                 "nom": "activer", "confirmation": "Activer cette liste ? Elle s'applique dès maintenant, sans effet rétroactif.",
+                "anticipee": anticipee,
             }
+            if anticipee:
+                action["confirmation"] = "Activer cette liste avant l'heure prévue ?"
+                action["message"] = (
+                    f"Prise d'effet prévue le {timezone.localtime(liste.prise_effet_prevue):%d/%m/%Y à %H:%M}. "
+                    "La liste prendra effet immédiatement."
+                )
         elif contexte["peut_publier"] and liste.statut == liste.STATUT_PROPOSEE:
             action = {
                 "libelle": "Publier la liste", "icone": "terminee", "formulaire": "form-action",
@@ -756,7 +764,7 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
         if action == "activer" and isinstance(liste, ServiceGarde):
             try:
-                activer_liste(request.user, liste)
+                activer_liste(request.user, liste, confirmation_anticipee=request.POST.get("confirmation_anticipee") == "1")
             except ActivationImpossible as exc:
                 messages.error(request, str(exc))
             else:

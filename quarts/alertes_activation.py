@@ -78,7 +78,7 @@ def _textes(liste, etape):
     return {
         AlerteActivation.ETAPE_RAPPEL: (f"Rappel : la liste « {nom} » doit prendre effet le {prevue}. Pensez à l'activer.", NotificationLevel.INFO),
         AlerteActivation.ETAPE_ALERTE: (f"La liste « {nom} » devait prendre effet le {prevue} et n'est pas activée : activez-la ou reportez-la.", NotificationLevel.WARNING),
-        AlerteActivation.ETAPE_ESCALADE: (f"La liste « {nom} » n'est toujours pas activée (prise d'effet prévue le {prevue}). Suivi demandé auprès du chef de liste.", NotificationLevel.WARNING),
+        AlerteActivation.ETAPE_ESCALADE: (f"La liste « {nom} » n'est toujours pas activée (prise d'effet prévue le {prevue}). Suivi demandé auprès du chef de liste.", NotificationLevel.DANGER),
     }[etape]
 
 

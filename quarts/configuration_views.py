@@ -13,11 +13,12 @@ from quarts.models import ChefDeListe, ConfigurationActivation
 from quarts.refus import tracer_refus
 
 # (minimum, maximum) validés par le PO.
-BORNES = {"rappel_minutes": (0, 1440), "alerte_minutes": (0, 120), "escalade_minutes": (1, 240)}
+BORNES = {"rappel_minutes": (0, 1440), "alerte_minutes": (0, 120), "escalade_minutes": (1, 240), "activation_anticipee_minutes": (0, 1440)}
 LIBELLES = {
     "rappel_minutes": "Rappel avant la prise d'effet prévue (minutes)",
     "alerte_minutes": "Alerte après la prise d'effet prévue (minutes)",
     "escalade_minutes": "Escalade après l'alerte (minutes)",
+    "activation_anticipee_minutes": "Activation anticipée : confirmation demandée plus de … minutes avant la prise d'effet prévue",
     "remplacement_duree_max_heures": "Durée maximale d'un remplacement du chef de liste (heures)",
 }
 BORNE_REMPLACEMENT = (1, 168)
@@ -47,7 +48,7 @@ class DelaisActivationView(LoginRequiredMixin, View):
 
     def _valeurs(self, ship):
         reglage = ConfigurationActivation.objects.filter(ship=ship).first()
-        valeurs = dict(ECHEANCES_PAR_DEFAUT, remplacement_duree_max_heures=72)
+        valeurs = dict(ECHEANCES_PAR_DEFAUT, activation_anticipee_minutes=30, remplacement_duree_max_heures=72)
         if reglage:
             valeurs = {cle: getattr(reglage, cle) for cle in valeurs}
         return valeurs

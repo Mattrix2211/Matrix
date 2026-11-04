@@ -2,6 +2,8 @@
 
 La validation (statut) et l'application (application) sont deux axes distincts : publier
 ne rend jamais une liste applicable, seul le chef de liste désigné l'active."""
+from datetime import timedelta
+
 from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
@@ -15,6 +17,7 @@ from quarts.mouvements import mode_du_batiment, reevaluer_batiment
 from org.models import Ship
 from quarts.models import (
     CreneauQuart,
+    ConfigurationActivation,
     CreneauServiceGarde,
     MouvementBatiment,
     ServiceGarde,
@@ -157,7 +160,21 @@ def publier_a_titre_previsionnel(user, liste, prise_effet_prevue):
 
 
 @transaction.atomic
-def activer_liste(user, liste):
+def seuil_activation_anticipee(ship):
+    """Minutes avant la prise d'effet prévue au-delà desquelles l'activation exige une confirmation."""
+    reglage = ConfigurationActivation.objects.filter(ship=ship).first() if ship else None
+    return reglage.activation_anticipee_minutes if reglage else 30
+
+
+def activation_anticipee(liste, instant=None):
+    """True si la prise d'effet prévue est plus lointaine que le seuil configuré."""
+    if not liste.prise_effet_prevue:
+        return False
+    instant = instant or timezone.now()
+    return liste.prise_effet_prevue - instant > timedelta(minutes=seuil_activation_anticipee(navire_de_la_liste(liste)))
+
+
+def activer_liste(user, liste, confirmation_anticipee=False):
     """Rend la liste applicable à partir de maintenant, sans rétroactivité."""
     liste = ServiceGarde.objects.select_for_update().get(pk=liste.pk)
     habilitation = habilitation_activation(user, liste)
@@ -177,6 +194,12 @@ def activer_liste(user, liste):
         raise ActivationImpossible(
             "Le bâtiment est à la mer : la liste ne peut être activée qu'après l'accostage confirmé par le COMAEQ ou le commandant. "
             "Elle reste publiée à titre prévisionnel."
+        )
+    anticipee = activation_anticipee(liste, maintenant)
+    if anticipee and not confirmation_anticipee:
+        raise ActivationImpossible(
+            f"Activation anticipée : la prise d'effet est prévue le {timezone.localtime(liste.prise_effet_prevue):%d/%m/%Y à %H:%M}. "
+            "Confirmez pour l'activer immédiatement."
         )
     conflits = conflits_activation(liste, maintenant)
     if conflits:
@@ -199,6 +222,7 @@ def activer_liste(user, liste):
         details=(
             f"Service à quai #{liste.pk} ({liste.perimetre}) activé le {timezone.localtime(maintenant):%d/%m/%Y à %H:%M}{prevue} "
             f"{capacite_texte(habilitation)}."
+            + (" Activation anticipée confirmée." if anticipee else "")
             + (f" Fonction {', '.join(cumul)} du même agent non utilisée pour cet acte." if cumul else "")
         ),
     )

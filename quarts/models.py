@@ -2266,6 +2266,7 @@ class ConfigurationActivation(TimeStampedModel):
     rappel_minutes = models.PositiveIntegerField(default=30, verbose_name="Rappel avant la prise d'effet prévue (minutes)")
     alerte_minutes = models.PositiveIntegerField(default=0, verbose_name="Alerte après la prise d'effet prévue (minutes)")
     escalade_minutes = models.PositiveIntegerField(default=15, verbose_name="Escalade après l'alerte (minutes)")
+    activation_anticipee_minutes = models.PositiveIntegerField(default=30, verbose_name="Activation anticipée : seuil de confirmation (minutes avant la prise d'effet prévue)")
     remplacement_duree_max_heures = models.PositiveIntegerField(default=72, verbose_name="Durée maximale d'un remplacement du chef de liste (heures)")
 
     class Meta:
