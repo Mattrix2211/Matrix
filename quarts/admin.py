@@ -20,8 +20,8 @@ from .models import (
 
 @admin.register(ChefDeListe)
 class ChefDeListeAdmin(AdminScopedMixin, admin.ModelAdmin):
-    list_display = ("user", "ship", "service", "sector", "section")
-    list_filter = ("ship", "service", "sector")
+    list_display = ("user", "ship", "service", "sector", "section", "type_liste")
+    list_filter = ("ship", "service", "sector", "type_liste")
     search_fields = ("user__username",)
 
 

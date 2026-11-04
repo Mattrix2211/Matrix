@@ -170,3 +170,24 @@ class ConflitsActivationTests(BaseActivation):
         debut = self.liste.creneaux.get().debut
         creneau = CreneauServiceGarde.objects.create(service_garde=autre, poste="X", debut=debut, fin=debut + timedelta(hours=2), marin=self.marin)
         self.assertEqual(conflits_marin(self.marin, creneau, [creneau.pk]), [])
+
+
+class ActivationParTypeDeDesignationTests(BaseActivation):
+    def test_chef_des_quarts_seulement_ne_peut_pas_activer_un_service_a_quai(self):
+        ChefDeListe.objects.filter(user=self.chef).delete()
+        ChefDeListe.objects.create(user=self.chef, service=self.service, type_liste=ChefDeListe.TYPE_QUARTS)
+        self.liste.refresh_from_db()
+        self.liste.statut = ServiceGarde.STATUT_PUBLIEE
+        self.liste.application = ServiceGarde.APPLICATION_PREVISIONNELLE
+        self.liste.save()
+        self._poster(self.chef, action="activer")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_PREVISIONNELLE)
+
+    def test_chef_des_services_a_quai_active(self):
+        ChefDeListe.objects.filter(user=self.chef).delete()
+        ChefDeListe.objects.create(user=self.chef, service=self.service, type_liste=ChefDeListe.TYPE_QUAI)
+        self._previsionnelle()
+        self._poster(self.chef, action="activer")
+        self.liste.refresh_from_db()
+        self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_ACTIVE)

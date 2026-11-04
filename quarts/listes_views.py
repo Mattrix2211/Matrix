@@ -35,6 +35,7 @@ from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
 from .alertes_activation import reporter_prise_effet, retirer_previsionnelle, traiter_echeances
+from .designations import LIBELLES, situation as situation_designation
 from .activation import ActivationImpossible, activer_liste, conflits_activation, decrire_conflit, peut_activer_liste, publier_a_titre_previsionnel
 from .echanges import annuler_echanges_du_creneau
 from .models import (
@@ -208,7 +209,7 @@ def _listes_visibles(model, user):
         return model.objects.filter(portee).filter(listes_de_l_equipage_q(user))
     q = Q(pk__in=[])
     trouve = False
-    for cdl in ChefDeListe.objects.filter(user=user):
+    for cdl in ChefDeListe.objects.filter(user=user, type_liste__in=("", model.CODE_TYPE)):
         filtres = {
             k: v for k, v in {
                 "ship_id": cdl.ship_id, "service_id": cdl.service_id,
@@ -250,15 +251,19 @@ def _listes_publiees_me_concernant(model, user):
     return model.objects.filter(q, statut=model.STATUT_PUBLIEE).filter(listes_de_l_equipage_q(user))
 
 
-def _perimetres_creation(user):
+def _perimetres_creation(user, code_type=None):
     """Périmètres où `user` peut créer une liste : toute la flotte en supervision
-    globale, sinon ses périmètres de chef de liste."""
+    globale, sinon ses périmètres de chef de liste pour ce type de liste (tous types si non précisé)."""
     if user_role_level(user) >= NIVEAU_SUPERVISION_GLOBALE_LISTE:
         return _perimetres_org_disponibles(user, borne_par_scope=False)
-    return [
-        {"valeur": _encoder_perimetre(cdl.perimetre), "label": _libelle_perimetre(cdl.perimetre)}
-        for cdl in ChefDeListe.objects.filter(user=user).select_related("ship", "service", "sector", "section")
-    ]
+    designations = ChefDeListe.objects.filter(user=user).select_related("ship", "service", "sector", "section")
+    vus, resultat = set(), []
+    for cdl in designations:
+        valeur = _encoder_perimetre(cdl.perimetre)
+        if cdl.couvre(code_type) and valeur not in vus:
+            vus.add(valeur)
+            resultat.append({"valeur": valeur, "label": _libelle_perimetre(cdl.perimetre)})
+    return resultat
 
 
 class ListeIndexView(LoginRequiredMixin, View):
@@ -297,7 +302,9 @@ def _creer_liste(request, action, retour_erreur):
     if not any([ship, service, sector, section]):
         messages.error(request, "Le niveau concerné est obligatoire.")
         return redirect(retour_erreur)
-    if not utilisateur_autorise_pour_perimetre(request.user, ship, service, sector, section):
+    if not utilisateur_autorise_pour_perimetre(
+        request.user, ship, service, sector, section, ChefDeListe.TYPE_QUARTS if action == "creer_quart" else ChefDeListe.TYPE_QUAI
+    ):
         raise PermissionDenied
 
     date_debut = parse_date(request.POST.get("date_debut", ""))
@@ -366,8 +373,13 @@ class CreerListeView(LoginRequiredMixin, View):
             "date_fin": str(debut + timezone.timedelta(days=6)),
         }
 
+    @staticmethod
+    def _code_type(valeurs):
+        return {"creer_quart": ChefDeListe.TYPE_QUARTS, "creer_service_garde": ChefDeListe.TYPE_QUAI}.get(valeurs.get("type_liste"))
+
     def _afficher(self, request, perimetres, etape, valeurs, statut=200):
         etapes = self._etapes(perimetres)
+        perimetres = _perimetres_creation(request.user, self._code_type(valeurs)) if self._code_type(valeurs) else perimetres
         contexte = {
             "etapes": [libelle for _, libelle in etapes],
             "etape": etape,
@@ -390,7 +402,7 @@ class CreerListeView(LoginRequiredMixin, View):
             }
         return render(request, self.template_name, contexte, status=statut)
 
-    def _controler(self, cle, valeurs, perimetres):
+    def _controler(self, cle, valeurs, perimetres, utilisateur):
         """Message d'erreur de l'étape, ou None si elle est valide."""
         if cle == "type" and valeurs.get("type_liste") not in ("creer_quart", "creer_service_garde"):
             return "Choisissez le type de liste."
@@ -402,6 +414,10 @@ class CreerListeView(LoginRequiredMixin, View):
                 return "La fin de période précède le début."
         if cle == "perimetre" and valeurs.get("perimetre") not in {p["valeur"] for p in perimetres}:
             return "Choisissez le niveau concerné par la liste."
+        if cle == "perimetre" and valeurs.get("perimetre") not in {
+            p["valeur"] for p in _perimetres_creation(utilisateur, self._code_type(valeurs))
+        }:
+            return "Vous n'êtes pas désigné chef de liste de ce type de liste pour ce niveau."
         if cle == "regles":
             champ = "fonction_quart" if valeurs.get("type_liste") == "creer_quart" else "fonction_service"
             if not valeurs.get(champ):
@@ -432,13 +448,13 @@ class CreerListeView(LoginRequiredMixin, View):
         if valeurs.get("action") == "precedent":
             return self._afficher(request, perimetres, max(etape - 1, 1), valeurs)
         if etape < len(etapes):
-            erreur = self._controler(etapes[etape - 1][0], valeurs, perimetres)
+            erreur = self._controler(etapes[etape - 1][0], valeurs, perimetres, request.user)
             if erreur:
                 messages.error(request, erreur)
                 return self._afficher(request, perimetres, etape, valeurs, 400)
             return self._afficher(request, perimetres, etape + 1, valeurs)
         for rang, (cle, _) in enumerate(etapes, 1):
-            erreur = self._controler(cle, valeurs, perimetres)
+            erreur = self._controler(cle, valeurs, perimetres, request.user)
             if erreur:
                 messages.error(request, erreur)
                 return self._afficher(request, perimetres, rang, valeurs, 400)
@@ -835,12 +851,18 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             ).filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
             ).order_by("user__username"),
+            "types_liste": ChefDeListe.TYPE_CHOICES,
+            "nb_historiques": ChefDeListe.objects.filter(type_liste="", user__in=utilisateurs_visibles_par(request.user)).count(),
             "perimetres_disponibles": _perimetres_org_disponibles(
                 request.user, borne_par_scope=user_role_level(request.user) < NIVEAU_SUPERVISION_GLOBALE_LISTE
             ),
             "utilisateurs": utilisateurs_visibles_par(request.user).filter(
                 equipage_marin_q(request.user), is_active=True).order_by("username"),
         }
+        contexte["chefs_de_liste"] = list(contexte["chefs_de_liste"])
+        for cdl in contexte["chefs_de_liste"]:
+            cdl.situation_historique = LIBELLES[situation_designation(cdl)] if cdl.historique_non_precisee else ""
+            cdl.ambigue = cdl.historique_non_precisee and situation_designation(cdl) == "AMBIGUE"
         return render(request, self.template_name, contexte)
 
     def post(self, request):
@@ -860,13 +882,46 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             if candidat is None:
                 messages.error(request, "Marin introuvable.")
                 return redirect("quarts-reglages")
+            type_liste = request.POST.get("type_liste")
+            if type_liste not in dict(ChefDeListe.TYPE_CHOICES):
+                messages.error(request, "Le type de liste (quarts à la mer ou services à quai) est obligatoire.")
+                return redirect("quarts-reglages")
             _, cree = ChefDeListe.objects.get_or_create(
-                user=candidat, ship=ship, service=service, sector=sector, section=section
+                user=candidat, ship=ship, service=service, sector=sector, section=section, type_liste=type_liste
             )
             if cree:
+                AuditLog.objects.create(
+                    actor=request.user, action="chef_de_liste_designe", target_user=candidat,
+                    details=f"Chef de liste ({dict(ChefDeListe.TYPE_CHOICES)[type_liste]}) : {_libelle_perimetre(ship or service or sector or section)}.",
+                )
                 messages.success(request, f"{candidat.get_full_name() or candidat.username} désigné(e) chef de liste.")
             else:
                 messages.info(request, "Cette désignation existe déjà.")
+        elif action == "preciser":
+            cdl = ChefDeListe.objects.filter(
+                equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),
+                pk=entier_ou_none(request.POST.get("pk")), type_liste="",
+            ).first()
+            types = [t for t in request.POST.getlist("types") if t in dict(ChefDeListe.TYPE_CHOICES)]
+            if cdl is None or not types:
+                messages.error(request, "Désignation historique introuvable ou type non choisi.")
+                return redirect("quarts-reglages")
+            if not _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section):
+                raise PermissionDenied
+            with transaction.atomic():
+                for t in types:
+                    ChefDeListe.objects.get_or_create(
+                        user=cdl.user, ship=cdl.ship, service=cdl.service, sector=cdl.sector, section=cdl.section, type_liste=t
+                    )
+                AuditLog.objects.create(
+                    actor=request.user, action="chef_de_liste_precise", target_user=cdl.user,
+                    details=(
+                        f"Désignation historique de {_libelle_perimetre(cdl.perimetre)} précisée : "
+                        + ", ".join(dict(ChefDeListe.TYPE_CHOICES)[t] for t in types) + "."
+                    ),
+                )
+                cdl.delete()
+            messages.success(request, "Désignation précisée.")
         elif action == "retirer":
             cdl = ChefDeListe.objects.filter(
                 equipage_marin_q(request.user, "user__profile__"), user__in=utilisateurs_visibles_par(request.user),

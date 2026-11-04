@@ -243,7 +243,7 @@ class DesignationChefDeListeTests(TestCase):
     def test_chef_service_peut_designer_sur_son_propre_perimetre(self):
         self.client.login(username="chef_service_dsg", password="pass")
         r = self.client.post("/quarts/reglages/", {
-            "action": "designer", "user_id": self.candidat.pk, "perimetre": f"sector:{self.sector.pk}",
+            "action": "designer", "user_id": self.candidat.pk, "perimetre": f"sector:{self.sector.pk}", "type_liste": "QUAI",
         })
         self.assertEqual(r.status_code, 302, r.content)
         self.assertTrue(ChefDeListe.objects.filter(user=self.candidat, sector=self.sector).exists())
@@ -264,7 +264,7 @@ class DesignationChefDeListeTests(TestCase):
     def test_commandant_peut_designer_sur_nimporte_quel_perimetre(self):
         self.client.login(username="commandant_dsg", password="pass")
         r = self.client.post("/quarts/reglages/", {
-            "action": "designer", "user_id": self.candidat.pk, "perimetre": f"sector:{self.autre_secteur.pk}",
+            "action": "designer", "user_id": self.candidat.pk, "perimetre": f"sector:{self.autre_secteur.pk}", "type_liste": "QUAI",
         })
         self.assertEqual(r.status_code, 302, r.content)
         self.assertTrue(ChefDeListe.objects.filter(user=self.candidat, sector=self.autre_secteur).exists())

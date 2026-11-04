@@ -183,11 +183,25 @@ class ChefDeListe(TimeStampedModel):
     service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
     sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
+    # Vide = désignation historique non précisée, qui garde ses effets sur les deux types de liste
+    # jusqu'à ce qu'un responsable la précise ; toute nouvelle désignation porte un type explicite.
+    TYPE_QUARTS = "QUARTS"
+    TYPE_QUAI = "QUAI"
+    TYPE_CHOICES = ((TYPE_QUARTS, "Quarts à la mer"), (TYPE_QUAI, "Services à quai"))
+    type_liste = models.CharField(max_length=8, blank=True, default="", choices=TYPE_CHOICES, verbose_name="Type de liste")
 
     class Meta:
         verbose_name = "Chef de liste"
         verbose_name_plural = "Chefs de liste"
-        unique_together = ("user", "ship", "service", "sector", "section")
+        unique_together = ("user", "ship", "service", "sector", "section", "type_liste")
+
+    @property
+    def historique_non_precisee(self):
+        return not self.type_liste
+
+    def couvre(self, code_type):
+        """Vrai si la désignation vaut pour ce type de liste (`None` : sans distinction de type)."""
+        return code_type is None or not self.type_liste or self.type_liste == code_type
 
     def clean(self):
         super().clean()
@@ -252,7 +266,7 @@ def supervision_liste_sur(user, ship=None, service=None, sector=None, section=No
     )
 
 
-def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=None, section=None):
+def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=None, section=None, type_liste=None):
     """Vrai si `user` peut créer/modifier/publier une liste (Quart ou
     ServiceGarde) pour le périmètre donné (exactement un des quatre non
     nul) : désigné chef de liste pour EXACTEMENT ce périmètre (ChefDeListe),
@@ -269,7 +283,7 @@ def utilisateur_autorise_pour_perimetre(user, ship=None, service=None, sector=No
         section.pk if section else None,
     )
     return any(
-        (cdl.ship_id, cdl.service_id, cdl.sector_id, cdl.section_id) == cible
+        (cdl.ship_id, cdl.service_id, cdl.sector_id, cdl.section_id) == cible and cdl.couvre(type_liste)
         for cdl in user.designations_chef_de_liste.all()  # profite d'un prefetch_related éventuel
     )
 
@@ -282,7 +296,7 @@ def peut_gerer_liste(user, liste):
     cf. peut_publier_liste ci-dessous, qui exige un rôle distinct)."""
     if not perimetre_de_mon_equipage(user, equipage_de_la_liste(liste)):
         return False
-    return utilisateur_autorise_pour_perimetre(user, liste.ship, liste.service, liste.sector, liste.section)
+    return utilisateur_autorise_pour_perimetre(user, liste.ship, liste.service, liste.sector, liste.section, liste.CODE_TYPE)
 
 
 def _perimetre_dans_scope_utilisateur(user, ship, service, sector, section, niveau_requis):
@@ -612,6 +626,8 @@ class Quart(ListeServiceAbstract):
         verbose_name = "Liste de quarts"
         verbose_name_plural = "Listes de quarts"
 
+    CODE_TYPE = ChefDeListe.TYPE_QUARTS
+
     def libelle_type(self):
         return "quart"
 
@@ -678,6 +694,8 @@ class ServiceGarde(ListeServiceAbstract):
     class Meta(ListeServiceAbstract.Meta):
         verbose_name = "Liste de services de garde"
         verbose_name_plural = "Listes de services de garde"
+
+    CODE_TYPE = ChefDeListe.TYPE_QUAI
 
     def libelle_type(self):
         return "service de garde"

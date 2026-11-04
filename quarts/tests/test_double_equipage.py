@@ -116,7 +116,7 @@ class ListesParEquipageTests(DoubleEquipageBase):
         self.assertEqual(reponse.status_code, 302)
         self.assertFalse(ChefDeListe.objects.filter(user=self.a_rouge).exists())
         self.client.post("/quarts/reglages/", {
-            "action": "designer", "perimetre": f"sector:{self.secteur_bleu.pk}", "user_id": self.a_bleu.pk,
+            "action": "designer", "perimetre": f"sector:{self.secteur_bleu.pk}", "user_id": self.a_bleu.pk, "type_liste": "QUAI",
         })
         self.assertTrue(ChefDeListe.objects.filter(user=self.a_bleu).exists())
 

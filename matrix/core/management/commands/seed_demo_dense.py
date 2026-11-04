@@ -336,7 +336,8 @@ class Command(BaseCommand):
         """Liste de service à quai de cinq jours à partir de J+21 : trois postes par jour, tournants sur six marins.
         Les marins concernés n'ont aucun quart à la mer sur la période (voir `_quart_a_la_mer`)."""
         chef = self.u("chef_secteur_a")
-        ChefDeListe.objects.get_or_create(user=chef, ship=self.bre, service=None, sector=None, section=None)
+        for type_liste in (ChefDeListe.TYPE_QUARTS, ChefDeListe.TYPE_QUAI):
+            ChefDeListe.objects.get_or_create(user=chef, ship=self.bre, service=None, sector=None, section=None, type_liste=type_liste)
         fonction = ServiceFunctionChoice.objects.get_or_create(name="Service à quai")[0]
         debut = self.aujourdhui + timedelta(days=21)
         liste = ServiceGarde.objects.create(

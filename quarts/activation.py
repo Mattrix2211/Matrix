@@ -33,7 +33,7 @@ def designation_chef_de_liste(user, liste):
         return None
     cible = (liste.ship_id, liste.service_id, liste.sector_id, liste.section_id)
     for designation in user.designations_chef_de_liste.all():
-        if (designation.ship_id, designation.service_id, designation.sector_id, designation.section_id) == cible:
+        if (designation.ship_id, designation.service_id, designation.sector_id, designation.section_id) == cible and designation.couvre(liste.CODE_TYPE):
             return designation
     return None
 

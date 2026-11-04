@@ -195,7 +195,8 @@ class Command(BaseCommand):
         self.equipier_incendie = u("equipier_incendie_a", Roles.EQUIPIER, "Omar", ship=ship, service=s["Sécurité"], sector=pompiers, section=sp, equipage="A",
           grade="Matelot", specialite="Sécurité")
         u("admin_navire", Roles.ADMIN_NAVIRE, "Paul", ship=ship, equipage="A")
-        ChefDeListe.objects.get_or_create(user=self.chef_secteur_a, sector=moteurs, ship=None, service=None, section=None)
+        for type_liste in (ChefDeListe.TYPE_QUARTS, ChefDeListe.TYPE_QUAI):
+            ChefDeListe.objects.get_or_create(user=self.chef_secteur_a, sector=moteurs, ship=None, service=None, section=None, type_liste=type_liste)
         # Visa et suivi : le commandant en second est désigné par l'administration.
         Location.objects.get_or_create(ship=ship, name="Local machine", parent=None)
         Location.objects.get_or_create(ship=ship, name="Local tableaux", parent=None)

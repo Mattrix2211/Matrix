@@ -2,8 +2,9 @@
 {% load icones %}
 {% block content %}
 <h1 class="h3 mb-3">Chefs de liste</h1>
-<p class="text-muted">Un chef de liste est habilité à créer, affecter et publier les listes de quarts et de services de garde pour le service, le secteur ou la section pour lequel il est désigné — indépendamment de son grade ou de son rôle hiérarchique.</p>
+<p class="text-muted">Un chef de liste est habilité à créer et affecter les listes du type pour lequel il est désigné — quarts à la mer ou services à quai — pour le service, le secteur ou la section concerné, indépendamment de son grade. Une désignation pour les services à quai ne donne aucun droit sur les quarts à la mer, et inversement.</p>
 
+{% if nb_historiques %}<div class="alert alert-warning" role="alert"><strong>{{ nb_historiques }} désignation(s) historique(s) sans type.</strong> Elles gardent leurs effets actuels sur les deux types de liste jusqu'à ce que vous les précisiez ci-dessous ; aucun droit supplémentaire n'est attribué automatiquement.</div>{% endif %}
 <div class="row g-4">
   <div class="col-md-7">
     <div class="card">
@@ -13,6 +14,7 @@
             <tr>
               <th>Marin</th>
               <th>Niveau concerné</th>
+              <th>Type de liste</th>
               <th></th>
             </tr>
           </thead>
@@ -21,6 +23,16 @@
             <tr>
               <td>{{ cdl.user.get_full_name|default:cdl.user.username }}</td>
               <td class="small text-muted">{{ cdl.perimetre }}</td>
+              <td class="small">
+                {% if cdl.historique_non_precisee %}
+                <span class="badge text-bg-warning">À préciser</span>
+                <div class="text-muted">{{ cdl.situation_historique }}</div>
+                <form method="post" class="mt-1">{% csrf_token %}<input type="hidden" name="action" value="preciser"><input type="hidden" name="pk" value="{{ cdl.pk }}">
+                  {% for code, libelle in types_liste %}<label class="me-2"><input type="checkbox" name="types" value="{{ code }}"> {{ libelle }}</label>{% endfor %}
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">Préciser</button>
+                </form>
+                {% else %}{{ cdl.get_type_liste_display }}{% endif %}
+              </td>
               <td>
                 <form method="post">
                   {% csrf_token %}
@@ -31,7 +43,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="3" class="text-center text-muted py-4">Aucun chef de liste désigné.</td></tr>
+            <tr><td colspan="4" class="text-center text-muted py-4">Aucun chef de liste désigné.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -51,6 +63,12 @@
             {% for u in utilisateurs %}
             <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
             {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Type de liste</label>
+          <select name="type_liste" class="form-select" required>
+            {% for code, libelle in types_liste %}<option value="{{ code }}">{{ libelle }}</option>{% endfor %}
           </select>
         </div>
         <div class="col-12">

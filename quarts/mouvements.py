@@ -129,7 +129,8 @@ def _destinataires(ship, listes):
         par_id.update({u.pk: u for u in chefs_de_liste_habilites(liste)})
     if not listes:
         cibles = ChefDeListe.objects.filter(
-            Q(ship=ship) | Q(service__ship=ship) | Q(sector__service__ship=ship) | Q(section__sector__service__ship=ship)
+            Q(ship=ship) | Q(service__ship=ship) | Q(sector__service__ship=ship) | Q(section__sector__service__ship=ship),
+            type_liste__in=("", ChefDeListe.TYPE_QUAI),
         ).values_list("user_id", flat=True)
         par_id.update({u.pk: u for u in User.objects.filter(pk__in=cibles, is_active=True)})
     return list(par_id.values())

@@ -157,7 +157,7 @@ def chefs_de_liste_a_notifier(liste):
     le créateur de la liste (pour que la demande ne reste jamais sans validateur)."""
     chefs = [
         cdl.user for cdl in ChefDeListe.objects.filter(user__is_active=True).select_related("user")
-        if perimetre_correspond(cdl, liste)
+        if perimetre_correspond(cdl, liste) and cdl.couvre(liste.CODE_TYPE)
     ]
     if not chefs and liste.created_by_id:
         chefs = [liste.created_by]
