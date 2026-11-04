@@ -21,10 +21,12 @@ from matrix.core.saisie import entier_ou_none
 
 from .echanges import (
     EchangeImpossible,
+    abandonner_echange,
     accepter_echange,
     annuler_echange,
     peut_valider_echange,
     proposer_echange,
+    reappliquer_echange,
     refuser_echange,
     rejeter_echange,
     valider_echange,
@@ -81,7 +83,8 @@ def _etapes(echange):
     faites, echec = {
         echange.STATUT_DEMANDE: (1, None),
         echange.STATUT_ACCEPTE: (2, None),
-        echange.STATUT_VALIDE: (4, None),
+        # Validé mais pas encore appliqué (liste prévisionnelle) : la dernière étape reste à venir ou bloquée.
+        echange.STATUT_VALIDE: (3, 3 if echange.blocage_application else None) if echange.en_attente_application else (4, None),
         echange.STATUT_REFUSE: (1, 1),
         echange.STATUT_REJETE: (2, 2),
         echange.STATUT_ANNULE: (1, 1 if not echange.accepte_le else 2),
@@ -108,10 +111,17 @@ def _grouper_echanges(echanges, user):
         e.peut_annuler = e.en_cours and e.demandeur_id == user.pk
         e.peut_trancher = e.statut == e.STATUT_ACCEPTE and peut_valider_echange(user, e)
         e.etapes = _etapes(e)
+        e.peut_resoudre = bool(e.blocage_application) and e.en_attente_application and peut_valider_echange(user, e)
+        e.etat_application = (
+            "bloque" if e.en_attente_application and e.blocage_application
+            else "en_attente" if e.en_attente_application
+            else "applique" if e.statut == e.STATUT_VALIDE else ""
+        )
+    attente = lambda e: e.en_cours or e.en_attente_application  # noqa: E731 — validé mais non appliqué : reste suivi
     return {
         "a_traiter": [e for e in echanges if e.peut_repondre or e.peut_trancher],
-        "en_cours": [e for e in echanges if e.en_cours and not (e.peut_repondre or e.peut_trancher)],
-        "termines": [e for e in echanges if not e.en_cours],
+        "en_cours": [e for e in echanges if attente(e) and not (e.peut_repondre or e.peut_trancher)],
+        "termines": [e for e in echanges if not attente(e)],
     }
 
 
@@ -132,6 +142,8 @@ class EchangeActionView(LoginRequiredMixin, View):
         "annuler": (annuler_echange, True, "Demande annulée."),
         "valider": (valider_echange, False, "Échange validé : les deux calendriers sont à jour."),
         "rejeter": (rejeter_echange, True, "Échange refusé : les tours restent inchangés."),
+        "reappliquer": (reappliquer_echange, False, "Échange appliqué : les deux calendriers sont à jour."),
+        "abandonner": (abandonner_echange, True, "Échange abandonné : les tours restent inchangés."),
     }
 
     def post(self, request, pk, action):

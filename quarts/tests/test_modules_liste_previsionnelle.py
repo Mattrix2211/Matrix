@@ -88,3 +88,53 @@ class ModulesListePrevisionnelleTests(BaseActivation):
         self.liste.refresh_from_db()
         self.assertEqual(self.liste.application, ServiceGarde.APPLICATION_TERMINEE)
         self.assertIsNotNone(self.liste.terminee_le)
+
+
+class InterfaceEchangesPrevisionnelsTests(ModulesListePrevisionnelleTests):
+    """États d'un échange visibles dans l'interface : en attente d'application, bloqué, appliqué."""
+
+    def _page(self, user):
+        self.client.force_login(user)
+        return self.client.get(reverse("echanges-index"))
+
+    def test_en_attente_d_application_visible(self):
+        self._echange_valide()
+        self.assertContains(self._page(self.marin), "Validé, en attente d'application")
+
+    def test_bloque_visible_avec_son_motif_et_resolution_reservee_au_chef(self):
+        self._echange_valide()
+        CreneauServiceGarde.objects.filter(pk=self.creneau_autre.pk).update(debut=timezone.now() - timedelta(hours=1))
+        self._poster(self.chef, action="activer")
+        page = self._page(self.marin)
+        self.assertContains(page, "Bloqué à l'activation")
+        self.assertContains(page, "déjà commencé")
+        self.assertNotContains(page, "Abandonner l'échange")
+        self.assertContains(self._page(self.chef), "Abandonner l'échange")
+
+    def test_abandon_motive_d_un_echange_bloque(self):
+        echange = self._echange_valide()
+        CreneauServiceGarde.objects.filter(pk=self.creneau_autre.pk).update(debut=timezone.now() - timedelta(hours=1))
+        self._poster(self.chef, action="activer")
+        self.client.force_login(self.marin)
+        self.client.post(reverse("echange-action", args=[echange.pk, "abandonner"]), {"motif": "x"})
+        echange.refresh_from_db()
+        self.assertEqual(echange.statut, EchangeService.STATUT_VALIDE)  # le marin n'est pas habilité
+        self.client.force_login(self.chef)
+        self.client.post(reverse("echange-action", args=[echange.pk, "abandonner"]), {"motif": ""})
+        echange.refresh_from_db()
+        self.assertEqual(echange.statut, EchangeService.STATUT_VALIDE)  # motif obligatoire
+        self.client.post(reverse("echange-action", args=[echange.pk, "abandonner"]), {"motif": "Tour déjà commencé"})
+        echange.refresh_from_db()
+        self.assertEqual(echange.statut, EchangeService.STATUT_ANNULE)
+
+    def test_applique_apres_resolution(self):
+        echange = self._echange_valide()
+        futur = timezone.now() + timedelta(days=3)
+        CreneauServiceGarde.objects.filter(pk=self.creneau_autre.pk).update(debut=timezone.now() - timedelta(hours=1))
+        self._poster(self.chef, action="activer")
+        CreneauServiceGarde.objects.filter(pk=self.creneau_autre.pk).update(debut=futur, fin=futur + timedelta(hours=24))
+        self.client.force_login(self.chef)
+        self.client.post(reverse("echange-action", args=[echange.pk, "reappliquer"]))
+        echange.refresh_from_db()
+        self.assertIsNotNone(echange.applique_le)
+        self.assertContains(self._page(self.marin), "Validé et appliqué")

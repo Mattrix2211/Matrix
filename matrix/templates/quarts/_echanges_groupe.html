@@ -12,8 +12,17 @@
         <div class="small text-muted font-mono">{{ e.libelle_creneau_demandeur }} contre {{ e.libelle_creneau_cible }}</div>
         {% if e.motif %}<div class="small mt-1">Motif : {{ e.motif }}</div>{% endif %}
       </div>
-      <span class="badge {% if e.statut == 'VALIDE' %}text-bg-success{% elif e.statut == 'REFUSE' or e.statut == 'REJETE' %}text-bg-danger{% elif e.statut == 'ANNULE' %}text-bg-secondary{% else %}text-bg-info{% endif %}">{{ e.get_statut_display }}</span>
+      <span class="badge {% if e.etat_application == 'bloque' %}text-bg-danger{% elif e.etat_application == 'en_attente' %}text-bg-warning{% elif e.statut == 'VALIDE' %}text-bg-success{% elif e.statut == 'REFUSE' or e.statut == 'REJETE' %}text-bg-danger{% elif e.statut == 'ANNULE' %}text-bg-secondary{% else %}text-bg-info{% endif %}">{% if e.etat_application == 'bloque' %}Bloqué à l'activation{% elif e.etat_application == 'en_attente' %}Validé, en attente d'application{% elif e.etat_application == 'applique' %}Validé et appliqué{% else %}{{ e.get_statut_display }}{% endif %}</span>
     </div>
+    {% if e.etat_application == 'en_attente' %}<div class="alert alert-warning py-2 small mb-2">La liste est prévisionnelle : les tours seront permutés à son activation, après revérification.</div>{% endif %}
+    {% if e.etat_application == 'bloque' %}<div class="alert alert-danger py-2 small mb-2"><strong>Non appliqué à l'activation.</strong> {{ e.blocage_application }}</div>
+    {% if e.peut_resoudre %}
+    <form method="post" class="d-inline-flex flex-wrap gap-1 mb-2">{% csrf_token %}
+      <button class="btn btn-sm btn-success" formaction="{% url 'echange-action' e.pk 'reappliquer' %}">Réessayer l'application</button>
+      <input type="text" name="motif" class="form-control form-control-sm" placeholder="Motif de l'abandon" style="width: 14rem">
+      <button class="btn btn-sm btn-outline-danger" formaction="{% url 'echange-action' e.pk 'abandonner' %}">Abandonner l'échange</button>
+    </form>
+    {% endif %}{% endif %}
 
     <div class="frise-echange mb-2">
       {% for etape in e.etapes %}<div class="etape {{ etape.etat }}">{{ etape.libelle }}</div>{% endfor %}

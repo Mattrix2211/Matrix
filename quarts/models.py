@@ -910,6 +910,7 @@ class EchangeServiceEvenement(TimeStampedModel):
         "validation_differee": "Validé par le chef de liste, application à l'activation de la liste",
         "application": "Appliqué à l'activation de la liste, tours permutés",
         "blocage_activation": "Non appliqué à l'activation : à résoudre",
+        "abandon_bloque": "Abandonné par le chef de liste (échange bloqué)",
     }
 
     class Meta:
@@ -2160,6 +2161,13 @@ def _commandant_de_l_equipage(user, ship, equipage):
     if ship.double_equipage:
         return profil.equipage == (equipage or equipage_a_bord(ship))
     return True
+
+
+def commandants_en_second(ship, equipage):
+    """Commandants en second actifs du bâtiment (et de l'équipage en double équipage) : repli de supervision seulement."""
+    qs = User.objects.filter(is_active=True, profile__ship=ship, profile__role=Roles.COMMANDANT_EN_SECOND)
+    equipage = equipage or equipage_a_bord(ship)
+    return qs.filter(profile__equipage=equipage) if ship.double_equipage and equipage else qs
 
 
 def commandant_habilite_si_comaeq_vacant(user, feuille):

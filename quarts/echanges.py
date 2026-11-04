@@ -394,6 +394,39 @@ def appliquer_echanges_prepares(liste, user):
             _permuter(echange, user, "application")
 
 
+def _echange_bloque(echange, user):
+    if not (echange.statut == EchangeService.STATUT_VALIDE and echange.applique_le is None and echange.blocage_application):
+        raise EchangeImpossible("Cet échange n'est pas bloqué à l'activation.")
+    if not peut_valider_echange(user, echange):
+        raise EchangeImpossible("Seul le chef de la liste concernée peut résoudre cet échange.")
+
+
+@transaction.atomic
+def reappliquer_echange(echange, user):
+    """Nouvelle tentative d'application d'un échange bloqué, une fois la situation résolue."""
+    _echange_bloque(echange, user)
+    if echange.liste.application != "ACTIVE":
+        raise EchangeImpossible("La liste n'est pas active : l'échange ne peut pas être appliqué.")
+    problemes = analyser_echange(echange)
+    if problemes:
+        echange.blocage_application = " ".join(problemes)
+        echange.save(update_fields=["blocage_application", "updated_at"])
+        raise EchangeImpossible(problemes)
+    _permuter(echange, user, "application")
+
+
+@transaction.atomic
+def abandonner_echange(echange, user, motif=""):
+    """Abandon motivé d'un échange bloqué : les tours restent inchangés, l'historique est conservé."""
+    _echange_bloque(echange, user)
+    if not motif.strip():
+        raise EchangeImpossible("Un motif est obligatoire pour abandonner un échange bloqué.")
+    _cloturer(
+        echange, user, EchangeService.STATUT_ANNULE, "abandon_bloque", motif, [echange.demandeur, echange.cible],
+        f"L'échange ({_resume(echange)}) est abandonné : les tours restent inchangés.",
+    )
+
+
 def annuler_echanges_du_creneau(creneau, acteur):
     """À appeler avant la suppression d'un créneau : les demandes en cours qui
     le concernent sont annulées avec explication, jamais laissées orphelines."""

@@ -39,11 +39,30 @@ class AlertesActivationTests(BaseActivation):
         self.assertEqual(self._notifs(self.comaeq), 1)
         self.assertEqual(self._notifs(self.commandant), 0)
 
-    def test_escalade_vers_le_commandant_si_comaeq_vacant(self):
+    def test_escalade_vers_le_commandant_en_second_si_comaeq_vacant(self):
+        second = self._user("csd", "COMMANDANT_EN_SECOND")
         self.comaeq.profile.fonction_coma = ""
         self.comaeq.profile.save()
         traiter_echeances(self.prevue + timedelta(minutes=16))
-        self.assertEqual(self._notifs(self.commandant), 1)
+        self.assertEqual(self._notifs(second), 1)
+        self.assertEqual(self._notifs(self.commandant), 0)  # le commandant n'est plus le repli
+
+    def test_le_commandant_en_second_n_obtient_aucun_droit_d_activer_ni_de_reporter(self):
+        second = self._user("csd", "COMMANDANT_EN_SECOND")
+        nouvelle = (timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        self._poster(second, action="activer")
+        self._poster(second, action="reporter", prise_effet_prevue=nouvelle, motif="Supervision")
+        self._poster(second, action="retirer_previsionnelle", motif="Supervision")
+        self.liste.refresh_from_db()
+        self.assertEqual((self.liste.application, self.liste.statut, self.liste.version_prevision),
+                         (ServiceGarde.APPLICATION_PREVISIONNELLE, ServiceGarde.STATUT_PUBLIEE, 1))
+
+    def test_le_commandant_ne_peut_ni_reporter_ni_retirer(self):
+        nouvelle = (timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        self._poster(self.commandant, action="reporter", prise_effet_prevue=nouvelle, motif="Supervision")
+        self._poster(self.commandant, action="retirer_previsionnelle", motif="Supervision")
+        self.liste.refresh_from_db()
+        self.assertEqual((self.liste.statut, self.liste.version_prevision), (ServiceGarde.STATUT_PUBLIEE, 1))
 
     def test_delais_configurables_par_batiment(self):
         ConfigurationActivation.objects.create(ship=self.ship, rappel_minutes=60, alerte_minutes=10, escalade_minutes=5)

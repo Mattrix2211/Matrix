@@ -110,3 +110,16 @@ class MouvementsBatimentTests(BaseActivation):
         mouvement = MouvementBatiment.objects.get()
         self.client.force_login(self.chef)
         self.assertEqual(self.client.post(self.url_mv, {"action": "annuler", "mouvement_id": mouvement.pk, "motif": "x"}).status_code, 403)
+
+    def test_accostage_sans_liste_repli_sur_le_commandant_en_second_si_comaeq_vacant(self):
+        second = self._user("csd", "COMMANDANT_EN_SECOND")
+        self.liste.delete()
+        self._declarer(self.commandant)
+        self.comaeq.profile.fonction_coma = ""
+        self.comaeq.profile.save()
+        self._alertes().update(fermee_le=timezone.now())
+        from quarts.mouvements import reevaluer_batiment
+
+        reevaluer_batiment(self.ship)
+        self.assertEqual(Notification.objects.filter(user=second, verb__contains="aucune liste").count(), 1)
+        self.assertEqual(Notification.objects.filter(user=self.commandant, verb__contains="aucune liste").count(), 0)

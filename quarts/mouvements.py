@@ -15,6 +15,7 @@ from quarts.models import (
     MouvementBatiment,
     ServiceGarde,
     _commandant_de_l_equipage,
+    commandants_en_second,
 )
 
 
@@ -120,6 +121,8 @@ def _listes_du_batiment(ship):
 def _destinataires(ship, listes):
     equipage = equipage_a_bord(ship)
     par_id = {u.pk: u for u in titulaires_commandant_adjoint(ship, "COMAEQ", equipage)}
+    if not par_id:  # COMAEQ vacant : le commandant en second reçoit l'alerte pour supervision
+        par_id = {u.pk: u for u in commandants_en_second(ship, equipage)}
     from quarts.alertes_activation import chefs_de_liste_habilites
 
     for liste in listes:

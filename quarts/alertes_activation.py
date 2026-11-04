@@ -19,7 +19,7 @@ from quarts.models import (
     ChefDeListe,
     ConfigurationActivation,
     ServiceGarde,
-    _commandant_de_l_equipage,
+    commandants_en_second,
 )
 
 ECHEANCES_PAR_DEFAUT = {"rappel_minutes": 30, "alerte_minutes": 0, "escalade_minutes": 15}
@@ -53,14 +53,14 @@ def chefs_de_liste_habilites(liste):
 
 
 def destinataires_escalade(liste):
-    """COMAEQ du bâtiment (et de l'équipage) ; à défaut le commandant de l'équipage, en suivi seulement."""
+    """COMAEQ du bâtiment (et de l'équipage) ; à défaut le commandant en second, en supervision seulement."""
     ship = _navire(liste)
     if ship is None:
         return []
     comaeq = list(titulaires_commandant_adjoint(ship, "COMAEQ", liste.equipage))
     if comaeq:
         return comaeq
-    return [u for u in User.objects.filter(profile__ship=ship, is_active=True) if _commandant_de_l_equipage(u, ship, liste.equipage)]
+    return list(commandants_en_second(ship, liste.equipage))
 
 
 def _textes(liste, etape):
