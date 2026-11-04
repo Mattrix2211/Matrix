@@ -495,6 +495,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
         )
         for destinataire in publicateurs_a_notifier(self):
             Notification.objects.create(
+                regime=self.REGIME_NOTIFICATION, categorie=self.CATEGORIE_NOTIFICATION,
                 user=destinataire,
                 verb=(
                     f"Proposition à valider : le {self.libelle_type()} "
@@ -528,6 +529,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
         for creneau in self.creneaux.select_related("marin").all():
             if creneau.marin_id:
                 Notification.objects.create(
+                    regime=self.REGIME_NOTIFICATION, categorie=self.CATEGORIE_NOTIFICATION,
                     user=creneau.marin,
                     verb=(
                         f"Liste publiée : vous êtes affecté(e) au {self.libelle_type()} "
@@ -557,6 +559,7 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
         if marin is None or marin.pk == getattr(user, "pk", None):
             return
         Notification.objects.create(
+            regime=self.REGIME_NOTIFICATION, categorie=self.CATEGORIE_NOTIFICATION,
             user=marin,
             verb=(
                 f"Modification de la liste publiée : vous êtes {'affecté(e) au' if ajoute else 'retiré(e) du'} "
@@ -627,6 +630,7 @@ class Quart(ListeServiceAbstract):
         verbose_name_plural = "Listes de quarts"
 
     CODE_TYPE = ChefDeListe.TYPE_QUARTS
+    REGIME_NOTIFICATION, CATEGORIE_NOTIFICATION = "MER", "quart"
 
     def libelle_type(self):
         return "quart"
@@ -698,6 +702,7 @@ class ServiceGarde(ListeServiceAbstract):
         verbose_name_plural = "Listes de services de garde"
 
     CODE_TYPE = ChefDeListe.TYPE_QUAI
+    REGIME_NOTIFICATION, CATEGORIE_NOTIFICATION = "QUAI", "calendrier"
 
     def libelle_type(self):
         return "service de garde"
@@ -1495,6 +1500,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             )
         for destinataire in self.validateurs_a_notifier():
             Notification.objects.create(
+                regime="QUAI", categorie="calendrier",
                 user=destinataire,
                 verb=(
                     f"Feuille de service du {self.date:%d/%m/%Y} ({self.ship}) : poste de COMAEQ vacant, "
@@ -1621,6 +1627,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         else:
             for marin in self.marins_de_la_fraction():
                 Notification.objects.create(
+                    regime="QUAI", categorie="calendrier",
                     user=marin,
                     verb=f"Feuille de service du {self.date:%d/%m/%Y} publiée : vous êtes de service.",
                     level=NotificationLevel.INFO,
@@ -1686,6 +1693,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             )
             if self.redacteur is not None:
                 Notification.objects.create(
+                    regime="QUAI", categorie="calendrier",
                     user=self.redacteur,
                     verb=f"Feuille de service du {self.date:%d/%m/%Y} renvoyée pour correction : {motif}",
                     level=NotificationLevel.WARNING,
@@ -1749,6 +1757,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
             )
             if self.redacteur is not None and self.redacteur != user:
                 Notification.objects.create(
+                    regime="QUAI", categorie="calendrier",
                     user=self.redacteur,
                     verb=f"Feuille de service du {self.date:%d/%m/%Y} corrigée par le COMAEQ : {motif}",
                     level=NotificationLevel.INFO,

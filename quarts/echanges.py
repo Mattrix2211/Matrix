@@ -174,7 +174,7 @@ def _tracer(echange, acteur, action, detail=""):
 
 def _notifier(users, verb, echange, level=NotificationLevel.INFO):
     for user in {u.pk: u for u in users if u}.values():
-        Notification.objects.create(user=user, verb=verb, level=level, target=echange)
+        Notification.objects.create(user=user, verb=verb, level=level, target=echange, regime="QUAI")
 
 
 def _resume(echange):

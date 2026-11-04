@@ -34,7 +34,7 @@
             {% else %}<span class="mx-badge mx-badge--neutre">{% icone "information" %} Information</span>{% endif %}
             <span class="mx-notif__date">{{ n.date_relative }}</span>
           </div>
-          <p class="mx-notif__message">{{ n.verb }}</p>
+          <p class="mx-notif__message"><i class="bi {{ n.icone }} mx-notif__icone" aria-hidden="true"></i><span class="visually-hidden">{{ n.categorie_libelle }} : </span>{{ n.verb }}</p>
           <div class="mx-notif__actions">
             {% if n.lien %}<a href="{{ n.lien }}" class="btn btn-sm btn-outline-primary">{% icone "lien_direct" %} Ouvrir</a>{% endif %}
             {% if not n.is_read %}

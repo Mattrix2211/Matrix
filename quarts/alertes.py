@@ -148,6 +148,7 @@ def signaler_postes_non_armes(feuille, user):
     )
     for destinataire in destinataires.values():
         Notification.objects.create(
+            regime="QUAI", categorie="anomalie",
             user=destinataire,
             verb=f"Feuille de service du {feuille.date:%d/%m/%Y} : postes d'alerte obligatoires non armés — {detail}",
             level=NotificationLevel.WARNING,
@@ -221,6 +222,7 @@ def proposer_modification(user, ship, action, donnees=None, scenario=None):
         for destinataire in User.objects.filter(is_active=True, profile__ship=ship):
             if destinataire.pk != user.pk and peut_valider_organisation_alerte(destinataire, ship):
                 Notification.objects.create(
+                    regime="QUAI", categorie="calendrier",
                     user=destinataire,
                     verb=f"Organisation d'alerte ({ship}) : {modification} attend votre validation.",
                     level=NotificationLevel.WARNING,
@@ -290,6 +292,7 @@ def _prevenir_auteur(modification, user, message):
     auteur = modification.proposee_par
     if auteur is not None and auteur.pk != user.pk:
         Notification.objects.create(
+            regime="QUAI", categorie="calendrier",
             user=auteur, verb=f"Organisation d'alerte : modification {message}", level=NotificationLevel.INFO,
             url=reverse("feuille-service-alertes"),
         )

@@ -48,7 +48,7 @@ def terminer_creneau(user, creneau, nouvelle_fin, motif):
     )
     if marin is not None and marin.pk != user.pk:
         Notification.objects.create(
-            user=marin, level=NotificationLevel.WARNING, url=reverse("quarts-index"),
+            user=marin, level=NotificationLevel.WARNING, url=reverse("quarts-index"), regime="MER", categorie="quart",
             verb=(
                 f"Votre quart « {creneau.poste} » prend fin plus tôt : {timezone.localtime(nouvelle_fin):%d/%m/%Y à %H:%M} "
                 f"au lieu de {timezone.localtime(ancienne_fin):%H:%M}. Motif : {motif.strip()}."
@@ -74,6 +74,6 @@ def _prevenir_les_chefs_a_quai(creneau, auteur):
     for utilisateur in destinataires.values():
         if utilisateur.pk != auteur.pk:
             Notification.objects.create(
-                user=utilisateur, level=NotificationLevel.INFO, url=reverse("quarts-index"),
+                user=utilisateur, level=NotificationLevel.INFO, url=reverse("quarts-index"), regime="TRANSITION", categorie="quart",
                 verb=f"Un quart de {creneau.marin.get_full_name() or creneau.marin.username} a été terminé à l'heure effective : les recouvrements avec vos listes à quai sont recalculés.",
             )

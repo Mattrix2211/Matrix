@@ -17,6 +17,14 @@ class NotificationLevel(models.TextChoices):
     DANGER = "danger", "Urgent"
 
 
+class RegimeNotification(models.TextChoices):
+    """Régime opérationnel d'une notification : étiquette de priorité d'affichage, jamais un filtre."""
+    MER = "MER", "À la mer"
+    QUAI = "QUAI", "À quai"
+    COMMUNES = "COMMUNES", "Communes"
+    TRANSITION = "TRANSITION", "Transition mer / quai"
+
+
 class Notification(TimeStampedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     verb = models.CharField(max_length=255)
@@ -30,6 +38,9 @@ class Notification(TimeStampedModel):
     # Alerte qui réclame une action : « lue » ne la solde pas, seule la résolution de la source la traite.
     action_requise = models.BooleanField(default=False)
     traitee_le = models.DateTimeField(null=True, blank=True)
+    regime = models.CharField(max_length=10, choices=RegimeNotification.choices, default=RegimeNotification.COMMUNES)
+    # Concept d'icône (clé de matrix/core/icones.py) quand la cible ne suffit pas à le déduire.
+    categorie = models.CharField(max_length=24, blank=True, default="")
 
     class Meta:
         ordering = ("-created_at",)

@@ -686,7 +686,11 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
                 {"libelle": "Non affectés", "valeur": non_affectes, "etat": "attention" if non_affectes else "ok"},
             ],
             "action": action,
-            "alertes_activation": list(liste.alertes_activation.filter(fermee_le__isnull=True)) if est_garde else [],
+            # Seule l'alerte la plus avancée est affichée (escalade > alerte > rappel) : pas d'empilement de bandeaux.
+            "alerte_activation": (
+                max(liste.alertes_activation.filter(fermee_le__isnull=True), key=lambda a: ("RAPPEL", "ALERTE", "ESCALADE").index(a.etape), default=None)
+                if est_garde else None
+            ),
             "peut_reporter": est_garde and liste.statut == liste.STATUT_PUBLIEE and liste.application == liste.APPLICATION_PREVISIONNELLE and peut_activer_liste(request.user, liste),
             "avertissements_activation": (
                 [decrire_conflit(c) for c in avertissements_activation(liste)]

@@ -94,7 +94,10 @@ def _creer_alerte(liste, etape, maintenant=None):
     destinataires = destinataires_escalade(liste) if etape == AlerteActivation.ETAPE_ESCALADE else chefs_de_liste_habilites(liste)
     texte, niveau = _textes(liste, etape)
     for user in {u.pk: u for u in destinataires}.values():
-        Notification.objects.create(user=user, verb=texte, level=niveau, url=reverse("garde-detail", args=[liste.pk]))
+        Notification.objects.create(
+            user=user, verb=texte, level=niveau, url=reverse("garde-detail", args=[liste.pk]), regime="QUAI",
+            categorie="calendrier" if etape == AlerteActivation.ETAPE_RAPPEL else "anomalie",
+        )
     return alerte
 
 

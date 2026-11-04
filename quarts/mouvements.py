@@ -248,5 +248,5 @@ def reevaluer_batiment(ship):
         if previsionnelles else f"Accostage de {ship} confirmé : aucune liste de service à quai n'est préparée."
     )
     for user in _destinataires(ship, previsionnelles or listes):
-        Notification.objects.create(user=user, verb=texte, level=NotificationLevel.WARNING, url=reverse("quarts-index"))
+        Notification.objects.create(user=user, verb=texte, level=NotificationLevel.WARNING, url=reverse("quarts-index"), regime="TRANSITION", categorie="anomalie")
     return alerte

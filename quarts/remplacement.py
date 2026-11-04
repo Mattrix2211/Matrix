@@ -70,7 +70,7 @@ def designer_remplacant(auteur, designation, remplacant, debut, fin, motif):
         (remplacant, f"Vous remplacez {_nom(designation.user)} pour activer, reporter ou retirer les listes à quai de « {remplacement.perimetre} » jusqu'au {timezone.localtime(fin):%d/%m/%Y à %H:%M}."),
         (designation.user, f"{_nom(remplacant)} vous remplace pour activer les listes à quai de « {remplacement.perimetre} » du {timezone.localtime(debut):%d/%m/%Y %H:%M} au {timezone.localtime(fin):%d/%m/%Y %H:%M}."),
     ):
-        Notification.objects.create(user=destinataire, verb=texte, level=NotificationLevel.INFO, url=reverse("quarts-index"))
+        Notification.objects.create(user=destinataire, verb=texte, level=NotificationLevel.INFO, url=reverse("quarts-index"), regime="QUAI", categorie="calendrier")
     return remplacement
 
 

@@ -289,3 +289,8 @@ span.mx-barre__batiment, .mx-barre__contexte .mx-barre__batiment, .mx-barre__dec
   .mx-vue-marin tr { display: block; border-bottom: 1px solid var(--border); padding: var(--s2) 0; }
   .mx-vue-marin td { display: block; border: 0; padding: var(--s1) var(--s3); }
 }
+
+/* Notifications : l'icône dit la catégorie, la couleur de la carte dit la priorité */
+.mx-notif__icone { color: var(--text-sec); margin-right: var(--s2); }
+.mx-notif__autres { margin-top: var(--s3); }
+.mx-notif__autres > summary { cursor: pointer; color: var(--text-sec); font-size: .875rem; padding: var(--s1) 0; }

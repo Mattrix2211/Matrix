@@ -205,6 +205,7 @@ def activer_liste(user, liste):
     appliquer_echanges_prepares(liste, user)
     for creneau in liste.creneaux.select_related("marin").filter(marin__isnull=False, fin__gt=maintenant):
         Notification.objects.create(
+            regime="QUAI", categorie="terminee",
             user=creneau.marin,
             verb=f"La liste « {liste.nom or liste.perimetre} » est maintenant active : votre service du {timezone.localtime(creneau.debut):%d/%m/%Y à %H:%M} est confirmé.",
             url=reverse("quarts-index"),

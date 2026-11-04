@@ -85,7 +85,7 @@ def notifier_rectificatif(feuille, version, remplace, redacteur):
     if redacteur is not None and redacteur.pk not in destinataires:
         destinataires[redacteur.pk] = (redacteur, f"{titre}.")
     for destinataire, verb in destinataires.values():
-        Notification.objects.create(user=destinataire, verb=verb, level=NotificationLevel.INFO, url=url)
+        Notification.objects.create(user=destinataire, verb=verb, level=NotificationLevel.INFO, url=url, regime="QUAI", categorie="calendrier")
 
 
 MESSAGE_CONTENU_CHANGE = (
@@ -151,7 +151,7 @@ def signaler_divergence(feuille):
         url = reverse("feuille-service-detail", args=[feuille.ship_id, f"{feuille.date:%Y-%m-%d}"])
         for destinataire in destinataires.values():
             Notification.objects.create(
-                user=destinataire, level=NotificationLevel.WARNING, url=url,
+                user=destinataire, level=NotificationLevel.WARNING, url=url, regime="QUAI", categorie="calendrier",
                 verb=f"Feuille de service du {feuille.date:%d/%m/%Y}{equipage} : rectificatif à préparer, les affectations "
                      f"effectives ont changé depuis la publication de la version {feuille.version_publiee.numero}.",
             )

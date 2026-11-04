@@ -10,8 +10,12 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 from django.views.decorators.http import require_GET, require_POST
 
+from quarts.mouvements import mode_du_batiment_de
+
+from .categories import enrichir_categorie
 from .liens import liens_accessibles
 from .models import Notification, NotificationLevel
+from .regimes import repartir
 from .services import compter_non_lues
 
 LIMITE_AFFICHEE = 50
@@ -37,6 +41,7 @@ def _enrichir(request, notifications):
     for notification in notifications:
         notification.lien = liens.get(notification.pk)
         notification.date_relative = _date_relative(notification.created_at)
+        enrichir_categorie(notification)
     return notifications
 
 
@@ -51,7 +56,9 @@ def _contexte_liste(request, **extra):
                   "rang", "-created_at")[:LIMITE_AFFICHEE]
     )
     _enrichir(request, notifications)
-    return {"notifications": notifications, "non_lues": compter_non_lues(request.user), **extra}
+    mode = mode_du_batiment_de(request.user)
+    prioritaires, autres = repartir(notifications, mode)
+    return {"notifications": prioritaires, "autres_regimes": autres, "mode_batiment": mode, "non_lues": compter_non_lues(request.user), **extra}
 
 
 def _rendre_liste(request):
