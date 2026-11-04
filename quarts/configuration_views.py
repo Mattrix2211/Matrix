@@ -10,6 +10,7 @@ from accounts.models import AuditLog, Roles
 from matrix.core.saisie import entier_ou_none
 from quarts.alertes_activation import ECHEANCES_PAR_DEFAUT
 from quarts.models import ChefDeListe, ConfigurationActivation
+from quarts.refus import tracer_refus
 
 # (minimum, maximum) validés par le PO.
 BORNES = {"rappel_minutes": (0, 1440), "alerte_minutes": (0, 120), "escalade_minutes": (1, 240)}
@@ -71,6 +72,7 @@ class DelaisActivationView(LoginRequiredMixin, View):
         if droit is None:
             raise Http404("Page introuvable.")
         if droit != "modifier":
+            tracer_refus(request.user, "modification des délais d'alerte", f"bâtiment {ship}")
             raise PermissionDenied
         saisie, erreurs = {}, []
         for cle in (*BORNES, "remplacement_duree_max_heures"):

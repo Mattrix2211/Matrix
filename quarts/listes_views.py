@@ -42,6 +42,7 @@ from .activation import (
 )
 from .configuration_views import droit_sur_les_delais
 from .mouvements import mode_du_batiment, mode_du_batiment_de
+from .refus import tracer_refus
 from .regularisation import RegularisationImpossible, terminer_creneau
 from .remplacement import designer_remplacant, revoquer_remplacement
 from .echanges import annuler_echanges_du_creneau
@@ -713,10 +714,18 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         peut_gerer = peut_gerer_liste(request.user, liste)
         peut_publier = peut_publier_liste(request.user, liste)
         peut_remplacer = isinstance(liste, ServiceGarde) and peut_activer_liste(request.user, liste)
+        action = request.POST.get("action")
+        # Refus de droit sur une action sensible : 403 tracé pour qui voit la liste, 404 pour qui ne la voit pas.
+        sans_droit = (
+            (isinstance(liste, ServiceGarde) and action in ("activer", "reporter", "retirer_previsionnelle") and not peut_remplacer)
+            or (isinstance(liste, Quart) and action == "terminer_creneau" and not peut_gerer)
+            or (action == "publier" and not peut_publier)
+        )
+        if sans_droit and (peut_gerer or peut_publier or peut_remplacer or _peut_lire_liste(request.user, liste)):
+            tracer_refus(request.user, action, f"{liste.libelle_type()} #{liste.pk} ({liste.perimetre})")
+            raise PermissionDenied
         if not peut_gerer and not peut_publier and not peut_remplacer:
             raise Http404(f"Liste introuvable ou hors de {votre_niveau(request.user)}.")
-
-        action = request.POST.get("action")
 
         # Publier exige un rôle DISTINCT de celui qui gère/propose la liste
         # (workflow proposer -> valider/publier, cahier des charges §34) :
@@ -724,11 +733,6 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
         # ci-dessous, pour qu'un publicateur habilité non désigné chef de
         # liste puisse tout de même publier.
         if action == "publier":
-            if not peut_publier:
-                return HttpResponseBadRequest(
-                    "Vous n'êtes pas habilité à publier cette liste : rôle de publication requis "
-                    "(distinct de celui de chef de liste), cf. réglages de sécurité du navire."
-                )
             self._publier(request, liste)
             return redirect(f"{self.url_prefix}-detail", pk=liste.pk)
         if action in ("reporter", "retirer_previsionnelle") and isinstance(liste, ServiceGarde):
@@ -927,6 +931,12 @@ class ServiceGardeDetailView(_DetailListeViewBase):
     url_prefix = "garde"
 
 
+def _refus_reglage(request):
+    """Trace la tentative refusée sur les réglages de chef de liste (désignation, précision, remplacement) et renvoie le 403."""
+    tracer_refus(request.user, request.POST.get("action") or "réglages des chefs de liste", "désignation de chef de liste ou de remplaçant")
+    return PermissionDenied()
+
+
 class ChefDeListeReglagesView(LoginRequiredMixin, View):
     """Désignation/retrait des chefs de liste — réservé à CHEF_SERVICE et
     au-dessus, dans la limite de leur propre périmètre organisationnel (cf.
@@ -936,7 +946,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
 
     def get(self, request):
         if user_role_level(request.user) < NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE:
-            raise PermissionDenied
+            raise _refus_reglage(request)
         contexte = {
             "chefs_de_liste": ChefDeListe.objects.select_related(
                 "user", "ship", "service", "sector", "section"
@@ -970,7 +980,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
 
     def post(self, request):
         if user_role_level(request.user) < NIVEAU_REQUIS_DESIGNATION_CHEF_DE_LISTE:
-            raise PermissionDenied
+            raise _refus_reglage(request)
         action = request.POST.get("action")
 
         if action == "designer":
@@ -979,7 +989,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 messages.error(request, "Le niveau concerné est obligatoire.")
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, ship, service, sector, section):
-                raise PermissionDenied
+                raise _refus_reglage(request)
             candidat = utilisateurs_visibles_par(request.user).filter(
                 equipage_marin_q(request.user), pk=entier_ou_none(request.POST.get("user_id"))).first()
             if candidat is None:
@@ -1011,7 +1021,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 messages.error(request, "Titulaire ou remplaçant introuvable.")
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section):
-                raise PermissionDenied
+                raise _refus_reglage(request)
             debut, fin = parse_datetime(request.POST.get("debut", "")), parse_datetime(request.POST.get("fin", ""))
             debut = timezone.make_aware(debut) if debut is not None and timezone.is_naive(debut) else debut
             fin = timezone.make_aware(fin) if fin is not None and timezone.is_naive(fin) else fin
@@ -1031,7 +1041,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
             if not _perimetre_autorise_pour_designation(
                 request.user, remplacement.ship if remplacement.perimetre_navire else None, remplacement.service, remplacement.sector, remplacement.section,
             ):
-                raise PermissionDenied
+                raise _refus_reglage(request)
             try:
                 revoquer_remplacement(request.user, remplacement, request.POST.get("motif", ""))
             except ActivationImpossible as exc:
@@ -1048,7 +1058,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 messages.error(request, "Désignation historique introuvable ou type non choisi.")
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section):
-                raise PermissionDenied
+                raise _refus_reglage(request)
             with transaction.atomic():
                 for t in types:
                     ChefDeListe.objects.get_or_create(
@@ -1072,7 +1082,7 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 messages.error(request, "Désignation introuvable.")
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, cdl.ship, cdl.service, cdl.sector, cdl.section):
-                raise PermissionDenied
+                raise _refus_reglage(request)
             cdl.delete()
             messages.info(request, "Désignation retirée.")
         else:

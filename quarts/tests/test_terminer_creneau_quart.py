@@ -55,7 +55,7 @@ class TerminerCreneauQuartTests(BaseActivation):
     def test_le_chef_de_liste_a_quai_n_a_jamais_ce_droit(self):
         ancienne = self.creneau.fin
         reponse = self._terminer(self.chef, timezone.now() + timedelta(hours=1))
-        self.assertEqual(reponse.status_code, 404)
+        self.assertEqual(reponse.status_code, 403)  # il voit le quart mais l'action lui est interdite
         self.creneau.refresh_from_db()
         self.assertEqual(self.creneau.fin, ancienne)
         self.assertIsNone(self.creneau.fin_initiale)

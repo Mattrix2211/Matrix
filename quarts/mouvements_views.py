@@ -7,6 +7,7 @@ from django.utils.dateparse import parse_datetime
 from django.views import View
 
 from .models import MouvementBatiment
+from .refus import tracer_refus
 from .mouvements import (
     MouvementImpossible,
     annuler_mouvement,
@@ -49,6 +50,7 @@ class MouvementsBatimentView(LoginRequiredMixin, View):
     def post(self, request):
         ship = self._navire(request)
         if ship is None or fonction_habilitee(request.user, ship) is None:
+            tracer_refus(request.user, request.POST.get("action") or "mouvement", f"mouvements du bâtiment {ship or ''}".strip())
             raise PermissionDenied
         action = request.POST.get("action")
         try:

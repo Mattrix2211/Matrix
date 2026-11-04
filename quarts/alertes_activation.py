@@ -82,11 +82,13 @@ def _textes(liste, etape):
     }[etape]
 
 
-def _creer_alerte(liste, etape):
+def _creer_alerte(liste, etape, maintenant=None):
     """Crée l'alerte et notifie une seule fois ; une personne cumulant plusieurs fonctions reçoit un seul message."""
     try:
         with transaction.atomic():
-            alerte = AlerteActivation.objects.create(liste=liste, etape=etape, version_prevision=liste.version_prevision)
+            alerte = AlerteActivation.objects.create(
+                liste=liste, etape=etape, version_prevision=liste.version_prevision, declenchee_le=maintenant or timezone.now(),
+            )
     except IntegrityError:
         return None
     destinataires = destinataires_escalade(liste) if etape == AlerteActivation.ETAPE_ESCALADE else chefs_de_liste_habilites(liste)
@@ -127,8 +129,19 @@ def traiter_echeances(maintenant=None):
         statut=ServiceGarde.STATUT_PUBLIEE, application=ServiceGarde.APPLICATION_PREVISIONNELLE, prise_effet_prevue__isnull=False,
     )
     for liste in listes:
-        for etape, instant in echeances(liste).items():
-            if maintenant >= instant and _creer_alerte(liste, etape):
+        instants = echeances(liste)
+        # Le rappel n'a de sens qu'avant la prise d'effet prévue : jamais de rappel rétrospectif.
+        if instants[AlerteActivation.ETAPE_RAPPEL] <= maintenant < liste.prise_effet_prevue and _creer_alerte(liste, AlerteActivation.ETAPE_RAPPEL, maintenant):
+            creees += 1
+        if maintenant >= instants[AlerteActivation.ETAPE_ALERTE] and _creer_alerte(liste, AlerteActivation.ETAPE_ALERTE, maintenant):
+            creees += 1
+        # L'escalade attend que le chef de liste ait eu le délai prévu depuis le déclenchement réel de l'alerte
+        # (publication tardive ou retard de traitement : pas d'alerte et d'escalade simultanées).
+        alerte = liste.alertes_activation.filter(etape=AlerteActivation.ETAPE_ALERTE, version_prevision=liste.version_prevision).first()
+        if alerte is not None:
+            declenchee = alerte.declenchee_le or alerte.created_at
+            delai = timedelta(minutes=delais(_navire(liste))["escalade_minutes"])
+            if maintenant >= max(instants[AlerteActivation.ETAPE_ESCALADE], declenchee + delai) and _creer_alerte(liste, AlerteActivation.ETAPE_ESCALADE, maintenant):
                 creees += 1
     return creees
 

@@ -43,6 +43,7 @@ class AlertesActivationTests(BaseActivation):
         second = self._user("csd", "COMMANDANT_EN_SECOND")
         self.comaeq.profile.fonction_coma = ""
         self.comaeq.profile.save()
+        traiter_echeances(self.prevue + timedelta(minutes=1))
         traiter_echeances(self.prevue + timedelta(minutes=16))
         self.assertEqual(self._notifs(second), 1)
         self.assertEqual(self._notifs(self.commandant), 0)  # le commandant n'est plus le repli
@@ -72,6 +73,8 @@ class AlertesActivationTests(BaseActivation):
 
     def test_pas_de_doublon_pour_une_personne_cumulant_les_fonctions(self):
         ChefDeListe.objects.create(user=self.comaeq, service=self.service)
+        traiter_echeances(self.prevue - timedelta(minutes=30))
+        traiter_echeances(self.prevue + timedelta(minutes=1))
         traiter_echeances(self.prevue + timedelta(minutes=16))
         # Rappel, alerte (en tant que chef) et escalade (en tant que COMAEQ) : un message par signal, aucun doublon
         self.assertEqual(self._notifs(self.comaeq), 3)
@@ -114,3 +117,57 @@ class AlertesActivationTests(BaseActivation):
         self.liste.refresh_from_db()
         self.assertEqual(self.liste.statut, ServiceGarde.STATUT_BROUILLON)
         self.assertFalse(AlerteActivation.objects.filter(liste=self.liste, fermee_le__isnull=True).exists())
+
+
+class AlertesTardivesTests(BaseActivation):
+    """Publication après l'heure prévue de prise d'effet : pas de rappel rétrospectif ni de notifications simultanées."""
+
+    def setUp(self):
+        super().setUp()
+        self._previsionnelle()
+        self.prevue = timezone.now() - timedelta(minutes=40)  # déjà dépassée de 40 min à la publication
+        ServiceGarde.objects.filter(pk=self.liste.pk).update(prise_effet_prevue=self.prevue)
+        self.liste.refresh_from_db()
+        self.maintenant = timezone.now()
+
+    def _etapes(self):
+        return sorted(AlerteActivation.objects.filter(liste=self.liste).values_list("etape", flat=True))
+
+    def test_pas_de_rappel_retrospectif_et_pas_d_escalade_immediate(self):
+        traiter_echeances(self.maintenant)
+        self.assertEqual(self._etapes(), ["ALERTE"])
+        verbes = list(Notification.objects.filter(user=self.chef).values_list("verb", flat=True))
+        self.assertEqual(len(verbes), 1)
+        self.assertIn("devait prendre effet", verbes[0])
+        self.assertFalse(any(v.startswith("Rappel") for v in verbes))
+        self.assertEqual(Notification.objects.filter(user=self.comaeq).count(), 0)
+
+    def test_l_escalade_attend_le_delai_depuis_le_declenchement_reel_de_l_alerte(self):
+        traiter_echeances(self.maintenant)
+        traiter_echeances(self.maintenant + timedelta(minutes=14))
+        self.assertEqual(self._etapes(), ["ALERTE"])
+        traiter_echeances(self.maintenant + timedelta(minutes=15))
+        self.assertEqual(self._etapes(), ["ALERTE", "ESCALADE"])
+        self.assertEqual(Notification.objects.filter(user=self.comaeq).count(), 1)
+
+    def test_aucune_notification_redondante_en_cas_de_reevaluation(self):
+        for minutes in (0, 1, 5, 15, 16, 60):
+            traiter_echeances(self.maintenant + timedelta(minutes=minutes))
+        self.assertEqual(AlerteActivation.objects.filter(liste=self.liste).count(), 2)
+        self.assertEqual(Notification.objects.filter(user=self.chef).count(), 1)
+        self.assertEqual(Notification.objects.filter(user=self.comaeq).count(), 1)
+
+    def test_le_report_apres_une_alerte_tardive_repart_sur_un_cycle_normal(self):
+        traiter_echeances(self.maintenant)
+        nouvelle = self.maintenant + timedelta(hours=2)
+        self._poster(self.chef, action="reporter", prise_effet_prevue=timezone.localtime(nouvelle).strftime("%Y-%m-%dT%H:%M"), motif="Accostage retardé")
+        self.assertFalse(AlerteActivation.objects.filter(liste=self.liste, fermee_le__isnull=True).exists())
+        self.liste.refresh_from_db()
+        traiter_echeances(self.maintenant + timedelta(minutes=95))  # H-25 : le rappel est de nouveau pertinent
+        self.assertEqual(sorted(AlerteActivation.objects.filter(liste=self.liste, fermee_le__isnull=True).values_list("etape", flat=True)), ["RAPPEL"])
+
+    def test_un_retard_de_traitement_ne_declenche_pas_un_rappel_apres_l_heure(self):
+        ServiceGarde.objects.filter(pk=self.liste.pk).update(prise_effet_prevue=timezone.now() - timedelta(minutes=5))
+        self.liste.refresh_from_db()
+        traiter_echeances(timezone.now())  # première évaluation 5 minutes après l'heure prévue
+        self.assertEqual(self._etapes(), ["ALERTE"])

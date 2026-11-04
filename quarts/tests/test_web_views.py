@@ -163,7 +163,7 @@ class GestionCreneauxEtPublicationTests(TestCase):
         self.quart.proposer(self.cdl)
         self.client.login(username="cdl_gestion", password="pass")
         r = self.client.post(f"/quarts/quart/{self.quart.pk}/", {"action": "publier"})
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.status_code, 403)  # refus de droit pour qui voit la liste (politique d'erreurs)
         self.quart.refresh_from_db()
         self.assertEqual(self.quart.statut, Quart.STATUT_PROPOSEE)
 

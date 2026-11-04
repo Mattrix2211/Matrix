@@ -2272,6 +2272,8 @@ class AlerteActivation(TimeStampedModel):
     version_prevision = models.PositiveIntegerField()
     fermee_le = models.DateTimeField(null=True, blank=True)
     motif_fermeture = models.CharField(max_length=255, blank=True, default="")
+    # Instant de l'évaluation qui l'a créée : l'escalade se compte à partir du déclenchement réel de l'alerte.
+    declenchee_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["liste", "etape", "version_prevision"], name="alerte_activation_unique")]
