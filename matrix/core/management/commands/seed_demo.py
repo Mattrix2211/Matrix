@@ -746,7 +746,7 @@ class Command(BaseCommand):
             elif not ServiceGarde.objects.filter(ship=ship).exists():
                 debut = timezone.make_aware(timezone.datetime(self.aujourdhui.year, self.aujourdhui.month, self.aujourdhui.day, 8)) + timedelta(days=1)
                 fraction = ServiceGarde.objects.create(
-                    nom=f"Fraction de service à quai — {nom}", ship=ship, date_debut=debut.date(), date_fin=debut.date(),
+                    nom=f"Permanence à quai — {nom}", ship=ship, date_debut=debut.date(), date_fin=debut.date(),
                     type_service="Service à quai", duree_creneau_heures=24, fonction=fonction_quai, created_by=chef)
                 for poste, marin in zip(("Officier de garde (OG)", "Gradé de coupée 1", "Gradé mécanicien"), marins):
                     CreneauServiceGarde.objects.create(service_garde=fraction, poste=poste, marin=marin, debut=debut, fin=debut + timedelta(hours=24))
