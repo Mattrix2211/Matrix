@@ -4,20 +4,22 @@ Statut initial : **plan soumis au PO. Aucun code, aucune migration.** (L'implém
 
 ## Avancement et décisions PO intégrées (mis à jour)
 
-Documents liés : `mer_quai_mode_operationnel_complement.md` (mode MER / QUAI, **à relire avant toute migration structurante supplémentaire**).
+Documents liés : `mer_quai_mode_operationnel_complement.md` (modèle du mode MER / QUAI, **validé par le PO**, décisions D1 à D11 arbitrées) et `notifications_par_regime.md` (classification des notifications, **en attente de validation D7**).
 
-| Étape | Commit | État |
+| Lot | Contenu | État |
 |---|---|---|
-| 1 Application, reprise conservatrice, diagnostic des 30 chevauchements | `71d54ca` | Terminé (reprise sans suppression ; échue → terminée, sinon active sur sa période) |
-| 2 Publication prévisionnelle (prise d'effet prévue obligatoire), activation par le chef de liste désigné | `9c46842` | Terminé (pas de bouton « Publier et activer » ; capacité tracée) |
-| 3 Conflits à l'activation, créneaux en vigueur distincts du prévisionnel | `6f8b286` | Terminé (aucun quart modifié automatiquement) |
-| 4 Rappel H−30, alerte H, escalade H+15, report et retrait avec motif | `fad84e6` | Terminé ; repli de l'escalade corrigé vers le **commandant en second** (supervision seule) |
-| 5 Accostage / appareillage, alerte d'accostage sans liste | `163b5ee` | Terminé ; repli COMAEQ vacant → commandant en second |
-| 6 Calendrier, iCal, journée, équité, passation, échanges différés, terminaison automatique | `0b26107` | Terminé ; interface des états d'échange (en attente, appliqué, bloqué + motif, nouvelle tentative, abandon motivé) ajoutée ensuite |
-| 7 Vues A/B, indicateur de mode, « Non renseigné » | — | En attente de la validation du modèle de mode |
-| 8 Parcours navigateur, suites complètes SQLite + PostgreSQL, ZIP | — | En attente |
+| Étapes 1 à 6 (`71d54ca` à `0b26107`) | Application des listes à quai, publication prévisionnelle, activation par le chef de liste, conflits, alertes H−30 / H / H+15, mouvements, modules, échanges différés, terminaison automatique | Terminé |
+| Repli CSD, états d'échange visibles | Escalade et alerte d'accostage vers le commandant en second ; échange validé / en attente / appliqué / bloqué, nouvelle tentative, abandon motivé | Terminé |
+| D11 — habilitations (`d2e6a9f`) | Chef de liste des quarts distinct du chef de liste des services à quai ; désignations historiques conservées et signalées « à préciser », précision explicite, diagnostic en lecture seule | Terminé |
+| Mode MER / QUAI (`7178b8a`) | Mode déduit des mouvements confirmés (`mode_du_batiment`, `intervalles_par_mode`), initialisation explicite et tracée, consultation à une date passée, correction recalculant la chronologie ; activation refusée hors mode QUAI confirmé (D2, D9) | Terminé |
+| Recouvrements (`a4fa883`) | Conflit applicable bloquant / avertissement futur non bloquant (D3) | Terminé |
+| Vues A / B et indicateur (`f2802e4`) | Vue par jour, vue par marin (heures réelles « Non renseigné »), indicateur MER / QUAI sur accueil, index et fiches, mobile | Terminé |
+| Délais d'alerte et remplaçant (`99493bd`) | Écran de configuration (droits et bornes D5), remplaçant temporaire (D4) | Terminé |
+| D6 (`259cf05`, `f9b8564`) | Terminer un créneau de quart à l'heure effective | Terminé |
+| Catalogue des notifications (D7) | Classification MER / QUAI / COMMUNES / TRANSITION | **Proposé, en attente de validation** |
+| Recette | Parcours navigateur complets, suites complètes SQLite et PostgreSQL, dossier de recette | Voir le dossier de recette |
 
-Décisions PO de ce cycle : deux modes seulement (MER / QUAI) déduits de mouvements confirmés ; report et retrait réservés au chef de liste désigné (remplaçant explicite, borné, tracé, à concevoir) ; repli = commandant en second ; délais d'alerte configurables par bâtiment (matrice de droits à valider avant l'écran) ; régularisation des quarts à présenter avant tout code ; stades d'alerte, mouillage et organisations particulières **hors V1.1**.
+Hors périmètre V1.1, conformément au PO : stades d'alerte, mouillage, organisations de service particulières.
 
 ## 0. Constat sur l'existant (lu dans le code)
 

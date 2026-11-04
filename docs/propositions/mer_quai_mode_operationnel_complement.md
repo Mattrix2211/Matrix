@@ -1,6 +1,6 @@
 # Mer / Quai — complément au plan technique : mode opérationnel du bâtiment
 
-Statut : **proposition à relire par le PO**. Aucune migration liée au mode opérationnel global n'est écrite tant que ce document n'est pas validé.
+Statut : **validé par le PO** (principe, réutilisation de `MouvementBatiment`, fonctions centralisées, absence de champ libre) ; décisions D1 à D11 arbitrées : D1 Bretagne QUAI, Jacques Chevallier MER, Auguste Bénébig QUAI (démonstration seulement) ; D2 activation seulement en mode QUAI confirmé ; D3 avertissement non bloquant pour le futur non confirmé ; D4 remplaçant limité à activer / reporter / retirer, 72 h, sans renouvellement ; D5 bornes et droits validés ; D6 GO conditionnel levé après D11 ; D7 classification à présenter ; D8 indicateur seul ; D9 pas d'activation tant que le mode n'est pas renseigné ; D10 validé ; D11 prioritaire. Mise en œuvre : voir `mer_quai_plan_technique.md`.
 Référence : `mer_quai_plan_technique.md` (état initial), commits `71d54ca` à `0b26107` (étapes 1 à 6).
 
 ## 0. Ce qui est décidé, fait, en cours, en attente
