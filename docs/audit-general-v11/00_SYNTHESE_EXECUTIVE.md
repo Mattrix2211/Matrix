@@ -12,7 +12,7 @@ Matrix est un produit **large, très testé et fonctionnel dans ses parcours pri
 
 Tous : **clôturé avec réserves**, dans l'organisation en six phases de l'addendum (01 ; 19 ; 02 à 12 ; 13 à 17 ; 20 ; 18). Justification, périmètre prouvé et éléments non vérifiés, audit par audit : `09_BILAN_DES_AUDITS.md`. Rapports : `audits/AUDIT_01.md` à `AUDIT_18.md`, `audits/AUDIT_19_COHERENCE_MARINE.md` et `audits/AUDIT_20_DONNEES_DEMONSTRATION.md` (chacun se termine par une section « Clôture »). Conformité du dossier à l'addendum : `11_CONFORMITE_ADDENDUM.md`.
 
-## 2. Anomalies confirmées et criticité (42 : 2 P0, 7 P1, 16 P2, 17 P3)
+## 2. Anomalies confirmées et criticité (47 : 2 P0, 7 P1, 18 P2, 20 P3)
 
 | Crit. | Anomalie | Origine |
 |---|---|---|
@@ -25,8 +25,8 @@ Tous : **clôturé avec réserves**, dans l'organisation en six phases de l'adde
 | P1 | AUD-011 HTTPS : un reverse proxy TLS ne fonctionne pas tel que livré ; aucun serveur d'application déclaré | préexistant |
 | P1 | AUD-031 aucune procédure de sauvegarde et de restauration | préexistant |
 | P1 | AUD-034 suppression d'un compte : tâches, difficultés et traçabilité détruites | préexistant |
-| P2 | AUD-008, 010, 012, 017, 021, 022, 023, 024, 028, 030, 032, 033, 035, 002, 003, 006 | voir registre |
-| P3 | AUD-004, 005, 007, 013, 016, 018, 025, 026, 027, 029, 036 à 042 | voir registre |
+| P2 | AUD-008, 010, 012, 017, 021, 022, 023, 024, 028, 030, 032, 033, 035, 002, 003, 006, 043, 044 | voir registre (043 et 044 : recette du 05/11) |
+| P3 | AUD-004, 005, 007, 013, 016, 018, 025, 026, 027, 029, 036 à 042, 045 à 047 | voir registre (045 à 047 : recette du 05/11) |
 
 Registre complet : `04_REGISTRE_ANOMALIES_TRIE.md` (lisible) et `04_REGISTRE_ANOMALIES.csv` (toutes les colonnes, dont l'origine par rapport à `main`).
 

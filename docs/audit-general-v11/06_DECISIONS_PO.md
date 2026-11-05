@@ -25,6 +25,7 @@ Les trois sujets sont interdépendants : un seul chantier cohérent est proposé
 | A2. Qui détient la fonction « gestion de la structure » à bord ? | administrateur d'unité seul ; fonction attribuable à une personne désignée (recommandé) ; commandant | fonction désignée, l'administrateur technique pouvant la recevoir sans visa métier |
 | A3. Niveau de réorganisation à livrer | garde-fous minimaux (option 1) ; écran de structure (option 2, recommandée) ; réorganisation assistée (option 3) | option 2 pour la mise en service, option 3 après V1.1 |
 | A4. Période de grâce pour les comptes « à compléter » | immédiate ; durée configurable (recommandé) | durée configurable |
+| A6. Réaffectation d'une installation à un autre service (AUD-044, recette RM-12) | décision seule du commandant ou de l'administrateur d'unité (actuel) ; demande du service quittant acceptée par le service receveur ; accord du commandant adjoint concerné | demande + acceptation du service receveur, avec notification et trace avant/après ; contrôle de filiation service/secteur/section |
 | A5. Départ d'un marin | suppression du compte (actuel) ; **désactivation** avec historique conservé (recommandé) | désactivation, suppression réservée aux comptes sans historique (`propositions/P07`) |
 
 ### Bloc B — Droits fonctionnels et délégations (DP-09, DP-14, AUD-014, AUD-015, AUD-022)
@@ -33,6 +34,7 @@ Les trois sujets sont interdépendants : un seul chantier cohérent est proposé
 | B1. Introduction | A exclusion ciblée de l'administrateur technique ; B fonction requise par action ; C B + délégations bornées | A en garde-fou immédiat si autorisé, B comme cible, C après V1.1 |
 | B2. Intervention d'exception du supérieur | jamais ; si titulaire absent ou vacant, avec motif et notification (recommandé) | si absent ou vacant |
 | B3. Publication des listes de service | COMAEQ seul ; COMAEQ et suppléant désigné (recommandé) ; tout état-major (actuel) | COMAEQ et suppléant |
+| B5. Validation d'un RETEX (AUD-045, recette RM-39) | tout habilité (actuel) ; le COMA référent du domaine seul ; le référent d'abord, puis tout habilité si le référent est absent ou n'existe pas à bord | le référent d'abord, puis tout habilité ; tri fondé sur la fonction de commandant adjoint et non sur un texte libre |
 | B4. Trois règles métier à décider au cas par cas | prêt à appareiller (déjà au backlog), validation des absences, bilans de pilotage | à trancher avec la revue P05 |
 
 ### Bloc C — Déploiement et sécurité (DP-10, AUD-009, AUD-010, AUD-011, AUD-017, AUD-031)
@@ -56,6 +58,9 @@ Les trois sujets sont interdépendants : un seul chantier cohérent est proposé
 | (nouveau) | Chemin de non-conformité sur installation (AUD-023) : ticket automatique, alerte dédiée, ou aucune action ? En attendant : corriger le message affiché | alerte dédiée au chef de secteur ; message corrigé immédiatement |
 | (nouveau) | Secteur obligatoire pour une installation (AUD-037, audit 19) : le garder, ou prévoir un secteur par défaut pour les organisations à deux niveaux | à décider avec le bloc A (structure) |
 | (nouveau) | Niveau d'annonce « Urgent » ou « Critique » (AUD-041) | « Critique » (terme du cahier) ou décision écrite du changement |
+| (nouveau) | Déroulé du ticket correctif (AUD-043, recette RM-26) : quels sauts de statut autoriser, passage obligatoire par « En test » avant « Remis en service », remise en service par une autre personne que le réparateur, état du matériel mis à jour | rejeter les statuts inconnus tout de suite ; décision du PO sur les sauts et sur le contrôle croisé |
+| (nouveau) | Composition-type d'une fraction de service à quai (AUD-046, RM-30) | GO du PO ; composition par bâtiment et par type de fraction ; signalement (pas blocage) à la publication d'une liste |
+| (nouveau) | Prêt à appareiller (AUD-047, RM-41) : qui saisit, qui signe, tous les points vérifiés exigés ? | à trancher avec B4 |
 | (nouveau) | Complément de la démonstration (AUD-036, 13 scénarios) | après les corrections qui changent les états ; autorisation du PO requise |
 
 ## 3. Pas de décision attendue, dépendances connues

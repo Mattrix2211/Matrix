@@ -11,18 +11,18 @@ Date : 2026-11-05 (4ᵉ passe). Commit audité `1c37f22` ; comparaison avec `mai
 | Phase | N° | Audit | Statut | Justification (analyse achevée sur…) | Non vérifié (réalisable ou externe) |
 |---|---|---|---|---|
 | 1 | 01 | Besoin et historique | CAR | Notion (hub, 13 pages), 16 titres de PR, backlog (décompte, tâches ouvertes, ≈ 60 titres terminés recoupés avec le code) | 343 tâches terminées une à une (réalisable) ; conversations ChatGPT, FANLAB, rapport indépendant (indisponibles) |
-| 2 | 19 | Conformité Marine nationale | CAR | pages Notion croisées avec le code | sources publiques, expert du bord |
+| 2 | 19 | Conformité Marine nationale | CAR | pages Notion croisées avec le code ; 46 règles dont les 9 premières « non vérifiées » rejouées en recette ciblée le 05/11 (fiches, RETEX, relève, prêt à appareiller, postes, tickets, réaffectation) | sources publiques, expert du bord, écrans de ces parcours en navigateur |
 | 3 | 02 | Configurabilité | CAR | seuils (effet réel, limité au bâtiment), écran et API de structure, simulation d'un nouveau bâtiment, 55 droits en dur revus | effet d'un seuil sur deux processus ; décisions A et B |
 | 3 | 03 | Première mise en service | CAR | installation, migration, pipeline de démonstration, nouveau bâtiment en 11 étapes, montée de version sur base peuplée (SQLite, PostgreSQL) | Windows (`.bat`), proxy TLS réel, import de personnel (à planifier) |
 | 3 | 04 | Usage quotidien | CAR | 11 parcours de bout en bout en navigateur (tâche, échange, annonce, anomalie, maintenance, discussion, formation, calendrier…) ; 8 468 requêtes sans erreur 500 | efficacité mesurée par des marins |
 | 3 | 05 | UX et accessibilité | CAR | maquettes A et B, charte, mobile, clavier, mode sombre, impression | tablette, lecteur d'écran, papier réel |
-| 3 | 06 | Rôles et permissions | CAR | 1 407 + 196 essais de droits des quarts, circuit, délégations bornées, droits d'autres modules, comparaison avec `main` | fiches flotte, programme, postes, RETEX action par action |
+| 3 | 06 | Rôles et permissions | CAR | 1 407 + 196 essais de droits des quarts, circuit, délégations bornées, droits d'autres modules, comparaison avec `main` | programme, absences ; fiches flotte, RETEX et postes rejoués seulement dans la recette du 05/11 (audit 19 § 6) |
 | 3 | 07 | Calendrier | CAR | 7 sources, étanchéité, vues et événement personnel en navigateur | conflits (fonction absente), fuseaux des relèves |
 | 3 | 08 | Maintenance et installations | CAR | exécution web et API, confirmation critique, non-conformité (AUD-023) | circuits de fiches, périodicité, dérive, catalogue, tournées (couverts par les tests, non rejoués) |
 | 3 | 09 | Quarts et services | CAR | droits, circuit, cas limites des listes publiées, échange, délégations | assistant de création jusqu'à la publication, changements de mode, régimes réels |
 | 3 | 10 | Logistique | CAR | invariants du stock, droits, mutation tuée | interface, alertes planifiées, prêts/retours (différés) |
 | 3 | 11 | Communication | CAR | accès, discussion, notifications, annonces avec accusé | mentions, pièces jointes, Web Push |
-| 3 | 12 | Formations et autres modules | CAR | inventaire, formation, documentation (circuit), RETEX et absences (formulaires) | RETEX et absences de bout en bout, postes |
+| 3 | 12 | Formations et autres modules | CAR | inventaire, formation, documentation (circuit), RETEX et absences (formulaires) | absences de bout en bout ; RETEX et postes rejoués en recette (audit 19 § 6) |
 | 4 | 13 | Architecture | CAR | taille, complexité, imports, couplage, mutations | duplication, N+1, volumétrie |
 | 4 | 14 | Données et intégrité | CAR | PostgreSQL complet, cascades, montée de version peuplée, suppression d'unités et de comptes | sauvegarde/restauration, concurrence en charge |
 | 4 | 15 | Sécurité et résilience | CAR | secrets, proxy, comptes de démonstration, connexions répétées, seuils, accès anonymes | injections/XSS, en-têtes, fichiers, politique SSI |
@@ -39,4 +39,4 @@ Aucune vérification indispensable n'est impossible : les réserves externes (SI
 
 ## Travaux réalisables qui n'ont pas été faits (pour mémoire, aucun n'est indispensable à la lecture des anomalies)
 
-Relecture des 343 tâches terminées et des descriptions de PR ; circuits des fiches flotte, RETEX et absences de bout en bout ; assistant de création de liste jusqu'à la publication ; duplication de code et mesure de couverture de lignes ; scénarios de concurrence en charge.
+Relecture des 343 tâches terminées et des descriptions de PR ; absences de bout en bout (les circuits des fiches, du RETEX, de la relève et du prêt à appareiller ont été rejoués le 05/11) ; assistant de création de liste jusqu'à la publication ; duplication de code et mesure de couverture de lignes ; scénarios de concurrence en charge.

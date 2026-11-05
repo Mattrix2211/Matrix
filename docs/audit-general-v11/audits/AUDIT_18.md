@@ -33,10 +33,10 @@ Organisation en six phases (addendum) : **1** référentiel historique (01) ; **
 
 ## 2. Registre unique des anomalies : consolidation
 
-**{len(corps)} entrées** : P0 2, P1 7, P2 16, P3 17.
+**47 entrées** : P0 2, P1 7, P2 18, P3 20.
 
-- **Par catégorie** : TECHNIQUE 13, MÉTIER 8, BUG 6, SÉCURITÉ 5, ÉVOLUTION 5, UX 5.
-- **Par origine** : Préexistant 37, Non 2, Introduit 1, Mixte 1, Présent 1 (les entrées « Non déterminé », « Mixte », « Présent sur main » sont détaillées dans `../10_COMPARAISON_MAIN_V11.md`).
+- **Par catégorie** : TECHNIQUE 13, MÉTIER 12, BUG 6, SÉCURITÉ 5, ÉVOLUTION 6, UX 5.
+- **Par origine** : Préexistant 42, Non 2, Introduit 1, Mixte 1, Présent 1 (les entrées « Non déterminé », « Mixte », « Présent sur main » sont détaillées dans `../10_COMPARAISON_MAIN_V11.md`).
 - **Dédoublonnage** : chaque anomalie n'apparaît qu'une fois, avec la liste des audits qui la constatent (par exemple AUD-014 : audits 06 et 09 ; AUD-020 : audits 02 et 14). Les anomalies déjà connues de la recette du dépôt (ANO-008, 010, 012, 013) sont reprises (AUD-038, 039, 042).
 - **Audit sans anomalie propre** : le 18 (synthèse).
 

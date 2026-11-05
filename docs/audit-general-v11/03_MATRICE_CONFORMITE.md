@@ -24,7 +24,7 @@
 | EX-021 | Génération automatique abandonnée | V-C | aucun générateur dans quarts/ | 09, 19 |
 | EX-022 | Aucun rythme de quart en dur ; régimes | PC | aucune durée en dur hors affichage ; régimes nommés non implémentés (cadrage sans GO) | 09, 19 |
 | EX-023 | « Hommes morts » et « de musique » | ABS (cadrage) | aucune occurrence dans le code ; développement non autorisé | 19 |
-| EX-024 | Fraction de service : postes requis pourvus | NV | module postes présent ; composition-type de fraction non vérifiée | 12 |
+| EX-024 | Fraction de service : postes requis pourvus | PC | module Postes rejoué (effectif requis, pourvu, non pourvu signalé) ; composition-type de fraction et lien avec les listes de garde absents (AUD-046) | 19 (recette) |
 | EX-025 | Feuille de service ≠ tableau de quart | V-C (structure) | la feuille n'agrège pas les quarts | 09 |
 | EX-026 | Rédaction de la feuille réservée aux rédacteurs désignés | V-C sur 1c37f22 ; V-NC sur main | création (11 profils), écritures (16 profils), lectures (13 × 3 états), circuit en navigateur ; deux jeux de données | 06, 09 |
 | EX-027 | Feuille par équipage, validation COMAEQ | V-C avec réserve | COMAEQ strict, rédacteurs par équipage, pas d'échappement inter-équipage ; visas intermédiaires élargis (AUD-014) | 06 |
@@ -39,8 +39,8 @@
 | EX-036 | Adjudant de compagnie, OSS | DIFF | aucune implémentation, conforme à l'absence de GO | 19 |
 | EX-037 | Pas de « chef de groupement » / « CAN » | V-C | aucune occurrence | 19 |
 | EX-038 | Organismes à terre comme unités | DIFF | consolidation V1 en cours | 19 |
-| EX-040 | Fiche flotte : circuit en 7 étapes | NV | non rejoué | 08 |
-| EX-041 | Fiche d'installation adaptable | NV | non rejoué | 08 |
+| EX-040 | Fiche flotte : circuit en 7 étapes | V-C | recette du 05/11 : proposition du bord, trois visas, vérification à terre, visa du chef de spécialité, publication | 19 (recette) |
+| EX-041 | Fiche d'installation adaptable | V-C | recette du 05/11 : adaptation de la fiche flotte proposée au circuit du bord (même navire ; autre navire non exercé) | 19 (recette) |
 | EX-042 | Compte rendu notifié au chef de secteur, sans visa | V-NC partiel | par l'API : ni ticket ni notification pour une installation non conforme (AUD-023) ; chemin web non rejoué | 08 |
 | EX-043 | Complémentarité SSF, identifiants stables | PC | UUID sur tickets et installations ; pas d'interface SSF | 13 |
 | EX-044 | Discussions contextuelles via threads | V-C (tâche) ; NV (autres objets) | discussion d'une tâche rejouée : message, réponse, notification, étanchéité entre bâtiments | 11 |
@@ -66,7 +66,7 @@ Source, implémentation et preuve détaillées dans `audits/AUDIT_19_COHERENCE_M
 | RM-02 | Quatre commandants adjoints (COMAEQ, COMOPS, COMANAV, COMAVIA) ; COMAVIA seulement si l'organisation du bâtiment le prévoit | Documentée | V-C | — | 19 |
 | RM-03 | Chaque service est rattaché explicitement à son commandant adjoint ; les visas résolvent service → COMA → titulaire (jamais un niveau « état-major ») | Documentée | PC | B (DP-09) | 19 |
 | RM-04 | Commandant en second : remplaçant désigné, vision globale, écritures limitées aux responsabilités attribuées | Documentée | PC | Oui (tâche ouverte) | 19 |
-| RM-05 | Double équipage A/B : deux équipages sur un même bâtiment, chacun sa chaîne ; équipage à terre en lecture adaptée | Documentée | V-C (séparation) ; NV (relève, passation) | DP-02 (passation) | 19 |
+| RM-05 | Double équipage A/B : deux équipages sur un même bâtiment, chacun sa chaîne ; équipage à terre en lecture adaptée | Documentée | V-C | DP-02 (passation) | 19 |
 | RM-06 | Soutien à terre : « responsable de classe » = IRB (SSF), « responsable de spécialité » = ALFAN Exploitation ; lecture et commentaire, pas d'écriture sur le bord | Documentée | V-C | — | 19 |
 | RM-07 | Fonctions « adjudant de compagnie » et « OSS » reconnues, sans GO d'implémentation | Documentée | Conforme à l'absence (DIFF) | aucune avant GO | 19 |
 | RM-08 | Grade, fonction exercée, périmètre, habilitation et autorité de visa sont des dimensions distinctes ; les droits ne se déduisent pas du grade | Documentée | V-NC partiel | B (DP-09) | 19 |
@@ -74,7 +74,7 @@ Source, implémentation et preuve détaillées dans `audits/AUDIT_19_COHERENCE_M
 | RM-09 | Chaque bâtiment est unique, y compris au sein d'une classe ; l'organisation se configure sans développeur pour les opérations courantes | Documentée | PC | A2, A3 | 19 |
 | RM-10 | Sections facultatives selon le bâtiment | Hypothèse → orientation décidée (option B + D) | PC | A1 (marin transversal) | 19 |
 | RM-11 | Les regroupements d'installations ne sont pas imposés par des catégories techniques prédéfinies | Hypothèse (brief) | V-C (catégories) ; limite (secteur obligatoire) | Confirmer si le secteur doit rester obligatoire pour une installation | 19 |
-| RM-12 | Les rattachements d'installations aux services, secteurs, sections sont adaptables | Hypothèse (brief) | NV | — | 19 |
+| RM-12 | Les rattachements d'installations aux services, secteurs, sections sont adaptables | Hypothèse (brief) | PC (AUD-044) | Qui décide entre deux services ? (Bloc A) | 19 |
 | RM-13 | Poste de COMAEQ vacant : le commandant de l'équipage peut viser la feuille, de façon identifiable ; ni le second, ni l'administrateur, ni un autre COMA | Documentée | V-C | — | 19 |
 | **C. Rôles, fonctions, responsabilités, permissions** | | | | | |
 | RM-14 | Rédaction de la feuille réservée à une fonction BSC ou délégation habilitée | Documentée | V-C | — | 19 |
@@ -90,13 +90,13 @@ Source, implémentation et preuve détaillées dans `audits/AUDIT_19_COHERENCE_M
 | RM-22 | Arborescence bâtiment → domaine → installation → équipement → sous-équipement → composant | Documentée | PC | — | 19 |
 | RM-23 | Correctif : signalement → diagnostic → criticité → impact → réparation → essais → retour en service | Documentée | PC | — | 19 |
 | RM-24 | Compte rendu d'intervention notifié au chef de secteur, sans visa, modifications tracées | Documentée | V-NC partiel | Message : correction immédiate ; comportement voulu pour les installations | 19 |
-| RM-25 | Fiche matériel flotte : un bord ne la publie pas seul (circuit en 7 étapes) ; fiche d'installation adaptable au bord | Documentée | NV | — | 19 |
-| RM-26 | Travail terminé ≠ matériel disponible : contrôle, essais, retour en service | Documentée | NV | Besoin à confirmer | 19 |
+| RM-25 | Fiche matériel flotte : un bord ne la publie pas seul (circuit en 7 étapes) ; fiche d'installation adaptable au bord | Documentée | V-C | — | 19 |
+| RM-26 | Travail terminé ≠ matériel disponible : contrôle, essais, retour en service | Documentée | PC (AUD-043) | Sauts autorisés, essais (Bloc D) | 19 |
 | **F. Quarts et services MER/QUAI** | | | | | |
 | RM-27 | Quart à la mer, service à quai et garde sont des notions distinctes ; le mode MER/QUAI du bâtiment se déduit des mouvements, jamais d'un champ libre | Documentée | V-C | — | 19 |
 | RM-28 | Aucun rythme, horaire ou durée de quart n'est codé en dur ; les horaires sont des attributs de chaque poste | Documentée | V-C | — | 19 |
 | RM-29 | Régimes (bordées, tiers, quart, cinquième, sixième), « hommes morts », « de musique » | Documentée (cadrage sans GO) | Conforme à l'absence (DIFF) | GO du PO | 19 |
-| RM-30 | Fraction de service à quai : postes requis tous pourvus ; composition-type paramétrable ; contrôle des qualifications seulement plus tard | Documentée (cadrage) | NV | Oui (GO) | 19 |
+| RM-30 | Fraction de service à quai : postes requis tous pourvus ; composition-type paramétrable ; contrôle des qualifications seulement plus tard | Documentée (cadrage) | PC (AUD-046) | Oui (GO) | 19 |
 | RM-31 | La feuille de service et le tableau de quart sont deux supports distincts | Documentée | V-C | — | 19 |
 | RM-32 | Échange de service : A → B → chef de liste ; l'historique conserve l'échange ; l'impossibilité est expliquée | Documentée | PC | — | 19 |
 | RM-33 | Génération automatique des tours abandonnée ; planification manuelle avec contrôle | Documentée | V-C | — | 19 |
@@ -105,15 +105,15 @@ Source, implémentation et preuve détaillées dans `audits/AUDIT_19_COHERENCE_M
 | RM-35 | Listes : brouillon → proposition → validation → publication ; version publiée active jusqu'à validation | Documentée | PC | B | 19 |
 | RM-36 | Document : rédaction → validation par une autre personne → publication, versions conservées | Documentée | V-C | — | 19 |
 | RM-37 | Formation : candidature → hiérarchie → BRH → organisme ; validation par un référent de la formation | Documentée | PC | — | 19 |
-| RM-38 | Fiche d'installation : section/secteur → service → COMA ; fiche flotte : 7 étapes jusqu'à la publication au catalogue | Documentée | NV | — | 19 |
-| RM-39 | RETEX : proposé, validé par les habilités (COMA référent d'abord), publié comme document | Documentée | NV | — | 19 |
-| RM-40 | Relève de double équipage validée par les autorités des deux équipages ; date d'effet ; fuseau du bâtiment | Documentée | NV | DP-02 (passation) | 19 |
-| RM-41 | Prêt à appareiller : validation avec confirmation explicite tracée | Documentée | NV | Droits de saisie à décider (tâche ouverte) | 19 |
+| RM-38 | Fiche d'installation : section/secteur → service → COMA ; fiche flotte : 7 étapes jusqu'à la publication au catalogue | Documentée | V-C | Intervention d'exception (B2) | 19 |
+| RM-39 | RETEX : proposé, validé par les habilités (COMA référent d'abord), publié comme document | Documentée | PC (AUD-045) | Référent seul ou d'abord ? (Bloc B) | 19 |
+| RM-40 | Relève de double équipage validée par les autorités des deux équipages ; date d'effet ; fuseau du bâtiment | Documentée | V-C | DP-02 (passation) | 19 |
+| RM-41 | Prêt à appareiller : validation avec confirmation explicite tracée | Documentée | V-C (réserve AUD-047) | Droits de saisie et de signature (B4) | 19 |
 | **H. Terminologie métier** | | | | | |
 | RM-42 | Ne pas afficher « chef de groupement » ni « CAN » ; utiliser les sigles et fonctions réels | Documentée | V-C | — | 19 |
 | RM-43 | « Responsable de classe » = IRB ; « responsable de spécialité » = ALFAN Exploitation | Documentée | V-C | — | 19 |
 | RM-44 | Annonces : Information / Important / **Critique** | Documentée | Incohérence mineure | Choisir le terme | 19 |
-| RM-45 | Vocabulaire du quart : musique, homme mort, bordée, tiers… | Documentée (cadrage) | NV (non demandé en développement) | GO du PO | 19 |
+| RM-45 | Vocabulaire du quart : musique, homme mort, bordée, tiers… | Documentée (cadrage) | Conforme à l'absence (DIFF) | GO du PO | 19 |
 | RM-46 | Messages PÉPIN, CRAT, RAV/c : circuits non validés, pas d'implémentation officielle | Documentée (différé) | Conforme à l'absence (DIFF) | Cartographie métier avant tout développement | 19 |
 
 ## C. Couverture des données de démonstration (audit 20)
@@ -133,17 +133,17 @@ Détail dans `audits/AUDIT_20_DONNEES_DEMONSTRATION.md` §4 à §6.
 
 | Partie | État | Nombre |
 |---|---|---|
-| A. Exigences | PC | 23 |
-| A. Exigences | V-C | 11 |
-| A. Exigences | NV | 6 |
+| A. Exigences | PC | 24 |
+| A. Exigences | V-C | 13 |
+| A. Exigences | NV | 3 |
 | A. Exigences | DIFF | 4 |
 | A. Exigences | V-NC | 3 |
 | A. Exigences | ABS | 1 |
-| B. Règles métier | V-C | 18 |
-| B. Règles métier | PC | 11 |
-| B. Règles métier | NV | 9 |
-| B. Règles métier | Conforme à l'absence (DIFF) | 3 |
+| B. Règles métier | V-C | 22 |
+| B. Règles métier | PC | 15 |
+| B. Règles métier | NV | 0 |
+| B. Règles métier | Conforme à l'absence (DIFF) | 4 |
 | B. Règles métier | V-NC | 3 |
 | B. Règles métier | Incohérence | 2 |
 
-Total : 48 exigences et 46 règles métier. Aucune ligne n'est déclarée conforme sur la seule existence du code ; « V-C » est toujours limité au périmètre de la colonne Preuve.
+Total : 48 exigences et 46 règles métier (recette ciblée du 05/11/2026 : neuf règles et trois exigences rejouées, aucune règle métier n'est plus « NV »). Aucune ligne n'est déclarée conforme sur la seule existence du code ; « V-C » est toujours limité au périmètre de la colonne Preuve.

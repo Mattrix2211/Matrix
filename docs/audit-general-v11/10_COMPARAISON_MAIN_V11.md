@@ -5,7 +5,7 @@ Référence : `main` = `6ef16ad` (2026-10-28) ; version auditée : `1c37f22` ; 1
 ## 1. Résultat d'ensemble
 
 - **Aucune régression de sécurité ou de droits introduite par la V1.1** n'a été trouvée : sur 683 cellules comparables (profil × action) de la matrice des droits des quarts, **501 sont identiques, 182 sont plus restrictives en V1.1, 0 est plus permissive**.
-- **La grande majorité des anomalies du registre sont préexistantes** (37 sur 42), identiques à `main` par le code ou par exécution.
+- **La grande majorité des anomalies du registre sont préexistantes** (42 sur 47 ; les cinq ajoutées par la recette ciblée du 05/11 le sont toutes : même code sur `main`), identiques à `main` par le code ou par exécution.
 - La V1.1 **corrige** deux défauts de `main` (AUD-001, AUD-026) et **atténue** AUD-008 côté données.
 - Elle **introduit** : un résidu de Rondes (AUD-007, retrait décidé le 02/11) et une page nouvelle (« mouvements du bâtiment ») dont le lien est affiché à des profils qui la reçoivent en refus (une part de AUD-016).
 

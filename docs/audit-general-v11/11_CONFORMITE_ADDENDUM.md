@@ -11,9 +11,9 @@ Contrôle réalisé sur le commit `7695fff`, puis complété par cette passe. **
 | R5 | Audit 19 : souplesse des structures selon les bâtiments ; adaptabilité à plusieurs organisations réelles | **Absente** | aucune analyse de la diversité des bâtiments ni de variantes | rubrique B (5 règles), mesure des 5 organisations de démonstration, 3 variantes exécutées (`sondes/organisations_reelles.py`) | Satisfaite (réserve : usages réels non validés par un expert) |
 | R6 | Audit 19 : rôles, fonctions, responsabilités, permissions | Partielle | traité par renvoi à l'audit 06 | rubrique C (4 règles) | Satisfaite |
 | R7 | Audit 19 : processus de travail quotidiens | **Absente** | non traité dans le rapport | rubrique D (3 règles) | Satisfaite |
-| R8 | Audit 19 : maintenance et répartition des installations | **Absente** | non traité dans le rapport | rubrique E (6 règles) | Satisfaite (réserve : 2 règles non vérifiées) |
+| R8 | Audit 19 : maintenance et répartition des installations | **Absente** | non traité dans le rapport | rubrique E (6 règles) | Satisfaite (recette du 05/11 : 2 règles rejouées, AUD-043, 044) |
 | R9 | Audit 19 : quarts et services MER/QUAI | Partielle | génération automatique et feuille seulement | rubrique F (7 règles, modes des 5 bâtiments) | Satisfaite |
-| R10 | Audit 19 : circuits de validation | Partielle | feuille de service seulement | rubrique G (8 circuits) | Satisfaite (réserve : 4 circuits non rejoués) |
+| R10 | Audit 19 : circuits de validation | Partielle | feuille de service seulement | rubrique G (8 circuits) | Satisfaite (recette du 05/11 : circuits des fiches, du RETEX, de la relève et du prêt à appareiller rejoués) |
 | R11 | Audit 19 : terminologie métier | Partielle | vocabulaire du cahier seulement | rubrique H (5 règles) | Satisfaite |
 | R12 | Chaque constat distingue règles documentées, usages variables, hypothèses, incohérences, décisions PO | **Absente** | une seule colonne « verdict » | colonne « Nature du constat » (Documentée, Hypothèse, Incohérence…) et colonne « Décision PO nécessaire » | Satisfaite (réserve : aucun **usage variable** n'a pu être établi sans expert du bord ; la catégorie existe, aucune règle n'y est classée) |
 | R13 | Matrice règle métier / source / implémentation / conformité / preuve / décision nécessaire | **Absente** | 4 colonnes (point, source, constat, verdict) | matrice à 8 colonnes, 46 règles | Satisfaite |
@@ -22,7 +22,7 @@ Contrôle réalisé sur le commit `7695fff`, puis complété par cette passe. **
 | R16 | Audit 20 : matrice de couverture par module et par profil | **Absente** | — | matrice de 13 modules × 16 profils (`sondes/couverture_demo.py`) | Satisfaite |
 | R17 | Audit 20 : scénarios manquants | **Absente** | — | 13 scénarios, dérivés des états absents mesurés | Satisfaite |
 | R18 | Audit 18 consolide les conclusions des 20 audits | Partielle | rédigé avant les autres audits : 5 problèmes, références périmées | réécrit : tableau des 20 audits (phase, statut, conclusion, anomalies, exigences), 6 problèmes transversaux | Satisfaite |
-| R19 | Audit 18 : registre unique des anomalies | Partielle | 35 entrées, aucune pour les audits 10 et 11, limitations connues de la recette absentes | 7 entrées ajoutées (audits 10, 11, 19, 20, UX connues) : **42 entrées dédoublonnées**, chaque audit référencé sauf le 18 | Satisfaite |
+| R19 | Audit 18 : registre unique des anomalies | Partielle | 35 entrées, aucune pour les audits 10 et 11, limitations connues de la recette absentes | 7 entrées ajoutées (audits 10, 11, 19, 20, UX connues) : **42 entrées dédoublonnées, portées à 47 après la recette ciblée du 05/11**, chaque audit référencé sauf le 18 | Satisfaite |
 | R20 | Audit 18 : matrice unique de conformité | Partielle | seules les exigences du référentiel | `03_MATRICE_CONFORMITE.md` réunit A (48 exigences), B (46 règles Marine), C (couverture de la démonstration) | Satisfaite |
 | R21 | Ne modifier aucun code applicatif, aucune donnée de démonstration ; ne rien fusionner dans `main` | Satisfaite | — | contrôle ci-dessous | Satisfaite |
 
@@ -35,7 +35,7 @@ Contrôle réalisé sur le commit `7695fff`, puis complété par cette passe. **
 ## Réserves restantes (le dossier est conforme à l'addendum, sous ces réserves)
 
 1. **Aucun usage variable** n'est classé dans l'audit 19 : distinguer une règle documentée d'un usage propre à une unité exige un expert du bord ; les règles dont la source est le brief du PO sont marquées « Hypothèse ».
-2. **9 règles Marine sur 46 restent « non vérifié »** (réaffectation d'installation, fiches d'installation et flotte, essais après intervention, composition de la fraction de service, circuits des fiches, RETEX, relève, prêt à appareiller, vocabulaire du quart non demandé en développement) : vérifiables en technique, non rejouées ; elles ne sont pas réputées conformes.
+2. **Levée le 05/11/2026** : les 9 règles Marine « non vérifié » (RM-12, 25, 26, 30, 38, 39, 40, 41, 45) ont été rejouées en recette ciblée (`audits/AUDIT_19_COHERENCE_MARINE.md` § 6, sondes `recette_rm*.py`) : 4 conformes, 4 partiellement conformes, 1 conforme à l'absence ; 5 anomalies ouvertes (AUD-043 à 047). Reste non vérifié en navigateur : la présentation des écrans de ces parcours (rejeu serveur uniquement).
 3. **Sources publiques non consultées** : aucune vérification indépendante de la doctrine.
 4. **Audit 20** : fidélité aux usages réels, Windows et comportement des dates relatives dans le temps non vérifiés ; la démonstration n'est pas modifiée (le complément est proposé : AUD-036).
 5. Réserves externes déjà listées dans `09_BILAN_DES_AUDITS.md` (SIC, matériel, volumes réels).

@@ -80,5 +80,74 @@
   ],
   "credibilite_demo.py": [
     "CRD comptes 61"
+  ],
+  "recette_rm12.py": [
+    "A. même service : secteur Moteurs → Auxiliaires/Pompes     chef_service_a   HTTP 200 msg='' avant=(2, 3, 3) après=(2, 4, 4) CHANGÉ",
+    "A. même service : secteur Moteurs → Auxiliaires/Pompes     chef_secteur_a   HTTP 200 msg='' avant=(2, 3, 3) après=(2, 3, 3) inchangé trace=[]",
+    "admin_navire     HTTP 200 msg='' avant=(2, 3, 3) après=(3, 5, 5) CHANGÉ",
+    "C2bis. service Énergie + secteur/section de Propulsion     admin_navire     HTTP 200 msg='' avant=(2, 3, 3) après=(3, 3, 3) CHANGÉ",
+    "A. même service : secteur Moteurs → Auxiliaires/Pompes     second_a         HTTP 403 msg='' avant=(2, 3, 3) après=(2, 3, 3) inchangé trace=[]",
+    "F. notifications créées par la réaffectation : 0",
+    "visible chef_service_a (ancien service)? False"
+  ],
+  "recette_rm25_38_fiche_bord.py": [
+    "   destinataires notifiés : ['chef_secteur_a']",
+    "3c. saut d'étape : le chef de service vise avant le chef de secteur chef_service_a     HTTP 200 '' état→visa_secteur",
+    "4b. refus motivé                                               chef_secteur_a     HTTP 200 '' état→refusee",
+    "5c. visa : commandant en second (grade supérieur, non titulaire) second_a           HTTP 200 '' état→visa_coma",
+    "5f. visa du commandant adjoint référent (COMANAV)              coma_comanav       HTTP 200 '' état→validee",
+    "9. visa avec COMA vacant                                       admin              HTTP 200 '' état→visa_coma",
+    "état=visa_secteur notifications+1 audit+2"
+  ],
+  "recette_rm25_fiche_flotte.py": [
+    "2. proposition par le bord                                         chef_section_a    HTTP 200 version=12 état=visa_secteur notifs+1",
+    "2. proposition par le bord                                         chef_section_a    HTTP 200 version=12 état=visa_secteur notifs+1",
+    "3d. visa du commandant adjoint (bord)                              coma_comanav      HTTP 200 état→verification",
+    "4b. vérification et transmission                                   terre_securite    HTTP 200 état→visa_chef_specialite",
+    "5d. visa du chef de la spécialité (terre)                          terre_chef_securite HTTP 200 état→validee",
+    "version applicable de la fiche flotte = True",
+    "7c. adaptation proposée au circuit du bord                         chef_section_a    HTTP 200 état=visa_secteur origine=10"
+  ],
+  "recette_rm26.py": [
+    "2b. REPORTED → RETURNED_TO_SERVICE avec confirmation (aucune réparation, aucun essai) chef_section_a    HTTP 200 état→RETURNED_TO_SERVICE valideur=chef_section_a",
+    "2c. REPORTED → CLOSED directement avec un REX de deux lettres      chef_section_a    HTTP 200 état→CLOSED",
+    "2d. statut inexistant                                              chef_section_a    HTTP 200 état→N_IMPORTE_QUOI",
+    "7. après remise en service validée : ticket RETURNED_TO_SERVICE | matériel statut FAULTY | état plan DANGER (HTTP 200 )"
+  ],
+  "recette_rm30.py": [
+    "2. postes de la fraction BRF créés par le commandant : 8 / 8 demandés (+1 déjà créé)",
+    "3. postes non pourvus signalés : 3 | composition complète ? False",
+    "3. page /postes/ : 200 | mentions « fraction » / « composition » / « quai » : [0, 0, 0]",
+    "4. liaison Poste ↔ créneau de garde (clé étrangère) : aucune — le poste du créneau est un texte libre"
+  ],
+  "recette_rm39.py": [
+    "1. proposition par un équipier                                   equipier_a        HTTP 200 état=PROPOSE domaine=Aviation (COMA référent « COMAVIA »)",
+    "1. proposition par un équipier                                   equipier_a        HTTP 200 état=PROPOSE domaine=Aviation (COMA référent « COMAVIA »)",
+    "ordre de valideurs(): ['admin_navire', 'cdt_a', 'chef_service_a', 'coma_comaeq', 'coma_comanav', 'coma_comops']",
+    "1bis. domaine COMOPS, texte libre de fonction renseigné → ordre : ['coma_comops', 'admin_navire', 'cdt_a'] | fonction_coma des COMA : {'coma_comops': 'COMOPS', 'coma_comaeq': 'COMAEQ', 'coma_comanav': 'COMANAV'}",
+    "4b. validation par le COMA référent (COMAVIA)                    coma              HTTP 200 état=VALIDE décidé_par=coma_comanav document=10",
+    "6b. clôture avec action ouverte                                  chef_service_a    HTTP 200 état=VALIDE",
+    "6c. clôture une fois les actions terminées                       chef_service_a    HTTP 200 état=CLOS"
+  ],
+  "recette_rm40.py": [
+    "0b. la relève de démonstration (sans date d'effet) validée par cdt_b → HTTP 200 | statut validee | à bord = B | Relève validée : l'équipage B est à bord de Bretagne.",
+    "1b. date d'effet dans le passé                                     cdt_a           HTTP 200 en attente=False | La date d'effet d'une relève ne peut pas être dans le passé.",
+    "3a. le proposant valide lui-même                                   cdt_a           HTTP 200 encore en attente=True | Vous ne pouvez pas valider votre propre proposition.",
+    "3f. validation par le commandant de l'autre équipage               cdt_b           HTTP 200 planifiée=True | à bord toujours=A | Relève validée : l'équipage B sera à bord de Bretagne à compter du",
+    "5. date d'effet atteinte (sans action humaine) : à bord = B | statut de la relève = validee",
+    "5c. chef de l'équipage à terre tente d'écrire (poste)              chef_section_a  HTTP 403 ",
+    "3g. changer le fuseau du bâtiment (équipage à bord)                cdt_a           HTTP 200 fuseau=Europe/Paris | Changer le fuseau horaire du bâtiment est réservé à l'administration de l'unité."
+  ],
+  "recette_rm41.py": [
+    "2b. ouvrir une session                                           chef_secteur_a      HTTP 200 items=10 par catégorie={'OCCURRENCE': 3, 'RELEVE': 3, 'STOCK': 4}",
+    "4b. signer sans case de confirmation                             chef_secteur_a      HTTP 200 clôturée=False",
+    "4c. signer avec confirmation alors que 8 points ne sont pas vérifiés chef_secteur_a      HTTP 200 clôturée=True valideur=chef_secteur_a",
+    "4c. trace : [\"session_appareillage=1; navire=2; canal=web; confirmation_version=1; confirmation_texte=Je confirme avoir vérifié les informations de cette session de préparation à l'appareillage et en valide la clôture.\"]",
+    "5. pointer après clôture                                         equipier_a          HTTP 400 "
+  ],
+  "recette_rm45.py": [
+    "page « assistant quart » HTTP 200 : mots du vocabulaire présents → aucun",
+    "données de démonstration : noms de listes contenant le vocabulaire : ['Quart passerelle — par bordées', 'Quart machine — au quart (4 au quart, 1 homme mort : Nora)', 'Quart machine — par tiers']",
+    "données de démonstration : noms de listes contenant le vocabulaire : ['Quart passerelle — par bordées', 'Quart machine — au quart (4 au quart, 1 homme mort : Nora)', 'Quart machine — par tiers']"
   ]
 }
