@@ -19,6 +19,11 @@
 10. **Sans Internet : conforme** pour le code statique (aucune ressource externe active).
 11. **Deux risques de mise en service** : commandes de démonstration sans garde-fou (AUD-009) et mode production qui impose HTTPS sans procédure pour un bord (AUD-011).
 
+12. **PostgreSQL rejoué** : suite complète 3 829 tests OK, 0 ignoré, sur PostgreSQL 16.15 (cluster jetable). Les chiffres du dossier de recette sont confirmés pour ce commit.
+13. **Circuit de la feuille de service rejoué en navigateur** (5 acteurs, du brouillon à la publication) : conforme. Mais les visas « chef de secteur » et « chef de service » peuvent être donnés par les COMA, le commandant et l'administrateur d'unité, éventuellement par une seule personne (AUD-014).
+14. **Le bord ne peut pas modifier seul sa structure** : services, secteurs et sections sont réservés au compte technique de la flotte, sans renommage ; la suppression est physique, détache les marins (leur vision s'élargit) et supprime en cascade des listes et annonces (AUD-019 à AUD-021). C'est le constat le plus lourd de la 2ᵉ passe sur la configurabilité.
+15. **HTTPS** : ce n'est pas une vulnérabilité mais le montage le plus courant (reverse proxy TLS) ne fonctionne pas tel que livré (AUD-011). Une clé d'exemple est acceptée en production (AUD-017).
+
 ## Ce qui n'est pas encore établi
 
 Presque tout le reste : fonctionnement réel des parcours, droits effectifs, configurabilité par bâtiment, mise en service, UX, données, sécurité, PostgreSQL. Les questions 1 à 10 du critère de réussite **ne peuvent pas encore être répondues**.

@@ -6,15 +6,15 @@
 - Aucune base existante n'a été touchée : les tests utilisent des bases de test temporaires créées et détruites par Django ; aucune migration n'a été appliquée à une base réelle.
 - Variables : `DJANGO_DEBUG=1`, clé secrète factice. Rien n'a été déployé ni fusionné ; seule la branche de travail de l'audit a été déplacée sur 1c37f22.
 - Sous-module `design` (`78060c5`) : non initialisé ; les règles de direction artistique n'ont pas été lues à la source.
-- **PostgreSQL non disponible** : aucune vérification sur PostgreSQL n'a été faite ici. Les 3 829 tests « OK sur PostgreSQL » du dossier de recette sont **repris comme déclarations, non comme preuves**.
-- **Navigateur** : non utilisé à ce stade (Chromium et Playwright sont disponibles ; les parcours seront rejoués dans les audits 04, 05 et 09).
+- **PostgreSQL** : indisponible à la 1ʳᵉ passe ; **disponible à la 2ᵉ** (cluster jetable local) : voir §3 ter. Les chiffres du dossier de recette sont désormais confirmés par rejeu pour ce commit.
+- **Navigateur** : utilisé à la 2ᵉ passe (Chromium via Playwright, un seul navigateur, Linux) : voir `audits/AUDIT_05.md`. Sous-module `design`, maquettes, impression, mode sombre, tablette tactile, lecteur d'écran : non testés.
 
 ## 2. Sources non accessibles ou partielles
 
 | Source | État |
 |---|---|
 | Conversations ChatGPT | Non disponibles |
-| Notion : pages 01 à 05, 07 à 12 de « Organigramme et rôles » | Non lues (liens connus) |
+| Notion : hub « Organigramme et rôles » et ses 13 sous-pages (01 à 13) | **Lues en entier** le 2026-11-05 (2ᵉ passe) ; pages datées du 29/09 au 31/10 ; statut « non vérifié » côté Notion |
 | Notion : Ordre de travail V1.1 | Lu partiellement (titres et passage Rondes) |
 | Notion : 380 tâches | Décompte seulement |
 | Descriptions des PR | Non lues |
@@ -30,6 +30,10 @@ Commande : `python manage.py test --parallel` sur le commit `1c37f22`, SQLite, b
 Résultat : **3 829 tests exécutés en 792 s, OK, 20 ignorés** (les 20 ignorés sont, d'après le dossier de recette, des tests propres à PostgreSQL ; non vérifié ici). Cela confirme le chiffre annoncé par `docs/recette/00_SYNTHESE.md` pour SQLite, sur un commit postérieur de 2 commits.
 
 Portée : ce résultat prouve que les tests existants passent, pas que les parcours métier sont conformes (voir audit 16).
+
+## 3 ter. Suite complète sous PostgreSQL (2ᵉ passe)
+
+`manage.py test --parallel 4` sur **PostgreSQL 16.15** (cluster jetable local créé par `initdb`, port 54329, mot de passe jetable) : **3 829 tests, OK, 0 ignoré**, 899 s, 2026-11-05, commit `1c37f22`. Les 20 tests ignorés sous SQLite s'exécutent et passent. Limites : un seul poste, mono-version de PostgreSQL, aucune charge réelle.
 
 ## 3 bis. Vérifications dynamiques de la reprise (2026-11-05)
 

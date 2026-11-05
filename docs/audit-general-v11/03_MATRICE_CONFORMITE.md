@@ -16,6 +16,11 @@
 | EX-049 | PÉPIN, CRAT, RAV/c | DIFF | Notion ORG | 19 |
 | EX-054 | Retrait de Rondes | V-C partiel : absence de routes affirmée par un test ; test non rejoué isolément par l'audit | `matrix/tests/test_module_rondes_retire.py` | 12 |
 | EX-004 | Voir sa journée à l'ouverture | PC : 10 profils, environ 330 liens de l'accueil ouverts sans erreur 500 ; un lien mène à une 404 (AUD-008) ; justesse du contenu NV | `audits/AUDIT_06.md` §3 | 04 |
+| EX-020 | Chef de liste | PC : désignation et remplacement par chef de service/COMA/commandant (effet non mesuré) ; modification directe de liste publiée par commandant et administrateurs (AUD-015) | `audits/AUDIT_06.md` §1 | 06, 09 |
+| EX-027 | Feuille par équipage, validation COMAEQ | **V-C** pour le visa COMAEQ, la désignation des rédacteurs et la création par équipage ; **V-NC** partiel pour les visas intermédiaires (AUD-014) | `audits/AUDIT_06.md` §2 | 06 |
+| EX-021 | Pas de génération automatique | V-C (aucun générateur ; seule la durée « 24 h » s'affiche) | `audits/AUDIT_09.md` | 09 |
 | Autres (EX-001, 005 à 008, 010 à 014, 020 à 035, 037, 038, 040 à 053) | — | NV | — | 02 à 12 |
+
+Les lignes EX-004, EX-020, EX-021, EX-026 et EX-027 sont issues de la 2ᵉ passe (exécution sur base temporaire). Les autres exigences restent NV.
 
 Résultats de la suite de tests : voir `08_LIMITES_ET_PREUVES.md` (§3).

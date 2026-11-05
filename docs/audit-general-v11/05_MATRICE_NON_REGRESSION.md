@@ -1,4 +1,7 @@
-# Matrice de non-régression — squelette
+# Matrice de non-régression — squelette (complété à la 2ᵉ passe pour Permissions et Quarts)
+
+**Parcours rejouables ajoutés par l'audit** (`sondes/`, jetables, non intégrés à la suite) : circuit complet de la feuille de service en navigateur (5 acteurs, `nav5.js`) ; matrice de droits des quarts (`matrice_droits.py`) ; balayage des liens de 42 comptes (`liens_morts.py`). **À protéger en priorité** : AUD-001 (création de feuille réservée aux rédacteurs désignés), étanchéité entre équipages et entre bâtiments, visa COMAEQ réservé au titulaire.
+**Lacunes de test constatées** : aucun test ne vérifie que l'administrateur d'unité ne vise pas la feuille de l'équipage à bord (AUD-014) ; aucun test ne couvre un secteur sans section (DP-03) ; aucun test ne vérifie le proxy TLS (AUD-011).
 
 Non rempli : elle suppose la reconstitution des fonctionnalités validées (audit 01) et la lecture des tests (audit 16). Elle liste ce qui devra être couvert et les fichiers de test déjà présents, sans en évaluer la pertinence.
 

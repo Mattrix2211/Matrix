@@ -15,6 +15,10 @@
 
 Python et venv, `pip`, sous-module `design`, `.env`, `migrate`, `createsuperuser`, puis — pour les alertes automatiques — Redis, un worker Celery et Celery Beat (sans eux, aucune notification automatique, sans message d'erreur visible). Il n'existe pas de procédure de mise en service d'un bâtiment (ordre : unité, services, secteurs, sections, rôles, utilisateurs, installations) dans le README.
 
+## 2 bis. Autonomie de configuration constatée (2ᵉ passe)
+
+Une fois l'application installée, **seul le compte technique de la flotte** (superutilisateur) peut créer les bâtiments, services, secteurs et sections, ni renommer (AUD-019). L'administrateur d'unité règle les modules et les seuils de rôle de son bâtiment. Création de l'effectif : un compte à la fois (annuaire, formulaire), puis mise à jour groupée (rôle, bâtiment, service, secteur, section, fonction) sur les comptes existants ; pas d'import de personnel (AUD-012). Mesures sur la démonstration : `migrate` 30 à 35 s, `seed_demo` 10 s (SQLite et PostgreSQL 16).
+
 ## 3. Constats
 
 - **AUD-011 (P1)** : le mode production exige HTTPS sans documentation.

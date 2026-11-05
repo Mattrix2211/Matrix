@@ -11,4 +11,6 @@
 | P2 | Trancher la passation (AUD-006) | Périmètre de V1 incertain |
 | P3 | Aligner les documents (AUD-004, AUD-005) et traiter les résidus Rondes (AUD-007) | Clarté et dette |
 
+**Ajouts de la 2ᵉ passe** (propositions, non lancées) : DP-09 (droits par niveau), DP-10 (HTTPS du bord), AUD-017 (clé d'exemple acceptée), AUD-016 et AUD-018 (liens refusés, titres d'onglet). DP-03 (sections) est en analyse.
+
 Aucun travail de développement n'est lancé sans accord du PO.
