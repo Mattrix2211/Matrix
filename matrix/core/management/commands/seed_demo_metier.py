@@ -27,6 +27,8 @@ from programme import services as programme_services
 from programme.models import EvenementProgramme
 from quarts import echanges as echanges_services
 from quarts.models import ChefDeListe, CreneauServiceGarde, RemplacementChefDeListe, ServiceGarde
+from logistics.perimetre import perimetre_tickets_q
+from maintenance.perimetre import perimetre_occurrences_q
 from quarts.activation import publier_a_titre_previsionnel
 from quarts.remplacement import designer_remplacant
 from taches import services as taches_services
@@ -77,6 +79,10 @@ FICHES = [
                    ("Graissage effectué", "checkbox", "", True), ("Observations", "text", "", False)],
     },
 ]
+
+# Rattachement organisationnel des installations des fiches (service, secteur, section) : celui de leurs exécutants.
+PLACEMENT = {"VENT-LM": ("Propulsion", "Moteurs", "Moteurs bâbord"), "ECL-P2": ("Propulsion", "Moteurs", "Moteurs bâbord"),
+             "TRE-1": ("Propulsion", "Moteurs", "Moteurs bâbord"), "ALM-INC": ("Sécurité", "Pompiers", "Sections incendie")}
 
 ANOMALIES = [  # titre, gravité, parcours de statuts, localisation, service, secteur, auteur, responsable, note finale
     ("Ventilateur de la cale arrière bruyant", 3, ["SIGNALEE", "PRISE_EN_COMPTE", "TRAITEE"], "Cale arrière", "Propulsion", "Moteurs", "equipier_a", "chef_secteur_a"),
@@ -235,15 +241,15 @@ class Command(BaseCommand):
 
     def _maintenance(self):
         chef, marin = self.u("chef_secteur_a"), self.u("equipier_a")
-        propulsion = self.bre.services.get(name="Propulsion") if hasattr(self.bre, "services") else None
-        secteur = propulsion.sectors.first() if propulsion else None
         local = Location.objects.filter(ship=self.bre).first()
         pieces = {p.reference: p.pk for p in StockPiece.objects.filter(ship=self.bre)}
         occurrences = {}
         for contenu in FICHES:
             designation, ref = contenu["installation"]
+            service, secteur, section = self._placement(ref)
             installation, _ = Installation.objects.get_or_create(ship=self.bre, designation=designation, defaults=dict(
-                service=propulsion, sector=secteur, location=local, reference=ref, local=local.name if local else "", gisement="Pont 2", created_by=chef))
+                service=service, sector=secteur, section=section, location=local, reference=ref, local=local.name if local else "",
+                gisement="Pont 2", created_by=chef))
             fiche = InstallationMaintenance.objects.filter(installation=installation, title=contenu["titre"]).first()
             if fiche is None:
                 fiche = InstallationMaintenance.objects.create(
@@ -275,8 +281,8 @@ class Command(BaseCommand):
             conformity="A_SURVEILLER", notes="Deux blocs de secours remplacés.", valide_par=chef, date_validation=self._jour(-13, 8))
         en_cours = occurrence("Contrôle et graissage du treuil", 0, "IN_PROGRESS", ["equipier_a"], 3)
         MaintenanceExecution.objects.create(occurrence=en_cours, started_at=timezone.now() - timedelta(minutes=25), executed_by=marin, notes="Câble contrôlé, graissage à faire.")
-        occurrence("Nettoyage des filtres de ventilation", -6, "OVERDUE", ["equipier_incendie_a"])
-        occurrence("Essai des détecteurs et de l'alarme", 6, "ASSIGNED", ["equipier_incendie_a", "equipier_elec_a"], 3)
+        occurrence("Nettoyage des filtres de ventilation", -6, "OVERDUE", ["equipier_a2"])
+        occurrence("Essai des détecteurs et de l'alarme", 6, "ASSIGNED", ["equipier_incendie_a"], 3)
         occurrence("Essai de l'éclairage de secours", 24, "PLANNED")
         occurrence("Nettoyage des filtres de ventilation", 30, "CANCELLED")
 
@@ -301,7 +307,7 @@ class Command(BaseCommand):
     def _logistique(self):
         chef = self.u("chef_secteur_a")
         propulsion = self.bre.services.get(name="Propulsion")
-        secteur = propulsion.sectors.first()
+        secteur = propulsion.sectors.get(name="Moteurs")
         for ref, designation, quantite, minimum, critique in PIECES:
             piece, creee = StockPiece.objects.get_or_create(ship=self.bre, reference=ref, defaults=dict(
                 designation=designation, quantite_minimale=minimum, quantite_critique=critique, service=propulsion, sector=secteur, emplacement="Magasin machine"))
@@ -364,8 +370,36 @@ class Command(BaseCommand):
     # ---------- Compléments (rejouables, gardés par des tests d'existence) ----------
 
     def _complements(self):
+        self._placer_les_installations()
+        self._coherence_des_assignations()
         self._historiques_d_anomalies()
         self._conflit_d_activation()
+
+    def _placement(self, reference):
+        service_nom, secteur_nom, section_nom = PLACEMENT[reference]
+        service = self.bre.services.get(name=service_nom)
+        secteur = service.sectors.get(name=secteur_nom)
+        return service, secteur, secteur.sections.filter(name=section_nom).first()
+
+    def _placer_les_installations(self):
+        for reference in PLACEMENT:
+            service, secteur, section = self._placement(reference)
+            Installation.objects.filter(ship=self.bre, reference=reference).update(service=service, sector=secteur, section=section)
+
+    def _coherence_des_assignations(self):
+        """Un tour de maintenance ou un ticket n'est jamais assigné à quelqu'un qui n'y a pas accès (il verrait une page introuvable) :
+        l'assigné hors périmètre est remplacé par un collègue de même équipage et de même fonction ayant accès."""
+        candidats = list(User.objects.filter(profile__ship=self.bre, is_active=True).select_related("profile").order_by("username"))
+        for modele, filtre in ((CorrectiveTicket, perimetre_tickets_q), (MaintenanceOccurrence, perimetre_occurrences_q)):
+            for objet in modele.objects.prefetch_related("assignees"):
+                for assigne in list(objet.assignees.all()):
+                    if modele.objects.filter(filtre(assigne), pk=objet.pk).exists():
+                        continue
+                    objet.assignees.remove(assigne)
+                    eligibles = [c for c in candidats if c.pk != assigne.pk and modele.objects.filter(filtre(c), pk=objet.pk).exists()]
+                    eligibles.sort(key=lambda c: (c.profile.role != assigne.profile.role, c.profile.equipage != assigne.profile.equipage, c.username))
+                    if eligibles:
+                        objet.assignees.add(eligibles[0])
 
     def _historiques_d_anomalies(self):
         """Toute anomalie a un historique cohérent avec son état (déclaration, prise en compte, traitement, clôture)."""

@@ -86,3 +86,12 @@ class EntreeQuartsTests(BaseActivation):
 
     def test_aucun_encadre_explicatif_inutile(self):
         self.assertNotContains(self._page(self.marin), "Rapprochez-vous de votre chef de service")
+
+    def test_le_publicateur_retrouve_la_liste_a_publier_depuis_l_entree(self):
+        self.liste.statut = ServiceGarde.STATUT_PROPOSEE
+        self.liste.nom = "Liste en attente"
+        self.liste.save()
+        reponse = self._page(self.commandant)
+        self.assertContains(reponse, "Liste en attente")
+        self.assertContains(reponse, "à publier")
+        self.assertNotContains(self._page(self.marin), "à publier")

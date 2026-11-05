@@ -106,6 +106,16 @@ class DemoMetierTests(TestCase):
         self.assertEqual(liste.application, ServiceGarde.APPLICATION_PREVISIONNELLE)
         self.assertEqual(list(liste.creneaux.values_list("pk", "marin_id")), avant)
 
+    def test_aucune_assignation_hors_du_perimetre_de_l_assigne(self):
+        """Un marin ne doit jamais voir « introuvable » sur un ticket ou une maintenance qui lui est assignée."""
+        from logistics.perimetre import perimetre_tickets_q
+        from maintenance.perimetre import perimetre_occurrences_q
+
+        for modele, filtre in ((CorrectiveTicket, perimetre_tickets_q), (MaintenanceOccurrence, perimetre_occurrences_q)):
+            for objet in modele.objects.all():
+                for assigne in objet.assignees.all():
+                    self.assertTrue(modele.objects.filter(filtre(assigne), pk=objet.pk).exists(), f"{assigne.username} : {objet}")
+
     def test_donnees_explicitement_fictives(self):
         self.assertFalse(User.objects.filter(email__regex=r"@(gmail|orange|defense)").exists())
         self.assertTrue(User.objects.filter(is_superuser=False).exclude(username="admin").exists())

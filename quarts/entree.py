@@ -5,7 +5,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from quarts.echanges import echanges_a_valider
-from quarts.models import AlerteActivation, CreneauQuart, CreneauServiceGarde, EchangeService, ServiceGarde
+from quarts.models import (
+    AlerteActivation, CreneauQuart, CreneauServiceGarde, EchangeService, Quart, ServiceGarde, listes_de_l_equipage_q, peut_publier_liste,
+)
 
 JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 JOURS_COURTS = ("Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim")
@@ -122,6 +124,10 @@ def _a_traiter(user, gardes, peut_activer):
     en_cours = EchangeService.objects.filter(demandeur=user, statut__in=(EchangeService.STATUT_DEMANDE, EchangeService.STATUT_ACCEPTE)).count()
     if en_cours:
         elements.append({"niveau": "info", "texte": f"{en_cours} de vos demandes d'échange en cours", "url": reverse("echanges-index")})
+    for modele, nom_url in ((ServiceGarde, "garde-detail"), (Quart, "quart-detail")):
+        for liste in modele.objects.filter(statut="PROPOSEE").filter(listes_de_l_equipage_q(user)):
+            if peut_publier_liste(user, liste):
+                elements.append({"niveau": "att", "url": reverse(nom_url, args=[liste.pk]), "texte": f"« {liste.nom or 'Liste'} » : à publier"})
     for liste in gardes.filter(statut="PUBLIEE", application=ServiceGarde.APPLICATION_PREVISIONNELLE):
         if peut_activer(liste):
             retard = liste.prise_effet_prevue and liste.prise_effet_prevue <= timezone.now()
