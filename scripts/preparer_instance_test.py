@@ -24,19 +24,18 @@ VARIABLES_CONSERVEES = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "SYSTEMDRIV
 GENERATEURS = ("seed_demo", "seed_demo_mer_quai", "seed_demo_dense", "seed_demo_metier")  # ordre de dépendance, tous idempotents
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
-    ("cdt_abe", "Auguste Bénébig (à QUAI) : commandant ; qualifie la désignation historique, règle les délais"),
-    ("comaeq_abe", "Bénébig : COMAEQ ; déclare appareillage / accostage"),
+    ("equipier_a", "Bretagne : matelot équipier (journée complète : prochain tour, tâches, maintenance, notifications)"),
+    ("equipier_a2", "Bretagne : matelot BSC (rédacteur de la feuille de service), remplaçant du chef de liste"),
+    ("chef_secteur_a", "Bretagne : chef de secteur et chef de liste (quarts et services à quai)"),
+    ("chef_service_a", "Bretagne : chef de service Propulsion (désigne les chefs de liste, valide les absences)"),
+    ("coma_comaeq", "Bretagne : COMAEQ (publie les listes, vise la feuille de service)"),
+    ("cdt_a", "Bretagne : commandant (mouvements du bâtiment, délais d'alerte)"),
+    ("cdt_abe", "Auguste Bénébig (à quai) : commandant ; qualifie la désignation historique"),
     ("chef_liste_abe", "Bénébig : chef de liste ; active ou reporte les listes prévisionnelles"),
-    ("marin_abe_1", "Bénébig : marin ; propose un échange de tour avec marin_abe_2"),
-    ("marin_abe_2", "Bénébig : marin"),
+    ("marin_abe_1", "Bénébig : marin ; échange de tour avec marin_abe_2"),
     ("historique_abe", "Bénébig : désignation historique non qualifiée (aucun droit)"),
-    ("cdt_jch", "Jacques Chevallier (à la MER) : commandant"),
-    ("comaeq_jch", "Chevallier : COMAEQ ; déclare l'accostage"),
+    ("comaeq_jch", "Jacques Chevallier (à la mer) : COMAEQ ; déclare l'accostage"),
     ("chef_liste_jch", "Chevallier : chef de liste ; active après l'accostage"),
-    ("marin_jch_1", "Chevallier : marin, quarts à la mer"),
-    ("cdt_a", "Bretagne (à QUAI) : commandant, équipage A"),
-    ("equipier_a", "Bretagne : marin, journée chargée"),
-    ("chef_secteur_a", "Bretagne : chef de secteur et de liste"),
 )
 # Lu par la sous-commande de contrôle : la connexion réelle doit viser la base de démonstration.
 _CONTROLE = """
