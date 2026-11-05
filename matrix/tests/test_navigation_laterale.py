@@ -72,7 +72,7 @@ class NavigationLateraleTests(TestCase):
         invalidate_cache(self.ship.id)
         groupes = self._nav(user)
         self.assertNotIn("Rondes", _libelles(groupes))
-        self.assertNotIn("Quarts et gardes", _libelles(groupes))
+        self.assertNotIn("Quarts et tours de service", _libelles(groupes))
         self.assertNotIn("Activité", _titres(groupes))
 
     def test_module_assets_desactive_masque_equipements(self):

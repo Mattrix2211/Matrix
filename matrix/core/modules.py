@@ -82,7 +82,7 @@ REGISTRE_MODULES = [
         "Catalogue de formations, validations, prérequis, arbre de compétences.",
     ),
     ModuleInfo(
-        "quarts", "Quarts et services de garde",
+        "quarts", "Quarts et tours de service",
         "Listes de quart, gardes à quai, échanges de service, chefs de liste.",
     ),
     ModuleInfo(

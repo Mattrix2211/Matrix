@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load composants %}
 {% block content %}
-{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et gardes" %}
+{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et tours de service" %}
 <h1 class="h3 mb-3">Mes échanges de service</h1>
 
 {% include "quarts/_echanges_groupe.html" with titre="À traiter" liste_echanges=a_traiter vide="Rien à traiter pour l'instant." %}

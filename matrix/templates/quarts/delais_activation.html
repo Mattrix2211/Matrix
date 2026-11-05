@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load composants %}
 {% block content %}
-{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et gardes" %}
+{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et tours de service" %}
 <h1 class="h3 mb-1">Délais d'alerte d'activation</h1>
 <p class="text-secondary">{{ ship }} — rappel au chef de liste avant la prise d'effet prévue d'une liste à quai, alerte à l'heure prévue, escalade au COMAEQ (au commandant en second si le poste est vacant).{% if not peut_modifier %} Lecture seule : seuls le commandant et le COMAEQ titulaire peuvent modifier ces délais.{% endif %}</p>
 <form method="post" class="row g-3" style="max-width: 40rem">{% csrf_token %}

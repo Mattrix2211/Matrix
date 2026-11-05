@@ -30,7 +30,7 @@ class ListesSansFonctionTests(TestCase):
         return reponse.content.decode()
 
     def test_page_des_listes(self):
-        html = self._html("/quarts/")
+        html = self._html("/quarts/?vue=listes")
         self.assertIn("Sans fonction", html)
         self.assertNotIn("None", html)
 

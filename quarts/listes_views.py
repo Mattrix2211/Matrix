@@ -34,6 +34,7 @@ from matrix.core.scopes import equipage_agissant, equipage_marin_q, is_master_ad
 from org.models import Sector, Section, Service, Ship
 from training.models import TrainingCourse
 
+from . import entree
 from .alertes_activation import reporter_prise_effet, retirer_previsionnelle, traiter_echeances
 from .designations import LIBELLES, situation as situation_designation
 from .activation import (
@@ -298,7 +299,31 @@ class ListeIndexView(LoginRequiredMixin, View):
 
     def get(self, request):
         traiter_echeances()  # lecture paresseuse : les alertes échues existent même si la tâche planifiée est en retard
-        return render(request, self.template_name, self._contexte(request.user))
+        user = request.user
+        contexte = self._contexte(user)
+        responsable = contexte["quarts"].exists() or contexte["services_garde"].exists()
+        vue = request.GET.get("vue", "jour")
+        if vue not in ("jour", "marin", "listes") or (vue == "marin" and not responsable):
+            vue = "jour"
+        portee = {
+            modele: modele.objects.filter(pk__in=[*_listes_visibles(modele, user).values_list("pk", flat=True),
+                                                   *_listes_publiees_me_concernant(modele, user).values_list("pk", flat=True)])
+            for modele in (Quart, ServiceGarde)
+        }
+        droits = {}
+
+        def peut_gerer(liste):
+            cle = (type(liste), liste.pk)
+            if cle not in droits:
+                droits[cle] = peut_gerer_liste(user, liste)
+            return droits[cle]
+        contexte.update(entree.contexte(
+            user, portee[Quart], portee[ServiceGarde], entree.debut_de_semaine(request.GET.get("semaine")), contexte["mode_batiment"],
+            peut_gerer=peut_gerer,
+            peut_activer=lambda liste: peut_activer_liste(user, liste), responsable=responsable, vue=vue,
+        ))
+        contexte.update({"vue": vue, "responsable": responsable})
+        return render(request, self.template_name, contexte)
 
     def post(self, request):
         action = request.POST.get("action")

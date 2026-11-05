@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load composants %}
 {% block content %}
-{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et gardes" %}
+{% url 'quarts-index' as url_parent %}{% retour url_parent "Quarts et tours de service" %}
 <h1 class="h3 mb-1">Mouvements du bâtiment</h1>
 <p class="text-secondary">{{ ship }} — mode actuel : <strong>{% if regime == 'QUAI' %}QUAI{% elif regime == 'MER' %}MER{% else %}Non renseigné{% endif %}</strong></p>
 {% if not regime %}<div class="alert alert-warning" role="alert">Le mode du bâtiment n'est pas renseigné : aucune liste de service à quai ne peut être activée.{% if peut_declarer %} Initialisez-le ci-dessous.{% else %} Le COMAEQ ou le commandant doit l'initialiser.{% endif %}</div>{% endif %}

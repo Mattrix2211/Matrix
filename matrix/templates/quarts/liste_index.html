@@ -1,98 +1,150 @@
 {% extends 'base.html' %}
-{% load icones %}
+{% load icones static %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">Quarts et services de garde <span class="fs-6 ms-2 align-middle">{% include "components/mode_batiment.html" with mode=mode_batiment %}</span></h1>
-  <div class="d-flex gap-2">
-    <a href="{% url 'echanges-index' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left-right"></i> Mes échanges
-    </a>
-    <a href="{% url 'feuille-service-index' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-journal-text"></i> Feuille de service
-    </a>
-    <a href="{% url 'mouvements-batiment' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-water"></i> Mouvements du bâtiment
-    </a>
-    {% if peut_voir_delais %}
-    <a href="{% url 'quarts-delais-activation' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-alarm"></i> Délais d'alerte
-    </a>
-    {% endif %}
-    {% if peut_designer_chef_de_liste %}
-    <a href="{% url 'quarts-reglages' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-person-badge"></i> Chefs de liste
-    </a>
-    {% endif %}
-    {% if peut_creer and not equipage_a_terre %}
-    <a href="{% url 'quarts-creer' %}" class="btn btn-primary">{% icone "ajout" %} Créer une liste</a>
-    {% endif %}
-  </div>
-</div>
-
-{% if not peut_creer %}
-<div class="alert alert-info">
-  Vous n'êtes désigné(e) chef de liste sur aucun périmètre. Rapprochez-vous de votre chef de service pour être désigné(e), ou consultez ci-dessous les listes déjà publiées vous concernant.
-</div>
-{% endif %}
-
-<div class="row g-4">
-  <div class="col-md-6{% if mode_batiment == 'QUAI' %} order-md-2{% endif %}">
-    <h2 class="h5">Mes listes de quarts</h2>
-    <div class="card">
-      <div class="list-group list-group-flush">
-        {% for q in quarts %}
-        <a href="{% url 'quart-detail' q.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-          <span>
-            <span class="fw-semibold">{{ q.nom|default:"Liste de quarts" }}</span>
-            <span class="d-block small text-muted font-mono">{% if q.fonction %}{{ q.fonction }} — {% endif %}{{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
-          </span>
-          <span class="badge {% if q.statut == 'PUBLIEE' %}text-bg-success{% else %}text-bg-warning{% endif %}">{{ q.get_statut_display|upper }}</span>
-        </a>
-        {% empty %}
-        <div class="list-group-item text-muted text-center py-4">Aucune liste de quarts pour l'instant.</div>
-        {% endfor %}
-      </div>
+<div class="mx-qt">
+  <div class="mx-qt__entete">
+    <div>
+      <h1>Quarts et tours de service <span class="mx-qt__mode">{% include "components/mode_batiment.html" with mode=mode_batiment %}</span></h1>
+      <div class="mx-qt__meta">{% if request.user.profile.ship %}{{ request.user.profile.ship.name }}{% if request.user.profile.equipage %} · équipage {{ request.user.profile.equipage }}{% endif %} · {% endif %}semaine du {{ semaine_debut|date:"j F" }} au {{ semaine_fin|date:"j F Y" }}</div>
+    </div>
+    <div class="mx-qt__actions no-print">
+      {% if peut_creer and not equipage_a_terre %}<a href="{% url 'quarts-creer' %}" class="btn btn-primary btn-sm">{% icone "ajout" %} Créer une liste</a>{% endif %}
+      <button type="button" class="mx-qt__discret" onclick="window.print()">{% icone "impression" %} Imprimer</button>
+      <details class="mx-qt__menu">
+        <summary class="mx-qt__discret" aria-label="Autres actions"><i class="bi bi-three-dots" aria-hidden="true"></i> Plus</summary>
+        <div class="mx-qt__menu-liste">
+          <a href="{% url 'echanges-index' %}">Mes échanges</a>
+          <a href="{% url 'feuille-service-index' %}">Feuille de service</a>
+          <a href="{% url 'mouvements-batiment' %}">Mouvements du bâtiment</a>
+          {% if peut_voir_delais %}<a href="{% url 'quarts-delais-activation' %}">Délais d'alerte</a>{% endif %}
+          {% if peut_designer_chef_de_liste %}<a href="{% url 'quarts-reglages' %}">Chefs de liste</a>{% endif %}
+        </div>
+      </details>
     </div>
   </div>
 
-  <div class="col-md-6{% if mode_batiment == 'QUAI' %} order-md-1{% endif %}">
-    <h2 class="h5">Mes listes de services de garde</h2>
-    <div class="card">
-      <div class="list-group list-group-flush">
-        {% for g in services_garde %}
-        <a href="{% url 'garde-detail' g.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-          <span>
-            <span class="fw-semibold">{{ g.nom|default:g.type_service|default:"Liste de services de garde" }}</span>
-            <span class="d-block small text-muted font-mono">{% if g.fonction %}{{ g.fonction }} — {% endif %}{{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
-          </span>
-          <span class="badge {% if g.statut == 'PUBLIEE' and g.application != 'PREVISIONNELLE' %}text-bg-success{% else %}text-bg-warning{% endif %}">{{ g.situation_affichee|upper }}</span>
-        </a>
-        {% empty %}
-        <div class="list-group-item text-muted text-center py-4">Aucune liste de services de garde pour l'instant.</div>
-        {% endfor %}
-      </div>
+  <nav class="mx-qt__onglets no-print" aria-label="Vues">
+    <a href="?vue=jour&semaine={{ semaine_debut|date:'Y-m-d' }}"{% if vue == 'jour' %} aria-current="page"{% endif %}>Par jour</a>
+    {% if responsable %}<a href="?vue=marin&semaine={{ semaine_debut|date:'Y-m-d' }}"{% if vue == 'marin' %} aria-current="page"{% endif %}>Par marin (responsables)</a>{% endif %}
+    <a href="?vue=listes"{% if vue == 'listes' %} aria-current="page"{% endif %}>Listes</a>
+    {% if vue != 'listes' %}
+    <span class="mx-qt__semaine">
+      <a href="?vue={{ vue }}&semaine={{ semaine_precedente }}" aria-label="Semaine précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a>
+      {% if not semaine_courante %}<a href="?vue={{ vue }}">Cette semaine</a>{% endif %}
+      <a href="?vue={{ vue }}&semaine={{ semaine_suivante }}" aria-label="Semaine suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+    </span>
+    {% endif %}
+  </nav>
+
+  {% if vue == 'jour' %}
+  <div class="mx-qt__vue-a">
+    <div>
+      <label class="mx-qt__meta mx-qt__filtre"><input type="checkbox" id="mx-qt-moi" data-mx-qt-moi> Afficher seulement mes créneaux</label>
+      {% for j in jours %}
+      <details class="mx-qt__jour{% if j.aujourdhui %} mx-qt__jour--aujourdhui{% endif %}"{% if not j.vide or j.aujourdhui %} open{% endif %}>
+        <summary class="mx-qt__jour-tete"><h2>{{ j.libelle }}{% if j.aujourdhui %} <span class="mx-qt__etat">Aujourd'hui</span>{% endif %}</h2><span class="mx-qt__meta">{{ j.resume }} <i class="bi bi-chevron-down" aria-hidden="true"></i></span></summary>
+        {% if j.vide %}<p class="mx-qt__vide">Aucun créneau.</p>{% else %}
+        <div class="mx-qt__jour-corps">
+          {% for titre, lignes in j.blocs %}
+          <div class="mx-qt__bloc">
+            <h3>{{ titre }}</h3>
+            {% for l in lignes %}
+            <div class="mx-qt__ligne{% if l.moi %} mx-qt__ligne--moi{% endif %}{% if l.vide %} mx-qt__ligne--vide{% endif %}" data-mx-qt-ligne>
+              <span class="mx-qt__heure">{{ l.heure }}</span>
+              <span class="mx-qt__qui"><strong>{{ l.poste }}</strong> · {% if l.vide %}poste à pourvoir{% else %}{{ l.nom }}{% endif %}{% if l.previsionnel %} <span class="mx-qt__puce-prev">prévisionnel</span>{% endif %}{% if l.grade %}<small>{{ l.grade }}</small>{% endif %}</span>
+              <details class="mx-qt__menu mx-qt__menu--ligne">
+                <summary aria-label="Actions du créneau"><i class="bi bi-three-dots" aria-hidden="true"></i></summary>
+                <div class="mx-qt__menu-liste">
+                  {% if l.peut_echanger %}<a href="{{ l.url }}?vue=echanges">Proposer un échange</a>{% endif %}
+                  <a href="{{ l.url }}?vue=jour">Détail du créneau</a>
+                  {% if l.peut_remplacer %}<a href="{{ l.url }}">Remplacer le marin</a>{% endif %}
+                </div>
+              </details>
+            </div>
+            {% empty %}<p class="mx-qt__vide">Aucun créneau.</p>{% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </details>
+      {% endfor %}
     </div>
+    <aside class="mx-qt__lateral" aria-label="Mon service">
+      <div class="mx-qt__carte">
+        <h2>Mon prochain tour</h2>
+        {% if prochain_tour %}
+        <div class="mx-qt__grand">{{ prochain_tour.quand }}</div>
+        <p class="mx-qt__meta">{{ prochain_tour.genre }} · {{ prochain_tour.poste }}{% if prochain_tour.jusqu_a %} · {{ prochain_tour.jusqu_a }}{% endif %}</p>
+        {% if prochain_tour.ensuite %}<p>Ensuite : <strong>{{ prochain_tour.ensuite }}</strong></p>{% endif %}
+        {% if prochain_tour.echange_url %}<a class="btn btn-primary btn-sm" href="{{ prochain_tour.echange_url }}">Proposer un échange</a>{% endif %}
+        {% else %}<p class="mx-qt__meta mb-0">Aucun tour à venir.</p>{% endif %}
+      </div>
+      <div class="mx-qt__carte">
+        <h2>À traiter</h2>
+        {% for e in a_traiter %}<p class="mx-qt__a-traiter"><a href="{{ e.url }}" class="mx-qt__pastille mx-qt__pastille--{{ e.niveau }}">{{ e.texte }}</a></p>
+        {% empty %}<p class="mx-qt__meta mb-0">Rien à traiter.</p>{% endfor %}
+      </div>
+      <div class="mx-qt__carte">
+        <h2>État des listes</h2>
+        {% for l in etat_listes %}<p class="mb-2"><a href="{{ l.url }}">{{ l.nom }}</a><span class="mx-qt__meta d-block">{{ l.genre }} · {{ l.situation }}{% if l.version %}, version {{ l.version }}{% endif %}</span></p>
+        {% empty %}<p class="mx-qt__meta mb-0">Aucune liste publiée cette semaine.</p>{% endfor %}
+      </div>
+    </aside>
   </div>
-</div>
 
-{% if quarts_publies_me_concernant or gardes_publiees_me_concernant %}
-<h2 class="h5 mt-4">Listes publiées de mon périmètre</h2>
-<div class="card">
-  <div class="list-group list-group-flush">
-    {% for q in quarts_publies_me_concernant %}
-    <a href="{% url 'quart-detail' q.pk %}" class="list-group-item list-group-item-action">
-      <span class="badge text-bg-secondary me-2">Quart</span>{{ q.nom|default:"Liste de quarts" }}
-      <span class="d-block small text-muted font-mono">{% if q.fonction %}{{ q.fonction }} — {% endif %}{{ q.perimetre }} — {{ q.date_debut|date:"d/m/Y" }} au {{ q.date_fin|date:"d/m/Y" }}</span>
-    </a>
-    {% endfor %}
-    {% for g in gardes_publiees_me_concernant %}
-    <a href="{% url 'garde-detail' g.pk %}" class="list-group-item list-group-item-action">
-      <span class="badge text-bg-secondary me-2">Garde</span>{{ g.nom|default:g.type_service|default:"Liste de services de garde" }}
-      <span class="d-block small text-muted font-mono">{% if g.fonction %}{{ g.fonction }} — {% endif %}{{ g.perimetre }} — {{ g.date_debut|date:"d/m/Y" }} au {{ g.date_fin|date:"d/m/Y" }}</span>
-    </a>
-    {% endfor %}
+  {% elif vue == 'marin' %}
+  {% if grille.alertes_pourvoir or a_traiter %}
+  <div class="mx-qt__alertes">
+    {% for a in grille.alertes_pourvoir %}<div class="mx-qt__alerte mx-qt__alerte--rouge"><strong>{{ a.n }} poste{{ a.n|pluralize }} à pourvoir {{ a.jour|lower }}</strong> — {{ a.postes }}.</div>{% endfor %}
+    {% for e in a_traiter %}<div class="mx-qt__alerte{% if e.niveau == 'rouge' %} mx-qt__alerte--rouge{% endif %}"><a href="{{ e.url }}">{{ e.texte }}</a></div>{% endfor %}
   </div>
-</div>
-{% endif %}
+  {% endif %}
+  <div class="mx-qt__legende">
+    <span class="mx-qt__pastille mx-qt__pastille--mer">Quart à la mer</span><span class="mx-qt__pastille mx-qt__pastille--quai">Tour à quai</span>
+    <span>Barre de charge : heures de la semaine, comparées à celles de l'équipe.</span>
+  </div>
+  <div class="mx-qt__defilement" role="region" aria-label="Planning par marin" tabindex="0">
+    <table class="mx-qt__grille">
+      <thead><tr><th class="mx-qt__col-marin" scope="col">Marin</th>{% for j in grille.jours %}<th{% if j.courant %} class="mx-qt__courant"{% endif %} scope="col">{{ j.libelle }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        <tr><th scope="row" class="mx-qt__col-marin"><strong>Postes à pourvoir</strong></th>
+          {% for cellule in grille.a_pourvoir %}<td>{% for l in cellule %}<span class="mx-qt__chip mx-qt__chip--vide">{{ l.heure }} {{ l.poste }}</span>{% endfor %}</td>{% endfor %}</tr>
+        {% for m in grille.marins %}
+        <tr><th scope="row" class="mx-qt__col-marin"><strong>{{ m.nom }}</strong>{% if m.grade %}<div class="mx-qt__meta">{{ m.grade }}</div>{% endif %}
+          <div class="mx-qt__charge"><div class="mx-qt__charge-barre"><span class="{% if m.haute %}haute{% endif %}" style="width:{{ m.largeur }}%"></span></div><span class="mx-qt__meta">{{ m.heures }} h</span></div></th>
+          {% for cellule in m.cellules %}<td>{% for l in cellule %}<a class="mx-qt__chip mx-qt__chip--{{ l.genre }}{% if l.moi %} mx-qt__chip--moi{% endif %}" href="{{ l.url }}">{% if l.genre == 'mer' %}{{ l.heure }} {% endif %}{{ l.poste }}{% if l.previsionnel %} (prév.){% endif %}</a>{% endfor %}</td>{% endfor %}</tr>
+        {% empty %}<tr><td colspan="8" class="mx-qt__vide">Aucun marin affecté cette semaine.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
 
+  {% else %}
+  <div class="mx-qt__listes">
+    <section>
+      <h2>Services à quai</h2>
+      <div class="mx-qt__liste-carte">
+        {% for g in services_garde %}<a href="{% url 'garde-detail' g.pk %}"><span><strong>{{ g.nom|default:g.type_service|default:"Services à quai" }}</strong><small>{{ g.perimetre }} · {{ g.date_debut|date:"d/m" }} au {{ g.date_fin|date:"d/m/Y" }}</small></span><span class="mx-qt__pastille {% if g.statut == 'PUBLIEE' and g.application != 'PREVISIONNELLE' %}mx-qt__pastille--ok{% else %}mx-qt__pastille--att{% endif %}">{{ g.situation_affichee }}</span></a>
+        {% empty %}<p class="mx-qt__vide">Aucune liste gérée.</p>{% endfor %}
+      </div>
+    </section>
+    <section>
+      <h2>Quarts à la mer</h2>
+      <div class="mx-qt__liste-carte">
+        {% for q in quarts %}<a href="{% url 'quart-detail' q.pk %}"><span><strong>{{ q.nom|default:"Liste de quarts" }}</strong><small>{{ q.perimetre }} · {{ q.date_debut|date:"d/m" }} au {{ q.date_fin|date:"d/m/Y" }}</small></span><span class="mx-qt__pastille {% if q.statut == 'PUBLIEE' %}mx-qt__pastille--ok{% else %}mx-qt__pastille--att{% endif %}">{{ q.get_statut_display }}</span></a>
+        {% empty %}<p class="mx-qt__vide">Aucune liste gérée.</p>{% endfor %}
+      </div>
+    </section>
+    {% if quarts_publies_me_concernant or gardes_publiees_me_concernant %}
+    <section class="mx-qt__listes-large">
+      <h2>Listes publiées me concernant</h2>
+      <div class="mx-qt__liste-carte">
+        {% for g in gardes_publiees_me_concernant %}<a href="{% url 'garde-detail' g.pk %}"><span><strong>{{ g.nom|default:g.type_service|default:"Services à quai" }}</strong><small>{{ g.perimetre }} · {{ g.date_debut|date:"d/m" }} au {{ g.date_fin|date:"d/m/Y" }}</small></span><span class="mx-qt__pastille mx-qt__pastille--quai">Quai</span></a>{% endfor %}
+        {% for q in quarts_publies_me_concernant %}<a href="{% url 'quart-detail' q.pk %}"><span><strong>{{ q.nom|default:"Liste de quarts" }}</strong><small>{{ q.perimetre }} · {{ q.date_debut|date:"d/m" }} au {{ q.date_fin|date:"d/m/Y" }}</small></span><span class="mx-qt__pastille mx-qt__pastille--mer">Mer</span></a>{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<script src="{% static 'js/quarts_entree.js' %}" defer></script>
 {% endblock %}
