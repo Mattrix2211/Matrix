@@ -276,3 +276,37 @@ class LancementSecuriseTests(SimpleTestCase):
         self.assertNotIn("--hote", lignes)
         self.assertNotIn("0.0.0.0", lignes)
         self.assertEqual(script.HOTE, "127.0.0.1")
+
+
+class MiseAJourTests(SimpleTestCase):
+    """--mettre-a-jour : migrations et générateurs rejoués sur une base existante, sans jamais la supprimer."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dossier = Path(self.tmp.name).resolve() / "instance_test_marins"
+        self.dossier.mkdir()
+        self.base = self.dossier / "demo.sqlite3"
+        self.appels = []
+
+    def _lancer(self, commande, cwd, env, check):
+        self.appels.append(commande[2:])
+        return mock.Mock(returncode=1 if commande[-1] == "seed_demo_dense" else 0)
+
+    def test_refus_sans_base_preparee_par_le_script(self):
+        with self.assertRaises(script.RefusError):
+            script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer)
+        self.base.write_text("")  # sans marqueur
+        with self.assertRaises(script.RefusError):
+            script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer)
+        self.assertEqual(self.appels, [])
+
+    def test_migrations_puis_generateurs_dans_l_ordre_sans_rien_supprimer(self):
+        self.base.write_text("donnees")
+        script.marqueur(self.base).touch()
+        with mock.patch.object(script, "controler_connexion"):
+            base, echecs = script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer)
+        self.assertEqual(self.appels[0], ["migrate", "--noinput"])
+        self.assertEqual([a[0] for a in self.appels[1:]], list(script.GENERATEURS))
+        self.assertEqual(echecs, ["seed_demo_dense"])
+        self.assertEqual(self.base.read_text(), "donnees")

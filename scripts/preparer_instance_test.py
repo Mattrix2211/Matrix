@@ -21,6 +21,7 @@ HOTES_LOCAUX = {"localhost", "127.0.0.1", "[::1]", "::1"}
 # Seules ces variables du poste sont transmises ; tout le reste (bases, e-mail, Redis, clés) est volontairement absent.
 VARIABLES_CONSERVEES = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT",
                         "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "VIRTUAL_ENV")
+GENERATEURS = ("seed_demo", "seed_demo_mer_quai", "seed_demo_dense", "seed_demo_metier")  # ordre de dépendance, tous idempotents
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
     ("cdt_abe", "Auguste Bénébig (à QUAI) : commandant ; qualifie la désignation historique, règle les délais"),
@@ -135,9 +136,25 @@ def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autori
     if base.exists():
         base.unlink()
     marqueur(base).touch()
-    for commande in ("migrate", "seed_demo", "seed_demo_mer_quai"):
+    for commande in ("migrate", *GENERATEURS):
         subprocess.run([sys.executable, "manage.py", commande], cwd=RACINE, env=env, check=True)
     return base
+
+
+def mettre_a_jour(base, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
+    """Base de démonstration existante : applique les migrations manquantes puis rejoue les générateurs, qui sont idempotents.
+    Rien n'est supprimé ni réinitialisé ; une erreur d'un générateur est signalée sans empêcher le lancement."""
+    base = verifier_chemin(base, dossier_autorise, lecture_seule=True)
+    if not base.exists() or not marqueur(base).exists():
+        raise RefusError("base de démonstration absente ou non préparée par ce script : lancez d'abord la préparation")
+    env = environnement_demo(base)
+    controler_connexion(base, env)
+    lancer([sys.executable, "manage.py", "migrate", "--noinput"], cwd=RACINE, env=env, check=True)
+    echecs = []
+    for commande in GENERATEURS:
+        if lancer([sys.executable, "manage.py", commande], cwd=RACINE, env=env, check=False).returncode:
+            echecs.append(commande)
+    return base, echecs
 
 
 def servir(base, port=PORT_PAR_DEFAUT, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
@@ -159,12 +176,17 @@ def main():
     analyseur.add_argument("--reinitialiser", action="store_true", help="repart d'une base vide (entre deux participants)")
     mode = analyseur.add_mutually_exclusive_group()
     mode.add_argument("--verifier", action="store_true", help="contrôle sans rien écrire que la configuration vise bien la base de démonstration")
+    mode.add_argument("--mettre-a-jour", action="store_true", help="applique les migrations manquantes et complète les données sans rien supprimer")
     mode.add_argument("--servir", action="store_true", help=f"lance le serveur de démonstration sur {HOTE} (Ctrl+C pour arrêter)")
     analyseur.add_argument("--port", type=int, default=PORT_PAR_DEFAUT, help="port local du serveur (avec --servir)")
     args = analyseur.parse_args()
     if args.servir and args.reinitialiser:
         analyseur.error("--servir ne se combine pas avec --reinitialiser")
     try:
+        if args.mettre_a_jour:
+            base, echecs = mettre_a_jour(args.base)
+            print(f"Base mise à jour : {base}" + (f" (générateurs en erreur, à signaler : {', '.join(echecs)})" if echecs else ""))
+            return
         if args.servir:
             print(f"Démonstration sur http://{HOTE}:{args.port}/ (cette machine seulement). Arrêt : Ctrl+C.")
             servir(args.base, args.port)

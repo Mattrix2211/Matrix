@@ -714,10 +714,8 @@ class _DetailListeViewBase(LoginRequiredMixin, View):
             "maintenant_objet": timezone.now(),
             "jours": _vue_par_jour(liste, creneaux, request.user, ship_liste) if vue == "jour" else [],
             "marins_vue": _vue_par_marin(creneaux) if vue == "marin" else [],
-            "indicateurs": [
-                {"libelle": "Créneaux", "valeur": len(creneaux)},
-                {"libelle": "Non affectés", "valeur": non_affectes, "etat": "attention" if non_affectes else "ok"},
-            ],
+            "indicateurs": [{"libelle": "Non affectés", "valeur": non_affectes, "etat": "attention"}] if non_affectes else [],
+            "nb_creneaux": len(creneaux),
             "action": action,
             # Seule l'alerte la plus avancée est affichée (escalade > alerte > rappel) : pas d'empilement de bandeaux.
             "alerte_activation": (

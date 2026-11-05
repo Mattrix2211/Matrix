@@ -623,10 +623,12 @@ class Command(BaseCommand):
             date_debut=debut, date_fin=debut + timedelta(days=6), type_service="Garde de nuit", duree_creneau_heures=12,
             fonction=ServiceFunctionChoice.objects.get(name="Chef de garde"), created_by=self.chef_secteur_a))
         if cree:
+            # Chefs de garde distincts des marins du service à quai : aucune double affectation dans la démonstration.
+            chefs_de_garde = [User.objects.get(username=n) for n in ("chef_service_a", "chef_secteur_elec_a", "chef_secteur_incendie_a")]
             for i in range(6):
                 jour = debut + timedelta(days=i)
                 CreneauServiceGarde.objects.create(
-                    service_garde=garde, poste="Chef de garde", marin=equipe[i % 3],
+                    service_garde=garde, poste="Chef de garde", marin=chefs_de_garde[i % 3],
                     debut=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, 20)),
                     fin=timezone.make_aware(timezone.datetime(jour.year, jour.month, jour.day, 20)) + timedelta(hours=12))
             garde.publier(self.chef_secteur_a)
