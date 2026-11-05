@@ -1,0 +1,27 @@
+# Audit 03 — Première mise en service d'un bâtiment (rapport partiel)
+
+**Statut : partiel, non terminé.** Simulation limitée à l'installation technique sur SQLite ; la création d'un bâtiment par l'interface n'a pas été parcourue.
+
+## 1. Ce qui a été mesuré
+
+| Étape | Constat | Preuve |
+|---|---|---|
+| Dépendances | `pip install -r requirements.txt` réussit sur Python 3.13 (Django 5.2.17). | Exécution du 2026-11-05 |
+| Base vierge | `migrate` : environ 35 s, sans erreur, sur SQLite. | Exécution |
+| Données de démonstration | `seed_demo` : environ 11 s ; 5 bâtiments dont un à double équipage. | Exécution |
+| Sous-module `design` | Non initialisé dans l'environnement d'audit : charte non relue. | `git submodule status` |
+
+## 2. Étapes que le README impose à l'exploitant
+
+Python et venv, `pip`, sous-module `design`, `.env`, `migrate`, `createsuperuser`, puis — pour les alertes automatiques — Redis, un worker Celery et Celery Beat (sans eux, aucune notification automatique, sans message d'erreur visible). Il n'existe pas de procédure de mise en service d'un bâtiment (ordre : unité, services, secteurs, sections, rôles, utilisateurs, installations) dans le README.
+
+## 3. Constats
+
+- **AUD-011 (P1)** : le mode production exige HTTPS sans documentation.
+- **AUD-012 (P2)** : pas d'import en masse des marins trouvé.
+- **AUD-009 (P1)** : risque de lancer `seed_demo` sur une vraie instance.
+- Dépendance aux processus de fond (Celery, Redis) : une panne est silencieuse (README) ; non testée ici.
+
+## 4. Non audité
+
+Parcours complet « nouveau bâtiment » dans l'interface (création d'unité, organigramme, installations, rôles), sections facultatives (DP-03), formation des utilisateurs, PostgreSQL, Windows (`setup.bat`, `start.bat` non exécutés).

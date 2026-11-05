@@ -31,6 +31,10 @@ Résultat : **3 829 tests exécutés en 792 s, OK, 20 ignorés** (les 20 ignoré
 
 Portée : ce résultat prouve que les tests existants passent, pas que les parcours métier sont conformes (voir audit 16).
 
+## 3 bis. Vérifications dynamiques de la reprise (2026-11-05)
+
+Base SQLite temporaire hors dépôt (`MATRIX_SQLITE_PATH`), `migrate` puis `seed_demo`, client de test Django avec connexion forcée, transactions annulées pour les écritures. Les scripts de sonde sont dans le répertoire temporaire de l'audit, **non versionnés** (le dépôt ne doit pas recevoir de code ; à joindre à la demande). Résultats : `audits/AUDIT_06.md`, `AUDIT_15.md`, `AUDIT_03.md`. Limites : un seul navigateur jamais lancé, SQLite uniquement, mono-processus, données de démonstration fictives, mesures de durée indicatives.
+
 ## 4. Règle d'emploi des preuves
 
 - Une preuve est un fichier, une fonction, un test ou une sortie de commande citée avec son emplacement.

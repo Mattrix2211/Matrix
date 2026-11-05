@@ -12,6 +12,13 @@
 6. **Le projet est volumineux et très testé** : 22 paquets, environ 47 600 lignes de code applicatif hors tests et hors migrations, 3 829 tests découverts par Django. Le nombre de tests n'est pas une preuve de conformité métier.
 7. Vérifications techniques de base : `check` sans erreur ; modèles et migrations concordent (voir `audits/AUDIT_01.md` §6).
 
+## Constats ajoutés à la reprise (preuves dynamiques)
+
+8. **AUD-001 rejoué** : sur 1c37f22, un matelot sans fonction de rédacteur ne peut plus créer de feuille de service (403) ; seuls les rédacteurs désignés le peuvent.
+9. **Aucune erreur serveur** sur environ 330 pages ouvertes par 10 profils de la démonstration ; **un lien mort** sur l'accueil d'un chef de secteur (AUD-008).
+10. **Sans Internet : conforme** pour le code statique (aucune ressource externe active).
+11. **Deux risques de mise en service** : commandes de démonstration sans garde-fou (AUD-009) et mode production qui impose HTTPS sans procédure pour un bord (AUD-011).
+
 ## Ce qui n'est pas encore établi
 
 Presque tout le reste : fonctionnement réel des parcours, droits effectifs, configurabilité par bâtiment, mise en service, UX, données, sécurité, PostgreSQL. Les questions 1 à 10 du critère de réussite **ne peuvent pas encore être répondues**.

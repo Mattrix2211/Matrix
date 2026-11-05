@@ -21,12 +21,12 @@ Le SHA du brief (« 1c37f22 ») était introuvable dans la copie locale initiale
 |---|---|---|
 | 1. Référentiel historique | 01 | **En cours** : sources inventoriées, référentiel v0 posé, rapport partiel |
 | 2. Cohérence Marine nationale | 19 | Non commencé (sources Notion 01 à 13 partiellement lues : voir limites) |
-| 3. Fonctionnel, organisation, UX | 02 à 12 | Non commencé |
-| 4. Fondations techniques | 13 à 17 | Non commencé (seulement des premières vérifications outillées, cf. AUDIT_01 §6) |
+| 3. Fonctionnel, organisation, UX | 02 à 12 | **Partiel** : 03 et 06 en rapports partiels (reprise du 05/11) ; 02, 04, 05, 07 à 12 non commencés |
+| 4. Fondations techniques | 13 à 17 | **Partiel** : 15 et 17 en rapports partiels ; 13, 14, 16 non commencés |
 | 5. Données de démonstration | 20 | Non commencé |
 | 6. Synthèse | 18 | Non commencé : ne peut être écrit avant les 19 autres |
 
-Aucun audit n'est déclaré terminé. Les fichiers `audits/AUDIT_02.md` à `AUDIT_20.md` n'existent pas encore : ils seront créés au fur et à mesure, pas en coquilles vides.
+Aucun audit n'est déclaré terminé. Existent : `AUDIT_01` (partiel), `03`, `06`, `15`, `17` (partiels). Les autres fichiers n'existent pas encore : ils seront créés au fur et à mesure, pas en coquilles vides.
 
 ## Prochaines étapes (ordre recommandé)
 
@@ -40,3 +40,11 @@ Aucun audit n'est déclaré terminé. Les fichiers `audits/AUDIT_02.md` à `AUDI
 | Date | Action |
 |---|---|
 | 2026-11-05 | Inventaire du dépôt, bascule sur 1c37f22, lecture de 5 pages Notion et de la documentation du dépôt, création de l'environnement d'audit isolé (hors dépôt), suite de tests complète lancée sur base temporaire, premiers documents. |
+| 2026-11-05 (reprise) | Branche de travail rebasée sur l'état de `claude/matrix-audit-general-rg0ddz` (1ef7047). Vérifications dynamiques sur base temporaire : AUD-001 rejoué sur 1c37f22 (conforme), balayage de 10 profils, accès anonyme, `check --deploy`, recherche de dépendances externes. Nouvelles anomalies AUD-008 à AUD-013. Rapports partiels 03, 06, 15, 17. |
+
+## Reprise : ce qu'il reste à faire en priorité
+
+1. Audit 19 (conformité Marine) : lire les pages Notion de « Organigramme et rôles » (liens dans `08_LIMITES_ET_PREUVES.md`).
+2. Audit 06 complet : matrice rôle × action × périmètre, API, double équipage (rejouer `marin_b` sur l'équipage A).
+3. Parcours navigateur (Chromium/Playwright disponibles) pour les audits 04, 05, 09 ; qualifier AUD-008 (donnée ou code).
+4. Audits 02, 07 à 12, puis 13, 14, 16 (revue des tests), 20, enfin 18.
