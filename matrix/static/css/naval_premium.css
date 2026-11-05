@@ -376,6 +376,7 @@ details.mx-qt__menu > summary:hover, details.mx-qt__menu[open] > summary { backg
 .mx-qt__charge-barre span.haute { background: var(--amber); }
 .mx-qt__listes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s6); align-items: start; }
 .mx-qt__listes h2 { font-family: var(--f-display); font-size: 1.0625rem; margin: 0 0 var(--s3); }
+.mx-qt__prioritaire { order: -1; }
 .mx-qt__listes-large { grid-column: 1 / -1; }
 .mx-qt__liste-carte { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .mx-qt__liste-carte > a { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); color: var(--text); text-decoration: none; border-top: 1px solid var(--border); }

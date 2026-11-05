@@ -127,7 +127,7 @@
         {% empty %}<p class="mx-qt__vide">Aucune liste gérée.</p>{% endfor %}
       </div>
     </section>
-    <section>
+    <section{% if mode_batiment == 'MER' %} class="mx-qt__prioritaire"{% endif %}>
       <h2>Quarts à la mer</h2>
       <div class="mx-qt__liste-carte">
         {% for q in quarts %}<a href="{% url 'quart-detail' q.pk %}"><span><strong>{{ q.nom|default:"Liste de quarts" }}</strong><small>{{ q.perimetre }} · {{ q.date_debut|date:"d/m" }} au {{ q.date_fin|date:"d/m/Y" }}</small></span><span class="mx-qt__pastille {% if q.statut == 'PUBLIEE' %}mx-qt__pastille--ok{% else %}mx-qt__pastille--att{% endif %}">{{ q.get_statut_display }}</span></a>

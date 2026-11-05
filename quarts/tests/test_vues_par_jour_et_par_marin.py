@@ -95,6 +95,7 @@ class VuesAEtBTests(BaseActivation):
 
     def test_l_index_priorise_les_services_a_quai_en_mode_quai_sans_masquer_les_quarts(self):
         self.client.force_login(self.chef)
-        page = self.client.get(reverse("quarts-index")).content.decode()
-        self.assertIn("order-md-1", page)
-        self.assertIn("Mes listes de quarts", page)
+        page = self.client.get(reverse("quarts-index"), {"vue": "listes"}).content.decode()
+        self.assertLess(page.index("Services à quai"), page.index("Quarts à la mer"))
+        self.assertNotIn("mx-qt__prioritaire", page)  # en mode quai, ce sont les services à quai qui passent en premier
+        self.assertIn("Quarts à la mer", page)  # sans masquer les quarts

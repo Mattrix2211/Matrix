@@ -69,7 +69,7 @@ class ChefDeListeParTypeTests(TestCase):
 
     def test_chef_quai_ne_voit_pas_les_quarts_dans_ses_listes_gerees(self):
         self.client.force_login(self.chef_quai)
-        page = self.client.get(reverse("quarts-index")).content.decode()
+        page = self.client.get(reverse("quarts-index"), {"vue": "listes"}).content.decode()
         self.assertIn(reverse("garde-detail", args=[self.garde.pk]), page)
         self.assertNotIn(reverse("quart-detail", args=[self.quart.pk]), page)
 
