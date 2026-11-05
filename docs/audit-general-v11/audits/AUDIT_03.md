@@ -19,6 +19,10 @@ Python et venv, `pip`, sous-module `design`, `.env`, `migrate`, `createsuperuser
 
 Une fois l'application installée, **seul le compte technique de la flotte** (superutilisateur) peut créer les bâtiments, services, secteurs et sections, ni renommer (AUD-019). L'administrateur d'unité règle les modules et les seuils de rôle de son bâtiment. Création de l'effectif : un compte à la fois (annuaire, formulaire), puis mise à jour groupée (rôle, bâtiment, service, secteur, section, fonction) sur les comptes existants ; pas d'import de personnel (AUD-012). Mesures sur la démonstration : `migrate` 30 à 35 s, `seed_demo` 10 s (SQLite et PostgreSQL 16).
 
+## 2 ter. Import de personnel : fonctionnalité de mise en service à planifier (DP-11)
+
+Besoin confirmé par le PO : import en masse **avec prévisualisation, détection des doublons, validation des rattachements et rapport d'import**. Classement : fonctionnalité de mise en service, **pas une anomalie bloquante de V1.1**. Exigences à reprendre : mêmes validations de rattachement que P01 (V1 à V12), aucune création de rôle supérieur sans validation, mots de passe initiaux à usage unique, rapport conservé, annulation de l'import. Le modèle existant d'import de matériel (`assets/import_materiel.py`, avec fichier modèle) montre la forme du parcours.
+
 ## 3. Constats
 
 - **AUD-011 (P1)** : le mode production exige HTTPS sans documentation.

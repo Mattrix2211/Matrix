@@ -69,3 +69,13 @@
 - Lire les descriptions des PR #1 à #16.
 - Retrouver la source écrite du caractère facultatif des sections (DP-03).
 - Confronter le cahier §1 à §42 au code pour établir la liste des oublis.
+
+## 7. Mise à jour de la 3ᵉ passe (sources lues depuis la rédaction de ce rapport)
+
+- **Notion « Organigramme et rôles »** : hub et 13 sous-pages lus en entier (dates du 29/09 au 31/10/2026, statut « non vérifié » côté Notion).
+- **Backlog Notion** (« Tâches en cours ») : décompte par phase et par statut établi (343 terminées, 14 à faire, 21 « à faire plus tard », 1 en cours, 1 en vérification) ; **les tâches ne sont pas relues une à une**, seules les tâches ouvertes ont été lues avec leurs commentaires.
+- **Pull requests** : titres des 16 PR lus (PR n° 1 renommage `bordops → matrix` ; n° 4, 6, 8 grandes fusions Matrix 2.0 et refonte UX ; n° 9 à 15 correctifs ANO-001, sécurité, PostgreSQL, ergonomie, feuille de service ; n° 16 V1 FANLAB). Les descriptions et conversations des PR ne sont pas lues.
+- **Sources toujours indisponibles** : conversations ChatGPT, documents FANLAB propres, Guide du marin 2023, `MATRIX_V11_AUDIT_INDEPENDANT.md`.
+- **Question centrale** : « Matrix correspond-il toujours à l'application imaginée au départ ? » — **oui sur la vision** (plateforme quotidienne, modules, principes de configuration, de traçabilité, d'absence d'Internet), **non sur trois points voulus** (génération automatique abandonnée, Rondes retirées, QR hors V1), **partiellement sur l'administration distribuée** (structure non autonome, AUD-019) et **sur la communication de groupe** (abandonnée). Cette réponse est **provisoire** tant que le backlog et les PR ne sont pas relus.
+
+**Statut de l'audit 01 : partiel** (conclusions provisoires ; sources manquantes énumérées ci-dessus).

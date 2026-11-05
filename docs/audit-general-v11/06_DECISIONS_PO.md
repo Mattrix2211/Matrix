@@ -1,27 +1,58 @@
-# Décisions attendues du Product Owner — version 0
+# Décisions du Product Owner
 
-Chaque point est un arbitrage que l'audit ne peut pas trancher. Rien n'est choisi à la place du PO.
+Mise à jour du 2026-11-05 (3ᵉ passe). Les points interdépendants sont regroupés en quatre blocs pour limiter les arbitrages.
 
-| ID | Sujet | Chronologie des sources | Options | Impact si non tranché |
-|---|---|---|---|---|
-| DP-01 | **TRANCHÉ le 2026-11-05 par le PO** : `main` n'est pas touchée ; aucune fusion, aucun déploiement, aucune modification applicative sans autorisation explicite ; l'audit reste sur une branche dédiée, avec `1c37f22` comme référence. | PO | — | Appliqué |
-| DP-02 | **Synthèse de passation** en V1 | Page 13, bandeau du 10/10 : retirée par la PR #7 et différée ; page 13, complément de recette d'octobre : « maintenue en V1, configurable, activée par défaut » ; Feuille de route : différée | Maintenue / différée | Périmètre de V1 incertain (AUD-006) |
-| DP-03 | **EN ANALYSE** : le PO veut comprendre avant de décider. Analyse, exemple à bord et options A à D : `audits/AUDIT_DP03_SECTIONS.md`. Aucune modification du modèle de données. | Brief 05/11 ; code ; Notion p.01 et p.13 | Options A à D | Décision attendue du PO |
-| DP-04 | **Cahier des charges** à aligner (Rondes retirées, « COMA » banni, baseline) | Décisions des 02/11 | Mettre à jour la page, ou conserver comme historique daté | Lecture erronée du besoin (AUD-004) |
-| DP-05 | **Données de Rondes** : suppression physique ou conservation | Décision du 02/11 : « préserver tant qu'une suppression physique n'a pas été autorisée » | Conserver ; exporter puis supprimer | Résidus (AUD-007) |
-| DP-06 | **QR codes** : « hors V1 » alors que du code de scan existe dans `assets/` | Page 13 et Cahier | Retirer, désactiver ou qualifier | À préciser par l'audit 08 |
-| DP-07 | **Intégration continue** compatible avec un environnement sans Internet | — | Serveur interne ; script local obligatoire | AUD-002 |
-| DP-08 | **Tests navigateur versionnés** | — | Les ajouter au dépôt ; les garder hors dépôt | AUD-003 |
+## 1. Décisions déjà prises (enregistrées)
 
-Questions déjà ouvertes ailleurs (non dupliquées ici, à reprendre dans les audits 06 et 19) : portée du COMAEQ (« tout le bâtiment » ou « ses services » : `docs/propositions/droits_comaeq.md`), délégations aux commandants adjoints, matrice des modules sans service, points UX ANO-007 à ANO-010 du dossier de recette.
+| ID | Décision | Conséquence pour l'audit |
+|---|---|---|
+| DP-01 | `main` n'est pas touchée ; ni fusion, ni déploiement, ni modification applicative sans autorisation explicite ; audit sur branche dédiée, référence `1c37f22` | respecté |
+| DP-03 (orientation) | option B complétée par D : section absente lorsqu'un secteur n'en possède aucune ; ne pas imposer de section fictive ni élargir accidentellement les droits d'un marin transversal | règle complète proposée : `propositions/P01` |
+| DP-09 (orientation) | titulaire, suppléant ou délégataire et supérieur sont distincts ; un administrateur technique n'obtient pas de droits de visa métier ; traçabilité des délégations | matrice proposée : `propositions/P02` |
+| DP-10 (orientation) | architecture de référence : reverse proxy avec terminaison TLS en réseau interne, validation par les responsables SIC avant déploiement | documentée : `propositions/P03` |
+| DP-11 | besoin à terme d'un import en masse (prévisualisation, doublons, validation des rattachements, rapport) ; fonctionnalité de mise en service à planifier, non bloquante V1.1 | AUD-012 reclassé |
+| DP-12 | le 404 initial du signalement est « non reproduit sur la version auditée » ; anomalie distincte pour le compte rendu | AUD-026 et AUD-027 |
+| DP-13 (orientation) | gestion de l'organisation locale par des fonctions habilitées ; priorité à modifier, renommer, archiver, désactiver ; pas de suppression physique perdant l'historique ou élargissant les accès | étude : `propositions/P04` |
+| DP-14 | revue au cas par cas : planchers contre règles métier | réalisée par groupes : `propositions/P05` |
 
-## Décisions ajoutées à la 2ᵉ passe
+## 2. Décisions encore nécessaires (regroupées)
 
-| ID | Sujet | Constat | Options | Impact si non tranché |
-|---|---|---|---|---|
-| DP-09 | **Droits par niveau dans le circuit quarts/feuille** (AUD-014, AUD-015) | Visas secteur et service donnés par COMA, commandant et administrateur d'unité, éventuellement par une seule personne ; publication des listes par COMANAV et COMOPS ; modification directe des listes publiées par commandant et administrateurs | Garder la supervision du commandant, exclure l'administrateur d'unité, exiger des personnes différentes, réserver la publication au COMAEQ | Contradiction entre l'intention des tests et le comportement ; dépend aussi des tâches D-05 |
-| DP-10 | **Architecture HTTPS du bord** (AUD-011) | Le proxy TLS ne fonctionne pas tel que livré ; aucun serveur d'application déclaré | Proxy TLS, TLS porté par l'application, TLS bout en bout (voir `AUDIT_15.md` §4) ; autorité de certification interne à définir avec l'autorité compétente | Premier bâtiment bloqué ou contourné |
-| DP-11 | **Import en masse du personnel** (AUD-012) | Pas d'import de comptes ; import de matériel existant | Besoin à qualifier : volume, format source (tableur, annuaire), fréquence | Mise en service lourde |
-| DP-12 | **404 du brouillon de signalement** | Non reproduit sur 1c37f22 | Le PO décrit les étapes exactes de l'époque, ou le point est clos comme « non reproductible » | Point laissé ouvert |
-| DP-13 | **Qui administre la structure du bord ?** (AUD-019, AUD-020, AUD-021) | Services, secteurs, sections : réservés au compte technique de la flotte ; pas de renommage ; suppression physique | Seuil configurable dédié limité à l'unité ; ou maintenir le compte technique en documentant la procédure ; archivage plutôt que suppression | Un bord ne peut pas se réorganiser seul |
-| DP-14 | **Règles de droits écrites en dur** (AUD-022) | 55 comparaisons de niveau en dur | Revue cas par cas : plancher de sécurité ou règle métier | Principe « configuration plutôt que code » non tenu partout |
+### Bloc A — Organisation, rattachements, structure (DP-03, DP-13, DP-11, AUD-019 à AUD-021, AUD-028)
+Les trois sujets sont interdépendants : un seul chantier cohérent est proposé.
+| Question | Options | Recommandation de l'audit |
+|---|---|---|
+| A1. Marin transversal : secteur entier explicite (T1) ou liste de sections désignées (T2) ? | T1 maintenant, T2 après V1.1 | T1 avec garde-fous (P01 §5) |
+| A2. Qui détient la fonction « gestion de la structure » à bord ? | administrateur d'unité seul ; fonction attribuable à une personne désignée (recommandé) ; commandant | fonction désignée, l'administrateur technique pouvant la recevoir sans visa métier |
+| A3. Niveau de réorganisation à livrer | garde-fous minimaux (option 1) ; écran de structure (option 2, recommandée) ; réorganisation assistée (option 3) | option 2 pour la mise en service, option 3 après V1.1 |
+| A4. Période de grâce pour les comptes « à compléter » | immédiate ; durée configurable (recommandé) | durée configurable |
+
+### Bloc B — Droits fonctionnels et délégations (DP-09, DP-14, AUD-014, AUD-015, AUD-022)
+| Question | Options | Recommandation |
+|---|---|---|
+| B1. Introduction | A exclusion ciblée de l'administrateur technique ; B fonction requise par action ; C B + délégations bornées | A en garde-fou immédiat si autorisé, B comme cible, C après V1.1 |
+| B2. Intervention d'exception du supérieur | jamais ; si titulaire absent ou vacant, avec motif et notification (recommandé) | si absent ou vacant |
+| B3. Publication des listes de service | COMAEQ seul ; COMAEQ et suppléant désigné (recommandé) ; tout état-major (actuel) | COMAEQ et suppléant |
+| B4. Trois règles métier à décider au cas par cas | prêt à appareiller (déjà au backlog), validation des absences, bilans de pilotage | à trancher avec la revue P05 |
+
+### Bloc C — Déploiement et sécurité (DP-10, AUD-009, AUD-010, AUD-011, AUD-017, AUD-031)
+| Question | Options | Recommandation |
+|---|---|---|
+| C1. Garde-fou de la démonstration | refus par défaut + variable explicite + marqueur de base + test (recommandé) | à lancer en priorité (P0) |
+| C2. Autorité de certification du bord | PKI de l'organisation ; AC locale ; auto-signé (déconseillé) | à décider avec les responsables SIC |
+| C3. Serveur d'application | à choisir (non déclaré aujourd'hui) | décision technique + SIC |
+| C4. Sauvegarde/restauration | procédure à écrire et tester | à planifier avant mise en service |
+
+### Bloc D — Périmètre produit et gouvernance (DP-02, DP-04 à DP-08)
+| ID | Question | Recommandation |
+|---|---|---|
+| DP-02 | Synthèse de passation : maintenue en V1 (complément d'octobre) ou différée (bandeau du 10/10) ? | trancher et aligner Notion |
+| DP-04 | Mettre à jour le cahier et la feuille de route (Rondes retirées, baseline, vocabulaire) | à faire |
+| DP-05 | Données de Rondes : conserver tant qu'aucune suppression physique n'est autorisée | conserver |
+| DP-06 | QR codes « hors V1 » mais route active | désactiver la route en V1 ou l'assumer |
+| DP-07 | CI compatible hors Internet | serveur interne ou script local obligatoire avant fusion |
+| DP-08 | Tests navigateur versionnés | oui, dans un dossier dédié |
+| (nouveau) | Chemin de non-conformité sur installation (AUD-023) : ticket automatique, alerte, ou rien ? | alerte du chef de secteur au minimum |
+
+## 3. Pas de décision attendue, dépendances connues
+
+Commandant en second (écritures), Prêt à appareiller, fraction de service (composition-type), régimes de quart, organismes à terre, PÉPIN/CRAT/RAV-c : cadrés ou différés dans Notion, non traités par l'audit.

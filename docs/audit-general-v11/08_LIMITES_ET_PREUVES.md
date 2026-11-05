@@ -20,6 +20,8 @@
 | Descriptions des PR | Non lues |
 | Documents FANLAB | Non retrouvés dans le dépôt à ce stade |
 | Guide du marin 2023 | Non disponible (cité par les propositions du dépôt comme absent) |
+| Dépôt `design-system` (sous-module `design`) | **Récupéré à la 3ᵉ passe** (révision `78060c5`, identique à l'épingle du sous-module) ; utilisé pour l'audit 05 |
+| Descriptions des PR | Titres des PR n° 1 à 16 lus ; descriptions non lues |
 | Sources publiques Marine nationale | Non consultées (audit 19) |
 | `MATRIX_V11_AUDIT_INDEPENDANT.md` | Cité par `phase1_bilan_apres_audit.md` comme non transmis à l'environnement qui l'a rédigé ; non retrouvé non plus ici |
 

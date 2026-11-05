@@ -45,6 +45,14 @@ Lecture : l'étape finale (COMAEQ) reste verrouillée ; les deux paliers interm�
 - `second_a` (commandant en second) ne publie pas de liste (`quarts/models.py` : `NIVEAU_VISION_COMMANDEMENT` exclu), mais peut désigner des chefs de liste et configurer les rubriques de la feuille : cohérent avec « délégation limitée », à confirmer par le PO (décision ouverte dans Notion, tâche « Commandant en second : actions d'écriture »).
 - Publication des listes ouverte au **niveau** état-major : COMANAV et COMOPS publient les listes de service alors que la fonction « service courant » est celle du COMAEQ (Notion 06, 13). Déjà identifié par `docs/propositions/droits_comaeq.md` ; confirmé ici par exécution (AUD-014).
 
+## 3 bis. Vérifications complémentaires d'AUD-001 (3ᵉ passe)
+
+- **Lecture d'une feuille** (13 profils × 3 états, `sondes/lecture_brouillon.py`, pipeline complet) : en **brouillon**, seuls rédacteurs, COMAEQ, second, commandants et administrateur d'unité reçoivent 200 (les autres 403) ; **proposée** : s'y ajoutent chef de secteur, chef de service, COMANAV, COMOPS ; **publiée** : tous les marins du bâtiment (équipier, chefs) en 200 ; 403 pour le suivi à terre et le marin d'un autre bâtiment. Aucune fuite de brouillon vers un équipier.
+- **API** : `quarts` n'expose aucune vue DRF ; il n'existe donc pas de second chemin d'écriture.
+- **Deux jeux de données** (`seed_demo` seul et pipeline complet) : mêmes résultats pour la création, les 10 actions d'écriture, les désignations et les voies directes.
+- **Reste non vérifié** : impression et PDF de la feuille, rectificatif complet en navigateur, comportement à la relève.
+- Conclusion : **AUD-001 est corrigé sur 1c37f22 pour les opérations vérifiées** ; il reste à fusionner (décision du PO) pour la ligne `main`.
+
 ## 4. Hors périmètre de cette passe (non audité)
 
 API DRF des autres modules, droits de formation, de stock, de documentation ; délégations ; cache des permissions ; `main`.

@@ -20,11 +20,11 @@ Le SHA du brief (« 1c37f22 ») était introuvable dans la copie locale initiale
 | Phase | Audits | État |
 |---|---|---|
 | 1. Référentiel historique | 01 | **Partiel** : les 13 sous-pages Notion « Organigramme et rôles » sont lues ; le backlog (380 tâches) n'est lu qu'en statuts ; les PR #1 à #16 non lues |
-| 2. Cohérence Marine nationale | 19 | Non commencé (sources Notion lues ; croisement avec le code à faire) |
-| 3. Fonctionnel, organisation, UX | 02 à 12 | **Partiel** : 02, 03, 04, 05, 06, 09 en rapports partiels ; 07, 08, 10, 11, 12 non commencés |
-| 4. Fondations techniques | 13 à 17 | **Partiel** : 14, 15, 16, 17 en rapports partiels ; 13 non commencé |
-| 5. Données de démonstration | 20 | Non commencé |
-| 6. Synthèse | 18 | Non commencé : ne peut être écrit avant les 19 autres |
+| 2. Cohérence Marine nationale | 19 | **Partiel** |
+| 3. Fonctionnel, organisation, UX | 02 à 12 | **Partiel** : rapports partiels pour les 11 audits |
+| 4. Fondations techniques | 13 à 17 | **Partiel** : rapports partiels pour les 5 audits |
+| 5. Données de démonstration | 20 | **Clos avec réserves** |
+| 6. Synthèse | 18 | **Partiel** (synthèse intermédiaire) |
 
 Aucun audit n'est déclaré terminé. Existent (tous partiels) : `AUDIT_01`, `02`, `03`, `04`, `05`, `06`, `09`, `14`, `15`, `16`, `17`, plus `AUDIT_DP03_SECTIONS`. Les autres fichiers n'existent pas encore : ils seront créés au fur et à mesure, pas en coquilles vides.
 
@@ -50,3 +50,6 @@ Aucun audit n'est déclaré terminé. Existent (tous partiels) : `AUDIT_01`, `02
 2. Audit 06 complet : droits des autres modules (tâches, maintenance, stock, formation, annonces), API DRF, délégations, double équipage hors quarts.
 3. Navigateur : parcours métier restants (signalement d'anomalie jusqu'à l'envoi, tâche bloquée, échange de service, maintenance, mobile, impression, mode sombre) ; comparaison aux maquettes UX V1.1 (sous-module `design` à initialiser).
 4. Audits 07 à 12 (calendrier, maintenance, logistique, communication, autres modules), 13 (architecture), compléments 14 et 16, 20, enfin 18. Attendre les décisions DP-03, DP-09, DP-10, DP-13 avant de figer les recommandations correspondantes.
+| 2026-11-05 (3ᵉ passe, autonomie jusqu'à la clôture) | Propositions P01 à P05 (DP-03, DP-09, DP-10, DP-13, DP-14). Rapports 07, 08, 10, 11, 12, 13, 18, 19, 20. Pipeline complet de démonstration (61 comptes) : liens (8 468 requêtes), droits, circuit, structure rejoués. Maquettes et charte comparées (dépôt design-system récupéré, `78060c5`). Registre trié (32 anomalies : 2 P0, 6 P1, 14 P2, 10 P3). Bilan : `09_BILAN_DES_AUDITS.md`. |
+
+**État final de la 3ᵉ passe : 1 audit clos avec réserves, 19 partiels. Voir `09_BILAN_DES_AUDITS.md` pour les travaux restants et les blocages.**
