@@ -374,6 +374,26 @@ class Command(BaseCommand):
         self._coherence_des_assignations()
         self._historiques_d_anomalies()
         self._conflit_d_activation()
+        self._tache_bloquee_d_equipier_a()
+        self._ticket_du_chef_de_secteur()
+
+    def _ticket_du_chef_de_secteur(self):
+        """Le chef de secteur a au moins un ticket à suivre dans « Mes tickets » (le plus avancé de son périmètre)."""
+        chef = self.u("chef_secteur_a")
+        if CorrectiveTicket.objects.filter(assignees=chef).exists():
+            return
+        ticket = CorrectiveTicket.objects.filter(perimetre_tickets_q(chef), status__in=("BLOCKED", "WAITING_PARTS", "IN_REPAIR")).order_by("pk").first()
+        if ticket:
+            ticket.assignees.add(chef)
+
+    def _tache_bloquee_d_equipier_a(self):
+        """Cas particulier visible depuis equipier_a : une tâche bloquée par la rupture de stock des gants (voir Logistique)."""
+        titre = "Distribuer les gants de manutention neufs au poste machine"
+        if Tache.objects.filter(titre=titre).exists():
+            return
+        chef, marin = self.u("chef_secteur_a"), self.u("equipier_a")
+        tache = taches_services.creer_tache(chef, marin, titre, echeance=timezone.localdate() + timedelta(days=4), description="Tâche de démonstration.")
+        taches_services.signaler_blocage(tache, marin, "Gants en rupture de stock : commande en attente (voir Logistique)")
 
     def _placement(self, reference):
         service_nom, secteur_nom, section_nom = PLACEMENT[reference]

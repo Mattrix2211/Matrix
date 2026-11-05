@@ -13,6 +13,7 @@ from maintenance.models import MaintenanceOccurrence
 from notifications.models import Notification
 from org.models import Ship
 from programme.models import EvenementProgramme
+from taches.models import Tache
 from quarts.models import CreneauServiceGarde, EchangeService, ServiceGarde, peut_rediger_feuille_service
 
 User = get_user_model()
@@ -115,6 +116,14 @@ class DemoMetierTests(TestCase):
             for objet in modele.objects.all():
                 for assigne in objet.assignees.all():
                     self.assertTrue(modele.objects.filter(filtre(assigne), pk=objet.pk).exists(), f"{assigne.username} : {objet}")
+
+    def test_equipier_a_a_une_tache_bloquee_reliee_a_la_rupture_de_stock(self):
+        tache = Tache.objects.get(assigne__username="equipier_a", statut=Tache.STATUT_BLOQUEE)
+        self.assertIn("rupture", tache.motif_blocage)
+        self.assertTrue(StockPiece.objects.filter(reference="GNT-MAN", quantite=0).exists())
+
+    def test_le_chef_de_secteur_a_un_ticket_a_suivre(self):
+        self.assertTrue(CorrectiveTicket.objects.filter(assignees__username="chef_secteur_a").exists())
 
     def test_donnees_explicitement_fictives(self):
         self.assertFalse(User.objects.filter(email__regex=r"@(gmail|orange|defense)").exists())
