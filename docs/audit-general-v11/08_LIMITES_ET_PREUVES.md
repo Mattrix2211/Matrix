@@ -25,7 +25,11 @@
 
 ## 3. Résultat de la suite de tests complète
 
-*À compléter dès la fin de l'exécution (en cours à la rédaction de cette page).*
+Commande : `python manage.py test --parallel` sur le commit `1c37f22`, SQLite, base de test temporaire, 2026-11-05.
+
+Résultat : **3 829 tests exécutés en 792 s, OK, 20 ignorés** (les 20 ignorés sont, d'après le dossier de recette, des tests propres à PostgreSQL ; non vérifié ici). Cela confirme le chiffre annoncé par `docs/recette/00_SYNTHESE.md` pour SQLite, sur un commit postérieur de 2 commits.
+
+Portée : ce résultat prouve que les tests existants passent, pas que les parcours métier sont conformes (voir audit 16).
 
 ## 4. Règle d'emploi des preuves
 

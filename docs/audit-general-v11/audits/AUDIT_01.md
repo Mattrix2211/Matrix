@@ -60,7 +60,7 @@
 | `manage.py check` | 0 erreur ; 1 avertissement de configuration (`matrix.W002`, sans valeur : l'audit tourne avec `DJANGO_DEBUG=1`) |
 | `manage.py makemigrations --check --dry-run` | « No changes detected » : modèles et migrations concordent |
 | `manage.py check --deploy` | 7 avertissements, tous liés à `DEBUG=1` ou à la clé factice de l'audit ; **non exploitable** : à rejouer sans DEBUG (audit 15) |
-| Suite complète `manage.py test --parallel` (SQLite) | Voir `08_LIMITES_ET_PREUVES.md` §3 |
+| Suite complète `manage.py test --parallel` (SQLite) | 3 829 tests OK, 20 ignorés, 792 s (détail : `08_LIMITES_ET_PREUVES.md` §3) |
 
 ## 7. Ce qu'il reste à faire pour clore l'audit 01
 
