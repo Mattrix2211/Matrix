@@ -65,7 +65,7 @@ class DemoMetierTests(TestCase):
         self.assertTrue(CorrectiveTicket.objects.filter(status="WAITING_PARTS", installation__reference="VENT-LM").exists())
 
     def test_aucune_double_affectation_de_services_a_quai_publies(self):
-        publies = CreneauServiceGarde.objects.filter(service_garde__statut="PUBLIEE", marin__isnull=False)
+        publies = CreneauServiceGarde.objects.filter(service_garde__statut="PUBLIEE", service_garde__application="ACTIVE", marin__isnull=False)
         for creneau in publies:
             autre = publies.filter(marin=creneau.marin, debut__lt=creneau.fin, fin__gt=creneau.debut).exclude(pk=creneau.pk)
             self.assertFalse(autre.exists(), f"{creneau.marin} : {creneau} recouvre {autre.first()}")
@@ -89,6 +89,22 @@ class DemoMetierTests(TestCase):
         jour = timezone.localdate().isoformat()
         reponse = self.client.post(reverse("feuille-service-detail", args=[ship.pk, jour]), {"action": "creer"})
         self.assertIn(reponse.status_code, (403, 404))
+
+    def test_toute_anomalie_a_un_historique_coherent(self):
+        for anomalie in Anomalie.objects.all():
+            dernier = AnomalieStatutLog.objects.filter(anomalie=anomalie).order_by("pk").last()
+            self.assertIsNotNone(dernier, anomalie.titre)
+            self.assertEqual(dernier.nouveau_statut, anomalie.statut, anomalie.titre)
+
+    def test_le_conflit_d_affectation_bloque_l_activation_sans_rien_modifier(self):
+        liste = ServiceGarde.objects.get(nom__contains="conflit d'affectation")
+        avant = list(liste.creneaux.values_list("pk", "marin_id"))
+        self.client.force_login(User.objects.get(username="chef_secteur_a"))
+        reponse = self.client.post(reverse("garde-detail", args=[liste.pk]), {"action": "activer", "confirmation_anticipee": "1"}, follow=True)
+        self.assertContains(reponse, "Activation bloquée")
+        liste.refresh_from_db()
+        self.assertEqual(liste.application, ServiceGarde.APPLICATION_PREVISIONNELLE)
+        self.assertEqual(list(liste.creneaux.values_list("pk", "marin_id")), avant)
 
     def test_donnees_explicitement_fictives(self):
         self.assertFalse(User.objects.filter(email__regex=r"@(gmail|orange|defense)").exists())

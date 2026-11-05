@@ -27,6 +27,7 @@ from programme import services as programme_services
 from programme.models import EvenementProgramme
 from quarts import echanges as echanges_services
 from quarts.models import ChefDeListe, CreneauServiceGarde, RemplacementChefDeListe, ServiceGarde
+from quarts.activation import publier_a_titre_previsionnel
 from quarts.remplacement import designer_remplacant
 from taches import services as taches_services
 from taches.models import Tache
@@ -115,7 +116,8 @@ class Command(BaseCommand):
         self._verifier_base_de_demonstration()
         self.bre = Ship.objects.get(name="Bretagne")
         if AuditLog_marqueur_present():
-            self.stdout.write("Démonstration métier déjà générée : rien à faire.")
+            self._complements()
+            self.stdout.write("Démonstration métier déjà générée : compléments appliqués si nécessaire.")
             return
         self._absences_et_remplacement()
         self._calendrier()
@@ -126,6 +128,7 @@ class Command(BaseCommand):
         self._logistique()
         self._taches()
         self._notifications()
+        self._complements()
         poser_marqueur()
         self.stdout.write(self.style.SUCCESS("Démonstration métier prête (calendrier, quarts, maintenance, anomalies, logistique, notifications)."))
 
@@ -356,6 +359,46 @@ class Command(BaseCommand):
                 garde_non_lue = notification.level == NotificationLevel.DANGER or (notification.action_requise and not notification.traitee_le)
                 Notification.objects.filter(pk=notification.pk).update(
                     created_at=maintenant - age, is_read=notification.is_read or not (recente or garde_non_lue))
+
+
+    # ---------- Compléments (rejouables, gardés par des tests d'existence) ----------
+
+    def _complements(self):
+        self._historiques_d_anomalies()
+        self._conflit_d_activation()
+
+    def _historiques_d_anomalies(self):
+        """Toute anomalie a un historique cohérent avec son état (déclaration, prise en compte, traitement, clôture)."""
+        parcours = ["SIGNALEE", "PRISE_EN_COMPTE", "TRAITEE", "CLOTUREE"]
+        for anomalie in Anomalie.objects.exclude(pk__in=AnomalieStatutLog.objects.values("anomalie")):
+            responsable = self.u("chef_secteur_a")
+            auteur = anomalie.created_by or responsable
+            ancien = ""
+            for etape in parcours[:parcours.index(anomalie.statut) + 1]:
+                AnomalieStatutLog.objects.create(
+                    anomalie=anomalie, ancien_statut=ancien, nouveau_statut=etape, user=auteur if not ancien else responsable,
+                    note="Déclaration" if not ancien else {"PRISE_EN_COMPTE": "Prise en compte", "TRAITEE": "Traitée", "CLOTUREE": "Clôture"}[etape])
+                ancien = etape
+
+    def _conflit_d_activation(self):
+        """Une liste prévisionnelle dont un tour recouvre un service à quai déjà en vigueur : l'activation est bloquée tant que
+        les responsables n'ont pas résolu le recouvrement (Matrix ne modifie aucune affectation)."""
+        nom = "Permanence prévisionnelle — conflit d'affectation (démonstration)"
+        if ServiceGarde.objects.filter(nom=nom).exists():
+            return
+        existant = CreneauServiceGarde.objects.filter(
+            service_garde__ship=self.bre, service_garde__application=ServiceGarde.APPLICATION_ACTIVE, service_garde__statut="PUBLIEE",
+            marin__isnull=False, debut__gt=timezone.now() + timedelta(days=1)).order_by("debut").first()
+        if existant is None:
+            return
+        chef = self.u("chef_secteur_a")
+        fonction = ServiceFunctionChoice.objects.get_or_create(name="Fraction de service à quai")[0]
+        liste = ServiceGarde.objects.create(
+            nom=nom, ship=self.bre, equipage="A", date_debut=existant.debut.date(), date_fin=existant.fin.date(), type_service="Service à quai",
+            duree_creneau_heures=24, fonction=fonction, created_by=chef)
+        CreneauServiceGarde.objects.create(service_garde=liste, poste="Gradé de coupée 1", marin=existant.marin, debut=existant.debut, fin=existant.fin)
+        liste.proposer(chef)
+        publier_a_titre_previsionnel(self.u("cdt_a"), liste, timezone.now() + timedelta(hours=3))
 
 
 def AuditLog_marqueur_present():
