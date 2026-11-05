@@ -1,4 +1,4 @@
-# Plan des 20 audits
+# Plan des 20 audits (organisation en six phases)
 
 Pour chaque audit : questions, sources historiques, code à inspecter, vérifications possibles. État au 2026-11-05 : **aucun audit terminé**.
 
@@ -24,3 +24,6 @@ Pour chaque audit : questions, sources historiques, code à inspecter, vérifica
 | 17 | 4 | Déploiement et exploitation | Installation, mise à jour, sauvegarde, supervision | `README.md`, `docker-compose.yml`, `*.bat` | Cahier §25, §27 | Non commencé |
 | 20 | 5 | Données de démonstration | Crédibilité, couverture rôles et cas limites | `seed_demo_*`, `docs/demo`, `docs/recette` | — | **Clos avec réserves** |
 | 18 | 6 | Synthèse | Croisement des 19 autres audits, feuille de route | tous les rapports | — | **Partiel** |
+
+
+**Livrables nommés par l'addendum** : `AUDIT_19_COHERENCE_MARINE.md` (audit 19) et `AUDIT_20_DONNEES_DEMONSTRATION.md` (audit 20). Statut final de chaque audit : `../09_BILAN_DES_AUDITS.md`.

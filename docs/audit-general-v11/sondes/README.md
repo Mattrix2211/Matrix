@@ -8,7 +8,7 @@ Scripts d'exécution **jetables** qui ont produit les preuves des rapports. Ils 
 PYTHON=/chemin/python docs/audit-general-v11/sondes/rejouer_tout.sh [dossier_de_travail_hors_depot]
 ```
 
-Le script crée une base SQLite temporaire, applique les migrations, lance les **quatre** générateurs de démonstration, rejoue chaque sonde listée dans `attendus.json` et **compare la sortie aux lignes attendues** ; il échoue si un script est absent, si une sonde plante ou si une ligne attendue manque. Les sorties sont conservées dans `<dossier>/resultats/`. **Dernière exécution à partir de ce dossier versionné, sur une base neuve (2026-11-05) : 19 sondes conformes, 0 écart.** Prérequis : `pip install -r requirements.txt` dans un environnement hors dépôt ; aucun accès réseau.
+Le script crée une base SQLite temporaire, applique les migrations, lance les **quatre** générateurs de démonstration, rejoue chaque sonde listée dans `attendus.json` et **compare la sortie aux lignes attendues** ; il échoue si un script est absent, si une sonde plante ou si une ligne attendue manque. Les sorties sont conservées dans `<dossier>/resultats/`. **Dernière exécution à partir de ce dossier versionné, sur une base neuve (2026-11-05) : 22 sondes conformes, 0 écart.** Prérequis : `pip install -r requirements.txt` dans un environnement hors dépôt ; aucun accès réseau.
 
 Hypothèses connues : les sondes s'appuient sur les comptes de `docs/recette/01_COMPTES.md` et sur des identifiants créés par le pipeline complet (quart n° 2, bâtiment « Bretagne ») ; elles ne s'appliquent pas à `seed_demo` seul (certaines sorties diffèrent : AUD-008).
 
@@ -31,6 +31,8 @@ Chaque script se lance par `python manage.py shell < docs/audit-general-v11/sond
 | `calendrier.py`, `comm.py`, `stock.py`, `maintenance.py`, `mnt2.py`, `autres.py`, `recherche.py` | calendrier, communication, stock, maintenance, autres modules, recherche | 07 à 12 |
 | `perf.py`, `prof.py` | durées et profil (AUD-013) | 17 |
 | `sections2.py`, `demo.py`, `reg.py`, `comptes.py` | périmètre selon le rattachement, données de démonstration, registre de seuils | DP-03, 20 |
+| `organisations_reelles.py` | cinq organisations de démonstration et variantes (COMAEQ vacant, COMAVIA, installations) | 19 |
+| `couverture_demo.py`, `credibilite_demo.py` | couverture par profil et par état, crédibilité des données (lecture seule) | 20 |
 | `prod_proxy.py`, `prod_proxy_reglages.py`, `config/reglages_proxy.py` | mode production : HTTP, proxy TLS, TLS natif (à lancer avec `DJANGO_DEBUG=0`, une vraie clé secrète, `DJANGO_ALLOWED_HOSTS=matrix.bord.local,testserver` ; la seconde avec `DJANGO_SETTINGS_MODULE=reglages_proxy` et `PYTHONPATH=…/config`) | 15 |
 | `qualite_tests.py` | métriques statiques des tests (lancement direct par `python`, depuis la racine du dépôt) | 16 |
 | `mutations/mutations*.py` | mutations de la logique de droits dans une copie jetable (`WT=<git worktree>` et `PYTHON=…` requis) | 16 |

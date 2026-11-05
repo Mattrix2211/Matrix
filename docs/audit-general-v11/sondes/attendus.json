@@ -69,5 +69,16 @@
   ],
   "recherche.py": [
     "REC equipier_a pompe → 200"
+  ],
+  "organisations_reelles.py": [
+    "ORG variante COMAEQ vacant : peut viser avant {'coma_comaeq': True, 'cdt_a': False, 'second_a': False, 'admin_navire': False, 'coma_comanav': False} → poste vacant {'coma_comaeq': False, 'cdt_a': True, 'second_a': False, 'admin_navire': False, 'coma_comanav': False}",
+    "ORG installation : service obligatoire = True | secteur obligatoire = True | section facultative = True"
+  ],
+  "couverture_demo.py": [
+    "COV profil |taches",
+    "MAC taches.Tache.statut"
+  ],
+  "credibilite_demo.py": [
+    "CRD comptes 61"
   ]
 }

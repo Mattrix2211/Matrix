@@ -67,7 +67,7 @@ Une mutation est **tuée** si au moins un test échoue. Certaines ont été rejo
 | Seuils de rôle désactivés, 4 modules de droits (103 tests) | **SURVIVANTE** | les modules nommés « permissions » et « sécurité des écritures » **ne détectent pas** la neutralisation des seuils |
 | Seuils de rôle désactivés, suite complète | tuée par **161 tests sur 3 829** (157 échecs, 4 erreurs) | la sémantique des seuils est protégée, mais dans les modules fonctionnels, pas dans un test central |
 
-Lecture : **les tests de permissions sont efficaces sur les circuits les plus travaillés (feuille de service, listes, formation, périmètres)**, mais : (1) la protection de la suppression de compte tient à un test unique ; (2) 16 clés du registre n'ont pas de test nommé ; (3) aucune mutation ne vérifie l'**absence** d'accès d'un **administrateur technique** (c'est pourquoi AUD-014 n'est pas détecté par la suite) ; (4) une suite verte coexiste avec 35 anomalies confirmées.
+Lecture : **les tests de permissions sont efficaces sur les circuits les plus travaillés (feuille de service, listes, formation, périmètres)**, mais : (1) la protection de la suppression de compte tient à un test unique ; (2) 16 clés du registre n'ont pas de test nommé ; (3) aucune mutation ne vérifie l'**absence** d'accès d'un **administrateur technique** (c'est pourquoi AUD-014 n'est pas détecté par la suite) ; (4) une suite verte coexiste avec 42 anomalies enregistrées.
 
 ### 5.3 Risques de faux positifs identifiés
 

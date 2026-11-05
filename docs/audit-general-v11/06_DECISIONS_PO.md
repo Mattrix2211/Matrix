@@ -54,6 +54,9 @@ Les trois sujets sont interdépendants : un seul chantier cohérent est proposé
 | DP-07 | CI compatible hors Internet | serveur interne ou script local obligatoire avant fusion |
 | DP-08 | Tests navigateur versionnés | oui, dans un dossier dédié |
 | (nouveau) | Chemin de non-conformité sur installation (AUD-023) : ticket automatique, alerte dédiée, ou aucune action ? En attendant : corriger le message affiché | alerte dédiée au chef de secteur ; message corrigé immédiatement |
+| (nouveau) | Secteur obligatoire pour une installation (AUD-037, audit 19) : le garder, ou prévoir un secteur par défaut pour les organisations à deux niveaux | à décider avec le bloc A (structure) |
+| (nouveau) | Niveau d'annonce « Urgent » ou « Critique » (AUD-041) | « Critique » (terme du cahier) ou décision écrite du changement |
+| (nouveau) | Complément de la démonstration (AUD-036, 13 scénarios) | après les corrections qui changent les états ; autorisation du PO requise |
 
 ## 3. Pas de décision attendue, dépendances connues
 

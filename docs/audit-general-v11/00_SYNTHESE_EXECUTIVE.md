@@ -6,13 +6,13 @@
 
 ## En résumé
 
-Matrix est un produit **large, très testé et fonctionnel dans ses parcours principaux** : 22 applications, ≈ 48 000 lignes, 3 829 tests verts sur SQLite et sur PostgreSQL, 11 parcours rejoués de bout en bout en navigateur sans erreur, aucune erreur serveur sur 8 468 requêtes de 61 comptes, montée de version `main` → V1.1 sans perte de données. **La V1.1 n'introduit aucune régression de droits ou de données mesurable** et corrige deux défauts de `main`. Les risques sont **préexistants** (30 anomalies sur 35) et concentrés en trois zones : **les droits suivent encore trop le niveau hiérarchique**, **les suppressions détruisent de l'information et élargissent des accès**, **la mise en service sur un vrai bord n'est pas cadrée**.
+Matrix est un produit **large, très testé et fonctionnel dans ses parcours principaux** : 22 applications, ≈ 48 000 lignes, 3 829 tests verts sur SQLite et sur PostgreSQL, 11 parcours rejoués de bout en bout en navigateur sans erreur, aucune erreur serveur sur 8 468 requêtes de 61 comptes, montée de version `main` → V1.1 sans perte de données. **La V1.1 n'introduit aucune régression de droits ou de données mesurable** et corrige deux défauts de `main`. Les risques sont **préexistants** (37 anomalies sur 42) et concentrés en trois zones : **les droits suivent encore trop le niveau hiérarchique**, **les suppressions détruisent de l'information et élargissent des accès**, **la mise en service sur un vrai bord n'est pas cadrée**.
 
 ## 1. Les 20 audits et leur statut justifié
 
-Tous : **clôturé avec réserves**. Justification, périmètre prouvé et éléments non vérifiés, audit par audit : `09_BILAN_DES_AUDITS.md`. Rapports : `audits/AUDIT_01.md` à `AUDIT_20.md` (chacun se termine par une section « Clôture »).
+Tous : **clôturé avec réserves**, dans l'organisation en six phases de l'addendum (01 ; 19 ; 02 à 12 ; 13 à 17 ; 20 ; 18). Justification, périmètre prouvé et éléments non vérifiés, audit par audit : `09_BILAN_DES_AUDITS.md`. Rapports : `audits/AUDIT_01.md` à `AUDIT_18.md`, `audits/AUDIT_19_COHERENCE_MARINE.md` et `audits/AUDIT_20_DONNEES_DEMONSTRATION.md` (chacun se termine par une section « Clôture »). Conformité du dossier à l'addendum : `11_CONFORMITE_ADDENDUM.md`.
 
-## 2. Anomalies confirmées et criticité (35 : 2 P0, 7 P1, 16 P2, 10 P3)
+## 2. Anomalies confirmées et criticité (42 : 2 P0, 7 P1, 16 P2, 17 P3)
 
 | Crit. | Anomalie | Origine |
 |---|---|---|
@@ -26,7 +26,7 @@ Tous : **clôturé avec réserves**. Justification, périmètre prouvé et élé
 | P1 | AUD-031 aucune procédure de sauvegarde et de restauration | préexistant |
 | P1 | AUD-034 suppression d'un compte : tâches, difficultés et traçabilité détruites | préexistant |
 | P2 | AUD-008, 010, 012, 017, 021, 022, 023, 024, 028, 030, 032, 033, 035, 002, 003, 006 | voir registre |
-| P3 | AUD-004, 005, 007, 013, 016, 018, 025, 026, 027, 029 | voir registre |
+| P3 | AUD-004, 005, 007, 013, 016, 018, 025, 026, 027, 029, 036 à 042 | voir registre |
 
 Registre complet : `04_REGISTRE_ANOMALIES_TRIE.md` (lisible) et `04_REGISTRE_ANOMALIES.csv` (toutes les colonnes, dont l'origine par rapport à `main`).
 
@@ -87,4 +87,4 @@ Quatre blocs dans `06_DECISIONS_PO.md` (orientations déjà prises : DP-01, DP-0
 
 ## Pièces du dossier
 
-`00` synthèse ; `01` référentiel ; `02` inventaire ; `03` conformité ; `04` registre (CSV et vue triée) ; `05` non-régression ; `06` décisions ; `07` feuille de route ; `08` limites et preuves ; `09` bilan ; `10` comparaison avec `main` ; `audits/` (20 rapports) ; `propositions/P01` à `P07` ; `sondes/` (scripts rejouables et `rejouer_tout.sh`).
+`00` synthèse ; `01` référentiel ; `02` inventaire ; `03` matrice unique de conformité (exigences, règles métier Marine, couverture de la démonstration) ; `04` registre (CSV et vue triée) ; `05` non-régression ; `06` décisions ; `07` feuille de route ; `08` limites et preuves ; `09` bilan ; `10` comparaison avec `main` ; `11` conformité à l'addendum ; `audits/` (20 rapports dont les deux de l'addendum) ; `propositions/P01` à `P07` ; `sondes/` (scripts rejouables et `rejouer_tout.sh`).

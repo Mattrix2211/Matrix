@@ -27,7 +27,7 @@ Correction du message « un ticket correctif sera ouvert » pour les installatio
 
 ## P3 — évolution ou hygiène
 
-Titres d'onglet distincts (AUD-018) ; reprise de brouillon morte (AUD-027) ; vue personnelle par défaut du calendrier (AUD-025, hypothèse) ; PDF du bilan en tâche de fond si besoin (AUD-013) ; découpage des vues géantes et nettoyage (AUD-029) ; alignement des documents (AUD-004, AUD-005) ; résidu Rondes (AUD-007).
+Titres d'onglet distincts (AUD-018) ; démonstration complétée (13 scénarios, AUD-036) et secteur obligatoire pour une installation (AUD-037, à confirmer) ; archivage des notifications, rappels planifiés, vocabulaire « Critique/Urgent », décisions UX des quarts (AUD-038, 039, 041, 042) ; prêts et retours de matériel (AUD-040, différé) ; reprise de brouillon morte (AUD-027) ; vue personnelle par défaut du calendrier (AUD-025, hypothèse) ; PDF du bilan en tâche de fond si besoin (AUD-013) ; découpage des vues géantes et nettoyage (AUD-029) ; alignement des documents (AUD-004, AUD-005) ; résidu Rondes (AUD-007).
 
 ## À reporter après V1.1 (évolutions, décisions déjà validées ou cadrées)
 
