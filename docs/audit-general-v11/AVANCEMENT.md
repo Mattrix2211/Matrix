@@ -19,7 +19,7 @@ Le SHA du brief (« 1c37f22 ») était introuvable dans la copie locale initiale
 
 | Phase | Audits | État |
 |---|---|---|
-| 1. Référentiel historique | 01 | **Partiel** : les 13 sous-pages Notion « Organigramme et rôles » sont lues ; le backlog (380 tâches) n'est lu qu'en statuts ; les PR #1 à #16 non lues |
+| 1. Référentiel historique | 01 | **Clôturé avec réserves** (voir ci-dessous l'état 3ᵉ passe) : les 13 sous-pages Notion « Organigramme et rôles » sont lues ; le backlog (380 tâches) n'est lu qu'en statuts ; les PR #1 à #16 non lues |
 | 2. Cohérence Marine nationale | 19 | **Partiel** |
 | 3. Fonctionnel, organisation, UX | 02 à 12 | **Partiel** : rapports partiels pour les 11 audits |
 | 4. Fondations techniques | 13 à 17 | **Partiel** : rapports partiels pour les 5 audits |
@@ -52,4 +52,7 @@ Aucun audit n'est déclaré terminé. Existent (tous partiels) : `AUDIT_01`, `02
 4. Audits 07 à 12 (calendrier, maintenance, logistique, communication, autres modules), 13 (architecture), compléments 14 et 16, 20, enfin 18. Attendre les décisions DP-03, DP-09, DP-10, DP-13 avant de figer les recommandations correspondantes.
 | 2026-11-05 (3ᵉ passe, autonomie jusqu'à la clôture) | Propositions P01 à P05 (DP-03, DP-09, DP-10, DP-13, DP-14). Rapports 07, 08, 10, 11, 12, 13, 18, 19, 20. Pipeline complet de démonstration (61 comptes) : liens (8 468 requêtes), droits, circuit, structure rejoués. Maquettes et charte comparées (dépôt design-system récupéré, `78060c5`). Registre trié (32 anomalies : 2 P0, 6 P1, 14 P2, 10 P3). Bilan : `09_BILAN_DES_AUDITS.md`. |
 
-**État final de la 3ᵉ passe : 1 audit clos avec réserves, 19 partiels. Voir `09_BILAN_DES_AUDITS.md` pour les travaux restants et les blocages.**
+
+| 2026-11-05 (4ᵉ passe, autonomie jusqu'à la fin des vérifications réalisables) | 11 parcours navigateur de bout en bout ; revue de qualité des tests (métriques, 13 mutations en 18 exécutions) ; cas limites (listes publiées, délégations, suppressions, archivage, suppression de compte) ; comparaison `main` / V1.1 (worktree de `main`, matrice de droits, diffs) ; montée de version d'une base peuplée (SQLite et PostgreSQL) ; effet réel des seuils ; simulation d'un nouveau bâtiment ; connexions répétées ; sondes versionnées et rejouables (19 conformes sur base neuve). Propositions P06 (AUD-009) et P07 (AUD-020, 021, 028, 034). Registre : 35 anomalies. Les 20 audits sont classés **clôturés avec réserves** (`09_BILAN_DES_AUDITS.md`). |
+
+**État final : 20 audits clôturés avec réserves, 0 clôturé sans réserve, 0 bloqué.** Reprise possible : voir la section « Travaux réalisables qui n'ont pas été faits » de `09_BILAN_DES_AUDITS.md`.

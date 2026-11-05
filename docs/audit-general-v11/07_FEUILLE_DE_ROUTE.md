@@ -6,8 +6,8 @@ Priorité fondée sur l'impact, pas sur la facilité (définitions du PO) : **P0
 
 | Ordre | Travail | Anomalie | Proposition | Pourquoi |
 |---|---|---|---|---|
-| 1 | Verrou des commandes de démonstration (refus par défaut, variable explicite, marqueur de base, test) | AUD-009 | `audits/AUDIT_15.md` §2 | comptes à mot de passe connu : risque de sécurité sérieux (déjà identifié par le PO) |
-| 2 | Plus de suppression physique d'une unité ayant un historique ; message clair à la place de l'erreur 500 | AUD-020, AUD-021 | `propositions/P04` option 1 | perte silencieuse de listes, annonces, documents ; élargissement des accès |
+| 1 | Verrou des commandes de démonstration (refus par défaut, variable explicite, marqueur de base, test) | AUD-009 | `propositions/P06` (détail) | comptes à mot de passe connu : risque de sécurité sérieux (déjà identifié par le PO) |
+| 2 | Plus de suppression physique d'une unité ou d'un compte ayant un historique ; archivage effectif ; message clair à la place de l'erreur 500 | AUD-020, AUD-021, AUD-028, AUD-034 | `propositions/P07` (détail) et `P04` | perte silencieuse de listes, annonces, documents, tâches, traçabilité ; élargissement des accès |
 
 ## P1 — critique métier
 
@@ -22,6 +22,7 @@ Priorité fondée sur l'impact, pas sur la facilité (définitions du PO) : **P0
 
 ## P2 — amélioration importante
 
+Correction du message « un ticket correctif sera ouvert » pour les installations, au minimum (AUD-023, sans risque) ; garde contre le doublon d'un créneau (AUD-033, avec D-06) ; limitation des tentatives de connexion (AUD-035, à valider avec les responsables SIC) ; 
 États de rattachement et validation des périmètres (P01) ; masquage des liens dérivé de la règle serveur (AUD-008, AUD-016) ; mot de passe PostgreSQL obligatoire (AUD-010) ; clé secrète d'exemple refusée (AUD-017) ; chemin de non-conformité sur installation (AUD-023) ; noms de bâtiments fictifs (AUD-024) ; tâches planifiées supervisées (AUD-032) ; import de personnel (DP-11, AUD-012, **fonctionnalité de mise en service à planifier**) ; CI hors ligne et tests navigateur versionnés (AUD-002, AUD-003) ; tests des modules secondaires (AUD-030) ; passation à trancher (AUD-006).
 
 ## P3 — évolution ou hygiène

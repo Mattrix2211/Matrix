@@ -1,6 +1,6 @@
 # Audit 19 — Conformité Marine nationale (terminologie, hiérarchie, circuits)
 
-**Statut : partiel.** Cet audit confronte le code aux décisions écrites dans Notion (13 sous-pages lues). Les sources publiques ne sont pas consultées par l'audit : les faits de doctrine ne sont pas vérifiés indépendamment et **aucune règle militaire n'est affirmée**.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport)..
 
 | Point | Source | Constat dans le code | Verdict |
 |---|---|---|---|
@@ -28,3 +28,15 @@ Le cahier parle d'annonces « Critique », le code d'« Urgent » : sans inciden
 ## Non vérifié
 
 Libellés complets de l'interface un à un, grades et spécialités du référentiel, correspondances public/privé, cohérence des horaires de quart avec les usages publiés, circuits PÉPIN/CRAT (hors périmètre V1), organisation d'un bâtiment à terre.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Croisement complet des pages Notion avec le code et le comportement observé ; aucune doctrine inventée.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Vérification indépendante par sources publiques, validation par un expert du bord.

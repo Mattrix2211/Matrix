@@ -1,6 +1,6 @@
 # Audit 15 — Sécurité et résilience (rapport partiel, 2ᵉ passe)
 
-**Statut : partiel, non terminé.** Aucun test intrusif ; vérifications de configuration et d'exécution sur bases temporaires (SQLite et PostgreSQL 16 jetable en local). Distinction systématique : **défaut confirmé** / **contrainte de déploiement** / **hypothèse** / **fonctionnalité manquante**.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport)..
 
 ## 1. Constats vérifiés (inchangés depuis la 1ʳᵉ passe)
 
@@ -64,3 +64,15 @@ Architectures possibles pour un réseau de bord (à arbitrer avec le PO et l'aut
 ## 6. Non audité
 
 Politique de mots de passe (validateurs listés, non évalués), verrouillage après échecs, journalisation (`AuditLog` : couverture non mesurée), sauvegarde et restauration (aucune procédure dans le dépôt), téléversement (registre des fichiers testé par le projet : non rejoué), injections et XSS, sérialiseur Celery, en-têtes de sécurité de réponse.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Compléments : **aucun verrouillage après 25 échecs de connexion** (AUD-035) ; validateurs de mot de passe présents (4) ; seuils modifiables seulement dans son bâtiment ; proxy TLS : paramètres validés par simulation (`propositions/P03`).
+
+### Non vérifié ou dépendant d'une validation externe
+
+Injections et XSS, en-têtes de sécurité de réponse, téléversement de fichiers, sérialiseur Celery, politique SSI.

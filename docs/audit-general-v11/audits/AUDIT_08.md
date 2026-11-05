@@ -1,6 +1,6 @@
 # Audit 08 — Maintenance et installations
 
-**Statut : partiel.** Preuves exécutées par l'API de maintenance (client de test, base `seed_demo`) ; le parcours web d'exécution d'une fiche, la grille de saisie, les gammes, la périodicité, les fiches flotte et le catalogue n'ont pas été rejoués.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Preuves exécutées par l'API de maintenance (client de test, base `seed_demo`) ; le parcours web d'exécution d'une fiche, la grille de saisie, les gammes, la périodicité, les fiches flotte et le catalogue n'ont pas été rejoués.
 
 ## Constats vérifiés
 
@@ -23,3 +23,15 @@
 ## Non vérifié
 
 Génération des occurrences (Celery), dérive des mesures, hiérarchie parent/enfant, fiches et circuits de validation, catalogue flotte, tournées et PDF, historique des relevés, périodicité, outillage et EPI, ressources, anomalies et rondes (module retiré).
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Exécution web d'une maintenance rejouée : non-conformité sur installation (statut « En validation », **ticket non créé alors que l'écran l'annonce** : AUD-023), confirmation explicite sur installation critique (**refusée sans case, acceptée avec case ; `valide_par` renseigné**), refus de la chaîne `"true"` côté API.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Circuits des fiches flotte et d'installation, périodicité, dérive, catalogue, tournées et PDF : couverts par la suite de tests, non rejoués.

@@ -1,38 +1,40 @@
-# Bilan précis des audits : clos, partiels, bloqués
+# Bilan des 20 audits : clôturé, clôturé avec réserves, bloqué
 
-Date : 2026-11-05. Commit audité `1c37f22`. Un audit n'est **clos** que si ses questions centrales ont une réponse prouvée sur un périmètre écrit **et** qu'aucune vérification essentielle ne reste à faire. Sinon il est **partiel**, avec la liste de ce qui reste. **Aucun audit n'est clos sans réserve.**
+Date : 2026-11-05 (4ᵉ passe). Commit audité `1c37f22` ; comparaison avec `main` : `10_COMPARAISON_MAIN_V11.md`.
 
-| N° | Audit | Statut | Prouvé par exécution | Vérifications essentielles restantes | Blocage réel |
-|---|---|---|---|---|---|
-| 01 | Besoin et historique | Partiel | Notion (hub + 13 pages), 16 titres de PR, décompte du backlog, registre de 48 exigences | lecture des 380 tâches et des descriptions de PR | conversations ChatGPT, documents FANLAB propres, `MATRIX_V11_AUDIT_INDEPENDANT.md` non disponibles |
-| 02 | Configurabilité | Partiel | seuils réglables (35 actions), écran et API de structure, 55 droits en dur | parcours complet d'un bord en navigateur (création d'unité par l'écran du compte de flotte, effet d'un changement de seuil) | décisions A1 à A4 (bloc A) pour figer les conclusions |
-| 03 | Première mise en service | Partiel | `migrate` + démo sur SQLite et PostgreSQL, procédure du README, autonomie de configuration | simulation complète d'un nouveau bâtiment par l'interface ; `setup.bat`, `start.bat`, `lancer_demo.bat` | Windows non disponible |
-| 04 | Usage quotidien | Partiel | 8 468 requêtes de navigation, causes de AUD-008/016/027, brouillons | parcours bout en bout (signalement jusqu'à l'envoi, tâche bloquée, fin de journée), temps de saisie | aucun technique ; un marin utilisateur pour mesurer l'efficacité |
-| 05 | UX et accessibilité | Partiel | accueil 7 profils, menus 3 profils, mobile 375, clavier, comparaison aux 2 maquettes et à la charte | mode sombre, impression A4, tablette, lecteur d'écran, formulaires d'erreur, autres écrans | tablette réelle et lecteur d'écran |
-| 06 | Rôles et permissions | Partiel | quarts et feuille : 1 407 + 196 + circuit ; formation, stock, structure, API org, calendrier ; deux jeux de données | autres modules (tâches, annonces, documents, fiches, programme), délégations, cache des permissions | décisions du bloc B pour juger des cas ouverts |
-| 07 | Calendrier | Partiel | 7 sources, étanchéité, iCal | interface mois/semaine, glisser-déposer, fuseaux, conflits | aucun technique |
-| 08 | Maintenance et installations | Partiel | confirmation critique (API), non-conformité installation/matériel, QR | parcours web d'exécution, fiches, périodicité, dérive, catalogue, tournées | aucun technique |
-| 09 | Quarts et services | Partiel | droits, circuit, voies directes, lecture par état | création et échange de bout en bout, changement de mode, impressions, concurrence | experts du bord pour les régimes réels |
-| 10 | Logistique | Partiel | invariants du stock, refus, immuabilité, droits | interface, seuils d'alerte planifiés, volumes | périmètre prêts/retours différé par décision |
-| 11 | Communication | Partiel | accès par propriétaire et par périmètre | écriture de messages, mentions, pièces jointes, rappels, Web Push | HTTPS requis pour le Web Push (AUD-011) |
-| 12 | Formations et autres modules | Partiel | inventaire des 9 modules, accès, validation de qualification | tous les circuits de validation | aucun technique |
-| 13 | Architecture | Partiel | taille, complexité, imports, couplage | duplication, N+1, cycles d'import, performance réelle | volumétrie réelle |
-| 14 | Données et intégrité | Partiel | PostgreSQL : migrate, démo, suite complète 3 829 OK ; cascades et protections | migration d'une base peuplée, sauvegarde/restauration, concurrence en charge | base réelle anonymisée |
-| 15 | Sécurité et résilience | Partiel | secrets, production simulée, proxy, isolement des comptes de démo, accès anonyme | mots de passe, verrouillage, XSS/injections, fichiers, en-têtes, Celery | politique SSI pour juger |
-| 16 | Qualité des tests | Partiel | volumes, lacunes constatées | pertinence des assertions, couverture mesurée | aucun technique |
-| 17 | Déploiement et exploitation | Partiel | installation, PostgreSQL, proxy simulé, absence de procédure | vrai reverse proxy, serveur d'application, sauvegarde, reprise après redémarrage | responsables SIC |
-| 18 | Cohérence globale | Partiel (synthèse intermédiaire) | croisement des rapports | à refaire après achèvement des autres | dépend de tous |
-| 19 | Conformité Marine nationale | Partiel | vocabulaire, hiérarchie, circuits, comparaison aux 13 pages | sources publiques, validation par un expert du bord | expert métier ; aucune doctrine inventée |
-| 20 | Données de démonstration | **Clos avec réserves** | pipeline complet mesuré, couverture, noms réels, mots de passe | fidélité aux usages réels, Windows | expert du bord (fidélité) |
+**Définitions (demandées par le PO)** — **Clôturé** : tous les contrôles nécessaires et réalisables sont terminés. **Clôturé avec réserves** : l'analyse technique est terminée, mais des validations externes ou matérielles restent nécessaires, **ou** des éléments précis restent non vérifiés (listés ; ils ne sont **pas** réputés conformes). **Bloqué** : une vérification indispensable ne peut réellement pas être faite.
 
-## Blocages réels (non techniques ou hors de portée de l'audit)
+**Résultat : 0 audit clôturé sans réserve, 20 clôturés avec réserves, 0 bloqué.** Aucun audit n'est classé « partiel » : une validation externe ou une décision du PO en attente n'est pas un motif de statut partiel. En revanche, « avec réserves » n'est pas « conforme » : la colonne « Non vérifié » reste à lire.
 
-1. **Décisions du PO** des blocs A, B, C, D (`06_DECISIONS_PO.md`) pour figer les recommandations.
-2. **Responsables SIC** : architecture HTTPS, certificats, politique de sécurité.
-3. **Expert du bord** : fidélité de la démonstration, régimes de quart, efficacité des parcours.
-4. **Matériel non disponible** : poste Windows, tablette, lecteur d'écran, volume réel de données.
-5. **Sources manquantes** (audit 01) : conversations ChatGPT, FANLAB, rapport indépendant cité.
+| N° | Audit | Statut | Justification (analyse achevée sur…) | Non vérifié (réalisable ou externe) |
+|---|---|---|---|---|
+| 01 | Besoin et historique | CAR | Notion (hub, 13 pages), 16 titres de PR, backlog (décompte, tâches ouvertes, ≈ 60 titres terminés recoupés avec le code) | 343 tâches terminées une à une (réalisable) ; conversations ChatGPT, FANLAB, rapport indépendant (indisponibles) |
+| 02 | Configurabilité | CAR | seuils (effet réel, limité au bâtiment), écran et API de structure, simulation d'un nouveau bâtiment, 55 droits en dur revus | effet d'un seuil sur deux processus ; décisions A et B |
+| 03 | Première mise en service | CAR | installation, migration, pipeline de démonstration, nouveau bâtiment en 11 étapes, montée de version sur base peuplée (SQLite, PostgreSQL) | Windows (`.bat`), proxy TLS réel, import de personnel (à planifier) |
+| 04 | Usage quotidien | CAR | 11 parcours de bout en bout en navigateur (tâche, échange, annonce, anomalie, maintenance, discussion, formation, calendrier…) ; 8 468 requêtes sans erreur 500 | efficacité mesurée par des marins |
+| 05 | UX et accessibilité | CAR | maquettes A et B, charte, mobile, clavier, mode sombre, impression | tablette, lecteur d'écran, papier réel |
+| 06 | Rôles et permissions | CAR | 1 407 + 196 essais de droits des quarts, circuit, délégations bornées, droits d'autres modules, comparaison avec `main` | fiches flotte, programme, postes, RETEX action par action |
+| 07 | Calendrier | CAR | 7 sources, étanchéité, vues et événement personnel en navigateur | conflits (fonction absente), fuseaux des relèves |
+| 08 | Maintenance et installations | CAR | exécution web et API, confirmation critique, non-conformité (AUD-023) | circuits de fiches, périodicité, dérive, catalogue, tournées (couverts par les tests, non rejoués) |
+| 09 | Quarts et services | CAR | droits, circuit, cas limites des listes publiées, échange, délégations | assistant de création jusqu'à la publication, changements de mode, régimes réels |
+| 10 | Logistique | CAR | invariants du stock, droits, mutation tuée | interface, alertes planifiées, prêts/retours (différés) |
+| 11 | Communication | CAR | accès, discussion, notifications, annonces avec accusé | mentions, pièces jointes, Web Push |
+| 12 | Formations et autres modules | CAR | inventaire, formation, documentation (circuit), RETEX et absences (formulaires) | RETEX et absences de bout en bout, postes |
+| 13 | Architecture | CAR | taille, complexité, imports, couplage, mutations | duplication, N+1, volumétrie |
+| 14 | Données et intégrité | CAR | PostgreSQL complet, cascades, montée de version peuplée, suppression d'unités et de comptes | sauvegarde/restauration, concurrence en charge |
+| 15 | Sécurité et résilience | CAR | secrets, proxy, comptes de démonstration, connexions répétées, seuils, accès anonymes | injections/XSS, en-têtes, fichiers, politique SSI |
+| 16 | Qualité des tests | CAR | métriques sur 3 815 tests, 13 mutations de droits (18 exécutions), comparaison avec `main` | couverture de lignes, qualité de chaque assertion |
+| 17 | Déploiement et exploitation | CAR | procédure, PostgreSQL, proxy simulé, sondes reproductibles | vrai proxy, serveur d'application, supervision, sauvegarde |
+| 18 | Cohérence globale | CAR | croisement des 19 autres | dépend de leurs réserves |
+| 19 | Conformité Marine nationale | CAR | pages Notion croisées avec le code | sources publiques, expert du bord |
+| 20 | Données de démonstration | CAR | pipeline mesuré | fidélité aux usages, Windows |
 
-## Ce qui ne bloque pas et reste faisable par l'audit
+(CAR = clôturé avec réserves.)
 
-Parcours navigateur de bout en bout (calendrier, maintenance, tâches, annonces, échanges, formations), revue des assertions des tests, détection de duplication, simulation complète d'un nouveau bâtiment, lecture des tâches Notion une à une, relecture des descriptions de PR : c'est le travail restant pour passer les audits 01, 04, 05, 07, 08, 09, 10, 11, 12, 13, 16 à « clos avec réserves ».
+## Pourquoi aucun audit n'est « bloqué »
+
+Aucune vérification indispensable n'est impossible : les réserves externes (SIC, expert du bord, matériel Windows, tablette, lecteur d'écran, volumes réels) limitent la **portée des preuves**, pas la possibilité de conclure sur ce qui a été exécuté.
+
+## Travaux réalisables qui n'ont pas été faits (pour mémoire, aucun n'est indispensable à la lecture des anomalies)
+
+Relecture des 343 tâches terminées et des descriptions de PR ; circuits des fiches flotte, RETEX et absences de bout en bout ; assistant de création de liste jusqu'à la publication ; duplication de code et mesure de couverture de lignes ; scénarios de concurrence en charge.

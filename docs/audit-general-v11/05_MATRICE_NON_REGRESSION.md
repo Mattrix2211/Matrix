@@ -17,6 +17,10 @@ Principe : une fonctionnalité validée est protégée par (1) un test de la sui
 | Données historiques | migrations, PostgreSQL | suite complète | `migrate` sur base vierge SQLite et PostgreSQL | migration d'une base peuplée non testée | toute migration |
 | Parcours de mise en service | installation, initialisation, comptes, structure | `test_core_checks.py` | mesures de `migrate` et `seed_demo` | aucun test de bout en bout ; import de personnel absent (AUD-012) ; proxy TLS non testé (AUD-011) | DP-10, DP-11 |
 
+## Efficacité des tests existants (mutations de la logique de droits, `audits/AUDIT_16.md`)
+
+Treize mutations de droits dans une copie jetable : douze sont détectées (certaines par un seul test : suppression de compte hors périmètre) ; la neutralisation des seuils de rôle n'est pas détectée par les quatre modules de test « droits » mais l'est par 161 tests de la suite complète. Seize des 35 clés du registre de seuils ne sont citées dans aucun test. **Conséquence** : toute correction touchant aux seuils doit rejouer la suite complète, pas seulement les modules « permissions ».
+
 ## Règles pour les corrections futures
 
 1. Toute correction d'une anomalie du registre s'accompagne d'un test qui échoue avant et passe après, ajouté à la suite (pas seulement une sonde).

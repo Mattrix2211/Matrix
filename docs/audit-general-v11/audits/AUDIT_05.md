@@ -1,6 +1,6 @@
 # Audit 05 — UX, cohérence et accessibilité (rapport partiel : navigateur réel)
 
-**Statut : partiel, non terminé.** Chromium (Playwright) piloté contre l'instance de démonstration temporaire (`runserver` sur 127.0.0.1:8800, SQLite temporaire, `DJANGO_DEBUG=1`). Scripts : `sondes/navigateur/*.js`. Les captures sont dans l'environnement d'audit et **ne sont pas versionnées** (elles ne sont pas des preuves rejouables, les scripts le sont).
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). (elles ne sont pas des preuves rejouables, les scripts le sont).
 
 **Limites** : un seul navigateur, Linux, résolution de référence 1366×768 puis 375×667 ; mode sombre, impression, tablette tactile, lecteur d'écran, postes anciens : non testés. La charte `design/` (dépôt `design-system`, révision `78060c5`, identique à celle du sous-module) a été récupérée à la 3ᵉ passe.
 
@@ -48,3 +48,15 @@ Comparaison aux maquettes approuvées (A et B de la page d'entrée « Quarts »)
 ## 4. Anomalies liées
 
 AUD-008, AUD-014, AUD-016, AUD-018.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Navigateur réel : accueil de 7 profils, 3 menus, mobile 375 px (8 pages et menu ouvert/fermé par Échap), clavier, **mode sombre (bascule et mémorisation après rechargement)**, **impression** (barre latérale masquée), comparaison à deux maquettes et à la charte `design/` (révision `78060c5`).
+
+### Non vérifié ou dépendant d'une validation externe
+
+Tablette tactile, lecteur d'écran, postes anciens, impression sur papier réel ; comparaison à des maquettes qui n'existent que pour l'écran « Quarts ».

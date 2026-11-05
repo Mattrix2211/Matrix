@@ -1,6 +1,6 @@
 # Audit 20 — Données de démonstration
 
-**Statut : clos avec réserves** (périmètre : génération reproductible par les quatre commandes `seed_demo*`, mesures sur base temporaire ; non couvert : `lancer_demo.bat` sous Windows).
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Périmètre : génération reproductible par les quatre commandes `seed_demo*`, mesures sur base temporaire ; non couvert : `lancer_demo.bat` sous Windows).
 
 ## Mesures (pipeline complet : `seed_demo`, `seed_demo_mer_quai`, `seed_demo_dense`, `seed_demo_metier`, ≈ 54 s sur SQLite)
 
@@ -27,3 +27,15 @@
 ## Réserves
 
 Fidélité aux usages réels non évaluée (accès à un expert du bord requis) ; Windows non testé ; dates relatives non testées dans le temps.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Déjà clos avec réserves (voir plus haut).
+
+### Non vérifié ou dépendant d'une validation externe
+
+Fidélité aux usages réels (expert du bord), Windows.

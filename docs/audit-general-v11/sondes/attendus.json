@@ -1,0 +1,73 @@
+{
+  "sonde_routes_anonymes.py": [
+    "anonymes répondant 200/autre: ['/accounts/login/', '/admin/login/', '/login/', '/service-worker.js']"
+  ],
+  "sonde_pages_par_profil.py": [
+    "CREER equipier_a 403",
+    "CREER equipier_a2 302 feuille_creee= True",
+    "CREER marin_b 302 feuille_creee= True",
+    "CREER admin_navire 403",
+    "CREER terre_classe 403"
+  ],
+  "circuit.py": [
+    "viser_comaeq@VISA_COMAEQ: [('coma_comaeq', 302, 'PUBLIEE')]",
+    "renvoyer@VISA_COMAEQ: [('coma_comaeq', 302, 'BROUILLON')]"
+  ],
+  "auto_visa.py": [
+    "AUTOVISA admin_navire après secteur: VISA_SERVICE après service: VISA_COMAEQ"
+  ],
+  "structure.py": [
+    "STR admin_navire {'add_service': (403, False)",
+    "STR admin {'add_service': (302, True)",
+    "STR delete_sector"
+  ],
+  "api_org.py": [
+    "API admin_navire {'creer service': (201, True)",
+    "API cdt_a {'creer service': (403, False)"
+  ],
+  "brouillons.py": [
+    "BROUILLON b anomalie URL périmée (route disparue) | lien Reprendre: /logistics/anomalies/signaler/ | statut: 200"
+  ],
+  "stock.py": [
+    "STK sortie supérieure au stock : refusée (StockInsuffisant)",
+    "STK inventaire sans motif : refusé MotifRequis"
+  ],
+  "maintenance.py": [
+    "MNT critique sans confirmation → 400",
+    "MNT critique confirmation=oui → 200"
+  ],
+  "calendrier.py": [
+    "CAL ical anonyme 401"
+  ],
+  "suppr_compte.py": [
+    "SUP chef_service_a → 403",
+    "SUP cdt_a → 302 | compte encore là: False"
+  ],
+  "cas_limites.py": [
+    "EDG retrait sans motif (cdt_a) → 302 | créneau encore là: True",
+    "EDG remplacement se remplacer soi-même → refusé"
+  ],
+  "liens_morts.py": [
+    "ERREURS_5XX [] 0"
+  ],
+  "droits2.py": [
+    "OK"
+  ],
+  "matrice_droits.py": [
+    "OK"
+  ],
+  "seuils_secu.py": [
+    "SEU chef_service_a publie une liste : avant le réglage 302 → après avoir relevé le seuil à COMMANDANT 404",
+    "SEC 25 mots de passe erronés de suite : {200}"
+  ],
+  "seuil_inter.py": [
+    "SIN admin_navire (bâtiment 2) → seuil du bâtiment 1 : 302 | avant [] | après []"
+  ],
+  "nouveau_batiment.py": [
+    "NBA étapes réussies 11 / 11",
+    "NBA le chef de secteur ajoute une section par l'écran → 403"
+  ],
+  "recherche.py": [
+    "REC equipier_a pompe → 200"
+  ]
+}

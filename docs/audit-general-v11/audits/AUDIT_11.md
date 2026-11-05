@@ -1,6 +1,6 @@
 # Audit 11 — Communication et notifications
 
-**Statut : partiel.** Contrôles d'accès exécutés ; les parcours de discussion complets, les accusés de lecture, les rappels planifiés et le Web Push ne sont pas rejoués.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Contrôles d'accès exécutés ; les parcours de discussion complets, les accusés de lecture, les rappels planifiés et le Web Push ne sont pas rejoués.
 
 | Contrôle | Résultat |
 |---|---|
@@ -21,3 +21,15 @@ Aucune nouvelle ; ANO-012 et ANO-013 restent des limitations ouvertes. **Fonctio
 ## Non vérifié
 
 Mentions, pièces jointes, messages importants, Web Push en conditions réelles (HTTPS requis), tâche planifiée de rappel, accusés de lecture, charge.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Discussion contextuelle rejouée en navigateur : message d'un marin, visible du chef, réponse, **notification** du marin, fil d'un autre bâtiment en 404. Annonces : publication, accusé, suivi (1 accusé, 13 non lus). Observation à confirmer : les chefs de secteur de l'autre équipage reçoivent aussi les notifications « Compte rendu saisi » et « Anomalie signalée » d'un bâtiment à double équipage.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Mentions, pièces jointes, Web Push (HTTPS requis), rappels planifiés (Celery).

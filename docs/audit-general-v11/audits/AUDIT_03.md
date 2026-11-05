@@ -1,6 +1,6 @@
 # Audit 03 — Première mise en service d'un bâtiment (rapport partiel)
 
-**Statut : partiel, non terminé.** Simulation limitée à l'installation technique sur SQLite ; la création d'un bâtiment par l'interface n'a pas été parcourue.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Simulation limitée à l'installation technique sur SQLite ; la création d'un bâtiment par l'interface n'a pas été parcourue.
 
 ## 1. Ce qui a été mesuré
 
@@ -33,3 +33,15 @@ Besoin confirmé par le PO : import en masse **avec prévisualisation, détectio
 ## 4. Non audité
 
 Parcours complet « nouveau bâtiment » dans l'interface (création d'unité, organigramme, installations, rôles), sections facultatives (DP-03), formation des utilisateurs, PostgreSQL, Windows (`setup.bat`, `start.bat` non exécutés).
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Mise en service simulée de bout en bout (SQLite et PostgreSQL) : `migrate` 30 à 40 s, démonstration 10 à 54 s, création d'un bâtiment par le compte de flotte en 11 étapes, **montée de version `main` → V1.1 sur base peuplée** (21 migrations, aucune perte) ; autonomie : bâtiment, services, secteurs réservés au compte de flotte ; comptes créés par commandement avec mot de passe provisoire.
+
+### Non vérifié ou dépendant d'une validation externe
+
+`setup.bat`, `start.bat`, `lancer_demo.bat` sous Windows (poste Windows indisponible) ; import de personnel (fonctionnalité à planifier, DP-11) ; installation de production derrière un vrai proxy TLS (responsables SIC).

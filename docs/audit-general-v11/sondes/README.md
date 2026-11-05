@@ -1,44 +1,53 @@
-# Sondes d'audit (non applicatives)
+# Sondes d'audit (non applicatives, rejouables)
 
-Scripts d'exécution **jetables** qui ont produit les preuves des rapports. Ils ne font pas partie de l'application, n'écrivent jamais dans une base réelle et ne doivent pas être lancés ailleurs que sur une base temporaire de démonstration.
+Scripts d'exécution **jetables** qui ont produit les preuves des rapports. Ils ne font pas partie de l'application, n'écrivent jamais dans une base réelle (les écritures sont annulées par transaction ou faites dans une base temporaire) et ne doivent pas être lancés ailleurs que sur une base de démonstration temporaire.
 
-## Préparer une base temporaire (SQLite)
+## Rejeu complet en une commande (reproductibilité vérifiée)
 
 ```bash
-python -m venv /chemin/hors/depot/venv && /chemin/hors/depot/venv/bin/pip install -r requirements.txt
-export DJANGO_DEBUG=1 DJANGO_SECRET_KEY=audit-temporaire MATRIX_SQLITE_PATH=/chemin/hors/depot/audit.sqlite3 DJANGO_ALLOWED_HOSTS=testserver,localhost
-python manage.py migrate -v0 && python manage.py seed_demo
+PYTHON=/chemin/python docs/audit-general-v11/sondes/rejouer_tout.sh [dossier_de_travail_hors_depot]
 ```
 
-## Sondes côté serveur (client de test Django, écritures annulées)
+Le script crée une base SQLite temporaire, applique les migrations, lance les **quatre** générateurs de démonstration, rejoue chaque sonde listée dans `attendus.json` et **compare la sortie aux lignes attendues** ; il échoue si un script est absent, si une sonde plante ou si une ligne attendue manque. Les sorties sont conservées dans `<dossier>/resultats/`. **Dernière exécution à partir de ce dossier versionné, sur une base neuve (2026-11-05) : 19 sondes conformes, 0 écart.** Prérequis : `pip install -r requirements.txt` dans un environnement hors dépôt ; aucun accès réseau.
 
-Chaque script se lance par `python manage.py shell < docs/audit-general-v11/sondes/<script>.py`.
+Hypothèses connues : les sondes s'appuient sur les comptes de `docs/recette/01_COMPTES.md` et sur des identifiants créés par le pipeline complet (quart n° 2, bâtiment « Bretagne ») ; elles ne s'appliquent pas à `seed_demo` seul (certaines sorties diffèrent : AUD-008).
+
+## Sondes côté serveur (client de test Django)
+
+Chaque script se lance par `python manage.py shell < docs/audit-general-v11/sondes/<script>.py` avec `DJANGO_DEBUG=1`, `DJANGO_SECRET_KEY=…`, `MATRIX_SQLITE_PATH=…` (le dépôt `main` n'a pas `MATRIX_SQLITE_PATH` : sa base est `db.sqlite3` à la racine).
 
 | Script | Preuve produite | Rapport |
 |---|---|---|
-| `sonde_routes_anonymes.py` | Routes accessibles sans connexion | AUDIT_06, AUDIT_15 |
-| `sonde_pages_par_profil.py` | Création de feuille par 11 profils ; pages ouvertes par 10 profils | AUDIT_06 |
-| `matrice_droits.py` | Porte d'autorisation des écritures de quarts (21 profils) | AUDIT_06 |
-| `droits2.py` | Effets réels : désignation, création inter-équipage, voie directe | AUDIT_06 |
-| `circuit.py`, `auto_visa.py` | Circuit de visa de la feuille, acteurs, double visa par une seule personne | AUDIT_06, AUDIT_09 |
-| `ticket404.py`, `ticket404b.py` | Cause du 404 du ticket (AUD-008) | AUDIT_04 |
-| `brouillons.py` | Reprise de brouillons (AUD-016) | AUDIT_04 |
-| `liens_morts.py` | Liens refusés sur 42 comptes (3 778 requêtes) | AUDIT_04 |
-| `perf.py`, `prof.py` | Mesures de durée et profil (AUD-013) | AUDIT_17 |
-| `sections2.py` | Périmètre selon le rattachement (DP-03) | AUDIT_DP03_SECTIONS |
-| `prod_proxy.py` | Mode production : HTTP, proxy TLS, TLS natif (AUD-011) ; à lancer avec `DJANGO_DEBUG=0`, une vraie clé secrète et `DJANGO_ALLOWED_HOSTS=matrix.bord.local,testserver` | AUDIT_15 |
+| `sonde_routes_anonymes.py` | routes accessibles sans connexion | 06, 15 |
+| `sonde_pages_par_profil.py` | création de feuille par 11 profils ; pages ouvertes par 10 profils | 06 |
+| `matrice_droits.py`, `droits2.py` | porte d'autorisation et effets réels des écritures de quarts | 06 |
+| `circuit.py`, `auto_visa.py`, `lecture_brouillon.py` | circuit de visa, double visa par une personne, lecture par état | 06, 09 |
+| `cas_limites.py` | cas limites : listes publiées, délégations, cascades de suppression | 06, 09, 14 |
+| `structure.py`, `structure2.py`, `api_org.py`, `archive.py`, `cascade.py`, `fk.py` | administration, suppression et archivage de la structure | 02, 14 |
+| `suppr_compte.py`, `suppr2.py` | suppression d'un compte (AUD-034) | 14 |
+| `nouveau_batiment.py` | simulation d'un nouveau bâtiment | 03 |
+| `seuils_secu.py`, `seuil_inter.py` | effet d'un seuil, connexions répétées, étanchéité inter-bâtiments | 02, 15 |
+| `ticket404.py`, `ticket404b.py`, `brouillons.py`, `liens_morts.py` | navigation et liens refusés | 04 |
+| `calendrier.py`, `comm.py`, `stock.py`, `maintenance.py`, `mnt2.py`, `autres.py`, `recherche.py` | calendrier, communication, stock, maintenance, autres modules, recherche | 07 à 12 |
+| `perf.py`, `prof.py` | durées et profil (AUD-013) | 17 |
+| `sections2.py`, `demo.py`, `reg.py`, `comptes.py` | périmètre selon le rattachement, données de démonstration, registre de seuils | DP-03, 20 |
+| `prod_proxy.py`, `prod_proxy_reglages.py`, `config/reglages_proxy.py` | mode production : HTTP, proxy TLS, TLS natif (à lancer avec `DJANGO_DEBUG=0`, une vraie clé secrète, `DJANGO_ALLOWED_HOSTS=matrix.bord.local,testserver` ; la seconde avec `DJANGO_SETTINGS_MODULE=reglages_proxy` et `PYTHONPATH=…/config`) | 15 |
+| `qualite_tests.py` | métriques statiques des tests (lancement direct par `python`, depuis la racine du dépôt) | 16 |
+| `mutations/mutations*.py` | mutations de la logique de droits dans une copie jetable (`WT=<git worktree>` et `PYTHON=…` requis) | 16 |
 
-Les identifiants de la démonstration (comptes `equipier_a`, `chef_secteur_a`…) viennent de `docs/recette/01_COMPTES.md` ; les dates utilisées (2027) sont arbitraires. Certains scripts dépendent d'identifiants créés par `seed_demo` (ticket n° `1a696760-…`, quart n° 2) : ils sont à adapter si les données changent.
-
-## Sondes navigateur (Chromium via Playwright)
+## Sondes navigateur (Chromium via Playwright, `node`)
 
 ```bash
-python manage.py runserver 127.0.0.1:8800 --noreload      # même environnement que ci-dessus
-node docs/audit-general-v11/sondes/navigateur/nav1.js /chemin/hors/depot/captures
+python manage.py runserver 127.0.0.1:8800 --noreload      # base de démonstration complète
+node docs/audit-general-v11/sondes/navigateur/<script>.js [dossier_captures]
 ```
 
-`nav1` : accueil de 7 profils ; `nav2` : ticket, brouillon, interface de la feuille ; `nav3` : assistant de signalement (exploratoire) ; `nav4` : titres, menus, clavier, téléphone ; `nav5` et `nav7` : circuit de la feuille et boutons de visa par profil ; `nav6` : modale de confirmation d'un visa. Les scripts `nav5` et `nav7` écrivent dans la base temporaire (dates 2027-09-01 et 2027-09-02).
+`e2e_lib.js` (aides) ; `e2e1` calendrier, événement personnel, tâche ; `e2e2`–`e2e4` tâche, maintenance, échange, annonce, documentation, anomalie ; `e2e5`–`e2e8` assistant d'anomalie, maintenance (non-conformité, confirmation critique) ; `e2e9`, `e2e10` formation, critique, discussion, RETEX, absence ; `nav1`–`nav10` accueil, menus, clavier, mobile, circuit de la feuille, paramètres ; `maquettes*.js` comparaison aux maquettes. **Ces scripts écrivent dans la base temporaire** (tâches, annonces, documents, échanges créés) : ne les lancer que sur une base jetable, et ne pas les enchaîner deux fois sans la recréer (certains parcours supposent un état initial).
 
 ## PostgreSQL jetable
 
-Cluster local `initdb` sous un utilisateur système dédié, port 54329, base `matrix_audit`, puis `DB_HOST=127.0.0.1 DB_PORT=54329 DB_NAME=matrix_audit DB_USER=matrix DB_PASSWORD=<jetable>` pour `migrate`, `seed_demo` et `test`.
+Cluster local `initdb` sous un utilisateur système dédié, port 54329, puis `DB_HOST=127.0.0.1 DB_PORT=54329 DB_NAME=<base> DB_USER=matrix DB_PASSWORD=<jetable>` pour `migrate`, `seed_demo*`, `test`. Les sondes SQLite se rejouent à l'identique avec ces variables.
+
+## Limites des sondes
+
+Les sondes mesurent des **états de démonstration**, pas une exploitation réelle ; elles ne remplacent pas des tests ajoutés à la suite du projet (`05_MATRICE_NON_REGRESSION.md`). Les captures d'écran ne sont pas versionnées.

@@ -1,6 +1,6 @@
 # Audit 09 — Quarts et services MER/QUAI (rapport partiel)
 
-**Statut : partiel, non terminé.** Seul le volet « droits d'écriture » est audité (matrice dans `AUDIT_06.md`). Non audités : création et génération des listes, échanges de service de bout en bout, changements de mode MER/QUAI, activations différées, impressions, concurrence.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Seul le volet « droits d'écriture » est audité (matrice dans `AUDIT_06.md`). Non audités : création et génération des listes, échanges de service de bout en bout, changements de mode MER/QUAI, activations différées, impressions, concurrence.
 
 ## 1. Constats exécutés
 
@@ -17,3 +17,15 @@ EX-020, EX-021, EX-026, EX-027 (validation par équipage : **V-C** sur le visa C
 ## 3. Anomalies liées
 
 AUD-014, AUD-015.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Cas limites des listes publiées : retrait sans motif refusé, avec motif accepté et audité ; marin d'un autre bâtiment refusé ; fin avant début refusée ; **doublon accepté sur double envoi (AUD-033)** ; double publication idempotente. Échange de service rejoué (demande, acceptation, validation par le chef). Visas de la feuille (circuit complet en navigateur).
+
+### Non vérifié ou dépendant d'une validation externe
+
+Assistant de création de liste jusqu'à la publication, changements de mode MER/QUAI, impressions, concurrence réelle ; régimes de quart réels (expert du bord).

@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from maintenance.models import MaintenanceOccurrence, MaintenanceExecution
 from logistics.models import CorrectiveTicket
-from training.tests.test_audit_log import AuditLog
+from accounts.models import AuditLog
 print("MNT occurrences:",MaintenanceOccurrence.objects.count(),"dont installation critique:",MaintenanceOccurrence.objects.filter(installation_maintenance__installation__critique=True).count(),"| statuts:",dict(__import__('collections').Counter(MaintenanceOccurrence.objects.values_list("status",flat=True))))
 crit=MaintenanceOccurrence.objects.filter(installation_maintenance__installation__critique=True).exclude(status="DONE").first()
 norm=MaintenanceOccurrence.objects.filter(installation_maintenance__installation__critique=False).exclude(status="DONE").first()

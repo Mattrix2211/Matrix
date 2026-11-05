@@ -1,6 +1,6 @@
 # Audit 07 — Calendrier et coordination
 
-**Statut : partiel.** Preuves exécutées (API JSON, base de démonstration `seed_demo`, 12 profils). Navigateur : seule la présence de la page a été vérifiée dans le balayage de navigation ; la vue mois/semaine, le panneau de détail et le glisser-déposer n'ont pas été joués.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Preuves exécutées (API JSON, base de démonstration `seed_demo`, 12 profils). Navigateur : seule la présence de la page a été vérifiée dans le balayage de navigation ; la vue mois/semaine, le panneau de détail et le glisser-déposer n'ont pas été joués.
 
 ## Questions et réponses
 
@@ -23,3 +23,15 @@
 ## Non vérifié
 
 Interface FullCalendar (mois, semaine, liste), performance avec un historique réel, fuseaux horaires (relèves datées), impression A4, mobile, dépendances entre événements.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Interface FullCalendar rejouée : vues jour (18 événements), semaine (28), mois (116) avec titres corrects ; panneau de détail d'un événement ; création d'un événement personnel (conservé après rechargement) ; aucune erreur console.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Détection de conflits (fonction absente, tâche D-06), fuseaux horaires des relèves datées, liens de dépendance entre événements.

@@ -1,6 +1,6 @@
 # Audit 06 — Rôles, permissions et délégations (rapport partiel, 2ᵉ passe)
 
-**Statut : partiel, non terminé.** Commit audité : `1c37f22`. Méthode et sondes : `sondes/README.md`. Tout ce qui suit a été **exécuté** sur une base SQLite temporaire de démonstration (`migrate` + `seed_demo`), avec le client de test Django, côté **serveur** (les boutons de l'interface ne sont pas la preuve) ; les écritures sont annulées par transaction.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). (les boutons de l'interface ne sont pas la preuve) ; les écritures sont annulées par transaction.
 
 Référentiel métier lu en entier : les 13 sous-pages Notion « Organigramme et rôles » (01 à 13) et le hub (voir `08_LIMITES_ET_PREUVES.md`).
 
@@ -60,3 +60,15 @@ API DRF des autres modules, droits de formation, de stock, de documentation ; d�
 ## 5. Anomalies liées
 
 AUD-001, AUD-008, AUD-014, AUD-015.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Cas limites des droits sensibles rejoués : délégation (remplacement de chef de liste) **bornée** (72 h par défaut, pas dans le passé, pas de remplacement de soi-même, remplaçant actif du même bâtiment, motif obligatoire, chevauchement du même titulaire refusé, expiration immédiate, **non transitive**) ; le remplaçant ne publie pas (403). Droits d'autres modules par exécution : validation de qualification, stock, structure (écran et API), seuils, tâches, annonces, documentation (l'auteur ne valide pas sa version), notifications, discussions, calendrier, recherche.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Modules secondaires non rejoués action par action (fiches flotte, programme, postes, RETEX) ; décisions B1 à B4 pour trancher les cas ouverts.

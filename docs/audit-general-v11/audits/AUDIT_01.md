@@ -1,6 +1,6 @@
 # Audit 01 — Expression de besoin et historique (rapport partiel)
 
-**Statut : partiel, non terminé.** Commit audité : `1c37f22`.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Commit audité : `1c37f22`.
 
 ## 1. Questions
 
@@ -78,4 +78,18 @@
 - **Sources toujours indisponibles** : conversations ChatGPT, documents FANLAB propres, Guide du marin 2023, `MATRIX_V11_AUDIT_INDEPENDANT.md`.
 - **Question centrale** : « Matrix correspond-il toujours à l'application imaginée au départ ? » — **oui sur la vision** (plateforme quotidienne, modules, principes de configuration, de traçabilité, d'absence d'Internet), **non sur trois points voulus** (génération automatique abandonnée, Rondes retirées, QR hors V1), **partiellement sur l'administration distribuée** (structure non autonome, AUD-019) et **sur la communication de groupe** (abandonnée). Cette réponse est **provisoire** tant que le backlog et les PR ne sont pas relus.
 
-**Statut de l'audit 01 : partiel** (conclusions provisoires ; sources manquantes énumérées ci-dessus).
+**Statut de l'audit 01 : Clôturé avec réserves**.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Sources lues depuis la 3ᵉ passe : backlog Notion (décompte, 36 tâches ouvertes avec commentaires, une soixantaine de titres de tâches « Terminé » rapprochés du code), titres des 16 PR.
+**Recoupements entre le backlog et le code** : « Annonces Information / Important / **Critique** » (Terminé) alors que l'interface propose « Urgent » ; « Rondes : photo par point » (Terminé) alors que Rondes est retiré (décision postérieure, cohérente) ; « D-05 (évolutions) » et « D-06 » en cadrage terminé mais développement « À faire » (cohérent avec l'état observé) ; « Recherche universelle étendue » : rejouée, fonctionne et respecte le périmètre (échantillon de 12 recherches).
+**Réponse à la question centrale** : la vision initiale est conservée ; les écarts sont des décisions datées (abandon de la génération automatique, retrait de Rondes, QR hors V1) et non des oublis ; les vrais écarts sont l'autonomie de la structure (AUD-019) et les droits par niveau (AUD-014).
+
+### Non vérifié ou dépendant d'une validation externe
+
+Conversations ChatGPT, documents FANLAB propres, `MATRIX_V11_AUDIT_INDEPENDANT.md` (indisponibles) ; relecture ligne à ligne des 343 tâches terminées et des descriptions des PR (réalisable, non faite : les conclusions reposent sur les décisions Notion, les tâches ouvertes et un échantillon).

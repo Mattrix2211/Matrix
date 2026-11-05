@@ -1,0 +1,7 @@
+const { chromium } = require('playwright'); const B='http://127.0.0.1:8800';
+async function login(br,u){const c=await br.newContext({viewport:{width:1366,height:768}});const p=await c.newPage();await p.goto(B+'/accounts/login/');await p.fill('#id_username',u);await p.fill('input[name=password]','pass');await Promise.all([p.waitForNavigation(),p.click('button[type=submit]')]);return {c,p};}
+const desc=async p=>p.evaluate(()=>({h1:(document.querySelector('h1')||{}).innerText,btn:[...document.querySelectorAll('main button,main a.btn')].filter(e=>e.offsetParent).map(e=>e.innerText.trim().replace(/\s+/g,' ')).filter(Boolean).slice(0,14),champs:[...document.querySelectorAll('main input:not([type=hidden]),main select,main textarea')].filter(e=>e.offsetParent).map(e=>e.name+':'+e.type).slice(0,14)}));
+(async()=>{const br=await chromium.launch();
+ const pages=[['equipier_a','/taches/'],['chef_secteur_a','/taches/'],['equipier_a','/quarts/echanges/'],['chef_service_a','/annonces/nouvelle/'],['equipier_a','/formations/'],['chef_service_a','/documentation/nouveau/'],['equipier_a','/maintenance/gestion/occurrences/'],['equipier_a','/calendar/'],['equipier_a','/logistics/anomalies/signaler/']];
+ for(const [u,url] of pages){const {c,p}=await login(br,u);await p.goto(B+url);await p.waitForLoadState('networkidle');console.log(u,url,JSON.stringify(await desc(p)));await c.close();}
+ await br.close();})();

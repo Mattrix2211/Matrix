@@ -1,6 +1,6 @@
 # Audit 18 — Cohérence globale et stratégie (synthèse transversale)
 
-**Statut : partiel (synthèse intermédiaire).** Elle croise les 19 autres rapports, tous partiels sauf l'audit 20 (clos avec réserves). Elle ne peut pas être définitive tant que les vérifications listées dans `09_BILAN_DES_AUDITS.md` ne sont pas faites.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Elle croise les 19 autres rapports, tous partiels sauf l'audit 20 (clos avec réserves). Elle ne peut pas être définitive tant que les vérifications listées dans `09_BILAN_DES_AUDITS.md` ne sont pas faites.
 
 ## 1. Cinq problèmes transversaux
 
@@ -37,3 +37,15 @@ QR (scan actif, usage hors V1) ; Rondes (modèles sans test ni route) ; champs `
 ## 5. Ce que la synthèse ne peut pas encore dire
 
 Voir `09_BILAN_DES_AUDITS.md` : calendrier, maintenance, communication, formation, documentation et mobilité n'ont pas été parcourus de bout en bout en navigateur ; le jugement sur « les marins travaillent-ils efficacement » reste ouvert.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Synthèse définitive : voir `../00_SYNTHESE_EXECUTIVE.md` et `../09_BILAN_DES_AUDITS.md`.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Dépend des réserves des autres audits.

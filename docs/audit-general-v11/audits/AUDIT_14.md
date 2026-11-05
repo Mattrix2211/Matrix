@@ -1,6 +1,6 @@
 # Audit 14 — Données et intégrité (rapport partiel)
 
-**Statut : partiel, non terminé.** Preuves exécutées sur SQLite et sur **PostgreSQL 16.15** (cluster jetable local, port 54329, hors dépôt).
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). (cluster jetable local, port 54329, hors dépôt).
 
 ## 1. PostgreSQL : première vérification indépendante
 
@@ -35,3 +35,15 @@ Migration d'une base peuplée (sauvegarde puis montée de version), isolation mu
 ## 5. Anomalies liées
 
 AUD-020, AUD-021.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+**Montée de version d'une base peuplée `main` → V1.1** : 21 migrations, SQLite et PostgreSQL 16, aucune ligne perdue, aucune migration manquante, connexions fonctionnelles. Cascades et protections mesurées (suppression d'unités et de comptes). Suite complète verte sur PostgreSQL.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Sauvegarde/restauration PostgreSQL (aucune procédure), concurrence en charge, base réelle anonymisée.

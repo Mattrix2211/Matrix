@@ -1,6 +1,6 @@
 # Audit 12 — Formations, documentation et autres modules
 
-**Statut : partiel.** Inventaire des modules présents dans le dépôt (aucun n'est ignoré au motif qu'il est absent du menu), contrôles d'accès exécutés, circuits métier non rejoués de bout en bout.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Inventaire des modules présents dans le dépôt (aucun n'est ignoré au motif qu'il est absent du menu), contrôles d'accès exécutés, circuits métier non rejoués de bout en bout.
 
 ## Inventaire
 
@@ -25,3 +25,15 @@
 ## Non vérifié
 
 Tous les circuits de validation (documents, RETEX, fiches), la liste d'attente des sessions, les prérequis anti-cycle, les relances de tâches, le tableau d'effectifs des postes, l'impact des absences sur les échanges et la génération des listes.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Circuit documentaire rejoué : brouillon, soumission, **l'auteur ne peut pas valider**, le COMA valide, version applicable publiée ; candidature à une formation (état « en attente d'approbation ») ; validation de qualification ; formulaires RETEX et absence ouverts.
+
+### Non vérifié ou dépendant d'une validation externe
+
+RETEX de bout en bout, absences et leur effet sur les échanges, postes et tableau d'effectifs.

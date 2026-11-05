@@ -1,6 +1,6 @@
 # Audit 13 — Architecture et dette technique
 
-**Statut : partiel.** Mesures objectives (taille, complexité, imports inutilisés, couplage par recherche textuelle) ; pas de revue de conception module par module.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Mesures objectives (taille, complexité, imports inutilisés, couplage par recherche textuelle) ; pas de revue de conception module par module.
 
 ## Mesures
 
@@ -31,3 +31,15 @@ Découper les `post` en vues ou services par action, en priorité `matrix/views.
 ## Non vérifié
 
 Performances avec un volume réel, requêtes N+1 systématiques, cycles d'import, duplication de code entre applications (aucun outil de duplication lancé), évolutivité multi-bâtiments (décision d'architecture de déploiement ouverte dans Notion).
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Mesures confirmées (voir plus haut) et mutations de tests sur 13 fonctions de droits : voir `AUDIT_16.md`.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Duplication de code, requêtes N+1 systématiques, cycles d'import (outils non lancés) ; volumétrie réelle.

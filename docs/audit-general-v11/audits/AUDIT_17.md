@@ -1,6 +1,6 @@
 # Audit 17 — Déploiement et exploitation (rapport partiel, 2ᵉ passe)
 
-**Statut : partiel, non terminé.** Aucun déploiement ; exécutions sur bases temporaires.
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Aucun déploiement ; exécutions sur bases temporaires.
 
 ## 1. Constats exécutés
 
@@ -24,3 +24,15 @@ Procédure de mise en service d'un bâtiment (ordre : unité, services, secteurs
 ## 3. Non audité
 
 Fichiers `*.bat` sous Windows, rotation des journaux, reprise après redémarrage de Celery/Redis, retour arrière après migration, mise à jour d'un bord sans accès Internet (transfert des dépendances).
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Sondes **reproductibles** : `sondes/rejouer_tout.sh` recrée une base de démonstration et rejoue les sondes avec contrôle des résultats attendus (voir `sondes/README.md`). Montée de version vérifiée.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Vrai proxy TLS et serveur d'application, Windows, supervision, reprise après redémarrage, sauvegarde.

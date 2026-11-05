@@ -1,5 +1,7 @@
 # Référentiel des exigences — version 0 (provisoire)
 
+> **Mise à jour de la 4ᵉ passe** : la colonne « État » de ce tableau est celle de la 1ʳᵉ passe. L'état à jour de chaque exigence, avec sa preuve, est dans `03_MATRICE_CONFORMITE.md`.
+
 Construit à partir des seules sources lues pendant la session du 2026-11-05 (voir `08_LIMITES_ET_PREUVES.md`). **Ce n'est pas encore exhaustif** : les pages Notion 01 à 05 et 07 à 12, les 380 tâches du backlog et les PR #1 à #16 n'ont pas été dépouillées.
 
 Légende. Statut historique : OBL obligatoire / SOUH souhaité / DIFF différé / ABAN abandonné / CONF à confirmer. État actuel : **NV = non vérifié** (aucune preuve produite par l'audit à ce stade), IMPL, PARTIEL, ABS. Aucun état « implémenté » n'est posé sans preuve : l'existence d'un code n'est pas une preuve de fonctionnement.

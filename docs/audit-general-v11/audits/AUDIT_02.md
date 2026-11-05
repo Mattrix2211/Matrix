@@ -1,6 +1,6 @@
 # Audit 02 — Configurabilité et adaptabilité (rapport partiel)
 
-**Statut : partiel, non terminé.** Question centrale : un bord règle-t-il seul son organisation, ses droits et son fonctionnement, sans développeur ? Méthode : lecture de `matrix/views.py` (Réglages) et de `matrix/core/role_thresholds.py`, essais d'écriture par 5 profils (`sondes/structure.py`, `structure2.py`) et exploration navigateur (`sondes/navigateur/nav8.js`, `nav10.js`).
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). Question centrale : un bord règle-t-il seul son organisation, ses droits et son fonctionnement, sans développeur ? Méthode : lecture de `matrix/views.py` (Réglages) et de `matrix/core/role_thresholds.py`, essais d'écriture par 5 profils (`sondes/structure.py`, `structure2.py`) et exploration navigateur (`sondes/navigateur/nav8.js`, `nav10.js`).
 
 ## 1. Ce qu'un administrateur d'unité peut configurer (vérifié en navigateur)
 
@@ -31,3 +31,16 @@ Configuration des chefs de liste et rubriques de la feuille de service (essais d
 ## 5. Anomalies liées
 
 AUD-019, AUD-020, AUD-021, AUD-022 (à ouvrir après revue cas par cas).
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Effet réel d'un changement de seuil rejoué : l'administrateur d'unité relève `liste_service_publication` à COMMANDANT, le chef de service est refusé aussitôt (302 → 404), le retour au défaut rétablit l'accès, un chef de service ne peut pas modifier un seuil (403), et le **réglage d'un autre bâtiment est impossible** (aucune écriture sur les bâtiments 1, 3, 5). La version de configuration en base est incrémentée (`seuils:2`).
+**Simulation d'un nouveau bâtiment** (compte de flotte) : bâtiment, 2 services, 2 secteurs, 6 comptes en 11 étapes réussies et 1,6 s en appels directs ; tous les écrans s'ouvrent pour un secteur **sans section** et pour un marin sans rattachement (périmètre bâtiment). Le commandant et le chef de secteur ne peuvent pas ajouter une section par l'écran (403) ni par l'API (403).
+
+### Non vérifié ou dépendant d'une validation externe
+
+Revue au cas par cas des 55 droits en dur validée par le PO (P05) ; effet d'un changement de seuil sur un autre processus (version en base lue, non testée avec deux processus).

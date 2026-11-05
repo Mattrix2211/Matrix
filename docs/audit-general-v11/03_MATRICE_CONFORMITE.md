@@ -8,16 +8,16 @@ Commit audité `1c37f22`, 2026-11-05. États : **V-C** vérifié conforme ; **V-
 | EX-002 | Aucune règle susceptible d'évoluer en dur | V-NC partiel | 35 actions réglables par bâtiment, mais 55 comparaisons en dur (AUD-022) et structure non autonome (AUD-019) | 02 |
 | EX-003 | Internet n'existe pas | V-C (code statique) | aucune ressource externe (gabarits, styles, scripts ; 7 profils en navigateur) ; réseau réel non testé | 15 |
 | EX-004 | Tout est traçable, jamais d'écrasement silencieux | PC | AuditLog sur visas, stock, maintenance critique, désignations ; mais suppression d'unités sans trace par personne touchée (AUD-020) | 14, 15 |
-| EX-005 | Proposer → valider → publier | PC | circuit de la feuille rejoué ; voies directes sur listes publiées (AUD-015) ; documents/RETEX non rejoués | 09, 12 |
-| EX-006 | Administration distribuée | PC | seuils et modules par bâtiment : oui ; structure : non (AUD-019) | 02 |
+| EX-005 | Proposer → valider → publier | PC | circuits de la feuille et du document rejoués ; voies directes sur listes publiées (AUD-015) | 09, 12 |
+| EX-006 | Administration distribuée | PC | seuils et modules réglables par bâtiment (effet immédiat, limité au bâtiment) ; structure non autonome par l'écran (AUD-019) | 02 |
 | EX-007 | Droits non déduits du seul grade ; vérification côté serveur | PC | contrôles serveur confirmés (1 407 + 196 essais) ; plusieurs droits par niveau (AUD-014) | 06 |
 | EX-008 | Non-surcharge | NV | 6 à 13 cartes d'accueil, 23 à 29 liens de menu : densité non comparée aux maquettes | 05 |
 | EX-009 | Tolérance aux coupures bord–terre | DIFF | Phase 7 volontairement différée | 13 |
-| EX-010 | Le marin voit sa journée à l'ouverture | PC | accueil fonctionnel pour 7 profils ; liens morts (AUD-016) ; justesse du contenu non évaluée | 04 |
-| EX-011 | Calendrier unique | V-C (structure) | 7 sources dans un même flux ; conflits non détectés (D-06 au backlog) | 07 |
+| EX-010 | Le marin voit sa journée à l'ouverture | PC | accueil rejoué (7 profils, 61 comptes) ; tâche, échange, annonce, brouillon visibles ; liens refusés (AUD-016) ; justesse du contenu non évaluée par des marins | 04 |
+| EX-011 | Calendrier unique | V-C | 7 sources, 3 vues (jour, semaine, mois) et panneau de détail rejoués en navigateur ; événement personnel conservé | 07 |
 | EX-012 | Calendrier, colonne vertébrale du pilotage | NV | vues collectives et pilotage non rejoués | 07 |
-| EX-013 | Recherche universelle | NV | champ présent, non testé | 05 |
-| EX-014 | Notifications explicites | NV | contenu non évalué ; accès par propriétaire conforme | 11 |
+| EX-013 | Recherche universelle | V-C (échantillon) | 12 recherches : résultats par périmètre, aucune donnée d'un autre bâtiment ; recherche rapide en 200 | 05 |
+| EX-014 | Notifications explicites | PC | notifications nominatives (« Compte rendu saisi : <objet> », « Anomalie signalée : <titre> », « Blocage : … ») ; échéance non systématique ; archivage absent (ANO-012) | 11 |
 | EX-020 | Chef de liste | PC | désignation et droits de gestion rejoués ; modification d'une liste publiée par proposition absente (D-05 A) | 09 |
 | EX-021 | Génération automatique abandonnée | V-C | aucun générateur dans quarts/ | 09, 19 |
 | EX-022 | Aucun rythme de quart en dur ; régimes | PC | aucune durée en dur hors affichage ; régimes nommés non implémentés (cadrage sans GO) | 09, 19 |
@@ -26,7 +26,7 @@ Commit audité `1c37f22`, 2026-11-05. États : **V-C** vérifié conforme ; **V-
 | EX-025 | Feuille de service ≠ tableau de quart | V-C (structure) | la feuille n'agrège pas les quarts | 09 |
 | EX-026 | Rédaction de la feuille réservée aux rédacteurs désignés | V-C sur 1c37f22 ; V-NC sur main | création (11 profils), écritures (16 profils), lectures (13 × 3 états), circuit en navigateur ; deux jeux de données | 06, 09 |
 | EX-027 | Feuille par équipage, validation COMAEQ | V-C avec réserve | COMAEQ strict, rédacteurs par équipage, pas d'échappement inter-équipage ; visas intermédiaires élargis (AUD-014) | 06 |
-| EX-028 | Échange de service | NV | 7 échanges en démonstration, tous les états ; flux non rejoué | 09 |
+| EX-028 | Échange de service | PC | demande, acceptation par B, validation par le chef rejouées (états `VALIDE`, `ACCEPTE`) ; explication d'impossibilité non rejouée | 09 |
 | EX-029 | Service à quai, garde, quart distincts | PC | modèles distincts (Quart, ServiceGarde) ; non rejoué | 09 |
 | EX-030 | Hiérarchie configurable par navire | PC | hiérarchie présente ; modification non autonome (AUD-019) ; sections facultatives non exercées (DP-03) | 02 |
 | EX-031 | Service rattaché à son COMA, visa résolu par service | PC | `Service.commandant_adjoint` ; résolution par niveau dans deux circuits (P05) | 19 |
@@ -41,27 +41,27 @@ Commit audité `1c37f22`, 2026-11-05. États : **V-C** vérifié conforme ; **V-
 | EX-041 | Fiche d'installation adaptable | NV | non rejoué | 08 |
 | EX-042 | Compte rendu notifié au chef de secteur, sans visa | V-NC partiel | par l'API : ni ticket ni notification pour une installation non conforme (AUD-023) ; chemin web non rejoué | 08 |
 | EX-043 | Complémentarité SSF, identifiants stables | PC | UUID sur tickets et installations ; pas d'interface SSF | 13 |
-| EX-044 | Discussions contextuelles via threads | PC | fils par objet, accès par propriétaire et périmètre conformes ; écriture d'un message non concluante | 11 |
+| EX-044 | Discussions contextuelles via threads | V-C (tâche) ; NV (autres objets) | discussion d'une tâche rejouée : message, réponse, notification, étanchéité entre bâtiments | 11 |
 | EX-045 | Annonces par niveau et périmètre | PC | ciblage bâtiment conforme (404 hors cible) ; niveau « Urgent » au lieu de « Critique » | 11 |
 | EX-046 | Logistique : stocks, prêts, retours, inventaires | PC | stock et mouvements conformes ; prêts/retours/inventaires de matériel différés | 10 |
-| EX-047 | Documentation, formations, RETEX | PC | accès et validation de qualification vérifiés ; circuits non rejoués ; faible couverture de test (AUD-030) | 12 |
+| EX-047 | Documentation, formations, RETEX | PC | formation (candidature en attente d'approbation, validation par référent), documentation (circuit complet), RETEX et absences (formulaires) ; faible couverture de tests (AUD-030) | 12 |
 | EX-048 | QR codes hors V1 | V-NC | route /scan/<uuid>/ fonctionnelle (DP-06) | 08, 19 |
 | EX-049 | PÉPIN / CRAT / RAV/c | DIFF | absents, conforme | 19 |
-| EX-050 | PC fixe 1366×768 ; mobile dégradé proprement | PC | 1366×768 et 375×667 : aucun débordement, aucune erreur console (échantillon) ; tablette, impression non testées | 05 |
+| EX-050 | PC fixe 1366×768 ; mobile dégradé proprement | PC | 1366×768 et 375×667 sans débordement, menu mobile, mode sombre, impression ; tablette tactile non testée | 05 |
 | EX-051 | Interface sobre, aide contextuelle | NV | maquettes non comparées | 05 |
 | EX-052 | Tout en français | PC | gabarits et messages observés en français ; page technique en anglais seulement avec DEBUG ; code non relu | 05 |
-| EX-053 | SQLite (dev) et PostgreSQL (prod) | V-C | suite complète OK sur les deux (3 829 tests ; 20 ignorés sous SQLite exécutés et OK sous PostgreSQL) | 14, 17 |
+| EX-053 | SQLite (dev) et PostgreSQL (prod) | V-C | suite complète verte sur SQLite et PostgreSQL ; migration d'une base peuplée de `main` vers la V1.1 sans perte sur les deux moteurs | 14, 17 |
 | EX-054 | Rondes retirées | V-C | routes absentes ; résidu de modèles (AUD-007) | 12, 19 |
 
 ## Synthèse
 
 | État | Nombre |
 |---|---|
-| PC | 22 |
-| V-C | 9 |
-| NV | 9 |
+| PC | 23 |
+| V-C | 11 |
+| NV | 6 |
 | DIFF | 4 |
 | V-NC | 3 |
 | ABS | 1 |
 
-Total : 48 exigences recensées. Aucune exigence n'est déclarée conforme sur la seule existence du code. Les exigences numérotées EX-015 à EX-019 et EX-039 n'existent pas dans le référentiel (numérotation par blocs thématiques).
+Total : 48 exigences recensées. Aucune exigence n'est déclarée conforme sur la seule existence du code ; « V-C » est toujours limité au périmètre de la colonne Preuve.

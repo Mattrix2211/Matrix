@@ -11,13 +11,13 @@ Mise à jour du 2026-11-05 (3ᵉ passe). Les points interdépendants sont regrou
 | DP-09 (orientation) | titulaire, suppléant ou délégataire et supérieur sont distincts ; un administrateur technique n'obtient pas de droits de visa métier ; traçabilité des délégations | matrice proposée : `propositions/P02` |
 | DP-10 (orientation) | architecture de référence : reverse proxy avec terminaison TLS en réseau interne, validation par les responsables SIC avant déploiement | documentée : `propositions/P03` |
 | DP-11 | besoin à terme d'un import en masse (prévisualisation, doublons, validation des rattachements, rapport) ; fonctionnalité de mise en service à planifier, non bloquante V1.1 | AUD-012 reclassé |
-| DP-12 | le 404 initial du signalement est « non reproduit sur la version auditée » ; anomalie distincte pour le compte rendu | AUD-026 et AUD-027 |
+| DP-12 | le 404 initial du signalement est « non reproduit sur la version auditée » ; anomalie distincte pour le compte rendu | AUD-026 (**le 404 existe sur `main` et est corrigé par la V1.1**, ce qui explique l'observation initiale) et AUD-027 |
 | DP-13 (orientation) | gestion de l'organisation locale par des fonctions habilitées ; priorité à modifier, renommer, archiver, désactiver ; pas de suppression physique perdant l'historique ou élargissant les accès | étude : `propositions/P04` |
 | DP-14 | revue au cas par cas : planchers contre règles métier | réalisée par groupes : `propositions/P05` |
 
 ## 2. Décisions encore nécessaires (regroupées)
 
-### Bloc A — Organisation, rattachements, structure (DP-03, DP-13, DP-11, AUD-019 à AUD-021, AUD-028)
+### Bloc A — Organisation, rattachements, structure, comptes (DP-03, DP-13, DP-11, AUD-019 à AUD-021, AUD-028, AUD-034)
 Les trois sujets sont interdépendants : un seul chantier cohérent est proposé.
 | Question | Options | Recommandation de l'audit |
 |---|---|---|
@@ -25,6 +25,7 @@ Les trois sujets sont interdépendants : un seul chantier cohérent est proposé
 | A2. Qui détient la fonction « gestion de la structure » à bord ? | administrateur d'unité seul ; fonction attribuable à une personne désignée (recommandé) ; commandant | fonction désignée, l'administrateur technique pouvant la recevoir sans visa métier |
 | A3. Niveau de réorganisation à livrer | garde-fous minimaux (option 1) ; écran de structure (option 2, recommandée) ; réorganisation assistée (option 3) | option 2 pour la mise en service, option 3 après V1.1 |
 | A4. Période de grâce pour les comptes « à compléter » | immédiate ; durée configurable (recommandé) | durée configurable |
+| A5. Départ d'un marin | suppression du compte (actuel) ; **désactivation** avec historique conservé (recommandé) | désactivation, suppression réservée aux comptes sans historique (`propositions/P07`) |
 
 ### Bloc B — Droits fonctionnels et délégations (DP-09, DP-14, AUD-014, AUD-015, AUD-022)
 | Question | Options | Recommandation |
@@ -41,6 +42,7 @@ Les trois sujets sont interdépendants : un seul chantier cohérent est proposé
 | C2. Autorité de certification du bord | PKI de l'organisation ; AC locale ; auto-signé (déconseillé) | à décider avec les responsables SIC |
 | C3. Serveur d'application | à choisir (non déclaré aujourd'hui) | décision technique + SIC |
 | C4. Sauvegarde/restauration | procédure à écrire et tester | à planifier avant mise en service |
+| C5. Limitation des tentatives de connexion (AUD-035) | délai croissant ; verrouillage temporaire ; aucune (actuel) | délai croissant configurable, journalisé, à valider avec les responsables SIC |
 
 ### Bloc D — Périmètre produit et gouvernance (DP-02, DP-04 à DP-08)
 | ID | Question | Recommandation |
@@ -51,7 +53,7 @@ Les trois sujets sont interdépendants : un seul chantier cohérent est proposé
 | DP-06 | QR codes « hors V1 » mais route active | désactiver la route en V1 ou l'assumer |
 | DP-07 | CI compatible hors Internet | serveur interne ou script local obligatoire avant fusion |
 | DP-08 | Tests navigateur versionnés | oui, dans un dossier dédié |
-| (nouveau) | Chemin de non-conformité sur installation (AUD-023) : ticket automatique, alerte, ou rien ? | alerte du chef de secteur au minimum |
+| (nouveau) | Chemin de non-conformité sur installation (AUD-023) : ticket automatique, alerte dédiée, ou aucune action ? En attendant : corriger le message affiché | alerte dédiée au chef de secteur ; message corrigé immédiatement |
 
 ## 3. Pas de décision attendue, dépendances connues
 

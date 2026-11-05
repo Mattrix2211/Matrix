@@ -1,6 +1,6 @@
 # Audit 10 — Logistique, stocks et inventaires
 
-**Statut : partiel.** Le cœur du stock est vérifié par exécution ; prêts, retours et inventaires de matériel relèvent d'un chantier **différé** (tâche Notion « À faire plus tard »).
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). (tâche Notion « À faire plus tard »).
 
 | Contrôle | Résultat |
 |---|---|
@@ -20,3 +20,15 @@ Cahier §21 : stocks, pièces, consommables, outillage, EPI, demandes, **prêts,
 ## Non vérifié
 
 Interface de stock en navigateur, seuils d'alerte de stock bas (tâche Celery), échantillon réduit (3 pièces), réservations.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Invariants du stock rejoués (somme des mouvements, refus du stock négatif, motif obligatoire, immuabilité) ; mutation « stock négatif accepté » **tuée par les tests**.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Interface de stock en navigateur, seuils d'alerte planifiés, prêts et retours (différés).

@@ -33,6 +33,10 @@ Résultat : **3 829 tests exécutés en 792 s, OK, 20 ignorés** (les 20 ignoré
 
 Portée : ce résultat prouve que les tests existants passent, pas que les parcours métier sont conformes (voir audit 16).
 
+## 3 quater. Compléments de la 4ᵉ passe
+
+Worktree de `main` (`6ef16ad`) et de `1c37f22` dans le répertoire temporaire de l'audit (retirés après usage) ; instance de démonstration complète (61 comptes) servie par `runserver` sur la boucle locale pour Chromium ; PostgreSQL 16 jetable (montée de version `main` → V1.1) ; mutations dans une copie jetable. **Limites** : un seul navigateur, Linux ; les sondes mesurent des données de démonstration ; `main` ne dispose pas du pipeline de démonstration complet ; la comparaison `main`/V1.1 ne couvre que les comportements sondés ; les captures d'écran ne sont pas versionnées.
+
 ## 3 ter. Suite complète sous PostgreSQL (2ᵉ passe)
 
 `manage.py test --parallel 4` sur **PostgreSQL 16.15** (cluster jetable local créé par `initdb`, port 54329, mot de passe jetable) : **3 829 tests, OK, 0 ignoré**, 899 s, 2026-11-05, commit `1c37f22`. Les 20 tests ignorés sous SQLite s'exécutent et passent. Limites : un seul poste, mono-version de PostgreSQL, aucune charge réelle.

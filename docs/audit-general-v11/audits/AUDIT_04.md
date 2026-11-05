@@ -1,6 +1,6 @@
 # Audit 04 — Usage quotidien (rapport partiel : navigation et liens)
 
-**Statut : partiel, non terminé.** Cette passe porte sur la fiabilité de la navigation depuis l'accueil « Aujourd'hui », exécutée **sans navigateur** (client de test Django). Les parcours en navigateur réel sont traités à part (§4).
+**Statut : Clôturé avec réserves** (voir « Clôture » en bas du rapport). (client de test Django). Les parcours en navigateur réel sont traités à part (§4).
 
 ## 1. Balayage de tous les profils
 
@@ -51,3 +51,15 @@ Voir `AUDIT_05.md` (navigateur réel) pour ce qui a été joué ; ce rapport ne 
 ## 5. Non audité
 
 Fin de journée, validations enchaînées, signalement d'anomalie de bout en bout, temps de saisie comparés à Excel, mobilité.
+
+## Clôture (4ᵉ passe)
+
+**Statut : Clôturé avec réserves.** « Avec réserves » signifie que l'analyse technique est achevée sur le périmètre décrit ; **les éléments listés ci-dessous restent non vérifiés et ne doivent pas être lus comme conformes**.
+
+### Contrôles ajoutés à la 4ᵉ passe
+
+Parcours exécutés en navigateur réel, du point de vue du marin et du chef : accueil, attribution et exécution d'une tâche (démarrer, bloquer avec motif, remontée au chef), échange de service (demande, acceptation, validation), annonce (publication, accusé, suivi), signalement d'anomalie en 4 étapes jusqu'à la fiche, compte rendu de maintenance (non-conformité et confirmation critique), discussion contextuelle avec notification de la réponse, candidature à une formation, circuit documentaire, calendrier (jour, semaine, mois, événement personnel). **Aucune erreur HTTP ni console.** Longueurs : signalement d'anomalie 4 écrans ; attribution de tâche 1 formulaire ; validation d'échange 2 clics.
+
+### Non vérifié ou dépendant d'une validation externe
+
+Mesure d'efficacité réelle (temps de saisie par des marins, nombre de clics par rapport à Excel) : nécessite des utilisateurs ; fin de journée et validations enchaînées non chronométrées.

@@ -1,0 +1,4 @@
+const { chromium } = require('playwright'); const B='http://127.0.0.1:8800'; const R={};
+async function login(br,u,vp){const c=await br.newContext({viewport:vp||{width:1366,height:768}});const p=await c.newPage();p.errs=[];p.bad=[];p.on('pageerror',e=>p.errs.push(String(e).slice(0,120)));p.on('console',m=>{if(m.type()==='error')p.errs.push(m.text().slice(0,120));});p.on('response',r=>{if(r.url().startsWith(B)&&r.status()>=400)p.bad.push(r.status()+' '+r.url().replace(B,''));});await p.goto(B+'/accounts/login/');await p.fill('#id_username',u);await p.fill('input[name=password]','pass');await Promise.all([p.waitForNavigation(),p.click('button[type=submit]')]);return {c,p};}
+async function flow(nom,fn){try{R[nom]=await fn();}catch(e){R[nom]={ERREUR:String(e).slice(0,220)};}}
+module.exports={chromium,B,R,login,flow};
