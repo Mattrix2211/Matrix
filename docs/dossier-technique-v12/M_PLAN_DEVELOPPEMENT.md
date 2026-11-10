@@ -92,7 +92,7 @@ L14, L15, L16, L17, L18 (peu liés entre eux) ─► L20 (via L17)
 | **Critères d'acceptation** | Un compte avec historique ne se supprime plus : il se désactive (réversible, tracé) ; ses tâches ouvertes sont réattribuées ou apparaissent « non affectées à un responsable » chez le chef de secteur ; l'auteur reste lisible dans l'audit ; un compte créé par erreur, sans aucun historique, reste supprimable |
 | **Taille** | Grosse |
 
-## L05 — Configuration de production minimale
+## L05 — Configuration de production minimale — **réalisé sur `claude/l05-config-production-v11` (commit `517a2ce`), compte rendu : `O_LOT_L05_COMPTE_RENDU.md`**
 
 | | |
 |---|---|
