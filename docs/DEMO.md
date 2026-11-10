@@ -9,9 +9,9 @@ python scripts/preparer_instance_test.py --reinitialiser   # base séparée, rel
 python scripts/preparer_instance_test.py --servir
 ```
 
-Sous Windows : `lancer_demo.bat`. Les commandes `seed_demo*` refusent de s'exécuter hors d'une base dédiée à la démonstration (mode DEBUG, variable `MATRIX_INSTANCE_DEMO=1`, fichier `<base>.instance_demo`, base vide ou déjà marquée). Pour dédier à la main une base de développement qui ne contient que des comptes fictifs : `MATRIX_INSTANCE_DEMO=1 python manage.py marquer_instance_demo`.
+Sous Windows : `lancer_demo.bat` (recette : `docs/recette/L01_recette_windows.md`). Les commandes `seed_demo*` refusent de s'exécuter hors d'une base dédiée à la démonstration : mode DEBUG, variable `MATRIX_INSTANCE_DEMO=1`, fichier voisin `<base>.instance_demo` **écrit par le script de préparation** (il contient l'identifiant de l'instance, repris en base), base vide ou déjà marquée. `manage.py seed_demo` ne fonctionne donc jamais sur la base de développement ou de production : pour une démonstration, toujours passer par le script. `marquer_instance_demo` (appelée par `--mettre-a-jour` pour les bases créées avant le verrou) exige ce fichier et refuse toute base contenant un compte hors liste de démonstration ; elle ne fabrique jamais la preuve.
 
-Connexion sur `/login/`. **Les mots de passe ne sont jamais prévisibles** : générés au hasard dans `instance_test_marins/identifiants_demo.txt` (fichier réservé au propriétaire, hors dépôt), lisibles par `python scripts/preparer_instance_test.py --identifiants`, ou fournis par `MATRIX_DEMO_PASSWORD` et `MATRIX_DEMO_ADMIN_PASSWORD`. Une base de démonstration marquée refuse de démarrer hors DEBUG. Avant toute mise en production : `python manage.py verifier_instance`.
+Connexion sur `/login/`. **Les mots de passe ne sont jamais prévisibles** : générés au hasard dans `instance_test_marins/<base>.identifiants` (un fichier par base, réservé au propriétaire sous Linux, hors dépôt), lisibles par `python scripts/preparer_instance_test.py --identifiants`, ou fournis par `MATRIX_DEMO_PASSWORD` et `MATRIX_DEMO_ADMIN_PASSWORD`. Une base de démonstration marquée refuse de démarrer hors DEBUG. Avant toute mise en production : `python manage.py verifier_instance`.
 
 | Compte | Rôle fictif | Utilité dans la démonstration |
 |---|---|---|

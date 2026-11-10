@@ -24,7 +24,7 @@ Garanties (vérifiées par des tests automatiques) :
 
 **Essais sur PC uniquement.** Cette instance convient aux essais sur le poste local. Elle n'est pas joignable depuis un iPhone ou un autre appareil, et ne doit pas être rendue accessible : les essais sur appareil mobile réel demandent un environnement de validation distinct, isolé et approuvé, avec données fictives (voir `docs/COMPATIBILITE_CHECKLIST.md`). Sans tel environnement, le contrôle mobile est marqué « non effectué ».
 
-Mots de passe : générés au hasard, affichés à la demande par `python scripts/preparer_instance_test.py --identifiants` (fichier `instance_test_marins/identifiants_demo.txt`, réservé au propriétaire). À communiquer aux seuls testeurs autorisés, jamais dans un message ni dans le dépôt.
+Mots de passe : générés au hasard, affichés à la demande par `python scripts/preparer_instance_test.py --identifiants` (fichier `instance_test_marins/db.sqlite3.identifiants`, un par base ; sous Windows il hérite des droits du dossier : garder le projet dans votre profil utilisateur). À communiquer aux seuls testeurs autorisés, jamais dans un message ni dans le dépôt.
 
 | Profil joué | Compte | Particularité |
 |---|---|---|

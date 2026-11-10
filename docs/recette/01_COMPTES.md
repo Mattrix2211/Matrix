@@ -1,4 +1,4 @@
-# Comptes de démonstration (mot de passe de tous les comptes : `pass`)
+# Comptes de démonstration (mots de passe générés : `python scripts/preparer_instance_test.py --identifiants`)
 
 | Compte | Bâtiment | Rôle / situation fictive |
 |---|---|---|

@@ -10,6 +10,7 @@ Usage : python scripts/preparer_instance_test.py [--base chemin] [--reinitialise
 import argparse
 import json
 import os
+import secrets
 import subprocess
 import sys
 from pathlib import Path
@@ -24,7 +25,7 @@ VARIABLES_CONSERVEES = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "SYSTEMDRIV
                         "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "VIRTUAL_ENV")
 # Mots de passe fournis explicitement par l'opérateur : seuls autres éléments hérités du poste.
 VARIABLES_MOTS_DE_PASSE = ("MATRIX_DEMO_PASSWORD", "MATRIX_DEMO_ADMIN_PASSWORD")
-NOM_IDENTIFIANTS = "identifiants_demo.txt"
+SUFFIXE_IDENTIFIANTS = ".identifiants"  # un fichier par base, jamais partagé
 GENERATEURS = ("seed_demo", "seed_demo_mer_quai", "seed_demo_dense", "seed_demo_metier")  # ordre de dépendance, tous idempotents
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
@@ -69,6 +70,18 @@ def marqueur(base):
     return base.with_name(base.name + SUFFIXE_MARQUEUR)
 
 
+def fichier_identifiants(base):
+    return base.with_name(base.name + SUFFIXE_IDENTIFIANTS)
+
+
+def ecrire_preuve(base, seulement_si_vide=False):
+    """Écrit dans le fichier voisin un identifiant d'instance aléatoire : preuve que cette base a été préparée ici comme démonstration."""
+    fichier = marqueur(base)
+    if seulement_si_vide and fichier.exists() and fichier.read_text(encoding="utf-8").strip():
+        return
+    fichier.write_text(f"instance : {secrets.token_hex(16)}\n", encoding="utf-8")
+
+
 def verifier_chemin(base, dossier_autorise, reinitialiser=False, lecture_seule=False):
     """Chemin de base validé et résolu, ou RefusError. Seul un fichier .sqlite3 situé directement dans le dossier
     de démonstration est admis ; un fichier existant doit y avoir été créé par ce script (marqueur voisin) pour être supprimé.
@@ -97,7 +110,7 @@ def environnement_demo(base):
     aucun PostgreSQL, serveur d'e-mail, Redis, clé d'envoi ni hôte autorisé hérités du poste, tâches Celery en mémoire."""
     env = {cle: os.environ[cle] for cle in (*VARIABLES_CONSERVEES, *VARIABLES_MOTS_DE_PASSE) if cle in os.environ}
     return {**env, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1", "DJANGO_SETTINGS_MODULE": "matrix.settings",
-            "MATRIX_INSTANCE_DEMO": "1", "MATRIX_DEMO_IDENTIFIANTS": str(base.parent / NOM_IDENTIFIANTS),
+            "MATRIX_INSTANCE_DEMO": "1", "MATRIX_DEMO_IDENTIFIANTS": str(fichier_identifiants(base)),
             "MATRIX_ENV_FILE": str(base.parent / "aucun.env"), "MATRIX_MEDIA_ROOT": str(base.parent / "media"),
             "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
             # Tâches Celery gardées dans le processus : rien n'est envoyé à un Redis du poste, même local.
@@ -139,8 +152,8 @@ def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autori
     base.parent.mkdir(parents=True, exist_ok=True)
     if base.exists():
         base.unlink()
-    (base.parent / NOM_IDENTIFIANTS).unlink(missing_ok=True)  # nouveaux comptes, nouveaux mots de passe
-    marqueur(base).touch()
+    fichier_identifiants(base).unlink(missing_ok=True)  # nouveaux comptes, nouveaux mots de passe
+    ecrire_preuve(base)
     for commande in ("migrate", *GENERATEURS):
         subprocess.run([sys.executable, "manage.py", commande], cwd=RACINE, env=env, check=True)
     return base
@@ -155,6 +168,7 @@ def mettre_a_jour(base, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
     env = environnement_demo(base)
     controler_connexion(base, env)
     lancer([sys.executable, "manage.py", "migrate", "--noinput"], cwd=RACINE, env=env, check=True)
+    ecrire_preuve(base, seulement_si_vide=True)  # base créée par une ancienne version du script : identifiant ajouté
     # Base créée avant le verrou : marquée si elle ne contient que des comptes fictifs, anciens mots de passe prévisibles remplacés.
     if lancer([sys.executable, "manage.py", "marquer_instance_demo", "--regenerer-mots-de-passe"], cwd=RACINE, env=env, check=False).returncode:
         raise RefusError("la base contient des comptes non fictifs ou n'est pas une base de démonstration : mise à jour refusée")
@@ -168,7 +182,7 @@ def mettre_a_jour(base, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
 def identifiants(base, dossier_autorise=DOSSIER_DEMO):
     """Contenu du fichier d'identifiants de l'instance (lecture explicitement demandée par un testeur autorisé)."""
     base = verifier_chemin(base, dossier_autorise, lecture_seule=True)
-    fichier = base.parent / NOM_IDENTIFIANTS
+    fichier = fichier_identifiants(base)
     if not fichier.is_file():
         raise RefusError("aucun fichier d'identifiants (mots de passe fournis par variable d'environnement, ou instance non préparée)")
     return fichier.read_text(encoding="utf-8")
@@ -220,7 +234,7 @@ def main():
         return
     print(f"\nBase prête : {base}\nPour lancer la démonstration (cette machine seulement) :")
     print("  python scripts/preparer_instance_test.py --servir")
-    print(f"Mots de passe générés : python scripts/preparer_instance_test.py --identifiants (fichier {NOM_IDENTIFIANTS}, réservé au propriétaire).")
+    print(f"Mots de passe générés : python scripts/preparer_instance_test.py --identifiants (fichier {fichier_identifiants(base).name}, réservé au propriétaire).")
     print("Ne jamais exposer cette instance sur un réseau.")
     for compte, role in COMPTES:
         print(f"  {compte:16} {role}")

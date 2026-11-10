@@ -18,7 +18,7 @@ VARIABLE_MOT_DE_PASSE = "MATRIX_DEMO_PASSWORD"
 VARIABLE_MOT_DE_PASSE_ADMIN = "MATRIX_DEMO_ADMIN_PASSWORD"
 VARIABLE_IDENTIFIANTS = "MATRIX_DEMO_IDENTIFIANTS"
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin de la base SQLite, écrit par la préparation de l'instance
-NOM_FICHIER_IDENTIFIANTS = "identifiants_demo.txt"
+SUFFIXE_IDENTIFIANTS = ".identifiants"  # un fichier d'identifiants par base : jamais partagé entre deux instances
 MOTS_DE_PASSE_HERITES = ("pass", "admin")  # anciens mots de passe prévisibles des bases déjà créées
 TABLE_MARQUEUR = "accounts_instancedemo"
 
@@ -58,6 +58,25 @@ def fichier_marqueur():
     return None if base is None else base.with_name(base.name + SUFFIXE_MARQUEUR)
 
 
+def identifiant_instance():
+    """Identifiant écrit par la préparation dans le fichier voisin de la base ; "" pour un fichier ancien (vide), None s'il est absent."""
+    fichier = fichier_marqueur()
+    if fichier is None or not fichier.is_file():
+        return None
+    for ligne in fichier.read_text(encoding="utf-8").splitlines():
+        cle, separateur, valeur = ligne.partition(":")
+        if separateur and cle.strip() == "instance":
+            return valeur.strip()
+    return ""
+
+
+def _identifiant_en_base():
+    from accounts.models import InstanceDemo
+
+    ligne = InstanceDemo.objects.order_by("pk").first()
+    return None if ligne is None else ligne.identifiant
+
+
 def base_marquee():
     """Vrai si la base porte le marqueur de démonstration (faux si la table n'existe pas encore)."""
     try:
@@ -74,7 +93,7 @@ def marquer_base(commande):
     from accounts.models import InstanceDemo
 
     if not InstanceDemo.objects.exists():
-        InstanceDemo.objects.create(commande=commande)
+        InstanceDemo.objects.create(commande=commande, identifiant=identifiant_instance() or "")
 
 
 def comptes_etrangers():
@@ -82,7 +101,7 @@ def comptes_etrangers():
     return sorted(set(get_user_model().objects.values_list("username", flat=True)) - COMPTES_DEMO)
 
 
-def conditions_manquantes(exiger_fichier=True):
+def conditions_manquantes():
     """Conditions d'environnement non remplies (liste vide dans un processus de tests)."""
     if en_test():
         return []
@@ -95,8 +114,8 @@ def conditions_manquantes(exiger_fichier=True):
         manque.append(f"le moteur de base est {connection.vendor} et non SQLite")
     elif chemin_base() is None:
         manque.append("la base SQLite n'est pas un fichier")
-    elif exiger_fichier and not fichier_marqueur().exists():
-        manque.append(f"le fichier {fichier_marqueur().name} (base dédiée à la démonstration) est absent")
+    elif not fichier_marqueur().exists():
+        manque.append(f"le fichier {fichier_marqueur().name}, écrit par la préparation de l'instance de démonstration, est absent")
     return manque
 
 
@@ -110,6 +129,10 @@ def exiger_base_demo(commande, creation=False):
             f"Refus : {commande} ne s'exécute que sur une base dédiée à la démonstration. À corriger : "
             + " ; ".join(manque) + ". Préparer l'instance : python scripts/preparer_instance_test.py --reinitialiser.")
     if base_marquee():
+        dans_le_fichier, en_base = identifiant_instance(), _identifiant_en_base()
+        if dans_le_fichier and en_base and dans_le_fichier != en_base:
+            raise CommandError(f"Refus : le fichier {fichier_marqueur().name} appartient à une autre instance que cette base ({commande}). "
+                               "Aucune modification n'a été faite.")
         return
     if creation and not get_user_model().objects.exists():
         marquer_base(commande)
@@ -145,7 +168,7 @@ def _fichier_identifiants():
     if chemin:
         return Path(chemin)
     base = chemin_base()
-    return None if base is None else base.parent / NOM_FICHIER_IDENTIFIANTS
+    return None if base is None else base.with_name(base.name + SUFFIXE_IDENTIFIANTS)
 
 
 def _lire_identifiants(chemin):
@@ -156,14 +179,19 @@ def _lire_identifiants(chemin):
             valeurs[cle.strip()] = valeur.strip()
     if "comptes" not in valeurs or "admin" not in valeurs:
         raise CommandError(f"Fichier d'identifiants illisible : {chemin}. Le supprimer pour en générer un nouveau.")
+    attendu = identifiant_instance()
+    if attendu and valeurs.get("instance") and valeurs["instance"] != attendu:
+        raise CommandError(f"Fichier d'identifiants d'une autre instance : {chemin}. Aucun mot de passe n'a été utilisé ni écrasé.")
     return valeurs
 
 
 def _ecrire_identifiants(chemin, valeurs):
     chemin.parent.mkdir(parents=True, exist_ok=True)
-    descripteur = os.open(chemin, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # lisible par le seul propriétaire
+    descripteur = os.open(chemin, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # lisible par le seul propriétaire, jamais écrasé
     with os.fdopen(descripteur, "w", encoding="utf-8") as fichier:
         fichier.write("Mots de passe de l'instance de démonstration (fictifs). Ne pas versionner, ne pas partager.\n")
+        if identifiant_instance():
+            fichier.write(f"instance : {identifiant_instance()}\n")
         for cle, valeur in valeurs.items():
             fichier.write(f"{cle} : {valeur}\n")
 

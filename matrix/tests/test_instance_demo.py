@@ -312,6 +312,14 @@ class MiseAJourTests(SimpleTestCase):
         self.assertEqual([a[0] for a in self.appels[2:]], list(script.GENERATEURS))
         self.assertEqual(echecs, ["seed_demo_dense"])
         self.assertEqual(self.base.read_text(), "donnees")
+        self.assertRegex(script.marqueur(self.base).read_text(encoding="utf-8"), r"^instance : [0-9a-f]{32}\n$")  # ancienne base : preuve ajoutée
+
+    def test_une_preuve_existante_n_est_pas_remplacee_par_la_mise_a_jour(self):
+        self.base.write_text("donnees")
+        script.marqueur(self.base).write_text("instance : conservee\n", encoding="utf-8")
+        with mock.patch.object(script, "controler_connexion"):
+            script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer)
+        self.assertEqual(script.marqueur(self.base).read_text(encoding="utf-8"), "instance : conservee\n")
 
     def test_base_contenant_un_compte_non_fictif_n_est_pas_mise_a_jour(self):
         self.base.write_text("donnees")
@@ -342,7 +350,7 @@ class IdentifiantsEtLanceurTests(SimpleTestCase):
     def test_l_environnement_du_fils_active_la_demo_et_vise_le_fichier_d_identifiants_de_l_instance(self):
         env = script.environnement_demo(self.base)
         self.assertEqual(env["MATRIX_INSTANCE_DEMO"], "1")
-        self.assertEqual(Path(env["MATRIX_DEMO_IDENTIFIANTS"]), self.dossier / script.NOM_IDENTIFIANTS)
+        self.assertEqual(Path(env["MATRIX_DEMO_IDENTIFIANTS"]), self.dossier / "demo.sqlite3.identifiants")
 
     def test_seuls_les_mots_de_passe_fournis_explicitement_sont_transmis(self):
         with mock.patch.dict(os.environ, {"MATRIX_DEMO_PASSWORD": "fourni-1", "MATRIX_DEMO_ADMIN_PASSWORD": "fourni-2", "MATRIX_AUTRE": "x"}):
@@ -353,19 +361,31 @@ class IdentifiantsEtLanceurTests(SimpleTestCase):
     def test_identifiants_lus_dans_le_fichier_de_l_instance_seulement(self):
         with self.assertRaises(script.RefusError):
             script.identifiants(self.base, dossier_autorise=self.dossier)
-        (self.dossier / script.NOM_IDENTIFIANTS).write_text("comptes : abc\nadmin : def\n", encoding="utf-8")
+        script.fichier_identifiants(self.base).write_text("comptes : abc\nadmin : def\n", encoding="utf-8")
         self.assertIn("comptes : abc", script.identifiants(self.base, dossier_autorise=self.dossier))
         with self.assertRaises(script.RefusError):
             script.identifiants(self.dossier.parent / "autre.sqlite3", dossier_autorise=self.dossier)
 
     def test_la_reinitialisation_renouvelle_les_mots_de_passe(self):
-        (self.dossier / script.NOM_IDENTIFIANTS).write_text("comptes : ancien\nadmin : ancien\n", encoding="utf-8")
+        script.fichier_identifiants(self.base).write_text("comptes : ancien\nadmin : ancien\n", encoding="utf-8")
         self.base.write_text("ancienne base")
-        script.marqueur(self.base).touch()
+        script.marqueur(self.base).write_text("instance : ancien\n", encoding="utf-8")
         with mock.patch.object(script, "controler_connexion"), mock.patch.object(script.subprocess, "run"):
             script.preparer(self.base, reinitialiser=True, dossier_autorise=self.dossier)
-        self.assertFalse((self.dossier / script.NOM_IDENTIFIANTS).exists())
+        self.assertFalse(script.fichier_identifiants(self.base).exists())
         self.assertFalse(self.base.exists())
+        nouvelle = script.marqueur(self.base).read_text(encoding="utf-8")
+        self.assertRegex(nouvelle, r"^instance : [0-9a-f]{32}\n$")
+        self.assertNotIn("ancien", nouvelle)
+
+    def test_le_fichier_d_identifiants_est_propre_a_chaque_base(self):
+        autre = self.dossier / "autre.sqlite3"
+        self.assertNotEqual(script.fichier_identifiants(self.base), script.fichier_identifiants(autre))
+        self.assertEqual(script.fichier_identifiants(self.base).parent, self.dossier)
+        self.assertEqual(Path(script.environnement_demo(autre)["MATRIX_DEMO_IDENTIFIANTS"]), script.fichier_identifiants(autre))
+        script.fichier_identifiants(self.base).write_text("comptes : a\nadmin : b\n", encoding="utf-8")
+        with self.assertRaises(script.RefusError):
+            script.identifiants(autre, dossier_autorise=self.dossier)
 
     def test_ni_le_script_ni_le_lanceur_n_annoncent_de_mot_de_passe_previsible(self):
         for nom in ("scripts/preparer_instance_test.py", "lancer_demo.bat"):

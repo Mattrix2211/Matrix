@@ -12,4 +12,4 @@ media/
 staticfiles/
 .claude/worktrees/ 
 instance_test_marins/
-identifiants_demo*.txt
+*.identifiants

@@ -26,7 +26,7 @@ python manage.py runserver
 
 Accès : http://127.0.0.1:8000/ (admin : `/admin/`)
 
-**Données de démonstration** : ne jamais lancer `seed_demo*` sur la base de développement ou de production. La démonstration se prépare sur une base séparée, avec `lancer_demo.bat` (Windows) ou `python scripts/preparer_instance_test.py --reinitialiser` (voir `docs/TESTS_MARINS.md`). Les commandes `seed_demo*` refusent de s'exécuter ailleurs. Les mots de passe sont générés au hasard ; `python scripts/preparer_instance_test.py --identifiants` les affiche.
+**Données de démonstration** : ne jamais lancer `seed_demo*` sur la base de développement ou de production. La démonstration se prépare sur une base séparée, avec `lancer_demo.bat` (Windows) ou `python scripts/preparer_instance_test.py --reinitialiser` (voir `docs/TESTS_MARINS.md`). Les commandes `seed_demo*` refusent de s'exécuter ailleurs. Les mots de passe sont générés au hasard ; `python scripts/preparer_instance_test.py --identifiants` les affiche. Recette Windows : `docs/recette/L01_recette_windows.md`.
 
 L'export PDF des bilans nécessite les bibliothèques natives GTK (WeasyPrint) — absentes par défaut sous Windows. Sans elles, tout le reste de l'application fonctionne normalement ; seul l'export PDF reste indisponible (CSV/Excel restent disponibles).
 

@@ -263,3 +263,97 @@ class SourcesDesGenerateursTests(SimpleTestCase):
         for nom in GENERATEURS:
             source = (COMMANDES / f"{nom}.py").read_text(encoding="utf-8")
             self.assertIn("exiger_base_demo(", source, nom)
+
+
+@skipIf(settings.DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3", "chemin de base simulé : SQLite seulement")
+class PreuveDePreparationTests(TestCase):
+    """Le marquage repose sur la preuve écrite par la préparation de l'instance, jamais sur les seuls noms de comptes."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.base = Path(self.tmp.name) / "demo.sqlite3"
+        self.preuve = self.base.with_name(self.base.name + instance_demo.SUFFIXE_MARQUEUR)
+        instance_demo.oublier_mots_de_passe()
+        self.addCleanup(instance_demo.oublier_mots_de_passe)
+
+    def _marquer(self, *args):
+        with conditions_reelles(self.base):
+            call_command("marquer_instance_demo", *args, stdout=StringIO())
+
+    def test_un_vrai_compte_admin_sans_preuve_de_preparation_n_est_jamais_marque(self):
+        User.objects.create_user(username="admin", password="mot-de-passe-reel-1234")
+        with self.assertRaises(CommandError):
+            self._marquer()
+        self.assertFalse(InstanceDemo.objects.exists())
+        self.assertFalse(self.preuve.exists())  # la commande ne fabrique jamais la preuve
+
+    def test_des_noms_de_demonstration_ne_suffisent_pas(self):
+        for nom in ("admin", "commandant", "cdt_a"):
+            User.objects.create_user(username=nom, password="x")
+        with self.assertRaises(CommandError):
+            self._marquer("--regenerer-mots-de-passe")
+        self.assertFalse(InstanceDemo.objects.exists())
+        self.assertTrue(User.objects.get(username="cdt_a").check_password("x"))
+
+    def test_avec_la_preuve_et_des_comptes_fictifs_la_base_est_marquee_avec_l_identifiant(self):
+        self.preuve.write_text("instance : abc123\n", encoding="utf-8")
+        User.objects.create_user(username="equipier_a", password="pass")
+        self._marquer()
+        self.assertEqual(InstanceDemo.objects.get().identifiant, "abc123")
+        self.assertEqual(self.preuve.read_text(encoding="utf-8"), "instance : abc123\n")  # preuve intacte
+
+    def test_la_preuve_ne_dispense_pas_de_la_liste_des_comptes_fictifs(self):
+        self.preuve.write_text("instance : abc123\n", encoding="utf-8")
+        User.objects.create_user(username="vrai_marin", password="x")
+        with self.assertRaises(CommandError):
+            self._marquer()
+        self.assertFalse(InstanceDemo.objects.exists())
+
+    def test_la_preuve_d_une_autre_instance_est_refusee(self):
+        self.preuve.write_text("instance : instance-b\n", encoding="utf-8")
+        InstanceDemo.objects.create(commande="seed_demo", identifiant="instance-a")
+        User.objects.create_user(username="equipier_a", password="x")
+        with conditions_reelles(self.base):
+            for commande in GENERATEURS:
+                with self.assertRaises(CommandError) as ctx:
+                    call_command(commande, stdout=StringIO())
+                self.assertIn("autre instance", str(ctx.exception))
+        self.assertEqual(User.objects.count(), 1)
+
+    def test_premier_remplissage_enregistre_l_identifiant_de_l_instance(self):
+        self.preuve.write_text("instance : xyz789\n", encoding="utf-8")
+        with conditions_reelles(self.base):
+            instance_demo.exiger_base_demo("seed_demo", creation=True)
+        self.assertEqual(InstanceDemo.objects.get().identifiant, "xyz789")
+
+    def test_mots_de_passe_par_defaut_dans_un_fichier_propre_a_chaque_base(self):
+        autre = Path(self.tmp.name) / "autre.sqlite3"
+        with mock.patch.dict(os.environ, {"MATRIX_DEMO_IDENTIFIANTS": ""}):
+            with mock.patch.object(instance_demo, "chemin_base", return_value=self.base):
+                premier = instance_demo._fichier_identifiants()
+            with mock.patch.object(instance_demo, "chemin_base", return_value=autre):
+                second = instance_demo._fichier_identifiants()
+        self.assertEqual((premier.name, second.name), ("demo.sqlite3.identifiants", "autre.sqlite3.identifiants"))
+        self.assertNotEqual(premier, second)
+
+    def test_un_fichier_d_identifiants_d_une_autre_instance_n_est_ni_utilise_ni_ecrase(self):
+        self.preuve.write_text("instance : instance-b\n", encoding="utf-8")
+        fichier = Path(self.tmp.name) / "demo.sqlite3.identifiants"
+        contenu = "comptes : secret-a\nadmin : secret-admin-a\ninstance : instance-a\n"
+        fichier.write_text(contenu, encoding="utf-8")
+        env = {"MATRIX_DEMO_PASSWORD": "", "MATRIX_DEMO_ADMIN_PASSWORD": "", "MATRIX_DEMO_IDENTIFIANTS": str(fichier)}
+        with mock.patch.dict(os.environ, env), conditions_reelles(self.base):
+            with self.assertRaises(CommandError):
+                instance_demo.mot_de_passe_commun()
+        self.assertEqual(fichier.read_text(encoding="utf-8"), contenu)
+
+    def test_le_fichier_d_identifiants_porte_l_identifiant_de_l_instance_et_se_relit(self):
+        self.preuve.write_text("instance : abc123\n", encoding="utf-8")
+        fichier = Path(self.tmp.name) / "demo.sqlite3.identifiants"
+        env = {"MATRIX_DEMO_PASSWORD": "", "MATRIX_DEMO_ADMIN_PASSWORD": "", "MATRIX_DEMO_IDENTIFIANTS": str(fichier)}
+        with mock.patch.dict(os.environ, env), conditions_reelles(self.base):
+            commun = instance_demo.mot_de_passe_commun()
+            self.assertIn("instance : abc123", fichier.read_text(encoding="utf-8"))
+            instance_demo.oublier_mots_de_passe()
+            self.assertEqual(instance_demo.mot_de_passe_commun(), commun)
