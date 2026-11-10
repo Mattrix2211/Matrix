@@ -1,5 +1,7 @@
 # D. Plan de correction priorisé
 
+> **Mise à jour du 10/11** : l'ordonnancement détaillé est désormais dans `M_PLAN_DEVELOPPEMENT.md` (28 lots) et les priorités dans `K_PRIORITES_JUSTIFIEES.md` (3 P0, 7 P1, 18 P2, 19 P3). Les priorités du tableau récapitulatif ci-dessous sont **obsolètes** ; les étapes restent valables comme vue d'ensemble.
+
 Plan d'**implémentation par étapes cohérentes**, pour une phase de développement ultérieure. **Aucune étape n'est lancée** : chacune demande votre accord explicite. Priorités : P0 sécurité et intégrité des données ; P1 dysfonctionnements métier et autorisations ; P2 ergonomie et amélioration des processus ; P3 évolutions non essentielles et documentation. Pour chaque lot : décisions couvertes, anomalies, dépendances, tests (voir `E2_CATALOGUE_TESTS.md`), questions préalables (voir `F_QUESTIONS_RESIDUELLES.md`).
 
 Conventions du dépôt à respecter à chaque lot (CLAUDE.md) : petite tâche = `@dev` seul ; grosse tâche (migration, droits, nouveau modèle, plus de 50 lignes) = `@dev` puis `@relecteur` ; commentaires courts en français ; suite complète une seule fois en fin de chantier ; jamais `git add .`.
@@ -12,7 +14,7 @@ Conventions du dépôt à respecter à chaque lot (CLAUDE.md) : petite tâche = 
 | 0.2 | Valider le dossier (registre A, plan D, questions F). |
 | 0.3 | Lancer les sondes `rejouer_tout.sh` et la suite SQLite/PostgreSQL sur `1c37f22` pour fixer la référence de non-régression (T-REG-01 à 03). |
 
-## Étape 1 — P0 : sécurité et intégrité des données
+## Étape 1 — Sécurité et intégrité des données (priorités individuelles : voir K)
 
 | Lot | Contenu | Anomalies | Décisions | Taille | Dépend de |
 |---|---|---|---|---|---|
@@ -93,16 +95,9 @@ CI hors ligne et tests navigateur (AUD-002, 003 ; F-14), documentation Notion et
 3.x (indépendant de 2.x sauf 3.3 → IM-02) ──► 4.2 (via 3.4)
 ```
 
-## Tableau récapitulatif des priorités
+## Priorités
 
-| Priorité | Anomalies | Lots |
-|---|---|---|
-| P0 | AUD-009, 010, 017, 020, 021, 028, 031, 034 | 1.1 à 1.4 |
-| P1 | AUD-001, 011, 014, 015, 019, 035, 044, 045, 047 | 2.x, 5.3 |
-| P2 | AUD-002, 003, 008, 012, 016, 022, 023, 024, 030, 032, 033, 037, 043, 046 | 3.x, 4.x, 5.x, 7 |
-| P3 | AUD-004, 005, 006, 007, 013, 018, 025, 026, 027, 029, 036, 038 à 042 | 7, 8 |
-
-Écarts avec la criticité de l'audit : AUD-010, 017, 028, 021 (P2 → P0) car ils touchent la sécurité ou l'intégrité ; AUD-031 (P1 → P0) car la perte de données est irréversible ; AUD-044, 045, 047 (P2/P3 → P1) car ils relèvent d'autorisations et de visas ; AUD-035 (P2 → P1) car sécurité d'accès à valider avec les SIC. Toute autre priorité est celle de l'audit. **Ce sont des propositions de classement, à valider par le PO.**
+Voir `K_PRIORITES_JUSTIFIEES.md` (le tableau de la première version, à 8 P0, est retiré).
 
 ## Fonctionnalités nouvelles demandées par le PO et absentes de l'audit
 

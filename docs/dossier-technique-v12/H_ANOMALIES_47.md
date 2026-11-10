@@ -1,6 +1,6 @@
 # H. Les 47 anomalies de l'audit confrontées au code V1.1
 
-Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = relu dans le code `1c37f22` pour ce dossier ; `[A]` = constat de l'audit, exécuté par lui et non rejoué ici ; `[N]` = page Notion. Aucune hypothèse n'est présentée comme une preuve : quand je n'ai pas pu vérifier, c'est écrit. **Priorité** : échelle du dossier (P0 sécurité et intégrité des données ; P1 dysfonctionnements métier et autorisations ; P2 ergonomie et amélioration des processus ; P3 évolutions non essentielles et documentation). La criticité d'origine de l'audit est rappelée quand elle diffère.
+Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = relu dans le code `1c37f22` pour ce dossier ; `[A]` = constat de l'audit, exécuté par lui et non rejoué ici ; `[N]` = page Notion. Aucune hypothèse n'est présentée comme une preuve : quand je n'ai pas pu vérifier, c'est écrit. **Priorité** : échelle du dossier (P0 sécurité et intégrité des données ; P1 dysfonctionnements métier et autorisations ; P2 ergonomie et amélioration des processus ; P3 évolutions non essentielles et documentation). La priorité d'origine de l'audit est rappelée quand elle diffère ; la justification complète est dans `K_PRIORITES_JUSTIFIEES.md`.
 
 ## Répartition
 
@@ -15,10 +15,10 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 
 | Priorité | Nombre |
 |---|---|
-| P0 | 8 |
-| P1 | 9 |
-| P2 | 14 |
-| P3 | 16 |
+| P0 | 3 |
+| P1 | 7 |
+| P2 | 18 |
+| P3 | 19 |
 
 ## Vue d'ensemble
 
@@ -33,44 +33,44 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 | AUD-007 | Anomalie confirmée | P3 | P3 | Résidu de Rondes : `rondes/models.py` et migrations sans test. |
 | AUD-008 | Anomalie confirmée | P2 | P2 | Carte « À faire » : bouton « Ouvrir » vers une page introuvable (ticket assigné à un chef). |
 | AUD-009 | Anomalie confirmée | P0 | P0 | Commandes `seed_demo*` : comptes à mots de passe connus, sans garde-fou. |
-| AUD-010 | Anomalie confirmée | P0 | P2 | Mot de passe PostgreSQL par défaut faible (`matrix`). |
+| AUD-010 | Anomalie confirmée | P2 | P2 | Mot de passe PostgreSQL par défaut faible (`matrix`). |
 | AUD-011 | Anomalie confirmée | P1 | P1 | HTTPS : reverse proxy TLS non supporté tel que livré ; serveur d'application non déclaré. |
 | AUD-012 | Écart fonctionnel non couvert par l'audit | P2 | P2 | Pas d'import en masse du personnel. |
 | AUD-013 | À reproduire | P3 | P3 | Rapport de bilan : 1,2 à 1,3 s en médiane. |
 | AUD-014 | Anomalie confirmée | P1 | P1 | Visas intermédiaires de la feuille de service attribués par niveau hiérarchique. |
 | AUD-015 | Anomalie confirmée | P1 | P1 | Modification directe de listes publiées par commandant et administrateurs. |
-| AUD-016 | Anomalie confirmée | P2 | P3 | Liens ou boutons affichés à des profils sans droit. |
-| AUD-017 | Anomalie confirmée | P0 | P2 | Clé secrète d'exemple (`change-me`) acceptée en production. |
+| AUD-016 | Anomalie confirmée | P3 | P3 | Liens ou boutons affichés à des profils sans droit. |
+| AUD-017 | Anomalie confirmée | P2 | P2 | Clé secrète d'exemple (`change-me`) acceptée en production. |
 | AUD-018 | Anomalie confirmée | P3 | P3 | Même titre d'onglet `Matrix` partout. |
 | AUD-019 | Anomalie confirmée | P1 | P1 | Structure du bord non modifiable de façon autonome (écran réservé flotte, API admin d'unité). |
 | AUD-020 | Anomalie confirmée | P0 | P0 | Suppression de section, secteur, service : marins détachés, cascade destructrice. |
-| AUD-021 | Anomalie confirmée | P0 | P2 | Erreur 500 (ProtectedError) à la suppression d'un secteur/service portant du matériel. |
+| AUD-021 | Anomalie confirmée | P2 | P2 | Erreur 500 (ProtectedError) à la suppression d'un secteur/service portant du matériel. |
 | AUD-022 | À reproduire | P2 | P2 | 55 comparaisons de niveau en dur contre 71 appels à des seuils configurables. |
 | AUD-023 | Anomalie confirmée | P2 | P2 | Maintenance non conforme sur installation : ni ticket ni alerte ; message trompeur. |
 | AUD-024 | Anomalie confirmée | P2 | P2 | Noms réels de bâtiments dans la démonstration. |
 | AUD-025 | À reproduire | P3 | P3 | Flux calendrier par défaut contenant les quarts d'autres marins. |
 | AUD-026 | Déjà corrigée | P3 | P3 | 404 à la reprise d'un brouillon de signalement d'anomalie. |
 | AUD-027 | Anomalie confirmée | P3 | P3 | Reprise d'un brouillon de compte rendu dont l'occurrence a disparu : page introuvable. |
-| AUD-028 | Anomalie confirmée | P0 | P2 | L'archivage d'un bâtiment, service, secteur, section n'a aucun effet. |
+| AUD-028 | Anomalie confirmée | P1 | P2 | L'archivage d'un bâtiment, service, secteur, section n'a aucun effet. |
 | AUD-029 | Anomalie confirmée | P3 | P3 | Fonctions de complexité excessive (jusqu'à 101). |
 | AUD-030 | À reproduire | P2 | P2 | Modules documentation, RETEX, postes, programme peu testés. |
-| AUD-031 | Anomalie confirmée | P0 | P1 | Aucune procédure de sauvegarde et de restauration. |
+| AUD-031 | Anomalie confirmée | P1 | P1 | Aucune procédure de sauvegarde et de restauration. |
 | AUD-032 | Anomalie confirmée | P2 | P2 | Sans Redis/Celery, aucune alerte automatique ni signalement. |
 | AUD-033 | Anomalie confirmée | P2 | P2 | Double envoi de « ajouter un créneau » : deux créneaux identiques. |
 | AUD-034 | Anomalie confirmée | P0 | P1 | Suppression physique de compte : tâches, difficultés, traçabilité détruites. |
-| AUD-035 | Anomalie confirmée | P1 | P2 | Aucune limitation des tentatives de connexion. |
+| AUD-035 | Anomalie confirmée | P2 | P2 | Aucune limitation des tentatives de connexion. |
 | AUD-036 | Écart fonctionnel non couvert par l'audit | P3 | P3 | Démonstration sans de nombreux états et cas limites. |
-| AUD-037 | Décision PO manquante | P2 | P3 | Installation : service ET secteur obligatoires. |
+| AUD-037 | Décision PO manquante | P3 | P3 | Installation : service ET secteur obligatoires. |
 | AUD-038 | Écart fonctionnel non couvert par l'audit | P3 | P3 | Notifications à deux états seulement ; pas d'archivage. |
 | AUD-039 | Anomalie confirmée | P3 | P3 | Rappels évalués à la lecture des pages, sans tâche planifiée. |
 | AUD-040 | Fonctionnement conforme | P3 | P3 | Prêts, retours, inventaires de matériel absents. |
 | AUD-041 | Décision PO manquante | P3 | P3 | Niveaux d'annonce « Information / Important / Urgent » au lieu de « Critique ». |
 | AUD-042 | Décision PO manquante | P3 | P3 | Deux écarts d'interface des quarts, décision UX ouverte. |
 | AUD-043 | Anomalie confirmée | P2 | P2 | Ticket correctif : sauts de statut libres, état du matériel inchangé. |
-| AUD-044 | Anomalie confirmée | P1 | P2 | Réaffectation d'une installation sans circuit, notification, trace ni contrôle de filiation. |
-| AUD-045 | Anomalie confirmée | P1 | P3 | RETEX : « COMA référent » = simple tri ; tout habilité valide. |
-| AUD-046 | Écart fonctionnel non couvert par l'audit | P2 | P3 | Composition-type d'une fraction à quai absente ; poste en texte libre. |
-| AUD-047 | Anomalie confirmée | P1 | P3 | Prêt à appareiller signé avec points non vérifiés. |
+| AUD-044 | Anomalie confirmée | P2 | P2 | Réaffectation d'une installation sans circuit, notification, trace ni contrôle de filiation. |
+| AUD-045 | Anomalie confirmée | P2 | P3 | RETEX : « COMA référent » = simple tri ; tout habilité valide. |
+| AUD-046 | Écart fonctionnel non couvert par l'audit | P3 | P3 | Composition-type d'une fraction à quai absente ; poste en texte libre. |
+| AUD-047 | Anomalie confirmée | P2 | P3 | Prêt à appareiller signé avec points non vérifiés. |
 
 ## AUD-001 — Création de feuille de service ouverte à tout marin du bâtiment (sur `main`).
 
@@ -83,7 +83,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : quarts (models, feuille_service_views, réglages)
 8. **Dépendances** : Décision de fusion V1.1 → `main`
 9. **Tests d'acceptation** : T-FDS-01 T-FDS-02 T-FDS-10 T-FDS-11 T-REG-03
-10. **Priorité proposée** : P1
+10. **Priorité proposée** : P1 — catégorie : Contournement majeur d'une autorisation. Un matelot pouvait créer une feuille de service. Corrigé en V1.1 ; reste P1 tant que la V1.1 n'est pas fusionnée (DP-01).
 
 ## AUD-002 — Aucune intégration continue (pas de `.github`).
 
@@ -96,7 +96,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : racine, scripts/
 8. **Dépendances** : Décision DP-07 (F-14)
 9. **Tests d'acceptation** : T-REG-01 T-REG-02
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Fonctionnalité absente ou amélioration. Absence d'intégration continue : amélioration de process, pas un défaut en service.
 
 ## AUD-003 — Parcours navigateur cités comme preuve absents du dépôt.
 
@@ -109,7 +109,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : tests navigateur
 8. **Dépendances** : DP-08 (F-14)
 9. **Tests d'acceptation** : T-REG-03
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Fonctionnalité absente ou amélioration. Preuves navigateur non rejouables : amélioration de process.
 
 ## AUD-004 — Sources de vérité non alignées (baseline Notion du 10/10 sur `dfd6a3c`, `main` à `6ef16ad`, V1.1 à `1c37f22`).
 
@@ -122,7 +122,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : Notion
 8. **Dépendances** : —
 9. **Tests d'acceptation** : —
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Documentation Notion non alignée.
 
 ## AUD-005 — `CLAUDE.md` présente `RoleLevel` / `RolePermission` comme points d'extension.
 
@@ -135,7 +135,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : CLAUDE.md
 8. **Dépendances** : —
 9. **Tests d'acceptation** : —
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Formulation de CLAUDE.md.
 
 ## AUD-006 — Décisions contradictoires sur la synthèse de passation.
 
@@ -148,7 +148,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : org, matrix/core/equipage
 8. **Dépendances** : DP-04
 9. **Tests d'acceptation** : T-REG-03
-10. **Priorité proposée** : P3 (audit : P2)
+10. **Priorité proposée** : P3 (audit : P2) — catégorie : Fonctionnalité absente ou amélioration. Reclassée : le PO a décidé (pas de module autonome, préserver l'existant). Reste l'alignement documentaire.
 
 ## AUD-007 — Résidu de Rondes : `rondes/models.py` et migrations sans test.
 
@@ -161,7 +161,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : rondes
 8. **Dépendances** : —
 9. **Tests d'acceptation** : —
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Résidu volontairement conservé (données et migrations).
 
 ## AUD-008 — Carte « À faire » : bouton « Ouvrir » vers une page introuvable (ticket assigné à un chef).
 
@@ -174,20 +174,20 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : dashboard, logistics
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-UX-06
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Dysfonctionnement métier important. Bouton « Ouvrir » vers une page introuvable ; aucune perte de donnée.
 
 ## AUD-009 — Commandes `seed_demo*` : comptes à mots de passe connus, sans garde-fou.
 
 1. **Identifiant** : AUD-009
 2. **Description** : Commandes `seed_demo*` : comptes à mots de passe connus, sans garde-fou.
-3. **État vérifié dans le code actuel** : **Anomalie confirmée.** [V] `seed_demo.py:92-95` : `get_or_create` puis `set_password` sur des comptes existants ; aucune référence à `DEBUG` ni à une variable d'activation ; 4 commandes concernées (`seed_demo`, `_dense`, `_mer_quai`, `_metier`).
+3. **État vérifié dans le code actuel** : **Anomalie confirmée.** [V] `_utilisateur` (seed_demo.py:90-100) : `set_password` seulement à la création (`if cree:`), donc le mot de passe d'un compte existant n'est pas modifié ; en revanche le profil (rôle, bâtiment, service, secteur, section, équipage, fonction) d'un compte existant du même nom est écrasé. La commande crée un superutilisateur `admin`/`admin` et des comptes en `pass` ; aucune référence à `DEBUG` ni à une variable d'activation ; 4 commandes concernées. [N] Tâche Notion « Priorité sécurité » (PO, 28/10).
 4. **Décision PO applicable** : DEC-PRE-06, DP-01 ; proposition P06
-5. **Risque** : Compromission de comptes administrateurs, écrasement de mots de passe réels.
-6. **Correction attendue** : Refus par défaut, variable d'activation explicite, marqueur de base de démonstration, test automatique (P06).
+5. **Risque** : Sur une base réelle : 61 comptes à mot de passe connu (dont un superutilisateur) et profil d'un compte homonyme écrasé (un `admin` existant recevrait le rôle de compte de flotte).
+6. **Correction attendue** : Refus par défaut, variable d'activation explicite, marqueur de base de démonstration, arrêt en cas de collision de noms, test automatique (P06).
 7. **Modules concernés** : matrix/core/management/commands/seed_demo*
 8. **Dépendances** : Aucune
 9. **Tests d'acceptation** : T-SEC-01 T-SEC-02 T-SEC-03 T-SEC-04
-10. **Priorité proposée** : P0
+10. **Priorité proposée** : P0 — catégorie : Risque critique de sécurité ou d'intégrité des données. Création possible de 61 comptes à mot de passe connu (dont un superutilisateur) sur une base réelle, et écrasement du profil d'un compte homonyme. Déjà jugé « risque de sécurité sérieux » par le PO (28/10). Conditionné à une exécution par erreur, mais sans aucun garde-fou.
 
 ## AUD-010 — Mot de passe PostgreSQL par défaut faible (`matrix`).
 
@@ -200,7 +200,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/settings.py
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-SEC-06
-10. **Priorité proposée** : P0 (audit : P2)
+10. **Priorité proposée** : P2 — catégorie : Risque critique de sécurité ou d'intégrité des données. Durcissement : mot de passe de base par défaut faible. Conditionnel (DB_HOST défini sans DB_PASSWORD), non exploitable dans la configuration livrée. Ma proposition précédente (P0) est retirée. Lot minuscule, à grouper avec un autre lot.
 
 ## AUD-011 — HTTPS : reverse proxy TLS non supporté tel que livré ; serveur d'application non déclaré.
 
@@ -213,7 +213,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/settings.py, docs
 8. **Dépendances** : Experts SIC (C2, C3)
 9. **Tests d'acceptation** : T-REG-03
-10. **Priorité proposée** : P1
+10. **Priorité proposée** : P1 — catégorie : Risque critique de sécurité ou d'intégrité des données. Déploiement derrière un proxy TLS non supporté tel que livré. Bloquant pour une mise en service, pas pour la démonstration actuelle. À valider avec les SIC.
 
 ## AUD-012 — Pas d'import en masse du personnel.
 
@@ -226,7 +226,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : accounts, org
 8. **Dépendances** : Rattachement obligatoire (DEC-DRT-06)
 9. **Tests d'acceptation** : —
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Fonctionnalité absente ou amélioration. Import en masse : besoin confirmé, fonction absente.
 
 ## AUD-013 — Rapport de bilan : 1,2 à 1,3 s en médiane.
 
@@ -239,7 +239,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : reports
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-REG-05
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Mesure sans défaut établi.
 
 ## AUD-014 — Visas intermédiaires de la feuille de service attribués par niveau hiérarchique.
 
@@ -252,7 +252,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : quarts
 8. **Dépendances** : DEC-SUP-* ; F-01
 9. **Tests d'acceptation** : T-DRT-01 T-FDS-03 T-FDS-04 T-FDS-11
-10. **Priorité proposée** : P1
+10. **Priorité proposée** : P1 — catégorie : Contournement majeur d'une autorisation. Visas intermédiaires obtenus par le niveau hiérarchique et non par la fonction.
 
 ## AUD-015 — Modification directe de listes publiées par commandant et administrateurs.
 
@@ -265,7 +265,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : quarts (listes)
 8. **Dépendances** : F-01, F-02
 9. **Tests d'acceptation** : T-DRT-01 T-FDS-05
-10. **Priorité proposée** : P1
+10. **Priorité proposée** : P1 — catégorie : Contournement majeur d'une autorisation. Un commandant ou un administrateur modifie directement une liste publiée, hors circuit.
 
 ## AUD-016 — Liens ou boutons affichés à des profils sans droit.
 
@@ -278,7 +278,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : navigation, gabarits
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-UX-06
-10. **Priorité proposée** : P2 (audit : P3)
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Lien affiché sans droit : refus côté serveur, donc gêne seulement.
 
 ## AUD-017 — Clé secrète d'exemple (`change-me`) acceptée en production.
 
@@ -291,7 +291,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/settings.py
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-SEC-05
-10. **Priorité proposée** : P0 (audit : P2)
+10. **Priorité proposée** : P2 — catégorie : Risque critique de sécurité ou d'intégrité des données. Une clé secrète d'exemple acceptée en production permettrait de falsifier des sessions, mais seulement si l'exploitant copie `.env.example` sans le modifier. Ma proposition précédente (P0) est retirée ; passe en P0 si une instance exposée est prévue avant correction.
 
 ## AUD-018 — Même titre d'onglet `Matrix` partout.
 
@@ -304,7 +304,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/templates
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-UX-06
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Titre d'onglet.
 
 ## AUD-019 — Structure du bord non modifiable de façon autonome (écran réservé flotte, API admin d'unité).
 
@@ -317,7 +317,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/views.py, org
 8. **Dépendances** : F-10 ; DEC-DRT-05
 9. **Tests d'acceptation** : T-ORG-06
-10. **Priorité proposée** : P1
+10. **Priorité proposée** : P1 — catégorie : Dysfonctionnement métier important. Un bord ne peut pas gérer sa structure seul. Bloquant pour la mise en service autonome.
 
 ## AUD-020 — Suppression de section, secteur, service : marins détachés, cascade destructrice.
 
@@ -330,7 +330,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/views.py, org
 8. **Dépendances** : Archivage effectif (AUD-028)
 9. **Tests d'acceptation** : T-ORG-01 T-ORG-02
-10. **Priorité proposée** : P0
+10. **Priorité proposée** : P0 — catégorie : Risque critique de sécurité ou d'intégrité des données. Suppression immédiate d'une unité : mesurée, elle détruit des listes, annonces et documents et élargit l'accès de marins détachés. Irréversible sans sauvegarde.
 
 ## AUD-021 — Erreur 500 (ProtectedError) à la suppression d'un secteur/service portant du matériel.
 
@@ -343,7 +343,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/views.py
 8. **Dépendances** : AUD-020
 9. **Tests d'acceptation** : T-ORG-03
-10. **Priorité proposée** : P0 (audit : P2)
+10. **Priorité proposée** : P2 — catégorie : Dysfonctionnement métier important. Erreur 500 à la suppression d'un secteur portant du matériel : aucune donnée n'est perdue (la protection joue). Ma proposition précédente (P0) est retirée ; traité avec le lot de suppression.
 
 ## AUD-022 — 55 comparaisons de niveau en dur contre 71 appels à des seuils configurables.
 
@@ -356,7 +356,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : droits (code)
 8. **Dépendances** : F-01
 9. **Tests d'acceptation** : T-DRT-04
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Contournement majeur d'une autorisation. Hypothèse d'audit non établie ; à confirmer cas par cas.
 
 ## AUD-023 — Maintenance non conforme sur installation : ni ticket ni alerte ; message trompeur.
 
@@ -369,7 +369,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : maintenance
 8. **Dépendances** : F-12
 9. **Tests d'acceptation** : T-ANO-03
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Dysfonctionnement métier important. Message trompeur sur un ticket jamais créé.
 
 ## AUD-024 — Noms réels de bâtiments dans la démonstration.
 
@@ -382,7 +382,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : seed_demo*
 8. **Dépendances** : AUD-009
 9. **Tests d'acceptation** : T-SEC-03
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Fonctionnalité absente ou amélioration. Noms réels de bâtiments dans la démonstration (demande du PO, 28/10).
 
 ## AUD-025 — Flux calendrier par défaut contenant les quarts d'autres marins.
 
@@ -395,7 +395,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : calendar_app
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-UX-08 T-DRT-03
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Dysfonctionnement métier important. Hypothèse de fuite de vue calendrier, non vérifiée.
 
 ## AUD-026 — 404 à la reprise d'un brouillon de signalement d'anomalie.
 
@@ -408,7 +408,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : brouillons
 8. **Dépendances** : Fusion V1.1
 9. **Tests d'acceptation** : T-UX-06
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Dysfonctionnement métier important. Corrigé en V1.1.
 
 ## AUD-027 — Reprise d'un brouillon de compte rendu dont l'occurrence a disparu : page introuvable.
 
@@ -421,7 +421,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : brouillons
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-UX-06
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Dysfonctionnement métier important. Brouillon mort ; aucun risque de données.
 
 ## AUD-028 — L'archivage d'un bâtiment, service, secteur, section n'a aucun effet.
 
@@ -434,7 +434,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : org
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-ORG-02
-10. **Priorité proposée** : P0 (audit : P2)
+10. **Priorité proposée** : P1 (audit : P2) — catégorie : Dysfonctionnement métier important. Reclassée : l'archivage sans effet est le prérequis du correctif d'AUD-020 (interdire la suppression laisse sinon le bord sans moyen de retirer une unité). Défaut fonctionnel, pas un risque de perte en soi. Ma proposition précédente (P0) est ramenée à P1.
 
 ## AUD-029 — Fonctions de complexité excessive (jusqu'à 101).
 
@@ -447,7 +447,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/views.py, assets/asset_views.py
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-REG-01
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Dette de structure du code.
 
 ## AUD-030 — Modules documentation, RETEX, postes, programme peu testés.
 
@@ -460,7 +460,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : documentation, retex, postes, programme
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-RTX-01 T-RTX-05
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Fonctionnalité absente ou amélioration. Hypothèse de lacune de tests.
 
 ## AUD-031 — Aucune procédure de sauvegarde et de restauration.
 
@@ -473,7 +473,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : docs, exploitation
 8. **Dépendances** : Experts SIC (C4)
 9. **Tests d'acceptation** : T-REG-04
-10. **Priorité proposée** : P0 (audit : P1)
+10. **Priorité proposée** : P1 — catégorie : Risque critique de sécurité ou d'intégrité des données. Perte de données irréversible sans sauvegarde testée, mais procédure d'exploitation et non défaut de code ; prérequis de toute mise en service. Ma proposition précédente (P0) est ramenée à l'audit (P1) car la démonstration actuelle n'a pas de données réelles.
 
 ## AUD-032 — Sans Redis/Celery, aucune alerte automatique ni signalement.
 
@@ -486,7 +486,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : matrix/celery.py, notifications
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-TAC-14
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Dysfonctionnement métier important. Supervision de Celery.
 
 ## AUD-033 — Double envoi de « ajouter un créneau » : deux créneaux identiques.
 
@@ -499,7 +499,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : quarts
 8. **Dépendances** : D-06 (Notion)
 9. **Tests d'acceptation** : T-FDS-05
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Dysfonctionnement métier important. Doublon de créneau, sans perte.
 
 ## AUD-034 — Suppression physique de compte : tâches, difficultés, traçabilité détruites.
 
@@ -512,7 +512,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : accounts, taches
 8. **Dépendances** : F-05
 9. **Tests d'acceptation** : T-CPT-01 T-CPT-02 T-CPT-03 T-CPT-09
-10. **Priorité proposée** : P0 (audit : P1)
+10. **Priorité proposée** : P0 (audit : P1) — catégorie : Risque critique de sécurité ou d'intégrité des données. Reclassée : suppression d'un compte en un clic sans confirmation serveur ; mesurée : 6 tâches sur 37 et 3 difficultés sur 4 détruites, auteur effacé de 13 lignes d'audit, 53 créneaux sans titulaire. Perte irréversible de données et de traçabilité, même famille qu'AUD-020.
 
 ## AUD-035 — Aucune limitation des tentatives de connexion.
 
@@ -525,7 +525,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : accounts, settings
 8. **Dépendances** : Experts SIC
 9. **Tests d'acceptation** : T-SEC-07
-10. **Priorité proposée** : P1 (audit : P2)
+10. **Priorité proposée** : P2 — catégorie : Risque critique de sécurité ou d'intégrité des données. Durcissement d'authentification à valider avec les SIC. Ma proposition précédente (P1) est ramenée à l'audit.
 
 ## AUD-036 — Démonstration sans de nombreux états et cas limites.
 
@@ -538,7 +538,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : seed_demo*
 8. **Dépendances** : Après AUD-009 et lots tâches
 9. **Tests d'acceptation** : T-REG-03
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Démonstration incomplète.
 
 ## AUD-037 — Installation : service ET secteur obligatoires.
 
@@ -551,7 +551,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : assets
 8. **Dépendances** : F-03
 9. **Tests d'acceptation** : T-ORG-07
-10. **Priorité proposée** : P2 (audit : P3)
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Décision manquante ; pas de défaut.
 
 ## AUD-038 — Notifications à deux états seulement ; pas d'archivage.
 
@@ -564,7 +564,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : notifications
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-UX-05
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Archivage des notifications.
 
 ## AUD-039 — Rappels évalués à la lecture des pages, sans tâche planifiée.
 
@@ -577,7 +577,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : notifications
 8. **Dépendances** : AUD-032
 9. **Tests d'acceptation** : T-TAC-14
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Dysfonctionnement métier important. Rappels évalués à la lecture.
 
 ## AUD-040 — Prêts, retours, inventaires de matériel absents.
 
@@ -590,7 +590,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : logistics
 8. **Dépendances** : —
 9. **Tests d'acceptation** : —
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Report volontaire.
 
 ## AUD-041 — Niveaux d'annonce « Information / Important / Urgent » au lieu de « Critique ».
 
@@ -603,7 +603,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : annonces, notifications
 8. **Dépendances** : F-08
 9. **Tests d'acceptation** : T-UX-06
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Vocabulaire.
 
 ## AUD-042 — Deux écarts d'interface des quarts, décision UX ouverte.
 
@@ -616,7 +616,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : quarts
 8. **Dépendances** : —
 9. **Tests d'acceptation** : T-UX-04
-10. **Priorité proposée** : P3
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. Décision UX ouverte.
 
 ## AUD-043 — Ticket correctif : sauts de statut libres, état du matériel inchangé.
 
@@ -629,7 +629,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : logistics
 8. **Dépendances** : F-04
 9. **Tests d'acceptation** : T-ANO-04
-10. **Priorité proposée** : P2
+10. **Priorité proposée** : P2 — catégorie : Dysfonctionnement métier important. Déroulé du ticket non contraignant. Ma proposition précédente est inchangée.
 
 ## AUD-044 — Réaffectation d'une installation sans circuit, notification, trace ni contrôle de filiation.
 
@@ -642,7 +642,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : assets
 8. **Dépendances** : DEC-DRT-02 ; F-03
 9. **Tests d'acceptation** : T-MAT-01 T-MAT-02 T-MAT-03 T-MAT-04 T-MAT-05
-10. **Priorité proposée** : P1 (audit : P2)
+10. **Priorité proposée** : P2 — catégorie : Dysfonctionnement métier important. Réaffectation sans circuit ni trace. Je n'ai pas vérifié qui peut aujourd'hui réaffecter ; si l'accès est large, le reclasser en P1. Ma proposition précédente (P1) est ramenée à l'audit.
 
 ## AUD-045 — RETEX : « COMA référent » = simple tri ; tout habilité valide.
 
@@ -655,7 +655,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : retex
 8. **Dépendances** : DEC-SUP-*
 9. **Tests d'acceptation** : T-RTX-01 T-RTX-02 T-RTX-05
-10. **Priorité proposée** : P1 (audit : P3)
+10. **Priorité proposée** : P2 (audit : P3) — catégorie : Dysfonctionnement métier important. Reclassée : le circuit est maintenant décidé et le code laisse valider tout habilité, ce qui publie un RETEX hors circuit.
 
 ## AUD-046 — Composition-type d'une fraction à quai absente ; poste en texte libre.
 
@@ -668,7 +668,7 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : quarts, postes
 8. **Dépendances** : F-13
 9. **Tests d'acceptation** : T-FDS-08 T-FDS-09
-10. **Priorité proposée** : P2 (audit : P3)
+10. **Priorité proposée** : P3 — catégorie : Fonctionnalité absente ou amélioration. GO du PO requis ; ma proposition précédente (P2) est ramenée à l'audit.
 
 ## AUD-047 — Prêt à appareiller signé avec points non vérifiés.
 
@@ -681,4 +681,4 @@ Chaque fiche reprend les 10 rubriques demandées. **Vérification** : `[V]` = re
 7. **Modules concernés** : dashboard (appareillage), assets
 8. **Dépendances** : F-07 ; fiches de référence
 9. **Tests d'acceptation** : T-APP-01 à T-APP-09
-10. **Priorité proposée** : P1 (audit : P3)
+10. **Priorité proposée** : P2 (audit : P3) — catégorie : Dysfonctionnement métier important. Reclassée : un appareillage peut être signé avec des points non vérifiés ; Matrix ne délivre pas l'autorisation d'appareiller, donc pas P1. Passe en P1 quand la question de l'autorité qui définit les contrôles obligatoires sera réglée.

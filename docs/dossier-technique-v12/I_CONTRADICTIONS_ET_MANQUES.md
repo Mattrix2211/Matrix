@@ -1,5 +1,7 @@
 # I. Contradictions, informations manquantes et erratum
 
+> **Mise à jour du 10/11** : le statut à jour de chaque contradiction, information manquante et question est dans `J_TRIAGE_ET_ARBITRAGES.md`. Les contradictions CT-01, 02, 03, 05, 06, 07, 10, 11, 12 y sont **résolues** par S3 ou S1/S2 ; seules C-1 et C-2 restent. Cette pièce garde le détail d'origine.
+
 Cette pièce répond à la consigne « ne crée pas de règle pour résoudre silencieusement une contradiction ». Elle sépare :
 
 1. les **contradictions réelles** (deux sources incompatibles, aucune ne prime clairement) ;

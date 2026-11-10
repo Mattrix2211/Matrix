@@ -1,6 +1,6 @@
-# A. Registre des décisions PO — part 1 : décisions des deux messages du PO
+# A. Registre des décisions PO — part 1 : décisions des trois messages du PO (S1, S2, S3)
 
-Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du PO « Consolidation des décisions », S2 = message de précisions ; N1 à N9 = pages Notion (voir `A_REGISTRE_DECISIONS.md` pour la légende) ; CLAUDE.md = règles du dépôt. **Statut** : « Confirmée PO » = formulée par le PO dans S1/S2 ; ce statut ne dit rien de l'état du code. **État du code** : Existe / Partiel / Absent / Non vérifié, avec preuve (`fichier:ligne` sur `1c37f22`). Les critères de validation renvoient aux tests de `E_STRATEGIE_TESTS.md`.
+Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du PO « Consolidation des décisions », S2 = message de précisions, S3 = message du 10/11 ; N1 à N9 = pages Notion (voir `A_REGISTRE_DECISIONS.md` pour la légende) ; CLAUDE.md = règles du dépôt. **Statut** : « Confirmée PO » = formulée par le PO dans S1/S2 ; ce statut ne dit rien de l'état du code. **État du code** : Existe / Partiel / Absent / Non vérifié, avec preuve (`fichier:ligne` sur `1c37f22`). Les critères de validation renvoient aux tests de `E_STRATEGIE_TESTS.md`.
 
 
 ## Organisation et personnel
@@ -8,7 +8,7 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 | ID | Source | Statut | Acteurs | Règle | Exceptions / précisions | Critères de validation |
 |---|---|---|---|---|---|---|
 | DEC-ORG-01 | S1 §4 | Confirmée PO | Tous | Structure : Bâtiment → Service → Secteur → Section facultative → Matériels et installations. | — | T-ORG-04, T-ORG-07 |
-| DEC-ORG-02 | S1 §4 ; S2 | Confirmée PO | Chef de secteur | Un secteur peut n'avoir aucune section ; le secteur reste alors l'échelon responsable. | Pas de section fictive imposée (DP-03 option D). | T-ORG-04, T-ORG-05 |
+| DEC-ORG-02 | S1 §4 ; S2 ; S3 | Confirmée PO | Chef de secteur | Un secteur peut n'avoir aucune section ; le secteur reste alors l'échelon responsable. | Pas de section fictive imposée (DP-03 option D). | T-ORG-04, T-ORG-05 |
 | DEC-ORG-03 | S1 §4 | Confirmée PO | Gestionnaire matériel | Les matériels sont toujours rattachés à une entité responsable. | Ambiguïté : l'entité est-elle le service, le secteur ou la section ? (F-03) | T-ORG-07 |
 | DEC-ORG-04 | S1 §4 ; N5 | Confirmée PO | Tous | Distinguer grade, fonction occupée, périmètre de responsabilité, spécialité, brevets/formations/habilitations. Les brevets ne sont pas des grades. | — | T-DRT-04 |
 | DEC-ORG-05 | S1 §4 | Confirmée PO | Responsable formation | Prendre en compte FEM, BE, BAT, BS, BST et les évolutions récentes (BHT, C-CDM). | Libellés et validité exacts non fournis (IM-01). | à définir |
@@ -18,12 +18,12 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 
 | ID | Source | Statut | Acteurs | Règle | Exceptions / précisions | Critères de validation |
 |---|---|---|---|---|---|---|
-| DEC-DRT-01 | S1 §4 | Confirmée PO | Tous | Les droits métier découlent des fonctions et des périmètres de responsabilité, pas du seul niveau hiérarchique. | — | T-DRT-04 |
+| DEC-DRT-01 | S1 §4 ; S3 | Confirmée PO | Tous | Les droits métier découlent de la fonction exercée et du périmètre de responsabilité, pas uniquement du grade ni du niveau hiérarchique. | — | T-DRT-04 |
 | DEC-DRT-02 | S1 §4 ; DP-09 ; N1 §5 ; N3 | Confirmée PO | Admin technique | Un administrateur technique ne devient pas automatiquement autorité de validation métier ; il désigne les titulaires sans viser à leur place. | Application mécanique d'un transfert approuvé autorisée (DEC-MAT-02). | T-DRT-01, T-FDS-11 |
 | DEC-DRT-03 | S1 §4 | Confirmée PO | Équipier | Consultation des documents de maintenance autorisés des autres sections du secteur ; pas de modification ni de clôture hors périmètre. | — | T-DRT-02 |
 | DEC-DRT-04 | S1 §4 | Confirmée PO | Chef | Accès intersectoriels et documents sensibles : droits appropriés requis. | — | T-DRT-03 |
 | DEC-DRT-05 | S1 §4 ; DP-13 ; N1 §41 | Confirmée PO | Admin / chefs | Éviter les suppressions physiques qui détruisent l'historique. | Suppression réservée aux objets sans historique (A5/P07, recommandation d'audit). | T-ORG-01, T-ORG-02, T-CPT-01 |
-| DEC-DRT-06 | S1 §4 ; S2 | Confirmée PO | Autorité habilitée | Un compte dont le rattachement professionnel est incomplet n'accède pas aux informations opérationnelles d'un secteur sans autorisation. | Autorisation explicite et tracée. Remplace la grâce « immédiate/configurable » (A4) : pas de grâce implicite. | T-CPT-04, T-CPT-05 |
+| DEC-DRT-06 | S1 §4 ; S2 ; N7 (28/10) | Confirmée PO | Autorité habilitée | Un compte dont le rattachement professionnel est incomplet n'accède pas aux informations opérationnelles d'un secteur sans autorisation. | Autorisation explicite et tracée. Remplace la grâce « immédiate/configurable » (A4) : pas de grâce implicite. | T-CPT-04, T-CPT-05 |
 
 ## Mutation et départ de personnel
 
@@ -52,9 +52,10 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 
 | ID | Source | Statut | Acteurs | Règle | Exceptions / précisions | Critères de validation |
 |---|---|---|---|---|---|---|
-| DEC-QUA-01 | S1 §5 | Confirmée PO | Chef | Matrix ne bloque pas l'attribution ni l'exécution d'une tâche selon formations, brevets ou habilitations ; le responsable humain choisit. | — | T-TAC-15 |
+| DEC-QUA-01 | S1 §5 ; S3 | Confirmée PO | Chef | Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit. | — | T-TAC-15 |
 | DEC-QUA-02 | S1 §5 | Confirmée PO | Chef | Les qualifications connues peuvent être affichées à titre informatif. | — | T-TAC-15 |
 | DEC-QUA-03 | S1 §5 | Confirmée PO | Système | Une information manquante ou périmée ne bloque pas l'attribution. | Les obligations réglementaires et de sécurité restent applicables hors Matrix. | T-TAC-15 |
+| DEC-QUA-04 | S3 | Confirmée PO | Chaîne de validation | Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures officielles, dont les exigences réglementaires applicables doivent être respectées. | Les exigences elles-mêmes viennent du bord et ne sont pas inventées ; mécanisme de contrôle proposé en J (T-3). | T-QUA-01 |
 
 ## Tâches collectives
 
@@ -137,12 +138,13 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 | DEC-FDS-04 | S1 §7 | Confirmée PO | BSC | Le BSC assure l'impression A4 pour l'affichage. | — | à définir |
 | DEC-FDS-05 | S1 §7 | Confirmée PO | BSC / COMAEQ | Une modification après publication entraîne une nouvelle version officielle. | — | T-FDS-05 |
 | DEC-FDS-06 | S1 §7 | Confirmée PO | Système | Matrix signale la nécessité de réimprimer et remplacer une feuille déjà affichée. | — | T-FDS-06 |
-| DEC-FDS-07 | S1 §7 | Confirmée PO | COMAEQ | Échanges de tours : circuit d'examen puis validation, décision finale du COMAEQ. | Contredit la tâche Notion « validation par le chef de liste habilité » (CT-01). | T-FDS-07 |
+| DEC-FDS-07 | S1 §7 ; S3 | Confirmée PO | COMAEQ ou suppléant officiellement habilité | Échanges de tours : la décision finale revient au COMAEQ ou à son suppléant officiellement habilité. | Remplace la décision Notion du 28/10 (chef de liste habilité valide) : S3 est postérieur et explicite. | T-FDS-07 |
 | DEC-FDS-08 | S1 §7 ; N8 | Confirmée PO | BSC | Les fractions de service à quai sont configurables par bâtiment. | Composition-type : GO du PO requis (AUD-046). | T-FDS-08 |
 | DEC-FDS-09 | S1 §7 | Confirmée PO | BSC | Écarts signalés et justifiés, sans blocage automatique injustifié. | — | T-FDS-09 |
 | DEC-FDS-10 | S1 §7 | Confirmée PO | Tous | Exigences opérationnelles et réglementaires restent applicables. | — | à définir |
 | DEC-FDS-11 | S1 §7 | Confirmée PO | Équipier | La création d'une feuille n'est pas ouverte à n'importe quel équipier. | — | T-FDS-01 |
 | DEC-FDS-12 | S1 §7 ; N3 | Confirmée PO | COMAEQ des deux équipages | Prendre en compte deux équipages ; chaque équipage a sa feuille, sans validation croisée par le seul grade. | — | T-FDS-10 |
+| DEC-FDS-13 | S3 | Confirmée PO | BSC ou chef de liste | Le BSC ou le chef de liste peut instruire la demande d'échange ; il ne dispose pas automatiquement de l'autorité de validation finale. | — | T-FDS-12 |
 
 ## Préparation à l'appareillage
 
@@ -157,16 +159,16 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 | DEC-APP-07 | S1 §8 | Confirmée PO | Système | Les contrôles supprimés sont archivés. | — | T-APP-07 |
 | DEC-APP-08 | S1 §8 | Confirmée PO | Système | Les signatures affectées sont invalidées. | — | T-APP-07 |
 | DEC-APP-09 | S1 §8 | Confirmée PO | Système | Les préparations clôturées conservent leur version historique. | — | T-APP-08 |
-| DEC-APP-10 | S2 | Confirmée PO | Chef de service, COMANAV | Les contrôles obligatoires sont vérifiés avant validation. | Qui qualifie un contrôle d'« obligatoire » : F-07. | T-APP-03 |
-| DEC-APP-11 | S1 §8 ; S2 | Confirmée PO | Chef de secteur | Réserves justifiées possibles, gérées explicitement, dans les limites des règles de sécurité. | — | T-APP-04 |
-| DEC-APP-12 | S2 | Confirmée PO | Chaîne de validation | Les points critiques non dérogeables n'admettent aucune réserve. | Qui désigne un point « critique » : F-07. | T-APP-05 |
+| DEC-APP-10 | S2 ; S3 | Confirmée PO | Chaîne de validation | Les contrôles obligatoires sont traités avant validation. | L'autorité qui qualifie un contrôle d'« obligatoire » n'est pas définie : à préciser à partir des fonctions existantes et des procédures du bâtiment (C-2). Non inventée. | T-APP-03 |
+| DEC-APP-11 | S1 §8 ; S2 ; S3 | Confirmée PO | Chef de secteur | Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité. | — | T-APP-04 |
+| DEC-APP-12 | S2 ; S3 | Confirmée PO | Chaîne de validation | Les contrôles critiques non dérogeables ne peuvent pas être contournés. | L'autorité qui qualifie un contrôle de « critique » n'est pas définie (C-2). Non inventée. | T-APP-05 |
 | DEC-APP-13 | S1 §8 | Confirmée PO | Tous | Matrix ne délivre pas l'autorisation opérationnelle d'appareiller. | — | T-APP-09 |
 
 ## RETEX
 
 | ID | Source | Statut | Acteurs | Règle | Exceptions / précisions | Critères de validation |
 |---|---|---|---|---|---|---|
-| DEC-RTX-01 | S1 §9 ; S2 | Confirmée PO | Auteur, chef de section (si présent), chef de secteur, chef de service | Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service. | Remplace la recommandation B5 (« COMA référent d'abord »). | T-RTX-01, T-RTX-02, T-RTX-05 |
+| DEC-RTX-01 | S1 §9 ; S2 ; S3 | Confirmée PO | Auteur, chef de section (si présent), chef de secteur, chef de service | Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service. | Remplace la recommandation B5 (« COMA référent d'abord »). | T-RTX-01, T-RTX-02, T-RTX-05 |
 | DEC-RTX-02 | S1 §9 | Confirmée PO | Valideur | Une demande de correction doit être motivée. | — | T-RTX-03 |
 | DEC-RTX-03 | S1 §9 | Confirmée PO | Auteur, valideurs | La correction entraîne une nouvelle version et les validations nécessaires. | — | T-RTX-03 |
 | DEC-RTX-04 | S1 §9 | Confirmée PO | Système | Traçabilité de qui a proposé, modifié, validé ou rejeté. | — | T-RTX-04 |
@@ -175,12 +177,13 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 
 | ID | Source | Statut | Acteurs | Règle | Exceptions / précisions | Critères de validation |
 |---|---|---|---|---|---|---|
-| DEC-SUP-01 | S1 §10 | Confirmée PO | Autorité compétente | La suppléance est explicite, temporaire, limitée à une fonction et un périmètre, activée par une autorité compétente, traçable. | — | T-SUP-01, T-SUP-02 |
+| DEC-SUP-01 | S1 §10 ; S3 | Confirmée PO | Autorité compétente | La suppléance est explicite, temporaire, limitée à une fonction et un périmètre, activée par une autorité compétente, traçable. | — | T-SUP-01, T-SUP-02 |
 | DEC-SUP-02 | S1 §10 | Confirmée PO | Système | Une seule personne exerce la responsabilité active d'un même périmètre à un instant donné. | — | T-SUP-03 |
 | DEC-SUP-03 | S1 §10 | Confirmée PO | Valideur | Le retour anticipé ou la fin de suppléance suit les règles de validation retenues. | Règles non précisées (F-06). | T-SUP-06 |
 | DEC-SUP-04 | S1 §10 | Confirmée PO | Système | Les actes du suppléant restent attribués à leur auteur. | — | T-SUP-04 |
 | DEC-SUP-05 | S1 §10 | Confirmée PO | Titulaire | Le titulaire retrouve un récapitulatif des actions réalisées pendant son absence. | — | T-SUP-05 |
-| DEC-SUP-06 | S1 §10 | Confirmée PO | Suppléant | Les qualifications réglementaires nécessaires à certains visas restent obligatoires. | Matrix bloque-t-il ou informe-t-il ? (F-06, tension avec DEC-QUA-01). | T-SUP-07 |
+| DEC-SUP-06 | S1 §10 ; S3 | Confirmée PO | Suppléant | Les qualifications réglementaires nécessaires à certains visas restent obligatoires pour le suppléant (voir DEC-QUA-04). | — | T-SUP-07 |
+| DEC-SUP-07 | S3 | Confirmée PO | Tous | La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision fonctionnelle de suppléance. | — | T-SUP-01 |
 
 ## Mouvements de matériels
 

@@ -56,7 +56,7 @@ Bâtiment → équipage (A/B) → service → secteur → section facultative. L
 | Circuit | Étapes (décision) | État dans la V1.1 |
 |---|---|---|
 | Feuille de service | BSC (rédacteur désigné) → COMAEQ ou suppléant habilité → publication ; modification = nouvelle version ; alerte de réimpression | Rédaction, visa et versions : existent ; suppléant officiel et alerte : absents |
-| Échange de tours | Examen → décision finale COMAEQ (S1) ou chef de liste (N7) | Existe ; autorité finale : contradiction CT-01 |
+| Échange de tours | BSC ou chef de liste instruit → décision finale du COMAEQ ou de son suppléant habilité (S1, S3) | Existe ; la validation est aujourd'hui donnée à qui gère la liste (`peut_valider_echange`), à corriger au lot L10 |
 | Validation de tâche | Option du chef : équipier → « À valider » → chef de section ou chef de secteur (correction motivée possible) | Absent |
 | Visa technique | Distinct de la validation de tâche | Existe (fiches) |
 | RETEX | Auteur → chef de section si présent → chef de secteur → chef de service | Absent (seuil de niveau) |

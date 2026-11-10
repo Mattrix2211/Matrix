@@ -7,7 +7,7 @@ Types : N nominal · R refus d'accès · L cas limite · H historique · G non-r
 | T-SEC-01 | Exploitant | R | Lancer `seed_demo*` sans variable d'activation explicite : refus avec message, aucune donnée écrite. |
 | T-SEC-02 | Exploitant | R | Lancer `seed_demo*` avec la variable mais sur une base sans marqueur « démonstration » : refus. |
 | T-SEC-03 | Exploitant | R | Instance en production (DEBUG absent) avec marqueur de démonstration en base : démarrage refusé. |
-| T-SEC-04 | Exploitant | L | Comptes admin existants : un mot de passe n'est jamais réécrit par une commande de démonstration. |
+| T-SEC-04 | Exploitant | L | Compte existant homonyme : ni mot de passe ni profil modifiés ; la commande s'arrête avec la liste des collisions. |
 | T-SEC-05 | Exploitant | R | Production avec `DJANGO_SECRET_KEY=change-me` (valeur de `.env.example`) : démarrage refusé. |
 | T-SEC-06 | Exploitant | R | `DB_HOST` défini sans `DB_PASSWORD` : démarrage refusé. |
 | T-SEC-07 | Tout marin | R | 25 mots de passe erronés : délai croissant journalisé (paramètres configurables), compte légitime récupérable. |
@@ -71,7 +71,8 @@ Types : N nominal · R refus d'accès · L cas limite · H historique · G non-r
 | T-FDS-04 | Suppléant COMAEQ habilité | N | Approuve pendant une suppléance active ; l'acte reste attribué au suppléant. |
 | T-FDS-05 | BSC | H | Modification après publication : nouvelle version officielle, ancienne conservée. |
 | T-FDS-06 | BSC | N | Après nouvelle version : alerte « réimprimer et remplacer la feuille affichée ». |
-| T-FDS-07 | COMAEQ | N | Échange de tours : examen puis décision finale du COMAEQ. |
+| T-FDS-07 | COMAEQ ou suppléant habilité | N | Échange de tours : décision finale du COMAEQ ou de son suppléant officiellement habilité. |
+| T-FDS-12 | BSC / chef de liste | R | Instruit une demande d'échange mais ne peut pas la valider seul (UI, POST, API) ; le COMAEQ ou son suppléant décide. |
 | T-FDS-08 | BSC | N | Fraction de service à quai configurable par bâtiment ; vacances signalées. |
 | T-FDS-09 | BSC | L | Écart de composition : signalé et justifié, pas de blocage automatique injustifié. |
 | T-FDS-10 | Équipage B à terre | R | Feuille propre à chaque équipage ; aucune validation ou modification croisée par le seul grade. |
@@ -96,7 +97,8 @@ Types : N nominal · R refus d'accès · L cas limite · H historique · G non-r
 | T-SUP-04 | Suppléant | H | Les actes du suppléant restent attribués à leur auteur dans l'historique. |
 | T-SUP-05 | Titulaire | N | Au retour : récapitulatif des actions réalisées pendant son absence. |
 | T-SUP-06 | Titulaire | L | Retour anticipé ou fin de suppléance : règles de validation retenues appliquées. |
-| T-SUP-07 | Suppléant | R | Visa exigeant une qualification réglementaire : comportement conforme à la décision F-06. |
+| T-SUP-07 | Suppléant | R | Visa dont l'exigence réglementaire est configurée et non satisfaite : refus explicite ; sans exigence configurée : aucun contrôle. |
+| T-QUA-01 | Chef / titulaire de visa | R | Visa technique, fonction de service ou signature officielle avec exigence réglementaire configurée non satisfaite : refus explicite ; tâche ordinaire : jamais bloquée. |
 | T-MAT-01 | Chef de service | N | Transfert entre secteurs du même service approuvé par le chef de service. |
 | T-MAT-02 | Deux chefs de service | N | Transfert entre services : deux approbations puis application par l'administrateur habilité. |
 | T-MAT-03 | Chef de secteur | N | Tâches ouvertes suivent le matériel ; réattribuées si nécessaire. |

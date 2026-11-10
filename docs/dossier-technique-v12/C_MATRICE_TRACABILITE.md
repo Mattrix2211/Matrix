@@ -17,7 +17,7 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 | DEC-DRT-03 | Non vérifié | — | T-DRT-02 |
 | DEC-DRT-04 | Partiel | AUD-025 | T-DRT-03 |
 | DEC-DRT-05 | Absent | AUD-020 AUD-021 AUD-028 AUD-034 | T-ORG-01, T-ORG-02, T-CPT-01 |
-| DEC-DRT-06 | Absent | AUD-019 | T-CPT-04, T-CPT-05 |
+| DEC-DRT-06 | Non vérifié | AUD-019 | T-CPT-04, T-CPT-05 |
 | DEC-MUT-01 | Partiel | — | T-CPT-06 |
 | DEC-MUT-02 | Absent | — | T-CPT-06 |
 | DEC-MUT-03 | Absent | — | T-CPT-07 |
@@ -126,6 +126,9 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 | DEC-PRE-04 | Existe | — | T-REG-07 |
 | DEC-PRE-05 | Existe | — | — |
 | DEC-PRE-06 | Absent | AUD-011 AUD-031 | — |
+| DEC-QUA-04 | Absent | — | T-QUA-01 |
+| DEC-SUP-07 | Partiel | — | T-SUP-01 |
+| DEC-FDS-13 | Absent | — | T-FDS-12 |
 
 ## C.2 Anomalies → décisions → tests
 
@@ -140,44 +143,44 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 | AUD-007 | Anomalie confirmée | DP-05 (levée par N5) | — | P3 |
 | AUD-008 | Anomalie confirmée | DEC-UX-07 | T-UX-06 | P2 |
 | AUD-009 | Anomalie confirmée | DEC-PRE-06, DP-01 ; proposition P06 | T-SEC-01 T-SEC-02 T-SEC-03 T-SEC-04 | P0 |
-| AUD-010 | Anomalie confirmée | — | T-SEC-06 | P0 |
+| AUD-010 | Anomalie confirmée | — | T-SEC-06 | P2 |
 | AUD-011 | Anomalie confirmée | DP-10, DEC-PRE-06, P03 | T-REG-03 | P1 |
 | AUD-012 | Écart fonctionnel non couvert par l'audit | DP-11 (besoin confirmé) | — | P2 |
 | AUD-013 | À reproduire | DEC-PRE-03 | T-REG-05 | P3 |
 | AUD-014 | Anomalie confirmée | DEC-DRT-01, DEC-DRT-02, DEC-FDS-02, DP-09 | T-DRT-01 T-FDS-03 T-FDS-04 T-FDS-11 | P1 |
 | AUD-015 | Anomalie confirmée | DEC-DRT-02, DP-09, B3 (résiduel) | T-DRT-01 T-FDS-05 | P1 |
-| AUD-016 | Anomalie confirmée | DEC-UX-07 | T-UX-06 | P2 |
-| AUD-017 | Anomalie confirmée | — | T-SEC-05 | P0 |
+| AUD-016 | Anomalie confirmée | DEC-UX-07 | T-UX-06 | P3 |
+| AUD-017 | Anomalie confirmée | — | T-SEC-05 | P2 |
 | AUD-018 | Anomalie confirmée | — | T-UX-06 | P3 |
 | AUD-019 | Anomalie confirmée | DEC-ORG-02, DP-13, A2, A3 | T-ORG-06 | P1 |
 | AUD-020 | Anomalie confirmée | DEC-DRT-05, DP-13 ; proposition P07 | T-ORG-01 T-ORG-02 | P0 |
-| AUD-021 | Anomalie confirmée | DEC-DRT-05 | T-ORG-03 | P0 |
+| AUD-021 | Anomalie confirmée | DEC-DRT-05 | T-ORG-03 | P2 |
 | AUD-022 | À reproduire | DEC-ORG-06, DEC-DRT-01 | T-DRT-04 | P2 |
 | AUD-023 | Anomalie confirmée | — | T-ANO-03 | P2 |
 | AUD-024 | Anomalie confirmée | DP-01 | T-SEC-03 | P2 |
 | AUD-025 | À reproduire | DEC-UX-11, DEC-DRT-04 | T-UX-08 T-DRT-03 | P3 |
 | AUD-026 | Déjà corrigée | DEC-UX-07 | T-UX-06 | P3 |
 | AUD-027 | Anomalie confirmée | DEC-UX-07 | T-UX-06 | P3 |
-| AUD-028 | Anomalie confirmée | DEC-DRT-05, DP-13 | T-ORG-02 | P0 |
+| AUD-028 | Anomalie confirmée | DEC-DRT-05, DP-13 | T-ORG-02 | P1 |
 | AUD-029 | Anomalie confirmée | — | T-REG-01 | P3 |
 | AUD-030 | À reproduire | — | T-RTX-01 T-RTX-05 | P2 |
-| AUD-031 | Anomalie confirmée | DEC-PRE-06 | T-REG-04 | P0 |
+| AUD-031 | Anomalie confirmée | DEC-PRE-06 | T-REG-04 | P1 |
 | AUD-032 | Anomalie confirmée | DEC-BLQ-05 | T-TAC-14 | P2 |
 | AUD-033 | Anomalie confirmée | DEC-FDS-05 | T-FDS-05 | P2 |
 | AUD-034 | Anomalie confirmée | DEC-MUT-07, DEC-MUT-06, DEC-DRT-05 ; proposition P07 | T-CPT-01 T-CPT-02 T-CPT-03 T-CPT-09 | P0 |
-| AUD-035 | Anomalie confirmée | C5 (ouverte) | T-SEC-07 | P1 |
+| AUD-035 | Anomalie confirmée | C5 (ouverte) | T-SEC-07 | P2 |
 | AUD-036 | Écart fonctionnel non couvert par l'audit | DP-01 | T-REG-03 | P3 |
-| AUD-037 | Décision PO manquante | DEC-ORG-03, DEC-ORG-02 | T-ORG-07 | P2 |
+| AUD-037 | Décision PO manquante | DEC-ORG-03, DEC-ORG-02 | T-ORG-07 | P3 |
 | AUD-038 | Écart fonctionnel non couvert par l'audit | DEC-UX-06 | T-UX-05 | P3 |
 | AUD-039 | Anomalie confirmée | DEC-BLQ-05 | T-TAC-14 | P3 |
 | AUD-040 | Fonctionnement conforme | — | — | P3 |
 | AUD-041 | Décision PO manquante | — | T-UX-06 | P3 |
 | AUD-042 | Décision PO manquante | DEC-UX-05 | T-UX-04 | P3 |
 | AUD-043 | Anomalie confirmée | DEC-ANO-01, DEC-ANO-03 | T-ANO-04 | P2 |
-| AUD-044 | Anomalie confirmée | DEC-MAT-01, DEC-MAT-02, DEC-MAT-03, DEC-MAT-04 | T-MAT-01 T-MAT-02 T-MAT-03 T-MAT-04 T-MAT-05 | P1 |
-| AUD-045 | Anomalie confirmée | DEC-RTX-01, DEC-RTX-03 | T-RTX-01 T-RTX-02 T-RTX-05 | P1 |
-| AUD-046 | Écart fonctionnel non couvert par l'audit | DEC-FDS-08, DEC-FDS-09 | T-FDS-08 T-FDS-09 | P2 |
-| AUD-047 | Anomalie confirmée | DEC-APP-01 à DEC-APP-13 | T-APP-01 à T-APP-09 | P1 |
+| AUD-044 | Anomalie confirmée | DEC-MAT-01, DEC-MAT-02, DEC-MAT-03, DEC-MAT-04 | T-MAT-01 T-MAT-02 T-MAT-03 T-MAT-04 T-MAT-05 | P2 |
+| AUD-045 | Anomalie confirmée | DEC-RTX-01, DEC-RTX-03 | T-RTX-01 T-RTX-02 T-RTX-05 | P2 |
+| AUD-046 | Écart fonctionnel non couvert par l'audit | DEC-FDS-08, DEC-FDS-09 | T-FDS-08 T-FDS-09 | P3 |
+| AUD-047 | Anomalie confirmée | DEC-APP-01 à DEC-APP-13 | T-APP-01 à T-APP-09 | P2 |
 
 ## C.3 Tests → décisions (couverture inverse)
 
@@ -251,6 +254,7 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 | T-FDS-05 | DEC-FDS-05 |
 | T-FDS-06 | DEC-FDS-06 |
 | T-FDS-07 | DEC-FDS-07 |
+| T-FDS-12 | DEC-FDS-13 |
 | T-FDS-08 | DEC-FDS-08 |
 | T-FDS-09 | DEC-FDS-09 |
 | T-FDS-10 | DEC-FDS-12 |
@@ -269,13 +273,14 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 | T-RTX-03 | DEC-RTX-02, DEC-RTX-03 |
 | T-RTX-04 | DEC-RTX-04 |
 | T-RTX-05 | DEC-RTX-01 |
-| T-SUP-01 | DEC-SUP-01 |
+| T-SUP-01 | DEC-SUP-01, DEC-SUP-07 |
 | T-SUP-02 | DEC-SUP-01 |
 | T-SUP-03 | DEC-SUP-02 |
 | T-SUP-04 | DEC-SUP-04 |
 | T-SUP-05 | DEC-SUP-05 |
 | T-SUP-06 | DEC-SUP-03 |
 | T-SUP-07 | DEC-SUP-06 |
+| T-QUA-01 | DEC-QUA-04 |
 | T-MAT-01 | DEC-MAT-01 |
 | T-MAT-02 | DEC-MAT-02 |
 | T-MAT-03 | DEC-MAT-03 |
@@ -300,7 +305,7 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 ## C.4 Bilan de couverture
 
 - Existe : 21 décisions
-- Partiel : 34 décisions
-- Non vérifié : 23 décisions
-- Absent : 42 décisions
+- Partiel : 35 décisions
+- Non vérifié : 24 décisions
+- Absent : 43 décisions
 - Décisions sans test associé : DEC-ORG-05, DEC-ORG-06, DEC-TAC-03, DEC-FDS-04, DEC-FDS-10, DEC-PRE-05, DEC-PRE-06

@@ -8,6 +8,7 @@ Base de référence : **V1.1, commit `1c37f22`** (branche `claude/iteration-ux-v
 |---|---|
 | S1 | Message du PO « Consolidation des décisions PO » (§1 à §17) |
 | S2 | Message du PO de précisions (arbitrages sur RETEX, organisation, validation des tâches, rattachement incomplet, appareillage, départs, passation, QR) |
+| S3 | Message du PO du 10/11 (échanges de tours, qualifications, suppléance, organisation, RETEX, appareillage, priorités, sources) |
 | R06 | `docs/audit-general-v11/06_DECISIONS_PO.md` (branche d'audit, `4aa4dcf`) : DP-01 à DP-14, blocs A à D |
 | N1 | Notion « Cahier des charges » (Matrix 2.0), édité le 10/10/2026 |
 | N2 | Notion « Organigramme et rôles » (31/10/2026) |
@@ -25,7 +26,7 @@ Base de référence : **V1.1, commit `1c37f22`** (branche `claude/iteration-ux-v
 
 ## Plan du registre
 
-- **A.1** — 120 décisions des messages S1 et S2 : `A1_DECISIONS_S1_S2.md` (une décision par entrée, avec ID, source, statut, acteurs, règle, exceptions, critères de validation).
+- **A.1** — 123 décisions des messages S1, S2 et S3 : `A1_DECISIONS_S1_S2.md` (une décision par entrée, avec ID, source, statut, acteurs, règle, exceptions, critères de validation).
 - **A.2** — décisions du dépôt (DP et blocs A à D) et leur sort : ci-dessous.
 - **A.3** — décisions Notion pertinentes : ci-dessous.
 - **A.4** — propositions techniques et règles techniques évidentes : ci-dessous.
@@ -61,7 +62,7 @@ Base de référence : **V1.1, commit `1c37f22`** (branche `claude/iteration-ux-v
 | A6 réaffectation d'installation | **Tranchée par S1 §11** (approbation des chefs de service) ; reste le vocabulaire chef de service / commandant adjoint | DEC-MAT-01 à 04, IM-11 |
 | B1 introduction des droits par fonction | Ouverte (ordre de mise en œuvre) | F-01 |
 | B2 intervention d'exception du supérieur | Ouverte | F-01 |
-| B3 publication des listes de service | **Tranchée pour la feuille de service** (COMAEQ ou suppléant habilité). **Ouverte pour les listes de quarts et de gardes** (chef de liste vs COMAEQ) | DEC-FDS-02, F-02 |
+| B3 publication des listes de service | **Tranchée pour la feuille de service** (COMAEQ ou suppléant habilité) **et pour les échanges** (S3). **Ouverte pour les listes de quarts et de gardes** (chef de liste vs COMAEQ) : contradiction C-1 | DEC-FDS-02, DEC-FDS-07, J |
 | B4 règles métier au cas par cas | Prêt à appareiller : tranché en partie (DEC-APP-*) ; absences et bilans : ouverts | F-07, DEC-PRE-01 |
 | B5 validation d'un RETEX | **Caduque** : remplacée par le circuit hiérarchique de S1/S2 | DEC-RTX-01 |
 | C1 verrou de démonstration | Priorité confirmée (N4, N7) ; modalités = P06, non validées formellement | AUD-009 |
@@ -102,9 +103,14 @@ Base de référence : **V1.1, commit `1c37f22`** (branche `claude/iteration-ux-v
 | NOT-21 | N2 | Adjudant de compagnie, OSS : fonctions métier, pas des permissions nouvelles | Confirmée PO | Hors périmètre immédiat |
 | NOT-22 | N7 | Rattachement organisationnel obligatoire pour tout compte opérationnel | Décision produit validée, « À faire plus tard » | DEC-DRT-06 |
 | NOT-23 | N7 | Calendrier « Mon quotidien » : activités du marin d'abord, vue collective séparée | Décision produit validée, « À faire plus tard » | AUD-025 |
-| NOT-24 | N7 | Échanges de garde : validation par le chef de liste habilité | Décision produit validée, « À faire plus tard » | **Contradiction avec S1 §7 (CT-01)** |
+| NOT-24 | N7 (28/10) | Échanges de garde : validation par le chef de liste habilité | Décision produit du 28/10, **remplacée par S3 (10/11)** : décision finale du COMAEQ ou de son suppléant habilité ; le chef de liste instruit | DEC-FDS-07, DEC-FDS-13 (CT-01 résolue) |
 | NOT-25 | N7 | Idées futures : épingler les rubriques, recherche de personnes, qualifications automatiques des postes, formulaires RH | À faire plus tard | DEC-UX-04, DEC-UX-09 (S1 les rend actuelles) |
-| NOT-26 | N7 | Prêt à appareiller et veille d'appareillage : cadrages « À faire plus tard / ne pas développer » | Cadrage ancien | **Tension avec S1 §8 (CT-05)** |
+| NOT-26 | N7 | Prêt à appareiller et veille d'appareillage : cadrages « À faire plus tard / ne pas développer » | Cadrage ancien | S1 §8, S2, S3 retiennent les règles ; le calendrier reste à votre main (CT-05) |
+| NOT-27 | N7 (02/10) | Mutation : formations et qualifications suivent le marin ; l'historique d'activité reste la propriété de l'ancien bâtiment ; les compteurs d'équité ne suivent pas ; dépend de l'architecture de déploiement | Confirmée PO | DEC-MUT-*, lot L25 reporté |
+| NOT-28 | N7 (28/10) | Rattachement obligatoire : aucun accès implicite du seul fait du grade, de la fonction ou du rattachement | Confirmée PO | DEC-DRT-06 |
+| NOT-29 | N7 (06/10) | Prêt à appareiller : équipiers et chefs de section saisissent ; chefs de secteur et de service modifient ; niveaux au-dessus en lecture | Confirmée PO (règle de droits) | DEC-APP-02 ; à rapprocher du circuit S1 §8 |
+| NOT-30 | N7 (20/10) | Veille d'appareillage : modèles de checklists créés et modifiés par les chefs de secteur habilités, sans modification du code, versionnés ; la clôture n'est jamais une déclaration d'aptitude | Confirmée PO | DEC-APP-*, DEC-APP-13 ; validation des modèles non définie (C-2) |
+| NOT-31 | N7 (28/10) | `seed_demo` : refus hors DEBUG, mots de passe non prévisibles ou saisis, noms de bâtiments fictifs | Confirmée PO | AUD-009, AUD-024, lot L01 |
 
 ## A.4 Propositions techniques (non validées par le PO)
 

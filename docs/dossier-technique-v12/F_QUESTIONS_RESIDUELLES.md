@@ -1,5 +1,7 @@
 # F. Questions résiduelles
 
+> **Mise à jour du 10/11** : cette pièce est le détail d'origine. Le statut à jour de F-01 à F-14 (résolue / contradiction / technique / reportable) est dans `J_TRIAGE_ET_ARBITRAGES.md`. Questions réellement ouvertes : C-1 (listes de quarts et de gardes) et C-2 (autorité qui qualifie un contrôle d'appareillage). F-02 (échanges), F-06 (qualifications) et F-09 sont résolues.
+
 Seuls figurent ici les arbitrages **réellement nécessaires**, non décidés dans S1, S2, Notion ou le dépôt. Pour chacun : le contexte, les options, ma recommandation et ses conséquences. **Aucune ne bloque la rédaction du dossier ni les étapes 1 (P0) du plan** ; la colonne « Bloque » indique à partir de quelle étape une réponse devient nécessaire.
 
 | ID | Sujet | Bloque (étape du plan D) | Anomalies |
