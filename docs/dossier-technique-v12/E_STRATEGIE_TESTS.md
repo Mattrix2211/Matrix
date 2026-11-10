@@ -1,6 +1,6 @@
 # E. Stratégie de tests
 
-Le catalogue complet des 115 scénarios d'acceptation est dans `E2_CATALOGUE_TESTS.md`. La couverture décision ↔ test est dans `C_MATRICE_TRACABILITE.md` (C.1 et C.3). **Aucun test n'a été exécuté pour ce dossier** ; la référence de départ est celle de l'audit (3 829 tests verts sur SQLite et PostgreSQL à `1c37f22`).
+Le catalogue complet des 117 scénarios d'acceptation est dans `E2_CATALOGUE_TESTS.md`. La couverture décision ↔ test est dans `C_MATRICE_TRACABILITE.md` (C.1 et C.3). **Aucun test n'a été exécuté pour ce dossier** ; la référence de départ est celle de l'audit (3 829 tests verts sur SQLite et PostgreSQL à `1c37f22`).
 
 ## E.1 Principes
 

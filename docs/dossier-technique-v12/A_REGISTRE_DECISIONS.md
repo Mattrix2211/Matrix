@@ -9,6 +9,7 @@ Base de référence : **V1.1, commit `1c37f22`** (branche `claude/iteration-ux-v
 | S1 | Message du PO « Consolidation des décisions PO » (§1 à §17) |
 | S2 | Message du PO de précisions (arbitrages sur RETEX, organisation, validation des tâches, rattachement incomplet, appareillage, départs, passation, QR) |
 | S3 | Message du PO du 10/11 (échanges de tours, qualifications, suppléance, organisation, RETEX, appareillage, priorités, sources) |
+| S4 | Message du PO suivant : arbitrages C-1 (listes de quarts et de gardes) et C-2 (circuit des contrôles d'appareillage), priorités acceptées provisoirement, GO du lot L01 |
 | R06 | `docs/audit-general-v11/06_DECISIONS_PO.md` (branche d'audit, `4aa4dcf`) : DP-01 à DP-14, blocs A à D |
 | N1 | Notion « Cahier des charges » (Matrix 2.0), édité le 10/10/2026 |
 | N2 | Notion « Organigramme et rôles » (31/10/2026) |
@@ -26,7 +27,7 @@ Base de référence : **V1.1, commit `1c37f22`** (branche `claude/iteration-ux-v
 
 ## Plan du registre
 
-- **A.1** — 123 décisions des messages S1, S2 et S3 : `A1_DECISIONS_S1_S2.md` (une décision par entrée, avec ID, source, statut, acteurs, règle, exceptions, critères de validation).
+- **A.1** — 125 décisions des messages S1 à S4 : `A1_DECISIONS_S1_S2.md` (une décision par entrée, avec ID, source, statut, acteurs, règle, exceptions, critères de validation).
 - **A.2** — décisions du dépôt (DP et blocs A à D) et leur sort : ci-dessous.
 - **A.3** — décisions Notion pertinentes : ci-dessous.
 - **A.4** — propositions techniques et règles techniques évidentes : ci-dessous.

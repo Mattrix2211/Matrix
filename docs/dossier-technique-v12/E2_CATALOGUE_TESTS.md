@@ -86,6 +86,8 @@ Types : N nominal · R refus d'accès · L cas limite · H historique · G non-r
 | T-APP-07 | Chef de secteur | H | Contrôles modifiés ou ajoutés rouverts ; supprimés archivés ; signatures affectées invalidées. |
 | T-APP-08 | Chef de service | H | Préparation clôturée : conserve sa version historique, non retouchée par une évolution ultérieure. |
 | T-APP-09 | Tout marin | G | Aucun écran ne présente Matrix comme délivrant l'autorisation d'appareiller. |
+| T-APP-10 | Chef de secteur / de service / COMANAV | N | Une fiche de référence ne devient applicable qu'après proposition du chef de secteur, validation du chef de service et approbation du COMANAV ; un contrôle critique ne peut être classé ou déclassé que par ce circuit. |
+| T-FDS-13 | Chef de liste / COMAEQ | N | Liste de quarts ou de gardes : le chef de liste propose, le COMAEQ ou son suppléant approuve et publie ; modification après publication = trace et nouvelle version ; commandant et administrateurs ne modifient plus directement. |
 | T-RTX-01 | Auteur | N | RETEX : auteur → chef de section (si présent) → chef de secteur → chef de service ; trace de chaque étape. |
 | T-RTX-02 | Auteur | L | Secteur sans section : l'étape section est sautée sans blocage. |
 | T-RTX-03 | Chef de secteur | N | Correction demandée sans motif : refusée ; avec motif : nouvelle version et revalidations nécessaires. |

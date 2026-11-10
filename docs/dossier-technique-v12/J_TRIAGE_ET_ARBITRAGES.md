@@ -80,13 +80,15 @@ Sur 12 contradictions, 15 informations manquantes et 14 questions : **2 contradi
 | F-13 | **E** | GO du PO requis ; hors plan actif. |
 | F-14 | **E** | Gouvernance documentaire et CI, fin de plan. |
 
-## J.6 Les contradictions réellement restantes
+## J.6 Les contradictions restantes — **tranchées par le PO (S4)**
+
+> **Mise à jour** : C-1 et C-2 sont arbitrées (DEC-FDS-14, DEC-APP-14). Il ne reste aucune contradiction ouverte ; seule reste, pour C-2, la **vérification de compatibilité avec les procédures opérationnelles du bord**, que je ne peux pas faire depuis le dépôt ni depuis Notion. Le texte d'origine est conservé ci-dessous.
 
 ### C-1 — Qui publie les listes de quarts et de gardes ?
 
 **Constat.** Vous avez tranché la feuille de service (BSC prépare, COMAEQ approuve) et les échanges (COMAEQ décide, BSC ou chef de liste instruit). Pour les **listes de quarts et de gardes** elles-mêmes, la note N3 donne la création/publication au chef de liste ; le code laisse aussi modifier une liste publiée au commandant et aux administrateurs (AUD-015). Aucune décision récente ne dit qui publie.
 
-**Recommandation.** Chef de liste prépare et propose ; **COMAEQ ou son suppléant habilité approuve et publie** ; modification après publication = nouvelle version (proposer → valider → publier, CLAUDE.md principe 7). C'est la même logique que la feuille et les échanges, sans nouveau mécanisme.
+**Arbitrage du PO (S4) : recommandation validée.** Chef de liste prépare et propose ; **COMAEQ ou son suppléant habilité approuve et publie** ; modification après publication = nouvelle version (proposer → valider → publier, CLAUDE.md principe 7). C'est la même logique que la feuille et les échanges, sans nouveau mécanisme.
 
 **Conséquence si vous refusez.** Si le chef de liste publie seul, il faut au moins interdire les voies directes du commandant et des administrateurs (AUD-015). Aucun lot P0 n'en dépend ; seul le lot L09 attend.
 
@@ -101,7 +103,9 @@ Sur 12 contradictions, 15 informations manquantes et 14 questions : **2 contradi
 
 **Ce qui n'est donc pas défini** : l'autorité qui qualifie un contrôle de « obligatoire » et celle qui le qualifie de « critique non dérogeable ». Je ne la choisis pas.
 
-**Question au PO.** Parmi les fonctions existantes, laquelle valide cette qualification pour votre bâtiment : le circuit déjà prévu pour les fiches d'installation, le COMANAV, ou une autre fonction ? Une réponse en une ligne suffit.
+**Arbitrage du PO (S4).** Le chef de secteur propose les contrôles et leur classification ; le chef de service examine et valide à son niveau ; le COMANAV approuve la fiche de référence, notamment les contrôles obligatoires et critiques. Un contrôle critique non dérogeable ne peut pas être contourné par une simple réserve. *Signalement* : aucun texte réglementaire ni procédure du bord n'étant disponible ici, la compatibilité de ce circuit n'est **pas vérifiée** ; si le bord impose une autre autorité, la signaler avant le lot L23. Ce circuit est cohérent avec le circuit déjà prévu pour les fiches d'installation (section ou secteur → chef de service → commandant adjoint compétent).
+
+*Question d'origine :* Parmi les fonctions existantes, laquelle valide cette qualification pour votre bâtiment : le circuit déjà prévu pour les fiches d'installation, le COMANAV, ou une autre fonction ? Une réponse en une ligne suffit.
 
 **Position par défaut (technique, sans règle métier).** Tant que rien n'est défini, **aucun contrôle n'est « obligatoire » ni « critique »** : les deux caractéristiques sont des attributs de la fiche de référence, vides par défaut, modifiables seulement par le circuit d'approbation de cette fiche. Le lot d'appareillage (L23) attend cette réponse ; aucun autre lot n'en dépend.
 

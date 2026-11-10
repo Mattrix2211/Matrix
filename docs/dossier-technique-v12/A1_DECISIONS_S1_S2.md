@@ -1,6 +1,6 @@
 # A. Registre des décisions PO — part 1 : décisions des trois messages du PO (S1, S2, S3)
 
-Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du PO « Consolidation des décisions », S2 = message de précisions, S3 = message du 10/11 ; N1 à N9 = pages Notion (voir `A_REGISTRE_DECISIONS.md` pour la légende) ; CLAUDE.md = règles du dépôt. **Statut** : « Confirmée PO » = formulée par le PO dans S1/S2 ; ce statut ne dit rien de l'état du code. **État du code** : Existe / Partiel / Absent / Non vérifié, avec preuve (`fichier:ligne` sur `1c37f22`). Les critères de validation renvoient aux tests de `E_STRATEGIE_TESTS.md`.
+Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du PO « Consolidation des décisions », S2 = message de précisions, S3 = message du 10/11, S4 = message du PO sur C-1, C-2 et GO L01 ; N1 à N9 = pages Notion (voir `A_REGISTRE_DECISIONS.md` pour la légende) ; CLAUDE.md = règles du dépôt. **Statut** : « Confirmée PO » = formulée par le PO dans S1/S2 ; ce statut ne dit rien de l'état du code. **État du code** : Existe / Partiel / Absent / Non vérifié, avec preuve (`fichier:ligne` sur `1c37f22`). Les critères de validation renvoient aux tests de `E_STRATEGIE_TESTS.md`.
 
 
 ## Organisation et personnel
@@ -145,6 +145,7 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 | DEC-FDS-11 | S1 §7 | Confirmée PO | Équipier | La création d'une feuille n'est pas ouverte à n'importe quel équipier. | — | T-FDS-01 |
 | DEC-FDS-12 | S1 §7 ; N3 | Confirmée PO | COMAEQ des deux équipages | Prendre en compte deux équipages ; chaque équipage a sa feuille, sans validation croisée par le seul grade. | — | T-FDS-10 |
 | DEC-FDS-13 | S3 | Confirmée PO | BSC ou chef de liste | Le BSC ou le chef de liste peut instruire la demande d'échange ; il ne dispose pas automatiquement de l'autorité de validation finale. | — | T-FDS-12 |
+| DEC-FDS-14 | S4 (C-1) | Confirmée PO | Chef de liste, COMAEQ ou suppléant habilité | Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après publication est tracée et donne lieu à une nouvelle version officielle si nécessaire. | — | T-FDS-13 |
 
 ## Préparation à l'appareillage
 
@@ -159,10 +160,11 @@ Base : V1.1 (`1c37f22`). Une décision par entrée. **Source** : S1 = message du
 | DEC-APP-07 | S1 §8 | Confirmée PO | Système | Les contrôles supprimés sont archivés. | — | T-APP-07 |
 | DEC-APP-08 | S1 §8 | Confirmée PO | Système | Les signatures affectées sont invalidées. | — | T-APP-07 |
 | DEC-APP-09 | S1 §8 | Confirmée PO | Système | Les préparations clôturées conservent leur version historique. | — | T-APP-08 |
-| DEC-APP-10 | S2 ; S3 | Confirmée PO | Chaîne de validation | Les contrôles obligatoires sont traités avant validation. | L'autorité qui qualifie un contrôle d'« obligatoire » n'est pas définie : à préciser à partir des fonctions existantes et des procédures du bâtiment (C-2). Non inventée. | T-APP-03 |
+| DEC-APP-10 | S2 ; S3 | Confirmée PO | Chaîne de validation | Les contrôles obligatoires sont traités avant validation. | Qualification proposée par le chef de secteur, examinée par le chef de service, approuvée par le COMANAV avec la fiche de référence (DEC-APP-14). Conformité aux procédures du bord à confirmer avant implémentation. | T-APP-03 |
 | DEC-APP-11 | S1 §8 ; S2 ; S3 | Confirmée PO | Chef de secteur | Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité. | — | T-APP-04 |
-| DEC-APP-12 | S2 ; S3 | Confirmée PO | Chaîne de validation | Les contrôles critiques non dérogeables ne peuvent pas être contournés. | L'autorité qui qualifie un contrôle de « critique » n'est pas définie (C-2). Non inventée. | T-APP-05 |
+| DEC-APP-12 | S2 ; S3 | Confirmée PO | Chaîne de validation | Les contrôles critiques non dérogeables ne peuvent pas être contournés. | Même circuit que DEC-APP-14 ; aucune simple réserve ne suffit à les contourner. | T-APP-05 |
 | DEC-APP-13 | S1 §8 | Confirmée PO | Tous | Matrix ne délivre pas l'autorisation opérationnelle d'appareiller. | — | T-APP-09 |
+| DEC-APP-14 | S4 (C-2) | Confirmée PO (règle fonctionnelle cible) | Chef de secteur, chef de service, COMANAV | Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la proposition à son niveau ; le COMANAV approuve la fiche, notamment les contrôles obligatoires et critiques. | Compatibilité avec les procédures opérationnelles applicables non vérifiable ici : à confirmer avant implémentation (L23). Si une autorité différente est imposée, la signaler avant de coder. | T-APP-10 |
 
 ## RETEX
 

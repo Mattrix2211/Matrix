@@ -7,11 +7,11 @@
 | Pièce | Contenu |
 |---|---|
 | `README.md`, `00_SYNTHESE.md` | Entrée et synthèse |
-| `A_REGISTRE_DECISIONS.md`, `A1_DECISIONS_S1_S2.md` | 123 décisions des messages du PO (S1, S2, S3), DP, blocs A à D, décisions Notion, propositions techniques |
+| `A_REGISTRE_DECISIONS.md`, `A1_DECISIONS_S1_S2.md` | 125 décisions des messages du PO (S1 à S4), DP, blocs A à D, décisions Notion, propositions techniques |
 | `B_CARTOGRAPHIE.md` | Modules, acteurs, périmètres, 13 circuits |
 | `C_MATRICE_TRACABILITE.md` | Décision → code → anomalie → test |
 | `D_PLAN_CORRECTION.md` | Premier plan par étapes (remplacé pour l'ordonnancement par M) |
-| `E_STRATEGIE_TESTS.md`, `E2_CATALOGUE_TESTS.md` | Stratégie et 115 tests d'acceptation |
+| `E_STRATEGIE_TESTS.md`, `E2_CATALOGUE_TESTS.md` | Stratégie et 117 tests d'acceptation |
 | `F_QUESTIONS_RESIDUELLES.md`, `I_CONTRADICTIONS_ET_MANQUES.md` | Détail d'origine des questions et contradictions |
 | **`J_TRIAGE_ET_ARBITRAGES.md`** | **Triage résolu / contradiction / technique / reportable, et les 2 contradictions restantes** |
 | **`K_PRIORITES_JUSTIFIEES.md`** | **Priorités P0 à P3 justifiées une par une** |
@@ -40,7 +40,7 @@ J'avais écrit que `seed_demo` « réécrit des mots de passe ». **C'est faux**
 
 ## 5. Contradictions et questions
 
-Après triage (`J_TRIAGE_ET_ARBITRAGES.md`) : sur 12 contradictions, 15 informations manquantes et 14 questions, **2 contradictions réelles** et **1 dépendance externe** restent.
+Après triage (`J_TRIAGE_ET_ARBITRAGES.md`) : sur 12 contradictions, 15 informations manquantes et 14 questions, **2 contradictions** restaient : elles sont **tranchées par le PO** (S4, DEC-FDS-14 et DEC-APP-14). Reste une vérification de compatibilité du circuit d'appareillage avec les procédures du bord, non faisable ici, et **1 dépendance externe** (architecture bord–terre).
 
 | ID | Sujet | Recommandation |
 |---|---|---|

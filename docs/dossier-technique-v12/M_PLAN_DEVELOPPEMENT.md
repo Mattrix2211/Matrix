@@ -32,7 +32,7 @@ L14, L15, L16, L17, L18 (peu liés entre eux) ─► L20 (via L17)
 
 # Phase A — Risques critiques
 
-## L01 — Verrou des commandes de démonstration — **premier lot recommandé**
+## L01 — Verrou des commandes de démonstration — **GO donné par le PO ; réalisé sur la branche `claude/l01-verrou-demo-v11` (commit `1b4cd5a`), en attente de recette**
 
 | | |
 |---|---|

@@ -129,6 +129,8 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 | DEC-QUA-04 | Absent | — | T-QUA-01 |
 | DEC-SUP-07 | Partiel | — | T-SUP-01 |
 | DEC-FDS-13 | Absent | — | T-FDS-12 |
+| DEC-FDS-14 | Partiel | AUD-015 | T-FDS-13 |
+| DEC-APP-14 | Absent | AUD-047 | T-APP-10 |
 
 ## C.2 Anomalies → décisions → tests
 
@@ -268,6 +270,8 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 | T-APP-07 | DEC-APP-06, DEC-APP-07, DEC-APP-08 |
 | T-APP-08 | DEC-APP-09 |
 | T-APP-09 | DEC-APP-13 |
+| T-APP-10 | DEC-APP-14 |
+| T-FDS-13 | DEC-FDS-14 |
 | T-RTX-01 | DEC-RTX-01 |
 | T-RTX-02 | DEC-RTX-01 |
 | T-RTX-03 | DEC-RTX-02, DEC-RTX-03 |
@@ -305,7 +309,7 @@ Correspondance **décision PO → état dans le code V1.1 → anomalies d'audit 
 ## C.4 Bilan de couverture
 
 - Existe : 21 décisions
-- Partiel : 35 décisions
+- Partiel : 36 décisions
 - Non vérifié : 24 décisions
-- Absent : 43 décisions
+- Absent : 44 décisions
 - Décisions sans test associé : DEC-ORG-05, DEC-ORG-06, DEC-TAC-03, DEC-FDS-04, DEC-FDS-10, DEC-PRE-05, DEC-PRE-06
