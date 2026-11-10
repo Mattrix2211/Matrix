@@ -22,7 +22,7 @@ Garde-fous de démarrage exécutés par le système de checks Django (registre
 """
 import sys
 
-from django.core.checks import Warning, register
+from django.core.checks import Error, Warning, register
 
 
 @register()
@@ -82,3 +82,12 @@ def verifier_debug_desactive_hors_developpement_local(app_configs, **kwargs):
         "d'erreur détaillées, requêtes SQL) aux utilisateurs."
     )
     return [Warning(message, id="matrix.W002")]
+
+
+@register()
+def verifier_pas_de_base_de_demonstration_en_production(app_configs, **kwargs):
+    """Refuse de démarrer en production sur une base marquée « démonstration » (comptes fictifs)."""
+    from matrix.core.instance_demo import erreur_base_de_demonstration_en_production
+
+    message = erreur_base_de_demonstration_en_production()
+    return [Error(message, id="matrix.E001")] if message else []

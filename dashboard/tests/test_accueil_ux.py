@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from matrix.core.instance_demo import mot_de_passe_commun
 from maintenance.models import MaintenanceOccurrence
 
 
@@ -16,7 +17,7 @@ class AccueilUxTests(TestCase):
         call_command("seed_demo", stdout=StringIO())
 
     def _accueil(self, nom="equipier_a"):
-        self.client.login(username=nom, password="pass")
+        self.client.login(username=nom, password=mot_de_passe_commun())
         return self.client.get(reverse("home"))
 
     def test_ma_journee_est_une_carte_cliquable_sans_lien_redondant(self):
@@ -49,7 +50,7 @@ class AccueilUxTests(TestCase):
         attendus = list(CreneauServiceGarde.objects.filter(
             marin=marin, service_garde__statut=ServiceGarde.STATUT_PUBLIEE, fin__gte=timezone.now(),
         ).order_by("debut")[:4])
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         affiches = self.client.get(reverse("home")).context["mes_tours_de_service"]
         # Comparaison à une requête indépendante : le nombre varie selon le jour de la semaine (données de démo relatives).
         self.assertEqual([t.pk for t in affiches], [t.pk for t in attendus])
@@ -91,12 +92,12 @@ class AccueilUxTests(TestCase):
             service_garde=brouillon, poste="Tour brouillon", marin=marin,
             debut=maintenant + delta(hours=5), fin=maintenant + delta(hours=29),
         )
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         postes = [t.poste for t in self.client.get(reverse("home")).context["mes_tours_de_service"]]
         self.assertEqual(postes, ["Tour en cours", "Tour J+2", "Tour J+3", "Tour J+5"])
 
     def test_sans_tour_publie_un_message_clair(self):
-        self.client.login(username="equipier_nor", password="pass")
+        self.client.login(username="equipier_nor", password=mot_de_passe_commun())
         self.assertContains(self.client.get(reverse("home")), "Aucun tour de service publié à venir.")
 
     def test_les_graphiques_decoratifs_sont_remplaces_par_des_chiffres_avec_perimetre(self):
@@ -110,7 +111,7 @@ class AccueilUxTests(TestCase):
             self.assertIn(libelle, page)
 
     def test_les_chiffres_correspondent_aux_listes_filtrees(self):
-        self.client.login(username="chef_secteur_a", password="pass")
+        self.client.login(username="chef_secteur_a", password=mot_de_passe_commun())
         indicateurs = {i["libelle"]: i for i in self.client.get(reverse("home")).context["indicateurs_maintenance"]}
         for libelle, filtre in (("En retard", "retard=1"), ("À venir (7 jours)", "a_venir=1"), ("En attente de validation", "statut=WAITING_VALIDATION")):
             indicateur = indicateurs[libelle]
@@ -121,7 +122,7 @@ class AccueilUxTests(TestCase):
 
     def test_filtre_a_venir_n_inclut_ni_retard_ni_terminees(self):
         jour = timezone.localdate()
-        self.client.login(username="chef_secteur_a", password="pass")
+        self.client.login(username="chef_secteur_a", password=mot_de_passe_commun())
         liste = self.client.get(reverse("maintenance-occurrences") + "?a_venir=1").context["occurrences"]
         for occurrence in liste:
             self.assertIn(occurrence.status, ("PLANNED", "ASSIGNED", "IN_PROGRESS"))
@@ -135,7 +136,7 @@ class AccueilUxTests(TestCase):
         self.assertIn("mx-recherche", page)
 
     def test_aide_de_la_page_suivi_a_la_demande(self):
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         page = self.client.get(reverse("demandes-index")).content.decode()
         self.assertIn("<summary>Comment signaler une difficulté ?</summary>", page)
         self.assertNotRegex(page, r'<details class="mx-aide[^>]* open')

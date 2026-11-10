@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from matrix.core.instance_demo import mot_de_passe_commun
 from matrix.core.brouillons import adresse_de_reprise
 from matrix.core.models import Brouillon
 
@@ -62,7 +63,7 @@ class RepriseBrouillonTests(TestCase):
 class BrouillonDeDemonstrationTests(TestCase):
     def test_le_brouillon_du_jeu_de_demonstration_se_reprend_sans_erreur(self):
         call_command("seed_demo", stdout=StringIO())
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         brouillons = self.client.get(reverse("home")).context["brouillons"]
         self.assertEqual(len(brouillons), 1)
         self.assertEqual(brouillons[0].url, reverse("anomalie-create"))

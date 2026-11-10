@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from absences.models import Absence
+from accounts.models import InstanceDemo
 from documentation.models import Document
 from logistics.models import Anomalie, CorrectiveTicket
 from maintenance.models import MaintenanceOccurrence
@@ -27,11 +28,9 @@ class RefusSurBaseQuelconqueTests(TestCase):
             call_command("seed_demo_dense", stdout=StringIO())
         self.assertEqual(Tache.objects.count(), 0)
 
-    def test_des_mots_de_passe_non_fictifs_sont_refuses(self):
+    def test_une_base_non_marquee_est_refusee(self):
         call_command("seed_demo", stdout=StringIO())
-        marin = User.objects.get(username="equipier_a")
-        marin.set_password("un-vrai-mot-de-passe")
-        marin.save()
+        InstanceDemo.objects.all().delete()
         with self.assertRaises(CommandError):
             call_command("seed_demo_dense", stdout=StringIO())
 

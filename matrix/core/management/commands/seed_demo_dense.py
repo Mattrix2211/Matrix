@@ -17,6 +17,7 @@ from django.utils import timezone
 from absences import services as absences_services
 from absences.models import TypeAbsence
 from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
+from matrix.core.instance_demo import exiger_base_demo, mot_de_passe_commun
 from annonces import services as annonces_services
 from assets.models import Asset, Installation
 from demandes import services as demandes_services
@@ -34,7 +35,6 @@ from taches import services as taches_services
 from taches.models import Tache
 
 User = get_user_model()
-MOT_DE_PASSE = "pass"
 MARQUEUR = "seed_demo_dense"
 GRAINE = 20261103
 
@@ -118,9 +118,9 @@ class Command(BaseCommand):
     # ---------- Garde-fous ----------
 
     def _verifier_base_de_demonstration(self):
-        marin = User.objects.filter(username="equipier_a").first()
-        if marin is None or not marin.check_password(MOT_DE_PASSE) or not Ship.objects.filter(name="Bretagne", code="BRE").exists():
-            raise CommandError("Refus : ce n'est pas une base de démonstration (seed_demo absent ou mots de passe non fictifs).")
+        exiger_base_demo("seed_demo_dense")
+        if not Ship.objects.filter(name="Bretagne", code="BRE").exists():
+            raise CommandError("Refus : lancez d'abord seed_demo (unité fictive absente).")
 
     def _charger_contexte(self):
         self.bre = Ship.objects.get(code="BRE")
@@ -143,7 +143,7 @@ class Command(BaseCommand):
             user, cree = User.objects.get_or_create(username=f"m_{nom.lower().replace('è', 'e').replace('é', 'e').replace('ï', 'i')}", defaults={
                 "first_name": prenom, "last_name": nom})
             if cree:
-                user.set_password(MOT_DE_PASSE)
+                user.set_password(mot_de_passe_commun())
                 user.save()
             profil = user.profile
             profil.role, profil.ship, profil.equipage, profil.grade = "EQUIPIER", self.bre, "A", grade

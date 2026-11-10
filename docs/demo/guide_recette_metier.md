@@ -1,6 +1,6 @@
 # Guide de recette métier — démonstration Matrix V1.1 (données entièrement fictives)
 
-Tous les comptes ont le mot de passe « pass ». La démonstration est isolée (base séparée, cette machine seulement).
+Les mots de passe sont générés (`python scripts/preparer_instance_test.py --identifiants`). La démonstration est isolée (base séparée, cette machine seulement).
 Dates relatives à aujourd'hui : relancer `lancer_demo.bat` applique les migrations et complète les données, sans rien supprimer.
 
 ## Lancer

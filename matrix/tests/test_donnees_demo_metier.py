@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from assets.models import InstallationMaintenance
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
+from matrix.core.instance_demo import mot_de_passe_commun
 from quarts.models import (
     CreneauQuart,
     CreneauServiceGarde,
@@ -55,7 +56,7 @@ class DonneesDemoMetierTests(TestCase):
         self.assertTrue(terminee.measurements and terminee.notes and terminee.valide_par_id)
 
     def test_la_fiche_est_consultable_et_imprimable_depuis_un_compte_marin(self):
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         fiche = InstallationMaintenance.objects.get(title="Graissage des paliers")
         page = self.client.get(reverse("fiche-detail", args=[fiche.pk]))
         self.assertContains(page, "Pompe à graisse manuelle")
@@ -108,7 +109,7 @@ class DonneesDemoMetierTests(TestCase):
 
     def test_le_tableau_de_quart_publie_est_imprimable(self):
         quart = Quart.objects.get(nom="Quart machine — par tiers")
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         page = self.client.get(reverse("quart-detail", args=[quart.pk]))
         self.assertContains(page, "Imprimer ce tableau")
         self.assertContains(page, 'onclick="window.print()"')
@@ -146,7 +147,7 @@ class DonneesDemoMetierTests(TestCase):
             marin = self._marin(nom)
             self.assertTrue(peut_lire_feuille_service(marin, feuille), nom)
             self.assertFalse(peut_rediger_feuille_service(marin, feuille.ship), nom)
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         page = self.client.get(reverse("feuille-service-detail", args=[feuille.ship.pk, f"{self.jour:%Y-%m-%d}"]))
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Gradé de coupée 3")

@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from accounts.models import Roles, ServiceFunctionChoice
+from matrix.core.instance_demo import exiger_base_demo, mot_de_passe_commun
 from org.models import Sector, Ship
 from quarts.activation import publier_a_titre_previsionnel
 from quarts.alertes_activation import traiter_echeances
@@ -30,6 +31,7 @@ class Command(BaseCommand):
         publier_a_titre_previsionnel(publicateur, liste, prise_effet)
 
     def handle(self, *args, **options):
+        exiger_base_demo("seed_demo_mer_quai")
         maintenant = timezone.now()
         try:
             chevallier = Ship.objects.get(name="Jacques Chevallier")
@@ -50,7 +52,7 @@ class Command(BaseCommand):
         secteur = Sector.objects.get(service__ship=benebig, name="Moteurs")
         historique, cree = User.objects.get_or_create(username="historique_abe", defaults={"first_name": "Yann", "last_name": "Historique"})
         if cree:
-            historique.set_password("pass")
+            historique.set_password(mot_de_passe_commun())
             historique.save()
         profil = historique.profile
         profil.role, profil.ship, profil.service, profil.sector = Roles.EQUIPIER, benebig, secteur.service, secteur

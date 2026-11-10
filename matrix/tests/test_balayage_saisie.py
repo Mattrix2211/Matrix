@@ -15,6 +15,8 @@ from django.db import transaction
 from django.test import Client, TestCase
 from django.urls import URLResolver, get_resolver, resolve
 
+from matrix.core.instance_demo import mot_de_passe_admin, mot_de_passe_commun
+
 # Routes sans rapport avec la saisie d'identifiants (administration Django, fichiers, session).
 EXCLUSIONS = ("admin/", "static", "media", "logout", "login", "accounts/login")
 NOMS_EXPLICITES = {
@@ -104,7 +106,7 @@ class BalayageIdentifiantsTests(TestCase):
         requetes = 0
         for compte in ("admin", "chef_section_a"):
             client = Client(raise_request_exception=True)
-            client.login(username=compte, password="admin" if compte == "admin" else "pass")
+            client.login(username=compte, password=mot_de_passe_admin() if compte == "admin" else mot_de_passe_commun())
             for url, (noms, actions), (noms_propres, actions_propres), compagnons in plan:
                 if not noms:
                     continue

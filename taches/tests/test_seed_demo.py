@@ -3,6 +3,7 @@ from io import StringIO
 from django.core.management import call_command
 from django.test import TestCase
 
+from matrix.core.instance_demo import mot_de_passe_commun
 from taches.models import Tache
 
 
@@ -46,11 +47,11 @@ class SeedDemoTachesTests(TestCase):
 
     def test_fil_des_quatre_vues_selon_le_role(self):
         call_command("seed_demo", stdout=StringIO())
-        self.client.login(username="chef_section_a", password="pass")
+        self.client.login(username="chef_section_a", password=mot_de_passe_commun())
         page = self.client.get("/").content.decode()
         for libelle in ("Mon quotidien", "Mon équipe", "Suivi", "Synthèse"):
             self.assertIn(libelle, page)
-        self.client.login(username="equipier_a", password="pass")
+        self.client.login(username="equipier_a", password=mot_de_passe_commun())
         page = self.client.get("/").content.decode()
         self.assertNotIn("Mon équipe", page)
         self.assertNotIn("Synthèse", page)

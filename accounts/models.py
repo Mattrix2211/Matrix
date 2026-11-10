@@ -184,6 +184,15 @@ class AuditLog(TimeStampedModel):
         return f"{self.created_at} {self.actor} {self.action}"
 
 
+class InstanceDemo(models.Model):
+    """Marqueur d'une base de démonstration : une base marquée ne démarre pas en production."""
+    cree_le = models.DateTimeField(auto_now_add=True)
+    commande = models.CharField(max_length=64)
+
+    def __str__(self):
+        return f"Base de démonstration ({self.commande}, {self.cree_le:%Y-%m-%d})"
+
+
 class ResponsableSpecialite(TimeStampedModel):
     """Marin désigné responsable d'une spécialité pour TOUTE LA FLOTTE (tous
     navires confondus) — rôle transverse, indépendant de la hiérarchie

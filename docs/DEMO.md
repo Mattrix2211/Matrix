@@ -5,12 +5,13 @@ Version de démonstration avec données **entièrement fictives**. Elle n'est co
 ## Préparer
 
 ```bash
-python manage.py migrate
-python manage.py seed_demo      # relançable sans doublon
-python manage.py runserver
+python scripts/preparer_instance_test.py --reinitialiser   # base séparée, relançable ; --mettre-a-jour pour compléter sans rien supprimer
+python scripts/preparer_instance_test.py --servir
 ```
 
-Connexion sur `/login/`. Tous les comptes ont le mot de passe **« pass »**, sauf `admin` : **« admin »**.
+Sous Windows : `lancer_demo.bat`. Les commandes `seed_demo*` refusent de s'exécuter hors d'une base dédiée à la démonstration (mode DEBUG, variable `MATRIX_INSTANCE_DEMO=1`, fichier `<base>.instance_demo`, base vide ou déjà marquée). Pour dédier à la main une base de développement qui ne contient que des comptes fictifs : `MATRIX_INSTANCE_DEMO=1 python manage.py marquer_instance_demo`.
+
+Connexion sur `/login/`. **Les mots de passe ne sont jamais prévisibles** : générés au hasard dans `instance_test_marins/identifiants_demo.txt` (fichier réservé au propriétaire, hors dépôt), lisibles par `python scripts/preparer_instance_test.py --identifiants`, ou fournis par `MATRIX_DEMO_PASSWORD` et `MATRIX_DEMO_ADMIN_PASSWORD`. Une base de démonstration marquée refuse de démarrer hors DEBUG. Avant toute mise en production : `python manage.py verifier_instance`.
 
 | Compte | Rôle fictif | Utilité dans la démonstration |
 |---|---|---|

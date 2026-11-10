@@ -19,7 +19,8 @@ if errorlevel 1 (
     exit /b 1
 )
 echo.
-echo Ouvrez http://127.0.0.1:8800/  -  mot de passe de tous les comptes : pass
+echo Ouvrez http://127.0.0.1:8800/
+echo Mots de passe des comptes (generes, non affiches ici) : python scripts\preparer_instance_test.py --identifiants
 echo Pour repartir de donnees neuves : python scripts\preparer_instance_test.py --reinitialiser
 echo.
 python scripts\preparer_instance_test.py --servir

@@ -12,6 +12,7 @@ from logistics.models import Anomalie, AnomalieStatutLog, CorrectiveTicket, Mouv
 from maintenance.models import MaintenanceOccurrence
 from notifications.models import Notification
 from org.models import Ship
+from matrix.core.instance_demo import COMPTES_DEMO
 from programme.models import EvenementProgramme
 from taches.models import Tache
 from quarts.models import CreneauServiceGarde, EchangeService, ServiceGarde, peut_rediger_feuille_service
@@ -29,6 +30,9 @@ class DemoMetierTests(TestCase):
     def _compteurs(self):
         return [m.objects.count() for m in (ServiceGarde, CreneauServiceGarde, EchangeService, EvenementProgramme, MaintenanceOccurrence, Anomalie,
                                             StockPiece, MouvementStock, PartLineItem, Notification, User)]
+
+    def test_les_comptes_crees_sont_exactement_les_comptes_de_demonstration_connus(self):
+        self.assertEqual(set(User.objects.values_list("username", flat=True)), COMPTES_DEMO)
 
     def test_relance_sans_doublon(self):
         avant = self._compteurs()

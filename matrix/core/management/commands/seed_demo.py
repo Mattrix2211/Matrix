@@ -1,6 +1,7 @@
 """Jeu de données de démonstration (idempotent : relançable sans doublon).
 
-Tous les comptes ont le mot de passe « pass » (sauf `admin` : « admin »).
+Ne s'exécute que sur une base dédiée à la démonstration (voir matrix/core/instance_demo.py). Les mots de passe sont
+fournis par l'opérateur ou générés au hasard : jamais de valeur prévisible.
 """
 from datetime import timedelta
 from decimal import Decimal
@@ -18,6 +19,7 @@ from programme.models import EvenementProgramme
 from annonces.models import Annonce
 from demandes import services as demandes_services
 from demandes.models import Demande
+from matrix.core.instance_demo import description_mots_de_passe, exiger_base_demo, mot_de_passe_admin, mot_de_passe_commun
 from accounts.models import (
     FonctionQuartChoice, GradeChoice, ResponsableSpecialite, Roles, ServiceFunctionChoice,
     SpecialityChoice, TypeAbsence,
@@ -49,13 +51,13 @@ from training.models import (
     ReferentFormation, TrainingCourse, TrainingRecord, TrainingRequirement, TrainingSession,
 )
 
-MOT_DE_PASSE = "pass"
 
 
 class Command(BaseCommand):
     help = "Crée (ou complète) les données de démonstration de Matrix"
 
     def handle(self, *args, **options):
+        exiger_base_demo("seed_demo", creation=True)
         self.comptes = []
         self.maintenant = timezone.now()
         self.aujourdhui = timezone.localdate()
@@ -77,7 +79,7 @@ class Command(BaseCommand):
         self._demande_et_annonce()
         self._programme()
         self._notifications_et_brouillons()
-        self.stdout.write(self.style.SUCCESS("Données de démonstration prêtes. Comptes (mot de passe « pass ») :"))
+        self.stdout.write(self.style.SUCCESS(f"Données de démonstration prêtes. Mots de passe : {description_mots_de_passe()}. Comptes :"))
         for ligne in self.comptes:
             self.stdout.write(ligne)
 
@@ -88,11 +90,11 @@ class Command(BaseCommand):
     # ---------- Outils ----------
 
     def _utilisateur(self, nom, role, prenom="", ship=None, service=None, sector=None, section=None,
-                     equipage="", fonction_coma="", grade="", specialite="", mdp=MOT_DE_PASSE, superuser=False):
+                     equipage="", fonction_coma="", grade="", specialite="", mdp=None, superuser=False):
         user, cree = User.objects.get_or_create(username=nom, defaults={
             "first_name": prenom, "last_name": nom.replace("_", " ").title(), "is_superuser": superuser, "is_staff": superuser})
         if cree:
-            user.set_password(mdp)
+            user.set_password(mdp or mot_de_passe_commun())
             user.save()
         profil = user.profile
         profil.role, profil.ship, profil.service, profil.sector, profil.section = role, ship, service, sector, section
@@ -130,7 +132,7 @@ class Command(BaseCommand):
         sector_elec, _ = Sector.objects.get_or_create(service=service, name="Électricité")
         section_a, _ = Section.objects.get_or_create(sector=sector_fire, name="Section A")
         Section.objects.get_or_create(sector=sector_elec, name="Section B")
-        self._utilisateur("admin", Roles.MASTER_ADMIN, mdp="admin", superuser=True)
+        self._utilisateur("admin", Roles.MASTER_ADMIN, mdp=mot_de_passe_admin(), superuser=True)
         self._utilisateur("commandant", Roles.COMMANDANT, ship=ship)
         self._utilisateur("chefservice", Roles.CHEF_SERVICE, service=service)
         self._utilisateur("chefsecteur", Roles.CHEF_SECTEUR, sector=sector_fire)

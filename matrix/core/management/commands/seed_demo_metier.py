@@ -13,6 +13,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from matrix.core.instance_demo import exiger_base_demo
 from absences import services as absences_services
 from absences.models import Absence, TypeAbsence
 from accounts.models import ServiceFunctionChoice
@@ -107,9 +108,7 @@ class Command(BaseCommand):
         return User.objects.get(username=nom)
 
     def _verifier_base_de_demonstration(self):
-        utilisateur = User.objects.filter(username="equipier_a").first()
-        if utilisateur is None or not utilisateur.check_password("pass"):
-            raise CommandError("Base non reconnue comme base de démonstration (compte equipier_a au mot de passe fictif) : refus.")
+        exiger_base_demo("seed_demo_metier")
         if not Ship.objects.filter(name="Bretagne").exists():
             raise CommandError("Lancez d'abord seed_demo.")
 

@@ -1,10 +1,11 @@
 """Prépare une instance de démonstration isolée pour les tests avec des marins.
 
 Base SQLite séparée, données entièrement fictives (seed_demo), aucune donnée opérationnelle.
-À n'utiliser que sur un poste local ou un environnement isolé : mots de passe fictifs et DEBUG actif,
-jamais sur un réseau opérationnel ou exposé.
+À n'utiliser que sur un poste local ou un environnement isolé : comptes fictifs et DEBUG actif, jamais sur un réseau
+opérationnel ou exposé. Les mots de passe sont générés au hasard (fichier réservé au propriétaire dans le dossier de
+l'instance, lisible par --identifiants) ou fournis par MATRIX_DEMO_PASSWORD et MATRIX_DEMO_ADMIN_PASSWORD.
 
-Usage : python scripts/preparer_instance_test.py [--base chemin] [--reinitialiser | --verifier | --servir [--port N]]
+Usage : python scripts/preparer_instance_test.py [--base chemin] [--reinitialiser | --verifier | --identifiants | --servir [--port N]]
 """
 import argparse
 import json
@@ -21,6 +22,9 @@ HOTES_LOCAUX = {"localhost", "127.0.0.1", "[::1]", "::1"}
 # Seules ces variables du poste sont transmises ; tout le reste (bases, e-mail, Redis, clés) est volontairement absent.
 VARIABLES_CONSERVEES = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT",
                         "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "VIRTUAL_ENV")
+# Mots de passe fournis explicitement par l'opérateur : seuls autres éléments hérités du poste.
+VARIABLES_MOTS_DE_PASSE = ("MATRIX_DEMO_PASSWORD", "MATRIX_DEMO_ADMIN_PASSWORD")
+NOM_IDENTIFIANTS = "identifiants_demo.txt"
 GENERATEURS = ("seed_demo", "seed_demo_mer_quai", "seed_demo_dense", "seed_demo_metier")  # ordre de dépendance, tous idempotents
 SUFFIXE_MARQUEUR = ".instance_demo"  # fichier voisin écrit à la création : seule une base ainsi marquée peut être supprimée
 COMPTES = (
@@ -91,8 +95,9 @@ def verifier_chemin(base, dossier_autorise, reinitialiser=False, lecture_seule=F
 def environnement_demo(base):
     """Environnement du processus fils, construit en liste blanche : base SQLite explicite, .env du poste ignoré,
     aucun PostgreSQL, serveur d'e-mail, Redis, clé d'envoi ni hôte autorisé hérités du poste, tâches Celery en mémoire."""
-    env = {cle: os.environ[cle] for cle in VARIABLES_CONSERVEES if cle in os.environ}
+    env = {cle: os.environ[cle] for cle in (*VARIABLES_CONSERVEES, *VARIABLES_MOTS_DE_PASSE) if cle in os.environ}
     return {**env, "MATRIX_SQLITE_PATH": str(base), "DJANGO_DEBUG": "1", "DJANGO_SETTINGS_MODULE": "matrix.settings",
+            "MATRIX_INSTANCE_DEMO": "1", "MATRIX_DEMO_IDENTIFIANTS": str(base.parent / NOM_IDENTIFIANTS),
             "MATRIX_ENV_FILE": str(base.parent / "aucun.env"), "MATRIX_MEDIA_ROOT": str(base.parent / "media"),
             "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1",
             # Tâches Celery gardées dans le processus : rien n'est envoyé à un Redis du poste, même local.
@@ -149,11 +154,23 @@ def mettre_a_jour(base, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
     env = environnement_demo(base)
     controler_connexion(base, env)
     lancer([sys.executable, "manage.py", "migrate", "--noinput"], cwd=RACINE, env=env, check=True)
+    # Base créée avant le verrou : marquée si elle ne contient que des comptes fictifs, anciens mots de passe prévisibles remplacés.
+    if lancer([sys.executable, "manage.py", "marquer_instance_demo", "--regenerer-mots-de-passe"], cwd=RACINE, env=env, check=False).returncode:
+        raise RefusError("la base contient des comptes non fictifs ou n'est pas une base de démonstration : mise à jour refusée")
     echecs = []
     for commande in GENERATEURS:
         if lancer([sys.executable, "manage.py", commande], cwd=RACINE, env=env, check=False).returncode:
             echecs.append(commande)
     return base, echecs
+
+
+def identifiants(base, dossier_autorise=DOSSIER_DEMO):
+    """Contenu du fichier d'identifiants de l'instance (lecture explicitement demandée par un testeur autorisé)."""
+    base = verifier_chemin(base, dossier_autorise, lecture_seule=True)
+    fichier = base.parent / NOM_IDENTIFIANTS
+    if not fichier.is_file():
+        raise RefusError("aucun fichier d'identifiants (mots de passe fournis par variable d'environnement, ou instance non préparée)")
+    return fichier.read_text(encoding="utf-8")
 
 
 def servir(base, port=PORT_PAR_DEFAUT, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
@@ -176,6 +193,7 @@ def main():
     mode = analyseur.add_mutually_exclusive_group()
     mode.add_argument("--verifier", action="store_true", help="contrôle sans rien écrire que la configuration vise bien la base de démonstration")
     mode.add_argument("--mettre-a-jour", action="store_true", help="applique les migrations manquantes et complète les données sans rien supprimer")
+    mode.add_argument("--identifiants", action="store_true", help="affiche les mots de passe de l'instance (fichier réservé au propriétaire)")
     mode.add_argument("--servir", action="store_true", help=f"lance le serveur de démonstration sur {HOTE} (Ctrl+C pour arrêter)")
     analyseur.add_argument("--port", type=int, default=PORT_PAR_DEFAUT, help="port local du serveur (avec --servir)")
     args = analyseur.parse_args()
@@ -185,6 +203,9 @@ def main():
         if args.mettre_a_jour:
             base, echecs = mettre_a_jour(args.base)
             print(f"Base mise à jour : {base}" + (f" (générateurs en erreur, à signaler : {', '.join(echecs)})" if echecs else ""))
+            return
+        if args.identifiants:
+            print(identifiants(args.base))
             return
         if args.servir:
             print(f"Démonstration sur http://{HOTE}:{args.port}/ (cette machine seulement). Arrêt : Ctrl+C.")
@@ -198,7 +219,8 @@ def main():
         return
     print(f"\nBase prête : {base}\nPour lancer la démonstration (cette machine seulement) :")
     print("  python scripts/preparer_instance_test.py --servir")
-    print("Mot de passe fictif de tous les comptes : « pass ». Ne jamais exposer cette instance sur un réseau.")
+    print(f"Mots de passe générés : python scripts/preparer_instance_test.py --identifiants (fichier {NOM_IDENTIFIANTS}, réservé au propriétaire).")
+    print("Ne jamais exposer cette instance sur un réseau.")
     for compte, role in COMPTES:
         print(f"  {compte:16} {role}")
 

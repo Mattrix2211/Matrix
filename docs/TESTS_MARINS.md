@@ -4,7 +4,7 @@ Objectif : vérifier que la tranche 1 de l'interface (menu, accueil, carte « À
 
 ## 1. Démarrer la démonstration (procédure courte)
 
-> **Poste local ou isolé uniquement.** Mots de passe fictifs (« pass ») et mode DEBUG actif : ne jamais exposer l'instance sur un réseau opérationnel ou accessible de l'extérieur. Elle n'écoute que sur ce poste (`127.0.0.1`) et ne peut pas être ouverte à d'autres appareils.
+> **Poste local ou isolé uniquement.** Comptes fictifs et mode DEBUG actif : ne jamais exposer l'instance sur un réseau opérationnel ou accessible de l'extérieur. Elle n'écoute que sur ce poste (`127.0.0.1`) et ne peut pas être ouverte à d'autres appareils.
 
 Dans un terminal, à la racine du projet, environnement virtuel du projet activé (sous Windows : `venv\Scripts\activate`) :
 
@@ -24,7 +24,7 @@ Garanties (vérifiées par des tests automatiques) :
 
 **Essais sur PC uniquement.** Cette instance convient aux essais sur le poste local. Elle n'est pas joignable depuis un iPhone ou un autre appareil, et ne doit pas être rendue accessible : les essais sur appareil mobile réel demandent un environnement de validation distinct, isolé et approuvé, avec données fictives (voir `docs/COMPATIBILITE_CHECKLIST.md`). Sans tel environnement, le contrôle mobile est marqué « non effectué ».
 
-Mot de passe fictif de tous les comptes : « pass ».
+Mots de passe : générés au hasard, affichés à la demande par `python scripts/preparer_instance_test.py --identifiants` (fichier `instance_test_marins/identifiants_demo.txt`, réservé au propriétaire). À communiquer aux seuls testeurs autorisés, jamais dans un message ni dans le dépôt.
 
 | Profil joué | Compte | Particularité |
 |---|---|---|

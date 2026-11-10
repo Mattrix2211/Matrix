@@ -200,7 +200,8 @@ class LancementSecuriseTests(SimpleTestCase):
         self.assertEqual(env["DJANGO_ALLOWED_HOSTS"], "localhost,127.0.0.1")
         self.assertTrue(set(env) <= set(script.VARIABLES_CONSERVEES) | {
             "MATRIX_SQLITE_PATH", "DJANGO_DEBUG", "DJANGO_SETTINGS_MODULE", "MATRIX_ENV_FILE", "MATRIX_MEDIA_ROOT",
-            "DJANGO_ALLOWED_HOSTS", "EMAIL_BACKEND", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"})
+            "DJANGO_ALLOWED_HOSTS", "EMAIL_BACKEND", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND",
+            "MATRIX_INSTANCE_DEMO", "MATRIX_DEMO_IDENTIFIANTS"})
         self.assertEqual(Path(env["MATRIX_MEDIA_ROOT"]), self.base.parent / "media")
 
     def test_serveur_lance_sur_la_boucle_locale_avec_l_environnement_isole(self):
@@ -307,6 +308,59 @@ class MiseAJourTests(SimpleTestCase):
         with mock.patch.object(script, "controler_connexion"):
             base, echecs = script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer)
         self.assertEqual(self.appels[0], ["migrate", "--noinput"])
-        self.assertEqual([a[0] for a in self.appels[1:]], list(script.GENERATEURS))
+        self.assertEqual(self.appels[1], ["marquer_instance_demo", "--regenerer-mots-de-passe"])
+        self.assertEqual([a[0] for a in self.appels[2:]], list(script.GENERATEURS))
         self.assertEqual(echecs, ["seed_demo_dense"])
         self.assertEqual(self.base.read_text(), "donnees")
+
+    def test_base_contenant_un_compte_non_fictif_n_est_pas_mise_a_jour(self):
+        self.base.write_text("donnees")
+        script.marqueur(self.base).touch()
+        appels = []
+
+        def refuser_le_marquage(commande, cwd, env, check):
+            appels.append(commande[2])
+            return mock.Mock(returncode=1 if commande[2] == "marquer_instance_demo" else 0)
+
+        with mock.patch.object(script, "controler_connexion"):
+            with self.assertRaises(script.RefusError):
+                script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=refuser_le_marquage)
+        self.assertEqual(appels, ["migrate", "marquer_instance_demo"])  # aucun générateur n'a été lancé
+        self.assertEqual(self.base.read_text(), "donnees")
+
+
+class IdentifiantsEtLanceurTests(SimpleTestCase):
+    """Les mots de passe de l'instance ne sont plus prévisibles ni affichés : fichier réservé ou variables explicites."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dossier = Path(self.tmp.name).resolve() / "instance_test_marins"
+        self.dossier.mkdir()
+        self.base = self.dossier / "demo.sqlite3"
+
+    def test_l_environnement_du_fils_active_la_demo_et_vise_le_fichier_d_identifiants_de_l_instance(self):
+        env = script.environnement_demo(self.base)
+        self.assertEqual(env["MATRIX_INSTANCE_DEMO"], "1")
+        self.assertEqual(Path(env["MATRIX_DEMO_IDENTIFIANTS"]), self.dossier / script.NOM_IDENTIFIANTS)
+
+    def test_seuls_les_mots_de_passe_fournis_explicitement_sont_transmis(self):
+        with mock.patch.dict(os.environ, {"MATRIX_DEMO_PASSWORD": "fourni-1", "MATRIX_DEMO_ADMIN_PASSWORD": "fourni-2", "MATRIX_AUTRE": "x"}):
+            env = script.environnement_demo(self.base)
+        self.assertEqual((env["MATRIX_DEMO_PASSWORD"], env["MATRIX_DEMO_ADMIN_PASSWORD"]), ("fourni-1", "fourni-2"))
+        self.assertNotIn("MATRIX_AUTRE", env)
+
+    def test_identifiants_lus_dans_le_fichier_de_l_instance_seulement(self):
+        with self.assertRaises(script.RefusError):
+            script.identifiants(self.base, dossier_autorise=self.dossier)
+        (self.dossier / script.NOM_IDENTIFIANTS).write_text("comptes : abc\nadmin : def\n", encoding="utf-8")
+        self.assertIn("comptes : abc", script.identifiants(self.base, dossier_autorise=self.dossier))
+        with self.assertRaises(script.RefusError):
+            script.identifiants(self.dossier.parent / "autre.sqlite3", dossier_autorise=self.dossier)
+
+    def test_ni_le_script_ni_le_lanceur_n_annoncent_de_mot_de_passe_previsible(self):
+        for nom in ("scripts/preparer_instance_test.py", "lancer_demo.bat"):
+            texte = (settings.BASE_DIR / nom).read_text(encoding="utf-8")
+            self.assertNotIn(": pass", texte, nom)
+            self.assertNotIn("« pass »", texte, nom)
+        self.assertIn("--identifiants", (settings.BASE_DIR / "lancer_demo.bat").read_text(encoding="utf-8"))
