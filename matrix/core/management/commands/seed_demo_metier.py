@@ -13,7 +13,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from matrix.core.instance_demo import exiger_base_demo
 from absences import services as absences_services
 from absences.models import Absence, TypeAbsence
 from accounts.models import ServiceFunctionChoice
@@ -22,6 +21,7 @@ from assets.models import Installation, InstallationMaintenance, Location
 from logistics.models import Anomalie, AnomalieStatutLog, CorrectiveTicket, MouvementStock, PartLineItem, PartRequest, StockPiece, TicketStatusLog
 from logistics.stock import enregistrer_mouvement
 from maintenance.models import MaintenanceExecution, MaintenanceOccurrence
+from matrix.core.instance_demo import exiger_base_demo
 from notifications.models import Notification, NotificationLevel
 from org.models import Ship
 from programme import services as programme_services

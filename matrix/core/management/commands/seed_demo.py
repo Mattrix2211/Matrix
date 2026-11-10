@@ -52,7 +52,6 @@ from training.models import (
 )
 
 
-
 class Command(BaseCommand):
     help = "Crée (ou complète) les données de démonstration de Matrix"
 

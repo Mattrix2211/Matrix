@@ -358,6 +358,15 @@ class IdentifiantsEtLanceurTests(SimpleTestCase):
         with self.assertRaises(script.RefusError):
             script.identifiants(self.dossier.parent / "autre.sqlite3", dossier_autorise=self.dossier)
 
+    def test_la_reinitialisation_renouvelle_les_mots_de_passe(self):
+        (self.dossier / script.NOM_IDENTIFIANTS).write_text("comptes : ancien\nadmin : ancien\n", encoding="utf-8")
+        self.base.write_text("ancienne base")
+        script.marqueur(self.base).touch()
+        with mock.patch.object(script, "controler_connexion"), mock.patch.object(script.subprocess, "run"):
+            script.preparer(self.base, reinitialiser=True, dossier_autorise=self.dossier)
+        self.assertFalse((self.dossier / script.NOM_IDENTIFIANTS).exists())
+        self.assertFalse(self.base.exists())
+
     def test_ni_le_script_ni_le_lanceur_n_annoncent_de_mot_de_passe_previsible(self):
         for nom in ("scripts/preparer_instance_test.py", "lancer_demo.bat"):
             texte = (settings.BASE_DIR / nom).read_text(encoding="utf-8")

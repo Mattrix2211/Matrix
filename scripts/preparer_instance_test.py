@@ -139,6 +139,7 @@ def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autori
     base.parent.mkdir(parents=True, exist_ok=True)
     if base.exists():
         base.unlink()
+    (base.parent / NOM_IDENTIFIANTS).unlink(missing_ok=True)  # nouveaux comptes, nouveaux mots de passe
     marqueur(base).touch()
     for commande in ("migrate", *GENERATEURS):
         subprocess.run([sys.executable, "manage.py", commande], cwd=RACINE, env=env, check=True)
