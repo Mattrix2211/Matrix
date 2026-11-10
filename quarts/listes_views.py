@@ -27,6 +27,7 @@ from django.views import View
 
 from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
+from org.archivage import exclure_archives
 from matrix.core.saisie import entier_ou_none, entiers_valides
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import utilisateurs_visibles_par
@@ -155,7 +156,7 @@ def _perimetres_org_disponibles(user, borne_par_scope=True):
             services = Service.objects.none()
             sectors = Sector.objects.none()
             sections = sections.filter(pk=valeur)
-    tous = list(ships) + list(services) + list(sectors) + list(sections)
+    tous = [o for qs in (ships, services, sectors, sections) for o in exclure_archives(qs)]  # nouvelle désignation : unités actives
     return [{"valeur": _encoder_perimetre(o), "label": _libelle_perimetre(o)} for o in tous]
 
 

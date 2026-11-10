@@ -72,7 +72,7 @@ class DocumentNouveauView(LoginRequiredMixin, View):
         if not peut_rediger(request.user):
             raise Http404
         return render(request, "documentation/nouveau.html", {
-            "cibles": cibles_autorisees(request.user), "origines": Document.ORIGINE_CHOICES})
+            "cibles": cibles_autorisees(request.user, actives=True), "origines": Document.ORIGINE_CHOICES})
 
     def post(self, request):
         try:
@@ -87,7 +87,7 @@ class DocumentNouveauView(LoginRequiredMixin, View):
             _erreurs(request, exc)
             # Le formulaire est réaffiché avec la saisie, sans rien perdre.
             return render(request, "documentation/nouveau.html", {
-                "cibles": cibles_autorisees(request.user), "origines": Document.ORIGINE_CHOICES, "saisie": request.POST})
+                "cibles": cibles_autorisees(request.user, actives=True), "origines": Document.ORIGINE_CHOICES, "saisie": request.POST})
         messages.success(request, "Brouillon enregistré : soumettez-le à validation pour le publier.")
         return redirect("document-detail", pk=document.pk)
 

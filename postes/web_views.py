@@ -41,7 +41,7 @@ class PosteNouveauView(LoginRequiredMixin, View):
         if not services.peut_gerer(request.user):
             raise Http404
         return render(request, "postes/nouveau.html", {
-            "cibles": cibles_autorisees(request.user), "formations": TrainingCourse.objects.order_by("title")})
+            "cibles": cibles_autorisees(request.user, actives=True), "formations": TrainingCourse.objects.order_by("title")})
 
     def post(self, request):
         effectif = entier_ou_none(request.POST.get("effectif") or "1")

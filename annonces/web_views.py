@@ -91,7 +91,7 @@ class AnnoncesIndexView(LoginRequiredMixin, View):
 
 class AnnonceNouvelleView(LoginRequiredMixin, View):
     def _contexte(self, request):
-        return {"cibles": cibles_autorisees(request.user), "niveaux": NotificationLevel.choices,
+        return {"cibles": cibles_autorisees(request.user, actives=True), "niveaux": NotificationLevel.choices,
                 "equipages": equipages_du_navire(request.user), "aujourdhui": timezone.localdate()}
 
     def get(self, request):

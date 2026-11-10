@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
 from accounts.models import AuditLog
+from org.archivage import exclure_archives
 from org.models import Sector
 from assets.models import Asset, Installation
 from matrix.core.mixins import build_scope_q
@@ -73,7 +74,7 @@ def _secteurs_selectionnables(user):
         secteurs = secteurs.filter(service__ship=ship)
     elif not is_master_admin(user):
         secteurs = secteurs.none()
-    return secteurs.order_by("service__name", "name")
+    return exclure_archives(secteurs).order_by("service__name", "name")
 
 
 def _equipements_du_perimetre(user):

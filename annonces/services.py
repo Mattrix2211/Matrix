@@ -16,6 +16,7 @@ from matrix.core.saisie import verifier_longueurs
 from matrix.core.scopes import is_master_admin, navire_q
 from notifications.models import Notification, NotificationLevel
 from notifications.services import creer_notifications_en_masse, traiter_actions
+from org.archivage import exclure_archives
 from org.models import Section, Sector, Service, Ship
 
 from .models import Annonce, LectureAnnonce, ParametresAnnonces, VersionAnnonce
@@ -46,9 +47,12 @@ def chaine(user):
     return profil._chaine
 
 
-def _noeuds(ship_ids, service_id=None, sector_id=None, section_id=None, libelles=True):
-    """Nœuds ciblables sous un niveau de périmètre : [(clé, libellé)] ; sans libellés, une requête d'identifiants par niveau."""
+def _noeuds(ship_ids, service_id=None, sector_id=None, section_id=None, libelles=True, actives=False):
+    """Nœuds ciblables sous un niveau de périmètre : [(clé, libellé)] ; sans libellés, une requête d'identifiants par niveau.
+    `actives` : écarte les unités archivées (choix proposés pour une NOUVELLE diffusion ; l'historique reste visible)."""
     def liste(cle, prefixe, qs):
+        if actives:
+            qs = exclure_archives(qs)
         if not libelles:
             return [(f"{cle}:{pk}", "") for pk in qs.values_list("pk", flat=True)]
         return [(f"{cle}:{n.pk}", f"{prefixe}{n}") for n in qs]
@@ -74,21 +78,21 @@ def _noeuds(ship_ids, service_id=None, sector_id=None, section_id=None, libelles
     return noeuds
 
 
-def cibles_autorisees(user, libelles=True):
+def cibles_autorisees(user, libelles=True, actives=False):
     """Cibles que `user` peut viser : son niveau de périmètre et tout ce qui en dépend."""
     if is_master_admin(user):
         ship_id = getattr(getattr(user, "profile", None), "ship_id", None)
-        return _noeuds([ship_id] if ship_id else list(Ship.objects.values_list("pk", flat=True)), libelles=libelles)
+        return _noeuds([ship_id] if ship_id else list(Ship.objects.values_list("pk", flat=True)), libelles=libelles, actives=actives)
     niveau, ident = user.profile.scope if getattr(user, "profile", None) else (None, None)
     ship_id = user.profile.ship_id if niveau else None
     if niveau == "ship":
-        return _noeuds([ident], libelles=libelles)
+        return _noeuds([ident], libelles=libelles, actives=actives)
     if niveau == "service":
-        return _noeuds([ship_id], service_id=ident, libelles=libelles)
+        return _noeuds([ship_id], service_id=ident, libelles=libelles, actives=actives)
     if niveau == "sector":
-        return _noeuds([ship_id], sector_id=ident, libelles=libelles)
+        return _noeuds([ship_id], sector_id=ident, libelles=libelles, actives=actives)
     if niveau == "section":
-        return _noeuds([ship_id], section_id=ident, libelles=libelles)
+        return _noeuds([ship_id], section_id=ident, libelles=libelles, actives=actives)
     return []
 
 

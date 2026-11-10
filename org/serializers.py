@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from matrix.core.equipage import equipage_a_bord
 from matrix.core.serializers import ReferencesDansPerimetreMixin
+from .archivage import erreur_changement
 from .models import Ship, Service, Sector, Section, SectorConfig
 
 # Chemins de périmètre (matrix.core.mixins.build_scope_q) des objets référencés :
@@ -20,6 +21,24 @@ _PERIMETRE_SECTEUR = {
 }
 
 
+class ArchivageValidationMixin:
+    """Archiver une unité occupée, ou créer / réactiver sous une unité archivée, est refusé (règle de org/archivage.py)."""
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        modele = self.Meta.model
+        if self.instance is not None:
+            unite = modele.objects.get(pk=self.instance.pk)
+            for champ, valeur in attrs.items():
+                setattr(unite, champ, valeur)
+        else:
+            unite = modele(**{k: v for k, v in attrs.items() if k in {f.name for f in modele._meta.concrete_fields}})
+        message = erreur_changement(unite, unite.archived, self.instance)
+        if message:
+            raise serializers.ValidationError({"archived" if "archived" in attrs else "detail": message})
+        return attrs
+
+
 class EquipageABordField(serializers.CharField):
     """Lecture par l'accesseur unique : les relèves échues sont appliquées avant d'exposer l'équipage."""
 
@@ -27,7 +46,7 @@ class EquipageABordField(serializers.CharField):
         return equipage_a_bord(instance)
 
 
-class ShipSerializer(serializers.ModelSerializer):
+class ShipSerializer(ArchivageValidationMixin, serializers.ModelSerializer):
     equipage_a_bord = EquipageABordField(max_length=8, required=False, allow_blank=True)
 
     class Meta:
@@ -47,7 +66,7 @@ class ShipSerializer(serializers.ModelSerializer):
         equipage_a_bord(instance)
         return instance
 
-class ServiceSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
+class ServiceSerializer(ArchivageValidationMixin, ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"ship": (_PERIMETRE_NAVIRE,)}
 
     class Meta:
@@ -56,7 +75,7 @@ class ServiceSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerialize
         # Le commandant adjoint route les visas : réglage administratif, pas via l'API.
         read_only_fields = ("id", "commandant_adjoint", "created_at", "updated_at")
 
-class SectorSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
+class SectorSerializer(ArchivageValidationMixin, ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"service": (_PERIMETRE_SERVICE,)}
 
     class Meta:
@@ -64,7 +83,7 @@ class SectorSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer
         fields = ("id", "service", "name", "color", "archived", "created_at", "updated_at")
         read_only_fields = ("id", "created_at", "updated_at")
 
-class SectionSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer):
+class SectionSerializer(ArchivageValidationMixin, ReferencesDansPerimetreMixin, serializers.ModelSerializer):
     references_perimetre = {"sector": (_PERIMETRE_SECTEUR,)}
 
     class Meta:

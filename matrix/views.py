@@ -2,7 +2,7 @@ from datetime import timedelta
 from itertools import groupby
 
 from django.db.models import Q
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -32,6 +32,7 @@ from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import is_master_admin, ship_id_for_user
+from org import archivage
 from matrix.core.equipage import (
     ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, annuler_releve_planifiee, changer_fuseau, decider_releve,
     equipage_a_bord, erreur_secours_releve, marins_sans_equipage, peut_annuler_releve_planifiee, peut_changer_fuseau,
@@ -633,9 +634,12 @@ class SettingsView(LoginRequiredMixin, View):
             if name and ship_id:
                 try:
                     ship = Ship.objects.get(pk=ship_id)
-                    Service.objects.get_or_create(name=name, ship=ship)
-                    messages.success(request, "Service ajouté.")
-                    AuditLog.objects.create(actor=request.user, action='add_service', details=f'name={name}; ship_id={ship_id}')
+                    if not archivage.est_active(ship):
+                        messages.error(request, "Ce bâtiment est archivé : il ne peut plus recevoir de service.")
+                    else:
+                        Service.objects.get_or_create(name=name, ship=ship)
+                        messages.success(request, "Service ajouté.")
+                        AuditLog.objects.create(actor=request.user, action='add_service', details=f'name={name}; ship_id={ship_id}')
                 except Ship.DoesNotExist:
                     pass
         elif action == 'delete_service':
@@ -648,9 +652,12 @@ class SettingsView(LoginRequiredMixin, View):
             if name and service_id:
                 try:
                     service = Service.objects.get(pk=service_id)
-                    Sector.objects.get_or_create(name=name, service=service)
-                    messages.success(request, "Secteur ajouté.")
-                    AuditLog.objects.create(actor=request.user, action='add_sector', details=f'name={name}; service_id={service_id}')
+                    if not archivage.est_active(service):
+                        messages.error(request, "Ce service est archivé : il ne peut plus recevoir de secteur.")
+                    else:
+                        Sector.objects.get_or_create(name=name, service=service)
+                        messages.success(request, "Secteur ajouté.")
+                        AuditLog.objects.create(actor=request.user, action='add_sector', details=f'name={name}; service_id={service_id}')
                 except Service.DoesNotExist:
                     pass
         elif action == 'delete_sector':
@@ -663,9 +670,12 @@ class SettingsView(LoginRequiredMixin, View):
             if name and sector_id:
                 try:
                     sector = Sector.objects.get(pk=sector_id)
-                    Section.objects.get_or_create(name=name, sector=sector)
-                    messages.success(request, "Section ajoutée.")
-                    AuditLog.objects.create(actor=request.user, action='add_section', details=f'name={name}; sector_id={sector_id}')
+                    if not archivage.est_active(sector):
+                        messages.error(request, "Ce secteur est archivé : il ne peut plus recevoir de section.")
+                    else:
+                        Section.objects.get_or_create(name=name, sector=sector)
+                        messages.success(request, "Section ajoutée.")
+                        AuditLog.objects.create(actor=request.user, action='add_section', details=f'name={name}; sector_id={sector_id}')
                 except Sector.DoesNotExist:
                     pass
         elif action == 'delete_section':
@@ -673,6 +683,18 @@ class SettingsView(LoginRequiredMixin, View):
             Section.objects.filter(pk=pk).delete()
             messages.success(request, "Section supprimée.")
             AuditLog.objects.create(actor=request.user, action='delete_section', details=f'pk={pk}')
+        elif action in ('archive_unit', 'reactivate_unit'):
+            modele = {'service': Service, 'sector': Sector, 'section': Section}.get(request.POST.get('kind'))
+            unite = modele.objects.filter(pk=entier_ou_none(request.POST.get('pk'))).first() if modele else None
+            if unite is None or not (is_master_admin(request.user) or archivage.navire_de(unite).pk == ship_id_for_user(request.user)):
+                messages.error(request, "Unité introuvable.")
+            else:
+                try:
+                    fait = (archivage.archiver if action == 'archive_unit' else archivage.reactiver)(unite, request.user)
+                    messages.success(request, f"{archivage.libelle_type(unite).capitalize()} {'archivé' if action == 'archive_unit' else 'réactivé'}."
+                                     if fait else "Aucun changement : l'unité était déjà dans cet état.")
+                except ValidationError as erreur:
+                    messages.error(request, " ".join(erreur.messages))
         elif action == 'toggle_role':
             code = request.POST.get('code')
             if code and code != 'MASTER_ADMIN':

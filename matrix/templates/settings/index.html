@@ -1015,8 +1015,9 @@
               {% for sv in services %}
                 <li class="mb-3">
                   <div class="d-flex align-items-center justify-content-between">
-                    <strong>{{ sv.name }}</strong>
+                    <strong>{{ sv.name }}{% if sv.archived %} <span class="badge text-bg-secondary">Archivé</span>{% endif %}</strong>
                     <div>
+                      <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="next_tab" value="hierarchie" /><input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" /><input type="hidden" name="kind" value="service" /><input type="hidden" name="pk" value="{{ sv.id }}" />{% if sv.archived %}<input type="hidden" name="action" value="reactivate_unit" /><button class="btn btn-outline-secondary btn-sm" type="submit">Réactiver</button>{% else %}<input type="hidden" name="action" value="archive_unit" /><button class="btn btn-outline-secondary btn-sm" type="submit">Archiver</button>{% endif %}</form> 
                       <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_service" data-pk="{{ sv.id }}" data-label="Supprimer le service {{ sv.name }}">Supprimer</button>
                     </div>
                   </div>
@@ -1036,8 +1037,9 @@
                       {% if sc.service_id == sv.id %}
                       <li class="mb-2">
                         <div class="d-flex align-items-center justify-content-between">
-                          {{ sc.name }}
+                          <span>{{ sc.name }}{% if sc.archived %} <span class="badge text-bg-secondary">Archivé</span>{% endif %}</span>
                           <div>
+                            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="next_tab" value="hierarchie" /><input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" /><input type="hidden" name="kind" value="sector" /><input type="hidden" name="pk" value="{{ sc.id }}" />{% if sc.archived %}<input type="hidden" name="action" value="reactivate_unit" /><button class="btn btn-outline-secondary btn-sm" type="submit">Réactiver</button>{% else %}<input type="hidden" name="action" value="archive_unit" /><button class="btn btn-outline-secondary btn-sm" type="submit">Archiver</button>{% endif %}</form> 
                             <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_sector" data-pk="{{ sc.id }}" data-label="Supprimer le secteur {{ sc.name }}">Supprimer</button>
                           </div>
                         </div>
@@ -1056,8 +1058,9 @@
                           {% for se in sections %}
                             {% if se.sector_id == sc.id %}
                             <li class="d-flex align-items-center justify-content-between">
-                              {{ se.name }}
+                              <span>{{ se.name }}{% if se.archived %} <span class="badge text-bg-secondary">Archivé</span>{% endif %}</span>
                               <div>
+                                <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="next_tab" value="hierarchie" /><input type="hidden" name="selected_ship" value="{{ selected_ship.id }}" /><input type="hidden" name="kind" value="section" /><input type="hidden" name="pk" value="{{ se.id }}" />{% if se.archived %}<input type="hidden" name="action" value="reactivate_unit" /><button class="btn btn-outline-secondary btn-sm" type="submit">Réactiver</button>{% else %}<input type="hidden" name="action" value="archive_unit" /><button class="btn btn-outline-secondary btn-sm" type="submit">Archiver</button>{% endif %}</form> 
                                 <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmModal" data-action="delete_section" data-pk="{{ se.id }}" data-label="Supprimer la section {{ se.name }}">Supprimer</button>
                               </div>
                             </li>

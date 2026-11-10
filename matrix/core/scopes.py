@@ -155,7 +155,7 @@ def perimetre_hierarchique_q(user, prefix: str = "") -> Optional[Q]:
     return None
 
 
-def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=None, sector_id=None, section_id=None):
+def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=None, sector_id=None, section_id=None, deja=None):
     """Résout les valeurs d'affectation (navire/service/secteur/section) demandées
     pour un utilisateur, en s'assurant qu'elles appartiennent au périmètre navire
     de l'appelant : un COMMANDANT ou un ADMIN_NAVIRE ne peut affecter un
@@ -176,7 +176,11 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
     demandées (celles non vides) existent et sont dans le périmètre. Renvoie
     (False, None, None, None, None) si l'une d'elles est invalide ou hors
     périmètre : l'appelant ne doit alors procéder à AUCUNE modification, pour
-    éviter un état partiellement appliqué."""
+    éviter un état partiellement appliqué.
+
+    Une unité archivée est refusée (aucun nouveau rattachement), sauf si elle fait déjà partie du rattachement actuel du marin visé
+    (`deja` : profil du marin) : sa fiche reste modifiable sans jamais perdre ni élargir son périmètre."""
+    from org.archivage import est_active
     from org.models import Ship, Service, Sector, Section
     if is_master_admin(acting_user):
         ship_qs, service_qs = Ship.objects.all(), Service.objects.all()
@@ -194,6 +198,11 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
         section = section_qs.get(pk=entier_ou_none(section_id)) if section_id else None
     except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
         return False, None, None, None, None
+    actuelles = {u.pk: u.__class__ for u in (getattr(deja, "ship", None), getattr(deja, "service", None),
+                                            getattr(deja, "sector", None), getattr(deja, "section", None)) if u is not None}
+    for unite in (ship, service, sector, section):
+        if unite is not None and not est_active(unite) and actuelles.get(unite.pk) is not unite.__class__:
+            return False, None, None, None, None
     return True, ship, service, sector, section
 
 

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
 from matrix.core.models import TimeStampedModel, OwnedModel
+from org.archivage import verifier_rattachement
 from matrix.core.validators import (
     valider_document, valider_document_installation, valider_photo, valider_photo_catalogue,
 )
@@ -334,6 +335,7 @@ class Asset(TimeStampedModel, OwnedModel):
     def clean(self):
         super().clean()
         _verifier_absence_de_cycle(self)
+        verifier_rattachement(self)
 
     def save(self, *args, **kwargs):
         # clean() n'est pas appelé automatiquement par save() : sans ce contrôle
@@ -396,6 +398,7 @@ class Installation(TimeStampedModel, OwnedModel):
     def clean(self):
         super().clean()
         _verifier_absence_de_cycle(self)
+        verifier_rattachement(self)
 
     def save(self, *args, **kwargs):
         # clean() n'est pas appelé automatiquement par save() : sans ce contrôle

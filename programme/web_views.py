@@ -64,7 +64,7 @@ class ProgrammeIndexView(LoginRequiredMixin, View):
 class EvenementNouveauView(LoginRequiredMixin, View):
     def _contexte(self, request):
         navire = services.chaine(request.user)[0]
-        return {"types": services.types_du_navire(navire), "cibles": cibles_autorisees(request.user)}
+        return {"types": services.types_du_navire(navire), "cibles": cibles_autorisees(request.user, actives=True)}
 
     def get(self, request):
         if not services.peut_saisir(request.user):

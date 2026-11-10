@@ -17,6 +17,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = "__all__"
 
+    def _refuser_unites_archivees(self, attrs):
+        """Aucun nouveau rattachement à une unité archivée (une valeur inchangée reste tolérée)."""
+        from org.archivage import est_active
+
+        for champ in ("ship", "service", "sector", "section"):
+            unite = attrs.get(champ)
+            if unite is not None and not est_active(unite) and getattr(self.instance, f"{champ}_id", None) != unite.pk:
+                raise serializers.ValidationError({champ: "Cette unité est archivée : elle ne peut plus recevoir de rattachement."})
+
     def validate(self, attrs):
         """Valide que le navire/service/secteur/section de destination
         appartient au périmètre de l'appelant, exactement comme le fait déjà
@@ -45,6 +54,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"equipage": MESSAGE_EQUIPAGE_OBLIGATOIRE})
         request = self.context.get("request")
         acting_user = getattr(request, "user", None)
+        self._refuser_unites_archivees(attrs)
         if acting_user is None or is_master_admin(acting_user):
             return attrs
         for secteur in attrs.get("allowed_sectors", []):
@@ -69,6 +79,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             service_id=service.id if service else None,
             sector_id=sector.id if sector else None,
             section_id=section.id if section else None,
+            deja=self.instance,
         )
         if not ok:
             raise serializers.ValidationError(

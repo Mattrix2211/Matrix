@@ -11,6 +11,7 @@ from django.db.models import JSONField
 from matrix.core.fuseau import valider_fuseau
 from matrix.core.config_version import cle_modules, cle_seuils, incrementer
 from matrix.core.models import TimeStampedModel
+from org.archivage import verifier_modele
 
 User = get_user_model()
 
@@ -61,6 +62,10 @@ class Ship(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        verifier_modele(self)
 
 class TypeBatiment(TimeStampedModel):
     """Type de bâtiment (FREMM, BRF, POM…) : porte la silhouette du bandeau. Modifiable en administration."""
@@ -173,6 +178,10 @@ class Service(TimeStampedModel):
     def __str__(self):
         return f"{self.ship} / {self.name}"
 
+    def clean(self):
+        super().clean()
+        verifier_modele(self)
+
 class Sector(TimeStampedModel):
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="sectors")
     name = models.CharField(max_length=255)
@@ -185,6 +194,10 @@ class Sector(TimeStampedModel):
     def __str__(self):
         return f"{self.service} / {self.name}"
 
+    def clean(self):
+        super().clean()
+        verifier_modele(self)
+
 class Section(TimeStampedModel):
     sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="sections")
     name = models.CharField(max_length=255)
@@ -195,6 +208,10 @@ class Section(TimeStampedModel):
 
     def __str__(self):
         return f"{self.sector} / {self.name}"
+
+    def clean(self):
+        super().clean()
+        verifier_modele(self)
 
 class SectorConfig(TimeStampedModel):
     sector = models.OneToOneField(Sector, on_delete=models.CASCADE, related_name="config")

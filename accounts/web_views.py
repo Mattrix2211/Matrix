@@ -24,6 +24,7 @@ from matrix.core.scopes import (
     perimetre_navire_q,
     resoudre_affectation_dans_perimetre,
 )
+from org.archivage import exclure_archives
 from training.models import CandidatureFormation
 from training.services import qualifications_validees_de
 from matrix.core.organisation import votre_niveau
@@ -102,16 +103,16 @@ def _referentiels_formulaire(user):
         ],
     }
     if is_master_admin(user):
-        ctx["ships"] = Ship.objects.order_by("name")
-        ctx["services"] = Service.objects.select_related("ship").order_by("name")
-        ctx["sectors"] = Sector.objects.select_related("service", "service__ship").order_by("name")
-        ctx["sections"] = Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+        ctx["ships"] = proposables(Ship.objects.order_by("name"))
+        ctx["services"] = proposables(Service.objects.select_related("ship").order_by("name"))
+        ctx["sectors"] = proposables(Sector.objects.select_related("service", "service__ship").order_by("name"))
+        ctx["sections"] = proposables(Section.objects.select_related("sector", "sector__service", "sector__service__ship").order_by("name"))
     else:
         mon_navire_id = ship_id_for_user(user)
-        ctx["ships"] = Ship.objects.filter(pk=mon_navire_id).order_by("name")
-        ctx["services"] = Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name")
-        ctx["sectors"] = Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name")
-        ctx["sections"] = Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name")
+        ctx["ships"] = proposables(Ship.objects.filter(pk=mon_navire_id).order_by("name"))
+        ctx["services"] = proposables(Service.objects.filter(ship_id=mon_navire_id).select_related("ship").order_by("name"))
+        ctx["sectors"] = proposables(Sector.objects.filter(service__ship_id=mon_navire_id).select_related("service", "service__ship").order_by("name"))
+        ctx["sections"] = proposables(Section.objects.filter(sector__service__ship_id=mon_navire_id).select_related("sector", "sector__service", "sector__service__ship").order_by("name"))
     ctx["fonctions"] = ServiceFunctionChoice.objects.filter(active=True).order_by("name")
     ctx["grades"] = GradeChoice.objects.filter(active=True).order_by("name")
     ctx["specialites"] = SpecialityChoice.objects.filter(active=True).order_by("name")
@@ -124,6 +125,11 @@ def _page_mots_de_passe_provisoires(request, provisoires):
     reponse["Cache-Control"] = "no-store"
     return reponse
 
+
+
+def proposables(unites):
+    """Unités proposées à l'affectation : actives, plus celles qui portent encore des marins (données antérieures à la règle)."""
+    return exclure_archives(unites, garder_occupees=True)
 
 class UserDirectoryView(LoginRequiredMixin, ListView):
     template_name = "accounts/directory.html"
@@ -499,10 +505,11 @@ class UserDirectoryView(LoginRequiredMixin, ListView):
                 sector_id = request.POST.get("sector_id")
                 section_id = request.POST.get("section_id")
                 ok, ship, service, sector, section = resoudre_affectation_dans_perimetre(
-                    request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id
+                    request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id,
+                    deja=getattr(user, "profile", None),
                 )
                 if not ok:
-                    messages.error(request, f"Unité, service, secteur ou section invalide, ou hors de {votre_niveau(request.user)}.")
+                    messages.error(request, f"Unité, service, secteur ou section invalide, archivé, ou hors de {votre_niveau(request.user)}.")
                     return redirect("user-directory")
                 equipage_actuel = getattr(getattr(user, "profile", None), "equipage", "")
                 equipage = request.POST.get("equipage", equipage_actuel).strip()
