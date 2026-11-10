@@ -28,6 +28,8 @@ Accès : http://127.0.0.1:8000/ (admin : `/admin/`)
 
 **Données de démonstration** : ne jamais lancer `seed_demo*` sur la base de développement ou de production. La démonstration se prépare sur une base séparée, avec `lancer_demo.bat` (Windows) ou `python scripts/preparer_instance_test.py --reinitialiser` (voir `docs/TESTS_MARINS.md`). Les commandes `seed_demo*` refusent de s'exécuter ailleurs. Les mots de passe sont générés au hasard ; `python scripts/preparer_instance_test.py --identifiants` les affiche. Recette Windows : `docs/recette/L01_recette_windows.md`.
 
+**Production** (`DJANGO_DEBUG=0`) : le démarrage est refusé si `DJANGO_SECRET_KEY` est absente, de moins de 32 caractères ou égale à une valeur d'exemple (`change-me`, `dev-secret-key`…), ou si `DB_HOST` est défini sans `DB_PASSWORD` réel. Générer une clé : `python -c "import secrets; print(secrets.token_urlsafe(50))"`. En développement (`DJANGO_DEBUG=1`), rien ne change : la clé peut rester vide.
+
 L'export PDF des bilans nécessite les bibliothèques natives GTK (WeasyPrint) — absentes par défaut sous Windows. Sans elles, tout le reste de l'application fonctionne normalement ; seul l'export PDF reste indisponible (CSV/Excel restent disponibles).
 
 ## Docker services (Postgres + Redis)
@@ -42,7 +44,7 @@ docker compose up -d
 set DB_HOST=localhost
 set DB_NAME=matrix
 set DB_USER=matrix
-set DB_PASSWORD=matrix
+set DB_PASSWORD=<le mot de passe de POSTGRES_PASSWORD>
 set DB_PORT=5432
 python manage.py migrate
 ```

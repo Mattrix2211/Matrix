@@ -17,7 +17,7 @@
 | 9 | (Seulement si vous avez une base de démonstration créée **avant** ce lot, dont le fichier `db.sqlite3.instance_demo` est vide) `lancer_demo.bat` | Le lanceur **refuse** : « base préparée avant le verrou… » (aucune modification). Puis `python scripts\preparer_instance_test.py --mettre-a-jour --adopter-ancienne-base` : adoption réussie si tous les comptes sont d'origine, l'ancien mot de passe `pass` ne fonctionne plus, `--identifiants` donne les nouveaux. Sinon `--reinitialiser` | |
 | 9b | Dans une copie jetable, ajouter à la base un compte `admin` avec un mot de passe de votre choix (admin Django ou `createsuperuser`), puis `--mettre-a-jour --adopter-ancienne-base` | Refus : l'adoption n'a pas lieu, le compte et le fichier voisin restent inchangés | |
 | 10 | `set MATRIX_SQLITE_PATH=%CD%\instance_test_marins\db.sqlite3` puis `set DJANGO_DEBUG=1` puis `python manage.py verifier_instance` | « Aucun compte à mot de passe prévisible… » | |
-| 11 | Même fenêtre : `set DJANGO_DEBUG=0` puis `set DJANGO_SECRET_KEY=une-cle-quelconque-de-test` puis `python manage.py check` | Erreur `matrix.E001` : la base de démonstration ne peut pas servir en production | |
+| 11 | Même fenêtre : `set DJANGO_DEBUG=0` puis `set DJANGO_SECRET_KEY=cle-de-test-longue-d-au-moins-32-caracteres` puis `python manage.py check` | Erreur `matrix.E001` : la base de démonstration ne peut pas servir en production | |
 
 **Compte rendu** : noter pour chaque ligne OK / KO / commentaire, la version de Windows et de Python (`python --version`).
 

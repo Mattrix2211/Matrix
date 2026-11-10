@@ -41,20 +41,34 @@ _charger_variables_env_locales(Path(os.getenv("MATRIX_ENV_FILE") or BASE_DIR / "
 # silencieusement sur cette clé publique.
 _CLE_SECRETE_DEV_PAR_DEFAUT = "dev-secret-key"
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", _CLE_SECRETE_DEV_PAR_DEFAUT)
+# Valeurs d'exemple ou triviales jamais acceptées en production, pour la clé secrète comme pour le mot de passe de la base.
+_VALEURS_DE_SECRET_REFUSEES = {_CLE_SECRETE_DEV_PAR_DEFAUT, "change-me", "changeme", "secret", "password", "matrix", "postgres", "admin", "pass"}
+_LONGUEUR_MINIMALE_CLE_SECRETE = 32
+
+
+def erreurs_secrets_production(env, cle_secrete):
+    """Raisons pour lesquelles la configuration ne peut pas servir en production (liste vide si elle est acceptable)."""
+    erreurs = []
+    if len(cle_secrete) < _LONGUEUR_MINIMALE_CLE_SECRETE or cle_secrete.lower() in _VALEURS_DE_SECRET_REFUSEES:
+        erreurs.append(f"DJANGO_SECRET_KEY doit être une clé propre à l'installation d'au moins {_LONGUEUR_MINIMALE_CLE_SECRETE} caractères, "
+                       "ni la clé de développement ni une valeur d'exemple (générer : python -c \"import secrets; print(secrets.token_urlsafe(50))\")")
+    if env.get("DB_HOST") and not env.get("MATRIX_SQLITE_PATH"):
+        mot_de_passe = env.get("DB_PASSWORD", "")
+        if not mot_de_passe or mot_de_passe.lower() in _VALEURS_DE_SECRET_REFUSEES:
+            erreurs.append("DB_PASSWORD doit être défini avec le mot de passe réel de la base PostgreSQL (ni vide, ni une valeur d'exemple)")
+    return erreurs
+
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or _CLE_SECRETE_DEV_PAR_DEFAUT  # variable vide = clé de développement
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
-# Garde-fou de démarrage : en production (DEBUG=False), il est interdit de
-# démarrer avec la clé secrète de développement — un fallback silencieux
-# exposerait une clé publique connue en environnement réel. En dev local
-# (DEBUG=True via le fichier .env du poste), aucune vérification n'est faite
-# pour ne pas gêner le développement quotidien.
-if not DEBUG and SECRET_KEY == _CLE_SECRETE_DEV_PAR_DEFAUT:
-    raise ImproperlyConfigured(
-        "DJANGO_SECRET_KEY doit être défini avec une valeur de production "
-        "(différente de la clé de développement) lorsque DJANGO_DEBUG=0."
-    )
+# Garde-fou de démarrage : en production (DEBUG=False), refus de démarrer avec la clé de développement, une valeur d'exemple
+# ou un mot de passe de base trivial. En développement local (DEBUG=True), aucune vérification : l'installation reste simple.
+if not DEBUG:
+    _erreurs_production = erreurs_secrets_production(os.environ, SECRET_KEY)
+    if _erreurs_production:
+        raise ImproperlyConfigured("Configuration refusée en production (DJANGO_DEBUG=0) : " + " ; ".join(_erreurs_production) + ".")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -183,7 +197,7 @@ def choisir_base_de_donnees(env):
                 "ENGINE": "django.db.backends.postgresql",
                 "NAME": env.get("DB_NAME", "matrix"),
                 "USER": env.get("DB_USER", "matrix"),
-                "PASSWORD": env.get("DB_PASSWORD", "matrix"),
+                "PASSWORD": env.get("DB_PASSWORD", "matrix"),  # repli de développement ; refusé hors DEBUG (erreurs_secrets_production)
                 "HOST": env["DB_HOST"],
                 "PORT": env.get("DB_PORT", "5432"),
             }
