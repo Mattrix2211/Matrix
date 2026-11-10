@@ -59,14 +59,14 @@ class RefusHorsBaseDedieeTests(TestCase):
 
     @skipIf(settings.DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3", "chemin de base simulé : SQLite seulement")
     def test_refus_hors_debug(self):
-        self.base.with_name(self.base.name + instance_demo.SUFFIXE_MARQUEUR).touch()
+        self.base.with_name(self.base.name + instance_demo.SUFFIXE_MARQUEUR).write_text("instance : test\n", encoding="utf-8")
         for commande in GENERATEURS:
             with conditions_reelles(self.base, debug=False):
                 self.assertIn("DEBUG", self._refus(commande))
 
     @skipIf(settings.DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3", "chemin de base simulé : SQLite seulement")
     def test_refus_sans_variable_d_activation_meme_en_debug(self):
-        self.base.with_name(self.base.name + instance_demo.SUFFIXE_MARQUEUR).touch()
+        self.base.with_name(self.base.name + instance_demo.SUFFIXE_MARQUEUR).write_text("instance : test\n", encoding="utf-8")
         for commande in GENERATEURS:
             with conditions_reelles(self.base, activation=None):
                 self.assertIn(instance_demo.VARIABLE_ACTIVATION, self._refus(commande))
@@ -357,3 +357,93 @@ class PreuveDePreparationTests(TestCase):
             self.assertIn("instance : abc123", fichier.read_text(encoding="utf-8"))
             instance_demo.oublier_mots_de_passe()
             self.assertEqual(instance_demo.mot_de_passe_commun(), commun)
+
+
+@skipIf(settings.DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3", "chemin de base simulé : SQLite seulement")
+class FichierVoisinVideEtAdoptionTests(TestCase):
+    """Un fichier voisin vide ou créé à la main n'est jamais une preuve ; une ancienne base ne s'adopte qu'après contrôle objectif."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.base = Path(self.tmp.name) / "demo.sqlite3"
+        self.preuve = self.base.with_name(self.base.name + instance_demo.SUFFIXE_MARQUEUR)
+        instance_demo.oublier_mots_de_passe()
+        self.addCleanup(instance_demo.oublier_mots_de_passe)
+
+    def _commande(self, commande, *args):
+        with conditions_reelles(self.base):
+            call_command(commande, *args, stdout=StringIO())
+
+    def test_un_fichier_voisin_vide_ne_permet_ni_de_marquer_ni_de_remplir(self):
+        self.preuve.write_text("", encoding="utf-8")
+        User.objects.create_user(username="admin", password="mot-de-passe-reel-1234")
+        for commande in ("marquer_instance_demo", *GENERATEURS):
+            with self.assertRaises(CommandError) as ctx:
+                self._commande(commande)
+            self.assertIn("absent ou vide", str(ctx.exception))
+        self.assertFalse(InstanceDemo.objects.exists())
+        self.assertEqual(self.preuve.read_text(encoding="utf-8"), "")
+        self.assertTrue(User.objects.get(username="admin").check_password("mot-de-passe-reel-1234"))
+
+    def test_un_fichier_sans_ligne_instance_ne_vaut_pas_preuve(self):
+        self.preuve.write_text("n'importe quoi\n", encoding="utf-8")
+        with self.assertRaises(CommandError):
+            self._commande("seed_demo")
+
+    def test_adoption_refusee_sans_le_drapeau_explicite(self):
+        self.preuve.write_text("", encoding="utf-8")
+        User.objects.create_user(username="equipier_a", password="pass")
+        with self.assertRaises(CommandError):
+            self._commande("marquer_instance_demo", "--regenerer-mots-de-passe")
+        self.assertEqual(self.preuve.read_text(encoding="utf-8"), "")
+
+    def test_adoption_d_une_ancienne_base_de_comptes_d_origine(self):
+        self.preuve.write_text("", encoding="utf-8")
+        User.objects.create_user(username="equipier_a", password="pass")
+        User.objects.create_user(username="admin", password="admin")
+        self._commande("marquer_instance_demo", "--adopter-ancienne-base", "--regenerer-mots-de-passe")
+        identifiant = self.preuve.read_text(encoding="utf-8")
+        self.assertRegex(identifiant, r"^instance : [0-9a-f]{32}\n$")
+        self.assertEqual(InstanceDemo.objects.get().identifiant, identifiant.split(":")[1].strip())
+        self.assertEqual(instance_demo.comptes_a_mot_de_passe_herite(), [])
+
+    def test_adoption_refusee_si_un_compte_a_un_mot_de_passe_reel_meme_avec_un_nom_de_demonstration(self):
+        self.preuve.write_text("", encoding="utf-8")
+        User.objects.create_user(username="equipier_a", password="pass")
+        User.objects.create_user(username="admin", password="mot-de-passe-reel-1234")
+        with self.assertRaises(CommandError) as ctx:
+            self._commande("marquer_instance_demo", "--adopter-ancienne-base", "--regenerer-mots-de-passe")
+        self.assertIn("admin", str(ctx.exception))
+        self.assertFalse(InstanceDemo.objects.exists())
+        self.assertEqual(self.preuve.read_text(encoding="utf-8"), "")
+        self.assertTrue(User.objects.get(username="equipier_a").check_password("pass"))
+
+    def test_adoption_refusee_si_un_compte_n_est_pas_un_compte_de_demonstration(self):
+        self.preuve.write_text("", encoding="utf-8")
+        User.objects.create_user(username="vrai_marin", password="pass")
+        with self.assertRaises(CommandError):
+            self._commande("marquer_instance_demo", "--adopter-ancienne-base")
+        self.assertEqual(self.preuve.read_text(encoding="utf-8"), "")
+
+    def test_adoption_refusee_sans_fichier_voisin_et_sur_base_deja_identifiee(self):
+        User.objects.create_user(username="equipier_a", password="pass")
+        with self.assertRaises(CommandError):
+            self._commande("marquer_instance_demo", "--adopter-ancienne-base")
+        self.assertFalse(self.preuve.exists())
+        self.preuve.write_text("instance : deja\n", encoding="utf-8")
+        with self.assertRaises(CommandError):
+            self._commande("marquer_instance_demo", "--adopter-ancienne-base")
+
+    def test_adoption_refusee_sur_base_sans_compte(self):
+        self.preuve.write_text("", encoding="utf-8")
+        with self.assertRaises(CommandError):
+            self._commande("marquer_instance_demo", "--adopter-ancienne-base")
+        self.assertEqual(self.preuve.read_text(encoding="utf-8"), "")
+
+    def test_l_identifiant_manquant_en_base_est_rattache_a_celui_du_fichier(self):
+        self.preuve.write_text("instance : abc\n", encoding="utf-8")
+        InstanceDemo.objects.create(commande="ancienne", identifiant="")
+        with conditions_reelles(self.base):
+            instance_demo.exiger_base_demo("seed_demo_dense")
+        self.assertEqual(InstanceDemo.objects.get().identifiant, "abc")

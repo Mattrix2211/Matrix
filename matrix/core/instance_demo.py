@@ -77,6 +77,12 @@ def _identifiant_en_base():
     return None if ligne is None else ligne.identifiant
 
 
+def _rattacher_identifiant(identifiant):
+    from accounts.models import InstanceDemo
+
+    InstanceDemo.objects.filter(identifiant="").update(identifiant=identifiant)
+
+
 def base_marquee():
     """Vrai si la base porte le marqueur de démonstration (faux si la table n'existe pas encore)."""
     try:
@@ -96,13 +102,28 @@ def marquer_base(commande):
         InstanceDemo.objects.create(commande=commande, identifiant=identifiant_instance() or "")
 
 
+def adopter_ancienne_base():
+    """Base préparée avant le verrou (fichier voisin vide) : écrit l'identifiant d'instance après contrôle objectif des comptes.
+
+    Chaque compte doit être un compte de démonstration encore protégé par un ancien mot de passe prévisible, preuve qu'il a été
+    créé par l'ancien générateur et jamais modifié. Retourne les comptes refusés (liste vide = adoption faite)."""
+    refuses = [u.username for u in get_user_model().objects.order_by("username")
+               if u.username not in COMPTES_DEMO or not any(u.check_password(m) for m in MOTS_DE_PASSE_HERITES)]
+    if refuses or not get_user_model().objects.exists():
+        return refuses or ["(aucun compte)"]
+    fichier_marqueur().write_text(f"instance : {secrets.token_hex(16)}\n", encoding="utf-8")
+    return []
+
+
 def comptes_etrangers():
     """Noms des comptes qui ne sont pas des comptes de démonstration."""
     return sorted(set(get_user_model().objects.values_list("username", flat=True)) - COMPTES_DEMO)
 
 
-def conditions_manquantes():
-    """Conditions d'environnement non remplies (liste vide dans un processus de tests)."""
+def conditions_manquantes(exiger_preuve=True):
+    """Conditions d'environnement non remplies (liste vide dans un processus de tests).
+
+    La preuve de préparation est un identifiant d'instance NON VIDE dans le fichier voisin : un fichier vide ou créé à la main ne suffit pas."""
     if en_test():
         return []
     manque = []
@@ -114,8 +135,8 @@ def conditions_manquantes():
         manque.append(f"le moteur de base est {connection.vendor} et non SQLite")
     elif chemin_base() is None:
         manque.append("la base SQLite n'est pas un fichier")
-    elif not fichier_marqueur().exists():
-        manque.append(f"le fichier {fichier_marqueur().name}, écrit par la préparation de l'instance de démonstration, est absent")
+    elif exiger_preuve and not identifiant_instance():
+        manque.append(f"le fichier {fichier_marqueur().name}, écrit par la préparation de l'instance de démonstration, est absent ou vide")
     return manque
 
 
@@ -133,6 +154,8 @@ def exiger_base_demo(commande, creation=False):
         if dans_le_fichier and en_base and dans_le_fichier != en_base:
             raise CommandError(f"Refus : le fichier {fichier_marqueur().name} appartient à une autre instance que cette base ({commande}). "
                                "Aucune modification n'a été faite.")
+        if dans_le_fichier and not en_base:
+            _rattacher_identifiant(dans_le_fichier)
         return
     if creation and not get_user_model().objects.exists():
         marquer_base(commande)

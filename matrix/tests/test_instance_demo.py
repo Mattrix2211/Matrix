@@ -304,7 +304,7 @@ class MiseAJourTests(SimpleTestCase):
 
     def test_migrations_puis_generateurs_dans_l_ordre_sans_rien_supprimer(self):
         self.base.write_text("donnees")
-        script.marqueur(self.base).touch()
+        script.marqueur(self.base).write_text("instance : abc\n", encoding="utf-8")
         with mock.patch.object(script, "controler_connexion"):
             base, echecs = script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer)
         self.assertEqual(self.appels[0], ["migrate", "--noinput"])
@@ -312,7 +312,31 @@ class MiseAJourTests(SimpleTestCase):
         self.assertEqual([a[0] for a in self.appels[2:]], list(script.GENERATEURS))
         self.assertEqual(echecs, ["seed_demo_dense"])
         self.assertEqual(self.base.read_text(), "donnees")
-        self.assertRegex(script.marqueur(self.base).read_text(encoding="utf-8"), r"^instance : [0-9a-f]{32}\n$")  # ancienne base : preuve ajoutée
+
+    def test_ancienne_base_sans_identifiant_est_refusee_sans_adoption_explicite(self):
+        self.base.write_text("donnees")
+        script.marqueur(self.base).write_text("", encoding="utf-8")  # fichier voisin vide : ancienne version du script, ou fichier créé à la main
+        with mock.patch.object(script, "controler_connexion"):
+            with self.assertRaises(script.RefusError) as ctx:
+                script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer)
+        self.assertIn("--adopter-ancienne-base", str(ctx.exception))
+        self.assertEqual(self.appels, [])  # ni migration, ni marquage, ni générateur
+        self.assertEqual(script.marqueur(self.base).read_text(encoding="utf-8"), "")  # le script ne fabrique aucune preuve
+
+    def test_adoption_explicite_confie_le_controle_des_comptes_a_django_sans_ecrire_de_preuve(self):
+        self.base.write_text("donnees")
+        script.marqueur(self.base).write_text("", encoding="utf-8")
+        with mock.patch.object(script, "controler_connexion"):
+            script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer, adopter=True)
+        self.assertEqual(self.appels[1], ["marquer_instance_demo", "--regenerer-mots-de-passe", "--adopter-ancienne-base"])
+        self.assertEqual(script.marqueur(self.base).read_text(encoding="utf-8"), "")
+
+    def test_adoption_inutile_sur_une_base_qui_a_deja_un_identifiant(self):
+        self.base.write_text("donnees")
+        script.marqueur(self.base).write_text("instance : abc\n", encoding="utf-8")
+        with mock.patch.object(script, "controler_connexion"):
+            script.mettre_a_jour(self.base, dossier_autorise=self.dossier, lancer=self._lancer, adopter=True)
+        self.assertEqual(self.appels[1], ["marquer_instance_demo", "--regenerer-mots-de-passe"])
 
     def test_une_preuve_existante_n_est_pas_remplacee_par_la_mise_a_jour(self):
         self.base.write_text("donnees")
@@ -323,7 +347,7 @@ class MiseAJourTests(SimpleTestCase):
 
     def test_base_contenant_un_compte_non_fictif_n_est_pas_mise_a_jour(self):
         self.base.write_text("donnees")
-        script.marqueur(self.base).touch()
+        script.marqueur(self.base).write_text("instance : abc\n", encoding="utf-8")
         appels = []
 
         def refuser_le_marquage(commande, cwd, env, check):

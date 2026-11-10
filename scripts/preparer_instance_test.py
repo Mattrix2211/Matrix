@@ -74,12 +74,13 @@ def fichier_identifiants(base):
     return base.with_name(base.name + SUFFIXE_IDENTIFIANTS)
 
 
-def ecrire_preuve(base, seulement_si_vide=False):
+def ecrire_preuve(base):
     """Écrit dans le fichier voisin un identifiant d'instance aléatoire : preuve que cette base a été préparée ici comme démonstration."""
-    fichier = marqueur(base)
-    if seulement_si_vide and fichier.exists() and fichier.read_text(encoding="utf-8").strip():
-        return
-    fichier.write_text(f"instance : {secrets.token_hex(16)}\n", encoding="utf-8")
+    marqueur(base).write_text(f"instance : {secrets.token_hex(16)}\n", encoding="utf-8")
+
+
+def preuve_presente(base):
+    return marqueur(base).is_file() and "instance :" in marqueur(base).read_text(encoding="utf-8")
 
 
 def verifier_chemin(base, dossier_autorise, reinitialiser=False, lecture_seule=False):
@@ -159,18 +160,22 @@ def preparer(base, reinitialiser=False, verifier_seulement=False, dossier_autori
     return base
 
 
-def mettre_a_jour(base, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run):
+def mettre_a_jour(base, dossier_autorise=DOSSIER_DEMO, lancer=subprocess.run, adopter=False):
     """Base de démonstration existante : applique les migrations manquantes puis rejoue les générateurs, qui sont idempotents.
     Rien n'est supprimé ni réinitialisé ; une erreur d'un générateur est signalée sans empêcher le lancement."""
     base = verifier_chemin(base, dossier_autorise, lecture_seule=True)
     if not base.exists() or not marqueur(base).exists():
         raise RefusError("base de démonstration absente ou non préparée par ce script : lancez d'abord la préparation")
+    ancienne = not preuve_presente(base)
+    if ancienne and not adopter:
+        raise RefusError("base préparée avant le verrou (aucun identifiant d'instance). Pour la garder : --mettre-a-jour --adopter-ancienne-base "
+                         "(refusée si un compte n'est pas un compte de démonstration à mot de passe prévisible) ; sinon --reinitialiser.")
     env = environnement_demo(base)
     controler_connexion(base, env)
     lancer([sys.executable, "manage.py", "migrate", "--noinput"], cwd=RACINE, env=env, check=True)
-    ecrire_preuve(base, seulement_si_vide=True)  # base créée par une ancienne version du script : identifiant ajouté
-    # Base créée avant le verrou : marquée si elle ne contient que des comptes fictifs, anciens mots de passe prévisibles remplacés.
-    if lancer([sys.executable, "manage.py", "marquer_instance_demo", "--regenerer-mots-de-passe"], cwd=RACINE, env=env, check=False).returncode:
+    # Marquage en base ; une base ancienne n'est adoptée qu'après contrôle de ses comptes. Les anciens mots de passe sont remplacés.
+    marquage = [sys.executable, "manage.py", "marquer_instance_demo", "--regenerer-mots-de-passe", *(["--adopter-ancienne-base"] if ancienne else [])]
+    if lancer(marquage, cwd=RACINE, env=env, check=False).returncode:
         raise RefusError("la base contient des comptes non fictifs ou n'est pas une base de démonstration : mise à jour refusée")
     echecs = []
     for commande in GENERATEURS:
@@ -208,6 +213,8 @@ def main():
     mode = analyseur.add_mutually_exclusive_group()
     mode.add_argument("--verifier", action="store_true", help="contrôle sans rien écrire que la configuration vise bien la base de démonstration")
     mode.add_argument("--mettre-a-jour", action="store_true", help="applique les migrations manquantes et complète les données sans rien supprimer")
+    analyseur.add_argument("--adopter-ancienne-base", action="store_true",
+                           help="avec --mettre-a-jour : garde une base préparée avant le verrou si tous ses comptes sont des comptes de démonstration d'origine")
     mode.add_argument("--identifiants", action="store_true", help="affiche les mots de passe de l'instance (fichier réservé au propriétaire)")
     mode.add_argument("--servir", action="store_true", help=f"lance le serveur de démonstration sur {HOTE} (Ctrl+C pour arrêter)")
     analyseur.add_argument("--port", type=int, default=PORT_PAR_DEFAUT, help="port local du serveur (avec --servir)")
@@ -216,7 +223,7 @@ def main():
         analyseur.error("--servir ne se combine pas avec --reinitialiser")
     try:
         if args.mettre_a_jour:
-            base, echecs = mettre_a_jour(args.base)
+            base, echecs = mettre_a_jour(args.base, adopter=args.adopter_ancienne_base)
             print(f"Base mise à jour : {base}" + (f" (générateurs en erreur, à signaler : {', '.join(echecs)})" if echecs else ""))
             return
         if args.identifiants:
