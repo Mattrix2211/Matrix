@@ -15,6 +15,7 @@ Dossier d'analyse et de préparation de la phase de correction et d'implémentat
 4. `M_PLAN_DEVELOPPEMENT.md` — 28 lots et premier lot recommandé.
 5. `L_SOURCES_NON_CONSULTEES.md` — sources lues et non lues.
 5bis. `N_LOT_L01_COMPTE_RENDU.md` — livraison du lot L01 (résultats, risques résiduels).
+5ter. `Q_LOT_L03_COMPTE_RENDU.md` — livraison du lot L03 (suppression sûre des unités).
 6. En référence : `A_REGISTRE_DECISIONS.md`, `A1_DECISIONS_S1_S2.md`, `B_CARTOGRAPHIE.md`, `C_MATRICE_TRACABILITE.md`, `E_STRATEGIE_TESTS.md`, `E2_CATALOGUE_TESTS.md`, `G_ECARTS_DOCUMENTAIRES.md`, `H_ANOMALIES_47.md`, et le détail d'origine `I_CONTRADICTIONS_ET_MANQUES.md`, `F_QUESTIONS_RESIDUELLES.md`, `D_PLAN_CORRECTION.md`.
 
 ## Conventions

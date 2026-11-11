@@ -66,6 +66,8 @@ L14, L15, L16, L17, L18 (peu liés entre eux) ─► L20 (via L17)
 
 ## L03 — Suppression sûre des unités
 
+**Statut : livré le 2026-11-11, en attente de validation du PO** — branche `claude/l03-suppression-sure-v11`, voir `Q_LOT_L03_COMPTE_RENDU.md`.
+
 | | |
 |---|---|
 | **Anomalies** | AUD-020 (P0), AUD-021 |
