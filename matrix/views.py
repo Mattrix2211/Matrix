@@ -240,6 +240,13 @@ def logout_then_login(request):
     return redirect(cible)
 
 
+def _message_unite_existante(type_unite, existante):
+    """Un homonyme existe déjà : rien n'est créé, et s'il est archivé on le dit au lieu d'annoncer un ajout."""
+    if existante.archived:
+        return f"Un {type_unite} « {existante.name} » existe déjà mais il est archivé : réactivez-le au lieu d'en créer un autre."
+    return f"Un {type_unite} « {existante.name} » existe déjà : rien n'a été ajouté."
+
+
 class SettingsView(LoginRequiredMixin, View):
     template_name = 'settings/index.html'
 
@@ -610,17 +617,18 @@ class SettingsView(LoginRequiredMixin, View):
                 service_map = {}
                 sector_map = {}
                 # Duplique les services
-                for sv in Service.objects.filter(ship=src_ship).order_by('id'):
+                # Les unités archivées (et leurs sous-unités) ne sont pas copiées : une copie les rendrait de nouveau actives.
+                for sv in Service.objects.filter(ship=src_ship, archived=False).order_by('id'):
                     new_sv = Service.objects.create(ship=new_ship, name=sv.name)
                     service_map[sv.id] = new_sv
                 # Duplique les secteurs
-                for sc in Sector.objects.filter(service__ship=src_ship).select_related('service').order_by('id'):
+                for sc in Sector.objects.filter(service__ship=src_ship, archived=False).select_related('service').order_by('id'):
                     parent_new_sv = service_map.get(sc.service_id)
                     if parent_new_sv:
                         new_sc = Sector.objects.create(service=parent_new_sv, name=sc.name, color=sc.color)
                         sector_map[sc.id] = new_sc
                 # Duplique les sections
-                for se in Section.objects.filter(sector__service__ship=src_ship).select_related('sector').order_by('id'):
+                for se in Section.objects.filter(sector__service__ship=src_ship, archived=False).select_related('sector').order_by('id'):
                     parent_new_sc = sector_map.get(se.sector_id)
                     if parent_new_sc:
                         Section.objects.create(sector=parent_new_sc, name=se.name)
@@ -634,10 +642,13 @@ class SettingsView(LoginRequiredMixin, View):
             if name and ship_id:
                 try:
                     ship = Ship.objects.get(pk=ship_id)
+                    existant = Service.objects.filter(name=name, ship=ship).first()
                     if not archivage.est_active(ship):
                         messages.error(request, "Ce bâtiment est archivé : il ne peut plus recevoir de service.")
+                    elif existant is not None:
+                        messages.warning(request, _message_unite_existante("service", existant))
                     else:
-                        Service.objects.get_or_create(name=name, ship=ship)
+                        Service.objects.create(name=name, ship=ship)
                         messages.success(request, "Service ajouté.")
                         AuditLog.objects.create(actor=request.user, action='add_service', details=f'name={name}; ship_id={ship_id}')
                 except Ship.DoesNotExist:
@@ -652,10 +663,13 @@ class SettingsView(LoginRequiredMixin, View):
             if name and service_id:
                 try:
                     service = Service.objects.get(pk=service_id)
+                    existant = Sector.objects.filter(name=name, service=service).first()
                     if not archivage.est_active(service):
                         messages.error(request, "Ce service est archivé : il ne peut plus recevoir de secteur.")
+                    elif existant is not None:
+                        messages.warning(request, _message_unite_existante("secteur", existant))
                     else:
-                        Sector.objects.get_or_create(name=name, service=service)
+                        Sector.objects.create(name=name, service=service)
                         messages.success(request, "Secteur ajouté.")
                         AuditLog.objects.create(actor=request.user, action='add_sector', details=f'name={name}; service_id={service_id}')
                 except Service.DoesNotExist:
@@ -670,10 +684,13 @@ class SettingsView(LoginRequiredMixin, View):
             if name and sector_id:
                 try:
                     sector = Sector.objects.get(pk=sector_id)
+                    existant = Section.objects.filter(name=name, sector=sector).first()
                     if not archivage.est_active(sector):
                         messages.error(request, "Ce secteur est archivé : il ne peut plus recevoir de section.")
+                    elif existant is not None:
+                        messages.warning(request, _message_unite_existante("section", existant))
                     else:
-                        Section.objects.get_or_create(name=name, sector=sector)
+                        Section.objects.create(name=name, sector=sector)
                         messages.success(request, "Section ajoutée.")
                         AuditLog.objects.create(actor=request.user, action='add_section', details=f'name={name}; sector_id={sector_id}')
                 except Sector.DoesNotExist:

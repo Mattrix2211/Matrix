@@ -34,6 +34,7 @@ from matrix.core.export import (
 )
 from accounts.models import AuditLog
 from .stock import SortieDejaEnregistree, StockInsuffisant, enregistrer_mouvement, prelever, sortie_pour_ligne_consommee
+from org import archivage
 from org.models import Sector, Section
 from assets.models import Asset, Installation
 from threads.utils import ajouter_commentaire, contexte_discussion
@@ -64,6 +65,14 @@ def _secteur_dans_perimetre(user, sector_id):
         "section_id": "sections__id",
     }
     return Sector.objects.filter(pk=sector_id, **{chemins[key]: value}).exists()
+
+
+def _rattachement_archive(secteur, section, piece=None):
+    """Message d'erreur si la pièce serait NOUVELLEMENT rattachée à une unité archivée (valeur inchangée tolérée), sinon ""."""
+    for unite, actuel in ((secteur, getattr(piece, "sector_id", None)), (section, getattr(piece, "section_id", None))):
+        if unite is not None and not archivage.est_active(unite) and unite.pk != actuel:
+            return f"Ce {archivage.libelle_type(unite)} est archivé : il ne peut plus recevoir de nouvelle pièce de stock."
+    return ""
 
 
 class TicketListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
@@ -725,6 +734,11 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
         # La section doit appartenir au secteur choisi, sinon on l'ignore plutôt que
         # de créer une hiérarchie incohérente (Section -> Sector -> Service -> Ship).
         section = Section.objects.filter(pk=entier_ou_none(request.POST.get('section_id')), sector=sector).first()
+        if action == 'create_piece':
+            erreur_archivage = _rattachement_archive(sector, section)
+            if erreur_archivage:
+                messages.error(request, erreur_archivage)
+                return redirect('stock-piece-list')
 
         try:
             quantite_initiale = max(int(request.POST.get('quantite') or 0), 0)
@@ -806,6 +820,10 @@ class StockPieceListView(LoginRequiredMixin, ScopedQuerySetMixin, ListView):
             piece = self.get_queryset().filter(q_ecriture(request.user, "service_id"), pk=pk).first()
             if piece is None:
                 messages.error(request, "Pièce introuvable.")
+                return redirect('stock-piece-list')
+            erreur_archivage = _rattachement_archive(sector, section, piece)
+            if erreur_archivage:
+                messages.error(request, erreur_archivage)
                 return redirect('stock-piece-list')
             # Mise à jour via l'instance (et non un .update() de queryset) : nécessaire
             # pour que l'affectation de la photo soit correctement enregistrée dans le

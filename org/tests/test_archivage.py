@@ -6,13 +6,17 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient, APIRequestFactory
 
-from accounts.models import AuditLog, UserProfile
+from accounts.models import AuditLog, SpecialityChoice, UserProfile
 from annonces.services import cibles_autorisees
-from assets.models import Asset, AssetType, Installation
+from assets.equipement_web import creer_exemplaires
+from assets.models import ArticleCatalogue, Asset, AssetType, CategorieCatalogue, Installation
 from assets.serializers import AssetSerializer
+from logistics.models import StockPiece
 from matrix.core.scopes import resoudre_affectation_dans_perimetre, scope_filters_for_user
 from org import archivage
 from org.models import Section, Sector, Service, Ship
+from quarts.models import ChefDeListe, Quart, ServiceGarde
+from training.models import TrainingCourse, TrainingRequirement
 
 
 def creer_compte(nom, role, **profil):
@@ -339,3 +343,207 @@ class MaterielEtComptesDesactivesTests(BaseArchivage):
         self.assertEqual(reponse.status_code, 400, getattr(reponse, "data", None))
         self.secteur.refresh_from_db()
         self.assertEqual(self.secteur.service_id, self.service.pk)
+
+
+class StockEtListesTests(BaseArchivage):
+    def setUp(self):
+        super().setUp()
+        archivage.archiver(self.autre_section, self.admin)
+        self.autre_section.refresh_from_db()
+        Sector.objects.filter(pk=self.secteur.pk).update(archived=False)
+        self.secteur_archive = Sector.objects.create(service=self.service, name="Hors service", archived=True)
+        self.client.force_login(self.admin)
+
+    def _piece(self, secteur=None, **extra):
+        secteur = secteur or self.secteur
+        return StockPiece.objects.create(reference="R1", designation="Joint", ship=self.navire, service=self.service, sector=secteur, **extra)
+
+    def _poster_stock(self, **donnees):
+        base = {"reference": "R2", "designation": "Filtre", "quantite": "1", "quantite_minimale": "0"}
+        return self.client.post(reverse("stock-piece-list"), {**base, **donnees}, follow=True)
+
+    def test_une_nouvelle_piece_ne_peut_pas_etre_rattachee_a_un_secteur_archive(self):
+        reponse = self._poster_stock(action="create_piece", sector_id=self.secteur_archive.pk)
+        self.assertFalse(StockPiece.objects.filter(reference="R2").exists())
+        self.assertContains(reponse, "archivé")
+
+    def test_une_nouvelle_piece_ne_peut_pas_etre_rattachee_a_une_section_archivee(self):
+        self._poster_stock(action="create_piece", sector_id=self.secteur.pk, section_id=self.autre_section.pk)
+        self.assertFalse(StockPiece.objects.filter(reference="R2").exists())
+
+    def test_une_nouvelle_piece_dans_un_secteur_actif_reste_possible(self):
+        self._poster_stock(action="create_piece", sector_id=self.secteur.pk)
+        self.assertTrue(StockPiece.objects.filter(reference="R2", sector=self.secteur).exists())
+
+    def test_une_piece_ne_peut_pas_etre_deplacee_vers_un_secteur_archive(self):
+        piece = self._piece()
+        self._poster_stock(action="edit_piece", pk=piece.pk, reference="R1", designation="Joint", sector_id=self.secteur_archive.pk)
+        piece.refresh_from_db()
+        self.assertEqual(piece.sector_id, self.secteur.pk)
+
+    def test_une_piece_deja_dans_un_secteur_archive_reste_modifiable_sans_changer_de_secteur(self):
+        piece = self._piece(secteur=self.secteur_archive)
+        self._poster_stock(action="edit_piece", pk=piece.pk, reference="R1", designation="Joint renommé", sector_id=self.secteur_archive.pk)
+        piece.refresh_from_db()
+        self.assertEqual((piece.designation, piece.sector_id), ("Joint renommé", self.secteur_archive.pk))
+
+    def test_la_creation_de_liste_est_refusee_par_le_post_meme_si_l_option_est_forcee(self):
+        for action in ("creer_quart", "creer_service_garde"):
+            reponse = self.client.post(reverse("quarts-index"), {
+                "action": action, "perimetre": f"section:{self.autre_section.pk}", "date_debut": "2026-12-01", "date_fin": "2026-12-07"}, follow=True)
+            self.assertContains(reponse, "archivé", msg_prefix=action)
+        self.assertEqual((Quart.objects.count(), ServiceGarde.objects.count()), (0, 0))
+
+    def test_la_designation_d_un_chef_de_liste_sur_un_niveau_archive_est_refusee(self):
+        self.client.post(reverse("quarts-reglages"), {
+            "action": "designer", "perimetre": f"section:{self.autre_section.pk}", "user_id": self.marin.pk, "type_liste": "QUARTS"})
+        self.assertFalse(ChefDeListe.objects.exists())
+
+
+class FormationEtCatalogueTests(BaseArchivage):
+    def setUp(self):
+        super().setUp()
+        archivage.archiver(self.autre_section, self.admin)
+        self.autre_section.refresh_from_db()
+        self.cours = TrainingCourse.objects.create(title="Lutte incendie")
+        self.api = APIClient()
+        self.api.force_authenticate(self.admin)
+
+    def test_une_nouvelle_exigence_de_formation_ne_peut_pas_cibler_une_unite_archivee(self):
+        reponse = self.api.post("/api/training/requirements/", {"course": self.cours.pk, "applies_to_section": self.autre_section.pk}, format="json")
+        self.assertEqual(reponse.status_code, 403, getattr(reponse, "data", None))
+        self.assertIn("archivée", str(reponse.data))
+        self.assertFalse(TrainingRequirement.objects.exists())
+
+    def test_une_nouvelle_exigence_vers_une_unite_active_reste_possible(self):
+        reponse = self.api.post("/api/training/requirements/", {"course": self.cours.pk, "applies_to_section": self.section.pk}, format="json")
+        self.assertEqual(reponse.status_code, 201, getattr(reponse, "data", None))
+
+    def test_une_exigence_existante_sur_une_unite_archivee_reste_modifiable_mais_pas_deplacable_vers_une_autre(self):
+        exigence = TrainingRequirement.objects.create(course=self.cours, applies_to_section=self.autre_section)
+        reponse = self.api.patch(f"/api/training/requirements/{exigence.pk}/", {"required": False}, format="json")
+        self.assertEqual(reponse.status_code, 200, getattr(reponse, "data", None))
+        autre = Section.objects.create(sector=self.secteur, name="Archivée 2", archived=True)
+        reponse = self.api.patch(f"/api/training/requirements/{exigence.pk}/", {"applies_to_section": autre.pk}, format="json")
+        self.assertEqual(reponse.status_code, 403)
+
+    def test_la_non_regression_formation_pour_un_administrateur_de_bord(self):
+        api = APIClient()
+        api.force_authenticate(self.admin_navire)
+        reponse = api.post("/api/training/requirements/", {"course": self.cours.pk, "applies_to_section": self.autre_section.pk}, format="json")
+        self.assertEqual(reponse.status_code, 403)
+        reponse = api.post("/api/training/requirements/", {"course": self.cours.pk, "applies_to_section": self.section.pk}, format="json")
+        self.assertEqual(reponse.status_code, 201, getattr(reponse, "data", None))
+
+    def _article(self):
+        specialite = SpecialityChoice.objects.create(name="Mécanique")
+        categorie = CategorieCatalogue.objects.create(nom="Pompes", specialite=specialite)
+        return ArticleCatalogue.objects.create(categorie=categorie, designation="Pompe type A")
+
+    def test_la_creation_en_masse_du_catalogue_refuse_une_unite_archivee_sans_rien_creer(self):
+        article = self._article()
+        Sector.objects.filter(pk=self.secteur.pk).update(archived=True)
+        self.secteur.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            creer_exemplaires(self.admin, article, 3, self.secteur)
+        with self.assertRaises(ValidationError):
+            creer_exemplaires(self.admin, article, 3, Sector.objects.get(pk=self.secteur.pk), section=self.section)
+        self.assertEqual(Asset.objects.count(), 0)
+
+    def test_la_creation_en_masse_vers_une_section_archivee_est_refusee_et_vers_une_section_active_possible(self):
+        article = self._article()
+        with self.assertRaises(ValidationError):
+            creer_exemplaires(self.admin, article, 2, self.secteur, section=self.autre_section)
+        self.assertEqual(Asset.objects.count(), 0)
+        self.assertEqual(len(creer_exemplaires(self.admin, article, 2, self.secteur, section=self.section)), 2)
+
+    def test_l_assistant_d_equipement_refuse_un_secteur_archive_poste_a_la_main(self):
+        article = self._article()
+        Sector.objects.filter(pk=self.secteur.pk).update(archived=True)
+        self.client.force_login(self.admin)
+        reponse = self.client.post(reverse("catalogue-article-equiper", args=[article.pk]), {
+            "etape": "2", "quantite": "2", "secteur": str(self.secteur.pk)})
+        self.assertIn(reponse.status_code, (400, 403))
+        self.assertEqual(Asset.objects.count(), 0)
+
+
+class EcranReglagesComplementsTests(BaseArchivage):
+    def _poster(self, **donnees):
+        self.client.force_login(self.admin)
+        return self.client.post(reverse("settings"), {"next_tab": "hierarchie", "selected_ship": self.navire.pk, **donnees}, follow=True)
+
+    def test_ajouter_une_unite_dont_l_homonyme_est_archive_ne_pretend_pas_l_avoir_ajoutee(self):
+        archivage.archiver(self.autre_section, self.admin)
+        reponse = self._poster(action="add_section", sector_id=self.secteur.pk, name="Tribord")
+        contenu = reponse.content.decode()
+        self.assertIn("archivé", contenu)
+        self.assertNotIn("Section ajoutée", contenu)
+        self.assertEqual(Section.objects.filter(name="Tribord").count(), 1)
+        self.autre_section.refresh_from_db()
+        self.assertTrue(self.autre_section.archived)  # ni créé, ni réactivé en douce
+
+    def test_ajouter_un_homonyme_actif_signale_qu_il_existe_deja(self):
+        reponse = self._poster(action="add_service", name="Propulsion")
+        self.assertNotIn("Service ajouté", reponse.content.decode())
+        self.assertEqual(Service.objects.filter(name="Propulsion").count(), 1)
+
+    def test_ajouter_une_unite_nouvelle_reste_possible(self):
+        reponse = self._poster(action="add_service", name="Hôtellerie")
+        self.assertContains(reponse, "Service ajouté")
+        self.assertTrue(Service.objects.filter(name="Hôtellerie", ship=self.navire, archived=False).exists())
+
+    def test_dupliquer_un_batiment_ne_recopie_pas_les_unites_archivees_comme_actives(self):
+        archivage.archiver(self.autre_section, self.admin)
+        service_archive = Service.objects.create(ship=self.navire, name="Ancien service", archived=True)
+        secteur_ancien = Sector.objects.create(service=service_archive, name="Ancien secteur")
+        Section.objects.create(sector=secteur_ancien, name="Ancienne section")
+        self.client.force_login(self.admin)
+        self.client.post(reverse("settings"), {"action": "duplicate_ship", "source_pk": self.navire.pk, "name": "Copie", "code": "CP",
+                                               "fuseau_horaire": "Europe/Paris"})
+        copie = Ship.objects.get(code="CP")
+        self.assertEqual(sorted(Service.objects.filter(ship=copie).values_list("name", flat=True)), ["Propulsion"])
+        self.assertEqual(sorted(Section.objects.filter(sector__service__ship=copie).values_list("name", flat=True)), ["Bâbord"])
+        self.assertFalse(Service.objects.filter(ship=copie, archived=True).exists())
+        self.assertTrue(Service.objects.filter(pk=service_archive.pk, archived=True).exists())  # l'original est intact
+
+
+class EditionCompteDesactiveTests(BaseArchivage):
+    """Intégration : éditer un compte désactivé rattaché à une unité archivée conserve rattachement, périmètre et historique."""
+
+    def setUp(self):
+        super().setUp()
+        User.objects.filter(pk=self.marin.pk).update(is_active=False)
+        Section.objects.filter(pk=self.section.pk).update(archived=True)  # donnée antérieure à la règle
+        self.client.force_login(self.admin)
+        self.periode = AuditLog.objects.create(actor=self.admin, action="historique_marin", target_user=self.marin, details="avant")
+
+    def _editer(self, **champs):
+        profil = self.marin.profile
+        donnees = {"action": "edit_user", "pk": self.marin.pk, "username": self.marin.username, "first_name": "Karim", "last_name": "Test",
+                   "ship_id": profil.ship_id, "service_id": profil.service_id, "sector_id": profil.sector_id, "section_id": profil.section_id,
+                   **champs}
+        return self.client.post(reverse("user-directory"), donnees, follow=True)
+
+    def test_l_edition_conserve_le_rattachement_le_perimetre_et_l_historique(self):
+        avant = (scope_filters_for_user(User.objects.get(pk=self.marin.pk)), User.objects.get(pk=self.marin.pk).profile.scope)
+        reponse = self._editer()
+        marin = User.objects.get(pk=self.marin.pk)
+        self.assertContains(reponse, "mis à jour")
+        self.assertEqual(marin.first_name, "Karim")
+        self.assertFalse(marin.is_active)  # toujours désactivé
+        self.assertEqual((marin.profile.ship_id, marin.profile.service_id, marin.profile.sector_id, marin.profile.section_id),
+                         (self.navire.pk, self.service.pk, self.secteur.pk, self.section.pk))
+        self.assertEqual((scope_filters_for_user(marin), marin.profile.scope), avant)
+        self.assertTrue(AuditLog.objects.filter(pk=self.periode.pk, details="avant").exists())
+        self.assertTrue(AuditLog.objects.filter(action="edit_user", target_user=marin).exists())
+
+    def test_l_edition_ne_peut_pas_deplacer_le_compte_vers_une_autre_unite_archivee(self):
+        autre = Section.objects.create(sector=self.secteur, name="Archivée 3", archived=True)
+        reponse = self._editer(section_id=autre.pk, first_name="Autre")
+        marin = User.objects.get(pk=self.marin.pk)
+        self.assertContains(reponse, "archivé")
+        self.assertEqual((marin.first_name, marin.profile.section_id), (self.marin.first_name, self.section.pk))
+
+    def test_le_formulaire_propose_encore_l_unite_archivee_du_compte_desactive(self):
+        sections = list(self.client.get(reverse("user-directory")).context["sections"])
+        self.assertIn(self.section, sections)

@@ -27,7 +27,7 @@ from django.views import View
 
 from accounts.models import AuditLog, FonctionQuartChoice, ServiceFunctionChoice
 from matrix.core.roles import user_role_level
-from org.archivage import exclure_archives
+from org.archivage import est_active, exclure_archives
 from matrix.core.saisie import entier_ou_none, entiers_valides
 from matrix.core.contexte_batiment import referentiel_organisation
 from matrix.core.mixins import utilisateurs_visibles_par
@@ -338,6 +338,9 @@ def _creer_liste(request, action, retour_erreur):
     ship, service, sector, section = _resoudre_perimetre(request.POST.get("perimetre"))
     if not any([ship, service, sector, section]):
         messages.error(request, "Le niveau concerné est obligatoire.")
+        return redirect(retour_erreur)
+    if not est_active(ship or service or sector or section):
+        messages.error(request, "Ce niveau est archivé : il ne peut plus recevoir de nouvelle liste.")
         return redirect(retour_erreur)
     if not utilisateur_autorise_pour_perimetre(
         request.user, ship, service, sector, section, ChefDeListe.TYPE_QUARTS if action == "creer_quart" else ChefDeListe.TYPE_QUAI
@@ -1031,6 +1034,9 @@ class ChefDeListeReglagesView(LoginRequiredMixin, View):
                 return redirect("quarts-reglages")
             if not _perimetre_autorise_pour_designation(request.user, ship, service, sector, section):
                 raise _refus_reglage(request)
+            if not est_active(ship or service or sector or section):
+                messages.error(request, "Ce niveau est archivé : aucune nouvelle désignation n'est possible.")
+                return redirect("quarts-reglages")
             candidat = utilisateurs_visibles_par(request.user).filter(
                 equipage_marin_q(request.user), pk=entier_ou_none(request.POST.get("user_id"))).first()
             if candidat is None:

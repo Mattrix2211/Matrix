@@ -4,7 +4,7 @@ la création d'un matériel : seuil `asset_ecriture_simple`, périmètre de l'ap
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
@@ -19,6 +19,7 @@ from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.ecriture_service import niveau_ecriture_ui, q_ecriture
 from matrix.core.saisie import entier_ou_none
 from matrix.core.scopes import ship_id_for_user
+from org.archivage import verifier_rattachement
 from org.models import Section, Sector
 
 from .models import ArticleCatalogue, Asset, AssetFolder, AssetType, Location
@@ -83,7 +84,10 @@ def type_materiel(article, secteur):
 
 
 def creer_exemplaires(user, article, quantite, secteur, section=None, location=None):
-    """Crée `quantite` fiches matériel pré-remplies depuis l'article, en une transaction."""
+    """Crée `quantite` fiches matériel pré-remplies depuis l'article, en une transaction.
+
+    bulk_create contourne clean() : le rattachement à une unité archivée est donc refusé ici (ValidationError)."""
+    verifier_rattachement(Asset(ship=secteur.service.ship, service=secteur.service, sector=secteur, section=section))
     with transaction.atomic():
         modele = dict(
             asset_type=type_materiel(article, secteur), designation=article.designation,
@@ -184,7 +188,11 @@ class ArticleEquiperView(LoginRequiredMixin, View):
         if etape == 1:
             return self._afficher(request, article, secteurs, 2, valeurs)
         quantite, secteur, section, emplacement = objets
-        creer_exemplaires(request.user, article, quantite, secteur, section, emplacement)
+        try:
+            creer_exemplaires(request.user, article, quantite, secteur, section, emplacement)
+        except ValidationError as erreur:
+            messages.error(request, " ".join(erreur.messages))
+            return self._afficher(request, article, secteurs, 1, valeurs, 400)
         pluriel = "s" if quantite > 1 else ""
         messages.success(request, format_html(
             "{} exemplaire{} de « {} » ajouté{} au matériel : <a class=\"text-reset\" href=\"{}\">compléter les exemplaires</a>.",

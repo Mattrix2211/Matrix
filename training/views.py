@@ -1,5 +1,9 @@
+from types import SimpleNamespace
+
 from django.contrib.auth import get_user_model
 from matrix.core.organisation import votre_niveau
+from org.archivage import est_active
+from org.models import Sector, Section, Service, Ship
 from django.db.models import Q
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied as ApiPermissionDenied, ValidationError
@@ -238,6 +242,8 @@ class TrainingRequirementPermission(RolePermission):
     peuvent cibler n'importe quel navire, ou ne cibler aucun navire du tout
     (exigence valable pour toute la flotte)."""
 
+    message = "Vous ne pouvez pas agir sur ce rattachement."
+
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return super().has_permission(request, view)
@@ -256,10 +262,7 @@ class TrainingRequirementPermission(RolePermission):
             return False
         return self._perimetre_valide(request, existant=obj)
 
-    @staticmethod
-    def _perimetre_valide(request, existant=None):
-        if is_master_admin(request.user):
-            return True
+    def _perimetre_valide(self, request, existant=None):
         data = request.data
 
         def _id_demande(champ_payload, champ_modele):
@@ -271,6 +274,11 @@ class TrainingRequirementPermission(RolePermission):
         service_id = _id_demande("applies_to_service", "applies_to_service_id")
         sector_id = _id_demande("applies_to_sector", "applies_to_sector_id")
         section_id = _id_demande("applies_to_section", "applies_to_section_id")
+        if self._cible_archivee(existant, ship_id, service_id, sector_id, section_id):
+            self.message = "Cette unité est archivée : une exigence de formation ne peut plus la cibler."
+            return False
+        if is_master_admin(request.user):
+            return True
         if not any([ship_id, service_id, sector_id, section_id]):
             # Aucun rattachement organisationnel précisé : une exigence
             # valable pour TOUTE la flotte est réservée à la supervision
@@ -279,8 +287,21 @@ class TrainingRequirementPermission(RolePermission):
             return False
         ok, *_ = resoudre_affectation_dans_perimetre(
             request.user, ship_id=ship_id, service_id=service_id, sector_id=sector_id, section_id=section_id,
+            deja=SimpleNamespace(ship=getattr(existant, "applies_to_ship", None), service=getattr(existant, "applies_to_service", None),
+                                 sector=getattr(existant, "applies_to_sector", None), section=getattr(existant, "applies_to_section", None)),
         )
         return ok
+
+    @staticmethod
+    def _cible_archivee(existant, *identifiants):
+        """Vrai si l'exigence viserait NOUVELLEMENT une unité archivée (cible inchangée tolérée)."""
+        for modele, pk, actuel in zip((Ship, Service, Sector, Section), identifiants,
+                                      ("applies_to_ship_id", "applies_to_service_id", "applies_to_sector_id", "applies_to_section_id")):
+            if pk and pk != getattr(existant, actuel, None):
+                unite = modele.objects.filter(pk=pk).first()
+                if unite is not None and not est_active(unite):
+                    return True
+        return False
 
 
 class TrainingRequirementViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
