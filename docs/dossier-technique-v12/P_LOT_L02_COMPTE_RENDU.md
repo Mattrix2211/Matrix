@@ -1,6 +1,8 @@
 # P. Lot L02 — compte rendu de livraison (AUD-028)
 
-**Branche** : `claude/l02-archivage-effectif-v11`, dernier commit `a3832b3`, **empilée sur L05 (`517a2ce`) qui contient L01** : fusion dans l'ordre L01, L05, L02. `main` non modifiée, aucune PR. **Aucune migration.** Statut : livré, en attente de validation du PO. L03 et L04 non lancés.
+> **Mis à jour après l'arbitrage du PO** : le matériel et les installations continuent de compter comme occupation (règle confirmée, non assouplie), et les contournements résiduels ont été fermés (§7). Le §4 et les risques du §5 sont mis à jour en conséquence.
+
+**Branche** : `claude/l02-archivage-effectif-v11`, dernier commit `6e14a65` (version consolidée, voir §7), **empilée sur L05 (`517a2ce`) qui contient L01** : fusion dans l'ordre L01, L05, L02. `main` non modifiée, aucune PR. **Aucune migration.** Statut : livré, en attente de validation du PO. L03 et L04 non lancés.
 
 ## 1. Règle appliquée (`org/archivage.py`, règle unique)
 
@@ -33,19 +35,42 @@
 
 **Non exécuté** : PostgreSQL (non disponible ; 20 tests ignorés) ; navigation sur l'écran Réglages dans un vrai navigateur (couvert par des tests de vue et de gabarit, pas par une recette visuelle).
 
-## 4. Décision à confirmer par le PO
+## 4. Arbitrage du PO (confirmé)
 
-**Le matériel compte comme occupation.** Une unité qui porte des installations ou du matériel ne peut pas être archivée tant qu'ils ne sont pas réaffectés (cohérent avec la décision « matériel toujours rattaché à une entité responsable »). Conséquence : en l'absence de circuit de transfert (lot L13), un secteur équipé ne peut pas encore être archivé. À assouplir si vous le souhaitez (par exemple n'exiger que l'absence de marins actifs).
+**Le matériel et les installations comptent comme occupation.** Une unité ne peut pas être archivée tant que ses marins actifs, ses installations et son matériel n'ont pas été réaffectés. La règle n'est pas simplifiée à la seule vérification des marins. Conséquence assumée : en l'absence de circuit de transfert (lot L13), un secteur équipé ne peut pas encore être archivé ; le matériel se réaffecte entre-temps par l'affectation en masse existante.
 
 ## 5. Risques résiduels (non bloquants, à verser à la dette)
 
-1. Points d'attache non protégés : pièce de stock (`logistics/web_views.py`, secteur posté), création de liste de quarts (le POST ne revérifie pas l'unité, seul l'affichage filtre), cibles de formation existantes (l'API de formation refuse une unité archivée même inchangée), création en masse de matériel du catalogue (`bulk_create`, contourne `clean()`).
-2. `add_service / add_sector / add_section` : si une unité archivée du même nom existe, le message « ajouté » s'affiche sans créer ni réactiver (`get_or_create`) ; `duplicate_ship` recopie les services archivés comme actifs.
+1. *(Corrigé, voir §7)* pièce de stock, POST de création de liste, exigences de formation, création en masse du catalogue.
+2. *(Corrigé, voir §7)* `get_or_create` trompeur et `duplicate_ship`.
 3. Une valeur de rattachement vidée dans le formulaire d'édition met toujours le rattachement à NULL (comportement antérieur, acte volontaire).
 4. Mises à jour en masse de comptes : une unité archivée est refusée même pour un compte qui la porte déjà (prudent).
 5. Archiver un bâtiment passe par l'API ou l'administration, pas par l'écran Réglages.
 6. Le calcul des unités encore occupées fait une requête par unité archivée (acceptable à cette échelle).
-7. Pas de test d'intégration qui poste le formulaire `edit_user` d'un compte désactivé rattaché à une unité archivée (le contenu des listes est testé, pas la soumission).
+7. *(Corrigé, voir §7)* test d'intégration de l'édition d'un compte désactivé.
+8. Autres rattachements à une unité, sans contrôle d'archivage : `ReferentFormation.ship` (API de formation) et `DemandePlace.ship` (le navire est toujours celui de l'appelant) ; `ChefDeListe` créés hors des vues, imports non audités.
+9. Concurrence : entre le test d'existence et la création d'un homonyme, une course pourrait lever une erreur d'intégrité (le risque existait avec `get_or_create`). `duplicate_ship` n'est pas atomique (antérieur).
+10. Le message « Ce secteur est archivé » du stock s'affiche aussi quand l'archivage vient du service parent.
+
+## 7. Corrections complémentaires (arbitrage du PO)
+
+Règle appliquée : les données historiques restent consultables selon les droits existants ; aucune **nouvelle** affectation vers une unité archivée ; une valeur déjà portée reste modifiable ; pas de refonte des modules.
+
+| # | Point | Correction |
+|---|---|---|
+| 1 | Pièces de stock | Création et déplacement vers un secteur ou une section archivés refusés (message) ; une pièce déjà dans un secteur archivé reste modifiable sans changer de secteur |
+| 2 | Listes de quarts et de gardes | Le POST de création (index et assistant, qui passent tous deux par `_creer_liste`) et la désignation d'un chef de liste revérifient l'unité côté serveur |
+| 3 | Formation | Exigences de formation (API) : nouvelle cible archivée refusée pour tous les rôles, administrateur général compris ; cible existante inchangée tolérée ; les refus de rôle gardent le message d'origine |
+| 4 | Catalogue | `creer_exemplaires` (`bulk_create`) vérifie le rattachement avant toute écriture ; l'assistant affiche l'erreur |
+| 5 | `get_or_create` | Un homonyme existant (archivé ou actif) n'est ni réactivé ni annoncé comme ajouté ; message dédié, qui invite à réactiver s'il est archivé |
+| 6 | `duplicate_ship` | Les services, secteurs et sections archivés ne sont pas recopiés (donc jamais « réactivés » par copie) ; l'original est intact |
+| 7 | Édition d'un compte désactivé | Test d'intégration : le rattachement à l'unité archivée, le périmètre et l'historique sont conservés ; déplacement vers une autre unité archivée refusé ; l'option reste proposée dans le formulaire |
+
+**Vérifications** : suite complète SQLite sur `6e14a65` : **3 952 tests OK, 20 ignorés** (3 931 + 21 nouveaux ; `org/tests/test_archivage.py` passe à 57 tests). Test de mutation : retirer chacune des six corrections fait échouer au moins un test (11 échecs au total). Module formation relancé après le dernier ajustement : 317 tests OK. `check` et `makemigrations --check` OK, aucune migration. **Relecture indépendante ciblée : ✅ validé**, aucun point bloquant ; sa remarque sur le message de permission de formation a été corrigée.
+
+**Régressions vérifiées par la suite complète** : comptes (annuaire, API, création et édition), listes de quarts et échanges, stock, formations, matériel et installations, annonces, anomalies.
+
+**Limites non vérifiées** : PostgreSQL (non disponible ; 20 tests ignorés) ; recette visuelle dans un navigateur (écran Réglages, assistant d'équipement).
 
 ## 6. Suite recommandée
 
