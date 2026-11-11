@@ -35,7 +35,7 @@ Nouveau : `org/structure_services.py` (`dependances`, `verifier_suppression`, `s
 | Relecture indépendante | ✅ sans blocage |
 | `makemigrations --check`, `check` | OK |
 
-**Suite complète finale** : voir la section « Suite complète » du message de livraison (à relancer une fois après les dernières retouches).
+**Suite complète finale (commit `6d6d0be`, SQLite)** : **3 963 tests OK, 20 ignorés** (tests réservés à PostgreSQL).
 
 ## 5. Risques résiduels
 
