@@ -1,0 +1,22 @@
+flowchart TB
+  CMD["Commande seed_demo"]
+  C1["Mode DEBUG actif ?"]
+  C2["MATRIX_INSTANCE_DEMO=1 ?"]
+  C3["SQLite sur fichier ?"]
+  C4["Fichier voisin .instance_demo avec identifiant non vide ?"]
+  C5["Base vide ou déjà marquée en base ?"]
+  GO["Création ou mise à jour des comptes fictifs"]
+  REFUS["Refus avant toute écriture"]
+  PROD["Démarrage hors DEBUG sur base marquée : refusé, erreur matrix.E001"]
+  CMD --> C1
+  C1 -- "non" --> REFUS
+  C1 -- "oui" --> C2
+  C2 -- "non" --> REFUS
+  C2 -- "oui" --> C3
+  C3 -- "non" --> REFUS
+  C3 -- "oui" --> C4
+  C4 -- "non" --> REFUS
+  C4 -- "oui" --> C5
+  C5 -- "non" --> REFUS
+  C5 -- "oui" --> GO
+  GO -.-> PROD

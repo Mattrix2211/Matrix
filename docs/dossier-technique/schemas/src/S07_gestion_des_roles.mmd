@@ -1,0 +1,18 @@
+flowchart TB
+  MASTER["Administrateur général : toute la flotte"]
+  ADMIN["Administrateur d'unité : son bâtiment, jamais l'administrateur général"]
+  CDT["Commandant"]
+  EM["État-major"]
+  CS["Chef de service"]
+  CSE["Chef de secteur"]
+  CSN["Chef de section"]
+  EQ["Équipier"]
+  SEC["Commandant en second : ne gère aucun compte"]
+  MASTER -->|"gère"| ADMIN
+  ADMIN -->|"gère tous les rôles du bâtiment"| CDT
+  CDT -->|"gère"| EM
+  EM -->|"gère"| CS
+  CS -->|"gère"| CSE
+  CSE -->|"gère"| CSN
+  CSN -->|"gère"| EQ
+  ADMIN -.-> SEC

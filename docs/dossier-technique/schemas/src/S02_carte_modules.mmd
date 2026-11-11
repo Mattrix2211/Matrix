@@ -1,0 +1,41 @@
+flowchart LR
+  subgraph PERS["Personnes et organisation"]
+    accounts
+    org
+  end
+  subgraph VIE["Vie quotidienne"]
+    dashboard
+    calendar_app
+    quarts
+    absences
+    taches
+    demandes
+    programme
+    postes
+  end
+  subgraph COM["Communication"]
+    threads
+    annonces
+    notifications
+  end
+  subgraph TECH["Technique et logistique"]
+    assets
+    maintenance
+    logistics
+    rondes["rondes (retiré)"]
+  end
+  subgraph SAV["Connaissance"]
+    training
+    documentation
+    retex
+  end
+  subgraph PIL["Pilotage"]
+    reports
+  end
+  CORE["matrix.core : rôles, périmètres, modules, audit, sécurité"]
+  PERS --> CORE
+  VIE --> CORE
+  COM --> CORE
+  TECH --> CORE
+  SAV --> CORE
+  PIL --> CORE

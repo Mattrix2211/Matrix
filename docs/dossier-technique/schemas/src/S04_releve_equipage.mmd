@@ -1,0 +1,14 @@
+flowchart TB
+  P["Proposée : un commandant ou son second propose la relève, date d'effet non passée"]
+  EA["En attente de validation par l'autre équipage"]
+  RF["Refusée"]
+  AN["Annulée"]
+  PL["Planifiée : validée, date d'effet future"]
+  VA["Validée et appliquée : équipage à bord changé, période enregistrée, synthèse de passation générée"]
+  P --> EA
+  EA -->|"le commandant de l'autre équipage refuse"| RF
+  EA -->|"l'auteur retire sa proposition"| AN
+  EA -->|"validation, date d'effet future"| PL
+  EA -->|"validation, date d'effet atteinte"| VA
+  PL -->|"la tâche planifiée applique à la date d'effet"| VA
+  PL -->|"un commandant des deux équipages annule, justification obligatoire"| AN

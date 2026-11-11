@@ -1,0 +1,7 @@
+stateDiagram-v2
+  [*] --> Active: "Création"
+  Active --> Archivee: "Archivage, refusé si marins actifs, installations ou matériel"
+  Archivee --> Active: "Réactivation, refusée sous un parent archivé"
+  Active --> Supprimee: "Suppression, seulement si plus rien ne la référence"
+  Archivee --> Supprimee: "Suppression, mêmes conditions"
+  Supprimee --> [*]
