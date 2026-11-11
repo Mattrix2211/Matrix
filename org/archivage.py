@@ -44,12 +44,13 @@ _CHEMINS = {  # chemins du profil d'un marin vers chaque niveau, par type d'unit
 _CHAMP_MATERIEL = {"Ship": "ship", "Service": "service", "Sector": "sector", "Section": "section"}
 
 
-def marins_actifs(unite):
-    """Comptes actifs rattachés à l'unité ou à l'une de ses sous-unités."""
+def marins_actifs(unite, actifs=True):
+    """Comptes (actifs par défaut) rattachés à l'unité ou à l'une de ses sous-unités."""
     filtre = Q()
     for chemin in _CHEMINS[unite.__class__.__name__]:
         filtre |= Q(**{chemin: unite})
-    return get_user_model().objects.filter(is_active=True).filter(filtre).distinct()
+    comptes = get_user_model().objects.filter(filtre).distinct()
+    return comptes.filter(is_active=True) if actifs else comptes
 
 
 def obstacles(unite):
@@ -67,8 +68,8 @@ def obstacles(unite):
 
 
 def exclure_archives(queryset, garder_occupees=False):
-    """Restreint à des unités actives. `garder_occupees` : garde aussi une unité archivée qui porte encore des marins actifs
-    (données antérieures à la règle), pour que leur fiche reste modifiable sans perdre leur rattachement."""
+    """Restreint à des unités actives. `garder_occupees` : garde aussi une unité archivée à laquelle un compte (même désactivé) est
+    encore rattaché (données antérieures à la règle), pour que sa fiche reste modifiable sans perdre son rattachement."""
     nom = queryset.model.__name__
     ancetres = {"Ship": (), "Service": ("ship",), "Sector": ("service", "service__ship"),
                 "Section": ("sector", "sector__service", "sector__service__ship")}[nom]
@@ -77,8 +78,7 @@ def exclure_archives(queryset, garder_occupees=False):
         actives &= Q(**{f"{chemin}__archived": False})
     if not garder_occupees:
         return queryset.filter(actives)
-    occupees = [u.pk for u in queryset.filter(archived=True) if marins_actifs(u).exists()]
-    occupees += [u.pk for u in queryset.exclude(actives).exclude(archived=True) if marins_actifs(u).exists()]
+    occupees = [u.pk for u in queryset.exclude(actives) if marins_actifs(u, actifs=False).exists()]
     return queryset.filter(actives | Q(pk__in=occupees))
 
 
@@ -91,6 +91,8 @@ def erreur_changement(unite, archived_voulu, avant=None):
     mere = parent(unite)
     if avant is None and mere is not None and not est_active(mere):
         return f"Impossible de créer ce {libelle_type(unite)} dans une unité archivée."
+    if avant is not None and mere is not None and parent(avant).pk != mere.pk and not est_active(mere):
+        return f"Impossible de déplacer ce {libelle_type(unite)} vers une unité archivée."
     if archived_voulu and not archivee_avant and unite.pk:
         trouves = obstacles(unite)
         if trouves:

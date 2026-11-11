@@ -33,6 +33,7 @@ from matrix.core.role_thresholds import niveau_requis_pour
 from matrix.core.ecriture_service import niveau_ecriture_ui
 from matrix.core.saisie import entier_ou_none, uuid_ou_none
 from matrix.core.scopes import is_master_admin
+from org import archivage
 from org.models import Section, Sector, Service, Ship
 
 from .models import Asset, AssetFolder, Location
@@ -256,6 +257,9 @@ def _appliquer_bulk_update(request, queryset, champ, valeur, *, action_audit, de
     (installation fixe) — ~55 lignes quasi identiques avant factorisation."""
     if org_model is not None and not _org_dans_perimetre(request.user, org_model, org_id):
         messages.error(request, f"Ce rattachement ({libelle_org.lower()}) n'est pas dans {votre_niveau(request.user)}.")
+        return redirect(redirect_url_name)
+    if org_model is not None and valeur is not None and not archivage.est_active(valeur):
+        messages.error(request, f"Ce rattachement ({libelle_org.lower()}) est archivé : aucun nouveau rattachement n'est possible.")
         return redirect(redirect_url_name)
     objets = list(queryset)
     for objet in objets:

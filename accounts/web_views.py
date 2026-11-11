@@ -126,7 +126,6 @@ def _page_mots_de_passe_provisoires(request, provisoires):
     return reponse
 
 
-
 def proposables(unites):
     """Unités proposées à l'affectation : actives, plus celles qui portent encore des marins (données antérieures à la règle)."""
     return exclure_archives(unites, garder_occupees=True)

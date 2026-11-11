@@ -32,7 +32,8 @@ class ArchivageValidationMixin:
             for champ, valeur in attrs.items():
                 setattr(unite, champ, valeur)
         else:
-            unite = modele(**{k: v for k, v in attrs.items() if k in {f.name for f in modele._meta.concrete_fields}})
+            champs = {f.name for f in modele._meta.concrete_fields}
+            unite = modele(**{k: v for k, v in attrs.items() if k in champs})
         message = erreur_changement(unite, unite.archived, self.instance)
         if message:
             raise serializers.ValidationError({"archived" if "archived" in attrs else "detail": message})

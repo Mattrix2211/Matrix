@@ -4,11 +4,12 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 
 from accounts.models import AuditLog, UserProfile
 from annonces.services import cibles_autorisees
-from assets.models import Installation
+from assets.models import Asset, AssetType, Installation
+from assets.serializers import AssetSerializer
 from matrix.core.scopes import resoudre_affectation_dans_perimetre, scope_filters_for_user
 from org import archivage
 from org.models import Section, Sector, Service, Ship
@@ -285,3 +286,56 @@ class SelecteursEtMaterielTests(BaseArchivage):
         deplacee = Installation.objects.get(pk=installation.pk)
         deplacee.section = self.section
         archivage.verifier_rattachement(deplacee)  # vers une unité active : permis
+
+
+class MaterielEtComptesDesactivesTests(BaseArchivage):
+    def test_l_affectation_en_masse_d_installations_a_une_section_archivee_est_refusee(self):
+        archivage.archiver(self.autre_section, self.admin)
+        installation = Installation.objects.create(designation="Pompe", ship=self.navire, service=self.service, sector=self.secteur)
+        self.client.force_login(self.admin)
+        reponse = self.client.post(reverse("installation-list"), {
+            "action": "bulk_update_section", "selected_ids": [str(installation.pk)], "section_id": self.autre_section.pk}, follow=True)
+        installation.refresh_from_db()
+        self.assertIsNone(installation.section_id)
+        self.assertContains(reponse, "archivé")
+
+    def test_l_affectation_en_masse_a_une_section_active_reste_possible(self):
+        installation = Installation.objects.create(designation="Pompe", ship=self.navire, service=self.service, sector=self.secteur)
+        self.client.force_login(self.admin)
+        self.client.post(reverse("installation-list"), {
+            "action": "bulk_update_section", "selected_ids": [str(installation.pk)], "section_id": self.section.pk}, follow=True)
+        installation.refresh_from_db()
+        self.assertEqual(installation.section_id, self.section.pk)
+
+    def test_l_api_materiel_tolere_la_valeur_archivee_inchangee_et_refuse_un_nouveau_rattachement(self):
+        type_materiel = AssetType.objects.create(name="Pompe", category="Hydraulique", sector=self.secteur)
+        materiel = Asset.objects.create(designation="Pompe 1", asset_type=type_materiel, ship=self.navire, service=self.service,
+                                        sector=self.secteur, section=self.autre_section)
+        Section.objects.filter(pk=self.autre_section.pk).update(archived=True)
+        requete = APIRequestFactory().patch("/x/")
+        requete.user = self.admin_navire
+        contexte = {"request": requete}
+        inchange = AssetSerializer(materiel, data={"section": self.autre_section.pk}, partial=True, context=contexte)
+        self.assertTrue(inchange.is_valid(), inchange.errors)
+        autre = Section.objects.create(sector=self.secteur, name="Archivée neuve", archived=True)
+        nouveau = AssetSerializer(materiel, data={"section": autre.pk}, partial=True, context=contexte)
+        self.assertFalse(nouveau.is_valid())
+
+    def test_un_compte_desactive_rattache_a_une_unite_archivee_garde_son_option_dans_l_annuaire(self):
+        User.objects.filter(pk=self.marin.pk).update(is_active=False)
+        Section.objects.filter(pk=self.section.pk).update(archived=True)
+        self.assertIn(self.section, list(archivage.exclure_archives(Section.objects.all(), garder_occupees=True)))
+        self.client.force_login(self.admin)
+        self.assertIn(self.section, list(self.client.get(reverse("user-directory")).context["sections"]))
+        self.marin.profile.refresh_from_db()
+        self.assertEqual(self.marin.profile.section_id, self.section.pk)  # rien n'a été modifié
+
+    def test_deplacer_une_unite_vers_un_parent_archive_est_refuse_par_l_api(self):
+        autre_service = Service.objects.create(ship=self.navire, name="Hôtellerie")
+        Service.objects.filter(pk=autre_service.pk).update(archived=True)
+        api = APIClient()
+        api.force_authenticate(self.admin)
+        reponse = api.patch(f"/api/org/sectors/{self.secteur.pk}/", {"service": autre_service.pk}, format="json")
+        self.assertEqual(reponse.status_code, 400, getattr(reponse, "data", None))
+        self.secteur.refresh_from_db()
+        self.assertEqual(self.secteur.service_id, self.service.pk)

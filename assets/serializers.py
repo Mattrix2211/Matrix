@@ -92,7 +92,7 @@ class AssetSerializer(ReferencesDansPerimetreMixin, serializers.ModelSerializer)
         champs = ("ship", "service", "sector", "section")
         if acting_user is not None and not is_master_admin(acting_user) and any(attrs.get(c) is not None for c in champs):
             ok, *_ = resoudre_affectation_dans_perimetre(
-                acting_user, **{f"{c}_id": attrs[c].id if attrs.get(c) is not None else None for c in champs}
+                acting_user, **{f"{c}_id": attrs[c].id if attrs.get(c) is not None else None for c in champs}, deja=self.instance
             )
             if not ok:
                 raise serializers.ValidationError(

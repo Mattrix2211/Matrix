@@ -198,10 +198,10 @@ def resoudre_affectation_dans_perimetre(acting_user, ship_id=None, service_id=No
         section = section_qs.get(pk=entier_ou_none(section_id)) if section_id else None
     except (Ship.DoesNotExist, Service.DoesNotExist, Sector.DoesNotExist, Section.DoesNotExist):
         return False, None, None, None, None
-    actuelles = {u.pk: u.__class__ for u in (getattr(deja, "ship", None), getattr(deja, "service", None),
-                                            getattr(deja, "sector", None), getattr(deja, "section", None)) if u is not None}
+    actuelles = {(u.__class__, u.pk) for u in (getattr(deja, "ship", None), getattr(deja, "service", None),
+                                              getattr(deja, "sector", None), getattr(deja, "section", None)) if u is not None}
     for unite in (ship, service, sector, section):
-        if unite is not None and not est_active(unite) and actuelles.get(unite.pk) is not unite.__class__:
+        if unite is not None and not est_active(unite) and (unite.__class__, unite.pk) not in actuelles:
             return False, None, None, None, None
     return True, ship, service, sector, section
 
