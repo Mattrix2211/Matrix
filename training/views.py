@@ -242,8 +242,6 @@ class TrainingRequirementPermission(RolePermission):
     peuvent cibler n'importe quel navire, ou ne cibler aucun navire du tout
     (exigence valable pour toute la flotte)."""
 
-    message = "Vous ne pouvez pas agir sur ce rattachement."
-
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return super().has_permission(request, view)
