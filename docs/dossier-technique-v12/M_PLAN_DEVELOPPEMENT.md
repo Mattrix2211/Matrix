@@ -50,7 +50,7 @@ L14, L15, L16, L17, L18 (peu liés entre eux) ─► L20 (via L17)
 1. **Mots de passe.** La note Notion du 28/10 demande des « mots de passe non prévisibles ou saisis » ; P06 conserve `pass` derrière le garde et rend aléatoire seulement le compte de flotte. *Proposition* : garder P06 (un mot de passe unique et connu est acceptable sur une instance de démonstration verrouillée, afin que la démonstration reste rejouable), sauf si vous voulez des mots de passe saisis pour tous les comptes.
 2. **Marqueur en base.** Acceptez-vous une migration additive d'une ligne ? *Proposition* : oui, c'est la seule façon d'empêcher qu'une base de démonstration devienne une base de production sans qu'on s'en aperçoive.
 
-## L02 — Archivage effectif
+## L02 — Archivage effectif — **réalisé sur `claude/l02-archivage-effectif-v11` (commit `a3832b3`), compte rendu : `P_LOT_L02_COMPTE_RENDU.md`**
 
 | | |
 |---|---|
