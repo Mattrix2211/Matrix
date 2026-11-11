@@ -1,0 +1,24 @@
+flowchart LR
+  M["Menu latéral : 7 groupes, construits pour chaque personne"]
+  G1["Mon quotidien : Aujourd'hui, Calendrier"]
+  G2["Équipements : Matériels, Installations, Catalogue, Plan du navire"]
+  G3["Maintenance : Maintenance, Tickets, Anomalies, Logistique"]
+  G4["Activité : Tâches, Annonces, Programme, Difficultés, Quarts, Feuille de service, Absences"]
+  G5["Compétences : Formations, Postes du bord, Documentation, RETEX"]
+  G6["Supervision : Prêt à appareiller, Flotte, Vue COMANAV, Spécialités, Classes"]
+  G7["Administration : Annuaire, Paramètres"]
+  F1["Filtre 1 : module activé pour le bâtiment ?"]
+  F2["Filtre 2 : droit propre à l'entrée"]
+  M --> G1
+  M --> G2
+  M --> G3
+  M --> G4
+  M --> G5
+  M --> G6
+  M --> G7
+  G2 --> F1
+  G3 --> F1
+  G4 --> F1
+  G5 --> F1
+  G6 --> F2
+  G7 --> F2

@@ -1,6 +1,6 @@
 # Chapitre 6 — Espace personnel, tableaux de bord, pilotage et rapports
 
-> **Pour qui :** marins, responsables. **Diffusion :** générale (mécanismes et références dans `restreint/06_accueil_pilotage_technique.md`).
+> **Pour qui :** marins, responsables. **Diffusion :** générale (mécanismes et références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** ce que le marin voit en ouvrant Matrix, ce que voit un chef, ce que voit l'acteur à terre, les vues de pilotage par niveau (flotte, COMANAV, spécialité, classe de navire), la synthèse de passation et les bilans exportables.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -108,4 +108,4 @@ L'accueil et les tableaux de pilotage **ne contiennent aucun moteur propre** : i
 
 ---
 
-**Sources (état B).** `dashboard/aujourdhui.py`, `dashboard/aujourdhui_terre.py`, `dashboard/comanav.py`, `dashboard/passation.py`, `dashboard/indicateurs.py`, `dashboard/web_views.py`, `reports/` ; références ligne par ligne dans `restreint/06_accueil_pilotage_technique.md`. Décisions : `DEC-UX-01`, `DEC-UX-05`, `DEC-UX-08`, `DEC-PRE-02`, `DEC-PRE-03` (dossier V1.2) ; Notion « 13 — Décisions » (vues à terre, passation).
+**Sources (état B).** `dashboard/aujourdhui.py`, `dashboard/aujourdhui_terre.py`, `dashboard/comanav.py`, `dashboard/passation.py`, `dashboard/indicateurs.py`, `dashboard/web_views.py`, `reports/` ; références ligne par ligne dans la partie restreinte du dossier. Décisions : `DEC-UX-01`, `DEC-UX-05`, `DEC-UX-08`, `DEC-PRE-02`, `DEC-PRE-03` (dossier V1.2) ; Notion « 13 — Décisions » (vues à terre, passation).

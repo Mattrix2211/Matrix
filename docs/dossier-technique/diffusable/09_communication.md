@@ -1,6 +1,6 @@
 # Chapitre 9 — Communication : discussions, annonces, notifications et recherche
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes dans `restreint/09_communication_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** comment le dialogue s'attache aux objets de travail, comment un responsable diffuse une information, comment Matrix prévient le marin, et comment retrouver une information. Pour chaque module : ce que fait le marin, puis les responsables, puis le cible.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -111,4 +111,4 @@ Décisions du PO et du cahier des charges, **non développées** :
 
 ---
 
-**Sources (état B).** `threads/`, `annonces/`, `notifications/`, `matrix/core/recherche.py` ; références ligne par ligne dans `restreint/09_communication_technique.md`. Décisions : `DEC-UX-06`, `DEC-UX-09` (dossier V1.2) ; cahier des charges §16 à §19, §23, §37, §38 ; propositions `docs/propositions/notifications_par_regime.md` et `dialogues_integres.md` (état B) ; Notion « 13 — Décisions » (circuits PÉPIN, CRAT).
+**Sources (état B).** `threads/`, `annonces/`, `notifications/`, `matrix/core/recherche.py` ; références ligne par ligne dans la partie restreinte du dossier. Décisions : `DEC-UX-06`, `DEC-UX-09` (dossier V1.2) ; cahier des charges §16 à §19, §23, §37, §38 ; propositions `docs/propositions/notifications_par_regime.md` et `dialogues_integres.md` (état B) ; Notion « 13 — Décisions » (circuits PÉPIN, CRAT).

@@ -1,12 +1,14 @@
 # Chapitre 16 — Préparation à l'appareillage
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans `restreint/16_preparation_appareillage_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** ce que Matrix propose aujourd'hui pour préparer un départ (une session datée, une liste de points de vigilance à cocher, une signature de clôture), ce que Matrix **ne fait pas** (autoriser l'appareillage), et le circuit **cible** décidé par le PO — présentés séparément.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`. Légende : 🟢 réel vérifié, 🔵 cible validée par le PO, ⚪ non vérifié.
 
 ---
 
 ## 16.1 Ce que Matrix ne dit pas
+
+> **Matrix est un outil de suivi de la préparation. Il ne délivre pas l'autorisation réelle d'appareiller.**
 
 **Matrix ne délivre pas l'autorisation opérationnelle d'appareiller** (`DEC-APP-13`, décision du PO). La session d'appareillage **atteste qu'une préparation a été menée et clôturée**, pas que le bâtiment est apte à appareiller. Le code le précise : la signature **atteste la clôture de la session**, pas l'aptitude du bâtiment (⚪ l'affichage de cette précision à l'écran n'a pas été vérifié).
 
@@ -61,7 +63,7 @@ L'équipage **à terre** ne voit pas les points issus des occurrences de mainten
 Décisions du PO (dossier V1.2) :
 - `DEC-APP-01` : chaque départ génère des **contrôles à partir de fiches de référence applicables**.
 - `DEC-APP-02` : circuit **section ou secteur → service → COMANAV**.
-- `DEC-APP-14` : le **chef de secteur propose** les contrôles et leur classification (**obligatoire**, **critique**) ; le **chef de service** examine et valide à son niveau ; le **COMANAV approuve** la fiche, notamment les contrôles obligatoires et critiques. ⚪ La compatibilité avec les procédures opérationnelles du bord **n'est pas vérifiée** : à confirmer avant tout développement (lot L23).
+- `DEC-APP-14` (**principe validé par le PO, conservé comme fonctionnement cible**) : le **chef de secteur propose** les contrôles et leur classification (**obligatoire**, **critique**) ; le **chef de service examine** la proposition ; le **COMANAV approuve le référentiel**, y compris les contrôles obligatoires et critiques. ⚪ La compatibilité avec les procédures opérationnelles du bord **n'est pas vérifiée** : à confirmer avant tout développement (lot L23).
 - `DEC-APP-03` à `DEC-APP-09` : une modification de référence suit **son propre circuit d'approbation** ; les préparations ouvertes sont **actualisées** (réponses toujours valables conservées, contrôles modifiés ou ajoutés **rouverts**, supprimés **archivés**, signatures affectées **invalidées**) ; les préparations clôturées **gardent leur version historique**.
 - `DEC-APP-10`, `DEC-APP-12` : les contrôles obligatoires sont traités **avant validation** ; un contrôle **critique non dérogeable ne se contourne pas**.
 - `DEC-APP-11` : une **réserve** est explicite, justifiée et tracée, dans les limites des règles de sécurité.
@@ -97,11 +99,11 @@ Décisions du PO (dossier V1.2) :
 
 ## 16.6 Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `dashboard` (exécution à lancer, voir `RAPPORT_E3.md`).
+- 🟢 Tests de l'état B : `dashboard` (rejoués sur l'état B avec les six autres paquets de l'ensemble 3 : 1 491 tests OK, 1 ignoré ; voir `RAPPORT_E3.md`).
 - ⚪ Les écrans n'ont pas été rejoués dans un navigateur.
 - ⚪ Aucune fiche de référence d'appareillage n'existe dans le code ; le cahier des charges et les pages Notion de procédures opérationnelles ne sont pas décrits comme existants.
 - ⚪ Le lien entre le mode MER/QUAI et la préparation n'est pas établi.
 
 ---
 
-**Sources (état B).** `dashboard/models.py`, `dashboard/web_views.py` ; décisions `DEC-APP-01` à `DEC-APP-14` (dossier V1.2). Références dans `restreint/16_preparation_appareillage_technique.md`.
+**Sources (état B).** `dashboard/models.py`, `dashboard/web_views.py` ; décisions `DEC-APP-01` à `DEC-APP-14` (dossier V1.2). Références dans la partie restreinte du dossier.

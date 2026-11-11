@@ -1,6 +1,6 @@
 # Chapitre 12 — Maintenance, anomalies, tickets correctifs
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans `restreint/12_maintenance_anomalies_tickets_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** comment une maintenance passe du plan à la réalisation ; ce que fait le marin qui l'exécute ; comment une anomalie devient un ticket correctif ; qui peut faire quoi ; ce qui est écrit, tracé et notifié.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`. Légende : 🟢 réel vérifié, 🔵 cible validée par le PO, ⚪ non vérifié.
 
@@ -56,7 +56,15 @@
 
 États : **Planifiée → Assignée → En cours → Terminée** ; **En retard** (calculé) ; **En validation** (verdict non conforme) ; **Annulée**. Chaque changement est **journalisé** (ancien et nouvel état, auteur) et, pour les installations critiques, **audité**.
 
-⚪ **Point à signaler.** Dans le code de l'état B, l'état **En validation** est atteint par un verdict non conforme, mais **je n'ai trouvé aucune transition de sortie** : la suite attendue passe par le ticket correctif et par un nouveau contrôle. Ce point est inscrit au registre des écarts comme **non vérifié**.
+🟢 **Sortie de l'état « En validation » : examen précis.** Il n'existe **aucune action de validation dédiée** (aucun bouton, aucune route, aucune tâche planifiée) qui fasse sortir une occurrence de cet état. La **seule sortie trouvée** est la **correction du compte rendu** : un **chef de secteur ou plus** (action `maintenance_compte_rendu_correction`) rouvre le compte rendu, indique un motif obligatoire et déclare une conformité finale ; si elle n'est plus « non conforme », l'occurrence passe **Terminée**. Rien ne la fait sortir de l'état quand le ticket correctif lié est clôturé : **aucun lien automatique** ticket → occurrence n'a été trouvé.
+
+**Risque de blocage, constaté et non inventé.**
+- Une occurrence « En validation » **n'est jamais comptée en retard** (elle est exclue du calcul des retards) et la tâche quotidienne de retard ne traite que les occurrences planifiées ou assignées : **elle peut rester indéfiniment dans cet état sans alerte de retard**.
+- Elle reste visible dans les compteurs « en validation » (accueil, liste filtrable, calendrier), qui sont donc le seul rappel.
+- Tant qu'elle est « En validation », la **tournée** la verrouille ; la prochaine échéance de la même gamme est générée indépendamment.
+- Matrix ne sait pas dire si le défaut est **corrigé** : c'est un chef qui doit corriger le compte rendu ou **annuler** l'occurrence ⚪ (le chemin d'annulation manuelle n'a pas été rejoué).
+
+Écart **A20** : voir le registre (rubrique « non vérifié » conservée pour les parties non rejouées).
 
 ## 12.5 L'anomalie : « j'ai vu quelque chose »
 
@@ -137,16 +145,16 @@ Les seuils sont **réglables par bâtiment** (chapitre 5). L'équipage à terre 
 | **Périodicités nommées** (hebdomadaire à quinquennale) et échéance calculée depuis la réalisation effective | `DEC-PER-01` à `DEC-PER-04` | Plan V1.2 (étape 4.1) | Cible, non développée |
 | **Remarques d'outillage et d'instruction**, visibles du chef de secteur, sans modification automatique de la fiche (`DEC-OUT-03`) | `DEC-OUT-01` à `DEC-OUT-05` | Plan V1.2 (étape 4.3) | Cible, non développée |
 | **Durée indicative** de maintenance et sa méthode | `DEC-DUR-*` | Plan V1.2 | Cible ; pas de durée dynamique aujourd'hui |
-| **Ticket automatique pour une installation non conforme** | non décidé | — | À confirmer : aujourd'hui seul le matériel mobile en déclenche un |
+| **Ticket de suivi pour une installation déclarée non conforme**, comme pour le matériel mobile | **Proposition à valider par le PO** — **pas une décision** | — | Non développé ; aujourd'hui seul le matériel mobile en déclenche un. Garde-fous proposés : le ticket **ne clôture jamais automatiquement une anomalie** et **n'autorise jamais une remise en service** |
 | **Configuration réelle, potentiels, composants** | Notion « 04 — Maintenance… » | — | Orientation, non développée |
 
 ## 12.12 Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `maintenance` et `logistics` (ensemble 3 : exécution à lancer, voir `RAPPORT_E3.md`).
-- ⚪ Transition de sortie de **En validation** non trouvée.
+- 🟢 Tests de l'état B : `maintenance` et `logistics` (rejoués avec l'ensemble 3 : 1 491 tests OK, 1 ignoré ; voir `RAPPORT_E3.md`).
+- 🟢 Pas de validation dédiée pour **En validation** ; sortie uniquement par correction du compte rendu (§12.4) ; risque de blocage sans alerte de retard.
 - ⚪ Les écrans (exécution, tournée, ticket) n'ont pas été rejoués dans un navigateur.
 - ⚪ Les envois de notifications (web push, e-mail) n'ont pas été rejoués ; seules leurs conditions de déclenchement sont décrites.
 
 ---
 
-**Sources (état B).** `maintenance/` (modèles, vues d'exécution, tournée, tâches), `logistics/` (tickets, anomalies, stock), `notifications/tasks.py`. Références ligne par ligne dans `restreint/12_maintenance_anomalies_tickets_technique.md`.
+**Sources (état B).** `maintenance/` (modèles, vues d'exécution, tournée, tâches), `logistics/` (tickets, anomalies, stock), `notifications/tasks.py`. Références ligne par ligne dans la partie restreinte du dossier.

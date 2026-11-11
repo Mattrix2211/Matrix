@@ -1,6 +1,6 @@
 # Chapitre 8 — Quarts, services à quai, gardes, feuille de service, échanges et absences
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes et références dans `restreint/08_quarts_services_feuille_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes et références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** ce que voit et fait le marin, ce que font le chef de liste, le BSC, le COMAEQ et le commandement ; les circuits de validation ; et, pour les **échanges de tours** et la **publication des listes**, le fonctionnement **actuel** et le fonctionnement **cible** (décisions `DEC-FDS-07`, `DEC-FDS-13`, `DEC-FDS-14`), présentés séparément pour ne jamais les confondre.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -128,7 +128,7 @@ Une liste à quai a, en plus, une **application** distincte de sa validation : *
 | Administrateur technique | Peut valider et publier (via la supervision du commandement) | Aucun visa métier (`DEC-DRT-02`) |
 | Lots de correction | — | L10 (échanges), L09 (publication), L08 (suppléance), L06 (administrateur technique) |
 
-> ⚠️ **Écarts d'implémentation.** Les lignes ci-dessus sont détaillées dans `restreint/ECARTS_DECISIONS_CODE.md` (A1, A2, A3). **Points à confirmer** (la décision existante est appliquée ; la règle cible n'est pas inventée) : (1) **suppléance du COMAEQ** : le principe est décidé — suppléance explicitement désignée, activée, limitée dans le temps et dans son périmètre, tracée (`DEC-SUP-01`) — mais la **procédure exacte de désignation du suppléant reste à confirmer** (B1) ; (2) les **échanges ne sont pas généralisés aux quarts à la mer** : sans validation métier, le fonctionnement reste celui des services à quai (B3) ; (3) l'**autorité cible** de déclaration d'accostage et d'appareillage reste à confirmer, le fonctionnement actuel étant documenté ci-dessus (B4).
+> ⚠️ **Écarts d'implémentation.** Les lignes ci-dessus sont détaillées dans le registre des écarts (partie restreinte du dossier) (A1, A2, A3). **Points à confirmer** (la décision existante est appliquée ; la règle cible n'est pas inventée) : (1) **suppléance du COMAEQ** : le principe est décidé — suppléance explicitement désignée, activée, limitée dans le temps et dans son périmètre, tracée (`DEC-SUP-01`) — mais la **procédure exacte de désignation du suppléant reste à confirmer** (B1) ; (2) les **échanges ne sont pas généralisés aux quarts à la mer** : sans validation métier, le fonctionnement reste celui des services à quai (B3) ; (3) l'**autorité cible** de déclaration d'accostage et d'appareillage reste à confirmer, le fonctionnement actuel étant documenté ci-dessus (B4).
 
 ## 8.8 La feuille de service
 
@@ -188,4 +188,4 @@ Un compteur **en lecture seule** par marin sur les services de garde **publiés*
 
 ---
 
-**Sources (état B).** `quarts/models.py` (listes, échanges, feuille), `quarts/echanges.py`, `quarts/activation.py`, `quarts/mouvements.py`, `quarts/remplacement.py`, `quarts/rectificatif.py`, `quarts/services.py`, `absences/`, `matrix/templates/quarts/` ; références ligne par ligne dans `restreint/08_quarts_services_feuille_technique.md`. Décisions : `DEC-FDS-01` à `DEC-FDS-14`, `DEC-SUP-01`, `DEC-PRE-01` (dossier V1.2, `A1_DECISIONS_S1_S2.md`) ; propositions `docs/propositions/mer_quai_plan_technique.md`, `mer_quai_consolidation.md`, `droits_comaeq.md` (état B) ; Notion « 06 — Service courant, BSC, feuille de service et commissariat » (31/10/2026), « 13 — Décisions ». Écarts : `restreint/ECARTS_DECISIONS_CODE.md` (A1 à A3, A12, B1 à B5).
+**Sources (état B).** `quarts/models.py` (listes, échanges, feuille), `quarts/echanges.py`, `quarts/activation.py`, `quarts/mouvements.py`, `quarts/remplacement.py`, `quarts/rectificatif.py`, `quarts/services.py`, `absences/`, `matrix/templates/quarts/` ; références ligne par ligne dans la partie restreinte du dossier. Décisions : `DEC-FDS-01` à `DEC-FDS-14`, `DEC-SUP-01`, `DEC-PRE-01` (dossier V1.2, `A1_DECISIONS_S1_S2.md`) ; propositions `docs/propositions/mer_quai_plan_technique.md`, `mer_quai_consolidation.md`, `droits_comaeq.md` (état B) ; Notion « 06 — Service courant, BSC, feuille de service et commissariat » (31/10/2026), « 13 — Décisions ». Écarts : le registre des écarts (partie restreinte du dossier) (A1 à A3, A12, B1 à B5).

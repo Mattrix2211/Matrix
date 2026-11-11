@@ -82,9 +82,20 @@
 | A16 | Diffusion « flotte » : proposé à l'organisme destinataire | La diffusion « flotte » **marque** le RETEX ; aucune transmission n'existe | `retex/models.py` (`diffusion`, `organisme`) | L'organisme n'est jamais saisi ni notifié par Matrix ; qui transmet est **à confirmer** | L11 |
 | A17 | Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → service → COMANAV ; contrôles obligatoires, critiques non dérogeables, réserves (`DEC-APP-01`, `DEC-APP-02`, `DEC-APP-10` à `DEC-APP-12`, `DEC-APP-14`) | Les points sont calculés à l'ouverture depuis l'état des installations critiques ; une seule signature (chef de secteur ou plus) ; ni classification, ni réserve, ni fiche de référence | `_points_de_vigilance_navire` (`dashboard/web_views.py:367`) ; `SessionAppareillageSignerView` (`dashboard/web_views.py:664`) | Aucun circuit COMANAV ; la signature atteste la clôture de la session, pas l'aptitude. Compatibilité avec les procédures du bord **à confirmer avant implémentation** | L23 |
 | A18 | Transfert de matériel entre secteurs et entre services avec approbations (`DEC-MAT-01` à `DEC-MAT-04`) | Aucun circuit ; réaffectation par l'affectation en masse | `assets/` (aucune vue de transfert) | Pas de trace d'approbation du transfert ni de suivi des tâches ouvertes | L13 |
-| A19 | Demande de places : la réponse vient de l'organisme de formation (Notion « 03 ») | L'organisme n'est pas un acteur de Matrix ; un référent de la formation pour ce navire enregistre l'attribution | `training/web_views.py:1311` (`_attribuer_places`) | La transmission à l'organisme se fait hors outil ; pas de timeline de dossier | Cible Notion « 03 » |
-| A20 *(non vérifié)* | Occurrence non conforme : état « En validation » | L'état est atteint par un verdict non conforme ; **aucune transition de sortie trouvée** dans le code examiné | `maintenance/web_views.py:283` ; `maintenance/perimetre.py:18` ; `maintenance/views.py:167` | Le sort de l'occurrence repose sur le ticket correctif et un nouveau contrôle ; non rejoué | Non identifié |
+| A19 | Demande de places : l'organisme de formation répond dans un **dossier vivant** (timeline, fil, transmission, prise en compte) — cible Notion « 03 » | L'organisme est une **unité de type École ou Centre de formation** ; un référent de la formation dans cette unité attribue ou refuse (`_attribuer_places`) ; le demandeur est notifié. Pas de timeline, pas de fil systématique, pas d'étape « transmise à l'organisme » pour la demande de places | `_attribuer_places` (`training/web_views.py:1311`) ; `org/models.py` | Cible non développée ; correction par rapport au rapport E3 (qui disait que l'organisme n'était pas un acteur) | Cible Notion « 03 » |
+| A20 | Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO) | L'état est atteint par un verdict non conforme. **Aucune action de validation dédiée** ; seule sortie : correction du compte rendu par un chef de secteur ou plus (motif obligatoire, conformité finale conforme). Exclue du calcul des retards ; aucun lien automatique ticket → occurrence | `maintenance/web_views.py:283` ; `maintenance/perimetre.py:18` ; `maintenance/views.py:167` | **Risque de blocage** : occurrence « En validation » indéfiniment, sans alerte de retard, y compris après réparation. Parties non rejouées (annulation manuelle) : non vérifié | Non identifié (à décider par le PO) |
 | A21 | Périodicités nommées, remarques d'outillage, durée indicative (`DEC-PER-01` à `04`, `DEC-OUT-01` à `05`, `DEC-DUR-*`) | Non développé | `maintenance/models.py:18` | Cible, non contradictoire | Plan V1.2 |
+
+## Partie A quinquies — Écarts et contradictions relevés à l'ensemble 4
+
+| # | Règle validée ou affirmation | Comportement observé | Sources | Conséquences | Lot |
+|---|---|---|---|---|---|
+| A22 | Le projet suppose Python 3.12 ou plus (README, dépendances) | Le script d'installation annonce « Python 3.8 ou supérieur » | `setup.bat:11` ; `README.md` | Une installation sur un Python ancien échouerait tard ; incohérence de documentation uniquement | L28 |
+| A23 | Sécurité d'accès avec les SIC : HTTPS, limitation des connexions (cible) | En production, redirection HTTPS et cookies sécurisés actifs ; **ni limitation des tentatives de connexion, ni HSTS, ni réglage de proxy inverse** ; origines CSRF de confiance codées sur `localhost` ; aucun serveur HTTPS ni serveur d'application livré | `matrix/settings.py:413` | Cible non développée ; l'architecture réelle de mise en service reste à définir avec les SIC | L21 |
+| A24 | Sauvegarde, restauration, supervision, conservation des journaux (à fournir, `IM-10` pour les durées) | **Rien n'existe** dans le dépôt : ni script, ni documentation | recherche dans tout le dépôt (termes « sauvegarde », « backup », `dumpdata`, `pg_dump`) | Aucun plan de reprise ; durées de conservation des notifications, journaux et estimations non définies (B8) | À définir avec les SIC |
+| A25 | Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment) | Seules les **pages web** sont bloquées ; l'API, les tâches planifiées et les enchaînements internes continuent | `matrix/core/modules.py` ; `matrix/core/middleware.py:210` | Choix volontaire du code pour ne pas casser les enchaînements ; à connaître des intégrateurs | — |
+| A26 | Neuf modules sans API (quarts, absences, tâches, annonces, demandes, programme, postes, documentation, RETEX) | Aucune route `/api/` ; pilotage par les pages seulement | `couverture/etat_B/ROUTES.md` | Aucune intégration possible sur ces objets ; cohérent avec la phase 7 « différée » | Phase 7 |
+
 
 
 ---
@@ -120,6 +131,20 @@ Elles ne sont pas des écarts : le code ne les contredit pas, il ne les réalise
 | `DEC-FDS-08` | Composition-type d'une fraction de service à quai (GO du PO requis) | L27 | 8 |
 
 ---
+
+## Partie D — Propositions à valider par le PO (🟣, pas des décisions)
+
+Ces points ont été proposés ou relevés ; **aucun n'est décidé** et aucun n'est rattaché à un lot lancé. Le dossier les décrit comme propositions.
+
+| # | Proposition | Origine | Garde-fous demandés | Chapitre |
+|---|---|---|---|---|
+| D1 | **Ticket de suivi pour une installation déclarée non conforme**, comme pour le matériel mobile | Retenue comme proposition cible par le PO, « à valider » | Un ticket ne clôture jamais automatiquement une anomalie ; il n'autorise jamais une remise en service | 12, 25 |
+| D2 | **Règle de sortie de l'état « En validation »** et alerte de retard associée (A20) | Constat du dossier | Aucune règle inventée | 12, 25 |
+| D3 | **Transmission d'un RETEX à un organisme** : destinataires, canaux, responsabilités | Précision du PO : acte distinct de la validation et du statut | À confirmer avec les procédures métier ; le marquage « flotte » n'est pas une transmission | 15, 25 |
+| D4 | **Autorité de classification « critique »** d'un contrôle d'appareillage | `DEC-APP-14` (principe validé) ; compatibilité avec les procédures du bord non vérifiée | À confirmer avant tout développement | 16, 25 |
+| D5 | Favoris épinglés, recherche de personnes limitée, formulaires RH configurables | Observations de recette (PO-18 à PO-20) | « À faire plus tard » ; droits et confidentialité à spécifier | 17, 25 |
+| D6 | Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de démonstration) | Notion « Recette UX V1.1 » | Qualification et arbitrage du PO avant toute correction | 17 |
+| D7 | Sauvegarde, restauration, supervision, conservation des journaux | Aucune source | À définir avec les SIC / l'exploitant | 23 |
 
 ## Limites
 

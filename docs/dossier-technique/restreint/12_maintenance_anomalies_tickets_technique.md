@@ -46,7 +46,7 @@ S24 (plan → réalisation), S25 (états), S26 (ticket et anomalie).
 
 ## 12.T4 Points non vérifiés
 
-- Sortie de `WAITING_VALIDATION` : références à ce statut dans `maintenance/perimetre.py:18`, `maintenance/tournee.py:19`, `maintenance/views.py:167` ; aucune transition sortante repérée.
+- Sortie de `WAITING_VALIDATION` : écrite par `maintenance/web_views.py:283` (clôture ou correction), `maintenance/views.py:167` (action `complete` de l'API) ; `maintenance/tournee_web.py:195` (tournée) ; exclue des retards par `maintenance/perimetre.py:18` ; verrouillée en tournée (`maintenance/tournee.py:19`) ; aucune action de validation dédiée ni lien ticket → occurrence. Seule sortie : correction du compte rendu (seuil `maintenance_compte_rendu_correction`, chef de secteur), avec conformité finale autre que non conforme.
 - Module `rondes` : modèles seuls (`rondes/models.py`), module retiré de l'interface (`matrix/tests/test_module_rondes_retire.py`).
 
 ## Tests
@@ -55,7 +55,7 @@ S24 (plan → réalisation), S25 (états), S26 (ticket et anomalie).
 
 ## Limites
 
-- ⚪ Sortie de l'état En validation non trouvée (A20).
+- Sortie de l'état En validation : correction du compte rendu seulement ; risque de blocage sans alerte (A20).
 - ⚪ Les envois de notifications ne sont pas rejoués.
 
 ---

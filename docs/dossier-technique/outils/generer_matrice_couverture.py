@@ -47,6 +47,14 @@ CIRCUITS = [  # circuit, chapitre, ensemble, mot-clé de preuve dans les chapitr
     ("Documentation : versions et validation", "15", "E3", "proposer_amelioration"),
     ("RETEX : fonctionnement actuel", "15", "E3", "valideurs"), ("RETEX : fonctionnement cible (DEC-RTX-01)", "15", "E3", "DEC-RTX-01"),
     ("Préparation à l'appareillage : fonctionnement actuel", "16", "E3", "SessionAppareillageSignerView"), ("Préparation à l'appareillage : fonctionnement cible (DEC-APP-14)", "16", "E3", "DEC-APP-14"),
+    ("Navigation par rôle et modules activés", "17", "E4", "construire_navigation"), ("Paramètres : seuils, modules, équipage", "17", "E4", "SettingsView"),
+    ("Aide progressive et préférences par compte", "17", "E4", "aide_progressive"), ("Brouillons et confirmations d'actes critiques", "17", "E4", "tracer_refus"),
+    ("Déconnexion automatique et poste partagé", "17", "E4", "InactiviteMiddleware"),
+    ("API : authentification et contrôle d'accès", "20", "E4", "RolePermission"), ("Exports CSV, Excel, PDF, iCal", "20", "E4", "user_ical_feed"),
+    ("Signaux et enchaînements entre modules", "21", "E4", "signals.py"), ("Tâches planifiées et alertes", "21", "E4", "CELERY_BEAT_SCHEDULE"),
+    ("Mise en production : garde-fous et checklist", "23", "E4", "verifier_instance"), ("Instance de démonstration isolée", "23", "E4", "preparer_instance_test"),
+    ("Sauvegarde et restauration (non fournies)", "23", "E4", "pg_dump"), ("Chaîne PO, Développeur, Relecteur", "24", "E4", "Relecteur"),
+    ("Feuille de route et lots", "25", "E4", "L23"), ("Historique des versions et des lots", "26", "E4", "6d6d0be"),
 ]
 
 par_app = defaultdict(list)
@@ -86,7 +94,7 @@ for app in sorted(routes):
     ch, ens = PAQUETS.get(app, ("18, 20", "E1/E4") if app in ("matrix", "rest_framework", "django") else ("?", "?"))
     L.append(f"| `{app}` | {routes[app]} | {ch} | {ens} |")
 L.append(f"| **Total** | **{sum(routes.values())}** | | |")
-L += ["", "Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C, ensemble 4).", "",
+L += ["", "Le détail des routes est dans l'annexe C (`restreint/annexes/C_index_routes.md`) et dans `couverture/etat_B/ROUTES.md`.", "",
       "## G.3 Tâches planifiées", "", "| Tâche | Nom | Citée dans un chapitre rédigé |", "|---|---|---|"]
 for b in inv["beat"]:
     cite = "oui" if b["nom"] in texte or b["tache"].split(".")[-1] in texte else "domaine seulement (ch. 18), détail ch. 21"
@@ -94,7 +102,7 @@ for b in inv["beat"]:
 L += ["", "## G.4 Commandes de gestion", "", "| Commande | Citée dans un chapitre rédigé |", "|---|---|"]
 for c in inv["commandes"]:
     nom = Path(c).stem
-    L.append(f"| `{nom}` | {'oui' if nom in texte else 'non (ensemble indiqué en annexe E, ensemble 4)'} |")
+    L.append(f"| `{nom}` | {'oui' if nom in texte else 'annexe E seulement'} |")
 L += ["", "## G.5 Actions à seuil de rôle", "",
       f"{len(inv['actions_seuils'])} actions : toutes figurent dans l'annexe B (générée depuis le registre). "
       "Exemples expliqués au chapitre 5.", "",
@@ -108,5 +116,5 @@ for nom, ch, ens, preuve in CIRCUITS:
     L.append(f"| {nom} | {ch} | {ens} | {st} |")
 L += ["", "## G.7 Dépendances entre paquets", "",
       "Matrice générée dans `couverture/etat_B/INVENTAIRE.md` ; synthèse expliquée au chapitre 18 (§18.6).", ""]
-(D / "couverture/MATRICE_COUVERTURE.md").write_text("\n".join(L), encoding="utf-8")
+(D / "restreint/annexes/G_matrice_couverture.md").write_text("\n".join(L), encoding="utf-8")
 print(f"modèles : {red}/{tot} expliqués, {nom_tot} nommés (ch. 19) ; circuits E1 : " + str(sum(1 for c in CIRCUITS if c[2] == 'E1')))

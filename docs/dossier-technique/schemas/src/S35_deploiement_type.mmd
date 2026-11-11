@@ -1,0 +1,18 @@
+flowchart TB
+  N["Navigateur du marin : poste fixe du réseau local du bâtiment"]
+  P["Serveur web et HTTPS : à fournir avec les SIC, non livré par le dépôt"]
+  D["Application Django : pages, API, fichiers téléversés contrôlés"]
+  B[("Base de données : SQLite en développement, PostgreSQL en production")]
+  R[("Redis : file des tâches")]
+  W["Celery worker : exécute les tâches"]
+  T["Celery beat : planifie 20 tâches"]
+  F[("Dossier des fichiers téléversés")]
+  N --> P --> D
+  D --> B
+  D --> F
+  D --> R
+  T --> R
+  R --> W
+  W --> B
+  X["Aucun accès Internet requis : ni CDN, ni police distante, ni service cloud"]
+  D -.- X

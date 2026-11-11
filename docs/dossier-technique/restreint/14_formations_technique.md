@@ -23,7 +23,7 @@
 
 Schéma : S28. Décisions : `DEC-QUA-01` à `04`, `DEC-ORG-04`, `DEC-ORG-05`.
 
-Points à confirmer : organisme de formation non modélisé comme acteur ; transition automatique session → qualification absente.
+Points à confirmer : organisme réel hors Matrix (sans unité École ou Centre de formation) ; transition automatique session → qualification absente ; tests de l'unité de formation : `matrix/tests/test_organisme_formation.py`.
 
 ## Tests
 
@@ -31,7 +31,7 @@ Points à confirmer : organisme de formation non modélisé comme acteur ; trans
 
 ## Limites
 
-- ⚪ L'organisme de formation n'est pas modélisé comme acteur (A19).
+- ⚪ Un organisme de formation est une unité de type École ou Centre de formation (`org/models.py` `Ship.type_unite`) ; pas de dossier vivant ni de transmission formalisée (A19).
 - ⚪ Pas de transition automatique session → qualification.
 
 ---

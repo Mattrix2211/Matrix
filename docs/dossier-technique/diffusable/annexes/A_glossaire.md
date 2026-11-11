@@ -113,9 +113,15 @@
 | **NNO** | Numéro de Nomenclature OTAN : référence militaire standard identifiant une pièce de façon univoque (libellé du champ du stock ; champ facultatif, texte libre). Présent sur le matériel, le catalogue et le stock. |
 | **VAPID / Web Push** | Clés et mécanisme d'envoi de notifications au navigateur, auto-hébergés. |
 | **Mot de passe provisoire** | Mot de passe généré à la réinitialisation, affiché une seule fois, à remplacer à la première connexion. |
+| **BRH (personnel BRH)** | Personnel désigné pour un bâtiment, qui traite l'étape « BRH » des candidatures de formation (chapitre 14). Développement de l'acronyme : ⚪ non précisé dans les sources lues. |
+| **CRAT** | Type de demande cité par le PO avec le PÉPIN et le RAV/c ; son circuit officiel dépend de sa nature et reste à cartographier ; non développé dans Matrix. |
+| **Lot (Lnn)** | Unité de développement proposée par le dossier V1.2 (28 lots, L01 à L28). Seuls L01, L05, L02 et L03 sont livrés, sur l'état B non fusionné (chapitres 25 et 26). |
+| **Écart (An)** | Différence constatée entre une règle validée par le PO et le comportement du code ; consigné dans le registre des écarts de la partie restreinte. Un écart n'est pas un défaut à corriger sans décision. |
+| **Point à confirmer (Bn)** | Règle cible qui n'est pas décidée : le dossier décrit le comportement actuel vérifié et ne l'invente pas. |
+| **Dossier vivant** | Cible décrite pour la formation : une demande réunit acteurs, workflow, échéances, pièces jointes, fil de discussion et historique. Non développé. |
 | **Instance de démonstration** | Base fictive isolée, marquée comme telle ; ne démarre jamais en production. |
 | **Prêt à appareiller** | Session de préparation de l'appareillage (chapitre 16). Matrix n'autorise pas l'appareillage. |
 
 ---
 
-**Sources.** Notion : « Organigramme et rôles », « 06 — Service courant, BSC, feuille de service et commissariat » (31/10/2026), « 07 — SIC, cyber, protection-défense et conformité », « 12 — Glossaire et responsabilités des organismes externes au bord » (21/10/2026), « 13 — Décisions Matrix et gouvernance fonctionnelle ». Code de l'état B : `accounts/models.py:11`, `matrix/core/roles.py:4`. Ces pages Notion portent l'état « non vérifié ».
+**Sources.** Notion : « Organigramme et rôles », « 06 — Service courant, BSC, feuille de service et commissariat » (31/10/2026), « 07 — SIC, cyber, protection-défense et conformité », « 12 — Glossaire et responsabilités des organismes externes au bord » (21/10/2026), « 13 — Décisions Matrix et gouvernance fonctionnelle ». Code de l'état B : rôles et profils du code de l'état B. Ces pages Notion portent l'état « non vérifié ».

@@ -33,8 +33,9 @@ Dans les chapitres, l'état A n'apparaît que dans un encadré **« Comparaison 
 
 | Étiquette | Signification | Preuve attendue |
 |---|---|---|
-| 🟢 **Actuel** | Ce comportement existe dans le code de l'état B | Référence `fichier:ligne` vérifiée sur B, ou test, ou migration |
+| 🟢 **Actuel** | Ce comportement existe dans le code de l'état B | Référence de code (fichier et ligne) vérifiée sur B et consignée dans la partie restreinte, ou test, ou migration |
 | 🔵 **Cible** | Règle validée par le Product Owner, **non développée ou partielle**. Jamais rédigée au présent comme si elle fonctionnait | Identifiant de décision `DEC-…` et, s'il existe, lot `Lnn` |
+| 🟣 **Proposition** | Idée ou règle **proposée** (par l'assistant ou relevée en recette), **à valider par le PO** : ce n'est **pas** une décision. Jamais rédigée au présent | Mention « à valider par le PO » et, s'il existe, rattachement à un lot |
 | ⚪ **Non vérifié** | Information issue d'une seule source (Notion, mémoire) ou point non rejoué | La limite est dite en clair ; recensée en annexe F |
 
 Chaque chapitre est construit de la même manière : *ce que c'est et à quoi ça sert → qui l'utilise → comment ça marche → quelles données → quels contrôles → liens avec les autres modules*, puis, séparément, **le fonctionnement cible** et **les limites**.
@@ -67,14 +68,18 @@ Les chapitres mêlant usage et technique existent en deux fichiers : `NN_titre.m
 
 ## 3.5 Vérifier une affirmation
 
-Chaque chapitre se termine par ses **sources** : chemins de fichiers et numéros de ligne **sur l'état B**. Pour contrôler :
+Chaque chapitre se termine par ses **sources**. Dans les chapitres **diffusables**, elles désignent les modules du code de l'état B, les décisions du PO (`DEC-…`) et les pages Notion consultées ; **les références précises au code (fichier et ligne) se trouvent uniquement dans la partie restreinte**, pour les développeurs.
 
-```bash
-git fetch origin claude/l03-suppression-sure-v11
-git show 6d6d0be:matrix/core/roles.py | sed -n '4,15p'
-```
+Les inventaires chiffrés (nombre de modèles, de routes, de tâches planifiées…) sont **générés** depuis le code, jamais saisis à la main. Des contrôles automatiques vérifient que chaque référence de code existe sur l'état B, que les chiffres cités correspondent à l'inventaire, que les schémas sont tous exportés et référencés, et que **les parties diffusable et restreinte ne se mélangent pas** (aucune référence de code, variable de configuration, commande d'exploitation ou lien vers la partie restreinte dans les fichiers diffusables).
 
-Les inventaires chiffrés (nombre de modèles, de routes, de tâches planifiées…) sont **générés** par `outils/inventaire.py` depuis le code ; ils ne sont jamais saisis à la main. Un contrôle automatique (`outils/verifier_references.py`) vérifie que chaque fichier et chaque numéro de ligne cités existent bien sur l'état B.
+### Règle de séparation
+
+| Partie | Peut contenir | Ne contient jamais |
+|---|---|---|
+| **Diffusable** | Usage, règles métier, circuits, parcours, droits en clair, glossaire, cible, historique, schémas explicatifs | Références `fichier:ligne`, noms de variables ou de secrets, commandes d'exploitation, adresses et ports, chemins vers la partie restreinte |
+| **Restreinte** | Architecture, données, sécurité, API, exploitation, déploiement, droits détaillés, registre des écarts, annexes générées | — (tout y est déjà restreint) |
+
+⚠ **Cette séparation n'est pas une autorisation de diffusion.** La classification définitive et la liste des destinataires restent à valider séparément par le PO et, pour la partie restreinte, avec les SIC.
 
 ## 3.6 Vocabulaire
 
@@ -90,15 +95,16 @@ Le glossaire complet est l'**annexe A**. Quatre distinctions à garder en tête 
 - ⚪ Le dossier décrit un **état du code**, pas un état déployé ; il ne vaut ni recette ni homologation.
 - ⚪ Les vérifications portent sur le code et ses tests (suite complète sur SQLite). **PostgreSQL, Windows et un navigateur réel n'ont pas été rejoués** pour cette édition.
 - ⚪ Les pages Notion consultées portent l'état « non vérifié » ; ce qui n'en est reconnu que par elles est étiqueté en conséquence.
-- ⚪ Certaines pages de référence n'ont pas encore été lues (formation et brevets, recette UX) : elles le seront avant les chapitres qui en dépendent.
+- ⚪ Quelques pages Notion n'ont été vues que dans les résultats de recherche, sans lecture complète, et le sous-module de charte graphique est vide dans l'environnement de rédaction : la liste exacte des sources lues et non lues est dans la partie restreinte (annexe F).
 
 ## 3.8 Révisions
 
 | Date | Contenu |
 |---|---|
 | 11/11/2026 | Édition G0, ensemble 1 : chapitres 1 à 5, 18, 19, 22 ; annexes A et B |
-| 11/11/2026 | Ensemble 2 : chapitres 6 à 10 ; chapitre 5 complété (sept profils, écarts d'implémentation) ; registre des écarts `restreint/ECARTS_DECISIONS_CODE.md` |
+| 11/11/2026 | Ensemble 2 : chapitres 6 à 10 ; chapitre 5 complété (sept profils, écarts d'implémentation) ; registre des écarts (partie restreinte du dossier) |
 | 11/11/2026 | Ensemble 3 : chapitres 11 à 16 ; schémas S22 à S33 ; registre des écarts complété (A15 à A21) ; chapitre 5 (BSC, chef de liste, points à confirmer) et chapitre 8 révisés ; A12 et A14 reformulés |
+| 11/11/2026 | Ensemble 4 : chapitres 17, 20, 21, 23 à 26 ; annexes C à H ; schémas S34 à S42 ; registre des écarts complété (A22 à A26) ; règle de séparation diffusable / restreint ; version PDF |
 
 ---
 

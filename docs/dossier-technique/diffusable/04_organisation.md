@@ -1,6 +1,6 @@
 # Chapitre 4 — L'organisation : bâtiments, équipages, services, secteurs, sections
 
-> **Pour qui :** responsables, administrateurs, développeurs. **Diffusion :** générale (le détail technique est dans `restreint/04_organisation_technique.md`).
+> **Pour qui :** responsables, administrateurs, développeurs. **Diffusion :** générale (le détail technique est dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** comment Matrix représente un bâtiment et son personnel, comment fonctionne le double équipage et la relève, comment une unité s'archive ou se supprime, et comment un bâtiment choisit les modules qu'il utilise.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -123,4 +123,4 @@ Sur `main`, l'archivage d'une unité est un simple indicateur : le module de rè
 
 ---
 
-**Sources (état B).** `org/models.py:18` (Ship), `:166` (Service), `:185` (Sector), `:201` (Section), `:409` (ReleveEquipage), `:447` (PeriodeEquipage), `:322` (ModuleActivation), `:91` (ReferenceBatiment) ; `matrix/core/equipage.py:170` (proposition), `:219` (décision), `:275` (secours), `:66` (application planifiée), `:445` (annulation) ; `matrix/core/middleware.py:310` (lecture seule à terre), `:210` (modules) ; `matrix/core/modules.py:66` ; `org/archivage.py:30`, `org/structure_services.py:35` ; `matrix/core/contexte_batiment.py:35`. Tests : `org/tests/test_archivage.py`, `org/tests/test_suppression_unites.py`. Notion : « 13 — Décisions Matrix et gouvernance fonctionnelle », « Organigramme et rôles ». Comptes rendus L02 (`P`) et L03 (`Q`).
+**Sources (état B).** Code de l'état B : unités, relèves, périodes d'équipage, activation des modules, archivage, protections contre la suppression, contexte de bâtiment (références ligne par ligne dans la partie restreinte du dossier). Tests : `org/tests/test_archivage.py`, `org/tests/test_suppression_unites.py`. Notion : « 13 — Décisions Matrix et gouvernance fonctionnelle », « Organigramme et rôles ». Comptes rendus L02 (`P`) et L03 (`Q`).

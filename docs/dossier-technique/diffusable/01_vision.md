@@ -80,4 +80,4 @@ Le PO a aussi fixé une directive de méthode (31/10/2026) : Matrix doit être p
 
 ---
 
-**Sources (état B).** `CLAUDE.md` (principes), `README.md`, `matrix/core/role_thresholds.py:45` (registre des actions), `matrix/core/modules.py:66` (registre des modules), Notion : « Cahier des charges » (10/10/2026), « 13 — Décisions Matrix et gouvernance fonctionnelle » (directive du 31/10/2026).
+**Sources (état B).** `CLAUDE.md` (principes), `README.md`, registres des actions et des modules du code de l'état B (références ligne par ligne dans la partie restreinte du dossier). Notion : « Cahier des charges » (10/10/2026), « 13 — Décisions Matrix et gouvernance fonctionnelle » (directive du 31/10/2026).

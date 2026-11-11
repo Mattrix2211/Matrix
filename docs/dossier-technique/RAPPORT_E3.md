@@ -38,7 +38,7 @@ Chaque chapitre : marin d'abord, puis responsables ; circuits ; droits en tablea
 
 S22 équiper depuis le catalogue ; S23 circuits des fiches ; S24 du plan à la réalisation ; S25 états d'une occurrence ; S26 ticket et anomalie ; S27 stock et pièces ; S28 circuits de formation A/B/C ; S29 versions de documents ; S30 RETEX réel ; S31 RETEX cible ; S32 appareillage réel ; S33 appareillage cible. Sources Mermaid conservées, exports SVG lisibles hors ligne ; S26, S28, S31, S32, S33 relus visuellement ; S28 corrigé après relecture (seuils conformes au code).
 
-## 5. Couverture (matrice générée : `couverture/MATRICE_COUVERTURE.md`)
+## 5. Couverture (matrice générée : `restreint/annexes/G_matrice_couverture.md`)
 
 - **Modèles** : 135 sur 135 expliqués ou nommés dans un chapitre de domaine (les modèles secondaires de `assets`, `logistics` et `rondes` sont listés aux sections 11.T2 bis et 12.T2 bis).
 - **Circuits** : 12 circuits de l'ensemble 3 (ticket et anomalie, exécution de maintenance, pièces et stock, fiches, catalogue, formation A/B/C, validation de formation, documentation, RETEX actuel et cible, appareillage actuel et cible) ; la matrice vérifie qu'une preuve de chaque circuit figure dans les chapitres.
@@ -52,7 +52,7 @@ S22 équiper depuis le catalogue ; S23 circuits des fiches ; S24 du plan à la r
 | A16 | Diffusion « flotte » sans transmission à l'organisme | Écart ; qui transmet : à confirmer |
 | A17 | Appareillage : une signature, pas de fiche de référence ni de classification, contre `DEC-APP-02`, `DEC-APP-10` à `12`, `DEC-APP-14` | Écart d'implémentation (L23, compatibilité avec les procédures du bord à confirmer) |
 | A18 | Transfert de matériel sans circuit (`DEC-MAT-01` à `04`) | Cible non développée (L13) |
-| A19 | Demande de places : l'organisme n'est pas un acteur de Matrix | Écart avec la note Notion « 03 » |
+| A19 | Demande de places : l'organisme est une unité École ou Centre de formation ; pas de dossier vivant, ni timeline, ni transmission formalisée | Écart avec la cible Notion « 03 » (corrigé en E4) |
 | A20 | État « En validation » sans sortie trouvée | **Non vérifié** |
 | A21 | Périodicités nommées, outillage, durée | Cible non développée |
 

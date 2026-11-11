@@ -1,6 +1,6 @@
 # Chapitre 7 — Le calendrier central
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes dans `restreint/07_calendrier_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** ce que montre le calendrier, ce que le marin y fait, ce que peuvent faire les chefs, d'où viennent les événements, et comment exporter son calendrier.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -95,4 +95,4 @@ Le calendrier est un **agrégateur** : il **lit** presque tous les modules (il i
 
 ---
 
-**Sources (état B).** `calendar_app/` (sources, vues, déplacement, iCal) ; références ligne par ligne dans `restreint/07_calendrier_technique.md`. Décision : `DEC-UX-11` (le calendrier reste un élément central) ; cahier des charges §15.
+**Sources (état B).** `calendar_app/` (sources, vues, déplacement, iCal) ; références ligne par ligne dans la partie restreinte du dossier. Décision : `DEC-UX-11` (le calendrier reste un élément central) ; cahier des charges §15.

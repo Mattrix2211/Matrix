@@ -1,6 +1,6 @@
 # Chapitre 10 — Tâches, difficultés signalées, programme du bâtiment et postes
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes et références dans `restreint/10_taches_demandes_programme_postes_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes et références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** comment on attribue, exécute, bloque et termine une tâche ; comment un marin signale une difficulté et la suit jusqu'à sa résolution ; comment l'état-major publie le programme du bâtiment ; comment les postes du bord et leurs titulaires sont suivis. Pour chaque module : ce que fait le marin, puis ce que font les responsables, puis le fonctionnement cible.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -136,4 +136,4 @@ L'orientation validée par le PO (21/10/2026) est de remplacer à terme certains
 
 ---
 
-**Sources (état B).** `taches/models.py`, `taches/services.py`, `demandes/models.py`, `demandes/services.py`, `programme/models.py`, `programme/services.py`, `postes/models.py`, `postes/services.py` ; références ligne par ligne dans `restreint/10_taches_demandes_programme_postes_technique.md`. Décisions : `DEC-TAC-01` à `DEC-TAC-06`, `DEC-COL-01` à `DEC-COL-05`, `DEC-CLO-01` à `DEC-CLO-05`, `DEC-BLQ-01` à `DEC-BLQ-05`, `DEC-QUA-01` à `DEC-QUA-04`, `DEC-UX-08` (dossier V1.2) ; Notion « 13 — Décisions » (21/10/2026), « 12 — Glossaire ». Écarts : `restreint/ECARTS_DECISIONS_CODE.md` (A11, A13, partie C).
+**Sources (état B).** `taches/models.py`, `taches/services.py`, `demandes/models.py`, `demandes/services.py`, `programme/models.py`, `programme/services.py`, `postes/models.py`, `postes/services.py` ; références ligne par ligne dans la partie restreinte du dossier. Décisions : `DEC-TAC-01` à `DEC-TAC-06`, `DEC-COL-01` à `DEC-COL-05`, `DEC-CLO-01` à `DEC-CLO-05`, `DEC-BLQ-01` à `DEC-BLQ-05`, `DEC-QUA-01` à `DEC-QUA-04`, `DEC-UX-08` (dossier V1.2) ; Notion « 13 — Décisions » (21/10/2026), « 12 — Glossaire ». Écarts : le registre des écarts (partie restreinte du dossier) (A11, A13, partie C).

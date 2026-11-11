@@ -50,7 +50,7 @@ Au chapitre 8 : §8.6 décrit le **fonctionnement actuel** 🟢 (schéma S16) ; 
 
 Rendus S16, S18, S15 et S21 regardés à l'image ; S18 corrigé (le rectificatif repasse en brouillon).
 
-## 5. Couverture (matrice générée : `couverture/MATRICE_COUVERTURE.md`)
+## 5. Couverture (matrice générée : `restreint/annexes/G_matrice_couverture.md`)
 
 | Élément | Couvert à l'ensemble 2 |
 |---|---|

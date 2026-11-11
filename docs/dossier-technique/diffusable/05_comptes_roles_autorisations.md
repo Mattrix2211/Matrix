@@ -1,6 +1,6 @@
 # Chapitre 5 — Comptes, fonctions, grades, rôles et autorisations
 
-> **Pour qui :** responsables, administrateurs, développeurs. **Diffusion :** générale (mécanismes détaillés et matrice des droits dans `restreint/05_comptes_autorisations_technique.md` et `restreint/annexes/B_matrice_role_action.md`).
+> **Pour qui :** responsables, administrateurs, développeurs. **Diffusion :** générale (mécanismes détaillés et matrice des droits dans la partie restreinte du dossier et la partie restreinte du dossier).
 > **Ce que vous y trouverez :** ce qu'est un compte Matrix, la différence entre grade, fonction, rôle, périmètre et brevet, comment Matrix décide si une action est permise, comment se règlent les droits, et comment on gère les comptes.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -116,7 +116,7 @@ Pour comprendre ce que les droits changent concrètement, voici ce que peuvent f
 
 **Le commandant.** Vision et supervision du bâtiment : il gère les comptes jusqu'au niveau état-major, active ou désactive des modules, propose la relève de l'équipage, valide l'organisation d'alerte, gère les listes de son bâtiment (création, publication) au titre de la supervision. Si le poste de COMAEQ est vacant, **lui seul** (et pas son second) peut viser la feuille de service de son équipage, de façon tracée et signalée ; un COMAEQ simplement absent n'ouvre pas cette exception.
 
-**L'administrateur technique (administrateur d'unité).** Il administre la **plateforme et le bâtiment** : crée les comptes, règle les seuils et les modules, modifie la structure, réinitialise les mots de passe, désigne les titulaires de fonctions (le COMAEQ, par exemple), applique la configuration. 🔵 **Règle validée par le PO : il n'a aucun visa métier** : il désigne les titulaires sans viser à leur place. ⚠️ **Écart d'implémentation** : dans l'état B, son niveau lui fait atteindre les seuils de la plupart des actions métier (colonne de droite du tableau). Seules des règles propres à certains circuits l'en écartent (visa du COMAEQ, rédaction de la feuille de service). Cet écart n'est **pas** la règle souhaitée ; il est traité par le lot L06 (voir §5.11 et `restreint/ECARTS_DECISIONS_CODE.md`).
+**L'administrateur technique (administrateur d'unité).** Il administre la **plateforme et le bâtiment** : crée les comptes, règle les seuils et les modules, modifie la structure, réinitialise les mots de passe, désigne les titulaires de fonctions (le COMAEQ, par exemple), applique la configuration. 🔵 **Règle validée par le PO : il n'a aucun visa métier** : il désigne les titulaires sans viser à leur place. ⚠️ **Écart d'implémentation** : dans l'état B, son niveau lui fait atteindre les seuils de la plupart des actions métier (colonne de droite du tableau). Seules des règles propres à certains circuits l'en écartent (visa du COMAEQ, rédaction de la feuille de service). Cet écart n'est **pas** la règle souhaitée ; il est traité par le lot L06 (voir §5.11 et le registre des écarts (partie restreinte du dossier)).
 
 ### Qui prépare, qui valide, qui autorise la publication
 
@@ -217,7 +217,7 @@ Grades, spécialités, fonctions de service, fonctions de quart, types d'absence
 
 ### Écarts d'implémentation à connaître
 
-Les quatre écarts suivants opposent une **décision du PO** à un **comportement actuel du code**. Le comportement actuel n'est **pas** la règle métier souhaitée ; il est décrit pour que personne ne le prenne pour tel. Chaque écart est détaillé (règle validée, comportement observé, sources, conséquences, lot) dans `restreint/ECARTS_DECISIONS_CODE.md`. Aucune décision n'est rouverte ici.
+Les quatre écarts suivants opposent une **décision du PO** à un **comportement actuel du code**. Le comportement actuel n'est **pas** la règle métier souhaitée ; il est décrit pour que personne ne le prenne pour tel. Chaque écart est détaillé (règle validée, comportement observé, sources, conséquences, lot) dans le registre des écarts (partie restreinte du dossier). Aucune décision n'est rouverte ici.
 
 | Écart | Règle métier validée (PO) | Comportement actuel (état B) | Lot de correction |
 |---|---|---|---|
@@ -235,4 +235,4 @@ Les quatre écarts suivants opposent une **décision du PO** à un **comportemen
 
 ---
 
-**Sources (état B).** `accounts/models.py:11` (rôles), `:27` (profil), `:87` (périmètre), `:177` (journal) ; `matrix/core/roles.py:4`, `:53` ; `matrix/core/scopes.py:8`, `:40` ; `matrix/core/role_thresholds.py:45` ; `matrix/core/permissions.py:81`, `:100` ; `matrix/core/ecriture_service.py:68` ; `accounts/web_views.py:33`, `:62`, `:376`, `:465` ; `accounts/services.py` (réinitialisation) ; `matrix/core/inactivite.py`, `matrix/core/middleware.py:121`, `:165`. Notion : « Organigramme et rôles », « 13 — Décisions », « 02 — RH, postes… ». Décisions : `DEC-DRT-*`, `DEC-SUP-*`, `DEC-ORG-04` (dossier V1.2, `A_REGISTRE_DECISIONS.md`). Tests : `accounts/tests/test_matrice_droits.py`.
+**Sources (état B).** Code de l'état B : rôles, profils, périmètres, journal d'audit, seuils de rôle configurables, contrôle d'écriture, déconnexion automatique (références ligne par ligne dans la partie restreinte du dossier). Notion : « Organigramme et rôles », « 13 — Décisions », « 02 — RH, postes… ». Décisions : `DEC-DRT-*`, `DEC-SUP-*`, `DEC-ORG-04` (dossier V1.2, `A_REGISTRE_DECISIONS.md`). Tests : `accounts/tests/test_matrice_droits.py`.

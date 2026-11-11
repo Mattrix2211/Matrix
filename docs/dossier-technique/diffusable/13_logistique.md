@@ -1,6 +1,6 @@
 # Chapitre 13 — Logistique : stock de pièces et demandes de pièces
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans `restreint/13_logistique_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** comment le bord suit ses pièces de rechange, comment une réparation consomme du stock, comment une pénurie est signalée, et ce que Matrix ne fait pas encore (commande, approvisionnement flotte).
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`. Légende : 🟢 réel vérifié, 🔵 cible validée par le PO, ⚪ non vérifié.
 
@@ -101,17 +101,29 @@ Une tâche planifiée quotidienne contrôle le stock :
 - **Pièce sans NNO** : permis (champ facultatif, pièces anciennes).
 - **Pièces de l'installation ≠ stock** : la liste de pièces d'une installation décrit ce qu'elle contient ; le stock décrit ce qui est à bord.
 
+## 13.9 bis Inventaire exhaustif de l'existant
+
+**Fiche de pièce** : référence, désignation, NNO (facultatif), quantité (copie du solde), quantité minimale, seuil critique (facultatif ; à défaut 0), emplacement, note, photo ; **bâtiment, service, secteur** (obligatoires) et **section** (facultative) ; **lien facultatif vers un équipement** (installation **ou** matériel, jamais les deux, **dans le même secteur**). La pièce apparaît alors dans l'onglet « Pièces » de la fiche de l'équipement ; si l'équipement est supprimé, la **pièce reste** (seul le lien disparaît). Le total des mouvements doit toujours égaler la quantité.
+
+**États d'une pièce** : normal ; **bas** (sous le minimum, au-dessus du critique) ; **critique** (au seuil critique ou en dessous).
+
+**Écrans et actions** : liste du stock avec **recherche texte** ; fiche de pièce (création, modification) ; **page des mouvements** d'une pièce (entrée, sortie, inventaire, correction) ; prélèvement depuis un ticket ; **export CSV et Excel** du stock affiché, **borné au périmètre** de la personne (l'Excel peut manquer sur un serveur sans la bibliothèque : le CSV reste disponible).
+
+**Demandes de pièces** : demande par ticket (**Ouverte / Fermée**), lignes avec fournisseur, numéro de commande, coûts estimé et réel, dates de commande et de réception ; six états de ligne ; interface programmable (API) pour les tickets, les demandes et les lignes ; **le stock n'a pas de route API propre** ⚪.
+
+**Non trouvé dans le code examiné** (constat, pas une cible ; ⚪ absence déduite de la lecture des modèles et des routes) : approbation d'une demande, commande transmise à un fournisseur, réception comptable, valorisation du stock, inventaire planifié, réservation de pièces, transfert entre bâtiments, rattachement automatique d'une pièce aux gammes de maintenance.
+
 ## 13.10 Fonctionnement cible 🔵
 
 Le dossier V1.2 ne contient **aucune décision du PO** sur le stock ni sur la commande de pièces. Le cahier des charges prévoit une logistique plus large (approvisionnement, circuit SSF) mais **rien n'est validé ni développé** : ce chapitre ne décrit donc aucune cible.
 
 ## 13.11 Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `logistics` (exécution à lancer, voir `RAPPORT_E3.md`).
+- 🟢 Tests de l'état B : `logistics` (rejoués sur l'état B avec les six autres paquets de l'ensemble 3 : 1 491 tests OK, 1 ignoré ; voir `RAPPORT_E3.md`).
 - ⚪ Absence de circuit d'approbation pour les demandes de pièces : constatée au code, non confirmée comme voulue.
 - ⚪ Les envois de notifications n'ont pas été rejoués.
 - ⚪ Pas de page de détail rejouée dans un navigateur.
 
 ---
 
-**Sources (état B).** `logistics/models.py`, `logistics/stock.py`, `logistics/web_views.py`, `notifications/tasks.py`. Références dans `restreint/13_logistique_technique.md`.
+**Sources (état B).** `logistics/models.py`, `logistics/stock.py`, `logistics/web_views.py`, `notifications/tasks.py`. Références dans la partie restreinte du dossier.

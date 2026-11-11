@@ -17,6 +17,10 @@
 | Seuil `stock_ecriture` | `matrix/core/role_thresholds.py` (:100), portée navire, chef de section |
 | Alerte de pénurie | `notifications/tasks.py` `notify_low_stock` (:101) |
 
+| Routes web | `logistics/web_urls.py` (`stock/`, `stock/<pk>/mouvements/`, `tickets/<uuid>/prelever-stock/`, `part-request/…`, `part-line/…`) |
+| Mouvements | `logistics/mouvements_web.py` `StockPieceMouvementsView` (:32) |
+| API | `logistics/urls.py` : tickets, part-requests, part-lines ; pas de route stock |
+
 Schéma : S27.
 
 Non vérifié : aucun circuit d'approbation de commande dans `logistics/` ; aucune décision V1.2 sur le stock.

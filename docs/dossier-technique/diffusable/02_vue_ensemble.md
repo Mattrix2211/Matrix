@@ -110,4 +110,4 @@ Matrix n'est pas une juxtaposition de silos : une donnée créée dans un module
 
 ---
 
-**Sources (état B).** `matrix/core/navigation.py:56` (groupes du menu), `matrix/core/modules.py:66` (modules activables), `dashboard/aujourdhui.py:91` (« À faire »), `dashboard/aujourdhui.py:211` (« Ma journée »), `dashboard/aujourdhui.py:277` (supervision), `dashboard/aujourdhui_terre.py:18` (bâtiments suivis), `matrix/core/scopes.py:40` (soutien à terre), `matrix/settings.py:115` (chaîne de middlewares). Notion : « Organigramme et rôles », « 13 — Décisions Matrix et gouvernance fonctionnelle ».
+**Sources (état B).** Code de l'état B : navigation, modules activables, page « Aujourd'hui », bâtiments suivis à terre, soutien à terre, chaîne de contrôle des requêtes (références ligne par ligne dans la partie restreinte du dossier). Notion : « Organigramme et rôles », « 13 — Décisions Matrix et gouvernance fonctionnelle ».

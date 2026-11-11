@@ -27,6 +27,9 @@ CANON = {
     "actions": {len(inv["actions_seuils"])},
     "paquets": set(range(1, 23)),
 }
+_admin = sum(1 for r in inv["routes"] if r["route"].startswith("admin/"))
+_api = sum(1 for r in inv["routes"] if r["route"].startswith("api/"))
+CANON["routes"] |= {_admin, _api, len(inv["routes"]) - _admin - _api}  # sous-totaux : administration, API, pages
 CANON["modèles"] |= {12, 14}  # sous-ensembles cités explicitement (12 avec UUID ; 14 modules)
 
 chapitres = [p for p in sorted(D.glob("diffusable/*.md")) + sorted(D.glob("restreint/*.md"))]

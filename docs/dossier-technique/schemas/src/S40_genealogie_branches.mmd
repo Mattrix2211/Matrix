@@ -1,0 +1,12 @@
+flowchart TB
+  V1["V1 FANLAB : main @ 6ef16ad — état A"]
+  V11["V1.1 : iteration-ux-v11 @ 1c37f22"]
+  L01["L01 verrou de démonstration @ 8e60fee"]
+  L05["L05 configuration de production @ 517a2ce"]
+  L02["L02 archivage @ 6e14a65"]
+  L03["L03 suppression sûre @ 6d6d0be — état B"]
+  D12["Dossier V1.2 : eager-hopper @ 6cc1557, hors état B"]
+  DOC["Dossier technique G0 : branche documentaire"]
+  V1 --> V11 --> L01 --> L05 --> L02 --> L03
+  V11 -.-> D12
+  L03 -.-> DOC

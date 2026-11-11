@@ -1,6 +1,6 @@
 # Chapitre 11 — Matériel et installations
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes et références dans `restreint/11_materiel_installations_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes et références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** ce que Matrix sait des équipements du bord, comment un marin les consulte et les contrôle, comment un responsable les crée, les équipe depuis le catalogue de la flotte et les relie à leurs fiches de maintenance, et comment une fiche est validée. Les circuits de maintenance qui s'appuient sur ces objets sont au chapitre 12.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`.
 
@@ -138,4 +138,4 @@ Les relevés saisis dans un compte rendu de maintenance **alimentent ces mesures
 
 ---
 
-**Sources (état B).** `assets/` (modèles, circuits de fiches, catalogue, mesures, plan du navire, import) ; références ligne par ligne dans `restreint/11_materiel_installations_technique.md`. Décisions : `DEC-MAT-01` à `DEC-MAT-04` (dossier V1.2) ; Notion « 13 — Décisions » (fiches, catalogue), « 04 — Maintenance, installations, SSF… » (lue).
+**Sources (état B).** `assets/` (modèles, circuits de fiches, catalogue, mesures, plan du navire, import) ; références ligne par ligne dans la partie restreinte du dossier. Décisions : `DEC-MAT-01` à `DEC-MAT-04` (dossier V1.2) ; Notion « 13 — Décisions » (fiches, catalogue), « 04 — Maintenance, installations, SSF… » (lue).

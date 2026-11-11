@@ -2,7 +2,7 @@
 
 > Diffusion restreinte. Générée par `outils/generer_matrice_couverture.py` à partir de l'inventaire de l'état B (`couverture/etat_B/inventaire.json`) et des chapitres rédigés. Ne pas éditer à la main.
 
-Chapitres rédigés pris en compte : 01_vision.md, 02_vue_ensemble.md, 03_lire_ce_dossier.md, 04_organisation.md, 04_organisation_technique.md, 05_comptes_autorisations_technique.md, 05_comptes_roles_autorisations.md, 06_accueil_pilotage.md, 06_accueil_pilotage_technique.md, 07_calendrier.md, 07_calendrier_technique.md, 08_quarts_services_feuille.md, 08_quarts_services_feuille_technique.md, 09_communication.md, 09_communication_technique.md, 10_taches_demandes_programme_postes.md, 10_taches_demandes_programme_postes_technique.md, 11_materiel_installations.md, 11_materiel_installations_technique.md, 12_maintenance_anomalies_tickets.md, 12_maintenance_anomalies_tickets_technique.md, 13_logistique.md, 13_logistique_technique.md, 14_formations.md, 14_formations_technique.md, 15_documentation_retex.md, 15_documentation_retex_technique.md, 16_preparation_appareillage.md, 16_preparation_appareillage_technique.md, 18_architecture.md, 19_modeles_donnees.md, 22_securite.md.
+Chapitres rédigés pris en compte : 01_vision.md, 02_vue_ensemble.md, 03_lire_ce_dossier.md, 04_organisation.md, 04_organisation_technique.md, 05_comptes_autorisations_technique.md, 05_comptes_roles_autorisations.md, 06_accueil_pilotage.md, 06_accueil_pilotage_technique.md, 07_calendrier.md, 07_calendrier_technique.md, 08_quarts_services_feuille.md, 08_quarts_services_feuille_technique.md, 09_communication.md, 09_communication_technique.md, 10_taches_demandes_programme_postes.md, 10_taches_demandes_programme_postes_technique.md, 11_materiel_installations.md, 11_materiel_installations_technique.md, 12_maintenance_anomalies_tickets.md, 12_maintenance_anomalies_tickets_technique.md, 13_logistique.md, 13_logistique_technique.md, 14_formations.md, 14_formations_technique.md, 15_documentation_retex.md, 15_documentation_retex_technique.md, 16_preparation_appareillage.md, 16_preparation_appareillage_technique.md, 17_ergonomie_navigation.md, 17_ergonomie_navigation_technique.md, 18_architecture.md, 19_modeles_donnees.md, 20_api_interfaces.md, 21_interactions_modules.md, 22_securite.md, 23_configuration_deploiement_exploitation.md, 24_qualite_contribution.md, 25_fonctionnement_cible.md, 26_historique_branches_technique.md, 26_historique_versions_lots.md.
 
 ## G.1 Modèles de données
 
@@ -64,7 +64,7 @@ Modèles de l'ensemble 1 non nommés dans un chapitre rédigé : aucun.
 | `training` | 25 | 14 | E3 |
 | **Total** | **721** | | |
 
-Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C, ensemble 4).
+Le détail des routes est dans l'annexe C (`restreint/annexes/C_index_routes.md`) et dans `couverture/etat_B/ROUTES.md`.
 
 ## G.3 Tâches planifiées
 
@@ -74,7 +74,7 @@ Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C
 | `matrix.core.tasks.appliquer_releves_echues` | `appliquer_releves_echues_minute` | oui |
 | `quarts.tasks.signaler_divergences_feuilles` | `signaler_divergences_feuilles_15min` | oui |
 | `quarts.tasks.traiter_echeances_activation` | `traiter_echeances_activation_minute` | oui |
-| `matrix.core.tasks.purger_brouillons` | `purger_brouillons_daily` | domaine seulement (ch. 18), détail ch. 21 |
+| `matrix.core.tasks.purger_brouillons` | `purger_brouillons_daily` | oui |
 | `maintenance.tasks.generate_occurrences` | `generate_occurrences_daily` | oui |
 | `maintenance.tasks.compute_overdue` | `compute_overdue_hourly` | oui |
 | `notifications.tasks.notify_expiring_training` | `notify_expiring_training_daily` | oui |
@@ -95,24 +95,24 @@ Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C
 
 | Commande | Citée dans un chapitre rédigé |
 |---|---|
-| `catalogue_reprise` | non (ensemble indiqué en annexe E, ensemble 4) |
+| `catalogue_reprise` | annexe E seulement |
 | `generate_installation_occurrences` | oui |
-| `marquer_instance_demo` | non (ensemble indiqué en annexe E, ensemble 4) |
-| `purger_brouillons` | non (ensemble indiqué en annexe E, ensemble 4) |
+| `marquer_instance_demo` | annexe E seulement |
+| `purger_brouillons` | oui |
 | `seed_demo` | oui |
-| `seed_demo_dense` | non (ensemble indiqué en annexe E, ensemble 4) |
-| `seed_demo_mer_quai` | non (ensemble indiqué en annexe E, ensemble 4) |
-| `seed_demo_metier` | non (ensemble indiqué en annexe E, ensemble 4) |
+| `seed_demo_dense` | oui |
+| `seed_demo_mer_quai` | oui |
+| `seed_demo_metier` | oui |
 | `verifier_instance` | oui |
 | `generate_installation_maintenance_notifications` | oui |
 | `generate_installation_notifications` | oui |
 | `generate_vapid_keys` | oui |
-| `importer_referentiel_batiments` | non (ensemble indiqué en annexe E, ensemble 4) |
-| `analyser_chevauchements_mer_quai` | non (ensemble indiqué en annexe E, ensemble 4) |
-| `analyser_designations_chef_de_liste` | non (ensemble indiqué en annexe E, ensemble 4) |
-| `initialiser_mode_batiment` | non (ensemble indiqué en annexe E, ensemble 4) |
+| `importer_referentiel_batiments` | oui |
+| `analyser_chevauchements_mer_quai` | annexe E seulement |
+| `analyser_designations_chef_de_liste` | annexe E seulement |
+| `initialiser_mode_batiment` | annexe E seulement |
 | `signaler_divergences_feuilles` | oui |
-| `fusionner_formations` | non (ensemble indiqué en annexe E, ensemble 4) |
+| `fusionner_formations` | annexe E seulement |
 
 ## G.5 Actions à seuil de rôle
 
@@ -157,6 +157,21 @@ Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C
 | RETEX : fonctionnement cible (DEC-RTX-01) | 15 | E3 | rédigé |
 | Préparation à l'appareillage : fonctionnement actuel | 16 | E3 | rédigé |
 | Préparation à l'appareillage : fonctionnement cible (DEC-APP-14) | 16 | E3 | rédigé |
+| Navigation par rôle et modules activés | 17 | E4 | rédigé |
+| Paramètres : seuils, modules, équipage | 17 | E4 | rédigé |
+| Aide progressive et préférences par compte | 17 | E4 | rédigé |
+| Brouillons et confirmations d'actes critiques | 17 | E4 | rédigé |
+| Déconnexion automatique et poste partagé | 17 | E4 | rédigé |
+| API : authentification et contrôle d'accès | 20 | E4 | rédigé |
+| Exports CSV, Excel, PDF, iCal | 20 | E4 | rédigé |
+| Signaux et enchaînements entre modules | 21 | E4 | rédigé |
+| Tâches planifiées et alertes | 21 | E4 | rédigé |
+| Mise en production : garde-fous et checklist | 23 | E4 | rédigé |
+| Instance de démonstration isolée | 23 | E4 | rédigé |
+| Sauvegarde et restauration (non fournies) | 23 | E4 | rédigé |
+| Chaîne PO, Développeur, Relecteur | 24 | E4 | rédigé |
+| Feuille de route et lots | 25 | E4 | rédigé |
+| Historique des versions et des lots | 26 | E4 | rédigé |
 
 ## G.7 Dépendances entre paquets
 

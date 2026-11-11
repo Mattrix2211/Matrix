@@ -1,6 +1,6 @@
 # Chapitre 15 — Documentation du bord et retours d'expérience (RETEX)
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans `restreint/15_documentation_retex_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** la base de connaissances du bâtiment (documents, versions, validation), le circuit RETEX qui l'alimente, et — séparés — le circuit tel qu'il fonctionne aujourd'hui et le circuit **cible** décidé par le PO.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`. Légende : 🟢 réel vérifié, 🔵 cible validée par le PO, ⚪ non vérifié.
 
@@ -85,7 +85,14 @@ Décisions du PO (dossier V1.2) :
 | Correction | Pas de demande de correction : valider ou refuser | Demande motivée → nouvelle version → nouvelles validations |
 | Traçabilité | Audit de chaque étape | Idem, plus l'historique des versions |
 
-⚪ **À confirmer.** Qui, après le chef de service, **transmet le RETEX à l'organisme destinataire** (la diffusion « flotte » ne fait aujourd'hui que **marquer** le RETEX « proposé à l'organisme destinataire ») n'est pas décidé : aucun envoi n'existe. Écart inscrit au registre (lot L11).
+**Trois actes à ne jamais confondre** (précisé par le PO) :
+1. la **validation** (circuit hiérarchique ci-dessus) ;
+2. l'**autorisation de diffusion**, donnée par le **chef de service après la validation** 🔵 ;
+3. la **transmission effective** à un organisme extérieur, qui est un acte distinct, **ni une validation, ni un simple changement de statut**.
+
+⚪ **À confirmer avec les procédures métier applicables** : les **destinataires, les canaux et les responsabilités exacts** de la transmission. Aucune règle n'est inventée ici.
+
+🟢 **Aujourd'hui, le marquage « flotte » n'est pas une transmission.** Il enregistre seulement le niveau de diffusion souhaité et l'organisme habituel du domaine ; **aucun envoi, aucune notification, aucun accusé** n'existe. Il ne doit jamais être lu comme la preuve qu'un organisme a reçu le RETEX. Écart inscrit au registre (A15, A16 ; lot L11).
 
 ## 15.6 Interactions avec les autres modules
 
@@ -106,10 +113,10 @@ Décisions du PO (dossier V1.2) :
 
 ## 15.8 Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `documentation` et `retex` (exécution à lancer, voir `RAPPORT_E3.md`).
+- ⚪ **Couverture de tests faible** : `documentation` 9 fonctions de test, `retex` 5 fonctions (contre 493 pour `assets`). Les règles décrites viennent surtout de la lecture du code ; la suite des 7 paquets de l'ensemble 3 passe (1 491 tests), mais elle ne protège presque pas ces deux modules.
 - ⚪ Le modèle documentaire **cible** (bibliothèque unifiée, droits de lecture fins par document) n'est pas décrit : aucune décision correspondante n'a été lue.
 - ⚪ Les écrans n'ont pas été rejoués dans un navigateur.
 
 ---
 
-**Sources (état B).** `documentation/`, `retex/` ; décisions `DEC-RTX-01` à `04` (dossier V1.2). Références dans `restreint/15_documentation_retex_technique.md`.
+**Sources (état B).** `documentation/`, `retex/` ; décisions `DEC-RTX-01` à `04` (dossier V1.2). Références dans la partie restreinte du dossier.

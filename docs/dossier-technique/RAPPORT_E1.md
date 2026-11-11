@@ -32,7 +32,7 @@ Chaque chapitre suit le gabarit validé : fonctionnement réel 🟢, fonctionnem
 |---|---|
 | Inventaire du code (modèles, relations, routes, tâches planifiées, commandes, registres, dépendances, signaux) | `outils/inventaire.py` → `couverture/etat_B/INVENTAIRE.md`, `MODELES.md`, `ROUTES.md`, `inventaire.json` |
 | Matrice rôle × action | `outils/generer_annexe_b.py` |
-| Matrice de couverture | `outils/generer_matrice_couverture.py` → `couverture/MATRICE_COUVERTURE.md` |
+| Matrice de couverture | `outils/generer_matrice_couverture.py` → `restreint/annexes/G_matrice_couverture.md` |
 | Contrôle des références de code | `outils/verifier_references.py` |
 | Contrôle de cohérence documentaire | `outils/controle_coherence.py` |
 | Export des schémas | `outils/rendre_schemas.js` |
@@ -62,7 +62,7 @@ Les rendus de S02, S04, S06, S09 et S10 ont été regardés à l'image ; S04, S0
 
 ## 3. Couverture
 
-Matrice complète : `couverture/MATRICE_COUVERTURE.md` (générée).
+Matrice complète : `restreint/annexes/G_matrice_couverture.md` (générée).
 
 | Élément | Périmètre de l'ensemble 1 | Couvert | Reste |
 |---|---|---|---|

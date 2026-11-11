@@ -1,6 +1,6 @@
 # Chapitre 14 — Formations et qualifications
 
-> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans `restreint/14_formations_technique.md`).
+> **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** le catalogue de formations, la façon dont un marin suit ses qualifications, comment une session se remplit, et **les trois circuits** : demande de places, candidature individuelle, formation proposée par le bord.
 > **État décrit :** état B (`6d6d0be`), non fusionné dans `main`. Légende : 🟢 réel vérifié, 🔵 cible validée par le PO, ⚪ non vérifié. Source métier : Notion « 03 — Formation, stages, CFPES, FPS et qualification opérationnelle » (lue ; elle décrit l'état réel au 29/09/2026 et une cible).
 
@@ -51,7 +51,7 @@ Pour une formation **à quota limité** (par exemple un stage sécurité), le bo
 2. La **réponse** attribue un nombre de places et **relie une session** (existante ou créée). États : **Demandée → Attribuée** (ou **Refusée**, **Annulée**).
 3. Le chef **affecte ensuite des marins** sur ces places. Plusieurs bords peuvent partager une même session : chaque bord garde **son propre quota** ; le **plafond physique** de la session reste global.
 
-⚪ **Point à signaler.** La note Notion décrit une réponse de **l'organisme de formation**. Dans l'état B, **l'organisme n'est pas un utilisateur de Matrix** : c'est **un référent de la formation, pour ce navire**, qui enregistre la réponse. La transmission à l'organisme est un acte hors outil. Inscrit au registre des écarts (cible : dossier métier avec timeline et organisme).
+🟢 **Qui est « l'organisme » ?** Dans Matrix, un organisme de formation est **une unité de type École ou Centre de formation**, avec sa propre hiérarchie et ses propres marins. La **réponse** (attribuer ou refuser des places, choisir ou créer une session) est donnée par **un référent de cette formation dans l'unité de l'organisme** ; le demandeur est **notifié**. Il n'existe pas d'organisme « externe » sans unité créée dans Matrix : s'il n'y a pas d'unité ni de référent, la réponse se donne hors outil. ⚪ Ce qui manque par rapport à la cible Notion « 03 » : un **dossier vivant** (timeline, fil de discussion systématique, étape « transmission à l'organisme », « prise en compte »). Écart A19.
 
 ## 14.5 Circuit B — La candidature individuelle
 
@@ -85,7 +85,7 @@ Les formations de l'organisme (non gérées par le bord) restent toujours active
 
 Décision du PO (`DEC-QUA-01` à `DEC-QUA-03`) : une qualification manquante ou périmée **ne bloque jamais** l'attribution d'une tâche ordinaire, le responsable humain choisit ; elle peut s'afficher à titre informatif. Les **visas techniques, fonctions de service et signatures officielles** gardent leurs exigences réglementaires, qui **viennent du bord** (`DEC-QUA-04`) — aucun contrôle de ce type n'est inventé dans ce dossier.
 
-🟢 **Ce que fait le code.** Les **tâches** ne contiennent aucun contrôle fondé sur les qualifications. En revanche, une **liste de service à quai** peut porter des **habilitations requises** (réglage de la liste, jamais codé en dur) : lors d'un **échange de tours**, Matrix vérifie que le marin qui reprend le tour a une **validation valable le jour du tour** et **explique en français** ce qui manque (`quarts/echanges.py:88`). C'est un contrôle propre aux services, conforme à l'esprit de `DEC-QUA-04` ; l'échange est **refusé d'emblée** avec cette explication (chapitre 8). Le refus porte sur l'échange d'un tour de service, non sur l'attribution d'une tâche ordinaire.
+🟢 **Ce que fait le code.** Les **tâches** ne contiennent aucun contrôle fondé sur les qualifications. En revanche, une **liste de service à quai** peut porter des **habilitations requises** (réglage de la liste, jamais codé en dur) : lors d'un **échange de tours**, Matrix vérifie que le marin qui reprend le tour a une **validation valable le jour du tour** et **explique en français** ce qui manque . C'est un contrôle propre aux services, conforme à l'esprit de `DEC-QUA-04` ; l'échange est **refusé d'emblée** avec cette explication (chapitre 8). Le refus porte sur l'échange d'un tour de service, non sur l'attribution d'une tâche ordinaire.
 
 ## 14.9 Interactions avec les autres modules
 
@@ -111,11 +111,11 @@ Selon la page Notion « 03 » (orientation, **non développée** sauf mention) :
 
 ## 14.11 Limites et éléments non vérifiés
 
-- 🟢 Tests de l'état B : `training` (exécution à lancer, voir `RAPPORT_E3.md`).
+- 🟢 Tests de l'état B : `training` (rejoués sur l'état B avec les six autres paquets de l'ensemble 3 : 1 491 tests OK, 1 ignoré ; voir `RAPPORT_E3.md`).
 - ⚪ Les envois de notifications (expiration, place libérée) n'ont pas été rejoués ; seules leurs conditions sont décrites.
 - ⚪ Le détail de la visibilité des dossiers de formation par rôle est dans le code (`dossiers_formation_visibles_q`) ; il n'est pas reproduit ici cas par cas.
-- ⚪ Le rôle exact de l'« organisme » reste à préciser par le PO (§14.4).
+- ⚪ Le fonctionnement avec un organisme **réel hors Matrix** (sans unité créée) reste à préciser par le PO.
 
 ---
 
-**Sources (état B).** `training/` ; Notion « 03 — Formation… » ; décisions `DEC-QUA-01` à `04`, `DEC-ORG-04`, `DEC-ORG-05` (dossier V1.2). Références dans `restreint/14_formations_technique.md`.
+**Sources (état B).** `training/` ; Notion « 03 — Formation… » ; décisions `DEC-QUA-01` à `04`, `DEC-ORG-04`, `DEC-ORG-05` (dossier V1.2). Références dans la partie restreinte du dossier.

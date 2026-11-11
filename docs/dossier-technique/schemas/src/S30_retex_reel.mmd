@@ -4,6 +4,8 @@ flowchart TB
   V["Validé et publié : devient un document de la base de connaissances du bâtiment"]
   X["Refusé"]
   C["Clos"]
+  FL["Marquage flotte : simple indication, aucune transmission réelle"]
+  V -.- FL
   P --> R
   R -->|"décision d'un habilité du bâtiment, seuil chef de service par défaut"| V
   R -->|"décision"| X
