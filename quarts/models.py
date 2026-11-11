@@ -179,10 +179,10 @@ class ChefDeListe(TimeStampedModel):
     d'un autre secteur)."""
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="designations_chef_de_liste")
-    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="chefs_de_liste")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="chefs_de_liste")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="chefs_de_liste")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="chefs_de_liste")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="chefs_de_liste")
     # Vide = désignation historique non qualifiée : elle ne donne AUCUN droit tant qu'un responsable du périmètre
     # ne l'a pas qualifiée explicitement ; toute nouvelle désignation porte un type.
     TYPE_QUARTS = "QUARTS"
@@ -439,10 +439,10 @@ class ListeServiceAbstract(TimeStampedModel, OwnedModel):
     # Étiquette libre optionnelle (ex. « Semaine du 08/09 ») : purement
     # d'affichage, aucune règle ne repose dessus.
     nom = models.CharField(max_length=255, blank=True, default="")
-    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="%(class)ss")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="%(class)ss")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="%(class)ss")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="%(class)ss")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="%(class)ss")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="%(class)ss")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="%(class)ss")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="%(class)ss")
     # Équipage (« A », « B »…) propriétaire de la liste sur un bâtiment à double équipage ; vide sinon.
     equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
     date_debut = models.DateField(verbose_name="Début de période")
@@ -1032,7 +1032,7 @@ class RubriqueEnTeteFeuilleService(TimeStampedModel):
 
     # Identité technique stable : survit au renommage, c'est elle que les feuilles figent.
     uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="rubriques_feuille_service")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="rubriques_feuille_service")
     ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
     libelle = models.CharField(max_length=128, verbose_name="Libellé")
     type_saisie = models.CharField(max_length=16, choices=TYPE_CHOICES, default=TYPE_QUOTIDIENNE)
@@ -1055,7 +1055,7 @@ class RedacteurFeuilleService(TimeStampedModel):
     Le droit de rédiger ne découle ni du grade, ni du rôle applicatif, ni du simple rattachement au bâtiment :
     il est accordé nominativement, par bâtiment et par équipage."""
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="redacteurs_feuille_service")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="redacteurs_feuille_service")
     equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="redactions_feuille_service")
     accordee_par = models.ForeignKey(
@@ -1080,7 +1080,7 @@ class FonctionFeuilleService(TimeStampedModel):
     libellé affiché et le poste saisi dans les tours coïncident)."""
 
     uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="fonctions_feuille_service")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="fonctions_feuille_service")
     ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
     libelle = models.CharField(max_length=128, verbose_name="Fonction")
     poste_recherche = models.CharField(
@@ -1240,7 +1240,7 @@ class FeuilleService(TimeStampedModel, OwnedModel):
         (STATUT_PUBLIEE, "Publiée"),
     )
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="feuilles_service")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="feuilles_service")
     equipage = models.CharField(
         max_length=8, blank=True, default="", verbose_name="Équipage",
         help_text="Renseigné uniquement sur un bâtiment à double équipage.",
@@ -1258,10 +1258,10 @@ class FeuilleService(TimeStampedModel, OwnedModel):
     # Périmètre du rédacteur au moment de la proposition (snapshot) : détermine
     # qui doit viser en secteur/service — cf. commentaire de section.
     secteur_redacteur = models.ForeignKey(
-        Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Secteur du rédacteur",
+        Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="+", verbose_name="Secteur du rédacteur",
     )
     service_redacteur = models.ForeignKey(
-        Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="Service du rédacteur",
+        Service, null=True, blank=True, on_delete=models.PROTECT, related_name="+", verbose_name="Service du rédacteur",
     )
     proposee_le = models.DateTimeField(null=True, blank=True, verbose_name="Proposée le")
     proposee_par = models.ForeignKey(
@@ -1872,7 +1872,7 @@ class ScenarioAlerte(TimeStampedModel):
     # Commandant adjoint responsable quand le scénario n'en précise pas.
     ADJOINT_PAR_DEFAUT = {FAMILLE_SECURITE: "COMANAV", FAMILLE_PROTECTION: "COMAEQ"}
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="scenarios_alerte")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="scenarios_alerte")
     ordre = models.PositiveSmallIntegerField(default=0, verbose_name="Ordre d'affichage")
     libelle = models.CharField(max_length=128, verbose_name="Scénario")
     famille = models.CharField(max_length=16, choices=FAMILLE_CHOICES, default=FAMILLE_SECURITE)
@@ -1938,7 +1938,7 @@ class ModificationOrganisationAlerte(TimeStampedModel):
         (STATUT_EN_ATTENTE, "En attente de validation"), (STATUT_VALIDEE, "Validée"), (STATUT_REFUSEE, "Refusée"),
     )
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="modifications_alerte")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="modifications_alerte")
     scenario = models.ForeignKey(
         ScenarioAlerte, null=True, blank=True, on_delete=models.SET_NULL, related_name="modifications",
     )
@@ -2262,7 +2262,7 @@ class ConfigurationActivation(TimeStampedModel):
     """Délais (minutes) des rappels d'activation d'une liste à quai, propres à un bâtiment :
     rappel avant la prise d'effet prévue, alerte à l'heure prévue, escalade après."""
 
-    ship = models.OneToOneField(Ship, on_delete=models.CASCADE, related_name="configuration_activation")
+    ship = models.OneToOneField(Ship, on_delete=models.PROTECT, related_name="configuration_activation")
     rappel_minutes = models.PositiveIntegerField(default=30, verbose_name="Rappel avant la prise d'effet prévue (minutes)")
     alerte_minutes = models.PositiveIntegerField(default=0, verbose_name="Alerte après la prise d'effet prévue (minutes)")
     escalade_minutes = models.PositiveIntegerField(default=15, verbose_name="Escalade après l'alerte (minutes)")
@@ -2314,7 +2314,7 @@ class MouvementBatiment(TimeStampedModel):
     STATUT_VALIDE = "VALIDE"
     STATUT_ANNULE = "ANNULE"
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="mouvements")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="mouvements")
     type = models.CharField(max_length=16, choices=TYPE_CHOICES)
     survenu_le = models.DateTimeField(verbose_name="Date et heure effectives")
     declare_par = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
@@ -2352,11 +2352,11 @@ class RemplacementChefDeListe(TimeStampedModel):
     d'activer, de reporter ou de retirer une prévision, sur un périmètre, un équipage et un type de liste précis,
     pour une durée bornée et non renouvelée automatiquement."""
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="remplacements_chef_de_liste")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="remplacements_chef_de_liste")
     equipage = models.CharField(max_length=8, blank=True, default="")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     perimetre_navire = models.BooleanField(default=False, help_text="Périmètre = le bâtiment entier.")
     type_liste = models.CharField(max_length=8, choices=ChefDeListe.TYPE_CHOICES, default=ChefDeListe.TYPE_QUAI)
     remplacant = models.ForeignKey(User, on_delete=models.CASCADE, related_name="remplacements_chef_de_liste")

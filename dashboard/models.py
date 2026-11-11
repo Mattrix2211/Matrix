@@ -29,7 +29,7 @@ class SessionAppareillage(TimeStampedModel, OwnedModel):
     (matrix/core/confirmations.py). Elle atteste la clôture de la session, pas l'aptitude
     du bâtiment à appareiller."""
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="sessions_appareillage")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="sessions_appareillage")
     ouverte_le = models.DateTimeField(auto_now_add=True, verbose_name="Ouverte le")
     cloturee_le = models.DateTimeField(null=True, blank=True, verbose_name="Clôturée le")
     valide_par = models.ForeignKey(

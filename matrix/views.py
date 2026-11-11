@@ -32,7 +32,7 @@ from matrix.core import recherche
 from matrix.core.inactivite import delai_avertissement, delai_inactivite, session_expiree, tracer_expiration, url_connexion
 from matrix.core.mixins import build_scope_q, utilisateurs_visibles_par
 from matrix.core.scopes import is_master_admin, ship_id_for_user
-from org import archivage
+from org import archivage, structure_services
 from matrix.core.equipage import (
     ACTIONS_RELEVE, ROLES_COMMANDEMENT, annuler_releve, annuler_releve_planifiee, changer_fuseau, decider_releve,
     equipage_a_bord, erreur_secours_releve, marins_sans_equipage, peut_annuler_releve_planifiee, peut_changer_fuseau,
@@ -238,6 +238,24 @@ def logout_then_login(request):
     cible = url_connexion(request, expire, suivant) if (expire or suivant) else '/login/'
     logout(request)
     return redirect(cible)
+
+
+def _supprimer_unite(request, modele, message_succes):
+    """Suppression d'une unité depuis Réglages : bornée au bâtiment de l'appelant (bâtiment : administrateur général seulement),
+    refusée tant que l'unité est référencée (message avec le détail), tracée."""
+    unite = modele.objects.filter(pk=entier_ou_none(request.POST.get('pk'))).first()
+    if unite is not None and not is_master_admin(request.user) and (
+            modele is Ship or archivage.navire_de(unite).pk != ship_id_for_user(request.user)):
+        unite = None
+    if unite is None:
+        messages.error(request, "Unité introuvable.")
+        return
+    try:
+        structure_services.supprimer(unite, request.user)
+    except structure_services.SuppressionRefusee as erreur:
+        messages.error(request, str(erreur))
+    else:
+        messages.success(request, message_succes)
 
 
 def _message_unite_existante(type_unite, existante):
@@ -568,10 +586,7 @@ class SettingsView(LoginRequiredMixin, View):
                     actor=request.user, action='add_ship', details=f'name={name}; code={code}; fuseau_horaire={fuseau}'
                 )
         elif action == 'delete_ship':
-            pk = entier_ou_none(request.POST.get('pk'))
-            Ship.objects.filter(pk=pk).delete()
-            messages.success(request, "Unité supprimée.")
-            AuditLog.objects.create(actor=request.user, action='delete_ship', details=f'pk={pk}')
+            _supprimer_unite(request, Ship, "Unité supprimée.")
         elif action == 'edit_ship':
             pk = entier_ou_none(request.POST.get('pk'))
             name = request.POST.get('name', '').strip()
@@ -654,10 +669,7 @@ class SettingsView(LoginRequiredMixin, View):
                 except Ship.DoesNotExist:
                     pass
         elif action == 'delete_service':
-            pk = entier_ou_none(request.POST.get('pk'))
-            Service.objects.filter(pk=pk).delete()
-            messages.success(request, "Service supprimé.")
-            AuditLog.objects.create(actor=request.user, action='delete_service', details=f'pk={pk}')
+            _supprimer_unite(request, Service, "Service supprimé.")
         elif action == 'add_sector':
             service_id = entier_ou_none(request.POST.get('service_id'))
             if name and service_id:
@@ -675,10 +687,7 @@ class SettingsView(LoginRequiredMixin, View):
                 except Service.DoesNotExist:
                     pass
         elif action == 'delete_sector':
-            pk = entier_ou_none(request.POST.get('pk'))
-            Sector.objects.filter(pk=pk).delete()
-            messages.success(request, "Secteur supprimé.")
-            AuditLog.objects.create(actor=request.user, action='delete_sector', details=f'pk={pk}')
+            _supprimer_unite(request, Sector, "Secteur supprimé.")
         elif action == 'add_section':
             sector_id = entier_ou_none(request.POST.get('sector_id'))
             if name and sector_id:
@@ -696,10 +705,7 @@ class SettingsView(LoginRequiredMixin, View):
                 except Sector.DoesNotExist:
                     pass
         elif action == 'delete_section':
-            pk = entier_ou_none(request.POST.get('pk'))
-            Section.objects.filter(pk=pk).delete()
-            messages.success(request, "Section supprimée.")
-            AuditLog.objects.create(actor=request.user, action='delete_section', details=f'pk={pk}')
+            _supprimer_unite(request, Section, "Section supprimée.")
         elif action in ('archive_unit', 'reactivate_unit'):
             modele = {'service': Service, 'sector': Sector, 'section': Section}.get(request.POST.get('kind'))
             unite = modele.objects.filter(pk=entier_ou_none(request.POST.get('pk'))).first() if modele else None

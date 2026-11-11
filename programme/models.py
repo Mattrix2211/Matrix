@@ -11,7 +11,7 @@ from taches.models import Tache
 
 
 class TypeProgramme(TimeStampedModel):
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="types_programme")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="types_programme")
     nom = models.CharField(max_length=60, verbose_name="Nom")
     couleur = models.CharField(max_length=7, default="#0d6efd", verbose_name="Couleur")
     actif = models.BooleanField(default=True)
@@ -31,10 +31,10 @@ class EvenementProgramme(TimeStampedModel, OwnedModel):
     debut = models.DateTimeField(verbose_name="Début")
     fin = models.DateTimeField(null=True, blank=True, verbose_name="Fin")
     lieu = models.CharField(max_length=120, blank=True, default="", verbose_name="Lieu")
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="evenements_programme")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="evenements_programme")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="evenements_programme")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="evenements_programme")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="evenements_programme")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="evenements_programme")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="evenements_programme")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="evenements_programme")
     equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
     auteur = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="evenements_programme")
     annule = models.BooleanField(default=False)
@@ -54,7 +54,7 @@ class EvenementProgramme(TimeStampedModel, OwnedModel):
 
 class DelegationProgramme(TimeStampedModel):
     """Droit de saisir le programme, confié par l'état-major à un marin du bâtiment (dans son propre périmètre)."""
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="delegations_programme")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="delegations_programme")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="delegations_programme")
     accordee_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
 

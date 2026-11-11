@@ -14,7 +14,7 @@ from taches.models import Tache
 
 class DomaineRetex(TimeStampedModel):
     """Domaine du bord, son COMA référent et l'organisme destinataire habituel (configurables par navire)."""
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="domaines_retex")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="domaines_retex")
     nom = models.CharField(max_length=80, verbose_name="Domaine")
     coma = models.CharField(max_length=40, blank=True, default="", verbose_name="Commandant adjoint référent")
     organisme = models.CharField(max_length=120, blank=True, default="", verbose_name="Organisme destinataire habituel")
@@ -47,7 +47,7 @@ class Retex(TimeStampedModel, OwnedModel):
     diffusion = models.CharField(max_length=10, choices=DIFFUSION_CHOICES, default="BATIMENT", verbose_name="Niveau de diffusion")
     domaine = models.ForeignKey(DomaineRetex, on_delete=models.PROTECT, related_name="retex")
     organisme = models.CharField(max_length=120, blank=True, default="", verbose_name="Organisme destinataire")
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="retex")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="retex")
     etat = models.CharField(max_length=10, choices=ETAT_CHOICES, default=ETAT_PROPOSE)
     auteur = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="retex_proposes")
     decide_par = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")

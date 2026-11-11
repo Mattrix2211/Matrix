@@ -12,10 +12,10 @@ from training.models import TrainingCourse
 
 class Poste(TimeStampedModel, OwnedModel):
     intitule = models.CharField(max_length=120, verbose_name="Intitulé")
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="postes")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="postes")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="postes")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE, related_name="postes")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="postes")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="postes")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="postes")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="postes")
     equipage = models.CharField(max_length=8, blank=True, default="", verbose_name="Équipage")
     effectif = models.PositiveSmallIntegerField(default=1, verbose_name="Effectif requis")
     formations = models.ManyToManyField(TrainingCourse, blank=True, related_name="postes", verbose_name="Formations exigées")

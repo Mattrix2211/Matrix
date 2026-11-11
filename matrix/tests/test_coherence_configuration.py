@@ -19,6 +19,7 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from accounts.models import UserProfile
+from django.db.models import ProtectedError
 from matrix.core.config_version import (
     _contexte, cle_modules, cle_seuils, fermer_contexte, ouvrir_contexte, rafraichir_contexte,
 )
@@ -207,7 +208,10 @@ class CheminsDeModificationTests(TestCase):
         self.assertFalse(module_actif("assets", self.ship.id))
         ModuleActivation.objects.bulk_create([ModuleActivation(ship=self.autre, module="assets", active=False)])
         self.assertFalse(module_actif("assets", self.autre.id))
-        self.ship.delete()  # suppression en cascade
+        with self.assertRaises(ProtectedError):  # le bâtiment, protégé, ne peut plus emporter sa configuration
+            self.ship.delete()
+        self.assertFalse(module_actif("assets", self.ship.id))
+        ModuleActivation.objects.filter(ship=self.ship).delete()  # retirer la ligne remet le défaut et invalide le cache
         self.assertTrue(module_actif("assets", self.ship.id))
 
     def test_changement_de_navire_invalide_l_ancien_et_le_nouveau(self):

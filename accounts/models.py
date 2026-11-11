@@ -59,10 +59,10 @@ class UserProfile(TimeStampedModel):
         help_text="Le marin doit choisir un nouveau mot de passe à sa prochaine connexion.",
     )
 
-    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="profiles")
 
     allowed_sectors = models.ManyToManyField(Sector, blank=True, related_name="authorized_profiles")
 

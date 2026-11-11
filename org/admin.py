@@ -1,13 +1,28 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from accounts.models import AuditLog
 from matrix.core.equipage import equipage_a_bord, tracer_changement_equipage
+from . import structure_services
 from .models import (
     ModuleActivation, ReferenceBatiment, RoleThresholdConfig, Section, Sector, SectorConfig, Service, Ship, TypeBatiment,
 )
 
+class SuppressionSureAdmin(admin.ModelAdmin):
+    """Suppression d'unité par l'administration : même règle que partout ailleurs (refus si référencée, trace)."""
+
+    def delete_model(self, request, obj):
+        try:
+            structure_services.supprimer(obj, request.user)
+        except structure_services.SuppressionRefusee as erreur:
+            self.message_user(request, str(erreur), level=messages.ERROR)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self.delete_model(request, obj)
+
+
 @admin.register(Ship)
-class ShipAdmin(admin.ModelAdmin):
+class ShipAdmin(SuppressionSureAdmin):
     list_display = ("name", "code", "numero_coque", "type_batiment", "double_equipage", "equipage_actuel", "archived", "created_at")
     search_fields = ("name", "code", "numero_coque", "trigramme")
     list_filter = ("archived", "type_batiment")
@@ -36,17 +51,17 @@ class ShipAdmin(admin.ModelAdmin):
             tracer_changement_equipage(request.user, obj, avant)
 
 @admin.register(Service)
-class ServiceAdmin(admin.ModelAdmin):
+class ServiceAdmin(SuppressionSureAdmin):
     list_display = ("name", "ship", "commandant_adjoint", "archived")
     list_filter = ("ship", "commandant_adjoint", "archived")
 
 @admin.register(Sector)
-class SectorAdmin(admin.ModelAdmin):
+class SectorAdmin(SuppressionSureAdmin):
     list_display = ("name", "service", "color", "archived")
     list_filter = ("service", "archived")
 
 @admin.register(Section)
-class SectionAdmin(admin.ModelAdmin):
+class SectionAdmin(SuppressionSureAdmin):
     list_display = ("name", "sector", "archived")
     list_filter = ("sector", "archived")
 

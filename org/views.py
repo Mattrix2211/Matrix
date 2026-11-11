@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.db.models import ProtectedError
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+from . import structure_services
 from .models import Ship, Service, Sector, Section, SectorConfig
 from .serializers import ShipSerializer, ServiceSerializer, SectorSerializer, SectionSerializer, SectorConfigSerializer
 from matrix.core.equipage import changer_fuseau, equipage_a_bord, tracer_changement_equipage
@@ -33,6 +35,11 @@ def _user_ship_id(user):
     return ship.id if ship else None
 
 
+class SuppressionRefuseeAPI(APIException):
+    status_code = 409
+    default_code = "suppression_refusee"
+
+
 class StructureViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     """Écriture de la structure du bâtiment : seuil de rôle configurable par unité
     (clé « structure_navire_ecriture »), objets bornés à l'unité de l'appelant et
@@ -41,6 +48,18 @@ class StructureViewSet(EcritureTraceeMixin, viewsets.ModelViewSet):
     permission_classes = [RolePermission]
     role_threshold_action_write = "structure_navire_ecriture"
     domaine_audit = "org"
+
+    def perform_destroy(self, instance):
+        """Une unité référencée ne se supprime pas : 409 avec le détail, au lieu d'une suppression en cascade."""
+        try:
+            if isinstance(instance, (Ship, Service, Sector, Section)):
+                structure_services.verifier_suppression(instance, self.request.user)
+            super().perform_destroy(instance)
+        except structure_services.SuppressionRefusee as erreur:
+            raise SuppressionRefuseeAPI({"detail": str(erreur), "references": dict(erreur.comptes)})
+        except ProtectedError as erreur:
+            raise SuppressionRefuseeAPI({"detail": "Suppression refusée : cet objet est encore référencé.",
+                                         "references": {"objets": len(erreur.protected_objects)}})
 
 
 def _controler_double_equipage(navire, actif):

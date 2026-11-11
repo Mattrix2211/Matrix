@@ -10,7 +10,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from accounts.models import AuditLog
+from accounts.models import AuditLog, UserProfile
 from assets.models import Location
 from matrix.core.role_thresholds import invalidate_cache
 from org.models import RoleThresholdConfig, Sector, Section, Service, Ship
@@ -124,10 +124,15 @@ class StructureBatimentTests(Base):
             ["org.creation", "org.suppression"],
         )
 
-    def test_suppression_d_une_section_trace_les_marins_rattaches(self):
+    def test_suppression_d_une_section_occupee_est_refusee_sans_rien_perdre(self):
         section = Section.objects.get(sector__service__ship=self.bre, name="Moteurs bâbord")
-        self.assertEqual(self.appel("admin_navire", "delete", f"/api/org/sections/{section.pk}/").status_code, 204)
-        self.assertIn("marins rattachés: 4", AuditLog.objects.get(action="org.suppression").details)
+        marins = UserProfile.objects.filter(section=section).count()
+        reponse = self.appel("admin_navire", "delete", f"/api/org/sections/{section.pk}/")
+        self.assertEqual(reponse.status_code, 409)
+        self.assertTrue(Section.objects.filter(pk=section.pk).exists())
+        self.assertEqual(UserProfile.objects.filter(section=section).count(), marins)
+        self.assertGreater(marins, 0)
+        self.assertTrue(AuditLog.objects.filter(action="suppression_unite_refusee").exists())
 
     def test_admin_navire_ne_touche_pas_a_l_autre_batiment(self):
         avant = self.etat_structure()

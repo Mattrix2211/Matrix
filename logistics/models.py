@@ -159,7 +159,7 @@ class StockPiece(TimeStampedModel, OwnedModel):
     ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Unité")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Service")
     sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Secteur")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="stock_pieces", verbose_name="Section")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="stock_pieces", verbose_name="Section")
     # Lien optionnel vers l'équipement affilié (une installation fixe OU un
     # matériel mobile, jamais les deux) : la pièce apparaît alors dans l'onglet
     # « Pièces » de la fiche de cet équipement. SET_NULL plutôt que CASCADE : la
@@ -341,10 +341,10 @@ class Anomalie(TimeStampedModel, OwnedModel):
     # Périmètre organisationnel, déduit de l'équipement lié sinon du profil du
     # déclarant (voir rattacher_a) : sert uniquement au scoping et aux
     # notifications, jamais saisi à la main.
-    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="anomalies")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="anomalies")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="anomalies")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="anomalies")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="anomalies")
     installation = models.ForeignKey(
         Installation, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="anomalies", verbose_name="Installation concernée",

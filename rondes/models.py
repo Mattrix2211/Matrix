@@ -24,9 +24,9 @@ class RondeModele(TimeStampedModel, OwnedModel):
     secteur), les niveaux supérieurs en sont déduits (voir rattacher)."""
     nom = models.CharField(max_length=150, verbose_name="Nom de la ronde")
     description = models.TextField(blank=True, default="", verbose_name="Description")
-    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="ronde_modeles")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="ronde_modeles")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="ronde_modeles")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="ronde_modeles")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="ronde_modeles")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="ronde_modeles")
     periodicite_jours = models.PositiveSmallIntegerField(
         default=1, verbose_name="Périodicité (en jours)",
         help_text="Une ronde est proposée tous les N jours (1 = tous les jours).",
@@ -114,9 +114,9 @@ class Ronde(TimeStampedModel):
     modele = models.ForeignKey(RondeModele, null=True, blank=True, on_delete=models.SET_NULL, related_name="rondes")
     version_modele = models.PositiveIntegerField(default=1)
     nom = models.CharField(max_length=150)
-    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="rondes")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="rondes")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="rondes")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="rondes")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="rondes")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="rondes")
     date_prevue = models.DateField()
     statut = models.CharField(max_length=10, choices=STATUTS, default=A_FAIRE)
     assigne_a = models.ForeignKey(

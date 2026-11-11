@@ -41,6 +41,9 @@ def serveur(entree, sortie):
         ModuleActivation.objects.update_or_create(ship_id=ship_id, module=module, defaults={"active": actif})
 
     def nettoyer(ship_id):
+        # La configuration d'une unité empêche sa suppression : on la retire d'abord (base temporaire du test).
+        RoleThresholdConfig.objects.filter(ship_id=ship_id).delete()
+        ModuleActivation.objects.filter(ship_id=ship_id).delete()
         Ship.objects.filter(pk=ship_id).delete()
 
     commandes = {

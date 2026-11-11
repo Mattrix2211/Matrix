@@ -214,7 +214,7 @@ class Section(TimeStampedModel):
         verifier_modele(self)
 
 class SectorConfig(TimeStampedModel):
-    sector = models.OneToOneField(Sector, on_delete=models.CASCADE, related_name="config")
+    sector = models.OneToOneField(Sector, on_delete=models.PROTECT, related_name="config")
     ui_preferences = JSONField(default=dict, blank=True)
     status_overrides = JSONField(default=dict, blank=True)
     alert_thresholds = JSONField(default=dict, blank=True)
@@ -305,7 +305,7 @@ class RoleThresholdConfig(TimeStampedModel):
     contrainte SQL stricte : NULL n'est jamais comparé pour l'unicité).
     """
     ship = models.OneToOneField(
-        Ship, null=True, blank=True, on_delete=models.CASCADE, related_name="role_threshold_config"
+        Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="role_threshold_config"
     )
     thresholds = JSONField(default=dict, blank=True)
 
@@ -333,7 +333,7 @@ class ModuleActivation(TimeStampedModel):
     configuration GLOBALE (ship=None) : un module s'active/se désactive
     toujours pour un navire précis, jamais pour toute la flotte d'un coup.
     """
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="modules_actives")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="modules_actives")
     module = models.CharField(max_length=50, verbose_name="Module")
     active = models.BooleanField(default=True)
 
@@ -421,7 +421,7 @@ class ReleveEquipage(TimeStampedModel):
         REFUSEE = "refusee", "Refusée"
         ANNULEE = "annulee", "Annulée"
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="releves")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="releves")
     equipage_propose = models.CharField(max_length=8)
     propose_par = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="releves_proposees")
     statut = models.CharField(max_length=12, choices=Statut.choices, default=Statut.EN_ATTENTE)
@@ -453,7 +453,7 @@ class PeriodeEquipage(TimeStampedModel):
     class Source(models.TextChoices):
         RELEVE = "releve", "Relève"
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="periodes_equipage")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="periodes_equipage")
     equipage = models.CharField(max_length=8)
     debut = models.DateTimeField()
     fin = models.DateTimeField(null=True, blank=True)
@@ -475,7 +475,7 @@ class SynthesePassation(TimeStampedModel):
     Une seule par relève validée (`releve` unique) ; le contenu est un instantané JSON, jamais recalculé.
     """
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="syntheses_passation")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="syntheses_passation")
     releve = models.OneToOneField(
         ReleveEquipage, null=True, blank=True, on_delete=models.SET_NULL, related_name="synthese"
     )

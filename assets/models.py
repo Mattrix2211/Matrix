@@ -37,7 +37,7 @@ class InstallationBigrameChoice(models.Model):
         return self.name
 
 class Location(TimeStampedModel):
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="locations")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="locations")
     name = models.CharField(max_length=255)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="children")
 
@@ -55,7 +55,7 @@ class Deck(TimeStampedModel):
     matériel (Asset) peut être positionné précisément par une épingle
     (voir Asset.plan_deck/position_x/position_y).
     """
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="decks", verbose_name="Navire")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="decks", verbose_name="Navire")
     name = models.CharField(max_length=255, verbose_name="Nom du pont")
     # Permet de trier les ponts dans la navigation (ex: du pont le plus haut au
     # plus bas), indépendamment de l'ordre alphabétique des noms.
@@ -80,7 +80,7 @@ class Deck(TimeStampedModel):
 class AssetType(TimeStampedModel):
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=255)
-    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name="asset_types")
+    sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="asset_types")
 
     class Meta:
         unique_together = ("sector", "name")
@@ -116,7 +116,7 @@ class ChecklistTemplate(TimeStampedModel):
 
     name = models.CharField(max_length=255)
     # Vide pour une version de fiche flotte : elle ne relève d'aucun secteur de bord.
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE, related_name="checklist_templates")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="checklist_templates")
     asset_type = models.ForeignKey(AssetType, null=True, blank=True, on_delete=models.SET_NULL, related_name="checklist_templates")
     fiche = models.ForeignKey("InstallationMaintenance", null=True, blank=True, on_delete=models.CASCADE, related_name="versions", verbose_name="Fiche")
     numero = models.PositiveIntegerField(default=1, verbose_name="Version")
@@ -138,9 +138,9 @@ class ChecklistTemplate(TimeStampedModel):
     motif_refus = models.TextField(blank=True, default="")
     valide_le = models.DateTimeField(null=True, blank=True)
     # Origine d'une version de fiche flotte (le bord n'a pas d'installation) et responsable qui l'a vérifiée.
-    ship_origine = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    service_origine = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    secteur_origine = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    ship_origine = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    service_origine = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    secteur_origine = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     verificateur = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="versions_fiche_verifiees")
 
     class Meta:
@@ -266,7 +266,7 @@ class Asset(TimeStampedModel, OwnedModel):
     ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="assets")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="assets")
     sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="assets")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="assets")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="assets")
     status = models.CharField(max_length=32, choices=STATUS, default="OK")
     criticality = models.PositiveSmallIntegerField(default=1)
     date_mise_en_service = models.DateField(null=True, blank=True, verbose_name="Date de mise en service")
@@ -366,7 +366,7 @@ class Installation(TimeStampedModel, OwnedModel):
     ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="installations")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="installations")
     sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="installations")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="installations")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="installations")
     # Paramètres vibration: nombre de jours avant prochaine mesure selon l'état
     vib_days_a = models.PositiveIntegerField(default=180)
     vib_days_b = models.PositiveIntegerField(default=90)
@@ -785,9 +785,9 @@ class PropositionArticle(TimeStampedModel, OwnedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     etat = models.CharField(max_length=24, choices=Etat.choices, default=Etat.VISA_SERVICE, db_index=True)
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="propositions_article", verbose_name="Bâtiment")
-    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="propositions_article", verbose_name="Service d'origine")
-    secteur = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="propositions_article", verbose_name="Secteur du rédacteur")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="propositions_article", verbose_name="Bâtiment")
+    service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="propositions_article", verbose_name="Service d'origine")
+    secteur = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="propositions_article", verbose_name="Secteur du rédacteur")
     # Rôle et équipage du rédacteur à la rédaction : ils fixent la première étape et le titulaire du commandant adjoint.
     role_redacteur = models.CharField(max_length=32)
     equipage = models.CharField(max_length=8, blank=True, default="")

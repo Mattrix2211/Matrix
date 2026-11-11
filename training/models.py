@@ -111,7 +111,7 @@ class ReferentFormation(TimeStampedModel):
     concerné par l'action (jamais celui de l'appelant)."""
 
     course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="referents")
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="referents_formation")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="referents_formation")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="formations_referentes")
 
     class Meta:
@@ -133,7 +133,7 @@ class ReferentFormationNavire(TimeStampedModel):
     (cf. peut_valider_formation ci-dessous et
     training/web_views.py::_peut_gerer_referent_navire)."""
 
-    ship = models.OneToOneField(Ship, on_delete=models.CASCADE, related_name="referent_formation")
+    ship = models.OneToOneField(Ship, on_delete=models.PROTECT, related_name="referent_formation")
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="navires_dont_il_est_referent_formation"
     )
@@ -343,10 +343,10 @@ class TrainingRequirement(TimeStampedModel):
         ("EQUIPIER", "Équipier"),
     )
     applies_to_role = models.CharField(max_length=32, choices=ROLE_CHOICES, blank=True, default="")
-    applies_to_ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.CASCADE)
-    applies_to_service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE)
-    applies_to_sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.CASCADE)
-    applies_to_section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.CASCADE)
+    applies_to_ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT)
+    applies_to_service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT)
+    applies_to_sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT)
+    applies_to_section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT)
     course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="requirements")
     required = models.BooleanField(default=True)
 
@@ -576,7 +576,7 @@ class DemandePlace(TimeStampedModel, OwnedModel):
         ("CANCELLED", "Annulée"),
     )
     course = models.ForeignKey(TrainingCourse, on_delete=models.CASCADE, related_name="demandes_places")
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="demandes_places")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="demandes_places")
     nb_places_demandees = models.PositiveIntegerField(verbose_name="Nombre de places demandées")
     nb_places_attribuees = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Nombre de places attribuées"
@@ -639,7 +639,7 @@ class PersonnelBRH(TimeStampedModel):
     COMMANDANT+ (même seuil que la désignation du référent formation navire,
     cf. training/web_views.py::_peut_gerer_referent_navire)."""
 
-    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="personnels_brh")
+    ship = models.ForeignKey(Ship, on_delete=models.PROTECT, related_name="personnels_brh")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="navires_brh")
 
     class Meta:

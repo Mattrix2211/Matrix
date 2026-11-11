@@ -46,10 +46,10 @@ class Demande(TimeStampedModel, OwnedModel):
     object_id = models.CharField(max_length=64)
     objet = GenericForeignKey("content_type", "object_id")
     # Rattachement du déclarant, copié à la création : sert au périmètre des chefs.
-    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes")
-    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes")
-    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes")
-    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, related_name="demandes")
+    ship = models.ForeignKey(Ship, null=True, blank=True, on_delete=models.PROTECT, related_name="demandes")
+    service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.PROTECT, related_name="demandes")
+    sector = models.ForeignKey(Sector, null=True, blank=True, on_delete=models.PROTECT, related_name="demandes")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.PROTECT, related_name="demandes")
     resolue_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
