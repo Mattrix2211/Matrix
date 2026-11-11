@@ -1,0 +1,15 @@
+flowchart TB
+  B["Brouillon : le rédacteur désigné par le COMAEQ prépare la feuille"]
+  VS["Visa du chef de secteur du rédacteur"]
+  VV["Visa du chef de service du rédacteur"]
+  VC["Visa du COMAEQ, ou du commandant de l'équipage si le poste est vacant"]
+  P["Publiée : lue par tout l équipage, version conservée"]
+  R["Rectificatif : nouvelle version qui suit le même circuit"]
+  B -->|"le rédacteur propose"| VS
+  B -->|"propose, rédacteur chef de secteur ou plus : visa secteur sauté"| VV
+  VS --> VV --> VC --> P
+  VC -->|"renvoi motivé"| B
+  VS -->|"renvoi motivé"| B
+  VV -->|"renvoi motivé"| B
+  P -->|"échange ou changement de tour : divergence signalée"| R
+  R -->|"la feuille repasse en brouillon, la version publiée reste la référence"| B

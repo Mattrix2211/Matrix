@@ -97,6 +97,7 @@ Le glossaire complet est l'**annexe A**. Quatre distinctions à garder en tête 
 | Date | Contenu |
 |---|---|
 | 11/11/2026 | Édition G0, ensemble 1 : chapitres 1 à 5, 18, 19, 22 ; annexes A et B |
+| 11/11/2026 | Ensemble 2 : chapitres 6 à 10 ; chapitre 5 complété (sept profils, écarts d'implémentation) ; registre des écarts `restreint/ECARTS_DECISIONS_CODE.md` |
 
 ---
 

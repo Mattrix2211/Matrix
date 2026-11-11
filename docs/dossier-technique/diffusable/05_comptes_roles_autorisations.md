@@ -34,6 +34,15 @@ C'est le cœur du modèle de droits de Matrix, repris de la directive du PO : **
 | **Périmètre** | Sur quoi agit-elle ? | Sa section, son secteur… | Déduit du rattachement |
 | **Brevet / qualification** | Que sait-elle faire ? | BHT, C-CDM… | Module formation (chapitre 14) ; informatif pour les tâches ordinaires |
 
+**Un exemple pour fixer les idées** (personnage fictif). Le maître Durand est rattaché à la section « Propulsion » du secteur « Machine », service « Énergie » de son bâtiment.
+- Son **grade** est « maître » : c'est son rang. Dans Matrix, il sert à l'afficher, à l'identifier, et (plus tard) à proposer un coordinateur de tâche collective. **Il ne lui donne aucun droit.**
+- Sa **fonction** : il est désigné chef de liste des services à quai de sa section, et exerce la fonction de service « gradé de coupée ». Ces fonctions lui ouvrent des droits **précis** (préparer et proposer une liste de sa section), indépendants de son rang.
+- Son **rôle** dans Matrix est « chef de section » : c'est son profil d'accès. Il lui donne un niveau (2 sur 9) qui lui permet, par exemple, d'attribuer des tâches.
+- Son **périmètre** est sa section : il ne voit et ne modifie que ce qui relève de la section « Propulsion ».
+- Sa **qualification** : il détient, dans le module formation, des validations (par exemple une habilitation incendie, exemple fictif). Matrix les **affiche**, et peut les exiger pour tenir certains postes ; elles ne bloquent pas l'attribution d'une tâche ordinaire.
+
+S'il est muté dans une autre section, son grade, sa fonction de gradé de coupée et ses qualifications le suivent ; son **périmètre** et sa désignation de chef de liste, eux, changent ou disparaissent.
+
 Le cahier des charges parlait d'un modèle combinant rôle, attributs, périmètre et responsabilité. L'état B en réalise **le rôle, le périmètre, des attributs ciblés (équipage, fonction de commandant adjoint) et les désignations de responsabilité**, pas un moteur d'attributs général.
 
 ## 5.3 Les neuf rôles
@@ -69,6 +78,41 @@ Deux désignations **ne sont pas des rôles** : le **chef de liste** (désigné 
 Pour l'état-major, un contrôle supplémentaire s'applique : il n'écrit que sur les services rattachés à sa fonction de commandant adjoint ; ailleurs, il garde la lecture et les droits d'un équipier.
 
 Enfin, certains circuits exigent une **fonction précise**, quel que soit le niveau : par exemple le visa de la feuille de service revient au COMAEQ compétent du service et de l'équipage concerné, et non à « un état-major ». Un administrateur désigne le titulaire d'une fonction, **sans pouvoir viser à sa place**.
+
+## 5.4 bis — Sept personnes, sept journées
+
+Pour comprendre ce que les droits changent concrètement, voici ce que peuvent faire sept personnes fictives d'un même bâtiment. Le tableau est **généré depuis les valeurs par défaut du code** (`outils/generer_exemples_droits.py`) ; il indique si le **niveau** de la personne atteint le seuil de l'action. Ce n'est qu'une des conditions : le **périmètre** (et, pour certains circuits, la **fonction exercée**) s'y ajoute toujours.
+
+| Action (valeur par défaut du seuil) | Matelot (équipier) | Chef de section | Chef de secteur | Chef de service | COMAEQ (état-major) | Commandant | Administrateur technique (unité) |
+|---|---|---|---|---|---|---|---|
+| Exécuter une maintenance (EQUIPIER) | oui | oui | oui | oui | oui | oui | oui |
+| Attribuer une tâche à un marin (CHEF_SECTION) | non | oui | oui | oui | oui | oui | oui |
+| Créer ou modifier un matériel (CHEF_SECTION) | non | oui | oui | oui | oui | oui | oui |
+| Supprimer un matériel, action groupée (CHEF_SERVICE) | non | non | non | oui | oui | oui | oui |
+| Corriger un compte rendu de maintenance terminé (CHEF_SECTEUR) | non | non | oui | oui | oui | oui | oui |
+| Voir le bloc Supervision de la page Aujourd'hui (CHEF_SECTEUR) | non | non | oui | oui | oui | oui | oui |
+| Publier une liste de quarts ou de gardes (seuil) (CHEF_SERVICE) | non | non | non | oui | oui | oui | oui |
+| Viser une feuille de service au palier du chef de service (seuil) (CHEF_SERVICE) | non | non | non | oui | oui | oui | oui |
+| Publier une annonce (CHEF_SERVICE) | non | non | non | oui | oui | oui | oui |
+| Activer ou désactiver un module du bâtiment (COMMANDANT_EN_SECOND) | non | non | non | non | non | oui | oui |
+| Réinitialiser un mot de passe (ADMIN_NAVIRE) | non | non | non | non | non | non | oui |
+| Modifier la structure du bâtiment (ADMIN_NAVIRE) | non | non | non | non | non | non | oui |
+
+> **Comment lire « oui ».** « Oui » signifie « le niveau suffit », pas « peut le faire partout ». Un chef de service publie une liste **de son service**, pas celle d'un autre. Le COMAEQ (état-major) n'écrit que dans **les services rattachés à sa fonction**. Le visa de la feuille de service n'est pas ouvert « à un niveau » mais à des **fonctions** (voir ci-dessous) : la ligne correspondante du tableau n'indique que le seuil du palier « chef de service ».
+
+**Le matelot (équipier).** Il ouvre « Aujourd'hui » : ses tâches, les maintenances qui lui sont assignées, ses quarts et services, ses formations du jour, les annonces qui le visent. Il démarre une tâche, signale un blocage avec son motif, rend compte et la termine ; il exécute une maintenance guidée ; il déclare ses absences ; il se crée une tâche personnelle, **privée tant qu'il ne la partage pas** ; il répond à une proposition d'échange de tour et en propose lui-même. Il ne peut pas attribuer une tâche, créer un matériel, valider ou publier quoi que ce soit.
+
+**Le chef de section.** Tout ce que fait le matelot, plus : il attribue des tâches aux marins de **sa section** (et de son équipage), suit leur avancement, crée et modifie un matériel, un plan de maintenance, valide une absence déclarée par un marin de sa section. S'il est désigné chef de liste, il prépare et **propose** une liste ; il ne la publie pas. Il ne supprime pas un matériel, ne corrige pas un compte rendu terminé.
+
+**Le chef de secteur.** En plus : il corrige un compte rendu de maintenance terminé (motif obligatoire, saisie d'origine conservée), voit le bloc « Supervision » de sa page d'accueil (retards, validations en attente de son secteur), supervise et réaffecte les tâches de son secteur. Il vise la feuille de service au palier « secteur » lorsque le rédacteur en dépend.
+
+**Le chef de service.** En plus : il supprime un matériel, lance une action groupée, **publie** les listes de quarts et de gardes **de son service** (la liste doit porter exactement son périmètre), vise la feuille de service au palier « service », publie des annonces ciblées dans son périmètre, valide les documents et les retours d'expérience.
+
+**Le COMAEQ (état-major).** Il porte la vie à bord et le service courant. Dans Matrix, il écrit **uniquement** dans les services rattachés à la fonction COMAEQ. **Il vise la feuille de service** : ce visa lui revient en tant que **titulaire de la fonction COMAEQ** de son équipage, et non parce qu'il est « état-major ». Il désigne les rédacteurs (le BSC) de la feuille de son équipage. Il déclare l'accostage et l'appareillage du bâtiment. 🔵 *Règle cible validée par le PO, non appliquée :* il décide des échanges de tours et approuve et publie les listes de quarts et de gardes (voir §5.11).
+
+**Le commandant.** Vision et supervision du bâtiment : il gère les comptes jusqu'au niveau état-major, active ou désactive des modules, propose la relève de l'équipage, valide l'organisation d'alerte, gère les listes de son bâtiment (création, publication) au titre de la supervision. Si le poste de COMAEQ est vacant, **lui seul** (et pas son second) peut viser la feuille de service de son équipage, de façon tracée et signalée ; un COMAEQ simplement absent n'ouvre pas cette exception.
+
+**L'administrateur technique (administrateur d'unité).** Il administre la **plateforme et le bâtiment** : crée les comptes, règle les seuils et les modules, modifie la structure, réinitialise les mots de passe, désigne les titulaires de fonctions (le COMAEQ, par exemple), applique la configuration. 🔵 **Règle validée par le PO : il n'a aucun visa métier** : il désigne les titulaires sans viser à leur place. ⚠️ **Écart d'implémentation** : dans l'état B, son niveau lui fait atteindre les seuils de la plupart des actions métier (colonne de droite du tableau). Seules des règles propres à certains circuits l'en écartent (visa du COMAEQ, rédaction de la feuille de service). Cet écart n'est **pas** la règle souhaitée ; il est traité par le lot L06 (voir §5.11 et `restreint/ECARTS_DECISIONS_CODE.md`).
 
 ## 5.5 Les seuils par action : la configuration plutôt que le code
 
@@ -154,7 +198,16 @@ Grades, spécialités, fonctions de service, fonctions de quart, types d'absence
 | **Import de comptes** | Annoncé, non développé | — |
 | **Fonctions annexes** | « Adjudant de compagnie » et « OSS » : reconnues comme **fonctions** attribuées à des personnes, ni grades, ni permissions générales ; leur rattachement dépend de l'unité. Ce n'est pas un feu vert d'implémentation | — |
 
-> **Écart entre le cible et le réel, à connaître.** Le PO a décidé que l'administrateur technique n'a aucun visa métier ; dans l'état B, le niveau numérique de l'administrateur d'unité atteint les seuils de la plupart des actions métier, et seules les règles propres à certains circuits (par exemple le visa du COMAEQ) l'en écartent. L'exclusion générale est précisément l'objet du lot L06. Cet écart est signalé ici, **sans modifier la décision**.
+### Écarts d'implémentation à connaître
+
+Les quatre écarts suivants opposent une **décision du PO** à un **comportement actuel du code**. Le comportement actuel n'est **pas** la règle métier souhaitée ; il est décrit pour que personne ne le prenne pour tel. Chaque écart est détaillé (règle validée, comportement observé, sources, conséquences, lot) dans `restreint/ECARTS_DECISIONS_CODE.md`. Aucune décision n'est rouverte ici.
+
+| Écart | Règle métier validée (PO) | Comportement actuel (état B) | Lot de correction |
+|---|---|---|---|
+| **Administrateur technique** | Il n'a aucun visa métier ; il désigne les titulaires sans viser à leur place (`DEC-DRT-02`) | Son niveau atteint les seuils de la plupart des actions métier ; seuls certains circuits l'en écartent | L06 |
+| **Échanges de tours** | La décision finale revient au COMAEQ ou à son suppléant habilité ; le chef de liste ou le BSC instruit (`DEC-FDS-07`, `DEC-FDS-13`) | La validation revient à qui **gère la liste** : chef de liste désigné, ou commandement (`peut_valider_echange`) | L10 |
+| **Publication des listes de quarts et de gardes** | Le chef de liste prépare et propose ; le COMAEQ ou son suppléant habilité approuve et publie (`DEC-FDS-14`) | Publie : le commandement, ou tout rôle atteignant le seuil « chef de service » **dont le périmètre personnel est exactement celui de la liste** ; la fonction COMAEQ n'intervient pas | L09 |
+| **Commandant en second** | Vision globale ; écritures limitées aux responsabilités attribuées, pas à un seuil de grade (Notion « 13 — Décisions ») | L'écriture héritée de son grade lui est retirée, mais certaines vues comparent le seuil à **son grade** et d'autres à son **niveau d'écriture** : son pouvoir varie selon la vue | Non identifié (voir « décisions absentes ou ambiguës ») |
 
 ## 5.12 Limites et éléments non vérifiés
 

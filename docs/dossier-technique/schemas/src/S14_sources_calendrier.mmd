@@ -1,0 +1,17 @@
+flowchart TB
+  subgraph SRC["Neuf sources d'événements"]
+    S1["Maintenance"]
+    S2["Ticket correctif"]
+    S3["Formation"]
+    S4["Quart"]
+    S5["Garde (service à quai)"]
+    S6["Tâche"]
+    S7["Absence"]
+    S8["Programme du bâtiment"]
+    S9["Événement personnel"]
+  end
+  FIL["Filtres de périmètre et de droits : chacun voit sa journée, un chef voit aussi son équipe"]
+  CAL["Calendrier central : vue jour, semaine, mois, panneau de détail avec discussion"]
+  ICAL["Flux iCal personnel : session requise"]
+  SRC --> FIL --> CAL
+  FIL --> ICAL

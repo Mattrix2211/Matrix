@@ -1,0 +1,12 @@
+flowchart LR
+  AF["À faire"]
+  EC["En cours"]
+  BL["Bloquée : motif obligatoire"]
+  TE["Terminée : compte rendu obligatoire"]
+  AF -->|"l'assigné démarre"| EC
+  AF -->|"l'assigné signale un blocage"| BL
+  EC -->|"l'assigné signale un blocage"| BL
+  BL -->|"un chef lève le blocage"| EC
+  AF -->|"l'assigné rend compte"| TE
+  EC -->|"l'assigné rend compte"| TE
+  BL -->|"l'assigné rend compte"| TE

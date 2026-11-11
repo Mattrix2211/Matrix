@@ -144,13 +144,14 @@ Certaines tâches s'exécutent **chaque minute** et décident elles-mêmes, par 
 | Serveur bord et infrastructure à terre avec synchronisation et gestion de conflits | Cahier des charges §27-28, phase 7 | Non développé |
 | Fonctionnement partiellement hors ligne selon l'architecture retenue | Cahier §28 | Non développé |
 | API d'interopérabilité (SSF, outils de la Marine) sur identifiants techniques stables | Notion « Décisions », phase 7 | Non développé |
-| Génération automatique de répartition des quarts, QR codes | **Écartés** par décision du PO | — |
+| Génération automatique de répartition des quarts | **Écartée** par décision du PO | — |
+| QR codes et inspections mobiles | Non prioritaires, reportés, existant conservé (`DEC-PRE-04`) | — |
 
 ## 18.10 Limites et éléments non vérifiés
 
 - ⚪ Versions : lues dans `requirements.txt` de l'état B ; non vérifiées par une installation à neuf dans cet environnement (l'installation de `pywebpush` y a demandé l'option `--use-pep517`, comme l'indique le README).
 - ⚪ PostgreSQL 16 : version de l'image `docker-compose.yml` ; le moteur n'a pas été exécuté ici.
-- ⚪ La génération de QR codes existe encore dans le code (`assets/views.py:23`) alors que les QR codes sont « hors V1 » dans les décisions du PO ; leur statut d'usage est à confirmer.
+- 🟢 La génération de QR codes existe dans le code (`assets/views.py:23`) : conforme à la décision `DEC-PRE-04`, qui reporte les QR et les inspections mobiles sans supprimer l'existant (la route QR reste).
 - ⚪ Aucun test de charge ni mesure de performance n'a été trouvé ou réalisé.
 
 ---

@@ -1,6 +1,6 @@
 # Dossier technique intégral de Matrix — Mode d'emploi
 
-> **Statut :** édition G0 en cours de rédaction (ensemble 1 livré pour revue). **État du logiciel décrit :** état B, branche `claude/l03-suppression-sure-v11`, commit `6d6d0be`, **non fusionné dans `main`**.
+> **Statut :** édition G0 en cours de rédaction (ensembles 1 et 2 livrés pour revue). **État du logiciel décrit :** état B, branche `claude/l03-suppression-sure-v11`, commit `6d6d0be`, **non fusionné dans `main`**.
 > Branche documentaire : `claude/fervent-wright-kl6gtx`. Aucun code applicatif n'est modifié par ce dossier.
 
 ## Où lire quoi
@@ -8,7 +8,7 @@
 | Je suis… | Je commence par… |
 |---|---|
 | Marin | `diffusable/01_vision.md`, `diffusable/02_vue_ensemble.md` |
-| Responsable | `diffusable/04_organisation.md`, `diffusable/05_comptes_roles_autorisations.md` |
+| Responsable | `diffusable/04_organisation.md`, `diffusable/05_comptes_roles_autorisations.md`, `diffusable/08_quarts_services_feuille.md` |
 | Développeur | `restreint/18_architecture.md`, `restreint/19_modeles_donnees.md`, puis les fichiers `*_technique.md` |
 | Administrateur | `restreint/22_securite.md`, `restreint/04_organisation_technique.md` |
 | Tous | `diffusable/03_lire_ce_dossier.md` (étiquettes, états A/B, sources) |
@@ -22,7 +22,8 @@
 | `schemas/src`, `schemas/svg` | Sources Mermaid et exports SVG lisibles hors ligne | Selon le chapitre |
 | `couverture/` | Inventaires et matrice de couverture générés depuis le code | Restreinte |
 | `outils/` | Scripts d'inventaire et de contrôle (lecture seule) | Restreinte |
-| `G0_*.md`, `RAPPORT_E1.md` | Cadrage, sommaire et rapport de livraison de l'ensemble 1 | Restreinte |
+| `restreint/ECARTS_DECISIONS_CODE.md` | Écarts entre décisions du PO et code, décisions ambiguës | Restreinte |
+| `G0_*.md`, `RAPPORT_E1.md`, `RAPPORT_E2.md` | Cadrage, sommaire et rapport de livraison de l'ensemble 1 | Restreinte |
 
 ## Régénérer et contrôler
 

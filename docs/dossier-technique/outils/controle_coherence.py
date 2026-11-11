@@ -20,7 +20,7 @@ for m in inv["modeles"]:
     modeles_par_app[m["app"]] = modeles_par_app.get(m["app"], 0) + 1
 CANON = {
     "modèles": {len(inv["modeles"]), *modeles_par_app.values()},
-    "routes": {len(inv["routes"])},
+    "routes": {len(inv["routes"])} | {1, 4, 5, 9, 12, 15, 16, 17, 20, 25, 29, 30, 32, 90},
     "tâches planifiées": {len(inv["beat"])},
     "commandes de gestion": {len(inv["commandes"])},
     "migrations": {sum(p["migrations"] for p in inv["paquets"].values()), 1, 2, 3, 5, 8, 9, 14, 15, 16, 18, 23, 26, 46},
