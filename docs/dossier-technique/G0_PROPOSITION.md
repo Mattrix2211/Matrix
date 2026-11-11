@@ -2,6 +2,8 @@
 
 > **Statut : proposition soumise à validation.** Aucune rédaction du dossier n'est commencée. Aucun code applicatif n'est modifié. Ce document ne contient ni audit ni liste d'anomalies : il décrit comment le dossier sera construit, vérifié et relu.
 
+> **Mise à jour du 11/11/2026 :** le sommaire, le regroupement des étapes et les décisions du PO sont désormais dans `G0_SOMMAIRE_DETAILLE.md`, qui prévaut sur ce document.
+
 Date : 11/11/2026 · Branche documentaire : `claude/fervent-wright-kl6gtx` (aucune fusion dans `main`, aucune PR).
 
 ---
