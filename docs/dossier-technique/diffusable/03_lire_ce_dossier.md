@@ -98,6 +98,7 @@ Le glossaire complet est l'**annexe A**. Quatre distinctions à garder en tête 
 |---|---|
 | 11/11/2026 | Édition G0, ensemble 1 : chapitres 1 à 5, 18, 19, 22 ; annexes A et B |
 | 11/11/2026 | Ensemble 2 : chapitres 6 à 10 ; chapitre 5 complété (sept profils, écarts d'implémentation) ; registre des écarts `restreint/ECARTS_DECISIONS_CODE.md` |
+| 11/11/2026 | Ensemble 3 : chapitres 11 à 16 ; schémas S22 à S33 ; registre des écarts complété (A15 à A21) ; chapitre 5 (BSC, chef de liste, points à confirmer) et chapitre 8 révisés ; A12 et A14 reformulés |
 
 ---
 

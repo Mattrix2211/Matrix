@@ -1,0 +1,10 @@
+flowchart TB
+  P["Proposé : par un marin, depuis une source (ticket, anomalie, tâche, demande)"]
+  R["Routage par domaine : COMA référent et organisme destinataire configurables"]
+  V["Validé et publié : devient un document de la base de connaissances du bâtiment"]
+  X["Refusé"]
+  C["Clos"]
+  P --> R
+  R -->|"décision d'un habilité du bâtiment, seuil chef de service par défaut"| V
+  R -->|"décision"| X
+  V -->|"actions décidées : tâches suivies"| C

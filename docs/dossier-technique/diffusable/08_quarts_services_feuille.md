@@ -128,7 +128,7 @@ Une liste à quai a, en plus, une **application** distincte de sa validation : *
 | Administrateur technique | Peut valider et publier (via la supervision du commandement) | Aucun visa métier (`DEC-DRT-02`) |
 | Lots de correction | — | L10 (échanges), L09 (publication), L08 (suppléance), L06 (administrateur technique) |
 
-> ⚠️ **Écarts d'implémentation.** Les lignes ci-dessus sont détaillées dans `restreint/ECARTS_DECISIONS_CODE.md` (A1, A2, A3). **Décisions absentes ou ambiguës**, signalées sans inventer de réponse : (1) ce qui rend un suppléant « officiel » (B1) ; (2) si les échanges concernent aussi les **quarts à la mer** (B3), le code ne gérant que les services à quai.
+> ⚠️ **Écarts d'implémentation.** Les lignes ci-dessus sont détaillées dans `restreint/ECARTS_DECISIONS_CODE.md` (A1, A2, A3). **Points à confirmer** (la décision existante est appliquée ; la règle cible n'est pas inventée) : (1) **suppléance du COMAEQ** : le principe est décidé — suppléance explicitement désignée, activée, limitée dans le temps et dans son périmètre, tracée (`DEC-SUP-01`) — mais la **procédure exacte de désignation du suppléant reste à confirmer** (B1) ; (2) les **échanges ne sont pas généralisés aux quarts à la mer** : sans validation métier, le fonctionnement reste celui des services à quai (B3) ; (3) l'**autorité cible** de déclaration d'accostage et d'appareillage reste à confirmer, le fonctionnement actuel étant documenté ci-dessus (B4).
 
 ## 8.8 La feuille de service
 

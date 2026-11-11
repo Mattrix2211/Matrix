@@ -1,0 +1,8 @@
+flowchart TB
+  subgraph BORD["Fiche d'installation adaptée au bord"]
+    B1["Rédaction : chef de section ou chef de secteur"] --> B2["Visa du chef de secteur, sauf si le rédacteur l'est"]
+    B2 --> B3["Visa du chef de service"] --> B4["Visa du commandant adjoint du service porteur"] --> B5["Version validée applicable"]
+  end
+  subgraph FLO["Fiche de matériel de la flotte et nouvel article du catalogue"]
+    F1["Rédaction au bord, mêmes visas du bord"] --> F2["Vérification par le responsable de spécialité à terre"] --> F3["Visa du chef du responsable de spécialité"] --> F4["Publication au catalogue de la flotte"]
+  end

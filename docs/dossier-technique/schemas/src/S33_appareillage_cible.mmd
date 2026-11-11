@@ -1,0 +1,8 @@
+flowchart TB
+  FR["Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification"]
+  FS["Le chef de service examine et valide à son niveau"]
+  CN["Le COMANAV approuve la fiche, dont les contrôles obligatoires et critiques"]
+  PR["Préparation d'un départ : contrôles générés depuis la fiche applicable"]
+  RS["Réserves explicites, justifiées, tracées ; un contrôle critique non dérogeable ne se contourne pas"]
+  CI["Circuit de clôture : section ou secteur, puis service, puis COMANAV"]
+  FR --> FS --> CN --> PR --> RS --> CI

@@ -110,7 +110,7 @@
 | **MCO** | Maintien en condition opérationnelle. |
 | **RETEX** | Retour d'expérience. |
 | **GMAO** | Gestion de maintenance assistée par ordinateur : un module de Matrix, pas Matrix. |
-| **NNO** | Champ du matériel et du catalogue (code de l'état B). ⚪ Développé non précisé dans le code. |
+| **NNO** | Numéro de Nomenclature OTAN : référence militaire standard identifiant une pièce de façon univoque (libellé du champ du stock ; champ facultatif, texte libre). Présent sur le matériel, le catalogue et le stock. |
 | **VAPID / Web Push** | Clés et mécanisme d'envoi de notifications au navigateur, auto-hébergés. |
 | **Mot de passe provisoire** | Mot de passe généré à la réinitialisation, affiché une seule fois, à remplacer à la première connexion. |
 | **Instance de démonstration** | Base fictive isolée, marquée comme telle ; ne démarre jamais en production. |

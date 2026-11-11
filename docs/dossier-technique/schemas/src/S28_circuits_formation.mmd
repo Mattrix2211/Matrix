@@ -1,0 +1,13 @@
+flowchart TB
+  subgraph A["Circuit A : demande de places"]
+    A1["Un chef de section ou plus demande des places pour son bord"] --> A2["Un référent de la formation enregistre l'attribution des places"] --> A3["Les places sont affectées à des marins"]
+  end
+  subgraph B["Circuit B : candidature individuelle"]
+    B1["Le marin candidate"] --> B2["Validation hiérarchique"] --> B3["Validation du BRH"] --> B4["Transmise à l'organisme, puis sélectionnée ou refusée"]
+  end
+  subgraph C["Circuit C : formation gérée par le bord"]
+    C1["Proposée ou modifiée par le bord (active d'emblée si le proposeur est chef de service)"] --> C2["En attente de validation du chef de service"] --> C3["Active au catalogue, ou refusée"]
+  end
+  A3 --> S["Session : réservation, présence, résultat"]
+  B4 --> S
+  S --> Q["Validation par un référent : qualification avec échéance"]

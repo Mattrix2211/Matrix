@@ -1,0 +1,9 @@
+flowchart LR
+  MV["Mouvement de stock : entrée, sortie, inventaire, correction"]
+  SO["Quantité de la pièce : somme des mouvements"]
+  AL["Seuil minimal : alerte Important ; seuil critique : alerte Urgent"]
+  TK["Ticket correctif"]
+  DP["Demande de pièces : lignes à commander, commandée, expédiée, reçue, consommée"]
+  MV --> SO --> AL
+  TK --> DP
+  DP -->|"pièce consommée prélevée au stock"| MV

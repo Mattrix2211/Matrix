@@ -79,7 +79,7 @@ Pour l'état-major, un contrôle supplémentaire s'applique : il n'écrit que su
 
 Enfin, certains circuits exigent une **fonction précise**, quel que soit le niveau : par exemple le visa de la feuille de service revient au COMAEQ compétent du service et de l'équipage concerné, et non à « un état-major ». Un administrateur désigne le titulaire d'une fonction, **sans pouvoir viser à sa place**.
 
-## 5.4 bis — Sept personnes, sept journées
+## 5.4 bis — Sept personnes, sept journées, et deux désignations (BSC, chef de liste)
 
 Pour comprendre ce que les droits changent concrètement, voici ce que peuvent faire sept personnes fictives d'un même bâtiment. Le tableau est **généré depuis les valeurs par défaut du code** (`outils/generer_exemples_droits.py`) ; il indique si le **niveau** de la personne atteint le seuil de l'action. Ce n'est qu'une des conditions : le **périmètre** (et, pour certains circuits, la **fonction exercée**) s'y ajoute toujours.
 
@@ -110,9 +110,26 @@ Pour comprendre ce que les droits changent concrètement, voici ce que peuvent f
 
 **Le COMAEQ (état-major).** Il porte la vie à bord et le service courant. Dans Matrix, il écrit **uniquement** dans les services rattachés à la fonction COMAEQ. **Il vise la feuille de service** : ce visa lui revient en tant que **titulaire de la fonction COMAEQ** de son équipage, et non parce qu'il est « état-major ». Il désigne les rédacteurs (le BSC) de la feuille de son équipage. Il déclare l'accostage et l'appareillage du bâtiment. 🔵 *Règle cible validée par le PO, non appliquée :* il décide des échanges de tours et approuve et publie les listes de quarts et de gardes (voir §5.11).
 
+**Le BSC (rédacteur de la feuille de service).** Le BSC est le marin **désigné nominativement par le COMAEQ** de son équipage pour préparer la feuille de service. Son droit de rédiger vient de **cette désignation**, pas de son grade ni de son rôle : un matelot désigné rédige ; un commandant non désigné ne rédige pas. Il **prépare et propose** la feuille ; il **ne la vise pas** et **ne la publie pas** : elle passe par le visa du chef de secteur, du chef de service, puis du COMAEQ. Il n'est pas une autorité parallèle au COMAEQ. S'il change d'équipage ou quitte le bâtiment, sa désignation cesse de donner un droit.
+
+**Le chef de liste.** Le chef de liste est un marin **désigné pour un périmètre précis et un type de liste** : « quarts à la mer » ou « services à quai ». Il **prépare** la liste (créneaux, affectations) et la **propose** à la publication ; pour une liste à quai, il **active** la liste publiée à titre prévisionnel. Son droit vient de **cette désignation**, pas de son grade ; une désignation sans type ne donne aucun droit. Il ne publie pas, sauf s'il relève par ailleurs du commandement ou atteint le seuil de publication de son périmètre.
+
 **Le commandant.** Vision et supervision du bâtiment : il gère les comptes jusqu'au niveau état-major, active ou désactive des modules, propose la relève de l'équipage, valide l'organisation d'alerte, gère les listes de son bâtiment (création, publication) au titre de la supervision. Si le poste de COMAEQ est vacant, **lui seul** (et pas son second) peut viser la feuille de service de son équipage, de façon tracée et signalée ; un COMAEQ simplement absent n'ouvre pas cette exception.
 
 **L'administrateur technique (administrateur d'unité).** Il administre la **plateforme et le bâtiment** : crée les comptes, règle les seuils et les modules, modifie la structure, réinitialise les mots de passe, désigne les titulaires de fonctions (le COMAEQ, par exemple), applique la configuration. 🔵 **Règle validée par le PO : il n'a aucun visa métier** : il désigne les titulaires sans viser à leur place. ⚠️ **Écart d'implémentation** : dans l'état B, son niveau lui fait atteindre les seuils de la plupart des actions métier (colonne de droite du tableau). Seules des règles propres à certains circuits l'en écartent (visa du COMAEQ, rédaction de la feuille de service). Cet écart n'est **pas** la règle souhaitée ; il est traité par le lot L06 (voir §5.11 et `restreint/ECARTS_DECISIONS_CODE.md`).
+
+### Qui prépare, qui valide, qui autorise la publication
+
+Trois responsabilités à ne pas confondre. Le tableau distingue **le fonctionnement actuel (état B)** de la **règle cible validée par le PO**.
+
+| Objet | Qui **prépare** | Qui **valide / vise** | Qui **autorise la publication** (actuel 🟢) | Règle cible 🔵 |
+|---|---|---|---|---|
+| **Feuille de service** | Le **BSC** (ou délégué), désigné par le COMAEQ | Visas successifs : chef de secteur, chef de service, puis **COMAEQ** titulaire (secours : commandant de l'équipage si le poste est vacant) | La publication suit le dernier visa (COMAEQ) ; refusée si le contenu a changé depuis | Conforme (`DEC-FDS-01`, `-02`, `-11`, `-12`) ; s'y ajoute l'impression A4 et la réimpression versionnée (non développées) |
+| **Liste de quarts à la mer** | Le **chef de liste « quarts »** désigné pour le périmètre | — (pas de visa intermédiaire) | Le commandement, ou un rôle atteignant le seuil de publication **dont le périmètre personnel est exactement celui de la liste** | Le **COMAEQ ou son suppléant habilité** approuve et publie (`DEC-FDS-14`) : **écart**, lot L09 |
+| **Liste de services à quai** | Le **chef de liste « quai »** désigné pour le périmètre | — | Idem ; l'**activation** (rendre la liste applicable) revient au **seul chef de liste désigné** ou à son remplaçant, jamais au COMAEQ | Publication : COMAEQ ou suppléant habilité (`DEC-FDS-14`) ; activation : inchangée |
+| **Échange de tour de service à quai** | Les deux marins (demande, accord) | Aujourd'hui : qui **gère la liste** | — | Le chef de liste ou le BSC **instruit** ; le **COMAEQ ou son suppléant habilité décide** (`DEC-FDS-07`, `-13`) : **écart**, lot L10 |
+
+**À retenir.** Celui qui **prépare** une feuille (le BSC) n'est pas celui qui prépare une **liste** (le chef de liste), et ni l'un ni l'autre n'est, par construction, celui qui **valide** et **autorise la publication**. Aucun de ces droits ne se déduit du seul grade.
 
 ## 5.5 Les seuils par action : la configuration plutôt que le code
 
@@ -207,7 +224,7 @@ Les quatre écarts suivants opposent une **décision du PO** à un **comportemen
 | **Administrateur technique** | Il n'a aucun visa métier ; il désigne les titulaires sans viser à leur place (`DEC-DRT-02`) | Son niveau atteint les seuils de la plupart des actions métier ; seuls certains circuits l'en écartent | L06 |
 | **Échanges de tours** | La décision finale revient au COMAEQ ou à son suppléant habilité ; le chef de liste ou le BSC instruit (`DEC-FDS-07`, `DEC-FDS-13`) | La validation revient à qui **gère la liste** : chef de liste désigné, ou commandement (`peut_valider_echange`) | L10 |
 | **Publication des listes de quarts et de gardes** | Le chef de liste prépare et propose ; le COMAEQ ou son suppléant habilité approuve et publie (`DEC-FDS-14`) | Publie : le commandement, ou tout rôle atteignant le seuil « chef de service » **dont le périmètre personnel est exactement celui de la liste** ; la fonction COMAEQ n'intervient pas | L09 |
-| **Commandant en second** | Vision globale ; écritures limitées aux responsabilités attribuées, pas à un seuil de grade (Notion « 13 — Décisions ») | L'écriture héritée de son grade lui est retirée, mais certaines vues comparent le seuil à **son grade** et d'autres à son **niveau d'écriture** : son pouvoir varie selon la vue | Non identifié (voir « décisions absentes ou ambiguës ») |
+| **Commandant en second** | Vision globale ; écritures limitées aux responsabilités attribuées, pas à un seuil de grade (Notion « 13 — Décisions ») | L'écriture héritée de son grade lui est retirée, mais certaines vues comparent le seuil à **son grade** et d'autres à son **niveau d'écriture** : son pouvoir varie selon la vue | Non identifié ; **les responsabilités doivent être explicites et attribuées dans un cadre autorisé, jamais déduites du grade** ; qui les attribue est **à confirmer** (registre des écarts, B2) |
 
 ## 5.12 Limites et éléments non vérifiés
 

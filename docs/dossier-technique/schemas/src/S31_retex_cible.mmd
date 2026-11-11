@@ -1,0 +1,5 @@
+flowchart TB
+  AU["Auteur"] --> CSE["Chef de section, si présent"] --> CSC["Chef de secteur"] --> CSV["Chef de service"] --> PU["Publication"]
+  CSC -->|"correction motivée"| AU
+  CSV -->|"correction motivée"| AU
+  AU -->|"une correction crée une nouvelle version et les validations nécessaires"| AU

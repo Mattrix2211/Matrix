@@ -2,7 +2,7 @@
 
 > Diffusion restreinte. Générée par `outils/generer_matrice_couverture.py` à partir de l'inventaire de l'état B (`couverture/etat_B/inventaire.json`) et des chapitres rédigés. Ne pas éditer à la main.
 
-Chapitres rédigés pris en compte : 01_vision.md, 02_vue_ensemble.md, 03_lire_ce_dossier.md, 04_organisation.md, 04_organisation_technique.md, 05_comptes_autorisations_technique.md, 05_comptes_roles_autorisations.md, 06_accueil_pilotage.md, 06_accueil_pilotage_technique.md, 07_calendrier.md, 07_calendrier_technique.md, 08_quarts_services_feuille.md, 08_quarts_services_feuille_technique.md, 09_communication.md, 09_communication_technique.md, 10_taches_demandes_programme_postes.md, 10_taches_demandes_programme_postes_technique.md, 18_architecture.md, 19_modeles_donnees.md, 22_securite.md.
+Chapitres rédigés pris en compte : 01_vision.md, 02_vue_ensemble.md, 03_lire_ce_dossier.md, 04_organisation.md, 04_organisation_technique.md, 05_comptes_autorisations_technique.md, 05_comptes_roles_autorisations.md, 06_accueil_pilotage.md, 06_accueil_pilotage_technique.md, 07_calendrier.md, 07_calendrier_technique.md, 08_quarts_services_feuille.md, 08_quarts_services_feuille_technique.md, 09_communication.md, 09_communication_technique.md, 10_taches_demandes_programme_postes.md, 10_taches_demandes_programme_postes_technique.md, 11_materiel_installations.md, 11_materiel_installations_technique.md, 12_maintenance_anomalies_tickets.md, 12_maintenance_anomalies_tickets_technique.md, 13_logistique.md, 13_logistique_technique.md, 14_formations.md, 14_formations_technique.md, 15_documentation_retex.md, 15_documentation_retex_technique.md, 16_preparation_appareillage.md, 16_preparation_appareillage_technique.md, 18_architecture.md, 19_modeles_donnees.md, 22_securite.md.
 
 ## G.1 Modèles de données
 
@@ -13,25 +13,25 @@ Statut : **Expliqué** = le nom du modèle figure dans un chapitre de domaine r�
 | `absences` | 1 | 1 | 0 | 0 | 8 | E2 |
 | `accounts` | 10 | 10 | 0 | 0 | 5, 19, 22 | E1 |
 | `annonces` | 4 | 4 | 0 | 0 | 9 | E2 |
-| `assets` | 29 | 0 | 14 | 15 | 11 | E3 |
+| `assets` | 29 | 29 | 0 | 0 | 11 | E3 |
 | `calendar_app` | 1 | 1 | 0 | 0 | 7 | E2 |
 | `core` | 1 | 1 | 0 | 0 | 5, 18, 22 | E1 |
-| `dashboard` | 2 | 0 | 2 | 0 | 6, 16 | E2/E3 |
+| `dashboard` | 2 | 2 | 0 | 0 | 6, 16 | E2/E3 |
 | `demandes` | 1 | 1 | 0 | 0 | 10 | E2 |
-| `documentation` | 3 | 0 | 3 | 0 | 15 | E3 |
-| `logistics` | 8 | 0 | 7 | 1 | 12, 13 | E3 |
-| `maintenance` | 6 | 0 | 6 | 0 | 12 | E3 |
+| `documentation` | 3 | 3 | 0 | 0 | 15 | E3 |
+| `logistics` | 8 | 8 | 0 | 0 | 12, 13 | E3 |
+| `maintenance` | 6 | 6 | 0 | 0 | 12 | E3 |
 | `notifications` | 2 | 2 | 0 | 0 | 9, 21 | E2/E4 |
 | `org` | 15 | 15 | 0 | 0 | 4, 19 | E1 |
 | `postes` | 2 | 2 | 0 | 0 | 10 | E2 |
 | `programme` | 3 | 3 | 0 | 0 | 10 | E2 |
 | `quarts` | 22 | 22 | 0 | 0 | 8 | E2 |
-| `retex` | 2 | 0 | 2 | 0 | 15 | E3 |
-| `rondes` | 4 | 0 | 4 | 0 | 12 | E3 |
+| `retex` | 2 | 2 | 0 | 0 | 15 | E3 |
+| `rondes` | 4 | 4 | 0 | 0 | 12 | E3 |
 | `taches` | 5 | 5 | 0 | 0 | 10 | E2 |
 | `threads` | 3 | 3 | 0 | 0 | 9 | E2 |
-| `training` | 11 | 0 | 4 | 7 | 14 | E3 |
-| **Total** | **135** | **70** | **42** | **23** | | |
+| `training` | 11 | 11 | 0 | 0 | 14 | E3 |
+| **Total** | **135** | **135** | **0** | **0** | | |
 
 Modèles de l'ensemble 1 non nommés dans un chapitre rédigé : aucun.
 
@@ -75,13 +75,13 @@ Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C
 | `quarts.tasks.signaler_divergences_feuilles` | `signaler_divergences_feuilles_15min` | oui |
 | `quarts.tasks.traiter_echeances_activation` | `traiter_echeances_activation_minute` | oui |
 | `matrix.core.tasks.purger_brouillons` | `purger_brouillons_daily` | domaine seulement (ch. 18), détail ch. 21 |
-| `maintenance.tasks.generate_occurrences` | `generate_occurrences_daily` | domaine seulement (ch. 18), détail ch. 21 |
-| `maintenance.tasks.compute_overdue` | `compute_overdue_hourly` | domaine seulement (ch. 18), détail ch. 21 |
+| `maintenance.tasks.generate_occurrences` | `generate_occurrences_daily` | oui |
+| `maintenance.tasks.compute_overdue` | `compute_overdue_hourly` | oui |
 | `notifications.tasks.notify_expiring_training` | `notify_expiring_training_daily` | oui |
 | `notifications.tasks.notify_overdue_occurrences` | `notify_overdue_occurrences_hourly` | oui |
 | `notifications.tasks.notify_maintenance_echeance_proche` | `notify_maintenance_echeance_proche_daily` | oui |
 | `notifications.tasks.notify_low_stock` | `notify_low_stock_daily` | oui |
-| `maintenance.tasks.generate_installation_occurrences` | `generate_installation_occurrences_daily` | domaine seulement (ch. 18), détail ch. 21 |
+| `maintenance.tasks.generate_installation_occurrences` | `generate_installation_occurrences_daily` | oui |
 | `notifications.tasks.generate_installation_notifications` | `generate_installation_notifications_daily` | oui |
 | `notifications.tasks.generate_installation_maintenance_notifications` | `generate_installation_maintenance_notifications_daily` | oui |
 | `notifications.tasks.detect_installation_drift` | `detect_installation_drift_daily` | oui |
@@ -96,7 +96,7 @@ Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C
 | Commande | Citée dans un chapitre rédigé |
 |---|---|
 | `catalogue_reprise` | non (ensemble indiqué en annexe E, ensemble 4) |
-| `generate_installation_occurrences` | non (ensemble indiqué en annexe E, ensemble 4) |
+| `generate_installation_occurrences` | oui |
 | `marquer_instance_demo` | non (ensemble indiqué en annexe E, ensemble 4) |
 | `purger_brouillons` | non (ensemble indiqué en annexe E, ensemble 4) |
 | `seed_demo` | oui |
@@ -145,13 +145,18 @@ Le détail des routes est généré dans `couverture/etat_B/ROUTES.md` (annexe C
 | Feuille de service, visas et rectificatif | 8 | E2 | rédigé |
 | Annonce et accusé de lecture | 9 | E2 | rédigé |
 | Tâche : attribution, blocage, clôture | 10 | E2 | rédigé |
-| Ticket correctif et anomalie | 12 | E3 | à rédiger |
-| Maintenance : exécution et clôture critique | 12 | E3 | à rédiger |
-| Demande de pièce | 13 | E3 | à rédiger |
-| Fiche de maintenance flotte (7 étapes) | 11 | E3 | à rédiger |
-| Validation de formation par un référent | 14 | E3 | à rédiger |
-| RETEX | 15 | E3 | à rédiger |
-| Préparation à l'appareillage | 16 | E3 | à rédiger |
+| Ticket correctif et anomalie | 12 | E3 | rédigé |
+| Maintenance : exécution et clôture critique | 12 | E3 | rédigé |
+| Demande de pièces et mouvements de stock | 13 | E3 | rédigé |
+| Fiche de maintenance : circuits de validation (bord et flotte) | 11 | E3 | rédigé |
+| Équiper le bord depuis le catalogue (proposition d'article) | 11 | E3 | rédigé |
+| Formation : demande de places, candidature, formation du bord | 14 | E3 | rédigé |
+| Validation de formation par un référent | 14 | E3 | rédigé |
+| Documentation : versions et validation | 15 | E3 | rédigé |
+| RETEX : fonctionnement actuel | 15 | E3 | rédigé |
+| RETEX : fonctionnement cible (DEC-RTX-01) | 15 | E3 | rédigé |
+| Préparation à l'appareillage : fonctionnement actuel | 16 | E3 | rédigé |
+| Préparation à l'appareillage : fonctionnement cible (DEC-APP-14) | 16 | E3 | rédigé |
 
 ## G.7 Dépendances entre paquets
 

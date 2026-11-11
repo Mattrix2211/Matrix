@@ -40,10 +40,13 @@ CIRCUITS = [  # circuit, chapitre, ensemble, mot-clé de preuve dans les chapitr
    ("Activation d'une liste de services à quai", "8", "E2", "activer_liste"), ("Notifications et Web Push", "9", "E2", "creer_notifications_en_masse"), ("Difficulté signalée (demande)", "10", "E2", "changer_etat"), ("Programme du bâtiment", "10", "E2", "peut_deleguer"), ("Passation de relève", "6", "E2", "generer_passation"), ("Bilan et exports", "6", "E2", "GenererBilanView"), ("Recherche globale", "9", "E2", "rechercher"), ("Absences", "8", "E2", "peut_valider_absence"), ("Publication d'une liste de quarts ou de gardes", "8", "E2", "peut_publier_liste"),
     ("Feuille de service, visas et rectificatif", "8", "E2", "ouvrir_rectificatif"), ("Annonce et accusé de lecture", "9", "E2", "rappeler_accuses"),
     ("Tâche : attribution, blocage, clôture", "10", "E2", "signaler_blocage"),
-    ("Ticket correctif et anomalie", "12", "E3", None), ("Maintenance : exécution et clôture critique", "12", "E3", None),
-    ("Demande de pièce", "13", "E3", None), ("Fiche de maintenance flotte (7 étapes)", "11", "E3", None),
-    ("Validation de formation par un référent", "14", "E3", None), ("RETEX", "15", "E3", None),
-    ("Préparation à l'appareillage", "16", "E3", None),
+    ("Ticket correctif et anomalie", "12", "E3", "TicketTransitionView"), ("Maintenance : exécution et clôture critique", "12", "E3", "OccurrenceExecuteView|installation \\*\\*critique\\*\\*"),
+    ("Demande de pièces et mouvements de stock", "13", "E3", "enregistrer_mouvement|MouvementStock"), ("Fiche de maintenance : circuits de validation (bord et flotte)", "11", "E3", "fiche_validation"),
+    ("Équiper le bord depuis le catalogue (proposition d'article)", "11", "E3", "proposition_article"),
+    ("Formation : demande de places, candidature, formation du bord", "14", "E3", "_attribuer_places"), ("Validation de formation par un référent", "14", "E3", "peut_valider_formation"),
+    ("Documentation : versions et validation", "15", "E3", "proposer_amelioration"),
+    ("RETEX : fonctionnement actuel", "15", "E3", "valideurs"), ("RETEX : fonctionnement cible (DEC-RTX-01)", "15", "E3", "DEC-RTX-01"),
+    ("Préparation à l'appareillage : fonctionnement actuel", "16", "E3", "SessionAppareillageSignerView"), ("Préparation à l'appareillage : fonctionnement cible (DEC-APP-14)", "16", "E3", "DEC-APP-14"),
 ]
 
 par_app = defaultdict(list)
