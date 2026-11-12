@@ -2,7 +2,7 @@
 
 > **Pour qui :** marins, responsables, développeurs. **Diffusion :** générale (mécanismes et références dans la partie restreinte du dossier).
 > **Ce que vous y trouverez :** comment l'interface est pensée (PC fixe, poste partagé, réseau du bord), comment on s'y repère, comment on saisit vite, ce que Matrix fait sur mobile et tablette, les parcours types par profil, ce que le PO a observé en recette et ce qui reste cible.
-> **État décrit :** état B (`6d6d0be`), non fusionné dans `main`. Légende : 🟢 réel vérifié, 🔵 cible ou observation du PO, ⚪ non vérifié. Sources métier lues : cahier UX `docs/UX.md` (décisions du 02/10/2026), Notion « Cap UX/UI Naval Premium » (29/10/2026) et « Recette UX V1.1 » (31/10/2026).
+> **État décrit :** état B (`6d6d0be`), non fusionné dans `main`. Légende : 🟢 réel vérifié, 🔵 cible validée par le PO, 🟣 proposition à valider, ⚪ non vérifié. Les observations de recette du PO sont distinguées des décisions validées. Sources métier lues : cahier UX `docs/UX.md` (décisions du 02/10/2026), Notion « Cap UX/UI Naval Premium » (29/10/2026) et « Recette UX V1.1 » (31/10/2026).
 
 ---
 
