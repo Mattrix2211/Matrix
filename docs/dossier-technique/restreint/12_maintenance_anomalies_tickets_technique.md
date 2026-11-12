@@ -55,7 +55,7 @@ S24 (plan → réalisation), S25 (états), S26 (ticket et anomalie).
 
 ## Limites
 
-- Sortie de l'état En validation : correction du compte rendu seulement ; risque de blocage sans alerte (A20).
+- Sortie de l'état En validation : trois chemins vérifiés par test (correction du compte rendu, API `start`, administration) ; risque de blocage sans notification ni échéance, et suspension de l'entretien récurrent d'une installation (A20).
 - ⚪ Les envois de notifications ne sont pas rejoués.
 
 ---

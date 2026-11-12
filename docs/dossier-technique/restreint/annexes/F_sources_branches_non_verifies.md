@@ -37,8 +37,8 @@
 
 | Branche | Date | Commit | Dans A (`main`) | Dans B | Statut |
 |---|---|---|---|---|---|
+| `claude/fervent-wright-kl6gtx` | 2026-11-12 | `f960c84` | non | non | analysée |
 | `chatgpt/relecture-g0-corrections-20261112` | 2026-11-12 | `1aac419` | non | non | non analysée ⚪ |
-| `claude/fervent-wright-kl6gtx` | 2026-11-12 | `1173aef` | non | non | analysée |
 | `claude/eager-hopper-2cbcqh` | 2026-11-11 | `6cc1557` | non | non | analysée |
 | `claude/l03-suppression-sure-v11` | 2026-11-11 | `6d6d0be` | non | oui | analysée |
 | `claude/l02-archivage-effectif-v11` | 2026-11-11 | `6e14a65` | non | oui | analysée |
@@ -93,7 +93,7 @@
 
 ## F.5 Registre des éléments non vérifiés (⚪), par chapitre (généré)
 
-**173 passages** répartis sur 41 fichiers.
+**168 passages** répartis sur 41 fichiers.
 Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. Aucune ligne n'a été ajoutée ni retirée à la main.
 
 ### 01_vision.md
@@ -212,7 +212,6 @@ Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. A
 - - ⚪ Les observations PO-xx sont des constats d'un seul passage, non reproduits.
 
 ### 25_fonctionnement_cible.md
-- ## 25.9 Orientations du cahier des charges, non décidées en lots 🔵⚪
 - - ⚪ Le plan en 28 lots **est une proposition** ; ni l'ordre ni la taille ne sont engagés. Seules les décisions `DEC-…` citées sont validées par le PO.
 - - ⚪ Les décisions et lots ont été relevés dans le dossier V1.2 (125 décisions) et dans les comptes rendus L01, L05, L02, L03 ; l'état des autres lots est « non lancé ».
 
@@ -333,20 +332,14 @@ Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. A
 - 8. Worker et beat lancés et **supervisés** ⚪ ; Redis disponible.
 - ⚪ **Windows** : la recette Windows (`docs/recette/L01_recette_windows.md`) existe ; le kit a été testé sous **Linux**, pas sous Windows. **Safari/iPhone** : exige un environnement mobile isolé approuvé, sinon « non effectué ».
 - - ⚪ **Retour arrière** : aucune procédure fournie ; la restauration d'une sauvegarde est la seule voie sûre.
-- ## 23.9 Sauvegarde et restauration ⚪
 - Ce qui reste **à définir avec les SIC** : outil, fréquence, support, chiffrement, durée de conservation, essai de restauration, restauration depuis le bord vers la terre. **Aucune règle n'est inventée ici.** Redis ne porte que la file des tâches ; ⚪ la perte de Redis ne doit pas perdre de données métier, mais **l'effet d'une per…
 - - **Journaux techniques** : aucune configuration de journalisation Django ; `start.bat` écrit `celery.log` et `celery-beat.log` à la racine ; ⚪ pas de rotation, pas de centralisation.
 - - **Supervision** de Redis, de Celery, de la base, de l'espace disque : ⚪ **rien de livré**.
 - 1. Pas de **haute disponibilité** : un serveur, une base ; ⚪ aucun plan de reprise.
-- ## 23.12 Cible et à définir 🔵⚪
 - - Exigences de la page Notion « 07 — SIC, cyber, protection-défense et conformité » : elle décrit l'organisation (DIRISI, CMC2, logique d'incident, conformité « utilisable = fonctionne + conforme + contrôlé + autorisé »), **sans exigence technique chiffrée** pour Matrix ; ⚪ aucune exigence SIC opposable n'a été fournie.
 
 ### 24_qualite_contribution.md
-- ## 24.2 Ce qui n'est pas couvert ⚪
 - - **Test utilisateur à l'aveugle** : le protocole de recette UX (4 marins) est défini dans Notion ; ⚪ ses résultats ne sont pas dans ce dossier.
 - - ⚪ La suite complète n'a pas été rejouée ; les chiffres viennent des comptes rendus de lots.
 - - ⚪ Le nombre de **fonctions de test** (≈ 3 950) compté par lecture ne coïncide pas exactement avec le nombre de **tests** exécutés (3 963) : les tests paramétrés ou hérités expliquent l'écart.
 - - ⚪ Le fonctionnement réel des agents (PO, Développeur, Relecteur) est décrit d'après leurs fichiers de configuration, non observé dans ce dossier.
-
-### 26_historique_branches_technique.md
-- ## 26T.4 Limites : ce qui n'est pas analysé ⚪
