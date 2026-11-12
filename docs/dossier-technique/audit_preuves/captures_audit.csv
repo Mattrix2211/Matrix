@@ -1,0 +1,65 @@
+dossier;capture;profil;adresse;page du guide;verdict;constat
+01_prise_en_main;accueil_marin;equipier_a;/;5;mineur;"Coupée à 768 px : blocs « Indicateurs » et suppression invisibles alors que le chapitre 6 les décrit ; repère 4 (cloche) hors de la zone utile"
+01_prise_en_main;accueil_marin_suivi;equipier_a;/demandes/;non utilisée;OK;"Non utilisée ; illustre l'onglet « Suivi » (barre de parcours non documentée dans le dossier)"
+01_prise_en_main;menu_deplie;equipier_a;/;4;redondante;"≈ accueil_marin (1,1 % de pixels différents) ; deux groupes dépliés alors que le texte dit « seul le premier est ouvert par défaut »"
+01_prise_en_main;notifications;equipier_a;/;6;OK;"Fond assombri ; message « Non activées sur cette instance » = limite d'instance, bien visible"
+01_prise_en_main;recherche_equipement;equipier_a;/;8;OK;"Rognée ; correct"
+01_prise_en_main;recherche_personne;chef_secteur_a;/;non utilisée;OK;"Non utilisée ; profil chef_secteur_a"
+01_prise_en_main;recherche_information;equipier_a;/;8;OK;"Rognée ; montre aussi la catégorie « Marins »"
+01_prise_en_main;calendrier_mois;equipier_a;/calendar/;7;mineur;"Coupée après la 3e semaine ; légende des couleurs non dépliée ; aucun repère"
+01_prise_en_main;annonces;equipier_a;/annonces/;non utilisée;manque;"Non utilisée ; l'accusé de réception (parcours clé du chapitre 9) n'est illustré nulle part"
+01_prise_en_main;annonce_detail;equipier_a;/annonces/5/;non utilisée;manque;"Non utilisée ; l'accusé n'y est pas visible"
+02_taches;taches_liste;equipier_a;/taches/;9;OK;
+02_taches;tache_detail;equipier_a;/taches/1/;10;doublon;Identique à p_tache_1_ouverte (0,0 % de différence)
+02_taches;tache_synthese;chef_section_a;/taches/#synthese;32;OK;"Coupée en bas ; correcte"
+03_quarts_services;tours_par_jour;equipier_a;/quarts/;24;OK;
+03_quarts_services;tours_par_marin;chef_secteur_a;/quarts/?vue=marin&semaine=2026-11-09;34;OK;"Coupée ; la légende de couleur des cartes n'est pas expliquée"
+03_quarts_services;listes;chef_secteur_a;/quarts/?vue=listes;non utilisée;OK;Non utilisée
+03_quarts_services;feuille_service;equipier_a;/quarts/feuille-service/2/2026-11-12/;25;OK;Montre le bouton « Imprimer » : contredit le chapitre 8 §8.9 et le registre A12
+03_quarts_services;echanges;chef_secteur_a;/quarts/echanges/;non utilisée;manque;Non utilisée alors que l'échange de tour est un parcours du chapitre 8
+03_quarts_services;absences;chef_service_a;/absences/;non utilisée;mineur;"Non utilisée ; champs de date au format américain mm/dd/yyyy (artefact de capture)"
+04_maintenance;occurrences;equipier_a;/maintenance/gestion/occurrences/;13;mineur;"Boutons « Exécuter » affichés pour des occurrences que le profil ne peut pas exécuter (403 constaté) : trompeur ; identique à p_maintenance_3_liste"
+04_maintenance;occurrences_retard;chef_secteur_a;/maintenance/gestion/occurrences/?retard=1;non utilisée;OK;Non utilisée
+04_maintenance;execution_fiche;equipier_a;/maintenance/occurrences/2/execute/;14;OK;Repères corrects
+04_maintenance;execution_saisie;equipier_a;/maintenance/occurrences/2/execute/;non utilisée;doublon;Identique à p_maintenance_1_saisie
+05_anomalies_tickets;anomalies_liste;equipier_a;/logistics/anomalies/;non utilisée;OK;Non utilisée
+05_anomalies_tickets;anomalie_detail;chef_secteur_a;/logistics/anomalies/23/;non utilisée;OK;Non utilisée
+05_anomalies_tickets;tickets_liste;chef_secteur_a;/logistics/tickets/?vue=perimetre;non utilisée;redondante;"Non utilisée ; ≈ p_anomalie_9"
+06_materiel_stock;materiels;chef_secteur_a;/assets/;26;OK;"Fiches fictives ajoutées ; icônes génériques"
+06_materiel_stock;materiel_detail;chef_secteur_a;/assets/1d949876-c6ff-4edf-93d3-f0f82e58692f/;27;OK;
+06_materiel_stock;installations;equipier_a;/installations/;non utilisée;manque;Non utilisée : aucun écran d'installation (cœur de la maintenance A20) dans le guide
+06_materiel_stock;installation_detail;equipier_a;/installations/8db5dea3-cc96-4299-8faf-a93119c78900/;non utilisée;manque;Non utilisée : relevés, entretien, dérive jamais montrés
+06_materiel_stock;catalogue;equipier_a;/catalogue/;non utilisée;OK;"Non utilisée ; peu de contenu (1 catégorie)"
+06_materiel_stock;plan_navire;chef_secteur_a;/assets/plan-navire/1/;28;OK;Dessin du pont fictif, signalé comme tel
+06_materiel_stock;stock;chef_secteur_a;/logistics/stock/;29;mineur;Coupée avant les dernières lignes
+07_supervision;accueil_chef_secteur;chef_secteur_a;/;non utilisée;manque;"Non utilisée ; bloc « Supervision » (bas de page) jamais capturé"
+07_supervision;equipe_calendrier;chef_section_a;/calendar/?user=equipe;33;OK;
+07_supervision;vue_secteur;chef_secteur_a;/dashboard/flotte/;35;OK;"Repères sur les marges ; correct"
+07_supervision;vue_unite;chef_service_a;/dashboard/flotte/;non utilisée;OK;Non utilisée
+07_supervision;difficultes;chef_secteur_a;/demandes/;non utilisée;OK;Non utilisée
+08_autres_ecrans;formations;equipier_a;/formations/;30;OK;
+08_autres_ecrans;formation_detail;equipier_a;/formations/1/;non utilisée;OK;Non utilisée
+08_autres_ecrans;postes;chef_secteur_a;/postes/;31;OK;Données fictives ajoutées
+08_autres_ecrans;documentation;equipier_a;/documentation/;non utilisée;manque;Non utilisée : aucun écran Documentation/RETEX dans le guide
+08_autres_ecrans;retex;equipier_a;/retex/;non utilisée;manque;Non utilisée
+08_autres_ecrans;programme;equipier_a;/programme/;non utilisée;OK;Non utilisée
+08_autres_ecrans;pret_appareillage;chef_service_a;/dashboard/pret-appareillage/;37;OK;Écran vide, assumé
+08_autres_ecrans;profil;equipier_a;/users/profil/;non utilisée;OK;Non utilisée
+08_autres_ecrans;parametres;equipier_a;/parametre/?tab=notifications;non utilisée;mineur;"Non utilisée ; heures au format 08:00 AM / 06:00 PM (artefact de navigateur anglais)"
+09_limites;en_validation_execution;chef_secteur_a;/maintenance/occurrences/6/execute/;36;OK;"Profil chef de secteur ; le texte ne dit pas que marin et chef de section n'ont pas le bouton"
+09_limites;en_validation_liste;chef_secteur_a;/maintenance/gestion/occurrences/?statut=WAITING_VALIDATION;non utilisée;OK;Non utilisée
+05_anomalies_tickets;p_anomalie_1_objet;equipier_a;/logistics/anomalies/signaler/;17;mineur;Mention parasite « Brouillon abandonné. » (conséquence du brouillon préexistant)
+05_anomalies_tickets;p_anomalie_2_nature;equipier_a;/logistics/anomalies/signaler/;18;OK;
+05_anomalies_tickets;p_anomalie_3_description;equipier_a;/logistics/anomalies/signaler/;19;mineur;Texte anglais du navigateur « Choose File / No file chosen » dans une interface française
+05_anomalies_tickets;p_anomalie_4_verification;equipier_a;/logistics/anomalies/signaler/;20;OK;
+05_anomalies_tickets;p_anomalie_5_suivi;equipier_a;/logistics/anomalies/24/;21;mineur;Message « Anomalie signalée. Merci ! » superposé
+05_anomalies_tickets;p_anomalie_6_chef;chef_secteur_a;/logistics/anomalies/24/;non utilisée;redondante;Quasi identique à p_anomalie_7 (4,6 %)
+05_anomalies_tickets;p_anomalie_7_prise_en_compte;chef_secteur_a;/logistics/anomalies/24/;22;mineur;Message de confirmation superposé
+05_anomalies_tickets;p_anomalie_8_ticket;chef_secteur_a;/logistics/tickets/15629830-8d82-4d6d-82c6-f026ce687a42/;23;mineur;"Message de conversion semi-transparent superposé ; bas de page (demandes de pièces) coupé"
+05_anomalies_tickets;p_anomalie_9_tickets;chef_secteur_a;/logistics/tickets/?vue=perimetre;non utilisée;redondante;Quasi identique à tickets_liste
+04_maintenance;p_maintenance_1_saisie;equipier_a;/maintenance/occurrences/2/execute/;15;mineur;"Champs Début/Fin au format américain mm/dd/yyyy (artefact de navigateur anglais) ; identique à execution_saisie"
+04_maintenance;p_maintenance_2_termine;equipier_a;/maintenance/occurrences/2/execute/;16;OK;Statut « Terminée » visible
+04_maintenance;p_maintenance_3_liste;equipier_a;/maintenance/gestion/occurrences/;non utilisée;doublon;Identique à occurrences
+02_taches;p_tache_1_ouverte;equipier_a;/taches/1/;non utilisée;doublon;Identique à tache_detail
+02_taches;p_tache_2_compte_rendu;equipier_a;/taches/1/;11;mineur;Message de confirmation superposé en bas à droite
+02_taches;p_tache_3_terminee;equipier_a;/taches/1/;12;mineur;"Message de confirmation superposé ; page coupée avant le champ de réponse"
