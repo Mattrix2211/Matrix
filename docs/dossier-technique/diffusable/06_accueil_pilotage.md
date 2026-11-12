@@ -104,7 +104,7 @@ L'accueil et les tableaux de pilotage **ne contiennent aucun moteur propre** : i
 - 🟢 Couverture de tests de l'état B : 261 fonctions de test dans `dashboard`. ⚪ Les écrans n'ont pas été rejoués dans un navigateur ; leur description vient du code et des gabarits.
 - ⚪ Le contenu exact de chaque vue de pilotage évolue avec les modules sources ; ce chapitre en décrit la **logique d'assemblage**, pas chaque indicateur.
 - ⚪ Le PDF exige des bibliothèques natives non installées dans l'environnement de rédaction : l'export PDF n'a pas été rejoué.
-- ⚪ La page Notion « Recette UX V1.1 » n'a pas encore été lue ; elle le sera avant le chapitre 17.
+- ⚪ La page Notion « Recette UX V1.1 » a été consultée lors de la rédaction du chapitre 17 ; les observations de recette n'ont toutefois pas été rapprochées une à une du comportement du code ni rejouées sur un poste réel.
 
 ---
 
