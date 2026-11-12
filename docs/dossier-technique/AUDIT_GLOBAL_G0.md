@@ -29,20 +29,20 @@
 | Chapitres restreints et compléments | **Lus : 11T, 12T, 23 (en partie), 22 (en partie), 18 (plan)** ; autres non relus | |
 | Annexes | B, C : en-têtes et totaux [C] ; D, E, F, G : non relues | |
 | PDF diffusable (108 p.) | **108/108 pages vues** (phase 1 : 9 ; phase 2 : 99, en paires de pages à 80 dpi) + mesures automatiques | §D, §G.2 |
-| PDF restreint (143 p.) | **108/143 pages vues** (phase 1 : 13 ; phase 2 : 95) ; **25 des 55 pages paysage** ; 35 pages non vues listées au §G.2 | Aucune page vue à 100 % : résolution de 78 à 110 dpi |
+| PDF restreint (143 p.) | **143/143 pages vues** (phase 1 : 13 ; phase 2 : 130), dont les **55 pages paysage** | Aucune page vue à 100 % : résolution de 78 à 110 dpi |
 | Guide visuel (39 p.) | **39 pages vues à ~90 dpi** | Dont 7 revues après la dernière régénération |
 | 64 captures | **64 vues** (planches 683 px puis pages du guide) [V] | Table complète : `audit_preuves/captures_audit.csv` |
 | 42 schémas | **42 mesurés** [A] ; **S09, S10, S11, S13 vus dans le PDF** [V] | |
 | Parcours rejoués dans le navigateur | Droits par profil (5 profils × 16 adresses), A20, tentative A14, exécution de maintenance | `audit_preuves/navigateur_droits.md` |
 
-**Aucune page n'a été inspectée à 100 %** (taille réelle de l'écran) : la résolution maximale est 110 dpi, la plupart à 78–80 dpi. **35 pages du PDF restreint n'ont pas été vues** (§G.2) : l'inspection n'est donc **pas complète**. Elle suffit pour juger la structure, la densité, les schémas et les défauts visibles, pas pour une relecture mot à mot.
+**Aucune page n'a été inspectée à 100 %** (taille réelle de l'écran) : la résolution maximale est 110 dpi, la plupart à 78–80 dpi. **Toutes les pages des deux PDF ont été vues au moins une fois** à cette résolution. Elle suffit pour juger la structure, la densité, les schémas et les défauts visibles, pas pour une relecture mot à mot.
 
 ### 0.3 Points de reprise de la phase 1 — état après la phase 2
 | # | Point | État |
 |---|---|---|
 | 1 | Relire les chapitres diffusables 4, 7, 9, 10, 11, 13, 14, 15, 25, 26 et recouper leurs affirmations | **Fait par recoupement ciblé** (toutes les affirmations chiffrées ou normatives, pas la lecture de chaque phrase) : voir §G.1 |
 | 2 | Relire compléments 5T à 10T, 13T à 17T, chap. 19 à 21, 24, annexes D à G | **Fait en partie** : pages vues, 27/27 références symbole↔ligne recoupées, 31/31 variables d'environnement, 135 modèles ; annexes C/D non recoupées ligne à ligne |
-| 3 | Inspecter les ~190 pages restantes à 100 % | **Fait à ~80–110 dpi pour 108/108 pages du diffusable et 108/143 du restreint** (35 pages du restreint non vues, listées au §G.2) ; **pas à 100 %** |
+| 3 | Inspecter les ~190 pages restantes à 100 % | **Fait à ~78–110 dpi pour 108/108 pages du diffusable et 143/143 du restreint** (complété par une troisième passe : les 35 dernières pages, annexes C à G, ont été vues) ; **pas à 100 %** |
 | 4 | Rejouer relève A/B → passation dans le navigateur | **Fait** (§G.3) |
 | 5 | Vérifier les `DEC-*` contre leurs sources | **Fait** : la branche `claude/eager-hopper-2cbcqh` est accessible (§G.4) |
 
@@ -320,15 +320,15 @@ Elles ne remettent pas en cause la structure ni le fond du dossier ; elles corri
 | Compléments 4T à 12T, 17T | Pages vues ; 27/27 références `symbole`↔`ligne` des compléments 6T, 7T, 11T recoupées | **Exactes** [C][V] |
 | Ch. 18 à 24 | Pages vues ; 135 modèles ; 448 relations (PROTECT 115, SET_NULL 216, CASCADE 102, M2M 15) ; 15 signaux ; 20 tâches planifiées ; 12 champs UUID ; 21 applications | **Exacts** [C] ; 3 erreurs documentaires mineures (AUD-030, 037 et liste de tests AUD-021) |
 | Annexe E | 31/31 variables d'environnement et 18 commandes confrontées à `settings.py` | **Exactes** [C] |
-| Annexes B, C, D, G | Pages vues ; totaux (721 routes, 135 modèles, 35 actions) exacts ; lignes non recoupées une à une | Totaux [C] ; détail [V] |
-| Annexe F §F.5 | Pages 127–135 vues | **Défauts de génération** (AUD-031) |
+| Annexes B, C, D, E, G, H bis | **Toutes les pages vues** ; totaux (721 routes, 135 modèles, 35 actions, 20 tâches, 18 commandes) exacts ; lignes non recoupées une à une | Totaux [C] ; détail [V] |
+| Annexe F §F.5 et F.4 | Pages 124–135 vues | **Défauts de génération** (AUD-031) et chiffre de branches incohérent (AUD-038) |
 | Chap. 1, 2, 3, 5, 8, 12, 17 | Recoupement ciblé de ce qui est vérifiable dans le navigateur (droits par profil, tâche personnelle, assignation) | Exact sauf AUD-002, 004, 005 (phase 1) |
 
 ### G.2 Inspection des PDF (aucune page à 100 %)
 | PDF | Pages vues | Résolution | Pages non vues |
 |---|---|---|---|
 | Diffusable (108) | **108** | 80 dpi (paires), 62–110 dpi en phase 1 | aucune |
-| Restreint (143, dont 55 paysage) | **108** (dont 25 paysage) | 78–90 dpi | **35 pages** : 69, 70, 73, 74, 92, 93, 96, 97, 100, 101, 104–107, 110–113, 116, 117, 120, 121, 124, 125, 128, 129, 132–135, 138–141, 143 (corps des annexes C, D, E, F, G : tableaux générés) |
+| Restreint (143, dont 55 paysage) | **143** (dont 55 paysage) | 78–90 dpi | aucune (les pages 69–74, 92–143 ont été vues dans une troisième passe) |
 | Guide visuel (39) | 39 (phase 1) | ~90 dpi | aucune |
 Mesure automatique complémentaire : taux de remplissage de **chaque** page (`audit_preuves/pages_remplissage.csv`).
 
@@ -360,6 +360,7 @@ Mesure automatique complémentaire : taux de remplissage de **chaque** page (`au
 | AUD-035 | Majeure | Pédagogie | S17, S21, S31, S33 (diffusable p.42, 52, 80, 86) | Les schémas de **circuit cible** ne se distinguent **pas des schémas de fonctionnement réel** : seule la légende dit « cible » ; l'image seule (cadre, couleur, mention) est identique à S16, S20, S30, S32 | [V] | Cadre pointillé bleu + mention « 🔵 CIBLE — non développé » dans l'image | P0 (règle de distinction) |
 | AUD-036 | Mineure | Pédagogie | Schémas ; **fusionne AUD-020** | Sur 42 schémas : **22 bons, 7 moyens, 10 faibles** (listes de cases sans information relationnelle : S02, S14, S22, S24, S27, S36, S37, S38, S40, S42), 1 difficile (S09), 1 illisible (S10) ; S02 montre 6 groupes quand le tableau juste dessous en compte 11 | [V][A] `schemas_verdicts.csv` | Remplacer les listes par des tableaux ; garder les schémas à circuit (S04, S05, S06, S07, S11, S12, S15, S16, S18, S20, S23, S25, S26, S29, S30, S32) | P1 |
 | AUD-037 | Mineure | Doc. | Ch. 5 §5.4 bis, ch. 11 T2 bis, 12 T2 bis, 13 §13.9 bis | Rubriques « bis » : traces d'édition (insertions tardives) | [V] | Renumérotation | P2 |
+| AUD-038 | Mineure | Contradiction | Ch. 26 §26.4 (« 52 branches distantes ») et annexe F.4, p.125 (« 53 branches ») ; F.4 donne `f960c84` comme tête de la branche documentaire | Deux chiffres pour le même inventaire ; l'annexe F.4 est datée de l'ensemble 4 et n'est plus à jour (la branche compte d'autres commits) | [V] p.125 ; [A] grep | Un seul chiffre, avec date ; ne pas citer la tête d'une branche vivante | P2 |
 
 **Nouveaux défauts du logiciel (non documentaires), à arbitrer — jamais décidés ici**
 | ID | Constat | Preuve | Gravité probable |
@@ -375,18 +376,18 @@ Mesure automatique complémentaire : taux de remplissage de **chaque** page (`au
 
 ### I.1 Fusions
 - AUD-009 (pages presque vides) → **AUD-034** ; AUD-020 (schémas ≤ 6,2 pt) → **AUD-036** ; la répétition des bandeaux et des renvois « partie restreinte du dossier » (40 occurrences sans cible, 41 cartouches « Pour qui », 45 rappels « 6d6d0be ») → **AUD-012** ; AUD-024 (prise en main développeur) absorbe NE-03/NE-04 pour la partie documentaire ; AUD-021 absorbe le recomptage des tests.
-- **Total : 37 anomalies enregistrées (29 + 8), 2 fusionnées, 35 actives** : 1 bloquante, 15 majeures, 15 mineures, 4 améliorations.
+- **Total : 38 anomalies enregistrées (29 + 9), 2 fusionnées, 36 actives** : 1 bloquante, 15 majeures, 16 mineures, 4 améliorations.
 
 ### I.2 Répartition par nature
 | Nature | Identifiants | Nombre |
 |---|---|---|
 | **Erreur documentaire factuelle** | AUD-002, 004, 005, 010, 030, 033 | 6 |
-| **Contradiction entre documents** | AUD-003, 012 (partiel), 021 | 3 |
+| **Contradiction entre documents** | AUD-003, 012 (partiel), 021, 038 | 4 |
 | **Classification / diffusion** | AUD-001 | 1 |
 | **Preuve et traçabilité** | AUD-008, 026 | 2 |
 | **Mise en page et lisibilité (PDF, captures, schémas)** | AUD-006, 014, 015, 016, 018, 019, 031, 032, 034, 035, 036 | 11 |
 | **Pédagogie, navigation, contenu manquant** | AUD-011, 012, 013, 022, 023, 024, 025, 028, 029, 037, 017, 007 | 12 |
-| *Total actif* | | *35* |
+| *Total actif* | | *36* |
 | **Défauts du logiciel (hors dossier)** | NE-01 à NE-06 (+ A1–A26 du registre existant) | 6 nouveaux |
 > AUD-007 et AUD-027 mêlent une observation du logiciel (NE-01, NE-02) et une erreur de description : le **dossier** doit être corrigé indépendamment du logiciel.
 
@@ -451,10 +452,10 @@ Efforts en jours-personne, hors décisions du PO. Dépendance « DA » = décisi
 | P1-6 | « Recherche de personnes » (existant / cible) ; annexe des décisions avec état | AUD-022, 026 | 1 | accès à la branche V1.2 |
 | P1-7 | Colonne « profils concernés » dans le registre | §C.1 | 0,5 | — |
 | P1-8 | **Refonte de l'architecture documentaire (§J.3)** | AUD-034 | 6 à 8 | **DA** |
-| P1-9 | Inspecter à 100 % les 35 pages restreintes non vues et relire phrase à phrase les chapitres 9 à 11, 13 à 15 | §G | 2 | — |
+| P1-9 | Inspecter à 100 % (taille réelle) les pages denses des deux PDF et relire phrase à phrase les chapitres 9 à 11, 13 à 15 | §G | 2 | — |
 
 ### P2 — Finitions (≈ 1,5 j)
-Anglais dans les captures (AUD-014), messages parasites (015), doublons de captures (016), faute du chapitre 5 (017), identifiants coupés (018), symbole ⚪ (019), nombre de tests (021), accessibilité (027), rangement des rapports (028), personnages fictifs (029), numérotation « bis » (037), cohérence 403/404 (NE-05).
+Anglais dans les captures (AUD-014), messages parasites (015), doublons de captures (016), faute du chapitre 5 (017), identifiants coupés (018), symbole ⚪ (019), nombre de tests (021), accessibilité (027), rangement des rapports (028), personnages fictifs (029), numérotation « bis » (037), nombre de branches (038), cohérence 403/404 (NE-05).
 
 ### Défauts du logiciel (hors campagne de correction documentaire)
 NE-01, NE-02, NE-03, NE-04, NE-06 et A1–A26 relèvent d'**arbitrages et de lots** décidés par le PO. **Aucun n'est traité par le plan ci-dessus.**
@@ -473,9 +474,9 @@ NE-01, NE-02, NE-03, NE-04, NE-06 et A1–A26 relèvent d'**arbitrages et de lot
 | Autorisation de diffusion | **Non accordée** ; en-tête « DIFFUSION GÉNÉRALE » à corriger (AUD-001) |
 
 ### Limites finales de l'audit
-- **35 pages du PDF restreint non vues** ; **aucune page vue à 100 %** (résolution maximale 110 dpi).
+- **Aucune page vue à 100 %** (résolution maximale 110 dpi) ; **toutes les pages ont été vues** à 78–110 dpi.
 - Chapitres 9 à 11 et 13 à 15 recoupés par affirmations, **non relus phrase à phrase**.
-- Annexes C, D, G non recoupées ligne à ligne (totaux exacts).
+- Annexes B, C, D, G non recoupées ligne à ligne (totaux exacts) ; le nombre de routes « django » de l'annexe G.2 (368) diffère de celui de l'annexe C (365 d'administration) sans explication ⚪.
 - Schémas S38/S39 non revérifiés contre le plan en 28 lots.
 - Validité des décisions `DEC-*` : existence et libellé vérifiés, **bien-fondé non vérifiable**.
 - Deux navigateurs réels, Windows, PostgreSQL, Redis/Celery réels : non essayés.

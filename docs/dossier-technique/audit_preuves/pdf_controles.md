@@ -24,3 +24,7 @@ Rendu comme un petit cercle « ◦ » dans les deux PDF du dossier (🟢🔵🟣
 
 ## 6. Pages réellement inspectées pendant cet audit
 Diffusable : 1, 2, 14, 21, 22, 31, 82, 93, 106. Restreint : 4, 5, 18, 24, 39, 41, 45, 50, 61, 67, 85, 88, 89. Guide visuel : les 39 pages à ~90 dpi (pages 3, 8, 18, 19, 36, 37, 39 revues après la dernière régénération, les autres dans la pagination précédente). **Les ~190 autres pages des deux PDF du dossier n'ont pas été revues individuellement dans cet audit** (mesures automatiques et inspections des sessions précédentes seulement).
+
+## 7. Complément de la phase 2 (troisième passe)
+Pages du PDF restreint ajoutées : 69–74, 92–143 (annexes B à H bis, y compris toutes les pages paysage). **Au total, les 143 pages du restreint et les 108 pages du diffusable ont été vues au moins une fois à 78–110 dpi.** Aucune page n'a été vue à 100 %.
+Constats propres à cette passe : annexe F.5 (p.127–135) dégradée (AUD-031) ; annexe F.4 : « 53 branches » contre « 52 » au chapitre 26 (AUD-038) ; annexes C, D, G lisibles mais très denses (p.100–119 : 20 à 30 lignes par page) ; p.112–113, 119, 142 : tableaux courts suivis de pages presque vides.
