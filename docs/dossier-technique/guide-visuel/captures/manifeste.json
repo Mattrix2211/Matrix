@@ -1,0 +1,799 @@
+[
+ {
+  "dossier": "01_prise_en_main",
+  "id": "accueil_marin",
+  "profil": "equipier_a",
+  "titre": "Accueil « Aujourd'hui » du marin",
+  "url": "/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.19985358711566617,
+    "y": 0.35662841796875,
+    "texte": "Actions à faire, urgentes en tête"
+   },
+   {
+    "n": 2,
+    "x": 0.6806940885797951,
+    "y": 0.3609212239583333,
+    "texte": "Journée : quarts, services, maintenance"
+   },
+   {
+    "n": 3,
+    "x": 0.6806940885797951,
+    "y": 0.7536214192708334,
+    "texte": "Prochains tours de service"
+   },
+   {
+    "n": 4,
+    "x": 0.663627836749634,
+    "y": 0.038401285807291664,
+    "texte": "Cloche des notifications"
+   }
+  ],
+  "fichier": "01_prise_en_main/accueil_marin.png",
+  "urlFinale": "/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "accueil_marin_suivi",
+  "profil": "equipier_a",
+  "titre": "Accueil, onglet « Suivi »",
+  "url": "/demandes/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/accueil_marin_suivi.png",
+  "urlFinale": "/demandes/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "menu_deplie",
+  "profil": "equipier_a",
+  "titre": "Menu latéral déplié",
+  "url": "/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/menu_deplie.png",
+  "urlFinale": "/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "notifications",
+  "profil": "equipier_a",
+  "titre": "Cloche des notifications",
+  "url": "/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/notifications.png",
+  "urlFinale": "/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "recherche_equipement",
+  "profil": "equipier_a",
+  "titre": "Recherche globale : un équipement",
+  "url": "/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/recherche_equipement.png",
+  "urlFinale": "/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "recherche_personne",
+  "profil": "chef_secteur_a",
+  "titre": "Recherche globale : une personne",
+  "url": "/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/recherche_personne.png",
+  "urlFinale": "/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "recherche_information",
+  "profil": "equipier_a",
+  "titre": "Recherche globale : une information",
+  "url": "/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/recherche_information.png",
+  "urlFinale": "/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "calendrier_mois",
+  "profil": "equipier_a",
+  "titre": "Calendrier du marin (mois)",
+  "url": "/calendar/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/calendrier_mois.png",
+  "urlFinale": "/calendar/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "annonces",
+  "profil": "equipier_a",
+  "titre": "Annonces avec accusé de réception",
+  "url": "/annonces/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/annonces.png",
+  "urlFinale": "/annonces/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "01_prise_en_main",
+  "id": "annonce_detail",
+  "profil": "equipier_a",
+  "titre": "Détail d'une annonce",
+  "url": "/annonces/",
+  "reperes": [],
+  "fichier": "01_prise_en_main/annonce_detail.png",
+  "urlFinale": "/annonces/5/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "02_taches",
+  "id": "taches_liste",
+  "profil": "equipier_a",
+  "titre": "Mes tâches",
+  "url": "/taches/",
+  "reperes": [],
+  "fichier": "02_taches/taches_liste.png",
+  "urlFinale": "/taches/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "02_taches",
+  "id": "tache_detail",
+  "profil": "equipier_a",
+  "titre": "Détail d'une tâche et compte rendu",
+  "url": "/taches/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.19692532942898974,
+    "y": 0.455322265625,
+    "texte": "Compte rendu de la tâche"
+   },
+   {
+    "n": 2,
+    "x": 0.19692532942898974,
+    "y": 0.7100016276041666,
+    "texte": "Signalement d'un blocage"
+   }
+  ],
+  "fichier": "02_taches/tache_detail.png",
+  "urlFinale": "/taches/1/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "02_taches",
+  "id": "tache_synthese",
+  "profil": "chef_section_a",
+  "titre": "Synthèse du chef de section",
+  "url": "/",
+  "reperes": [],
+  "fichier": "02_taches/tache_synthese.png",
+  "urlFinale": "/taches/#synthese",
+  "statut": "ok"
+ },
+ {
+  "dossier": "03_quarts_services",
+  "id": "tours_par_jour",
+  "profil": "equipier_a",
+  "titre": "Quarts et tours de service (par jour)",
+  "url": "/quarts/",
+  "reperes": [],
+  "fichier": "03_quarts_services/tours_par_jour.png",
+  "urlFinale": "/quarts/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "03_quarts_services",
+  "id": "tours_par_marin",
+  "profil": "chef_secteur_a",
+  "titre": "Tours de service (par marin, vue du chef)",
+  "url": "/quarts/",
+  "reperes": [],
+  "fichier": "03_quarts_services/tours_par_marin.png",
+  "urlFinale": "/quarts/?vue=marin&semaine=2026-11-09",
+  "statut": "ok"
+ },
+ {
+  "dossier": "03_quarts_services",
+  "id": "listes",
+  "profil": "chef_secteur_a",
+  "titre": "Listes de quarts et de services",
+  "url": "/quarts/",
+  "reperes": [],
+  "fichier": "03_quarts_services/listes.png",
+  "urlFinale": "/quarts/?vue=listes",
+  "statut": "ok"
+ },
+ {
+  "dossier": "03_quarts_services",
+  "id": "feuille_service",
+  "profil": "equipier_a",
+  "titre": "Feuille de service du jour",
+  "url": "/quarts/feuille-service/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.18448023426061494,
+    "y": 0.5054524739583334,
+    "texte": "En-tête de la journée"
+   },
+   {
+    "n": 2,
+    "x": 0.7464540629575402,
+    "y": 0.5244547526041666,
+    "texte": "Circuit de validation : rédaction, visas, publication"
+   }
+  ],
+  "fichier": "03_quarts_services/feuille_service.png",
+  "urlFinale": "/quarts/feuille-service/2/2026-11-12/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "03_quarts_services",
+  "id": "echanges",
+  "profil": "chef_secteur_a",
+  "titre": "Échanges de service à traiter",
+  "url": "/quarts/echanges/",
+  "reperes": [],
+  "fichier": "03_quarts_services/echanges.png",
+  "urlFinale": "/quarts/echanges/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "03_quarts_services",
+  "id": "absences",
+  "profil": "chef_service_a",
+  "titre": "Absences de l'équipe",
+  "url": "/absences/",
+  "reperes": [],
+  "fichier": "03_quarts_services/absences.png",
+  "urlFinale": "/absences/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "04_maintenance",
+  "id": "occurrences",
+  "profil": "equipier_a",
+  "titre": "Gestion de la maintenance : occurrences",
+  "url": "/maintenance/gestion/occurrences/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.8151537335285505,
+    "y": 0.2840983072916667,
+    "texte": "Compteurs à traiter"
+   },
+   {
+    "n": 2,
+    "x": 0.18448023426061494,
+    "y": 0.3204345703125,
+    "texte": "Filtre des retards"
+   }
+  ],
+  "fichier": "04_maintenance/occurrences.png",
+  "urlFinale": "/maintenance/gestion/occurrences/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "04_maintenance",
+  "id": "occurrences_retard",
+  "profil": "chef_secteur_a",
+  "titre": "Maintenances en retard (vue du chef de secteur)",
+  "url": "/maintenance/gestion/occurrences/?retard=1",
+  "reperes": [],
+  "fichier": "04_maintenance/occurrences_retard.png",
+  "urlFinale": "/maintenance/gestion/occurrences/?retard=1",
+  "statut": "ok"
+ },
+ {
+  "dossier": "04_maintenance",
+  "id": "execution_fiche",
+  "profil": "equipier_a",
+  "titre": "Exécution guidée : fiche et consignes de sécurité",
+  "url": "/maintenance/occurrences/2/execute/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.19692532942898974,
+    "y": 0.5883992513020834,
+    "texte": "Contrôles : Conforme, Non conforme ou Sans objet"
+   },
+   {
+    "n": 2,
+    "x": 0.7447497254758418,
+    "y": 0.5486857096354166,
+    "texte": "Consignes de sécurité de la fiche"
+   },
+   {
+    "n": 3,
+    "x": 0.19619326500732065,
+    "y": 0.943359375,
+    "texte": "Progression et enregistrement"
+   }
+  ],
+  "fichier": "04_maintenance/execution_fiche.png",
+  "urlFinale": "/maintenance/occurrences/2/execute/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "04_maintenance",
+  "id": "execution_saisie",
+  "profil": "equipier_a",
+  "titre": "Exécution guidée : contrôles renseignés",
+  "url": "/maintenance/occurrences/2/execute/",
+  "reperes": [],
+  "fichier": "04_maintenance/execution_saisie.png",
+  "urlFinale": "/maintenance/occurrences/2/execute/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "05_anomalies_tickets",
+  "id": "anomalies_liste",
+  "profil": "equipier_a",
+  "titre": "Mes signalements d'anomalies",
+  "url": "/logistics/anomalies/",
+  "reperes": [],
+  "fichier": "05_anomalies_tickets/anomalies_liste.png",
+  "urlFinale": "/logistics/anomalies/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "05_anomalies_tickets",
+  "id": "anomalie_detail",
+  "profil": "chef_secteur_a",
+  "titre": "Détail d'une anomalie",
+  "url": "/logistics/anomalies/?statut=ouvertes&vue=perimetre",
+  "reperes": [],
+  "fichier": "05_anomalies_tickets/anomalie_detail.png",
+  "urlFinale": "/logistics/anomalies/23/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "05_anomalies_tickets",
+  "id": "tickets_liste",
+  "profil": "chef_secteur_a",
+  "titre": "Tickets correctifs du secteur",
+  "url": "/logistics/tickets/",
+  "reperes": [],
+  "fichier": "05_anomalies_tickets/tickets_liste.png",
+  "urlFinale": "/logistics/tickets/?vue=perimetre",
+  "statut": "ok"
+ },
+ {
+  "dossier": "06_materiel_stock",
+  "id": "materiels",
+  "profil": "chef_secteur_a",
+  "titre": "Matériels",
+  "url": "/assets/",
+  "reperes": [],
+  "fichier": "06_materiel_stock/materiels.png",
+  "urlFinale": "/assets/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "06_materiel_stock",
+  "id": "materiel_detail",
+  "profil": "chef_secteur_a",
+  "titre": "Fiche d'un matériel",
+  "url": "/assets/",
+  "reperes": [],
+  "fichier": "06_materiel_stock/materiel_detail.png",
+  "urlFinale": "/assets/1d949876-c6ff-4edf-93d3-f0f82e58692f/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "06_materiel_stock",
+  "id": "installations",
+  "profil": "equipier_a",
+  "titre": "Installations",
+  "url": "/installations/",
+  "reperes": [],
+  "fichier": "06_materiel_stock/installations.png",
+  "urlFinale": "/installations/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "06_materiel_stock",
+  "id": "installation_detail",
+  "profil": "equipier_a",
+  "titre": "Fiche d'une installation",
+  "url": "/installations/",
+  "reperes": [],
+  "fichier": "06_materiel_stock/installation_detail.png",
+  "urlFinale": "/installations/8db5dea3-cc96-4299-8faf-a93119c78900/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "06_materiel_stock",
+  "id": "catalogue",
+  "profil": "equipier_a",
+  "titre": "Catalogue du matériel de la flotte",
+  "url": "/catalogue/",
+  "reperes": [],
+  "fichier": "06_materiel_stock/catalogue.png",
+  "urlFinale": "/catalogue/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "06_materiel_stock",
+  "id": "plan_navire",
+  "profil": "chef_secteur_a",
+  "titre": "Plan du navire et épingles",
+  "url": "/assets/plan-navire/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.7990483162518301,
+    "y": 0.2774658203125,
+    "texte": "Légende des couleurs"
+   },
+   {
+    "n": 2,
+    "x": 0.7990483162518301,
+    "y": 0.5105387369791666,
+    "texte": "Matériels épinglés sur le pont"
+   }
+  ],
+  "fichier": "06_materiel_stock/plan_navire.png",
+  "urlFinale": "/assets/plan-navire/1/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "06_materiel_stock",
+  "id": "stock",
+  "profil": "chef_secteur_a",
+  "titre": "Stock de pièces",
+  "url": "/logistics/stock/",
+  "reperes": [],
+  "fichier": "06_materiel_stock/stock.png",
+  "urlFinale": "/logistics/stock/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "07_supervision",
+  "id": "accueil_chef_secteur",
+  "profil": "chef_secteur_a",
+  "titre": "Accueil du chef de secteur",
+  "url": "/",
+  "reperes": [],
+  "fichier": "07_supervision/accueil_chef_secteur.png",
+  "urlFinale": "/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "07_supervision",
+  "id": "equipe_calendrier",
+  "profil": "chef_section_a",
+  "titre": "Calendrier de l'équipe",
+  "url": "/calendar/?user=equipe",
+  "reperes": [],
+  "fichier": "07_supervision/equipe_calendrier.png",
+  "urlFinale": "/calendar/?user=equipe",
+  "statut": "ok"
+ },
+ {
+  "dossier": "07_supervision",
+  "id": "vue_secteur",
+  "profil": "chef_secteur_a",
+  "titre": "Vue d'ensemble du secteur",
+  "url": "/dashboard/flotte/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.18521229868228403,
+    "y": 0.24881998697916666,
+    "texte": "Indicateurs du secteur"
+   },
+   {
+    "n": 2,
+    "x": 0.18521229868228403,
+    "y": 0.4923095703125,
+    "texte": "Répartition des tickets par statut"
+   }
+  ],
+  "fichier": "07_supervision/vue_secteur.png",
+  "urlFinale": "/dashboard/flotte/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "07_supervision",
+  "id": "vue_unite",
+  "profil": "chef_service_a",
+  "titre": "Vue d'ensemble du service",
+  "url": "/dashboard/flotte/",
+  "reperes": [],
+  "fichier": "07_supervision/vue_unite.png",
+  "urlFinale": "/dashboard/flotte/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "07_supervision",
+  "id": "difficultes",
+  "profil": "chef_secteur_a",
+  "titre": "Difficultés signalées à traiter",
+  "url": "/demandes/",
+  "reperes": [],
+  "fichier": "07_supervision/difficultes.png",
+  "urlFinale": "/demandes/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "formations",
+  "profil": "equipier_a",
+  "titre": "Formations et qualifications",
+  "url": "/formations/",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/formations.png",
+  "urlFinale": "/formations/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "formation_detail",
+  "profil": "equipier_a",
+  "titre": "Fiche d'une formation",
+  "url": "/formations/1/",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/formation_detail.png",
+  "urlFinale": "/formations/1/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "postes",
+  "profil": "chef_secteur_a",
+  "titre": "Postes du bord",
+  "url": "/postes/",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.865608986090776,
+    "y": 0.3690592447916667,
+    "texte": "Effectif pourvu et qualifications manquantes"
+   }
+  ],
+  "fichier": "08_autres_ecrans/postes.png",
+  "urlFinale": "/postes/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "documentation",
+  "profil": "equipier_a",
+  "titre": "Documentation et procédures",
+  "url": "/documentation/",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/documentation.png",
+  "urlFinale": "/documentation/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "retex",
+  "profil": "equipier_a",
+  "titre": "RETEX",
+  "url": "/retex/",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/retex.png",
+  "urlFinale": "/retex/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "programme",
+  "profil": "equipier_a",
+  "titre": "Programme du bâtiment",
+  "url": "/programme/",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/programme.png",
+  "urlFinale": "/programme/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "pret_appareillage",
+  "profil": "chef_service_a",
+  "titre": "Prêt à appareiller (aucune session ouverte)",
+  "url": "/dashboard/pret-appareillage/",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/pret_appareillage.png",
+  "urlFinale": "/dashboard/pret-appareillage/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "profil",
+  "profil": "equipier_a",
+  "titre": "Profil et qualifications",
+  "url": "/users/profil/",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/profil.png",
+  "urlFinale": "/users/profil/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "08_autres_ecrans",
+  "id": "parametres",
+  "profil": "equipier_a",
+  "titre": "Paramètres de notification",
+  "url": "/parametre/?tab=notifications",
+  "reperes": [],
+  "fichier": "08_autres_ecrans/parametres.png",
+  "urlFinale": "/parametre/?tab=notifications",
+  "statut": "ok"
+ },
+ {
+  "dossier": "09_limites",
+  "id": "en_validation_execution",
+  "profil": "chef_secteur_a",
+  "titre": "Occurrence « En validation » : fiche ouverte (A20)",
+  "url": "/maintenance/gestion/occurrences/?statut=WAITING_VALIDATION",
+  "reperes": [],
+  "fichier": "09_limites/en_validation_execution.png",
+  "urlFinale": "/maintenance/occurrences/6/execute/",
+  "statut": "ok"
+ },
+ {
+  "dossier": "09_limites",
+  "id": "en_validation_liste",
+  "profil": "chef_secteur_a",
+  "titre": "Occurrences « En validation » (A20)",
+  "url": "/maintenance/gestion/occurrences/?statut=WAITING_VALIDATION",
+  "reperes": [
+   {
+    "n": 1,
+    "x": 0.8151537335285505,
+    "y": 0.3812255859375,
+    "texte": "Statut « En validation » (A20)"
+   }
+  ],
+  "fichier": "09_limites/en_validation_liste.png",
+  "urlFinale": "/maintenance/gestion/occurrences/?statut=WAITING_VALIDATION",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_1_objet",
+  "dossier": "05_anomalies_tickets",
+  "profil": "equipier_a",
+  "titre": "Signaler une anomalie : l'objet concerné",
+  "fichier": "05_anomalies_tickets/p_anomalie_1_objet.png",
+  "urlFinale": "/logistics/anomalies/signaler/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_2_nature",
+  "dossier": "05_anomalies_tickets",
+  "profil": "equipier_a",
+  "titre": "Signaler une anomalie : nature et gravité",
+  "fichier": "05_anomalies_tickets/p_anomalie_2_nature.png",
+  "urlFinale": "/logistics/anomalies/signaler/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_3_description",
+  "dossier": "05_anomalies_tickets",
+  "profil": "equipier_a",
+  "titre": "Signaler une anomalie : description",
+  "fichier": "05_anomalies_tickets/p_anomalie_3_description.png",
+  "urlFinale": "/logistics/anomalies/signaler/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_4_verification",
+  "dossier": "05_anomalies_tickets",
+  "profil": "equipier_a",
+  "titre": "Signaler une anomalie : vérification avant envoi",
+  "fichier": "05_anomalies_tickets/p_anomalie_4_verification.png",
+  "urlFinale": "/logistics/anomalies/signaler/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_5_suivi",
+  "dossier": "05_anomalies_tickets",
+  "profil": "equipier_a",
+  "titre": "Anomalie signalée : suivi par le marin",
+  "fichier": "05_anomalies_tickets/p_anomalie_5_suivi.png",
+  "urlFinale": "/logistics/anomalies/24/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_6_chef",
+  "dossier": "05_anomalies_tickets",
+  "profil": "chef_secteur_a",
+  "titre": "Anomalie vue par le chef de secteur",
+  "fichier": "05_anomalies_tickets/p_anomalie_6_chef.png",
+  "urlFinale": "/logistics/anomalies/24/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_7_prise_en_compte",
+  "dossier": "05_anomalies_tickets",
+  "profil": "chef_secteur_a",
+  "titre": "Anomalie prise en compte par le chef",
+  "fichier": "05_anomalies_tickets/p_anomalie_7_prise_en_compte.png",
+  "urlFinale": "/logistics/anomalies/24/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_8_ticket",
+  "dossier": "05_anomalies_tickets",
+  "profil": "chef_secteur_a",
+  "titre": "Ticket correctif issu de l'anomalie",
+  "fichier": "05_anomalies_tickets/p_anomalie_8_ticket.png",
+  "urlFinale": "/logistics/tickets/15629830-8d82-4d6d-82c6-f026ce687a42/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_anomalie_9_tickets",
+  "dossier": "05_anomalies_tickets",
+  "profil": "chef_secteur_a",
+  "titre": "Tickets correctifs du secteur",
+  "fichier": "05_anomalies_tickets/p_anomalie_9_tickets.png",
+  "urlFinale": "/logistics/tickets/?vue=perimetre",
+  "statut": "ok"
+ },
+ {
+  "id": "p_maintenance_1_saisie",
+  "dossier": "04_maintenance",
+  "profil": "equipier_a",
+  "titre": "Compte rendu : contrôles renseignés",
+  "fichier": "04_maintenance/p_maintenance_1_saisie.png",
+  "urlFinale": "/maintenance/occurrences/2/execute/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_maintenance_2_termine",
+  "dossier": "04_maintenance",
+  "profil": "equipier_a",
+  "titre": "Compte rendu : après « Terminer la maintenance »",
+  "fichier": "04_maintenance/p_maintenance_2_termine.png",
+  "urlFinale": "/maintenance/occurrences/2/execute/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_maintenance_3_liste",
+  "dossier": "04_maintenance",
+  "profil": "equipier_a",
+  "titre": "Liste des occurrences après clôture",
+  "fichier": "04_maintenance/p_maintenance_3_liste.png",
+  "urlFinale": "/maintenance/gestion/occurrences/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_tache_1_ouverte",
+  "dossier": "02_taches",
+  "profil": "equipier_a",
+  "titre": "Tâche ouverte par le marin",
+  "fichier": "02_taches/p_tache_1_ouverte.png",
+  "urlFinale": "/taches/1/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_tache_2_compte_rendu",
+  "dossier": "02_taches",
+  "profil": "equipier_a",
+  "titre": "Tâche démarrée : compte rendu rédigé",
+  "fichier": "02_taches/p_tache_2_compte_rendu.png",
+  "urlFinale": "/taches/1/",
+  "statut": "ok"
+ },
+ {
+  "id": "p_tache_3_terminee",
+  "dossier": "02_taches",
+  "profil": "equipier_a",
+  "titre": "Tâche terminée",
+  "fichier": "02_taches/p_tache_3_terminee.png",
+  "urlFinale": "/taches/1/",
+  "statut": "ok"
+ }
+]
