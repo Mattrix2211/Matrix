@@ -1,0 +1,252 @@
+pdf;page;paysage;taux_remplissage_vertical;mots;debut
+DIFFUSABLE;1;0;0.61;130;DIFFUSION GÉNÉRALE Dossier technique intégral de Matrix — édition G0 — partie diffusable É
+DIFFUSABLE;2;0;0.53;201;Sommaire Chapitre 1 — Vision, philosophie et principes de Matrix Chapitre 2 — Vue d'ensemb
+DIFFUSABLE;3;0;1.0;481;Chapitre 1 — Vision, philosophie et principes de Matrix Pour qui : marins, responsables, d
+DIFFUSABLE;4;0;0.98;530;Pour le marin 1. Tout est en français, vocabulaire de la Marine (COMAEQ, COMOPS, COMANAV, 
+DIFFUSABLE;5;0;0.39;248;Le PO a aussi fixé une directive de méthode (31/10/2026) : Matrix doit être pensé avec une
+DIFFUSABLE;6;0;0.35;135;Chapitre 2 — Vue d'ensemble : modules, acteurs et parcours-types Pour qui : tous. Diffusio
+DIFFUSABLE;7;0;1.0;202;Personnes et organisation : accounts, org Vie quotidienne : dashboard, calendar_app, quart
+DIFFUSABLE;8;0;1.0;431;Domaine Ce qu'il fait Paquets Chapitre Connaissance Formations et qualifications, document
+DIFFUSABLE;9;0;0.99;574;Acteur Ce qu'il fait dans Matrix Commandant adjoint (COMAEQ, COMOPS, COMANAV, COMAVIA) Com
+DIFFUSABLE;10;0;0.42;249;2.5 Comment les modules s'enchaînent Matrix n'est pas une juxtaposition de silos : une don
+DIFFUSABLE;11;0;0.99;355;Chapitre 3 — Lire ce dossier Pour qui : tous. Diffusion : générale. Ce que vous y trouvere
+DIFFUSABLE;12;0;0.98;453;Étiquette Signification Preuve attendue 🟣 Proposition Idée ou règle proposée (par l'assist
+DIFFUSABLE;13;0;0.92;481;Les inventaires chiffrés (nombre de modèles, de routes, de tâches planifiées…) sont généré
+DIFFUSABLE;14;0;0.16;81;"Date Contenu 11/11/2026 Ensemble 4 : chapitres 17, 20, 21, 23 à 26 ; annexes C à H ; schém"
+DIFFUSABLE;15;0;1.0;238;Chapitre 4 — L'organisation : bâtiments, équipages, services, secteurs, sections Pour qui 
+DIFFUSABLE;16;0;0.92;550;Niveau Ce que c'est À retenir Unité (bâtiment) Le navire, mais aussi une école, un centre 
+DIFFUSABLE;17;0;0.85;386;le commandant de l'autre équipage refuse l'auteur retire sa proposition validation, date d
+DIFFUSABLE;18;0;0.98;255;Création Archivage refusé si marins actifs, installations ou matériel Réactivation refusée
+DIFFUSABLE;19;0;1.0;487;Pourquoi ? Un marin, un matériel ou une liste rattachés à une unité ne doivent pas dispara
+DIFFUSABLE;20;0;0.32;214;⚪ Les pages Notion « 02 — RH, postes… » et « 11 — Modèle de données cible » décrivent un v
+DIFFUSABLE;21;0;0.96;396;Chapitre 5 — Comptes, fonctions, grades, rôles et autorisations Pour qui : responsables, a
+DIFFUSABLE;22;0;0.91;482;Notion Question Exemple Dans Matrix Brevet / qualification Que sait-elle faire ? BHT, C-CD
+DIFFUSABLE;23;0;0.95;275;5.4 Comment Matrix décide si une action est permise À chaque action d'écriture, le serveur
+DIFFUSABLE;24;0;0.99;432;5.4 bis — Sept personnes, sept journées, et deux désignations (BSC, chef de liste) Pour co
+DIFFUSABLE;25;0;0.96;806;"crée une tâche personnelle, privée tant qu'il ne la partage pas ; il répond à une proposit"
+DIFFUSABLE;26;0;0.97;502;Objet Qui prépare Qui valide / vise Qui autorise la publication (actuel 🟢) Règle cible 🔵 F
+DIFFUSABLE;27;0;0.72;359;5.6 Ce que chacun voit : le périmètre de lecture Le périmètre est le niveau de rattachemen
+DIFFUSABLE;28;0;0.97;242;gère gère tous les rôles du bâtiment gère gère gère gère gère Administrateur général : tou
+DIFFUSABLE;29;0;0.86;447;Supprimer un compte est possible (par l'annuaire, jamais sur soi-même). La suppression est
+DIFFUSABLE;30;0;0.99;570;Sujet Règle validée Lot Fonctions annexes « Adjudant de compagnie » et « OSS » : reconnues
+DIFFUSABLE;31;0;0.91;278;Chapitre 6 — Espace personnel, tableaux de bord, pilotage et rapports Pour qui : marins, r
+DIFFUSABLE;32;0;0.95;581;1. « À faire » — tout ce qui demande son intervention, trié par urgence : d'abord ce qui e
+DIFFUSABLE;33;0;0.98;574;Vue Qui la voit Ce qu'elle montre Vue COMANAV Le COMANAV désigné, le commandement (command
+DIFFUSABLE;34;0;0.93;479;Module source Ce qu'il alimente Tâches, demandes (ch. 10) « À faire », supervision Mainten
+DIFFUSABLE;35;0;1.0;283;Chapitre 7 — Le calendrier central Pour qui : marins, responsables, développeurs. Diffusio
+DIFFUSABLE;36;0;0.9;421;Source Ce qu'on y voit Formation Les sessions où il est inscrit, présent ou formateur Quar
+DIFFUSABLE;37;0;0.96;404;7.5 Le flux iCal /calendar/ical/my/ fournit un flux iCal personnel pour importer son calen
+DIFFUSABLE;38;0;0.94;481;Chapitre 8 — Quarts, services à quai, gardes, feuille de service, échanges et absences Pou
+DIFFUSABLE;39;0;0.75;463;4. Il demande un échange de tour. Il choisit l'un de ses tours de service à quai et celui 
+DIFFUSABLE;40;0;0.95;430;Liste de services à quai le chef de liste propose publication prévisionnelle, prise d'effe
+DIFFUSABLE;41;0;0.99;446;"Conflits à l'activation. Bloquants : deux services à quai simultanés ; un quart encore en "
+DIFFUSABLE;42;0;0.99;350;exigées valides le jour du tour, absences déclarées (validées ou en attente) qui chevauche
+DIFFUSABLE;43;0;0.89;479;Comparaison, pour ne rien confondre Point Fonctionnement actuel (état B) 🟢 Règle cible val
+DIFFUSABLE;44;0;0.9;394;le rédacteur propose propose, rédacteur chef de secteur ou plus : visa secteur sauté renvo
+DIFFUSABLE;45;0;0.84;434;8.9 Les absences Le module d'absences est volontairement limité (décision du PO : un systè
+DIFFUSABLE;46;0;0.43;275;8.13 Limites et éléments non vérifiés 🟢 Les circuits décrits sont couverts par des tests d
+DIFFUSABLE;47;0;0.98;436;Chapitre 9 — Communication : discussions, annonces, notifications et recherche Pour qui : 
+DIFFUSABLE;48;0;0.89;505;9.3 Les annonces À quoi ça sert L'annonce est la diffusion descendante d'un responsable ve
+DIFFUSABLE;49;0;0.95;315;niveau Urgent Événement métier : tâche attribuée, liste publiée, échange à valider, stock 
+DIFFUSABLE;50;0;0.89;443;Module Lien Planification (Celery) Rappels, relances, « Ma journée » (chapitre 21) 9.7 Cas
+DIFFUSABLE;51;0;1.0;565;Chapitre 10 — Tâches, difficultés signalées, programme du bâtiment et postes Pour qui : ma
+DIFFUSABLE;52;0;0.97;241;Les états d'une tâche — actuels 🟢 l'assigné démarre l'assigné signale un blocage l'assigné
+DIFFUSABLE;53;0;0.95;552;Règle validée Décision Lot Écart avec l'actuel Validation facultative : à la création, le 
+DIFFUSABLE;54;0;1.0;419;Les états Ouvert → En traitement ↔ En attente d'information → Résolu → Clos (ou Ouvert si 
+DIFFUSABLE;55;0;0.96;494;De → vers Ce qui circule Demandes → tâches Une action décidée dans un dossier est une tâch
+DIFFUSABLE;56;0;0.99;450;Chapitre 11 — Matériel et installations Pour qui : marins, responsables, développeurs. Dif
+DIFFUSABLE;57;0;0.95;297;11.3 Ce que font les responsables Qui (seuil par défaut) Ce qu'il fait Chef de section ou 
+DIFFUSABLE;58;0;1.0;507;"1. Le bord choisit un article et indique combien il en possède ; Matrix crée autant de fic"
+DIFFUSABLE;59;0;1.0;503;si le poste du commandant adjoint est vacant, le visa reste en attente avec un message exp
+DIFFUSABLE;60;0;0.86;424;Module Lien Appareillage (ch. 16) Les installations critiques alimentent la préparation 11
+DIFFUSABLE;61;0;0.44;163;Chapitre 12 — Maintenance, anomalies, tickets correctifs Pour qui : marins, responsables, 
+DIFFUSABLE;62;0;0.99;328;Objet Question à laquelle il répond Qui l'ouvre Ticket correctif « Un équipement précis es
+DIFFUSABLE;63;0;0.53;357;1. Il ouvre l'échéance (une maintenance qui lui est assignée, ou qu'il s'assigne d'un clic
+DIFFUSABLE;64;0;0.96;216;12.4 Le cycle de vie d'une échéance assignation enregistrement en direct terminer : confor
+DIFFUSABLE;65;0;0.92;532;2. L'API « démarrer » : elle écrit « En cours » sans contrôler l'état de départ, et un mar
+DIFFUSABLE;66;0;0.99;332;12.6 Le ticket correctif un chef traite et convertit, si un équipement est identifié créat
+DIFFUSABLE;67;0;0.98;351;12.7 Détection de dérive et alertes Les relevés des installations alimentent une détection
+DIFFUSABLE;68;0;0.76;320;Module désactivé : 🟢 les pages web du module sont refusées et son entrée de menu disparaît
+DIFFUSABLE;69;0;0.86;350;Chapitre 13 — Logistique : stock de pièces et demandes de pièces Pour qui : marins, respon
+DIFFUSABLE;70;0;0.99;284;13.4 Le stock : un solde qui se justifie pièce consommée prélevée au stock Mouvement de st
+DIFFUSABLE;71;0;0.99;438;3. Quand une ligne passe à Consommée, Matrix tente une sortie de stock pour cette ligne, s
+DIFFUSABLE;72;0;0.79;428;13.9 bis Inventaire exhaustif de l'existant Fiche de pièce : référence, désignation, NNO (
+DIFFUSABLE;73;0;0.99;432;Chapitre 14 — Formations et qualifications Pour qui : marins, responsables, développeurs. 
+DIFFUSABLE;74;0;0.97;289;Qui Ce qu'il fait Chef de service et plus Valide une formation proposée par le bord (§14.6
+DIFFUSABLE;75;0;0.99;566;🟢 Qui est « l'organisme » ? Dans Matrix, un organisme de formation est une unité de type É
+DIFFUSABLE;76;0;0.94;453;🟢 Ce que fait le code. Les tâches ne contiennent aucun contrôle fondé sur les qualificatio
+DIFFUSABLE;77;0;1.0;391;Chapitre 15 — Documentation du bord et retours d'expérience (RETEX) Pour qui : marins, res
+DIFFUSABLE;78;0;0.56;152;Action Qui (seuil par défaut) Règles Proposer une amélioration Tout marin qui voit le docu
+DIFFUSABLE;79;0;0.95;168;15.4 Le circuit RETEX aujourd'hui 🟢 décision d'un habilité du bâtiment, seuil chef de serv
+DIFFUSABLE;80;0;1.0;315;Domaine COMA référent Organisme destinataire Aviation COMAVIA ALFAN / Exploitation 2. Rout
+DIFFUSABLE;81;0;0.85;339;DEC-RTX-04 : traçabilité de qui a proposé, modifié, validé ou rejeté. Aujourd'hui Cible Ét
+DIFFUSABLE;82;0;0.21;125;15.8 Limites et éléments non vérifiés ⚪ Couverture de tests faible : documentation 9 fonct
+DIFFUSABLE;83;0;0.44;196;Chapitre 16 — Préparation à l'appareillage Pour qui : marins, responsables, développeurs. 
+DIFFUSABLE;84;0;0.98;207;16.2 Aujourd'hui 🟢 — une session datée, une liste de points Ouverture d'une session par un
+DIFFUSABLE;85;0;0.53;247;Les quatre familles de points Sur les installations critiques du bâtiment : Famille Ce qui
+DIFFUSABLE;86;0;0.96;335;16.3 Ce que Matrix ne contient pas encore 🔵 Fiche de référence d'appareillage : le chef de
+DIFFUSABLE;87;0;0.73;276;Aujourd'hui Cible Autorisation d'appareiller Jamais délivrée par Matrix Idem ( DEC-APP-13 
+DIFFUSABLE;88;0;0.67;361;Chapitre 17 — Interface, ergonomie, parcours et poste de travail Pour qui : marins, respon
+DIFFUSABLE;89;0;0.97;299;Principe Ce que cela veut dire Droits côté serveur L'interface adapte ce qu'elle montre, m
+DIFFUSABLE;90;0;0.97;526;⚪ Le PO a relevé en recette un menu de 24 entrées pour un équipier à 1366 × 768 (parfois c
+DIFFUSABLE;91;0;0.99;490;17.6 Mobile, tablette et poste de bord 🟢 Ce qui existe. Pages à mise en page fluide (Boots
+DIFFUSABLE;92;0;0.9;514;Onglet Qui Contenu Référentiels, navires, hiérarchie, journal Comptes techniques (administ
+DIFFUSABLE;93;0;0.24;135;17.12 Limites et éléments non vérifiés ⚪ Aucune recette navigateur n'a été rejouée pour ce
+DIFFUSABLE;94;0;1.0;294;Chapitre 25 — Fonctionnement cible et feuille de route Pour qui : responsables, marins, dé
+DIFFUSABLE;95;0;1.0;254;Phase Lots Objet C — Circuits des tâches L14 à L18 Priorités, validation, coordinateur, tâ
+DIFFUSABLE;96;0;0.92;418;Lot En clair Décisions État L02 Les unités s'archivent (et se réactivent) au lieu de se su
+DIFFUSABLE;97;0;0.97;401;Lot En clair Décisions Chapitres actuels L18 Qualifications : information, pas blocage pou
+DIFFUSABLE;98;0;1.0;460;Proposition Contenu Garde-fous demandés Transmission d'un RETEX à un organisme Destinatair
+DIFFUSABLE;99;0;1.0;281;Chapitre 26 — Historique des versions et des lots Pour qui : responsables, développeurs. D
+DIFFUSABLE;100;0;0.91;442;Schéma S40 — De la V1 à l'état B. Date Jalon Ce que cela a apporté 03/09/2026 Ancien décou
+DIFFUSABLE;101;0;0.79;433;Lot Anomalies traitées Ce qui change pour le logiciel Migration L01 — verrou de démonstrat
+DIFFUSABLE;102;0;0.99;480;Annexe A — Glossaire Marine et Matrix Diffusion : générale. Édition : ensemble 1 (11/11/20
+DIFFUSABLE;103;0;0.98;498;Terme Définition Proposer → valider → publier Principe des modifications sensibles : la ve
+DIFFUSABLE;104;0;1.0;404;Terme Définition (source) Gradé de coupée, gradé mécanicien, gradé électricien, gradé sécu
+DIFFUSABLE;105;0;0.98;465;Sigle Signification (page Notion 12) DIRISI Direction interarmées des réseaux d'infrastruc
+DIFFUSABLE;106;0;0.15;105;Terme Définition Prêt à appareiller Session de préparation de l'appareillage (chapitre 16)
+DIFFUSABLE;107;0;1.0;322;Annexe H — Index des schémas (généré) Diffusion générale. Généré par outils/generer_annexe
+DIFFUSABLE;108;0;0.51;181;N° Titre Source Export Chapitres S26 De l'anomalie au ticket, du ticket à la remise en ser
+RESTREINT;1;0;0.63;127;DIFFUSION RESTREINTE Dossier technique intégral de Matrix — édition G0 — partie restreinte
+RESTREINT;2;0;0.77;279;Sommaire Chapitre 4 (technique) — Organisation : modèles, relève, archivage, modules Chapi
+RESTREINT;3;0;0.97;373;Chapitre 4 (technique) — Organisation : modèles, relève, archivage, modules Diffusion rest
+RESTREINT;4;0;0.98;189;Modèle Rôle Relations notables Contraintes SynthesePassati on ( :472 ), ParametresPassa ti
+RESTREINT;5;0;0.98;461;Schéma S10 — Organisation et comptes (extrait). 4T.2 La relève : mécanisme exact Tout le d
+RESTREINT;6;0;0.99;506;soutien_a_terre(user) ( matrix/core/scopes.py:40 ) : personnel sans bâtiment ( navire_id_e
+RESTREINT;7;0;0.93;375;Résolution : module_actif(cle, ship_id) ( :149 ) vaut vrai si le module est inconnu du reg
+RESTREINT;8;0;0.28;118;4T.9 Limites et éléments non vérifiés ⚪ PostgreSQL non exécuté (20 tests réservés à ce mot
+RESTREINT;9;0;0.99;327;Chapitre 5 (technique) — Comptes et autorisations : mécanismes Diffusion restreinte. Compl
+RESTREINT;10;0;0.99;504;2. Comparaison au grade ( user_role_level ) : la plupart des vues web de gestion (par exem
+RESTREINT;11;0;0.98;490;navire_id_effectif : remonte au bâtiment même si seul le secteur ou la section est renseig
+RESTREINT;12;0;0.81;367;ResponsableSpecialite ( accounts/models.py:197 ), org.ResponsableClasseNavire ( org/models
+RESTREINT;13;0;0.93;424;Chapitre 6 (technique) — Accueil, pilotage, passation, rapports : mécanismes Diffusion res
+RESTREINT;14;0;0.99;416;6T.2 Visibilité des vues de pilotage Vue Classe / fonction Règle d'accès Vue flotte VueFlo
+RESTREINT;15;0;0.62;210;Générateurs ( reports/services.py ) : construire_contexte_instantane ( :145 ) et construir
+RESTREINT;16;0;0.97;316;Chapitre 7 (technique) — Calendrier : mécanismes Diffusion restreinte. Complète diffusable
+RESTREINT;17;0;0.94;323;Vue d'équipe : marins_visibles = soi-même plus l'équipe de qui peut superviser ( peut_supe
+RESTREINT;18;0;0.18;88;7T.7 Limites et éléments non vérifiés ⚪ Le flux iCal est lié à la session : un client d'ag
+RESTREINT;19;0;1.0;355;Chapitre 8 (technique) — Quarts, services, feuille de service, échanges, absences : mécani
+RESTREINT;20;0;0.97;396;Modèle Rôle Particularités RubriqueEnTeteFeuille Service ( :1018 ), FonctionFeuilleServic 
+RESTREINT;21;0;0.96;431;Question Fonction Règle Qui active, reporte, retire une prévision habilitation_activation 
+RESTREINT;22;0;0.96;417;"Mode du bâtiment : déduit des MouvementBatiment valides ; intervalles_par_mode ( quarts/mo"
+RESTREINT;23;0;0.96;312;"Publication : _publier crée une VersionFeuilleService ; refus si le contenu (affectations,"
+RESTREINT;24;0;0.24;128;8T.9 Limites et éléments non vérifiés ⚪ PostgreSQL : les verrous ( select_for_update ) et 
+RESTREINT;25;0;0.97;353;Chapitre 9 (technique) — Communication : mécanismes Diffusion restreinte. Complète diffusa
+RESTREINT;26;0;0.99;480;Élément Détail ParametresAnnonces ( :71 ) Réglage commun à la flotte, dont jours_rappel_ac
+RESTREINT;27;0;0.89;378;Régimes ( notifications/regimes.py ) : repartir(notifications, mode) sépare « prioritaires
+RESTREINT;28;0;0.92;316;Chapitre 10 (technique) — Tâches, demandes, programme, postes : mécanismes Diffusion restr
+RESTREINT;29;0;0.85;281;Modèle Rôle Particularités Poste ( postes/models.py: 13 ), AffectationPoste ( :36 ) Poste 
+RESTREINT;30;0;0.9;512;Module Fonction Règle Absences peut_gerer_absence_de ( absences/services.py:53 ), valider_
+RESTREINT;31;0;0.63;184;10T.5 Routes Module Routes (web) Tâches /taches/ , /taches/<id>/ , /taches/<id>/action/ , 
+RESTREINT;32;0;0.88;254;Chapitre 11 (technique) — Matériel et installations : mécanismes Diffusion restreinte. Com
+RESTREINT;33;0;0.89;185;11.T2 bis Modèles secondaires Modèle Référence Rôle InstallationBigrameChoice assets/model
+RESTREINT;34;0;0.56;130;Modèle Référence Rôle EvenementProposition assets/models.py: 819 Historique de chaque tran
+RESTREINT;35;0;0.97;258;Chapitre 12 (technique) — Maintenance, anomalies, tickets : mécanismes Diffusion restreint
+RESTREINT;36;0;0.95;295;12.T2 bis Modèles secondaires Modèle Référence Rôle TicketStatusLog logistics/models.py:90
+RESTREINT;37;0;0.98;244;Chapitre 13 (technique) — Logistique : mécanismes Diffusion restreinte. Complète diffusabl
+RESTREINT;38;0;0.9;231;Chapitre 14 (technique) — Formations : mécanismes Diffusion restreinte. Complète diffusabl
+RESTREINT;39;0;0.15;62;Limites ⚪ Un organisme de formation est une unité de type École ou Centre de formation ( o
+RESTREINT;40;0;0.86;236;Chapitre 15 (technique) — Documentation et RETEX : mécanismes Diffusion restreinte. Complè
+RESTREINT;41;0;0.15;60;Limites ⚪ Couverture de tests faible pour ces deux paquets : les règles décrites viennent 
+RESTREINT;42;0;0.84;225;Chapitre 16 (technique) — Préparation à l'appareillage : mécanismes Diffusion restreinte. 
+RESTREINT;43;0;0.96;306;Chapitre 17 (technique) — Interface et ergonomie : mécanismes Diffusion restreinte. Complè
+RESTREINT;44;0;1.0;333;17T.3 Chaîne de middlewares (ordre du réglage MIDDLEWARE ) 1. ContexteConfigurationMiddlew
+RESTREINT;45;0;0.15;57;"17T.8 Limites ⚪ Aucune recette navigateur rejouée ; sous-module design/ vide. ⚪ Les observ"
+RESTREINT;46;0;1.0;335;Chapitre 18 — Architecture technique Diffusion restreinte. État décrit : état B ( 6d6d0be 
+RESTREINT;47;0;1.0;346;Fonction Choix Version (état B) Remarque Graphiques et calendrier Chart.js, FullCalendar e
+RESTREINT;48;0;0.99;276;Fichier Contenu tasks.py Tâches Celery du paquet templates/ , templatetags/ Gabarits et ba
+RESTREINT;49;0;0.82;329;4. Elle délègue à un service métier : validation, transaction, enchaînements vers les autr
+RESTREINT;50;0;0.98;243;accounts org quarts notifications assets maintenance logistics taches annonces training th
+RESTREINT;51;0;0.69;315;Domaine Tâches Cadence Notifications formations qui expirent, occurrences en retard, échéa
+RESTREINT;52;0;0.42;177;Sujet Décision État QR codes et inspections mobiles Non prioritaires, reportés, existant c
+RESTREINT;53;0;1.0;397;Chapitre 19 — Modèles de données Diffusion restreinte. État décrit : état B ( 6d6d0be ), n
+RESTREINT;54;0;1.0;422;Domaine Modèles (principaux) Ce qu'ils portent Maintenance et logistique ( maintenance , 6
+RESTREINT;55;0;0.91;389;Règle Signification Nombre de relations Plusieurs-à￾plusieurs Table de liaison 15 Lecture 
+RESTREINT;56;0;0.73;331;Modèle Champ Sert à dashboard.ItemAppareil lage objet_source (facultatif) Origine d'un poi
+RESTREINT;57;0;0.32;172;"19.9 Limites et éléments non vérifiés ⚪ Les nombres sont ceux de l'état B ; ils changeront"
+RESTREINT;58;0;1.0;278;Chapitre 20 — API REST, intégrations et interfaces web Diffusion restreinte. État décrit :
+RESTREINT;59;0;0.98;488;Groupe Ressources assets matériels, types, emplacements, gammes et lignes de gammes, surch
+RESTREINT;60;0;0.98;414;Identifiants : UUID pour le matériel, le ticket, les objets du catalogue et la feuille de 
+RESTREINT;61;0;0.22;116;20.8 Limites et éléments non vérifiés ⚪ Aucun appel HTTP réel n'a été rejoué sur l'API pou
+RESTREINT;62;0;0.98;330;Chapitre 21 — Interactions entre modules Diffusion restreinte. État décrit : état B ( 6d6d
+RESTREINT;63;0;0.71;279;Signal Où Effet Utilisateur créé accounts/models.py:2 26 Création du profil Connexion, déc
+RESTREINT;64;0;1.0;332;Enchaînement Étapes Chapitres Accostage ou appareillage déclaré → mode du bâtiment → activ
+RESTREINT;65;0;0.7;313;normale (exemple du stock, chapitre 13). L'envoi Web Push est borné ( WEBPUSH_DELAI_MAX , 
+RESTREINT;66;0;0.61;229;Chapitre 22 — Sécurité Diffusion restreinte. État décrit : état B ( 6d6d0be ), non fusionn
+RESTREINT;67;0;1.0;246;Barrière Rôle Où Garde-fous d'exploitation Refuser de démarrer dans une configuration dang
+RESTREINT;68;0;0.99;476;# Middleware Garantie 10 MotDePasseProvisoireMiddleware Impose le changement d'un mot de p
+RESTREINT;69;0;0.75;344;Familles d'actions tracées (extraits) : comptes ( create_user , edit_user , delete_user , 
+RESTREINT;70;0;1.0;288;non oui non oui non oui non oui non oui Commande seed_demo Mode DEBUG actif ? MATRIX_INSTA
+RESTREINT;71;0;0.63;268;la clé secrète est absente ou vide, de moins de 32 caractères, ou égale à une valeur d'exe
+RESTREINT;72;0;0.57;290;Sujet Décision Lot Procédures officielles (PÉPIN, CRAT…) Circuits, autorités et conservati
+RESTREINT;73;0;1.0;353;Chapitre 23 — Configuration, déploiement, exploitation Diffusion restreinte. État décrit :
+RESTREINT;74;0;0.6;180;"Variable Défaut Rôle MATRIX_SQLITE_PATH — Force SQLite (démonstration) ; l'emporte sur DB_"
+RESTREINT;75;0;1.0;224;23.4 Les processus à lancer Navigateur du marin : poste fixe du réseau local du bâtiment S
+RESTREINT;76;0;0.89;362;⚠ Sans worker ni beat, aucune alerte automatique (chapitre 21). start.bat les lance mais é
+RESTREINT;77;0;0.49;293;23.6 Mise en production : garde-fous et checklist 🟢 Garde-fous au démarrage ( DJANGO_DEBUG
+RESTREINT;78;0;0.98;256;23.7 L'instance de démonstration isolée Préparer : base SQLite séparée, marqueur écrit à l
+RESTREINT;79;0;1.0;493;"23.8 Migrations et mise à jour 190 migrations ; python manage.py migrate ; start.bat appli"
+RESTREINT;80;0;0.51;243;7. Un module désactivé n'arrête pas l'API ni les tâches. 8. Rien n'a été mesuré (charge, v
+RESTREINT;81;0;0.98;346;Chapitre 24 — Qualité, tests et contribution Diffusion restreinte. État décrit : état B ( 
+RESTREINT;82;0;0.61;259;Windows et navigateurs réels (Chrome, Firefox, Safari), mobile, lecteurs d'écran, impressi
+RESTREINT;83;0;0.98;118;24.4 La chaîne de travail : PO, Développeur, Relecteur oui non accepté refusé, 3 fois au p
+RESTREINT;84;0;0.94;441;Étape Agent Statut Notion Vérification (grosse tâche) Relecteur En vérification → Terminé 
+RESTREINT;85;0;0.22;115;"24.8 Limites et éléments non vérifiés ⚪ La suite complète n'a pas été rejouée ; les chiffr"
+RESTREINT;86;0;0.97;257;Chapitre 26 (technique) — Branches, commits et état de fusion Diffusion restreinte. Complè
+RESTREINT;87;0;0.95;346;Branche Date Commit Dans A / B Rôle claude/matrix-audit-general-9oohvw , …-rg0ddz 05/11 4a
+RESTREINT;88;1;0.98;503;Registre des écarts entre décisions du PO et comportement du code Diffusion restreinte. Po
+RESTREINT;89;1;0.98;654;Rubrique Contenu Comportement observé Un échange accepté par le marin sollicité attend « l
+RESTREINT;90;1;0.84;431;Rubrique Contenu Conséquences Fonctionnelles : ce que le second peut faire dépend de la pa
+RESTREINT;91;1;0.93;511;Partie A ter — Écarts relevés à l'ensemble 2 # Règle validée Comportement observé Sources 
+RESTREINT;92;1;1.0;605;# Règle validée Comportement observé Sources Conséquences Lot A17 Préparation à l'appareil
+RESTREINT;93;1;0.94;569;# Règle validée ou affirmation Comportement observé Sources Conséquences Lot A24 Sauvegard
+RESTREINT;94;1;0.81;340;# Décision existante applicable Fonctionnement actuel vérifié Règle cible B4 — Accostage e
+RESTREINT;95;1;0.94;432;Décision Objet Lot Chapitre DEC-FDS-08 Composition-type d'une fraction de service à quai (
+RESTREINT;96;1;0.95;398;Annexe B — Matrice rôle × action (généré, état B) Diffusion restreinte. Généré par outils/
+RESTREINT;97;1;1.0;416;Catégorie Action Seuil Admin. général Admin. unité Commandant Second État￾major Chef servi
+RESTREINT;98;1;0.98;388;Catégorie Action Seuil Admin. général Admin. unité Commandant Second État￾major Chef servi
+RESTREINT;99;1;0.47;145;B.2 Qui peut attribuer ou gérer quel rôle (comptes) Rôle de l'acteur Rôles qu'il peut attr
+RESTREINT;100;1;1.0;169;Annexe C — Index des routes web et API (généré, état B) Diffusion restreinte. Généré par o
+RESTREINT;101;1;0.98;117;Chemin Nom Vue Gabarit assets/plan/ plan-navire-list assets.plan_navire_views.PlanNavireLi
+RESTREINT;102;1;0.96;113;Chemin Nom Vue Gabarit catalogue/categories/<uuid:pk>/archiver / catalogue-categorie￾archi
+RESTREINT;103;1;0.98;111;Chemin Nom Vue Gabarit dashboard/pret￾appareillage/item/<int:pk>/cocher/ item-appareillage
+RESTREINT;104;1;0.96;113;Chemin Nom Vue Gabarit fiches/<int:pk>/commentaire/ fiche-comment-create assets.fiche_web.
+RESTREINT;105;1;0.96;110;Chemin Nom Vue Gabarit logistics/anomalies/ anomalie-list logistics.anomalie_views.Anomali
+RESTREINT;106;1;1.0;122;Chemin Nom Vue Gabarit maintenance/correctifs/<uuid:ticket_pk>/ compte-rendu/ correctif-co
+RESTREINT;107;1;1.0;122;Chemin Nom Vue Gabarit notifications/compteur/ notifications-compteur notifications.web_vi
+RESTREINT;108;1;0.98;120;Chemin Nom Vue Gabarit quarts/mouvements/ mouvements-batiment quarts.mouvements_views.Mouv
+RESTREINT;109;1;1.0;129;Chemin Nom Vue Gabarit users/batiment/ choisir-batiment accounts.web_views.ChoisirBatiment
+RESTREINT;110;1;0.98;99;Chemin Nom Vue api/assets/^assets/(?P<pk>[^/.]+)/qr_png/$ asset-qr-png assets.views.AssetV
+RESTREINT;111;1;0.98;99;Chemin Nom Vue api/maintenance/^occurrences/(?P<pk>[^/.]+)/$ maintenanceoccurrence-detail 
+RESTREINT;112;1;0.98;80;Chemin Nom Vue api/training/^courses/$ trainingcourse-list training.views.TrainingCourseVi
+RESTREINT;113;1;0.31;47;Application Routes org 54 password_change 2 quarts 42 r 1 taches 12 threads 18 training 66
+RESTREINT;114;1;0.98;236;Annexe D — Index des modèles (généré, état B) Diffusion restreinte. Généré par outils/gene
+RESTREINT;115;1;0.98;189;Paquet Modèle Champs Clé primaire Relation générique Chapitres assets AssetType 5 entier n
+RESTREINT;116;1;0.98;205;Paquet Modèle Champs Clé primaire Relation générique Chapitres dashboard SessionAppareilla
+RESTREINT;117;1;0.98;199;Paquet Modèle Champs Clé primaire Relation générique Chapitres org RoleThresholdConfig 4 e
+RESTREINT;118;1;0.98;188;Paquet Modèle Champs Clé primaire Relation générique Chapitres quarts Quart 11 entier non 
+RESTREINT;119;1;0.28;65;Paquet Modèle Champs Clé primaire Relation générique Chapitres training ReferentFormation 
+RESTREINT;120;1;0.99;239;Annexe E — Tâches planifiées, commandes de gestion et variables (généré, état B) Diffusion
+RESTREINT;121;1;1.0;403;Nom Tâche Rythme Rôle (première ligne de la documentation du code) generate_installation_n
+RESTREINT;122;1;1.0;317;Commande Paquet Rôle (texte d'aide du code) verifier_instance matrix Signale (sans rien mo
+RESTREINT;123;1;0.84;68;"Variable Valeur par défaut dans le code DB_USER ""matrix"" DEFAULT_FROM_EMAIL ""no-reply@loca"
+RESTREINT;124;1;0.99;433;Annexe F — Sources, décisions citées, branches et éléments non vérifiés (généré) Diffusion
+RESTREINT;125;1;1.0;338;Guide du marin 2023 : jamais disponible, non utilisé. Aucune exigence SIC opposable, aucun
+RESTREINT;126;1;0.98;196;Branche Date Commit Dans A ( main ) Dans B Statut integration/v1-fanlab-20261021 2026-10-2
+RESTREINT;127;1;0.96;362;Branche Date Commit Dans A ( main ) Dans B Statut integration/pr6-et-travail-local 2026-10
+RESTREINT;128;1;0.91;664;⚪ La correspondance « responsable de classe ≈ IRB » et « responsable de spécialité ≈ ALFAN
+RESTREINT;129;1;0.93;614;07_calendrier.md 🟢 Couverture de tests de l'état B : 124 fonctions de test dans calendar_a
+RESTREINT;130;1;0.97;619;12_maintenance_anomalies_tickets.md 2. L'API « démarrer » : elle écrit « En cours » sans c
+RESTREINT;131;1;0.99;639;DEC-APP-14 (principe validé par le PO, conservé comme fonctionnement cible) : le chef de s
+RESTREINT;132;1;0.99;417;05_comptes_autorisations_technique.md ⚪ Les deux familles de comparaison (§5T.2) ne sont p
+RESTREINT;133;1;0.96;354;⚪ Aucun circuit de transfert de matériel n'existe (A18). 12_maintenance_anomalies_tickets_
+RESTREINT;134;1;0.99;692;19_modeles_donnees.md 12 modèles portent un champ UUID (pas devinable, stable d'une base à
+RESTREINT;135;1;0.71;504;⚪ Les relations génériques (chapitre 19) ne sont pas protégées par la base. 23_configurati
+RESTREINT;136;1;1.0;255;Annexe G — Matrice de couverture (générée) Diffusion restreinte. Générée par outils/genere
+RESTREINT;137;1;0.99;172;Paquet Modèles Expliqués Nommés (ch. 19) Dictionnaire seul Chapitres Ensemble org 15 15 0 
+RESTREINT;138;1;0.99;132;Paquet de la vue Routes Chapitres Ensemble notifications 16 9, 21 E2/E4 org 20 4, 19 E1 po
+RESTREINT;139;1;0.98;92;Tâche Nom Citée dans un chapitre rédigé notifications.tasks.notify_low_stock notify_low_st
+RESTREINT;140;1;1.0;187;Commande Citée dans un chapitre rédigé analyser_chevauchements_mer_quai annexe E seulement
+RESTREINT;141;1;0.98;248;Circuit Chapitre Ensemble Statut Passation de relève 6 E2 rédigé Bilan et exports 6 E2 réd
+RESTREINT;142;1;0.44;98;Circuit Chapitre Ensemble Statut Signaux et enchaînements entre modules 21 E4 rédigé Tâche
+RESTREINT;143;0;0.72;198;Annexe H bis — Index des schémas des chapitres restreints (généré) Diffusion restreinte. G

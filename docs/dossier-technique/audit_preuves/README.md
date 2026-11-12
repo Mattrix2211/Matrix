@@ -21,3 +21,13 @@ python manage.py test dashboard.tests.verif_g0_a14 maintenance.tests.verif_g0_a2
 (l'environnement de la démonstration isolée est celui de `scripts/preparer_instance_test.py` : base SQLite séparée, DEBUG actif, aucune connexion à Redis).
 
 Les scripts du dossier `scripts_navigateur/` supposent une instance de démonstration lancée sur `127.0.0.1:8800` et le mot de passe de démonstration dans la variable `PW` ; ce mot de passe n'est jamais versionné.
+
+## Ajouts de la phase 2
+| Fichier | Contenu |
+|---|---|
+| `decisions_dec_verification.csv` | Les 125 décisions du dossier V1.2 (branche `claude/eager-hopper-2cbcqh`) : statut à la source et chapitres qui les citent |
+| `pages_remplissage.csv` | Taux de remplissage vertical et nombre de mots de **chaque** page des deux PDF du dossier |
+| `schemas_verdicts.csv` | Verdict visuel et utilité des 42 schémas |
+| `a14_navigateur_chef_section.png` | A14 : page de passation vue par un chef de section de l'équipage sortant |
+| `appareillage_session_ouverte.png` | Session d'appareillage ouverte (10 points, 0/10) |
+| `scripts_navigateur/rel2.js`, `rel3.js`, `priv2.js`, `app.js`, `syn.js`, `assign.js` | Relève A→B et passation, tâche personnelle, appareillage, synthèse du chef, assignation |

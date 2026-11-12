@@ -1,0 +1,14 @@
+const {chromium}=require('playwright');const B='http://127.0.0.1:8800';const PW=process.env.PW;
+(async()=>{const b=await chromium.launch();
+const login=async(u)=>{const c=await b.newContext({viewport:{width:1366,height:900}});const p=await c.newPage();await p.goto(B+'/accounts/login/');await p.fill('input[name=username]',u);await p.fill('input[name=password]',PW);await Promise.all([p.waitForNavigation(),p.click('button[type=submit]')]);return p;};
+const txt=p=>p.evaluate(()=>document.body.innerText.replace(/\s+/g,' '));
+const e=await login('equipier_a');await e.goto(B+'/dashboard/pret-appareillage/');
+console.log('equipier: bouton ouvrir?',await e.locator('button:has-text("Ouvrir une session")').count());
+const s=await login('chef_secteur_a');await s.goto(B+'/dashboard/pret-appareillage/');
+await s.click('button:has-text("Ouvrir une session")');await s.waitForLoadState('networkidle');
+let t=await txt(s);console.log('secteur après ouverture:',t.match(/Prêt à appareiller.{0,500}/)[0]);
+console.log('boutons:',await s.$$eval('main button, .content button',x=>x.map(y=>y.innerText.trim()).filter(Boolean)).catch(()=>[]));
+const s2=await login('chef_service_a');await s2.goto(B+'/dashboard/pret-appareillage/');
+console.log('service: bouton ouvrir présent alors qu’une session est ouverte?',await s2.locator('button:has-text("Ouvrir une session")').count());
+await s.screenshot({path:'audit/appareillage_session.png',fullPage:true});
+await b.close();})();

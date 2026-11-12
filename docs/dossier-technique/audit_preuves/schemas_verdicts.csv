@@ -1,0 +1,43 @@
+schema;verdict_visuel_utilite;remarque
+S01;OK;"Contexte lisible ; réutilisé p46 et p76"
+S02;faible;"6 groupes ≠ 11 domaines du tableau ; redondant ; p6 à 80 % vide"
+S03;bon;
+S04;bon;petit (5,8 pt) mais lisible
+S05;bon;accents rétablis
+S06;bon;clé de lecture des droits
+S07;bon;
+S08;bon;
+S09;difficile;flèches enchevêtrées
+S10;illisible;"5 pt ; légende séparée"
+S11;bon;séquence claire
+S12;bon;
+S13;moyen;"petit ; sens des flèches peu lisible"
+S14;faible;liste de cases
+S15;bon;
+S16;bon;circuit réel
+S17;moyen;cible : non distingué dans l’image
+S18;bon;
+S19;bon;
+S20;bon;
+S21;moyen;"cible : non distingué ; petit"
+S22;faible;liste linéaire
+S23;bon;
+S24;faible;liste linéaire
+S25;bon;états A20 visibles
+S26;bon;
+S27;faible;liste linéaire
+S28;moyen;trois circuits, petit
+S29;bon;
+S30;bon;
+S31;moyen;cible : non distingué
+S32;bon;conforme au parcours rejoué
+S33;moyen;cible : non distingué
+S34;bon;
+S35;bon;
+S36;faible;cases surdimensionnées, boucle
+S37;faible;liste
+S38;faible;liste verticale
+S39;bon;dépendances des lots (non revérifié vs plan)
+S40;faible;"liste ; légende séparée"
+S41;moyen;processus interne PO/Dev/Relecteur
+S42;faible;trois chiffres
