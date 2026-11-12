@@ -60,7 +60,7 @@ Vue : `AujourdhuiView` (`dashboard/web_views.py:46`) ; présentation : `dashboar
 ## 6T.7 Limites et éléments non vérifiés
 
 - ⚪ `a_faire` effectue plusieurs requêtes par type d'objet ; aucune mesure de performance n'a été faite.
-- ⚪ La borne « un chef de section ne consulte que sa section » pour la passation n'a pas été trouvée (A14).
+- 🟢 La borne « un chef de section ne consulte que sa section » **n'existe pas** : écart A14 confirmé par test le 12/11/2026 (état B, comptes fictifs).
 - ⚪ Le PDF n'a pas été rejoué (bibliothèques natives absentes de l'environnement).
 - ⚪ Chaque indicateur de la Vue flotte, de la Vue COMANAV et des dashboards transverses n'est pas détaillé ici.
 

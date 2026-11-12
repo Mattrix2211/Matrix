@@ -20,10 +20,10 @@
 | **A2** | Les échanges de tours sont validés par qui gère la liste, pas par le COMAEQ ou son suppléant | Autorité de décision différente de celle décidée | 🟢 ; B1, B3 liés |
 | **A3** | La publication d'une liste dépend d'un seuil réglable par bâtiment | Un bâtiment peut abaisser le seuil de publication | 🟢 |
 | **A4** | Le commandant en second : même acte refusé par l'API et accepté par l'écran | Comportement de droits incohérent entre canaux | 🟢 ; B2 lié |
-| **A14** | Passation : limite à la section du chef de section non démontrée | Visibilité possible de toute la synthèse | ⚪ **non vérifié** : aucun cas réel rejoué |
+| **A14** | Passation : un chef de section lit la synthèse de tout le bâtiment, au lieu de sa seule section | Visibilité d'informations d'autres sections | 🟢 **confirmé par test (12/11/2026, comptes fictifs)** ; aucune fuite réelle alléguée |
 | **A23** | Pas de limitation des tentatives de connexion, ni HSTS, ni réglage de proxy ; aucun serveur HTTPS livré | Accès et sécurité de transport | Cible (accès avec les SIC) ; ⚪ architecture à définir |
 | **A24** | Aucune sauvegarde, restauration, supervision ni conservation des journaux | Perte de données non couverte, pas de reprise | 🟢 absence constatée ; D7 lié |
-| **A25** | Un module désactivé continue de répondre par l'API et les tâches planifiées | Désactivation non étanche hors pages | 🟢 ; choix volontaire du code |
+| **A25** | Un module désactivé reste accessible par l'API (lecture et écriture), l'administration, les tâches planifiées, l'accueil et le calendrier | Désactivation non étanche hors pages web, menu et recherche | 🟢 confirmé par test ; choix volontaire du code ; règle attendue à décider par le PO |
 | **B1** | Suppléance du COMAEQ : principe décidé, procédure à confirmer | Autorité de substitution non définie | À confirmer |
 | **B2** | Commandant en second : responsabilités attribuées, qui les attribue à confirmer | Même sujet que A4 | À confirmer |
 | **B5** | Chef de liste des quarts : qui le désigne à confirmer | Désignation = source de droits | À confirmer |
@@ -32,7 +32,7 @@
 
 | Id | Constat | Effet | Remarque |
 |---|---|---|---|
-| **A20** | Une occurrence « En validation » n'a pas de sortie dédiée, n'est jamais en retard, et n'est pas liée à la clôture du ticket | Peut rester indéfiniment sans alerte | 🟢 ; règle de sortie à décider (D2) |
+| **A20** | Une occurrence « En validation » n'a pas de sortie dédiée ; sorties par correction du compte rendu, par l'API « démarrer » (état incohérent) ou l'administration ; jamais en retard ; non liée au ticket ; suspend l'entretien récurrent d'une installation | Peut rester indéfiniment sans notification ni échéance | 🟢 confirmé par test ; règle de sortie à décider (D2) |
 | **A15** | RETEX en une étape au lieu du circuit hiérarchique ; pas de demande de correction | Circuit décidé absent | 🟢 |
 | **A16** | Le marquage « flotte » du RETEX ne transmet rien | Aucune transmission à un organisme | 🟢 ; D3 lié |
 | **A17** | Appareillage : signature unique, ni fiche de référence, ni classification, ni circuit COMANAV | Circuit décidé absent ; Matrix reste un outil de suivi | 🟢 ; D4 lié |
@@ -68,5 +68,5 @@
 - **Sécurité** : 8 écarts (A1, A2, A3, A4, A14, A23, A24, A25) et 3 points à confirmer (B1, B2, B5). **Aucun n'est une faille exploitée constatée** : ce sont des écarts entre la règle décidée et le comportement du code.
 - **Blocage fonctionnel** : 9 écarts (A12, A13, A15 à A21), 4 points à confirmer (B3, B4, B6, B7) et les propositions D1 à D4.
 - **Secondaire** : 9 écarts (A5 à A11, A22, A26), le point B8 et les propositions D5, D6, D7.
-- **Le seul écart pouvant coincer un dossier sans signal visible est A20.**
+- **A20 est le seul écart pouvant coincer un dossier sans notification ni échéance** (l'occurrence reste visible en « À faire » et en supervision).
 - Les décisions du PO ne sont pas modifiées ; les écarts ne sont pas corrigés ; aucun lot n'est lancé.

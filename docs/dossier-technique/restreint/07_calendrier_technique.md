@@ -26,7 +26,7 @@ Le paquet `calendar_app` a **un seul modèle** (`PersonalEvent`, `calendar_app/m
 - **Sessions de formation** : par **affectation personnelle** (`attendees`, `reservations`, `instructor`) ; le filtre par périmètre a été abandonné car la formation est une fiche globale partagée (portabilité des qualifications).
 - **Vue d'équipe** : `marins_visibles` = soi-même plus l'équipe de qui peut superviser (`peut_superviser`, seuil `tache_attribution`) et l'équipage de l'appelant ; `evenements_equipe` : tâches (retards en évidence), absences, quarts et gardes.
 - **Filtres** : `filtres_organisation_coherents` invalide un enfant incompatible avec son parent ; `filtre_identifiant_invalide` renvoie une 400 en français si un identifiant n'est pas numérique ; le filtre `equipe` n'est admis que par l'API.
-- Le module activable ne se voit pas ici : une source dont le module est désactivé disparaît côté web (chapitre 4).
+- 🟢 Le module activable **ne se voit pas ici** : `calendar_app` n'appelle pas la résolution des modules ; vérifié par test, `calendar/events/` renvoie les occurrences de maintenance d'un module désactivé (écart A25, chapitre 20).
 
 ## 7T.3 Déplacement par glisser-déposer
 

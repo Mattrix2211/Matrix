@@ -96,7 +96,7 @@ Les relevés saisis dans un compte rendu de maintenance **alimentent ces mesures
 ## 11.7 Documents, événements, pièces, historique
 
 - Une installation porte ses **documents de référence** (plan, notice, procédure), distincts des pièces jointes des événements et des entretiens.
-- On y consigne des **événements** et des **modifications techniques** (une modification technique doit, à terme, entraîner la mise à jour de la configuration, de la documentation, de la maintenance, des rechanges et de la formation).
+- On y consigne des **événements** et des **modifications techniques** (⚪ la page Notion « 04 » décrit l'orientation selon laquelle une modification technique devrait entraîner la mise à jour de la configuration, de la documentation, de la maintenance, des rechanges et de la formation ; **cette propagation n'existe pas** dans l'état B).
 - Les **pièces** de l'installation (avec NNO et photo) sont listées.
 - L'**historique d'un équipement** est tiré des comptes rendus : frise chronologique et séries de relevés par ligne de fiche, **sans ressaisie**.
 

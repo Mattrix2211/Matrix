@@ -1,6 +1,6 @@
 ## F.5 Registre des éléments non vérifiés (⚪), par chapitre (généré)
 
-**174 passages** répartis sur 41 fichiers.
+**173 passages** répartis sur 41 fichiers.
 Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. Aucune ligne n'a été ajoutée ni retirée à la main.
 
 ### 01_vision.md
@@ -36,11 +36,10 @@ Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. A
 - - ⚪ Le détail action par action de ce que peut faire un administrateur d'unité est établi dans les chapitres qui traitent chaque circuit.
 
 ### 06_accueil_pilotage.md
-- Quand un **double équipage** relève, Matrix **fige** une **synthèse de passation** pour l'équipage montant : ce que les services existants savent déjà dire du bâtiment (vue COMANAV, qualifications, annonces, listes de service). Elle est **activée par défaut** (l'administrateur général peut la désactiver pour la flotte ; les synt…
 - - 🟢 Couverture de tests de l'état B : 261 fonctions de test dans `dashboard`. ⚪ Les écrans n'ont pas été rejoués dans un navigateur ; leur description vient du code et des gabarits.
 - - ⚪ Le contenu exact de chaque vue de pilotage évolue avec les modules sources ; ce chapitre en décrit la **logique d'assemblage**, pas chaque indicateur.
 - - ⚪ Le PDF exige des bibliothèques natives non installées dans l'environnement de rédaction : l'export PDF n'a pas été rejoué.
-- - ⚪ La page Notion « Recette UX V1.1 » n'a pas encore été lue ; elle le sera avant le chapitre 17.
+- - ⚪ La page Notion « Recette UX V1.1 » a été consultée lors de la rédaction du chapitre 17 ; les observations de recette n'ont toutefois pas été rapprochées une à une du comportement du code ni rejouées sur un poste réel.
 
 ### 07_calendrier.md
 - - 🟢 Couverture de tests de l'état B : 124 fonctions de test dans `calendar_app`. ⚪ L'affichage (FullCalendar) n'a pas été rejoué dans un navigateur.
@@ -65,6 +64,7 @@ Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. A
 - - ⚪ La décision « Tâches périodiques générées à partir des fiches de maintenance » relève du chapitre 12.
 
 ### 11_materiel_installations.md
+- - On y consigne des **événements** et des **modifications techniques** (⚪ la page Notion « 04 » décrit l'orientation selon laquelle une modification technique devrait entraîner la mise à jour de la configuration, de la documentation, de la maintenance, des rechanges et de la formation ; **cette propagation n'existe pas** dans l'…
 - - 🟢 Couverture de tests de l'état B : `assets` 493 fonctions de test. ⚪ Les écrans (plan du navire, grille, assistants de fiche) n'ont pas été rejoués dans un navigateur.
 - - ⚪ Le détail de chacun des 29 modèles est dans le dictionnaire généré ; ce chapitre explique les mécanismes, pas chaque champ.
 - - ⚪ La signification de **NNO** (« numéro de nomenclature OTAN ») est donnée par le libellé du champ du stock ; le champ du matériel porte seulement « NNO ».
@@ -72,7 +72,7 @@ Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. A
 - - ⚪ Les pages Notion « 04 — Maintenance… » décrivent des objets cibles (composants, potentiels, configuration) **non développés** ; ils ne sont pas présentés comme existants.
 
 ### 12_maintenance_anomalies_tickets.md
-- - Matrix ne sait pas dire si le défaut est **corrigé** : c'est un chef qui doit corriger le compte rendu ou **annuler** l'occurrence ⚪ (le chemin d'annulation manuelle n'a pas été rejoué).
+- 2. **L'API « démarrer »** : elle écrit « En cours » **sans contrôler l'état de départ**, et un marin assigné peut l'appeler. L'occurrence quitte alors « En validation » sans que personne ne l'ait validée, alors que son compte rendu terminé reste « non conforme » : état **incohérent**, qui apparaît ensuite en retard. Une correcti…
 - | Tâches (ch. 10) | Une tâche peut être rattachée à un objet ; création depuis une anomalie ⚪ non vérifiée |
 - - ⚪ Les écrans (exécution, tournée, ticket) n'ont pas été rejoués dans un navigateur.
 - - ⚪ Les envois de notifications (web push, e-mail) n'ont pas été rejoués ; seules leurs conditions de déclenchement sont décrites.
@@ -142,7 +142,6 @@ Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. A
 
 ### 06_accueil_pilotage_technique.md
 - - ⚪ `a_faire` effectue plusieurs requêtes par type d'objet ; aucune mesure de performance n'a été faite.
-- - ⚪ La borne « un chef de section ne consulte que sa section » pour la passation n'a pas été trouvée (A14).
 - - ⚪ Le PDF n'a pas été rejoué (bibliothèques natives absentes de l'environnement).
 - - ⚪ Chaque indicateur de la Vue flotte, de la Vue COMANAV et des dashboards transverses n'est pas détaillé ici.
 
@@ -209,7 +208,7 @@ Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. A
 - - ⚪ La conservation des journaux, des notifications lues et des estimations n'est pas définie (information manquante IM-10 du dossier V1.2).
 
 ### 20_api_interfaces.md
-- - **Modules désactivés** : l'API **continue de répondre** même si le module est désactivé pour le bâtiment ; seules les pages sont bloquées. Ce choix évite de casser les enchaînements internes ; ⚪ il doit être connu de tout intégrateur.
+- - **Modules désactivés** : l'API **continue de répondre** même si le module est désactivé pour le bâtiment ; seules les pages web sont bloquées (vérifié par test le 12/11/2026 : lecture et écriture API, administration Django, tâches planifiées et enchaînements internes continuent ; l'accueil et le calendrier continuent aussi d'a…
 - - **Pas de pagination configurée** et **pas de limitation de débit** (⚪ non trouvés dans le code) : une grosse collection est renvoyée entièrement ; un intégrateur doit filtrer.
 - | Calendrier personnel dans un autre agenda | **iCal** `calendar/ical/my/` (`calendar_app/ical_views.py:13`) | 🟢 ; ⚪ sans tâches ni programme |
 - | Bilan imprimable | **PDF** par WeasyPrint | 🟢 facultatif : bibliothèques natives (GTK) absentes par défaut sous Windows ; ⚪ non rejoué |

@@ -80,7 +80,7 @@ Le calendrier est un **agrégateur** : il **lit** presque tous les modules (il i
 - **Marin sans événement** : le calendrier est simplement vide ; aucune donnée hors périmètre n'est affichée.
 - **Liste prévisionnelle** : les gardes prévisionnelles apparaissent, distinctes des gardes en vigueur.
 - **Absence en attente de validation** : affichée ; elle compte aussi pour les contrôles d'échange.
-- **Module désactivé** : sa source disparaît du calendrier.
+- **Module désactivé** : 🟢 vérifié par test, **le calendrier continue d'afficher les événements de ce module** (par exemple les maintenances), avec un lien vers une page web qui, elle, est refusée ; seuls le menu et la recherche masquent le module (écart A25).
 
 ## 7.8 Fonctionnement cible 🔵
 

@@ -30,7 +30,7 @@
 
 > Exemple fictif : le matelot Durand contrôle les extincteurs du pont principal.
 
-1. Il ouvre l'échéance depuis « À faire », depuis la fiche de l'équipement, ou **en scannant le QR code** de l'équipement : il arrive sur la fiche du jour.
+1. Il ouvre l'échéance (une maintenance qui lui est assignée, ou qu'il s'assigne d'un clic) depuis « À faire », depuis la fiche de l'équipement, ou **en scannant le QR code** de l'équipement : il arrive sur la fiche du jour.
 2. Il lit la **préparation** (EPI, consignes, outils, pièces) et les attentions de sécurité.
 3. Il renseigne **ligne par ligne** : résultat, mesure, remarque. Les mesures de l'installation (heures, vibration, isolement) se saisissent là, **sans ressaisie ailleurs**.
 4. Il peut **enregistrer en cours de route** (l'occurrence passe **En cours**) puis **clôturer** avec un verdict : **conforme**, **non conforme**, etc., des **photos** et une **note**. Il indique les **intervenants**.
@@ -56,15 +56,21 @@
 
 États : **Planifiée → Assignée → En cours → Terminée** ; **En retard** (calculé) ; **En validation** (verdict non conforme) ; **Annulée**. Chaque changement est **journalisé** (ancien et nouvel état, auteur) et, pour les installations critiques, **audité**.
 
-🟢 **Sortie de l'état « En validation » : examen précis.** Il n'existe **aucune action de validation dédiée** (aucun bouton, aucune route, aucune tâche planifiée) qui fasse sortir une occurrence de cet état. La **seule sortie trouvée** est la **correction du compte rendu** : un **chef de secteur ou plus** (action `maintenance_compte_rendu_correction`) rouvre le compte rendu, indique un motif obligatoire et déclare une conformité finale ; si elle n'est plus « non conforme », l'occurrence passe **Terminée**. Rien ne la fait sortir de l'état quand le ticket correctif lié est clôturé : **aucun lien automatique** ticket → occurrence n'a été trouvé.
+🟢 **Sortie de l'état « En validation » : vérifié par test (12/11/2026, état B, données fictives).** Il n'existe **aucune action de validation dédiée** (aucun bouton, aucune route, aucune tâche planifiée). Trois chemins font pourtant changer l'état :
+1. **La correction du compte rendu par un chef de secteur ou plus** (action `maintenance_compte_rendu_correction`), avec motif obligatoire : si la conformité finale n'est plus « non conforme », l'occurrence passe **Terminée** ; sinon elle reste « En validation ». Un marin, y compris l'exécutant, et un chef de section **ne le peuvent pas**.
+2. **L'API « démarrer »** : elle écrit « En cours » **sans contrôler l'état de départ**, et un marin assigné peut l'appeler. L'occurrence quitte alors « En validation » sans que personne ne l'ait validée, alors que son compte rendu terminé reste « non conforme » : état **incohérent**, qui apparaît ensuite en retard. Une correction par un chef de secteur remet l'état en ordre. Ce chemin n'a manifestement pas été voulu comme une validation (⚪ intention non confirmée).
+3. **L'administration Django** : un compte technique peut écrire n'importe quel état, y compris « Annulée ».
 
-**Risque de blocage, constaté et non inventé.**
-- Une occurrence « En validation » **n'est jamais comptée en retard** (elle est exclue du calcul des retards) et la tâche quotidienne de retard ne traite que les occurrences planifiées ou assignées : **elle peut rester indéfiniment dans cet état sans alerte de retard**.
-- Elle reste visible dans les compteurs « en validation » (accueil, liste filtrable, calendrier), qui sont donc le seul rappel.
-- Tant qu'elle est « En validation », la **tournée** la verrouille ; la prochaine échéance de la même gamme est générée indépendamment.
-- Matrix ne sait pas dire si le défaut est **corrigé** : c'est un chef qui doit corriger le compte rendu ou **annuler** l'occurrence ⚪ (le chemin d'annulation manuelle n'a pas été rejoué).
+Aucune annulation manuelle n'existe dans l'interface ni dans l'API. **Rien ne sort l'occurrence de l'état quand le ticket correctif lié est clôturé** (vérifié : ticket clôturé, occurrence inchangée) ; l'API de clôture refuse un second compte rendu (409) ; la modification directe du statut par l'API est refusée.
 
-Écart **A20** : voir le registre (rubrique « non vérifié » conservée pour les parties non rejouées).
+**Risque de blocage, vérifié et non inventé.**
+- Une occurrence « En validation » **n'est jamais comptée en retard** (choix explicite du code : « une validation en attente n'est pas un retard de l'équipe »), la tâche de retard ne la traite pas et **aucune notification ne la vise** : elle peut rester indéfiniment dans cet état sans notification ni relance.
+- Elle reste **visible** : « À faire » de l'exécutant et des chefs la signale « En attente de validation », le bloc de supervision des chefs et la liste filtrable la comptent. Mais **aucune échéance, ancienneté ni escalade** n'existe.
+- Pour du **matériel mobile**, la génération des échéances suivantes **continue** (vérifié) et un ticket est créé. Pour une **installation**, **aucun ticket n'est créé et la génération de l'échéance suivante est suspendue** tant que l'occurrence reste « En validation » (la commande de génération considère qu'une occurrence non terminée existe déjà) : l'entretien récurrent de l'installation **s'arrête** jusqu'à la correction du compte rendu. La génération reprend dès que l'occurrence est « Terminée ».
+- La tournée verrouille l'occurrence tant qu'elle est « En validation ».
+- Matrix ne sait pas dire si le défaut est **corrigé** : seul un chef de secteur ou plus peut conclure, en corrigeant le compte rendu.
+
+Aucune règle nouvelle n'est proposée ici : la règle de sortie reste **à décider par le PO** (écart A20, proposition D2).
 
 ## 12.5 L'anomalie : « j'ai vu quelque chose »
 
@@ -110,7 +116,7 @@ Les relevés des installations alimentent une **détection de dérive** par rég
 | Action | Qui (seuil par défaut) | Borne |
 |---|---|---|
 | Voir les échéances | Tout marin de son périmètre ; assignés en priorité | Périmètre, équipage |
-| Exécuter une maintenance | Tout marin du périmètre concerné (hors équipage à terre et soutien à terre) | Périmètre |
+| Exécuter une maintenance | **Le marin assigné**, ou un **chef de section ou plus** pour une maintenance qui n'est pas la sienne ; tout marin de son périmètre peut **s'assigner lui-même** (hors équipage à terre et soutien à terre) | Périmètre |
 | Corriger un compte rendu terminé | Selon les seuils du bâtiment ; motif tracé | Périmètre |
 | Signaler une anomalie | Tout marin | — |
 | Traiter / convertir une anomalie | Chef de section et plus | Périmètre ; état-major : services de sa fonction |
@@ -136,7 +142,7 @@ Les seuils sont **réglables par bâtiment** (chapitre 5). L'équipage à terre 
 - **Double équipage** : listes et compteurs bornés à l'équipage.
 - **Rondes** : le module « rondes » est **retiré de l'interface** ; seuls ses modèles subsistent (non utilisés, non décrits comme fonctionnalité).
 - **Équipement supprimé** : voir le chapitre 11 (rattachement) ; les comptes rendus conservent l'historique.
-- **Module désactivé** : ses blocs disparaissent de l'accueil.
+- **Module désactivé** : 🟢 les pages web du module sont refusées et son entrée de menu disparaît, mais **l'accueil et le calendrier continuent d'afficher les maintenances**, et l'API comme les tâches planifiées continuent de fonctionner (écart A25).
 
 ## 12.11 Fonctionnement cible 🔵
 
@@ -151,7 +157,7 @@ Les seuils sont **réglables par bâtiment** (chapitre 5). L'équipage à terre 
 ## 12.12 Limites et éléments non vérifiés
 
 - 🟢 Tests de l'état B : `maintenance` et `logistics` (rejoués avec l'ensemble 3 : 1 491 tests OK, 1 ignoré ; voir `RAPPORT_E3.md`).
-- 🟢 Pas de validation dédiée pour **En validation** ; sortie uniquement par correction du compte rendu (§12.4) ; risque de blocage sans alerte de retard.
+- 🟢 Pas de validation dédiée pour **En validation** ; trois chemins de sortie (§12.4), dont l'API « démarrer » qui laisse un état incohérent ; risque de blocage sans notification, et suspension de l'entretien récurrent d'une installation.
 - ⚪ Les écrans (exécution, tournée, ticket) n'ont pas été rejoués dans un navigateur.
 - ⚪ Les envois de notifications (web push, e-mail) n'ont pas été rejoués ; seules leurs conditions de déclenchement sont décrites.
 

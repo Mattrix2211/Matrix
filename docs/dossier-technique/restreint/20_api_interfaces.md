@@ -43,7 +43,7 @@
 - **Droit d'écriture** : classe `RolePermission` (`matrix/core/permissions.py:9`) : seuil de rôle **par action**, résolu selon la configuration du bâtiment de l'appelant ; un état-major n'écrit que sur les services rattachés à sa fonction ; un assigné peut modifier sa propre occurrence de maintenance.
 - **Suppression protégée** : supprimer une unité référencée renvoie **409** avec le détail et le nombre d'objets liés (`SuppressionRefuseeAPI`, `org/views.py:38`), jamais une suppression en cascade (lot L03).
 - **Statut d'une occurrence** : non modifiable par une écriture générique ; seules les actions dédiées (démarrer, terminer) le changent, avec la **confirmation** des installations critiques.
-- **Modules désactivés** : l'API **continue de répondre** même si le module est désactivé pour le bâtiment ; seules les pages sont bloquées. Ce choix évite de casser les enchaînements internes ; ⚪ il doit être connu de tout intégrateur.
+- **Modules désactivés** : l'API **continue de répondre** même si le module est désactivé pour le bâtiment ; seules les pages web sont bloquées (vérifié par test le 12/11/2026 : lecture et écriture API, administration Django, tâches planifiées et enchaînements internes continuent ; l'accueil et le calendrier continuent aussi d'afficher les données du module). Ce choix évite de casser les enchaînements internes ; ⚪ il doit être connu de tout intégrateur.
 - **Équipage à terre** : lecture seule appliquée par middleware, y compris sur l'API.
 
 ## 20.4 Conventions

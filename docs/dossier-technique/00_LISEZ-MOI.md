@@ -62,4 +62,4 @@ Les scripts d'inventaire chargent Django sur la copie de l'état B ; ils ne touc
 
 ## Règles de rédaction
 
-Voir `diffusable/03_lire_ce_dossier.md` : trois étiquettes (🟢 actuel, 🔵 cible, ⚪ non vérifié), références vérifiées sur l'état B, aucune fonction cible rédigée au présent, aucun audit.
+Voir `diffusable/03_lire_ce_dossier.md` : quatre étiquettes (🟢 actuel, 🔵 cible validée, 🟣 proposition à valider, ⚪ non vérifié), références vérifiées sur l'état B, aucune fonction cible rédigée au présent, aucun audit.

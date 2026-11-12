@@ -50,7 +50,7 @@ Les middlewares, dans l'ordre de `MIDDLEWARE` (`matrix/settings.py:115`), et ce 
 - **Création de compte sans mot de passe utilisable.** L'administrateur du bâtiment réinitialise ensuite : mot de passe provisoire de 14 caractères, affiché **une fois**, jamais journalisé, à changer à la première connexion (chapitre 5).
 - **Déconnexion automatique** après 900 secondes d'inactivité par défaut, bornée entre 60 secondes et 8 heures, avec avertissement ; les requêtes automatiques ne comptent pas (`matrix/core/inactivite.py`). Les brouillons sont enregistrés avant déconnexion.
 - **Cookies** de session et CSRF en mode « sécurisé » et **redirection vers HTTPS hors DEBUG** (`matrix/settings.py:422-424`). En développement local, HTTP simple reste possible.
-- **API** : authentification par session et, en plus, par `BasicAuthentication` (bloc `REST_FRAMEWORK`, `matrix/settings.py:239`) ; l'accès à l'API reste soumis aux mêmes permissions que les pages.
+- **API** : authentification par session et, en plus, par `BasicAuthentication` (bloc `REST_FRAMEWORK`, `matrix/settings.py:239`) ; l'accès à l'API reste soumis aux mêmes permissions que les pages, **sauf l'activation des modules** : un module désactivé pour un bâtiment ne bloque que les pages web, jamais l'API (chapitre 20, écart A25).
 - Connexions et déconnexions sont tracées (`accounts/signals.py`).
 
 ## 22.4 Les fichiers téléversés
