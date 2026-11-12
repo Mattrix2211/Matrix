@@ -1,7 +1,7 @@
 # Chapitre 3 — Lire ce dossier
 
 > **Pour qui :** tous. **Diffusion :** générale.
-> **Ce que vous y trouverez :** l'état du logiciel décrit, les trois étiquettes qui distinguent le réel, le cible et l'incertain, l'organisation des fichiers et la façon de vérifier une affirmation.
+> **Ce que vous y trouverez :** l'état du logiciel décrit, les quatre étiquettes qui distinguent le réel, la cible validée, les propositions et le non vérifié, l'organisation des fichiers et la façon de vérifier une affirmation.
 
 ---
 
@@ -29,7 +29,7 @@ Les lots ajoutés par rapport à `main` :
 
 Dans les chapitres, l'état A n'apparaît que dans un encadré **« Comparaison avec `main` »**, quand il diffère.
 
-## 3.2 Les trois étiquettes
+## 3.2 Les quatre étiquettes
 
 | Étiquette | Signification | Preuve attendue |
 |---|---|---|
