@@ -67,7 +67,8 @@ h3 { font-size: 11pt; page-break-after: avoid; }
 table { border-collapse: collapse; width: 100%; margin: 3mm 0; font-size: 8.4pt; page-break-inside: auto; }
 .paysage table { font-size: 7.2pt; }
 tr { page-break-inside: avoid; }
-th, td { border: 1px solid #b9c3d0; padding: 1.2mm 1.8mm; vertical-align: top; overflow-wrap: anywhere; }
+th, td { border: 1px solid #b9c3d0; padding: 1.2mm 1.8mm; vertical-align: top; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
+td code, th code { overflow-wrap: anywhere; }
 th { background: #e8eef6; text-align: left; }
 code { font-family: "DejaVu Sans Mono", monospace; font-size: 0.88em; background: #f1f4f8; padding: 0 1mm; overflow-wrap: anywhere; }
 pre { background: #f1f4f8; padding: 2mm; overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -83,8 +84,23 @@ def titre_de(md):
     return m.group(1).strip() if m else "Sans titre"
 
 
+def separer_listes(texte):
+    """Python-Markdown exige une ligne vide avant une liste ; GitHub l'admet sans : on l'ajoute pour un rendu identique."""
+    sortie, precedent, dans_code = [], "", False
+    for ligne in texte.split("\n"):
+        if ligne.lstrip().startswith("```"):
+            dans_code = not dans_code
+        est_item = bool(re.match(r"^(\s*)([-*+]|\d+\.) ", ligne))
+        prec_item = bool(re.match(r"^(\s*)([-*+]|\d+\.) ", precedent)) or precedent.startswith("  ")
+        if not dans_code and est_item and precedent.strip() and not prec_item and not precedent.lstrip().startswith(("|", ">")):
+            sortie.append("")
+        sortie.append(ligne)
+        precedent = ligne
+    return "\n".join(sortie)
+
+
 def convertir(chemin, paysage):
-    brut = chemin.read_text(encoding="utf-8")
+    brut = separer_listes(chemin.read_text(encoding="utf-8"))
     corps = markdown.markdown(brut, extensions=["tables", "fenced_code", "sane_lists"])
     base = chemin.parent
     def img(m):

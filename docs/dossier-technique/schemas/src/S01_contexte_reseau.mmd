@@ -1,14 +1,17 @@
 flowchart TB
-  NET["Internet : aucun accès, aucune dépendance"]:::x
+  NET["Internet : aucun accès, aucune<br/>dépendance"]:::x
   subgraph BORD["Bâtiment"]
-    SRV["Serveur Matrix local : Django, base de données, Celery, Redis"]
+    direction TB
+    SRV["Serveur Matrix local : Django,<br/>base de données, Celery, Redis"]
     PC["Postes du bord (PC)"]
     TAB["Tablettes et mobiles du bord"]
   end
   subgraph TERRE["À terre (intranet Défense)"]
-    SOUT["Soutien à terre : consultation et commentaires selon les droits"]
-    EQB["Équipage à terre : lecture seule du bâtiment"]
+    direction TB
+    SOUT["Soutien à terre : consultation et<br/>commentaires selon les droits"]
+    EQB["Équipage à terre : lecture seule<br/>du bâtiment"]
   end
+  TAB ~~~ SOUT
   PC --> SRV
   TAB --> SRV
   SOUT -. "même serveur, périmètre restreint" .-> SRV

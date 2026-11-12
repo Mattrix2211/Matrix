@@ -1,9 +1,11 @@
 flowchart LR
   subgraph PERS["Personnes et organisation"]
+    direction TB
     accounts
     org
   end
   subgraph VIE["Vie quotidienne"]
+    direction TB
     dashboard
     calendar_app
     quarts
@@ -14,22 +16,26 @@ flowchart LR
     postes
   end
   subgraph COM["Communication"]
+    direction TB
     threads
     annonces
     notifications
   end
   subgraph TECH["Technique et logistique"]
+    direction TB
     assets
     maintenance
     logistics
     rondes["rondes (retiré)"]
   end
   subgraph SAV["Connaissance"]
+    direction TB
     training
     documentation
     retex
   end
   subgraph PIL["Pilotage"]
+    direction TB
     reports
   end
   CORE["matrix.core : rôles, périmètres, modules, audit, sécurité"]

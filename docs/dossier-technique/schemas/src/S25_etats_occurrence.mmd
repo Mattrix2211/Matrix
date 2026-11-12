@@ -1,4 +1,4 @@
-flowchart LR
+flowchart TB
   PL["Planifiée"] -->|"assignation"| AS["Assignée"]
   PL -->|"enregistrement en direct"| EC["En cours"]
   AS --> EC
@@ -8,3 +8,6 @@ flowchart LR
   AS -->|"échéance dépassée"| OV
   OV --> EC
   PL --> CA["Annulée"]
+  WV -->|"correction du compte rendu par un chef de secteur, conformité finale conforme"| DO
+  WV -.->|"API démarrer, sans contrôle de l'état : sortie non voulue, état incohérent"| EC
+  WV -.->|"administration technique"| CA

@@ -1,12 +1,12 @@
 flowchart TB
-  D["Demande : le marin A propose d'échanger un tour de service à quai"]
-  AC["Accepté par le marin B : en attente du chef de liste"]
-  VA["Validé par qui gère la liste : tours permutés, nouvelle version de la liste"]
-  VD["Validé mais différé : liste prévisionnelle, application à l'activation"]
+  D["Demande : le marin A propose<br/>d'échanger un tour de service à<br/>quai"]
+  AC["Accepté par le marin B : en<br/>attente du chef de liste"]
+  VA["Validé par qui gère la liste :<br/>tours permutés, nouvelle version<br/>de la liste"]
+  VD["Validé mais différé : liste<br/>prévisionnelle, application à<br/>l'activation"]
   BL["Application bloquée : motif notifié"]
   RF["Refusé par le marin B"]
   RJ["Refusé par qui gère la liste"]
-  AN["Annulé par le marin A, ou abandonné avec motif"]
+  AN["Annulé par le marin A, ou<br/>abandonné avec motif"]
   D -->|"B accepte, contrôles refaits"| AC
   D -->|"B refuse"| RF
   D -->|"A annule"| AN
