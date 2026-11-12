@@ -1,20 +1,19 @@
-flowchart TB
-  NET["Internet : aucun accès, aucune<br/>dépendance"]:::x
-  subgraph BORD["Bâtiment"]
-    direction TB
-    SRV["Serveur Matrix local : Django,<br/>base de données, Celery, Redis"]
-    PC["Postes du bord (PC)"]
-    TAB["Tablettes et mobiles du bord"]
-  end
+flowchart LR
   subgraph TERRE["À terre (intranet Défense)"]
     direction TB
-    SOUT["Soutien à terre : consultation et<br/>commentaires selon les droits"]
-    EQB["Équipage à terre : lecture seule<br/>du bâtiment"]
+    SOUT["Soutien à terre :<br/>consultation et commentaires<br/>selon les droits"]
+    EQB["Équipage à terre :<br/>lecture seule du bâtiment"]
   end
-  TAB ~~~ SOUT
+  subgraph POSTES["Bâtiment : postes de travail"]
+    direction TB
+    PC["Postes du bord (PC)"]
+    TAB["Tablettes et mobiles"]
+  end
+  SRV["Serveur Matrix local du bâtiment :<br/>Django, base de données,<br/>Celery, Redis"]
+  NET["Internet : aucun accès,<br/>aucune dépendance"]:::x
   PC --> SRV
   TAB --> SRV
-  SOUT -. "même serveur, périmètre restreint" .-> SRV
-  EQB -. "même serveur, lecture seule" .-> SRV
-  NET -. "coupé" .- SRV
+  SOUT -. "même serveur,<br/>périmètre restreint" .-> SRV
+  EQB -. "même serveur,<br/>lecture seule" .-> SRV
+  SRV -. "coupé" .- NET
   classDef x stroke-dasharray: 5 5

@@ -1,7 +1,11 @@
 stateDiagram-v2
-  [*] --> Active: "Création"
-  Active --> Archivee: "Archivage, refusé si marins actifs, installations ou matériel"
-  Archivee --> Active: "Réactivation, refusée sous un parent archivé"
-  Active --> Supprimee: "Suppression, seulement si plus rien ne la référence"
-  Archivee --> Supprimee: "Suppression, mêmes conditions"
+  direction TB
+  state "Active" as Active
+  state "Archivée" as Archivee
+  state "Supprimée" as Supprimee
+  [*] --> Active: Création
+  Active --> Archivee: Archivage<br/>refusé si marins actifs,<br/>installations ou matériel
+  Archivee --> Active: Réactivation<br/>refusée sous un parent archivé
+  Active --> Supprimee: Suppression<br/>seulement si plus rien<br/>ne la référence
+  Archivee --> Supprimee: Suppression<br/>mêmes conditions
   Supprimee --> [*]

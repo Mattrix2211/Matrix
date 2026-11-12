@@ -2,12 +2,12 @@ flowchart TB
   PL["Planifiée"] -->|"assignation"| AS["Assignée"]
   PL -->|"enregistrement en direct"| EC["En cours"]
   AS --> EC
-  EC -->|"terminer : conforme ou à surveiller"| DO["Terminée"]
+  EC -->|"terminer : conforme ou à<br/>surveiller"| DO["Terminée"]
   EC -->|"terminer : non conforme"| WV["En validation"]
-  PL -->|"échéance dépassée, tâche planifiée"| OV["En retard"]
+  PL -->|"échéance dépassée, tâche<br/>planifiée"| OV["En retard"]
   AS -->|"échéance dépassée"| OV
   OV --> EC
   PL --> CA["Annulée"]
-  WV -->|"correction du compte rendu par un chef de secteur, conformité finale conforme"| DO
-  WV -.->|"API démarrer, sans contrôle de l'état : sortie non voulue, état incohérent"| EC
+  WV -->|"correction du compte<br/>rendu par un chef de<br/>secteur, conformité<br/>finale conforme"| DO
+  WV -.->|"API démarrer, sans<br/>contrôle de l'état :<br/>sortie non voulue, état<br/>incohérent"| EC
   WV -.->|"administration technique"| CA

@@ -219,7 +219,7 @@ L = ["## F.5 Registre des éléments non vérifiés (⚪), par chapitre (génér
      "Chaque ligne reprend, à l'identique, un passage marqué ⚪ dans un chapitre. Aucune ligne n'a été ajoutée ni retirée à la main.", ""]
 total = 0
 for n, t in chapitres.items():
-    lignes = [re.sub(r"\s+", " ", l).strip() for l in t.splitlines() if "⚪" in l and not l.lstrip().startswith(("> **Pour", "> **État", "> **Diffusion", "Légende"))]
+    lignes = [re.sub(r"\s+", " ", l).strip() for l in t.splitlines() if "⚪" in l and not l.lstrip().startswith(("> **Pour", "> **État", "> **Diffusion", "Légende", "#"))]
     lignes = [l for l in lignes if "Légende" not in l and "ne pas vérifié" not in l]
     if lignes:
         L.append(f"### {n}")

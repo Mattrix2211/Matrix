@@ -1,44 +1,11 @@
 flowchart LR
-  subgraph PERS["Personnes et organisation"]
-    direction TB
-    accounts
-    org
-  end
-  subgraph VIE["Vie quotidienne"]
-    direction TB
-    dashboard
-    calendar_app
-    quarts
-    absences
-    taches
-    demandes
-    programme
-    postes
-  end
-  subgraph COM["Communication"]
-    direction TB
-    threads
-    annonces
-    notifications
-  end
-  subgraph TECH["Technique et logistique"]
-    direction TB
-    assets
-    maintenance
-    logistics
-    rondes["rondes (retiré)"]
-  end
-  subgraph SAV["Connaissance"]
-    direction TB
-    training
-    documentation
-    retex
-  end
-  subgraph PIL["Pilotage"]
-    direction TB
-    reports
-  end
-  CORE["matrix.core : rôles, périmètres, modules, audit, sécurité"]
+  PERS["Personnes et organisation :<br/>accounts, org"]
+  VIE["Vie quotidienne :<br/>dashboard, calendar_app, quarts, absences,<br/>taches, demandes, programme, postes"]
+  COM["Communication :<br/>threads, annonces, notifications"]
+  TECH["Technique et logistique :<br/>assets, maintenance, logistics,<br/>rondes (retiré)"]
+  SAV["Connaissance :<br/>training, documentation, retex"]
+  PIL["Pilotage :<br/>reports"]
+  CORE["matrix.core : rôles, périmètres,<br/>modules, audit, sécurité"]
   PERS --> CORE
   VIE --> CORE
   COM --> CORE

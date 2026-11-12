@@ -75,7 +75,15 @@ pre { background: #f1f4f8; padding: 2mm; overflow-wrap: anywhere; white-space: p
 blockquote { margin: 3mm 0; padding: 2mm 4mm; border-left: 3px solid #5a7aa0; background: #f4f7fb; }
 img { max-width: 100%; max-height: 190mm; display: block; margin: 3mm auto; }
 em { color: #3a4a5c; }
-hr { border: none; border-top: 1px solid #b9c3d0; margin: 5mm 0; }
+hr { border: none; border-top: 1px solid #b9c3d0; margin: 5mm 0; break-after: avoid; }
+p { orphans: 3; widows: 3; }
+li { break-inside: avoid; }
+p.sources { break-before: avoid; }
+.fin { break-inside: avoid; }
+tbody tr:last-child { break-after: avoid; }
+table { break-after: avoid; }
+h1, h2, h3 { break-after: avoid; }
+img { break-inside: avoid; }
 """
 
 
@@ -108,6 +116,10 @@ def convertir(chemin, paysage):
         return f'src="{cible.as_uri()}"'
     corps = re.sub(r'src="(\.\./schemas/svg/[^"]+)"', img, corps)
     corps = re.sub(r'<a href="[^"#][^"]*\.md[^"]*">(.*?)</a>', r"\1", corps)  # liens entre fichiers : texte seul
+    corps = re.sub(r"<p>(<strong>Sources)", r'<p class="sources">\1', corps)
+    # Le dernier bloc, le filet et les sources restent ensemble : jamais une page qui ne porte que les sources.
+    corps = re.sub(r'(<ul>(?:(?!<ul>).)*?</ul>|<p>(?:(?!</p>).)*</p>)(\s*<hr ?/?>\s*<p class="sources">.*?</p>)',
+                   r'<div class="fin">\1\2</div>', corps, flags=re.S)
     return titre_de(brut), corps
 
 
