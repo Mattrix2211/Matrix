@@ -1,0 +1,12 @@
+# Contrôle C11 : variantes interdites (terme canonique -> variantes à ne pas employer).
+interdits_partout:
+  - "DIFFUSION GÉNÉRALE"
+  - "diffusion générale"
+  - "diffusable"
+  - "DIFFUSABLE"
+variantes:
+  "Prêt à appareiller": ["Prêt à l'appareillage", "Pret à appareiller"]
+  "Mes tours de service": ["Mes tours de services"]
+  "administrateur d'unité": ["administrateur d’unité"]
+  "chef de section": ["chef d'équipe", "chef de sous-section"]
+  "COMAEQ": ["COMA-EQ", "COMAeq"]

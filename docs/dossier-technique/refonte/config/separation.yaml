@@ -1,0 +1,11 @@
+# Contrôle C5 : motifs interdits dans les documents NON techniques (GU, RF).
+# Les chemins de code, branches internes, identifiants de commit, variables d'environnement, adresses et ports
+# sont réservés aux documents techniques à accès restreint (DT, annexes restreintes, preuves).
+interdits_non_techniques:
+  chemin_de_code: '\b[\w./-]+\.(?:py|html|js|bat|yml|sh)\b'
+  commande: 'manage\.py|pip install|docker compose|celery -A'
+  branche_interne: '\bclaude/[\w./-]+|\bchatgpt/[\w./-]+|\bintegration/[\w./-]+'
+  identifiant_de_commit: '\b(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b'
+  variable_environnement: '\b[A-Z][A-Z0-9]{2,}_[A-Z0-9_]{2,}\b'
+  adresse_ou_port: '\b127\.0\.0\.1\b|\blocalhost\b|:\d{4,5}\b'
+  reference_ligne: '`[^`]+:\d+`'
