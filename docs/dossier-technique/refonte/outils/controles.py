@@ -312,7 +312,7 @@ def c11(textes_par_doc):
     ids_reg = set()
     if reg.is_file():
         j = json.loads(reg.read_text(encoding="utf-8"))
-        ids_reg = {e["id"] for k in j for e in j[k]} if isinstance(j, dict) else set()
+        ids_reg = {e["id"] for k in j if isinstance(j[k], list) for e in j[k]}
     etats = {}
     for doc, textes in textes_par_doc.items():
         for src, t in textes.items():

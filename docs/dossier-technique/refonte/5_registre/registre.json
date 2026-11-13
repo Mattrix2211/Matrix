@@ -1,0 +1,3848 @@
+{
+ "meta": {
+  "serie": "Matrix — G0, révision 2",
+  "date": "2026-11-13",
+  "etat_reference": "EB-2026-11-11",
+  "mention": "DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE",
+  "regle": "Aucune entrée ne devient une décision sans mention du PO. Une modification = un commit daté.",
+  "preuves": "audit_preuves/ (tests A14, A20, A25 conservés dans les preuves versionnées ; non intégrés au dépôt applicatif sans autorisation du PO)"
+ },
+ "ecarts": [
+  {
+   "id": "A1",
+   "titre": "Administrateur technique et actes métier",
+   "regle": "Un administrateur technique ne devient pas automatiquement autorité de validation métier : il désigne les titulaires, sans viser à leur place. Application mécanique d'un transfert approuvé autorisée. (`DEC-DRT-02`, source S1 §4, DP-09, cahier §5, Notion « 13 — Décisions »)",
+   "constat": "Le niveau numérique de l'administrateur d'unité (8) est supérieur ou égal à tous les seuils par défaut des actions métier du registre (annexe B, colonne « Admin. unité »). Dans les circuits des quarts, il franchit la **supervision du commandement** (`NIVEAU_SUPERVISION_GLOBALE_LISTE = COMMANDANT`, `quarts/models.py:147`) : il peut gérer et **publier** les listes de son bâtiment (`peut_publier_liste`, `quarts/models.py:355`), **valider ou refuser** un échange de tours (`peut_valider_echange`, `quarts/echanges.py:205`) et viser aux paliers « secteur » et « service » de la feuille de service (`_supervision_sur_navire`, `quarts/models.py:1977`). Le visa du COMAEQ et la rédaction de la feuille de service lui restent fermés (`peut_viser_comaeq` `:2215` ; `peut_rediger_feuille_service` `:2065`).",
+   "sources": "`matrix/core/roles.py:4` (niveaux) ; `matrix/core/role_thresholds.py:45` (seuils) ; `quarts/models.py:147,355,1977,2065,2215` ; `quarts/echanges.py:205` ; annexe B ; dossier V1.2 `A_REGISTRE_DECISIONS.md` (`DEC-DRT-02`), `M_PLAN_DEVELOPPEMENT.md` (L06)",
+   "consequences": "*Fonctionnelles* : un administrateur technique peut trancher des échanges et publier des listes alors que la règle le lui interdit. *Sécurité / traçabilité* : l'acte est tracé au nom de l'administrateur, mais il brouille la séparation des pouvoirs voulue entre administration de la plateforme et autorité métier. Pas de contournement d'authentification : l'écart est dans la **répartition** des droits.",
+   "lot": "L06 — Exclusion de l'administrateur technique des actes métier (non lancé)",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "administrateur d'unité ; commandement",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A2",
+   "titre": "Échanges de tours",
+   "regle": "La décision finale revient au COMAEQ ou à son suppléant officiellement habilité. Le BSC ou le chef de liste peut **instruire** la demande, mais n'a pas automatiquement l'autorité de décision finale. Cette décision **remplace** la note Notion du 28/10 (« le chef de liste habilité valide »). (`DEC-FDS-07`, `DEC-FDS-13` ; sources S1 §7, S3 ; `J_TRIAGE_ET_ARBITRAGES.md` §2)",
+   "constat": "Un échange accepté par le marin sollicité attend « le chef de liste » (`STATUT_ACCEPTE` : « En attente du chef de liste »). La validation et le refus sont ouverts à qui **gère la liste** (`peut_valider_echange`, `quarts/echanges.py:205`, qui s'appuie sur `peut_gerer_liste`, `quarts/models.py:297`) : le chef de liste désigné pour le périmètre exact de la liste, ou le commandement du bâtiment (niveau commandant et au-dessus). Aucune règle ne désigne le COMAEQ ni un suppléant. À défaut de chef de liste désigné, la notification va au créateur de la liste (`chefs_de_liste_a_notifier`, `quarts/echanges.py:176`).",
+   "sources": "`quarts/echanges.py:176,205,342` ; `quarts/models.py:297,855` ; `docs/dossier-technique-v12/J_TRIAGE_ET_ARBITRAGES.md` (CT-01) ; `B_CARTOGRAPHIE.md` (circuit « Échange de tours »)",
+   "consequences": "*Fonctionnelles* : l'autorité qui tranche n'est pas celle décidée ; un chef de liste (qui peut être un chef de section) valide seul un échange de service à quai. Le COMAEQ n'est ni notifié ni habilité. *Sécurité* : sans suppléance officielle, la règle cible ne peut pas être appliquée telle quelle (voir B3).",
+   "lot": "L10 — Échanges de tours décidés par le COMAEQ (non lancé) ; dépend de la suppléance explicite (L08)",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "marins ; chefs de liste ; COMAEQ",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A3",
+   "titre": "Publication des listes de quarts et de gardes",
+   "regle": "Le chef de liste **prépare et propose** ; le COMAEQ ou son suppléant officiellement habilité **approuve et publie**. Toute modification après publication est tracée et donne lieu à une nouvelle version officielle si nécessaire. (`DEC-FDS-14`, S4 arbitrage C-1)",
+   "constat": "Le chef de liste propose (`proposer`, `quarts/models.py` : statut `PROPOSEE`) ; la publication (`publier`) est ouverte à `peut_publier_liste` (`quarts/models.py:355`) : (a) le commandement du bâtiment (commandant, administrateur d'unité, administrateur général sur son périmètre) ; (b) tout rôle atteignant le seuil configurable `liste_service_publication` (**chef de service** par défaut) **et** dont le périmètre personnel est **exactement** celui de la liste ; le commandant en second est explicitement exclu (`_perimetre_dans_scope_utilisateur`, `:308`). La **fonction COMAEQ n'intervient pas** : un COMAEQ ne publie que si sa propre portée est celle de la liste ou s'il est commandement.",
+   "sources": "`quarts/models.py:297,308,355,373,423` ; `matrix/core/role_thresholds.py` (clé `liste_service_publication`) ; `A1_DECISIONS_S1_S2.md` (`DEC-FDS-14`), `J_TRIAGE_ET_ARBITRAGES.md` (CT-04, C-1)",
+   "consequences": "*Fonctionnelles* : la publication relève d'un chef de service du périmètre ou du commandement ; l'autorité fonctionnelle « vie à bord » n'est pas mobilisée. *Sécurité* : le seuil est réglable par bâtiment : un bâtiment peut l'abaisser et élargir qui publie.",
+   "lot": "L09 — Visas par fonction et listes publiées (non lancé ; découpé en trois)",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "chefs de liste ; chefs de service ; COMAEQ ; commandement",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A4",
+   "titre": "Droits du commandant en second",
+   "regle": "Le commandant en second est le remplaçant désigné du commandant et a une **vision globale**. Ses droits d'écriture **découlent de ses responsabilités métier réelles**, et non d'un simple seuil « commandant ou plus ». Il publie des annonces sur son bâtiment, garde la suppléance du commandant pour la validation de la relève, n'a pas le visa COMA. (Notion « 13 — Décisions » 10/10 et recette V1 ; dossier V1.2 `DEC-DRT-01`)",
+   "constat": "Deux familles de comparaison coexistent. Pour l'**API** et les vues qui utilisent `niveau_ecriture`, son écriture héritée du grade est **retirée** (il retombe au niveau équipier, `ROLES_SANS_ECRITURE_HERITEE`, `matrix/core/roles.py:50`), sauf action explicitement ouverte (`annonce_publication`). Pour de **nombreuses vues web**, le seuil est comparé à son **grade** (`user_role_level`) : il peut alors gérer les modules (`matrix/views.py:289`), saisir le programme (`programme/services.py:47`), proposer des fiches (`assets/fiche_validation.py:130`), voir l'annuaire (`matrix/core/navigation.py`). Dans les circuits des quarts, il est exclu de la désignation, du visa et de la publication (`quarts/models.py:308`).",
+   "sources": "`matrix/core/roles.py:50,53` ; `niveau_pour_action` (`matrix/core/role_thresholds.py:273`) ; gestion des modules (`matrix/views.py:289`) ; `programme/services.py:47` ; `assets/fiche_validation.py:130` ; annexe B (colonne ✱) ; Notion « 13 — Décisions »",
+   "consequences": "*Fonctionnelles* : ce que le second peut faire dépend de la page utilisée, non d'une liste de responsabilités qui lui sont attribuées. *Sécurité* : un même acte peut être refusé par l'API et accepté par l'écran correspondant.",
+   "lot": "Aucun lot identifié ne traite spécifiquement l'harmonisation (voir B2). Liens : L07 (rattachement et validation des rôles), L09 (visas par fonction).",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "commandant en second",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A5",
+   "titre": "Règles du projet : « garder des identifiants stables (UUID, NNO) pour de futures API » (`CLAUDE.md`)",
+   "regle": "Règles du projet : « garder des identifiants stables (UUID, NNO) pour de futures API » (`CLAUDE.md`)",
+   "constat": "UUID et NNO existent côté matériel, catalogue, ticket, objets de la feuille de service ; ni compte, ni unité, ni tâche, ni liste",
+   "sources": "`couverture/etat_B/MODELES.md` ; `assets/models.py:259,496,736,798`",
+   "consequences": "Un futur interfaçage devra s'appuyer sur d'autres identifiants pour les personnes et les unités ; pas d'effet sur le fonctionnement actuel",
+   "lot": "Aucun (périmètre à décider)",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "développeurs ; intégrateurs",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A6",
+   "titre": "`docs/REFERENCE.md` §4 « Les 14 apps Django »",
+   "regle": "`docs/REFERENCE.md` §4 « Les 14 apps Django »",
+   "constat": "L'état B contient 21 applications et le noyau (paquet `matrix/core`)",
+   "sources": "`docs/REFERENCE.md:74` (section) ; `INSTALLED_APPS`",
+   "consequences": "Documentation du dépôt en retard ; pas d'effet fonctionnel",
+   "lot": "L28 (dette documentaire)",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "développeurs",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A7",
+   "titre": "Cahier §35 : « RBAC + ABAC + périmètre + responsabilité »",
+   "regle": "Cahier §35 : « RBAC + ABAC + périmètre + responsabilité »",
+   "constat": "Rôle + périmètre + attributs ciblés (équipage, fonction de commandant adjoint) + désignations ; pas de moteur d'attributs général",
+   "sources": "chapitre 5",
+   "consequences": "Les règles à attributs sont codées au cas par cas (« configuration plutôt que code » partielle)",
+   "lot": "—",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "responsables ; développeurs",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A8",
+   "titre": "Cahier §8, §10, §11 (génération automatique des tours) ; §20 (rondes) ; organisation « miroir »",
+   "regle": "Cahier §8, §10, §11 (génération automatique des tours) ; §20 (rondes) ; organisation « miroir »",
+   "constat": "Génération abandonnée (décision du 09/10) ; rondes retirées ; organisation miroir retirée",
+   "sources": "chapitres 1, 4, 18",
+   "consequences": "Documentation du cahier partiellement obsolète ; **le dossier décrit le code**",
+   "lot": "Alignement Notion par le PO",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "PO",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A9",
+   "titre": "Principe « Internet n'existe pas »",
+   "regle": "Principe « Internet n'existe pas »",
+   "constat": "Tenu par le code ; `boto3` et `requests` déclarés sans usage constaté",
+   "sources": "chapitre 18",
+   "consequences": "Aucune ; observation d'exploitation",
+   "lot": "—",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "exploitants",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A10",
+   "titre": "Vocabulaire cible de Notion 11 (mission, capacité, dérogation…)",
+   "regle": "Vocabulaire cible de Notion 11 (mission, capacité, dérogation…)",
+   "constat": "Sans équivalent dans le code",
+   "sources": "chapitre 19",
+   "consequences": "Cible non développée",
+   "lot": "—",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "PO",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A11",
+   "titre": "« Mes tours de services » (`DEC-UX-08`, S1 §12 ; `CT-06`)",
+   "regle": "« Mes tours de **services** » (`DEC-UX-08`, S1 §12 ; `CT-06`)",
+   "constat": "L'accueil affiche « Mes tours de **service** »",
+   "sources": "`matrix/templates/dashboard/aujourdhui.html:57`",
+   "consequences": "Libellé : purement visuel",
+   "lot": "Lot UX (L24)",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "marins",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A12",
+   "titre": "Fonctionnement cible : impression A4 de la feuille de service par le BSC, signalement de la nécessité de réimp",
+   "regle": "**Fonctionnement cible** : impression A4 de la feuille de service par le BSC, signalement de la nécessité de réimprimer une feuille déjà affichée, et **réimpression avec versionnement** (`DEC-FDS-04`, `DEC-FDS-05`, `DEC-FDS-06`)",
+   "constat": "Les versions de la feuille sont conservées (VersionFeuilleService). **Une impression par le navigateur existe** (bouton « Imprimer » de la fiche de la feuille, constat AUD-002, vérifié dans le navigateur le 12/11/2026) ; il n'existe ni mise en page A4 dédiée à l'affichage, ni alerte de réimpression, ni réimpression versionnée.",
+   "sources": "`matrix/templates/quarts/liste_detail.html` (impression) ; absence dans `feuille_service_detail.html`",
+   "consequences": "Le BSC imprime avec les moyens du navigateur ; pas d'alerte de remplacement d'un affichage",
+   "lot": "L27",
+   "revision": "Texte révisé : l'ancien énoncé « aucune page imprimable » était inexact (AUD-002).",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "BSC ; COMAEQ",
+   "niveau_preuve": "[C][N]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A13",
+   "titre": "Trois priorités : normale, haute, urgente ; priorité du chef de secteur non abaissable par le chef de section ",
+   "regle": "Trois priorités : normale, haute, urgente ; priorité du chef de secteur non abaissable par le chef de section (`DEC-TAC-04`, `DEC-TAC-05`)",
+   "constat": "Deux priorités : normale, urgente ; pas de règle d'abaissement",
+   "sources": "`taches/models.py:38-43`",
+   "consequences": "Perte d'un niveau de nuance ; pas de règle de hiérarchie des priorités",
+   "lot": "L14",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "chefs de secteur ; chefs de section",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A14",
+   "titre": "Synthèse de passation : un chef de section ne consulte que sa propre section (Notion « 13 — Décisions », recet",
+   "regle": "Synthèse de passation : un chef de section ne consulte que **sa propre section** (Notion « 13 — Décisions », recette V1)",
+   "constat": "`syntheses_visibles` (`dashboard/passation.py:53`) filtre par bâtiment et équipage, **sans borne par section** ; le contenu figé couvre tout le bâtiment (`contenu_passation`, `dashboard/passation.py:220`) ; le code assume « l'équipage montant lit tout ». **Test du 12/11/2026 (état B, comptes fictifs, deux sections)** : un chef de section lit les tâches, blocages et anomalies de l'autre section ; équipier, chef d'un autre bâtiment, chef sans équipage et chef d'un troisième équipage refusés",
+   "sources": "`dashboard/passation.py:53,220` ; `PassationView` (`dashboard/passation.py:306`) ; Notion « 13 »",
+   "consequences": "Un chef de section peut lire la synthèse de tout le bâtiment (qualifications, annonces, listes, tâches). Écart confirmé ; **aucune fuite réelle alléguée** ; la règle du PO n'est pas modifiée",
+   "lot": "Non identifié",
+   "verifications": [
+    "test 12/11/2026 (8 tests, comptes fictifs)",
+    "navigateur 12/11/2026 : chef de section de l'équipage sortant lit 28 tâches dont 12 hors de sa section ; équipier et chef d'un autre bâtiment : 404"
+   ],
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "chefs de section ; commandement ; équipage sortant",
+   "niveau_preuve": "[T][N]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A15",
+   "titre": "Circuit RETEX : auteur → chef de section → chef de secteur → chef de service (`DEC-RTX-01`) ; correction motiv",
+   "regle": "Circuit RETEX : auteur → chef de section → chef de secteur → chef de service (`DEC-RTX-01`) ; correction motivée, nouvelle version (`DEC-RTX-02`, `DEC-RTX-03`)",
+   "constat": "Une seule étape : tout habilité du bâtiment (seuil `retex_validation`, chef de service) valide ou refuse ; les fonctions citant le COMA référent passent en premier dans la notification ; pas de demande de correction",
+   "sources": "`retex/services.py:54` (`valideurs`), `peut_valider` ; seuil dans `matrix/core/role_thresholds.py`",
+   "consequences": "Un RETEX peut être validé sans visa de la hiérarchie directe de l'auteur ; pas de boucle de correction",
+   "lot": "L11",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "auteurs de RETEX ; chefs de section, de secteur et de service",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A16",
+   "titre": "Diffusion « flotte » : proposé à l'organisme destinataire",
+   "regle": "Diffusion « flotte » : proposé à l'organisme destinataire",
+   "constat": "La diffusion « flotte » **marque** le RETEX ; aucune transmission n'existe",
+   "sources": "`retex/models.py` (`diffusion`, `organisme`)",
+   "consequences": "L'organisme n'est jamais saisi ni notifié par Matrix ; qui transmet est **à confirmer**",
+   "lot": "L11",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "auteurs de RETEX ; organismes destinataires",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A17",
+   "titre": "Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → s",
+   "regle": "Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → service → COMANAV ; contrôles obligatoires, critiques non dérogeables, réserves (`DEC-APP-01`, `DEC-APP-02`, `DEC-APP-10` à `DEC-APP-12`, `DEC-APP-14`)",
+   "constat": "Les points sont calculés à l'ouverture depuis l'état des installations critiques ; une seule signature (chef de secteur ou plus) ; ni classification, ni réserve, ni fiche de référence",
+   "sources": "`_points_de_vigilance_navire` (`dashboard/web_views.py:367`) ; `SessionAppareillageSignerView` (`dashboard/web_views.py:664`)",
+   "consequences": "Aucun circuit COMANAV ; la signature atteste la clôture de la session, pas l'aptitude. Compatibilité avec les procédures du bord **à confirmer avant implémentation**",
+   "lot": "L23",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "chefs de secteur ; chefs de service ; COMANAV",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A18",
+   "titre": "Transfert de matériel entre secteurs et entre services avec approbations (`DEC-MAT-01` à `DEC-MAT-04`)",
+   "regle": "Transfert de matériel entre secteurs et entre services avec approbations (`DEC-MAT-01` à `DEC-MAT-04`)",
+   "constat": "Aucun circuit ; réaffectation par l'affectation en masse",
+   "sources": "`assets/` (aucune vue de transfert)",
+   "consequences": "Pas de trace d'approbation du transfert ni de suivi des tâches ouvertes",
+   "lot": "L13",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "chefs de service ; gestionnaires de matériel",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A19",
+   "titre": "Demande de places : l'organisme de formation répond dans un dossier vivant (timeline, fil, transmission, prise",
+   "regle": "Demande de places : l'organisme de formation répond dans un **dossier vivant** (timeline, fil, transmission, prise en compte) — cible Notion « 03 »",
+   "constat": "L'organisme est une **unité de type École ou Centre de formation** ; un référent de la formation dans cette unité attribue ou refuse (`_attribuer_places`) ; le demandeur est notifié. Pas de timeline, pas de fil systématique, pas d'étape « transmise à l'organisme » pour la demande de places",
+   "sources": "`_attribuer_places` (`training/web_views.py:1311`) ; `org/models.py`",
+   "consequences": "Cible non développée ; correction par rapport au rapport E3 (qui disait que l'organisme n'était pas un acteur)",
+   "lot": "Cible Notion « 03 »",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "référents de formation ; demandeurs ; organismes de formation",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A20",
+   "titre": "Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO)",
+   "regle": "Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO)",
+   "constat": "**Vérifié par test (12/11/2026)** : aucune action de validation dédiée ; sorties : (1) correction du compte rendu par un chef de secteur ou plus (conformité finale conforme) ; (2) API `start` sans contrôle de l'état (appelable par un assigné), qui laisse « En cours » avec un compte rendu terminé non conforme ; (3) administration Django. Exclue du calcul des retards (choix explicite) ; aucune notification ; visible en « À faire » et en supervision ; clôture du ticket sans effet sur l'occurrence ; pour une **installation**, pas de ticket automatique et **échéance suivante non générée** tant que l'état dure",
+   "sources": "`maintenance/web_views.py:283` ; `maintenance/views.py:108` ; `maintenance/perimetre.py:18` ; `maintenance/management/commands/generate_installation_occurrences.py:79`",
+   "consequences": "**Risque de blocage** : « En validation » sans échéance ni relance, entretien récurrent d'installation suspendu ; sortie par l'API `start` non voulue. Règle de sortie **à décider par le PO** (D2) ; aucune règle inventée",
+   "lot": "Non identifié (à décider par le PO)",
+   "verifications": [
+    "test 12/11/2026 (18 tests)",
+    "navigateur 12/11/2026 : bouton « Enregistrer la correction » visible du seul chef de secteur et au-delà"
+   ],
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "exécutants ; chefs de secteur ; responsables des installations",
+   "niveau_preuve": "[T][N]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A21",
+   "titre": "Périodicités nommées, remarques d'outillage, durée indicative (`DEC-PER-01` à `04`, `DEC-OUT-01` à `05`, `DEC-",
+   "regle": "Périodicités nommées, remarques d'outillage, durée indicative (`DEC-PER-01` à `04`, `DEC-OUT-01` à `05`, `DEC-DUR-*`)",
+   "constat": "Non développé",
+   "sources": "`maintenance/models.py:18`",
+   "consequences": "Cible, non contradictoire",
+   "lot": "Plan V1.2",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "chefs de secteur",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A22",
+   "titre": "Le projet suppose Python 3.12 ou plus (README, dépendances)",
+   "regle": "Le projet suppose Python 3.12 ou plus (README, dépendances)",
+   "constat": "Le script d'installation annonce « Python 3.8 ou supérieur »",
+   "sources": "`setup.bat:11` ; `README.md`",
+   "consequences": "Une installation sur un Python ancien échouerait tard ; incohérence de documentation uniquement",
+   "lot": "L28",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "développeurs ; exploitants",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A23",
+   "titre": "Sécurité d'accès avec les SIC : HTTPS, limitation des connexions (cible)",
+   "regle": "Sécurité d'accès avec les SIC : HTTPS, limitation des connexions (cible)",
+   "constat": "En production, redirection HTTPS et cookies sécurisés actifs ; **ni limitation des tentatives de connexion, ni HSTS, ni réglage de proxy inverse** ; origines CSRF de confiance codées sur `localhost` ; aucun serveur HTTPS ni serveur d'application livré",
+   "sources": "`matrix/settings.py:413`",
+   "consequences": "Cible non développée ; l'architecture réelle de mise en service reste à définir avec les SIC",
+   "lot": "L21",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "exploitants ; SIC",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A24",
+   "titre": "Sauvegarde, restauration, supervision, conservation des journaux (à fournir, `IM-10` pour les durées)",
+   "regle": "Sauvegarde, restauration, supervision, conservation des journaux (à fournir, `IM-10` pour les durées)",
+   "constat": "**Rien n'existe** dans le dépôt : ni script, ni documentation",
+   "sources": "recherche dans tout le dépôt (termes « sauvegarde », « backup », `dumpdata`, `pg_dump`)",
+   "consequences": "Aucun plan de reprise ; durées de conservation des notifications, journaux et estimations non définies (B8)",
+   "lot": "À définir avec les SIC",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "exploitants ; SIC",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A25",
+   "titre": "Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment)",
+   "regle": "Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment)",
+   "constat": "**Vérifié par test (12/11/2026)**, modules maintenance et logistique désactivés : toutes les routes web des modules du registre (134 au total, toutes à vue-classe) sont refusées (redirection vers l'accueil) ; menu et recherche masquent le module ; **API : lecture et écriture restent accessibles** (liste, démarrage d'une occurrence, transition d'un ticket) ; **administration Django** accessible ; **tâches planifiées** : notifications de retard et de stock créées, échéances générées ; **enchaînement interne** : ticket créé depuis une maintenance non conforme ; **accueil « À faire » et calendrier continuent d'afficher** les maintenances avec un lien vers une page refusée",
+   "sources": "`matrix/core/modules.py` ; `matrix/core/middleware.py:210` ; `matrix/core/navigation.py:111` ; `matrix/core/recherche.py:202`",
+   "consequences": "Choix volontaire du code pour ne pas casser les enchaînements ; ni l'accueil ni le calendrier n'appliquent le filtre de module ; la **règle métier attendue** (désactiver = masquer l'interface seulement, ou bloquer aussi l'API et les tâches) **n'est pas décidée**",
+   "lot": "—",
+   "verifications": [
+    "test 12/11/2026 (3 tests de constat)"
+   ],
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "administrateurs d'unité ; commandants ; intégrateurs",
+   "niveau_preuve": "[T]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "A26",
+   "titre": "Neuf modules sans API (quarts, absences, tâches, annonces, demandes, programme, postes, documentation, RETEX)",
+   "regle": "Neuf modules sans API (quarts, absences, tâches, annonces, demandes, programme, postes, documentation, RETEX)",
+   "constat": "Aucune route `/api/` ; pilotage par les pages seulement",
+   "sources": "`couverture/etat_B/ROUTES.md`",
+   "consequences": "Aucune intégration possible sur ces objets ; cohérent avec la phase 7 « différée »",
+   "lot": "Phase 7",
+   "nature": "écart du logiciel",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "intégrateurs",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  }
+ ],
+ "points_a_confirmer": [
+  {
+   "id": "B1",
+   "titre": "Suppléance du COMAEQ",
+   "decision_existante": "`DEC-SUP-01` : la suppléance est **explicitement désignée, activée par une autorité compétente, temporaire, limitée à une fonction et à un périmètre, et tracée** ; `DEC-SUP-02`, `DEC-SUP-04`, `DEC-SUP-05`, `DEC-SUP-07`",
+   "actuel": "Aucun mécanisme général. Seuls secours codés : le commandant de l'équipage peut viser la feuille de service et désigner les rédacteurs quand le poste COMAEQ est **vacant** (`quarts/models.py:2210`) ; remplacement temporaire d'un chef de liste des services à quai (`quarts/remplacement.py:27`)",
+   "cible": "Le principe est décidé. **La procédure exacte de désignation du suppléant du COMAEQ est à confirmer** (lot L08)",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "COMAEQ ; commandants",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "B2",
+   "titre": "Commandant en second",
+   "decision_existante": "Notion « 13 — Décisions » : vision globale ; écritures limitées aux **responsabilités attribuées** ; il ne tient pas ses droits automatiquement de son grade",
+   "actuel": "Écriture héritée du grade retirée (API) mais seuil comparé au grade dans plusieurs vues web (A4)",
+   "cible": "Les responsabilités doivent être **explicites et attribuées dans un cadre autorisé** ; qui les attribue, par quel mécanisme et dans quelles limites est **à confirmer**",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "commandant en second",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "B3",
+   "titre": "Échanges et quarts à la mer",
+   "decision_existante": "`DEC-FDS-07` : « échanges de tours » sans préciser le périmètre ; `DEC-FDS-13`",
+   "actuel": "Échanges limités aux **services à quai** d'une même liste (`quarts/echanges.py:1`)",
+   "cible": "**Ne pas généraliser** aux quarts à la mer sans validation métier : à confirmer",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "chefs de liste ; COMAEQ",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "B4",
+   "titre": "Accostage et appareillage",
+   "decision_existante": "Aucune décision du registre des 125 ; les propositions `mer_quai_*` (état B) décrivent la règle comme validée",
+   "actuel": "Déclaration par le **titulaire COMAEQ** ou le **commandant de l'équipage à bord** (`fonction_habilitee`, `quarts/mouvements.py:27`) ; correction par annulation motivée",
+   "cible": "Le fonctionnement actuel est documenté ; **l'autorité cible est à confirmer**",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "COMAEQ ; commandants",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "B5",
+   "titre": "Chef de liste des quarts",
+   "decision_existante": "Notion « 13 » : le chef de liste crée et publie les listes de service et de gardes (**décision antérieure**, remplacée par `DEC-FDS-14` pour la publication) ; `D11` (mer/quai) : chef de liste des quarts **distinct** du chef de liste des services à quai",
+   "actuel": "Désignation par supervision ou par un niveau chef de service dont le périmètre couvre celui visé (`quarts/listes_views.py:163`)",
+   "cible": "Qui désigne : **à confirmer**",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "chefs de liste ; chefs de service",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "B6",
+   "titre": "« Fin de journée » d'une tâche",
+   "decision_existante": "`DEC-BLQ-05` (état « Non réalisée — À reprogrammer »)",
+   "actuel": "Aucune notion de fin de journée",
+   "cible": "Heure par bâtiment (`IM-09`) : **à confirmer**",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "marins ; chefs de section",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "B7",
+   "titre": "Ordre des grades",
+   "decision_existante": "`DEC-COL-02`",
+   "actuel": "Le grade est un texte sans rang",
+   "cible": "Valeurs à saisir par le PO : **à confirmer** (`IM-02`)",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "PO",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "B8",
+   "titre": "Conservation",
+   "decision_existante": "Aucune décision",
+   "actuel": "Notifications, journaux et estimations non purgés",
+   "cible": "Durées **à confirmer** (`IM-10`)",
+   "nature": "point à confirmer",
+   "statut": "à confirmer par le PO",
+   "profils_concernes": "exploitants ; PO",
+   "niveau_preuve": "[C][R]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  }
+ ],
+ "propositions": [
+  {
+   "id": "D1",
+   "titre": "Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile",
+   "origine": "Retenue comme proposition cible par le PO, « à valider »",
+   "garde_fous": "Un ticket ne clôture jamais automatiquement une anomalie ; il n'autorise jamais une remise en service",
+   "chapitres": "12, 25",
+   "nature": "proposition (non arbitrée)",
+   "statut": "🟣 à valider par le PO — pas une décision",
+   "profils_concernes": "",
+   "niveau_preuve": "[R]"
+  },
+  {
+   "id": "D2",
+   "titre": "Règle de sortie de l'état « En validation » et alerte de retard associée (A20)",
+   "origine": "Constat du dossier",
+   "garde_fous": "Aucune règle inventée",
+   "chapitres": "12, 25",
+   "nature": "proposition (non arbitrée)",
+   "statut": "🟣 à valider par le PO — pas une décision",
+   "profils_concernes": "",
+   "niveau_preuve": "[R]"
+  },
+  {
+   "id": "D3",
+   "titre": "Transmission d'un RETEX à un organisme : destinataires, canaux, responsabilités",
+   "origine": "Précision du PO : acte distinct de la validation et du statut",
+   "garde_fous": "À confirmer avec les procédures métier ; le marquage « flotte » n'est pas une transmission",
+   "chapitres": "15, 25",
+   "nature": "proposition (non arbitrée)",
+   "statut": "🟣 à valider par le PO — pas une décision",
+   "profils_concernes": "",
+   "niveau_preuve": "[R]"
+  },
+  {
+   "id": "D4",
+   "titre": "Autorité de classification « critique » d'un contrôle d'appareillage",
+   "origine": "`DEC-APP-14` (principe validé) ; compatibilité avec les procédures du bord non vérifiée",
+   "garde_fous": "À confirmer avant tout développement",
+   "chapitres": "16, 25",
+   "nature": "proposition (non arbitrée)",
+   "statut": "🟣 à valider par le PO — pas une décision",
+   "profils_concernes": "",
+   "niveau_preuve": "[R]"
+  },
+  {
+   "id": "D5",
+   "titre": "Favoris épinglés, recherche de personnes limitée, formulaires RH configurables",
+   "origine": "Observations de recette (PO-18 à PO-20)",
+   "garde_fous": "« À faire plus tard » ; droits et confidentialité à spécifier",
+   "chapitres": "17, 25",
+   "nature": "proposition (non arbitrée)",
+   "statut": "🟣 à valider par le PO — pas une décision",
+   "profils_concernes": "",
+   "niveau_preuve": "[R]"
+  },
+  {
+   "id": "D6",
+   "titre": "Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de démonstration)",
+   "origine": "Notion « Recette UX V1.1 »",
+   "garde_fous": "Qualification et arbitrage du PO avant toute correction",
+   "chapitres": "17",
+   "nature": "proposition (non arbitrée)",
+   "statut": "🟣 à valider par le PO — pas une décision",
+   "profils_concernes": "",
+   "niveau_preuve": "[R]"
+  },
+  {
+   "id": "D7",
+   "titre": "Sauvegarde, restauration, supervision, conservation des journaux",
+   "origine": "Aucune source",
+   "garde_fous": "À définir avec les SIC / l'exploitant",
+   "chapitres": "23",
+   "nature": "proposition (non arbitrée)",
+   "statut": "🟣 à valider par le PO — pas une décision",
+   "profils_concernes": "",
+   "niveau_preuve": "[R]"
+  }
+ ],
+ "nouveaux_ecarts": [
+  {
+   "id": "NE-01",
+   "titre": "Bouton « Exécuter » affiché sans droit d'exécution",
+   "constat": "La liste de maintenance affiche « Exécuter » pour des occurrences que le serveur refuse (403) à l'utilisateur ; le bouton « M'assigner » existe aussi.",
+   "nature": "écart du logiciel (nouveau, issu de l'audit)",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "marins ; chefs de section",
+   "niveau_preuve": "[N]",
+   "preuve": "audit_preuves/navigateur_droits.md",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "NE-02",
+   "titre": "Lignes de tickets cliquables sans lien ni focus clavier",
+   "constat": "Les lignes de la liste des tickets s'ouvrent par un gestionnaire de clic sur la ligne seulement ; non accessible au clavier.",
+   "nature": "écart du logiciel (nouveau, issu de l'audit)",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "tous profils",
+   "niveau_preuve": "[C]",
+   "preuve": "matrix/templates/logistics/ticket_list.html (accès restreint)",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "NE-03",
+   "titre": "Redirection HTTPS sans réglage de proxy inverse",
+   "constat": "SECURE_SSL_REDIRECT est actif en production sans réglage de proxy TLS ; comportement derrière un proxy non testé.",
+   "nature": "écart du logiciel (nouveau, issu de l'audit)",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "exploitants ; SIC",
+   "niveau_preuve": "[C][?]",
+   "preuve": "chapitre « Exploitation » du dossier technique",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "NE-04",
+   "titre": "QR codes liés au nom d'hôte de la requête",
+   "constat": "Le QR d'un équipement encode l'adresse absolue de la requête ; un QR imprimé depuis un autre nom d'hôte pointe vers une adresse erronée ; non documenté avant l'audit.",
+   "nature": "écart du logiciel (nouveau, issu de l'audit)",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "exploitants ; gestionnaires de matériel",
+   "niveau_preuve": "[C]",
+   "preuve": "assets/views.py (accès restreint)",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "NE-05",
+   "titre": "Codes de refus 404 et 403 hétérogènes",
+   "constat": "L'équipier reçoit 404 sur certaines pages d'écriture (nouvelle documentation, passation) et 403 sur la plupart des autres ; masquage volontaire ou incohérence non documentée.",
+   "nature": "écart du logiciel (nouveau, issu de l'audit)",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "marins",
+   "niveau_preuve": "[N]",
+   "preuve": "audit_preuves/navigateur_droits.md",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "NE-06",
+   "titre": "Synthèse de passation lisible par l'équipage sortant",
+   "constat": "Les chefs de l'équipage sortant, passé à terre, lisent la synthèse figée ; conforme au code, mais l'écart A14 les concerne aussi.",
+   "nature": "écart du logiciel (nouveau, issu de l'audit)",
+   "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
+   "profils_concernes": "chefs de l'équipage sortant",
+   "niveau_preuve": "[N]",
+   "preuve": "audit_preuves/a14_navigateur_chef_section.png",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  }
+ ],
+ "anomalies_documentaires": [
+  {
+   "id": "AUD-001",
+   "nature": "anomalie documentaire",
+   "gravite": "Bloquante (diffusion)",
+   "lieu": "PDF diffusable — Couverture p.1 et en-tête des 108 pages",
+   "constat": "L'en-tête de chaque page dit « DIFFUSION GÉNÉRALE » et le fichier s'appelle « DIFFUSABLE », alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « Aucune référence de code » alors que le texte contient 39 chemins de fichiers `.py` (12 pages), 8 noms de branches internes `claude/…` (7 pages), 9 chemins `docs/…`",
+   "preuve": "[A][V] `pdf_controles.md` §3 ; p.1, 14, 20, 24",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-1",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-002",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Chap. 8 §8.13 (l.184) ; registre A12 — « Le rendu imprimable de la feuille de service n'a pas été trouvé dans le code » ; A12 : « aucune page imprimable »",
+   "constat": "`matrix/templates/quarts/feuille_service_detail.html:18` contient un bouton « Imprimer » (`window.print()`, classe `no-print`) ; le guide visuel p.25 le montre",
+   "preuve": "[C][N][V]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-003",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Chap. 2, 6 (§6.11), 7, 9, 10, 11, 12, 15, 16, 17 ; annexe F ; compléments 11T, 12T, 15T… — « Les écrans n'ont pas été rejoués dans un navigateur » (au moins 11 occurrences)",
+   "constat": "Le guide visuel (64 captures, 5 parcours) et cet audit ont rejoué ces écrans",
+   "preuve": "[?] grep ; [N]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-4",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-004",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Chap. 1 §1.1 (l.18) — « Que dois-je faire ? → les tâches, la maintenance, les rondes de contrôle »",
+   "constat": "Le module `rondes` n'a aucune vue et a été retiré de l'interface (chap. 2, 12 ; A8 ; `rondes/models.py` seul)",
+   "preuve": "[C] `matrix/tests/test_module_rondes_retire.py` cité en 12T",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-005",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Chap. 6, 10, 17 — La page « Aujourd'hui » est décrite en blocs ; la barre de parcours du quotidien (« Mon quotidien · Mon équipe · Suivi · Synthèse ») n'est décrite nulle part (« Mon équipe » : 0 occurrence dans les chapitres diffusables)",
+   "constat": "`matrix/templates/components/parcours.html` ; visible sur toutes les captures d'accueil du guide",
+   "preuve": "[C][N][V]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-006",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "PDF restreint p.4–5 ; PDF diffusable p.99–100 — Schéma S10 : image p.4, légende en haut de p.5 ; S40 idem",
+   "constat": "Détection : légende dans les 6 % supérieurs de la page. S10 vu : illisible (5,0 pt), diagramme en pelote",
+   "preuve": "[A][V] `schemas_lisibilite.csv`",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-6",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-007",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure (précisée en phase 2 : le bouton « M'assigner » existe aussi dans la liste)",
+   "lieu": "Chap. 5 §5.4 ; guide visuel p.13 — « L'écran peut masquer un bouton, mais c'est toujours le serveur qui décide »",
+   "constat": "La liste de maintenance affiche « Exécuter » sur toutes les lignes pour un équipier ; `/maintenance/occurrences/4/execute/` répond 403 pour lui. Le guide p.13 montre ces boutons sans explication",
+   "preuve": "[N] `navigateur_droits.md`",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-008",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Registre A14, A20, A25 ; chap. 6 §6.6, 6 §6.9, 12 ; `RAPPORT_QUALIFICATION_FINALE_G0.md` — « Vérifié par test (12/11/2026) »",
+   "constat": "Les fichiers de test ne sont dans aucun dépôt (rapport de qualification : « non conservés ») ; une copie est maintenant archivée dans `audit_preuves/tests_verification/` et relancée : 29 tests OK",
+   "preuve": "[T] `audit_preuves/tests_verification/`",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-5",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-009",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "PDF restreint p.39, 41, 45 ; diffusable p.14, 82, 93, 106 — Pages portant 1 à 5 lignes (« Limites », « Sources », une ligne de tableau)",
+   "constat": "`RAPPORT_CLOTURE_G0.md` §3 : « Pages quasi vides : Aucune dans les deux PDF »",
+   "preuve": "[A][V] `pdf_controles.md` §2",
+   "statut": "fusionnée dans AUD-034",
+   "traite_par": "AUD-034",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-010",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "`guide-visuel/RAPPORT_GUIDE_VISUEL_G0.md` — §3 « 25 captures non retenues » ; §5 « la liste des tickets n'a pas de lien de ligne visible »",
+   "constat": "29 captures non utilisées (64 − 35). Les lignes de tickets sont cliquables (`onclick`, `ticket_list.html:28`) : ma capture automatique cherchait un lien `<a>`",
+   "preuve": "[C][A]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-011",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Ensemble — Aucun document court pour un décideur",
+   "constat": "Les PDF ne contiennent ni synthèse de 2 pages (valeur, maturité, limites, risques) ni lecture de la `SYNTHESE_ECARTS_PAR_CRITICITE.md` (fichier restreint hors PDF)",
+   "preuve": "[V] sommaires",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-1",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-012",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Sommaires, guides — Sommaires des deux PDF sans numéros de page ; `00_LISEZ-MOI.md` et `GUIDE_DE_LECTURE.md` indiquent deux parcours « marin » différents (ch. 1–2 contre ch. 1, 6, 8, 12 + annexe A) ; le guide visuel n'est cité ni dans le LISEZ-MOI, ni dans le guide de lecture, ni dans le chapitre 3 ; la numérotation saute de 17 à 25 sans explication dans le sommaire diffusable",
+   "constat": "[V] p.2 ; [A] grep",
+   "preuve": "Le lecteur retrouve difficilement l'information ; les trois documents ne forment pas un ensemble",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-4 / P1-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-013",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Guide visuel — 35 captures sur 64 utilisées",
+   "constat": "Écrans importants absents : accusé de réception d'une annonce, fiche d'installation (relevés, entretien), échange de tour, Documentation/RETEX, bas de l'accueil (indicateurs, bloc Supervision), prêt à appareiller avec session ouverte, vue mobile (le chapitre 17 en parle)",
+   "preuve": "[V] `captures_audit.csv`",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-3",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-014",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Guide visuel p.15, 19, 30 — Textes anglais du navigateur dans une interface française : « mm/dd/yyyy », « Choose File / No file chosen », « 08:00 AM »",
+   "constat": "[V] captures `p_maintenance_1_saisie`, `p_anomalie_3_description`, `parametres`",
+   "preuve": "Le lecteur croit que Matrix affiche de l'anglais",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-015",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Guide visuel p.11, 12, 17, 21, 22, 23 — Messages de confirmation superposés, mention « Brouillon abandonné. »",
+   "constat": "[V]",
+   "preuve": "Le regard est détourné ; une capture semi-transparente (p.23)",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-016",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Captures sources — 4 doublons exacts (`tache_detail`=`p_tache_1_ouverte`, `occurrences`=`p_maintenance_3_liste`, `execution_saisie`=`p_maintenance_1_saisie`) et 4 quasi-doublons",
+   "constat": "[A] différence de pixels 0,0 à 4,6 %",
+   "preuve": "21 Mo d'images dont une part redondante",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-3",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-017",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Chap. 5, en-tête (l.3) — « …dans la partie restreinte du dossier et la partie restreinte du dossier »",
+   "constat": "[V] p.21 ; [A] grep",
+   "preuve": "Faute visible dès la première page du chapitre le plus consulté",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-018",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "PDF restreint p.4 — Identifiants coupés en milieu de mot dans les cellules (« SynthesePassati / on », « ReferenceBatime / nt »), régression de la correction de l'ensemble précédent",
+   "constat": "[V] ; étendue non mesurée [?]",
+   "preuve": "Illisibilité des noms de modèles",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-019",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Deux PDF du dossier — Le symbole ⚪ se rend en petit cercle « ◦ » alors que 🟢🔵🟣 sont des pastilles",
+   "constat": "[V] p.1, 14, 82",
+   "preuve": "La légende n'est pas reconnaissable",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-020",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Schémas — S04, S13, S28 : 5,8 pt ; S09, S15 : 6,0 pt ; S01, S21 : 6,2 pt (libellés minimaux) ; S09 : flèches enchevêtrées",
+   "constat": "[A][V] `schemas_lisibilite.csv`",
+   "preuve": "Lecture pénible à 100 % ; S09/S13 « déjà signalés » restent petits",
+   "statut": "fusionnée dans AUD-036",
+   "traite_par": "AUD-036",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-021",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Chap. 24 §24.8 ; rapports — « ≈ 3 950 fonctions de test » ; « 3 963 tests »",
+   "constat": "Recomptage `def test_` indenté : 3 912 [C] ; 3 963 exécutés non rejoués [R]",
+   "preuve": "Trois chiffres différents pour une même notion",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-022",
+   "nature": "anomalie documentaire",
+   "gravite": "Amélioration",
+   "lieu": "Chap. 6 §6.10, 9, 17 — « Recherche de personnes » classée cible (DEC-UX-09 / PO-18) alors que la catégorie « Marins » existe (`recherche.py:193`, chap. 9 §77, captures p.8)",
+   "constat": "[C][N][V]",
+   "preuve": "Ambiguïté : existant ou cible ?",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-6",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-023",
+   "nature": "anomalie documentaire",
+   "gravite": "Amélioration",
+   "lieu": "PDF restreint — Les chapitres techniques renvoient aux chapitres diffusables « à lire d'abord » mais le PDF restreint ne contient pas les chapitres 1 à 17",
+   "constat": "[A] S02… absents de la liste des schémas ; [V]",
+   "preuve": "Le développeur doit détenir deux PDF ; l'ordre n'est dit nulle part sur la couverture",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-024",
+   "nature": "anomalie documentaire",
+   "gravite": "Amélioration",
+   "lieu": "Chap. 23, 24 — Pas de recette du premier jour pour un développeur (installer, lancer, tester, ajouter une action de seuil ou un module), pas de glossaire du code ; conséquence pratique de `SECURE_SSL_REDIRECT` sans `SECURE_PROXY_SSL_HEADER` non dite (risque de redirection en boucle derrière un proxy TLS [?])",
+   "constat": "[C] `settings.py:422-424` ; plan des chapitres",
+   "preuve": "Reprise difficile sans l'auteur",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-4",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-025",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Guide visuel p.36–37 — A20 : le texte dit « seul “Enregistrer la correction” est offert » sans préciser que l'exécutant et le chef de section ne voient pas ce bouton ; A14 : la raison de la non-capture (relève validée requise) est exacte mais non démontrée à l'écran",
+   "constat": "[N] `navigateur_droits.md`",
+   "preuve": "Lecture trop courte du circuit",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-3",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-026",
+   "nature": "anomalie documentaire",
+   "gravite": "Amélioration",
+   "lieu": "Registre, chap. 5 — Les `DEC-*` renvoient à une branche (`claude/eager-hopper-2cbcqh`) et à Notion, non joignables dans le dossier",
+   "constat": "[?]",
+   "preuve": "Un futur mainteneur ne peut pas retrouver la décision",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-6",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-027",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Chap. 11, 13, 15 (hors périmètre du dossier) — Les lignes de la liste de tickets sont cliquables par `onclick` seulement (non accessibles au clavier)",
+   "constat": "[C] `ticket_list.html:28`",
+   "preuve": "Accessibilité ; nouvel écart candidat NE-02",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-028",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Annexe F, rapports E1–E4, BILAN — Les rapports précédents conservent leurs chiffres d'origine (105/142 pages, 1 093 références) ; plusieurs rapports se contredisent légèrement ; 11 fichiers de pilotage à la racine du dossier pour 3 lecteurs",
+   "constat": "[V] listing",
+   "preuve": "Bruit pour un nouveau lecteur",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-029",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Chap. 5 — « Un exemple : le maître Durand » et le « matelot Durand » (chap. 6) sont des personnages différents sous le même nom ; « personnage fictif » non repris dans les captures (noms « Karim Equipier A »)",
+   "constat": "[V]",
+   "preuve": "Deux jeux de personnages fictifs non reliés",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-030",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Doc. — Ch. 20 §20.5",
+   "constat": "« scan web `assets/scan/<uuid>/` » : le chemin réel est `/scan/<uuid>/` (`assets/web_urls.py:72` ; annexe C correcte)",
+   "preuve": "[C]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-031",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Annexe F §F.5, PDF restreint p.127–135",
+   "constat": "Annexe générée de 4 900 mots (79 % de l'annexe F) : lignes tronquées par « … » (« Une correcti… », « L… »), fragments de tableau (« \\",
+   "preuve": "Tâches (ch. 10) \\",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-6",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-032",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Présentation — PDF restreint p.37 et p.79",
+   "constat": "Tableaux Markdown non rendus : p.37 (« Routes web », source `restreint/13_logistique_technique.md:20-22`) et p.79 (§23.9, source `23_configuration_deploiement_exploitation.md:119-123`, tableau collé au paragraphe) apparaissent en barres verticales brutes",
+   "preuve": "[V][A]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-6",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-033",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Doc. — Ch. 6 §6.10, 12 (tableau cible), 17, 25 ; registre partie C",
+   "constat": "Des plages de décisions sont citées comme « cible, non développée » alors que certaines sont déjà réalisées : `DEC-PER-01` (tâches périodiques générées depuis les fiches) et `DEC-PER-04` (historiques conservés) vs `maintenance/tasks.py:66` et `OccurrenceStatusLog` ; `DEC-UX-01` (accueil) vs `aujourdhui.html`. Aucune phrase ne dit que 51 décisions sur 125 ne sont pas traitées",
+   "preuve": "[C] ; source v1.2 `A1_DECISIONS_S1_S2.md`",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-3",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-034",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Architecture — Deux PDF ; fusionne AUD-009",
+   "constat": "Densité : 18 pages du diffusable et 26 du restreint sont remplies à moins de 70 % (11 et 15 à moins de 50 %) ; les compléments techniques (1 à 3 pages par chapitre) répètent chacun un cartouche de 5 lignes ; le restreint ne contient pas les chapitres de base qu'il complète ; 3 pages ≤ 5 lignes (p.39, 41, 45)",
+   "preuve": "[A] `pages_remplissage.csv` ; [V]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-8 (architecture)",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-035",
+   "nature": "anomalie documentaire",
+   "gravite": "Majeure",
+   "lieu": "Pédagogie — S17, S21, S31, S33 (diffusable p.42, 52, 80, 86)",
+   "constat": "Les schémas de circuit cible ne se distinguent pas des schémas de fonctionnement réel : seule la légende dit « cible » ; l'image seule (cadre, couleur, mention) est identique à S16, S20, S30, S32",
+   "preuve": "[V]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P0-7",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-036",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Pédagogie — Schémas ; fusionne AUD-020",
+   "constat": "Sur 42 schémas : 22 bons, 7 moyens, 10 faibles (listes de cases sans information relationnelle : S02, S14, S22, S24, S27, S36, S37, S38, S40, S42), 1 difficile (S09), 1 illisible (S10) ; S02 montre 6 groupes quand le tableau juste dessous en compte 11",
+   "preuve": "[V][A] `schemas_verdicts.csv`",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P1-5",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-037",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Doc. — Ch. 5 §5.4 bis, ch. 11 T2 bis, 12 T2 bis, 13 §13.9 bis",
+   "constat": "Rubriques « bis » : traces d'édition (insertions tardives)",
+   "preuve": "[V]",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "AUD-038",
+   "nature": "anomalie documentaire",
+   "gravite": "Mineure",
+   "lieu": "Contradiction — Ch. 26 §26.4 (« 52 branches distantes ») et annexe F.4, p.125 (« 53 branches ») ; F.4 donne `f960c84` comme tête de la branche documentaire",
+   "constat": "Deux chiffres pour le même inventaire ; l'annexe F.4 est datée de l'ensemble 4 et n'est plus à jour (la branche compte d'autres commits)",
+   "preuve": "[V] p.125 ; [A] grep",
+   "statut": "ouverte — à traiter par la refonte",
+   "traite_par": "P2",
+   "niveau_preuve": "[V][A][C]",
+   "derniere_verification": {
+    "date": "2026-11-12",
+    "etat_reference": "EB-2026-11-11"
+   }
+  }
+ ],
+ "decisions": [
+  {
+   "id": "DEC-ANO-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Anomalie = problème technique à suivre ; intervention = action effectuée pour le traiter.",
+   "precisions": "Correspondance code/vocabulaire à vérifier (IM-15).",
+   "source_po": "S1 §6",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ANO-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Une anomalie peut nécessiter plusieurs interventions.",
+   "precisions": "—",
+   "source_po": "S1 §6",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ANO-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "La clôture d'une intervention ne clôture pas automatiquement l'anomalie.",
+   "precisions": "—",
+   "source_po": "S1 §6",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ANO-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef de secteur décide de la suite : intervention supplémentaire, demande d'information, ouverture d'anomalie, clôture justifiée.",
+   "precisions": "—",
+   "source_po": "S1 §6",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ANO-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Préserver les liens tâches ↔ interventions ↔ anomalies ↔ matériels ↔ historique.",
+   "precisions": "—",
+   "source_po": "S1 §6",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Chaque départ génère des contrôles à partir des fiches de référence applicables.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Circuit : section ou secteur → service → COMANAV.",
+   "precisions": "Pas de signature intermédiaire constatée (une seule `valide_par`).",
+   "source_po": "S1 §8",
+   "acteurs": "Section/secteur, Service, COMANAV",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les modifications des références suivent leur propre circuit d'approbation.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Chaîne d'approbation",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Référence approuvée modifiée : les préparations ouvertes sont actualisées.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les réponses toujours valables sont conservées.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les contrôles modifiés ou ajoutés sont rouverts.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-07",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les contrôles supprimés sont archivés.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-08",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les signatures affectées sont invalidées.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-09",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les préparations clôturées conservent leur version historique.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-10",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les contrôles obligatoires sont traités avant validation.",
+   "precisions": "Qualification proposée par le chef de secteur, examinée par le chef de service, approuvée par le COMANAV avec la fiche de référence (DEC-APP-14). Conformité aux procédures du bord à confirmer avant implémentation.",
+   "source_po": "S2 ; S3",
+   "acteurs": "Chaîne de validation",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-11",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité.",
+   "precisions": "—",
+   "source_po": "S1 §8 ; S2 ; S3",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-12",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les contrôles critiques non dérogeables ne peuvent pas être contournés.",
+   "precisions": "Même circuit que DEC-APP-14 ; aucune simple réserve ne suffit à les contourner.",
+   "source_po": "S2 ; S3",
+   "acteurs": "Chaîne de validation",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-13",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Matrix ne délivre pas l'autorisation opérationnelle d'appareiller.",
+   "precisions": "—",
+   "source_po": "S1 §8",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "réalisée",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Matrix ne délivre pas l'autorisation d'appareiller.",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-APP-14",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO (règle fonctionnelle cible)",
+   "regle": "Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la proposition à son niveau ; le COMANAV approuve la fiche, notamment les contrôles obligatoires et critiques.",
+   "precisions": "Compatibilité avec les procédures opérationnelles applicables non vérifiable ici : à confirmer avant implémentation (L23). Si une autorité différente est imposée, la signaler avant de coder.",
+   "source_po": "S4 (C-2)",
+   "acteurs": "Chef de secteur, chef de service, COMANAV",
+   "lots": [],
+   "etat_dans_etat_b": "non développée (A17)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Pas de fiche de référence d'appareillage (L23).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-BLQ-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Un équipier peut déclarer une tâche « Bloquée » avec motif.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Équipier",
+   "lots": [
+    "L17"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-BLQ-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le responsable est informé du blocage.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Responsable",
+   "lots": [
+    "L17"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-BLQ-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef peut débloquer et reprogrammer sans obligation de créer une anomalie.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [
+    "L17"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-BLQ-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef de secteur décide si un défaut technique nécessite une anomalie.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de secteur",
+   "lots": [
+    "L17"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-BLQ-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Une tâche non terminée en fin de journée n'est pas reportée en silence ; état explicite « Non réalisée — À reprogrammer ».",
+   "precisions": "Définition de « fin de journée » (IM-09).",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [
+    "L17"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-CLO-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "À la création/planification, case « Validation du responsable requise ».",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [
+    "L15"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-CLO-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Sans l'option : l'équipier termine directement ; la réalisation est enregistrée.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Équipier",
+   "lots": [
+    "L15"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-CLO-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Avec l'option : l'équipier déclare terminé, la tâche passe « À valider » ; le chef approuve ou demande une correction motivée.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Équipier, chef de section ou de secteur",
+   "lots": [
+    "L15"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-CLO-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef de secteur valide directement, chef de section absent, sans suppléance.",
+   "precisions": "—",
+   "source_po": "S1 §5 ; S2",
+   "acteurs": "Chef de secteur",
+   "lots": [
+    "L15"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-CLO-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les visas techniques obligatoires restent distincts de la validation facultative.",
+   "precisions": "—",
+   "source_po": "S1 §5 ; S2 ; N3",
+   "acteurs": "Titulaires de visa",
+   "lots": [
+    "L15"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-COL-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Plusieurs marins peuvent participer à une même tâche.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-COL-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Matrix propose comme coordinateur le participant au grade le plus élevé.",
+   "precisions": "Nécessite un ordre des grades (IM-02).",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [
+    "L16"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-COL-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "En cas d'égalité de grade, le chef choisit.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [
+    "L16"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-COL-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef peut désigner un autre participant comme coordinateur.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [
+    "L16"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-COL-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le coordinateur peut déclarer le travail réalisé, mais ne remplace pas une autorité de visa technique.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Coordinateur",
+   "lots": [
+    "L16"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DRT-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les droits métier découlent de la fonction exercée et du périmètre de responsabilité, pas uniquement du grade ni du niveau hiérarchique.",
+   "precisions": "—",
+   "source_po": "S1 §4 ; S3",
+   "acteurs": "Tous",
+   "lots": [
+    "L09"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DRT-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Un administrateur technique ne devient pas automatiquement autorité de validation métier ; il désigne les titulaires sans viser à leur place.",
+   "precisions": "Application mécanique d'un transfert approuvé autorisée (DEC-MAT-02).",
+   "source_po": "S1 §4 ; DP-09 ; N1 §5 ; N3",
+   "acteurs": "Admin technique",
+   "lots": [
+    "L06"
+   ],
+   "etat_dans_etat_b": "écart (A1)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "L'administrateur d'unité atteint les seuils métier par son niveau (L06).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DRT-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Consultation des documents de maintenance autorisés des autres sections du secteur ; pas de modification ni de clôture hors périmètre.",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Équipier",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DRT-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Accès intersectoriels et documents sensibles : droits appropriés requis.",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Chef",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DRT-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Éviter les suppressions physiques qui détruisent l'historique.",
+   "precisions": "Suppression réservée aux objets sans historique (A5/P07, recommandation d'audit).",
+   "source_po": "S1 §4 ; DP-13 ; N1 §41",
+   "acteurs": "Admin / chefs",
+   "lots": [
+    "L02",
+    "L03",
+    "L04"
+   ],
+   "etat_dans_etat_b": "réalisée (lot livré dans l'état B)",
+   "etat_methode": "plan en lots (V1.2) et comptes rendus de lots",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DRT-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Un compte dont le rattachement professionnel est incomplet n'accède pas aux informations opérationnelles d'un secteur sans autorisation.",
+   "precisions": "Autorisation explicite et tracée. Remplace la grâce « immédiate/configurable » (A4) : pas de grâce implicite.",
+   "source_po": "S1 §4 ; S2 ; N7 (28/10)",
+   "acteurs": "Autorité habilitée",
+   "lots": [
+    "L07"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DUR-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO (principe)",
+   "regle": "Matrix actualise automatiquement la durée indicative des maintenances à partir des temps réellement constatés.",
+   "precisions": "Méthode statistique = proposition technique PT-DUR-*, non validée.",
+   "source_po": "S1 §5 (option B)",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DUR-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Conserver la durée initiale.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DUR-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Conserver l'historique des estimations.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DUR-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Distinguer temps écoulé et charge totale en heures-personnes.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DUR-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Éviter que interventions exceptionnellement longues, attentes et interruptions faussent l'estimation.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DUR-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef de secteur peut corriger manuellement la durée.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-DUR-07",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Ne pas modifier automatiquement consignes techniques ou de sécurité.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le BSC prépare les feuilles de service ; il n'est pas une autorité parallèle au COMAEQ.",
+   "precisions": "—",
+   "source_po": "S1 §7 ; N8",
+   "acteurs": "BSC",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le COMAEQ, ou un suppléant officiellement habilité, approuve la feuille.",
+   "precisions": "COMAEQ vacant : commandant de l'équipage, de façon tracée (N3, 18-19/10). Mécanisme de suppléant officiel absent.",
+   "source_po": "S1 §7 ; N3",
+   "acteurs": "COMAEQ ou suppléant habilité",
+   "lots": [
+    "L08",
+    "L09"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Après approbation, publication numérique.",
+   "precisions": "—",
+   "source_po": "S1 §7",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le BSC assure l'impression A4 pour l'affichage.",
+   "precisions": "—",
+   "source_po": "S1 §7",
+   "acteurs": "BSC",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Une modification après publication entraîne une nouvelle version officielle.",
+   "precisions": "—",
+   "source_po": "S1 §7",
+   "acteurs": "BSC / COMAEQ",
+   "lots": [
+    "L09"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Matrix signale la nécessité de réimprimer et remplacer une feuille déjà affichée.",
+   "precisions": "—",
+   "source_po": "S1 §7",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-07",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Échanges de tours : la décision finale revient au COMAEQ ou à son suppléant officiellement habilité.",
+   "precisions": "Remplace la décision Notion du 28/10 (chef de liste habilité valide) : S3 est postérieur et explicite.",
+   "source_po": "S1 §7 ; S3",
+   "acteurs": "COMAEQ ou suppléant officiellement habilité",
+   "lots": [],
+   "etat_dans_etat_b": "écart (A2)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "La décision revient au chef de liste ou au commandement dans le code (L10).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-08",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les fractions de service à quai sont configurables par bâtiment.",
+   "precisions": "Composition-type : GO du PO requis (AUD-046).",
+   "source_po": "S1 §7 ; N8",
+   "acteurs": "BSC",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-09",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Écarts signalés et justifiés, sans blocage automatique injustifié.",
+   "precisions": "—",
+   "source_po": "S1 §7",
+   "acteurs": "BSC",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-10",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Exigences opérationnelles et réglementaires restent applicables.",
+   "precisions": "—",
+   "source_po": "S1 §7",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-11",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "La création d'une feuille n'est pas ouverte à n'importe quel équipier.",
+   "precisions": "—",
+   "source_po": "S1 §7",
+   "acteurs": "Équipier",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-12",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Prendre en compte deux équipages ; chaque équipage a sa feuille, sans validation croisée par le seul grade.",
+   "precisions": "—",
+   "source_po": "S1 §7 ; N3",
+   "acteurs": "COMAEQ des deux équipages",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-13",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le BSC ou le chef de liste peut instruire la demande d'échange ; il ne dispose pas automatiquement de l'autorité de validation finale.",
+   "precisions": "—",
+   "source_po": "S3",
+   "acteurs": "BSC ou chef de liste",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-FDS-14",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après publication est tracée et donne lieu à une nouvelle version officielle si nécessaire.",
+   "precisions": "—",
+   "source_po": "S4 (C-1)",
+   "acteurs": "Chef de liste, COMAEQ ou suppléant habilité",
+   "lots": [],
+   "etat_dans_etat_b": "écart (A3)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Publication par chef de service ou commandement (L09).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MAT-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Transfert entre secteurs d'un même service : approbation du chef de service.",
+   "precisions": "—",
+   "source_po": "S1 §11",
+   "acteurs": "Chef de service",
+   "lots": [
+    "L13"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MAT-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Transfert entre deux services : approbation des deux chefs de service, puis application par l'administrateur habilité.",
+   "precisions": "Remplace la recommandation A6 ; « chef de service » vs « commandant adjoint » (IM-11).",
+   "source_po": "S1 §11",
+   "acteurs": "Deux chefs de service, admin habilité",
+   "lots": [
+    "L13"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MAT-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les tâches ouvertes suivent le matériel et sont réattribuées si nécessaire.",
+   "precisions": "—",
+   "source_po": "S1 §11",
+   "acteurs": "Chef de secteur",
+   "lots": [
+    "L13"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MAT-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "L'historique des interventions et des tâches clôturées reste conservé.",
+   "precisions": "—",
+   "source_po": "S1 §11",
+   "acteurs": "Système",
+   "lots": [
+    "L13"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MUT-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Un marin conserve son compte Matrix lorsqu'il change de bâtiment.",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Marin",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MUT-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le nouveau bâtiment demande le rattachement ; l'ancien est informé et peut confirmer le départ.",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Nouveau et ancien bâtiments",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MUT-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Sans réponse, une autorité habilitée régularise avec justification et journalisation.",
+   "precisions": "Autorité et délai non définis (IM-03).",
+   "source_po": "S1 §4",
+   "acteurs": "Autorité habilitée",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MUT-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Anciens droits retirés à la date effective de mutation ; nouveaux droits attribués selon l'affectation d'accueil.",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MUT-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "L'historique est conservé.",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MUT-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les tâches ouvertes sont réattribuées ou signalées « non affectées à un responsable ».",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Chef de secteur",
+   "lots": [
+    "L04"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-MUT-07",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Compte d'un marin quittant le bâtiment ou la Marine : désactivé ou transféré selon le cas, sans destruction d'historique.",
+   "precisions": "Suppression seulement pour un compte sans historique (recommandation d'audit, à confirmer en F-05).",
+   "source_po": "S2",
+   "acteurs": "Admin d'unité",
+   "lots": [
+    "L04"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ORG-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Structure : Bâtiment → Service → Secteur → Section facultative → Matériels et installations.",
+   "precisions": "—",
+   "source_po": "S1 §4",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ORG-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Un secteur peut n'avoir aucune section ; le secteur reste alors l'échelon responsable.",
+   "precisions": "Pas de section fictive imposée (DP-03 option D).",
+   "source_po": "S1 §4 ; S2 ; S3",
+   "acteurs": "Chef de secteur",
+   "lots": [
+    "L12"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ORG-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les matériels sont toujours rattachés à une entité responsable.",
+   "precisions": "Ambiguïté : l'entité est-elle le service, le secteur ou la section ? (F-03)",
+   "source_po": "S1 §4",
+   "acteurs": "Gestionnaire matériel",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ORG-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Distinguer grade, fonction occupée, périmètre de responsabilité, spécialité, brevets/formations/habilitations. Les brevets ne sont pas des grades.",
+   "precisions": "—",
+   "source_po": "S1 §4 ; N5",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ORG-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Prendre en compte FEM, BE, BAT, BS, BST et les évolutions récentes (BHT, C-CDM).",
+   "precisions": "Libellés et validité exacts non fournis (IM-01).",
+   "source_po": "S1 §4",
+   "acteurs": "Responsable formation",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-ORG-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO (Notion)",
+   "regle": "Configuration plutôt que code : aucune règle susceptible d'évoluer n'est codée en dur.",
+   "precisions": "—",
+   "source_po": "CLAUDE.md ; N1 §33",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-OUT-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Signaler : outil manquant, inutile, inadapté, instruction ambiguë, information manquante.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Équipier",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-OUT-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Remarques conservées et visibles du chef de secteur.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-OUT-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "La liste d'outillage n'est jamais modifiée automatiquement.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-OUT-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef décide de modifier ou non la fiche de référence.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-OUT-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Procédures techniques et de sécurité : validations applicables conservées.",
+   "precisions": "—",
+   "source_po": "S1 §5 ; N3",
+   "acteurs": "Chaîne de validation",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PER-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les tâches périodiques sont générées à partir des fiches de maintenance et des matériels concernés.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "partielle",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Les échéances sont générées depuis les plans et fiches (constat sur le code) ; les périodicités nommées ne le sont pas (L19).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PER-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Périodicités : hebdomadaire, mensuelle, trimestrielle, annuelle, biennale, quinquennale.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PER-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Prochaine échéance calculée depuis la réalisation effective, sauf calendrier fixe réglementaire ou technique.",
+   "precisions": "Critère « calendrier fixe » à définir par fiche (IM-14).",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PER-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les historiques sont conservés, retards compris.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "réalisée",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Journal d'états des occurrences, retards compris (constat sur le code).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PRE-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le module d'absences est limité aux corrections nécessaires (un système extérieur gère les absences).",
+   "precisions": "—",
+   "source_po": "S1 §13",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PRE-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Pas de module autonome de passation ; préserver les fonctions existantes utiles.",
+   "precisions": "Lève en partie AUD-006 / DP-02.",
+   "source_po": "S1 §13 ; S2",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "réalisée",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Pas de module autonome de passation ; synthèse intégrée.",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PRE-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Conserver les exports PDF, Excel et CSV de pilotage, puis en améliorer la qualité.",
+   "precisions": "—",
+   "source_po": "S1 §13",
+   "acteurs": "Chef",
+   "lots": [],
+   "etat_dans_etat_b": "réalisée",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Exports PDF, Excel et CSV conservés ; amélioration non traitée.",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PRE-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "QR et inspections mobiles non prioritaires : reportés, sans suppression précipitée de l'existant.",
+   "precisions": "Tranche DP-06 : la route QR reste.",
+   "source_po": "S1 §13 ; S2",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "réalisée",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "QR et inspections mobiles : existant conservé, non prioritaire.",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PRE-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Préserver le fonctionnement local sur le réseau du bord.",
+   "precisions": "—",
+   "source_po": "S1 §13",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-PRE-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Architecture de déploiement, PKI, sauvegarde et sécurité des SI : à soumettre aux experts compétents.",
+   "precisions": "Aucune décision technique n'est prise ici.",
+   "source_po": "S1 §13",
+   "acteurs": "Experts SIC",
+   "lots": [
+    "L01",
+    "L21"
+   ],
+   "etat_dans_etat_b": "réalisée (lot livré dans l'état B)",
+   "etat_methode": "plan en lots (V1.2) et comptes rendus de lots",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-QUA-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit.",
+   "precisions": "—",
+   "source_po": "S1 §5 ; S3",
+   "acteurs": "Chef",
+   "lots": [
+    "L18"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-QUA-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les qualifications connues peuvent être affichées à titre informatif.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [
+    "L18"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-QUA-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Une information manquante ou périmée ne bloque pas l'attribution.",
+   "precisions": "Les obligations réglementaires et de sécurité restent applicables hors Matrix.",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [
+    "L18"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-QUA-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures officielles, dont les exigences réglementaires applicables doivent être respectées.",
+   "precisions": "Les exigences elles-mêmes viennent du bord et ne sont pas inventées ; mécanisme de contrôle proposé en J (T-3).",
+   "source_po": "S3",
+   "acteurs": "Chaîne de validation",
+   "lots": [
+    "L18"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-RTX-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service.",
+   "precisions": "Remplace la recommandation B5 (« COMA référent d'abord »).",
+   "source_po": "S1 §9 ; S2 ; S3",
+   "acteurs": "Auteur, chef de section (si présent), chef de secteur, chef de service",
+   "lots": [
+    "L11"
+   ],
+   "etat_dans_etat_b": "écart (A15)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Une seule étape de validation (L11).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-RTX-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Une demande de correction doit être motivée.",
+   "precisions": "—",
+   "source_po": "S1 §9",
+   "acteurs": "Valideur",
+   "lots": [
+    "L11"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-RTX-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "La correction entraîne une nouvelle version et les validations nécessaires.",
+   "precisions": "—",
+   "source_po": "S1 §9",
+   "acteurs": "Auteur, valideurs",
+   "lots": [
+    "L11"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-RTX-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Traçabilité de qui a proposé, modifié, validé ou rejeté.",
+   "precisions": "—",
+   "source_po": "S1 §9",
+   "acteurs": "Système",
+   "lots": [
+    "L11"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-SUP-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "La suppléance est explicite, temporaire, limitée à une fonction et un périmètre, activée par une autorité compétente, traçable.",
+   "precisions": "—",
+   "source_po": "S1 §10 ; S3",
+   "acteurs": "Autorité compétente",
+   "lots": [
+    "L08"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-SUP-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Une seule personne exerce la responsabilité active d'un même périmètre à un instant donné.",
+   "precisions": "—",
+   "source_po": "S1 §10",
+   "acteurs": "Système",
+   "lots": [
+    "L08"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-SUP-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le retour anticipé ou la fin de suppléance suit les règles de validation retenues.",
+   "precisions": "Règles non précisées (F-06).",
+   "source_po": "S1 §10",
+   "acteurs": "Valideur",
+   "lots": [
+    "L08"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-SUP-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les actes du suppléant restent attribués à leur auteur.",
+   "precisions": "—",
+   "source_po": "S1 §10",
+   "acteurs": "Système",
+   "lots": [
+    "L08"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-SUP-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le titulaire retrouve un récapitulatif des actions réalisées pendant son absence.",
+   "precisions": "—",
+   "source_po": "S1 §10",
+   "acteurs": "Titulaire",
+   "lots": [
+    "L08"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-SUP-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les qualifications réglementaires nécessaires à certains visas restent obligatoires pour le suppléant (voir DEC-QUA-04).",
+   "precisions": "—",
+   "source_po": "S1 §10 ; S3",
+   "acteurs": "Suppléant",
+   "lots": [
+    "L08"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-SUP-07",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision fonctionnelle de suppléance.",
+   "precisions": "—",
+   "source_po": "S3",
+   "acteurs": "Tous",
+   "lots": [
+    "L08"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-TAC-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef de section attribue les tâches de sa section.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de section",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-TAC-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef de secteur supervise, attribue directement et réaffecte.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de secteur",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-TAC-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le chef de service dispose de la supervision correspondant à sa fonction.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de service",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-TAC-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Trois priorités : normale, haute, urgente.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef",
+   "lots": [
+    "L14"
+   ],
+   "etat_dans_etat_b": "écart (A13)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Deux priorités seulement (L14).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-TAC-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Une priorité imposée par le chef de secteur ne peut pas être abaissée par le chef de section.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Chef de secteur / de section",
+   "lots": [],
+   "etat_dans_etat_b": "écart (A13)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Pas de règle d'abaissement (L14).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-TAC-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Les changements d'attribution et de priorité sont tracés et notifiés aux personnes concernées.",
+   "precisions": "—",
+   "source_po": "S1 §5",
+   "acteurs": "Système",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-01",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "À l'ouverture : tâches du jour, tours de service, actions en attente, urgences, informations utiles.",
+   "precisions": "—",
+   "source_po": "S1 §12 ; N4",
+   "acteurs": "Marin",
+   "lots": [],
+   "etat_dans_etat_b": "partielle",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Accueil « Aujourd'hui » existant ; cartes et aide progressive non développées (L24).",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-02",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Éviter grands espaces vides et défilement inutile ; réduire les textes explicatifs permanents ; cartes cliquables.",
+   "precisions": "Alertes et mentions réglementaires conservées (N4).",
+   "source_po": "S1 §12 ; N5",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-03",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Recherche globale centrée et utile.",
+   "precisions": "—",
+   "source_po": "S1 §12 ; N5",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-04",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Permettre d'épingler des entrées du menu.",
+   "precisions": "Notion : « IDÉE FUTURE », hors périmètre du 01/11 (CT-08).",
+   "source_po": "S1 §12 ; N7",
+   "acteurs": "Marin",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-05",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Afficher clairement les tours de service à venir, à valider et effectués.",
+   "precisions": "—",
+   "source_po": "S1 §12",
+   "acteurs": "Marin",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-06",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Notifications lues conservées dans le centre mais retirées de la liste principale.",
+   "precisions": "« Lu » ≠ « traité » (N5).",
+   "source_po": "S1 §12 ; N5",
+   "acteurs": "Marin",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-07",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Corriger les boutons inactifs et les parcours de navigation défaillants.",
+   "precisions": "—",
+   "source_po": "S1 §12",
+   "acteurs": "Tous",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-08",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Terminologie « Mes tours de services ».",
+   "precisions": "Le code et N5 écrivent « Mes tours de service » (CT-06).",
+   "source_po": "S1 §12",
+   "acteurs": "Marin",
+   "lots": [],
+   "etat_dans_etat_b": "écart (A11)",
+   "etat_methode": "vérifié dans le code de l'état B",
+   "note": "Le libellé affiché est « Mes tours de service ».",
+   "niveau_preuve": "[C]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-09",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Recherche de personnes : informations professionnelles pertinentes, sous réserve des droits.",
+   "precisions": "Notion : IDÉE FUTURE.",
+   "source_po": "S1 §12 ; N7",
+   "acteurs": "Chef",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-10",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Interface adaptée aux utilisateurs expérimentés, sans aides envahissantes ; aide progressive réactivable.",
+   "precisions": "—",
+   "source_po": "S1 §12 ; N4",
+   "acteurs": "Utilisateur expérimenté",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  },
+  {
+   "id": "DEC-UX-11",
+   "nature": "décision du PO",
+   "statut_po": "Confirmée PO",
+   "regle": "Le calendrier reste un élément central.",
+   "precisions": "—",
+   "source_po": "S1 §12 ; N1 §15",
+   "acteurs": "Marin",
+   "lots": [],
+   "etat_dans_etat_b": "à instruire ⚪",
+   "etat_methode": "aucun rattachement",
+   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "niveau_preuve": "[R]",
+   "derniere_verification": {
+    "date": "2026-11-13",
+    "etat_reference": "EB-2026-11-11"
+   }
+  }
+ ],
+ "lots": {
+  "L01": {
+   "titre": "Verrou des commandes de démonstration",
+   "decisions": [
+    "DEC-PRE-06"
+   ]
+  },
+  "L02": {
+   "titre": "Archivage effectif",
+   "decisions": [
+    "DEC-DRT-05"
+   ]
+  },
+  "L03": {
+   "titre": "Suppression sûre des unités",
+   "decisions": [
+    "DEC-DRT-05"
+   ]
+  },
+  "L04": {
+   "titre": "Comptes : désactiver au lieu de supprimer",
+   "decisions": [
+    "DEC-DRT-05",
+    "DEC-MUT-06",
+    "DEC-MUT-07"
+   ]
+  },
+  "L05": {
+   "titre": "Configuration de production minimale",
+   "decisions": []
+  },
+  "L06": {
+   "titre": "Exclusion de l'administrateur technique des actes métier",
+   "decisions": [
+    "DEC-DRT-02"
+   ]
+  },
+  "L07": {
+   "titre": "Rattachement incomplet et validation des rôles",
+   "decisions": [
+    "DEC-DRT-06"
+   ]
+  },
+  "L08": {
+   "titre": "Suppléance explicite",
+   "decisions": [
+    "DEC-FDS-02",
+    "DEC-SUP-01",
+    "DEC-SUP-02",
+    "DEC-SUP-03",
+    "DEC-SUP-04",
+    "DEC-SUP-05",
+    "DEC-SUP-06",
+    "DEC-SUP-07"
+   ]
+  },
+  "L09": {
+   "titre": "Visas par fonction et listes publiées (découpé en 3)",
+   "decisions": [
+    "DEC-DRT-01",
+    "DEC-FDS-02",
+    "DEC-FDS-05"
+   ]
+  },
+  "L10": {
+   "titre": "Échanges de tours décidés par le COMAEQ",
+   "decisions": []
+  },
+  "L11": {
+   "titre": "Circuit RETEX",
+   "decisions": [
+    "DEC-RTX-01",
+    "DEC-RTX-02",
+    "DEC-RTX-03",
+    "DEC-RTX-04"
+   ]
+  },
+  "L12": {
+   "titre": "Structure du bord par une fonction habilitée",
+   "decisions": [
+    "DEC-ORG-02"
+   ]
+  },
+  "L13": {
+   "titre": "Transfert de matériel",
+   "decisions": [
+    "DEC-MAT-01",
+    "DEC-MAT-02",
+    "DEC-MAT-03",
+    "DEC-MAT-04"
+   ]
+  },
+  "L21": {
+   "titre": "Sécurité d'accès (avec les SIC)",
+   "decisions": [
+    "DEC-PRE-06"
+   ]
+  },
+  "L14": {
+   "titre": "Trois niveaux de priorité",
+   "decisions": [
+    "DEC-TAC-04"
+   ]
+  },
+  "L15": {
+   "titre": "Validation facultative et statut « À valider »",
+   "decisions": [
+    "DEC-CLO-01",
+    "DEC-CLO-02",
+    "DEC-CLO-03",
+    "DEC-CLO-04",
+    "DEC-CLO-05"
+   ]
+  },
+  "L16": {
+   "titre": "Tâche collective : coordinateur et rang des grades",
+   "decisions": [
+    "DEC-COL-02",
+    "DEC-COL-03",
+    "DEC-COL-04",
+    "DEC-COL-05"
+   ]
+  },
+  "L17": {
+   "titre": "Tâche bloquée et « Non réalisée — À reprogrammer »",
+   "decisions": [
+    "DEC-BLQ-01",
+    "DEC-BLQ-02",
+    "DEC-BLQ-03",
+    "DEC-BLQ-04",
+    "DEC-BLQ-05"
+   ]
+  },
+  "L18": {
+   "titre": "Qualifications : information et exigences réglementaires",
+   "decisions": [
+    "DEC-QUA-01",
+    "DEC-QUA-02",
+    "DEC-QUA-03",
+    "DEC-QUA-04"
+   ]
+  },
+  "L19": {
+   "titre": "Périodicités nommées et échéance",
+   "decisions": []
+  },
+  "L20": {
+   "titre": "Durée estimée actualisée (option B)",
+   "decisions": []
+  },
+  "L22": {
+   "titre": "Anomalies, interventions et ticket correctif",
+   "decisions": []
+  },
+  "L23": {
+   "titre": "Préparation à l'appareillage",
+   "decisions": []
+  },
+  "L26": {
+   "titre": "Remarques d'outillage et d'instruction",
+   "decisions": []
+  },
+  "L27": {
+   "titre": "Feuille de service : réimpression et fraction à quai",
+   "decisions": []
+  },
+  "L24": {
+   "titre": "Ergonomie (plusieurs petits lots)",
+   "decisions": []
+  },
+  "L25": {
+   "titre": "Mutation de personnel",
+   "decisions": []
+  },
+  "L28": {
+   "titre": "Dette documentaire et CI",
+   "decisions": []
+  }
+ }
+}
