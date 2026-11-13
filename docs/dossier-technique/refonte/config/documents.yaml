@@ -1,0 +1,25 @@
+# Les cinq livrables. « ordre » : fichiers Markdown du dossier, dans l'ordre d'impression.
+GU:
+  titre: "Guide utilisateur illustré"
+  public: "Marins et chefs de section, de secteur et de service"
+  dossier: 1_guide_utilisateur
+  fichier_pdf: Matrix_G0R2_1_Guide_utilisateur_PROVISOIRE_RESTREINT.pdf
+  technique: false
+RF:
+  titre: "Référentiel fonctionnel et de gouvernance"
+  public: "Responsables métier, commandement, décideurs"
+  dossier: 2_referentiel_fonctionnel
+  fichier_pdf: Matrix_G0R2_2_Referentiel_fonctionnel_PROVISOIRE_RESTREINT.pdf
+  technique: false
+DT:
+  titre: "Dossier technique de reprise"
+  public: "Développeurs, mainteneurs, exploitants — accès restreint"
+  dossier: 3_dossier_technique
+  fichier_pdf: Matrix_G0R2_3_Dossier_technique_reprise_PROVISOIRE_RESTREINT.pdf
+  technique: true
+RE:
+  titre: "Registre des écarts et décisions"
+  public: "PO, responsables, mainteneurs — accès restreint"
+  dossier: 5_registre
+  fichier_pdf: Matrix_G0R2_5_Registre_ecarts_decisions_PROVISOIRE_RESTREINT.pdf
+  technique: true

@@ -1,0 +1,85 @@
+# Généré par refonte/outils/generer_faits.py — ne pas éditer à la main.
+n_modeles:
+  valeur: 135
+  methode: comptage des modèles Django du projet
+  source: couverture/etat_B/inventaire.json
+n_routes:
+  valeur: 721
+  methode: routes résolues par l'URLconf
+  source: couverture/etat_B/inventaire.json
+n_routes_pages:
+  valeur: 185
+  methode: routes hors admin/ et api/
+  source: inventaire.json
+n_routes_api:
+  valeur: 171
+  methode: routes préfixées api/
+  source: inventaire.json
+n_routes_admin:
+  valeur: 365
+  methode: routes préfixées admin/
+  source: inventaire.json
+n_taches_planifiees:
+  valeur: 20
+  methode: entrées CELERY_BEAT_SCHEDULE
+  source: inventaire.json
+n_commandes:
+  valeur: 18
+  methode: fichiers management/commands
+  source: inventaire.json
+n_actions_seuil:
+  valeur: 35
+  methode: entrées de REGISTRE_ACTIONS
+  source: inventaire.json
+n_modules_activables:
+  valeur: 14
+  methode: entrées de REGISTRE_MODULES
+  source: inventaire.json
+n_signaux:
+  valeur: 15
+  methode: récepteurs @receiver
+  source: inventaire.json
+n_migrations:
+  valeur: 190
+  methode: fichiers 0*.py sous */migrations
+  source: arborescence de l'état B
+n_variables_environnement:
+  valeur: 31
+  methode: variables lues par matrix/settings.py
+  source: settings.py
+n_roles:
+  valeur: 9
+  methode: membres de RoleLevel
+  source: matrix/core/roles.py
+n_fonctions_test_indentees:
+  valeur: 3912
+  methode: def test_ indentés sous */tests
+  source: arborescence de l'état B ; n'est pas le nombre de tests exécutés
+n_tests_executes_rapportes:
+  valeur: 3963
+  methode: rapporté par les comptes rendus de lots (suite complète SQLite) — non rejoué
+  source: source antérieure [R]
+n_decisions_v12:
+  valeur: 125
+  methode: décisions du dossier V1.2
+  source: branche du dossier V1.2 (accès restreint)
+n_ecarts_registre:
+  valeur: 26
+  methode: écarts A1 à A26
+  source: 5_registre/registre.json
+n_points_a_confirmer:
+  valeur: 8
+  methode: points B1 à B8
+  source: 5_registre/registre.json
+n_propositions:
+  valeur: 7
+  methode: propositions D1 à D7
+  source: 5_registre/registre.json
+n_schemas:
+  valeur: 42
+  methode: sources Mermaid
+  source: schemas/src
+n_applications:
+  valeur: 21
+  methode: applications fonctionnelles (hors noyau)
+  source: INSTALLED_APPS
