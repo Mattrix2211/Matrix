@@ -1,0 +1,9 @@
+flowchart TB
+  A["Préparer : base SQLite séparée,<br/>marqueur écrit à la création"]
+  B["Remplir : 4 générateurs de données<br/>fictives, refusés hors DEBUG ou<br/>sans marqueur"]
+  C["Servir sur 127.0.0.1 uniquement,<br/>port 8800"]
+  D["Essai avec un participant"]
+  E["Réinitialiser : base repartie de<br/>zéro, mots de passe renouvelés"]
+  V["Avant production : vérifier<br/>l'instance — refuse un marqueur de<br/>démonstration ou un mot de passe<br/>prévisible"]
+  A --> B --> C --> D --> E --> B
+  C -.-> V

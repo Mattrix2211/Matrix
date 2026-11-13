@@ -59,7 +59,7 @@ def c5(code, textes, pages_pdf, technique):
                     noter("C5", "bloquant", f"PDF p.{i+1} : motif « {nom} » : {m.group(0)[:60]}")
     for mot in termes["interdits_partout"]:
         for src, t in textes.items():
-            if mot in t:
+            if mot in re.sub(r"<!--.*?-->", "", t, flags=re.S):
                 noter("C5", "bloquant", f"{src} : terme interdit « {mot} »")
         for i, t in enumerate(pages_pdf):
             if mot in t:
@@ -93,20 +93,25 @@ def c8(pdf_path, souple=False, exempt=()):
         if remplissage < 0.40 and not est_dernier_de_section:
             faibles.append((i + 1, round(remplissage, 2)))
         tp = pg.get_textpage()
-        # titre orphelin : marqueur de titre dans le dernier huitième de la page
-        for m in re.finditer(r"⟦[^⟧]+⟧", t):
+        # titre orphelin : marqueur de titre dans le dernier huitième de la page (position retrouvée par recherche, pas par indice)
+        for m in set(re.findall(r"⟦[^⟧]+⟧", t)):
             try:
-                l, b, r_, top = tp.get_charbox(m.start())
-                if (H - top) / H > 0.86:
-                    orphelins.append((i + 1, m.group(0)))
+                srch = tp.search(m)
+                idx = srch.get_next()
+                if idx:
+                    l, b, r_, top = tp.get_charbox(idx[0])
+                    if (H - top) / H > 0.86:
+                        orphelins.append((i + 1, m))
             except Exception:
                 pass
         # légende en haut de page
-        for m in re.finditer(r"(?m)^(Schéma|Figure|Capture) ", t):
+        for m in set(re.findall(r"(?m)^(?:Schéma|Figure|Capture) \S+", t)):
             try:
-                l, b, r_, top = tp.get_charbox(m.start())
-                if (H - top) / H < 0.12:
-                    legendes.append((i + 1, t[m.start():m.start() + 40]))
+                idx = tp.search(m).get_next()
+                if idx:
+                    l, b, r_, top = tp.get_charbox(idx[0])
+                    if (H - top) / H < 0.12:
+                        legendes.append((i + 1, m))
             except Exception:
                 pass
         # tailles de police
@@ -275,6 +280,8 @@ def c1(apercus, perimetre_anciens):
 def phrases_etiquetees(texte):
     sortie = []
     for p in re.split(r"(?<=[.!?])\s+|\n", texte):
+        if sum(e in p for e in "🟢🔵🟣⚪") >= 2:
+            continue                      # ligne de légende des étiquettes, pas une affirmation
         for e in "🔵🟣⚪":
             if e in p:
                 mots = re.findall(r"[a-zàâçéèêëîïôûùüÿ]{5,}", p.lower())

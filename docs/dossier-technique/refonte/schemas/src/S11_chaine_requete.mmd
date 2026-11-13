@@ -1,0 +1,17 @@
+%%{init: {"sequence": {"width": 135, "wrap": true, "messageFontSize": 18, "actorFontSize": 18, "noteFontSize": 18, "diagramMarginX": 20}}}%%
+sequenceDiagram
+  participant N as Navigateur
+  participant M as Middlewares
+  participant V as Vue web ou API
+  participant S as Service métier
+  participant D as Base de données
+  N->>M: requête
+  M->>M: version de configuration,<br/>session, déconnexion si inactif
+  M->>M: mot de passe provisoire :<br/>changement obligatoire
+  M->>M: lecture seule à terre,<br/>module activé,<br/>identité de la page
+  M->>V: requête admise
+  V->>V: rôle, seuil de l'action,<br/>périmètre, service de<br/>l'état-major
+  V->>S: action métier
+  S->>D: écriture
+  S->>D: trace dans AuditLog
+  V-->>N: réponse ou refus 403

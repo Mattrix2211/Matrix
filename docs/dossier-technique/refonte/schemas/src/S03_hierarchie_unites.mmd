@@ -1,0 +1,13 @@
+flowchart TB
+  Ship["Unité (Ship) : navire, école,<br/>centre de formation, bureau"]
+  Service["Service : rattaché à un commandant<br/>adjoint (COMAEQ, COMOPS, COMANAV,<br/>COMAVIA)"]
+  Sector["Secteur : échelon responsable"]
+  Section["Section (facultative)"]
+  Marin["Marin : profil rattaché à l'un de<br/>ces niveaux"]
+  Ship --> Service --> Sector --> Section
+  Section -.-> Marin
+  Sector -.-> Marin
+  Service -.-> Marin
+  Ship -.-> Marin
+  Eq["Équipage A ou B : attribut du<br/>profil, pas un niveau de la<br/>hiérarchie"]
+  Eq -.-> Marin

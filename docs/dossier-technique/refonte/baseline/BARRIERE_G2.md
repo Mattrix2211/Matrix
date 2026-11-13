@@ -30,8 +30,8 @@
 
 | État dans l'état B | Nombre |
 |---|---|
-| à instruire ⚪ | 69 |
-| non développée | 39 |
+| non développée | 88 |
+| à instruire ⚪ | 20 |
 | réalisée | 5 |
 | réalisée (lot livré dans l'état B) | 2 |
 | partielle | 2 |

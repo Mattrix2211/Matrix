@@ -1,0 +1,9 @@
+flowchart TB
+  CAT["Catalogue de la flotte : catégories et articles, géré à terre par les responsables de spécialité"]
+  EQ["Le bord choisit un article et indique combien il en a"]
+  FI["Matrix crée autant de fiches de matériel pré-remplies, rattachées à l'article"]
+  GR["Saisie en grille : numéro de série, numéro de bord, emplacement, dates"]
+  PL["Matériel placé sur le plan du navire, relié aux plans de maintenance de sa catégorie"]
+  PR["Article absent du catalogue : le bord propose, circuit de visas"]
+  CAT --> EQ --> FI --> GR --> PL
+  PR -->|"visas puis publication"| CAT

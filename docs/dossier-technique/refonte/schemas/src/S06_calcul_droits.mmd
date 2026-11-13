@@ -1,0 +1,19 @@
+flowchart TB
+  R["Demande d'écriture d'un utilisateur"]
+  A["Équipage à terre ou soutien à terre ?"]
+  B["Rôle de l'utilisateur"]
+  C["Niveau d'écriture au moins égal au seuil de l'action ?"]
+  D["État-major : l'objet est-il dans un service de sa fonction ?"]
+  E["L'objet est-il dans son périmètre ?"]
+  OK["Autorisé et tracé"]
+  KO["Refusé"]
+  R --> A
+  A -- "oui, chemin non prévu" --> KO
+  A -- "non" --> B
+  B --> C
+  C -- "non" --> KO
+  C -- "oui" --> D
+  D -- "non" --> KO
+  D -- "oui" --> E
+  E -- "non" --> KO
+  E -- "oui" --> OK

@@ -1,0 +1,16 @@
+flowchart TB
+  AF["À faire"]
+  EC["En cours"]
+  BL["Bloquée"]
+  VA["À valider : si la validation<br/>du responsable est requise"]
+  TE["Terminée"]
+  NR["Non réalisée,<br/>à reprogrammer :<br/>fin de journée"]
+  AF --> EC
+  EC --> BL
+  BL -->|"le chef débloque<br/>ou reprogramme"| EC
+  EC -->|"sans validation requise :<br/>l'équipier termine"| TE
+  EC -->|"validation requise : l'équipier<br/>déclare terminé"| VA
+  VA -->|"le chef approuve"| TE
+  VA -->|"correction motivée"| EC
+  EC -->|"non terminée<br/>en fin de journée"| NR
+  NR -->|"reprogrammée"| AF

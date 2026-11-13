@@ -1,0 +1,472 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Dossier technique de reprise — MTX-G0-R2</title><style>@page { size: A4; margin: 20mm 17mm 19mm 17mm; }
+@page paysage { size: A4 landscape; margin: 19mm 12mm 17mm 12mm; }
+:root { --encre:#14202e; --bleu:#1f3b63; --gris:#5a6b7d; --filet:#b9c3d0; --fond:#f2f5f9; }
+html { font-family: "DejaVu Sans","Noto Sans",Arial,sans-serif; font-size: 10pt; line-height: 1.48; color: var(--encre); }
+body { margin: 0; }
+/* couverture et sommaire */
+.couverture { page-break-after: always; padding-top: 28mm; }
+.couverture .mention { display:inline-block; padding:3mm 6mm; border:2px solid var(--encre); font-weight:700; letter-spacing:.8px; margin-bottom:6mm; }
+.couverture .precaution { font-size: 9pt; color: var(--gris); max-width: 150mm; margin-bottom: 14mm; }
+.couverture .serie { font-size: 11pt; color: var(--bleu); letter-spacing:.5px; text-transform: uppercase; margin: 0 0 3mm 0; }
+.couverture h1 { font-size: 27pt; line-height:1.15; border:none; margin:0 0 5mm 0; page-break-before: avoid; }
+.couverture .public { font-size: 12pt; margin-bottom: 14mm; }
+.couverture table.meta { width:auto; font-size: 9.5pt; border:none; }
+.couverture table.meta td { border:none; border-bottom:1px solid var(--filet); padding:1.6mm 6mm 1.6mm 0; }
+.couverture .legende { margin-top: 12mm; font-size: 9pt; }
+.toc { page-break-after: always; }
+.toc h2 { font-size: 16pt; border:none; margin-top:0; }
+.toc ul { padding:0; margin:0; list-style:none; }
+.toc li { display:flex; align-items:baseline; margin: 1.3mm 0; }
+.toc li .t { flex: 0 1 auto; }
+.toc li .p { flex: 1 1 auto; border-bottom: 1px dotted var(--gris); margin: 0 2mm; min-width: 8mm; transform: translateY(-1.2mm); }
+.toc li .n { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.toc li.niv1 { font-weight:700; margin-top:3mm; }
+.toc li.niv2 { margin-left: 6mm; font-size: 9.5pt; }
+.toc li.niv3 { display:none; }
+.toc a { color: var(--encre); text-decoration:none; }
+/* corps */
+.chapitre { page-break-before: always; }
+.chapitre.suite { page-break-before: auto; }
+.partie { page-break-before: always; page-break-after: always; padding-top: 70mm; }
+.partie h1 { font-size: 26pt; border:none; color: var(--bleu); }
+h1 { font-size: 19pt; border-bottom: 2px solid var(--encre); padding-bottom: 2mm; margin: 0 0 4mm 0; break-after: avoid; }
+h2 { font-size: 13.5pt; margin: 7mm 0 2.5mm 0; border-bottom: 1px solid var(--filet); padding-bottom: 1mm; break-after: avoid; }
+h3 { font-size: 11pt; margin: 5mm 0 2mm 0; break-after: avoid; }
+h4 { font-size: 10pt; margin: 4mm 0 1.5mm 0; break-after: avoid; }
+p { margin: 0 0 2.6mm 0; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 3mm 0; padding-left: 6mm; }
+li { margin: 0 0 1mm 0; break-inside: avoid; }
+.ligne-public { font-size: 9pt; color: var(--gris); border-left:3px solid var(--bleu); padding-left:3mm; margin: 0 0 5mm 0; }
+table { border-collapse: collapse; width: 100%; margin: 2.5mm 0 4mm 0; font-size: 8.8pt; line-height:1.38; }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+th, td { border: 1px solid var(--filet); padding: 1.3mm 2mm; vertical-align: top; overflow-wrap: break-word; }
+td code, th code { overflow-wrap: anywhere; }
+th { background: #e8eef6; text-align: left; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: .86em; background: #eef2f7; padding: 0 .8mm; overflow-wrap: anywhere; }
+pre { background:#eef2f7; padding:2mm; white-space:pre-wrap; overflow-wrap:anywhere; font-size:8.6pt; break-inside:avoid; }
+blockquote { margin: 3mm 0; padding: 2mm 4mm; border-left: 3px solid #5a7aa0; background: var(--fond); break-inside: avoid; }
+blockquote p:last-child { margin-bottom: 0; }
+.encadre-limite { border-left-color:#b36b00; background:#fff7e8; }
+figure { margin: 4mm 0; break-inside: avoid; text-align:center; }
+figure img { max-width: 100%; max-height: 195mm; }
+figcaption { font-size: 8.8pt; color: var(--gris); margin-top: 1.5mm; text-align:left; }
+.fin { break-inside: avoid; }
+hr { border:none; border-top:1px solid var(--filet); margin: 5mm 0; }
+.et { font-size: 1em; }
+.marqueur { font-size:1px; color:transparent; position:absolute; }
+/* pages de capture (paysage) */
+section.paysage { page: paysage; page-break-before: always; page-break-after: always; }
+section.paysage.capture { break-inside: avoid; }
+.cap-sec { font-size: 8pt; letter-spacing:.06em; text-transform: uppercase; color: var(--bleu); font-weight:600; }
+.cap-titre { font-size: 14.5pt; font-weight:700; margin: 1mm 0 1.5mm 0; }
+.cap-texte { font-size: 9.6pt; color:#2a3a4d; margin-bottom: 2.5mm; }
+.cap-cadre { position:relative; width: 232mm; margin: 0 auto; border: .3mm solid #8d9bb0; }
+.cap-cadre img { display:block; width:100%; }
+.rep { position:absolute; width:5mm; height:5mm; margin:-2.5mm 0 0 -6mm; border-radius:50%; background:#b3261e; color:#fff; font-size:7.5pt; font-weight:700; text-align:center; line-height:5mm; border:.3mm solid #fff; }
+.cap-legende { font-size: 8.6pt; color:#2a3a4d; margin-top: 2mm; }
+.cap-legende .prov { color:#b3261e; }
+/* fiches de module */
+.fiche-module h2 { background: var(--fond); border-left: 4px solid var(--bleu); padding: 1.5mm 3mm; border-bottom: none; }
+section.paysage.tableau { font-size: 8.4pt; }
+
+td:first-child code { white-space: nowrap; }
+.toc li .p { border-bottom: 1px dotted #5a6b7d; }
+</style></head><body><section class="couverture"><div class="mention">DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE</div><div class="precaution">Précaution documentaire : cette mention n&#x27;est pas une classification officielle. La classification et les destinataires restent à valider par l&#x27;autorité compétente. Ne pas diffuser.</div><p class="serie">Matrix — G0, révision 2</p><h1>Dossier technique de reprise</h1><div class="public">Développeurs, mainteneurs, exploitants — accès restreint</div><p><b>Maquette pilote (jalon V1)</b> : seul le chapitre « Maintenance » est rédigé ; le reste du document sera rédigé après validation du PO.</p><table class="meta"><tr><td>Référence documentaire</td><td><b>MTX-G0-R2</b></td></tr><tr><td>Série</td><td><b>Matrix — G0, révision 2</b></td></tr><tr><td>Édition</td><td><b>13/11/2026</b></td></tr><tr><td>État documentaire</td><td><b>projet en cours de refonte — maquette pilote V1, non validé</b></td></tr><tr><td>État décrit</td><td><b>EB-2026-11-11</b></td></tr><tr><td>Correspondance applicative (accès restreint)</td><td><b>EB-2026-11-11 = état applicatif 6d6d0be (branche claude/l03-suppression-sure-v11), non fusionné dans main. Cette correspondance n&#x27;existe que dans les documents techniques à accès restreint.</b></td></tr></table><div class="legende"><span class="et v">🟢</span> Fonctionnement actuel vérifié · <span class="et b">🔵</span> Cible validée par le PO, non nécessairement développée · <span class="et p">🟣</span> Proposition non arbitrée · <span class="et n">◯</span> Élément non vérifié</div></section><section class="toc"><h2>Sommaire</h2><ul><li class="niv1"><span class="t"><a href="#dt-1">1 Maintenance, anomalies et tickets : mécanismes</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#dt-1-1">1.1 Vue d&#x27;ensemble du module</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#dt-1-2">1.2 Modèles</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#dt-1-3">1.3 États et transitions d&#x27;une occurrence</a></span><span class="p"></span><span class="n">5</span></li><li class="niv2"><span class="t"><a href="#dt-1-4">1.4 Exécution et clôture</a></span><span class="p"></span><span class="n">6</span></li><li class="niv2"><span class="t"><a href="#dt-1-5">1.5 Anomalies et tickets</a></span><span class="p"></span><span class="n">6</span></li><li class="niv2"><span class="t"><a href="#dt-1-6">1.6 Droits et seuils</a></span><span class="p"></span><span class="n">7</span></li><li class="niv2"><span class="t"><a href="#dt-1-7">1.7 Routes</a></span><span class="p"></span><span class="n">7</span></li><li class="niv2"><span class="t"><a href="#dt-1-8">1.8 Tâches planifiées et signaux</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#dt-1-9">1.9 Points d&#x27;attention pour le mainteneur</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#dt-1-10">1.10 Tests et vérifications</a></span><span class="p"></span><span class="n">10</span></li><li class="niv2"><span class="t"><a href="#dt-1-11">1.11 Limites ◯</a></span><span class="p"></span><span class="n">10</span></li></ul></section><section class="partie"><h1 class="titre-partie">Modules</h1></section><section class="chapitre"><h1 id="dt-1"><span class="marqueur">⟦dt-1⟧</span>1 Maintenance, anomalies et tickets : mécanismes</h1>
+<div class="ligne-public"><b>Public :</b> développeurs, mainteneurs · <b>Accès restreint</b> · <b>Fonctionnel :</b> voir <span class="renvoi">RF §1</span> · <b>État décrit :</b> EB-2026-11-11 · <b>Fusionne :</b> l'ancien chapitre 12 technique et la part mécanique de l'ancien chapitre 12.</div>
+
+<h2 id="dt-1-1"><span class="marqueur">⟦dt-1-1⟧</span>1.1 Vue d'ensemble du module</h2>
+<p>Le module est réparti sur trois paquets : <strong><code>maintenance</code></strong> (plans, échéances, exécutions, comptes rendus, tournée), <strong><code>logistics</code></strong> (tickets correctifs, anomalies, demandes de pièces) et <strong><code>assets</code></strong> (fiches, installations, mesures, qui alimentent l'exécution). Les règles métier sont dans les modules de vues et de services ; les modèles portent surtout les contraintes d'intégrité. Le module <code>rondes</code> est présent dans le dépôt mais <strong>sans aucune vue</strong> : ne pas le confondre avec une fonctionnalité.</p>
+<p>Les trois objets du fonctionnel se retrouvent ainsi : l'<strong>occurrence</strong> (<code>MaintenanceOccurrence</code>), l'<strong>anomalie</strong> (<code>Anomalie</code>) et le <strong>ticket</strong> (<code>CorrectiveTicket</code>). L'ensemble s'exécute dans le processus web ; trois tâches planifiées (génération, retard, notifications) dépendent de Celery et de Redis.</p>
+<h2 id="dt-1-2"><span class="marqueur">⟦dt-1-2⟧</span>1.2 Modèles</h2>
+<table>
+<thead>
+<tr>
+<th>Objet</th>
+<th>Référence</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plan de maintenance</td>
+<td><code>maintenance/models.py</code> <code>MaintenancePlan</code> (:18)</td>
+<td>Périodicité par type de matériel</td>
+</tr>
+<tr>
+<td>Occurrence</td>
+<td><code>maintenance/models.py</code> <code>MaintenanceOccurrence</code> (:36)</td>
+<td>Échéance ; statuts PLANNED, ASSIGNED, IN_PROGRESS, WAITING_VALIDATION, DONE, OVERDUE, CANCELLED (<code>STATUS</code> :37) ; contrainte « matériel XOR installation »</td>
+</tr>
+<tr>
+<td>Journal d'états</td>
+<td><code>maintenance/models.py</code> <code>OccurrenceStatusLog</code> (:103)</td>
+<td>Ancien et nouvel état, auteur</td>
+</tr>
+<tr>
+<td>Exécution</td>
+<td><code>maintenance/models.py</code> <code>MaintenanceExecution</code> (:110)</td>
+<td>Compte rendu : résultats, mesures, conformité</td>
+</tr>
+<tr>
+<td>Modification de compte rendu</td>
+<td><code>maintenance/models.py</code> <code>ModificationCompteRendu</code> (:146)</td>
+<td>Saisie d'origine conservée, auteur, motif</td>
+</tr>
+<tr>
+<td>Compte rendu correctif</td>
+<td><code>maintenance/models.py</code> <code>CompteRenduCorrectif</code> (:164)</td>
+<td>Compte rendu d'un ticket</td>
+</tr>
+<tr>
+<td>Ticket correctif</td>
+<td><code>logistics/models.py</code> <code>CorrectiveTicket</code> (:23) ; <code>STATUTS_TICKET_OUVERTS</code> (:19)</td>
+<td>Six états « ouverts » : référence unique des tableaux de bord</td>
+</tr>
+<tr>
+<td>Journal d'états d'un ticket</td>
+<td><code>logistics/models.py</code> <code>TicketStatusLog</code> (:90)</td>
+<td></td>
+</tr>
+<tr>
+<td>Anomalie</td>
+<td><code>logistics/models.py</code> <code>Anomalie</code> (:317) ; <code>AnomalieStatutLog</code> (:401)</td>
+<td>Signalée → Prise en compte → Traitée → Clôturée</td>
+</tr>
+<tr>
+<td>Demande et ligne de pièces</td>
+<td><code>logistics/models.py</code> <code>PartRequest</code> (:97), <code>PartLineItem</code> (:107)</td>
+<td>Voir le chapitre logistique</td>
+</tr>
+<tr>
+<td>Module retiré</td>
+<td><code>rondes/models.py</code> <code>RondeModele</code> (:22), <code>PointControle</code> (:75), <code>Ronde</code> (:102), <code>ResultatPoint</code> (:143)</td>
+<td>Modèles et migrations seuls</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dt-1-3"><span class="marqueur">⟦dt-1-3⟧</span>1.3 États et transitions d'une occurrence</h2>
+<figure><img alt="Schéma S25 — États d'une occurrence de maintenance" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25_etats_occurrence.svg" style="width:412pt"><figcaption>Schéma S25 — États d'une occurrence de maintenance</figcaption></figure>
+<table>
+<thead>
+<tr>
+<th>Transition</th>
+<th>Où elle est écrite</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PLANNED → ASSIGNED</td>
+<td>Auto-assignation (<code>maintenance/web_views.py</code> <code>MaintenanceOccurrenceSelfAssignView</code> (:652)) ou assignation</td>
+</tr>
+<tr>
+<td>PLANNED / ASSIGNED → OVERDUE</td>
+<td><code>maintenance/tasks.py</code> <code>compute_overdue</code> (:83) : toute occurrence « planifiée » ou « assignée » dont la date est dépassée</td>
+</tr>
+<tr>
+<td>→ IN_PROGRESS / DONE / WAITING_VALIDATION</td>
+<td><code>maintenance/web_views.py</code> <code>OccurrenceExecuteView</code> (:72), méthode <code>post</code> (:150) ; le statut final dépend de la conformité (:283)</td>
+</tr>
+<tr>
+<td>WAITING_VALIDATION → DONE</td>
+<td>Correction du compte rendu (même vue, :283) par un niveau « chef de secteur »</td>
+</tr>
+<tr>
+<td>WAITING_VALIDATION → IN_PROGRESS</td>
+<td><strong>Action <code>start</code> de l'API</strong> (<code>maintenance/views.py:108</code>), sans contrôle de l'état de départ (écart A20)</td>
+</tr>
+<tr>
+<td>WAITING_VALIDATION → toute valeur</td>
+<td>Administration (<code>maintenance/admin.py:10</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Les états finaux sont exclus du calcul des retards par <code>STATUTS_SANS_RETARD</code> (<code>maintenance/perimetre.py:18</code>) : <strong>DONE, CANCELLED et WAITING_VALIDATION</strong>. La tournée verrouille une occurrence en validation (<code>maintenance/tournee.py:19</code>).</p>
+<h2 id="dt-1-4"><span class="marqueur">⟦dt-1-4⟧</span>1.4 Exécution et clôture</h2>
+<p><code>OccurrenceExecuteView</code> (<code>maintenance/web_views.py:72</code>) charge l'occurrence dans le <strong>périmètre</strong> de l'utilisateur (<code>perimetre_occurrences_q</code>, <code>maintenance/perimetre.py:10</code>), puis exige que l'utilisateur soit <strong>assigné</strong> ou atteigne le seuil <code>maintenance_occurrence_gestion_tiers</code> ; sinon il lève <code>PermissionDenied</code> (<code>maintenance/web_views.py:90</code>). Un objet hors périmètre répond 404, un droit insuffisant sur un objet visible répond 403. L'écriture se fait sous verrou (<code>_ecrire</code> :248) ; un conflit d'écriture simultanée lève <code>_Conflit</code> (:44) et affiche un message ; la clôture d'une installation critique exige la confirmation <code>maintenance_critique</code> (<code>matrix/core/confirmations.py</code>).</p>
+<p><strong>Ticket automatique.</strong> Le signal <code>create_corrective_on_non_conform</code> (<code>maintenance/models.py:213</code>, récepteur :212) crée un ticket de gravité 3, <strong>une seule fois par occurrence</strong>, quand la conformité est NON_CONFORME <strong>et que l'occurrence porte un matériel</strong> ; une occurrence d'installation ne crée aucun ticket.</p>
+<p><strong>Génération.</strong> <code>generate_occurrences</code> (<code>maintenance/tasks.py:66</code>) et <code>generate_installation_occurrences</code> (<code>maintenance/tasks.py:89</code>) produisent les échéances des 90 jours suivants. La commande d'installation (<code>maintenance/management/commands/generate_installation_occurrences.py:79</code>) ne génère rien tant qu'une occurrence non terminée existe : <strong>l'entretien récurrent d'une installation est suspendu</strong> tant qu'une occurrence reste « En validation ».</p>
+<h2 id="dt-1-5"><span class="marqueur">⟦dt-1-5⟧</span>1.5 Anomalies et tickets</h2>
+<ul>
+<li><strong>Anomalie</strong> : création (<code>logistics/anomalie_views.py</code> <code>AnomalieCreateView</code> (:141)), prise en charge réservée aux chefs (<code>_est_chef</code> :35, <code>_peut_traiter</code> :39), conversion en ticket (<code>AnomalieConvertirView</code> :341) avec lien dans les deux sens.</li>
+<li><strong>Ticket</strong> : <code>TicketTransitionView</code> (<code>logistics/web_views.py:368</code>) ; table des étapes suivantes <code>ACTION_SUIVANTE_TICKET</code> (<code>logistics/web_views.py:154</code>) ; seuil « chef de section », périmètre <code>perimetre_tickets_q</code> ; <strong>retour d'expérience obligatoire</strong> à la clôture ; confirmation <code>remise_en_service</code> avant la remise en service.</li>
+</ul>
+<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
+<h2 id="dt-1-6"><span class="marqueur">⟦dt-1-6⟧</span>1.6 Droits et seuils</h2>
+<p>Les droits passent par le registre de seuils (<code>matrix/core/role_thresholds.py</code> <code>REGISTRE_ACTIONS</code> (:45)), réglable par bâtiment.</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Clé</th>
+<th>Seuil par défaut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Créer ou modifier une occurrence ou une exécution</td>
+<td><code>maintenance_execution_ecriture</code></td>
+<td>EQUIPIER</td>
+</tr>
+<tr>
+<td>Exécuter ou commenter une maintenance qui n'est pas la sienne</td>
+<td><code>maintenance_occurrence_gestion_tiers</code></td>
+<td>CHEF_SECTION</td>
+</tr>
+<tr>
+<td>Corriger un compte rendu terminé</td>
+<td><code>maintenance_compte_rendu_correction</code></td>
+<td>CHEF_SECTEUR</td>
+</tr>
+<tr>
+<td>Créer ou modifier un plan</td>
+<td><code>maintenance_plan_ecriture</code></td>
+<td>CHEF_SECTION</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dt-1-7"><span class="marqueur">⟦dt-1-7⟧</span>1.7 Routes</h2>
+<table>
+<thead>
+<tr>
+<th>Chemin</th>
+<th>Nom</th>
+<th>Vue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>maintenance/occurrences/&lt;int:pk&gt;/execute/</code></td>
+<td>occurrence-execute</td>
+<td><code>maintenance.web_views.OccurrenceExecuteView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/occurrences/&lt;int:pk&gt;/signaler-fiche/</code></td>
+<td>occurrence-signaler-fiche</td>
+<td><code>maintenance.web_views.OccurrenceSignalerFicheView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/occurrences/&lt;int:pk&gt;/imprimer/</code></td>
+<td>occurrence-imprimer</td>
+<td><code>maintenance.web_views.OccurrenceImprimerView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/occurrences/tournee/</code></td>
+<td>tournee-saisie</td>
+<td><code>maintenance.tournee_web.TourneeSaisieView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/occurrences/tournee/imprimer/</code></td>
+<td>tournee-imprimer</td>
+<td><code>maintenance.tournee_web.TourneeImprimerView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/occurrences/imprimer/</code></td>
+<td>occurrences-imprimer</td>
+<td><code>maintenance.web_views.OccurrenceImprimerView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/occurrences/&lt;int:pk&gt;/commentaire/</code></td>
+<td>occurrence-comment-create</td>
+<td><code>maintenance.web_views.OccurrenceCommentCreateView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/occurrences/&lt;int:pk&gt;/assigner/</code></td>
+<td>occurrence-self-assign</td>
+<td><code>maintenance.web_views.MaintenanceOccurrenceSelfAssignView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/correctifs/nouveau/</code></td>
+<td>correctif-nouveau</td>
+<td><code>maintenance.correctif_web.CompteRenduCorrectifView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/correctifs/&lt;uuid:ticket_pk&gt;/compte-rendu/</code></td>
+<td>correctif-compte-rendu</td>
+<td><code>maintenance.correctif_web.CompteRenduCorrectifView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/historique/installation/&lt;uuid:pk&gt;/</code></td>
+<td>historique-installation</td>
+<td><code>maintenance.historique_web.HistoriqueEquipementView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/historique/materiel/&lt;uuid:pk&gt;/</code></td>
+<td>historique-materiel</td>
+<td><code>maintenance.historique_web.HistoriqueEquipementView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/gestion/plans/</code></td>
+<td>maintenance-plans</td>
+<td><code>maintenance.web_views.MaintenancePlanListView</code></td>
+</tr>
+<tr>
+<td><code>maintenance/gestion/occurrences/</code></td>
+<td>maintenance-occurrences</td>
+<td><code>maintenance.web_views.MaintenanceOccurrenceListView</code></td>
+</tr>
+<tr>
+<td><code>logistics/anomalies/</code></td>
+<td>anomalie-list</td>
+<td><code>logistics.anomalie_views.AnomalieListView</code></td>
+</tr>
+<tr>
+<td><code>logistics/anomalies/signaler/</code></td>
+<td>anomalie-create</td>
+<td><code>logistics.anomalie_views.AnomalieCreateView</code></td>
+</tr>
+<tr>
+<td><code>logistics/anomalies/&lt;int:pk&gt;/</code></td>
+<td>anomalie-detail</td>
+<td><code>logistics.anomalie_views.AnomalieDetailView</code></td>
+</tr>
+<tr>
+<td><code>logistics/anomalies/&lt;int:pk&gt;/statut/</code></td>
+<td>anomalie-transition</td>
+<td><code>logistics.anomalie_views.AnomalieTransitionView</code></td>
+</tr>
+<tr>
+<td><code>logistics/anomalies/&lt;int:pk&gt;/convertir/</code></td>
+<td>anomalie-convertir</td>
+<td><code>logistics.anomalie_views.AnomalieConvertirView</code></td>
+</tr>
+<tr>
+<td><code>logistics/anomalies/&lt;int:pk&gt;/commentaire/</code></td>
+<td>anomalie-comment</td>
+<td><code>logistics.anomalie_views.AnomalieCommentView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/</code></td>
+<td>ticket-list</td>
+<td><code>logistics.web_views.TicketListView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/creer/&lt;uuid:asset_pk&gt;/</code></td>
+<td>ticket-create</td>
+<td><code>logistics.web_views.TicketCreateView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/&lt;uuid:pk&gt;/</code></td>
+<td>ticket-detail</td>
+<td><code>logistics.web_views.TicketDetailView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/&lt;uuid:pk&gt;/assign/</code></td>
+<td>ticket-assign</td>
+<td><code>logistics.web_views.TicketAssignView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/&lt;uuid:pk&gt;/transition/</code></td>
+<td>ticket-transition</td>
+<td><code>logistics.web_views.TicketTransitionView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/&lt;uuid:pk&gt;/commentaire/</code></td>
+<td>ticket-comment-create</td>
+<td><code>logistics.web_views.TicketCommentCreateView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/&lt;uuid:pk&gt;/part-request/create/</code></td>
+<td>part-request-create</td>
+<td><code>logistics.web_views.PartRequestCreateView</code></td>
+</tr>
+<tr>
+<td><code>logistics/tickets/&lt;uuid:pk&gt;/prelever-stock/</code></td>
+<td>ticket-stock-prelevement</td>
+<td><code>logistics.web_views.TicketStockPrelevementView</code></td>
+</tr>
+<tr>
+<td><code>logistics/part-request/&lt;int:pr_id&gt;/line/create/</code></td>
+<td>part-line-create</td>
+<td><code>logistics.web_views.PartLineItemCreateView</code></td>
+</tr>
+<tr>
+<td><code>logistics/part-line/&lt;int:line_id&gt;/status/</code></td>
+<td>part-line-status</td>
+<td><code>logistics.web_views.PartLineItemUpdateStatusView</code></td>
+</tr>
+</tbody>
+</table>
+<p>L'API REST du module (<code>/api/maintenance/…</code>, <code>/api/logistics/tickets/…</code>) est décrite dans le chapitre API ; l'action <code>start</code> y est la source d'une des sorties de l'état « En validation ».</p>
+<h2 id="dt-1-8"><span class="marqueur">⟦dt-1-8⟧</span>1.8 Tâches planifiées et signaux</h2>
+<p>Parmi les 20 tâches planifiées : <code>generate_occurrences_daily</code>, <code>compute_overdue_hourly</code>, <code>notify_overdue_occurrences_hourly</code>, <code>notify_maintenance_echeance_proche_daily</code>, <code>generate_installation_occurrences_daily</code>, <code>generate_installation_notifications_daily</code>, <code>generate_installation_maintenance_notifications_daily</code>, <code>detect_installation_drift_daily</code>. <strong>Sans worker ni beat, aucune n'est exécutée.</strong> Un seul signal propre au module : le ticket automatique (ci-dessus).</p>
+<h2 id="dt-1-9"><span class="marqueur">⟦dt-1-9⟧</span>1.9 Points d'attention pour le mainteneur</h2>
+<table>
+<thead>
+<tr>
+<th>Sujet</th>
+<th>Constat</th>
+<th>Où</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A20</strong> — sorties de « En validation »</td>
+<td>Trois chemins vérifiés par test ; aucune validation dédiée ; aucune notification ; entretien d'installation suspendu</td>
+<td><code>maintenance/web_views.py:283</code>, <code>maintenance/views.py:108</code>, <code>maintenance/management/commands/generate_installation_occurrences.py:79</code></td>
+</tr>
+<tr>
+<td><strong>NE-01</strong> — bouton « Exécuter »</td>
+<td>Le gabarit de la liste affiche toujours le bouton ; le refus n'intervient qu'à l'ouverture de la fiche</td>
+<td><code>matrix/templates/maintenance/occurrence_list.html:53</code> ; refus <code>maintenance/web_views.py:90</code></td>
+</tr>
+<tr>
+<td><strong>NE-02</strong> — lignes de tickets</td>
+<td>La ligne ouvre la fiche par un gestionnaire de clic, sans lien</td>
+<td><code>matrix/templates/logistics/ticket_list.html:28</code></td>
+</tr>
+<tr>
+<td><strong>A25</strong> — module désactivé</td>
+<td>Les pages web sont refusées ; l'API, la génération, les notifications et le signal continuent</td>
+<td>chapitre Architecture et API</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Identifiant</th>
+<th>Sujet</th>
+<th>Profils concernés</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A20</strong></td>
+<td>Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO)</td>
+<td>exécutants ; chefs de secteur ; responsables des installations</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+<tr>
+<td><strong>A25</strong></td>
+<td>Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment)</td>
+<td>administrateurs d'unité ; commandants ; intégrateurs</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+<tr>
+<td><strong>NE-01</strong></td>
+<td>Bouton « Exécuter » affiché sans droit d'exécution</td>
+<td>marins ; chefs de section</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+<tr>
+<td><strong>NE-02</strong></td>
+<td>Lignes de tickets cliquables sans lien ni focus clavier</td>
+<td>tous profils</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dt-1-10"><span class="marqueur">⟦dt-1-10⟧</span>1.10 Tests et vérifications</h2>
+<ul>
+<li>Tests de l'état B : <code>maintenance/tests/</code> (178 fonctions) et <code>logistics/tests/</code> (228 fonctions, partagées avec la logistique).</li>
+<li>Preuves des écarts A20 et A25 : fichiers de test conservés dans les preuves versionnées (<code>audit_preuves/tests_verification/verif_g0_a20.py</code>, <code>verif_g0_a25.py</code>), à copier dans une <strong>copie isolée</strong> de l'état B ; ils ne sont <strong>pas</strong> intégrés au dépôt applicatif.</li>
+<li>Commande pour rejouer les tests du paquet dans une copie isolée : <code>python manage.py test maintenance</code> (résultat : voir la barrière G3).</li>
+</ul>
+<h2 id="dt-1-11"><span class="marqueur">⟦dt-1-11⟧</span>1.11 Limites <span class="et n">◯</span></h2>
+<ul>
+<li>Les envois de notifications (appareil, courriel) ne sont pas rejoués.</li>
+<li>Le comportement des verrous d'écriture simultanée sous PostgreSQL n'est pas rejoué.</li>
+<li>L'intention du chemin « API <code>start</code> » (non voulu comme validation) n'est pas confirmée.</li>
+</ul></section></body></html>

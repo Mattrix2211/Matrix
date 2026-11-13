@@ -1,0 +1,7 @@
+flowchart TB
+  AU["Auteur"] --> CSE["Chef de section, si présent"] --> CSC["Chef de secteur"] --> CSV["Chef de service"] --> AD["Le chef de service<br/>autorise la diffusion<br/>après validation"] --> PU["Publication"]
+  CSC -->|"correction motivée"| AU
+  CSV -->|"correction motivée"| AU
+  AU -.-> NV["Une correction crée une nouvelle version<br/>et les validations nécessaires"]
+  TR["Transmission effective à<br/>un organisme extérieur :<br/>acte distinct, ni<br/>validation ni changement<br/>de statut ; destinataires<br/>et canaux à confirmer"]
+  AD -.-> TR

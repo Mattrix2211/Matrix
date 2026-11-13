@@ -1331,10 +1331,12 @@
    "precisions": "Correspondance code/vocabulaire à vérifier (IM-15).",
    "source_po": "S1 §6",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L22"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1349,10 +1351,12 @@
    "precisions": "—",
    "source_po": "S1 §6",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L22"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1367,10 +1371,12 @@
    "precisions": "—",
    "source_po": "S1 §6",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L22"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1385,10 +1391,12 @@
    "precisions": "—",
    "source_po": "S1 §6",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L22"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1403,10 +1411,12 @@
    "precisions": "—",
    "source_po": "S1 §6",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L22"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1421,10 +1431,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1439,10 +1451,12 @@
    "precisions": "Pas de signature intermédiaire constatée (une seule `valide_par`).",
    "source_po": "S1 §8",
    "acteurs": "Section/secteur, Service, COMANAV",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1457,10 +1471,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Chaîne d'approbation",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1475,10 +1491,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1493,10 +1511,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1511,10 +1531,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1529,10 +1551,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1547,10 +1571,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1565,10 +1591,12 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1583,10 +1611,12 @@
    "precisions": "Qualification proposée par le chef de secteur, examinée par le chef de service, approuvée par le COMANAV avec la fiche de référence (DEC-APP-14). Conformité aux procédures du bord à confirmer avant implémentation.",
    "source_po": "S2 ; S3",
    "acteurs": "Chaîne de validation",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1601,10 +1631,12 @@
    "precisions": "—",
    "source_po": "S1 §8 ; S2 ; S3",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1619,10 +1651,12 @@
    "precisions": "Même circuit que DEC-APP-14 ; aucune simple réserve ne suffit à les contourner.",
    "source_po": "S2 ; S3",
    "acteurs": "Chaîne de validation",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L23"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -1637,7 +1671,9 @@
    "precisions": "—",
    "source_po": "S1 §8",
    "acteurs": "Tous",
-   "lots": [],
+   "lots": [
+    "L23"
+   ],
    "etat_dans_etat_b": "réalisée",
    "etat_methode": "vérifié dans le code de l'état B",
    "note": "Matrix ne délivre pas l'autorisation d'appareiller.",
@@ -2089,10 +2125,12 @@
    "precisions": "Méthode statistique = proposition technique PT-DUR-*, non validée.",
    "source_po": "S1 §5 (option B)",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L20"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2107,10 +2145,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L20"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2125,10 +2165,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L20"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2143,10 +2185,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L20"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2161,10 +2205,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L20"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2179,10 +2225,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L20"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2197,10 +2245,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L20"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2310,10 +2360,12 @@
    "precisions": "—",
    "source_po": "S1 §7",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L27"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2346,10 +2398,12 @@
    "precisions": "Composition-type : GO du PO requis (AUD-046).",
    "source_po": "S1 §7 ; N8",
    "acteurs": "BSC",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L27"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2364,10 +2418,12 @@
    "precisions": "—",
    "source_po": "S1 §7",
    "acteurs": "BSC",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L27"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2552,10 +2608,12 @@
    "precisions": "—",
    "source_po": "S1 §4",
    "acteurs": "Marin",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L25"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2570,10 +2628,12 @@
    "precisions": "—",
    "source_po": "S1 §4",
    "acteurs": "Nouveau et ancien bâtiments",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L25"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2588,10 +2648,12 @@
    "precisions": "Autorité et délai non définis (IM-03).",
    "source_po": "S1 §4",
    "acteurs": "Autorité habilitée",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L25"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2606,10 +2668,12 @@
    "precisions": "—",
    "source_po": "S1 §4",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L25"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2624,10 +2688,12 @@
    "precisions": "—",
    "source_po": "S1 §4",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L25"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2792,10 +2858,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Équipier",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L26"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2810,10 +2878,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L26"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2828,10 +2898,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L26"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2846,10 +2918,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Chef",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L26"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2864,10 +2938,12 @@
    "precisions": "—",
    "source_po": "S1 §5 ; N3",
    "acteurs": "Chaîne de validation",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L26"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2882,7 +2958,9 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
+   "lots": [
+    "L19"
+   ],
    "etat_dans_etat_b": "partielle",
    "etat_methode": "vérifié dans le code de l'état B",
    "note": "Les échéances sont générées depuis les plans et fiches (constat sur le code) ; les périodicités nommées ne le sont pas (L19).",
@@ -2900,10 +2978,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Chef de secteur",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L19"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2918,10 +2998,12 @@
    "precisions": "Critère « calendrier fixe » à définir par fiche (IM-14).",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L19"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -2936,7 +3018,9 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
+   "lots": [
+    "L19"
+   ],
    "etat_dans_etat_b": "réalisée",
    "etat_methode": "vérifié dans le code de l'état B",
    "note": "Journal d'états des occurrences, retards compris (constat sur le code).",
@@ -3439,7 +3523,9 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Chef de secteur / de section",
-   "lots": [],
+   "lots": [
+    "L14"
+   ],
    "etat_dans_etat_b": "écart (A13)",
    "etat_methode": "vérifié dans le code de l'état B",
    "note": "Pas de règle d'abaissement (L14).",
@@ -3457,10 +3543,12 @@
    "precisions": "—",
    "source_po": "S1 §5",
    "acteurs": "Système",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L14"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3475,7 +3563,9 @@
    "precisions": "—",
    "source_po": "S1 §12 ; N4",
    "acteurs": "Marin",
-   "lots": [],
+   "lots": [
+    "L24"
+   ],
    "etat_dans_etat_b": "partielle",
    "etat_methode": "vérifié dans le code de l'état B",
    "note": "Accueil « Aujourd'hui » existant ; cartes et aide progressive non développées (L24).",
@@ -3493,10 +3583,12 @@
    "precisions": "Alertes et mentions réglementaires conservées (N4).",
    "source_po": "S1 §12 ; N5",
    "acteurs": "Tous",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3511,10 +3603,12 @@
    "precisions": "—",
    "source_po": "S1 §12 ; N5",
    "acteurs": "Tous",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3529,10 +3623,12 @@
    "precisions": "Notion : « IDÉE FUTURE », hors périmètre du 01/11 (CT-08).",
    "source_po": "S1 §12 ; N7",
    "acteurs": "Marin",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3547,10 +3643,12 @@
    "precisions": "—",
    "source_po": "S1 §12",
    "acteurs": "Marin",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3565,10 +3663,12 @@
    "precisions": "« Lu » ≠ « traité » (N5).",
    "source_po": "S1 §12 ; N5",
    "acteurs": "Marin",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3583,10 +3683,12 @@
    "precisions": "—",
    "source_po": "S1 §12",
    "acteurs": "Tous",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3601,7 +3703,9 @@
    "precisions": "Le code et N5 écrivent « Mes tours de service » (CT-06).",
    "source_po": "S1 §12",
    "acteurs": "Marin",
-   "lots": [],
+   "lots": [
+    "L24"
+   ],
    "etat_dans_etat_b": "écart (A11)",
    "etat_methode": "vérifié dans le code de l'état B",
    "note": "Le libellé affiché est « Mes tours de service ».",
@@ -3619,10 +3723,12 @@
    "precisions": "Notion : IDÉE FUTURE.",
    "source_po": "S1 §12 ; N7",
    "acteurs": "Chef",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3637,10 +3743,12 @@
    "precisions": "—",
    "source_po": "S1 §12 ; N4",
    "acteurs": "Utilisateur expérimenté",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3655,10 +3763,12 @@
    "precisions": "—",
    "source_po": "S1 §12 ; N1 §15",
    "acteurs": "Marin",
-   "lots": [],
-   "etat_dans_etat_b": "à instruire ⚪",
-   "etat_methode": "aucun rattachement",
-   "note": "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.",
+   "lots": [
+    "L24"
+   ],
+   "etat_dans_etat_b": "non développée",
+   "etat_methode": "plan en lots (V1.2) : lot non livré dans l'état B",
+   "note": "",
    "niveau_preuve": "[R]",
    "derniere_verification": {
     "date": "2026-11-13",
@@ -3767,7 +3877,9 @@
   "L14": {
    "titre": "Trois niveaux de priorité",
    "decisions": [
-    "DEC-TAC-04"
+    "DEC-TAC-04",
+    "DEC-TAC-05",
+    "DEC-TAC-06"
    ]
   },
   "L15": {
@@ -3810,35 +3922,96 @@
   },
   "L19": {
    "titre": "Périodicités nommées et échéance",
-   "decisions": []
+   "decisions": [
+    "DEC-PER-01",
+    "DEC-PER-02",
+    "DEC-PER-03",
+    "DEC-PER-04"
+   ]
   },
   "L20": {
    "titre": "Durée estimée actualisée (option B)",
-   "decisions": []
+   "decisions": [
+    "DEC-DUR-01",
+    "DEC-DUR-02",
+    "DEC-DUR-03",
+    "DEC-DUR-04",
+    "DEC-DUR-05",
+    "DEC-DUR-06",
+    "DEC-DUR-07"
+   ]
   },
   "L22": {
    "titre": "Anomalies, interventions et ticket correctif",
-   "decisions": []
+   "decisions": [
+    "DEC-ANO-01",
+    "DEC-ANO-02",
+    "DEC-ANO-03",
+    "DEC-ANO-04",
+    "DEC-ANO-05"
+   ]
   },
   "L23": {
    "titre": "Préparation à l'appareillage",
-   "decisions": []
+   "decisions": [
+    "DEC-APP-01",
+    "DEC-APP-02",
+    "DEC-APP-03",
+    "DEC-APP-04",
+    "DEC-APP-05",
+    "DEC-APP-06",
+    "DEC-APP-07",
+    "DEC-APP-08",
+    "DEC-APP-09",
+    "DEC-APP-10",
+    "DEC-APP-11",
+    "DEC-APP-12",
+    "DEC-APP-13"
+   ]
   },
   "L26": {
    "titre": "Remarques d'outillage et d'instruction",
-   "decisions": []
+   "decisions": [
+    "DEC-OUT-01",
+    "DEC-OUT-02",
+    "DEC-OUT-03",
+    "DEC-OUT-04",
+    "DEC-OUT-05"
+   ]
   },
   "L27": {
    "titre": "Feuille de service : réimpression et fraction à quai",
-   "decisions": []
+   "decisions": [
+    "DEC-FDS-06",
+    "DEC-FDS-08",
+    "DEC-FDS-09"
+   ]
   },
   "L24": {
    "titre": "Ergonomie (plusieurs petits lots)",
-   "decisions": []
+   "decisions": [
+    "DEC-UX-01",
+    "DEC-UX-02",
+    "DEC-UX-03",
+    "DEC-UX-04",
+    "DEC-UX-05",
+    "DEC-UX-06",
+    "DEC-UX-07",
+    "DEC-UX-08",
+    "DEC-UX-09",
+    "DEC-UX-10",
+    "DEC-UX-11"
+   ]
   },
   "L25": {
    "titre": "Mutation de personnel",
-   "decisions": []
+   "decisions": [
+    "DEC-MUT-01",
+    "DEC-MUT-02",
+    "DEC-MUT-03",
+    "DEC-MUT-04",
+    "DEC-MUT-05"
+   ]
   },
   "L28": {
    "titre": "Dette documentaire et CI",

@@ -1,0 +1,523 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Référentiel fonctionnel et de gouvernance — MTX-G0-R2</title><style>@page { size: A4; margin: 20mm 17mm 19mm 17mm; }
+@page paysage { size: A4 landscape; margin: 19mm 12mm 17mm 12mm; }
+:root { --encre:#14202e; --bleu:#1f3b63; --gris:#5a6b7d; --filet:#b9c3d0; --fond:#f2f5f9; }
+html { font-family: "DejaVu Sans","Noto Sans",Arial,sans-serif; font-size: 10pt; line-height: 1.48; color: var(--encre); }
+body { margin: 0; }
+/* couverture et sommaire */
+.couverture { page-break-after: always; padding-top: 28mm; }
+.couverture .mention { display:inline-block; padding:3mm 6mm; border:2px solid var(--encre); font-weight:700; letter-spacing:.8px; margin-bottom:6mm; }
+.couverture .precaution { font-size: 9pt; color: var(--gris); max-width: 150mm; margin-bottom: 14mm; }
+.couverture .serie { font-size: 11pt; color: var(--bleu); letter-spacing:.5px; text-transform: uppercase; margin: 0 0 3mm 0; }
+.couverture h1 { font-size: 27pt; line-height:1.15; border:none; margin:0 0 5mm 0; page-break-before: avoid; }
+.couverture .public { font-size: 12pt; margin-bottom: 14mm; }
+.couverture table.meta { width:auto; font-size: 9.5pt; border:none; }
+.couverture table.meta td { border:none; border-bottom:1px solid var(--filet); padding:1.6mm 6mm 1.6mm 0; }
+.couverture .legende { margin-top: 12mm; font-size: 9pt; }
+.toc { page-break-after: always; }
+.toc h2 { font-size: 16pt; border:none; margin-top:0; }
+.toc ul { padding:0; margin:0; list-style:none; }
+.toc li { display:flex; align-items:baseline; margin: 1.3mm 0; }
+.toc li .t { flex: 0 1 auto; }
+.toc li .p { flex: 1 1 auto; border-bottom: 1px dotted var(--gris); margin: 0 2mm; min-width: 8mm; transform: translateY(-1.2mm); }
+.toc li .n { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.toc li.niv1 { font-weight:700; margin-top:3mm; }
+.toc li.niv2 { margin-left: 6mm; font-size: 9.5pt; }
+.toc li.niv3 { display:none; }
+.toc a { color: var(--encre); text-decoration:none; }
+/* corps */
+.chapitre { page-break-before: always; }
+.chapitre.suite { page-break-before: auto; }
+.partie { page-break-before: always; page-break-after: always; padding-top: 70mm; }
+.partie h1 { font-size: 26pt; border:none; color: var(--bleu); }
+h1 { font-size: 19pt; border-bottom: 2px solid var(--encre); padding-bottom: 2mm; margin: 0 0 4mm 0; break-after: avoid; }
+h2 { font-size: 13.5pt; margin: 7mm 0 2.5mm 0; border-bottom: 1px solid var(--filet); padding-bottom: 1mm; break-after: avoid; }
+h3 { font-size: 11pt; margin: 5mm 0 2mm 0; break-after: avoid; }
+h4 { font-size: 10pt; margin: 4mm 0 1.5mm 0; break-after: avoid; }
+p { margin: 0 0 2.6mm 0; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 3mm 0; padding-left: 6mm; }
+li { margin: 0 0 1mm 0; break-inside: avoid; }
+.ligne-public { font-size: 9pt; color: var(--gris); border-left:3px solid var(--bleu); padding-left:3mm; margin: 0 0 5mm 0; }
+table { border-collapse: collapse; width: 100%; margin: 2.5mm 0 4mm 0; font-size: 8.8pt; line-height:1.38; }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+th, td { border: 1px solid var(--filet); padding: 1.3mm 2mm; vertical-align: top; overflow-wrap: break-word; }
+td code, th code { overflow-wrap: anywhere; }
+th { background: #e8eef6; text-align: left; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: .86em; background: #eef2f7; padding: 0 .8mm; overflow-wrap: anywhere; }
+pre { background:#eef2f7; padding:2mm; white-space:pre-wrap; overflow-wrap:anywhere; font-size:8.6pt; break-inside:avoid; }
+blockquote { margin: 3mm 0; padding: 2mm 4mm; border-left: 3px solid #5a7aa0; background: var(--fond); break-inside: avoid; }
+blockquote p:last-child { margin-bottom: 0; }
+.encadre-limite { border-left-color:#b36b00; background:#fff7e8; }
+figure { margin: 4mm 0; break-inside: avoid; text-align:center; }
+figure img { max-width: 100%; max-height: 195mm; }
+figcaption { font-size: 8.8pt; color: var(--gris); margin-top: 1.5mm; text-align:left; }
+.fin { break-inside: avoid; }
+hr { border:none; border-top:1px solid var(--filet); margin: 5mm 0; }
+.et { font-size: 1em; }
+.marqueur { font-size:1px; color:transparent; position:absolute; }
+/* pages de capture (paysage) */
+section.paysage { page: paysage; page-break-before: always; page-break-after: always; }
+section.paysage.capture { break-inside: avoid; }
+.cap-sec { font-size: 8pt; letter-spacing:.06em; text-transform: uppercase; color: var(--bleu); font-weight:600; }
+.cap-titre { font-size: 14.5pt; font-weight:700; margin: 1mm 0 1.5mm 0; }
+.cap-texte { font-size: 9.6pt; color:#2a3a4d; margin-bottom: 2.5mm; }
+.cap-cadre { position:relative; width: 232mm; margin: 0 auto; border: .3mm solid #8d9bb0; }
+.cap-cadre img { display:block; width:100%; }
+.rep { position:absolute; width:5mm; height:5mm; margin:-2.5mm 0 0 -6mm; border-radius:50%; background:#b3261e; color:#fff; font-size:7.5pt; font-weight:700; text-align:center; line-height:5mm; border:.3mm solid #fff; }
+.cap-legende { font-size: 8.6pt; color:#2a3a4d; margin-top: 2mm; }
+.cap-legende .prov { color:#b3261e; }
+/* fiches de module */
+.fiche-module h2 { background: var(--fond); border-left: 4px solid var(--bleu); padding: 1.5mm 3mm; border-bottom: none; }
+section.paysage.tableau { font-size: 8.4pt; }
+
+td:first-child code { white-space: nowrap; }
+.toc li .p { border-bottom: 1px dotted #5a6b7d; }
+</style></head><body><section class="couverture"><div class="mention">DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE</div><div class="precaution">Précaution documentaire : cette mention n&#x27;est pas une classification officielle. La classification et les destinataires restent à valider par l&#x27;autorité compétente. Ne pas diffuser.</div><p class="serie">Matrix — G0, révision 2</p><h1>Référentiel fonctionnel et de gouvernance</h1><div class="public">Responsables métier, commandement, décideurs</div><p><b>Maquette pilote (jalon V1)</b> : seul le chapitre « Maintenance » est rédigé ; le reste du document sera rédigé après validation du PO.</p><table class="meta"><tr><td>Référence documentaire</td><td><b>MTX-G0-R2</b></td></tr><tr><td>Série</td><td><b>Matrix — G0, révision 2</b></td></tr><tr><td>Édition</td><td><b>13/11/2026</b></td></tr><tr><td>État documentaire</td><td><b>projet en cours de refonte — maquette pilote V1, non validé</b></td></tr><tr><td>État décrit</td><td><b>EB-2026-11-11</b></td></tr></table><div class="legende"><span class="et v">🟢</span> Fonctionnement actuel vérifié · <span class="et b">🔵</span> Cible validée par le PO, non nécessairement développée · <span class="et p">🟣</span> Proposition non arbitrée · <span class="et n">◯</span> Élément non vérifié</div></section><section class="toc"><h2>Sommaire</h2><ul><li class="niv1"><span class="t"><a href="#rf-1">1 Maintenance, anomalies et tickets correctifs</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#rf-1-1">1.1 À quoi sert ce module</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#rf-1-2">1.2 Qui fait quoi</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#rf-1-3">1.3 Les écrans</a></span><span class="p"></span><span class="n">5</span></li><li class="niv2"><span class="t"><a href="#rf-1-4">1.4 Les règles de fonctionnement</a></span><span class="p"></span><span class="n">5</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-1">1.4.1 Du plan à la réalisation</a></span><span class="p"></span><span class="n">5</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-2">1.4.2 Exécuter une maintenance et la clôturer</a></span><span class="p"></span><span class="n">5</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-3">1.4.3 Le cycle de vie d&#x27;une échéance</a></span><span class="p"></span><span class="n">6</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-4">1.4.4 L&#x27;anomalie</a></span><span class="p"></span><span class="n">6</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-5">1.4.5 Le ticket correctif</a></span><span class="p"></span><span class="n">7</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-6">1.4.6 Détection de dérive et alertes</a></span><span class="p"></span><span class="n">7</span></li><li class="niv2"><span class="t"><a href="#rf-1-5">1.5 Liens avec les autres modules</a></span><span class="p"></span><span class="n">7</span></li><li class="niv2"><span class="t"><a href="#rf-1-6">1.6 Ce qui existe et ce qui est prévu</a></span><span class="p"></span><span class="n">8</span></li><li class="niv2"><span class="t"><a href="#rf-1-7">1.7 Limites et écarts documentés</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#rf-1-8">1.8 Vérifications effectuées</a></span><span class="p"></span><span class="n">10</span></li></ul></section><section class="partie"><h1 class="titre-partie">Modules</h1></section><section class="chapitre fiche-module"><h1 id="rf-1"><span class="marqueur">⟦rf-1⟧</span>1 Maintenance, anomalies et tickets correctifs</h1>
+<div class="ligne-public"><b>Public :</b> responsables métier, commandement · <b>Module :</b> maintenance, anomalies, tickets · <b>Écran de référence :</b> <span class="renvoi">GU §1</span> · <b>Étiquettes :</b> <span class="et v">🟢</span> actuel vérifié · <span class="et b">🔵</span> cible validée · <span class="et p">🟣</span> proposition · <span class="et n">◯</span> non vérifié</div>
+
+<h2 id="rf-1-1"><span class="marqueur">⟦rf-1-1⟧</span>1.1 À quoi sert ce module</h2>
+<p>Il répond à trois questions de la vie à bord : <strong>que dois-je contrôler ou entretenir, et quand ?</strong> (maintenance planifiée) ; <strong>j'ai vu quelque chose d'anormal</strong> (anomalie) ; <strong>un équipement est en panne, il faut le réparer et le remettre en service</strong> (ticket correctif).</p>
+<table>
+<thead>
+<tr>
+<th>Objet</th>
+<th>Question à laquelle il répond</th>
+<th>Qui l'ouvre</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Maintenance planifiée</strong> (« occurrence »)</td>
+<td>Que dois-je contrôler ou entretenir, et quand ?</td>
+<td>Matrix, automatiquement, depuis le plan ou la fiche</td>
+</tr>
+<tr>
+<td><strong>Anomalie</strong></td>
+<td>J'ai vu quelque chose d'anormal (fuite, issue encombrée…), avec ou sans équipement identifié</td>
+<td>Tout marin</td>
+</tr>
+<tr>
+<td><strong>Ticket correctif</strong></td>
+<td>Un équipement précis est en panne ou dégradé : le réparer et le remettre en service</td>
+<td>Un chef (conversion d'une anomalie, ou à la main) ; <strong>automatiquement</strong> si un contrôle de matériel mobile est non conforme</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rf-1-2"><span class="marqueur">⟦rf-1-2⟧</span>1.2 Qui fait quoi</h2>
+<p>Les seuils ci-dessous sont les <strong>valeurs par défaut</strong> ; chaque bâtiment peut les régler (voir le référentiel des rôles). L'équipage à terre est en lecture seule.</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Qui</th>
+<th>Borne</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voir les échéances</td>
+<td>Tout marin de son périmètre ; ses propres assignations en priorité</td>
+<td>Périmètre, équipage</td>
+</tr>
+<tr>
+<td>Exécuter une maintenance</td>
+<td>Le marin assigné ; un <strong>chef de section ou plus</strong> pour une maintenance qui n'est pas la sienne ; tout marin peut <strong>s'assigner</strong> lui-même (hors équipage à terre)</td>
+<td>Périmètre</td>
+</tr>
+<tr>
+<td>Corriger un compte rendu terminé</td>
+<td><strong>Chef de secteur ou plus</strong>, avec motif ; ni l'exécutant, ni le chef de section</td>
+<td>Périmètre</td>
+</tr>
+<tr>
+<td>Signaler une anomalie</td>
+<td>Tout marin</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Prendre en compte, traiter, convertir une anomalie</td>
+<td><strong>Chef de section ou plus</strong></td>
+<td>Périmètre ; état-major : services de sa fonction</td>
+</tr>
+<tr>
+<td>Faire avancer un ticket</td>
+<td><strong>Chef de section ou plus</strong></td>
+<td>Périmètre</td>
+</tr>
+<tr>
+<td>Confirmer une remise en service</td>
+<td>Celui qui fait avancer le ticket, avec confirmation explicite</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Un <strong>acteur à terre</strong> peut commenter un ticket bloqué mais ne le fait pas avancer.</p>
+<h2 id="rf-1-3"><span class="marqueur">⟦rf-1-3⟧</span>1.3 Les écrans</h2>
+<p>Le parcours du marin et celui du chef, avec captures, sont décrits dans le guide utilisateur : <span class="renvoi">GU §1</span>. Trois écrans à retenir : la <strong>liste des maintenances</strong> (compteurs « à traiter », filtres), la <strong>fiche d'exécution guidée</strong> (contrôles, consignes de sécurité, progression), et la <strong>fiche d'une anomalie ou d'un ticket</strong> (état, historique, fil de discussion).</p>
+<h2 id="rf-1-4"><span class="marqueur">⟦rf-1-4⟧</span>1.4 Les règles de fonctionnement</h2>
+<h3 id="rf-1-4-1"><span class="marqueur">⟦rf-1-4-1⟧</span>1.4.1 Du plan à la réalisation</h3>
+<table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Ce qui se passe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Le plan dit quand</td>
+<td>Un plan de maintenance (par type de matériel) ou une tâche d'entretien d'installation définit la périodicité ; la <strong>fiche validée</strong> dit comment. Quand une fiche de la flotte s'applique, <strong>la fiche de la catégorie la plus proche fait foi</strong>.</td>
+</tr>
+<tr>
+<td>2. Matrix génère les échéances</td>
+<td>Chaque jour, Matrix crée les échéances des <strong>90 prochains jours</strong> (matériel et installations). Une échéance de matériel porte plan et matériel ; une échéance d'installation ne porte que la tâche d'entretien.</td>
+</tr>
+<tr>
+<td>3. L'échéance est assignée</td>
+<td>À un ou plusieurs marins, avec une <strong>priorité de 1 à 5</strong> (5 = la plus critique) qui trie la liste « À faire ».</td>
+</tr>
+<tr>
+<td>4. Le retard est calculé</td>
+<td>Une échéance « planifiée » ou « assignée » dont la date est dépassée passe <strong>En retard</strong>.</td>
+</tr>
+<tr>
+<td>5. Le marin exécute</td>
+<td>Puis la clôture met à jour l'état, les relevés de l'installation et l'historique.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rf-1-4-2"><span class="marqueur">⟦rf-1-4-2⟧</span>1.4.2 Exécuter une maintenance et la clôturer</h3>
+<p>Le marin ouvre l'échéance (depuis « À faire », depuis la fiche de l'équipement ou en scannant son QR code), lit la <strong>préparation</strong> et les consignes de sécurité, renseigne les contrôles <strong>ligne par ligne</strong> (résultat, mesure, remarque), puis clôture avec un verdict, des photos et une note. Pour du matériel mobile, une <strong>tournée</strong> permet de contrôler plusieurs équipements dans un seul tableau. À la clôture, une trace est ajoutée dans la discussion de l'occurrence et les chefs de secteur sont notifiés.</p>
+<table>
+<thead>
+<tr>
+<th>Verdict</th>
+<th>État de l'échéance</th>
+<th>Suites</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conforme</td>
+<td><strong>Terminée</strong></td>
+<td>Compte rendu archivé</td>
+</tr>
+<tr>
+<td>Non conforme</td>
+<td><strong>En validation</strong></td>
+<td><strong>Matériel mobile</strong> : un ticket correctif est créé automatiquement (gravité 3 par défaut, une seule fois par échéance) et les chefs sont alertés. <strong>Installation</strong> : aucun ticket automatique ; le marin peut signaler une anomalie depuis le compte rendu</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Installation critique</strong> <span class="et v">🟢</span> : la clôture exige une <strong>confirmation explicite</strong> (texte affiché ; une tentative sans confirmation est refusée et tracée). La personne qui clôture est enregistrée comme valideur ; aucune seconde signature n'est demandée.</li>
+<li><strong>Correction après coup</strong> <span class="et v">🟢</span> : un compte rendu terminé peut être corrigé ; la <strong>saisie d'origine est conservée</strong>, la modification est enregistrée avec son auteur et son motif. Si deux personnes enregistrent en même temps, la seconde reçoit un message de conflit : rien n'est écrasé en silence.</li>
+</ul>
+<h3 id="rf-1-4-3"><span class="marqueur">⟦rf-1-4-3⟧</span>1.4.3 Le cycle de vie d'une échéance</h3>
+<figure><img alt="Schéma S25 — États d'une échéance de maintenance" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25_etats_occurrence.svg" style="width:412pt"><figcaption>Schéma S25 — États d'une échéance de maintenance</figcaption></figure>
+<p>États : <strong>Planifiée → Assignée → En cours → Terminée</strong> ; <strong>En retard</strong> (calculé) ; <strong>En validation</strong> (verdict non conforme) ; <strong>Annulée</strong>. Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. Les trois flèches en pointillés partant de « En validation » sont décrites plus bas (écart A20).</p>
+<h3 id="rf-1-4-4"><span class="marqueur">⟦rf-1-4-4⟧</span>1.4.4 L'anomalie</h3>
+<p>Un marin signale une anomalie en quelques clics : titre, description, <strong>gravité de 1 à 5</strong>, photo, lieu, et <strong>facultativement un équipement</strong> (installation ou matériel, jamais les deux). Le périmètre est déduit de l'équipement, sinon du profil du déclarant. États : <strong>Signalée → Prise en compte → Traitée → Clôturée</strong>. La <strong>conversion en ticket</strong> garde un lien dans les deux sens. Le signalement est notifié aux chefs du périmètre.</p>
+<h3 id="rf-1-4-5"><span class="marqueur">⟦rf-1-4-5⟧</span>1.4.5 Le ticket correctif</h3>
+<figure><img alt="Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S26_ticket_et_anomalie.svg" style="width:499pt"><figcaption>Schéma S26 — De l'anomalie au ticket, du ticket à la remise en service</figcaption></figure>
+<p>Un ticket vise <strong>un matériel ou une installation</strong>, jamais les deux ; il peut mobiliser plusieurs marins et porte une gravité de 1 à 5. États : Signalé → Diagnostiqué → (En attente de pièces) → Planifié → En réparation → En test → <strong>Remis en service</strong> → <strong>Fermé</strong> ; plus Bloqué et Annulé. Deux garde-fous :</p>
+<ol>
+<li><strong>Remise en service</strong> : confirmation explicite obligatoire ; sans elle, rien n'est enregistré et le refus est tracé.</li>
+<li><strong>Clôture</strong> : le <strong>retour d'expérience</strong> (diagnostic final et solution appliquée) est obligatoire ; un ticket fermé porte donc toujours un REX, retrouvable ensuite depuis la fiche de l'équipement.</li>
+</ol>
+<h3 id="rf-1-4-6"><span class="marqueur">⟦rf-1-4-6⟧</span>1.4.6 Détection de dérive et alertes</h3>
+<p>Les relevés des installations alimentent une détection de dérive par régression linéaire simple : Matrix estime le délai avant franchissement du seuil et prévient les chefs concernés. Les maintenances en retard, les tickets ouverts et les validations en attente sont comptés à l'accueil ; chaque chiffre mène au dossier filtré.</p>
+<h2 id="rf-1-5"><span class="marqueur">⟦rf-1-5⟧</span>1.5 Liens avec les autres modules</h2>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Lien</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Matériel et installations</td>
+<td>Fiches, relevés, caractère critique, plan du navire</td>
+</tr>
+<tr>
+<td>Logistique</td>
+<td>Pièces consommées, demandes de pièces, stock</td>
+</tr>
+<tr>
+<td>Tâches</td>
+<td>Une tâche peut être rattachée à un objet ; création depuis une anomalie <span class="et n">◯</span> non vérifiée</td>
+</tr>
+<tr>
+<td>Discussions</td>
+<td>Chaque échéance, ticket et anomalie a son fil</td>
+</tr>
+<tr>
+<td>Notifications</td>
+<td>Retards, alertes de dérive, tickets, validations</td>
+</tr>
+<tr>
+<td>Préparation à l'appareillage</td>
+<td>Tickets bloquants et installations critiques</td>
+</tr>
+<tr>
+<td>Accueil</td>
+<td>« À faire », indicateurs, supervision</td>
+</tr>
+</tbody>
+</table>
+<p>Cas particuliers : en <strong>double équipage</strong>, listes et compteurs sont bornés à l'équipage ; le module <strong>« rondes »</strong> est retiré de l'interface (aucune fonction de ronde n'est disponible) ; un <strong>module désactivé</strong> disparaît du menu et ses pages sont refusées, mais l'accueil et le calendrier continuent d'afficher les maintenances (écart A25).</p>
+<h2 id="rf-1-6"><span class="marqueur">⟦rf-1-6⟧</span>1.6 Ce qui existe et ce qui est prévu</h2>
+<table>
+<thead>
+<tr>
+<th>Sujet</th>
+<th>État</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Génération des échéances, retards, exécution guidée, compte rendu, correction motivée</td>
+<td><span class="et v">🟢</span> Disponible</td>
+</tr>
+<tr>
+<td>Ticket automatique pour un matériel mobile non conforme</td>
+<td><span class="et v">🟢</span> Disponible</td>
+</tr>
+<tr>
+<td>Ticket automatique pour une <strong>installation</strong> non conforme, avec garde-fous (ne clôture jamais une anomalie, n'autorise jamais une remise en service)</td>
+<td><span class="et p">🟣</span> <strong>Proposition</strong> à valider par le PO (D1) ; non développé</td>
+</tr>
+<tr>
+<td>Périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective</td>
+<td><span class="et b">🔵</span> Cible validée, non développée</td>
+</tr>
+<tr>
+<td>Remarques d'outillage et d'instruction visibles du chef de secteur, sans modification automatique de la fiche</td>
+<td><span class="et b">🔵</span> Cible validée, non développée</td>
+</tr>
+<tr>
+<td>Durée indicative actualisée, historique des estimations</td>
+<td><span class="et b">🔵</span> Cible validée, non développée</td>
+</tr>
+<tr>
+<td>Configuration réelle, potentiels, composants</td>
+<td><span class="et b">🔵</span> Orientation, non développée</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Décisions du PO concernées, une à une</strong> (l'état est celui de l'état B ; « à instruire » signifie que ce dossier ne l'a pas établi, ce n'est pas un constat de non-réalisation) :</p>
+<table>
+<thead>
+<tr>
+<th>Décision</th>
+<th>Règle validée par le PO</th>
+<th>État dans l'état B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DEC-PER-01</code></td>
+<td>Les tâches périodiques sont générées à partir des fiches de maintenance et des matériels concernés.</td>
+<td>partielle (L19)</td>
+</tr>
+<tr>
+<td><code>DEC-PER-02</code></td>
+<td>Périodicités : hebdomadaire, mensuelle, trimestrielle, annuelle, biennale, quinquennale.</td>
+<td>non développée (L19)</td>
+</tr>
+<tr>
+<td><code>DEC-PER-03</code></td>
+<td>Prochaine échéance calculée depuis la réalisation effective, sauf calendrier fixe réglementaire ou technique.</td>
+<td>non développée (L19)</td>
+</tr>
+<tr>
+<td><code>DEC-PER-04</code></td>
+<td>Les historiques sont conservés, retards compris.</td>
+<td>réalisée (L19)</td>
+</tr>
+<tr>
+<td><code>DEC-OUT-01</code></td>
+<td>Signaler : outil manquant, inutile, inadapté, instruction ambiguë, information manquante.</td>
+<td>non développée (L26)</td>
+</tr>
+<tr>
+<td><code>DEC-OUT-02</code></td>
+<td>Remarques conservées et visibles du chef de secteur.</td>
+<td>non développée (L26)</td>
+</tr>
+<tr>
+<td><code>DEC-OUT-03</code></td>
+<td>La liste d'outillage n'est jamais modifiée automatiquement.</td>
+<td>non développée (L26)</td>
+</tr>
+<tr>
+<td><code>DEC-OUT-04</code></td>
+<td>Le chef décide de modifier ou non la fiche de référence.</td>
+<td>non développée (L26)</td>
+</tr>
+<tr>
+<td><code>DEC-OUT-05</code></td>
+<td>Procédures techniques et de sécurité : validations applicables conservées.</td>
+<td>non développée (L26)</td>
+</tr>
+<tr>
+<td><code>DEC-DUR-01</code></td>
+<td>Matrix actualise automatiquement la durée indicative des maintenances à partir des temps réellement constatés.</td>
+<td>non développée (L20)</td>
+</tr>
+<tr>
+<td><code>DEC-DUR-02</code></td>
+<td>Conserver la durée initiale.</td>
+<td>non développée (L20)</td>
+</tr>
+<tr>
+<td><code>DEC-DUR-03</code></td>
+<td>Conserver l'historique des estimations.</td>
+<td>non développée (L20)</td>
+</tr>
+<tr>
+<td><code>DEC-DUR-04</code></td>
+<td>Distinguer temps écoulé et charge totale en heures-personnes.</td>
+<td>non développée (L20)</td>
+</tr>
+<tr>
+<td><code>DEC-DUR-05</code></td>
+<td>Éviter que interventions exceptionnellement longues, attentes et interruptions faussent l'estimation.</td>
+<td>non développée (L20)</td>
+</tr>
+<tr>
+<td><code>DEC-DUR-06</code></td>
+<td>Le chef de secteur peut corriger manuellement la durée.</td>
+<td>non développée (L20)</td>
+</tr>
+<tr>
+<td><code>DEC-DUR-07</code></td>
+<td>Ne pas modifier automatiquement consignes techniques ou de sécurité.</td>
+<td>non développée (L20)</td>
+</tr>
+<tr>
+<td><code>DEC-ANO-01</code></td>
+<td>Anomalie = problème technique à suivre ; intervention = action effectuée pour le traiter.</td>
+<td>non développée (L22)</td>
+</tr>
+<tr>
+<td><code>DEC-ANO-02</code></td>
+<td>Une anomalie peut nécessiter plusieurs interventions.</td>
+<td>non développée (L22)</td>
+</tr>
+<tr>
+<td><code>DEC-ANO-03</code></td>
+<td>La clôture d'une intervention ne clôture pas automatiquement l'anomalie.</td>
+<td>non développée (L22)</td>
+</tr>
+<tr>
+<td><code>DEC-ANO-04</code></td>
+<td>Le chef de secteur décide de la suite : intervention supplémentaire, demande d'information, ouverture d'anomalie, clôture justifiée.</td>
+<td>non développée (L22)</td>
+</tr>
+<tr>
+<td><code>DEC-ANO-05</code></td>
+<td>Préserver les liens tâches ↔ interventions ↔ anomalies ↔ matériels ↔ historique.</td>
+<td>non développée (L22)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rf-1-7"><span class="marqueur">⟦rf-1-7⟧</span>1.7 Limites et écarts documentés</h2>
+<blockquote>
+<p><strong>Ces constats sont documentés, pas arbitrés.</strong> Ils ne modifient ni le logiciel ni une décision du PO.</p>
+</blockquote>
+<p><strong>Sortie de l'état « En validation » (écart A20).</strong> <span class="et v">🟢</span> <em>Vérifié par test et dans le navigateur le 12/11/2026 (données fictives).</em> Il n'existe <strong>aucune action de validation dédiée</strong>. Trois chemins font pourtant changer l'état : (1) <strong>la correction du compte rendu par un chef de secteur ou plus</strong> (motif obligatoire) : si la conformité finale n'est plus « non conforme », l'échéance passe <strong>Terminée</strong> ; (2) <strong>une commande technique de l'interface de programmation</strong> (« démarrer »), appelable par un marin assigné, qui écrit « En cours » sans contrôler l'état de départ et laisse un état <strong>incohérent</strong> ; (3) <strong>l'administration technique</strong>. Aucune annulation manuelle n'existe ; clôturer le ticket lié ne change pas l'échéance.</p>
+<p><strong>Risque de blocage.</strong> Une échéance « En validation » n'est <strong>jamais comptée en retard</strong> et <strong>aucune notification ne la vise</strong> : elle peut rester indéfiniment dans cet état, visible mais sans échéance, ancienneté ni escalade. Pour une <strong>installation</strong>, aucun ticket n'est créé et <strong>la génération de l'échéance suivante est suspendue</strong> tant que l'échéance reste « En validation » : l'entretien récurrent s'arrête jusqu'à la correction du compte rendu. La règle de sortie reste <strong>à décider par le PO</strong> (proposition D2). Aucune règle nouvelle n'est proposée ici.</p>
+<table>
+<thead>
+<tr>
+<th>Identifiant</th>
+<th>Sujet</th>
+<th>Profils concernés</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A20</strong></td>
+<td>Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO)</td>
+<td>exécutants ; chefs de secteur ; responsables des installations</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+<tr>
+<td><strong>A21</strong></td>
+<td>Périodicités nommées, remarques d'outillage, durée indicative (DEC-PER-01 à 04, DEC-OUT-01 à 05, DEC-</td>
+<td>chefs de secteur</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+<tr>
+<td><strong>A25</strong></td>
+<td>Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment)</td>
+<td>administrateurs d'unité ; commandants ; intégrateurs</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+<tr>
+<td><strong>D1</strong></td>
+<td>Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile</td>
+<td>—</td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+<tr>
+<td><strong>D2</strong></td>
+<td>Règle de sortie de l'état « En validation » et alerte de retard associée (A20)</td>
+<td>—</td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+<tr>
+<td><strong>NE-01</strong></td>
+<td>Bouton « Exécuter » affiché sans droit d'exécution</td>
+<td>marins ; chefs de section</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+<tr>
+<td><strong>NE-02</strong></td>
+<td>Lignes de tickets cliquables sans lien ni focus clavier</td>
+<td>tous profils</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<p>Le bouton <strong>« Exécuter »</strong> (NE-01) apparaît dans la liste pour des échéances que l'utilisateur ne peut pas exécuter : le serveur refuse ensuite l'ouverture. Les lignes de la liste des tickets (NE-02) ne sont cliquables qu'à la souris.</p>
+<h2 id="rf-1-8"><span class="marqueur">⟦rf-1-8⟧</span>1.8 Vérifications effectuées</h2>
+<table>
+<thead>
+<tr>
+<th>Point</th>
+<th>Méthode</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exécution, clôture, correction réservée au chef de secteur, états de l'échéance</td>
+<td>Navigateur, instance de démonstration, comptes fictifs</td>
+<td>12/11/2026</td>
+</tr>
+<tr>
+<td>Sorties de « En validation » (A20), modules désactivés (A25)</td>
+<td>Tests exécutés sur une copie isolée de l'état B</td>
+<td>12/11/2026</td>
+</tr>
+<tr>
+<td>Ticket automatique, seuils par défaut, génération sur 90 jours</td>
+<td>Lecture du code de l'état B</td>
+<td>12/11/2026</td>
+</tr>
+<tr>
+<td>Envois de notifications (appareil, courriel)</td>
+<td><span class="et n">◯</span> Non rejoués : seules leurs conditions de déclenchement sont décrites</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Écrans de tournée et de ticket complet</td>
+<td><span class="et n">◯</span> Non rejoués en totalité dans le navigateur</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></section></body></html>

@@ -1,0 +1,6 @@
+flowchart TB
+  BR["Brouillon"] -->|"soumise"| SO["Soumise à validation"]
+  SO -->|"valide : un habilité autre que l'auteur"| PU["Publiée : applicable"]
+  SO -->|"refus motivé"| RF["Refusée"]
+  PU -->|"nouvelle version validée"| OB["Obsolète, conservée"]
+  PU -.->|"tout marin propose une amélioration : l'ancienne reste applicable"| BR

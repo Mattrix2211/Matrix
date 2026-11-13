@@ -1,0 +1,11 @@
+flowchart TB
+  P["Cadrage par le PO : tâche Notion"]
+  D["Développement : commit, hooks locaux"]
+  S{"Petite tâche ?"}
+  R["Relecture indépendante"]
+  OK["Poussée, statut Terminé"]
+  P --> D --> S
+  S -->|"oui"| OK
+  S -->|"non"| R
+  R -->|"accepté"| OK
+  R -->|"refusé, 3 fois au plus"| D

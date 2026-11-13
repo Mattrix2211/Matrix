@@ -1,0 +1,143 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Guide utilisateur illustré — MTX-G0-R2</title><style>@page { size: A4; margin: 20mm 17mm 19mm 17mm; }
+@page paysage { size: A4 landscape; margin: 19mm 12mm 17mm 12mm; }
+:root { --encre:#14202e; --bleu:#1f3b63; --gris:#5a6b7d; --filet:#b9c3d0; --fond:#f2f5f9; }
+html { font-family: "DejaVu Sans","Noto Sans",Arial,sans-serif; font-size: 10pt; line-height: 1.48; color: var(--encre); }
+body { margin: 0; }
+/* couverture et sommaire */
+.couverture { page-break-after: always; padding-top: 28mm; }
+.couverture .mention { display:inline-block; padding:3mm 6mm; border:2px solid var(--encre); font-weight:700; letter-spacing:.8px; margin-bottom:6mm; }
+.couverture .precaution { font-size: 9pt; color: var(--gris); max-width: 150mm; margin-bottom: 14mm; }
+.couverture .serie { font-size: 11pt; color: var(--bleu); letter-spacing:.5px; text-transform: uppercase; margin: 0 0 3mm 0; }
+.couverture h1 { font-size: 27pt; line-height:1.15; border:none; margin:0 0 5mm 0; page-break-before: avoid; }
+.couverture .public { font-size: 12pt; margin-bottom: 14mm; }
+.couverture table.meta { width:auto; font-size: 9.5pt; border:none; }
+.couverture table.meta td { border:none; border-bottom:1px solid var(--filet); padding:1.6mm 6mm 1.6mm 0; }
+.couverture .legende { margin-top: 12mm; font-size: 9pt; }
+.toc { page-break-after: always; }
+.toc h2 { font-size: 16pt; border:none; margin-top:0; }
+.toc ul { padding:0; margin:0; list-style:none; }
+.toc li { display:flex; align-items:baseline; margin: 1.3mm 0; }
+.toc li .t { flex: 0 1 auto; }
+.toc li .p { flex: 1 1 auto; border-bottom: 1px dotted var(--gris); margin: 0 2mm; min-width: 8mm; transform: translateY(-1.2mm); }
+.toc li .n { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.toc li.niv1 { font-weight:700; margin-top:3mm; }
+.toc li.niv2 { margin-left: 6mm; font-size: 9.5pt; }
+.toc li.niv3 { display:none; }
+.toc a { color: var(--encre); text-decoration:none; }
+/* corps */
+.chapitre { page-break-before: always; }
+.chapitre.suite { page-break-before: auto; }
+.partie { page-break-before: always; page-break-after: always; padding-top: 70mm; }
+.partie h1 { font-size: 26pt; border:none; color: var(--bleu); }
+h1 { font-size: 19pt; border-bottom: 2px solid var(--encre); padding-bottom: 2mm; margin: 0 0 4mm 0; break-after: avoid; }
+h2 { font-size: 13.5pt; margin: 7mm 0 2.5mm 0; border-bottom: 1px solid var(--filet); padding-bottom: 1mm; break-after: avoid; }
+h3 { font-size: 11pt; margin: 5mm 0 2mm 0; break-after: avoid; }
+h4 { font-size: 10pt; margin: 4mm 0 1.5mm 0; break-after: avoid; }
+p { margin: 0 0 2.6mm 0; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 3mm 0; padding-left: 6mm; }
+li { margin: 0 0 1mm 0; break-inside: avoid; }
+.ligne-public { font-size: 9pt; color: var(--gris); border-left:3px solid var(--bleu); padding-left:3mm; margin: 0 0 5mm 0; }
+table { border-collapse: collapse; width: 100%; margin: 2.5mm 0 4mm 0; font-size: 8.8pt; line-height:1.38; }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+th, td { border: 1px solid var(--filet); padding: 1.3mm 2mm; vertical-align: top; overflow-wrap: break-word; }
+td code, th code { overflow-wrap: anywhere; }
+th { background: #e8eef6; text-align: left; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: .86em; background: #eef2f7; padding: 0 .8mm; overflow-wrap: anywhere; }
+pre { background:#eef2f7; padding:2mm; white-space:pre-wrap; overflow-wrap:anywhere; font-size:8.6pt; break-inside:avoid; }
+blockquote { margin: 3mm 0; padding: 2mm 4mm; border-left: 3px solid #5a7aa0; background: var(--fond); break-inside: avoid; }
+blockquote p:last-child { margin-bottom: 0; }
+.encadre-limite { border-left-color:#b36b00; background:#fff7e8; }
+figure { margin: 4mm 0; break-inside: avoid; text-align:center; }
+figure img { max-width: 100%; max-height: 195mm; }
+figcaption { font-size: 8.8pt; color: var(--gris); margin-top: 1.5mm; text-align:left; }
+.fin { break-inside: avoid; }
+hr { border:none; border-top:1px solid var(--filet); margin: 5mm 0; }
+.et { font-size: 1em; }
+.marqueur { font-size:1px; color:transparent; position:absolute; }
+/* pages de capture (paysage) */
+section.paysage { page: paysage; page-break-before: always; page-break-after: always; }
+section.paysage.capture { break-inside: avoid; }
+.cap-sec { font-size: 8pt; letter-spacing:.06em; text-transform: uppercase; color: var(--bleu); font-weight:600; }
+.cap-titre { font-size: 14.5pt; font-weight:700; margin: 1mm 0 1.5mm 0; }
+.cap-texte { font-size: 9.6pt; color:#2a3a4d; margin-bottom: 2.5mm; }
+.cap-cadre { position:relative; width: 232mm; margin: 0 auto; border: .3mm solid #8d9bb0; }
+.cap-cadre img { display:block; width:100%; }
+.rep { position:absolute; width:5mm; height:5mm; margin:-2.5mm 0 0 -6mm; border-radius:50%; background:#b3261e; color:#fff; font-size:7.5pt; font-weight:700; text-align:center; line-height:5mm; border:.3mm solid #fff; }
+.cap-legende { font-size: 8.6pt; color:#2a3a4d; margin-top: 2mm; }
+.cap-legende .prov { color:#b3261e; }
+/* fiches de module */
+.fiche-module h2 { background: var(--fond); border-left: 4px solid var(--bleu); padding: 1.5mm 3mm; border-bottom: none; }
+section.paysage.tableau { font-size: 8.4pt; }
+
+td:first-child code { white-space: nowrap; }
+.toc li .p { border-bottom: 1px dotted #5a6b7d; }
+</style></head><body><section class="couverture"><div class="mention">DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE</div><div class="precaution">Précaution documentaire : cette mention n&#x27;est pas une classification officielle. La classification et les destinataires restent à valider par l&#x27;autorité compétente. Ne pas diffuser.</div><p class="serie">Matrix — G0, révision 2</p><h1>Guide utilisateur illustré</h1><div class="public">Marins et chefs de section, de secteur et de service</div><p><b>Maquette pilote (jalon V1)</b> : seul le chapitre « Maintenance » est rédigé ; le reste du document sera rédigé après validation du PO.</p><table class="meta"><tr><td>Référence documentaire</td><td><b>MTX-G0-R2</b></td></tr><tr><td>Série</td><td><b>Matrix — G0, révision 2</b></td></tr><tr><td>Édition</td><td><b>13/11/2026</b></td></tr><tr><td>État documentaire</td><td><b>projet en cours de refonte — maquette pilote V1, non validé</b></td></tr><tr><td>État décrit</td><td><b>EB-2026-11-11</b></td></tr></table><div class="legende"><span class="et v">🟢</span> Fonctionnement actuel vérifié · <span class="et b">🔵</span> Cible validée par le PO, non nécessairement développée · <span class="et p">🟣</span> Proposition non arbitrée · <span class="et n">◯</span> Élément non vérifié</div></section><section class="toc"><h2>Sommaire</h2><ul><li class="niv1"><span class="t"><a href="#gu-1">1 Maintenance, anomalies et tickets</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#gu-1-1">1.1 En bref</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#gu-1-2">1.2 Parcours 1 — Je réalise une maintenance</a></span><span class="p"></span><span class="n">4</span></li><li class="niv3"><span class="t"><a href="#gu-1-2-1">1.2.1 Si un contrôle est non conforme</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#gu-1-3">1.3 Parcours 2 — Je signale une anomalie et je suis le ticket</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#gu-1-4">1.4 Quand l&#x27;échéance reste « En validation »</a></span><span class="p"></span><span class="n">17</span></li><li class="niv2"><span class="t"><a href="#gu-1-5">1.5 À savoir</a></span><span class="p"></span><span class="n">19</span></li></ul></section><section class="partie"><h1 class="titre-partie">Parcours et écrans</h1></section><section class="chapitre"><h1 id="gu-1"><span class="marqueur">⟦gu-1⟧</span>1 Maintenance, anomalies et tickets</h1>
+<div class="ligne-public"><b>Public :</b> marins, chefs de section, de secteur et de service · <b>Ce que vous y trouverez :</b> deux parcours illustrés (réaliser une maintenance ; signaler une anomalie et suivre son ticket) et ce qui se passe quand un contrôle est non conforme · <b>Pour les règles complètes :</b> <span class="renvoi">RF §1</span></div>
+
+<h2 id="gu-1-1"><span class="marqueur">⟦gu-1-1⟧</span>1.1 En bref</h2>
+<p>Matrix vous dit <strong>quels contrôles et entretiens vous attendent</strong> et vous guide pas à pas. Si vous voyez quelque chose d'anormal, vous le <strong>signalez</strong> en quelques clics ; un chef le prend en compte et, si un équipement est en cause, le transforme en <strong>ticket de réparation</strong> que vous pouvez suivre.</p>
+<table>
+<thead>
+<tr>
+<th>Je veux…</th>
+<th>Où aller</th>
+<th>Ce que je fais</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voir mes maintenances</td>
+<td>« Maintenance » dans le menu, ou « À faire » sur l'accueil</td>
+<td>Ouvrir l'échéance, suivre les contrôles</td>
+</tr>
+<tr>
+<td>Signaler quelque chose d'anormal</td>
+<td>« Anomalies » → « Signaler »</td>
+<td>Remplir quatre petites étapes</td>
+</tr>
+<tr>
+<td>Savoir où en est ma demande</td>
+<td>« Anomalies » ou « Tickets correctifs »</td>
+<td>Lire l'état et l'historique</td>
+</tr>
+</tbody>
+</table>
+<h2 id="gu-1-2"><span class="marqueur">⟦gu-1-2⟧</span>1.2 Parcours 1 — Je réalise une maintenance</h2>
+<p>Chaque échéance a une <strong>fiche</strong> : ce qu'il faut préparer, les consignes de sécurité, puis les contrôles à renseigner. Vous pouvez enregistrer en cours de route et terminer plus tard.</p>
+<section class="paysage capture"><div class="cap-sec">Parcours 1 — Je réalise une maintenance</div><div class="cap-titre">Étape 1 — La liste des maintenances</div><p class="cap-texte">Les échéances sont classées par état. Les compteurs en haut indiquent ce qui est à traiter. Le bouton « M&#x27;assigner » permet de prendre une échéance non assignée.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/04_maintenance/occurrences.png"><div class="rep" style="left:81.52%;top:28.41%">1</div><div class="rep" style="left:18.45%;top:32.04%">2</div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance · Repères : <b>1</b> Compteurs à traiter <b>2</b> Filtre des retards<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 1 — Je réalise une maintenance</div><div class="cap-titre">Étape 2 — La fiche d&#x27;exécution guidée</div><p class="cap-texte">La fiche rappelle les consignes de sécurité et liste les contrôles. Chaque contrôle se règle d&#x27;un clic : conforme, non conforme ou sans objet. La progression indique combien d&#x27;opérations sont faites.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/04_maintenance/execution_fiche.png"><div class="rep" style="left:19.69%;top:58.84%">1</div><div class="rep" style="left:74.47%;top:54.87%">2</div><div class="rep" style="left:19.62%;top:94.34%">3</div></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance · Repères : <b>1</b> Contrôles : Conforme, Non conforme ou Sans objet <b>2</b> Consignes de sécurité de la fiche <b>3</b> Progression et enregistrement<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 1 — Je réalise une maintenance</div><div class="cap-titre">Étape 3 — Renseigner les contrôles</div><p class="cap-texte">Ici, les quatre contrôles sont marqués « Conforme » ; la progression passe à 4 sur 6. Vous pouvez ajouter une remarque ou une photo à chaque ligne.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/04_maintenance/p_maintenance_1_saisie.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 1 — Je réalise une maintenance</div><div class="cap-titre">Étape 4 — Terminer la maintenance</div><p class="cap-texte">« Terminer la maintenance » enregistre le compte rendu. L&#x27;échéance passe à « Terminée » et un retour à l&#x27;accueil est proposé. Un message de confirmation s&#x27;affiche brièvement en bas de l&#x27;écran.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/04_maintenance/p_maintenance_2_termine.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<h3 id="gu-1-2-1"><span class="marqueur">⟦gu-1-2-1⟧</span>1.2.1 Si un contrôle est non conforme</h3>
+<p>Vous pouvez tout de même terminer : l'échéance passe alors <strong>« En validation »</strong>. Pour du <strong>matériel mobile</strong>, Matrix crée automatiquement un <strong>ticket de réparation</strong> et prévient les chefs. Pour une <strong>installation</strong>, aucun ticket n'est créé : pensez à <strong>signaler une anomalie</strong> depuis le compte rendu (parcours 2).</p>
+<h2 id="gu-1-3"><span class="marqueur">⟦gu-1-3⟧</span>1.3 Parcours 2 — Je signale une anomalie et je suis le ticket</h2>
+<p>Tout marin peut signaler une anomalie : une fuite, une issue encombrée, un bruit anormal… L'équipement est facultatif. L'assistant tient en quatre étapes.</p>
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 1 — Choisir l&#x27;objet concerné</div><p class="cap-texte">Choisissez l&#x27;installation ou le matériel concerné s&#x27;il est identifié, le secteur et le lieu. Un seul équipement à la fois : une installation ou un matériel.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/05_anomalies_tickets/p_anomalie_1_objet.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 2 — Dire ce que vous constatez</div><p class="cap-texte">Un titre court et la gravité, de 1 (mineure) à 5 (critique). Soyez précis : le chef de secteur lira ce titre en premier.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/05_anomalies_tickets/p_anomalie_2_nature.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 3 — Décrire et joindre une photo</div><p class="cap-texte">Une description libre et une photo, toutes deux facultatives. Plus le signalement est clair, plus la réponse est rapide.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/05_anomalies_tickets/p_anomalie_3_description.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 4 — Vérifier avant d&#x27;envoyer</div><p class="cap-texte">Le récapitulatif vous laisse le temps de corriger avant l&#x27;envoi.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/05_anomalies_tickets/p_anomalie_4_verification.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Je signale une anomalie</div><div class="cap-titre">Étape 5 — Suivre mon signalement</div><p class="cap-texte">L&#x27;anomalie est « Signalée ». Vous voyez son état, son historique et le fil de discussion, où vous pouvez répondre aux questions du chef.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/05_anomalies_tickets/p_anomalie_5_suivi.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : equipier_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Du côté du chef</div><div class="cap-titre">Étape 6 — Le chef de secteur prend en compte</div><p class="cap-texte">Un chef de section ou plus fait avancer l&#x27;anomalie (« Prise en compte »). Quand un matériel est identifié, il peut la convertir en ticket correctif.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/05_anomalies_tickets/p_anomalie_7_prise_en_compte.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Profil chef de secteur<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<section class="paysage capture"><div class="cap-sec">Parcours 2 — Du côté du chef</div><div class="cap-titre">Étape 7 — Le ticket correctif</div><p class="cap-texte">Le ticket garde le lien avec l&#x27;anomalie et suit des étapes : diagnostic, réparation, essais, remise en service, clôture. La remise en service demande une confirmation explicite, la clôture un retour d&#x27;expérience.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/05_anomalies_tickets/p_anomalie_8_ticket.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Règles : référentiel fonctionnel, fiche Maintenance<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<h2 id="gu-1-4"><span class="marqueur">⟦gu-1-4⟧</span>1.4 Quand l'échéance reste « En validation »</h2>
+<p>Après un compte rendu <strong>non conforme</strong>, l'échéance attend qu'un <strong>chef de secteur</strong> corrige le compte rendu. Vous ne voyez pas de bouton « Valider » : c'est normal, il n'existe pas.</p>
+<section class="paysage capture"><div class="cap-sec">Limite actuelle</div><div class="cap-titre">Une échéance « En validation », vue par le chef de secteur</div><p class="cap-texte">Seul le chef de secteur (ou plus) voit « Enregistrer la correction ». L&#x27;exécutant et le chef de section ne le voient pas. Rien ne relance automatiquement cette échéance : elle peut rester ici longtemps.</p><div class="cap-cadre"><img src="file:///home/user/Matrix/docs/dossier-technique/guide-visuel/captures/09_limites/en_validation_execution.png"></div><p class="cap-legende"><b>Écran réel <span class="et v">🟢</span> · profil de démonstration : chef_secteur_a</b> · Écart documenté A20 — règle de sortie non décidée par le PO<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span></p></section>
+
+<h2 id="gu-1-5"><span class="marqueur">⟦gu-1-5⟧</span>1.5 À savoir</h2>
+<ul>
+<li>Le bouton <strong>« Exécuter »</strong> apparaît parfois dans la liste pour une échéance qui n'est pas à vous : si vous n'y avez pas droit, Matrix refuse l'ouverture. Utilisez « M'assigner » ou demandez à un chef.</li>
+<li>Les <strong>alertes sur l'appareil</strong> (notifications poussées) ne sont pas actives sur l'instance de démonstration ayant servi aux captures ; les notifications dans l'application le sont.</li>
+<li>Ce guide décrit <strong>ce que fait Matrix aujourd'hui</strong>. Les périodicités nommées, les remarques d'outillage ou le ticket automatique pour une installation sont <strong>prévus ou proposés</strong>, pas disponibles.</li>
+</ul></section></body></html>

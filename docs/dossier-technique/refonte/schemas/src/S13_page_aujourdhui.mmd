@@ -1,0 +1,19 @@
+flowchart LR
+  T["Tâches assignées,<br/>ou à suivre<br/>pour un chef"]
+  M["Maintenances et<br/>tickets assignés ou<br/>non assignés du<br/>périmètre"]
+  F["Formations du jour,<br/>qualifications<br/>à renouveler"]
+  A["Annonces à lire<br/>ou à accuser"]
+  D["Demandes à traiter,<br/>réponses attendues,<br/>fiches à viser"]
+  Q["Quarts publiés et<br/>services à quai<br/>applicables"]
+  AF["À faire : trié par<br/>retard, attente,<br/>criticité, échéance"]
+  MJ["Ma journée :<br/>frise horaire<br/>du jour"]
+  SU["Supervision : retards,<br/>validations, échanges<br/>à valider, formations<br/>à valider"]
+  T --> AF
+  M --> AF
+  F --> AF
+  A --> AF
+  D --> AF
+  Q --> MJ
+  F --> MJ
+  T --> MJ
+  AF -. "seuil de supervision,<br/>périmètre du chef" .-> SU

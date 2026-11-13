@@ -1,0 +1,14 @@
+flowchart LR
+  PERS["Personnes et organisation :<br/>accounts, org"]
+  VIE["Vie quotidienne :<br/>dashboard, calendar_app, quarts, absences,<br/>taches, demandes, programme, postes"]
+  COM["Communication :<br/>threads, annonces, notifications"]
+  TECH["Technique et logistique :<br/>assets, maintenance, logistics,<br/>rondes (retiré)"]
+  SAV["Connaissance :<br/>training, documentation, retex"]
+  PIL["Pilotage :<br/>reports"]
+  CORE["matrix.core : rôles, périmètres,<br/>modules, audit, sécurité"]
+  PERS --> CORE
+  VIE --> CORE
+  COM --> CORE
+  TECH --> CORE
+  SAV --> CORE
+  PIL --> CORE

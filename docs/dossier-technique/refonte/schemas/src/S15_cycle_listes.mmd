@@ -1,0 +1,14 @@
+flowchart TB
+  subgraph QM["Liste de quarts à la mer"]
+    direction TB
+    Q1["Brouillon"] -->|"le chef de liste propose"| Q2["Proposée"]
+    Q2 -->|"publication par une<br/>personne habilitée"| Q3["Publiée : versions conservées"]
+  end
+  subgraph QA["Liste de services à quai"]
+    direction TB
+    G1["Brouillon"] -->|"le chef de liste propose"| G2["Proposée"]
+    G2 -->|"publication prévisionnelle,<br/>prise d'effet prévue obligatoire"| G3["Publiée, prévisionnelle"]
+    G3 -->|"activation par le chef de liste désigné<br/>ou son remplaçant, bâtiment à quai,<br/>sans conflit"| G4["Active"]
+    G4 -->|"fin de période<br/>ou terminaison"| G5["Terminée"]
+  end
+  QM ~~~ QA

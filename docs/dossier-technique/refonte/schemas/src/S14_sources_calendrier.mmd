@@ -1,0 +1,7 @@
+flowchart TB
+  SRC["Neuf sources : maintenance, ticket correctif,<br/>formation, quart, garde à quai, tâche, absence,<br/>programme du bâtiment, événement personnel"]
+  FIL["Filtres de périmètre et de droits<br/>: chacun voit sa journée, un chef<br/>voit aussi son équipe"]
+  CAL["Calendrier central : vue jour,<br/>semaine, mois, panneau de détail<br/>avec discussion"]
+  ICAL["Flux iCal personnel : session<br/>requise"]
+  SRC --> FIL --> CAL
+  FIL --> ICAL

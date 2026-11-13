@@ -1,0 +1,12 @@
+flowchart TB
+  P["Proposé : par un marin, depuis une<br/>source (ticket, anomalie, tâche,<br/>demande)"]
+  R["Routage par domaine : COMA<br/>référent et organisme destinataire<br/>configurables"]
+  V["Validé et publié : devient un<br/>document de la base de<br/>connaissances du bâtiment"]
+  X["Refusé"]
+  C["Clos"]
+  FL["Marquage flotte : simple<br/>indication, aucune transmission<br/>réelle"]
+  V -.- FL
+  P --> R
+  R -->|"décision d'un habilité du<br/>bâtiment, seuil chef de service<br/>par défaut"| V
+  R -->|"décision"| X
+  V -->|"actions décidées : tâches suivies"| C

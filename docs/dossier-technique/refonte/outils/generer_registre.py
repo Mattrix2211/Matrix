@@ -134,6 +134,20 @@ for l in (V12 / "A1_DECISIONS_S1_S2.md").read_text(encoding="utf-8").split("\n")
     if m:
         c = cellules(l)
         src[m.group(1)] = {"source": c[1], "statut_po": c[2], "acteurs": c[3], "regle": c[4], "precisions": c[5] if len(c) > 5 else ""}
+def expand(texte):
+    """Identifiants DEC cités dans un texte, plages (« à ») et listes (« 06, 08, 09 ») développées."""
+    ids = set()
+    for mm in re.finditer(r"DEC-([A-Z]{2,4})-(\d{2})((?:\s*(?:,|et)\s*\d{2}(?!\d))*)(?:\s*(?:à|–)\s*(?:DEC-[A-Z]{2,4}-)?(\d{2}))?", texte):
+        fam, a, suite, fin = mm.group(1), int(mm.group(2)), mm.group(3), mm.group(4)
+        ids.add(f"DEC-{fam}-{a:02d}")
+        for n in re.findall(r"\d{2}", suite or ""):
+            ids.add(f"DEC-{fam}-{int(n):02d}")
+        if fin:
+            for k in range(a, int(fin) + 1):
+                ids.add(f"DEC-{fam}-{k:02d}")
+    return ids
+
+
 plan = (V12 / "M_PLAN_DEVELOPPEMENT.md").read_text(encoding="utf-8")
 lots = {}
 for m in re.finditer(r"^## (L\d{2}) — ([^\n]+?)(?:\s+—\s+\*\*[^\n]*)?\n(.*?)(?=^## L\d{2}|\Z)", plan, re.M | re.S):
@@ -143,11 +157,10 @@ for m in re.finditer(r"^## (L\d{2}) — ([^\n]+?)(?:\s+—\s+\*\*[^\n]*)?\n(.*?)
         if re.match(r"^\| \*\*D[ée]cisions", l):
             ligne = l
             break
-    ids = set()
-    for mm in re.finditer(r"DEC-([A-Z]{2,4})-(\d{2})(?:\s*(?:à|-|–)\s*(?:DEC-[A-Z]{2,4}-)?(\d{2}))?", ligne):
-        fam, a, b = mm.group(1), int(mm.group(2)), mm.group(3)
-        for k in range(a, int(b) + 1 if b else a + 1):
-            ids.add(f"DEC-{fam}-{k:02d}")
+    if not ligne:
+        mm = re.search(r"[Dd][ée]cisions(?: appliquées)?\s+(DEC-[^;\n]*)", bloc)
+        ligne = mm.group(1) if mm else ""
+    ids = expand(ligne)
     lots[lid] = {"titre": titre.strip(), "decisions": sorted(ids)}
 par_decision = {}
 for lid, l in lots.items():

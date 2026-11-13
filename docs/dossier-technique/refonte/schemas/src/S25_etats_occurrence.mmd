@@ -1,0 +1,13 @@
+flowchart TB
+  PL["Planifiée"] -->|"assignation"| AS["Assignée"]
+  PL -->|"enregistrement en direct"| EC["En cours"]
+  AS --> EC
+  EC -->|"terminer : conforme ou à<br/>surveiller"| DO["Terminée"]
+  EC -->|"terminer : non conforme"| WV["En validation"]
+  PL -->|"échéance dépassée, tâche<br/>planifiée"| OV["En retard"]
+  AS -->|"échéance dépassée"| OV
+  OV --> EC
+  PL --> CA["Annulée"]
+  WV -->|"correction du compte<br/>rendu par un chef de<br/>secteur, conformité<br/>finale conforme"| DO
+  WV -.->|"API démarrer, sans<br/>contrôle de l'état :<br/>sortie non voulue, état<br/>incohérent"| EC
+  WV -.->|"administration technique"| CA

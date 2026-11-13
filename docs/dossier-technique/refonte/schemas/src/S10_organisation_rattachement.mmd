@@ -1,0 +1,15 @@
+flowchart TB
+  Ship["Ship (unité)"]
+  Service["Service"]
+  Sector["Sector (secteur)"]
+  Section["Section"]
+  User["User (compte)"]
+  Profil["UserProfile (profil)"]
+  Ship -->|"contient"| Service
+  Service -->|"contient"| Sector
+  Sector -->|"contient"| Section
+  User ---|"a un (1 – 1)"| Profil
+  Profil -. "rattaché à<br/>(un seul niveau)" .-> Ship
+  Profil -. "rattaché à" .-> Service
+  Profil -. "rattaché à" .-> Sector
+  Profil -. "rattaché à" .-> Section

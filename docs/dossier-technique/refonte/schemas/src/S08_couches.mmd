@@ -1,0 +1,17 @@
+flowchart TB
+  NAV["Navigateur : pages HTML, HTMX,<br/>Bootstrap, Chart.js, FullCalendar,<br/>tous servis localement"]
+  MW["Chaîne de middlewares : session,<br/>inactivité, identité de page,<br/>lecture seule à terre, modules<br/>activables"]
+  WEB["Vues web : web_views.py de chaque<br/>paquet"]
+  API["API REST : DRF, authentification<br/>par session"]
+  SRV["Services métier : services.py,<br/>règles partagées dans matrix.core"]
+  MOD["Modèles Django : 135 modèles dans<br/>21 applications"]
+  DB[("SQLite en développement,<br/>PostgreSQL en production")]
+  CEL["Celery beat et worker : 20 tâches<br/>planifiées"]
+  RED[("Redis : file de tâches")]
+  NAV --> MW --> WEB
+  MW --> API
+  WEB --> SRV
+  API --> SRV
+  SRV --> MOD --> DB
+  CEL --> SRV
+  CEL --- RED

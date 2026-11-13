@@ -1,0 +1,13 @@
+flowchart TB
+  EV["Événement métier : tâche<br/>attribuée, liste publiée, échange<br/>à valider, stock bas, échéance…"]
+  TP["Tâches planifiées : rappels,<br/>retards, Ma journée du matin et du<br/>soir"]
+  SV["Service métier du paquet concerné"]
+  NO["Notification : niveau Information,<br/>Important ou Urgent ; régime ;<br/>action requise ou non"]
+  CE["Centre de notifications et compteur"]
+  PU["Web Push : niveau Urgent<br/>seulement, appareils abonnés"]
+  LI["Lien vers l'objet, seulement si le<br/>marin y a accès"]
+  EV --> SV --> NO
+  TP --> NO
+  NO --> CE
+  NO -->|"niveau Urgent"| PU
+  NO --> LI

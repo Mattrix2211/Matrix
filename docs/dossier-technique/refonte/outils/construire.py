@@ -61,6 +61,58 @@ def separer_listes(texte):
     return "\n".join(sortie)
 
 
+_REG = {}
+
+
+def registre():
+    if not _REG:
+        _REG.update(json.loads((RACINE / "5_registre/registre.json").read_text(encoding="utf-8")))
+    return _REG
+
+
+def table_decisions(ids):
+    reg = {d["id"]: d for d in registre()["decisions"]}
+    L = ["| Décision | Règle validée par le PO | État dans l'état B |", "|---|---|---|"]
+    for i in ids:
+        if i not in reg:
+            sys.exit(f"décision inconnue du registre : {i}")
+        d = reg[i]
+        lots = f" ({', '.join(d['lots'])})" if d["lots"] else ""
+        L.append(f"| `{i}` | {d['regle'].replace('|', '/')} | {d['etat_dans_etat_b']}{lots} |")
+    return "\n".join(L)
+
+
+def court(t, n):
+    if len(t) <= n:
+        return t
+    return t[:n].rsplit(' ', 1)[0].rstrip(' ,;(') + ' …'
+
+
+def table_ecarts(ids):
+    r = registre()
+    tout = {e["id"]: e for k in ("ecarts", "nouveaux_ecarts", "points_a_confirmer", "propositions") for e in r[k]}
+    L = ["| Identifiant | Sujet | Profils concernés | Statut |", "|---|---|---|---|"]
+    for i in ids:
+        if i not in tout:
+            sys.exit(f"identifiant inconnu du registre : {i}")
+        e = tout[i]
+        L.append(f"| **{i}** | {court(re.sub(r'[`*]', '', e.get('titre', '')), 150).replace('|', '/')} | {e.get('profils_concernes') or '—'} | {e['statut']} |")
+    return "\n".join(L)
+
+
+def table_routes(prefixes):
+    inv = json.loads((DT / "couverture/etat_B/inventaire.json").read_text(encoding="utf-8"))
+    L = ["| Chemin | Nom | Vue |", "|---|---|---|"]
+    n = 0
+    for r in inv["routes"]:
+        if any(r["route"].startswith(p) for p in prefixes):
+            L.append(f"| `{r['route']}` | {r['nom'] or '—'} | `{r['vue']}` |")
+            n += 1
+    if not n:
+        sys.exit(f"aucune route pour {prefixes}")
+    return "\n".join(L)
+
+
 def capture_html(args, code, captures_dir, manifeste):
     d = dict(a.split("=", 1) for a in shlex.split(args))
     m = manifeste.get(d["id"])
@@ -89,12 +141,24 @@ def convertir(chemin, code, cfg_doc, ctx):
     brut = re.sub(r"<!--\s*(couvre|retire|partie):.*?-->", "", brut)
     brut = re.sub(r"<!--\s*paysage\s*-->", '<section class="paysage tableau">', brut)
     brut = re.sub(r"<!--\s*/paysage\s*-->", "</section>", brut)
+    brut = re.sub(r"^@decisions (.+)$", lambda m: "\n" + table_decisions(m.group(1).split()) + "\n", brut, flags=re.M)
+    brut = re.sub(r"^@routes (.+)$", lambda m: "\n" + table_routes(m.group(1).split()) + "\n", brut, flags=re.M)
+    brut = re.sub(r"^@ecarts (.+)$", lambda m: "\n" + table_ecarts(m.group(1).split()) + "\n", brut, flags=re.M)
     brut = re.sub(r"^@capture (.+)$", lambda m: "\n\n" + capture_html(m.group(1), code, ctx["captures_dir"], ctx["manifeste"]) + "\n\n", brut, flags=re.M)
     brut = separer_listes(brut)
     corps = markdown.markdown(brut, extensions=["tables", "fenced_code", "sane_lists", "md_in_html"])
     base = chemin.parent
     corps = re.sub(r'src="((?!file:|data:|http)[^"]+)"', lambda m: f'src="{(base / m.group(1)).resolve().as_uri()}"', corps)
     corps = re.sub(r"<p><img alt=\"([^\"]*)\" src=\"([^\"]+)\" ?/?></p>", r'<figure><img alt="\1" src="\2"><figcaption>\1</figcaption></figure>', corps)
+    def taille_svg(m):
+        chemin = Path(m.group(2).replace("file://", ""))
+        try:
+            vb = re.search(r'viewBox="([\d.\-]+) ([\d.\-]+) ([\d.]+) ([\d.]+)"', chemin.read_text(encoding="utf-8")[:2000])
+            largeur = min(499.0, 0.52 * float(vb.group(3)))          # 0,52 pt par unité : texte de 18 px rendu à environ 9,4 pt
+        except (OSError, AttributeError):
+            largeur = 499.0
+        return f'<img alt="{m.group(1)}" src="{m.group(2)}" style="width:{largeur:.0f}pt">'
+    corps = re.sub(r'<img alt="([^"]*)" src="(file://[^"]+\.svg)"[^>]*>', taille_svg, corps)
     for e, (cls, glyphe) in ETIQUETTES.items():
         corps = corps.replace(e, f'<span class="et {cls}">{glyphe}</span>')
     return partie.group(1) if partie else None, corps

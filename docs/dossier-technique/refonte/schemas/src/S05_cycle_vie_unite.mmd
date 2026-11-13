@@ -1,0 +1,10 @@
+flowchart TB
+  C(("Création"))
+  A["Active"]
+  R["Archivée"]
+  S["Supprimée"]
+  C --> A
+  A -->|"Archivage : refusé si marins actifs,<br/>installations ou matériel"| R
+  R -->|"Réactivation : refusée<br/>sous un parent archivé"| A
+  A -->|"Suppression : seulement si<br/>plus rien ne la référence"| S
+  R -->|"Suppression :<br/>mêmes conditions"| S

@@ -1,0 +1,15 @@
+flowchart TB
+  Ship["Ship (unité)"]
+  Releve["ReleveEquipage<br/>(relèves)"]
+  Periode["PeriodeEquipage<br/>(historique des équipages)"]
+  Module["ModuleActivation<br/>(modules)"]
+  Seuils["RoleThresholdConfig<br/>(seuils de rôle)"]
+  Synthese["SynthesePassation"]
+  User["User (compte)"]
+  Audit["AuditLog<br/>(acteur ou cible)"]
+  Ship --> Releve
+  Ship --> Periode
+  Ship --> Module
+  Ship --> Seuils
+  Releve -->|"génère"| Synthese
+  User --> Audit

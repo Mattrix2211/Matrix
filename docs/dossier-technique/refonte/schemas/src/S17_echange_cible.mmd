@@ -1,0 +1,10 @@
+flowchart TB
+  D["Demande : le marin A propose l'échange"]
+  AC["Accord du marin B"]
+  IN["Instruction par le BSC ou le chef de liste : vérification des contraintes, avis"]
+  DE["Décision finale du COMAEQ ou de son suppléant officiellement habilité"]
+  AP["Échange appliqué : calendriers à jour, version, trace, notifications"]
+  RF["Refus motivé"]
+  D --> AC --> IN --> DE
+  DE -->|"approuve"| AP
+  DE -->|"refuse"| RF

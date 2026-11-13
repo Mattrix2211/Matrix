@@ -1,16 +1,17 @@
 # Point de reprise — refonte documentaire G0 révision 2
 
-> Document de travail. Mis à jour à chaque barrière. Plan de référence : `../PLAN_EXECUTION_REFONTE_G0.md` (commit `f9a4eea`).
+> Document de travail. Plan : `../PLAN_EXECUTION_REFONTE_G0.md`. Rapport : `RAPPORT_JALON_V1.md`.
 
-**Autorisation en cours** : phases 0 à 3 (jusqu'au jalon V1 inclus). **Arrêt obligatoire à V1** : aucune rédaction complète sans validation du PO.
+**État : phases 0 à 3 terminées ; ARRÊT au jalon V1 (validation PO requise).** Ne pas lancer la phase 4 ni la rédaction sans accord explicite.
 
-| Phase | État | Barrière |
-|---|---|---|
-| 0 Gel et cadrage | en cours | G0 |
-| 1 Socle d'outillage | à faire | G1a |
-| 2 Registre vivant et faits | à faire | G2 |
-| 3 Schémas et chapitre pilote | à faire | V1 |
+| Phase | État |
+|---|---|
+| 0 Gel et cadrage | fait (mapping, faits, arborescence) |
+| 1 Socle d'outillage | fait (`baseline/BARRIERE_G1a.md`) |
+| 2 Registre et faits | fait (`baseline/BARRIERE_G2.md`) |
+| 3 Schémas et pilote | fait ; aperçus dans `apercus_V1/` |
+| 4 et suivantes | **non commencées** |
 
-Dernière opération : création de l'arborescence, `MAPPING_ANCIEN_NOUVEAU.csv` (549 lignes), `faits.yaml` (21 faits).
-Prochaine opération : constructeur et contrôles (phase 1).
-Contrainte permanente : sources initiales (`diffusable/`, `restreint/`, `schemas/`, `guide-visuel/`, `pdf/`) **conservées intactes** ; aucun code applicatif touché.
+Reconstruire les aperçus : `python3 outils/lancer_controles_pilote.py` (nécessite Node/Playwright, pypdfium2, markdown, pyyaml).
+Instance de démonstration et captures : voir `../guide-visuel/outils/` ; copie isolée de l'état B hors dépôt (`git archive 6d6d0be`).
+Contraintes permanentes : sources initiales et anciens PDF conservés ; aucun code applicatif touché ; tests A14/A20/A25 restent dans `../audit_preuves/`.

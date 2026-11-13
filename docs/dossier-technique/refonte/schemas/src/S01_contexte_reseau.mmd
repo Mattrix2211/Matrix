@@ -1,0 +1,19 @@
+flowchart TB
+  subgraph POSTES["Bâtiment : postes de travail"]
+    direction LR
+    PC["Postes du bord (PC)"]
+    TAB["Tablettes et mobiles"]
+  end
+  subgraph TERRE["À terre (intranet Défense)"]
+    direction LR
+    SOUT["Soutien à terre :<br/>consultation et commentaires<br/>selon les droits"]
+    EQB["Équipage à terre :<br/>lecture seule du bâtiment"]
+  end
+  SRV["Serveur Matrix local du bâtiment :<br/>Django, base de données,<br/>Celery, Redis"]
+  NET["Internet : aucun accès,<br/>aucune dépendance"]:::x
+  PC --> SRV
+  TAB --> SRV
+  SOUT -. "même serveur,<br/>périmètre restreint" .-> SRV
+  EQB -. "même serveur,<br/>lecture seule" .-> SRV
+  SRV -. "coupé" .- NET
+  classDef x stroke-dasharray: 5 5

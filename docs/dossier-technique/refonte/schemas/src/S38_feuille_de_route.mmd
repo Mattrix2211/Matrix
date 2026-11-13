@@ -1,0 +1,9 @@
+flowchart TB
+  A["Phase A — Risques critiques : L01 à L05"]
+  B["Phase B — Autorisations et circuits : L06 à L13, L21"]
+  C["Phase C — Circuits des tâches : L14 à L18"]
+  D["Phase D — Maintenance, appareillage, feuille de service : L19, L20, L22, L23, L26, L27"]
+  E["Phase E — Ergonomie, mutation, dette : L24, L25, L28"]
+  L["Livrés sur l'état B : L01, L05, L02, L03 — L04 non lancé"]
+  A --> B --> C --> D --> E
+  L -.- A
