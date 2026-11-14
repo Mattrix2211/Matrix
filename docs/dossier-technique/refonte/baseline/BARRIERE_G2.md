@@ -7,7 +7,7 @@
 | 26 écarts A1 à A26, dans l'ordre | ✅ |
 | 8 points à confirmer (B1 à B8) | ✅ |
 | 7 propositions (D1 à D7) | ✅ |
-| 6 nouveaux écarts (NE-01 à NE-06) | ✅ |
+| 7 nouveaux écarts (NE-01 à NE-07) | ✅ |
 | 125 décisions du dossier V1.2 | ✅ |
 | 38 anomalies documentaires, dont 2 fusionnées (36 actives) | ✅ |
 | chaque décision porte un état dans l'état B | ✅ |
@@ -33,7 +33,7 @@
 | non développée | 88 |
 | à instruire ⚪ | 20 |
 | réalisée | 5 |
-| réalisée (lot livré dans l'état B) | 2 |
+| partielle (un lot livré, un lot non livré) | 2 |
 | partielle | 2 |
 | écart (A13) | 2 |
 | non développée (A17) | 1 |

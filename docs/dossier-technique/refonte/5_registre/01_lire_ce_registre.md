@@ -14,5 +14,5 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | [R] | rapporté par une source antérieure, non revérifié |
 | [?] | non vérifié |
 
-**Répartition :** 26 écarts, 8 points à confirmer, 7 propositions, 6 nouveaux écarts du logiciel, 38 anomalies documentaires (36 ouvertes), 125 décisions.
+**Répartition :** 26 écarts, 8 points à confirmer, 7 propositions, 7 nouveaux écarts du logiciel, 38 anomalies documentaires (36 ouvertes), 125 décisions.
 

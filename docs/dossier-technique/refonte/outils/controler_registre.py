@@ -12,7 +12,7 @@ def verif(c, msg):
 verif(len(j["ecarts"]) == 26 and [e["id"] for e in j["ecarts"]] == [f"A{i}" for i in range(1, 27)], "26 écarts A1 à A26, dans l'ordre")
 verif(len(j["points_a_confirmer"]) == 8, "8 points à confirmer (B1 à B8)")
 verif(len(j["propositions"]) == 7, "7 propositions (D1 à D7)")
-verif(len(j["nouveaux_ecarts"]) == 6, "6 nouveaux écarts (NE-01 à NE-06)")
+verif(len(j["nouveaux_ecarts"]) == 7, "7 nouveaux écarts (NE-01 à NE-07)")
 verif(len(j["decisions"]) == 125, "125 décisions du dossier V1.2")
 verif(len(j["anomalies_documentaires"]) == 38 and sum(1 for a in j["anomalies_documentaires"] if a["statut"].startswith("fusionnée")) == 2, "38 anomalies documentaires, dont 2 fusionnées (36 actives)")
 verif(all(d["etat_dans_etat_b"] for d in j["decisions"]), "chaque décision porte un état dans l'état B")

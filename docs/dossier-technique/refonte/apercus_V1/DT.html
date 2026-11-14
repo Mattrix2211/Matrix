@@ -59,7 +59,7 @@ section.paysage.capture { break-inside: avoid; }
 .cap-sec { font-size: 8pt; letter-spacing:.06em; text-transform: uppercase; color: var(--bleu); font-weight:600; }
 .cap-titre { font-size: 14.5pt; font-weight:700; margin: 1mm 0 1.5mm 0; }
 .cap-texte { font-size: 9.6pt; color:#2a3a4d; margin-bottom: 2.5mm; }
-.cap-cadre { position:relative; width: 232mm; margin: 0 auto; border: .3mm solid #8d9bb0; }
+.cap-cadre { position:relative; border: .3mm solid #8d9bb0; }
 .cap-cadre img { display:block; width:100%; }
 .rep { position:absolute; width:5mm; height:5mm; margin:-2.5mm 0 0 -6mm; border-radius:50%; background:#b3261e; color:#fff; font-size:7.5pt; font-weight:700; text-align:center; line-height:5mm; border:.3mm solid #fff; }
 .cap-legende { font-size: 8.6pt; color:#2a3a4d; margin-top: 2mm; }
@@ -76,6 +76,13 @@ td:first-child code { white-space: nowrap; }
 table.routes { table-layout: fixed; font-size: 8pt; }
 table.routes th:nth-child(1) { width: 41%; } table.routes th:nth-child(2) { width: 20%; } table.routes th:nth-child(3) { width: 39%; }
 table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal; }
+.bloc { break-inside: avoid; }
+.cap-bloc { display: flex; flex-direction: column; align-items: flex-start; gap: 3mm; }
+.cap-cadre { position: relative; margin: 0; }
+.cap-vignette { font-size: 8pt; color: #5a6b7d; margin-top: -2.2mm; }
+section.paysage h2 { margin: 0 0 1mm 0; font-size: 15pt; }
+section.paysage .cap-titre { font-size: 12.5pt; }
+.nb { white-space: nowrap; }
 </style></head><body><section class="couverture"><div class="mention">DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE</div><div class="precaution">Précaution documentaire : cette mention n&#x27;est pas une classification officielle. La classification et les destinataires restent à valider par l&#x27;autorité compétente. Ne pas diffuser.</div><p class="serie">Matrix — G0, révision 2</p><h1>Dossier technique de reprise</h1><div class="public">Développeurs, mainteneurs, exploitants — accès restreint</div><p><b>Maquette pilote (jalon V1)</b> : seul le chapitre « Maintenance » est rédigé ; le reste du document sera rédigé après validation du PO.</p><table class="meta"><tr><td>Référence documentaire</td><td><b>MTX-G0-R2</b></td></tr><tr><td>Série</td><td><b>Matrix — G0, révision 2</b></td></tr><tr><td>Édition</td><td><b>13/11/2026</b></td></tr><tr><td>État documentaire</td><td><b>projet en cours de refonte — maquette pilote V1, non validé</b></td></tr><tr><td>État décrit</td><td><b>EB-2026-11-11</b></td></tr><tr><td>Correspondance applicative (accès restreint)</td><td><b>EB-2026-11-11 = état applicatif 6d6d0be (branche claude/l03-suppression-sure-v11), non fusionné dans main. Cette correspondance n&#x27;existe que dans les documents techniques à accès restreint.</b></td></tr></table><div class="legende"><span class="et v">🟢</span> Fonctionnement actuel vérifié · <span class="et b">🔵</span> Cible validée par le PO, non nécessairement développée · <span class="et p">🟣</span> Proposition non arbitrée · <span class="et n">◯</span> Élément non vérifié</div></section><section class="toc"><h2>Sommaire</h2><ul><li class="niv1"><span class="t"><a href="#dt-1">1 Maintenance, anomalies et tickets : mécanismes</a></span><span class="p"></span><span class="n">3</span></li><li class="niv2"><span class="t"><a href="#dt-1-1">1.1 Vue d&#x27;ensemble du module</a></span><span class="p"></span><span class="n">3</span></li><li class="niv2"><span class="t"><a href="#dt-1-2">1.2 Modèles</a></span><span class="p"></span><span class="n">3</span></li><li class="niv2"><span class="t"><a href="#dt-1-3">1.3 États et transitions d&#x27;une occurrence</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#dt-1-4">1.4 Exécution et clôture</a></span><span class="p"></span><span class="n">5</span></li><li class="niv2"><span class="t"><a href="#dt-1-5">1.5 Anomalies et tickets</a></span><span class="p"></span><span class="n">5</span></li><li class="niv2"><span class="t"><a href="#dt-1-6">1.6 Droits et seuils</a></span><span class="p"></span><span class="n">6</span></li><li class="niv2"><span class="t"><a href="#dt-1-7">1.7 Routes</a></span><span class="p"></span><span class="n">6</span></li><li class="niv2"><span class="t"><a href="#dt-1-8">1.8 Tâches planifiées et signaux</a></span><span class="p"></span><span class="n">8</span></li><li class="niv2"><span class="t"><a href="#dt-1-9">1.9 Points d&#x27;attention pour le mainteneur</a></span><span class="p"></span><span class="n">8</span></li><li class="niv2"><span class="t"><a href="#dt-1-10">1.10 Tests et vérifications</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#dt-1-11">1.11 Limites ◯</a></span><span class="p"></span><span class="n">9</span></li></ul></section><section class="chapitre"><div class="surtitre-partie">Partie · Modules</div><h1 id="dt-1"><span class="marqueur">⟦dt-1⟧</span>1 Maintenance, anomalies et tickets : mécanismes</h1>
 <div class="ligne-public"><b>Public :</b> développeurs, mainteneurs · <b>Accès restreint</b> · <b>Fonctionnel :</b> voir <span class="renvoi">RF §1</span> · <b>État décrit :</b> EB-2026-11-11 · <b>Fusionne :</b> l'ancien chapitre 12 technique et la part mécanique de l'ancien chapitre 12.</div>
 
@@ -150,7 +157,7 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 </tbody>
 </table>
 <h2 id="dt-1-3"><span class="marqueur">⟦dt-1-3⟧</span>1.3 États et transitions d'une occurrence</h2>
-<figure><img alt="Schéma S25 — États d'une occurrence de maintenance" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25_etats_occurrence.svg" style="width:412pt"><figcaption>Schéma S25 — États d'une occurrence de maintenance</figcaption></figure>
+<figure><img alt="Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25d_etats_occurrence_detail.svg" style="width:497pt"><figcaption>Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)</figcaption></figure>
 <table>
 <thead>
 <tr>
@@ -162,6 +169,10 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <tr>
 <td>PLANNED → ASSIGNED</td>
 <td>Auto-assignation (<code>maintenance/<wbr>web_<wbr>views.py</code> <code>MaintenanceOccurrenceSelfAssignView</code> (:652)) ou assignation</td>
+</tr>
+<tr>
+<td>PLANNED / ASSIGNED → CANCELLED</td>
+<td><code>maintenance/<wbr>tasks.py:40</code> : annulation automatique des échéances futures non commencées quand une sous-catégorie publie sa propre fiche</td>
 </tr>
 <tr>
 <td>PLANNED / ASSIGNED → OVERDUE</td>
@@ -265,7 +276,7 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <p>L'API REST du module (<code>/<wbr>api/<wbr>maintenance/<wbr>…</code>, <code>/<wbr>api/<wbr>logistics/<wbr>tickets/<wbr>…</code>) est décrite dans le chapitre API ; l'action <code>start</code> y est la source d'une des sorties de l'état « En validation ».</p>
 <h2 id="dt-1-8"><span class="marqueur">⟦dt-1-8⟧</span>1.8 Tâches planifiées et signaux</h2>
 <p>Parmi les 20 tâches planifiées : <code>generate_<wbr>occurrences_<wbr>daily</code>, <code>compute_<wbr>overdue_<wbr>hourly</code>, <code>notify_<wbr>overdue_<wbr>occurrences_<wbr>hourly</code>, <code>notify_<wbr>maintenance_<wbr>echeance_<wbr>proche_<wbr>daily</code>, <code>generate_<wbr>installation_<wbr>occurrences_<wbr>daily</code>, <code>generate_<wbr>installation_<wbr>notifications_<wbr>daily</code>, <code>generate_<wbr>installation_<wbr>maintenance_<wbr>notifications_<wbr>daily</code>, <code>detect_<wbr>installation_<wbr>drift_<wbr>daily</code>. <strong>Sans worker ni beat, aucune n'est exécutée.</strong> Un seul signal propre au module : le ticket automatique (ci-dessus).</p>
-<h2 id="dt-1-9"><span class="marqueur">⟦dt-1-9⟧</span>1.9 Points d'attention pour le mainteneur</h2>
+<div class="bloc"><h2 id="dt-1-9"><span class="marqueur">⟦dt-1-9⟧</span>1.9 Points d'attention pour le mainteneur</h2>
 <table>
 <thead>
 <tr>
@@ -291,12 +302,17 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <td><code>matrix/<wbr>templates/<wbr>logistics/<wbr>ticket_<wbr>list.html:28</code></td>
 </tr>
 <tr>
+<td><strong>NE-07</strong> — message de fin de compte rendu</td>
+<td>L'écran annonce un ticket pour toute échéance non conforme ; le signal n'en crée aucun pour une installation ; le lien « signaler une anomalie » n'apparaît que pour un relevé hors plage</td>
+<td><code>matrix/<wbr>templates/<wbr>maintenance/<wbr>_<wbr>execute_<wbr>done.html:3</code>, <code>maintenance/<wbr>models.py:220</code>, <code>maintenance/<wbr>compte_<wbr>rendu.py:146</code></td>
+</tr>
+<tr>
 <td><strong>A25</strong> — module désactivé</td>
 <td>Les pages web sont refusées ; l'API, la génération, les notifications et le signal continuent</td>
 <td>chapitre Architecture et API</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <table>
 <thead>
 <tr>
@@ -331,13 +347,19 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <td>tous profils</td>
 <td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
 </tr>
+<tr>
+<td><strong>NE-07</strong></td>
+<td>Message de fin de compte rendu inexact pour une installation</td>
+<td>marins ; chefs de section ; responsables des installations</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
 </tbody>
 </table>
 <h2 id="dt-1-10"><span class="marqueur">⟦dt-1-10⟧</span>1.10 Tests et vérifications</h2>
 <ul>
 <li>Tests de l'état B : <code>maintenance/<wbr>tests/<wbr></code> (178 fonctions) et <code>logistics/<wbr>tests/<wbr></code> (228 fonctions, partagées avec la logistique).</li>
 <li>Preuves des écarts A20 et A25 : fichiers de test conservés dans les preuves versionnées (<code>audit_<wbr>preuves/<wbr>tests_<wbr>verification/<wbr>verif_<wbr>g0_<wbr>a20.py</code>, <code>audit_<wbr>preuves/<wbr>tests_<wbr>verification/<wbr>verif_<wbr>g0_<wbr>a25.py</code>), à copier dans une <strong>copie isolée</strong> de l'état B ; ils ne sont <strong>pas</strong> intégrés au dépôt applicatif.</li>
-<li>Commande pour rejouer les tests du paquet dans une copie isolée : <code>python manage.py test maintenance</code> (résultat : voir la barrière G3).</li>
+<li>Commande pour rejouer les tests du paquet dans une copie isolée : <code>python manage.py test maintenance</code> (résultat du 13/11/2026 sur la copie isolée de l'état B : OK ; voir <code>refonte/<wbr>RAPPORT_<wbr>JALON_<wbr>V1.md</code>).</li>
 </ul>
 <h2 id="dt-1-11"><span class="marqueur">⟦dt-1-11⟧</span>1.11 Limites <span class="et n">◯</span></h2>
 <ul>

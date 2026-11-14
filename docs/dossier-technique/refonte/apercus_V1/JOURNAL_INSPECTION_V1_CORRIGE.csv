@@ -1,0 +1,67 @@
+document;page;etat_inspection;resolution;observations
+GU;1;vue sur un build antérieur, non revue sur le build final;96 dpi;
+GU;2;vue sur un build antérieur, non revue sur le build final;96 dpi;"Sommaire : l'apostrophe affichait « &#x27; » (corrigé ensuite dans le constructeur) ; pas revue après correction"
+GU;3;vue (build final);96 dpi, 2 pages côte à côte;Ancien p.3 : blanc de 40 % avant capture → corrigé (tableau poursuivi p.4, plus de blanc anormal)
+GU;4;vue (build final);96 dpi, 2 pages côte à côte;
+GU;5;vue (build final);96 dpi, 2 pages côte à côte;
+GU;6;vue (build final);96 dpi, 2 pages côte à côte;
+GU;7;vue (build final);96 dpi, 2 pages côte à côte;
+GU;8;vue (build final);96 dpi, 2 pages côte à côte;
+GU;9;vue (build final);96 dpi, 2 pages côte à côte;"Captures étapes 2 et 3 : une par page, texte d'écran lisible ; champs « Choose File / No file chosen » en anglais (capture provisoire)"
+GU;10;vue (build final);96 dpi, 2 pages côte à côte;
+GU;11;vue (build final);96 dpi, 2 pages côte à côte;Message vert d'origine retiré par recadrage
+GU;12;vue (build final);96 dpi, 2 pages côte à côte;
+GU;13;vue (build final);96 dpi, 2 pages côte à côte;
+GU;14;vue (build final);96 dpi, 2 pages côte à côte;
+GU;15;vue (build final);96 dpi, 2 pages côte à côte;Capture A20 : bouton « Enregistrer la correction » lisible
+RF;1;vue sur un build antérieur, non revue sur le build final;96 dpi;
+RF;2;vue sur un build antérieur, non revue sur le build final;96 dpi;
+RF;3;vue (build final);96 dpi, 2 pages côte à côte;
+RF;4;vue (build final);96 dpi, 2 pages côte à côte;
+RF;5;vue (build final);96 dpi, 2 pages côte à côte;"Schéma S25 simplifié lisible ; note A20 présente"
+RF;6;vue (build final);96 dpi, 2 pages côte à côte;
+RF;7;vue (build final);96 dpi, 2 pages côte à côte;
+RF;8;vue (build final);96 dpi, 2 pages côte à côte;
+RF;9;vue (build final);96 dpi, 2 pages côte à côte;Ancien : preuve citée par chemin → remplacée
+DT;1;"non vue individuellement ; contrôles automatiques seulement";—;
+DT;2;"non vue individuellement ; contrôles automatiques seulement";—;
+DT;3;vue (build final);96 dpi, 2 pages côte à côte;
+DT;4;vue (build final);96 dpi, 2 pages côte à côte;Schéma S25d détaillé, libellés ≥ 8 pt
+DT;5;vue sur un build antérieur, non revue sur le build final;96 dpi;
+DT;6;vue sur un build antérieur, non revue sur le build final;96 dpi;
+DT;7;vue (build final);96 dpi, 2 pages côte à côte;
+DT;8;vue (build final);96 dpi, 2 pages côte à côte;
+DT;9;vue (build final);96 dpi, 2 pages côte à côte;
+RE;1;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;2;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;3;vue (build final);96 dpi, 2 pages côte à côte;Fin de sommaire seule : justifiée
+RE;4;vue (build final);96 dpi, 2 pages côte à côte;
+RE;5;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;6;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;7;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;8;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;9;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;10;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;11;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;12;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;13;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;14;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;15;vue (build final);96 dpi, 2 pages côte à côte;
+RE;16;vue (build final);96 dpi, 2 pages côte à côte;Fin de section A26 : justifiée (début de la section suivante en page 17)
+RE;17;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;18;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;19;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;20;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;21;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;22;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;23;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;24;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;25;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;26;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;27;vue (build final);96 dpi, 2 pages côte à côte;
+RE;28;vue (build final);96 dpi, 2 pages côte à côte;
+RE;29;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;30;"non vue individuellement ; contrôles automatiques seulement";—;
+RE;31;vue (build final);96 dpi, 2 pages côte à côte;
+RE;32;vue (build final);96 dpi, 2 pages côte à côte;
+RE;33;"non vue individuellement ; contrôles automatiques seulement";—;

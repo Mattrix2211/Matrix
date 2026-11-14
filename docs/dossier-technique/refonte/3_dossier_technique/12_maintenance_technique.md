@@ -35,11 +35,12 @@ Les trois objets du fonctionnel se retrouvent ainsi : l'**occurrence** (`Mainten
 
 ## États et transitions d'une occurrence
 
-![Schéma S25 — États d'une occurrence de maintenance](../schemas/svg/S25_etats_occurrence.svg)
+![Schéma S25d — États d'une occurrence de maintenance, vue détaillée (le référentiel fonctionnel en donne la vue simplifiée, S25)](../schemas/svg/S25d_etats_occurrence_detail.svg)
 
 | Transition | Où elle est écrite |
 |---|---|
 | PLANNED → ASSIGNED | Auto-assignation (`maintenance/web_views.py` `MaintenanceOccurrenceSelfAssignView` (:652)) ou assignation |
+| PLANNED / ASSIGNED → CANCELLED | `maintenance/tasks.py:40` : annulation automatique des échéances futures non commencées quand une sous-catégorie publie sa propre fiche |
 | PLANNED / ASSIGNED → OVERDUE | `maintenance/tasks.py` `compute_overdue` (:83) : toute occurrence « planifiée » ou « assignée » dont la date est dépassée |
 | → IN_PROGRESS / DONE / WAITING_VALIDATION | `maintenance/web_views.py` `OccurrenceExecuteView` (:72), méthode `post` (:150) ; le statut final dépend de la conformité (:283) |
 | WAITING_VALIDATION → DONE | Correction du compte rendu (même vue, :283) par un niveau « chef de secteur » |
@@ -91,15 +92,16 @@ Parmi les {{fait:n_taches_planifiees}} tâches planifiées : `generate_occurrenc
 | **A20** — sorties de « En validation » | Trois chemins vérifiés par test ; aucune validation dédiée ; aucune notification ; entretien d'installation suspendu | `maintenance/web_views.py:283`, `maintenance/views.py:108`, `maintenance/management/commands/generate_installation_occurrences.py:79` |
 | **NE-01** — bouton « Exécuter » | Le gabarit de la liste affiche toujours le bouton ; le refus n'intervient qu'à l'ouverture de la fiche | `matrix/templates/maintenance/occurrence_list.html:53` ; refus `maintenance/web_views.py:90` |
 | **NE-02** — lignes de tickets | La ligne ouvre la fiche par un gestionnaire de clic, sans lien | `matrix/templates/logistics/ticket_list.html:28` |
+| **NE-07** — message de fin de compte rendu | L'écran annonce un ticket pour toute échéance non conforme ; le signal n'en crée aucun pour une installation ; le lien « signaler une anomalie » n'apparaît que pour un relevé hors plage | `matrix/templates/maintenance/_execute_done.html:3`, `maintenance/models.py:220`, `maintenance/compte_rendu.py:146` |
 | **A25** — module désactivé | Les pages web sont refusées ; l'API, la génération, les notifications et le signal continuent | chapitre Architecture et API |
 
-@ecarts A20 A25 NE-01 NE-02
+@ecarts A20 A25 NE-01 NE-02 NE-07
 
 ## Tests et vérifications
 
 - Tests de l'état B : `maintenance/tests/` (178 fonctions) et `logistics/tests/` (228 fonctions, partagées avec la logistique).
 - Preuves des écarts A20 et A25 : fichiers de test conservés dans les preuves versionnées (`audit_preuves/tests_verification/verif_g0_a20.py`, `audit_preuves/tests_verification/verif_g0_a25.py`), à copier dans une **copie isolée** de l'état B ; ils ne sont **pas** intégrés au dépôt applicatif.
-- Commande pour rejouer les tests du paquet dans une copie isolée : `python manage.py test maintenance` (résultat : voir la barrière G3).
+- Commande pour rejouer les tests du paquet dans une copie isolée : `python manage.py test maintenance` (résultat du 13/11/2026 sur la copie isolée de l'état B : OK ; voir `refonte/RAPPORT_JALON_V1.md`).
 
 ## Limites ⚪
 

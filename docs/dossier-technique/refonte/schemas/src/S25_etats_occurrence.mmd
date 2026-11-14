@@ -1,13 +1,15 @@
 flowchart TB
   PL["Planifiée"] -->|"assignation"| AS["Assignée"]
-  PL -->|"enregistrement en direct"| EC["En cours"]
+  PL -->|"démarrage ou<br/>enregistrement en cours"| EC["En cours"]
   AS --> EC
-  EC -->|"terminer : conforme ou à<br/>surveiller"| DO["Terminée"]
-  EC -->|"terminer : non conforme"| WV["En validation"]
-  PL -->|"échéance dépassée, tâche<br/>planifiée"| OV["En retard"]
+  PL -->|"échéance dépassée"| OV["En retard"]
   AS -->|"échéance dépassée"| OV
   OV --> EC
-  PL --> CA["Annulée"]
-  WV -->|"correction du compte<br/>rendu par un chef de<br/>secteur, conformité<br/>finale conforme"| DO
-  WV -.->|"API démarrer, sans<br/>contrôle de l'état :<br/>sortie non voulue, état<br/>incohérent"| EC
-  WV -.->|"administration technique"| CA
+  EC -->|"terminer : conforme<br/>ou à surveiller"| DO["Terminée"]
+  EC -->|"terminer :<br/>non conforme"| WV["En validation"]
+  WV -->|"correction du compte rendu<br/>par un chef de secteur<br/>(conformité finale conforme)"| DO
+  PL -->|"fiche remplacée<br/>(automatique)"| CA["Annulée"]
+  AS -->|"fiche remplacée<br/>(automatique)"| CA
+  WV -.- NOTE["Aucune action de validation dédiée,<br/>ni relance (écart A20) :<br/>voir le texte"]
+  classDef note stroke-dasharray: 5 5,fill:#fff7e8
+  class NOTE note

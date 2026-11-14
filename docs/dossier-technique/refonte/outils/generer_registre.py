@@ -146,8 +146,10 @@ NE = [
     ("NE-03", "Redirection HTTPS sans réglage de proxy inverse", "SECURE_SSL_REDIRECT est actif en production sans réglage de proxy TLS ; comportement derrière un proxy non testé.", "exploitants ; SIC", "[C][?]", "chapitre « Exploitation » du dossier technique"),
     ("NE-04", "QR codes liés au nom d'hôte de la requête", "Le QR d'un équipement encode l'adresse absolue de la requête ; un QR imprimé depuis un autre nom d'hôte pointe vers une adresse erronée ; non documenté avant l'audit.", "exploitants ; gestionnaires de matériel", "[C]", "assets/views.py (accès restreint)"),
     ("NE-05", "Codes de refus 404 et 403 hétérogènes", "L'équipier reçoit 404 sur certaines pages d'écriture (nouvelle documentation, passation) et 403 sur la plupart des autres ; masquage volontaire ou incohérence non documentée.", "marins", "[N]", "audit_preuves/navigateur_droits.md"),
+    ("NE-07", "Message de fin de compte rendu inexact pour une installation", "À la fin d'un compte rendu non conforme, l'écran annonce « Un ticket correctif sera (ou a été) ouvert automatiquement » pour toute échéance, y compris celle d'une installation, pour laquelle le code ne crée aucun ticket (navigateur, 14/11/2026 : échéance « En validation », 0 ticket créé). Le lien « signaler une anomalie » de cet écran n'apparaît que pour un relevé chiffré hors plage, pas pour un contrôle non conforme.", "marins ; chefs de section ; responsables des installations", "[N][C]", "audit_preuves/maintenance_non_conforme_installation_fin_de_compte_rendu.png ; matrix/templates/maintenance/_execute_done.html:3-4 (accès restreint)"),
     ("NE-06", "Synthèse de passation lisible par l'équipage sortant", "Les chefs de l'équipage sortant, passé à terre, lisent la synthèse figée ; conforme au code, mais l'écart A14 les concerne aussi.", "chefs de l'équipage sortant", "[N]", "audit_preuves/a14_navigateur_chef_section.png"),
 ]
+NE.sort(key=lambda t: t[0])
 nouveaux = [{"id": i, "titre": t, "constat": c, "nature": "écart du logiciel (nouveau, issu de l'audit)", "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
              "profils_concernes": p, "niveau_preuve": n, "preuve": s, "derniere_verification": {"date": "2026-11-12", "etat_reference": ETAT}} for i, t, c, p, n, s in NE]
 
@@ -228,8 +230,10 @@ for i in sorted(src):
     lots_i = par_decision.get(i, [])
     if i in SURCHARGE:
         etat, note, methode = SURCHARGE[i][0], SURCHARGE[i][1], "vérifié dans le code de l'état B"
-    elif any(l in LOTS_LIVRES for l in lots_i):
+    elif lots_i and all(l in LOTS_LIVRES for l in lots_i):
         etat, note, methode = "réalisée (lot livré dans l'état B)", "", "plan en lots (V1.2) et comptes rendus de lots"
+    elif any(l in LOTS_LIVRES for l in lots_i):
+        etat, note, methode = "partielle (un lot livré, un lot non livré)", "", "plan en lots (V1.2) et comptes rendus de lots"
     elif lots_i:
         etat, note, methode = "non développée", "", "plan en lots (V1.2) : lot non livré dans l'état B"
     else:
@@ -266,7 +270,7 @@ M += ["# Écarts du logiciel (A1 à A26)", ""]
 for e in liste_a:
     M += fiche(e, [("regle", "Règle validée"), ("constat", "Constat dans l'état B"), ("consequences", "Conséquences"), ("profils_concernes", "Profils concernés"), ("lot", "Lot de correction prévu"),
                    ("verifications", "Vérifications"), ("niveau_preuve", "Niveau de preuve"), ("revision", "Révision"), ("statut", "Statut")])
-M += ["# Nouveaux écarts du logiciel (NE-01 à NE-06)", ""]
+M += [f"# Nouveaux écarts du logiciel (NE-01 à NE-{len(nouveaux):02d})", ""]
 for e in nouveaux:
     M += fiche(e, [("constat", "Constat"), ("profils_concernes", "Profils concernés"), ("niveau_preuve", "Niveau de preuve"), ("preuve", "Preuve"), ("statut", "Statut")])
 M += ["# Points à confirmer (B1 à B8)", ""]
@@ -277,17 +281,22 @@ for e in propositions:
     M += fiche(e, [("origine", "Origine"), ("garde_fous", "Garde-fous demandés"), ("chapitres", "Chapitres concernés"), ("statut", "Statut")])
 M += ["# Anomalies du dossier (audit)", "", "| Id | Gravité | Constat | Traitement prévu | Statut |", "|---|---|---|---|---|"]
 for a in aud:
-    M.append(f"| {a['id']} | {a['gravite']} | {court(a['constat'], 260).replace('|','/')} | {a['traite_par']} | {a['statut']} |")
-M += ["", "# Décisions du PO et état dans l'état B", "", "> L'état est déduit du plan en lots (V1.2) ou vérifié dans le code (colonne « Méthode »). « À instruire » signifie que le dossier ne l'a pas établi : ce n'est pas un constat de non-réalisation.", "",
+    M.append(f"| {a['id']} | {a['gravite']} | {court(a['constat'], 170).replace('|','/')} | {a['traite_par']} | {a['statut']} |")
+M += ["", "# Décisions du PO et état dans l'état B", "", "> Colonne « Méthode » : **code** = vérifié dans le code de l'état B ; **plan en lots** = déduit du plan en lots du dossier V1.2 (lot livré ou non dans l'état B) ; **aucune** = non rattachée à un lot. « À instruire » signifie que le dossier ne l'a pas établi : ce n'est pas un constat de non-réalisation.", "",
       "| Décision | Règle | Lot(s) | État dans l'état B | Méthode |", "|---|---|---|---|---|"]
 for d in decisions:
-    M.append(f"| {d['id']} | {court(d['regle'], 170).replace('|','/')} | {', '.join(d['lots']) or '—'} | {d['etat_dans_etat_b']} | {d['etat_methode']} |")
+    METH = {"vérifié dans le code de l'état B": "code", "plan en lots (V1.2) et comptes rendus de lots": "plan en lots", "plan en lots (V1.2) : lot non livré dans l'état B": "plan en lots", "aucun rattachement": "aucune"}
+    M.append(f"| <span class='nb'>{d['id']}</span> | {court(d['regle'], 170).replace('|','/')} | {', '.join(d['lots']) or '—'} | {d['etat_dans_etat_b']} | {METH.get(d['etat_methode'], d['etat_methode'])} |")
 (OUT / "ECARTS_ET_DECISIONS.md").write_text("\n".join(M) + "\n", encoding="utf-8")
 # fichiers sources du document RE (un par partie)
+for ancien in OUT.glob("0[0-9]_*.md"):
+    ancien.unlink()
 parts = "\n".join(M).split("\n# ")
 for n, p in enumerate(parts, 1):
     texte = (p if p.startswith("# ") else "# " + p)
-    nom = unicodedata.normalize("NFD", texte.split("\n")[0][2:].lower()).encode("ascii", "ignore").decode()
+    if texte.startswith(("# Points à confirmer", "# Propositions non arbitrées")):
+        texte = "<!-- suite -->\n" + texte
+    nom = unicodedata.normalize("NFD", re.sub(r"<!--.*?-->\s*", "", texte).split("\n")[0][2:].lower()).encode("ascii", "ignore").decode()
     (OUT / f"{n:02d}_{re.sub(r'[^a-z0-9]+', '_', nom).strip('_')[:30]}.md").write_text(texte + "\n", encoding="utf-8")
 
 # ---------------- vue HTML autonome (hors ligne) ----------------

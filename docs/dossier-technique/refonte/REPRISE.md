@@ -2,7 +2,7 @@
 
 > Document de travail. Plan : `../PLAN_EXECUTION_REFONTE_G0.md`. Rapport : `RAPPORT_JALON_V1.md`.
 
-**État : phases 0 à 3 terminées ; révision V1 du 14/11/2026 faite (`RAPPORT_V1_REVISION.md`) ; ARRÊT au jalon V1 (validation explicite du PO requise).** Ne pas lancer la phase 4 ni la rédaction sans accord explicite.
+**État : phases 0 à 3 terminées ; révision V1 du 14/11/2026 faite (`RAPPORT_V1_REVISION.md`) ; corrections post-relecture faites (`RAPPORT_V1_CORRECTIONS.md`) ; ARRÊT au jalon V1 (validation explicite du PO requise).** Ne pas lancer la phase 4 ni la rédaction sans accord explicite.
 
 | Phase | État |
 |---|---|

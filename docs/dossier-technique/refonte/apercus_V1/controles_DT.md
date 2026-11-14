@@ -6,9 +6,8 @@
 | C2 | 0 | 0 | 0 phrases étiquetées 🔵🟣⚪ dans l'ancien périmètre ; 0 sans équivalent à revoir manuellement |
 | C5 | 0 | 0 | 9 pages PDF contrôlées pour la mention |
 | C6 | 0 | 0 | 12 entrées de sommaire vérifiées, 0 écart(s) |
-| C8 | 0 | 2 | 9 pages ; 2 pages < 40 % ; 0 titres orphelins ; 0 légendes en haut ; 0 pages à texte petit ; 0 syntaxes visibles |
+| C8 | 0 | 1 | 9 pages ; 1 pages < 40 % ; 0 titres orphelins ; 0 légendes en haut ; 0 pages à texte petit ; 0 syntaxes visibles |
 | C13 | 0 | 0 | 0 fichier(s) hors documentation modifié(s) depuis 637de94; tête distante de main : 6ef16adcfe8e |
 
 ## C8
 - avertissement p.2 remplie à 32 % (< 40 %)
-- avertissement p.9 remplie à 33 % (< 40 %)

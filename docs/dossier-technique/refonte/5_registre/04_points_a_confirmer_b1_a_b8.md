@@ -1,3 +1,4 @@
+<!-- suite -->
 # Points à confirmer (B1 à B8)
 
 ## B1 — Suppléance du COMAEQ

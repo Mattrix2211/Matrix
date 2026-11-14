@@ -116,20 +116,50 @@ def table_routes(prefixes):
 
 
 def capture_html(args, code, captures_dir, manifeste):
+    """Page de capture (paysage). Une ou plusieurs vignettes : c1="id|x0,y0,x1,y1|légende courte" c2=… (coordonnées en pixels de l'écran
+    1366×768 ; sans recadrage : 0,0,1366,768). Les repères du manifeste ne sont dessinés que sur une page à une seule vignette."""
     d = dict(a.split("=", 1) for a in shlex.split(args))
-    m = manifeste.get(d["id"])
-    if m is None:
-        sys.exit(f"capture inconnue du manifeste : {d['id']}")
-    fichier = (captures_dir / m["fichier"]).resolve()
-    reperes = "".join(f'<div class="rep" style="left:{r["x"]*100:.2f}%;top:{r["y"]*100:.2f}%">{r["n"]}</div>' for r in m.get("reperes") or [])
-    legende_rep = " ".join(f'<b>{r["n"]}</b> {html.escape(r["texte"])}' for r in m.get("reperes") or [])
+    vignettes = []
+    for k in sorted(x for x in d if re.fullmatch(r"c\d+", x)):
+        ident_, rect, *leg = d[k].split("|")
+        m = manifeste.get(ident_)
+        if m is None:
+            sys.exit(f"capture inconnue du manifeste : {ident_}")
+        x0, y0, x1, y1 = [float(v) for v in rect.split(",")]
+        vignettes.append((m, x0, y0, x1, y1, leg[0] if leg else ""))
+    if not vignettes:
+        sys.exit("@capture sans vignette c1=…")
+    dispo = float(d.get("dispo", 132))                    # hauteur disponible en mm pour les vignettes
+    maxw = float(d.get("largeur", 256))
+    somme = sum((v[4] - v[2]) / (v[3] - v[1]) for v in vignettes)
+    ecarts = 3.0 * (len(vignettes) - 1) + 4.2 * sum(1 for v in vignettes if v[5])
+    W = min(maxw, (dispo - ecarts) / somme)
+    blocs = []
+    for m, x0, y0, x1, y1, leg in vignettes:
+        cw, ch = x1 - x0, y1 - y0
+        h = W * ch / cw
+        reperes = ""
+        if len(vignettes) == 1:
+            for r in m.get("reperes") or []:
+                rx, ry = r["x"] * 1366 - x0, r["y"] * 768 - y0
+                if 0 <= rx <= cw and 0 <= ry <= ch:
+                    reperes += f'<div class="rep" style="left:{rx / cw * 100:.2f}%;top:{ry / ch * 100:.2f}%">{r["n"]}</div>'
+        fichier = (captures_dir / m["fichier"]).resolve()
+        echelle = W / cw
+        img = (f'<img src="{fichier.as_uri()}" style="position:absolute;width:{1366 * echelle:.2f}mm;left:{-x0 * echelle:.2f}mm;top:{-y0 * echelle:.2f}mm;max-width:none">')
+        blocs.append(f'<div class="cap-cadre" style="width:{W:.1f}mm;height:{h:.1f}mm;overflow:hidden">{img}{reperes}</div>'
+                     + (f'<div class="cap-vignette">{html.escape(leg)}</div>' if leg else ""))
+    legende_rep = ""
+    if len(vignettes) == 1:
+        legende_rep = " ".join(f'<b>{r["n"]}</b> {html.escape(r["texte"])}' for r in vignettes[0][0].get("reperes") or [])
     prov = '<span class="prov"> · capture provisoire du 12/11/2026, reprise prévue en phase 4</span>' if d.get("provisoire") else ""
     renvoi = f" · {html.escape(d['renvoi'])}" if d.get("renvoi") else ""
-    sec = html.escape(d.get("section", ""))
-    return (f'<section class="paysage capture"><div class="cap-sec">{sec}</div><div class="cap-titre">{html.escape(d["titre"])}</div>'
-            f'<p class="cap-texte">{html.escape(d.get("texte", ""))}</p>'
-            f'<div class="cap-cadre"><img src="{fichier.as_uri()}">{reperes}</div>'
-            f'<p class="cap-legende"><b>Écran réel 🟢 · profil de démonstration : {html.escape(m["profil"])}</b>{renvoi}'
+    nav = f" · Navigation : {html.escape(d['nav'])}" if d.get("nav") else ""
+    entete = (f'<h2>{html.escape(d["h2"])}</h2>' if d.get("h2") else f'<div class="cap-sec">{html.escape(d.get("section", ""))}</div>')
+    profils = sorted({v[0]["profil"] for v in vignettes})
+    return (f'<section class="paysage capture">{entete}<div class="cap-titre">{html.escape(d["titre"])}</div>'
+            f'<p class="cap-texte">{html.escape(d.get("texte", ""))}</p><div class="cap-bloc">{"".join(blocs)}</div>'
+            f'<p class="cap-legende"><b>Écran réel 🟢 · profil de démonstration : {html.escape(", ".join(profils))}</b>{nav}{renvoi}'
             f'{(" · Repères : " + legende_rep) if legende_rep else ""}{prov}</p></section>')
 
 
@@ -139,6 +169,8 @@ def convertir(chemin, code, cfg_doc, ctx):
     retire = [tuple(x.strip() for x in m.split("|")) for m in re.findall(r"<!--\s*retire:\s*(.+?)\s*-->", brut)]
     ctx["couvre"] += couvre
     ctx["retire"] += retire
+    ctx["suite"] = bool(re.search(r"<!--\s*suite\s*-->", brut))
+    brut = re.sub(r"<!--\s*suite\s*-->", "", brut)
     partie = re.search(r"<!--\s*partie:\s*(.+?)\s*-->", brut)
     brut = re.sub(r"<!--\s*(couvre|retire|partie):.*?-->", "", brut)
     brut = re.sub(r"<!--\s*paysage\s*-->", '<section class="paysage tableau">', brut)
@@ -167,6 +199,9 @@ def convertir(chemin, code, cfg_doc, ctx):
             return m.group(0)
         return "<code>" + t.replace("_", "_<wbr>").replace("/", "/<wbr>") + "</code>"
     corps = re.sub(r"<code>([^<]*)</code>", cesure, corps)
+    def bloc(m):                                    # un titre et son tableau court ne se séparent jamais
+        return f'<div class="bloc">{m.group(0)}</div>' if m.group(0).count("<tr>") <= 6 else m.group(0)
+    corps = re.sub(r"<h[23][^>]*>(?:(?!<h[123]).)*?</h[23]>\s*<table>.*?</table>", bloc, corps, flags=re.S)
     for e, (cls, glyphe) in ETIQUETTES.items():
         corps = corps.replace(e, f'<span class="et {cls}">{glyphe}</span>')
     return partie.group(1) if partie else None, corps
@@ -187,7 +222,7 @@ def numeroter(corps, code, compteurs, entrees):
             compteurs[2] += 1
             num = f"{compteurs[0]}.{compteurs[1]}.{compteurs[2]}"
         ident_ = f"{code.lower()}-{num.replace('.', '-')}"
-        propre = re.sub(r"<[^>]+>", "", texte)
+        propre = html.unescape(re.sub(r"<[^>]+>", "", texte))
         entrees.append((niv, num, propre, ident_))
         return (f'<h{niv} id="{ident_}"><span class="marqueur">⟦{ident_}⟧</span>{num} {texte}</h{niv}>')
     return re.sub(r"<h([123])>(.*?)</h\1>", rep, corps, flags=re.S)
@@ -221,7 +256,7 @@ def construire_html(code, fichiers, pilote, pages=None):
         if partie and partie != derniere_partie:
             surtitre = f'<div class="surtitre-partie">Partie · {html.escape(partie)}</div>'
         derniere_partie = partie or derniere_partie
-        classe = "chapitre" + (" fiche-module" if "fiche" in f.name else "")
+        classe = "chapitre" + (" fiche-module" if "fiche" in f.name else "") + (" suite" if ctx.get("suite") else "")
         blocs.append(f'<section class="{classe}">{surtitre}{corps}</section>')
     # sommaire
     lis = []

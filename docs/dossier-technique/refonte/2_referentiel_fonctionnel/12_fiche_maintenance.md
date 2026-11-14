@@ -65,16 +65,16 @@ Le marin ouvre l'échéance (depuis « À faire », depuis la fiche de l'équipe
 | Verdict | État de l'échéance | Suites |
 |---|---|---|
 | Conforme | **Terminée** | Compte rendu archivé |
-| Non conforme | **En validation** | **Matériel mobile** : un ticket correctif est créé automatiquement (gravité 3 par défaut, une seule fois par échéance) et les chefs sont alertés. **Installation** : aucun ticket automatique ; le marin peut signaler une anomalie depuis le compte rendu |
+| Non conforme | **En validation** | **Matériel mobile** : un ticket correctif est créé automatiquement (gravité 3 par défaut, une seule fois par échéance) et les chefs sont alertés. **Installation** : **aucun ticket automatique** ; les chefs de secteur sont informés. Le marin peut signaler lui-même une anomalie (menu « Anomalies ») : c'est une démarche **manuelle et facultative**, ni automatique ni une validation. Le lien direct « signaler une anomalie » de l'écran de fin n'apparaît que pour un relevé chiffré hors plage. L'écran de fin annonce à tort qu'un ticket sera ouvert pour une installation (NE-07) |
 
 - **Installation critique** 🟢 : la **clôture** (pas l'enregistrement en cours de route) exige, pour un verdict autre que « non conforme », une **confirmation explicite** (texte affiché ; une tentative sans confirmation est refusée et tracée). La personne qui clôture est enregistrée comme valideur ; aucune seconde signature n'est demandée.
 - **Correction après coup** 🟢 : un compte rendu terminé peut être corrigé ; la **saisie d'origine est conservée**, la modification est enregistrée avec son auteur et son motif. Si deux personnes enregistrent en même temps, la seconde reçoit un message de conflit : rien n'est écrasé en silence.
 
 ### Le cycle de vie d'une échéance
 
-![Schéma S25 — États d'une échéance de maintenance](../schemas/svg/S25_etats_occurrence.svg)
+![Schéma S25 — États d'une échéance de maintenance (vue simplifiée)](../schemas/svg/S25_etats_occurrence.svg)
 
-États : **Planifiée → Assignée → En cours → Terminée** ; **En retard** (calculé) ; **En validation** (verdict non conforme) ; **Annulée**. Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. Les trois flèches en pointillés partant de « En validation » sont décrites plus bas (écart A20).
+États : **Planifiée → Assignée → En cours → Terminée** ; **En retard** (calculé) ; **En validation** (verdict non conforme) ; **Annulée** (uniquement par le système, quand une fiche est remplacée : aucun bouton d'annulation n'existe). Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. La note rattachée à « En validation » renvoie à l'écart A20, décrit plus bas ; la vue détaillée de ce schéma, avec les références de code, est dans le dossier technique ([[DT 1]]).
 
 ### L'anomalie
 
@@ -133,11 +133,11 @@ Cas particuliers : en **double équipage**, listes et compteurs sont bornés à 
 
 **Risque de blocage.** Une échéance « En validation » n'est **jamais comptée en retard** et **aucune notification ne la vise** : elle peut rester indéfiniment dans cet état, visible mais sans échéance, ancienneté ni escalade. Pour une **installation**, aucun ticket n'est créé et **la génération de l'échéance suivante est suspendue** tant que l'échéance reste « En validation » : l'entretien récurrent s'arrête jusqu'à la correction du compte rendu. La règle de sortie reste **à décider par le PO** (proposition D2). Aucune règle nouvelle n'est proposée ici.
 
-@ecarts A20 A25 D1 D2 NE-01
+@ecarts A20 A25 D1 D2 NE-01 NE-07
 
 > **Registre central.** Les autres écarts qui touchent ce module (périodicités et remarques d'outillage : A21 ; lignes de tickets cliquables à la souris seulement : NE-02) sont dans [[RE 2]] et [[RE 3]]. Chaque entrée du registre donne le constat, la preuve, les profils concernés et la date de dernière vérification.
 
-Le bouton **« Exécuter »** (NE-01) apparaît dans la liste pour des échéances que l'utilisateur ne peut pas exécuter : le serveur refuse ensuite l'ouverture.
+Le bouton **« Exécuter »** (NE-01) apparaît dans la liste pour des échéances que l'utilisateur ne peut pas exécuter : le serveur refuse ensuite l'ouverture. Le message de fin de compte rendu (NE-07) annonce l'ouverture d'un ticket pour toute échéance non conforme, y compris celle d'une installation, pour laquelle aucun ticket n'est créé.
 
 ## Vérifications effectuées
 
@@ -146,5 +146,6 @@ Le bouton **« Exécuter »** (NE-01) apparaît dans la liste pour des échéanc
 | Exécution, clôture, correction réservée au chef de secteur, états de l'échéance | Navigateur, instance de démonstration, comptes fictifs | 12/11/2026 |
 | Sorties de « En validation » (A20), modules désactivés (A25) | Tests exécutés sur une copie isolée de l'état B | 12/11/2026 |
 | Ticket automatique, seuils par défaut, génération sur 90 jours | Lecture du code de l'état B | 12/11/2026 |
+| Fin d'un compte rendu non conforme sur une installation : état « En validation », aucun ticket, message de fin inexact (NE-07) | Navigateur, instance de démonstration, comptes fictifs ; capture conservée dans les preuves à accès restreint | 14/11/2026 |
 | Envois de notifications (appareil, courriel) | ⚪ Non rejoués : seules leurs conditions de déclenchement sont décrites | — |
 | Écrans de tournée et de ticket complet | ⚪ Non rejoués en totalité dans le navigateur | — |

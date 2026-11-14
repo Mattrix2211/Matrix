@@ -59,7 +59,7 @@ section.paysage.capture { break-inside: avoid; }
 .cap-sec { font-size: 8pt; letter-spacing:.06em; text-transform: uppercase; color: var(--bleu); font-weight:600; }
 .cap-titre { font-size: 14.5pt; font-weight:700; margin: 1mm 0 1.5mm 0; }
 .cap-texte { font-size: 9.6pt; color:#2a3a4d; margin-bottom: 2.5mm; }
-.cap-cadre { position:relative; width: 232mm; margin: 0 auto; border: .3mm solid #8d9bb0; }
+.cap-cadre { position:relative; border: .3mm solid #8d9bb0; }
 .cap-cadre img { display:block; width:100%; }
 .rep { position:absolute; width:5mm; height:5mm; margin:-2.5mm 0 0 -6mm; border-radius:50%; background:#b3261e; color:#fff; font-size:7.5pt; font-weight:700; text-align:center; line-height:5mm; border:.3mm solid #fff; }
 .cap-legende { font-size: 8.6pt; color:#2a3a4d; margin-top: 2mm; }
@@ -76,6 +76,13 @@ td:first-child code { white-space: nowrap; }
 table.routes { table-layout: fixed; font-size: 8pt; }
 table.routes th:nth-child(1) { width: 41%; } table.routes th:nth-child(2) { width: 20%; } table.routes th:nth-child(3) { width: 39%; }
 table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal; }
+.bloc { break-inside: avoid; }
+.cap-bloc { display: flex; flex-direction: column; align-items: flex-start; gap: 3mm; }
+.cap-cadre { position: relative; margin: 0; }
+.cap-vignette { font-size: 8pt; color: #5a6b7d; margin-top: -2.2mm; }
+section.paysage h2 { margin: 0 0 1mm 0; font-size: 15pt; }
+section.paysage .cap-titre { font-size: 12.5pt; }
+.nb { white-space: nowrap; }
 </style></head><body><section class="couverture"><div class="mention">DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE</div><div class="precaution">Précaution documentaire : cette mention n&#x27;est pas une classification officielle. La classification et les destinataires restent à valider par l&#x27;autorité compétente. Ne pas diffuser.</div><p class="serie">Matrix — G0, révision 2</p><h1>Référentiel fonctionnel et de gouvernance</h1><div class="public">Responsables métier, commandement, décideurs</div><p><b>Maquette pilote (jalon V1)</b> : seul le chapitre « Maintenance » est rédigé ; le reste du document sera rédigé après validation du PO.</p><table class="meta"><tr><td>Référence documentaire</td><td><b>MTX-G0-R2</b></td></tr><tr><td>Série</td><td><b>Matrix — G0, révision 2</b></td></tr><tr><td>Édition</td><td><b>13/11/2026</b></td></tr><tr><td>État documentaire</td><td><b>projet en cours de refonte — maquette pilote V1, non validé</b></td></tr><tr><td>État décrit</td><td><b>EB-2026-11-11</b></td></tr></table><div class="legende"><span class="et v">🟢</span> Fonctionnement actuel vérifié · <span class="et b">🔵</span> Cible validée par le PO, non nécessairement développée · <span class="et p">🟣</span> Proposition non arbitrée · <span class="et n">◯</span> Élément non vérifié</div></section><section class="toc"><h2>Sommaire</h2><ul><li class="niv1"><span class="t"><a href="#rf-1">1 Maintenance, anomalies et tickets correctifs</a></span><span class="p"></span><span class="n">3</span></li><li class="niv2"><span class="t"><a href="#rf-1-1">1.1 À quoi sert ce module</a></span><span class="p"></span><span class="n">3</span></li><li class="niv2"><span class="t"><a href="#rf-1-2">1.2 Qui fait quoi</a></span><span class="p"></span><span class="n">3</span></li><li class="niv2"><span class="t"><a href="#rf-1-3">1.3 Les écrans</a></span><span class="p"></span><span class="n">4</span></li><li class="niv2"><span class="t"><a href="#rf-1-4">1.4 Les règles de fonctionnement</a></span><span class="p"></span><span class="n">4</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-1">1.4.1 Du plan à la réalisation</a></span><span class="p"></span><span class="n">4</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-2">1.4.2 Exécuter une maintenance et la clôturer</a></span><span class="p"></span><span class="n">4</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-3">1.4.3 Le cycle de vie d&#x27;une échéance</a></span><span class="p"></span><span class="n">5</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-4">1.4.4 L&#x27;anomalie</a></span><span class="p"></span><span class="n">5</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-5">1.4.5 Le ticket correctif</a></span><span class="p"></span><span class="n">6</span></li><li class="niv3"><span class="t"><a href="#rf-1-4-6">1.4.6 Détection de dérive et alertes</a></span><span class="p"></span><span class="n">6</span></li><li class="niv2"><span class="t"><a href="#rf-1-5">1.5 Liens avec les autres modules</a></span><span class="p"></span><span class="n">6</span></li><li class="niv2"><span class="t"><a href="#rf-1-6">1.6 Ce qui existe et ce qui est prévu</a></span><span class="p"></span><span class="n">7</span></li><li class="niv2"><span class="t"><a href="#rf-1-7">1.7 Limites et écarts documentés</a></span><span class="p"></span><span class="n">8</span></li><li class="niv2"><span class="t"><a href="#rf-1-8">1.8 Vérifications effectuées</a></span><span class="p"></span><span class="n">9</span></li></ul></section><section class="chapitre fiche-module"><div class="surtitre-partie">Partie · Modules</div><h1 id="rf-1"><span class="marqueur">⟦rf-1⟧</span>1 Maintenance, anomalies et tickets correctifs</h1>
 <div class="ligne-public"><b>Public :</b> responsables métier, commandement · <b>Module :</b> maintenance, anomalies, tickets · <b>Écran de référence :</b> <span class="renvoi">GU §1</span> · <b>Étiquettes :</b> <span class="et v">🟢</span> actuel vérifié · <span class="et b">🔵</span> cible validée · <span class="et p">🟣</span> proposition · <span class="et n">◯</span> non vérifié</div>
 
@@ -159,7 +166,7 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <h2 id="rf-1-3"><span class="marqueur">⟦rf-1-3⟧</span>1.3 Les écrans</h2>
 <p>Le parcours du marin et celui du chef, avec captures, sont décrits dans le guide utilisateur : <span class="renvoi">GU §1</span>. Trois écrans à retenir : la <strong>liste des maintenances</strong> (compteurs « à traiter », filtres), la <strong>fiche d'exécution guidée</strong> (contrôles, consignes de sécurité, progression), et la <strong>fiche d'une anomalie ou d'un ticket</strong> (état, historique, fil de discussion).</p>
 <h2 id="rf-1-4"><span class="marqueur">⟦rf-1-4⟧</span>1.4 Les règles de fonctionnement</h2>
-<h3 id="rf-1-4-1"><span class="marqueur">⟦rf-1-4-1⟧</span>1.4.1 Du plan à la réalisation</h3>
+<div class="bloc"><h3 id="rf-1-4-1"><span class="marqueur">⟦rf-1-4-1⟧</span>1.4.1 Du plan à la réalisation</h3>
 <table>
 <thead>
 <tr>
@@ -189,7 +196,7 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <td>Puis la clôture met à jour l'état, les relevés de l'installation et l'historique.</td>
 </tr>
 </tbody>
-</table>
+</table></div>
 <h3 id="rf-1-4-2"><span class="marqueur">⟦rf-1-4-2⟧</span>1.4.2 Exécuter une maintenance et la clôturer</h3>
 <p>Le marin ouvre l'échéance (depuis « À faire », depuis la fiche de l'équipement ou en scannant son QR code), lit la <strong>préparation</strong> et les consignes de sécurité, renseigne les contrôles <strong>ligne par ligne</strong> (résultat, mesure, remarque), puis clôture avec un verdict, des photos et une note. Pour du matériel mobile, une <strong>tournée</strong> permet de contrôler plusieurs équipements dans un seul tableau. À la clôture, une trace est ajoutée dans la discussion de l'occurrence et les chefs de secteur sont notifiés.</p>
 <table>
@@ -209,7 +216,7 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <tr>
 <td>Non conforme</td>
 <td><strong>En validation</strong></td>
-<td><strong>Matériel mobile</strong> : un ticket correctif est créé automatiquement (gravité 3 par défaut, une seule fois par échéance) et les chefs sont alertés. <strong>Installation</strong> : aucun ticket automatique ; le marin peut signaler une anomalie depuis le compte rendu</td>
+<td><strong>Matériel mobile</strong> : un ticket correctif est créé automatiquement (gravité 3 par défaut, une seule fois par échéance) et les chefs sont alertés. <strong>Installation</strong> : <strong>aucun ticket automatique</strong> ; les chefs de secteur sont informés. Le marin peut signaler lui-même une anomalie (menu « Anomalies ») : c'est une démarche <strong>manuelle et facultative</strong>, ni automatique ni une validation. Le lien direct « signaler une anomalie » de l'écran de fin n'apparaît que pour un relevé chiffré hors plage. L'écran de fin annonce à tort qu'un ticket sera ouvert pour une installation (NE-07)</td>
 </tr>
 </tbody>
 </table>
@@ -218,8 +225,8 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <li><strong>Correction après coup</strong> <span class="et v">🟢</span> : un compte rendu terminé peut être corrigé ; la <strong>saisie d'origine est conservée</strong>, la modification est enregistrée avec son auteur et son motif. Si deux personnes enregistrent en même temps, la seconde reçoit un message de conflit : rien n'est écrasé en silence.</li>
 </ul>
 <h3 id="rf-1-4-3"><span class="marqueur">⟦rf-1-4-3⟧</span>1.4.3 Le cycle de vie d'une échéance</h3>
-<figure><img alt="Schéma S25 — États d'une échéance de maintenance" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25_etats_occurrence.svg" style="width:412pt"><figcaption>Schéma S25 — États d'une échéance de maintenance</figcaption></figure>
-<p>États : <strong>Planifiée → Assignée → En cours → Terminée</strong> ; <strong>En retard</strong> (calculé) ; <strong>En validation</strong> (verdict non conforme) ; <strong>Annulée</strong>. Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. Les trois flèches en pointillés partant de « En validation » sont décrites plus bas (écart A20).</p>
+<figure><img alt="Schéma S25 — États d'une échéance de maintenance (vue simplifiée)" src="file:///home/user/Matrix/docs/dossier-technique/refonte/schemas/svg/S25_etats_occurrence.svg" style="width:418pt"><figcaption>Schéma S25 — États d'une échéance de maintenance (vue simplifiée)</figcaption></figure>
+<p>États : <strong>Planifiée → Assignée → En cours → Terminée</strong> ; <strong>En retard</strong> (calculé) ; <strong>En validation</strong> (verdict non conforme) ; <strong>Annulée</strong> (uniquement par le système, quand une fiche est remplacée : aucun bouton d'annulation n'existe). Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. La note rattachée à « En validation » renvoie à l'écart A20, décrit plus bas ; la vue détaillée de ce schéma, avec les références de code, est dans le dossier technique (<span class="renvoi">DT §1</span>).</p>
 <h3 id="rf-1-4-4"><span class="marqueur">⟦rf-1-4-4⟧</span>1.4.4 L'anomalie</h3>
 <p>Un marin signale une anomalie en quelques clics : titre, description, <strong>gravité de 1 à 5</strong>, photo, lieu, et <strong>facultativement un équipement</strong> (installation ou matériel, jamais les deux). Le périmètre est déduit de l'équipement, sinon du profil du déclarant. États : <strong>Signalée → Prise en compte → Traitée → Clôturée</strong>. La <strong>conversion en ticket</strong> garde un lien dans les deux sens. Le signalement est notifié aux chefs du périmètre.</p>
 <h3 id="rf-1-4-5"><span class="marqueur">⟦rf-1-4-5⟧</span>1.4.5 Le ticket correctif</h3>
@@ -401,12 +408,18 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <td>marins ; chefs de section</td>
 <td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
 </tr>
+<tr>
+<td><strong>NE-07</strong></td>
+<td>Message de fin de compte rendu inexact pour une installation</td>
+<td>marins ; chefs de section ; responsables des installations</td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
 </tbody>
 </table>
 <blockquote>
 <p><strong>Registre central.</strong> Les autres écarts qui touchent ce module (périodicités et remarques d'outillage : A21 ; lignes de tickets cliquables à la souris seulement : NE-02) sont dans <span class="renvoi">RE §2</span> et <span class="renvoi">RE §3</span>. Chaque entrée du registre donne le constat, la preuve, les profils concernés et la date de dernière vérification.</p>
 </blockquote>
-<p>Le bouton <strong>« Exécuter »</strong> (NE-01) apparaît dans la liste pour des échéances que l'utilisateur ne peut pas exécuter : le serveur refuse ensuite l'ouverture.</p>
+<p>Le bouton <strong>« Exécuter »</strong> (NE-01) apparaît dans la liste pour des échéances que l'utilisateur ne peut pas exécuter : le serveur refuse ensuite l'ouverture. Le message de fin de compte rendu (NE-07) annonce l'ouverture d'un ticket pour toute échéance non conforme, y compris celle d'une installation, pour laquelle aucun ticket n'est créé.</p>
 <h2 id="rf-1-8"><span class="marqueur">⟦rf-1-8⟧</span>1.8 Vérifications effectuées</h2>
 <table>
 <thead>
@@ -431,6 +444,11 @@ table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal;
 <td>Ticket automatique, seuils par défaut, génération sur 90 jours</td>
 <td>Lecture du code de l'état B</td>
 <td>12/11/2026</td>
+</tr>
+<tr>
+<td>Fin d'un compte rendu non conforme sur une installation : état « En validation », aucun ticket, message de fin inexact (NE-07)</td>
+<td>Navigateur, instance de démonstration, comptes fictifs ; capture conservée dans les preuves à accès restreint</td>
+<td>14/11/2026</td>
 </tr>
 <tr>
 <td>Envois de notifications (appareil, courriel)</td>

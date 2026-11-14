@@ -2,7 +2,8 @@
 # Les chemins de code, branches internes, identifiants de commit, variables d'environnement, adresses et ports
 # sont réservés aux documents techniques à accès restreint (DT, annexes restreintes, preuves).
 interdits_non_techniques:
-  chemin_de_code: '\b[\w./-]+\.(?:py|html|js|bat|yml|sh)\b'
+  chemin_de_code: '\b[\w./-]+\.(?:py|html|js|bat|yml|sh|png|csv|json)\b'
+  dossier_de_preuves: '\baudit_preuves\b'
   commande: 'manage\.py|pip install|docker compose|celery -A'
   branche_interne: '\bclaude/[\w./-]+|\bchatgpt/[\w./-]+|\bintegration/[\w./-]+'
   identifiant_de_commit: '\b(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b'
