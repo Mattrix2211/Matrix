@@ -1,0 +1,2945 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Registre des écarts et décisions — MTX-G0-R2</title><style>@page { size: A4; margin: 20mm 17mm 19mm 17mm; }
+@page paysage { size: A4 landscape; margin: 19mm 12mm 17mm 12mm; }
+:root { --encre:#14202e; --bleu:#1f3b63; --gris:#5a6b7d; --filet:#b9c3d0; --fond:#f2f5f9; }
+html { font-family: "DejaVu Sans","Noto Sans",Arial,sans-serif; font-size: 10pt; line-height: 1.48; color: var(--encre); }
+body { margin: 0; }
+/* couverture et sommaire */
+.couverture { page-break-after: always; padding-top: 28mm; }
+.couverture .mention { display:inline-block; padding:3mm 6mm; border:2px solid var(--encre); font-weight:700; letter-spacing:.8px; margin-bottom:6mm; }
+.couverture .precaution { font-size: 9pt; color: var(--gris); max-width: 150mm; margin-bottom: 14mm; }
+.couverture .serie { font-size: 11pt; color: var(--bleu); letter-spacing:.5px; text-transform: uppercase; margin: 0 0 3mm 0; }
+.couverture h1 { font-size: 27pt; line-height:1.15; border:none; margin:0 0 5mm 0; page-break-before: avoid; }
+.couverture .public { font-size: 12pt; margin-bottom: 14mm; }
+.couverture table.meta { width:auto; font-size: 9.5pt; border:none; }
+.couverture table.meta td { border:none; border-bottom:1px solid var(--filet); padding:1.6mm 6mm 1.6mm 0; }
+.couverture .legende { margin-top: 12mm; font-size: 9pt; }
+.toc { page-break-after: always; }
+.toc h2 { font-size: 16pt; border:none; margin-top:0; }
+.toc ul { padding:0; margin:0; list-style:none; }
+.toc li { display:flex; align-items:baseline; margin: 1.3mm 0; }
+.toc li .t { flex: 0 1 auto; }
+.toc li .p { flex: 1 1 auto; border-bottom: 1px dotted var(--gris); margin: 0 2mm; min-width: 8mm; transform: translateY(-1.2mm); }
+.toc li .n { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.toc li.niv1 { font-weight:700; margin-top:3mm; }
+.toc li.niv2 { margin-left: 6mm; font-size: 9.5pt; }
+.toc li.niv3 { display:none; }
+.toc a { color: var(--encre); text-decoration:none; }
+/* corps */
+.chapitre { page-break-before: always; }
+.chapitre.suite { page-break-before: auto; }
+h1 { font-size: 19pt; border-bottom: 2px solid var(--encre); padding-bottom: 2mm; margin: 0 0 4mm 0; break-after: avoid; }
+h2 { font-size: 13.5pt; margin: 7mm 0 2.5mm 0; border-bottom: 1px solid var(--filet); padding-bottom: 1mm; break-after: avoid; }
+h3 { font-size: 11pt; margin: 5mm 0 2mm 0; break-after: avoid; }
+h4 { font-size: 10pt; margin: 4mm 0 1.5mm 0; break-after: avoid; }
+p { margin: 0 0 2.6mm 0; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 3mm 0; padding-left: 6mm; }
+li { margin: 0 0 1mm 0; break-inside: avoid; }
+.ligne-public { font-size: 9pt; color: var(--gris); border-left:3px solid var(--bleu); padding-left:3mm; margin: 0 0 5mm 0; }
+table { border-collapse: collapse; width: 100%; margin: 2.5mm 0 4mm 0; font-size: 8.8pt; line-height:1.38; }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+th, td { border: 1px solid var(--filet); padding: 1.3mm 2mm; vertical-align: top; overflow-wrap: break-word; }
+td code, th code { overflow-wrap: break-word; }
+th { background: #e8eef6; text-align: left; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: .86em; background: #eef2f7; padding: 0 .8mm; overflow-wrap: anywhere; }
+pre { background:#eef2f7; padding:2mm; white-space:pre-wrap; overflow-wrap:anywhere; font-size:8.6pt; break-inside:avoid; }
+blockquote { margin: 3mm 0; padding: 2mm 4mm; border-left: 3px solid #5a7aa0; background: var(--fond); break-inside: avoid; }
+blockquote p:last-child { margin-bottom: 0; }
+.encadre-limite { border-left-color:#b36b00; background:#fff7e8; }
+figure { margin: 4mm 0; break-inside: avoid; text-align:center; }
+figure img { max-width: 100%; max-height: 195mm; }
+figcaption { font-size: 8.8pt; color: var(--gris); margin-top: 1.5mm; text-align:left; }
+.fin { break-inside: avoid; }
+hr { border:none; border-top:1px solid var(--filet); margin: 5mm 0; }
+.et { font-size: 1em; }
+.marqueur { font-size:1px; color:transparent; position:absolute; }
+/* pages de capture (paysage) */
+section.paysage { page: paysage; page-break-before: always; page-break-after: always; }
+section.paysage.capture { break-inside: avoid; }
+.cap-sec { font-size: 8pt; letter-spacing:.06em; text-transform: uppercase; color: var(--bleu); font-weight:600; }
+.cap-titre { font-size: 14.5pt; font-weight:700; margin: 1mm 0 1.5mm 0; }
+.cap-texte { font-size: 9.6pt; color:#2a3a4d; margin-bottom: 2.5mm; }
+.cap-cadre { position:relative; width: 232mm; margin: 0 auto; border: .3mm solid #8d9bb0; }
+.cap-cadre img { display:block; width:100%; }
+.rep { position:absolute; width:5mm; height:5mm; margin:-2.5mm 0 0 -6mm; border-radius:50%; background:#b3261e; color:#fff; font-size:7.5pt; font-weight:700; text-align:center; line-height:5mm; border:.3mm solid #fff; }
+.cap-legende { font-size: 8.6pt; color:#2a3a4d; margin-top: 2mm; }
+.cap-legende .prov { color:#b3261e; }
+/* fiches de module */
+.fiche-module h2 { background: var(--fond); border-left: 4px solid var(--bleu); padding: 1.5mm 3mm; border-bottom: none; }
+section.paysage.tableau { font-size: 8.4pt; }
+
+td:first-child code { white-space: nowrap; }
+.toc li .p { border-bottom: 1px dotted #5a6b7d; }
+.surtitre-partie { font-size: 8.5pt; letter-spacing: .08em; text-transform: uppercase; color: var(--bleu); font-weight: 700; margin: 0 0 2mm 0; }
+/* repères numérotés : discrets, posés dans la marge gauche de l'élément repéré */
+.rep { width: 4.4mm; height: 4.4mm; margin: -2.2mm 0 0 -5.6mm; font-size: 7pt; line-height: 4.4mm; opacity: .92; border: .25mm solid #fff; box-shadow: 0 0 0 .2mm rgba(179,38,30,.35); }
+table.routes { table-layout: fixed; font-size: 8pt; }
+table.routes th:nth-child(1) { width: 41%; } table.routes th:nth-child(2) { width: 20%; } table.routes th:nth-child(3) { width: 39%; }
+table.routes code { font-size: 7.4pt; overflow-wrap: normal; word-break: normal; }
+</style></head><body><section class="couverture"><div class="mention">DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE</div><div class="precaution">Précaution documentaire : cette mention n&#x27;est pas une classification officielle. La classification et les destinataires restent à valider par l&#x27;autorité compétente. Ne pas diffuser.</div><p class="serie">Matrix — G0, révision 2</p><h1>Registre des écarts et décisions</h1><div class="public">PO, responsables, mainteneurs — accès restreint</div><p><b>Maquette pilote (jalon V1)</b> : seul le chapitre « Maintenance » est rédigé ; le reste du document sera rédigé après validation du PO.</p><table class="meta"><tr><td>Référence documentaire</td><td><b>MTX-G0-R2</b></td></tr><tr><td>Série</td><td><b>Matrix — G0, révision 2</b></td></tr><tr><td>Édition</td><td><b>13/11/2026</b></td></tr><tr><td>État documentaire</td><td><b>projet en cours de refonte — maquette pilote V1, non validé</b></td></tr><tr><td>État décrit</td><td><b>EB-2026-11-11</b></td></tr><tr><td>Correspondance applicative (accès restreint)</td><td><b>EB-2026-11-11 = état applicatif 6d6d0be (branche claude/l03-suppression-sure-v11), non fusionné dans main. Cette correspondance n&#x27;existe que dans les documents techniques à accès restreint.</b></td></tr></table><div class="legende"><span class="et v">🟢</span> Fonctionnement actuel vérifié · <span class="et b">🔵</span> Cible validée par le PO, non nécessairement développée · <span class="et p">🟣</span> Proposition non arbitrée · <span class="et n">◯</span> Élément non vérifié</div></section><section class="toc"><h2>Sommaire</h2><ul><li class="niv1"><span class="t"><a href="#re-1">1 Lire ce registre</a></span><span class="p"></span><span class="n">4</span></li><li class="niv1"><span class="t"><a href="#re-2">2 Écarts du logiciel (A1 à A26)</a></span><span class="p"></span><span class="n">5</span></li><li class="niv2"><span class="t"><a href="#re-2-1">2.1 A1 — Administrateur technique et actes métier</a></span><span class="p"></span><span class="n">5</span></li><li class="niv2"><span class="t"><a href="#re-2-2">2.2 A2 — Échanges de tours</a></span><span class="p"></span><span class="n">5</span></li><li class="niv2"><span class="t"><a href="#re-2-3">2.3 A3 — Publication des listes de quarts et de gardes</a></span><span class="p"></span><span class="n">6</span></li><li class="niv2"><span class="t"><a href="#re-2-4">2.4 A4 — Droits du commandant en second</a></span><span class="p"></span><span class="n">7</span></li><li class="niv2"><span class="t"><a href="#re-2-5">2.5 A5 — Identifiants stables pour de futures interfaces</a></span><span class="p"></span><span class="n">7</span></li><li class="niv2"><span class="t"><a href="#re-2-6">2.6 A6 — Documentation du dépôt en retard sur le nombre d&#x27;applications</a></span><span class="p"></span><span class="n">8</span></li><li class="niv2"><span class="t"><a href="#re-2-7">2.7 A7 — Modèle de droits sans moteur d&#x27;attributs général</a></span><span class="p"></span><span class="n">8</span></li><li class="niv2"><span class="t"><a href="#re-2-8">2.8 A8 — Cahier des charges partiellement obsolète</a></span><span class="p"></span><span class="n">8</span></li><li class="niv2"><span class="t"><a href="#re-2-9">2.9 A9 — Principe « Internet n&#x27;existe pas » et dépendances déclarées</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#re-2-10">2.10 A10 — Vocabulaire cible sans équivalent dans le code</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#re-2-11">2.11 A11 — Libellé « Mes tours de service »</a></span><span class="p"></span><span class="n">9</span></li><li class="niv2"><span class="t"><a href="#re-2-12">2.12 A12 — Impression de la feuille de service</a></span><span class="p"></span><span class="n">10</span></li><li class="niv2"><span class="t"><a href="#re-2-13">2.13 A13 — Priorités de tâche : deux niveaux au lieu de trois</a></span><span class="p"></span><span class="n">10</span></li><li class="niv2"><span class="t"><a href="#re-2-14">2.14 A14 — Confidentialité de la synthèse de passation</a></span><span class="p"></span><span class="n">10</span></li><li class="niv2"><span class="t"><a href="#re-2-15">2.15 A15 — Circuit de validation des RETEX</a></span><span class="p"></span><span class="n">11</span></li><li class="niv2"><span class="t"><a href="#re-2-16">2.16 A16 — Diffusion « flotte » d&#x27;un RETEX</a></span><span class="p"></span><span class="n">11</span></li><li class="niv2"><span class="t"><a href="#re-2-17">2.17 A17 — Préparation à l&#x27;appareillage : fiche de référence et circuit</a></span><span class="p"></span><span class="n">12</span></li><li class="niv2"><span class="t"><a href="#re-2-18">2.18 A18 — Transfert de matériel entre secteurs et services</a></span><span class="p"></span><span class="n">12</span></li><li class="niv2"><span class="t"><a href="#re-2-19">2.19 A19 — Demande de places de formation</a></span><span class="p"></span><span class="n">13</span></li><li class="niv2"><span class="t"><a href="#re-2-20">2.20 A20 — Échéance « En validation » : règle de sortie</a></span><span class="p"></span><span class="n">13</span></li><li class="niv2"><span class="t"><a href="#re-2-21">2.21 A21 — Périodicités nommées, remarques d&#x27;outillage, durée indicative</a></span><span class="p"></span><span class="n">14</span></li><li class="niv2"><span class="t"><a href="#re-2-22">2.22 A22 — Version de Python annoncée par l&#x27;installation</a></span><span class="p"></span><span class="n">14</span></li><li class="niv2"><span class="t"><a href="#re-2-23">2.23 A23 — Sécurité d&#x27;accès avec les SIC</a></span><span class="p"></span><span class="n">14</span></li><li class="niv2"><span class="t"><a href="#re-2-24">2.24 A24 — Sauvegarde, restauration, supervision, journaux</a></span><span class="p"></span><span class="n">15</span></li><li class="niv2"><span class="t"><a href="#re-2-25">2.25 A25 — Modules désactivés encore actifs par certains chemins</a></span><span class="p"></span><span class="n">15</span></li><li class="niv2"><span class="t"><a href="#re-2-26">2.26 A26 — Modules sans interface de programmation</a></span><span class="p"></span><span class="n">16</span></li><li class="niv1"><span class="t"><a href="#re-3">3 Nouveaux écarts du logiciel (NE-01 à NE-06)</a></span><span class="p"></span><span class="n">17</span></li><li class="niv2"><span class="t"><a href="#re-3-1">3.1 NE-01 — Bouton « Exécuter » affiché sans droit d&#x27;exécution</a></span><span class="p"></span><span class="n">17</span></li><li class="niv2"><span class="t"><a href="#re-3-2">3.2 NE-02 — Lignes de tickets cliquables sans lien ni focus clavier</a></span><span class="p"></span><span class="n">17</span></li><li class="niv2"><span class="t"><a href="#re-3-3">3.3 NE-03 — Redirection HTTPS sans réglage de proxy inverse</a></span><span class="p"></span><span class="n">17</span></li><li class="niv2"><span class="t"><a href="#re-3-4">3.4 NE-04 — QR codes liés au nom d&#x27;hôte de la requête</a></span><span class="p"></span><span class="n">18</span></li><li class="niv2"><span class="t"><a href="#re-3-5">3.5 NE-05 — Codes de refus 404 et 403 hétérogènes</a></span><span class="p"></span><span class="n">18</span></li><li class="niv2"><span class="t"><a href="#re-3-6">3.6 NE-06 — Synthèse de passation lisible par l&#x27;équipage sortant</a></span><span class="p"></span><span class="n">18</span></li><li class="niv1"><span class="t"><a href="#re-4">4 Points à confirmer (B1 à B8)</a></span><span class="p"></span><span class="n">19</span></li><li class="niv2"><span class="t"><a href="#re-4-1">4.1 B1 — Suppléance du COMAEQ</a></span><span class="p"></span><span class="n">19</span></li><li class="niv2"><span class="t"><a href="#re-4-2">4.2 B2 — Commandant en second</a></span><span class="p"></span><span class="n">19</span></li><li class="niv2"><span class="t"><a href="#re-4-3">4.3 B3 — Échanges et quarts à la mer</a></span><span class="p"></span><span class="n">19</span></li><li class="niv2"><span class="t"><a href="#re-4-4">4.4 B4 — Accostage et appareillage</a></span><span class="p"></span><span class="n">20</span></li><li class="niv2"><span class="t"><a href="#re-4-5">4.5 B5 — Chef de liste des quarts</a></span><span class="p"></span><span class="n">20</span></li><li class="niv2"><span class="t"><a href="#re-4-6">4.6 B6 — « Fin de journée » d&#x27;une tâche</a></span><span class="p"></span><span class="n">20</span></li><li class="niv2"><span class="t"><a href="#re-4-7">4.7 B7 — Ordre des grades</a></span><span class="p"></span><span class="n">20</span></li><li class="niv2"><span class="t"><a href="#re-4-8">4.8 B8 — Conservation</a></span><span class="p"></span><span class="n">21</span></li><li class="niv1"><span class="t"><a href="#re-5">5 Propositions non arbitrées (D1 à D7) 🟣</a></span><span class="p"></span><span class="n">22</span></li><li class="niv2"><span class="t"><a href="#re-5-1">5.1 D1 — Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile</a></span><span class="p"></span><span class="n">22</span></li><li class="niv2"><span class="t"><a href="#re-5-2">5.2 D2 — Règle de sortie de l&#x27;état « En validation » et alerte de retard associée (A20)</a></span><span class="p"></span><span class="n">22</span></li><li class="niv2"><span class="t"><a href="#re-5-3">5.3 D3 — Transmission d&#x27;un RETEX à un organisme : destinataires, canaux, responsabilités</a></span><span class="p"></span><span class="n">22</span></li><li class="niv2"><span class="t"><a href="#re-5-4">5.4 D4 — Autorité de classification « critique » d&#x27;un contrôle d&#x27;appareillage</a></span><span class="p"></span><span class="n">22</span></li><li class="niv2"><span class="t"><a href="#re-5-5">5.5 D5 — Favoris épinglés, recherche de personnes limitée, formulaires RH configurables</a></span><span class="p"></span><span class="n">23</span></li><li class="niv2"><span class="t"><a href="#re-5-6">5.6 D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de …</a></span><span class="p"></span><span class="n">23</span></li><li class="niv2"><span class="t"><a href="#re-5-7">5.7 D7 — Sauvegarde, restauration, supervision, conservation des journaux</a></span><span class="p"></span><span class="n">23</span></li><li class="niv1"><span class="t"><a href="#re-6">6 Anomalies du dossier (audit)</a></span><span class="p"></span><span class="n">24</span></li><li class="niv1"><span class="t"><a href="#re-7">7 Décisions du PO et état dans l&#x27;état B</a></span><span class="p"></span><span class="n">28</span></li></ul></section><section class="chapitre"><h1 id="re-1"><span class="marqueur">⟦re-1⟧</span>1 Lire ce registre</h1>
+<blockquote>
+<p><strong>Public :</strong> PO, responsables, mainteneurs · <strong>Accès restreint</strong> · Source unique : <code>registre.json</code> (généré).</p>
+</blockquote>
+<p>Ce registre rassemble les <strong>écarts</strong> entre ce que le PO a décidé et ce que fait le logiciel, les <strong>points à confirmer</strong>, les <strong>propositions</strong> non arbitrées, les <strong>anomalies du dossier</strong> et l'<strong>état des 125 décisions</strong>. Un écart est <strong>documenté, pas autorisé à corriger</strong> : il ne modifie ni le logiciel ni une décision du PO.</p>
+<table>
+<thead>
+<tr>
+<th>Niveau de preuve</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[C]</td>
+<td>lu dans le code de l'état B</td>
+</tr>
+<tr>
+<td>[N]</td>
+<td>vérifié dans le navigateur (instance de démonstration, données fictives)</td>
+</tr>
+<tr>
+<td>[T]</td>
+<td>vérifié par un test exécuté</td>
+</tr>
+<tr>
+<td>[V]</td>
+<td>vérifié visuellement</td>
+</tr>
+<tr>
+<td>[A]</td>
+<td>mesure automatique</td>
+</tr>
+<tr>
+<td>[R]</td>
+<td>rapporté par une source antérieure, non revérifié</td>
+</tr>
+<tr>
+<td>[?]</td>
+<td>non vérifié</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Répartition :</strong> 26 écarts, 8 points à confirmer, 7 propositions, 6 nouveaux écarts du logiciel, 38 anomalies documentaires (36 ouvertes), 125 décisions.</p></section><section class="chapitre"><h1 id="re-2"><span class="marqueur">⟦re-2⟧</span>2 Écarts du logiciel (A1 à A26)</h1>
+<h2 id="re-2-1"><span class="marqueur">⟦re-2-1⟧</span>2.1 A1 — Administrateur technique et actes métier</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Un administrateur technique ne devient pas automatiquement autorité de validation métier : il désigne les titulaires, sans viser à leur place. Application mécanique d'un transfert approuvé autorisée. (<code>DEC-DRT-02</code>, source S1 §4, DP-09, cahier §5, Notion « 13 — Décisions »)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Le niveau numérique de l'administrateur d'unité (8) est supérieur ou égal à tous les seuils par défaut des actions métier du registre (annexe B, colonne « Admin. unité »). Dans les circuits des quarts, il franchit la <strong>supervision du commandement</strong> (<code>NIVEAU_<wbr>SUPERVISION_<wbr>GLOBALE_<wbr>LISTE = COMMANDANT</code>, <code>quarts/<wbr>models.py:147</code>) : il peut gérer et <strong>publier</strong> les listes de son bâtiment (<code>peut_<wbr>publier_<wbr>liste</code>, <code>quarts/<wbr>models.py:355</code>), <strong>valider ou refuser</strong> un échange de tours (<code>peut_<wbr>valider_<wbr>echange</code>, <code>quarts/<wbr>echanges.py:205</code>) et viser aux paliers « secteur » et « service » de la feuille de service (<code>_<wbr>supervision_<wbr>sur_<wbr>navire</code>, <code>quarts/<wbr>models.py:1977</code>). Le visa du COMAEQ et la rédaction de la feuille de service lui restent fermés (<code>peut_<wbr>viser_<wbr>comaeq</code> <code>:2215</code> ; <code>peut_<wbr>rediger_<wbr>feuille_<wbr>service</code> <code>:2065</code>).</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td><em>Fonctionnelles</em> : un administrateur technique peut trancher des échanges et publier des listes alors que la règle le lui interdit. <em>Sécurité / traçabilité</em> : l'acte est tracé au nom de l'administrateur, mais il brouille la séparation des pouvoirs voulue entre administration de la plateforme et autorité métier. Pas de contournement d'authentification : l'écart est dans la <strong>répartition</strong> des droits.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>administrateur d'unité ; commandement</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L06 — Exclusion de l'administrateur technique des actes métier (non lancé)</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-2"><span class="marqueur">⟦re-2-2⟧</span>2.2 A2 — Échanges de tours</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>La décision finale revient au COMAEQ ou à son suppléant officiellement habilité. Le BSC ou le chef de liste peut <strong>instruire</strong> la demande, mais n'a pas automatiquement l'autorité de décision finale. Cette décision <strong>remplace</strong> la note Notion du 28/10 (« le chef de liste habilité valide »). (<code>DEC-FDS-07</code>, <code>DEC-FDS-13</code> ; sources S1 §7, S3 ; <code>J_<wbr>TRIAGE_<wbr>ET_<wbr>ARBITRAGES.md</code> §2)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Un échange accepté par le marin sollicité attend « le chef de liste » (<code>STATUT_ACCEPTE</code> : « En attente du chef de liste »). La validation et le refus sont ouverts à qui <strong>gère la liste</strong> (<code>peut_<wbr>valider_<wbr>echange</code>, <code>quarts/<wbr>echanges.py:205</code>, qui s'appuie sur <code>peut_<wbr>gerer_<wbr>liste</code>, <code>quarts/<wbr>models.py:297</code>) : le chef de liste désigné pour le périmètre exact de la liste, ou le commandement du bâtiment (niveau commandant et au-dessus). Aucune règle ne désigne le COMAEQ ni un suppléant. À défaut de chef de liste désigné, la notification va au créateur de la liste (<code>chefs_<wbr>de_<wbr>liste_<wbr>a_<wbr>notifier</code>, <code>quarts/<wbr>echanges.py:176</code>).</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td><em>Fonctionnelles</em> : l'autorité qui tranche n'est pas celle décidée ; un chef de liste (qui peut être un chef de section) valide seul un échange de service à quai. Le COMAEQ n'est ni notifié ni habilité. <em>Sécurité</em> : sans suppléance officielle, la règle cible ne peut pas être appliquée telle quelle (voir B3).</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>marins ; chefs de liste ; COMAEQ</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L10 — Échanges de tours décidés par le COMAEQ (non lancé) ; dépend de la suppléance explicite (L08)</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-3"><span class="marqueur">⟦re-2-3⟧</span>2.3 A3 — Publication des listes de quarts et de gardes</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Le chef de liste <strong>prépare et propose</strong> ; le COMAEQ ou son suppléant officiellement habilité <strong>approuve et publie</strong>. Toute modification après publication est tracée et donne lieu à une nouvelle version officielle si nécessaire. (<code>DEC-FDS-14</code>, S4 arbitrage C-1)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Le chef de liste propose (<code>proposer</code>, <code>quarts/<wbr>models.py</code> : statut <code>PROPOSEE</code>) ; la publication (<code>publier</code>) est ouverte à <code>peut_<wbr>publier_<wbr>liste</code> (<code>quarts/<wbr>models.py:355</code>) : (a) le commandement du bâtiment (commandant, administrateur d'unité, administrateur général sur son périmètre) ; (b) tout rôle atteignant le seuil configurable <code>liste_<wbr>service_<wbr>publication</code> (<strong>chef de service</strong> par défaut) <strong>et</strong> dont le périmètre personnel est <strong>exactement</strong> celui de la liste ; le commandant en second est explicitement exclu (<code>_<wbr>perimetre_<wbr>dans_<wbr>scope_<wbr>utilisateur</code>, <code>:308</code>). La <strong>fonction COMAEQ n'intervient pas</strong> : un COMAEQ ne publie que si sa propre portée est celle de la liste ou s'il est commandement.</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td><em>Fonctionnelles</em> : la publication relève d'un chef de service du périmètre ou du commandement ; l'autorité fonctionnelle « vie à bord » n'est pas mobilisée. <em>Sécurité</em> : le seuil est réglable par bâtiment : un bâtiment peut l'abaisser et élargir qui publie.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de liste ; chefs de service ; COMAEQ ; commandement</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L09 — Visas par fonction et listes publiées (non lancé ; découpé en trois)</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-4"><span class="marqueur">⟦re-2-4⟧</span>2.4 A4 — Droits du commandant en second</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Le commandant en second est le remplaçant désigné du commandant et a une <strong>vision globale</strong>. Ses droits d'écriture <strong>découlent de ses responsabilités métier réelles</strong>, et non d'un simple seuil « commandant ou plus ». Il publie des annonces sur son bâtiment, garde la suppléance du commandant pour la validation de la relève, n'a pas le visa COMA. (Notion « 13 — Décisions » 10/10 et recette V1 ; dossier V1.2 <code>DEC-DRT-01</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Deux familles de comparaison coexistent. Pour l'<strong>API</strong> et les vues qui utilisent <code>niveau_ecriture</code>, son écriture héritée du grade est <strong>retirée</strong> (il retombe au niveau équipier, <code>ROLES_<wbr>SANS_<wbr>ECRITURE_<wbr>HERITEE</code>, <code>matrix/<wbr>core/<wbr>roles.py:50</code>), sauf action explicitement ouverte (<code>annonce_<wbr>publication</code>). Pour de <strong>nombreuses vues web</strong>, le seuil est comparé à son <strong>grade</strong> (<code>user_role_level</code>) : il peut alors gérer les modules (<code>matrix/<wbr>views.py:289</code>), saisir le programme (<code>programme/<wbr>services.py:47</code>), proposer des fiches (<code>assets/<wbr>fiche_<wbr>validation.py:130</code>), voir l'annuaire (<code>matrix/<wbr>core/<wbr>navigation.py</code>). Dans les circuits des quarts, il est exclu de la désignation, du visa et de la publication (<code>quarts/<wbr>models.py:308</code>).</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td><em>Fonctionnelles</em> : ce que le second peut faire dépend de la page utilisée, non d'une liste de responsabilités qui lui sont attribuées. <em>Sécurité</em> : un même acte peut être refusé par l'API et accepté par l'écran correspondant.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>commandant en second</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Aucun lot identifié ne traite spécifiquement l'harmonisation (voir B2). Liens : L07 (rattachement et validation des rôles), L09 (visas par fonction).</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-5"><span class="marqueur">⟦re-2-5⟧</span>2.5 A5 — Identifiants stables pour de futures interfaces</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Règles du projet : « garder des identifiants stables (UUID, NNO) pour de futures API » (<code>CLAUDE.md</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>UUID et NNO existent côté matériel, catalogue, ticket, objets de la feuille de service ; ni compte, ni unité, ni tâche, ni liste</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Un futur interfaçage devra s'appuyer sur d'autres identifiants pour les personnes et les unités ; pas d'effet sur le fonctionnement actuel</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>développeurs ; intégrateurs</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Aucun (périmètre à décider)</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-6"><span class="marqueur">⟦re-2-6⟧</span>2.6 A6 — Documentation du dépôt en retard sur le nombre d'applications</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td><code>docs/<wbr>REFERENCE.md</code> §4 « Les 14 apps Django »</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>L'état B contient 21 applications et le noyau (paquet <code>matrix/core</code>)</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Documentation du dépôt en retard ; pas d'effet fonctionnel</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>développeurs</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L28 (dette documentaire)</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-7"><span class="marqueur">⟦re-2-7⟧</span>2.7 A7 — Modèle de droits sans moteur d'attributs général</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Cahier §35 : « RBAC + ABAC + périmètre + responsabilité »</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Rôle + périmètre + attributs ciblés (équipage, fonction de commandant adjoint) + désignations ; pas de moteur d'attributs général</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Les règles à attributs sont codées au cas par cas (« configuration plutôt que code » partielle)</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>responsables ; développeurs</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-8"><span class="marqueur">⟦re-2-8⟧</span>2.8 A8 — Cahier des charges partiellement obsolète</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Cahier §8, §10, §11 (génération automatique des tours) ; §20 (rondes) ; organisation « miroir »</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Génération abandonnée (décision du 09/10) ; rondes retirées ; organisation miroir retirée</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Documentation du cahier partiellement obsolète ; <strong>le dossier décrit le code</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>PO</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Alignement Notion par le PO</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-9"><span class="marqueur">⟦re-2-9⟧</span>2.9 A9 — Principe « Internet n'existe pas » et dépendances déclarées</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Principe « Internet n'existe pas »</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Tenu par le code ; <code>boto3</code> et <code>requests</code> déclarés sans usage constaté</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Aucune ; observation d'exploitation</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>exploitants</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-10"><span class="marqueur">⟦re-2-10⟧</span>2.10 A10 — Vocabulaire cible sans équivalent dans le code</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Vocabulaire cible de Notion 11 (mission, capacité, dérogation…)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Sans équivalent dans le code</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Cible non développée</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>PO</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-11"><span class="marqueur">⟦re-2-11⟧</span>2.11 A11 — Libellé « Mes tours de service »</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>« Mes tours de <strong>services</strong> » (<code>DEC-UX-08</code>, S1 §12 ; <code>CT-06</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>L'accueil affiche « Mes tours de <strong>service</strong> »</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Libellé : purement visuel</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>marins</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Lot UX (L24)</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-12"><span class="marqueur">⟦re-2-12⟧</span>2.12 A12 — Impression de la feuille de service</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td><strong>Fonctionnement cible</strong> : impression A4 de la feuille de service par le BSC, signalement de la nécessité de réimprimer une feuille déjà affichée, et <strong>réimpression avec versionnement</strong> (<code>DEC-FDS-04</code>, <code>DEC-FDS-05</code>, <code>DEC-FDS-06</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Les versions de la feuille sont conservées (VersionFeuilleService). <strong>Une impression par le navigateur existe</strong> (bouton « Imprimer » de la fiche de la feuille, constat AUD-002, vérifié dans le navigateur le 12/11/2026) ; il n'existe ni mise en page A4 dédiée à l'affichage, ni alerte de réimpression, ni réimpression versionnée.</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Le BSC imprime avec les moyens du navigateur ; pas d'alerte de remplacement d'un affichage</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>BSC ; COMAEQ</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L27</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C][N]</td>
+</tr>
+<tr>
+<td><strong>Révision</strong></td>
+<td>Texte révisé : l'ancien énoncé « aucune page imprimable » était inexact (AUD-002).</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-13"><span class="marqueur">⟦re-2-13⟧</span>2.13 A13 — Priorités de tâche : deux niveaux au lieu de trois</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Trois priorités : normale, haute, urgente ; priorité du chef de secteur non abaissable par le chef de section (<code>DEC-TAC-04</code>, <code>DEC-TAC-05</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Deux priorités : normale, urgente ; pas de règle d'abaissement</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Perte d'un niveau de nuance ; pas de règle de hiérarchie des priorités</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de secteur ; chefs de section</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L14</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-14"><span class="marqueur">⟦re-2-14⟧</span>2.14 A14 — Confidentialité de la synthèse de passation</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Synthèse de passation : un chef de section ne consulte que <strong>sa propre section</strong> (Notion « 13 — Décisions », recette V1)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td><code>syntheses_<wbr>visibles</code> (<code>dashboard/<wbr>passation.py:53</code>) filtre par bâtiment et équipage, <strong>sans borne par section</strong> ; le contenu figé couvre tout le bâtiment (<code>contenu_<wbr>passation</code>, <code>dashboard/<wbr>passation.py:220</code>) ; le code assume « l'équipage montant lit tout ». <strong>Test du 12/11/2026 (état B, comptes fictifs, deux sections)</strong> : un chef de section lit les tâches, blocages et anomalies de l'autre section ; équipier, chef d'un autre bâtiment, chef sans équipage et chef d'un troisième équipage refusés</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Un chef de section peut lire la synthèse de tout le bâtiment (qualifications, annonces, listes, tâches). Écart confirmé ; <strong>aucune fuite réelle alléguée</strong> ; la règle du PO n'est pas modifiée</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de section ; commandement ; équipage sortant</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Non identifié</td>
+</tr>
+<tr>
+<td><strong>Vérifications</strong></td>
+<td>test 12/11/2026 (8 tests, comptes fictifs) ; navigateur 12/11/2026 : chef de section de l'équipage sortant lit 28 tâches dont 12 hors de sa section ; équipier et chef d'un autre bâtiment : 404</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[T][N]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-15"><span class="marqueur">⟦re-2-15⟧</span>2.15 A15 — Circuit de validation des RETEX</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Circuit RETEX : auteur → chef de section → chef de secteur → chef de service (<code>DEC-RTX-01</code>) ; correction motivée, nouvelle version (<code>DEC-RTX-02</code>, <code>DEC-RTX-03</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Une seule étape : tout habilité du bâtiment (seuil <code>retex_<wbr>validation</code>, chef de service) valide ou refuse ; les fonctions citant le COMA référent passent en premier dans la notification ; pas de demande de correction</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Un RETEX peut être validé sans visa de la hiérarchie directe de l'auteur ; pas de boucle de correction</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>auteurs de RETEX ; chefs de section, de secteur et de service</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L11</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-16"><span class="marqueur">⟦re-2-16⟧</span>2.16 A16 — Diffusion « flotte » d'un RETEX</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Diffusion « flotte » : proposé à l'organisme destinataire</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>La diffusion « flotte » <strong>marque</strong> le RETEX ; aucune transmission n'existe</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>L'organisme n'est jamais saisi ni notifié par Matrix ; qui transmet est <strong>à confirmer</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>auteurs de RETEX ; organismes destinataires</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L11</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-17"><span class="marqueur">⟦re-2-17⟧</span>2.17 A17 — Préparation à l'appareillage : fiche de référence et circuit</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → service → COMANAV ; contrôles obligatoires, critiques non dérogeables, réserves (<code>DEC-APP-01</code>, <code>DEC-APP-02</code>, DEC-APP-10, DEC-APP-11, DEC-APP-12, <code>DEC-APP-14</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Les points sont calculés à l'ouverture depuis l'état des installations critiques ; une seule signature (chef de secteur ou plus) ; ni classification, ni réserve, ni fiche de référence</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Aucun circuit COMANAV ; la signature atteste la clôture de la session, pas l'aptitude. Compatibilité avec les procédures du bord <strong>à confirmer avant implémentation</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de secteur ; chefs de service ; COMANAV</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L23</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-18"><span class="marqueur">⟦re-2-18⟧</span>2.18 A18 — Transfert de matériel entre secteurs et services</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Transfert de matériel entre secteurs et entre services avec approbations (DEC-MAT-01, DEC-MAT-02, DEC-MAT-03, DEC-MAT-04)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Aucun circuit ; réaffectation par l'affectation en masse</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Pas de trace d'approbation du transfert ni de suivi des tâches ouvertes</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de service ; gestionnaires de matériel</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L13</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-19"><span class="marqueur">⟦re-2-19⟧</span>2.19 A19 — Demande de places de formation</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Demande de places : l'organisme de formation répond dans un <strong>dossier vivant</strong> (timeline, fil, transmission, prise en compte) — cible Notion « 03 »</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>L'organisme est une <strong>unité de type École ou Centre de formation</strong> ; un référent de la formation dans cette unité attribue ou refuse (<code>_<wbr>attribuer_<wbr>places</code>) ; le demandeur est notifié. Pas de timeline, pas de fil systématique, pas d'étape « transmise à l'organisme » pour la demande de places</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Cible non développée ; correction par rapport au rapport E3 (qui disait que l'organisme n'était pas un acteur)</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>référents de formation ; demandeurs ; organismes de formation</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Cible Notion « 03 »</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-20"><span class="marqueur">⟦re-2-20⟧</span>2.20 A20 — Échéance « En validation » : règle de sortie</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td><strong>Vérifié par test (12/11/2026)</strong> : aucune action de validation dédiée ; sorties : (1) correction du compte rendu par un chef de secteur ou plus (conformité finale conforme) ; (2) API <code>start</code> sans contrôle de l'état (appelable par un assigné), qui laisse « En cours » avec un compte rendu terminé non conforme ; (3) administration Django. Exclue du calcul des retards (choix explicite) ; aucune notification ; visible en « À faire » et en supervision ; clôture du ticket sans effet sur l'occurrence ; pour une <strong>installation</strong>, pas de ticket automatique et <strong>échéance suivante non générée</strong> tant que l'état dure</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td><strong>Risque de blocage</strong> : « En validation » sans échéance ni relance, entretien récurrent d'installation suspendu ; sortie par l'API <code>start</code> non voulue. Règle de sortie <strong>à décider par le PO</strong> (D2) ; aucune règle inventée</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>exécutants ; chefs de secteur ; responsables des installations</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Non identifié (à décider par le PO)</td>
+</tr>
+<tr>
+<td><strong>Vérifications</strong></td>
+<td>test 12/11/2026 (18 tests) ; navigateur 12/11/2026 : bouton « Enregistrer la correction » visible du seul chef de secteur et au-delà</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[T][N]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-21"><span class="marqueur">⟦re-2-21⟧</span>2.21 A21 — Périodicités nommées, remarques d'outillage, durée indicative</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Périodicités nommées, remarques d'outillage, durée indicative (DEC-PER-01, DEC-PER-02, DEC-PER-03, DEC-PER-04, DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05, <code>DEC-DUR-*</code>)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Non développé</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Cible, non contradictoire</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de secteur</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Plan V1.2</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-22"><span class="marqueur">⟦re-2-22⟧</span>2.22 A22 — Version de Python annoncée par l'installation</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Le projet suppose Python 3.12 ou plus (README, dépendances)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Le script d'installation annonce « Python 3.8 ou supérieur »</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Une installation sur un Python ancien échouerait tard ; incohérence de documentation uniquement</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>développeurs ; exploitants</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L28</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-23"><span class="marqueur">⟦re-2-23⟧</span>2.23 A23 — Sécurité d'accès avec les SIC</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Sécurité d'accès avec les SIC : HTTPS, limitation des connexions (cible)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>En production, redirection HTTPS et cookies sécurisés actifs ; <strong>ni limitation des tentatives de connexion, ni HSTS, ni réglage de proxy inverse</strong> ; origines CSRF de confiance codées sur <code>localhost</code> ; aucun serveur HTTPS ni serveur d'application livré</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Cible non développée ; l'architecture réelle de mise en service reste à définir avec les SIC</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>exploitants ; SIC</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>L21</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-24"><span class="marqueur">⟦re-2-24⟧</span>2.24 A24 — Sauvegarde, restauration, supervision, journaux</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Sauvegarde, restauration, supervision, conservation des journaux (à fournir, <code>IM-10</code> pour les durées)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td><strong>Rien n'existe</strong> dans le dépôt : ni script, ni documentation</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Aucun plan de reprise ; durées de conservation des notifications, journaux et estimations non définies (B8)</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>exploitants ; SIC</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>À définir avec les SIC</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-25"><span class="marqueur">⟦re-2-25⟧</span>2.25 A25 — Modules désactivés encore actifs par certains chemins</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td><strong>Vérifié par test (12/11/2026)</strong>, modules maintenance et logistique désactivés : toutes les routes web des modules du registre (134 au total, toutes à vue-classe) sont refusées (redirection vers l'accueil) ; menu et recherche masquent le module ; <strong>API : lecture et écriture restent accessibles</strong> (liste, démarrage d'une occurrence, transition d'un ticket) ; <strong>administration Django</strong> accessible ; <strong>tâches planifiées</strong> : notifications de retard et de stock créées, échéances générées ; <strong>enchaînement interne</strong> : ticket créé depuis une maintenance non conforme ; <strong>accueil « À faire » et calendrier continuent d'afficher</strong> les maintenances avec un lien vers une page refusée</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Choix volontaire du code pour ne pas casser les enchaînements ; ni l'accueil ni le calendrier n'appliquent le filtre de module ; la <strong>règle métier attendue</strong> (désactiver = masquer l'interface seulement, ou bloquer aussi l'API et les tâches) <strong>n'est pas décidée</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>administrateurs d'unité ; commandants ; intégrateurs</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Vérifications</strong></td>
+<td>test 12/11/2026 (3 tests de constat)</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[T]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-2-26"><span class="marqueur">⟦re-2-26⟧</span>2.26 A26 — Modules sans interface de programmation</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Règle validée</strong></td>
+<td>Neuf modules sans API (quarts, absences, tâches, annonces, demandes, programme, postes, documentation, RETEX)</td>
+</tr>
+<tr>
+<td><strong>Constat dans l'état B</strong></td>
+<td>Aucune route <code>/api/</code> ; pilotage par les pages seulement</td>
+</tr>
+<tr>
+<td><strong>Conséquences</strong></td>
+<td>Aucune intégration possible sur ces objets ; cohérent avec la phase 7 « différée »</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>intégrateurs</td>
+</tr>
+<tr>
+<td><strong>Lot de correction prévu</strong></td>
+<td>Phase 7</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table></section><section class="chapitre"><h1 id="re-3"><span class="marqueur">⟦re-3⟧</span>3 Nouveaux écarts du logiciel (NE-01 à NE-06)</h1>
+<h2 id="re-3-1"><span class="marqueur">⟦re-3-1⟧</span>3.1 NE-01 — Bouton « Exécuter » affiché sans droit d'exécution</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Constat</strong></td>
+<td>La liste de maintenance affiche « Exécuter » pour des occurrences que le serveur refuse (403) à l'utilisateur ; le bouton « M'assigner » existe aussi.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>marins ; chefs de section</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[N]</td>
+</tr>
+<tr>
+<td><strong>Preuve</strong></td>
+<td>audit_preuves/navigateur_droits.md</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-3-2"><span class="marqueur">⟦re-3-2⟧</span>3.2 NE-02 — Lignes de tickets cliquables sans lien ni focus clavier</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Constat</strong></td>
+<td>Les lignes de la liste des tickets s'ouvrent par un gestionnaire de clic sur la ligne seulement ; non accessible au clavier.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>tous profils</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Preuve</strong></td>
+<td>matrix/templates/logistics/ticket_list.html (accès restreint)</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-3-3"><span class="marqueur">⟦re-3-3⟧</span>3.3 NE-03 — Redirection HTTPS sans réglage de proxy inverse</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Constat</strong></td>
+<td>SECURE_SSL_REDIRECT est actif en production sans réglage de proxy TLS ; comportement derrière un proxy non testé.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>exploitants ; SIC</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C][?]</td>
+</tr>
+<tr>
+<td><strong>Preuve</strong></td>
+<td>chapitre « Exploitation » du dossier technique</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-3-4"><span class="marqueur">⟦re-3-4⟧</span>3.4 NE-04 — QR codes liés au nom d'hôte de la requête</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Constat</strong></td>
+<td>Le QR d'un équipement encode l'adresse absolue de la requête ; un QR imprimé depuis un autre nom d'hôte pointe vers une adresse erronée ; non documenté avant l'audit.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>exploitants ; gestionnaires de matériel</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[C]</td>
+</tr>
+<tr>
+<td><strong>Preuve</strong></td>
+<td>assets/views.py (accès restreint)</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-3-5"><span class="marqueur">⟦re-3-5⟧</span>3.5 NE-05 — Codes de refus 404 et 403 hétérogènes</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Constat</strong></td>
+<td>L'équipier reçoit 404 sur certaines pages d'écriture (nouvelle documentation, passation) et 403 sur la plupart des autres ; masquage volontaire ou incohérence non documentée.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>marins</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[N]</td>
+</tr>
+<tr>
+<td><strong>Preuve</strong></td>
+<td>audit_preuves/navigateur_droits.md</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-3-6"><span class="marqueur">⟦re-3-6⟧</span>3.6 NE-06 — Synthèse de passation lisible par l'équipage sortant</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Constat</strong></td>
+<td>Les chefs de l'équipage sortant, passé à terre, lisent la synthèse figée ; conforme au code, mais l'écart A14 les concerne aussi.</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de l'équipage sortant</td>
+</tr>
+<tr>
+<td><strong>Niveau de preuve</strong></td>
+<td>[N]</td>
+</tr>
+<tr>
+<td><strong>Preuve</strong></td>
+<td>audit_preuves/a14_navigateur_chef_section.png</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>documenté, non arbitré (pas une autorisation de modifier le logiciel)</td>
+</tr>
+</tbody>
+</table></section><section class="chapitre"><h1 id="re-4"><span class="marqueur">⟦re-4⟧</span>4 Points à confirmer (B1 à B8)</h1>
+<h2 id="re-4-1"><span class="marqueur">⟦re-4-1⟧</span>4.1 B1 — Suppléance du COMAEQ</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td><code>DEC-SUP-01</code> : la suppléance est <strong>explicitement désignée, activée par une autorité compétente, temporaire, limitée à une fonction et à un périmètre, et tracée</strong> ; <code>DEC-SUP-02</code>, <code>DEC-SUP-04</code>, <code>DEC-SUP-05</code>, <code>DEC-SUP-07</code></td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Aucun mécanisme général. Seuls secours codés : le commandant de l'équipage peut viser la feuille de service et désigner les rédacteurs quand le poste COMAEQ est <strong>vacant</strong> (<code>quarts/<wbr>models.py:2210</code>) ; remplacement temporaire d'un chef de liste des services à quai (<code>quarts/<wbr>remplacement.py:27</code>)</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td>Le principe est décidé. <strong>La procédure exacte de désignation du suppléant du COMAEQ est à confirmer</strong> (lot L08)</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>COMAEQ ; commandants</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-4-2"><span class="marqueur">⟦re-4-2⟧</span>4.2 B2 — Commandant en second</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td>Notion « 13 — Décisions » : vision globale ; écritures limitées aux <strong>responsabilités attribuées</strong> ; il ne tient pas ses droits automatiquement de son grade</td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Écriture héritée du grade retirée (API) mais seuil comparé au grade dans plusieurs vues web (A4)</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td>Les responsabilités doivent être <strong>explicites et attribuées dans un cadre autorisé</strong> ; qui les attribue, par quel mécanisme et dans quelles limites est <strong>à confirmer</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>commandant en second</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-4-3"><span class="marqueur">⟦re-4-3⟧</span>4.3 B3 — Échanges et quarts à la mer</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td><code>DEC-FDS-07</code> : « échanges de tours » sans préciser le périmètre ; <code>DEC-FDS-13</code></td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Échanges limités aux <strong>services à quai</strong> d'une même liste (<code>quarts/<wbr>echanges.py:1</code>)</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td><strong>Ne pas généraliser</strong> aux quarts à la mer sans validation métier : à confirmer</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de liste ; COMAEQ</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-4-4"><span class="marqueur">⟦re-4-4⟧</span>4.4 B4 — Accostage et appareillage</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td>Aucune décision du registre des 125 ; les propositions <code>mer_quai_*</code> (état B) décrivent la règle comme validée</td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Déclaration par le <strong>titulaire COMAEQ</strong> ou le <strong>commandant de l'équipage à bord</strong> (<code>fonction_<wbr>habilitee</code>, <code>quarts/<wbr>mouvements.py:27</code>) ; correction par annulation motivée</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td>Le fonctionnement actuel est documenté ; <strong>l'autorité cible est à confirmer</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>COMAEQ ; commandants</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-4-5"><span class="marqueur">⟦re-4-5⟧</span>4.5 B5 — Chef de liste des quarts</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td>Notion « 13 » : le chef de liste crée et publie les listes de service et de gardes (<strong>décision antérieure</strong>, remplacée par <code>DEC-FDS-14</code> pour la publication) ; <code>D11</code> (mer/quai) : chef de liste des quarts <strong>distinct</strong> du chef de liste des services à quai</td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Désignation par supervision ou par un niveau chef de service dont le périmètre couvre celui visé (<code>quarts/<wbr>listes_<wbr>views.py:163</code>)</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td>Qui désigne : <strong>à confirmer</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>chefs de liste ; chefs de service</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-4-6"><span class="marqueur">⟦re-4-6⟧</span>4.6 B6 — « Fin de journée » d'une tâche</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td><code>DEC-BLQ-05</code> (état « Non réalisée — À reprogrammer »)</td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Aucune notion de fin de journée</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td>Heure par bâtiment (<code>IM-09</code>) : <strong>à confirmer</strong></td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>marins ; chefs de section</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-4-7"><span class="marqueur">⟦re-4-7⟧</span>4.7 B7 — Ordre des grades</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td><code>DEC-COL-02</code></td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Le grade est un texte sans rang</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td>Valeurs à saisir par le PO : <strong>à confirmer</strong> (<code>IM-02</code>)</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>PO</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-4-8"><span class="marqueur">⟦re-4-8⟧</span>4.8 B8 — Conservation</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Décision existante applicable</strong></td>
+<td>Aucune décision</td>
+</tr>
+<tr>
+<td><strong>Fonctionnement actuel vérifié</strong></td>
+<td>Notifications, journaux et estimations non purgés</td>
+</tr>
+<tr>
+<td><strong>Règle cible</strong></td>
+<td>Durées <strong>à confirmer</strong> (<code>IM-10</code>)</td>
+</tr>
+<tr>
+<td><strong>Profils concernés</strong></td>
+<td>exploitants ; PO</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td>à confirmer par le PO</td>
+</tr>
+</tbody>
+</table></section><section class="chapitre"><h1 id="re-5"><span class="marqueur">⟦re-5⟧</span>5 Propositions non arbitrées (D1 à D7) <span class="et p">🟣</span></h1>
+<h2 id="re-5-1"><span class="marqueur">⟦re-5-1⟧</span>5.1 D1 — Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origine</strong></td>
+<td>Retenue comme proposition cible par le PO, « à valider »</td>
+</tr>
+<tr>
+<td><strong>Garde-fous demandés</strong></td>
+<td>Un ticket ne clôture jamais automatiquement une anomalie ; il n'autorise jamais une remise en service</td>
+</tr>
+<tr>
+<td><strong>Chapitres concernés</strong></td>
+<td>12, 25</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-5-2"><span class="marqueur">⟦re-5-2⟧</span>5.2 D2 — Règle de sortie de l'état « En validation » et alerte de retard associée (A20)</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origine</strong></td>
+<td>Constat du dossier</td>
+</tr>
+<tr>
+<td><strong>Garde-fous demandés</strong></td>
+<td>Aucune règle inventée</td>
+</tr>
+<tr>
+<td><strong>Chapitres concernés</strong></td>
+<td>12, 25</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-5-3"><span class="marqueur">⟦re-5-3⟧</span>5.3 D3 — Transmission d'un RETEX à un organisme : destinataires, canaux, responsabilités</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origine</strong></td>
+<td>Précision du PO : acte distinct de la validation et du statut</td>
+</tr>
+<tr>
+<td><strong>Garde-fous demandés</strong></td>
+<td>À confirmer avec les procédures métier ; le marquage « flotte » n'est pas une transmission</td>
+</tr>
+<tr>
+<td><strong>Chapitres concernés</strong></td>
+<td>15, 25</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-5-4"><span class="marqueur">⟦re-5-4⟧</span>5.4 D4 — Autorité de classification « critique » d'un contrôle d'appareillage</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origine</strong></td>
+<td><code>DEC-APP-14</code> (principe validé) ; compatibilité avec les procédures du bord non vérifiée</td>
+</tr>
+<tr>
+<td><strong>Garde-fous demandés</strong></td>
+<td>À confirmer avant tout développement</td>
+</tr>
+<tr>
+<td><strong>Chapitres concernés</strong></td>
+<td>16, 25</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-5-5"><span class="marqueur">⟦re-5-5⟧</span>5.5 D5 — Favoris épinglés, recherche de personnes limitée, formulaires RH configurables</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origine</strong></td>
+<td>Observations de recette (PO-18 à PO-20)</td>
+</tr>
+<tr>
+<td><strong>Garde-fous demandés</strong></td>
+<td>« À faire plus tard » ; droits et confidentialité à spécifier</td>
+</tr>
+<tr>
+<td><strong>Chapitres concernés</strong></td>
+<td>17, 25</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-5-6"><span class="marqueur">⟦re-5-6⟧</span>5.6 D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de …</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origine</strong></td>
+<td>Notion « Recette UX V1.1 »</td>
+</tr>
+<tr>
+<td><strong>Garde-fous demandés</strong></td>
+<td>Qualification et arbitrage du PO avant toute correction</td>
+</tr>
+<tr>
+<td><strong>Chapitres concernés</strong></td>
+<td>17</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-5-7"><span class="marqueur">⟦re-5-7⟧</span>5.7 D7 — Sauvegarde, restauration, supervision, conservation des journaux</h2>
+<table>
+<thead>
+<tr>
+<th>Rubrique</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origine</strong></td>
+<td>Aucune source</td>
+</tr>
+<tr>
+<td><strong>Garde-fous demandés</strong></td>
+<td>À définir avec les SIC / l'exploitant</td>
+</tr>
+<tr>
+<td><strong>Chapitres concernés</strong></td>
+<td>23</td>
+</tr>
+<tr>
+<td><strong>Statut</strong></td>
+<td><span class="et p">🟣</span> à valider par le PO — pas une décision</td>
+</tr>
+</tbody>
+</table></section><section class="chapitre"><h1 id="re-6"><span class="marqueur">⟦re-6⟧</span>6 Anomalies du dossier (audit)</h1>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Gravité</th>
+<th>Constat</th>
+<th>Traitement prévu</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AUD-001</td>
+<td>Bloquante (diffusion)</td>
+<td>L'en-tête de chaque page dit « mention de diffusion large (ancienne édition) » et le fichier s'appelle « à large diffusion (ancienne édition) », alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « …</td>
+<td>P0-1</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-002</td>
+<td>Majeure</td>
+<td><code>matrix/<wbr>templates/<wbr>quarts/<wbr>feuille_<wbr>service_<wbr>detail.html:18</code> contient un bouton « Imprimer » (<code>window.print()</code>, classe <code>no-print</code>) ; le guide visuel p.25 le montre</td>
+<td>P0-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-003</td>
+<td>Majeure</td>
+<td>Le guide visuel (64 captures, 5 parcours) et cet audit ont rejoué ces écrans</td>
+<td>P0-4</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-004</td>
+<td>Majeure</td>
+<td>Le module <code>rondes</code> n'a aucune vue et a été retiré de l'interface (chap. 2, 12 ; A8 ; <code>rondes/<wbr>models.py</code> seul)</td>
+<td>P0-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-005</td>
+<td>Majeure</td>
+<td><code>matrix/<wbr>templates/<wbr>components/<wbr>parcours.html</code> ; visible sur toutes les captures d'accueil du guide</td>
+<td>P0-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-006</td>
+<td>Majeure</td>
+<td>Détection : légende dans les 6 % supérieurs de la page. S10 vu : illisible (5,0 pt), diagramme en pelote</td>
+<td>P0-6</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-007</td>
+<td>Majeure (précisée en phase 2 : le bouton « M'assigner » existe aussi dans la liste)</td>
+<td>La liste de maintenance affiche « Exécuter » sur toutes les lignes pour un équipier ; <code>/<wbr>maintenance/<wbr>occurrences/<wbr>4/<wbr>execute/<wbr></code> répond 403 pour lui. Le guide p.13 montre ces boutons sans explication</td>
+<td>P0-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-008</td>
+<td>Majeure</td>
+<td>Les fichiers de test ne sont dans aucun dépôt (rapport de qualification : « non conservés ») ; une copie est maintenant archivée dans <code>audit_<wbr>preuves/<wbr>tests_<wbr>verification/<wbr></code> et relancée : 29 tests OK</td>
+<td>P0-5</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-009</td>
+<td>Majeure</td>
+<td><code>RAPPORT_<wbr>CLOTURE_<wbr>G0.md</code> §3 : « Pages quasi vides : Aucune dans les deux PDF »</td>
+<td>AUD-034</td>
+<td>fusionnée dans AUD-034</td>
+</tr>
+<tr>
+<td>AUD-010</td>
+<td>Majeure</td>
+<td>29 captures non utilisées (64 − 35). Les lignes de tickets sont cliquables (<code>onclick</code>, <code>ticket_<wbr>list.html:28</code>) : ma capture automatique cherchait un lien <code>&lt;a&gt;</code></td>
+<td>P0-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-011</td>
+<td>Majeure</td>
+<td>Les PDF ne contiennent ni synthèse de 2 pages (valeur, maturité, limites, risques) ni lecture de la <code>SYNTHESE_<wbr>ECARTS_<wbr>PAR_<wbr>CRITICITE.md</code> (fichier restreint hors PDF)</td>
+<td>P1-1</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-012</td>
+<td>Majeure</td>
+<td>[V] p.2 ; [A] grep</td>
+<td>P0-4 / P1-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-013</td>
+<td>Majeure</td>
+<td>Écrans importants absents : accusé de réception d'une annonce, fiche d'installation (relevés, entretien), échange de tour, Documentation/RETEX, bas de l'accueil (indicateurs, bloc Supervision), prêt à appareiller avec session ouverte, vue mobile (le chapitre …</td>
+<td>P1-3</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-014</td>
+<td>Mineure</td>
+<td>[V] captures <code>p_<wbr>maintenance_<wbr>1_<wbr>saisie</code>, <code>p_<wbr>anomalie_<wbr>3_<wbr>description</code>, <code>parametres</code></td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-015</td>
+<td>Mineure</td>
+<td>[V]</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-016</td>
+<td>Mineure</td>
+<td>[A] différence de pixels 0,0 à 4,6 %</td>
+<td>P1-3</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-017</td>
+<td>Mineure</td>
+<td>[V] p.21 ; [A] grep</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-018</td>
+<td>Mineure</td>
+<td>[V] ; étendue non mesurée [?]</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-019</td>
+<td>Mineure</td>
+<td>[V] p.1, 14, 82</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-020</td>
+<td>Mineure</td>
+<td>[A][V] <code>schemas_<wbr>lisibilite.csv</code></td>
+<td>AUD-036</td>
+<td>fusionnée dans AUD-036</td>
+</tr>
+<tr>
+<td>AUD-021</td>
+<td>Mineure</td>
+<td>Recomptage <code>def test_</code> indenté : 3 912 [C] ; 3 963 exécutés non rejoués [R]</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-022</td>
+<td>Amélioration</td>
+<td>[C][N][V]</td>
+<td>P1-6</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-023</td>
+<td>Amélioration</td>
+<td>[A] S02… absents de la liste des schémas ; [V]</td>
+<td>P1-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-024</td>
+<td>Amélioration</td>
+<td>[C] <code>settings.py:422-424</code> ; plan des chapitres</td>
+<td>P1-4</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-025</td>
+<td>Mineure</td>
+<td>[N] <code>navigateur_<wbr>droits.md</code></td>
+<td>P1-3</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-026</td>
+<td>Amélioration</td>
+<td>[?]</td>
+<td>P1-6</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-027</td>
+<td>Mineure</td>
+<td>[C] <code>ticket_<wbr>list.html:28</code></td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-028</td>
+<td>Mineure</td>
+<td>[V] listing</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-029</td>
+<td>Mineure</td>
+<td>[V]</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-030</td>
+<td>Mineure</td>
+<td>« scan web <code>assets/<wbr>scan/<wbr>&lt;uuid&gt;/<wbr></code> » : le chemin réel est <code>/<wbr>scan/<wbr>&lt;uuid&gt;/<wbr></code> (<code>assets/<wbr>web_<wbr>urls.py:72</code> ; annexe C correcte)</td>
+<td>P0-2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-031</td>
+<td>Majeure</td>
+<td>Annexe générée de 4 900 mots (79 % de l'annexe F) : lignes tronquées par « … » (« Une correcti… », « L… »), fragments de tableau (« \</td>
+<td>P0-6</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-032</td>
+<td>Mineure</td>
+<td>Tableaux Markdown non rendus : p.37 (« Routes web », source <code>restreint/<wbr>13_<wbr>logistique_<wbr>technique.md:20-22</code>) et p.79 (§23.9, source <code>23_<wbr>configuration_<wbr>deploiement_<wbr>exploitation.md:119-123</code>, tableau collé au paragraphe) apparaissent en barres verticales brutes</td>
+<td>P0-6</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-033</td>
+<td>Majeure</td>
+<td>Des plages de décisions sont citées comme « cible, non développée » alors que certaines sont déjà réalisées : <code>DEC-PER-01</code> (tâches périodiques générées depuis les fiches) et <code>DEC-PER-04</code> (historiques conservés) vs <code>maintenance/<wbr>tasks.py:66</code> et …</td>
+<td>P0-3</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-034</td>
+<td>Majeure</td>
+<td>Densité : 18 pages du à large diffusion (ancienne édition) et 26 du restreint sont remplies à moins de 70 % (11 et 15 à moins de 50 %) ; les compléments techniques (1 à 3 pages par chapitre) répètent chacun un cartouche de 5 lignes ; le restreint ne contient …</td>
+<td>P1-8 (architecture)</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-035</td>
+<td>Majeure</td>
+<td>Les schémas de circuit cible ne se distinguent pas des schémas de fonctionnement réel : seule la légende dit « cible » ; l'image seule (cadre, couleur, mention) est identique à S16, S20, S30, S32</td>
+<td>P0-7</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-036</td>
+<td>Mineure</td>
+<td>Sur 42 schémas : 22 bons, 7 moyens, 10 faibles (listes de cases sans information relationnelle : S02, S14, S22, S24, S27, S36, S37, S38, S40, S42), 1 difficile (S09), 1 illisible (S10) ; S02 montre 6 groupes quand le tableau juste dessous en compte 11</td>
+<td>P1-5</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-037</td>
+<td>Mineure</td>
+<td>Rubriques « bis » : traces d'édition (insertions tardives)</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+<tr>
+<td>AUD-038</td>
+<td>Mineure</td>
+<td>Deux chiffres pour le même inventaire ; l'annexe F.4 est datée de l'ensemble 4 et n'est plus à jour (la branche compte d'autres commits)</td>
+<td>P2</td>
+<td>ouverte — à traiter par la refonte</td>
+</tr>
+</tbody>
+</table></section><section class="chapitre"><h1 id="re-7"><span class="marqueur">⟦re-7⟧</span>7 Décisions du PO et état dans l'état B</h1>
+<blockquote>
+<p>L'état est déduit du plan en lots (V1.2) ou vérifié dans le code (colonne « Méthode »). « À instruire » signifie que le dossier ne l'a pas établi : ce n'est pas un constat de non-réalisation.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Décision</th>
+<th>Règle</th>
+<th>Lot(s)</th>
+<th>État dans l'état B</th>
+<th>Méthode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DEC-ANO-01</td>
+<td>Anomalie = problème technique à suivre ; intervention = action effectuée pour le traiter.</td>
+<td>L22</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-ANO-02</td>
+<td>Une anomalie peut nécessiter plusieurs interventions.</td>
+<td>L22</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-ANO-03</td>
+<td>La clôture d'une intervention ne clôture pas automatiquement l'anomalie.</td>
+<td>L22</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-ANO-04</td>
+<td>Le chef de secteur décide de la suite : intervention supplémentaire, demande d'information, ouverture d'anomalie, clôture justifiée.</td>
+<td>L22</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-ANO-05</td>
+<td>Préserver les liens tâches ↔ interventions ↔ anomalies ↔ matériels ↔ historique.</td>
+<td>L22</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-01</td>
+<td>Chaque départ génère des contrôles à partir des fiches de référence applicables.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-02</td>
+<td>Circuit : section ou secteur → service → COMANAV.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-03</td>
+<td>Les modifications des références suivent leur propre circuit d'approbation.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-04</td>
+<td>Référence approuvée modifiée : les préparations ouvertes sont actualisées.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-05</td>
+<td>Les réponses toujours valables sont conservées.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-06</td>
+<td>Les contrôles modifiés ou ajoutés sont rouverts.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-07</td>
+<td>Les contrôles supprimés sont archivés.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-08</td>
+<td>Les signatures affectées sont invalidées.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-09</td>
+<td>Les préparations clôturées conservent leur version historique.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-10</td>
+<td>Les contrôles obligatoires sont traités avant validation.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-11</td>
+<td>Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-12</td>
+<td>Les contrôles critiques non dérogeables ne peuvent pas être contournés.</td>
+<td>L23</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-13</td>
+<td>Matrix ne délivre pas l'autorisation opérationnelle d'appareiller.</td>
+<td>L23</td>
+<td>réalisée</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-APP-14</td>
+<td>Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la …</td>
+<td>—</td>
+<td>non développée (A17)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-BLQ-01</td>
+<td>Un équipier peut déclarer une tâche « Bloquée » avec motif.</td>
+<td>L17</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-BLQ-02</td>
+<td>Le responsable est informé du blocage.</td>
+<td>L17</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-BLQ-03</td>
+<td>Le chef peut débloquer et reprogrammer sans obligation de créer une anomalie.</td>
+<td>L17</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-BLQ-04</td>
+<td>Le chef de secteur décide si un défaut technique nécessite une anomalie.</td>
+<td>L17</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-BLQ-05</td>
+<td>Une tâche non terminée en fin de journée n'est pas reportée en silence ; état explicite « Non réalisée — À reprogrammer ».</td>
+<td>L17</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-CLO-01</td>
+<td>À la création/planification, case « Validation du responsable requise ».</td>
+<td>L15</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-CLO-02</td>
+<td>Sans l'option : l'équipier termine directement ; la réalisation est enregistrée.</td>
+<td>L15</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-CLO-03</td>
+<td>Avec l'option : l'équipier déclare terminé, la tâche passe « À valider » ; le chef approuve ou demande une correction motivée.</td>
+<td>L15</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-CLO-04</td>
+<td>Le chef de secteur valide directement, chef de section absent, sans suppléance.</td>
+<td>L15</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-CLO-05</td>
+<td>Les visas techniques obligatoires restent distincts de la validation facultative.</td>
+<td>L15</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-COL-01</td>
+<td>Plusieurs marins peuvent participer à une même tâche.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-COL-02</td>
+<td>Matrix propose comme coordinateur le participant au grade le plus élevé.</td>
+<td>L16</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-COL-03</td>
+<td>En cas d'égalité de grade, le chef choisit.</td>
+<td>L16</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-COL-04</td>
+<td>Le chef peut désigner un autre participant comme coordinateur.</td>
+<td>L16</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-COL-05</td>
+<td>Le coordinateur peut déclarer le travail réalisé, mais ne remplace pas une autorité de visa technique.</td>
+<td>L16</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DRT-01</td>
+<td>Les droits métier découlent de la fonction exercée et du périmètre de responsabilité, pas uniquement du grade ni du niveau hiérarchique.</td>
+<td>L09</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DRT-02</td>
+<td>Un administrateur technique ne devient pas automatiquement autorité de validation métier ; il désigne les titulaires sans viser à leur place.</td>
+<td>L06</td>
+<td>écart (A1)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-DRT-03</td>
+<td>Consultation des documents de maintenance autorisés des autres sections du secteur ; pas de modification ni de clôture hors périmètre.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-DRT-04</td>
+<td>Accès intersectoriels et documents sensibles : droits appropriés requis.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-DRT-05</td>
+<td>Éviter les suppressions physiques qui détruisent l'historique.</td>
+<td>L02, L03, L04</td>
+<td>réalisée (lot livré dans l'état B)</td>
+<td>plan en lots (V1.2) et comptes rendus de lots</td>
+</tr>
+<tr>
+<td>DEC-DRT-06</td>
+<td>Un compte dont le rattachement professionnel est incomplet n'accède pas aux informations opérationnelles d'un secteur sans autorisation.</td>
+<td>L07</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DUR-01</td>
+<td>Matrix actualise automatiquement la durée indicative des maintenances à partir des temps réellement constatés.</td>
+<td>L20</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DUR-02</td>
+<td>Conserver la durée initiale.</td>
+<td>L20</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DUR-03</td>
+<td>Conserver l'historique des estimations.</td>
+<td>L20</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DUR-04</td>
+<td>Distinguer temps écoulé et charge totale en heures-personnes.</td>
+<td>L20</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DUR-05</td>
+<td>Éviter que interventions exceptionnellement longues, attentes et interruptions faussent l'estimation.</td>
+<td>L20</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DUR-06</td>
+<td>Le chef de secteur peut corriger manuellement la durée.</td>
+<td>L20</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-DUR-07</td>
+<td>Ne pas modifier automatiquement consignes techniques ou de sécurité.</td>
+<td>L20</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-FDS-01</td>
+<td>Le BSC prépare les feuilles de service ; il n'est pas une autorité parallèle au COMAEQ.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-FDS-02</td>
+<td>Le COMAEQ, ou un suppléant officiellement habilité, approuve la feuille.</td>
+<td>L08, L09</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-FDS-03</td>
+<td>Après approbation, publication numérique.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-FDS-04</td>
+<td>Le BSC assure l'impression A4 pour l'affichage.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-FDS-05</td>
+<td>Une modification après publication entraîne une nouvelle version officielle.</td>
+<td>L09</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-FDS-06</td>
+<td>Matrix signale la nécessité de réimprimer et remplacer une feuille déjà affichée.</td>
+<td>L27</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-FDS-07</td>
+<td>Échanges de tours : la décision finale revient au COMAEQ ou à son suppléant officiellement habilité.</td>
+<td>—</td>
+<td>écart (A2)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-FDS-08</td>
+<td>Les fractions de service à quai sont configurables par bâtiment.</td>
+<td>L27</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-FDS-09</td>
+<td>Écarts signalés et justifiés, sans blocage automatique injustifié.</td>
+<td>L27</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-FDS-10</td>
+<td>Exigences opérationnelles et réglementaires restent applicables.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-FDS-11</td>
+<td>La création d'une feuille n'est pas ouverte à n'importe quel équipier.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-FDS-12</td>
+<td>Prendre en compte deux équipages ; chaque équipage a sa feuille, sans validation croisée par le seul grade.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-FDS-13</td>
+<td>Le BSC ou le chef de liste peut instruire la demande d'échange ; il ne dispose pas automatiquement de l'autorité de validation finale.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-FDS-14</td>
+<td>Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après …</td>
+<td>—</td>
+<td>écart (A3)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-MAT-01</td>
+<td>Transfert entre secteurs d'un même service : approbation du chef de service.</td>
+<td>L13</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MAT-02</td>
+<td>Transfert entre deux services : approbation des deux chefs de service, puis application par l'administrateur habilité.</td>
+<td>L13</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MAT-03</td>
+<td>Les tâches ouvertes suivent le matériel et sont réattribuées si nécessaire.</td>
+<td>L13</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MAT-04</td>
+<td>L'historique des interventions et des tâches clôturées reste conservé.</td>
+<td>L13</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MUT-01</td>
+<td>Un marin conserve son compte Matrix lorsqu'il change de bâtiment.</td>
+<td>L25</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MUT-02</td>
+<td>Le nouveau bâtiment demande le rattachement ; l'ancien est informé et peut confirmer le départ.</td>
+<td>L25</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MUT-03</td>
+<td>Sans réponse, une autorité habilitée régularise avec justification et journalisation.</td>
+<td>L25</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MUT-04</td>
+<td>Anciens droits retirés à la date effective de mutation ; nouveaux droits attribués selon l'affectation d'accueil.</td>
+<td>L25</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MUT-05</td>
+<td>L'historique est conservé.</td>
+<td>L25</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MUT-06</td>
+<td>Les tâches ouvertes sont réattribuées ou signalées « non affectées à un responsable ».</td>
+<td>L04</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-MUT-07</td>
+<td>Compte d'un marin quittant le bâtiment ou la Marine : désactivé ou transféré selon le cas, sans destruction d'historique.</td>
+<td>L04</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-ORG-01</td>
+<td>Structure : Bâtiment → Service → Secteur → Section facultative → Matériels et installations.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-ORG-02</td>
+<td>Un secteur peut n'avoir aucune section ; le secteur reste alors l'échelon responsable.</td>
+<td>L12</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-ORG-03</td>
+<td>Les matériels sont toujours rattachés à une entité responsable.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-ORG-04</td>
+<td>Distinguer grade, fonction occupée, périmètre de responsabilité, spécialité, brevets/formations/habilitations. Les brevets ne sont pas des grades.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-ORG-05</td>
+<td>Prendre en compte FEM, BE, BAT, BS, BST et les évolutions récentes (BHT, C-CDM).</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-ORG-06</td>
+<td>Configuration plutôt que code : aucune règle susceptible d'évoluer n'est codée en dur.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-OUT-01</td>
+<td>Signaler : outil manquant, inutile, inadapté, instruction ambiguë, information manquante.</td>
+<td>L26</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-OUT-02</td>
+<td>Remarques conservées et visibles du chef de secteur.</td>
+<td>L26</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-OUT-03</td>
+<td>La liste d'outillage n'est jamais modifiée automatiquement.</td>
+<td>L26</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-OUT-04</td>
+<td>Le chef décide de modifier ou non la fiche de référence.</td>
+<td>L26</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-OUT-05</td>
+<td>Procédures techniques et de sécurité : validations applicables conservées.</td>
+<td>L26</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-PER-01</td>
+<td>Les tâches périodiques sont générées à partir des fiches de maintenance et des matériels concernés.</td>
+<td>L19</td>
+<td>partielle</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-PER-02</td>
+<td>Périodicités : hebdomadaire, mensuelle, trimestrielle, annuelle, biennale, quinquennale.</td>
+<td>L19</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-PER-03</td>
+<td>Prochaine échéance calculée depuis la réalisation effective, sauf calendrier fixe réglementaire ou technique.</td>
+<td>L19</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-PER-04</td>
+<td>Les historiques sont conservés, retards compris.</td>
+<td>L19</td>
+<td>réalisée</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-PRE-01</td>
+<td>Le module d'absences est limité aux corrections nécessaires (un système extérieur gère les absences).</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-PRE-02</td>
+<td>Pas de module autonome de passation ; préserver les fonctions existantes utiles.</td>
+<td>—</td>
+<td>réalisée</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-PRE-03</td>
+<td>Conserver les exports PDF, Excel et CSV de pilotage, puis en améliorer la qualité.</td>
+<td>—</td>
+<td>réalisée</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-PRE-04</td>
+<td>QR et inspections mobiles non prioritaires : reportés, sans suppression précipitée de l'existant.</td>
+<td>—</td>
+<td>réalisée</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-PRE-05</td>
+<td>Préserver le fonctionnement local sur le réseau du bord.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-PRE-06</td>
+<td>Architecture de déploiement, PKI, sauvegarde et sécurité des SI : à soumettre aux experts compétents.</td>
+<td>L01, L21</td>
+<td>réalisée (lot livré dans l'état B)</td>
+<td>plan en lots (V1.2) et comptes rendus de lots</td>
+</tr>
+<tr>
+<td>DEC-QUA-01</td>
+<td>Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit.</td>
+<td>L18</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-QUA-02</td>
+<td>Les qualifications connues peuvent être affichées à titre informatif.</td>
+<td>L18</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-QUA-03</td>
+<td>Une information manquante ou périmée ne bloque pas l'attribution.</td>
+<td>L18</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-QUA-04</td>
+<td>Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures …</td>
+<td>L18</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-RTX-01</td>
+<td>Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service.</td>
+<td>L11</td>
+<td>écart (A15)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-RTX-02</td>
+<td>Une demande de correction doit être motivée.</td>
+<td>L11</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-RTX-03</td>
+<td>La correction entraîne une nouvelle version et les validations nécessaires.</td>
+<td>L11</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-RTX-04</td>
+<td>Traçabilité de qui a proposé, modifié, validé ou rejeté.</td>
+<td>L11</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-SUP-01</td>
+<td>La suppléance est explicite, temporaire, limitée à une fonction et un périmètre, activée par une autorité compétente, traçable.</td>
+<td>L08</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-SUP-02</td>
+<td>Une seule personne exerce la responsabilité active d'un même périmètre à un instant donné.</td>
+<td>L08</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-SUP-03</td>
+<td>Le retour anticipé ou la fin de suppléance suit les règles de validation retenues.</td>
+<td>L08</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-SUP-04</td>
+<td>Les actes du suppléant restent attribués à leur auteur.</td>
+<td>L08</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-SUP-05</td>
+<td>Le titulaire retrouve un récapitulatif des actions réalisées pendant son absence.</td>
+<td>L08</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-SUP-06</td>
+<td>Les qualifications réglementaires nécessaires à certains visas restent obligatoires pour le suppléant (voir DEC-QUA-04).</td>
+<td>L08</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-SUP-07</td>
+<td>La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision …</td>
+<td>L08</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-TAC-01</td>
+<td>Le chef de section attribue les tâches de sa section.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-TAC-02</td>
+<td>Le chef de secteur supervise, attribue directement et réaffecte.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-TAC-03</td>
+<td>Le chef de service dispose de la supervision correspondant à sa fonction.</td>
+<td>—</td>
+<td>à instruire <span class="et n">◯</span></td>
+<td>aucun rattachement</td>
+</tr>
+<tr>
+<td>DEC-TAC-04</td>
+<td>Trois priorités : normale, haute, urgente.</td>
+<td>L14</td>
+<td>écart (A13)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-TAC-05</td>
+<td>Une priorité imposée par le chef de secteur ne peut pas être abaissée par le chef de section.</td>
+<td>L14</td>
+<td>écart (A13)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-TAC-06</td>
+<td>Les changements d'attribution et de priorité sont tracés et notifiés aux personnes concernées.</td>
+<td>L14</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-01</td>
+<td>À l'ouverture : tâches du jour, tours de service, actions en attente, urgences, informations utiles.</td>
+<td>L24</td>
+<td>partielle</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-02</td>
+<td>Éviter grands espaces vides et défilement inutile ; réduire les textes explicatifs permanents ; cartes cliquables.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-03</td>
+<td>Recherche globale centrée et utile.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-04</td>
+<td>Permettre d'épingler des entrées du menu.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-05</td>
+<td>Afficher clairement les tours de service à venir, à valider et effectués.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-06</td>
+<td>Notifications lues conservées dans le centre mais retirées de la liste principale.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-07</td>
+<td>Corriger les boutons inactifs et les parcours de navigation défaillants.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-08</td>
+<td>Terminologie « Mes tours de services ».</td>
+<td>L24</td>
+<td>écart (A11)</td>
+<td>vérifié dans le code de l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-09</td>
+<td>Recherche de personnes : informations professionnelles pertinentes, sous réserve des droits.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-10</td>
+<td>Interface adaptée aux utilisateurs expérimentés, sans aides envahissantes ; aide progressive réactivable.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+<tr>
+<td>DEC-UX-11</td>
+<td>Le calendrier reste un élément central.</td>
+<td>L24</td>
+<td>non développée</td>
+<td>plan en lots (V1.2) : lot non livré dans l'état B</td>
+</tr>
+</tbody>
+</table></section></body></html>

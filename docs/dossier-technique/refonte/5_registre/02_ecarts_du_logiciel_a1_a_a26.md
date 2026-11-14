@@ -1,6 +1,6 @@
 # Écarts du logiciel (A1 à A26)
 
-### A1 — Administrateur technique et actes métier
+## A1 — Administrateur technique et actes métier
 
 | Rubrique | Contenu |
 |---|---|
@@ -12,7 +12,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A2 — Échanges de tours
+## A2 — Échanges de tours
 
 | Rubrique | Contenu |
 |---|---|
@@ -24,7 +24,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A3 — Publication des listes de quarts et de gardes
+## A3 — Publication des listes de quarts et de gardes
 
 | Rubrique | Contenu |
 |---|---|
@@ -36,7 +36,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A4 — Droits du commandant en second
+## A4 — Droits du commandant en second
 
 | Rubrique | Contenu |
 |---|---|
@@ -48,7 +48,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A5 — Règles du projet : « garder des identifiants stables (UUID, NNO) pour de futures API » (`CLAUDE.md`)
+## A5 — Identifiants stables pour de futures interfaces
 
 | Rubrique | Contenu |
 |---|---|
@@ -60,7 +60,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A6 — `docs/REFERENCE.md` §4 « Les 14 apps Django »
+## A6 — Documentation du dépôt en retard sur le nombre d'applications
 
 | Rubrique | Contenu |
 |---|---|
@@ -72,7 +72,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A7 — Cahier §35 : « RBAC + ABAC + périmètre + responsabilité »
+## A7 — Modèle de droits sans moteur d'attributs général
 
 | Rubrique | Contenu |
 |---|---|
@@ -84,7 +84,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A8 — Cahier §8, §10, §11 (génération automatique des tours) ; §20 (rondes) ; organisation « miroir »
+## A8 — Cahier des charges partiellement obsolète
 
 | Rubrique | Contenu |
 |---|---|
@@ -96,7 +96,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A9 — Principe « Internet n'existe pas »
+## A9 — Principe « Internet n'existe pas » et dépendances déclarées
 
 | Rubrique | Contenu |
 |---|---|
@@ -108,7 +108,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A10 — Vocabulaire cible de Notion 11 (mission, capacité, dérogation…)
+## A10 — Vocabulaire cible sans équivalent dans le code
 
 | Rubrique | Contenu |
 |---|---|
@@ -120,7 +120,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A11 — « Mes tours de services » (`DEC-UX-08`, S1 §12 ; `CT-06`)
+## A11 — Libellé « Mes tours de service »
 
 | Rubrique | Contenu |
 |---|---|
@@ -132,7 +132,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A12 — Fonctionnement cible : impression A4 de la feuille de service par le BSC, signalement de la nécessit
+## A12 — Impression de la feuille de service
 
 | Rubrique | Contenu |
 |---|---|
@@ -145,7 +145,7 @@
 | **Révision** | Texte révisé : l'ancien énoncé « aucune page imprimable » était inexact (AUD-002). |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A13 — Trois priorités : normale, haute, urgente ; priorité du chef de secteur non abaissable par le chef d
+## A13 — Priorités de tâche : deux niveaux au lieu de trois
 
 | Rubrique | Contenu |
 |---|---|
@@ -157,7 +157,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A14 — Synthèse de passation : un chef de section ne consulte que sa propre section (Notion « 13 — Décision
+## A14 — Confidentialité de la synthèse de passation
 
 | Rubrique | Contenu |
 |---|---|
@@ -170,7 +170,7 @@
 | **Niveau de preuve** | [T][N] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A15 — Circuit RETEX : auteur → chef de section → chef de secteur → chef de service (`DEC-RTX-01`) ; correc
+## A15 — Circuit de validation des RETEX
 
 | Rubrique | Contenu |
 |---|---|
@@ -182,7 +182,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A16 — Diffusion « flotte » : proposé à l'organisme destinataire
+## A16 — Diffusion « flotte » d'un RETEX
 
 | Rubrique | Contenu |
 |---|---|
@@ -194,11 +194,11 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A17 — Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/s
+## A17 — Préparation à l'appareillage : fiche de référence et circuit
 
 | Rubrique | Contenu |
 |---|---|
-| **Règle validée** | Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → service → COMANAV ; contrôles obligatoires, critiques non dérogeables, réserves (`DEC-APP-01`, `DEC-APP-02`, `DEC-APP-10` à `DEC-APP-12`, `DEC-APP-14`) |
+| **Règle validée** | Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → service → COMANAV ; contrôles obligatoires, critiques non dérogeables, réserves (`DEC-APP-01`, `DEC-APP-02`, DEC-APP-10, DEC-APP-11, DEC-APP-12, `DEC-APP-14`) |
 | **Constat dans l'état B** | Les points sont calculés à l'ouverture depuis l'état des installations critiques ; une seule signature (chef de secteur ou plus) ; ni classification, ni réserve, ni fiche de référence |
 | **Conséquences** | Aucun circuit COMANAV ; la signature atteste la clôture de la session, pas l'aptitude. Compatibilité avec les procédures du bord **à confirmer avant implémentation** |
 | **Profils concernés** | chefs de secteur ; chefs de service ; COMANAV |
@@ -206,11 +206,11 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A18 — Transfert de matériel entre secteurs et entre services avec approbations (`DEC-MAT-01` à `DEC-MAT-04
+## A18 — Transfert de matériel entre secteurs et services
 
 | Rubrique | Contenu |
 |---|---|
-| **Règle validée** | Transfert de matériel entre secteurs et entre services avec approbations (`DEC-MAT-01` à `DEC-MAT-04`) |
+| **Règle validée** | Transfert de matériel entre secteurs et entre services avec approbations (DEC-MAT-01, DEC-MAT-02, DEC-MAT-03, DEC-MAT-04) |
 | **Constat dans l'état B** | Aucun circuit ; réaffectation par l'affectation en masse |
 | **Conséquences** | Pas de trace d'approbation du transfert ni de suivi des tâches ouvertes |
 | **Profils concernés** | chefs de service ; gestionnaires de matériel |
@@ -218,7 +218,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A19 — Demande de places : l'organisme de formation répond dans un dossier vivant (timeline, fil, transmiss
+## A19 — Demande de places de formation
 
 | Rubrique | Contenu |
 |---|---|
@@ -230,7 +230,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A20 — Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO)
+## A20 — Échéance « En validation » : règle de sortie
 
 | Rubrique | Contenu |
 |---|---|
@@ -243,11 +243,11 @@
 | **Niveau de preuve** | [T][N] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A21 — Périodicités nommées, remarques d'outillage, durée indicative (`DEC-PER-01` à `04`, `DEC-OUT-01` à `
+## A21 — Périodicités nommées, remarques d'outillage, durée indicative
 
 | Rubrique | Contenu |
 |---|---|
-| **Règle validée** | Périodicités nommées, remarques d'outillage, durée indicative (`DEC-PER-01` à `04`, `DEC-OUT-01` à `05`, `DEC-DUR-*`) |
+| **Règle validée** | Périodicités nommées, remarques d'outillage, durée indicative (DEC-PER-01, DEC-PER-02, DEC-PER-03, DEC-PER-04, DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05, `DEC-DUR-*`) |
 | **Constat dans l'état B** | Non développé |
 | **Conséquences** | Cible, non contradictoire |
 | **Profils concernés** | chefs de secteur |
@@ -255,7 +255,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A22 — Le projet suppose Python 3.12 ou plus (README, dépendances)
+## A22 — Version de Python annoncée par l'installation
 
 | Rubrique | Contenu |
 |---|---|
@@ -267,7 +267,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A23 — Sécurité d'accès avec les SIC : HTTPS, limitation des connexions (cible)
+## A23 — Sécurité d'accès avec les SIC
 
 | Rubrique | Contenu |
 |---|---|
@@ -279,7 +279,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A24 — Sauvegarde, restauration, supervision, conservation des journaux (à fournir, `IM-10` pour les durées
+## A24 — Sauvegarde, restauration, supervision, journaux
 
 | Rubrique | Contenu |
 |---|---|
@@ -291,7 +291,7 @@
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A25 — Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment)
+## A25 — Modules désactivés encore actifs par certains chemins
 
 | Rubrique | Contenu |
 |---|---|
@@ -304,7 +304,7 @@
 | **Niveau de preuve** | [T] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A26 — Neuf modules sans API (quarts, absences, tâches, annonces, demandes, programme, postes, documentatio
+## A26 — Modules sans interface de programmation
 
 | Rubrique | Contenu |
 |---|---|

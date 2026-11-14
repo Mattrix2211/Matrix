@@ -1,6 +1,6 @@
 # Propositions non arbitrées (D1 à D7) 🟣
 
-### D1 — Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile
+## D1 — Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile
 
 | Rubrique | Contenu |
 |---|---|
@@ -9,7 +9,7 @@
 | **Chapitres concernés** | 12, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D2 — Règle de sortie de l'état « En validation » et alerte de retard associée (A20)
+## D2 — Règle de sortie de l'état « En validation » et alerte de retard associée (A20)
 
 | Rubrique | Contenu |
 |---|---|
@@ -18,7 +18,7 @@
 | **Chapitres concernés** | 12, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D3 — Transmission d'un RETEX à un organisme : destinataires, canaux, responsabilités
+## D3 — Transmission d'un RETEX à un organisme : destinataires, canaux, responsabilités
 
 | Rubrique | Contenu |
 |---|---|
@@ -27,7 +27,7 @@
 | **Chapitres concernés** | 15, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D4 — Autorité de classification « critique » d'un contrôle d'appareillage
+## D4 — Autorité de classification « critique » d'un contrôle d'appareillage
 
 | Rubrique | Contenu |
 |---|---|
@@ -36,7 +36,7 @@
 | **Chapitres concernés** | 16, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D5 — Favoris épinglés, recherche de personnes limitée, formulaires RH configurables
+## D5 — Favoris épinglés, recherche de personnes limitée, formulaires RH configurables
 
 | Rubrique | Contenu |
 |---|---|
@@ -45,7 +45,7 @@
 | **Chapitres concernés** | 17, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de démonstra
+## D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de …
 
 | Rubrique | Contenu |
 |---|---|
@@ -54,7 +54,7 @@
 | **Chapitres concernés** | 17 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D7 — Sauvegarde, restauration, supervision, conservation des journaux
+## D7 — Sauvegarde, restauration, supervision, conservation des journaux
 
 | Rubrique | Contenu |
 |---|---|

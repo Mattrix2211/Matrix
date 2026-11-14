@@ -102,15 +102,17 @@ def table_ecarts(ids):
 
 def table_routes(prefixes):
     inv = json.loads((DT / "couverture/etat_B/inventaire.json").read_text(encoding="utf-8"))
-    L = ["| Chemin | Nom | Vue |", "|---|---|---|"]
+    def coupe(t):                                   # points de césure autorisés après . _ / pour éviter de couper un mot au hasard
+        return html.escape(t).replace(".", ".<wbr>").replace("_", "_<wbr>").replace("/", "/<wbr>")
+    L = ['<table class="routes"><thead><tr><th>Chemin</th><th>Nom</th><th>Vue</th></tr></thead><tbody>']
     n = 0
     for r in inv["routes"]:
         if any(r["route"].startswith(p) for p in prefixes):
-            L.append(f"| `{r['route']}` | {r['nom'] or '—'} | `{r['vue']}` |")
+            L.append(f"<tr><td><code>{coupe(r['route'])}</code></td><td>{html.escape(r['nom'] or '—')}</td><td><code>{coupe(r['vue'])}</code></td></tr>")
             n += 1
     if not n:
         sys.exit(f"aucune route pour {prefixes}")
-    return "\n".join(L)
+    return "\n".join(L) + "</tbody></table>"
 
 
 def capture_html(args, code, captures_dir, manifeste):
@@ -159,6 +161,12 @@ def convertir(chemin, code, cfg_doc, ctx):
             largeur = 499.0
         return f'<img alt="{m.group(1)}" src="{m.group(2)}" style="width:{largeur:.0f}pt">'
     corps = re.sub(r'<img alt="([^"]*)" src="(file://[^"]+\.svg)"[^>]*>', taille_svg, corps)
+    def cesure(m):                                  # césure propre des identifiants longs : après _ / .
+        t = m.group(1)
+        if len(t) < 16 or "<wbr>" in t:
+            return m.group(0)
+        return "<code>" + t.replace("_", "_<wbr>").replace("/", "/<wbr>") + "</code>"
+    corps = re.sub(r"<code>([^<]*)</code>", cesure, corps)
     for e, (cls, glyphe) in ETIQUETTES.items():
         corps = corps.replace(e, f'<span class="et {cls}">{glyphe}</span>')
     return partie.group(1) if partie else None, corps
@@ -203,14 +211,18 @@ def construire_html(code, fichiers, pilote, pages=None):
     if mf.is_file():
         ctx["manifeste"] = {m["id"]: m for m in json.loads(mf.read_text(encoding="utf-8"))}
     compteurs, entrees, refs, blocs = [0, 0, 0], [], [], []
+    derniere_partie = None
     for f in fichiers:
         partie, corps = convertir(f, code, cfg, ctx)
         corps = numeroter(corps, code, compteurs, entrees)
         corps = resoudre_renvois(corps, code, None, refs)
-        if partie:
-            blocs.append(f'<section class="partie"><h1 class="titre-partie">{html.escape(partie)}</h1></section>')
+        # la partie n'a pas de page propre : un surtitre discret introduit directement le contenu du chapitre
+        surtitre = ""
+        if partie and partie != derniere_partie:
+            surtitre = f'<div class="surtitre-partie">Partie · {html.escape(partie)}</div>'
+        derniere_partie = partie or derniere_partie
         classe = "chapitre" + (" fiche-module" if "fiche" in f.name else "")
-        blocs.append(f'<section class="{classe}">{corps}</section>')
+        blocs.append(f'<section class="{classe}">{surtitre}{corps}</section>')
     # sommaire
     lis = []
     for niv, num, titre, ident_ in entrees:

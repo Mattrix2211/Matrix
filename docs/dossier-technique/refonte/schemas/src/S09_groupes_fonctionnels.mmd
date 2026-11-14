@@ -1,0 +1,15 @@
+flowchart TB
+  PIL["Pilotage :<br/>dashboard, calendar_app, reports<br/>lisent presque tout, n'écrivent presque rien"]
+  VIE["Vie du bord :<br/>quarts, absences, taches, demandes,<br/>programme, postes, annonces"]
+  MAT["Matériel et maintenance :<br/>assets, maintenance, logistics,<br/>rondes (retiré de l'interface)"]
+  CON["Connaissance :<br/>training, documentation, retex"]
+  SOC["Socle commun :<br/>accounts, org, threads, notifications"]
+  PIL -->|"8 liens"| VIE
+  PIL -->|"8 liens"| MAT
+  PIL -->|"7 liens"| SOC
+  VIE -->|"20 liens"| SOC
+  MAT -->|"13 liens"| SOC
+  CON -->|"10 liens"| SOC
+  CON -->|"5 liens"| VIE
+  SOC -->|"7 liens : notifications<br/>lit les autres groupes"| VIE
+  SOC -->|"6 liens"| MAT

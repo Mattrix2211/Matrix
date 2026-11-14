@@ -1,6 +1,6 @@
 # Points à confirmer (B1 à B8)
 
-### B1 — Suppléance du COMAEQ
+## B1 — Suppléance du COMAEQ
 
 | Rubrique | Contenu |
 |---|---|
@@ -10,7 +10,7 @@
 | **Profils concernés** | COMAEQ ; commandants |
 | **Statut** | à confirmer par le PO |
 
-### B2 — Commandant en second
+## B2 — Commandant en second
 
 | Rubrique | Contenu |
 |---|---|
@@ -20,7 +20,7 @@
 | **Profils concernés** | commandant en second |
 | **Statut** | à confirmer par le PO |
 
-### B3 — Échanges et quarts à la mer
+## B3 — Échanges et quarts à la mer
 
 | Rubrique | Contenu |
 |---|---|
@@ -30,7 +30,7 @@
 | **Profils concernés** | chefs de liste ; COMAEQ |
 | **Statut** | à confirmer par le PO |
 
-### B4 — Accostage et appareillage
+## B4 — Accostage et appareillage
 
 | Rubrique | Contenu |
 |---|---|
@@ -40,7 +40,7 @@
 | **Profils concernés** | COMAEQ ; commandants |
 | **Statut** | à confirmer par le PO |
 
-### B5 — Chef de liste des quarts
+## B5 — Chef de liste des quarts
 
 | Rubrique | Contenu |
 |---|---|
@@ -50,7 +50,7 @@
 | **Profils concernés** | chefs de liste ; chefs de service |
 | **Statut** | à confirmer par le PO |
 
-### B6 — « Fin de journée » d'une tâche
+## B6 — « Fin de journée » d'une tâche
 
 | Rubrique | Contenu |
 |---|---|
@@ -60,7 +60,7 @@
 | **Profils concernés** | marins ; chefs de section |
 | **Statut** | à confirmer par le PO |
 
-### B7 — Ordre des grades
+## B7 — Ordre des grades
 
 | Rubrique | Contenu |
 |---|---|
@@ -70,7 +70,7 @@
 | **Profils concernés** | PO |
 | **Statut** | à confirmer par le PO |
 
-### B8 — Conservation
+## B8 — Conservation
 
 | Rubrique | Contenu |
 |---|---|

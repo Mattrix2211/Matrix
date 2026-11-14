@@ -15,7 +15,7 @@
 
 Le module est réparti sur trois paquets : **`maintenance`** (plans, échéances, exécutions, comptes rendus, tournée), **`logistics`** (tickets correctifs, anomalies, demandes de pièces) et **`assets`** (fiches, installations, mesures, qui alimentent l'exécution). Les règles métier sont dans les modules de vues et de services ; les modèles portent surtout les contraintes d'intégrité. Le module `rondes` est présent dans le dépôt mais **sans aucune vue** : ne pas le confondre avec une fonctionnalité.
 
-Les trois objets du fonctionnel se retrouvent ainsi : l'**occurrence** (`MaintenanceOccurrence`), l'**anomalie** (`Anomalie`) et le **ticket** (`CorrectiveTicket`). L'ensemble s'exécute dans le processus web ; trois tâches planifiées (génération, retard, notifications) dépendent de Celery et de Redis.
+Les trois objets du fonctionnel se retrouvent ainsi : l'**occurrence** (`MaintenanceOccurrence`), l'**anomalie** (`Anomalie`) et le **ticket** (`CorrectiveTicket`). L'ensemble s'exécute dans le processus web ; plusieurs tâches planifiées (génération des échéances, retard, notifications, détection de dérive : voir « Tâches planifiées et signaux ») dépendent de Celery et de Redis.
 
 ## Modèles
 
@@ -98,7 +98,7 @@ Parmi les {{fait:n_taches_planifiees}} tâches planifiées : `generate_occurrenc
 ## Tests et vérifications
 
 - Tests de l'état B : `maintenance/tests/` (178 fonctions) et `logistics/tests/` (228 fonctions, partagées avec la logistique).
-- Preuves des écarts A20 et A25 : fichiers de test conservés dans les preuves versionnées (`audit_preuves/tests_verification/verif_g0_a20.py`, `verif_g0_a25.py`), à copier dans une **copie isolée** de l'état B ; ils ne sont **pas** intégrés au dépôt applicatif.
+- Preuves des écarts A20 et A25 : fichiers de test conservés dans les preuves versionnées (`audit_preuves/tests_verification/verif_g0_a20.py`, `audit_preuves/tests_verification/verif_g0_a25.py`), à copier dans une **copie isolée** de l'état B ; ils ne sont **pas** intégrés au dépôt applicatif.
 - Commande pour rejouer les tests du paquet dans une copie isolée : `python manage.py test maintenance` (résultat : voir la barrière G3).
 
 ## Limites ⚪

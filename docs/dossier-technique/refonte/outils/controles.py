@@ -214,7 +214,7 @@ def c7(textes):
         ids = {e["id"] for e in json.loads(reg.read_text(encoding="utf-8"))["decisions"]}
     for src, t in textes.items():
         t = re.sub(r"<!--.*?-->", "", t, flags=re.S)
-        for m in re.finditer(r"\bDEC-[A-Z]{2,4}-\d{2}\s*(?:à|–|-|et)\s*(?:DEC-[A-Z]{2,4}-)?\d{2}\b", t):
+        for m in re.finditer(r"`?\bDEC-[A-Z]{2,4}-\d{2}`?\s*(?:à|–|-|et)\s*`?(?:DEC-[A-Z]{2,4}-)?\d{2}\b", t):
             noter("C7", "bloquant", f"{src} : plage de décisions interdite : {m.group(0)}")
         for m in re.finditer(r"\bDEC-[A-Z]{2,4}-\d{2}\b", t):
             if ids and m.group(0) not in ids:

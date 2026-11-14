@@ -1,6 +1,6 @@
 # Nouveaux écarts du logiciel (NE-01 à NE-06)
 
-### NE-01 — Bouton « Exécuter » affiché sans droit d'exécution
+## NE-01 — Bouton « Exécuter » affiché sans droit d'exécution
 
 | Rubrique | Contenu |
 |---|---|
@@ -10,7 +10,7 @@
 | **Preuve** | audit_preuves/navigateur_droits.md |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-02 — Lignes de tickets cliquables sans lien ni focus clavier
+## NE-02 — Lignes de tickets cliquables sans lien ni focus clavier
 
 | Rubrique | Contenu |
 |---|---|
@@ -20,7 +20,7 @@
 | **Preuve** | matrix/templates/logistics/ticket_list.html (accès restreint) |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-03 — Redirection HTTPS sans réglage de proxy inverse
+## NE-03 — Redirection HTTPS sans réglage de proxy inverse
 
 | Rubrique | Contenu |
 |---|---|
@@ -30,7 +30,7 @@
 | **Preuve** | chapitre « Exploitation » du dossier technique |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-04 — QR codes liés au nom d'hôte de la requête
+## NE-04 — QR codes liés au nom d'hôte de la requête
 
 | Rubrique | Contenu |
 |---|---|
@@ -40,7 +40,7 @@
 | **Preuve** | assets/views.py (accès restreint) |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-05 — Codes de refus 404 et 403 hétérogènes
+## NE-05 — Codes de refus 404 et 403 hétérogènes
 
 | Rubrique | Contenu |
 |---|---|
@@ -50,7 +50,7 @@
 | **Preuve** | audit_preuves/navigateur_droits.md |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-06 — Synthèse de passation lisible par l'équipage sortant
+## NE-06 — Synthèse de passation lisible par l'équipage sortant
 
 | Rubrique | Contenu |
 |---|---|

@@ -1,3 +1,5 @@
+> **Révision du 14/11/2026** : ce rapport est complété par `RAPPORT_V1_REVISION.md` (arbitrages du PO traités) et par `apercus_V1/DOSSIER_PRESENTATION_PILOTE_V1.pdf`. Les aperçus ont été reconstruits ; les chiffres de pages ci-dessous sont ceux du 13/11/2026.
+
 # Rapport du jalon V1 — maquette pilote « Maintenance »
 
 > **DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE.** Précaution documentaire, pas une classification officielle. Date : 13/11/2026. Branche `claude/fervent-wright-kl6gtx`. Plan de référence : `../PLAN_EXECUTION_REFONTE_G0.md`.

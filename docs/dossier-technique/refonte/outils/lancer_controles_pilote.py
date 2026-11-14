@@ -8,7 +8,9 @@ CFG = {
     "RF": ("2_referentiel_fonctionnel", "Matrix_G0R2_2_Referentiel_fonctionnel_PROVISOIRE_RESTREINT.pdf", ["diffusable/12_maintenance_anomalies_tickets.md"]),
     "GU": ("1_guide_utilisateur", "Matrix_G0R2_1_Guide_utilisateur_PROVISOIRE_RESTREINT.pdf", []),
     "DT": ("3_dossier_technique", "Matrix_G0R2_3_Dossier_technique_reprise_PROVISOIRE_RESTREINT.pdf", ["restreint/12_maintenance_anomalies_tickets_technique.md"]),
+    "RE": ("5_registre", "Matrix_G0R2_5_Registre_ecarts_decisions_PROVISOIRE_RESTREINT.pdf", []),
 }
+ETAT_B = "/tmp/claude-0/-home-user-Matrix/5a9ffb65-0eb5-5851-be68-103a39fb63e7/scratchpad/ref"
 for code, (dossier, pdf, anciens) in CFG.items():
     subprocess.run([sys.executable, str(R / "outils/construire.py"), code, "--pilote", "--sortie", str(R / "apercus_V1")], check=True)
     sources = [str(p) for p in sorted((R / dossier).glob("[0-9][0-9]_*.md"))]
@@ -17,5 +19,8 @@ for code, (dossier, pdf, anciens) in CFG.items():
     if anciens:
         cmd += ["--anciens", *anciens]
     r = subprocess.run(cmd, capture_output=True, text=True)
+    if code == "DT":
+        c4 = subprocess.run([sys.executable, str(R / "outils/verifier_references_refonte.py"), ETAT_B, *sources, "--rapport", str(R / "apercus_V1/controle_C4_DT.md")], capture_output=True, text=True)
+        print(f"--- C4 (code retour {c4.returncode})\n" + c4.stdout[-420:])
     print(f"=== {code} (code retour {r.returncode})")
     print(r.stdout[-900:] or r.stderr[-900:])

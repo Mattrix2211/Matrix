@@ -18,7 +18,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 
 # Écarts du logiciel (A1 à A26)
 
-### A1 — Administrateur technique et actes métier
+## A1 — Administrateur technique et actes métier
 
 | Rubrique | Contenu |
 |---|---|
@@ -30,7 +30,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A2 — Échanges de tours
+## A2 — Échanges de tours
 
 | Rubrique | Contenu |
 |---|---|
@@ -42,7 +42,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A3 — Publication des listes de quarts et de gardes
+## A3 — Publication des listes de quarts et de gardes
 
 | Rubrique | Contenu |
 |---|---|
@@ -54,7 +54,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A4 — Droits du commandant en second
+## A4 — Droits du commandant en second
 
 | Rubrique | Contenu |
 |---|---|
@@ -66,7 +66,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A5 — Règles du projet : « garder des identifiants stables (UUID, NNO) pour de futures API » (`CLAUDE.md`)
+## A5 — Identifiants stables pour de futures interfaces
 
 | Rubrique | Contenu |
 |---|---|
@@ -78,7 +78,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A6 — `docs/REFERENCE.md` §4 « Les 14 apps Django »
+## A6 — Documentation du dépôt en retard sur le nombre d'applications
 
 | Rubrique | Contenu |
 |---|---|
@@ -90,7 +90,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A7 — Cahier §35 : « RBAC + ABAC + périmètre + responsabilité »
+## A7 — Modèle de droits sans moteur d'attributs général
 
 | Rubrique | Contenu |
 |---|---|
@@ -102,7 +102,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A8 — Cahier §8, §10, §11 (génération automatique des tours) ; §20 (rondes) ; organisation « miroir »
+## A8 — Cahier des charges partiellement obsolète
 
 | Rubrique | Contenu |
 |---|---|
@@ -114,7 +114,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A9 — Principe « Internet n'existe pas »
+## A9 — Principe « Internet n'existe pas » et dépendances déclarées
 
 | Rubrique | Contenu |
 |---|---|
@@ -126,7 +126,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A10 — Vocabulaire cible de Notion 11 (mission, capacité, dérogation…)
+## A10 — Vocabulaire cible sans équivalent dans le code
 
 | Rubrique | Contenu |
 |---|---|
@@ -138,7 +138,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A11 — « Mes tours de services » (`DEC-UX-08`, S1 §12 ; `CT-06`)
+## A11 — Libellé « Mes tours de service »
 
 | Rubrique | Contenu |
 |---|---|
@@ -150,7 +150,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A12 — Fonctionnement cible : impression A4 de la feuille de service par le BSC, signalement de la nécessit
+## A12 — Impression de la feuille de service
 
 | Rubrique | Contenu |
 |---|---|
@@ -163,7 +163,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Révision** | Texte révisé : l'ancien énoncé « aucune page imprimable » était inexact (AUD-002). |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A13 — Trois priorités : normale, haute, urgente ; priorité du chef de secteur non abaissable par le chef d
+## A13 — Priorités de tâche : deux niveaux au lieu de trois
 
 | Rubrique | Contenu |
 |---|---|
@@ -175,7 +175,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A14 — Synthèse de passation : un chef de section ne consulte que sa propre section (Notion « 13 — Décision
+## A14 — Confidentialité de la synthèse de passation
 
 | Rubrique | Contenu |
 |---|---|
@@ -188,7 +188,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [T][N] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A15 — Circuit RETEX : auteur → chef de section → chef de secteur → chef de service (`DEC-RTX-01`) ; correc
+## A15 — Circuit de validation des RETEX
 
 | Rubrique | Contenu |
 |---|---|
@@ -200,7 +200,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A16 — Diffusion « flotte » : proposé à l'organisme destinataire
+## A16 — Diffusion « flotte » d'un RETEX
 
 | Rubrique | Contenu |
 |---|---|
@@ -212,11 +212,11 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A17 — Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/s
+## A17 — Préparation à l'appareillage : fiche de référence et circuit
 
 | Rubrique | Contenu |
 |---|---|
-| **Règle validée** | Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → service → COMANAV ; contrôles obligatoires, critiques non dérogeables, réserves (`DEC-APP-01`, `DEC-APP-02`, `DEC-APP-10` à `DEC-APP-12`, `DEC-APP-14`) |
+| **Règle validée** | Préparation à l'appareillage : contrôles issus de fiches de référence approuvées ; circuit section/secteur → service → COMANAV ; contrôles obligatoires, critiques non dérogeables, réserves (`DEC-APP-01`, `DEC-APP-02`, DEC-APP-10, DEC-APP-11, DEC-APP-12, `DEC-APP-14`) |
 | **Constat dans l'état B** | Les points sont calculés à l'ouverture depuis l'état des installations critiques ; une seule signature (chef de secteur ou plus) ; ni classification, ni réserve, ni fiche de référence |
 | **Conséquences** | Aucun circuit COMANAV ; la signature atteste la clôture de la session, pas l'aptitude. Compatibilité avec les procédures du bord **à confirmer avant implémentation** |
 | **Profils concernés** | chefs de secteur ; chefs de service ; COMANAV |
@@ -224,11 +224,11 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A18 — Transfert de matériel entre secteurs et entre services avec approbations (`DEC-MAT-01` à `DEC-MAT-04
+## A18 — Transfert de matériel entre secteurs et services
 
 | Rubrique | Contenu |
 |---|---|
-| **Règle validée** | Transfert de matériel entre secteurs et entre services avec approbations (`DEC-MAT-01` à `DEC-MAT-04`) |
+| **Règle validée** | Transfert de matériel entre secteurs et entre services avec approbations (DEC-MAT-01, DEC-MAT-02, DEC-MAT-03, DEC-MAT-04) |
 | **Constat dans l'état B** | Aucun circuit ; réaffectation par l'affectation en masse |
 | **Conséquences** | Pas de trace d'approbation du transfert ni de suivi des tâches ouvertes |
 | **Profils concernés** | chefs de service ; gestionnaires de matériel |
@@ -236,7 +236,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A19 — Demande de places : l'organisme de formation répond dans un dossier vivant (timeline, fil, transmiss
+## A19 — Demande de places de formation
 
 | Rubrique | Contenu |
 |---|---|
@@ -248,7 +248,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A20 — Occurrence non conforme : état « En validation » (pas de règle de sortie décidée par le PO)
+## A20 — Échéance « En validation » : règle de sortie
 
 | Rubrique | Contenu |
 |---|---|
@@ -261,11 +261,11 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [T][N] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A21 — Périodicités nommées, remarques d'outillage, durée indicative (`DEC-PER-01` à `04`, `DEC-OUT-01` à `
+## A21 — Périodicités nommées, remarques d'outillage, durée indicative
 
 | Rubrique | Contenu |
 |---|---|
-| **Règle validée** | Périodicités nommées, remarques d'outillage, durée indicative (`DEC-PER-01` à `04`, `DEC-OUT-01` à `05`, `DEC-DUR-*`) |
+| **Règle validée** | Périodicités nommées, remarques d'outillage, durée indicative (DEC-PER-01, DEC-PER-02, DEC-PER-03, DEC-PER-04, DEC-OUT-01, DEC-OUT-02, DEC-OUT-03, DEC-OUT-04, DEC-OUT-05, `DEC-DUR-*`) |
 | **Constat dans l'état B** | Non développé |
 | **Conséquences** | Cible, non contradictoire |
 | **Profils concernés** | chefs de secteur |
@@ -273,7 +273,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A22 — Le projet suppose Python 3.12 ou plus (README, dépendances)
+## A22 — Version de Python annoncée par l'installation
 
 | Rubrique | Contenu |
 |---|---|
@@ -285,7 +285,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A23 — Sécurité d'accès avec les SIC : HTTPS, limitation des connexions (cible)
+## A23 — Sécurité d'accès avec les SIC
 
 | Rubrique | Contenu |
 |---|---|
@@ -297,7 +297,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A24 — Sauvegarde, restauration, supervision, conservation des journaux (à fournir, `IM-10` pour les durées
+## A24 — Sauvegarde, restauration, supervision, journaux
 
 | Rubrique | Contenu |
 |---|---|
@@ -309,7 +309,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [C] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A25 — Les modules désactivés « n'existent plus » pour le bâtiment (principe de configuration par bâtiment)
+## A25 — Modules désactivés encore actifs par certains chemins
 
 | Rubrique | Contenu |
 |---|---|
@@ -322,7 +322,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Niveau de preuve** | [T] |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### A26 — Neuf modules sans API (quarts, absences, tâches, annonces, demandes, programme, postes, documentatio
+## A26 — Modules sans interface de programmation
 
 | Rubrique | Contenu |
 |---|---|
@@ -336,7 +336,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 
 # Nouveaux écarts du logiciel (NE-01 à NE-06)
 
-### NE-01 — Bouton « Exécuter » affiché sans droit d'exécution
+## NE-01 — Bouton « Exécuter » affiché sans droit d'exécution
 
 | Rubrique | Contenu |
 |---|---|
@@ -346,7 +346,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Preuve** | audit_preuves/navigateur_droits.md |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-02 — Lignes de tickets cliquables sans lien ni focus clavier
+## NE-02 — Lignes de tickets cliquables sans lien ni focus clavier
 
 | Rubrique | Contenu |
 |---|---|
@@ -356,7 +356,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Preuve** | matrix/templates/logistics/ticket_list.html (accès restreint) |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-03 — Redirection HTTPS sans réglage de proxy inverse
+## NE-03 — Redirection HTTPS sans réglage de proxy inverse
 
 | Rubrique | Contenu |
 |---|---|
@@ -366,7 +366,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Preuve** | chapitre « Exploitation » du dossier technique |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-04 — QR codes liés au nom d'hôte de la requête
+## NE-04 — QR codes liés au nom d'hôte de la requête
 
 | Rubrique | Contenu |
 |---|---|
@@ -376,7 +376,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Preuve** | assets/views.py (accès restreint) |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-05 — Codes de refus 404 et 403 hétérogènes
+## NE-05 — Codes de refus 404 et 403 hétérogènes
 
 | Rubrique | Contenu |
 |---|---|
@@ -386,7 +386,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Preuve** | audit_preuves/navigateur_droits.md |
 | **Statut** | documenté, non arbitré (pas une autorisation de modifier le logiciel) |
 
-### NE-06 — Synthèse de passation lisible par l'équipage sortant
+## NE-06 — Synthèse de passation lisible par l'équipage sortant
 
 | Rubrique | Contenu |
 |---|---|
@@ -398,7 +398,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 
 # Points à confirmer (B1 à B8)
 
-### B1 — Suppléance du COMAEQ
+## B1 — Suppléance du COMAEQ
 
 | Rubrique | Contenu |
 |---|---|
@@ -408,7 +408,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Profils concernés** | COMAEQ ; commandants |
 | **Statut** | à confirmer par le PO |
 
-### B2 — Commandant en second
+## B2 — Commandant en second
 
 | Rubrique | Contenu |
 |---|---|
@@ -418,7 +418,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Profils concernés** | commandant en second |
 | **Statut** | à confirmer par le PO |
 
-### B3 — Échanges et quarts à la mer
+## B3 — Échanges et quarts à la mer
 
 | Rubrique | Contenu |
 |---|---|
@@ -428,7 +428,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Profils concernés** | chefs de liste ; COMAEQ |
 | **Statut** | à confirmer par le PO |
 
-### B4 — Accostage et appareillage
+## B4 — Accostage et appareillage
 
 | Rubrique | Contenu |
 |---|---|
@@ -438,7 +438,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Profils concernés** | COMAEQ ; commandants |
 | **Statut** | à confirmer par le PO |
 
-### B5 — Chef de liste des quarts
+## B5 — Chef de liste des quarts
 
 | Rubrique | Contenu |
 |---|---|
@@ -448,7 +448,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Profils concernés** | chefs de liste ; chefs de service |
 | **Statut** | à confirmer par le PO |
 
-### B6 — « Fin de journée » d'une tâche
+## B6 — « Fin de journée » d'une tâche
 
 | Rubrique | Contenu |
 |---|---|
@@ -458,7 +458,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Profils concernés** | marins ; chefs de section |
 | **Statut** | à confirmer par le PO |
 
-### B7 — Ordre des grades
+## B7 — Ordre des grades
 
 | Rubrique | Contenu |
 |---|---|
@@ -468,7 +468,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Profils concernés** | PO |
 | **Statut** | à confirmer par le PO |
 
-### B8 — Conservation
+## B8 — Conservation
 
 | Rubrique | Contenu |
 |---|---|
@@ -480,7 +480,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 
 # Propositions non arbitrées (D1 à D7) 🟣
 
-### D1 — Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile
+## D1 — Ticket de suivi pour une installation déclarée non conforme, comme pour le matériel mobile
 
 | Rubrique | Contenu |
 |---|---|
@@ -489,7 +489,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Chapitres concernés** | 12, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D2 — Règle de sortie de l'état « En validation » et alerte de retard associée (A20)
+## D2 — Règle de sortie de l'état « En validation » et alerte de retard associée (A20)
 
 | Rubrique | Contenu |
 |---|---|
@@ -498,7 +498,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Chapitres concernés** | 12, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D3 — Transmission d'un RETEX à un organisme : destinataires, canaux, responsabilités
+## D3 — Transmission d'un RETEX à un organisme : destinataires, canaux, responsabilités
 
 | Rubrique | Contenu |
 |---|---|
@@ -507,7 +507,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Chapitres concernés** | 15, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D4 — Autorité de classification « critique » d'un contrôle d'appareillage
+## D4 — Autorité de classification « critique » d'un contrôle d'appareillage
 
 | Rubrique | Contenu |
 |---|---|
@@ -516,7 +516,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Chapitres concernés** | 16, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D5 — Favoris épinglés, recherche de personnes limitée, formulaires RH configurables
+## D5 — Favoris épinglés, recherche de personnes limitée, formulaires RH configurables
 
 | Rubrique | Contenu |
 |---|---|
@@ -525,7 +525,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Chapitres concernés** | 17, 25 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de démonstra
+## D6 — Observations de recette PO-01 à PO-16, PO-21 (ergonomie, accueil, notifications, fiches de …
 
 | Rubrique | Contenu |
 |---|---|
@@ -534,7 +534,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | **Chapitres concernés** | 17 |
 | **Statut** | 🟣 à valider par le PO — pas une décision |
 
-### D7 — Sauvegarde, restauration, supervision, conservation des journaux
+## D7 — Sauvegarde, restauration, supervision, conservation des journaux
 
 | Rubrique | Contenu |
 |---|---|
@@ -547,7 +547,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 
 | Id | Gravité | Constat | Traitement prévu | Statut |
 |---|---|---|---|---|
-| AUD-001 | Bloquante (diffusion) | L'en-tête de chaque page dit « DIFFUSION GÉNÉRALE » et le fichier s'appelle « DIFFUSABLE », alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « Aucune référence de code » alors que le texte contient  | P0-1 | ouverte — à traiter par la refonte |
+| AUD-001 | Bloquante (diffusion) | L'en-tête de chaque page dit « mention de diffusion large (ancienne édition) » et le fichier s'appelle « à large diffusion (ancienne édition) », alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « … | P0-1 | ouverte — à traiter par la refonte |
 | AUD-002 | Majeure | `matrix/templates/quarts/feuille_service_detail.html:18` contient un bouton « Imprimer » (`window.print()`, classe `no-print`) ; le guide visuel p.25 le montre | P0-2 | ouverte — à traiter par la refonte |
 | AUD-003 | Majeure | Le guide visuel (64 captures, 5 parcours) et cet audit ont rejoué ces écrans | P0-4 | ouverte — à traiter par la refonte |
 | AUD-004 | Majeure | Le module `rondes` n'a aucune vue et a été retiré de l'interface (chap. 2, 12 ; A8 ; `rondes/models.py` seul) | P0-2 | ouverte — à traiter par la refonte |
@@ -559,7 +559,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | AUD-010 | Majeure | 29 captures non utilisées (64 − 35). Les lignes de tickets sont cliquables (`onclick`, `ticket_list.html:28`) : ma capture automatique cherchait un lien `<a>` | P0-2 | ouverte — à traiter par la refonte |
 | AUD-011 | Majeure | Les PDF ne contiennent ni synthèse de 2 pages (valeur, maturité, limites, risques) ni lecture de la `SYNTHESE_ECARTS_PAR_CRITICITE.md` (fichier restreint hors PDF) | P1-1 | ouverte — à traiter par la refonte |
 | AUD-012 | Majeure | [V] p.2 ; [A] grep | P0-4 / P1-2 | ouverte — à traiter par la refonte |
-| AUD-013 | Majeure | Écrans importants absents : accusé de réception d'une annonce, fiche d'installation (relevés, entretien), échange de tour, Documentation/RETEX, bas de l'accueil (indicateurs, bloc Supervision), prêt à appareiller avec session ouverte, vue mobile (le chapitre 1 | P1-3 | ouverte — à traiter par la refonte |
+| AUD-013 | Majeure | Écrans importants absents : accusé de réception d'une annonce, fiche d'installation (relevés, entretien), échange de tour, Documentation/RETEX, bas de l'accueil (indicateurs, bloc Supervision), prêt à appareiller avec session ouverte, vue mobile (le chapitre … | P1-3 | ouverte — à traiter par la refonte |
 | AUD-014 | Mineure | [V] captures `p_maintenance_1_saisie`, `p_anomalie_3_description`, `parametres` | P2 | ouverte — à traiter par la refonte |
 | AUD-015 | Mineure | [V] | P2 | ouverte — à traiter par la refonte |
 | AUD-016 | Mineure | [A] différence de pixels 0,0 à 4,6 % | P1-3 | ouverte — à traiter par la refonte |
@@ -579,8 +579,8 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | AUD-030 | Mineure | « scan web `assets/scan/<uuid>/` » : le chemin réel est `/scan/<uuid>/` (`assets/web_urls.py:72` ; annexe C correcte) | P0-2 | ouverte — à traiter par la refonte |
 | AUD-031 | Majeure | Annexe générée de 4 900 mots (79 % de l'annexe F) : lignes tronquées par « … » (« Une correcti… », « L… »), fragments de tableau (« \ | P0-6 | ouverte — à traiter par la refonte |
 | AUD-032 | Mineure | Tableaux Markdown non rendus : p.37 (« Routes web », source `restreint/13_logistique_technique.md:20-22`) et p.79 (§23.9, source `23_configuration_deploiement_exploitation.md:119-123`, tableau collé au paragraphe) apparaissent en barres verticales brutes | P0-6 | ouverte — à traiter par la refonte |
-| AUD-033 | Majeure | Des plages de décisions sont citées comme « cible, non développée » alors que certaines sont déjà réalisées : `DEC-PER-01` (tâches périodiques générées depuis les fiches) et `DEC-PER-04` (historiques conservés) vs `maintenance/tasks.py:66` et `OccurrenceStatus | P0-3 | ouverte — à traiter par la refonte |
-| AUD-034 | Majeure | Densité : 18 pages du diffusable et 26 du restreint sont remplies à moins de 70 % (11 et 15 à moins de 50 %) ; les compléments techniques (1 à 3 pages par chapitre) répètent chacun un cartouche de 5 lignes ; le restreint ne contient pas les chapitres de base q | P1-8 (architecture) | ouverte — à traiter par la refonte |
+| AUD-033 | Majeure | Des plages de décisions sont citées comme « cible, non développée » alors que certaines sont déjà réalisées : `DEC-PER-01` (tâches périodiques générées depuis les fiches) et `DEC-PER-04` (historiques conservés) vs `maintenance/tasks.py:66` et … | P0-3 | ouverte — à traiter par la refonte |
+| AUD-034 | Majeure | Densité : 18 pages du à large diffusion (ancienne édition) et 26 du restreint sont remplies à moins de 70 % (11 et 15 à moins de 50 %) ; les compléments techniques (1 à 3 pages par chapitre) répètent chacun un cartouche de 5 lignes ; le restreint ne contient … | P1-8 (architecture) | ouverte — à traiter par la refonte |
 | AUD-035 | Majeure | Les schémas de circuit cible ne se distinguent pas des schémas de fonctionnement réel : seule la légende dit « cible » ; l'image seule (cadre, couleur, mention) est identique à S16, S20, S30, S32 | P0-7 | ouverte — à traiter par la refonte |
 | AUD-036 | Mineure | Sur 42 schémas : 22 bons, 7 moyens, 10 faibles (listes de cases sans information relationnelle : S02, S14, S22, S24, S27, S36, S37, S38, S40, S42), 1 difficile (S09), 1 illisible (S10) ; S02 montre 6 groupes quand le tableau juste dessous en compte 11 | P1-5 | ouverte — à traiter par la refonte |
 | AUD-037 | Mineure | Rubriques « bis » : traces d'édition (insertions tardives) | P2 | ouverte — à traiter par la refonte |
@@ -610,7 +610,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | DEC-APP-11 | Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité. | L23 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-APP-12 | Les contrôles critiques non dérogeables ne peuvent pas être contournés. | L23 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-APP-13 | Matrix ne délivre pas l'autorisation opérationnelle d'appareiller. | L23 | réalisée | vérifié dans le code de l'état B |
-| DEC-APP-14 | Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la prop | — | non développée (A17) | vérifié dans le code de l'état B |
+| DEC-APP-14 | Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la … | — | non développée (A17) | vérifié dans le code de l'état B |
 | DEC-BLQ-01 | Un équipier peut déclarer une tâche « Bloquée » avec motif. | L17 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-BLQ-02 | Le responsable est informé du blocage. | L17 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-BLQ-03 | Le chef peut débloquer et reprogrammer sans obligation de créer une anomalie. | L17 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
@@ -652,7 +652,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | DEC-FDS-11 | La création d'une feuille n'est pas ouverte à n'importe quel équipier. | — | à instruire ⚪ | aucun rattachement |
 | DEC-FDS-12 | Prendre en compte deux équipages ; chaque équipage a sa feuille, sans validation croisée par le seul grade. | — | à instruire ⚪ | aucun rattachement |
 | DEC-FDS-13 | Le BSC ou le chef de liste peut instruire la demande d'échange ; il ne dispose pas automatiquement de l'autorité de validation finale. | — | à instruire ⚪ | aucun rattachement |
-| DEC-FDS-14 | Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après publ | — | écart (A3) | vérifié dans le code de l'état B |
+| DEC-FDS-14 | Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après … | — | écart (A3) | vérifié dans le code de l'état B |
 | DEC-MAT-01 | Transfert entre secteurs d'un même service : approbation du chef de service. | L13 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-MAT-02 | Transfert entre deux services : approbation des deux chefs de service, puis application par l'administrateur habilité. | L13 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-MAT-03 | Les tâches ouvertes suivent le matériel et sont réattribuées si nécessaire. | L13 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
@@ -688,7 +688,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | DEC-QUA-01 | Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit. | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-QUA-02 | Les qualifications connues peuvent être affichées à titre informatif. | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-QUA-03 | Une information manquante ou périmée ne bloque pas l'attribution. | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
-| DEC-QUA-04 | Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures officie | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
+| DEC-QUA-04 | Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures … | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-RTX-01 | Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service. | L11 | écart (A15) | vérifié dans le code de l'état B |
 | DEC-RTX-02 | Une demande de correction doit être motivée. | L11 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-RTX-03 | La correction entraîne une nouvelle version et les validations nécessaires. | L11 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
@@ -699,7 +699,7 @@ Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fa
 | DEC-SUP-04 | Les actes du suppléant restent attribués à leur auteur. | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-SUP-05 | Le titulaire retrouve un récapitulatif des actions réalisées pendant son absence. | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-SUP-06 | Les qualifications réglementaires nécessaires à certains visas restent obligatoires pour le suppléant (voir DEC-QUA-04). | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
-| DEC-SUP-07 | La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision fonctionn | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
+| DEC-SUP-07 | La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision … | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-TAC-01 | Le chef de section attribue les tâches de sa section. | — | à instruire ⚪ | aucun rattachement |
 | DEC-TAC-02 | Le chef de secteur supervise, attribue directement et réaffecte. | — | à instruire ⚪ | aucun rattachement |
 | DEC-TAC-03 | Le chef de service dispose de la supervision correspondant à sa fonction. | — | à instruire ⚪ | aucun rattachement |

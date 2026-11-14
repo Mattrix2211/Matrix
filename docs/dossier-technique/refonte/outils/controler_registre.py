@@ -18,7 +18,7 @@ verif(len(j["anomalies_documentaires"]) == 38 and sum(1 for a in j["anomalies_do
 verif(all(d["etat_dans_etat_b"] for d in j["decisions"]), "chaque décision porte un état dans l'état B")
 verif(all(d["etat_methode"] for d in j["decisions"]), "chaque état de décision porte sa méthode")
 txt = (REG / "ECARTS_ET_DECISIONS.md").read_text(encoding="utf-8")
-plages = re.findall(r"\bDEC-[A-Z]{2,4}-\d{2}\s*(?:à|–)\s*(?:DEC-[A-Z]{2,4}-)?\d{2}\b", txt)
+plages = re.findall(r"`?\bDEC-[A-Z]{2,4}-\d{2}`?\s*(?:à|–)\s*`?(?:DEC-[A-Z]{2,4}-)?\d{2}\b", txt)
 verif(not plages, f"aucune plage « DEC-… à … » ({len(plages)} trouvée(s))")
 for a in ("A14", "A20", "A25"):
     e = next(x for x in j["ecarts"] if x["id"] == a)

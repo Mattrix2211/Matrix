@@ -67,7 +67,7 @@ Le marin ouvre l'échéance (depuis « À faire », depuis la fiche de l'équipe
 | Conforme | **Terminée** | Compte rendu archivé |
 | Non conforme | **En validation** | **Matériel mobile** : un ticket correctif est créé automatiquement (gravité 3 par défaut, une seule fois par échéance) et les chefs sont alertés. **Installation** : aucun ticket automatique ; le marin peut signaler une anomalie depuis le compte rendu |
 
-- **Installation critique** 🟢 : la clôture exige une **confirmation explicite** (texte affiché ; une tentative sans confirmation est refusée et tracée). La personne qui clôture est enregistrée comme valideur ; aucune seconde signature n'est demandée.
+- **Installation critique** 🟢 : la **clôture** (pas l'enregistrement en cours de route) exige, pour un verdict autre que « non conforme », une **confirmation explicite** (texte affiché ; une tentative sans confirmation est refusée et tracée). La personne qui clôture est enregistrée comme valideur ; aucune seconde signature n'est demandée.
 - **Correction après coup** 🟢 : un compte rendu terminé peut être corrigé ; la **saisie d'origine est conservée**, la modification est enregistrée avec son auteur et son motif. Si deux personnes enregistrent en même temps, la seconde reçoit un message de conflit : rien n'est écrasé en silence.
 
 ### Le cycle de vie d'une échéance
@@ -114,14 +114,16 @@ Cas particuliers : en **double équipage**, listes et compteurs sont bornés à 
 | Génération des échéances, retards, exécution guidée, compte rendu, correction motivée | 🟢 Disponible |
 | Ticket automatique pour un matériel mobile non conforme | 🟢 Disponible |
 | Ticket automatique pour une **installation** non conforme, avec garde-fous (ne clôture jamais une anomalie, n'autorise jamais une remise en service) | 🟣 **Proposition** à valider par le PO (D1) ; non développé |
-| Périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective | 🔵 Cible validée, non développée |
+| Périodicités nommées (hebdomadaire à quinquennale), échéance calculée depuis la réalisation effective. *Aujourd'hui : un intervalle en jours (90 par défaut) ; l'échéance suivante prolonge la grille déjà planifiée* | 🔵 Cible validée, non développée |
 | Remarques d'outillage et d'instruction visibles du chef de secteur, sans modification automatique de la fiche | 🔵 Cible validée, non développée |
-| Durée indicative actualisée, historique des estimations | 🔵 Cible validée, non développée |
+| Durée indicative actualisée, historique des estimations. *Aujourd'hui : une durée estimée saisie, jamais recalculée* | 🔵 Cible validée, non développée |
 | Configuration réelle, potentiels, composants | 🔵 Orientation, non développée |
 
-**Décisions du PO concernées, une à une** (l'état est celui de l'état B ; « à instruire » signifie que ce dossier ne l'a pas établi, ce n'est pas un constat de non-réalisation) :
+**Décisions du PO qui changent ce que vous pouvez attendre de ce module** (état dans l'état B ; « partielle » = en partie réalisée) :
 
-@decisions DEC-PER-01 DEC-PER-02 DEC-PER-03 DEC-PER-04 DEC-OUT-01 DEC-OUT-02 DEC-OUT-03 DEC-OUT-04 DEC-OUT-05 DEC-DUR-01 DEC-DUR-02 DEC-DUR-03 DEC-DUR-04 DEC-DUR-05 DEC-DUR-06 DEC-DUR-07 DEC-ANO-01 DEC-ANO-02 DEC-ANO-03 DEC-ANO-04 DEC-ANO-05
+@decisions DEC-PER-01 DEC-PER-02 DEC-PER-03 DEC-PER-04 DEC-OUT-03 DEC-DUR-01
+
+> **Registre central.** Les autres décisions de ce module (outillage, durée, anomalies et interventions : 15 entrées) et l'état de chacune sont dans le registre des écarts et décisions, [[RE 7]]. Rien n'y est un engagement de date : « non développée » signifie seulement que le lot correspondant n'est pas livré dans l'état B.
 
 ## Limites et écarts documentés
 
@@ -131,9 +133,11 @@ Cas particuliers : en **double équipage**, listes et compteurs sont bornés à 
 
 **Risque de blocage.** Une échéance « En validation » n'est **jamais comptée en retard** et **aucune notification ne la vise** : elle peut rester indéfiniment dans cet état, visible mais sans échéance, ancienneté ni escalade. Pour une **installation**, aucun ticket n'est créé et **la génération de l'échéance suivante est suspendue** tant que l'échéance reste « En validation » : l'entretien récurrent s'arrête jusqu'à la correction du compte rendu. La règle de sortie reste **à décider par le PO** (proposition D2). Aucune règle nouvelle n'est proposée ici.
 
-@ecarts A20 A21 A25 D1 D2 NE-01 NE-02
+@ecarts A20 A25 D1 D2 NE-01
 
-Le bouton **« Exécuter »** (NE-01) apparaît dans la liste pour des échéances que l'utilisateur ne peut pas exécuter : le serveur refuse ensuite l'ouverture. Les lignes de la liste des tickets (NE-02) ne sont cliquables qu'à la souris.
+> **Registre central.** Les autres écarts qui touchent ce module (périodicités et remarques d'outillage : A21 ; lignes de tickets cliquables à la souris seulement : NE-02) sont dans [[RE 2]] et [[RE 3]]. Chaque entrée du registre donne le constat, la preuve, les profils concernés et la date de dernière vérification.
+
+Le bouton **« Exécuter »** (NE-01) apparaît dans la liste pour des échéances que l'utilisateur ne peut pas exécuter : le serveur refuse ensuite l'ouverture.
 
 ## Vérifications effectuées
 

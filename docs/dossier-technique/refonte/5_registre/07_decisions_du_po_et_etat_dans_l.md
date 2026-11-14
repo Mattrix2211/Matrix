@@ -22,7 +22,7 @@
 | DEC-APP-11 | Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité. | L23 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-APP-12 | Les contrôles critiques non dérogeables ne peuvent pas être contournés. | L23 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-APP-13 | Matrix ne délivre pas l'autorisation opérationnelle d'appareiller. | L23 | réalisée | vérifié dans le code de l'état B |
-| DEC-APP-14 | Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la prop | — | non développée (A17) | vérifié dans le code de l'état B |
+| DEC-APP-14 | Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la … | — | non développée (A17) | vérifié dans le code de l'état B |
 | DEC-BLQ-01 | Un équipier peut déclarer une tâche « Bloquée » avec motif. | L17 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-BLQ-02 | Le responsable est informé du blocage. | L17 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-BLQ-03 | Le chef peut débloquer et reprogrammer sans obligation de créer une anomalie. | L17 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
@@ -64,7 +64,7 @@
 | DEC-FDS-11 | La création d'une feuille n'est pas ouverte à n'importe quel équipier. | — | à instruire ⚪ | aucun rattachement |
 | DEC-FDS-12 | Prendre en compte deux équipages ; chaque équipage a sa feuille, sans validation croisée par le seul grade. | — | à instruire ⚪ | aucun rattachement |
 | DEC-FDS-13 | Le BSC ou le chef de liste peut instruire la demande d'échange ; il ne dispose pas automatiquement de l'autorité de validation finale. | — | à instruire ⚪ | aucun rattachement |
-| DEC-FDS-14 | Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après publ | — | écart (A3) | vérifié dans le code de l'état B |
+| DEC-FDS-14 | Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après … | — | écart (A3) | vérifié dans le code de l'état B |
 | DEC-MAT-01 | Transfert entre secteurs d'un même service : approbation du chef de service. | L13 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-MAT-02 | Transfert entre deux services : approbation des deux chefs de service, puis application par l'administrateur habilité. | L13 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-MAT-03 | Les tâches ouvertes suivent le matériel et sont réattribuées si nécessaire. | L13 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
@@ -100,7 +100,7 @@
 | DEC-QUA-01 | Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit. | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-QUA-02 | Les qualifications connues peuvent être affichées à titre informatif. | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-QUA-03 | Une information manquante ou périmée ne bloque pas l'attribution. | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
-| DEC-QUA-04 | Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures officie | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
+| DEC-QUA-04 | Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures … | L18 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-RTX-01 | Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service. | L11 | écart (A15) | vérifié dans le code de l'état B |
 | DEC-RTX-02 | Une demande de correction doit être motivée. | L11 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-RTX-03 | La correction entraîne une nouvelle version et les validations nécessaires. | L11 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
@@ -111,7 +111,7 @@
 | DEC-SUP-04 | Les actes du suppléant restent attribués à leur auteur. | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-SUP-05 | Le titulaire retrouve un récapitulatif des actions réalisées pendant son absence. | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-SUP-06 | Les qualifications réglementaires nécessaires à certains visas restent obligatoires pour le suppléant (voir DEC-QUA-04). | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
-| DEC-SUP-07 | La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision fonctionn | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
+| DEC-SUP-07 | La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision … | L08 | non développée | plan en lots (V1.2) : lot non livré dans l'état B |
 | DEC-TAC-01 | Le chef de section attribue les tâches de sa section. | — | à instruire ⚪ | aucun rattachement |
 | DEC-TAC-02 | Le chef de secteur supervise, attribue directement et réaffecte. | — | à instruire ⚪ | aucun rattachement |
 | DEC-TAC-03 | Le chef de service dispose de la supervision correspondant à sa fonction. | — | à instruire ⚪ | aucun rattachement |

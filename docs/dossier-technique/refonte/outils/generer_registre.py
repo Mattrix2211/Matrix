@@ -25,6 +25,45 @@ def cellules(ligne):
     return [c.strip() for c in ligne.strip().strip("|").split("|")]
 
 
+def court(t, n):
+    """Coupe à la limite d'un mot, sans laisser de guillemets de code ni de gras ouverts."""
+    if len(t) > n:
+        t = t[:n].rsplit(" ", 1)[0].rstrip(" ,;(") + " …"
+    if t.count("`") % 2:
+        t = t.rsplit("`", 1)[0].rstrip() + " …"
+    if t.count("**") % 2:
+        t = t.rsplit("**", 1)[0].rstrip() + " …"
+    return t
+
+
+def sans_ancienne_mention(t):
+    """Le registre cite des défauts de l'ancienne édition sans reproduire la mention qui prêtait à confusion."""
+    t = re.sub(r"(?i)diffusion générale", "mention de diffusion large (ancienne édition)", t)
+    return re.sub(r"(?i)\bdiffusable\b", "à large diffusion (ancienne édition)", t)
+
+
+def deplier_plages(t):
+    """« DEC-PER-01 à 04 », « `DEC-MAT-01` à `DEC-MAT-04` », « DEC-UX-01 à 11 » deviennent des listes explicites."""
+    def rep(m):
+        fam, a, b = m.group(1), int(m.group(2)), int(m.group(3))
+        return ", ".join(f"DEC-{fam}-{k:02d}" for k in range(a, b + 1))
+    return re.sub(r"`?DEC-([A-Z]{2,4})-(\d{2})`?\s*(?:à|–)\s*`?(?:DEC-[A-Z]{2,4}-)?(\d{2})`?", rep, t)
+
+
+TITRES = {
+    "A5": "Identifiants stables pour de futures interfaces", "A6": "Documentation du dépôt en retard sur le nombre d'applications",
+    "A7": "Modèle de droits sans moteur d'attributs général", "A8": "Cahier des charges partiellement obsolète",
+    "A9": "Principe « Internet n'existe pas » et dépendances déclarées", "A10": "Vocabulaire cible sans équivalent dans le code",
+    "A11": "Libellé « Mes tours de service »", "A12": "Impression de la feuille de service", "A13": "Priorités de tâche : deux niveaux au lieu de trois",
+    "A14": "Confidentialité de la synthèse de passation", "A15": "Circuit de validation des RETEX", "A16": "Diffusion « flotte » d'un RETEX",
+    "A17": "Préparation à l'appareillage : fiche de référence et circuit", "A18": "Transfert de matériel entre secteurs et services",
+    "A19": "Demande de places de formation", "A20": "Échéance « En validation » : règle de sortie",
+    "A21": "Périodicités nommées, remarques d'outillage, durée indicative", "A22": "Version de Python annoncée par l'installation",
+    "A23": "Sécurité d'accès avec les SIC", "A24": "Sauvegarde, restauration, supervision, journaux",
+    "A25": "Modules désactivés encore actifs par certains chemins", "A26": "Modules sans interface de programmation",
+}
+
+
 def nettoyer(t):
     return re.sub(r"\s+", " ", t.replace("**", "")).strip()
 
@@ -84,15 +123,21 @@ for i in range(1, 27):
     e.update({"nature": "écart du logiciel", "statut": "documenté, non arbitré (pas une autorisation de modifier le logiciel)",
               "profils_concernes": PROFILS[e["id"]], "niveau_preuve": NIVEAU.get(e["id"], "[C]"),
               "derniere_verification": {"date": DATE if e["id"] in ("A12", "A14", "A20", "A25") else "2026-11-12", "etat_reference": ETAT}})
-    e["titre"] = e["titre"] or nettoyer(re.sub(r"\*\(.*?\)\*", "", e["regle"]))[:110]
+    e["titre"] = TITRES.get(e["id"]) or e["titre"]
+    for k in ("regle", "constat", "consequences", "sources"):
+        e[k] = deplier_plages(e.get(k, ""))
     liste_a.append(e)
 
 PROFILS_B = {"B1": "COMAEQ ; commandants", "B2": "commandant en second", "B3": "chefs de liste ; COMAEQ", "B4": "COMAEQ ; commandants", "B5": "chefs de liste ; chefs de service",
              "B6": "marins ; chefs de section", "B7": "PO", "B8": "exploitants ; PO"}
 for p in points:
+    for k in ("decision_existante", "actuel", "cible"):
+        p[k] = deplier_plages(p[k])
     p.update({"nature": "point à confirmer", "statut": "à confirmer par le PO", "profils_concernes": PROFILS_B.get(p["id"], ""), "niveau_preuve": "[C][R]",
               "derniere_verification": {"date": "2026-11-12", "etat_reference": ETAT}})
 for p in propositions:
+    for k in ("garde_fous", "titre", "origine"):
+        p[k] = deplier_plages(p[k])
     p.update({"nature": "proposition (non arbitrée)", "statut": "🟣 à valider par le PO — pas une décision", "profils_concernes": "", "niveau_preuve": "[R]"})
 
 NE = [
@@ -123,7 +168,7 @@ for l in audit.split("\n"):
         gravite, nature, lieu, constat, preuve = c[1], c[2], c[3], c[4], c[5]
     else:
         gravite, nature, lieu, constat, preuve = c[1], "", c[2] + " — " + c[3], c[4], c[5]
-    aud.append({"id": i, "nature": "anomalie documentaire", "gravite": nettoyer(gravite), "lieu": nettoyer(lieu), "constat": nettoyer(constat), "preuve": nettoyer(preuve),
+    aud.append({"id": i, "nature": "anomalie documentaire", "gravite": nettoyer(gravite), "lieu": sans_ancienne_mention(nettoyer(lieu)), "constat": sans_ancienne_mention(nettoyer(constat)), "preuve": sans_ancienne_mention(nettoyer(preuve)),
                 "statut": f"fusionnée dans {FUSION[i]}" if i in FUSION else "ouverte — à traiter par la refonte", "traite_par": TRAITE.get(i, "P2" if i not in FUSION else FUSION[i]),
                 "niveau_preuve": "[V][A][C]", "derniere_verification": {"date": "2026-11-12", "etat_reference": ETAT}})
 
@@ -189,7 +234,7 @@ for i in sorted(src):
         etat, note, methode = "non développée", "", "plan en lots (V1.2) : lot non livré dans l'état B"
     else:
         etat, note, methode = "à instruire ⚪", "Non rattachée à un lot par le plan V1.2 ; état dans l'état B non établi.", "aucun rattachement"
-    decisions.append({"id": i, "nature": "décision du PO", "statut_po": s["statut_po"], "regle": s["regle"], "precisions": s["precisions"], "source_po": s["source"], "acteurs": s["acteurs"],
+    decisions.append({"id": i, "nature": "décision du PO", "statut_po": s["statut_po"], "regle": deplier_plages(s["regle"]), "precisions": deplier_plages(s["precisions"]), "source_po": s["source"], "acteurs": s["acteurs"],
                       "lots": lots_i, "etat_dans_etat_b": etat, "etat_methode": methode, "note": note, "niveau_preuve": "[C]" if methode.startswith("vérifié") else "[R]",
                       "derniere_verification": {"date": DATE, "etat_reference": ETAT}})
 
@@ -201,7 +246,7 @@ registre = {"meta": {"serie": "Matrix — G0, révision 2", "date": DATE, "etat_
 
 # ---------------- vues Markdown (alimentent le PDF du registre) ----------------
 def fiche(e, champs):
-    L = [f"### {e['id']} — {e.get('titre','')[:100]}", "", "| Rubrique | Contenu |", "|---|---|"]
+    L = [f"## {e['id']} — {court(e.get('titre',''), 100)}", "", "| Rubrique | Contenu |", "|---|---|"]
     for k, lab in champs:
         v = e.get(k)
         if isinstance(v, list):
@@ -232,11 +277,11 @@ for e in propositions:
     M += fiche(e, [("origine", "Origine"), ("garde_fous", "Garde-fous demandés"), ("chapitres", "Chapitres concernés"), ("statut", "Statut")])
 M += ["# Anomalies du dossier (audit)", "", "| Id | Gravité | Constat | Traitement prévu | Statut |", "|---|---|---|---|---|"]
 for a in aud:
-    M.append(f"| {a['id']} | {a['gravite']} | {a['constat'][:260].replace('|','/')} | {a['traite_par']} | {a['statut']} |")
+    M.append(f"| {a['id']} | {a['gravite']} | {court(a['constat'], 260).replace('|','/')} | {a['traite_par']} | {a['statut']} |")
 M += ["", "# Décisions du PO et état dans l'état B", "", "> L'état est déduit du plan en lots (V1.2) ou vérifié dans le code (colonne « Méthode »). « À instruire » signifie que le dossier ne l'a pas établi : ce n'est pas un constat de non-réalisation.", "",
       "| Décision | Règle | Lot(s) | État dans l'état B | Méthode |", "|---|---|---|---|---|"]
 for d in decisions:
-    M.append(f"| {d['id']} | {d['regle'][:170].replace('|','/')} | {', '.join(d['lots']) or '—'} | {d['etat_dans_etat_b']} | {d['etat_methode']} |")
+    M.append(f"| {d['id']} | {court(d['regle'], 170).replace('|','/')} | {', '.join(d['lots']) or '—'} | {d['etat_dans_etat_b']} | {d['etat_methode']} |")
 (OUT / "ECARTS_ET_DECISIONS.md").write_text("\n".join(M) + "\n", encoding="utf-8")
 # fichiers sources du document RE (un par partie)
 parts = "\n".join(M).split("\n# ")
