@@ -1,0 +1,21 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# E2 — Commandes de gestion (inventaire du code de l'état B)
+Fichier
+assets/management/commands/catalogue_reprise.py
+maintenance/management/commands/generate_installation_occurrences.py
+matrix/core/management/commands/marquer_instance_demo.py
+matrix/core/management/commands/purger_brouillons.py
+matrix/core/management/commands/seed_demo.py
+matrix/core/management/commands/seed_demo_dense.py
+matrix/core/management/commands/seed_demo_mer_quai.py
+matrix/core/management/commands/seed_demo_metier.py
+matrix/core/management/commands/verifier_instance.py
+notifications/management/commands/generate_installation_maintenance_notifications.py
+notifications/management/commands/generate_installation_notifications.py
+notifications/management/commands/generate_vapid_keys.py
+org/management/commands/importer_referentiel_batiments.py
+quarts/management/commands/analyser_chevauchements_mer_quai.py
+quarts/management/commands/analyser_designations_chef_de_liste.py
+quarts/management/commands/initialiser_mode_batiment.py
+quarts/management/commands/signaler_divergences_feuilles.py
+training/management/commands/fusionner_formations.py

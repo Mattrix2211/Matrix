@@ -1,0 +1,49 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# H1 — Index des schémas (dossier refonte/schemas)
+N°;Sujet;Source Mermaid;Export SVG;Présentation
+S01;contexte reseau;schemas/src/S01_contexte_reseau.mmd;schemas/svg/S01_contexte_reseau.svg;figure
+S02;carte modules;schemas/src/S02_carte_modules.mmd;schemas/svg/S02_carte_modules.svg;remplacé par un tableau dans le référentiel
+S03;hierarchie unites;schemas/src/S03_hierarchie_unites.mmd;schemas/svg/S03_hierarchie_unites.svg;figure
+S04;releve equipage;schemas/src/S04_releve_equipage.mmd;schemas/svg/S04_releve_equipage.svg;figure
+S05;cycle vie unite;schemas/src/S05_cycle_vie_unite.mmd;schemas/svg/S05_cycle_vie_unite.svg;figure
+S06;calcul droits;schemas/src/S06_calcul_droits.mmd;schemas/svg/S06_calcul_droits.svg;figure
+S07;gestion des roles;schemas/src/S07_gestion_des_roles.mmd;schemas/svg/S07_gestion_des_roles.svg;figure
+S08;couches;schemas/src/S08_couches.mmd;schemas/svg/S08_couches.svg;figure
+S09;groupes fonctionnels;schemas/src/S09_groupes_fonctionnels.mmd;schemas/svg/S09_groupes_fonctionnels.svg;figure
+S09d;dependances detail;schemas/src/S09d_dependances_detail.mmd;schemas/svg/S09d_dependances_detail.svg;figure
+S10;organisation rattachement;schemas/src/S10_organisation_rattachement.mmd;schemas/svg/S10_organisation_rattachement.svg;figure
+S10b;equipages modules seuils;schemas/src/S10b_equipages_modules_seuils.mmd;schemas/svg/S10b_equipages_modules_seuils.svg;figure
+S11;chaine requete;schemas/src/S11_chaine_requete.mmd;schemas/svg/S11_chaine_requete.svg;figure
+S12;garde demonstration;schemas/src/S12_garde_demonstration.mmd;schemas/svg/S12_garde_demonstration.svg;figure
+S13;page aujourdhui;schemas/src/S13_page_aujourdhui.mmd;schemas/svg/S13_page_aujourdhui.svg;figure
+S14;sources calendrier;schemas/src/S14_sources_calendrier.mmd;schemas/svg/S14_sources_calendrier.svg;remplacé par un tableau dans le référentiel
+S15;cycle listes;schemas/src/S15_cycle_listes.mmd;schemas/svg/S15_cycle_listes.svg;figure
+S16;echange reel;schemas/src/S16_echange_reel.mmd;schemas/svg/S16_echange_reel.svg;figure
+S17;echange cible;schemas/src/S17_echange_cible.mmd;schemas/svg/S17_echange_cible.svg;figure
+S18;circuit feuille;schemas/src/S18_circuit_feuille.mmd;schemas/svg/S18_circuit_feuille.svg;figure
+S19;notifications;schemas/src/S19_notifications.mmd;schemas/svg/S19_notifications.svg;figure
+S20;etats tache reel;schemas/src/S20_etats_tache_reel.mmd;schemas/svg/S20_etats_tache_reel.svg;figure
+S21;etats tache cible;schemas/src/S21_etats_tache_cible.mmd;schemas/svg/S21_etats_tache_cible.svg;figure
+S22;equiper depuis catalogue;schemas/src/S22_equiper_depuis_catalogue.mmd;schemas/svg/S22_equiper_depuis_catalogue.svg;remplacé par un tableau dans le référentiel
+S23;circuits fiches;schemas/src/S23_circuits_fiches.mmd;schemas/svg/S23_circuits_fiches.svg;figure
+S24;du plan a la realisation;schemas/src/S24_du_plan_a_la_realisation.mmd;schemas/svg/S24_du_plan_a_la_realisation.svg;remplacé par un tableau dans le référentiel
+S25;etats occurrence;schemas/src/S25_etats_occurrence.mmd;schemas/svg/S25_etats_occurrence.svg;figure
+S25d;etats occurrence detail;schemas/src/S25d_etats_occurrence_detail.mmd;schemas/svg/S25d_etats_occurrence_detail.svg;figure
+S26;ticket et anomalie;schemas/src/S26_ticket_et_anomalie.mmd;schemas/svg/S26_ticket_et_anomalie.svg;figure
+S27;stock et pieces;schemas/src/S27_stock_et_pieces.mmd;schemas/svg/S27_stock_et_pieces.svg;remplacé par un tableau dans le référentiel
+S28;circuits formation;schemas/src/S28_circuits_formation.mmd;schemas/svg/S28_circuits_formation.svg;figure
+S28b;formation geree par le bord;schemas/src/S28b_formation_geree_par_le_bord.mmd;schemas/svg/S28b_formation_geree_par_le_bord.svg;figure
+S29;versions documentation;schemas/src/S29_versions_documentation.mmd;schemas/svg/S29_versions_documentation.svg;figure
+S30;retex reel;schemas/src/S30_retex_reel.mmd;schemas/svg/S30_retex_reel.svg;figure
+S31;retex cible;schemas/src/S31_retex_cible.mmd;schemas/svg/S31_retex_cible.svg;figure
+S32;appareillage reel;schemas/src/S32_appareillage_reel.mmd;schemas/svg/S32_appareillage_reel.svg;figure
+S33;appareillage cible;schemas/src/S33_appareillage_cible.mmd;schemas/svg/S33_appareillage_cible.svg;figure
+S34;navigation par role;schemas/src/S34_navigation_par_role.mmd;schemas/svg/S34_navigation_par_role.svg;figure
+S35;deploiement type;schemas/src/S35_deploiement_type.mmd;schemas/svg/S35_deploiement_type.svg;figure
+S36;cycle instance demo;schemas/src/S36_cycle_instance_demo.mmd;schemas/svg/S36_cycle_instance_demo.svg;remplacé par un tableau dans le référentiel
+S37;flux asynchrones;schemas/src/S37_flux_asynchrones.mmd;schemas/svg/S37_flux_asynchrones.svg;remplacé par un tableau dans le référentiel
+S38;feuille de route;schemas/src/S38_feuille_de_route.mmd;schemas/svg/S38_feuille_de_route.svg;remplacé par un tableau dans le référentiel
+S39;dependances lots;schemas/src/S39_dependances_lots.mmd;schemas/svg/S39_dependances_lots.svg;figure
+S40;genealogie branches;schemas/src/S40_genealogie_branches.mmd;schemas/svg/S40_genealogie_branches.svg;remplacé par un tableau dans le référentiel
+S41;chaine d un lot;schemas/src/S41_chaine_d_un_lot.mmd;schemas/svg/S41_chaine_d_un_lot.svg;figure
+S42;carte des routes;schemas/src/S42_carte_des_routes.mmd;schemas/svg/S42_carte_des_routes.svg;remplacé par un tableau dans le référentiel

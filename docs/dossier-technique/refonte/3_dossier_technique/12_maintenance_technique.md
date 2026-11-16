@@ -9,7 +9,7 @@
 <!-- partie: Modules -->
 # Maintenance, anomalies et tickets : mécanismes
 
-<div class="ligne-public"><b>Public :</b> développeurs, mainteneurs · <b>Accès restreint</b> · <b>Fonctionnel :</b> voir [[RF 1]] · <b>État décrit :</b> EB-2026-11-11 · <b>Fusionne :</b> l'ancien chapitre 12 technique et la part mécanique de l'ancien chapitre 12.</div>
+<div class="ligne-public"><b>Public :</b> développeurs, mainteneurs · <b>Accès restreint</b> · <b>Fonctionnel :</b> voir [[RF:12_fiche_maintenance]] · <b>État décrit :</b> EB-2026-11-11 · <b>Fusionne :</b> l'ancien chapitre 12 technique et la part mécanique de l'ancien chapitre 12.</div>
 
 ## Vue d'ensemble du module
 

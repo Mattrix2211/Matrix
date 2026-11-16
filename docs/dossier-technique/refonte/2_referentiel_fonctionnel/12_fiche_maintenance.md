@@ -14,7 +14,7 @@
 <!-- partie: Modules -->
 # Maintenance, anomalies et tickets correctifs
 
-<div class="ligne-public"><b>Public :</b> responsables métier, commandement · <b>Module :</b> maintenance, anomalies, tickets · <b>Écran de référence :</b> [[GU 1]] · <b>Étiquettes :</b> 🟢 actuel vérifié · 🔵 cible validée · 🟣 proposition · ⚪ non vérifié</div>
+<div class="ligne-public"><b>Public :</b> responsables métier, commandement · <b>Module :</b> maintenance, anomalies, tickets · <b>Écran de référence :</b> [[GU:12_maintenance]] · <b>Étiquettes :</b> 🟢 actuel vérifié · 🔵 cible validée · 🟣 proposition · ⚪ non vérifié</div>
 
 ## À quoi sert ce module
 
@@ -44,7 +44,7 @@ Un **acteur à terre** peut commenter un ticket bloqué mais ne le fait pas avan
 
 ## Les écrans
 
-Le parcours du marin et celui du chef, avec captures, sont décrits dans le guide utilisateur : [[GU 1]]. Trois écrans à retenir : la **liste des maintenances** (compteurs « à traiter », filtres), la **fiche d'exécution guidée** (contrôles, consignes de sécurité, progression), et la **fiche d'une anomalie ou d'un ticket** (état, historique, fil de discussion).
+Le parcours du marin et celui du chef, avec captures, sont décrits dans le guide utilisateur : [[GU:12_maintenance]]. Trois écrans à retenir : la **liste des maintenances** (compteurs « à traiter », filtres), la **fiche d'exécution guidée** (contrôles, consignes de sécurité, progression), et la **fiche d'une anomalie ou d'un ticket** (état, historique, fil de discussion).
 
 ## Les règles de fonctionnement
 
@@ -74,7 +74,7 @@ Le marin ouvre l'échéance (depuis « À faire », depuis la fiche de l'équipe
 
 ![Schéma S25 — États d'une échéance de maintenance (vue simplifiée)](../schemas/svg/S25_etats_occurrence.svg)
 
-États : **Planifiée → Assignée → En cours → Terminée** ; **En retard** (calculé) ; **En validation** (verdict non conforme) ; **Annulée** (uniquement par le système, quand une fiche est remplacée : aucun bouton d'annulation n'existe). Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. La note rattachée à « En validation » renvoie à l'écart A20, décrit plus bas ; la vue détaillée de ce schéma, avec les références de code, est dans le dossier technique ([[DT 1]]).
+États : **Planifiée → Assignée → En cours → Terminée** ; **En retard** (calculé) ; **En validation** (verdict non conforme) ; **Annulée** (uniquement par le système, quand une fiche est remplacée : aucun bouton d'annulation n'existe). Chaque changement est journalisé (ancien et nouvel état, auteur) et, pour les installations critiques, audité. La note rattachée à « En validation » renvoie à l'écart A20, décrit plus bas ; la vue détaillée de ce schéma, avec les références de code, est dans le dossier technique ([[DT:12_maintenance_technique]]).
 
 ### L'anomalie
 
@@ -88,6 +88,8 @@ Un ticket vise **un matériel ou une installation**, jamais les deux ; il peut m
 
 1. **Remise en service** : confirmation explicite obligatoire ; sans elle, rien n'est enregistré et le refus est tracé.
 2. **Clôture** : le **retour d'expérience** (diagnostic final et solution appliquée) est obligatoire ; un ticket fermé porte donc toujours un REX, retrouvable ensuite depuis la fiche de l'équipement.
+
+**Pièces et périmètre.** Un ticket peut déclencher une **demande de pièces** ([[RF:13_fiche_logistique]]) ; il reste en attente tant que les pièces ne sont pas reçues. Un chef ne fait avancer que les tickets de **son périmètre** ; chaque changement d'état est journalisé et audité.
 
 ### Détection de dérive et alertes
 
@@ -105,7 +107,7 @@ Les relevés des installations alimentent une détection de dérive par régress
 | Préparation à l'appareillage | Tickets bloquants et installations critiques |
 | Accueil | « À faire », indicateurs, supervision |
 
-Cas particuliers : en **double équipage**, listes et compteurs sont bornés à l'équipage ; le module **« rondes »** est retiré de l'interface (aucune fonction de ronde n'est disponible) ; un **module désactivé** disparaît du menu et ses pages sont refusées, mais l'accueil et le calendrier continuent d'afficher les maintenances (écart A25).
+Cas particuliers : si un **équipement est supprimé**, les comptes rendus conservent l'historique ([[RF:11_fiche_materiel_installations]]) ; en **double équipage**, listes et compteurs sont bornés à l'équipage ; le module **« rondes »** est retiré de l'interface (aucune fonction de ronde n'est disponible) ; un **module désactivé** disparaît du menu et ses pages sont refusées, mais l'accueil et le calendrier continuent d'afficher les maintenances (écart A25).
 
 ## Ce qui existe et ce qui est prévu
 

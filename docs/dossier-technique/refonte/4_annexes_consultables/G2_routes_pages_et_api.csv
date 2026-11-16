@@ -1,0 +1,27 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# G2 — Routes (pages et API) (annexe G de l'édition initiale, relue (numéros de chapitre de l'édition initiale : voir MAPPING_ANCIEN_NOUVEAU.csv))
+Paquet de la vue;Routes;Chapitres;Ensemble
+absences;1;8;E2
+accounts;29;5, 19, 22;E1
+annonces;4;9;E2
+assets;90;11;E3
+calendar_app;9;7;E2
+dashboard;17;6, 16;E2/E3
+demandes;5;10;E2
+django;368;18, 20;E1/E4
+documentation;5;15;E3
+logistics;32;12, 13;E3
+maintenance;30;12;E3
+matrix;8;18, 20;E1/E4
+notifications;16;9, 21;E2/E4
+org;20;4, 19;E1
+postes;3;10;E2
+programme;5;10;E2
+quarts;15;8;E2
+reports;1;6;E2
+rest_framework;16;18, 20;E1/E4
+retex;5;15;E3
+taches;5;10;E2
+threads;12;9;E2
+training;25;14;E3
+Total;721;;

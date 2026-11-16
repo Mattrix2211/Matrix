@@ -1,0 +1,11 @@
+{
+ "version": "153.0.8010.12",
+ "langue_navigateur": "fr-FR",
+ "langues": [
+  "fr-FR"
+ ],
+ "format_date": "16/11/2026",
+ "arguments": [
+  "--lang=fr"
+ ]
+}

@@ -1,0 +1,4 @@
+DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+
+Annexes consultables : ouvrir index.html dans un navigateur (fichier autonome, hors ligne). Un fichier CSV par table (UTF-8, séparateur « ; »).
+Régénérer : python refonte/outils/generer_annexes_consultables.py

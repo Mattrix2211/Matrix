@@ -1,0 +1,94 @@
+Journal de la prise en main développeur — rejouée le 16/11/2026 dans une copie isolée de l'état B (git archive), base SQLite jetable, serveur sur le port 8811.
+Chaque pas ci-dessous a été exécuté ; les modifications d'exemple (action de seuil, module, tâche planifiée) n'existent que dans cette copie.
+
+$ python --version
+Python 3.13.18
+[code retour 0]
+
+$ pip install --dry-run -r requirements.txt 2>&1 | tail -3
+Requirement already satisfied: wcwidth>=0.1.4 in /usr/local/lib/python3.13/site-packages (from prompt_toolkit>=3.0.36->click-repl>=0.2.0->celery==5.6.3->-r requirements.txt (line 3)) (0.9.4)
+Using cached pywebpush-2.4.0-py3-none-any.whl (21 kB)
+Would install pywebpush-2.4.0
+[code retour 0]
+
+$ python manage.py check
+System check identified some issues:
+
+WARNINGS:
+?: (matrix.W002) DEBUG est activé (DJANGO_DEBUG=1) alors que ce n'est pas le serveur de développement local qui est lancé. En production, DJANGO_DEBUG doit valoir 0 : DEBUG=True expose des informations sensibles (traces d'erreur détaillées, requêtes SQL) aux utilisateurs.
+
+System check identified 1 issue (0 silenced).
+[code retour 0]
+
+$ python manage.py migrate 2>&1 | tail -4
+  Applying threads.0001_initial... OK
+  Applying threads.0002_validation_fichiers_televerses... OK
+  Applying threads.0003_mentions... OK
+  Applying training.0016_protection_suppression_unites... OK
+[code retour 0]
+
+$ DJANGO_SUPERUSER_PASSWORD=<mot_de_passe_local> python manage.py createsuperuser --noinput --username admin_local --email admin@example.invalid 2>&1 | tail -2
+?: (matrix.W002) DEBUG est activé (DJANGO_DEBUG=1) alors que ce n'est pas le serveur de développement local qui est lancé. En production, DJANGO_DEBUG doit valoir 0 : DEBUG=True expose des informations sensibles (traces d'erreur détaillées, requêtes SQL) aux utilisateurs.
+Superuser created successfully.
+[code retour 0]
+
+$ python manage.py test retex postes 2>&1 | tail -6
+............
+----------------------------------------------------------------------
+Ran 12 tests in 10.862s
+
+OK
+Destroying test database for alias 'default'...
+[code retour 0]
+
+$ curl -s -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:8811/accounts/login/
+HTTP 200
+[code retour 0]
+
+$ python manage.py shell -c "from matrix.core.role_thresholds import REGISTRE_ACTIONS, seuil_role; print(len(REGISTRE_ACTIONS), seuil_role('exemple_action_prise_en_main'))"
+141 objects imported automatically (use -v 2 for details).
+
+36 2
+[code retour 0]
+
+$ python manage.py shell -c "from matrix.core.modules import REGISTRE_MODULES, REGISTRE_PAR_CLE; print(len(REGISTRE_MODULES), sorted(REGISTRE_PAR_CLE)[:4])"
+141 objects imported automatically (use -v 2 for details).
+
+14 ['absences', 'annonces', 'assets', 'demandes']
+[code retour 0]
+
+$ python manage.py shell -c "from matrix.core.tasks import tache_exemple_prise_en_main as t; from django.conf import settings; print(t.apply().get(), len(settings.CELERY_BEAT_SCHEDULE))"
+141 objects imported automatically (use -v 2 for details).
+
+ok 21
+[code retour 0]
+
+$ python manage.py check 2>&1 | tail -3
+?: (matrix.W002) DEBUG est activé (DJANGO_DEBUG=1) alors que ce n'est pas le serveur de développement local qui est lancé. En production, DJANGO_DEBUG doit valoir 0 : DEBUG=True expose des informations sensibles (traces d'erreur détaillées, requêtes SQL) aux utilisateurs.
+
+System check identified 1 issue (0 silenced).
+[code retour 0]
+
+$ python manage.py shell -c "from matrix.core.modules import REGISTRE_PAR_CLE; print(len(REGISTRE_PAR_CLE), 'exemple_pm' in REGISTRE_PAR_CLE)"
+141 objects imported automatically (use -v 2 for details).
+
+15 True
+[code retour 0]
+
+$ python manage.py test matrix.tests.test_modules_activables 2>&1 | tail -6
+................
+----------------------------------------------------------------------
+Ran 16 tests in 5.855s
+
+OK
+Destroying test database for alias 'default'...
+[code retour 0]
+
+$ python manage.py test matrix.tests.test_coherence_configuration 2>&1 | tail -5
+----------------------------------------------------------------------
+Ran 24 tests in 43.847s
+
+OK
+Destroying test database for alias 'default'...
+[code retour 0]
+

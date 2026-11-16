@@ -1,0 +1,56 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# F4 — Branches distantes de l'inventaire (annexe F de l'édition initiale, relue)
+Branche;Date;Commit;Dans A (main);Dans B;Statut
+claude/fervent-wright-kl6gtx;2026-11-12;f960c84;non;non;analysée
+chatgpt/relecture-g0-corrections-20261112;2026-11-12;1aac419;non;non;non analysée ⚪
+claude/eager-hopper-2cbcqh;2026-11-11;6cc1557;non;non;analysée
+claude/l03-suppression-sure-v11;2026-11-11;6d6d0be;non;oui;analysée
+claude/l02-archivage-effectif-v11;2026-11-11;6e14a65;non;oui;analysée
+claude/l05-config-production-v11;2026-11-10;517a2ce;non;oui;analysée
+claude/l01-verrou-demo-v11;2026-11-10;8e60fee;non;oui;analysée
+claude/matrix-audit-general-9oohvw;2026-11-05;4aa4dcf;non;non;analysée
+claude/matrix-audit-general-rg0ddz;2026-11-05;1ef7047;non;non;analysée
+claude/iteration-ux-v11-20261102;2026-11-05;1c37f22;non;oui;analysée
+claude/recette-metier-ux-v11-20261101;2026-11-01;284430d;non;oui;analysée
+claude/ux-naval-premium-v11;2026-10-31;a1503ac;non;oui;analysée
+claude/maquette-carte-a-faire;2026-10-30;0fb5e17;non;non;analysée
+main;2026-10-28;6ef16ad;oui;oui;analysée
+claude/ux9-role-creation-sans-defaut;2026-10-27;994a530;oui;oui;analysée
+integration/v1-fanlab-20261021;2026-10-27;994a530;oui;oui;analysée
+claude/ux9-corrections-recette;2026-10-27;5e80fae;oui;oui;analysée
+claude/ux9-fiche-tache-remontee;2026-10-27;fa8eaae;oui;oui;analysée
+claude/ux9-interlocuteur-terre;2026-10-27;09b12ed;oui;oui;analysée
+claude/ux9-retours-libelles;2026-10-26;c529d02;oui;oui;analysée
+claude/quarts-regler-echanges-atomique;2026-10-22;c9c3b28;oui;oui;analysée
+claude/securite-cache-permissions;2026-10-21;7628e8c;oui;oui;analysée
+claude/feuille-service-suivi;2026-10-21;50ae6a1;oui;oui;analysée
+claude/releve-date-effet;2026-10-21;01215cc;oui;oui;non analysée ⚪
+claude/feuille-service-rectificatif;2026-10-20;386aa2c;oui;oui;analysée
+claude/feuille-service-historisation;2026-10-20;5159564;oui;oui;analysée
+claude/matrix-v1-recette-audit-4olae7;2026-10-20;b2dfacb;non;non;analysée
+claude/fiabilite-annonces-concurrence;2026-10-20;355217d;oui;oui;analysée
+claude/fiabilite-quarts-trace;2026-10-20;cc4ebff;oui;oui;analysée
+claude/fiabilite-stock-push;2026-10-20;545d0ad;oui;oui;analysée
+claude/validations-critiques-confirmation;2026-10-20;1a726a0;oui;oui;analysée
+claude/feuille-service-escalade;2026-10-17;d8ed862;oui;oui;analysée
+claude/ergonomie-p2;2026-10-17;5f57d96;oui;oui;analysée
+claude/securite-terre-second;2026-10-17;1a7f212;oui;oui;analysée
+claude/compat-postgresql;2026-10-16;4ade094;oui;oui;analysée
+claude/securite-calendrier-fichiers;2026-10-13;7a57264;oui;oui;analysée
+claude/securite-perimetres-api;2026-10-13;0ca4e2f;oui;oui;analysée
+claude/recette-v1-passage-b;2026-10-13;0f9f799;non;non;analysée
+claude/fix-ano-001-equipage-postgres;2026-10-13;06131ca;oui;oui;analysée
+claude/gracious-planck-g0pwzh;2026-10-13;7b722a4;oui;oui;non analysée ⚪
+claude/taches-lot1;2026-10-10;0de7ff9;non;non;non analysée ⚪
+claude/verif-socle-accounts;2026-10-10;36b32f8;non;non;non analysée ⚪
+integration/pr6-et-travail-local;2026-10-10;50df154;oui;oui;analysée
+claude/ux-fondations;2026-10-09;9691fbf;non;non;non analysée ⚪
+claude/ux-3-10;2026-10-08;a074f42;non;non;non analysée ⚪
+claude/economie-tokens;2026-10-02;2905228;non;non;non analysée ⚪
+docs/cahier-ux;2026-10-02;4258568;oui;oui;analysée
+claude/paquet-bordops-review-69huab;2026-10-01;f69a8cb;oui;oui;analysée
+claude/versionnage-listes-en-cours;2026-09-23;f03ad71;oui;oui;non analysée ⚪
+claude/adoring-einstein-71zc3z;2026-09-23;e0f7514;oui;oui;non analysée ⚪
+sauvegarde/sonnet-2026-09-23;2026-09-23;0ee6947;non;non;non analysée ⚪
+claude/matrix-project-tasks-d2c1x6;2026-08-21;fe5e1a3;non;non;non analysée ⚪
+claude/quizzical-curran;2026-04-03;11515b8;non;non;non analysée ⚪

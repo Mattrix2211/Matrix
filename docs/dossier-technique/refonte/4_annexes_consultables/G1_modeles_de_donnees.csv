@@ -1,0 +1,25 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# G1 — Modèles de données (annexe G de l'édition initiale, relue (numéros de chapitre de l'édition initiale : voir MAPPING_ANCIEN_NOUVEAU.csv))
+Paquet;Modèles;Expliqués;Nommés (ch. 19);Dictionnaire seul;Chapitres;Ensemble
+absences;1;1;0;0;8;E2
+accounts;10;10;0;0;5, 19, 22;E1
+annonces;4;4;0;0;9;E2
+assets;29;29;0;0;11;E3
+calendar_app;1;1;0;0;7;E2
+core;1;1;0;0;5, 18, 22;E1
+dashboard;2;2;0;0;6, 16;E2/E3
+demandes;1;1;0;0;10;E2
+documentation;3;3;0;0;15;E3
+logistics;8;8;0;0;12, 13;E3
+maintenance;6;6;0;0;12;E3
+notifications;2;2;0;0;9, 21;E2/E4
+org;15;15;0;0;4, 19;E1
+postes;2;2;0;0;10;E2
+programme;3;3;0;0;10;E2
+quarts;22;22;0;0;8;E2
+retex;2;2;0;0;15;E3
+rondes;4;4;0;0;12;E3
+taches;5;5;0;0;10;E2
+threads;3;3;0;0;9;E2
+training;11;11;0;0;14;E3
+Total;135;135;0;0;;

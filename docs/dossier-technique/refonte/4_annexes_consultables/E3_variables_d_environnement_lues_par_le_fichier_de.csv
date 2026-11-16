@@ -1,0 +1,34 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# E3 — Variables d'environnement lues par le fichier de réglages (annexe E de l'édition initiale, relue)
+Variable;Valeur par défaut dans le code
+BROUILLONS_CONSERVATION_JOURS;"""30"""
+BROUILLONS_TAILLE_MAX;str(256 1024)
+CELERY_BROKER_URL;"""redis://localhost:6379/0"""
+CELERY_RESULT_BACKEND;"""redis://localhost:6379/1"""
+DB_HOST;—
+DB_NAME;"""matrix"""
+DB_PASSWORD;""""""
+DB_PORT;"""5432"""
+DB_USER;"""matrix"""
+DEFAULT_FROM_EMAIL;"""no-reply@localhost"""
+DJANGO_ALLOWED_HOSTS;"""localhost,127.0.0.1"""
+DJANGO_DEBUG;"""0"""
+DJANGO_SECRET_KEY;—
+DOCUMENT_TAILLE_MAX_MO;"""20"""
+EMAIL_BACKEND;"""django.core.mail.backends.console.EmailBackend"""
+EMAIL_HOST;""""""
+EMAIL_HOST_PASSWORD;""""""
+EMAIL_HOST_USER;""""""
+EMAIL_PORT;"""587"""
+EMAIL_USE_SSL;"""0"""
+EMAIL_USE_TLS;"""1"""
+INACTIVITE_AVERTISSEMENT_SECONDES;"""60"""
+INACTIVITE_DELAI_SECONDES;"""900"""
+MATRIX_ENV_FILE;—
+MATRIX_MEDIA_ROOT;—
+MATRIX_SQLITE_PATH;—
+MEDIA_ACCEL_REDIRECT;""""""
+VAPID_ADMIN_EMAIL;"""no-reply@localhost"""
+VAPID_PRIVATE_KEY;""""""
+VAPID_PUBLIC_KEY;""""""
+WEBPUSH_DELAI_MAX;"""3"""

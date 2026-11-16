@@ -1,0 +1,38 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# B1 — Matrice rôle × action : actions à seuil de rôle (valeurs par défaut) (inventaire du code de l'état B (REGISTRE_ACTIONS))
+Clé;Catégorie;Action;Seuil par défaut;Portée;Admin. général;Admin. unité;Commandant;Second;État-major;Chef service;Chef secteur;Chef section;Équipier
+structure_navire_ecriture;Organisation de l'unité;Modifier ou supprimer la structure de l'unité : services, secteurs, sections, configuration des secteurs, lieux;ADMIN_NAVIRE;SHIP;✔;✔;—;—;—;—;—;—;—
+unite_administration;Organisation de l'unité;Archiver l'unité, activer/désactiver son double équipage ou changer son fuseau horaire de référence;ADMIN_NAVIRE;SHIP;✔;✔;—;—;—;—;—;—;—
+asset_ecriture_simple;Matériel mobile;Créer ou modifier un matériel, un dossier;CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+asset_gestion_avancee;Matériel mobile;Supprimer un matériel, un dossier, un document, ou lancer une action groupée;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+installation_ecriture_simple;Installations;Créer ou modifier une installation, ajouter un document;CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+installation_gestion_avancee;Installations;Supprimer une installation ou un de ses documents, ou lancer une action groupée;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+installation_entretien_gestion;Installations;Gérer les tâches d'entretien d'une installation (ajout, modification, suppression, pièce jointe);CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+fiche_bord_redaction;Installations;Rédiger ou proposer une nouvelle version d'une fiche de maintenance d'installation (chef de section ou de secteur);CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+fiche_flotte_proposition;Installations;Proposer une fiche de maintenance flotte (matériel ou installation) ou son adaptation (chef de section ou de secteur);CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+rattachement_parent_gestion;Installations;Modifier le rattachement parent/enfant d'un matériel ou d'une installation;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+plan_navire_configuration;Installations;Configurer les ponts et le positionnement du matériel sur le plan visuel du navire;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+stock_ecriture;Stock;Gérer le stock de pièces : créer ou modifier une pièce, prélever, saisir un mouvement ou un inventaire;CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+maintenance_execution_ecriture;Maintenance;Créer ou modifier une occurrence ou une exécution de maintenance;EQUIPIER;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;✔
+maintenance_occurrence_gestion_tiers;Maintenance;Exécuter ou commenter une maintenance qui n'est pas la sienne;CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+maintenance_compte_rendu_correction;Maintenance;Corriger un compte rendu de maintenance terminé (motif obligatoire, saisie d'origine conservée);CHEF_SECTEUR;SHIP;✔;✔;✔;✱;✔†;✔;✔;—;—
+maintenance_plan_ecriture;Maintenance;Créer ou modifier un plan de maintenance préventive;CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+supervision_aujourdhui;Tableau de bord;Voir le bloc Supervision (retards, validations, indicateurs du secteur ou du service) de la page Aujourd'hui;CHEF_SECTEUR;SHIP;✔;✔;✔;✱;✔†;✔;✔;—;—
+thread_ecriture;Discussions;Créer ou modifier une discussion;CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+liste_service_publication;Quarts / Services de garde;Publier (valider) une liste de quarts ou de services de garde proposée par un chef de liste;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+feuille_service_configuration;Feuille de service;Configurer les rubriques d'en-tête et les fonctions de service de la feuille de service quotidienne;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+feuille_service_visa_secteur;Feuille de service;Viser une feuille de service en tant que chef du secteur rédacteur;CHEF_SECTEUR;SHIP;✔;✔;✔;✱;✔†;✔;✔;—;—
+feuille_service_visa_service;Feuille de service;Viser une feuille de service en tant que chef du service rédacteur (ex. Pont);CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+alerte_organisation_validation;Feuille de service;Valider une modification de l'organisation sécurité / protection-défense (scénarios d'alerte et postes);COMMANDANT;SHIP;✔;✔;✔;—;—;—;—;—;—
+module_gestion;Modules;Activer ou désactiver un module applicatif pour cette unité (onglet Modules des Réglages);COMMANDANT_EN_SECOND;SHIP;✔;✔;✔;✱;—;—;—;—;—
+mot_de_passe_reinitialisation;Comptes;Réinitialiser le mot de passe d'un marin du bâtiment (mot de passe provisoire à changer à la connexion);ADMIN_NAVIRE;SHIP;✔;✔;—;—;—;—;—;—;—
+tache_attribution;Tâches;Attribuer une tâche à un marin de son secteur ou de son service et suivre l'avancement de l'équipe;CHEF_SECTION;GLOBALE;✔;✔;✔;✱;✔†;✔;✔;✔;—
+annonce_publication;Annonces;Publier une annonce à son niveau (bâtiment, service, secteur, section, équipage);CHEF_SERVICE;SHIP;✔;✔;✔;✔;✔†;✔;—;—;—
+programme_saisie;Programme du bâtiment;Saisir le programme du bâtiment (escales, arrêts techniques, exercices, réunions) et déléguer ce droit;ETAT_MAJOR;SHIP;✔;✔;✔;✱;✔†;—;—;—;—
+programme_types;Programme du bâtiment;Configurer les types d'événements du programme du bâtiment;ADMIN_NAVIRE;SHIP;✔;✔;—;—;—;—;—;—;—
+poste_gestion;Postes du bord;Créer les postes du bord, définir leurs formations exigées et y affecter des marins;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+documentation_redaction;Documentation;Rédiger et soumettre à validation un document ou une nouvelle version;CHEF_SECTION;SHIP;✔;✔;✔;✱;✔†;✔;✔;✔;—
+documentation_validation;Documentation;Valider et publier un document ou une nouvelle version, archiver un document;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+retex_validation;RETEX;Valider, refuser ou clore un RETEX et en décider les actions;CHEF_SERVICE;SHIP;✔;✔;✔;✱;✔†;✔;—;—;—
+referentiel_global_ecriture;Référentiels globaux;Modifier les grades, spécialités ou la disponibilité des rôles (référentiel commun à toute la flotte);MASTER_ADMIN;GLOBALE;✔;—;—;—;—;—;—;—;—
+responsabilite_transverse_gestion;Référentiels globaux;Désigner ou retirer un responsable de spécialité ou de classe de navire (dashboards transverses flotte);MASTER_ADMIN;GLOBALE;✔;—;—;—;—;—;—;—;—

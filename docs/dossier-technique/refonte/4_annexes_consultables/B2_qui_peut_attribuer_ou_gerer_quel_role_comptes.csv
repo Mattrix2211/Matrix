@@ -1,0 +1,12 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# B2 — Qui peut attribuer ou gérer quel rôle (comptes) (annexe B de l'édition initiale, relue)
+Rôle de l'acteur;Rôles qu'il peut attribuer ou gérer
+Administrateur général;Tous
+Administrateur d'unité;Administrateur d'unité, Commandant, Commandant en second, État-major, Chef de service, Chef de secteur, Chef de section, Équipier
+Commandant;État-major, Chef de service, Chef de secteur, Chef de section, Équipier
+Commandant en second;Aucun
+État-major;Chef de service, Chef de secteur, Chef de section, Équipier
+Chef de service;Chef de secteur, Chef de section, Équipier
+Chef de secteur;Chef de section, Équipier
+Chef de section;Équipier
+Équipier;Aucun

@@ -1,7 +1,7 @@
 """Génère le registre vivant (5_registre/registre.json) et ses vues (Markdown, HTML autonome).
 
 Usage : python generer_registre.py <dossier-technique> <dossier_v12> <sortie_5_registre>
-Sources : restreint/ECARTS_DECISIONS_CODE.md (A, B, D), AUDIT_GLOBAL_G0.md (AUD, NE), dossier V1.2 (125 décisions et lots).
+Sources : restreint/ECARTS_DECISIONS_CODE.md (A, B, D), AUDIT_GLOBAL_G0.md (AUD, NE), dossier V1.2 ({{fait:n_decisions_v12}} décisions et lots).
 Règles : aucune entrée ne devient « décision » sans mention du PO ; l'état d'une décision est déduit du plan en lots
 (M_PLAN_DEVELOPPEMENT.md) et des surcharges vérifiées dans le code ; sans rattachement, l'état reste « à instruire » ⚪.
 """
@@ -37,10 +37,17 @@ def court(t, n):
 
 
 def sans_ancienne_mention(t):
-    """Le registre cite des défauts de l'ancienne édition sans reproduire la mention qui prêtait à confusion."""
+    """Le registre cite des défauts de l'ancienne édition sans reproduire la mention qui prêtait à confusion
+    (sauf les citations balisées d'AUD-001, conservées comme preuve)."""
+    garde = re.findall(r"\[citation d[^\]]*\]", t)
+    for k, g in enumerate(garde):
+        t = t.replace(g, f"\u2063{k}\u2063", 1)
     t = re.sub(r"(?i)diffusion générale", "[ancienne mention de large diffusion]", t)
     t = t.replace("`**` et `` ` ``", "les astérisques et les accents graves")
-    return re.sub(r"(?i)\bdiffusables?\b", "[ancien qualificatif de large diffusion]", t)
+    t = re.sub(r"(?i)\bdiffusables?\b", "[ancien qualificatif de large diffusion]", t)
+    for k, g in enumerate(garde):
+        t = t.replace(f"\u2063{k}\u2063", g)
+    return t
 
 
 def deplier_plages(t):
@@ -159,6 +166,46 @@ audit = (D / "AUDIT_GLOBAL_G0.md").read_text(encoding="utf-8")
 TRAITE = {"AUD-001": "P0-1", "AUD-002": "P0-2", "AUD-004": "P0-2", "AUD-005": "P0-2", "AUD-007": "P0-2", "AUD-010": "P0-2", "AUD-030": "P0-2", "AUD-033": "P0-3", "AUD-003": "P0-4", "AUD-012": "P0-4 / P1-2",
           "AUD-008": "P0-5", "AUD-006": "P0-6", "AUD-031": "P0-6", "AUD-032": "P0-6", "AUD-035": "P0-7", "AUD-011": "P1-1", "AUD-023": "P1-2", "AUD-013": "P1-3", "AUD-016": "P1-3", "AUD-025": "P1-3",
           "AUD-024": "P1-4", "AUD-036": "P1-5", "AUD-022": "P1-6", "AUD-026": "P1-6", "AUD-034": "P1-8 (architecture)"}
+TITRES_AUD = {
+    "AUD-001": "L'en-tête de chaque page de l'ancien PDF portait une mention de large diffusion contradictoire avec la classification non validée",
+    "AUD-002": "Impression de la feuille de service : le dossier la disait introuvable alors qu'un bouton « Imprimer » existe",
+    "AUD-003": "Écrans décrits comme « non rejoués » alors que le guide visuel et l'audit les ont rejoués dans un navigateur",
+    "AUD-004": "Le premier chapitre promettait les rondes de contrôle, module retiré de l'interface",
+    "AUD-005": "La barre de parcours du quotidien (Mon quotidien, Mon équipe, Suivi, Synthèse) n'est décrite nulle part",
+    "AUD-006": "Schémas : légende séparée de sa figure et schéma S10 illisible (5,0 pt)",
+    "AUD-007": "Le bouton « Exécuter » est affiché sans droit d'exécution, mais c'est le serveur qui décide (refus 403)",
+    "AUD-008": "« Vérifié par test » : les fichiers de test n'étaient conservés dans aucun dépôt",
+    "AUD-009": "Pages portant 1 à 5 lignes, que le rapport de clôture disait absentes (fusionnée dans AUD-034)",
+    "AUD-010": "Rapport du guide visuel : « 25 captures non retenues » et lien de ligne des tickets, deux affirmations inexactes",
+    "AUD-011": "Aucun document court pour un décideur",
+    "AUD-012": "Sommaires sans numéros de page et deux parcours « marin » contradictoires dans les guides de lecture",
+    "AUD-013": "35 captures sur 64 utilisées : des écrans importants manquaient",
+    "AUD-014": "Textes anglais du navigateur dans une interface française (dates, boutons de fichier, heures)",
+    "AUD-015": "Messages de confirmation superposés et mention « Brouillon abandonné » sur des captures",
+    "AUD-016": "Captures en doublon exact ou quasi exact dans le guide visuel",
+    "AUD-017": "Formule répétée : « dans la partie restreinte du dossier et la partie restreinte du dossier »",
+    "AUD-018": "Identifiants coupés en milieu de mot dans les cellules des tableaux",
+    "AUD-019": "Le symbole ⚪ se rendait en petit cercle alors que 🟢, 🔵 et 🟣 sont des pastilles",
+    "AUD-020": "Texte de schémas trop petit (5,8 à 6,2 pt) (fusionnée dans AUD-036)",
+    "AUD-021": "Trois chiffres différents pour le nombre de tests (≈ 3 950 fonctions, 3 963 tests)",
+    "AUD-022": "Recherche de personnes classée cible alors que la catégorie « Marins » existe",
+    "AUD-023": "Les chapitres techniques renvoyaient à des chapitres absents du PDF restreint",
+    "AUD-024": "Pas de recette du premier jour pour un développeur ni de mise en garde sur la redirection HTTPS derrière un proxy",
+    "AUD-025": "Écart A20 : le texte ne précisait pas que l'exécutant et le chef de section ne voient pas le bouton de correction",
+    "AUD-026": "Les décisions DEC-… renvoient à une branche et à Notion, non joignables depuis le dossier",
+    "AUD-027": "Lignes de la liste des tickets cliquables à la souris seulement, non accessibles au clavier",
+    "AUD-028": "Rapports précédents aux chiffres d'origine contradictoires ; 11 fichiers de pilotage à la racine",
+    "AUD-029": "Deux personnages différents portent le nom « Durand » dans le chapitre 6 ; noms des captures non repris",
+    "AUD-030": "Chemin erroné du scan web : « assets/scan/<uuid>/ » au lieu de « /scan/<uuid>/ »",
+    "AUD-031": "Annexe générée : lignes tronquées, fragments de tableau et symboles Markdown bruts",
+    "AUD-032": "Tableaux Markdown non rendus (barres verticales brutes) dans le PDF restreint",
+    "AUD-033": "Des plages de décisions présentées comme « cible, non développée » alors que certaines sont réalisées",
+    "AUD-034": "Densité des pages : trop de pages remplies à moins de 70 % et compléments techniques répétitifs",
+    "AUD-035": "Les schémas de circuit cible ne se distinguent pas des schémas de fonctionnement réel",
+    "AUD-036": "Qualité des 42 schémas : listes de cases sans information relationnelle, un schéma difficile, un illisible",
+    "AUD-037": "Rubriques « bis » : traces d'édition d'insertions tardives",
+    "AUD-038": "Deux chiffres pour le même inventaire ; annexe F.4 datée de l'ensemble 4",
+}
 FUSION = {"AUD-009": "AUD-034", "AUD-020": "AUD-036"}
 aud = []
 def cellules_audit(ligne):
@@ -166,7 +213,21 @@ def cellules_audit(ligne):
     return [c.replace("\\|", "/").strip() for c in re.split(r"(?<!\\)\|", ligne.strip().strip("|"))]
 
 
+def citer_historique(t):
+    """AUD-001 : les formulations anciennes sont conservées comme preuve, balisées comme citations de documents antérieurs."""
+    t = re.sub(r"« ?DIFFUSION GÉNÉRALE ?»", "[citation d'un document antérieur : « DIFFUSION GÉNÉRALE »]", t)
+    t = re.sub(r"« ?DIFFUSABLE ?»", "[citation du nom d'un fichier antérieur : « DIFFUSABLE »]", t)
+    t = re.sub(r"PDF diffusable", "PDF [citation du nom d'un fichier antérieur : « diffusable »]", t)
+    return t
+
+
+CHEMINS = [("`ticket_list.html", "`matrix/templates/logistics/ticket_list.html"), ("`recherche.py:", "`matrix/core/recherche.py:"),
+           ("`settings.py:", "`matrix/settings.py:"), ("`23_configuration_deploiement_exploitation.md:", "`restreint/23_configuration_deploiement_exploitation.md:")]
+
+
 def sain(t):
+    for a, b in CHEMINS:
+        t = t.replace(a, b)
     t = t.replace("`**` et `` ` ``", "les astérisques et les accents graves")
     return sans_ancienne_mention(nettoyer(t))
 
@@ -176,6 +237,8 @@ for l in audit.split("\n"):
     if not m:
         continue
     c = cellules_audit(l)
+    if m.group(1) == "AUD-001":
+        c = [citer_historique(x) for x in c]
     i = m.group(1)
     n = int(i[4:])
     if len(c) == 9:                        # phase 1 : id, gravité, document, où, constat, preuve, conséquence, correction, priorité
@@ -316,7 +379,7 @@ def fiche(e, champs):
 
 
 M = ["# Lire ce registre", "", "> **Public :** PO, responsables, mainteneurs · **Accès restreint** · Source unique : `registre.json` (généré).", "",
-     "Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fait le logiciel, les **points à confirmer**, les **propositions** non arbitrées, les **anomalies du dossier** et l'**état des 125 décisions**. "
+     "Ce registre rassemble les **écarts** entre ce que le PO a décidé et ce que fait le logiciel, les **points à confirmer**, les **propositions** non arbitrées, les **anomalies du dossier** et l'**état des {{fait:n_decisions_v12}} décisions**. "
      "Un écart est **documenté, pas autorisé à corriger** : il ne modifie ni le logiciel ni une décision du PO.", "",
      "| Niveau de preuve | Signification |", "|---|---|", "| [C] | lu dans le code de l'état B |", "| [N] | vérifié dans le navigateur (instance de démonstration, données fictives) |",
      "| [T] | vérifié par un test exécuté |", "| [V] | vérifié visuellement |", "| [A] | mesure automatique |", "| [R] | rapporté par une source antérieure, non revérifié |", "| [?] | non vérifié |", "",
@@ -336,7 +399,7 @@ for e in propositions:
     M += fiche(e, [("origine", "Origine"), ("garde_fous", "Garde-fous demandés"), ("chapitres", "Chapitres concernés"), ("statut", "Statut")])
 M += ["# Anomalies du dossier (audit)", "", "> Une fiche par anomalie : constat, document et page, preuve, gravité, traitement prévu et statut sont séparés. Les niveaux de preuve [C] [N] [T] [V] [A] [R] [?] sont définis en début de registre."]
 for a in aud:
-    M += ["", f"## {a['id']} — {court(re.sub(r'\s+', ' ', re.sub(r'^[«»\s]+|[«»]', '', a['constat'].split(' — ')[0])).strip(), 80)}", "", "| Rubrique | Contenu |", "|---|---|"]
+    M += ["", f"## {a['id']} — {TITRES_AUD[a['id']]}", "", "| Rubrique | Contenu |", "|---|---|"]
     for lab, k in (("Constat", "constat"), ("Document et page concernés", "document"), ("Page, chapitre ou capture", "page_ou_lieu"), ("Preuve", "preuve"), ("Conséquence pour le lecteur", "consequence"),
                    ("Correction recommandée", "correction"), ("Gravité", "gravite"), ("Priorité", "priorite"), ("Traitement prévu", "traite_par"), ("Statut", "statut")):
         if a.get(k):
@@ -355,8 +418,12 @@ for d in decisions:
 for ancien in OUT.glob("0[0-9]_*.md"):
     ancien.unlink()
 parts = "\n".join(M).split("\n# ")
+ancien_titres = [re.sub(r"^#+\s+", "", l).strip() for l in (D / "restreint/ECARTS_DECISIONS_CODE.md").read_text(encoding="utf-8").split("\n") if re.match(r"^#{1,4} ", l)]
+couvre_ancien = "".join(f"<!-- couvre: restreint/ECARTS_DECISIONS_CODE.md | {t} -->\n" for t in ancien_titres)
 for n, p in enumerate(parts, 1):
     texte = (p if p.startswith("# ") else "# " + p)
+    if n == 1:
+        texte = couvre_ancien + texte
     if texte.startswith(("# Points à confirmer", "# Propositions non arbitrées")):
         texte = "<!-- suite -->\n" + texte
     nom = unicodedata.normalize("NFD", re.sub(r"<!--.*?-->\s*", "", texte).split("\n")[0][2:].lower()).encode("ascii", "ignore").decode()

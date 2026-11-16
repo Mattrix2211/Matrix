@@ -1,0 +1,21 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# G4 — Commandes de gestion (annexe G de l'édition initiale, relue (numéros de chapitre de l'édition initiale : voir MAPPING_ANCIEN_NOUVEAU.csv))
+Commande;Citée dans un chapitre rédigé
+catalogue_reprise;annexe E seulement
+generate_installation_occurrences;oui
+marquer_instance_demo;annexe E seulement
+purger_brouillons;oui
+seed_demo;oui
+seed_demo_dense;oui
+seed_demo_mer_quai;oui
+seed_demo_metier;oui
+verifier_instance;oui
+generate_installation_maintenance_notifications;oui
+generate_installation_notifications;oui
+generate_vapid_keys;oui
+importer_referentiel_batiments;oui
+analyser_chevauchements_mer_quai;annexe E seulement
+analyser_designations_chef_de_liste;annexe E seulement
+initialiser_mode_batiment;annexe E seulement
+signaler_divergences_feuilles;oui
+fusionner_formations;annexe E seulement

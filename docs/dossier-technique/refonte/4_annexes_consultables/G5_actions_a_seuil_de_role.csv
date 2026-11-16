@@ -1,0 +1,38 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# G5 — Actions à seuil de rôle (inventaire du code de l'état B)
+Clé;Catégorie;Seuil par défaut
+structure_navire_ecriture;Organisation de l'unité;ADMIN_NAVIRE
+unite_administration;Organisation de l'unité;ADMIN_NAVIRE
+asset_ecriture_simple;Matériel mobile;CHEF_SECTION
+asset_gestion_avancee;Matériel mobile;CHEF_SERVICE
+installation_ecriture_simple;Installations;CHEF_SECTION
+installation_gestion_avancee;Installations;CHEF_SERVICE
+installation_entretien_gestion;Installations;CHEF_SERVICE
+fiche_bord_redaction;Installations;CHEF_SECTION
+fiche_flotte_proposition;Installations;CHEF_SECTION
+rattachement_parent_gestion;Installations;CHEF_SERVICE
+plan_navire_configuration;Installations;CHEF_SERVICE
+stock_ecriture;Stock;CHEF_SECTION
+maintenance_execution_ecriture;Maintenance;EQUIPIER
+maintenance_occurrence_gestion_tiers;Maintenance;CHEF_SECTION
+maintenance_compte_rendu_correction;Maintenance;CHEF_SECTEUR
+maintenance_plan_ecriture;Maintenance;CHEF_SECTION
+supervision_aujourdhui;Tableau de bord;CHEF_SECTEUR
+thread_ecriture;Discussions;CHEF_SECTION
+liste_service_publication;Quarts / Services de garde;CHEF_SERVICE
+feuille_service_configuration;Feuille de service;CHEF_SERVICE
+feuille_service_visa_secteur;Feuille de service;CHEF_SECTEUR
+feuille_service_visa_service;Feuille de service;CHEF_SERVICE
+alerte_organisation_validation;Feuille de service;COMMANDANT
+module_gestion;Modules;COMMANDANT_EN_SECOND
+mot_de_passe_reinitialisation;Comptes;ADMIN_NAVIRE
+tache_attribution;Tâches;CHEF_SECTION
+annonce_publication;Annonces;CHEF_SERVICE
+programme_saisie;Programme du bâtiment;ETAT_MAJOR
+programme_types;Programme du bâtiment;ADMIN_NAVIRE
+poste_gestion;Postes du bord;CHEF_SERVICE
+documentation_redaction;Documentation;CHEF_SECTION
+documentation_validation;Documentation;CHEF_SERVICE
+retex_validation;RETEX;CHEF_SERVICE
+referentiel_global_ecriture;Référentiels globaux;MASTER_ADMIN
+responsabilite_transverse_gestion;Référentiels globaux;MASTER_ADMIN

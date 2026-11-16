@@ -7,6 +7,7 @@ Sortie : 0 si aucun défaut bloquant, 1 sinon. Les avertissements ne bloquent pa
 """
 import argparse
 import csv
+import os
 import hashlib
 import json
 import re
@@ -25,6 +26,7 @@ docs = yaml.safe_load((RACINE / "config/documents.yaml").read_text(encoding="utf
 sep_cfg = yaml.safe_load((RACINE / "config/separation.yaml").read_text(encoding="utf-8"))
 termes = yaml.safe_load((RACINE / "config/termes.yaml").read_text(encoding="utf-8"))
 faits = yaml.safe_load((RACINE / "faits.yaml").read_text(encoding="utf-8"))
+revue = yaml.safe_load((RACINE / "config/revue_manuelle.yaml").read_text(encoding="utf-8"))
 MENTION = "DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE"
 BASE_APP = "637de94"
 
@@ -57,13 +59,16 @@ def c5(code, textes, pages_pdf, technique):
             for i, t in enumerate(pages_pdf):
                 for m in rx.finditer(nettoyer(t)):
                     noter("C5", "bloquant", f"PDF p.{i+1} : motif « {nom} » : {m.group(0)[:60]}")
+    citation = re.compile(r"\[citation d[^\]]*\]", re.S)       # citations balisées de documents antérieurs (AUD-001) : preuve, non mention actuelle
     for mot in termes["interdits_partout"]:
         for src, t in textes.items():
-            if mot in re.sub(r"<!--.*?-->", "", t, flags=re.S):
+            if mot in citation.sub("", re.sub(r"<!--.*?-->", "", t, flags=re.S)):
                 noter("C5", "bloquant", f"{src} : terme interdit « {mot} »")
-        for i, t in enumerate(pages_pdf):
-            if mot in t:
-                noter("C5", "bloquant", f"PDF p.{i+1} : terme interdit « {mot} »")
+        tout = citation.sub("", "\n".join(re.sub(r"[ \t]*\n[ \t]*", " ", t) for t in pages_pdf))
+        for mot_i in ([mot] if mot in tout else []):
+            for i, t in enumerate(pages_pdf):
+                if mot in citation.sub("", t) and mot in tout:
+                    noter("C5", "bloquant", f"PDF p.{i+1} : terme interdit « {mot} »")
     for i, t in enumerate(pages_pdf):
         if MENTION not in t:
             noter("C5", "bloquant", f"PDF p.{i+1} : mention provisoire absente")
@@ -191,6 +196,7 @@ def c6(code, apercus, pdf_path):
 NOMS = {
     "n_modeles": r"modèles", "n_routes": r"routes", "n_migrations": r"migrations", "n_taches_planifiees": r"tâches planifiées",
     "n_actions_seuil": r"actions (?:à seuil|configurables)", "n_commandes": r"commandes de gestion", "n_modules_activables": r"modules activables",
+    "n_decisions_v12": r"décisions du PO(?! sur)", "n_ecarts_registre": r"écarts du logiciel", "n_variables_environnement": r"variables d'environnement", "n_signaux": r"signaux",
 }
 
 
@@ -234,10 +240,9 @@ def c14(textes, pages_pdf=()):
         for i, t in enumerate(pages_pdf):
             for m in re.finditer(rx, t):
                 noter("C14", "bloquant", f"PDF p.{i+1} : {nom} : {m.group(0)[:40]}")
-    pw = Path("/tmp/claude-0/-home-user-Matrix/5a9ffb65-0eb5-5851-be68-103a39fb63e7/scratchpad/pw.txt")
-    if pw.is_file():
-        secret = pw.read_text().strip()
-        if secret:
+    pw = Path(os.environ.get("MATRIX_FICHIER_MOTS_DE_PASSE_DEMO", "")) if os.environ.get("MATRIX_FICHIER_MOTS_DE_PASSE_DEMO") else None
+    if pw and pw.is_file():
+        for secret in {l.strip() for l in pw.read_text().splitlines() if len(l.strip()) >= 8}:
             for src, t in textes.items():
                 if secret in t:
                     noter("C14", "bloquant", f"{src} : mot de passe de démonstration présent")
@@ -305,12 +310,51 @@ def c2(anciens, nouveaux):
             j = len(mots & m2) / max(1, len(mots))
             if j > meilleur:
                 meilleur, etiq_meilleur = j, e2
+        cle = " ".join(sorted(mots))[:90]
+        approuve = next((a for a in revue["c2_approuves"] if cle.startswith(a["motif"])), None)
+        if approuve:
+            noter("C2", "info", f"relu à la main (config/revue_manuelle.yaml) : {approuve['motif'][:50]}")
+            continue
         if meilleur < 0.5:
             perdues += 1
-            noter("C2", "avertissement", f"phrase {e} sans équivalent (revue manuelle) : {' '.join(sorted(mots))[:90]}")
+            noter("C2", "avertissement", f"phrase {e} sans équivalent (revue manuelle) : {cle}")
         elif etiq_meilleur != e:
-            noter("C2", "bloquant", f"étiquette changée {e} -> {etiq_meilleur} : {' '.join(sorted(mots))[:90]}")
+            noter("C2", "bloquant", f"étiquette changée {e} -> {etiq_meilleur} : {cle}")
     noter("C2", "info", f"{len(ancien)} phrases étiquetées 🔵🟣⚪ dans l'ancien périmètre ; {perdues} sans équivalent à revoir manuellement")
+
+
+# ---------- C9 captures ----------
+def c9(captures_dir, utilisees=None):
+    mf = Path(captures_dir) / "manifeste.json"
+    if not mf.is_file():
+        noter("C9", "bloquant", "manifeste des captures introuvable")
+        return
+    ms = json.loads(mf.read_text(encoding="utf-8"))
+    vus = {}
+    for m in ms:
+        if m.get("statut") != "ok":
+            noter("C9", "bloquant", f"{m.get('id')} : {m.get('statut')}")
+            continue
+        if m.get("statutHttp") not in (200, 0, None):
+            noter("C9", "bloquant", f"{m['id']} : statut HTTP {m['statutHttp']}")
+        for a in m.get("assertions", []):
+            if not a["ok"]:
+                noter("C9", "bloquant", f"{m['id']} : assertion DOM en échec : {a['type']} {a['sel']}")
+        for p in m.get("localeProblemes", []):
+            noter("C9", "bloquant", f"{m['id']} : locale non française : {p}")
+        for p in m.get("motifsSensibles", []):
+            noter("C9", "bloquant", f"{m['id']} : motif sensible dans le texte capturé : {p}")
+        if m.get("fichier"):
+            if not (Path(captures_dir) / m["fichier"]).is_file():
+                noter("C9", "bloquant", f"{m['id']} : fichier image absent")
+            vus.setdefault(m.get("sha256"), []).append(m["id"])
+    for h, ids in vus.items():
+        if len(ids) > 1:
+            noter("C9", "bloquant", f"images identiques : {ids}")
+    if utilisees is not None:
+        for i in sorted(set(utilisees) - {m["id"] for m in ms}):
+            noter("C9", "bloquant", f"capture citée inconnue du manifeste : {i}")
+    noter("C9", "info", f"{len(ms)} captures au manifeste, {sum(1 for m in ms if m.get('emulation'))} émulées, {sum(len(m.get('assertions', [])) for m in ms)} assertions DOM")
 
 
 # ---------- C11 cohérence ----------
@@ -327,18 +371,43 @@ def c11(textes_par_doc):
             for e_id in set(re.findall(r"\b(A\d{1,2}|B\d|D\d|NE-\d{2})\b", t)):
                 if ids_reg and e_id not in ids_reg:
                     noter("C11", "bloquant", f"{doc}/{src} : identifiant {e_id} inconnu du registre")
-            for p in re.split(r"(?<=[.!?])\s+|\n", t):
-                for e_id in re.findall(r"\b(A\d{1,2}|NE-\d{2}|DEC-[A-Z]{2,4}-\d{2})\b", p):
-                    for e in "🟢🔵🟣":
-                        if e in p:
-                            etats.setdefault(e_id, {}).setdefault(e, set()).add(doc)
+            for m in re.finditer(r"\b(A\d{1,2}|NE-\d{2}|DEC-[A-Z]{2,4}-\d{2})\b", t):
+                e_id = m.group(1)
+                fenetre = t[max(0, m.start() - 40):m.end() + 6].split("\n")[-2 if "\n" in t[max(0, m.start() - 40):m.start()] else 0] if False else t[max(0, m.start() - 40):m.end() + 6]
+                fenetre = fenetre.split("\n")[-1] if "\n" in fenetre[:40] else fenetre
+                for e in "🟢🔵🟣":
+                    if e in fenetre:
+                        etats.setdefault(e_id, {}).setdefault(e, set()).add(doc)
     for e_id, d in etats.items():
         if "🟢" in d and "🔵" in d:
+            ok = next((a for a in revue["c11_approuves"] if a["id"] == e_id), None)
+            if ok:
+                noter("C11", "info", f"{e_id} : relu à la main ({ok['raison'][:70]})")
+                continue
             noter("C11", "avertissement", f"{e_id} : étiqueté 🟢 dans {sorted(d['🟢'])} et 🔵 dans {sorted(d['🔵'])} (revue manuelle)")
+
+    # (a) variantes interdites : un seul terme canonique par notion
+    for canon, variantes in termes["variantes"].items():
+        for doc, textes in textes_par_doc.items():
+            for src, t in textes.items():
+                t2 = re.sub(r"<!--.*?-->", "", t, flags=re.S)
+                for v in variantes:
+                    if v in t2 and v not in revue.get("variantes_approuvees", {}):
+                        noter("C11", "bloquant", f"{doc}/{src} : variante « {v} » (terme canonique : « {canon} »)")
+    # (c) matrice des droits : celle du référentiel (libellés) égale l'inventaire du code, comme les annexes (clés)
+    inv = json.loads((DT / "couverture/etat_B/inventaire.json").read_text(encoding="utf-8"))
+    rf_matrice = textes_par_doc["RF"].get("05_roles_matrice.md", "")
+    manque = [a["libelle"] for a in inv["actions_seuils"] if a["libelle"] not in rf_matrice]
+    if manque:
+        noter("C11", "bloquant", f"matrice des droits du référentiel : {len(manque)} action(s) absente(s) ou différente(s), p. ex. « {manque[0][:60]} »")
+    else:
+        noter("C11", "info", f"matrice des droits : {len(inv['actions_seuils'])} actions identiques à l'inventaire (référentiel et annexes)")
     noter("C11", "info", f"{len(etats)} identifiants étiquetés comparés entre documents")
 
 
 def rapport(chemin, titre):
+    for c in ("C3", "C5", "C6", "C7", "C14"):
+        R.setdefault(c, {"bloquant": [], "avertissement": [], "info": []})
     L = [f"# {titre}", "", "| Contrôle | Bloquants | Avertissements | Information |", "|---|---|---|---|"]
     for c in sorted(R, key=lambda x: int(x[1:])):
         r = R[c]
@@ -356,9 +425,34 @@ def rapport(chemin, titre):
     return total
 
 
+def mode_global(a):
+    """Contrôles transversaux sur les sources des quatre documents : C1, C2, C9, C11, C13, C14."""
+    textes_par_doc, tous = {}, {}
+    for code in ("GU", "RF", "DT", "RE"):
+        d = RACINE / docs[code]["dossier"]
+        textes_par_doc[code] = {p.name: p.read_text(encoding="utf-8") for p in sorted(d.glob("[0-9][0-9]_*.md"))}
+        for n, t in textes_par_doc[code].items():
+            tous[f"{code}/{n}"] = t
+    lignes = list(csv.DictReader((RACINE / "MAPPING_ANCIEN_NOUVEAU.csv").open(encoding="utf-8"), delimiter=";"))
+    anciens = sorted({l["ancien_fichier"] for l in lignes if l["type"] != "schéma" and not l["ancien_fichier"].startswith("schemas/")})
+    c1(a.apercus, set(anciens))
+    an = {x: (DT / x).read_text(encoding="utf-8") for x in anciens if x.startswith(("diffusable/", "restreint/")) and "annexes/" not in x}
+    c2(an, tous)
+    utilisees = []
+    for t in tous.values():
+        for m in re.finditer(r"^@capture (.+)$", t, flags=re.M):
+            utilisees += re.findall(r"\bc\d+=\"?([a-z0-9_]+)\|", m.group(1))
+    c9(RACINE / "captures", utilisees)
+    c11(textes_par_doc)
+    c14(tous)
+    c13()
+    tot = rapport(a.rapport, "Contrôles transversaux (C1, C2, C9, C11, C13, C14)")
+    sys.exit(1 if tot else 0)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["doc", "ancien"])
+    ap.add_argument("mode", choices=["doc", "ancien", "global"])
     ap.add_argument("--code")
     ap.add_argument("--apercus")
     ap.add_argument("--sources", nargs="*")
@@ -367,6 +461,8 @@ def main():
     ap.add_argument("--pilote", action="store_true")
     ap.add_argument("--anciens", nargs="*", default=[])
     a = ap.parse_args()
+    if a.mode == "global":
+        mode_global(a)
     if a.mode == "ancien":
         # calibrage : mêmes contrôles sur l'existant (ancien PDF « diffusable » traité comme non technique)
         anc = {}

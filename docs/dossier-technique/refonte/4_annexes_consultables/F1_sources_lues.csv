@@ -1,0 +1,11 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# F1 — Sources lues (annexe F de l'édition initiale, relue)
+Source;Utilisation
+Code de l'état B (6d6d0be), 21 applications et le noyau;"Tous les chapitres ; références fichier:ligne vérifiées par script"
+Dossier V1.2 (docs/dossier-technique-v12/, branche claude/eager-hopper-2cbcqh) : registre des 125 décisions, plan en 28 lots, comptes rendus L01, L05, L02, L03;Décisions citées par DEC-…, jamais rouvertes ni recopiées
+"Notion : Cahier des charges ; Organigramme et rôles ; pages 02, 06, 07, 11, 12 (glossaire), 13 (lues avant l'ensemble 1) ; page 04 (lue pour le chapitre 11)";Chapitres 4 à 16, 22, 25 (voir les citations « Notion » dans chaque chapitre)
+"Notion : Feuille de route (10/10/2026) ; Cap UX/UI « Naval Premium » (29/10/2026) ; Recette UX V1.1 (31/10/2026)";Chapitres 17, 20, 25, 26
+Notion : « 03 — Formation, stages, CFPES, FPS et qualification opérationnelle » (29/09/2026);Chapitre 14, chapitre 21
+Notion : « 04 — Maintenance, installations, SSF, SLM, ERDT… » (21/10/2026);Chapitre 11 (configuration réelle, états techniques, interlocuteurs SSF/ERO/ERDT)
+Notion : « 07 — SIC, cyber, protection-défense et conformité » (30/09/2026);Chapitre 23 (aucune exigence technique chiffrée trouvée)
+Documents du dépôt : README.md, CLAUDE.md, docs/UX.md, docs/REFERENCE.md, docs/DEMO.md, docs/COMPATIBILITE_CHECKLIST.md, docs/recette/;Chapitres 17, 23, 24

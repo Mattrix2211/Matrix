@@ -1,0 +1,25 @@
+# Écarts signalés par les contrôles lexicaux (C2, C11) et relus à la main : chacun est justifié ici ; aucune ligne n'est ajoutée sans relecture.
+c2_approuves:
+- motif: décisions partie propositions valider
+  raison: 'Faux positif : titre « Partie D — Propositions à valider par le PO (🟣, pas des décisions) » de l''ancien registre ; la version actuelle (chapitre « Propositions non arbitrées ») porte 🟣 sur chaque
+    proposition et la mention « pas une décision ».'
+- motif: annexe charte complète environnement exacte graphique lecture liste module notion pages
+  raison: Passage ⚪ « sources non lues » conservé dans l'annexe consultable F2 (sous-module de charte graphique vide, pages Notion lues par résultat de recherche seulement).
+- motif: chemin comme confirmée intention manifestement validation voulu
+  raison: Passage ⚪ reformulé dans la fiche technique Maintenance (« L'intention du chemin API démarrer n'est pas confirmée »).
+- motif: contredites décisions développées elles encore partie
+  raison: Titre de l'ancienne partie C du registre (« décisions validées non encore développées ») ; remplacé par le chapitre « Décisions du PO et état dans l'état B » du registre, où chaque état est donné
+    décision par décision.
+- motif: après cette décrits navigateur parcours reconstitués rejoués écrans édition
+  raison: 'Corrigé (AUD-003) : les écrans de ces parcours ont été rejoués le 16/11/2026 ; seul l''enchaînement complet reste non rejoué, dit en clair.'
+- motif: celui cible existe feuille imprimable liste rendu service trouvé
+  raison: 'Corrigé (AUD-002) : la feuille de service s''imprime par le navigateur ; la mise en page A4 dédiée reste une cible 🔵 (A12).'
+- motif: après documentation décrit détail entrée quotidienne rejoué responsable écran
+  raison: 'Corrigé (AUD-003) : l''écran d''entrée et la feuille de service ont été rejoués le 16/11/2026.'
+- motif: aucune chrome clavier dossier firefox impression lecteur mobile navigateur recette rejouée
+  raison: 'Corrigé (AUD-003) : les écrans du guide ont été rejoués dans Chromium en français ; la recette complète (autres navigateurs, mobiles réels, clavier, impression) reste ⚪ et est dite en clair.'
+c11_approuves:
+- id: DEC-DRT-05
+  raison: 'Décision partielle (2 lots livrés sur 3) : L02 et L03 sont étiquetés 🟢 (livrés), L04 🔵 (non lancé) ; cohérent avec l''état « partielle » du registre.'
+variantes_approuvees:
+  "Mes tours de services": "Libellé cible de DEC-UX-08 (écart A11) : cité entre guillemets comme terme cible ; le libellé actuel de l'écran est « Mes tours de service »."

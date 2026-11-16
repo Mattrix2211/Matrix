@@ -2,12 +2,12 @@
 
 > Une fiche par anomalie : constat, document et page, preuve, gravité, traitement prévu et statut sont séparés. Les niveaux de preuve [C] [N] [T] [V] [A] [R] [?] sont définis en début de registre.
 
-## AUD-001 — L'en-tête de chaque page dit [ancienne mention de large diffusion] et le …
+## AUD-001 — L'en-tête de chaque page de l'ancien PDF portait une mention de large diffusion contradictoire avec la classification non validée
 
 | Rubrique | Contenu |
 |---|---|
-| **Constat** | L'en-tête de chaque page dit « [ancienne mention de large diffusion] » et le fichier s'appelle « [ancien qualificatif de large diffusion] », alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « Aucune référence de code » alors que le texte contient 39 chemins de fichiers `.py` (12 pages), 8 noms de branches internes `claude/…` (7 pages), 9 chemins `docs/…` |
-| **Document et page concernés** | PDF [ancien qualificatif de large diffusion] |
+| **Constat** | L'en-tête de chaque page dit [citation d'un document antérieur : « DIFFUSION GÉNÉRALE »] et le fichier s'appelle [citation du nom d'un fichier antérieur : « DIFFUSABLE »], alors que la couverture et le chapitre 3 disent que la classification n'est pas validée. La couverture annonce « Aucune référence de code » alors que le texte contient 39 chemins de fichiers `.py` (12 pages), 8 noms de branches internes `claude/…` (7 pages), 9 chemins `docs/…` |
+| **Document et page concernés** | PDF [citation du nom d'un fichier antérieur : « diffusable »] |
 | **Page, chapitre ou capture** | Couverture p.1 et en-tête des 108 pages |
 | **Preuve** | [A][V] `pdf_controles.md` §3 ; p.1, 14, 20, 24 |
 | **Conséquence pour le lecteur** | Le PDF peut être pris pour autorisé à la [ancienne mention de large diffusion] ; le critère de séparation annoncé n'est pas celui qui a été contrôlé (« fichier:ligne » seulement) |
@@ -17,7 +17,7 @@
 | **Traitement prévu** | P0-1 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-002 — Le rendu imprimable de la feuille de service n'a pas été trouvé dans le code …
+## AUD-002 — Impression de la feuille de service : le dossier la disait introuvable alors qu'un bouton « Imprimer » existe
 
 | Rubrique | Contenu |
 |---|---|
@@ -31,7 +31,7 @@
 | **Traitement prévu** | P0-2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-003 — Les écrans n'ont pas été rejoués dans un navigateur (au moins 11 occurrences)
+## AUD-003 — Écrans décrits comme « non rejoués » alors que le guide visuel et l'audit les ont rejoués dans un navigateur
 
 | Rubrique | Contenu |
 |---|---|
@@ -45,7 +45,7 @@
 | **Traitement prévu** | P0-4 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-004 — Que dois-je faire ? → les tâches, la maintenance, les rondes de contrôle
+## AUD-004 — Le premier chapitre promettait les rondes de contrôle, module retiré de l'interface
 
 | Rubrique | Contenu |
 |---|---|
@@ -59,7 +59,7 @@
 | **Traitement prévu** | P0-2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-005 — La page Aujourd'hui est décrite en blocs ; la barre de parcours du quotidien …
+## AUD-005 — La barre de parcours du quotidien (Mon quotidien, Mon équipe, Suivi, Synthèse) n'est décrite nulle part
 
 | Rubrique | Contenu |
 |---|---|
@@ -73,7 +73,7 @@
 | **Traitement prévu** | P0-2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-006 — Détection : légende dans les 6 % supérieurs de la page. S10 vu : illisible (5,0 …
+## AUD-006 — Schémas : légende séparée de sa figure et schéma S10 illisible (5,0 pt)
 
 | Rubrique | Contenu |
 |---|---|
@@ -88,7 +88,7 @@
 | **Traitement prévu** | P0-6 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-007 — L'écran peut masquer un bouton, mais c'est toujours le serveur qui décide
+## AUD-007 — Le bouton « Exécuter » est affiché sans droit d'exécution, mais c'est le serveur qui décide (refus 403)
 
 | Rubrique | Contenu |
 |---|---|
@@ -102,7 +102,7 @@
 | **Traitement prévu** | P0-2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-008 — Vérifié par test (12/11/2026)
+## AUD-008 — « Vérifié par test » : les fichiers de test n'étaient conservés dans aucun dépôt
 
 | Rubrique | Contenu |
 |---|---|
@@ -116,7 +116,7 @@
 | **Traitement prévu** | P0-5 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-009 — Pages portant 1 à 5 lignes ( Limites , Sources , une ligne de tableau)
+## AUD-009 — Pages portant 1 à 5 lignes, que le rapport de clôture disait absentes (fusionnée dans AUD-034)
 
 | Rubrique | Contenu |
 |---|---|
@@ -130,11 +130,11 @@
 | **Traitement prévu** | AUD-034 |
 | **Statut** | fusionnée dans AUD-034 |
 
-## AUD-010 — §3 25 captures non retenues ; §5 la liste des tickets n'a pas de lien de ligne …
+## AUD-010 — Rapport du guide visuel : « 25 captures non retenues » et lien de ligne des tickets, deux affirmations inexactes
 
 | Rubrique | Contenu |
 |---|---|
-| **Constat** | §3 « 25 captures non retenues » ; §5 « la liste des tickets n'a pas de lien de ligne visible » — 29 captures non utilisées (64 − 35). Les lignes de tickets sont cliquables (`onclick`, `ticket_list.html:28`) : ma capture automatique cherchait un lien `<a>` |
+| **Constat** | §3 « 25 captures non retenues » ; §5 « la liste des tickets n'a pas de lien de ligne visible » — 29 captures non utilisées (64 − 35). Les lignes de tickets sont cliquables (`onclick`, `matrix/templates/logistics/ticket_list.html:28`) : ma capture automatique cherchait un lien `<a>` |
 | **Document et page concernés** | `guide-visuel/RAPPORT_GUIDE_VISUEL_G0.md` |
 | **Preuve** | [C][A] |
 | **Conséquence pour le lecteur** | Erreurs de mon propre rapport |
@@ -158,7 +158,7 @@
 | **Traitement prévu** | P1-1 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-012 — Sommaires des deux PDF sans numéros de page ; `00_LISEZ-MOI.md` et …
+## AUD-012 — Sommaires sans numéros de page et deux parcours « marin » contradictoires dans les guides de lecture
 
 | Rubrique | Contenu |
 |---|---|
@@ -172,7 +172,7 @@
 | **Traitement prévu** | P0-4 / P1-2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-013 — 35 captures sur 64 utilisées
+## AUD-013 — 35 captures sur 64 utilisées : des écrans importants manquaient
 
 | Rubrique | Contenu |
 |---|---|
@@ -186,7 +186,7 @@
 | **Traitement prévu** | P1-3 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-014 — Textes anglais du navigateur dans une interface française : mm/dd/yyyy , Choose …
+## AUD-014 — Textes anglais du navigateur dans une interface française (dates, boutons de fichier, heures)
 
 | Rubrique | Contenu |
 |---|---|
@@ -200,7 +200,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-015 — Messages de confirmation superposés, mention Brouillon abandonné.
+## AUD-015 — Messages de confirmation superposés et mention « Brouillon abandonné » sur des captures
 
 | Rubrique | Contenu |
 |---|---|
@@ -214,7 +214,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-016 — 4 doublons exacts (`tache_detail`=`p_tache_1_ouverte` …
+## AUD-016 — Captures en doublon exact ou quasi exact dans le guide visuel
 
 | Rubrique | Contenu |
 |---|---|
@@ -228,7 +228,7 @@
 | **Traitement prévu** | P1-3 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-017 — …dans la partie restreinte du dossier et la partie restreinte du dossier
+## AUD-017 — Formule répétée : « dans la partie restreinte du dossier et la partie restreinte du dossier »
 
 | Rubrique | Contenu |
 |---|---|
@@ -242,7 +242,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-018 — Identifiants coupés en milieu de mot dans les cellules ( SynthesePassati / on …
+## AUD-018 — Identifiants coupés en milieu de mot dans les cellules des tableaux
 
 | Rubrique | Contenu |
 |---|---|
@@ -256,7 +256,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-019 — Le symbole ⚪ se rend en petit cercle ◦ alors que 🟢🔵🟣 sont des pastilles
+## AUD-019 — Le symbole ⚪ se rendait en petit cercle alors que 🟢, 🔵 et 🟣 sont des pastilles
 
 | Rubrique | Contenu |
 |---|---|
@@ -270,7 +270,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-020 — S04, S13, S28 : 5,8 pt ; S09, S15 : 6,0 pt ; S01, S21 : 6,2 pt (libellés …
+## AUD-020 — Texte de schémas trop petit (5,8 à 6,2 pt) (fusionnée dans AUD-036)
 
 | Rubrique | Contenu |
 |---|---|
@@ -284,7 +284,7 @@
 | **Traitement prévu** | AUD-036 |
 | **Statut** | fusionnée dans AUD-036 |
 
-## AUD-021 — ≈ 3 950 fonctions de test ; 3 963 tests
+## AUD-021 — Trois chiffres différents pour le nombre de tests (≈ 3 950 fonctions, 3 963 tests)
 
 | Rubrique | Contenu |
 |---|---|
@@ -298,11 +298,11 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-022 — Recherche de personnes classée cible (DEC-UX-09 / PO-18) alors que la catégorie …
+## AUD-022 — Recherche de personnes classée cible alors que la catégorie « Marins » existe
 
 | Rubrique | Contenu |
 |---|---|
-| **Constat** | « Recherche de personnes » classée cible (DEC-UX-09 / PO-18) alors que la catégorie « Marins » existe (`recherche.py:193`, chap. 9 §77, captures p.8) |
+| **Constat** | « Recherche de personnes » classée cible (DEC-UX-09 / PO-18) alors que la catégorie « Marins » existe (`matrix/core/recherche.py:193`, chap. 9 §77, captures p.8) |
 | **Document et page concernés** | Chap. 6 §6.10, 9, 17 |
 | **Preuve** | [C][N][V] |
 | **Conséquence pour le lecteur** | Ambiguïté : existant ou cible ? |
@@ -312,7 +312,7 @@
 | **Traitement prévu** | P1-6 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-023 — Les chapitres techniques renvoient aux chapitres [ancien qualificatif de large …
+## AUD-023 — Les chapitres techniques renvoyaient à des chapitres absents du PDF restreint
 
 | Rubrique | Contenu |
 |---|---|
@@ -326,13 +326,13 @@
 | **Traitement prévu** | P1-2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-024 — Pas de recette du premier jour pour un développeur (installer, lancer, tester …
+## AUD-024 — Pas de recette du premier jour pour un développeur ni de mise en garde sur la redirection HTTPS derrière un proxy
 
 | Rubrique | Contenu |
 |---|---|
 | **Constat** | Pas de recette du premier jour pour un développeur (installer, lancer, tester, ajouter une action de seuil ou un module), pas de glossaire du code ; conséquence pratique de `SECURE_SSL_REDIRECT` sans `SECURE_PROXY_SSL_HEADER` non dite (risque de redirection en boucle derrière un proxy TLS [?]) |
 | **Document et page concernés** | Chap. 23, 24 |
-| **Preuve** | [C] `settings.py:422-424` ; plan des chapitres |
+| **Preuve** | [C] `matrix/settings.py:422-424` ; plan des chapitres |
 | **Conséquence pour le lecteur** | Reprise difficile sans l'auteur |
 | **Correction recommandée** | Ajouter une « Prise en main développeur » d'une page et une « Recette de déploiement » |
 | **Gravité** | Amélioration |
@@ -340,7 +340,7 @@
 | **Traitement prévu** | P1-4 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-025 — A20 : le texte dit seul “Enregistrer la correction” est offert sans préciser …
+## AUD-025 — Écart A20 : le texte ne précisait pas que l'exécutant et le chef de section ne voient pas le bouton de correction
 
 | Rubrique | Contenu |
 |---|---|
@@ -354,7 +354,7 @@
 | **Traitement prévu** | P1-3 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-026 — Les `DEC-*` renvoient à une branche (`claude/eager-hopper-2cbcqh`) et à Notion …
+## AUD-026 — Les décisions DEC-… renvoient à une branche et à Notion, non joignables depuis le dossier
 
 | Rubrique | Contenu |
 |---|---|
@@ -368,13 +368,13 @@
 | **Traitement prévu** | P1-6 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-027 — Les lignes de la liste de tickets sont cliquables par `onclick` seulement (non …
+## AUD-027 — Lignes de la liste des tickets cliquables à la souris seulement, non accessibles au clavier
 
 | Rubrique | Contenu |
 |---|---|
 | **Constat** | Les lignes de la liste de tickets sont cliquables par `onclick` seulement (non accessibles au clavier) |
 | **Document et page concernés** | Chap. 11, 13, 15 (hors périmètre du dossier) |
-| **Preuve** | [C] `ticket_list.html:28` |
+| **Preuve** | [C] `matrix/templates/logistics/ticket_list.html:28` |
 | **Conséquence pour le lecteur** | Accessibilité ; nouvel écart candidat NE-02 |
 | **Correction recommandée** | Le noter dans les limites du chapitre 17 |
 | **Gravité** | Mineure |
@@ -382,7 +382,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-028 — Les rapports précédents conservent leurs chiffres d'origine (105/142 pages, 1 …
+## AUD-028 — Rapports précédents aux chiffres d'origine contradictoires ; 11 fichiers de pilotage à la racine
 
 | Rubrique | Contenu |
 |---|---|
@@ -396,7 +396,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-029 — Un exemple : le maître Durand et le matelot Durand (chap. 6) sont des …
+## AUD-029 — Deux personnages différents portent le nom « Durand » dans le chapitre 6 ; noms des captures non repris
 
 | Rubrique | Contenu |
 |---|---|
@@ -410,7 +410,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-030 — scan web `assets/scan/<uuid>/` : le chemin réel est `/scan/<uuid>/` …
+## AUD-030 — Chemin erroné du scan web : « assets/scan/<uuid>/ » au lieu de « /scan/<uuid>/ »
 
 | Rubrique | Contenu |
 |---|---|
@@ -424,7 +424,7 @@
 | **Traitement prévu** | P0-2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-031 — Annexe générée de 4 900 mots (79 % de l'annexe F) : lignes tronquées par … …
+## AUD-031 — Annexe générée : lignes tronquées, fragments de tableau et symboles Markdown bruts
 
 | Rubrique | Contenu |
 |---|---|
@@ -438,11 +438,11 @@
 | **Traitement prévu** | P0-6 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-032 — Tableaux Markdown non rendus : p.37 ( Routes web , source …
+## AUD-032 — Tableaux Markdown non rendus (barres verticales brutes) dans le PDF restreint
 
 | Rubrique | Contenu |
 |---|---|
-| **Constat** | Tableaux Markdown non rendus : p.37 (« Routes web », source `restreint/13_logistique_technique.md:20-22`) et p.79 (§23.9, source `23_configuration_deploiement_exploitation.md:119-123`, tableau collé au paragraphe) apparaissent en barres verticales brutes |
+| **Constat** | Tableaux Markdown non rendus : p.37 (« Routes web », source `restreint/13_logistique_technique.md:20-22`) et p.79 (§23.9, source `restreint/23_configuration_deploiement_exploitation.md:119-123`, tableau collé au paragraphe) apparaissent en barres verticales brutes |
 | **Document et page concernés** | PDF restreint p.37 et p.79 |
 | **Preuve** | [V][A] |
 | **Conséquence pour le lecteur** | Voir le constat. |
@@ -452,7 +452,7 @@
 | **Traitement prévu** | P0-6 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-033 — Des plages de décisions sont citées comme cible, non développée alors que …
+## AUD-033 — Des plages de décisions présentées comme « cible, non développée » alors que certaines sont réalisées
 
 | Rubrique | Contenu |
 |---|---|
@@ -466,7 +466,7 @@
 | **Traitement prévu** | P0-3 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-034 — Densité : 18 pages du [ancien qualificatif de large diffusion] et 26 du …
+## AUD-034 — Densité des pages : trop de pages remplies à moins de 70 % et compléments techniques répétitifs
 
 | Rubrique | Contenu |
 |---|---|
@@ -480,7 +480,7 @@
 | **Traitement prévu** | P1-8 (architecture) |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-035 — Les schémas de circuit cible ne se distinguent pas des schémas de …
+## AUD-035 — Les schémas de circuit cible ne se distinguent pas des schémas de fonctionnement réel
 
 | Rubrique | Contenu |
 |---|---|
@@ -494,7 +494,7 @@
 | **Traitement prévu** | P0-7 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-036 — Sur 42 schémas : 22 bons, 7 moyens, 10 faibles (listes de cases sans …
+## AUD-036 — Qualité des 42 schémas : listes de cases sans information relationnelle, un schéma difficile, un illisible
 
 | Rubrique | Contenu |
 |---|---|
@@ -508,7 +508,7 @@
 | **Traitement prévu** | P1-5 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-037 — Rubriques bis : traces d'édition (insertions tardives)
+## AUD-037 — Rubriques « bis » : traces d'édition d'insertions tardives
 
 | Rubrique | Contenu |
 |---|---|
@@ -522,7 +522,7 @@
 | **Traitement prévu** | P2 |
 | **Statut** | ouverte — à traiter par la refonte |
 
-## AUD-038 — Deux chiffres pour le même inventaire ; l'annexe F.4 est datée de l'ensemble 4 …
+## AUD-038 — Deux chiffres pour le même inventaire ; annexe F.4 datée de l'ensemble 4
 
 | Rubrique | Contenu |
 |---|---|

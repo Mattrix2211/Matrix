@@ -1,0 +1,127 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# F3 — Décisions du PO citées dans les documents (sources Markdown et registre central)
+Décision;État dans l'état B;Règle;Citée dans
+DEC-ANO-01;non développée;"Anomalie = problème technique à suivre ; intervention = action effectuée pour le traiter.";RF
+DEC-ANO-02;non développée;Une anomalie peut nécessiter plusieurs interventions.;RF
+DEC-ANO-03;non développée;La clôture d'une intervention ne clôture pas automatiquement l'anomalie.;RF
+DEC-ANO-04;non développée;Le chef de secteur décide de la suite : intervention supplémentaire, demande d'information, ouverture d'anomalie, clôture justifiée.;RF
+DEC-ANO-05;non développée;Préserver les liens tâches ↔ interventions ↔ anomalies ↔ matériels ↔ historique.;RF
+DEC-APP-01;non développée;Chaque départ génère des contrôles à partir des fiches de référence applicables.;RF
+DEC-APP-02;non développée;Circuit : section ou secteur → service → COMANAV.;RF
+DEC-APP-03;non développée;Les modifications des références suivent leur propre circuit d'approbation.;RF
+DEC-APP-04;non développée;Référence approuvée modifiée : les préparations ouvertes sont actualisées.;RF
+DEC-APP-05;non développée;Les réponses toujours valables sont conservées.;RF
+DEC-APP-06;non développée;Les contrôles modifiés ou ajoutés sont rouverts.;RF
+DEC-APP-07;non développée;Les contrôles supprimés sont archivés.;RF
+DEC-APP-08;non développée;Les signatures affectées sont invalidées.;RF
+DEC-APP-09;non développée;Les préparations clôturées conservent leur version historique.;RF
+DEC-APP-10;non développée;Les contrôles obligatoires sont traités avant validation.;RF
+DEC-APP-11;non développée;Les réserves sont explicites, justifiées et tracées, dans les limites des règles de sécurité.;RF
+DEC-APP-12;non développée;Les contrôles critiques non dérogeables ne peuvent pas être contournés.;RF
+DEC-APP-13;réalisée;Matrix ne délivre pas l'autorisation opérationnelle d'appareiller.;RF
+DEC-APP-14;non développée (A17);"Fiche de référence d'appareillage : le chef de secteur propose les contrôles et leur classification (obligatoire, critique) ; le chef de service examine et valide la proposition à son niveau ; le COMANAV approuve la fiche, notamment les contrôles obligatoires et critiques.";RF
+DEC-BLQ-01;non développée;Un équipier peut déclarer une tâche « Bloquée » avec motif.;RF
+DEC-BLQ-02;non développée;Le responsable est informé du blocage.;RF
+DEC-BLQ-03;non développée;Le chef peut débloquer et reprogrammer sans obligation de créer une anomalie.;RF
+DEC-BLQ-04;non développée;Le chef de secteur décide si un défaut technique nécessite une anomalie.;RF
+DEC-BLQ-05;non développée;"Une tâche non terminée en fin de journée n'est pas reportée en silence ; état explicite « Non réalisée — À reprogrammer ».";RF
+DEC-CLO-01;non développée;À la création/planification, case « Validation du responsable requise ».;RF
+DEC-CLO-02;non développée;"Sans l'option : l'équipier termine directement ; la réalisation est enregistrée.";RF
+DEC-CLO-03;non développée;"Avec l'option : l'équipier déclare terminé, la tâche passe « À valider » ; le chef approuve ou demande une correction motivée.";RF
+DEC-CLO-04;non développée;Le chef de secteur valide directement, chef de section absent, sans suppléance.;RF
+DEC-CLO-05;non développée;Les visas techniques obligatoires restent distincts de la validation facultative.;RF
+DEC-COL-01;à instruire ⚪;Plusieurs marins peuvent participer à une même tâche.;RF
+DEC-COL-02;non développée;Matrix propose comme coordinateur le participant au grade le plus élevé.;RF
+DEC-COL-03;non développée;En cas d'égalité de grade, le chef choisit.;RF
+DEC-COL-04;non développée;Le chef peut désigner un autre participant comme coordinateur.;RF
+DEC-COL-05;non développée;Le coordinateur peut déclarer le travail réalisé, mais ne remplace pas une autorité de visa technique.;RF
+DEC-DRT-01;non développée;Les droits métier découlent de la fonction exercée et du périmètre de responsabilité, pas uniquement du grade ni du niveau hiérarchique.;RF
+DEC-DRT-02;écart (A1);"Un administrateur technique ne devient pas automatiquement autorité de validation métier ; il désigne les titulaires sans viser à leur place.";RF
+DEC-DRT-03;à instruire ⚪;"Consultation des documents de maintenance autorisés des autres sections du secteur ; pas de modification ni de clôture hors périmètre.";RF
+DEC-DRT-04;à instruire ⚪;Accès intersectoriels et documents sensibles : droits appropriés requis.;RF
+DEC-DRT-05;partielle (2 lot(s) livré(s) sur 3);Éviter les suppressions physiques qui détruisent l'historique.;RF
+DEC-DRT-06;non développée;Un compte dont le rattachement professionnel est incomplet n'accède pas aux informations opérationnelles d'un secteur sans autorisation.;RF
+DEC-DUR-01;non développée;Matrix actualise automatiquement la durée indicative des maintenances à partir des temps réellement constatés.;RF
+DEC-DUR-02;non développée;Conserver la durée initiale.;RF
+DEC-DUR-03;non développée;Conserver l'historique des estimations.;RF
+DEC-DUR-04;non développée;Distinguer temps écoulé et charge totale en heures-personnes.;RF
+DEC-DUR-05;non développée;Éviter que interventions exceptionnellement longues, attentes et interruptions faussent l'estimation.;RF
+DEC-DUR-06;non développée;Le chef de secteur peut corriger manuellement la durée.;RF
+DEC-DUR-07;non développée;Ne pas modifier automatiquement consignes techniques ou de sécurité.;RF
+DEC-FDS-01;à instruire ⚪;"Le BSC prépare les feuilles de service ; il n'est pas une autorité parallèle au COMAEQ.";RF
+DEC-FDS-02;non développée;Le COMAEQ, ou un suppléant officiellement habilité, approuve la feuille.;RF
+DEC-FDS-03;à instruire ⚪;Après approbation, publication numérique.;RF
+DEC-FDS-04;à instruire ⚪;Le BSC assure l'impression A4 pour l'affichage.;RF
+DEC-FDS-05;non développée;Une modification après publication entraîne une nouvelle version officielle.;RF
+DEC-FDS-06;non développée;Matrix signale la nécessité de réimprimer et remplacer une feuille déjà affichée.;RF
+DEC-FDS-07;écart (A2);Échanges de tours : la décision finale revient au COMAEQ ou à son suppléant officiellement habilité.;RF
+DEC-FDS-08;non développée;Les fractions de service à quai sont configurables par bâtiment.;RF
+DEC-FDS-09;non développée;Écarts signalés et justifiés, sans blocage automatique injustifié.;RF
+DEC-FDS-10;à instruire ⚪;Exigences opérationnelles et réglementaires restent applicables.;RF
+DEC-FDS-11;à instruire ⚪;La création d'une feuille n'est pas ouverte à n'importe quel équipier.;RF
+DEC-FDS-12;à instruire ⚪;"Prendre en compte deux équipages ; chaque équipage a sa feuille, sans validation croisée par le seul grade.";RF
+DEC-FDS-13;à instruire ⚪;"Le BSC ou le chef de liste peut instruire la demande d'échange ; il ne dispose pas automatiquement de l'autorité de validation finale.";RF
+DEC-FDS-14;écart (A3);"Listes de quarts et de gardes : le chef de liste prépare et propose ; le COMAEQ ou son suppléant officiellement habilité approuve et publie. Toute modification après publication est tracée et donne lieu à une nouvelle version officielle si nécessaire.";RF
+DEC-MAT-01;non développée;Transfert entre secteurs d'un même service : approbation du chef de service.;DT, RF
+DEC-MAT-02;non développée;Transfert entre deux services : approbation des deux chefs de service, puis application par l'administrateur habilité.;DT, RF
+DEC-MAT-03;non développée;Les tâches ouvertes suivent le matériel et sont réattribuées si nécessaire.;DT, RF
+DEC-MAT-04;non développée;L'historique des interventions et des tâches clôturées reste conservé.;DT, RF
+DEC-MUT-01;non développée;Un marin conserve son compte Matrix lorsqu'il change de bâtiment.;RF
+DEC-MUT-02;non développée;"Le nouveau bâtiment demande le rattachement ; l'ancien est informé et peut confirmer le départ.";RF
+DEC-MUT-03;non développée;Sans réponse, une autorité habilitée régularise avec justification et journalisation.;RF
+DEC-MUT-04;non développée;"Anciens droits retirés à la date effective de mutation ; nouveaux droits attribués selon l'affectation d'accueil.";RF
+DEC-MUT-05;non développée;L'historique est conservé.;RF
+DEC-MUT-06;non développée;Les tâches ouvertes sont réattribuées ou signalées « non affectées à un responsable ».;RF
+DEC-MUT-07;non développée;Compte d'un marin quittant le bâtiment ou la Marine : désactivé ou transféré selon le cas, sans destruction d'historique.;RF
+DEC-ORG-01;à instruire ⚪;Structure : Bâtiment → Service → Secteur → Section facultative → Matériels et installations.;RF
+DEC-ORG-02;non développée;"Un secteur peut n'avoir aucune section ; le secteur reste alors l'échelon responsable.";RF
+DEC-ORG-03;à instruire ⚪;Les matériels sont toujours rattachés à une entité responsable.;RF
+DEC-ORG-04;à instruire ⚪;Distinguer grade, fonction occupée, périmètre de responsabilité, spécialité, brevets/formations/habilitations. Les brevets ne sont pas des grades.;RF
+DEC-ORG-05;à instruire ⚪;Prendre en compte FEM, BE, BAT, BS, BST et les évolutions récentes (BHT, C-CDM).;RF
+DEC-ORG-06;à instruire ⚪;Configuration plutôt que code : aucune règle susceptible d'évoluer n'est codée en dur.;RF
+DEC-OUT-01;non développée;Signaler : outil manquant, inutile, inadapté, instruction ambiguë, information manquante.;RF
+DEC-OUT-02;non développée;Remarques conservées et visibles du chef de secteur.;RF
+DEC-OUT-03;non développée;La liste d'outillage n'est jamais modifiée automatiquement.;RF
+DEC-OUT-04;non développée;Le chef décide de modifier ou non la fiche de référence.;RF
+DEC-OUT-05;non développée;Procédures techniques et de sécurité : validations applicables conservées.;RF
+DEC-PER-01;partielle;Les tâches périodiques sont générées à partir des fiches de maintenance et des matériels concernés.;RF
+DEC-PER-02;non développée;Périodicités : hebdomadaire, mensuelle, trimestrielle, annuelle, biennale, quinquennale.;RF
+DEC-PER-03;non développée;Prochaine échéance calculée depuis la réalisation effective, sauf calendrier fixe réglementaire ou technique.;RF
+DEC-PER-04;réalisée;Les historiques sont conservés, retards compris.;RF
+DEC-PRE-01;à instruire ⚪;Le module d'absences est limité aux corrections nécessaires (un système extérieur gère les absences).;RF
+DEC-PRE-02;réalisée;"Pas de module autonome de passation ; préserver les fonctions existantes utiles.";RF
+DEC-PRE-03;réalisée;Conserver les exports PDF, Excel et CSV de pilotage, puis en améliorer la qualité.;RF
+DEC-PRE-04;réalisée;QR et inspections mobiles non prioritaires : reportés, sans suppression précipitée de l'existant.;DT
+DEC-PRE-06;partielle (1 lot(s) livré(s) sur 2);Architecture de déploiement, PKI, sauvegarde et sécurité des SI : à soumettre aux experts compétents.;RF
+DEC-QUA-01;non développée;"Les formations et habilitations enregistrées ne bloquent pas automatiquement l'attribution ni l'exécution des tâches ordinaires ; le responsable humain choisit.";RF
+DEC-QUA-02;non développée;Les qualifications connues peuvent être affichées à titre informatif.;RF
+DEC-QUA-03;non développée;Une information manquante ou périmée ne bloque pas l'attribution.;RF
+DEC-QUA-04;non développée;"Distinguer deux situations : (1) tâches ordinaires, jamais bloquées par les qualifications enregistrées ; (2) visas techniques, fonctions de service et signatures officielles, dont les exigences réglementaires applicables doivent être respectées.";RF
+DEC-RTX-01;écart (A15);Circuit RETEX : auteur → chef de section si présent → chef de secteur → chef de service.;RF
+DEC-RTX-02;non développée;Une demande de correction doit être motivée.;RF
+DEC-RTX-03;non développée;La correction entraîne une nouvelle version et les validations nécessaires.;RF
+DEC-RTX-04;non développée;Traçabilité de qui a proposé, modifié, validé ou rejeté.;RF
+DEC-SUP-01;non développée;La suppléance est explicite, temporaire, limitée à une fonction et un périmètre, activée par une autorité compétente, traçable.;DT, RF
+DEC-SUP-02;non développée;Une seule personne exerce la responsabilité active d'un même périmètre à un instant donné.;RF
+DEC-SUP-03;non développée;Le retour anticipé ou la fin de suppléance suit les règles de validation retenues.;RF
+DEC-SUP-04;non développée;Les actes du suppléant restent attribués à leur auteur.;RF
+DEC-SUP-05;non développée;Le titulaire retrouve un récapitulatif des actions réalisées pendant son absence.;RF
+DEC-SUP-06;non développée;Les qualifications réglementaires nécessaires à certains visas restent obligatoires pour le suppléant (voir DEC-QUA-04).;RF
+DEC-SUP-07;non développée;La note Notion « pas de nouveau système de délégation en V1 » est une question de périmètre et de calendrier de développement, non une annulation de la décision fonctionnelle de suppléance.;RF
+DEC-TAC-01;à instruire ⚪;Le chef de section attribue les tâches de sa section.;RF
+DEC-TAC-02;à instruire ⚪;Le chef de secteur supervise, attribue directement et réaffecte.;RF
+DEC-TAC-03;à instruire ⚪;Le chef de service dispose de la supervision correspondant à sa fonction.;RF
+DEC-TAC-04;écart (A13);Trois priorités : normale, haute, urgente.;RF
+DEC-TAC-05;écart (A13);Une priorité imposée par le chef de secteur ne peut pas être abaissée par le chef de section.;RF
+DEC-TAC-06;non développée;Les changements d'attribution et de priorité sont tracés et notifiés aux personnes concernées.;RF
+DEC-UX-01;partielle;À l'ouverture : tâches du jour, tours de service, actions en attente, urgences, informations utiles.;RF
+DEC-UX-02;non développée;"Éviter grands espaces vides et défilement inutile ; réduire les textes explicatifs permanents ; cartes cliquables.";RF
+DEC-UX-03;non développée;Recherche globale centrée et utile.;RF
+DEC-UX-04;non développée;Permettre d'épingler des entrées du menu.;RF
+DEC-UX-05;non développée;Afficher clairement les tours de service à venir, à valider et effectués.;RF
+DEC-UX-06;non développée;Notifications lues conservées dans le centre mais retirées de la liste principale.;RF
+DEC-UX-07;non développée;Corriger les boutons inactifs et les parcours de navigation défaillants.;RF
+DEC-UX-08;écart (A11);Terminologie « Mes tours de services ».;RF
+DEC-UX-09;non développée;Recherche de personnes : informations professionnelles pertinentes, sous réserve des droits.;RF
+DEC-UX-10;non développée;"Interface adaptée aux utilisateurs expérimentés, sans aides envahissantes ; aide progressive réactivable.";RF
+DEC-UX-11;non développée;Le calendrier reste un élément central.;RF

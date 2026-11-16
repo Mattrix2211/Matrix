@@ -1,0 +1,24 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# G7 — Dépendances entre paquets (inventaire du code de l'état B)
+Paquet;Dépend de;Nombre de liaisons
+absences;accounts (3), notifications (1);4
+accounts;org (4), quarts (1), training (2);7
+annonces;accounts (1), notifications (4), org (3), taches (1);9
+assets;accounts (17), logistics (6), maintenance (7), notifications (2), org (11), reports (2), threads (3), training (2);50
+calendar_app;absences (3), accounts (1), logistics (4), maintenance (5), programme (3), quarts (5), taches (7), threads (1), training (6);35
+dashboard;accounts (4), annonces (4), assets (10), demandes (4), logistics (13), maintenance (12), notifications (5), org (5), quarts (5), reports (1), taches (4), threads (1), training (8);76
+demandes;accounts (1), notifications (5), org (1), taches (3), threads (3);13
+documentation;accounts (1), annonces (2), demandes (1), notifications (3), org (1);8
+logistics;accounts (5), assets (3), notifications (3), org (5), threads (4);20
+maintenance;accounts (6), assets (21), logistics (4), notifications (3), threads (4);38
+notifications;absences (1), accounts (1), annonces (1), assets (10), calendar_app (1), dashboard (1), demandes (1), documentation (1), logistics (4), maintenance (3), programme (1), quarts (3), retex (2), taches (2), training (3);35
+org;accounts (4), assets (1);5
+postes;accounts (1), annonces (2), org (1), training (3);7
+programme;accounts (1), annonces (2), notifications (2), org (1), taches (3);9
+quarts;absences (1), accounts (14), notifications (9), org (10), training (2);36
+reports;assets (1), logistics (2), maintenance (1), org (1), training (1);6
+retex;accounts (1), annonces (2), demandes (2), documentation (1), notifications (4), org (1), taches (2);13
+rondes;accounts (1), assets (1), logistics (1), org (1);4
+taches;absences (2), accounts (1), annonces (2), demandes (1), notifications (3), threads (3);12
+threads;accounts (1), logistics (2), maintenance (2), notifications (3);8
+training;accounts (1), notifications (3), org (5), threads (1);10

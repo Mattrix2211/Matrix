@@ -1,0 +1,23 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# E1 — Tâches planifiées (Celery beat) (inventaire du code de l'état B)
+Nom;Tâche;Planification (secondes)
+purger_sessions_daily;matrix.core.tasks.purger_sessions;86400
+appliquer_releves_echues_minute;matrix.core.tasks.appliquer_releves_echues;60
+signaler_divergences_feuilles_15min;quarts.tasks.signaler_divergences_feuilles;900
+traiter_echeances_activation_minute;quarts.tasks.traiter_echeances_activation;60
+purger_brouillons_daily;matrix.core.tasks.purger_brouillons;86400
+generate_occurrences_daily;maintenance.tasks.generate_occurrences;86400
+compute_overdue_hourly;maintenance.tasks.compute_overdue;3600
+notify_expiring_training_daily;notifications.tasks.notify_expiring_training;86400
+notify_overdue_occurrences_hourly;notifications.tasks.notify_overdue_occurrences;3600
+notify_maintenance_echeance_proche_daily;notifications.tasks.notify_maintenance_echeance_proche;86400
+notify_low_stock_daily;notifications.tasks.notify_low_stock;86400
+generate_installation_occurrences_daily;maintenance.tasks.generate_installation_occurrences;86400
+generate_installation_notifications_daily;notifications.tasks.generate_installation_notifications;<crontab: * * * * * (m/h/dM/MY/d)>
+generate_installation_maintenance_notifications_daily;notifications.tasks.generate_installation_maintenance_notifications;<crontab: * * * * * (m/h/dM/MY/d)>
+detect_installation_drift_daily;notifications.tasks.detect_installation_drift;<crontab: 30 8 * * * (m/h/dM/MY/d)>
+diffuser_annonces_hourly;annonces.tasks.diffuser_annonces;3600
+rappeler_accuses_annonces_daily;annonces.tasks.rappeler_accuses_annonces;<crontab: 15 7 * * * (m/h/dM/MY/d)>
+notify_taches_en_retard_daily;notifications.tasks.notify_taches_en_retard;<crontab: 0 7 * * * (m/h/dM/MY/d)>
+notify_ma_journee_minute;notifications.tasks.notify_ma_journee;<crontab: * * * * * (m/h/dM/MY/d)>
+notify_ma_journee_demain_minute;notifications.tasks.notify_ma_journee_demain;<crontab: * * * * * (m/h/dM/MY/d)>

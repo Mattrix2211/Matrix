@@ -1,0 +1,23 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# G3 — Tâches planifiées (annexe G de l'édition initiale, relue (numéros de chapitre de l'édition initiale : voir MAPPING_ANCIEN_NOUVEAU.csv))
+Tâche;Nom;Citée dans un chapitre rédigé
+matrix.core.tasks.purger_sessions;purger_sessions_daily;domaine seulement (ch. 18), détail ch. 21
+matrix.core.tasks.appliquer_releves_echues;appliquer_releves_echues_minute;oui
+quarts.tasks.signaler_divergences_feuilles;signaler_divergences_feuilles_15min;oui
+quarts.tasks.traiter_echeances_activation;traiter_echeances_activation_minute;oui
+matrix.core.tasks.purger_brouillons;purger_brouillons_daily;oui
+maintenance.tasks.generate_occurrences;generate_occurrences_daily;oui
+maintenance.tasks.compute_overdue;compute_overdue_hourly;oui
+notifications.tasks.notify_expiring_training;notify_expiring_training_daily;oui
+notifications.tasks.notify_overdue_occurrences;notify_overdue_occurrences_hourly;oui
+notifications.tasks.notify_maintenance_echeance_proche;notify_maintenance_echeance_proche_daily;oui
+notifications.tasks.notify_low_stock;notify_low_stock_daily;oui
+maintenance.tasks.generate_installation_occurrences;generate_installation_occurrences_daily;oui
+notifications.tasks.generate_installation_notifications;generate_installation_notifications_daily;oui
+notifications.tasks.generate_installation_maintenance_notifications;generate_installation_maintenance_notifications_daily;oui
+notifications.tasks.detect_installation_drift;detect_installation_drift_daily;oui
+annonces.tasks.diffuser_annonces;diffuser_annonces_hourly;oui
+annonces.tasks.rappeler_accuses_annonces;rappeler_accuses_annonces_daily;oui
+notifications.tasks.notify_taches_en_retard;notify_taches_en_retard_daily;oui
+notifications.tasks.notify_ma_journee;notify_ma_journee_minute;oui
+notifications.tasks.notify_ma_journee_demain;notify_ma_journee_demain_minute;oui

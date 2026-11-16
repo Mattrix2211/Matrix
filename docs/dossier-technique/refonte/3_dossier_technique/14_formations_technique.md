@@ -1,0 +1,38 @@
+<!-- couvre: restreint/14_formations_technique.md | Chapitre 14 (technique) — Formations : mécanismes -->
+<!-- couvre: restreint/14_formations_technique.md | Tests -->
+<!-- couvre: restreint/14_formations_technique.md | Limites -->
+<!-- partie: Modules -->
+# Formations : mécanismes
+
+<div class="ligne-public"><b>Public :</b> développeurs, administrateurs · <b>Ce que vous y trouverez :</b> les références de code, les droits et les points non vérifiés du chapitre</div>
+
+| Objet | Référence |
+|---|---|
+| Formation (fiche unique, circuit C) | `training/models.py` `TrainingCourse` (:19) ; `statut_validation` (:78) |
+| Référent d'une formation / du navire | `training/models.py` `ReferentFormation` (:100), `ReferentFormationNavire` (:124) |
+| Exigence | `training/models.py` `TrainingRequirement` (:335) |
+| Session, liste d'attente | `training/models.py` `TrainingSession` (:353), `TrainingWaitlistEntry` (:416) |
+| Circuit A | `training/models.py` `DemandePlace` (:556), `PlaceAffectee` (:611) ; attribution `training/web_views.py` `_attribuer_places` (:1311) |
+| Circuit B | `training/models.py` `PersonnelBRH` (:631), `CandidatureFormation` (:654) |
+| Validation (qualification) | `training/models.py` `TrainingRecord` (:719) |
+| Droit de valider | `training/models.py` `peut_valider_formation` (:210) |
+| Seuil demande de places | `training/web_views.py` `_peut_demander_places` (:136) |
+| Validation hiérarchie candidature | `training/web_views.py` `_peut_valider_candidature_hierarchie` (:158) ; BRH `_peut_valider_candidature_brh` (:169) |
+| Validation formation « bord » | `training/web_views.py` `peut_valider_proposition_bord` (:212) |
+| Carte de compétences | `training/services.py` `calculer_carte_competences` (:50) |
+| Alertes d'expiration | `notifications/tasks.py` `notify_expiring_training` (:26) |
+
+Schéma : S28. Décisions : `DEC-QUA-01`, `DEC-QUA-02`, `DEC-QUA-03`, `DEC-QUA-04`, `DEC-ORG-04`, `DEC-ORG-05`.
+
+Points à confirmer : organisme réel hors Matrix (sans unité École ou Centre de formation) ; transition automatique session → qualification absente ; tests de l'unité de formation : `matrix/tests/test_organisme_formation.py`.
+
+## Tests
+
+🟢 training/tests/ (310 fonctions).
+
+## Limites
+
+- ⚪ Un organisme de formation est une unité de type École ou Centre de formation (`org/models.py` `Ship.type_unite`) ; pas de dossier vivant ni de transmission formalisée (A19).
+- ⚪ Pas de transition automatique session → qualification.
+
+**Sources (état B).** Références en ligne ; `restreint/ECARTS_DECISIONS_CODE.md` (A19).

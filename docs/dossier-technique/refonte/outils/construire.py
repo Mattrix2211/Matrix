@@ -35,7 +35,29 @@ CORRESPONDANCE_TECHNIQUE = ("EB-2026-11-11 = état applicatif `6d6d0be` (branche
                             "Cette correspondance n'existe que dans les documents techniques à accès restreint.")
 
 
+_NUM = {}
+
+
+def numero_section(doc, stem):
+    """Numéro de la section de niveau 1 ouverte par le fichier `stem` dans le document `doc` (ordre d'impression)."""
+    if doc not in _NUM:
+        n, num = 0, {}
+        for f in sorted((RACINE / docs[doc]["dossier"]).glob("[0-9][0-9]_*.md")):
+            premier = None
+            for l in f.read_text(encoding="utf-8").split("\n"):
+                if re.match(r"^# \S", l):
+                    n += 1
+                    premier = premier or n
+            if premier:
+                num[f.stem] = premier
+        _NUM[doc] = num
+    if stem not in _NUM[doc]:
+        sys.exit(f"renvoi vers un fichier inconnu : [[{doc}:{stem}]]")
+    return _NUM[doc][stem]
+
+
 def substituer(texte, code):
+    texte = re.sub(r"\[\[(GU|RF|DT|RE):([0-9a-z_]+)\]\]", lambda m: f"[[{m.group(1)} {numero_section(m.group(1), m.group(2))}]]", texte)
     def fait(m):
         nom = m.group(1)
         if nom not in faits:
@@ -121,11 +143,16 @@ def capture_html(args, code, captures_dir, manifeste):
     d = dict(a.split("=", 1) for a in shlex.split(args))
     vignettes = []
     for k in sorted(x for x in d if re.fullmatch(r"c\d+", x)):
-        ident_, rect, *leg = d[k].split("|")
+        ident_, *reste = d[k].split("|")
+        rect = (reste[0] if reste else "") or "utile"
+        leg = reste[1:]
         m = manifeste.get(ident_)
         if m is None:
             sys.exit(f"capture inconnue du manifeste : {ident_}")
+        rect = {"utile": "239,58,1366,768", "plein": "0,0,1366,768"}.get(rect, rect)        # « utile » : sans menu latéral ni barre du haut
         x0, y0, x1, y1 = [float(v) for v in rect.split(",")]
+        if m.get("mobile"):
+            x0, y0, x1, y1 = 0.0, 0.0, 390.0, 844.0
         vignettes.append((m, x0, y0, x1, y1, leg[0] if leg else ""))
     if not vignettes:
         sys.exit("@capture sans vignette c1=…")
@@ -146,7 +173,7 @@ def capture_html(args, code, captures_dir, manifeste):
                     reperes += f'<div class="rep" style="left:{rx / cw * 100:.2f}%;top:{ry / ch * 100:.2f}%">{r["n"]}</div>'
         fichier = (captures_dir / m["fichier"]).resolve()
         echelle = W / cw
-        img = (f'<img src="{fichier.as_uri()}" style="position:absolute;width:{1366 * echelle:.2f}mm;left:{-x0 * echelle:.2f}mm;top:{-y0 * echelle:.2f}mm;max-width:none">')
+        img = (f'<img src="{fichier.as_uri()}" style="position:absolute;width:{(390 if m.get('mobile') else 1366) * echelle:.2f}mm;left:{-x0 * echelle:.2f}mm;top:{-y0 * echelle:.2f}mm;max-width:none">')
         blocs.append(f'<div class="cap-cadre" style="width:{W:.1f}mm;height:{h:.1f}mm;overflow:hidden">{img}{reperes}</div>'
                      + (f'<div class="cap-vignette">{html.escape(leg)}</div>' if leg else ""))
     legende_rep = ""
@@ -241,7 +268,7 @@ def resoudre_renvois(corps, code, ancres_globales, refs):
 
 def construire_html(code, fichiers, pilote, pages=None):
     cfg = docs[code]
-    ctx = {"couvre": [], "retire": [], "captures_dir": DT / "guide-visuel/captures", "manifeste": {}}
+    ctx = {"couvre": [], "retire": [], "captures_dir": RACINE / "captures", "manifeste": {}}
     mf = ctx["captures_dir"] / "manifeste.json"
     if mf.is_file():
         ctx["manifeste"] = {m["id"]: m for m in json.loads(mf.read_text(encoding="utf-8"))}

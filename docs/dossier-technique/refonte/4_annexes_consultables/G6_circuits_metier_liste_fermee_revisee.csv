@@ -1,0 +1,53 @@
+﻿# DOCUMENT PROVISOIRE — DIFFUSION RESTREINTE. Précaution documentaire : cette mention n'est pas une classification officielle. La classification et les destinataires restent à valider par l'autorité compétente. Ne pas diffuser.
+# G6 — Circuits métier (liste fermée, révisée) (annexe G de l'édition initiale, relue (numéros de chapitre de l'édition initiale : voir MAPPING_ANCIEN_NOUVEAU.csv))
+Circuit;Chapitre;Ensemble;Statut
+Relève d'équipage;4;E1;rédigé
+Archivage d'une unité;4;E1;rédigé
+Suppression d'une unité;4;E1;rédigé
+Création d'un compte;5;E1;rédigé
+Réinitialisation de mot de passe;5;E1;rédigé
+Suppression d'un compte (réel) et désactivation (cible L04);5;E1;rédigé
+Proposer → valider → publier (transversal);22;E1;rédigé
+Confirmation explicite des validations critiques;22;E1;rédigé
+Verrou des commandes de démonstration;22;E1;rédigé
+Échange de service : fonctionnement actuel;8;E2;rédigé
+Échange de service : fonctionnement cible (DEC-FDS-07/13);8;E2;rédigé
+Activation d'une liste de services à quai;8;E2;rédigé
+Notifications et Web Push;9;E2;rédigé
+Difficulté signalée (demande);10;E2;rédigé
+Programme du bâtiment;10;E2;rédigé
+Passation de relève;6;E2;rédigé
+Bilan et exports;6;E2;rédigé
+Recherche globale;9;E2;rédigé
+Absences;8;E2;rédigé
+Publication d'une liste de quarts ou de gardes;8;E2;rédigé
+Feuille de service, visas et rectificatif;8;E2;rédigé
+Annonce et accusé de lecture;9;E2;rédigé
+Tâche : attribution, blocage, clôture;10;E2;rédigé
+Ticket correctif et anomalie;12;E3;rédigé
+Maintenance : exécution et clôture critique;12;E3;rédigé
+Demande de pièces et mouvements de stock;13;E3;rédigé
+Fiche de maintenance : circuits de validation (bord et flotte);11;E3;rédigé
+Équiper le bord depuis le catalogue (proposition d'article);11;E3;rédigé
+Formation : demande de places, candidature, formation du bord;14;E3;rédigé
+Validation de formation par un référent;14;E3;rédigé
+Documentation : versions et validation;15;E3;rédigé
+RETEX : fonctionnement actuel;15;E3;rédigé
+RETEX : fonctionnement cible (DEC-RTX-01);15;E3;rédigé
+Préparation à l'appareillage : fonctionnement actuel;16;E3;rédigé
+Préparation à l'appareillage : fonctionnement cible (DEC-APP-14);16;E3;rédigé
+Navigation par rôle et modules activés;17;E4;rédigé
+Paramètres : seuils, modules, équipage;17;E4;rédigé
+Aide progressive et préférences par compte;17;E4;rédigé
+Brouillons et confirmations d'actes critiques;17;E4;rédigé
+Déconnexion automatique et poste partagé;17;E4;rédigé
+API : authentification et contrôle d'accès;20;E4;rédigé
+Exports CSV, Excel, PDF, iCal;20;E4;rédigé
+Signaux et enchaînements entre modules;21;E4;rédigé
+Tâches planifiées et alertes;21;E4;rédigé
+Mise en production : garde-fous et checklist;23;E4;rédigé
+Instance de démonstration isolée;23;E4;rédigé
+Sauvegarde et restauration (non fournies);23;E4;rédigé
+Chaîne PO, Développeur, Relecteur;24;E4;rédigé
+Feuille de route et lots;25;E4;rédigé
+Historique des versions et des lots;26;E4;rédigé
